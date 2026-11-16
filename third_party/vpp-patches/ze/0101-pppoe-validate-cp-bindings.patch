@@ -1,0 +1,76 @@
+From: Ze contributors
+Subject: [PATCH] pppoe: validate control binding indices and exact deletion
+
+Repair the adopted control binding producer after the lab regression observed
+an absent binding deletion return success. Both callers supply software
+interface indices: validate them before lookup and resolve the data interface's
+hardware through its software interface. Refuse absent and mismatched deletion
+before either reciprocal mapping changes. Keep the lab regression unchanged.
+
+Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6
+Adopted producer: vyos/vyos-vpp-patches 0013, followed by 0025.
+
+diff --git a/src/plugins/pppoe/pppoe_cp.c b/src/plugins/pppoe/pppoe_cp.c
+--- a/src/plugins/pppoe/pppoe_cp.c
++++ b/src/plugins/pppoe/pppoe_cp.c
+@@ -24,9 +24,10 @@ pppoe_add_del_cp (u32 cp_if_index, u32 dp_if_index, u8 is_add)
+   vnet_main_t *vnm = vnet_get_main ();
+   vnet_hw_interface_t *dp_hw = NULL;
+ 
+-  if (cp_if_index == ~0 || dp_if_index == ~0)
++  if (!vnet_sw_interface_is_api_valid (vnm, cp_if_index) ||
++      !vnet_sw_interface_is_api_valid (vnm, dp_if_index))
+     {
+-      return VNET_API_ERROR_INVALID_ARGUMENT;
++      return VNET_API_ERROR_INVALID_SW_IF_INDEX;
+     }
+ 
+   if (cp_if_index == dp_if_index)
+@@ -34,9 +35,9 @@ pppoe_add_del_cp (u32 cp_if_index, u32 dp_if_index, u8 is_add)
+       return VNET_API_ERROR_INVALID_ARGUMENT;
+     }
+ 
+-  if (!vnet_sw_interface_is_sub (vnm, dp_if_index))
++  if (is_add && !vnet_sw_interface_is_sub (vnm, dp_if_index))
+     {
+-      dp_hw = vnet_get_hw_interface (vnm, dp_if_index);
++      dp_hw = vnet_get_sup_hw_interface (vnm, dp_if_index);
+ 
+       if (dp_hw->hw_class_index != ethernet_hw_interface_class.index)
+ 	{
+@@ -68,6 +69,14 @@ pppoe_add_del_cp (u32 cp_if_index, u32 dp_if_index, u8 is_add)
+     }
+   else
+     {
++      if (dp_if_index >= vec_len (pem->cp_if_index_by_sw_if_index) ||
++          cp_if_index >= vec_len (pem->dp_if_index_by_sw_if_index) ||
++          pem->cp_if_index_by_sw_if_index[dp_if_index] != cp_if_index ||
++          pem->dp_if_index_by_sw_if_index[cp_if_index] != dp_if_index)
++        {
++          return VNET_API_ERROR_NO_SUCH_ENTRY;
++        }
++
+       pem->cp_if_index_by_sw_if_index[dp_if_index] = ~0;
+       pem->dp_if_index_by_sw_if_index[cp_if_index] = ~0;
+     }
+@@ -128,6 +137,20 @@ pppoe_add_del_cp_command_fn (vlib_main_t * vm,
+       error = clib_error_return (0, "invalid argument");
+       goto done;
+     }
++  else if (rv == VNET_API_ERROR_INVALID_SW_IF_INDEX)
++    {
++      error = clib_error_return (
++        0, "PPPoE map has an invalid CP or DP interface; no binding changed."
++           "\nChoose interfaces listed by:\nshow interface");
++      goto done;
++    }
++  else if (rv == VNET_API_ERROR_NO_SUCH_ENTRY)
++    {
++      error = clib_error_return (
++        0, "PPPoE map does not contain this CP and DP pair; no binding changed."
++           "\nChoose a pair listed by:\nshow pppoe control-plane binding");
++      goto done;
++    }
+   else if (rv == VNET_API_ERROR_NON_ETHERNET)
+     {
+       error = clib_error_return (0, "non-ethernet DP interface");

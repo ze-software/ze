@@ -1,0 +1,147 @@
+From: Ze contributors
+Subject: [PATCH] vppinfra: provide scalar CRC32C helpers without a CRC ISA
+
+The connectionless session worker hash calls scalar CRC32C helpers even when
+native compilation selects the software CRC path. Complete that path with
+seeded scalar helpers, preserving instruction byte order without enabling an
+unsupported ISA. Leave the intrinsic-availability marker unchanged.
+
+Add a standalone C regression with literal raw-state vectors and standard
+CRC32C chaining checks. Assertion failures return nonzero; the lab recipe also
+requires its exact success output. The executable is not installed.
+
+diff --git a/src/vppinfra/CMakeLists.txt b/src/vppinfra/CMakeLists.txt
+--- a/src/vppinfra/CMakeLists.txt
++++ b/src/vppinfra/CMakeLists.txt
+@@ -328,6 +328,12 @@
+   test/toeplitz.c
+ )
+ 
++add_vpp_executable(test_crc32c_scalar
++  SOURCES test_crc32c_scalar.c
++  LINK_LIBRARIES vppinfra
++  NO_INSTALL
++)
++
+ add_vpp_executable(test_infra
+   SOURCES
+   test/test.c
+diff --git a/src/vppinfra/crc32.h b/src/vppinfra/crc32.h
+--- a/src/vppinfra/crc32.h
++++ b/src/vppinfra/crc32.h
+@@ -164,6 +164,34 @@
+   return crc;
+ }
+ 
++/* Match the scalar instructions: consume the least significant byte first. */
++static_always_inline u32
++clib_crc32c_u8 (u32 last, u8 data)
++{
++  return _clib_crc32c (last, &data, sizeof (data));
++}
++
++static_always_inline u32
++clib_crc32c_u16 (u32 last, u16 data)
++{
++  last = clib_crc32c_u8 (last, (u8) data);
++  return clib_crc32c_u8 (last, (u8) (data >> 8));
++}
++
++static_always_inline u32
++clib_crc32c_u32 (u32 last, u32 data)
++{
++  last = clib_crc32c_u16 (last, (u16) data);
++  return clib_crc32c_u16 (last, (u16) (data >> 16));
++}
++
++static_always_inline u32
++clib_crc32c_u64 (u32 last, u64 data)
++{
++  last = clib_crc32c_u32 (last, (u32) data);
++  return clib_crc32c_u32 (last, (u32) (data >> 32));
++}
++
+ static_always_inline u32
+ clib_crc32c (const u8 *p, uword len)
+ {
+diff --git a/src/vppinfra/test_crc32c_scalar.c b/src/vppinfra/test_crc32c_scalar.c
+new file mode 100644
+--- /dev/null
++++ b/src/vppinfra/test_crc32c_scalar.c
+@@ -0,0 +1,76 @@
++/* Standalone scalar CRC32C regression for Ze's retained VPP patch.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <stdio.h>
++#include <vppinfra/crc32.h>
++
++static int
++check_crc (const char *name, unsigned int case_index, u32 expected, u32 actual)
++{
++  if (actual == expected)
++    return 0;
++  fprintf (stderr, "CRC32C %s case %u: got %08x, expected %08x\n", name,
++           case_index, (unsigned int) actual, (unsigned int) expected);
++  return 1;
++}
++
++int
++main (void)
++{
++  /* Literal raw-state vectors for reflected Castagnoli polynomial 0x82f63b78.
++   * Words consume their least significant byte first; no final XOR is applied.
++   */
++  static const u32 seeds[] = { 0, 0xffffffff, 0x12345678 };
++  static const u16 words16[] = { 0, 0x1234, 0x89ab };
++  static const u32 words32[] = { 0, 0x12345678, 0x89abcdef };
++  static const u64 words64[] = { 0, 0x0123456789abcdefULL,
++                                0xfedcba9876543210ULL };
++  static const u32 expected16[3][3] = {
++    { 0x00000000, 0xffa1c4c7, 0xd7ff926e },
++    { 0x0e9e882d, 0xf13f4cea, 0xd9611a43 },
++    { 0x55c93830, 0xaa68fcf7, 0x8236aa5e },
++  };
++  static const u32 expected32[3][3] = {
++    { 0x00000000, 0xfa745634, 0x5914342a },
++    { 0xb798b438, 0x4dece20c, 0xee8c8012 },
++    { 0xfa745634, 0x00000000, 0xa360621e },
++  };
++  static const u32 expected64[3][3] = {
++    { 0x00000000, 0xe9986aa9, 0x2dd793e4 },
++    { 0x73d74d75, 0x9a4f27dc, 0x5e00de91 },
++    { 0x4a4a6d17, 0xa3d207be, 0x679dfef3 },
++  };
++  static const u8 standard[] = "123456789";
++  unsigned int cases = 0;
++  u32 crc;
++
++  for (unsigned int s = 0; s < ARRAY_LEN (seeds); s++)
++    for (unsigned int w = 0; w < ARRAY_LEN (words16); w++)
++      {
++        if (check_crc ("u16", ++cases, expected16[s][w],
++                       clib_crc32c_u16 (seeds[s], words16[w])))
++          return 1;
++        if (check_crc ("u32", ++cases, expected32[s][w],
++                       clib_crc32c_u32 (seeds[s], words32[w])))
++          return 1;
++        if (check_crc ("u64", ++cases, expected64[s][w],
++                       clib_crc32c_u64 (seeds[s], words64[w])))
++          return 1;
++      }
++
++  /* Standard finalized CRC32C, first as bytes, then as mixed-width words. */
++  crc = 0xffffffff;
++  for (unsigned int i = 0; i < sizeof (standard) - 1; i++)
++    crc = clib_crc32c_u8 (crc, standard[i]);
++  if (check_crc ("byte chain", ++cases, 0xe3069283, crc ^ 0xffffffff))
++    return 1;
++
++  crc = clib_crc32c_u32 (0xffffffff, 0x34333231);
++  crc = clib_crc32c_u32 (crc, 0x38373635);
++  crc = clib_crc32c_u8 (crc, 0x39);
++  if (check_crc ("mixed chain", ++cases, 0xe3069283, crc ^ 0xffffffff))
++    return 1;
++
++  printf ("VPP CRC32C scalar helpers: %u cases passed\n", cases);
++  return 0;
++}

@@ -1,0 +1,2995 @@
+From: Ze contributors
+Subject: [PATCH] pppoe: expose nonce-fenced resource ownership and reconciliation
+
+Keep every adopted message layout and CRC unchanged. Add Ze-only APIs whose
+process nonce and caller owner token distinguish a retry from a foreign
+replacement after a lost receipt. Native session tokens clear on allocation
+and original reconfiguration. Reciprocal CP map tokens use a fixed 4096-slot
+table and clear on original writes or interface removal/reuse.
+
+Read exact named policer indices and allocated directional slots without
+inferring an index from dump order. Cold policer receipts carry independent
+session and object lifetime tokens; legacy add, update and delete invalidate
+them without enlarging the 64-byte packet-path policer structure. Guard slot
+writes by the actual session
+owner, expected binding and derived owned name; repeated enables do not stack
+features and removal requires the corresponding arcs to be fenced first.
+Initialize untouched policer slots to ~0 because pool index zero is valid.
+
+Guard route, protocol/policer feature, MTU, admin and family-table mutations
+inside their serialized native handlers. Guard policer create/update/delete
+by native receipt metadata, exact index and all directional slots. Repeated
+updates retain buckets/counters; an unbound orphan can be deleted without
+touching the old interface. A removed CP interface can confirm map absence
+only when both cells and its ownership record are absent. Bounded native
+route receipts remove exact IPv4/IPv6 paths before session/interface release.
+Session retirement fences receive/policer arcs and unlinks native slots before
+a hidden software index can be reused, retaining policer object receipts.
+
+Delete a manual session from its exact native record even after its learned
+link disappears. A refused duplicate add no longer moves its hash entry.
+An unowned original session never lends its undecidable FIB family to the
+IPv4 ownership reply. The existing lab option adds a 55-case native regression
+of these producers, including a foreign IPv6 FIB without an IPv4 counterpart.
+Intrinsic creation suppresses the stock implicit peer route; owned shared-prefix
+paths coexist and exact withdrawal preserves other owners and sources.
+
+Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6
+Applies after the unchanged five VyOS diffs and Ze patches 0098 through 0102.
+
+diff --git a/src/plugins/pppoe/CMakeLists.txt b/src/plugins/pppoe/CMakeLists.txt
+--- a/src/plugins/pppoe/CMakeLists.txt
++++ b/src/plugins/pppoe/CMakeLists.txt
+@@ -14,6 +14,7 @@
+ add_vpp_plugin(pppoe
+   SOURCES
+   pppoe_api.c
++  pppoe_ze.c
+   pppoe.c
+   pppoe_cp.c
+   pppoe_cp_node.c
+@@ -35,5 +36,6 @@
+   target_sources(pppoe_plugin PRIVATE pppoe_frame_test.c)
+   target_sources(pppoe_plugin PRIVATE pppoe_cp_binding_test.c)
+   target_sources(pppoe_plugin PRIVATE pppoe_receive_test.c)
++  target_sources(pppoe_plugin PRIVATE pppoe_ze_test.c)
+ endif()
+ 
+diff --git a/src/vnet/policer/policer.c b/src/vnet/policer/policer.c
+--- a/src/vnet/policer/policer.c
++++ b/src/vnet/policer/policer.c
+@@ -82,6 +82,8 @@
+ 
+   policer->name = format (0, "%s%c", name, 0);
+   pi = policer - pm->policers;
++  vec_validate (pm->owners, pi);
++  clib_memset (&pm->owners[pi], 0, sizeof (pm->owners[pi]));
+ 
+   hash_set_mem (pm->policer_config_by_name, policer->name, cp - pm->configs);
+   hash_set_mem (pm->policer_index_by_name, policer->name, pi);
+@@ -121,6 +123,9 @@
+   /* free policer */
+   hash_unset_mem (pm->policer_index_by_name, policer->name);
+   vec_free (policer->name);
++  if (policer_index < vec_len (pm->owners))
++    clib_memset (&pm->owners[policer_index], 0,
++                 sizeof (pm->owners[policer_index]));
+   pool_put_index (pm->policers, policer_index);
+ 
+   return 0;
+@@ -170,6 +175,9 @@
+ 
+   policer->name = name;
+   policer->thread_index = ~0;
++  if (policer_index < vec_len (pm->owners))
++    clib_memset (&pm->owners[policer_index], 0,
++                 sizeof (pm->owners[policer_index]));
+ 
+   for (i = 0; i < NUM_POLICE_RESULTS; i++)
+     vlib_zero_combined_counter (&policer_counters[i], policer_index);
+@@ -231,7 +239,8 @@
+ 
+   if (apply)
+     {
+-      vec_validate (pm->policer_index_by_sw_if_index[dir], sw_if_index);
++      vec_validate_init_empty (pm->policer_index_by_sw_if_index[dir],
++                               sw_if_index, ~0);
+       pm->policer_index_by_sw_if_index[dir][sw_if_index] = policer_index;
+     }
+   else
+diff --git a/src/vnet/policer/policer.h b/src/vnet/policer/policer.h
+--- a/src/vnet/policer/policer.h
++++ b/src/vnet/policer/policer.h
+@@ -23,10 +23,20 @@
+ #include <vnet/policer/xlate.h>
+ #include <vnet/policer/police.h>
+ 
++/* Cold control-plane receipts deliberately stay outside policer_t's fixed
++ * 64-byte packet-path cache line. Legacy mutations invalidate these tokens.
++ */
++typedef struct
++{
++  u8 session[16];
++  u8 object[16];
++} policer_owner_t;
++
+ typedef struct
+ {
+   /* policer pool, aligned */
+   policer_t *policers;
++  policer_owner_t *owners;
+ 
+   /* config + template h/w policer instance parallel pools */
+   qos_pol_cfg_params_st *configs;
+diff --git a/src/plugins/pppoe/pppoe.api b/src/plugins/pppoe/pppoe.api
+--- a/src/plugins/pppoe/pppoe.api
++++ b/src/plugins/pppoe/pppoe.api
+@@ -141,6 +141,210 @@
+ };
+ 
+ 
++/** Ze-only ownership operations. All-zero tokens are invalid. Every operation
++ * except the initial server query is fenced by the expected process nonce.
++ * Original PPPoE and policer messages retain their existing layouts and CRCs.
++ */
++define pppoe_ze_server
++{
++  u32 client_index;
++  u32 context;
++};
++define pppoe_ze_server_reply
++{
++  u32 context;
++  i32 retval;
++  u8 incarnation[16];
++};
++
++/* operation: 1=query, 2=add, 3=delete; zero and other values are refused. */
++define pppoe_ze_session
++{
++  u32 client_index;
++  u32 context;
++  u8 operation;
++  u8 incarnation[16];
++  u8 owner[16];
++  vl_api_mac_address_t client_mac;
++  u16 session_id;
++  vl_api_interface_index_t dp_sw_if_index;
++  u32 decap_vrf_id;
++};
++define pppoe_ze_session_reply
++{
++  u32 context;
++  i32 retval;
++  bool present;
++  u8 owner[16];
++  vl_api_interface_index_t sw_if_index;
++  vl_api_interface_index_t dp_sw_if_index;
++  u32 decap_vrf_id;
++};
++
++define pppoe_ze_cp
++{
++  u32 client_index;
++  u32 context;
++  u8 operation;
++  u8 incarnation[16];
++  u8 owner[16];
++  vl_api_interface_index_t cp_sw_if_index;
++  vl_api_interface_index_t dp_sw_if_index;
++};
++define pppoe_ze_cp_reply
++{
++  u32 context;
++  i32 retval;
++  bool present;
++  u8 owner[16];
++  vl_api_interface_index_t cp_sw_if_index;
++  vl_api_interface_index_t dp_sw_if_index;
++};
++
++/* direction: 1=RX/upload, 2=TX/download. An absent policer or binding is
++ * explicit; index zero remains a valid policer pool index.
++ */
++define pppoe_ze_policer
++{
++  u32 client_index;
++  u32 context;
++  u8 incarnation[16];
++  u8 owner[16];
++  u8 policer_owner[16];
++  vl_api_interface_index_t sw_if_index;
++  u8 direction;
++};
++define pppoe_ze_policer_reply
++{
++  u32 context;
++  i32 retval;
++  bool present;
++  bool owned;
++  u32 policer_index;
++  bool slot_allocated;
++  u8 feature_mask;
++  u32 bound_index;
++  u32 cir_kbps;
++  u64 cb_bytes;
++};
++
++/* Change only the observed expected slot. A repeated already-desired bind
++ * does not add another feature reference. ~0 desired_index means unbind.
++ */
++define pppoe_ze_policer_bind
++{
++  u32 client_index;
++  u32 context;
++  u8 incarnation[16];
++  u8 owner[16];
++  u8 policer_owner[16];
++  vl_api_interface_index_t sw_if_index;
++  u8 direction;
++  u32 expected_index;
++  u32 desired_index;
++};
++define pppoe_ze_policer_bind_reply
++{
++  u32 context;
++  i32 retval;
++};
++
++/* Session owner and independent policer-object owner are both required.
++ * operation: query=1, add=2, delete=3, update=4. An add names expected_index
++ * ~0. Update/delete require the exact observed index, including valid zero.
++ * The algorithm is explicit 1R2C, KBPS, round-down, transmit/drop/drop.
++ */
++define pppoe_ze_policer_mutate
++{
++  u32 client_index;
++  u32 context;
++  u8 operation;
++  u8 incarnation[16];
++  u8 owner[16];
++  u8 policer_owner[16];
++  vl_api_interface_index_t sw_if_index;
++  u8 direction;
++  u32 expected_index;
++  u32 cir_kbps;
++  u64 cb_bytes;
++};
++define pppoe_ze_policer_mutate_reply
++{
++  u32 context;
++  i32 retval;
++  bool present;
++  bool owned;
++  u32 policer_index;
++  u32 cir_kbps;
++  u64 cb_bytes;
++};
++
++/* operation: query=1, enable=2, disable=3. selector:
++ * 1..4 = IPv4 unicast/multicast, IPv6 unicast/multicast not-enabled gates;
++ * 5..9 = device-input and those four policer-input arcs;
++ * 10..11 = IPv4/IPv6 policer-output arcs. No arbitrary feature is accepted.
++ */
++define pppoe_ze_feature
++{
++  u32 client_index;
++  u32 context;
++  u8 operation;
++  u8 incarnation[16];
++  u8 owner[16];
++  u8 policer_owner[16];
++  vl_api_interface_index_t sw_if_index;
++  u8 selector;
++};
++define pppoe_ze_feature_reply
++{
++  u32 context;
++  i32 retval;
++  bool enabled;
++};
++
++/* One exact path on the native ze-pppoe source. Mutations are multipath and
++ * carry the live session token in the SAME request that changes the FIB.
++ */
++define pppoe_ze_route
++{
++  u32 client_index;
++  u32 context;
++  bool is_add;
++  u8 incarnation[16];
++  u8 owner[16];
++  vl_api_interface_index_t sw_if_index;
++  u32 table_id;
++  vl_api_prefix_t destination;
++  bool gateway_present;
++  vl_api_address_t gateway;
++  u8 preference;
++};
++define pppoe_ze_route_reply
++{
++  u32 context;
++  i32 retval;
++};
++
++/* kind: 1=L3MTU, 2=admin-up boolean, 3=IPv4tableID, 4=IPv6tableID.
++ * The owner token is checked in the SAME request that configures the index.
++ */
++define pppoe_ze_interface
++{
++  u32 client_index;
++  u32 context;
++  u8 incarnation[16];
++  u8 owner[16];
++  vl_api_interface_index_t sw_if_index;
++  u8 kind;
++  u32 value;
++};
++define pppoe_ze_interface_reply
++{
++  u32 context;
++  i32 retval;
++  u32 actual;
++};
++
+ /*
+  * Local Variables:
+  * eval: (c-set-style "gnu")
+diff --git a/src/plugins/pppoe/pppoe.c b/src/plugins/pppoe/pppoe.c
+--- a/src/plugins/pppoe/pppoe.c
++++ b/src/plugins/pppoe/pppoe.c
+@@ -30,6 +30,7 @@
+ #include <vpp/app/version.h>
+ #include <ppp/packet.h>
+ #include <pppoe/pppoe.h>
++#include <pppoe/pppoe_ze.h>
+ #include <vnet/adj/adj_midchain.h>
+ #include <vnet/adj/adj_mcast.h>
+ 
+@@ -297,7 +298,7 @@
+   u32 bucket;
+   pppoe_entry_key_t key;
+   pppoe_entry_result_t result;
+-  vnet_hw_interface_t *hi;
++  vnet_hw_interface_t *hi = 0;
+   vnet_sw_interface_t *si;
+   fib_prefix_t pfx;
+ 
+@@ -319,26 +320,25 @@
+       pfx.fp_proto = FIB_PROTOCOL_IP6;
+     }
+ 
+-  /* Get encap_if_index and local mac address from link_table */
+-  pppoe_lookup_1 (&pem->link_table, &cached_key, &cached_result,
+-		  a->client_mac, 0, &key, &bucket, &result);
+-  a->encap_if_index = result.fields.sw_if_index;
+-
+-  if (a->encap_if_index == ~0)
+-    return VNET_API_ERROR_INVALID_SW_IF_INDEX;
+-
+-  si = vnet_get_sw_interface (vnm, a->encap_if_index);
+-  hi = vnet_get_hw_interface (vnm, si->hw_if_index);
++  /* Only creation needs a current learned link. Deletion is owned by the
++   * existing session record and must still work after that link disappears.
++   */
++  if (a->is_add)
++    {
++      pppoe_lookup_1 (&pem->link_table, &cached_key, &cached_result,
++                      a->client_mac, 0, &key, &bucket, &result);
++      a->encap_if_index = result.fields.sw_if_index;
++      if (a->encap_if_index == ~0)
++        return VNET_API_ERROR_INVALID_SW_IF_INDEX;
++      si = vnet_get_sw_interface (vnm, a->encap_if_index);
++      hi = vnet_get_hw_interface (vnm, si->hw_if_index);
++    }
+ 
+   /* lookup session_table */
+   pppoe_lookup_1 (&pem->session_table, &cached_key, &cached_result,
+ 		  a->client_mac, clib_host_to_net_u16 (a->session_id),
+ 		  &key, &bucket, &result);
+ 
+-  /* learn client session */
+-  pppoe_learn_process (&pem->session_table, a->encap_if_index,
+-		       &key, &cached_key, &bucket, &result);
+-
+   if (a->is_add)
+     {
+       /* adding a session: session must not already exist */
+@@ -348,6 +348,10 @@
+       /*if not set explicitly, default to ip4 */
+       if (!pppoe_decap_next_is_valid (pem, is_ip6, a->decap_fib_index))
+ 	return VNET_API_ERROR_INVALID_DECAP_NEXT;
++
++      /* A refused duplicate add must not move the existing hash entry. */
++      pppoe_learn_process (&pem->session_table, a->encap_if_index,
++                           &key, &cached_key, &bucket, &result);
+ 
+       pool_get_aligned (pem->sessions, t, CLIB_CACHE_LINE_BYTES);
+       clib_memset (t, 0, sizeof (*t));
+@@ -433,6 +437,11 @@
+       t = pool_elt_at_index (pem->sessions, result.fields.session_index);
+       sw_if_index = t->sw_if_index;
+ 
++      int retire = pppoe_ze_retire_interface (t);
++      if (retire)
++        return retire;
++      pppoe_ze_routes_forget (t);
++
+       vnet_reset_interface_l3_output_node (vnm->vlib_main, sw_if_index);
+       vnet_sw_interface_set_flags (vnm, t->sw_if_index, 0 /* down */ );
+       vnet_sw_interface_t *si = vnet_get_sw_interface (vnm, t->sw_if_index);
+@@ -449,13 +458,12 @@
+ 		      &key, &bucket, &result);
+ 
+ 
+-      /* delete reverse route for client ip */
+-      fib_table_entry_path_remove (a->decap_fib_index, &pfx,
+-				   pppoe_fib_src,
+-				   fib_proto_to_dpo (pfx.fp_proto),
+-				   &pfx.fp_addr,
+-				   sw_if_index, ~0, 1,
+-				   FIB_ROUTE_PATH_FLAG_NONE);
++      if (!a->disable_fib)
++        fib_table_entry_path_remove (a->decap_fib_index, &pfx,
++                                     pppoe_fib_src,
++                                     fib_proto_to_dpo (pfx.fp_proto),
++                                     &pfx.fp_addr, sw_if_index, ~0, 1,
++                                     FIB_ROUTE_PATH_FLAG_NONE);
+ 
+       pool_put (pem->sessions, t);
+     }
+@@ -529,6 +537,10 @@
+   t = pool_elt_at_index (pem->sessions, result->fields.session_index);
+   sw_if_index = t->sw_if_index;
+ 
++  /* Automatic/original reconfiguration is not the Ze owner's operation. */
++  pppoe_ze_routes_forget (t);
++  clib_memset (t->ze_owner, 0, sizeof (t->ze_owner));
++
+   if (a->is_ip6)
+     {
+       clib_memcpy (&t->client_ip6, &a->client_ip, sizeof (t->client_ip6));
+@@ -573,6 +585,13 @@
+   fib_prefix_t pfx = { 0 };
+ 
+   /* Delete reverse route for client IP (IPv4) if it exists */
++  int retire = pppoe_ze_retire_interface (t);
++  if (retire)
++    {
++      clib_warning ("PPPoE interface retirement refused: %d", retire);
++      return;
++    }
++  pppoe_ze_routes_forget (t);
+   if (t->client_ip.ip4.as_u32 != 0)
+     {
+       pfx.fp_addr.ip4.as_u32 = t->client_ip.ip4.as_u32;
+diff --git a/src/plugins/pppoe/pppoe.h b/src/plugins/pppoe/pppoe.h
+--- a/src/plugins/pppoe/pppoe.h
++++ b/src/plugins/pppoe/pppoe.h
+@@ -60,6 +60,13 @@
+ 
+ typedef struct
+ {
++  fib_prefix_t prefix;
++  fib_route_path_t path;
++  u32 table;
++} pppoe_ze_owned_route_t;
++
++typedef struct
++{
+   /* Required for pool_get_aligned  */
+   CLIB_CACHE_LINE_ALIGN_MARK (cacheline0);
+ 
+@@ -86,6 +93,11 @@
+ 
+   u32 lcp_echo_cnt;
+   u32 lcp_echo_reply_cnt;
++
++  /* Zero means unowned. Both native allocators clear this on pool reuse. */
++  u8 ze_owner[16];
++  /* At most1024 exact native paths; retirement empties this before reuse. */
++  pppoe_ze_owned_route_t *ze_routes;
+ 
+ } pppoe_session_t;
+ 
+@@ -379,4 +391,4 @@
+  * Local Variables:
+  * eval: (c-set-style "gnu")
+  * End:
+- */
+\ No newline at end of file
++ */
+diff --git a/src/plugins/pppoe/pppoe_api.c b/src/plugins/pppoe/pppoe_api.c
+--- a/src/plugins/pppoe/pppoe_api.c
++++ b/src/plugins/pppoe/pppoe_api.c
+@@ -212,6 +212,7 @@
+     }
+ }
+ 
++#include <pppoe/pppoe_ze_api.h>
+ #include <pppoe/pppoe.api.c>
+ static clib_error_t *
+ pppoe_api_hookup (vlib_main_t * vm)
+diff --git a/src/plugins/pppoe/pppoe_cp.c b/src/plugins/pppoe/pppoe_cp.c
+--- a/src/plugins/pppoe/pppoe_cp.c
++++ b/src/plugins/pppoe/pppoe_cp.c
+@@ -16,6 +16,7 @@
+  */
+ 
+ #include <pppoe/pppoe.h>
++#include <pppoe/pppoe_ze.h>
+ 
+ int
+ pppoe_add_del_cp (u32 cp_if_index, u32 dp_if_index, u8 is_add)
+@@ -80,6 +81,10 @@
+       pem->cp_if_index_by_sw_if_index[dp_if_index] = ~0;
+       pem->dp_if_index_by_sw_if_index[cp_if_index] = ~0;
+     }
++  /* A successful original write cannot lend its replacement to an old owner.
++   * The Ze wrapper stamps its caller token only after this producer returns.
++   */
++  pppoe_ze_cp_forget (cp_if_index, dp_if_index);
+   return 0;
+ }
+ 
+diff --git a/src/plugins/pppoe/pppoe_test.c b/src/plugins/pppoe/pppoe_test.c
+--- a/src/plugins/pppoe/pppoe_test.c
++++ b/src/plugins/pppoe/pppoe_test.c
+@@ -322,4 +322,5 @@
+   return ret;
+ }
+ 
++#include <pppoe/pppoe_ze_vat.h>
+ #include <pppoe/pppoe.api_test.c>
+diff --git a/src/plugins/pppoe/pppoe_ze.c b/src/plugins/pppoe/pppoe_ze.c
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_ze.c
+@@ -0,0 +1,955 @@
++/* Ze PPPoE ownership and exact reconciliation primitives.
++ * Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6.
++ * API: pppoe.api; producers: pppoe.c, pppoe_cp.c and vnet/policer/policer.c.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <errno.h>
++#include <sys/random.h>
++#include <vnet/fib/fib_table.h>
++#include <vnet/fib/fib_api.h>
++#include <vnet/fib/fib_source.h>
++#include <vnet/feature/feature.h>
++#include <vnet/interface_funcs.h>
++#include <vnet/ip/ip.h>
++#include <vnet/policer/policer.h>
++#include <pppoe/pppoe_ze.h>
++
++typedef struct
++{
++  u8 used;
++  u32 cp;
++  u32 dp;
++  u8 owner[PPPOE_ZE_TOKEN_BYTES];
++} pppoe_ze_cp_owner_t;
++
++/* Control interfaces, not subscriber packets, traverse this fixed table.
++ * Removed entries are immediately reusable; there are no tombstones.
++ */
++static pppoe_ze_cp_owner_t cp_owners[PPPOE_ZE_CP_MAX];
++static u8 server_incarnation[PPPOE_ZE_TOKEN_BYTES];
++static fib_source_t route_source;
++
++fib_source_t
++pppoe_ze_route_source (void)
++{
++  return route_source;
++}
++
++static int
++pppoe_ze_token_valid (const u8 *token)
++{
++  u8 any = 0;
++  for (u32 i = 0; i < PPPOE_ZE_TOKEN_BYTES; i++)
++    any |= token[i];
++  return any != 0;
++}
++
++static int
++pppoe_ze_fence (const u8 *incarnation, const u8 *owner)
++{
++  if (!pppoe_ze_token_valid (incarnation) ||
++      !pppoe_ze_token_valid (owner))
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (memcmp (incarnation, server_incarnation, PPPOE_ZE_TOKEN_BYTES))
++    return VNET_API_ERROR_INVALID_VALUE;
++  return 0;
++}
++
++void
++pppoe_ze_server (u8 incarnation[PPPOE_ZE_TOKEN_BYTES])
++{
++  clib_memcpy (incarnation, server_incarnation, PPPOE_ZE_TOKEN_BYTES);
++}
++
++clib_error_t *
++pppoe_ze_new_incarnation (u8 token[PPPOE_ZE_TOKEN_BYTES])
++{
++  u32 offset = 0;
++  /* A nonce is generated once per process, never from PID or wall time.
++   * Nonblocking entropy failure refuses initialization instead of inventing
++   * an identity. Partial reads and EINTR have a fixed 32-attempt bound.
++   */
++  for (u32 attempt = 0; attempt < 32 && offset < PPPOE_ZE_TOKEN_BYTES;
++       attempt++)
++    {
++      ssize_t n = getrandom (token + offset,
++                            PPPOE_ZE_TOKEN_BYTES - offset, GRND_NONBLOCK);
++      if (n < 0)
++        {
++          if (errno == EINTR)
++            continue;
++          return clib_error_return_unix (0, "PPPoE ownership entropy");
++        }
++      if (n == 0)
++        return clib_error_return (0, "PPPoE ownership entropy returned no bytes");
++      offset += n;
++    }
++  if (offset != PPPOE_ZE_TOKEN_BYTES ||
++      !pppoe_ze_token_valid (token))
++    return clib_error_return (0, "PPPoE ownership nonce is unavailable");
++  return 0;
++}
++
++static clib_error_t *
++pppoe_ze_init (vlib_main_t *vm)
++{
++  clib_error_t *error = pppoe_ze_new_incarnation (server_incarnation);
++  if (error)
++    return error;
++  route_source = fib_source_allocate ("ze-pppoe", 0x80, FIB_SOURCE_BH_API);
++  return 0;
++}
++
++VLIB_INIT_FUNCTION (pppoe_ze_init) = {
++  .runs_after = VLIB_INITS ("pppoe_init"),
++};
++
++/* pppoe_make_key reads eight bytes while its MAC input contains six. This
++ * local padded copy keeps that existing lookup primitive within its input.
++ */
++static pppoe_entry_result_t
++pppoe_ze_lookup (BVT (clib_bihash) *table, const u8 *mac, u16 sid)
++{
++  pppoe_entry_key_t cached_key, key;
++  pppoe_entry_result_t cached_result, result;
++  u8 padded_mac[8] = { 0 };
++  u32 bucket;
++  clib_memcpy (padded_mac, mac, 6);
++  cached_key.raw = cached_result.raw = ~0ULL;
++  result.raw = ~0ULL;
++  pppoe_lookup_1 (table, &cached_key, &cached_result,
++                 padded_mac, clib_host_to_net_u16 (sid), &key, &bucket,
++                 &result);
++  return result;
++}
++
++static pppoe_session_t *
++pppoe_ze_find_session (const u8 *mac, u16 sid)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  pppoe_entry_result_t result = pppoe_ze_lookup (&pem->session_table, mac, sid);
++  if (result.fields.session_index == ~0)
++    return 0;
++  if (pool_is_free_index (pem->sessions, result.fields.session_index))
++    return 0;
++  return pool_elt_at_index (pem->sessions, result.fields.session_index);
++}
++
++static pppoe_session_t *
++pppoe_ze_owned_interface (u32 index, const u8 *owner)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  if (index >= vec_len (pem->session_index_by_sw_if_index))
++    return 0;
++  u32 slot = pem->session_index_by_sw_if_index[index];
++  if (slot == ~0 || pool_is_free_index (pem->sessions, slot))
++    return 0;
++  pppoe_session_t *session = pool_elt_at_index (pem->sessions, slot);
++  if (session->sw_if_index != index ||
++      memcmp (session->ze_owner, owner, PPPOE_ZE_TOKEN_BYTES))
++    return 0;
++  return session;
++}
++
++static void
++pppoe_ze_session_result (pppoe_session_t *session,
++                         pppoe_ze_session_result_t *result)
++{
++  result->present = 1;
++  result->sw_if_index = session->sw_if_index;
++  result->dp_sw_if_index = session->encap_if_index;
++  clib_memcpy (result->owner, session->ze_owner, PPPOE_ZE_TOKEN_BYTES);
++  /* Only Ze's creator establishes the IPv4 FIB invariant. An unowned stock
++   * session can carry an IPv6 index, so preserve its presence and token while
++   * leaving the already initialized table ID explicitly unknown.
++   */
++  if (pppoe_ze_token_valid (session->ze_owner))
++    result->table_id = fib_table_get_table_id (session->decap_fib_index,
++                                              FIB_PROTOCOL_IP4);
++}
++
++int
++pppoe_ze_session (u8 operation, const u8 *incarnation, const u8 *owner,
++                  const u8 *mac, u16 sid, u32 dp, u32 table,
++                  pppoe_ze_session_result_t *result)
++{
++  clib_memset (result, 0, sizeof (*result));
++  result->sw_if_index = result->dp_sw_if_index = result->table_id = ~0;
++  int rv = pppoe_ze_fence (incarnation, owner);
++  if (rv)
++    return rv;
++  if (operation < PPPOE_ZE_QUERY || operation > PPPOE_ZE_DELETE)
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (sid == 0 || sid == 0xffff || (mac[0] & 1))
++    return VNET_API_ERROR_INVALID_VALUE;
++  u8 any_mac = 0;
++  for (u32 i = 0; i < 6; i++)
++    any_mac |= mac[i];
++  if (!any_mac)
++    return VNET_API_ERROR_INVALID_VALUE;
++
++  pppoe_session_t *session = pppoe_ze_find_session (mac, sid);
++  if (session)
++    {
++      pppoe_ze_session_result (session, result);
++      if (operation == PPPOE_ZE_QUERY)
++        return 0;
++      if (memcmp (session->ze_owner, owner, PPPOE_ZE_TOKEN_BYTES) ||
++          session->encap_if_index != dp || result->table_id != table)
++        return VNET_API_ERROR_INVALID_VALUE;
++      if (operation == PPPOE_ZE_ADD)
++        return 0;
++    }
++  else if (operation != PPPOE_ZE_ADD)
++    return 0; /* Confirmed absence, including an idempotent delete. */
++
++  u32 fib;
++  if (operation == PPPOE_ZE_ADD)
++    {
++      fib = fib_table_find (FIB_PROTOCOL_IP4, table);
++      if (fib == ~0)
++        return VNET_API_ERROR_NO_SUCH_INNER_FIB;
++      if (!vnet_sw_interface_is_api_valid (vnet_get_main (), dp))
++        return VNET_API_ERROR_INVALID_SW_IF_INDEX;
++      pppoe_entry_result_t link = pppoe_ze_lookup (&pppoe_main.link_table, mac, 0);
++      if (link.fields.sw_if_index != dp)
++        return VNET_API_ERROR_INVALID_SW_IF_INDEX;
++      if (pool_elts (pppoe_main.sessions) >= 65534)
++        return VNET_API_ERROR_LIMIT_EXCEEDED;
++    }
++  else
++    fib = session->decap_fib_index;
++
++  vnet_pppoe_add_del_session_args_t args = { 0 };
++  args.is_add = operation == PPPOE_ZE_ADD;
++  args.session_id = sid;
++  args.decap_fib_index = fib;
++  args.disable_fib = 1;
++  clib_memcpy (args.client_mac, mac, 6);
++  u32 index = ~0;
++  rv = vnet_pppoe_add_del_session (&args, &index);
++  if (rv)
++    return rv;
++  if (operation == PPPOE_ZE_DELETE)
++    {
++      clib_memset (result, 0, sizeof (*result));
++      result->sw_if_index = result->dp_sw_if_index = result->table_id = ~0;
++      return 0;
++    }
++  session = pppoe_ze_find_session (mac, sid);
++  if (!session)
++    return VNET_API_ERROR_UNSPECIFIED;
++  clib_memcpy (session->ze_owner, owner, PPPOE_ZE_TOKEN_BYTES);
++  pppoe_ze_session_result (session, result);
++  if (session->encap_if_index != dp)
++    return VNET_API_ERROR_INVALID_SW_IF_INDEX;
++  return 0;
++}
++
++static int
++pppoe_ze_pair_overlaps (u32 cp, u32 dp, pppoe_ze_cp_owner_t *entry)
++{
++  return entry->used && (entry->cp == cp || entry->cp == dp ||
++                         entry->dp == cp || entry->dp == dp);
++}
++
++void
++pppoe_ze_cp_forget (u32 cp, u32 dp)
++{
++  for (u32 i = 0; i < PPPOE_ZE_CP_MAX; i++)
++    if (pppoe_ze_pair_overlaps (cp, dp, &cp_owners[i]))
++      clib_memset (&cp_owners[i], 0, sizeof (cp_owners[i]));
++}
++
++static clib_error_t *
++pppoe_ze_interface_add_del (vnet_main_t *vnm, u32 index, u32 is_add)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  /* A removed/reused interface index cannot inherit either half of a map.
++   * Only reciprocal cells touching this exact index are cleared.
++   */
++  if (index < vec_len (pem->cp_if_index_by_sw_if_index))
++    {
++      u32 cp = pem->cp_if_index_by_sw_if_index[index];
++      if (cp != ~0 && cp < vec_len (pem->dp_if_index_by_sw_if_index) &&
++          pem->dp_if_index_by_sw_if_index[cp] == index)
++        pem->dp_if_index_by_sw_if_index[cp] = ~0;
++      pem->cp_if_index_by_sw_if_index[index] = ~0;
++    }
++  if (index < vec_len (pem->dp_if_index_by_sw_if_index))
++    {
++      u32 dp = pem->dp_if_index_by_sw_if_index[index];
++      if (dp != ~0 && dp < vec_len (pem->cp_if_index_by_sw_if_index) &&
++          pem->cp_if_index_by_sw_if_index[dp] == index)
++        pem->cp_if_index_by_sw_if_index[dp] = ~0;
++      pem->dp_if_index_by_sw_if_index[index] = ~0;
++    }
++  pppoe_ze_cp_forget (index, index);
++  if (!is_add && index < vec_len (pem->session_index_by_sw_if_index))
++    {
++      u32 slot = pem->session_index_by_sw_if_index[index];
++      if (slot != ~0 && !pool_is_free_index (pem->sessions, slot))
++        {
++          pppoe_ze_routes_forget (&pem->sessions[slot]);
++          clib_memset (pem->sessions[slot].ze_owner, 0,
++                        sizeof (pem->sessions[slot].ze_owner));
++        }
++    }
++  return 0;
++}
++
++VNET_SW_INTERFACE_ADD_DEL_FUNCTION (pppoe_ze_interface_add_del);
++
++int
++pppoe_ze_cp (u8 operation, const u8 *incarnation, const u8 *owner,
++             u32 cp, u32 dp, pppoe_ze_cp_result_t *result)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  clib_memset (result, 0, sizeof (*result));
++  result->cp_sw_if_index = result->dp_sw_if_index = ~0;
++  int rv = pppoe_ze_fence (incarnation, owner);
++  if (rv)
++    return rv;
++  if (operation < PPPOE_ZE_QUERY || operation > PPPOE_ZE_DELETE)
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (cp == ~0 || dp == ~0 || cp == dp)
++    return VNET_API_ERROR_INVALID_SW_IF_INDEX;
++  int live = vnet_sw_interface_is_api_valid (vnet_get_main (), cp) &&
++             vnet_sw_interface_is_api_valid (vnet_get_main (), dp);
++  if (operation == PPPOE_ZE_ADD && !live)
++    return VNET_API_ERROR_INVALID_SW_IF_INDEX;
++
++  u32 mapped_cp = dp < vec_len (pem->cp_if_index_by_sw_if_index) ?
++    pem->cp_if_index_by_sw_if_index[dp] : ~0;
++  u32 mapped_dp = cp < vec_len (pem->dp_if_index_by_sw_if_index) ?
++    pem->dp_if_index_by_sw_if_index[cp] : ~0;
++  pppoe_ze_cp_owner_t *entry = 0, *free_entry = 0;
++  for (u32 i = 0; i < PPPOE_ZE_CP_MAX; i++)
++    {
++      if (!cp_owners[i].used)
++        {
++          if (!free_entry)
++            free_entry = &cp_owners[i];
++          continue;
++        }
++      if (cp_owners[i].cp == cp && cp_owners[i].dp == dp)
++        entry = &cp_owners[i];
++      else if (pppoe_ze_pair_overlaps (cp, dp, &cp_owners[i]))
++        return VNET_API_ERROR_ENTRY_ALREADY_EXISTS;
++    }
++  /* Interface deletion removes both reciprocal cells and the old receipt.
++   * A query/delete may then confirm absence without requiring a nonexistent
++   * interface to become live again. Any remaining cell or record refuses.
++   */
++  if (!live)
++    return mapped_cp == ~0 && mapped_dp == ~0 && !entry ? 0 :
++      VNET_API_ERROR_INVALID_SW_IF_INDEX;
++  if (mapped_cp == cp && mapped_dp == dp)
++    {
++      result->present = 1;
++      result->cp_sw_if_index = cp;
++      result->dp_sw_if_index = dp;
++      if (entry)
++        clib_memcpy (result->owner, entry->owner, PPPOE_ZE_TOKEN_BYTES);
++      if (operation == PPPOE_ZE_QUERY)
++        return 0;
++      if (!entry || memcmp (entry->owner, owner, PPPOE_ZE_TOKEN_BYTES))
++        return VNET_API_ERROR_INVALID_VALUE;
++      if (operation == PPPOE_ZE_ADD)
++        return 0;
++    }
++  else
++    {
++      if (mapped_cp != ~0 || mapped_dp != ~0)
++        return VNET_API_ERROR_ENTRY_ALREADY_EXISTS;
++      if (entry)
++        {
++          clib_memset (entry, 0, sizeof (*entry));
++          free_entry = entry;
++        }
++      if (operation != PPPOE_ZE_ADD)
++        return 0;
++      if (!free_entry)
++        return VNET_API_ERROR_LIMIT_EXCEEDED;
++      entry = free_entry;
++    }
++
++  rv = pppoe_add_del_cp (cp, dp, operation == PPPOE_ZE_ADD);
++  if (rv)
++    return rv;
++  if (operation == PPPOE_ZE_DELETE)
++    {
++      clib_memset (result, 0, sizeof (*result));
++      result->cp_sw_if_index = result->dp_sw_if_index = ~0;
++      return 0;
++    }
++  entry->used = 1;
++  entry->cp = cp;
++  entry->dp = dp;
++  clib_memcpy (entry->owner, owner, PPPOE_ZE_TOKEN_BYTES);
++  result->present = 1;
++  result->cp_sw_if_index = cp;
++  result->dp_sw_if_index = dp;
++  clib_memcpy (result->owner, owner, PPPOE_ZE_TOKEN_BYTES);
++  return 0;
++}
++
++static int
++pppoe_ze_direction (u8 direction, vlib_dir_t *native)
++{
++  if (direction == 1)
++    *native = VLIB_RX;
++  else if (direction == 2)
++    *native = VLIB_TX;
++  else
++    return VNET_API_ERROR_INVALID_VALUE;
++  return 0;
++}
++
++static void
++pppoe_ze_policer_name (const u8 *owner, vlib_dir_t direction, char name[45])
++{
++  static const char hex[] = "0123456789abcdef";
++  memcpy (name, "ze-pppoe/", 9);
++  for (u32 i = 0; i < PPPOE_ZE_TOKEN_BYTES; i++)
++    {
++      name[9 + 2 * i] = hex[owner[i] >> 4];
++      name[10 + 2 * i] = hex[owner[i] & 15];
++    }
++  memcpy (name + 41, direction == VLIB_RX ? "/rx" : "/tx", 4);
++}
++
++static int pppoe_ze_feature_state (const char *arc, const char *feature, u32 index);
++
++/* Name and pool index are not receipts. A stock delete/recreate of the same
++ * name MUST NOT inherit either this session or this object's random token.
++ * This lookup can also inspect an orphan without touching its former interface.
++ */
++static int
++pppoe_ze_policer_object (const u8 *owner, const u8 *object, u8 direction,
++                         pppoe_ze_policer_result_t *result)
++{
++  vnet_policer_main_t *pm = &vnet_policer_main;
++  vlib_dir_t native;
++  int rv = pppoe_ze_direction (direction, &native);
++  if (rv || !pppoe_ze_token_valid (object))
++    return VNET_API_ERROR_INVALID_VALUE;
++  char name[45];
++  pppoe_ze_policer_name (object, native, name);
++  uword *found = hash_get_mem (pm->policer_index_by_name, name);
++  if (!found)
++    return 0;
++  u32 pi = found[0];
++  if (pool_is_free_index (pm->policers, pi) ||
++      strcmp ((char *) pm->policers[pi].name, name))
++    return VNET_API_ERROR_INVALID_VALUE;
++  result->present = 1;
++  result->policer_index = pi;
++  if (pi >= vec_len (pm->owners) ||
++      memcmp (pm->owners[pi].session, owner, PPPOE_ZE_TOKEN_BYTES) ||
++      memcmp (pm->owners[pi].object, object, PPPOE_ZE_TOKEN_BYTES))
++    return 0;
++  result->owned = 1;
++  uword *config = hash_get_mem (pm->policer_config_by_name, name);
++  if (!config || pool_is_free_index (pm->configs, config[0]))
++    return VNET_API_ERROR_INVALID_VALUE;
++  qos_pol_cfg_params_st *cfg = &pm->configs[config[0]];
++  if (cfg->rfc != QOS_POLICER_TYPE_1R2C || cfg->rate_type != QOS_RATE_KBPS ||
++      cfg->rnd_type != QOS_ROUND_TO_DOWN || cfg->color_aware ||
++      cfg->conform_action.action_type != QOS_ACTION_TRANSMIT ||
++      cfg->exceed_action.action_type != QOS_ACTION_DROP ||
++      cfg->violate_action.action_type != QOS_ACTION_DROP)
++    return VNET_API_ERROR_INVALID_VALUE;
++  result->cir_kbps = cfg->rb.kbps.cir_kbps;
++  result->cb_bytes = cfg->rb.kbps.cb_bytes;
++  return 0;
++}
++
++int
++pppoe_ze_policer (const u8 *incarnation, const u8 *owner,
++                  const u8 *policer_owner, u32 sw_if_index,
++                  u8 direction, pppoe_ze_policer_result_t *result)
++{
++  vnet_policer_main_t *pm = &vnet_policer_main;
++  clib_memset (result, 0, sizeof (*result));
++  result->policer_index = result->bound_index = ~0;
++  int rv = pppoe_ze_fence (incarnation, owner);
++  if (rv)
++    return rv;
++  if (!pppoe_ze_owned_interface (sw_if_index, owner))
++    return VNET_API_ERROR_INVALID_VALUE;
++  vlib_dir_t native;
++  rv = pppoe_ze_direction (direction, &native);
++  if (rv)
++    return rv;
++  rv = pppoe_ze_policer_object (owner, policer_owner, direction, result);
++  if (rv)
++    return rv;
++  if (sw_if_index < vec_len (pm->policer_index_by_sw_if_index[native]))
++    {
++      result->slot_allocated = 1;
++      result->bound_index = pm->policer_index_by_sw_if_index[native][sw_if_index];
++    }
++  static const char *rx[] = { "device-input", "ip4-unicast", "ip4-multicast",
++                             "ip6-unicast", "ip6-multicast" };
++  static const char *tx[] = { "ip4-output", "ip6-output" };
++  const char **arcs = native == VLIB_RX ? rx : tx;
++  const char *feature = native == VLIB_RX ? "policer-input" : "policer-output";
++  u32 count = native == VLIB_RX ? ARRAY_LEN (rx) : ARRAY_LEN (tx);
++  for (u32 i = 0; i < count; i++)
++    {
++      int state = pppoe_ze_feature_state (arcs[i], feature, sw_if_index);
++      if (state < 0)
++        return state;
++      if (state)
++        result->feature_mask |= 1 << i;
++    }
++  return 0;
++}
++
++/* The valid, owned interface was already checked above. This native helper
++ * reports an unallocated arc config vector as INVALID_SW_IF_INDEX and says
++ * that it is certainly not enabled; no other error is treated as absence.
++ */
++static int
++pppoe_ze_feature_state (const char *arc, const char *feature, u32 index)
++{
++  int state = vnet_feature_is_enabled (arc, feature, index);
++  if (state == VNET_API_ERROR_INVALID_SW_IF_INDEX)
++    return 0;
++  return state;
++}
++
++static int
++pppoe_ze_policer_fenced (u32 index, vlib_dir_t direction)
++{
++  static const char *rx_arcs[] = {
++    "device-input", "ip4-unicast", "ip4-multicast",
++    "ip6-unicast", "ip6-multicast",
++  };
++  static const char *tx_arcs[] = { "ip4-output", "ip6-output" };
++  const char **arcs = direction == VLIB_RX ? rx_arcs : tx_arcs;
++  u32 count = direction == VLIB_RX ? ARRAY_LEN (rx_arcs) : ARRAY_LEN (tx_arcs);
++  const char *feature = direction == VLIB_RX ? "policer-input" : "policer-output";
++  for (u32 i = 0; i < count; i++)
++    {
++      int state = pppoe_ze_feature_state (arcs[i], feature, index);
++      if (state < 0)
++        return state;
++      if (state)
++        return VNET_API_ERROR_INVALID_VALUE;
++    }
++  return 0;
++}
++
++static int
++pppoe_ze_policer_base_features (u32 index, vlib_dir_t direction)
++{
++  static const char *tx_arcs[] = { "ip4-output", "ip6-output" };
++  const char *feature = direction == VLIB_RX ? "policer-input" : "policer-output";
++  u32 count = direction == VLIB_RX ? 1 : ARRAY_LEN (tx_arcs);
++  for (u32 i = 0; i < count; i++)
++    {
++      const char *arc = direction == VLIB_RX ? "device-input" : tx_arcs[i];
++      int state = pppoe_ze_feature_state (arc, feature, index);
++      if (state < 0)
++        return state;
++      if (!state)
++        {
++          int rv = vnet_feature_enable_disable (arc, feature, index, 1, 0, 0);
++          if (rv)
++            return rv;
++        }
++    }
++  return 0;
++}
++
++int
++pppoe_ze_policer_bind (const u8 *incarnation, const u8 *owner,
++                       const u8 *policer_owner,
++                       u32 sw_if_index, u8 direction,
++                       u32 expected_index, u32 desired_index)
++{
++  pppoe_ze_policer_result_t current;
++  int rv = pppoe_ze_policer (incarnation, owner, policer_owner,
++                            sw_if_index, direction,
++                            &current);
++  if (rv)
++    return rv;
++  if (current.bound_index != expected_index &&
++      current.bound_index != desired_index)
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (desired_index != ~0 &&
++      (!current.owned || current.policer_index != desired_index))
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (current.bound_index != ~0 &&
++      (!current.owned || current.policer_index != current.bound_index))
++    return VNET_API_ERROR_INVALID_VALUE;
++  vlib_dir_t native;
++  rv = pppoe_ze_direction (direction, &native);
++  if (rv)
++    return rv;
++  if (current.bound_index == desired_index)
++    {
++      if (desired_index == ~0)
++        return 0;
++      return pppoe_ze_policer_base_features (sw_if_index, native);
++    }
++  if (desired_index != ~0)
++    {
++      rv = pppoe_ze_policer_fenced (sw_if_index, native);
++      if (rv)
++        return rv;
++      return policer_input (desired_index, sw_if_index, native, true);
++    }
++  /* current was read under this same serialized API request. An unallocated
++   * slot is already absent; the stock unbind must never index that vector.
++   * The caller MUST fence all active arcs before this owner-only unlink.
++   */
++  if (!current.slot_allocated)
++    return 0;
++  rv = pppoe_ze_policer_fenced (sw_if_index, native);
++  if (rv)
++    return rv;
++  return policer_input (current.bound_index, sw_if_index, native, false);
++}
++
++/* Inspect every native slot, not just the caller's interface. A privileged
++ * stock client can bind this object elsewhere after a query. No update may
++ * then change another interface's policy, and no delete may leave any slot
++ * pointing at a recycled pool element. This runs under the API main-thread
++ * serialization in the same request as the mutation.
++ */
++static int
++pppoe_ze_policer_slots (u32 pi, u32 index, vlib_dir_t direction, int deleting)
++{
++  vnet_policer_main_t *pm = &vnet_policer_main;
++  for (u32 dir = 0; dir < VLIB_N_RX_TX; dir++)
++    for (u32 sw = 0; sw < vec_len (pm->policer_index_by_sw_if_index[dir]); sw++)
++      if (pm->policer_index_by_sw_if_index[dir][sw] == pi &&
++          (deleting || sw != index || dir != direction))
++        return VNET_API_ERROR_INVALID_VALUE;
++  return 0;
++}
++
++int
++pppoe_ze_policer_mutate (u8 operation, const u8 *incarnation,
++                         const u8 *owner, const u8 *policer_owner,
++                         u32 sw_if_index, u8 direction, u32 expected_index,
++                         u32 cir_kbps, u64 cb_bytes,
++                         pppoe_ze_policer_result_t *result)
++{
++  vnet_policer_main_t *pm = &vnet_policer_main;
++  clib_memset (result, 0, sizeof (*result));
++  result->policer_index = result->bound_index = ~0;
++  int rv = pppoe_ze_fence (incarnation, owner);
++  if (rv || operation < PPPOE_ZE_QUERY || operation > PPPOE_ZE_UPDATE)
++    return VNET_API_ERROR_INVALID_VALUE;
++  vlib_dir_t native;
++  rv = pppoe_ze_direction (direction, &native);
++  if (rv)
++    return rv;
++  rv = pppoe_ze_policer_object (owner, policer_owner, direction, result);
++  if (rv || operation == PPPOE_ZE_QUERY)
++    return rv;
++  if (result->present && !result->owned)
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (operation == PPPOE_ZE_DELETE)
++    {
++      if (!result->present)
++        return 0;
++      if (expected_index != result->policer_index)
++        return VNET_API_ERROR_INVALID_VALUE;
++      rv = pppoe_ze_policer_slots (result->policer_index, sw_if_index,
++                                   native, 1);
++      if (rv)
++        return rv;
++      /* An exact unbound object is safe to release even if a stock client
++       * already removed its old session. No interface is touched here.
++       */
++      rv = policer_del (vlib_get_main (), result->policer_index);
++      if (!rv)
++        {
++          clib_memset (result, 0, sizeof (*result));
++          result->policer_index = result->bound_index = ~0;
++        }
++      return rv;
++    }
++  if (!pppoe_ze_owned_interface (sw_if_index, owner) || !cir_kbps ||
++      !cb_bytes || cb_bytes > (u64) ~0U)
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (result->present)
++    {
++      if ((expected_index != ~0 && expected_index != result->policer_index) ||
++          (operation == PPPOE_ZE_UPDATE && expected_index == ~0))
++        return VNET_API_ERROR_INVALID_VALUE;
++      rv = pppoe_ze_policer_slots (result->policer_index, sw_if_index,
++                                   native, 0);
++      if (rv)
++        return rv;
++      /* Retried updates MUST NOT reset counters or buckets twice. */
++      if (result->cir_kbps == cir_kbps && result->cb_bytes == cb_bytes)
++        return 0;
++      if (operation == PPPOE_ZE_ADD)
++        return VNET_API_ERROR_INVALID_VALUE;
++    }
++  else if (operation != PPPOE_ZE_ADD || expected_index != ~0)
++    return VNET_API_ERROR_NO_SUCH_ENTRY;
++  qos_pol_cfg_params_st cfg = { 0 };
++  cfg.rfc = QOS_POLICER_TYPE_1R2C;
++  cfg.rate_type = QOS_RATE_KBPS;
++  cfg.rnd_type = QOS_ROUND_TO_DOWN;
++  cfg.rb.kbps.cir_kbps = cir_kbps;
++  cfg.rb.kbps.cb_bytes = cb_bytes;
++  cfg.conform_action.action_type = QOS_ACTION_TRANSMIT;
++  cfg.exceed_action.action_type = QOS_ACTION_DROP;
++  cfg.violate_action.action_type = QOS_ACTION_DROP;
++  u32 pi = result->policer_index;
++  if (result->present)
++    rv = policer_update (vlib_get_main (), pi, &cfg);
++  else
++    {
++      char name[45];
++      pppoe_ze_policer_name (policer_owner, native, name);
++      rv = policer_add (vlib_get_main (), (u8 *) name, &cfg, &pi);
++    }
++  if (rv)
++    return rv;
++  clib_memcpy (pm->owners[pi].session, owner, PPPOE_ZE_TOKEN_BYTES);
++  clib_memcpy (pm->owners[pi].object, policer_owner, PPPOE_ZE_TOKEN_BYTES);
++  return pppoe_ze_policer_object (owner, policer_owner, direction, result);
++}
++
++static const char *ze_feature_arcs[] = {
++    "ip4-unicast", "ip4-multicast", "ip6-unicast", "ip6-multicast",
++    "device-input", "ip4-unicast", "ip4-multicast", "ip6-unicast",
++    "ip6-multicast", "ip4-output", "ip6-output",
++  };
++static const char *ze_feature_names[] = {
++    "ip4-not-enabled", "ip4-not-enabled", "ip6-not-enabled", "ip6-not-enabled",
++    "policer-input", "policer-input", "policer-input", "policer-input",
++    "policer-input", "policer-output", "policer-output",
++  };
++int
++pppoe_ze_feature (u8 operation, const u8 *incarnation, const u8 *owner,
++                   const u8 *policer_owner, u32 index, u8 selector,
++                   u8 *enabled)
++{
++  *enabled = 0;
++  int rv = pppoe_ze_fence (incarnation, owner);
++  if (rv || operation < PPPOE_ZE_QUERY || operation > PPPOE_ZE_DELETE ||
++      !selector || selector > ARRAY_LEN (ze_feature_arcs) ||
++      !pppoe_ze_owned_interface (index, owner))
++    return VNET_API_ERROR_INVALID_VALUE;
++  if (selector >= 5)
++    {
++      pppoe_ze_policer_result_t current;
++      rv = pppoe_ze_policer (incarnation, owner, policer_owner, index,
++                              selector <= 9 ? 1 : 2, &current);
++      if (rv)
++        return rv;
++      if (current.bound_index != ~0 &&
++          (!current.owned || current.bound_index != current.policer_index))
++        return VNET_API_ERROR_INVALID_VALUE;
++      if (operation == PPPOE_ZE_ADD &&
++          (!current.owned || current.bound_index != current.policer_index))
++        return VNET_API_ERROR_INVALID_VALUE;
++    }
++  const char *arc = ze_feature_arcs[selector - 1];
++  const char *feature = ze_feature_names[selector - 1];
++  int state = pppoe_ze_feature_state (arc, feature, index);
++  if (state < 0)
++    return state;
++  *enabled = state != 0;
++  if (operation == PPPOE_ZE_QUERY || *enabled == (operation == PPPOE_ZE_ADD))
++    return 0;
++  rv = vnet_feature_enable_disable (arc, feature, index,
++                                     operation == PPPOE_ZE_ADD, 0, 0);
++  if (rv)
++    return rv;
++  state = pppoe_ze_feature_state (arc, feature, index);
++  if (state < 0)
++    return state;
++  *enabled = state != 0;
++  return *enabled == (operation == PPPOE_ZE_ADD) ? 0 :
++    VNET_API_ERROR_UNSPECIFIED;
++}
++
++/* Called by both stock and owned session deletion BEFORE hiding/recycling
++ * this exact old logical interface. Detaching its bindings does not delete
++ * the policer objects: their independent receipts remain for orphan cleanup.
++ * Failure keeps the old interface reserved and quarantined for retry.
++ */
++int
++pppoe_ze_retire_interface (pppoe_session_t *session)
++{
++  u32 index = session->sw_if_index;
++  for (u32 i = 0; i < ARRAY_LEN (ze_feature_arcs); i++)
++    {
++      int desired = i < 4;
++      int state = pppoe_ze_feature_state (ze_feature_arcs[i], ze_feature_names[i], index);
++      if (state < 0)
++        return state;
++      if (state != desired)
++        {
++          int rv = vnet_feature_enable_disable (ze_feature_arcs[i], ze_feature_names[i],
++                                                 index, desired, 0, 0);
++          if (rv)
++            return rv;
++        }
++      if (pppoe_ze_feature_state (ze_feature_arcs[i], ze_feature_names[i], index) != desired)
++        return VNET_API_ERROR_UNSPECIFIED;
++    }
++  vnet_policer_main_t *pm = &vnet_policer_main;
++  for (u32 dir = 0; dir < VLIB_N_RX_TX; dir++)
++    if (index < vec_len (pm->policer_index_by_sw_if_index[dir]))
++      {
++        u32 pi = pm->policer_index_by_sw_if_index[dir][index];
++        if (pi != ~0)
++          {
++            if (pi >= vec_len (pm->policers) || pool_is_free_index (pm->policers, pi))
++              {
++                pm->policer_index_by_sw_if_index[dir][index] = ~0;
++                continue;
++              }
++            int rv = policer_input (pi, index, dir, false);
++            if (rv)
++              return rv;
++          }
++      }
++  return 0;
++}
++
++int
++pppoe_ze_route (u8 is_add, const u8 *incarnation, const u8 *owner,
++                 u32 index, u32 table, const fib_prefix_t *prefix,
++                 const ip46_address_t *gateway, u8 preference)
++{
++  int rv = pppoe_ze_fence (incarnation, owner);
++  if (rv || is_add > 1 || !pppoe_ze_owned_interface (index, owner) ||
++      (prefix->fp_proto != FIB_PROTOCOL_IP4 && prefix->fp_proto != FIB_PROTOCOL_IP6) ||
++      prefix->fp_len > (prefix->fp_proto == FIB_PROTOCOL_IP4 ? 32 : 128))
++    return VNET_API_ERROR_INVALID_VALUE;
++  /* FIB selection is read in this same request, never from a former owner's
++   * cached table or a different address family's pool.
++   */
++  u32 fib;
++  rv = fib_api_table_id_decode (prefix->fp_proto, table, &fib);
++  if (rv)
++    return rv;
++  if (fib != fib_table_get_index_for_sw_if_index (prefix->fp_proto, index))
++    return VNET_API_ERROR_INVALID_VALUE;
++  pppoe_session_t *session = pppoe_ze_owned_interface (index, owner);
++  u32 receipt = ~0;
++  for (u32 i = 0; i < vec_len (session->ze_routes); i++)
++    {
++      pppoe_ze_owned_route_t *r = &session->ze_routes[i];
++      if (r->table == table && r->prefix.fp_proto == prefix->fp_proto &&
++          r->prefix.fp_len == prefix->fp_len &&
++          !memcmp (&r->prefix.fp_addr, &prefix->fp_addr, sizeof (prefix->fp_addr)) &&
++          !memcmp (&r->path.frp_addr, gateway, sizeof (*gateway)) &&
++          r->path.frp_preference == preference)
++        { receipt = i; break; }
++    }
++  if (!is_add && receipt == ~0)
++    return 0; /* No owned receipt, so no native path is touched. */
++  if (is_add && receipt == ~0 && vec_len (session->ze_routes) >= 1024)
++    return VNET_API_ERROR_LIMIT_EXCEEDED;
++  fib_route_path_t *paths = 0;
++  vec_validate (paths, 0);
++  paths[0] = (fib_route_path_t) {
++    .frp_proto = prefix->fp_proto == FIB_PROTOCOL_IP4 ? DPO_PROTO_IP4 : DPO_PROTO_IP6,
++    .frp_addr = *gateway, .frp_sw_if_index = index,
++    .frp_fib_index = 0, .frp_rpf_id = ~0,
++    .frp_weight = 1, .frp_preference = preference,
++  };
++  /* VPP fixes up host-route next hops in place. Keep the request path so
++   * receipt matching and later withdrawal each apply that fixup only once. */
++  fib_route_path_t requested_path = paths[0];
++  rv = fib_api_route_add_del (is_add, 1, fib, prefix, route_source,
++                               FIB_ENTRY_FLAG_NONE, paths);
++  if (!rv)
++    {
++      if (is_add && receipt == ~0)
++        {
++          pppoe_ze_owned_route_t r = { .prefix = *prefix, .path = requested_path, .table = table };
++          vec_add1 (session->ze_routes, r);
++        }
++      else if (!is_add)
++        vec_del1 (session->ze_routes, receipt);
++    }
++  vec_free (paths);
++  return rv;
++}
++
++/* Both manual hiding/reuse and actual interface deletion MUST remove these
++ * exact owned paths. VPP otherwise leaves an interface-deleted path in its
++ * permanent DROP state; that is not route removal or released ownership.
++ */
++void
++pppoe_ze_routes_forget (pppoe_session_t *session)
++{
++  for (u32 i = 0; i < vec_len (session->ze_routes); i++)
++    {
++      pppoe_ze_owned_route_t *r = &session->ze_routes[i];
++      u32 fib = fib_table_find (r->prefix.fp_proto, r->table);
++      if (fib == ~0)
++        continue;
++      fib_route_path_t *path = 0;
++      vec_add1 (path, r->path);
++      fib_table_entry_path_remove2 (fib, &r->prefix, route_source, path);
++      vec_free (path);
++    }
++  vec_free (session->ze_routes);
++}
++
++int
++pppoe_ze_interface (const u8 *incarnation, const u8 *owner,
++                     u32 index, u8 kind, u32 value, u32 *actual)
++{
++  *actual = ~0;
++  int rv = pppoe_ze_fence (incarnation, owner);
++  pppoe_session_t *session = pppoe_ze_owned_interface (index, owner);
++  if (rv || !session)
++    return VNET_API_ERROR_INVALID_VALUE;
++  vnet_main_t *vnm = vnet_get_main ();
++  if (kind == 1)
++    {
++      if (!value || value > 65535)
++        return VNET_API_ERROR_INVALID_VALUE;
++      u32 mtus[VNET_N_MTU] = { 0 };
++      mtus[VNET_MTU_L3] = value;
++      vnet_sw_interface_set_protocol_mtu (vnm, index, mtus);
++      *actual = vnet_sw_interface_get_mtu (vnm, index, VNET_MTU_L3);
++    }
++  else if (kind == 2)
++    {
++      if (value > 1)
++        return VNET_API_ERROR_INVALID_VALUE;
++      clib_error_t *error = vnet_sw_interface_set_flags (
++        vnm, index, value ? VNET_SW_INTERFACE_FLAG_ADMIN_UP : 0);
++      if (error)
++        {
++          clib_error_free (error);
++          return VNET_API_ERROR_UNSPECIFIED;
++        }
++      *actual = (vnet_get_sw_interface (vnm, index)->flags &
++                   VNET_SW_INTERFACE_FLAG_ADMIN_UP) != 0;
++    }
++  else if (kind == 3 || kind == 4)
++    {
++      fib_protocol_t proto = kind == 3 ? FIB_PROTOCOL_IP4 : FIB_PROTOCOL_IP6;
++      if (kind == 3 && fib_table_find (proto, value) != session->decap_fib_index)
++        return VNET_API_ERROR_INVALID_VALUE;
++      if (fib_table_get_table_id_for_sw_if_index (proto, index) != value)
++        {
++          rv = ip_table_bind (proto, index, value);
++          if (rv)
++            return rv;
++        }
++      *actual = fib_table_get_table_id_for_sw_if_index (proto, index);
++    }
++  else
++    return VNET_API_ERROR_INVALID_VALUE;
++  return *actual == value ? 0 : VNET_API_ERROR_UNSPECIFIED;
++}
+diff --git a/src/plugins/pppoe/pppoe_ze.h b/src/plugins/pppoe/pppoe_ze.h
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_ze.h
+@@ -0,0 +1,91 @@
++/* Ze's bounded PPPoE ownership API.
++ * Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#ifndef included_pppoe_ze_h
++#define included_pppoe_ze_h
++
++#include <pppoe/pppoe.h>
++#include <vnet/fib/fib_types.h>
++
++#define PPPOE_ZE_TOKEN_BYTES 16
++#define PPPOE_ZE_CP_MAX 4096
++
++typedef enum
++{
++  PPPOE_ZE_UNSPECIFIED,
++  PPPOE_ZE_QUERY,
++  PPPOE_ZE_ADD,
++  PPPOE_ZE_DELETE,
++  PPPOE_ZE_UPDATE,
++} pppoe_ze_operation_t;
++
++typedef struct
++{
++  u8 present;
++  u8 owner[PPPOE_ZE_TOKEN_BYTES];
++  u32 sw_if_index;
++  u32 dp_sw_if_index;
++  u32 table_id;
++} pppoe_ze_session_result_t;
++
++typedef struct
++{
++  u8 present;
++  u8 owner[PPPOE_ZE_TOKEN_BYTES];
++  u32 cp_sw_if_index;
++  u32 dp_sw_if_index;
++} pppoe_ze_cp_result_t;
++
++typedef struct
++{
++  u8 present;
++  u8 owned;
++  u8 slot_allocated;
++  u8 feature_mask;
++  u32 policer_index;
++  u32 bound_index;
++  u32 cir_kbps;
++  u64 cb_bytes;
++} pppoe_ze_policer_result_t;
++
++/* The API/CLI caller MUST run on VPP's main thread. These control-path
++ * producers are serialized by the ordinary, non-mp-safe API handlers.
++ */
++void pppoe_ze_server (u8 incarnation[PPPOE_ZE_TOKEN_BYTES]);
++clib_error_t *pppoe_ze_new_incarnation (u8 token[PPPOE_ZE_TOKEN_BYTES]);
++int pppoe_ze_session (u8 operation, const u8 *incarnation, const u8 *owner,
++                     const u8 *mac, u16 sid, u32 dp, u32 table,
++                     pppoe_ze_session_result_t *result);
++int pppoe_ze_cp (u8 operation, const u8 *incarnation, const u8 *owner,
++                u32 cp, u32 dp, pppoe_ze_cp_result_t *result);
++int pppoe_ze_policer (const u8 *incarnation, const u8 *owner,
++                     const u8 *policer_owner, u32 sw_if_index,
++                     u8 direction, pppoe_ze_policer_result_t *result);
++int pppoe_ze_policer_bind (const u8 *incarnation, const u8 *owner,
++                          const u8 *policer_owner,
++                          u32 sw_if_index, u8 direction,
++                          u32 expected_index, u32 desired_index);
++int pppoe_ze_policer_mutate (u8 operation, const u8 *incarnation,
++                            const u8 *owner, const u8 *policer_owner,
++                            u32 sw_if_index, u8 direction, u32 expected_index,
++                            u32 cir_kbps, u64 cb_bytes,
++                            pppoe_ze_policer_result_t *result);
++int pppoe_ze_feature (u8 operation, const u8 *incarnation, const u8 *owner,
++                      const u8 *policer_owner, u32 index, u8 selector,
++                      u8 *enabled);
++int pppoe_ze_route (u8 is_add, const u8 *incarnation, const u8 *owner,
++                    u32 index, u32 table, const fib_prefix_t *prefix,
++                    const ip46_address_t *gateway, u8 preference);
++fib_source_t pppoe_ze_route_source (void);
++void pppoe_ze_routes_forget (pppoe_session_t *session);
++int pppoe_ze_retire_interface (pppoe_session_t *session);
++int pppoe_ze_interface (const u8 *incarnation, const u8 *owner,
++                         u32 index, u8 kind, u32 value, u32 *actual);
++
++/* Every successful original CP mutation MUST forget affected ownership.
++ * The owned producer MUST stamp its token only after that mutation succeeds.
++ */
++void pppoe_ze_cp_forget (u32 cp, u32 dp);
++
++#endif
+diff --git a/src/plugins/pppoe/pppoe_ze_api.h b/src/plugins/pppoe/pppoe_ze_api.h
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_ze_api.h
+@@ -0,0 +1,157 @@
++/* Handlers are included before pppoe.api.c's generated registration table.
++ * Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6.
++ * They use the original API's manual network-order conversion convention.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <pppoe/pppoe_ze.h>
++#include <vnet/ip/ip_types_api.h>
++
++static void
++vl_api_pppoe_ze_server_t_handler (vl_api_pppoe_ze_server_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_server_reply_t *rmp;
++  int rv = 0;
++  u8 incarnation[PPPOE_ZE_TOKEN_BYTES];
++  pppoe_ze_server (incarnation);
++  REPLY_MACRO2 (VL_API_PPPOE_ZE_SERVER_REPLY, ({
++    clib_memcpy (rmp->incarnation, incarnation, sizeof (incarnation));
++  }));
++}
++
++static void
++vl_api_pppoe_ze_session_t_handler (vl_api_pppoe_ze_session_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_session_reply_t *rmp;
++  pppoe_ze_session_result_t result;
++  int rv = pppoe_ze_session (mp->operation, mp->incarnation, mp->owner,
++                             mp->client_mac, ntohs (mp->session_id),
++                             ntohl (mp->dp_sw_if_index),
++                             ntohl (mp->decap_vrf_id), &result);
++  REPLY_MACRO2 (VL_API_PPPOE_ZE_SESSION_REPLY, ({
++    rmp->present = result.present;
++    clib_memcpy (rmp->owner, result.owner, sizeof (result.owner));
++    rmp->sw_if_index = htonl (result.sw_if_index);
++    rmp->dp_sw_if_index = htonl (result.dp_sw_if_index);
++    rmp->decap_vrf_id = htonl (result.table_id);
++  }));
++}
++
++static void
++vl_api_pppoe_ze_cp_t_handler (vl_api_pppoe_ze_cp_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_cp_reply_t *rmp;
++  pppoe_ze_cp_result_t result;
++  int rv = pppoe_ze_cp (mp->operation, mp->incarnation, mp->owner,
++                        ntohl (mp->cp_sw_if_index),
++                        ntohl (mp->dp_sw_if_index), &result);
++  REPLY_MACRO2 (VL_API_PPPOE_ZE_CP_REPLY, ({
++    rmp->present = result.present;
++    clib_memcpy (rmp->owner, result.owner, sizeof (result.owner));
++    rmp->cp_sw_if_index = htonl (result.cp_sw_if_index);
++    rmp->dp_sw_if_index = htonl (result.dp_sw_if_index);
++  }));
++}
++
++static void
++vl_api_pppoe_ze_policer_t_handler (vl_api_pppoe_ze_policer_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_policer_reply_t *rmp;
++  pppoe_ze_policer_result_t result;
++  int rv = pppoe_ze_policer (mp->incarnation, mp->owner,
++                             mp->policer_owner,
++                             ntohl (mp->sw_if_index), mp->direction, &result);
++  REPLY_MACRO2 (VL_API_PPPOE_ZE_POLICER_REPLY, ({
++    rmp->present = result.present;
++    rmp->owned = result.owned;
++    rmp->policer_index = htonl (result.policer_index);
++    rmp->slot_allocated = result.slot_allocated;
++    rmp->feature_mask = result.feature_mask;
++    rmp->bound_index = htonl (result.bound_index);
++    rmp->cir_kbps = htonl (result.cir_kbps);
++    rmp->cb_bytes = clib_host_to_net_u64 (result.cb_bytes);
++  }));
++}
++
++static void
++vl_api_pppoe_ze_policer_bind_t_handler (vl_api_pppoe_ze_policer_bind_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_policer_bind_reply_t *rmp;
++  int rv = pppoe_ze_policer_bind (mp->incarnation, mp->owner,
++                                  mp->policer_owner,
++                                  ntohl (mp->sw_if_index), mp->direction,
++                                  ntohl (mp->expected_index),
++                                  ntohl (mp->desired_index));
++  REPLY_MACRO (VL_API_PPPOE_ZE_POLICER_BIND_REPLY);
++}
++
++static void
++vl_api_pppoe_ze_policer_mutate_t_handler (vl_api_pppoe_ze_policer_mutate_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_policer_mutate_reply_t *rmp;
++  pppoe_ze_policer_result_t result;
++  int rv = pppoe_ze_policer_mutate (mp->operation, mp->incarnation, mp->owner,
++                                    mp->policer_owner, ntohl (mp->sw_if_index),
++                                    mp->direction, ntohl (mp->expected_index),
++                                    ntohl (mp->cir_kbps),
++                                    clib_net_to_host_u64 (mp->cb_bytes), &result);
++  REPLY_MACRO2 (VL_API_PPPOE_ZE_POLICER_MUTATE_REPLY, ({
++    rmp->present = result.present;
++    rmp->owned = result.owned;
++    rmp->policer_index = htonl (result.policer_index);
++    rmp->cir_kbps = htonl (result.cir_kbps);
++    rmp->cb_bytes = clib_host_to_net_u64 (result.cb_bytes);
++  }));
++}
++
++static void
++vl_api_pppoe_ze_feature_t_handler (vl_api_pppoe_ze_feature_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_feature_reply_t *rmp;
++  u8 enabled;
++  int rv = pppoe_ze_feature (mp->operation, mp->incarnation, mp->owner,
++                             mp->policer_owner, ntohl (mp->sw_if_index),
++                             mp->selector, &enabled);
++  REPLY_MACRO2 (VL_API_PPPOE_ZE_FEATURE_REPLY, ({ rmp->enabled = enabled; }));
++}
++
++static void
++vl_api_pppoe_ze_route_t_handler (vl_api_pppoe_ze_route_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_route_reply_t *rmp;
++  fib_prefix_t prefix;
++  ip46_address_t gateway = { 0 };
++  int rv = VNET_API_ERROR_INVALID_VALUE;
++  if ((mp->destination.address.af == ADDRESS_IP4 ||
++       mp->destination.address.af == ADDRESS_IP6) &&
++      mp->destination.len <= (mp->destination.address.af == ADDRESS_IP4 ? 32 : 128) &&
++      (!mp->gateway_present || mp->gateway.af == mp->destination.address.af))
++    {
++      ip_prefix_decode (&mp->destination, &prefix);
++      if (mp->gateway_present)
++        ip_address_decode (&mp->gateway, &gateway);
++      rv = pppoe_ze_route (mp->is_add, mp->incarnation, mp->owner,
++                            ntohl (mp->sw_if_index), ntohl (mp->table_id),
++                            &prefix, &gateway, mp->preference);
++    }
++  REPLY_MACRO (VL_API_PPPOE_ZE_ROUTE_REPLY);
++}
++
++static void
++vl_api_pppoe_ze_interface_t_handler (vl_api_pppoe_ze_interface_t *mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vl_api_pppoe_ze_interface_reply_t *rmp;
++  u32 actual;
++  int rv = pppoe_ze_interface (mp->incarnation, mp->owner,
++                               ntohl (mp->sw_if_index), mp->kind,
++                               ntohl (mp->value), &actual);
++  REPLY_MACRO2 (VL_API_PPPOE_ZE_INTERFACE_REPLY, ({ rmp->actual = htonl (actual); }));
++}
+diff --git a/src/plugins/pppoe/pppoe_ze_test.c b/src/plugins/pppoe/pppoe_ze_test.c
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_ze_test.c
+@@ -0,0 +1,865 @@
++/* Native ownership regression. Run only in the isolated single-thread lab.
++ * Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6.
++ * Calls the same producers as the Ze API, using real VPP objects.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <pppoe/pppoe_ze.h>
++#include <vnet/interface_funcs.h>
++#include <vnet/feature/feature.h>
++#include <vnet/policer/policer.h>
++#include <vnet/fib/fib_table.h>
++#include <vnet/fib/fib_entry.h>
++#include <vnet/fib/fib_path.h>
++#include <vnet/fib/fib_path_list.h>
++
++typedef struct
++{
++  const char *name;
++  fib_source_t source;
++} pppoe_ze_test_source_t;
++
++static walk_rc_t
++pppoe_ze_test_source_walk (fib_source_t source, const char *name,
++                           fib_source_priority_t priority,
++                           fib_source_behaviour_t behaviour, void *context)
++{
++  pppoe_ze_test_source_t *lookup = context;
++  if (strcmp (name, lookup->name))
++    return WALK_CONTINUE;
++  lookup->source = source;
++  return WALK_STOP;
++}
++
++static fib_source_t
++pppoe_ze_test_source (const char *name)
++{
++  pppoe_ze_test_source_t lookup = { .name = name,
++                                   .source = FIB_SOURCE_INVALID };
++  fib_source_walk (pppoe_ze_test_source_walk, &lookup);
++  return lookup.source;
++}
++
++static u32
++pppoe_ze_test_path_count (u32 fib, const fib_prefix_t *prefix,
++                           fib_source_t source)
++{
++  fib_node_index_t entry = fib_table_lookup_exact_match (fib, prefix);
++  fib_node_index_t paths = fib_entry_get_path_list_for_source (entry, source);
++  return paths == FIB_NODE_INDEX_INVALID ? 0 : fib_path_list_get_n_paths (paths);
++}
++
++static int
++pppoe_ze_test_sourced (u32 fib, const fib_prefix_t *prefix, fib_source_t source)
++{
++  fib_node_index_t entry = fib_table_lookup_exact_match (fib, prefix);
++  return entry != FIB_NODE_INDEX_INVALID && fib_entry_is_sourced (entry, source);
++}
++
++/* Read this source's actual paths, including a non-winning source. Encoding
++ * the entry's winning path-list would silently inspect a foreign API route.
++ */
++static int
++pppoe_ze_test_paths (u32 fib, const fib_prefix_t *prefix, fib_source_t source,
++                      u32 first, u32 second)
++{
++  fib_node_index_t entry = fib_table_lookup_exact_match (fib, prefix);
++  fib_node_index_t paths = fib_entry_get_path_list_for_source (entry, source);
++  u32 expected = second == ~0 ? 1 : 2;
++  if (paths == FIB_NODE_INDEX_INVALID ||
++      fib_path_list_get_n_paths (paths) != expected)
++    return 0;
++  fib_path_encode_ctx_t encoded = { 0 };
++  fib_path_list_walk_w_ext (paths, 0, fib_path_encode, &encoded);
++  u32 first_count = 0, second_count = 0;
++  fib_route_path_t *path;
++  vec_foreach (path, encoded.rpaths)
++    {
++      if (path->frp_proto != DPO_PROTO_IP4 || path->frp_weight != 1 ||
++          path->frp_preference != 0)
++        continue;
++      if (path->frp_sw_if_index == first)
++        first_count++;
++      if (second != ~0 && path->frp_sw_if_index == second)
++        second_count++;
++    }
++  int matches = vec_len (encoded.rpaths) == expected && first_count == 1 &&
++                second_count == (second == ~0 ? 0 : 1);
++  vec_free (encoded.rpaths);
++  return matches;
++}
++
++/* Inspect native logical configuration through the independent config-name
++ * hash, rather than assuming config and policer pool indices coincide. */
++static int
++pppoe_ze_test_fixed_config (u32 index, u32 cir, u64 burst)
++{
++  vnet_policer_main_t *pm = &vnet_policer_main;
++  if (pool_is_free_index (pm->policers, index))
++    return 0;
++  uword *entry = hash_get_mem (pm->policer_config_by_name, pm->policers[index].name);
++  if (!entry || pool_is_free_index (pm->configs, entry[0]))
++    return 0;
++  qos_pol_cfg_params_st *cfg = &pm->configs[entry[0]];
++  return cfg->rfc == QOS_POLICER_TYPE_1R2C && cfg->rate_type == QOS_RATE_KBPS &&
++         cfg->rnd_type == QOS_ROUND_TO_DOWN && !cfg->color_aware &&
++         cfg->rb.kbps.cir_kbps == cir && cfg->rb.kbps.cb_bytes == burst &&
++         cfg->conform_action.action_type == QOS_ACTION_TRANSMIT &&
++         cfg->exceed_action.action_type == QOS_ACTION_DROP &&
++         cfg->violate_action.action_type == QOS_ACTION_DROP;
++}
++
++static void
++pppoe_ze_test_link (u8 *mac, u32 dp, int add)
++{
++  pppoe_entry_key_t key, cached_key;
++  pppoe_entry_result_t result, cached_result;
++  u32 bucket;
++  cached_key.raw = cached_result.raw = ~0ULL;
++  pppoe_lookup_1 (&pppoe_main.link_table, &cached_key, &cached_result,
++                 mac, 0, &key, &bucket, &result);
++  if (add)
++    pppoe_learn_process (&pppoe_main.link_table, dp, &key, &cached_key,
++                         &bucket, &result);
++  else
++    pppoe_delete_1 (&pppoe_main.link_table, mac, 0, &key, &bucket, &result);
++}
++
++static i16
++pppoe_ze_test_refs (const char *arc, u32 index)
++{
++  u8 arc_index = vnet_get_feature_arc_index (arc);
++  if (arc_index == (u8) ~0)
++    return -1;
++  if (index >= vec_len (feature_main.feature_count_by_sw_if_index[arc_index]))
++    return 0;
++  return feature_main.feature_count_by_sw_if_index[arc_index][index];
++}
++
++static int
++pppoe_ze_test_fence (u32 index, int output)
++{
++  static const char *rx[] = { "device-input", "ip4-unicast", "ip4-multicast",
++                             "ip6-unicast", "ip6-multicast" };
++  static const char *tx[] = { "ip4-output", "ip6-output" };
++  const char **arcs = output ? tx : rx;
++  const char *name = output ? "policer-output" : "policer-input";
++  u32 count = output ? ARRAY_LEN (tx) : ARRAY_LEN (rx);
++  for (u32 i = 0; i < count; i++)
++    {
++      int state = vnet_feature_is_enabled (arcs[i], name, index);
++      if (state == VNET_API_ERROR_INVALID_SW_IF_INDEX)
++        continue;
++      if (state < 0)
++        return state;
++      if (state)
++        {
++          int rv = vnet_feature_enable_disable (arcs[i], name, index, 0, 0, 0);
++          if (rv)
++            return rv;
++        }
++    }
++  return 0;
++}
++
++static clib_error_t *
++pppoe_ze_test (vlib_main_t *vm, unformat_input_t *input,
++                vlib_cli_command_t *command)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vnet_policer_main_t *pm = &vnet_policer_main;
++  u8 boot[16], repeat[16], other_boot[16], zero[16] = { 0 };
++  u8 owner[16], foreign[16];
++  u8 mac[8] = { 2, 0, 0, 0, 0x2e, 0x11, 0, 0 };
++  u32 interfaces[3] = { ~0, ~0, ~0 };
++  u32 rx = ~0, tx = ~0, unrelated = ~0;
++  u32 index = ~0, cases = 0;
++  u32 sibling = ~0, fib4 = ~0;
++  int sibling_live = 0, implicit_live = 0;
++  int shared_a = 0, shared_b = 0, shared_foreign = 0;
++  fib_source_t stock_source = FIB_SOURCE_INVALID;
++  fib_source_t owned_source = FIB_SOURCE_INVALID;
++  u32 foreign_ip6_fib = ~0;
++  fib_prefix_t implicit = { .fp_proto = FIB_PROTOCOL_IP4, .fp_len = 32 };
++  fib_prefix_t shared = { .fp_proto = FIB_PROTOCOL_IP4, .fp_len = 24 };
++  fib_prefix_t route4 = { .fp_proto = FIB_PROTOCOL_IP4, .fp_len = 32 };
++  fib_prefix_t route6 = { .fp_proto = FIB_PROTOCOL_IP6, .fp_len = 128 };
++  ip46_address_t gateway = { 0 };
++  int route4_installed = 0, route6_installed = 0;
++  route4.fp_addr.ip4.as_u32 = clib_host_to_net_u32 (0xc000024d);
++  shared.fp_addr.ip4.as_u32 = clib_host_to_net_u32 (0xc6336400);
++  route6.fp_addr.ip6.as_u64[0] = clib_host_to_net_u64 (0x20010db800000000ULL);
++  route6.fp_addr.ip6.as_u64[1] = clib_host_to_net_u64 (0x77);
++  const u16 sid = 43210;
++  int linked = 0, rv;
++  clib_error_t *error = 0;
++  pppoe_ze_session_result_t session;
++  pppoe_ze_cp_result_t pair;
++  pppoe_ze_policer_result_t rate;
++  vnet_pppoe_add_del_session_args_t args = { 0 };
++
++#define CHECK(condition, ...)                                               \
++  do {                                                                      \
++    if (!(condition))                                                       \
++      {                                                                     \
++        error = clib_error_return (0, __VA_ARGS__);                           \
++        goto done;                                                          \
++      }                                                                     \
++  } while (0)
++#define PASSED() do { cases++; } while (0)
++
++  if (pool_elts (pem->sessions) || pool_elts (pm->policers))
++    return clib_error_return (0,
++      "ownership test requires an isolated instance without sessions or policers");
++  memset (owner, 0x11, sizeof (owner));
++  memset (foreign, 0x22, sizeof (foreign));
++  pppoe_ze_server (boot);
++  pppoe_ze_server (repeat);
++  CHECK (memcmp (boot, zero, 16) && !memcmp (boot, repeat, 16),
++         "server incarnation is absent or changes within one process");
++  PASSED ();
++  error = pppoe_ze_new_incarnation (repeat);
++  if (error)
++    goto done;
++  CHECK (memcmp (repeat, boot, 16),
++         "fresh incarnation reused the same process/PID/clock identity");
++  pppoe_ze_server (other_boot);
++  CHECK (!memcmp (other_boot, boot, 16), "fresh entropy changed the server incarnation");
++  PASSED ();
++  memcpy (other_boot, boot, 16);
++  other_boot[0] ^= 1;
++
++  for (u32 i = 0; i < ARRAY_LEN (interfaces); i++)
++    {
++      u8 address[6] = { 2, 0, 0, 0x2e, 0x10, i + 1 };
++      rv = vnet_create_loopback_interface (&interfaces[i], address, 0, 0);
++      CHECK (!rv, "ownership loopback setup failed: %d", rv);
++    }
++  u32 dp = interfaces[0], cp = interfaces[1];
++  fib4 = fib_table_find (FIB_PROTOCOL_IP4, 0);
++  stock_source = pppoe_ze_test_source ("pppoe");
++  owned_source = pppoe_ze_test_source ("ze-pppoe");
++  CHECK (fib4 != ~0 && stock_source != FIB_SOURCE_INVALID &&
++         owned_source != FIB_SOURCE_INVALID &&
++         owned_source == pppoe_ze_route_source () && stock_source != owned_source,
++         "ownership fixture requires distinct pppoe and ze-pppoe FIB sources");
++  CHECK (!pppoe_ze_test_sourced (fib4, &implicit, stock_source) &&
++         fib_table_lookup_exact_match (fib4, &shared) == FIB_NODE_INDEX_INVALID,
++         "ownership fixture route prefixes already have foreign state");
++  rv = pppoe_ze_cp (PPPOE_ZE_ADD, boot, zero, cp, dp, &pair);
++  CHECK (rv && !pair.present, "zero owner created a control map"); PASSED ();
++  rv = pppoe_ze_cp (PPPOE_ZE_ADD, other_boot, owner, cp, dp, &pair);
++  CHECK (rv && !pair.present, "old incarnation created a control map"); PASSED ();
++  rv = pppoe_ze_cp (PPPOE_ZE_ADD, boot, owner, cp, dp, &pair);
++  CHECK (!rv && pair.present && pair.cp_sw_if_index == cp &&
++         pair.dp_sw_if_index == dp && !memcmp (pair.owner, owner, 16),
++         "owned control map did not retain its exact owner"); PASSED ();
++  rv = pppoe_ze_cp (PPPOE_ZE_ADD, boot, owner, cp, dp, &pair);
++  CHECK (!rv && pair.present, "repeated owned control-map add was not idempotent"); PASSED ();
++  rv = pppoe_ze_cp (PPPOE_ZE_DELETE, boot, foreign, cp, dp, &pair);
++  CHECK (rv && pair.present, "another owner deleted the control map"); PASSED ();
++  CHECK (!pppoe_add_del_cp (cp, dp, 0) && !pppoe_add_del_cp (cp, dp, 1),
++         "original control-map replacement failed");
++  rv = pppoe_ze_cp (PPPOE_ZE_QUERY, boot, owner, cp, dp, &pair);
++  CHECK (!rv && pair.present && !memcmp (pair.owner, zero, 16),
++         "original control-map replacement inherited an ownership token");
++  CHECK (pppoe_ze_cp (PPPOE_ZE_DELETE, boot, owner, cp, dp, &pair),
++         "stale owner deleted a foreign replacement map"); PASSED ();
++  CHECK (!pppoe_add_del_cp (cp, dp, 0), "foreign fixture map cleanup failed");
++  CHECK (!pppoe_ze_cp (PPPOE_ZE_ADD, boot, owner, cp, dp, &pair),
++         "map before interface-reuse fixture failed");
++  u32 old_cp = cp;
++  CHECK (!vnet_delete_loopback_interface (cp), "CP interface deletion failed");
++  interfaces[1] = ~0;
++  CHECK (!pppoe_ze_cp (PPPOE_ZE_QUERY, boot, owner, old_cp, dp, &pair) &&
++         !pair.present &&
++         !pppoe_ze_cp (PPPOE_ZE_DELETE, boot, owner, old_cp, dp, &pair) && !pair.present,
++         "deleted CP interface could not confirm its removed map's absence"); PASSED ();
++  CHECK (pppoe_ze_cp (PPPOE_ZE_ADD, boot, owner, old_cp, dp, &pair),
++         "map add accepted a deleted CP interface"); PASSED ();
++  u8 new_cp_mac[6] = { 2, 0, 0, 0x2e, 0x20, 2 };
++  CHECK (!vnet_create_loopback_interface (&interfaces[1], new_cp_mac, 0, 0),
++         "CP interface replacement failed");
++  cp = interfaces[1];
++  CHECK (cp == old_cp &&
++         !pppoe_ze_cp (PPPOE_ZE_QUERY, boot, owner, cp, dp, &pair) && !pair.present,
++         "reused interface index inherited its old control binding");
++  CHECK (!pppoe_ze_cp (PPPOE_ZE_ADD, boot, owner, cp, dp, &pair) &&
++         !pppoe_ze_cp (PPPOE_ZE_DELETE, boot, owner, cp, dp, &pair) &&
++         !pair.present &&
++         !pppoe_ze_cp (PPPOE_ZE_DELETE, boot, owner, cp, dp, &pair),
++         "owned map deletion or repeated absence failed"); PASSED ();
++
++  pppoe_ze_test_link (mac, dp, 1);
++  linked = 1;
++  rv = pppoe_ze_session (PPPOE_ZE_ADD, boot, owner, mac, sid,
++                         interfaces[2], 0, &session);
++  CHECK (rv && pool_elts (pem->sessions) == 0,
++         "wrong learned data interface allocated a native session"); PASSED ();
++  rv = pppoe_ze_session (PPPOE_ZE_ADD, boot, owner, mac, sid, dp, 0, &session);
++  CHECK (!rv && session.present && session.sw_if_index != ~0 &&
++         session.dp_sw_if_index == dp && !memcmp (session.owner, owner, 16),
++         "owned session was not created: %d", rv);
++  index = session.sw_if_index; PASSED ();
++
++  /* Owned pre-NCP creation has a zero peer address. VPP already has a
++   * special-source 0.0.0.0/32, so the assertion MUST inspect the stock PPPoE
++   * source, rather than require that prefix to disappear altogether.
++   * MUTATION: change only the owned producer's args.disable_fib to zero.
++   */
++  CHECK (!pppoe_ze_test_sourced (fib4, &implicit, stock_source),
++         "owned session creation installed an implicit stock peer route");
++  vnet_pppoe_add_del_session_args_t peer = { 0 };
++  peer.is_add = 1; peer.session_id = sid + 1; peer.decap_fib_index = fib4;
++  clib_memcpy (peer.client_mac, mac, 6);
++  rv = vnet_pppoe_add_del_session (&peer, &sibling);
++  if (!rv) sibling_live = implicit_live = 1;
++  CHECK (!rv && sibling != index &&
++         pppoe_ze_test_paths (fib4, &implicit, stock_source, sibling, ~0),
++         "stock creation with FIB enabled did not install its exact peer path");
++  peer.is_add = 0;
++  rv = vnet_pppoe_add_del_session (&peer, 0);
++  if (!rv) sibling_live = implicit_live = 0;
++  CHECK (!rv && !pppoe_ze_test_sourced (fib4, &implicit, stock_source),
++         "stock implicit peer path remained after its exact session deletion");
++  sibling = ~0;
++  PASSED ();
++
++  /* Two subscriber owners share a prefix, while a third-party API path
++   * remains permitted under its own source. Neither add may replace the
++   * other subscriber, and neither withdrawal may remove another path.
++   * MUTATION: set the route producer's is_multipath argument to zero, or
++   * replace its ze-pppoe source argument with FIB_SOURCE_API.
++   */
++  fib_table_entry_path_add (fib4, &shared, FIB_SOURCE_API, FIB_ENTRY_FLAG_NONE,
++                            DPO_PROTO_IP4, &gateway, interfaces[2], 0, 1, 0,
++                            FIB_ROUTE_PATH_FLAG_NONE);
++  shared_foreign = 1;
++  CHECK (pppoe_ze_test_paths (fib4, &shared, FIB_SOURCE_API, interfaces[2], ~0),
++         "foreign shared-prefix control path was not installed");
++  rv = pppoe_ze_session (PPPOE_ZE_ADD, boot, foreign, mac, sid + 1, dp, 0, &session);
++  if (!rv) { sibling = session.sw_if_index; sibling_live = 1; }
++  CHECK (!rv && session.present && sibling != ~0 && sibling != index &&
++         !memcmp (session.owner, foreign, 16) && pool_elts (pem->sessions) == 2,
++         "second subscriber owner did not receive a distinct session");
++  rv = pppoe_ze_route (1, boot, owner, index, 0, &shared, &gateway, 0);
++  if (!rv) shared_a = 1;
++  CHECK (!rv, "first subscriber shared-prefix path add failed");
++  rv = pppoe_ze_route (1, boot, foreign, sibling, 0, &shared, &gateway, 0);
++  if (!rv) shared_b = 1;
++  CHECK (!rv && pppoe_ze_test_path_count (fib4, &shared, owned_source) == 2 &&
++         pppoe_ze_test_paths (fib4, &shared, owned_source, index, sibling) &&
++         pppoe_ze_test_paths (fib4, &shared, FIB_SOURCE_API, interfaces[2], ~0),
++         "shared-prefix add replaced a subscriber path or used a foreign source");
++  rv = pppoe_ze_route (0, boot, owner, index, 0, &shared, &gateway, 0);
++  if (!rv) shared_a = 0;
++  CHECK (!rv && pppoe_ze_test_path_count (fib4, &shared, owned_source) == 1 &&
++         pppoe_ze_test_paths (fib4, &shared, owned_source, sibling, ~0) &&
++         pppoe_ze_test_paths (fib4, &shared, FIB_SOURCE_API, interfaces[2], ~0),
++         "first subscriber withdrawal removed the second or foreign path");
++  CHECK (!pppoe_ze_session (PPPOE_ZE_QUERY, boot, foreign, mac, sid + 1, dp, 0,
++                            &session) && session.present &&
++         session.sw_if_index == sibling && !memcmp (session.owner, foreign, 16) &&
++         pppoe_ze_route (0, boot, owner, sibling, 0, &shared, &gateway, 0) &&
++         pppoe_ze_test_paths (fib4, &shared, owned_source, sibling, ~0),
++         "remaining subscriber lost its owner or accepted another owner's withdrawal");
++  rv = pppoe_ze_route (0, boot, foreign, sibling, 0, &shared, &gateway, 0);
++  if (!rv) shared_b = 0;
++  CHECK (!rv && !pppoe_ze_test_sourced (fib4, &shared, owned_source) &&
++         pppoe_ze_test_paths (fib4, &shared, FIB_SOURCE_API, interfaces[2], ~0),
++         "last subscriber withdrawal retained an owned path or removed the foreign path");
++  rv = pppoe_ze_session (PPPOE_ZE_DELETE, boot, foreign, mac, sid + 1, dp, 0, &session);
++  if (!rv) sibling_live = 0;
++  CHECK (!rv && !session.present && pool_elts (pem->sessions) == 1,
++         "second subscriber cleanup removed the original subscriber");
++  sibling = ~0;
++  fib_table_entry_path_remove (fib4, &shared, FIB_SOURCE_API,
++                               DPO_PROTO_IP4, &gateway, interfaces[2], 0, 1, 0);
++  shared_foreign = 0;
++  CHECK (fib_table_lookup_exact_match (fib4, &shared) == FIB_NODE_INDEX_INVALID,
++         "shared-prefix fixture retained a path after exact cleanup");
++  PASSED ();
++
++  rv = pppoe_ze_session (PPPOE_ZE_ADD, boot, owner, mac, sid, dp, 0, &session);
++  CHECK (!rv && session.sw_if_index == index && pool_elts (pem->sessions) == 1,
++         "repeated owned session add allocated another interface");
++  /* The same owner token must not make an unrelated discovery key present. */
++  CHECK (!pppoe_ze_session (PPPOE_ZE_QUERY, boot, owner, mac, sid, dp, 0, &session) &&
++         session.present && session.sw_if_index == index &&
++         session.dp_sw_if_index == dp && session.table_id == 0 &&
++         !memcmp (session.owner, owner, 16), "original discovery key did not resolve");
++  u8 missing_mac[6];
++  clib_memcpy (missing_mac, mac, sizeof (missing_mac));
++  missing_mac[5] ^= 0x80;
++  for (u32 wrong_key = 0; wrong_key < 2; wrong_key++)
++    {
++      CHECK (!pppoe_ze_session (PPPOE_ZE_QUERY, boot, owner,
++                                  wrong_key ? missing_mac : mac,
++                                  wrong_key ? sid : sid + 2, dp, 0, &session) &&
++             !session.present && session.sw_if_index == ~0 &&
++             session.dp_sw_if_index == ~0 && session.table_id == ~0 &&
++             !memcmp (session.owner, zero, 16),
++             "wrong %s discovery key borrowed an owned session", wrong_key ? "MAC" : "SID");
++    }
++  CHECK (!pppoe_ze_session (PPPOE_ZE_QUERY, boot, owner, mac, sid, dp, 0, &session) &&
++         session.present && session.sw_if_index == index &&
++         session.dp_sw_if_index == dp && session.table_id == 0 &&
++         !memcmp (session.owner, owner, 16), "negative key query changed original session");
++  pppoe_ze_test_link (mac, interfaces[2], 1);
++  args.is_add = 1; args.session_id = sid; args.disable_fib = 1;
++  args.decap_fib_index = fib_table_find (FIB_PROTOCOL_IP4, 0);
++  clib_memcpy (args.client_mac, mac, 6);
++  CHECK (vnet_pppoe_add_del_session (&args, 0) == VNET_API_ERROR_TUNNEL_EXIST,
++         "original duplicate session add did not refuse");
++  pppoe_entry_key_t key, cached_key;
++  pppoe_entry_result_t actual, cached_result;
++  u32 bucket;
++  cached_key.raw = cached_result.raw = ~0ULL;
++  pppoe_lookup_1 (&pem->session_table, &cached_key, &cached_result, mac,
++                  clib_host_to_net_u16 (sid), &key, &bucket, &actual);
++  CHECK (actual.fields.sw_if_index == dp,
++         "refused original duplicate add moved the live session's hash entry");
++  pppoe_ze_test_link (mac, dp, 1);
++  PASSED ();
++  rv = pppoe_ze_session (PPPOE_ZE_DELETE, boot, foreign, mac, sid, dp, 0, &session);
++  CHECK (rv && session.present, "another owner deleted the native session"); PASSED ();
++  rv = pppoe_ze_policer (boot, owner, owner, index, 1, &rate);
++  CHECK (!rv && !rate.present && rate.policer_index == ~0 &&
++         !rate.slot_allocated && rate.bound_index == ~0,
++         "unallocated policer state was read as a zero-index binding");
++  CHECK (!pppoe_ze_policer_bind (boot, owner, owner, index, 1, ~0, ~0),
++         "safe unbind of an unallocated slot failed"); PASSED ();
++
++  qos_pol_cfg_params_st cfg = { 0 };
++  cfg.rfc = QOS_POLICER_TYPE_1R2C;
++  cfg.rate_type = QOS_RATE_KBPS;
++  cfg.rnd_type = QOS_ROUND_TO_DOWN;
++  cfg.rb.kbps.cir_kbps = 1000;
++  cfg.rb.kbps.cb_bytes = 64000;
++  cfg.conform_action.action_type = QOS_ACTION_TRANSMIT;
++  cfg.exceed_action.action_type = cfg.violate_action.action_type = QOS_ACTION_DROP;
++  rv = pppoe_ze_policer_mutate (PPPOE_ZE_ADD, boot, owner, owner,
++                                  index, 1, ~0, 1000, 64000, &rate);
++  rx = rate.policer_index;
++  CHECK (!rv && rx == 0, "first real policer did not use valid index zero: %d/%u", rv, rx);
++  CHECK (pppoe_ze_test_fixed_config (rx, 1000, 64000),
++         "RX native algorithm, rounding, units, actions or authorization differ");
++  CHECK (!pppoe_ze_policer_bind (boot, owner, owner, index, 1, ~0, rx),
++         "owned zero-index policer bind failed");
++  CHECK (pm->policer_index_by_sw_if_index[VLIB_RX][dp] == ~0,
++         "untouched slot inherited valid policer index zero"); PASSED ();
++  i16 refs = pppoe_ze_test_refs ("device-input", index);
++  CHECK (refs > 0 && !pppoe_ze_policer_bind (boot, owner, owner, index, 1, ~0, rx) &&
++         pppoe_ze_test_refs ("device-input", index) == refs,
++         "repeated bind stacked a feature reference"); PASSED ();
++  CHECK (pppoe_ze_policer_bind (boot, owner, owner, index, 1, rx, ~0) &&
++         pm->policer_index_by_sw_if_index[VLIB_RX][index] == rx,
++         "unfenced unbind removed a reachable policer"); PASSED ();
++  static const char *arcs[] = { "ip4-unicast", "ip4-multicast", "ip6-unicast", "ip6-multicast" };
++  for (u32 i = 0; i < ARRAY_LEN (arcs); i++)
++    CHECK (!vnet_feature_enable_disable (arcs[i], "policer-input", index, 1, 0, 0),
++           "patched policer arc missing: %s", arcs[i]);
++  CHECK (!vnet_feature_enable_disable ("device-input", "policer-input", index, 0, 0, 0) &&
++         pppoe_ze_policer_bind (boot, owner, owner, index, 1, rx, ~0),
++         "a still-enabled PPPoE arc did not prevent unbind"); PASSED ();
++  CHECK (!pppoe_ze_test_fence (index, 0) &&
++         !pppoe_ze_policer_bind (boot, owner, owner, index, 1, rx, ~0) &&
++         !pppoe_ze_policer_bind (boot, owner, owner, index, 1, rx, ~0),
++         "fenced or repeated unbind failed"); PASSED ();
++  CHECK (!policer_add (vm, (u8 *) "ze-ownership-test-foreign", &cfg, &unrelated) &&
++         !policer_input (unrelated, index, VLIB_RX, true), "foreign binding fixture failed");
++  CHECK (pppoe_ze_policer_bind (boot, owner, owner, index, 1, rx, ~0) &&
++         pm->policer_index_by_sw_if_index[VLIB_RX][index] == unrelated,
++         "stale owner removed another writer's binding");
++  CHECK (!policer_input (unrelated, index, VLIB_RX, false), "foreign binding cleanup failed"); PASSED ();
++  CHECK (pppoe_ze_policer_bind (boot, owner, owner, index, 1, ~0, unrelated) &&
++         pm->policer_index_by_sw_if_index[VLIB_RX][index] == ~0,
++         "a foreign desired policer was bound to the owned interface"); PASSED ();
++  CHECK (pppoe_ze_policer (boot, owner, owner, index, 0, &rate),
++         "unspecified policer direction was accepted"); PASSED ();
++
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_ADD, boot, owner, owner,
++                                    index, 2, ~0, 1000, 64000, &rate),
++         "owned output policer fixture failed");
++  tx = rate.policer_index;
++  CHECK (pppoe_ze_test_fixed_config (tx, 1000, 64000),
++         "TX native algorithm, rounding, units, actions or authorization differ");
++  CHECK (!pppoe_ze_policer (boot, owner, owner, index, 2, &rate) &&
++         rate.present && rate.policer_index == tx &&
++         !pppoe_ze_policer_bind (boot, owner, owner, index, 2, ~0, tx),
++         "exact named output lookup/bind failed");
++  i16 refs4 = pppoe_ze_test_refs ("ip4-output", index);
++  i16 refs6 = pppoe_ze_test_refs ("ip6-output", index);
++  CHECK (!pppoe_ze_policer_bind (boot, owner, owner, index, 2, ~0, tx) &&
++         refs4 == pppoe_ze_test_refs ("ip4-output", index) &&
++         refs6 == pppoe_ze_test_refs ("ip6-output", index), "output retry stacked features"); PASSED ();
++  CHECK (pppoe_ze_policer_bind (boot, owner, owner, index, 2, tx, ~0) &&
++         !pppoe_ze_test_fence (index, 1) &&
++         !pppoe_ze_policer_bind (boot, owner, owner, index, 2, tx, ~0),
++         "output fencing did not precede unlink"); PASSED ();
++
++  /* Each literal selector is checked against a literal native arc/node.
++   * This table is independent of the producer's parallel lookup arrays. */
++  static const struct { u8 selector; const char *arc; const char *node; } selectors[] = {
++    { 1, "ip4-unicast", "ip4-not-enabled" },
++    { 2, "ip4-multicast", "ip4-not-enabled" },
++    { 3, "ip6-unicast", "ip6-not-enabled" },
++    { 4, "ip6-multicast", "ip6-not-enabled" },
++    { 5, "device-input", "policer-input" },
++    { 6, "ip4-unicast", "policer-input" },
++    { 7, "ip4-multicast", "policer-input" },
++    { 8, "ip6-unicast", "policer-input" },
++    { 9, "ip6-multicast", "policer-input" },
++    { 10, "ip4-output", "policer-output" },
++    { 11, "ip6-output", "policer-output" },
++  };
++  CHECK (!pppoe_ze_policer_bind (boot, owner, owner, index, 1, ~0, rx) &&
++         !pppoe_ze_policer_bind (boot, owner, owner, index, 2, ~0, tx),
++         "selector proof could not bind its actual owned RX/TX objects");
++  for (u32 i = 0; i < ARRAY_LEN (selectors); i++)
++    {
++      u8 enabled;
++      int original = vnet_feature_is_enabled (selectors[i].arc, selectors[i].node, index);
++      i16 original_refs = pppoe_ze_test_refs (selectors[i].arc, index);
++      CHECK (original >= 0 &&
++             !pppoe_ze_feature (PPPOE_ZE_DELETE, boot, owner, owner, index,
++                                 selectors[i].selector, &enabled) && !enabled &&
++             vnet_feature_is_enabled (selectors[i].arc, selectors[i].node, index) == 0,
++             "selector %u did not disable literal native arc/node", selectors[i].selector);
++      i16 disabled_refs = pppoe_ze_test_refs (selectors[i].arc, index);
++      CHECK (disabled_refs == original_refs - (original != 0) &&
++             !pppoe_ze_feature (PPPOE_ZE_QUERY, boot, owner, owner, index,
++                                 selectors[i].selector, &enabled) && !enabled &&
++             !pppoe_ze_feature (PPPOE_ZE_DELETE, boot, owner, owner, index,
++                                 selectors[i].selector, &enabled) && !enabled &&
++             pppoe_ze_test_refs (selectors[i].arc, index) == disabled_refs,
++             "selector %u disable/query retry changed native references", selectors[i].selector);
++      CHECK (!pppoe_ze_feature (PPPOE_ZE_ADD, boot, owner, owner, index,
++                                 selectors[i].selector, &enabled) && enabled &&
++             vnet_feature_is_enabled (selectors[i].arc, selectors[i].node, index) > 0 &&
++             pppoe_ze_test_refs (selectors[i].arc, index) == disabled_refs + 1 &&
++             !pppoe_ze_feature (PPPOE_ZE_ADD, boot, owner, owner, index,
++                                 selectors[i].selector, &enabled) && enabled &&
++             !pppoe_ze_feature (PPPOE_ZE_QUERY, boot, owner, owner, index,
++                                 selectors[i].selector, &enabled) && enabled &&
++             pppoe_ze_test_refs (selectors[i].arc, index) == disabled_refs + 1,
++             "selector %u enable/query retry missed native arc/node or stacked references", selectors[i].selector);
++      CHECK (!pppoe_ze_feature (PPPOE_ZE_DELETE, boot, owner, owner, index,
++                                 selectors[i].selector, &enabled) && !enabled &&
++             vnet_feature_is_enabled (selectors[i].arc, selectors[i].node, index) == 0 &&
++             pppoe_ze_test_refs (selectors[i].arc, index) == disabled_refs,
++             "selector %u final disable retained a native feature", selectors[i].selector);
++      if (original)
++        CHECK (!pppoe_ze_feature (PPPOE_ZE_ADD, boot, owner, owner, index,
++                                   selectors[i].selector, &enabled) && enabled,
++               "selector %u original state restore failed", selectors[i].selector);
++      CHECK (pppoe_ze_test_refs (selectors[i].arc, index) == original_refs,
++             "selector %u did not restore native references", selectors[i].selector);
++    }
++  CHECK (!pppoe_ze_test_fence (index, 0) && !pppoe_ze_test_fence (index, 1) &&
++         !pppoe_ze_policer_bind (boot, owner, owner, index, 1, rx, ~0) &&
++         !pppoe_ze_policer_bind (boot, owner, owner, index, 2, tx, ~0),
++         "selector proof did not fence/unbind its actual owned RX/TX objects");
++
++  /* Queries cannot lend later mutations authority over a reused interface. */
++  u8 gate;
++  CHECK (!pppoe_ze_feature (PPPOE_ZE_ADD, boot, owner, zero, index, 1, &gate) && gate,
++         "owned IPv4 gate close failed");
++  i16 gate_refs = pppoe_ze_test_refs ("ip4-unicast", index);
++  CHECK (!pppoe_ze_feature (PPPOE_ZE_ADD, boot, owner, zero, index, 1, &gate) &&
++         gate_refs == pppoe_ze_test_refs ("ip4-unicast", index) &&
++         !pppoe_ze_feature (PPPOE_ZE_DELETE, boot, owner, zero, index, 1, &gate) && !gate,
++         "gate retry stacked references or failed to reopen"); PASSED ();
++  CHECK (pppoe_ze_feature (PPPOE_ZE_ADD, boot, foreign, zero, index, 1, &gate) &&
++         vnet_feature_is_enabled ("ip4-unicast", "ip4-not-enabled", index) == 0,
++         "another session token changed a gate"); PASSED ();
++  u32 interface_value;
++  CHECK (!pppoe_ze_interface (boot, owner, index, 1, 1488, &interface_value) && interface_value == 1488 &&
++         !pppoe_ze_interface (boot, owner, index, 2, 1, &interface_value) && interface_value == 1 &&
++         !pppoe_ze_interface (boot, owner, index, 3, 0, &interface_value) && interface_value == 0 &&
++         !pppoe_ze_interface (boot, owner, index, 4, 0, &interface_value) && interface_value == 0,
++         "owned MTU/admin/family table setup failed"); PASSED ();
++  CHECK (pppoe_ze_interface (boot, foreign, index, 1, 1412, &interface_value) &&
++         vnet_sw_interface_get_mtu (vnet_get_main (), index, VNET_MTU_L3) == 1488 &&
++         pppoe_ze_interface (boot, owner, index, 0, 0, &interface_value),
++         "invalid token or interface operation changed MTU"); PASSED ();
++
++  CHECK (!pppoe_ze_route (1, boot, owner, index, 0, &route4, &gateway, 0),
++         "owned IPv4 route add failed");
++  route4_installed = 1;
++  CHECK (!pppoe_ze_route (1, boot, owner, index, 0, &route4, &gateway, 0) &&
++         fib_table_lookup_exact_match (0, &route4) != FIB_NODE_INDEX_INVALID &&
++         !pppoe_ze_route (0, boot, owner, index, 0, &route4, &gateway, 0),
++         "IPv4 route retry or exact withdrawal failed");
++  route4_installed = 0;
++  CHECK (fib_table_lookup_exact_match (0, &route4) == FIB_NODE_INDEX_INVALID,
++         "owned IPv4 path remained after withdrawal"); PASSED ();
++  CHECK (!pppoe_ze_route (1, boot, owner, index, 0, &route6, &gateway, 0),
++         "owned IPv6 route add failed");
++  route6_installed = 1;
++  CHECK (fib_table_lookup_exact_match (0, &route6) != FIB_NODE_INDEX_INVALID &&
++         !pppoe_ze_route (0, boot, owner, index, 0, &route6, &gateway, 0),
++         "IPv6 route exact withdrawal failed");
++  route6_installed = 0;
++  CHECK (fib_table_lookup_exact_match (0, &route6) == FIB_NODE_INDEX_INVALID,
++         "owned IPv6 path remained after withdrawal"); PASSED ();
++  CHECK (pppoe_ze_route (1, boot, foreign, index, 0, &route4, &gateway, 0) &&
++         pppoe_ze_route (1, boot, owner, index, 0x2e1111, &route4, &gateway, 0) &&
++         fib_table_lookup_exact_match (0, &route4) == FIB_NODE_INDEX_INVALID,
++         "foreign token or missing table installed a route"); PASSED ();
++
++  pm->policers[rx].current_bucket = 7;
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_ADD, boot, owner, owner,
++                                    index, 1, ~0, 1000, 64000, &rate) &&
++         rate.owned && rate.policer_index == rx && pm->policers[rx].current_bucket == 7,
++         "repeated owned creation reset native bucket or allocated another object"); PASSED ();
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_UPDATE, boot, owner, owner,
++                                    index, 1, rx, 2000, 64000, &rate) &&
++         rate.owned && rate.policer_index == rx && rate.cir_kbps == 2000,
++         "owned in-place rate update failed");
++  pm->policers[rx].current_bucket = 9;
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_UPDATE, boot, owner, owner,
++                                    index, 1, rx, 2000, 64000, &rate) &&
++         pm->policers[rx].current_bucket == 9,
++         "retried rate update reset counters/bucket twice"); PASSED ();
++  CHECK (pppoe_ze_policer_mutate (PPPOE_ZE_UPDATE, boot, foreign, owner,
++                                   index, 1, rx, 3000, 64000, &rate) &&
++         pppoe_ze_policer_mutate (PPPOE_ZE_DELETE, boot, foreign, owner,
++                                   index, 1, rx, 0, 0, &rate) &&
++         !pool_is_free_index (pm->policers, rx),
++         "another session token updated/deleted the owned policer"); PASSED ();
++  CHECK (!policer_input (rx, dp, VLIB_RX, true), "foreign slot fixture failed");
++  CHECK (pppoe_ze_policer_mutate (PPPOE_ZE_UPDATE, boot, owner, owner,
++                                   index, 1, rx, 3000, 64000, &rate) &&
++         pppoe_ze_policer_mutate (PPPOE_ZE_DELETE, boot, owner, owner,
++                                   index, 1, rx, 0, 0, &rate),
++         "an object borrowed by another native slot was changed");
++  CHECK (!policer_input (rx, dp, VLIB_RX, false) &&
++         !pppoe_ze_test_fence (dp, 0), "foreign slot cleanup failed"); PASSED ();
++  CHECK (!policer_update (vm, rx, &cfg) &&
++         !pppoe_ze_policer_mutate (PPPOE_ZE_QUERY, boot, owner, owner,
++                                    index, 1, rx, 0, 0, &rate) &&
++         rate.present && !rate.owned &&
++         pppoe_ze_policer_mutate (PPPOE_ZE_UPDATE, boot, owner, owner,
++                                   index, 1, rx, 3000, 64000, &rate) &&
++         pppoe_ze_policer_mutate (PPPOE_ZE_DELETE, boot, owner, owner,
++                                   index, 1, rx, 0, 0, &rate),
++         "legacy update retained a native owner receipt"); PASSED ();
++  u32 recycled = rx;
++  CHECK (!policer_del (vm, rx), "legacy policer delete failed");
++  rx = ~0;
++  CHECK (!policer_add (vm, (u8 *) "ze-pppoe/11111111111111111111111111111111/rx", &cfg, &rx) &&
++         rx == recycled &&
++         pppoe_ze_policer_mutate (PPPOE_ZE_UPDATE, boot, owner, owner,
++                                   index, 1, recycled, 3000, 64000, &rate) &&
++         pppoe_ze_policer_mutate (PPPOE_ZE_DELETE, boot, owner, owner,
++                                   index, 1, recycled, 0, 0, &rate) &&
++         pppoe_ze_policer_bind (boot, owner, owner, index, 1, ~0, recycled) &&
++         !pool_is_free_index (pm->policers, rx),
++         "same-name/index stock recreation acquired the old object receipt"); PASSED ();
++  CHECK (!policer_del (vm, rx), "foreign recreated policer cleanup failed");
++  rx = ~0;
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_ADD, boot, owner, repeat,
++                                    index, 1, ~0, 3000, 64000, &rate),
++         "new independent policer lifetime creation failed");
++  rx = rate.policer_index;
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_DELETE, boot, owner, owner,
++                                    index, 1, recycled, 0, 0, &rate) &&
++         !pool_is_free_index (pm->policers, rx) &&
++         !memcmp (pm->owners[rx].object, repeat, 16),
++         "stale object token deleted a fresh lifetime at the reused pool index"); PASSED ();
++
++  CHECK (!pppoe_ze_route (1, boot, owner, index, 0, &route4, &gateway, 0),
++         "IPv4 retirement receipt fixture failed");
++  route4_installed = 1;
++  CHECK (!pppoe_ze_route (1, boot, owner, index, 0, &route6, &gateway, 0),
++         "IPv6 retirement receipt fixture failed");
++  route6_installed = 1;
++  CHECK (!pppoe_ze_policer_bind (boot, owner, repeat, index, 1, ~0, rx) &&
++         !pppoe_ze_feature (PPPOE_ZE_ADD, boot, owner, repeat, index, 6, &gate) && gate,
++         "session retirement policer fixture failed");
++
++  args.is_add = 0; args.session_id = sid; args.disable_fib = 1;
++  args.decap_fib_index = fib_table_find (FIB_PROTOCOL_IP4, 0);
++  clib_memcpy (args.client_mac, mac, 6);
++  CHECK (!vnet_pppoe_add_del_session (&args, 0), "original session delete failed");
++  CHECK (fib_table_lookup_exact_match (0, &route4) == FIB_NODE_INDEX_INVALID,
++         "manual session hiding retained its IPv4 owned path");
++  route4_installed = 0; PASSED ();
++  CHECK (fib_table_lookup_exact_match (0, &route6) == FIB_NODE_INDEX_INVALID,
++         "manual session hiding retained its IPv6 owned path");
++  route6_installed = 0; PASSED ();
++  CHECK (pm->policer_index_by_sw_if_index[VLIB_RX][index] == ~0 &&
++         vnet_feature_is_enabled ("device-input", "policer-input", index) == 0 &&
++         vnet_feature_is_enabled ("ip4-unicast", "policer-input", index) == 0 &&
++         !pool_is_free_index (pm->policers, rx),
++         "manual session hiding retained a policer binding or deleted its object"); PASSED ();
++  args.is_add = 1;
++  CHECK (!vnet_pppoe_add_del_session (&args, 0), "original session recreation failed");
++  rv = pppoe_ze_session (PPPOE_ZE_QUERY, boot, owner, mac, sid, dp, 0, &session);
++  CHECK (!rv && session.present && session.sw_if_index == index &&
++         !memcmp (session.owner, zero, 16) &&
++         pppoe_ze_session (PPPOE_ZE_DELETE, boot, owner, mac, sid, dp, 0, &session),
++         "foreign pool/index reuse inherited the old owner"); PASSED ();
++  CHECK (pppoe_ze_policer (boot, owner, owner, index, 1, &rate),
++         "old session owner acquired a foreign replacement's policer state"); PASSED ();
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_DELETE, boot, owner, repeat,
++                                    index, 1, rx, 0, 0, &rate) && !rate.present,
++         "exact unbound orphan policer could not be released");
++  rx = ~0;
++  CHECK (!pppoe_ze_policer_mutate (PPPOE_ZE_DELETE, boot, owner, repeat,
++                                    index, 1, recycled, 0, 0, &rate),
++         "repeated orphan deletion did not return explicit absence"); PASSED ();
++  CHECK (!vnet_feature_enable_disable ("ip4-unicast", "ip4-not-enabled", index, 0, 0, 0),
++         "foreign session gate fixture failed");
++  CHECK (pppoe_ze_feature (PPPOE_ZE_ADD, boot, owner, zero, index, 1, &gate) &&
++         vnet_feature_is_enabled ("ip4-unicast", "ip4-not-enabled", index) == 0 &&
++         pppoe_ze_interface (boot, owner, index, 1, 1492, &interface_value),
++         "stale session receipt mutated a reused interface"); PASSED ();
++  fib_table_entry_path_add (0, &route4, pppoe_ze_route_source (),
++                            FIB_ENTRY_FLAG_NONE, DPO_PROTO_IP4, &gateway,
++                            index, 0, 1, 0, 0);
++  route4_installed = 1;
++  CHECK (pppoe_ze_route (0, boot, owner, index, 0, &route4, &gateway, 0) &&
++         fib_table_lookup_exact_match (0, &route4) != FIB_NODE_INDEX_INVALID,
++         "stale route receipt withdrew the replacement interface's path"); PASSED ();
++  fib_table_entry_path_remove (0, &route4, pppoe_ze_route_source (),
++                               DPO_PROTO_IP4, &gateway, index, 0, 1, 0);
++  route4_installed = 0;
++  args.is_add = 0;
++  CHECK (!vnet_pppoe_add_del_session (&args, 0), "foreign fixture session cleanup failed");
++  CHECK (!pppoe_ze_session (PPPOE_ZE_ADD, boot, owner, mac, sid, dp, 0, &session),
++         "owned session recreation failed");
++  pppoe_ze_test_link (mac, dp, 0); linked = 0;
++  CHECK (!pppoe_ze_session (PPPOE_ZE_DELETE, boot, owner, mac, sid, dp, 0, &session) &&
++         !session.present && pool_elts (pem->sessions) == 0,
++         "owned delete depended on the mutable learned link"); PASSED ();
++  CHECK (pppoe_ze_session (PPPOE_ZE_ADD, boot, zero, mac, sid, dp, 0, &session),
++         "zero session owner was accepted"); PASSED ();
++  CHECK (pppoe_ze_session (PPPOE_ZE_DELETE, other_boot, owner, mac, sid, dp, 0, &session),
++         "wrong process incarnation was accepted"); PASSED ();
++  CHECK (!pppoe_ze_session (PPPOE_ZE_QUERY, boot, owner, mac, sid, dp, 0, &session) &&
++         !session.present && session.sw_if_index == ~0,
++         "native session absence was represented by a valid index"); PASSED ();
++
++  /* A stock IPv6 session has no Ze token and no recorded FIB family. Its
++   * decap index must never be interpreted through the IPv4 FIB pool.
++   */
++  foreign_ip6_fib = fib_table_find_or_create_and_lock (
++    FIB_PROTOCOL_IP6, 0x2e1101, FIB_SOURCE_API);
++  CHECK (foreign_ip6_fib != ~0 &&
++         (foreign_ip6_fib >= vec_len (ip4_main.fibs) ||
++          pool_is_free_index (ip4_main.fibs, foreign_ip6_fib)),
++         "IPv6 fixture requires an index without an IPv4 FIB");
++  pppoe_ze_test_link (mac, dp, 1); linked = 1;
++  clib_memset (&args, 0, sizeof (args));
++  args.is_add = 1; args.is_ip6 = 1; args.disable_fib = 1;
++  args.session_id = sid; args.decap_fib_index = foreign_ip6_fib;
++  clib_memcpy (args.client_mac, mac, 6);
++  CHECK (!vnet_pppoe_add_del_session (&args, &index),
++         "stock IPv6 fixture session creation failed");
++  CHECK (!pppoe_ze_session (PPPOE_ZE_QUERY, boot, owner, mac, sid,
++                            dp, 0, &session) && session.present &&
++         session.sw_if_index == index && session.dp_sw_if_index == dp &&
++         session.table_id == ~0 && !memcmp (session.owner, zero, 16),
++         "foreign IPv6 session exposed an IPv4 table");
++  CHECK (pppoe_ze_session (PPPOE_ZE_ADD, boot, owner, mac, sid, dp, 0,
++                           &session) && session.present &&
++         pppoe_ze_session (PPPOE_ZE_DELETE, boot, owner, mac, sid, dp, 0,
++                           &session) && session.present &&
++         pool_elts (pem->sessions) == 1,
++         "foreign IPv6 session granted mutation ownership"); PASSED ();
++
++done:
++  if (shared_a || shared_b)
++    {
++      /* The source countercut deliberately writes our exact paths under API;
++       * the no-entry precondition above proves those paths are this fixture's.
++       */
++      fib_source_t sources[] = { owned_source, FIB_SOURCE_API };
++      for (u32 i = 0; i < ARRAY_LEN (sources); i++)
++        {
++          if (shared_a)
++            fib_table_entry_path_remove (fib4, &shared, sources[i],
++                                         DPO_PROTO_IP4, &gateway, index, 0, 1, 0);
++          if (shared_b)
++            fib_table_entry_path_remove (fib4, &shared, sources[i],
++                                         DPO_PROTO_IP4, &gateway, sibling, 0, 1, 0);
++        }
++    }
++  if (shared_foreign)
++    fib_table_entry_path_remove (fib4, &shared, FIB_SOURCE_API,
++                                 DPO_PROTO_IP4, &gateway, interfaces[2], 0, 1, 0);
++  if (sibling_live)
++    {
++      vnet_pppoe_add_del_session_args_t peer = { 0 };
++      peer.session_id = sid + 1; peer.decap_fib_index = fib4;
++      peer.disable_fib = !implicit_live;
++      clib_memcpy (peer.client_mac, mac, 6);
++      int clean = vnet_pppoe_add_del_session (&peer, 0);
++      if (clean) error = clib_error_return (error, "ownership sibling cleanup: %d", clean);
++    }
++  /* Also remove only the path the disable_fib countercut could have created.
++   * The initial exact-source absence check excludes another producer's path.
++   */
++  if (stock_source != FIB_SOURCE_INVALID && index != ~0)
++    fib_table_entry_path_remove (fib4, &implicit, stock_source,
++                                 DPO_PROTO_IP4, &implicit.fp_addr, index, ~0, 1, 0);
++  if (route4_installed)
++    fib_table_entry_path_remove (0, &route4, pppoe_ze_route_source (),
++                                 DPO_PROTO_IP4, &gateway, index, 0, 1, 0);
++  if (route6_installed)
++    fib_table_entry_path_remove (0, &route6, pppoe_ze_route_source (),
++                                 DPO_PROTO_IP6, &gateway, index, 0, 1, 0);
++  if (index != ~0 && vnet_sw_interface_is_api_valid (vnet_get_main (), index))
++    {
++      int clean = pppoe_ze_test_fence (index, 0);
++      if (!clean) clean = pppoe_ze_test_fence (index, 1);
++      if (clean) error = clib_error_return (error, "ownership feature cleanup: %d", clean);
++      for (u32 dir = 0; dir < VLIB_N_RX_TX; dir++)
++        if (index < vec_len (pm->policer_index_by_sw_if_index[dir]))
++          pm->policer_index_by_sw_if_index[dir][index] = ~0;
++    }
++  u32 policers[] = { rx, tx, unrelated };
++  for (u32 i = 0; i < ARRAY_LEN (policers); i++)
++    if (policers[i] != ~0 && !pool_is_free_index (pm->policers, policers[i]))
++      {
++        int clean = policer_del (vm, policers[i]);
++        if (clean) error = clib_error_return (error, "ownership policer cleanup: %d", clean);
++      }
++  if (pool_elts (pem->sessions))
++    {
++      args.is_add = 0; args.session_id = sid; args.disable_fib = 1;
++      clib_memcpy (args.client_mac, mac, 6);
++      int clean = vnet_pppoe_add_del_session (&args, 0);
++      if (clean) error = clib_error_return (error, "ownership session cleanup: %d", clean);
++    }
++  if (linked) pppoe_ze_test_link (mac, interfaces[0], 0);
++  if (foreign_ip6_fib != ~0)
++    fib_table_unlock (foreign_ip6_fib, FIB_PROTOCOL_IP6, FIB_SOURCE_API);
++  if (interfaces[0] != ~0 && interfaces[1] != ~0)
++    {
++      if (interfaces[0] < vec_len (pem->cp_if_index_by_sw_if_index) &&
++          pem->cp_if_index_by_sw_if_index[interfaces[0]] == interfaces[1])
++        {
++          int clean = pppoe_add_del_cp (interfaces[1], interfaces[0], 0);
++          if (clean) error = clib_error_return (error, "ownership map cleanup: %d", clean);
++        }
++    }
++  for (u32 i = 0; i < ARRAY_LEN (interfaces); i++)
++    if (interfaces[i] != ~0)
++      {
++        int clean = vnet_delete_loopback_interface (interfaces[i]);
++        if (clean) error = clib_error_return (error, "ownership loopback cleanup: %d", clean);
++      }
++  if (!error)
++    vlib_cli_output (vm, "PPPoE ownership: %u cases passed", cases);
++  return error;
++#undef PASSED
++#undef CHECK
++}
++
++VLIB_CLI_COMMAND (pppoe_ze_test_command, static) = {
++  .path = "test pppoe ownership",
++  .short_help = "test pppoe ownership",
++  .function = pppoe_ze_test,
++};
+diff --git a/src/plugins/pppoe/pppoe_ze_vat.h b/src/plugins/pppoe/pppoe_ze_vat.h
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_ze_vat.h
+@@ -0,0 +1,359 @@
++/* Legacy VAT adapters for the additive owned APIs.
++ * Upstream: https://github.com/FDio/vpp at cbba0451bb0af02a3ab8e163f6f99062782258e6.
++ * Tokens are exactly 32 hexadecimal digits; indices use decimal, including
++ * 4294967295 for the absent binding sentinel. All fields are required in the
++ * order shown by each parser, so a partial request is never sent.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <pppoe/pppoe_ze.h>
++
++static uword
++unformat_pppoe_ze_token (unformat_input_t *input, va_list *args)
++{
++  u8 *out = va_arg (*args, u8 *);
++  u8 *bytes = 0;
++  if (!unformat (input, "%U", unformat_hex_string, &bytes))
++    return 0;
++  int valid = vec_len (bytes) == PPPOE_ZE_TOKEN_BYTES;
++  if (valid)
++    clib_memcpy (out, bytes, PPPOE_ZE_TOKEN_BYTES);
++  vec_free (bytes);
++  return valid;
++}
++
++static void
++pppoe_ze_vat_complete (i32 rv)
++{
++  vat_main_t *vam = &vat_main;
++  if (vam->async_mode)
++    vam->async_errors += rv < 0;
++  else
++    {
++      vam->retval = rv;
++      vam->result_ready = 1;
++    }
++}
++
++static void
++vl_api_pppoe_ze_server_reply_t_handler (vl_api_pppoe_ze_server_reply_t *mp)
++{
++  i32 rv = ntohl (mp->retval);
++  if (!rv)
++    print (vat_main.ofp, "incarnation %U", format_hex_bytes,
++           mp->incarnation, PPPOE_ZE_TOKEN_BYTES);
++  pppoe_ze_vat_complete (rv);
++}
++
++static void
++vl_api_pppoe_ze_session_reply_t_handler (vl_api_pppoe_ze_session_reply_t *mp)
++{
++  i32 rv = ntohl (mp->retval);
++  if (!rv)
++    print (vat_main.ofp, "present %u owner %U sw %u dp %u table %u",
++           mp->present, format_hex_bytes, mp->owner, PPPOE_ZE_TOKEN_BYTES,
++           ntohl (mp->sw_if_index), ntohl (mp->dp_sw_if_index),
++           ntohl (mp->decap_vrf_id));
++  pppoe_ze_vat_complete (rv);
++}
++
++static void
++vl_api_pppoe_ze_cp_reply_t_handler (vl_api_pppoe_ze_cp_reply_t *mp)
++{
++  i32 rv = ntohl (mp->retval);
++  if (!rv)
++    print (vat_main.ofp, "present %u owner %U cp %u dp %u", mp->present,
++           format_hex_bytes, mp->owner, PPPOE_ZE_TOKEN_BYTES,
++           ntohl (mp->cp_sw_if_index), ntohl (mp->dp_sw_if_index));
++  pppoe_ze_vat_complete (rv);
++}
++
++static void
++vl_api_pppoe_ze_policer_reply_t_handler (vl_api_pppoe_ze_policer_reply_t *mp)
++{
++  i32 rv = ntohl (mp->retval);
++  if (!rv)
++    print (vat_main.ofp,
++           "present %u policer %u slot-allocated %u feature-mask %u bound %u",
++           mp->present, ntohl (mp->policer_index), mp->slot_allocated,
++           mp->feature_mask, ntohl (mp->bound_index));
++  pppoe_ze_vat_complete (rv);
++}
++
++static void
++vl_api_pppoe_ze_policer_bind_reply_t_handler
++  (vl_api_pppoe_ze_policer_bind_reply_t *mp)
++{
++  pppoe_ze_vat_complete (ntohl (mp->retval));
++}
++
++static int
++api_pppoe_ze_server (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_server_t *mp;
++  int ret;
++  if (unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_SERVER, mp);
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++static int
++api_pppoe_ze_session (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_session_t *mp;
++  u8 incarnation[PPPOE_ZE_TOKEN_BYTES], owner[PPPOE_ZE_TOKEN_BYTES], mac[6];
++  u32 op, sid, dp, table;
++  int ret;
++  if (!unformat (vam->input,
++                 "incarnation %U owner %U operation %u mac %U sid %u dp %u table %u",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, &op, unformat_ethernet_address, mac, &sid, &dp, &table) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT ||
++      op > 255 || sid > 65535)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_SESSION, mp);
++  mp->operation = op;
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  clib_memcpy (mp->client_mac, mac, sizeof (mac));
++  mp->session_id = htons (sid);
++  mp->dp_sw_if_index = htonl (dp);
++  mp->decap_vrf_id = htonl (table);
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++static int
++api_pppoe_ze_cp (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_cp_t *mp;
++  u8 incarnation[PPPOE_ZE_TOKEN_BYTES], owner[PPPOE_ZE_TOKEN_BYTES];
++  u32 op, cp, dp;
++  int ret;
++  if (!unformat (vam->input,
++                 "incarnation %U owner %U operation %u cp %u dp %u",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, &op, &cp, &dp) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT || op > 255)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_CP, mp);
++  mp->operation = op;
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  mp->cp_sw_if_index = htonl (cp);
++  mp->dp_sw_if_index = htonl (dp);
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++static int
++api_pppoe_ze_policer (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_policer_t *mp;
++  u8 incarnation[PPPOE_ZE_TOKEN_BYTES], owner[PPPOE_ZE_TOKEN_BYTES];
++  u8 object[PPPOE_ZE_TOKEN_BYTES];
++  u32 sw, direction;
++  int ret;
++  if (!unformat (vam->input,
++                 "incarnation %U owner %U policer-owner %U sw %u direction %u",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, unformat_pppoe_ze_token, object, &sw, &direction) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT || direction > 255)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_POLICER, mp);
++  clib_memcpy (mp->policer_owner, object, sizeof (object));
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  mp->sw_if_index = htonl (sw);
++  mp->direction = direction;
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++static int
++api_pppoe_ze_policer_bind (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_policer_bind_t *mp;
++  u8 incarnation[PPPOE_ZE_TOKEN_BYTES], owner[PPPOE_ZE_TOKEN_BYTES];
++  u8 object[PPPOE_ZE_TOKEN_BYTES];
++  u32 sw, direction, expected, desired;
++  int ret;
++  if (!unformat (vam->input,
++                 "incarnation %U owner %U policer-owner %U sw %u direction %u expected %u desired %u",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, unformat_pppoe_ze_token, object,
++                 &sw, &direction, &expected, &desired) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT || direction > 255)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_POLICER_BIND, mp);
++  clib_memcpy (mp->policer_owner, object, sizeof (object));
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  mp->sw_if_index = htonl (sw);
++  mp->direction = direction;
++  mp->expected_index = htonl (expected);
++  mp->desired_index = htonl (desired);
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++static void
++vl_api_pppoe_ze_policer_mutate_reply_t_handler
++  (vl_api_pppoe_ze_policer_mutate_reply_t *mp)
++{
++  i32 rv = ntohl (mp->retval);
++  if (!rv)
++    print (vat_main.ofp, "present %u owned %u policer %u cir %u cb %llu",
++           mp->present, mp->owned, ntohl (mp->policer_index),
++           ntohl (mp->cir_kbps), clib_net_to_host_u64 (mp->cb_bytes));
++  pppoe_ze_vat_complete (rv);
++}
++
++static void
++vl_api_pppoe_ze_feature_reply_t_handler (vl_api_pppoe_ze_feature_reply_t *mp)
++{
++  i32 rv = ntohl (mp->retval);
++  if (!rv)
++    print (vat_main.ofp, "enabled %u", mp->enabled);
++  pppoe_ze_vat_complete (rv);
++}
++
++static void
++vl_api_pppoe_ze_route_reply_t_handler (vl_api_pppoe_ze_route_reply_t *mp)
++{
++  pppoe_ze_vat_complete (ntohl (mp->retval));
++}
++
++static int
++api_pppoe_ze_policer_mutate (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_policer_mutate_t *mp;
++  u8 incarnation[16], owner[16], object[16];
++  u32 operation, sw, direction, expected, cir;
++  u64 cb;
++  int ret;
++  if (!unformat (vam->input,
++                 "incarnation %U owner %U policer-owner %U operation %u sw %u direction %u expected %u cir %u cb %llu",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, unformat_pppoe_ze_token, object, &operation, &sw,
++                 &direction, &expected, &cir, &cb) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT ||
++      operation > 255 || direction > 255)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_POLICER_MUTATE, mp);
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  clib_memcpy (mp->policer_owner, object, sizeof (object));
++  mp->operation = operation;
++  mp->sw_if_index = htonl (sw);
++  mp->direction = direction;
++  mp->expected_index = htonl (expected);
++  mp->cir_kbps = htonl (cir);
++  mp->cb_bytes = clib_host_to_net_u64 (cb);
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++static int
++api_pppoe_ze_feature (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_feature_t *mp;
++  u8 incarnation[16], owner[16], object[16];
++  u32 operation, sw, selector;
++  int ret;
++  if (!unformat (vam->input,
++                 "incarnation %U owner %U policer-owner %U operation %u sw %u selector %u",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, unformat_pppoe_ze_token, object, &operation, &sw,
++                 &selector) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT ||
++      operation > 255 || selector > 255)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_FEATURE, mp);
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  clib_memcpy (mp->policer_owner, object, sizeof (object));
++  mp->operation = operation;
++  mp->sw_if_index = htonl (sw);
++  mp->selector = selector;
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++/* The two addresses use exactly32hex digits in the API address-union layout.
++ * family0 is IPv4 and family1 IPv6; no host-endian address casting occurs.
++ */
++static int
++api_pppoe_ze_route (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_route_t *mp;
++  u8 incarnation[16], owner[16], prefix[16], gateway[16];
++  u32 add, sw, table, family, length, has_gateway, preference;
++  int ret;
++  if (!unformat (vam->input,
++                 "incarnation %U owner %U add %u sw %u table %u family %u prefix %U length %u has-gateway %u gateway %U preference %u",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, &add, &sw, &table, &family, unformat_pppoe_ze_token,
++                 prefix, &length, &has_gateway, unformat_pppoe_ze_token,
++                 gateway, &preference) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT ||
++      add > 1 || family > 1 || length > (family ? 128 : 32) ||
++      has_gateway > 1 || preference > 255)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_ROUTE, mp);
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  mp->is_add = add;
++  mp->sw_if_index = htonl (sw);
++  mp->table_id = htonl (table);
++  mp->destination.address.af = family;
++  mp->destination.len = length;
++  clib_memcpy (&mp->destination.address.un, prefix, sizeof (prefix));
++  mp->gateway_present = has_gateway;
++  mp->gateway.af = family;
++  clib_memcpy (&mp->gateway.un, gateway, sizeof (gateway));
++  mp->preference = preference;
++  S (mp);
++  W (ret);
++  return ret;
++}
++
++static void
++vl_api_pppoe_ze_interface_reply_t_handler (vl_api_pppoe_ze_interface_reply_t *mp)
++{
++  i32 rv = ntohl (mp->retval);
++  if (!rv)
++    print (vat_main.ofp, "actual %u", ntohl (mp->actual));
++  pppoe_ze_vat_complete (rv);
++}
++
++static int
++api_pppoe_ze_interface (vat_main_t *vam)
++{
++  vl_api_pppoe_ze_interface_t *mp;
++  u8 incarnation[16], owner[16];
++  u32 sw, kind, value;
++  int ret;
++  if (!unformat (vam->input, "incarnation %U owner %U sw %u kind %u value %u",
++                 unformat_pppoe_ze_token, incarnation, unformat_pppoe_ze_token,
++                 owner, &sw, &kind, &value) ||
++      unformat_check_input (vam->input) != UNFORMAT_END_OF_INPUT || kind > 255)
++    return VNET_API_ERROR_INVALID_VALUE;
++  M (PPPOE_ZE_INTERFACE, mp);
++  clib_memcpy (mp->incarnation, incarnation, sizeof (incarnation));
++  clib_memcpy (mp->owner, owner, sizeof (owner));
++  mp->sw_if_index = htonl (sw);
++  mp->kind = kind;
++  mp->value = htonl (value);
++  S (mp);
++  W (ret);
++  return ret;
++}

@@ -1,0 +1,181 @@
+From b0254311c5329864f96a7adef69a72be88bff89f Mon Sep 17 00:00:00 2001
+From: Fullroot <51375681+AndriiFullroot@users.noreply.github.com>
+Date: Thu, 9 Apr 2026 14:40:51 +0200
+Subject: [PATCH] PPPoE: Added cp_binding_dump API call (#49)
+
+Added dump API call that returns PPPoE's cp/dp interfaces.
+By default, it returns ALL bindings.
+The argument sw_if_index to request may be added.
+That would specify to "dump" only the binding where
+dataplane or control plane is equal to the argument.
+
+Change-Id: I6091d350a2cb98c34aecb883effb36af61e0c1ca
+
+Signed-off-by: Andrii Melnychenko <a.melnychenko@vyos.io>
+---
+ src/plugins/pppoe/pppoe.api    | 28 +++++++++++++++
+ src/plugins/pppoe/pppoe_api.c  | 63 ++++++++++++++++++++++++++++++++++
+ src/plugins/pppoe/pppoe_test.c | 36 +++++++++++++++++++
+ 3 files changed, 127 insertions(+)
+
+diff --git a/src/plugins/pppoe/pppoe.api b/src/plugins/pppoe/pppoe.api
+index d8f6c93db..ff339d248 100644
+--- a/src/plugins/pppoe/pppoe.api
++++ b/src/plugins/pppoe/pppoe.api
+@@ -113,6 +113,34 @@ define pppoe_add_del_cp_reply
+   i32 retval;
+ };
+ 
++/** \brief dump details of control-to-data plane PPPoE bindings
++    @param context - sender context, to match reply w/ request
++    @param retval - possible error code, 0 - is success
++    @param dp_sw_if_index - dataplane software index of the interface
++    @param cp_sw_if_index - control plane software index of the interface
++*/
++define pppoe_cp_binding_details
++{
++  u32 context;
++  i32 retval;
++  vl_api_interface_index_t dp_sw_if_index;
++  vl_api_interface_index_t cp_sw_if_index;
++};
++
++/** \brief dump control-to-data plane PPPoE bindings
++    @param client_index - opaque cookie to identify the sender
++    @param context - sender context, to match reply w/ request
++    @param sw_if_index - control or data plane software index of the interface
++*/
++define pppoe_cp_binding_dump
++{
++  u32 client_index;
++  u32 context;
++  vl_api_interface_index_t sw_if_index [default=0xFFFFFFFF];
++  option vat_help = "[sw_if_index <nn>]";
++};
++
++
+ /*
+  * Local Variables:
+  * eval: (c-set-style "gnu")
+diff --git a/src/plugins/pppoe/pppoe_api.c b/src/plugins/pppoe/pppoe_api.c
+index 2e663c690..ef47a7053 100644
+--- a/src/plugins/pppoe/pppoe_api.c
++++ b/src/plugins/pppoe/pppoe_api.c
+@@ -149,6 +149,69 @@ vl_api_pppoe_add_del_cp_t_handler (vl_api_pppoe_add_del_cp_t * mp)
+   REPLY_MACRO(VL_API_PPPOE_ADD_DEL_CP_REPLY);
+ }
+ 
++static void send_pppoe_cp_binding_details
++  (vl_api_registration_t * reg, u32 context, vl_api_interface_index_t cp_sw_if_index, vl_api_interface_index_t dp_sw_if_index, i32 rv)
++{
++  vl_api_pppoe_cp_binding_details_t *rmp;
++  pppoe_main_t *pem = &pppoe_main;
++
++  rmp = vl_msg_api_alloc (sizeof (*rmp));
++  clib_memset (rmp, 0, sizeof (*rmp));
++  rmp->_vl_msg_id = ntohs (pem->msg_id_base + VL_API_PPPOE_CP_BINDING_DETAILS);
++  rmp->context = context;
++
++  rmp->cp_sw_if_index = htonl(cp_sw_if_index);
++  rmp->dp_sw_if_index = htonl(dp_sw_if_index);
++  rmp->retval = htonl(rv);
++
++  vl_api_send_msg (reg, (u8 *) rmp);
++}
++
++static void
++vl_api_pppoe_cp_binding_dump_t_handler (vl_api_pppoe_cp_binding_dump_t * mp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  i32 rv = 0;
++  vl_api_interface_index_t sw_if_index = ntohl(mp->sw_if_index);
++  vl_api_registration_t *reg;
++
++  reg = vl_api_client_index_to_registration (mp->client_index);
++
++  if (~0 == mp->sw_if_index)
++    {
++      for (int i = 0; i < vec_len(pem->cp_if_index_by_sw_if_index); i++)
++	{
++	  if (pem->cp_if_index_by_sw_if_index[i] != ~0)
++	    send_pppoe_cp_binding_details(reg, mp->context, pem->cp_if_index_by_sw_if_index[i], i, rv);
++	}
++    }
++  else
++    {
++      vl_api_interface_index_t cp_if;
++      vl_api_interface_index_t dp_if;
++
++      cp_if = sw_if_index < vec_len(pem->cp_if_index_by_sw_if_index) ?
++	    pem->cp_if_index_by_sw_if_index[sw_if_index] : ~0;
++      dp_if = sw_if_index;
++
++      if (cp_if == ~0)
++	{
++	  cp_if = sw_if_index;
++	  dp_if = sw_if_index < vec_len(pem->dp_if_index_by_sw_if_index) ?
++	    pem->dp_if_index_by_sw_if_index[sw_if_index] : ~0;
++	}
++
++      if (dp_if == ~0)
++	{
++	  cp_if = ~0;
++	  dp_if = ~0;
++	  rv = VNET_API_ERROR_INVALID_INTERFACE;
++	}
++
++      send_pppoe_cp_binding_details(reg, mp->context, cp_if, dp_if, rv);
++    }
++}
++
+ #include <pppoe/pppoe.api.c>
+ static clib_error_t *
+ pppoe_api_hookup (vlib_main_t * vm)
+diff --git a/src/plugins/pppoe/pppoe_test.c b/src/plugins/pppoe/pppoe_test.c
+index ecb8d7f4c..c895aba3c 100644
+--- a/src/plugins/pppoe/pppoe_test.c
++++ b/src/plugins/pppoe/pppoe_test.c
+@@ -286,4 +286,40 @@ api_pppoe_add_del_cp (vat_main_t * vam)
+   return ret;
+ }
+ 
++static void
++vl_api_pppoe_cp_binding_details_t_handler (vl_api_pppoe_cp_binding_details_t * mp)
++{
++  vat_main_t *vam = &vat_main;
++  i32 rv = ntohl (mp->retval);
++  if (rv)
++    {
++      print (vam->ofp, "error: %d", rv);
++      return;
++    }
++  print (vam->ofp, "dp_sw_if_index: %d  cp_sw_if_index: %d",
++	ntohl (mp->dp_sw_if_index), ntohl (mp->cp_sw_if_index));
++}
++
++static int
++api_pppoe_cp_binding_dump (vat_main_t * vam)
++{
++  vl_api_pppoe_cp_binding_dump_t *mp;
++  unformat_input_t *i = vam->input;
++  int ret;
++  u32 sw_if_index = ~0;
++
++  /* Parse args required to build the message */
++  while (unformat_check_input (i) != UNFORMAT_END_OF_INPUT)
++    {
++      if (!unformat (i, "sw_if_index %d", &sw_if_index))
++	break;
++    }
++
++  M (PPPOE_CP_BINDING_DUMP, mp);
++  mp->sw_if_index = htonl(sw_if_index);
++  S (mp);
++  W (ret);
++  return ret;
++}
++
+ #include <pppoe/pppoe.api_test.c>
+-- 
+2.51.0
+

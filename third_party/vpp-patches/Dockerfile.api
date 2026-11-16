@@ -1,0 +1,37 @@
+# API generation needs the pinned source and Python parser, never a C build.
+FROM ubuntu:24.04 AS api
+ARG VPP_COMMIT
+ARG VPP_SHA256
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl patch python3 python3-ply \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src/vpp
+# Check space before the 21 MiB download and 49 MiB source extraction.
+RUN test -n "${VPP_COMMIT}" && test -n "${VPP_SHA256}" \
+    && test "$(df -Pk /src | awk 'NR == 2 {print $4}')" -ge 131072 \
+    && curl -fSL --connect-timeout 30 --max-time 300 \
+       "https://codeload.github.com/FDio/vpp/tar.gz/${VPP_COMMIT}" -o /src/vpp.tar.gz \
+    && echo "${VPP_SHA256}  /src/vpp.tar.gz" | sha256sum -c - \
+    && tar -xzf /src/vpp.tar.gz --strip-components=1 \
+    && rm /src/vpp.tar.gz
+COPY *.patch /patches/
+RUN cat /patches/*.patch | patch --batch --forward --fuzz=0 -p1 \
+    && mkdir /api /api-headers
+COPY ze/*.patch /patches/ze/
+RUN cat /patches/ze/*.patch | patch --batch --forward --fuzz=0 -p1 \
+    && python3 src/tools/vppapigen/vppapigen.py --includedir src --outputdir /api-headers \
+       --input src/plugins/pppoe/pppoe.api --output /api/pppoe.api.json JSON \
+    && python3 src/tools/vppapigen/vppapigen.py --includedir src --outputdir /api-headers \
+       --input src/vnet/feature/feature.api --output /api/feature.api.json JSON \
+    && python3 src/tools/vppapigen/vppapigen.py --includedir src --outputdir /api-headers \
+       --input src/vnet/interface_types.api --output /api/interface_types.api.json JSON \
+    && python3 src/tools/vppapigen/vppapigen.py --includedir src --outputdir /api-headers \
+       --input src/vnet/ethernet/ethernet_types.api --output /api/ethernet_types.api.json JSON \
+    && python3 src/tools/vppapigen/vppapigen.py --includedir src --outputdir /api-headers \
+       --input src/vnet/ip/ip_types.api --output /api/ip_types.api.json JSON \
+    && python3 src/tools/vppapigen/vppapigen.py --includedir src --outputdir /api-headers \
+       --input src/vlibmemory/memclnt.api --output /api/memclnt.api.json JSON
+FROM ubuntu:24.04
+COPY --from=api /api /api
+CMD ["cat", "/api/pppoe.api.json"]

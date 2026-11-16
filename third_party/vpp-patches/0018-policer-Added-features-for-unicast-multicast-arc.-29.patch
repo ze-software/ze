@@ -1,0 +1,53 @@
+From 22964e08de71cd5c9d1d6e7a6f276c1f7dc4e351 Mon Sep 17 00:00:00 2001
+From: Fullroot <51375681+AndriiFullroot@users.noreply.github.com>
+Date: Thu, 9 Oct 2025 16:19:38 +0200
+Subject: [PATCH] policer: Added features for unicast/multicast arc. (#29)
+
+For the PPPoE session, the input policer would not work
+as a "sub interface". By default, the policer installs
+on device-input, which does not work for PPPoE session
+interfaces. So, a policer may work in unicast/multicast arc.
+Unicast/multicast features should be set up explicitly.
+
+Change-Id: I005158ca954cff698560c2a4abc7a0eb6a68c647
+
+Signed-off-by: Andrii Melnychenko <a.melnychenko@vyos.io>
+---
+ src/vnet/policer/node_funcs.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/src/vnet/policer/node_funcs.c b/src/vnet/policer/node_funcs.c
+index 2d2252d24..37d0977bb 100644
+--- a/src/vnet/policer/node_funcs.c
++++ b/src/vnet/policer/node_funcs.c
+@@ -278,6 +278,27 @@ VNET_FEATURE_INIT (policer_input_node, static) = {
+   .runs_before = VNET_FEATURES ("ethernet-input"),
+ };
+ 
++VNET_FEATURE_INIT (policer_input_ip4_unicast_node, static) = {
++  .arc_name = "ip4-unicast",
++  .node_name = "policer-input",
++  .runs_before = VNET_FEATURES ("det44-in2out")
++};
++
++VNET_FEATURE_INIT (policer_input_ip6_unicast_node, static) = {
++  .arc_name = "ip6-unicast",
++  .node_name = "policer-input",
++};
++
++VNET_FEATURE_INIT (policer_input_ip4_multicast_node, static) = {
++  .arc_name = "ip4-multicast",
++  .node_name = "policer-input",
++};
++
++VNET_FEATURE_INIT (policer_input_ip6_multicast_node, static) = {
++  .arc_name = "ip6-multicast",
++  .node_name = "policer-input",
++};
++
+ VLIB_NODE_FN (policer_output_node)
+ (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t *frame)
+ {
+-- 
+2.51.0
+

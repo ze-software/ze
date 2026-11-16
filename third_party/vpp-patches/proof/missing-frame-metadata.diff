@@ -1,0 +1,22 @@
+From: Ze contributors
+Subject: [PROOF ONLY] pppoe: omit the successful frame metadata assignment
+
+This counterfactual leaves every parser acceptance/refusal decision intact.
+Only the successful output assignment is removed. The baseline's real-buffer
+runtime test must detect the missing session/interface/protocol metadata.
+Never apply this diff to the baseline image or canonical patch inputs.
+
+diff --git a/src/plugins/pppoe/pppoe_frame.h b/src/plugins/pppoe/pppoe_frame.h
+--- a/src/plugins/pppoe/pppoe_frame.h
++++ b/src/plugins/pppoe/pppoe_frame.h
+@@ -112,9 +112,3 @@
+-  *out = (pppoe_frame_t) {
+-    .session_id = clib_net_to_host_u16 (pppoe->session_id),
+-    .protocol = protocol,
+-    .ethernet_bytes = ethernet_bytes,
+-    .ethertype = type,
+-    .code = pppoe->code,
+-  };
++  (void) out; // MUTATION-APPLIED: proof-only missing-frame-metadata variant.
+   return 1;
+ }

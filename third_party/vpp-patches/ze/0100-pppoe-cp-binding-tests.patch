@@ -1,0 +1,236 @@
+From: Ze contributors
+Subject: [PATCH] pppoe: exercise control binding validation in the lab
+
+Add a lab-only command calling the actual control binding API with real VPP
+interfaces. The first regression uses allocated, in-range mapping slots so the
+adopted implementation returns success for an absent binding without an invalid
+memory access. Keep the producer unchanged until that regression is observed.
+
+diff --git a/src/plugins/pppoe/CMakeLists.txt b/src/plugins/pppoe/CMakeLists.txt
+--- a/src/plugins/pppoe/CMakeLists.txt
++++ b/src/plugins/pppoe/CMakeLists.txt
+@@ -33,5 +33,6 @@
+ option(VPP_PPPOE_FRAME_TESTS "Build the PPPoE frame-bounds lab command" OFF)
+ if(VPP_PPPOE_FRAME_TESTS)
+   target_sources(pppoe_plugin PRIVATE pppoe_frame_test.c)
++  target_sources(pppoe_plugin PRIVATE pppoe_cp_binding_test.c)
+ endif()
+ 
+diff --git a/src/plugins/pppoe/pppoe_cp_binding_test.c b/src/plugins/pppoe/pppoe_cp_binding_test.c
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_cp_binding_test.c
+@@ -0,0 +1,213 @@
++/* Lab-only regression of the real control binding API and its owned state.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <pppoe/pppoe.h>
++#include <vnet/interface_funcs.h>
++
++static int
++pppoe_test_binding_matches (u32 cp, u32 dp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  return dp < vec_len (pem->cp_if_index_by_sw_if_index) &&
++         cp < vec_len (pem->dp_if_index_by_sw_if_index) &&
++         pem->cp_if_index_by_sw_if_index[dp] == cp &&
++         pem->dp_if_index_by_sw_if_index[cp] == dp;
++}
++
++static int
++pppoe_test_binding_absent (u32 cp, u32 dp)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  return dp < vec_len (pem->cp_if_index_by_sw_if_index) &&
++         cp < vec_len (pem->dp_if_index_by_sw_if_index) &&
++         pem->cp_if_index_by_sw_if_index[dp] == ~0 &&
++         pem->dp_if_index_by_sw_if_index[cp] == ~0;
++}
++
++/* Every interface below belongs to this command. Teardown restores its own
++ * mapping cells even when a failing producer left a half binding. The verdict
++ * has already been recorded; cleanup cannot turn that failure into success.
++ */
++static clib_error_t *
++pppoe_test_binding_cleanup (clib_error_t *error, u32 *loopbacks, u32 *subs)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  for (u32 i = 0; i < 4; i++)
++    if (subs[i] != ~0 &&
++        subs[i] < vec_len (pem->cp_if_index_by_sw_if_index))
++      pem->cp_if_index_by_sw_if_index[subs[i]] = ~0;
++  if (loopbacks[4] != ~0 &&
++      loopbacks[4] < vec_len (pem->cp_if_index_by_sw_if_index))
++    pem->cp_if_index_by_sw_if_index[loopbacks[4]] = ~0;
++  for (u32 i = 0; i < 5; i++)
++    if (loopbacks[i] != ~0 &&
++        loopbacks[i] < vec_len (pem->dp_if_index_by_sw_if_index))
++      pem->dp_if_index_by_sw_if_index[loopbacks[i]] = ~0;
++  for (int i = 3; i >= 0; i--)
++    if (subs[i] != ~0)
++      {
++        int rv = vnet_delete_sub_interface (subs[i]);
++        if (rv)
++          error = clib_error_return (error, "binding test subinterface cleanup: %d", rv);
++      }
++  for (int i = 4; i >= 0; i--)
++    if (loopbacks[i] != ~0)
++      {
++        int rv = vnet_delete_loopback_interface (loopbacks[i]);
++        if (rv)
++          error = clib_error_return (error, "binding test loopback cleanup: %d", rv);
++      }
++  return error;
++}
++
++/* Run in the isolated mechanism VPP instance. Real VLAN subinterfaces make
++ * software and hardware indices diverge; no kernel interface is required.
++ */
++static clib_error_t *
++pppoe_cp_binding_test (vlib_main_t *vm, unformat_input_t *input,
++                       vlib_cli_command_t *command)
++{
++  vnet_main_t *vnm = vnet_get_main ();
++  pppoe_main_t *pem = &pppoe_main;
++  u32 loopbacks[5] = { ~0, ~0, ~0, ~0, ~0 };
++  u32 subs[4] = { ~0, ~0, ~0, ~0 };
++  u32 cases = 0;
++  clib_error_t *error = 0;
++  int rv;
++#define CHECK(condition, ...)                                              \
++  do {                                                                     \
++    if (!(condition))                                                      \
++      {                                                                    \
++        error = clib_error_return (0, __VA_ARGS__);                          \
++        goto done;                                                         \
++      }                                                                    \
++  } while (0)
++
++  for (u32 i = 0; i < 4; i++)
++    {
++      u8 mac[6] = { 2, 0, 0, 0, 0, i + 1 };
++      rv = vnet_create_loopback_interface (&loopbacks[i], mac, 0, 0);
++      CHECK (rv == 0, "binding test loopback setup: %d", rv);
++    }
++  for (u32 i = 0; i < 4; i++)
++    {
++      vnet_sw_interface_t template = { 0 };
++      template.sub.eth.flags.one_tag = 1;
++      template.sub.eth.flags.exact_match = 1;
++      rv = vnet_create_sub_interface (loopbacks[0], 100 + i,
++                                      template.sub.eth.raw_flags, 0, 100 + i,
++                                      &subs[i]);
++      CHECK (rv == 0, "binding test VLAN setup: %d", rv);
++    }
++
++  rv = pppoe_add_del_cp (loopbacks[2], subs[1], 1);
++  CHECK (rv == 0 && pppoe_test_binding_matches (loopbacks[2], subs[1]),
++         "first binding setup failed: %d", rv);
++  rv = pppoe_add_del_cp (loopbacks[3], subs[2], 1);
++  CHECK (rv == 0 && pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "second binding setup failed: %d", rv);
++  CHECK (subs[0] < vec_len (pem->cp_if_index_by_sw_if_index) &&
++         loopbacks[1] < vec_len (pem->dp_if_index_by_sw_if_index),
++         "unmapped deletion fixture is outside allocated mapping vectors");
++  CHECK (pppoe_test_binding_absent (loopbacks[1], subs[0]),
++         "unmapped deletion fixture already has a binding");
++
++  /* This is first so the unmodified producer fails safely and by behavior:
++   * both vector cells exist, but neither belongs to a binding.
++   */
++  rv = pppoe_add_del_cp (loopbacks[1], subs[0], 0);
++  CHECK (rv != 0, "unmapped deletion was accepted");
++  CHECK (rv == VNET_API_ERROR_NO_SUCH_ENTRY,
++         "unmapped deletion returned %d, expected NO_SUCH_ENTRY", rv);
++  CHECK (pppoe_test_binding_matches (loopbacks[2], subs[1]) &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "unmapped deletion changed an existing binding");
++  cases++;
++
++  u32 invalid = vec_len (vnm->interface_main.sw_interfaces);
++  CHECK (invalid != ~0 && !vnet_sw_interface_is_api_valid (vnm, invalid),
++         "invalid interface fixture resolved to an allocated interface");
++  rv = pppoe_add_del_cp (invalid, subs[0], 0);
++  CHECK (rv == VNET_API_ERROR_INVALID_SW_IF_INDEX,
++         "invalid CP returned %d, expected INVALID_SW_IF_INDEX", rv);
++  CHECK (pppoe_test_binding_matches (loopbacks[2], subs[1]) &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "invalid CP changed an existing binding");
++  cases++;
++
++  rv = pppoe_add_del_cp (loopbacks[1], invalid, 0);
++  CHECK (rv == VNET_API_ERROR_INVALID_SW_IF_INDEX,
++         "invalid DP returned %d, expected INVALID_SW_IF_INDEX", rv);
++  CHECK (pppoe_test_binding_matches (loopbacks[2], subs[1]) &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "invalid DP changed an existing binding");
++  cases++;
++
++  rv = pppoe_add_del_cp (loopbacks[3], subs[1], 0);
++  CHECK (rv == VNET_API_ERROR_NO_SUCH_ENTRY,
++         "mismatched deletion returned %d, expected NO_SUCH_ENTRY", rv);
++  CHECK (pppoe_test_binding_matches (loopbacks[2], subs[1]) &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "mismatched deletion changed an existing binding");
++  cases++;
++
++  rv = pppoe_add_del_cp (loopbacks[2], subs[1], 0);
++  CHECK (rv == 0 && pppoe_test_binding_absent (loopbacks[2], subs[1]) &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "valid deletion did not remove only its binding: %d", rv);
++  cases++;
++
++  rv = pppoe_add_del_cp (loopbacks[2], subs[1], 0);
++  CHECK (rv == VNET_API_ERROR_NO_SUCH_ENTRY &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "repeated deletion was not safely refused: %d", rv);
++  cases++;
++
++  u8 mac[6] = { 2, 0, 0, 0, 0, 5 };
++  rv = vnet_create_loopback_interface (&loopbacks[4], mac, 0, 0);
++  CHECK (rv == 0, "skewed interface setup failed: %d", rv);
++  vnet_hw_interface_t *hardware =
++    vnet_get_sup_hw_interface (vnm, loopbacks[4]);
++  CHECK (loopbacks[4] != hardware->hw_if_index,
++         "binding fixture did not separate software and hardware indices");
++  uword before = vec_len (pem->cp_if_index_by_sw_if_index);
++  CHECK (loopbacks[4] >= before,
++         "new interface fixture is inside the existing binding vector");
++  rv = pppoe_add_del_cp (loopbacks[2], loopbacks[4], 0);
++  CHECK (rv == VNET_API_ERROR_NO_SUCH_ENTRY,
++         "out-of-vector deletion returned %d, expected NO_SUCH_ENTRY", rv);
++  CHECK (vec_len (pem->cp_if_index_by_sw_if_index) == before &&
++         pppoe_test_binding_absent (loopbacks[2], subs[1]) &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "out-of-vector deletion changed existing binding state");
++  cases++;
++
++  rv = pppoe_add_del_cp (loopbacks[2], loopbacks[4], 1);
++  CHECK (rv == 0 && pppoe_test_binding_matches (loopbacks[2], loopbacks[4]),
++         "binding rejected valid differing software/hardware indices: %d", rv);
++  cases++;
++
++  rv = pppoe_add_del_cp (loopbacks[2], loopbacks[4], 0);
++  CHECK (rv == 0 && pppoe_test_binding_absent (loopbacks[2], loopbacks[4]) &&
++         pppoe_test_binding_matches (loopbacks[3], subs[2]),
++         "skewed interface deletion damaged another binding: %d", rv);
++  cases++;
++
++  rv = pppoe_add_del_cp (loopbacks[3], subs[2], 0);
++  CHECK (rv == 0 && pppoe_test_binding_absent (loopbacks[3], subs[2]),
++         "last valid binding was not removed: %d", rv);
++  cases++;
++
++done:
++#undef CHECK
++  error = pppoe_test_binding_cleanup (error, loopbacks, subs);
++  if (!error)
++    vlib_cli_output (vm, "PPPoE cp binding: %u cases passed", cases);
++  return error;
++}
++
++VLIB_CLI_COMMAND (pppoe_cp_binding_test_command, static) = {
++  .path = "test pppoe cp-binding",
++  .short_help = "test pppoe cp-binding",
++  .function = pppoe_cp_binding_test,
++};

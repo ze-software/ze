@@ -1,0 +1,218 @@
+From: Ze contributors
+Subject: [PATCH] pppoe: prove each receiver lane with native graph frames
+
+Keep the 31 parser cases unchanged. Submit exact singleton and four-buffer
+frames to the real input node, and a singleton directly to control dispatch.
+Retain an inspection reference while the normal graph drops and counts each
+buffer. Inspect real formatted traces without copying private trace layouts.
+This command is built only with the existing lab test option.
+
+diff --git a/src/plugins/pppoe/CMakeLists.txt b/src/plugins/pppoe/CMakeLists.txt
+--- a/src/plugins/pppoe/CMakeLists.txt
++++ b/src/plugins/pppoe/CMakeLists.txt
+@@ -34,5 +34,6 @@
+ if(VPP_PPPOE_FRAME_TESTS)
+   target_sources(pppoe_plugin PRIVATE pppoe_frame_test.c)
+   target_sources(pppoe_plugin PRIVATE pppoe_cp_binding_test.c)
++  target_sources(pppoe_plugin PRIVATE pppoe_receive_test.c)
+ endif()
+ 
+diff --git a/src/plugins/pppoe/pppoe_receive_test.c b/src/plugins/pppoe/pppoe_receive_test.c
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_receive_test.c
+@@ -0,0 +1,194 @@
++/* Lab-only proof of the actual receive nodes, graph drop and trace paths.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <vlib/vlib.h>
++#include <ppp/packet.h>
++#include <pppoe/pppoe.h>
++#include <vnet/interface_funcs.h>
++
++static clib_error_t *
++pppoe_receive_trace (vlib_main_t *vm, vlib_node_t *node,
++                     vlib_buffer_t *buffer, int control)
++{
++  vlib_trace_header_t *trace =
++    vm->trace_main.trace_buffer_pool[vlib_buffer_get_trace_index (buffer)];
++  vlib_trace_header_t *end = trace + vec_len (trace);
++  for (; trace < end; trace = vlib_trace_header_next (trace))
++    if (trace->node_index == node->index)
++      {
++        u8 *text = format (0, "%U%c", node->format_trace, vm, node,
++                           trace->data, 0);
++        int valid;
++        if (control)
++          {
++            u8 *expected = format (0, "next 0 error %u", PPPOE_ERROR_BAD_LENGTH);
++            vec_add1 (expected, 0);
++            valid = strstr ((char *) text, (char *) expected) != 0 &&
++              strstr ((char *) text, "pppoe_code 0x0  ppp_proto 0x0") != 0;
++            vec_free (expected);
++          }
++        else
++          valid = strcmp ((char *) text,
++            "PPPoE decap error - session for session_id 0 does not exist") == 0;
++        clib_error_t *error = valid ? 0 :
++          clib_error_return (0, "%v: rejected buffer exposed trace metadata: %s",
++                             node->name, text);
++        vec_free (text);
++        return error;
++      }
++  return clib_error_return (0, "%v: receive trace was not recorded", node->name);
++}
++
++static clib_error_t *
++pppoe_receive_frame (vlib_main_t *vm, vlib_node_t *node, u32 count,
++                     int control)
++{
++  pppoe_main_t *pem = &pppoe_main;
++  vlib_node_runtime_t *runtime = vlib_node_get_runtime (vm, node->index);
++  u32 indices[4];
++  u32 allocated = vlib_buffer_alloc (vm, indices, count);
++  u32 traced = 0;
++  clib_error_t *error = 0;
++  int submitted = 0;
++  uword sessions = pool_elts (pem->sessions);
++  uword session_slots = vec_len (pem->sessions);
++  u32 counter = node->error_heap_index + PPPOE_ERROR_BAD_LENGTH;
++  u64 before = vm->error_main.counters[counter];
++  if (allocated != count)
++    {
++      error = clib_error_return (0, "%v: receive buffer allocation failed",
++                                 node->name);
++      goto done;
++    }
++  for (u32 i = 0; i < count; i++)
++    {
++      vlib_buffer_t *buffer = vlib_get_buffer (vm, indices[i]);
++      buffer->flags = 0;
++      buffer->current_data = 0;
++      /* One protocol octet is logically present; the second is poisoned
++       * storage. Without the bound check this looks like LCP control.
++       */
++      buffer->current_length = sizeof (ethernet_header_t) + 7;
++      clib_memset (buffer->data, 0x57, 128);
++      ethernet_header_t *eth = (void *) buffer->data;
++      eth->type = clib_host_to_net_u16 (ETHERNET_TYPE_PPPOE_SESSION);
++      pppoe_header_t *pppoe = (void *) (eth + 1);
++      pppoe->ver_type = PPPOE_VER_TYPE;
++      pppoe->code = 0;
++      pppoe->session_id = clib_host_to_net_u16 (0x1234 + i);
++      pppoe->length = clib_host_to_net_u16 (1);
++      pppoe->ppp_proto = clib_host_to_net_u16 (PPP_PROTOCOL_lcp);
++      vnet_buffer (buffer)->sw_if_index[VLIB_RX] = 0;
++      vnet_buffer (buffer)->sw_if_index[VLIB_TX] = 0;
++      if (control)
++        vlib_buffer_advance (buffer, sizeof (*eth));
++      if (!vlib_trace_buffer (vm, runtime, 0, buffer, 0))
++        {
++          error = clib_error_return (0, "%v: receive trace allocation failed",
++                                     node->name);
++          goto done;
++        }
++      traced++;
++    }
++
++  vlib_frame_t *frame = vlib_get_frame_to_node (vm, node->index);
++  u32 *vectors = vlib_frame_vector_args (frame);
++  for (u32 i = 0; i < count; i++)
++    {
++      vectors[i] = indices[i];
++      /* The graph owns one reference; this command owns the other. */
++      vlib_get_buffer (vm, indices[i])->ref_count = 2;
++    }
++  frame->n_vectors = count;
++  vlib_put_frame_to_node (vm, node->index, frame);
++  submitted = 1;
++  f64 deadline = vlib_time_now (vm) + 2;
++  for (;;)
++    {
++      int complete = 1;
++      for (u32 i = 0; i < count; i++)
++        complete &= vlib_get_buffer (vm, indices[i])->ref_count == 1;
++      if (complete)
++        break;
++      if (vlib_time_now (vm) >= deadline)
++        {
++          error = clib_error_return (0, "%v: receive graph did not release %u buffers",
++                                     node->name, count);
++          goto done;
++        }
++      vlib_process_yield (vm);
++    }
++
++  for (u32 i = 0; i < count; i++)
++    {
++      vlib_buffer_t *buffer = vlib_get_buffer (vm, indices[i]);
++      if (buffer->error != runtime->errors[PPPOE_ERROR_BAD_LENGTH])
++        {
++          error = clib_error_return (0, "%v: buffer %u was not dropped as BAD_LENGTH",
++                                     node->name, i);
++          goto done;
++        }
++      error = pppoe_receive_trace (vm, node, buffer, control);
++      if (error)
++        goto done;
++    }
++  if (vm->error_main.counters[counter] - before != count)
++    error = clib_error_return (0, "%v: BAD_LENGTH counter did not increase by %u",
++                               node->name, count);
++  if (pool_elts (pem->sessions) != sessions ||
++      vec_len (pem->sessions) != session_slots)
++    error = clib_error_return (error, "%v: malformed receive allocated a session",
++                               node->name);
++done:
++  for (u32 i = 0; i < traced; i++)
++    {
++      vlib_buffer_t *buffer = vlib_get_buffer (vm, indices[i]);
++      /* On timeout the graph still owns its trace. Leave that normal VPP
++       * trace available for diagnosis, and release only our reference.
++       */
++      if (!submitted || buffer->ref_count == 1)
++        vlib_free_trace (vm, buffer);
++    }
++  vlib_buffer_free (vm, indices, allocated);
++  return error;
++}
++
++static clib_error_t *
++pppoe_receive_bounds_test (vlib_main_t *vm, unformat_input_t *input,
++                           vlib_cli_command_t *command)
++{
++  vlib_trace_main_t *tm = &vm->trace_main;
++  if (!vnet_sw_interface_is_api_valid (vnet_get_main (), 0))
++    return clib_error_return (0,
++      "receive-bounds requires the real local interface at software index zero");
++  if (vlib_get_n_threads () != 1 || pppoe_main.is_auto_discovery ||
++      tm->add_trace_callback || tm->trace_buffer_callback ||
++      tm->filter_flag != FILTER_FLAG_NONE ||
++      vlib_global_main.trace_filter.trace_filter_enable)
++    return clib_error_return (0,
++      "receive-bounds requires the single-thread lab with auto discovery and trace filters off");
++  vlib_node_t *input_node = vlib_get_node_by_name (vm, (u8 *) "pppoe-input");
++  vlib_node_t *control_node = vlib_get_node_by_name (vm, (u8 *) "pppoe-cp-dispatch");
++  if (!input_node || !control_node)
++    return clib_error_return (0, "PPPoE receive nodes are not registered");
++  u32 saved_trace = tm->trace_enable;
++  tm->trace_enable = 1;
++  clib_error_t *error = pppoe_receive_frame (vm, input_node, 1, 0);
++  /* Four vectors force the first two through the paired lanes. The final
++   * two are also asserted, after traversing the scalar remainder.
++   */
++  if (!error)
++    error = pppoe_receive_frame (vm, input_node, 4, 0);
++  if (!error)
++    error = pppoe_receive_frame (vm, control_node, 1, 1);
++  tm->trace_enable = saved_trace;
++  if (!error)
++    vlib_cli_output (vm, "PPPoE receive bounds: 4 paths passed");
++  return error;
++}
++
++VLIB_CLI_COMMAND (pppoe_receive_bounds_command, static) = {
++  .path = "test pppoe receive-bounds",
++  .short_help = "test pppoe receive-bounds",
++  .function = pppoe_receive_bounds_test,
++};

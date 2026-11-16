@@ -1,0 +1,492 @@
+From: Ze contributors
+Subject: [PATCH] pppoe: bound receive parsing by logical frame and payload lengths
+
+Retained Ze diff after the five pinned VyOS patches. No crash is claimed:
+the defect reads bytes beyond the logical received payload. Validate the
+Ethernet/VLAN/PPPoE envelope and direct IPv6/ICMPv6/UDP headers before
+classification, including split headers. Discovery carries no PPP protocol.
+All decapsulation lanes and the control dispatcher share the same checks;
+error traces use only the validated snapshot. Auto-session discovery remains
+disabled in Ze's configuration.
+
+The optional runtime command exercises real VPP buffers and is enabled only
+for the lab image, not by default in a VPP product build.
+
+diff --git a/src/plugins/pppoe/pppoe_frame.h b/src/plugins/pppoe/pppoe_frame.h
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_frame.h
+@@ -0,0 +1,121 @@
++/* Ze's retained payload-bound checks for the VyOS PPPoE control path.
++ * SPDX-License-Identifier: Apache-2.0
++ * RFC 2516 Section 4: "It does not include the length of the Ethernet or
++ * PPPoE headers." The six-octet discovery header contains no PPP protocol.
++ */
++#ifndef included_pppoe_frame_h
++#define included_pppoe_frame_h
++
++typedef struct
++{
++  u16 session_id;
++  u16 protocol;
++  u16 ethernet_bytes;
++  u16 ethertype;
++  u8 code;
++} pppoe_frame_t;
++
++/* A receive chain can split a header. Only that slow path consolidates it;
++ * ordinary contiguous headers are read without copying or allocating.
++ */
++static_always_inline int
++pppoe_frame_pullup (vlib_main_t *vm, vlib_buffer_t *b, u32 needed)
++{
++  if (b->current_length >= needed)
++    return 1;
++  if (vlib_buffer_length_in_chain (vm, b) < needed)
++    return 0;
++  /* linearize asserts exclusive ownership before checking it itself. */
++  if (b->ref_count != 1)
++    return 0;
++  if (vlib_buffer_chain_linearize (vm, b) == 0)
++    return 0;
++  return b->current_length >= needed;
++}
++
++/* RFC 2516 Section 4: "It does not include the length of the Ethernet or
++ * PPPoE headers."
++ * b MUST point at Ethernet, after vlib_buffer_reset. Only success fills out;
++ * callers MUST NOT inspect wire fields on failure, including in traces.
++ */
++static_always_inline int
++pppoe_frame_parse (vlib_main_t *vm, vlib_buffer_t *b, pppoe_frame_t *out)
++{
++  u32 ethernet_bytes = sizeof (ethernet_header_t);
++  u32 pppoe_bytes = sizeof (pppoe_header_t) - sizeof (u16);
++  if (!pppoe_frame_pullup (vm, b, ethernet_bytes))
++    return 0;
++  ethernet_header_t *ethernet = vlib_buffer_get_current (b);
++  u16 type = clib_net_to_host_u16 (ethernet->type);
++  if (type == ETHERNET_TYPE_VLAN)
++    {
++      ethernet_bytes += sizeof (ethernet_vlan_header_t);
++      if (!pppoe_frame_pullup (vm, b, ethernet_bytes))
++        return 0;
++      ethernet_vlan_header_t *vlan = (void *) (ethernet + 1);
++      type = clib_net_to_host_u16 (vlan->type);
++    }
++  if (type != ETHERNET_TYPE_PPPOE_DISCOVERY &&
++      type != ETHERNET_TYPE_PPPOE_SESSION)
++    return 0;
++  u32 payload_offset = ethernet_bytes + pppoe_bytes;
++  if (!pppoe_frame_pullup (vm, b, payload_offset))
++    return 0;
++  pppoe_header_t *pppoe = (void *) ((u8 *) ethernet + ethernet_bytes);
++  u32 payload_bytes = clib_net_to_host_u16 (pppoe->length);
++  if (payload_bytes > vlib_buffer_length_in_chain (vm, b) - payload_offset)
++    return 0;
++  u16 protocol = 0;
++  if (type == ETHERNET_TYPE_PPPOE_SESSION)
++    {
++      if (payload_bytes < sizeof (u16))
++        return 0;
++      if (!pppoe_frame_pullup (vm, b, payload_offset + sizeof (u16)))
++        return 0;
++      protocol = clib_net_to_host_u16 (pppoe->ppp_proto);
++      if (protocol == PPP_PROTOCOL_ip6)
++        {
++          u32 ip_offset = payload_offset + sizeof (u16);
++          if (payload_bytes - sizeof (u16) < sizeof (ip6_header_t))
++            return 0;
++          if (!pppoe_frame_pullup (vm, b, ip_offset + sizeof (ip6_header_t)))
++            return 0;
++          ip6_header_t *ip6 = (void *) ((u8 *) ethernet + ip_offset);
++          u32 ip_payload = clib_net_to_host_u16 (ip6->payload_length);
++          if (ip_payload > payload_bytes - sizeof (u16) - sizeof (*ip6))
++            return 0;
++          u32 transport_offset = ip_offset + sizeof (*ip6);
++          if (ip6->protocol == IP_PROTOCOL_ICMP6)
++            {
++              if (ip_payload < sizeof (icmp46_header_t))
++                return 0;
++              if (!pppoe_frame_pullup (vm, b, transport_offset +
++                                             sizeof (icmp46_header_t)))
++                return 0;
++            }
++          if (ip6->protocol == IP_PROTOCOL_UDP)
++            {
++              if (ip_payload < sizeof (udp_header_t))
++                return 0;
++              if (!pppoe_frame_pullup (vm, b, transport_offset +
++                                             sizeof (udp_header_t)))
++                return 0;
++              udp_header_t *udp = (void *) ((u8 *) ethernet + transport_offset);
++              u32 udp_bytes = clib_net_to_host_u16 (udp->length);
++              if (udp_bytes < sizeof (*udp))
++                return 0;
++              if (udp_bytes > ip_payload)
++                return 0;
++            }
++        }
++    }
++  *out = (pppoe_frame_t) {
++    .session_id = clib_net_to_host_u16 (pppoe->session_id),
++    .protocol = protocol,
++    .ethernet_bytes = ethernet_bytes,
++    .ethertype = type,
++    .code = pppoe->code,
++  };
++  return 1;
++}
++#endif
+diff --git a/src/plugins/pppoe/pppoe_frame_test.c b/src/plugins/pppoe/pppoe_frame_test.c
+new file mode 100644
+--- /dev/null
++++ b/src/plugins/pppoe/pppoe_frame_test.c
+@@ -0,0 +1,210 @@
++/* Runtime tests use the exact receive parser with real VPP buffers.
++ * Built only when VPP_PPPOE_FRAME_TESTS is enabled for the mechanism image.
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#include <vlib/vlib.h>
++#include <ppp/packet.h>
++#include <pppoe/pppoe.h>
++#include <vnet/udp/udp_local.h>
++#include <pppoe/pppoe_frame.h>
++
++static clib_error_t *
++pppoe_frame_case (vlib_main_t *vm, const char *name, const u8 *wire,
++                  u32 length, u32 split, int expected,
++                  const pppoe_frame_t *expected_fields)
++{
++  u32 indices[2];
++  u32 count = split ? 2 : 1;
++  u32 allocated = vlib_buffer_alloc (vm, indices, count);
++  if (allocated != count)
++    {
++      vlib_buffer_free (vm, indices, allocated);
++      return clib_error_return (0, "%s: buffer allocation failed", name);
++    }
++  vlib_buffer_t *first = vlib_get_buffer (vm, indices[0]);
++  first->current_data = 0;
++  first->flags = 0;
++  first->current_length = split ? split : length;
++  /* Poison storage beyond the logical end, so padding cannot supply fields. */
++  clib_memset (vlib_buffer_get_current (first), 0x57, 128);
++  clib_memcpy_fast (vlib_buffer_get_current (first), wire, first->current_length);
++  if (split)
++    {
++      vlib_buffer_t *second = vlib_get_buffer (vm, indices[1]);
++      second->current_data = 0;
++      second->flags = 0;
++      second->current_length = length - split;
++      clib_memcpy_fast (vlib_buffer_get_current (second), wire + split,
++                        second->current_length);
++      first->flags = VLIB_BUFFER_NEXT_PRESENT | VLIB_BUFFER_TOTAL_LENGTH_VALID;
++      first->next_buffer = indices[1];
++      first->total_length_not_including_first_buffer = second->current_length;
++    }
++  pppoe_frame_t frame = { 0 };
++  int actual = pppoe_frame_parse (vm, first, &frame);
++  /* Linearization may have freed the tail; free the surviving chain once. */
++  vlib_buffer_free (vm, indices, 1);
++  if (actual != expected)
++    return clib_error_return (0, "%s: accepted %d, expected %d", name,
++                              actual, expected);
++  if (actual)
++    {
++      if (!expected_fields)
++        return clib_error_return (0, "%s: missing metadata oracle", name);
++      if (frame.session_id != expected_fields->session_id)
++        return clib_error_return (0, "%s: wrong session ID %u, expected %u",
++          name, frame.session_id, expected_fields->session_id);
++      if (frame.protocol != expected_fields->protocol)
++        return clib_error_return (0, "%s: wrong protocol %u, expected %u",
++          name, frame.protocol, expected_fields->protocol);
++      if (frame.ethernet_bytes != expected_fields->ethernet_bytes)
++        return clib_error_return (0, "%s: wrong Ethernet offset %u, expected %u",
++          name, frame.ethernet_bytes, expected_fields->ethernet_bytes);
++      if (frame.ethertype != expected_fields->ethertype)
++        return clib_error_return (0, "%s: wrong EtherType %u, expected %u",
++          name, frame.ethertype, expected_fields->ethertype);
++      if (frame.code != expected_fields->code)
++        return clib_error_return (0, "%s: wrong code %u, expected %u",
++          name, frame.code, expected_fields->code);
++    }
++  if (!actual && (frame.session_id || frame.protocol || frame.code ||
++                  frame.ethernet_bytes || frame.ethertype))
++    return clib_error_return (0, "%s: rejected frame exposed trace fields", name);
++  return 0;
++}
++
++static void
++pppoe_test_wire (u8 *wire, u16 type, u16 declared, u16 protocol,
++                 u16 ip_payload, u8 next_header, u16 udp_bytes)
++{
++  clib_memset (wire, 0, 128);
++  ethernet_header_t *eth = (void *) wire;
++  eth->type = clib_host_to_net_u16 (type);
++  pppoe_header_t *pppoe = (void *) (eth + 1);
++  pppoe->ver_type = PPPOE_VER_TYPE;
++  pppoe->code = type == ETHERNET_TYPE_PPPOE_DISCOVERY ? PPPOE_PADT : 0;
++  pppoe->length = clib_host_to_net_u16 (declared);
++  pppoe->session_id = clib_host_to_net_u16 (17);
++  pppoe->ppp_proto = clib_host_to_net_u16 (protocol);
++  ip6_header_t *ip6 = (void *) (pppoe + 1);
++  ip6->payload_length = clib_host_to_net_u16 (ip_payload);
++  ip6->protocol = next_header;
++  udp_header_t *udp = (void *) (ip6 + 1);
++  udp->length = clib_host_to_net_u16 (udp_bytes);
++}
++
++static void
++pppoe_test_vlan (u8 *wire)
++{
++  ethernet_header_t *eth = (void *) wire;
++  u16 inner_type = eth->type;
++  memmove (wire + 18, wire + 14, 128 - 18);
++  eth->type = clib_host_to_net_u16 (ETHERNET_TYPE_VLAN);
++  ethernet_vlan_header_t *tag = (void *) (eth + 1);
++  clib_memset (tag, 0, sizeof (*tag));
++  tag->type = inner_type;
++}
++
++static clib_error_t *
++pppoe_frame_bounds_test (vlib_main_t *vm, unformat_input_t *input,
++                         vlib_cli_command_t *command)
++{
++  const pppoe_frame_t expected_discovery = {
++    .session_id = 17, .protocol = 0, .ethernet_bytes = 14,
++    .ethertype = 0x8863, .code = 0xa7,
++  };
++  const pppoe_frame_t expected_tagged_discovery = {
++    .session_id = 17, .protocol = 0, .ethernet_bytes = 18,
++    .ethertype = 0x8863, .code = 0xa7,
++  };
++  const pppoe_frame_t expected_lcp = {
++    .session_id = 17, .protocol = 0xc021, .ethernet_bytes = 14,
++    .ethertype = 0x8864, .code = 0,
++  };
++  const pppoe_frame_t expected_tagged_lcp = {
++    .session_id = 17, .protocol = 0xc021, .ethernet_bytes = 18,
++    .ethertype = 0x8864, .code = 0,
++  };
++  const pppoe_frame_t expected_ipv6 = {
++    .session_id = 17, .protocol = 0x0057, .ethernet_bytes = 14,
++    .ethertype = 0x8864, .code = 0,
++  };
++  const pppoe_frame_t expected_tagged_ipv6 = {
++    .session_id = 17, .protocol = 0x0057, .ethernet_bytes = 18,
++    .ethertype = 0x8864, .code = 0,
++  };
++  u8 wire[128];
++  clib_error_t *error;
++  u32 cases = 0;
++#define CHECK(name, length, split, valid, fields)                            \
++  do {                                                                       \
++    error = pppoe_frame_case (vm, name, wire, length, split, valid, fields);   \
++    if (error)                                                               \
++      return error;                                                          \
++    cases++;                                                                 \
++  } while (0)
++
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_DISCOVERY, 0, 0x57, 0, 0, 0);
++  CHECK ("short Ethernet", 13, 0, 0, 0);
++  CHECK ("short discovery header", 19, 0, 0, 0);
++  CHECK ("empty PADT", 20, 0, 1, &expected_discovery);
++  CHECK ("split empty PADT", 20, 10, 1, &expected_discovery);
++  pppoe_test_wire (wire, ETHERNET_TYPE_VLAN, 0, 0, 0, 0, 0);
++  CHECK ("short VLAN header", 17, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_DISCOVERY, 0, 0, 0, 0, 0);
++  pppoe_test_vlan (wire);
++  CHECK ("tagged empty PADT", 24, 0, 1, &expected_tagged_discovery);
++  CHECK ("split tagged PADT", 24, 17, 1, &expected_tagged_discovery);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_DISCOVERY, 0, 0, 0, 0, 0);
++  CHECK ("untagged after tagged", 20, 0, 1, &expected_discovery);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_DISCOVERY, 5, 0x57, 0, 0, 0);
++  CHECK ("discovery declared beyond chain", 24, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_DISCOVERY, 4, 0x57, 0, 0, 0);
++  CHECK ("discovery tag resembles IPv6 protocol", 24, 0, 1, &expected_discovery);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 0, 0, 0, 0, 0);
++  CHECK ("session has no protocol", 20, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 1, 0, 0, 0, 0);
++  CHECK ("session has one protocol octet", 21, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 6, 0xc021, 0, 0, 0);
++  CHECK ("LCP control", 26, 0, 1, &expected_lcp);
++  CHECK ("split LCP control", 26, 17, 1, &expected_lcp);
++  pppoe_test_vlan (wire);
++  CHECK ("tagged LCP control", 30, 0, 1, &expected_tagged_lcp);
++  CHECK ("split tagged LCP control", 30, 17, 1, &expected_tagged_lcp);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 6, 0xc021, 0, 0, 0);
++  CHECK ("declared beyond contiguous payload", 24, 0, 0, 0);
++  CHECK ("declared beyond split chain", 24, 17, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 41, 0x57, 0, 59, 0);
++  CHECK ("short IPv6 header", 61, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 42, 0x57, 1, 59, 0);
++  CHECK ("IPv6 payload exceeds PPP length", 62, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 42, 0x57, 0, 59, 0);
++  CHECK ("IPv6 no next header", 62, 0, 1, &expected_ipv6);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 45, 0x57, 3, 58, 0);
++  CHECK ("short ICMPv6", 65, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 50, 0x57, 8, 58, 0);
++  CHECK ("ICMPv6 header", 70, 0, 1, &expected_ipv6);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 49, 0x57, 7, 17, 8);
++  CHECK ("short UDP header", 69, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 50, 0x57, 8, 17, 7);
++  CHECK ("UDP length below header", 70, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 50, 0x57, 8, 17, 9);
++  CHECK ("UDP length exceeds IPv6 payload", 70, 0, 0, 0);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 50, 0x57, 8, 17, 8);
++  CHECK ("complete UDP header", 70, 0, 1, &expected_ipv6);
++  CHECK ("split UDP header", 70, 17, 1, &expected_ipv6);
++  pppoe_test_vlan (wire);
++  CHECK ("tagged IPv6 UDP", 74, 0, 1, &expected_tagged_ipv6);
++  CHECK ("split tagged IPv6 UDP", 74, 17, 1, &expected_tagged_ipv6);
++  pppoe_test_wire (wire, ETHERNET_TYPE_PPPOE_SESSION, 50, 0x57, 8, 17, 8);
++  CHECK ("padding beyond PPP payload", 80, 0, 1, &expected_ipv6);
++#undef CHECK
++  vlib_cli_output (vm, "PPPoE frame bounds: %u cases passed", cases);
++  return 0;
++}
++
++VLIB_CLI_COMMAND (pppoe_frame_bounds_command, static) = {
++  .path = "test pppoe frame-bounds",
++  .short_help = "test pppoe frame-bounds",
++  .function = pppoe_frame_bounds_test,
++};
+diff --git a/src/plugins/pppoe/CMakeLists.txt b/src/plugins/pppoe/CMakeLists.txt
+--- a/src/plugins/pppoe/CMakeLists.txt
++++ b/src/plugins/pppoe/CMakeLists.txt
+@@ -32,2 +32,7 @@
+-  pppoe_test.c
+-)
++  pppoe_test.c
++)
++
++option(VPP_PPPOE_FRAME_TESTS "Build the PPPoE frame-bounds lab command" OFF)
++if(VPP_PPPOE_FRAME_TESTS)
++  target_sources(pppoe_plugin PRIVATE pppoe_frame_test.c)
++endif()
+diff --git a/src/plugins/pppoe/pppoe_error.def b/src/plugins/pppoe/pppoe_error.def
+--- a/src/plugins/pppoe/pppoe_error.def
++++ b/src/plugins/pppoe/pppoe_error.def
+@@ -18,1 +18,2 @@
+-pppoe_error (BAD_VER_TYPE, "bad version and type in pppoe header")
++pppoe_error (BAD_VER_TYPE, "bad version and type in pppoe header")
++pppoe_error (BAD_LENGTH, "malformed PPPoE frame length")
+diff --git a/src/plugins/pppoe/pppoe_decap.c b/src/plugins/pppoe/pppoe_decap.c
+--- a/src/plugins/pppoe/pppoe_decap.c
++++ b/src/plugins/pppoe/pppoe_decap.c
+@@ -21,1 +21,2 @@
+-#include <vnet/udp/udp_local.h>
++#include <vnet/udp/udp_local.h>
++#include <pppoe/pppoe_frame.h>
+@@ -134,1 +134,2 @@
+-          pppoe_header_t * pppoe0, * pppoe1;
++          pppoe_header_t * pppoe0, * pppoe1;
++          pppoe_frame_t frame0 = { 0 }, frame1 = { 0 };
+@@ -169,2 +169,9 @@
+-          vlib_buffer_reset(b0);
+-          h0 = vlib_buffer_get_current (b0);
++          vlib_buffer_reset(b0);
++          if (PREDICT_FALSE (!pppoe_frame_parse (vm, b0, &frame0)))
++            {
++              error0 = PPPOE_ERROR_BAD_LENGTH;
++              next0 = PPPOE_INPUT_NEXT_DROP;
++              result0.fields.session_index = ~0;
++              goto trace0;
++            }
++          h0 = vlib_buffer_get_current (b0);
+@@ -187,1 +187,1 @@
+-          ppp_proto0 = clib_net_to_host_u16(pppoe0->ppp_proto);          
++          ppp_proto0 = frame0.protocol;
+@@ -190,1 +190,2 @@
+-		  if (is_control_plane_packet(pppoe0, pem->is_pass_nd_and_dhcpv6))
++          if (frame0.ethertype == ETHERNET_TYPE_PPPOE_DISCOVERY ||
++              is_control_plane_packet(pppoe0, pem->is_pass_nd_and_dhcpv6))
+@@ -263,1 +263,1 @@
+-              tr->session_id = clib_net_to_host_u32(pppoe0->session_id);
++              tr->session_id = frame0.session_id;
+@@ -267,2 +267,9 @@
+-          vlib_buffer_reset(b1);
+-          h1 = vlib_buffer_get_current (b1);
++          vlib_buffer_reset(b1);
++          if (PREDICT_FALSE (!pppoe_frame_parse (vm, b1, &frame1)))
++            {
++              error1 = PPPOE_ERROR_BAD_LENGTH;
++              next1 = PPPOE_INPUT_NEXT_DROP;
++              result1.fields.session_index = ~0;
++              goto trace1;
++            }
++          h1 = vlib_buffer_get_current (b1);
+@@ -285,1 +285,1 @@
+-		  ppp_proto1 = clib_net_to_host_u16(pppoe1->ppp_proto);
++          ppp_proto1 = frame1.protocol;
+@@ -288,1 +288,2 @@
+-          if (is_control_plane_packet(pppoe1, pem->is_pass_nd_and_dhcpv6))
++          if (frame1.ethertype == ETHERNET_TYPE_PPPOE_DISCOVERY ||
++              is_control_plane_packet(pppoe1, pem->is_pass_nd_and_dhcpv6))
+@@ -359,1 +359,1 @@
+-              tr->session_id = clib_net_to_host_u32(pppoe1->session_id);
++              tr->session_id = frame1.session_id;
+@@ -378,1 +378,2 @@
+-          pppoe_header_t * pppoe0;
++          pppoe_header_t * pppoe0;
++          pppoe_frame_t frame0 = { 0 };
+@@ -400,2 +400,9 @@
+-          vlib_buffer_reset(b0);
+-          h0 = vlib_buffer_get_current (b0);
++          vlib_buffer_reset(b0);
++          if (PREDICT_FALSE (!pppoe_frame_parse (vm, b0, &frame0)))
++            {
++              error0 = PPPOE_ERROR_BAD_LENGTH;
++              next0 = PPPOE_INPUT_NEXT_DROP;
++              result0.fields.session_index = ~0;
++              goto trace00;
++            }
++          h0 = vlib_buffer_get_current (b0);
+@@ -420,1 +420,1 @@
+-          ppp_proto0 = clib_net_to_host_u16(pppoe0->ppp_proto);   
++          ppp_proto0 = frame0.protocol;
+@@ -422,1 +422,2 @@
+-          if (is_control_plane_packet(pppoe0, pem->is_pass_nd_and_dhcpv6))
++          if (frame0.ethertype == ETHERNET_TYPE_PPPOE_DISCOVERY ||
++              is_control_plane_packet(pppoe0, pem->is_pass_nd_and_dhcpv6))
+@@ -492,1 +492,1 @@
+-              tr->session_id = clib_net_to_host_u16(pppoe0->session_id);
++              tr->session_id = frame0.session_id;
+diff --git a/src/plugins/pppoe/pppoe_cp_node.c b/src/plugins/pppoe/pppoe_cp_node.c
+--- a/src/plugins/pppoe/pppoe_cp_node.c
++++ b/src/plugins/pppoe/pppoe_cp_node.c
+@@ -17,1 +17,3 @@
+-#include <pppoe/pppoe.h>
++#include <pppoe/pppoe.h>
++#include <vnet/udp/udp_local.h>
++#include <pppoe/pppoe_frame.h>
+@@ -382,1 +382,2 @@
+-	  pppoe_header_t * pppoe0;
++	  pppoe_header_t * pppoe0;
++          pppoe_frame_t frame0 = { 0 };
+@@ -401,3 +401,10 @@
+-          /* leaves current_data pointing at the pppoe header */
+-          pppoe0 = vlib_buffer_get_current (b0);
+-          rx_sw_if_index0 = vnet_buffer(b0)->sw_if_index[VLIB_RX];
++          rx_sw_if_index0 = vnet_buffer(b0)->sw_if_index[VLIB_RX];
++          vlib_buffer_reset (b0);
++          if (PREDICT_FALSE (!pppoe_frame_parse (vm, b0, &frame0)))
++            {
++              error0 = PPPOE_ERROR_BAD_LENGTH;
++              next0 = PPPOE_INPUT_NEXT_DROP;
++              goto trace00;
++            }
++          h0 = vlib_buffer_get_current (b0);
++          pppoe0 = (void *) ((u8 *) h0 + frame0.ethernet_bytes);
+@@ -413,3 +413,1 @@
+-          vlib_buffer_reset(b0);
+-          h0 = vlib_buffer_get_current (b0);
+-
++
+@@ -514,2 +514,2 @@
+-              tr->pppoe_code = pppoe0->code;
+-              tr->ppp_proto = clib_net_to_host_u16(pppoe0->ppp_proto);
++              tr->pppoe_code = frame0.code;
++              tr->ppp_proto = frame0.protocol;

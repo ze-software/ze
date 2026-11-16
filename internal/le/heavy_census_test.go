@@ -250,9 +250,12 @@ var censusSelfAdmitting = []string{
 // censusNoSlot names every heavy command that takes no job slot, with the
 // reason its declaration gives.
 var censusNoSlot = map[string]string{
-	"ai hooks unit":          "an in-process selftest of the hooks, single process, seconds",
-	"test integration clean": "removes containers and adds no load; queueing it protects nothing",
-	"setup docker host stop": "stops the Docker host and adds no load",
+	"ai hooks unit":                     "an in-process selftest of the hooks, single process, seconds",
+	"test integration clean":            "removes containers and adds no load; queueing it protects nothing",
+	"setup docker host stop":            "stops the Docker host and adds no load",
+	"test deployment vpp-pppoe control": "the parent mechanism action owns admission; this bounded socket helper performs no build",
+	"test deployment vpp-pppoe bounds":  "the parent mechanism action owns admission; this helper sends three bounded frames",
+	"test deployment vpp-pppoe ipv6":    "the parent mechanism action owns admission; this helper sends two bounded frames",
 }
 
 // TestCensusHeavyActionsAreAdmitted asks whether every heavy line le holds
