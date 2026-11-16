@@ -8,7 +8,7 @@
 | Release reason | Routing correctness of a shipped capability: under the default configuration a Ze node between two BGP peers passes on only the routes it originates, where RFC 4271 Section 9.2 has a speaker advertise the routes its Decision Process chose |
 | RFC gaps | - |
 | Depends | `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` (a best route advertised toward an eBGP peer under the default `next-hop auto` needs the rewrite that spec owns) |
-| Phase | Research: ordinary selected-route advertiser and writer ownership |
+| Phase | Design: configured-preference origin admission and selected output |
 | Handoff | `tmp/session/2026-11-14-210034/state/session-state-bgp-best-route-advertised-to-peers-01a1db03-fbc1-7b32-8cbf-72b6284c110b.md` |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
@@ -43,9 +43,11 @@ the design page that owns the subject,
 `docs/architecture/rib-transition.md`, "Owner ruling: best routes reach the
 other peers by default".
 
-This spec is in research. It records the ruling, reproduced failures, existing
+This spec is in design. It records the ruling, reproduced failures, existing
 mechanisms and an unapproved advertiser proposal for the main-thread design
-gates. No advertiser design or mixed-origin precedence is approved. The framing
+gates. The owner has resolved mixed-origin policy as configured-preference arbitration;
+the concrete advertiser design and its proposed API-origin mapping still await
+whole-design approval. The framing
 in the question above ("nothing arbitrating against redistribution") was the
 asking session's suspicion; the source trace below distinguishes writer
 ownership from route preference arbitration. Dated investigations retain their
@@ -143,7 +145,7 @@ work it adds before the negative observations.
 
 #### Q-3: local and learned routes for the same prefix
 
-The owner's pending question, "What do BIRD and FRR do?", was investigated
+The owner's then-pending question, "What do BIRD and FRR do?", was investigated
 against the lab versions on 2026-11-15: FRR 10.7.1, pinned by digest in
 `internal/le/interoplab/discover.go`, and BIRD 3.4.0, selected by
 `test/interop/Dockerfile.bird`. The local reference checkouts are FRR 10.5.3
@@ -202,17 +204,16 @@ This is not yet a demonstrated election spanning explicit API origination,
 redistribution and learned BGP.
 
 The implementations therefore answer the comparison question differently for
-some inputs, notably OSPF versus eBGP. Q-3 remains a design choice about Ze's
-origin forms and selection boundary, not an unanswered request for source
-research. No universal local-versus-learned precedence is chosen here, and no
-new advertiser or product change is implied. The four learned-only regression
+some inputs, notably OSPF versus eBGP. This dated comparison did not itself decide Ze's origin forms or selection
+boundary. The 2026-11-16 owner decision and concrete proposal below supersede
+its pending-choice state; no universal FRR/BIRD numeric preference is inferred. The four learned-only regression
 probes above remain valid and do not depend on resolving mixed-origin policy.
 
 The next fix work, after design review, is:
 
 1. Read FRR's and BIRD's deciding functions and settle the advertiser's owning
    component, default startup and derived bindings within the plugin boundary.
-   Keep the pending API/redistribution arbitration question open.
+   Apply the subsequently recorded Q-3 owner decision and scoped admission proposal below.
 2. Feed the global selected path to the existing stored-route relay using
    owned route bytes and original source, message ID and source-policy epoch.
    Add an opaque destination forwarding-role claim so ordinary, RS and RR
@@ -303,13 +304,13 @@ relationship to exact-owner retirement remain design work, not a new API
 contract approved by this research. Neither alternative moves selection into
 the reactor or uses UPDATE-driven RS forwarding as the ordinary selector.
 
-Q-3 remains pending with Thomas: follow the unified route-table winner, or keep
-explicit local announcements authoritative until withdrawn. The first is the
-current recommendation, not an owner decision. The existing learned-only
-probes and source research do not require that choice, but a complete default
-cannot silently choose mixed-origin precedence. The main thread owns the
-research/design gates and whole-design approval before implementation; no
-implementation phase is authorized by this proposal alone.
+Q-3 policy is resolved by the owner ruling recorded in
+`docs/architecture/rib-transition.md`, "Owner ruling: local and learned route
+competition": use configured preferences, following FRR/BIRD where they agree.
+A valid local announcement is not unconditionally pinned until withdrawal.
+The concrete scoped admission and API-origin preference mapping below remain
+proposed implementation semantics for whole-design review. Main owns that
+approval; the first-choice answer does not authorize implementation.
 
 The parallel claims/bindings trace adds constraints for main-thread source
 verification. `rs/register.go` also declares the BGP config root, so absence of
@@ -392,8 +393,8 @@ not approval of either transfer approach.
 
 The original mechanisms were read at the producing code or its page on
 2026-11-13; their dispositions below now reflect the 2026-11-16 unapproved
-whole-design recommendation. Only mixed-origin semantics Q-3 remains an owner
-choice.
+whole-design recommendation. Q-3 policy is resolved; whole-design approval
+remains pending.
 
 The following 2026-11-16 rows extend that historical inventory. Their proposed
 dispositions remain subject to the design gate.
@@ -414,9 +415,9 @@ dispositions remain subject to the design gate.
 | `bgp-rs` forwarding | `rs/server_forward.go` `batchForwardUpdateSkipped`; `docs/guide/route-reflection.md` "Forwarding and Destination Election" | forwards each received UPDATE by cache id to the other peers it is attached to; a destination without ADD-PATH defers to the `bgp-rib` election only where sources contest a prefix | Preserve configured RS behavior under its eligible destination claim; replace plain-transit use with ordinary selected output |
 | Reactor RS fast path | `reactor/forward_rs.go` `reactorForwardRS`; `core-design.md` "Forwarding Path" | forwards inline on the read goroutine for peers with `rs-fast-path`, handing back to `bgp-rs` what it cannot serve | Preserve for eligible RS-owned destinations; ordinary output uses selected reconstruction/shared egress, never UPDATE-driven fast-path selection |
 | Forward loop rules | `reactor/reactor_api_forward.go` (`isReflected`, the eBGP AS_PATH prepend, the egress chain) | applies iBGP split horizon, reflector rules, AS_PATH prepend and egress policy per destination | extends: any advertiser reaches the destination through these rules, never a second copy of them |
-| Destination writer ownership | `reactor/session_ownership.go` `oweAnnouncement`, `adjOutContests` | tracks the owner of each advertised key and owes a contested key to the RIB election while the recovery owner receives the source's UPDATEs | Extend final-writer selected authority separately from original source provenance; existing contest detection is not mixed-origin preference selection. Q-3 alone decides that input boundary |
+| Destination writer ownership | `reactor/session_ownership.go` `oweAnnouncement`, `adjOutContests` | tracks the owner of each advertised key and owes a contested key to the RIB election while the recovery owner receives the source's UPDATEs | Extend final-writer selected authority separately from original source provenance; existing contest detection is not mixed-origin preference selection. The resolved Q-3 policy and scoped-origin proposal below define that input boundary |
 | `bgp-rr` | `internal/component/bgp/plugins/rr` (registered as `bgp-rr`, "Route Reflector") | reflects iBGP routes under RFC 4456 when attached | does not apply as the default (reflection is a configured role), but must keep working beside it |
-| Redistribution | `internal/core/redistevents/registry.go` `WouldLoop`; `internal/plugins/redistribute`; `bgp/redistribute/producer.go` `EmitBestChange` | carries routes between protocols and refuses BGP into BGP | Preserve configured cross-protocol admission, never use BGP-to-BGP redistribution as carrier; admitted local/redistributed candidate precedence remains Q-3 |
+| Redistribution | `internal/core/redistevents/registry.go` `WouldLoop`; `internal/plugins/redistribute`; `bgp/redistribute/producer.go` `EmitBestChange` | carries routes between protocols and refuses BGP into BGP | Preserve configured cross-protocol admission, never use BGP-to-BGP redistribution as carrier; admitted origins use the Q-3 configured-preference proposal below |
 | Derived process binding | `core-design.md` "The Two Deliveries a Redistribution Rule Derives" | a redistribution rule derives the `attach process` binding a peer needs, so the operator does not type it | Extend registration with generic default-feed requirements, reuse alias resolution and explicit-grant precedence, refuse incomplete mandatory grants |
 | Config-root auto-load | `core-design.md`, protocol-agnostic plugin loading; `bgp-rib` auto-loads under its registry name | starts a plugin the config implies without a `plugin` block | Reuse existing RIB autoload; loaded RS presence alone does not claim a destination without eligible peer grants |
 | Filter insertions | `rpc.FilterInsertion`; `ai/doors/bgp-plugins.md` "Boundaries" | a plugin inserts the filter-list members its config implies | Preserve existing inserted filters and shared egress rules; the advertiser adds no duplicate protocol-policy evaluator |
@@ -425,8 +426,8 @@ dispositions remain subject to the design gate.
 
 ## Proposal decisions for whole-design review (unapproved)
 
-Only Q-3 is a pending owner semantic choice. The other rows are technical
-recommendations grounded in the existing mechanisms and RFC constraints, to be
+Q-3 records the resolved owner policy and its proposed concrete mapping. The
+other rows are technical recommendations grounded in the existing mechanisms and RFC constraints, to be
 reviewed together as one design, not put to Thomas as separate implementation
 questions. Their recommendation is not implementation authorization.
 
@@ -434,25 +435,127 @@ questions. Their recommendation is not implementation authorization.
 |---|---------|----------------|-------------------------------------|
 | Q-1 | Advertiser owner | Extend `bgp-rib`, where `checkRouteBestChange` already owns the retained selected revision and source-policy lifecycle | A separate advertiser uses the same selection but adds snapshot/query and startup ordering; RS mode conflates ordinary election with UPDATE-driven role behavior; reactor selection violates the plugin boundary |
 | Q-2 | RS/RR coexistence | Resolve one effective dissemination owner per destination from existing Claims declarations plus actual receive/state/send grants. An explicit eligible RS/RR role displaces ordinary output; ambiguous eligible explicit claimants are rejected during config verification | Parallel ordinary and role writers leave duplicate/recovery contests; daemon-wide ClaimActive alone wrongly suppresses unrelated destinations |
-| Q-3 | Local/redistributed and learned origins | Pending owner choice: unified route-table winner (recommended) versus explicit local announcement authority until withdrawal | Tagged FRR/BIRD comparisons and current local writer trace do not establish one universal precedence. Parameterize the selected input boundary until answered; do not silently assign a precedence |
+| Q-3 | Local/redistributed and learned origins | Owner resolved configured-preference arbitration. Proposed scoped admission uses existing Ze distance override → protocol declaration, then metric/stable tie; explicit BGP local origin has a distinct identity mapped to the configured static preference class as a new proposal | Unconditional local authority is rejected by the owner policy. FRR/BIRD disagree on OSPF/eBGP defaults, so preserve Ze defaults rather than invent a common numeric ranking. Exact API mapping is proposed, not an existing source fact |
 | Q-4 | Protocol egress | Use existing `forwardUpdateCore`, including `isReflected`, source/destination context, next-hop transformation and policy chain | Duplicating split horizon/reflection in the advertiser creates a second implementation and risks different initial/replay behavior |
 | Q-5 | Export default | Keep explicit export-policy requirement for eBGP through the existing egress rail; no deviation option is proposed | RFC 8212 permits an option but no owner request or interoperability requirement justifies adding one; default acceptance would violate the required behavior |
 | Q-6 | Existing configs | Convert plain-transit examples and fixtures to ordinary output, preserve explicit RS/RR tests/configs, and revalidate replay-only fixtures against unintended default output | Leaving the transit workaround teaches obsolete configuration; mechanically removing every RS attachment would destroy role-specific coverage |
 | Q-7 | Process boundary | Use one registered selected operation with typed and external SDK transports; owned value snapshots and authenticated process identity | Internal-only callbacks or references to RIB storage break forked plugins |
 | Q-8 | Trigger and selection | Publish only changes of the global selected route; duplicate/lower-candidate changes do not enqueue an advertisement | Forwarding every UPDATE and relying on recipient recovery can advertise losers; RFC 4271 Section 9.1.3 requires selected-route dissemination |
-| Q-9 | Late-peer/reconnect replay | Selected snapshot plus ordered deltas before the existing initial-ready fence opens; retain separate local-origin sent history according to Q-3 | Sent-history-only replay cannot seed a first recipient; replaying every received candidate violates ordinary single-best output |
+| Q-9 | Late-peer/reconnect replay | Selected snapshot plus ordered deltas before the existing initial-ready fence opens; reconcile admitted local origins in the same scope before replay; preserve unrelated role-owned sent history | Sent-history-only replay cannot seed a first recipient; replaying every received candidate violates ordinary single-best output |
 
 ### Concrete selected-output mechanism (proposed)
 
-Q-3's candidate boundary is explicit: the unified-election option means
-selection among eligible learned BGP candidates, explicit local BGP
-announcements and routes admitted by configured redistribution for that
-prefix. It does not mean exporting whichever system/FIB route exists. Existing
-import, origination, redistribution and recipient export admission continue to
-apply. The alternative keeps explicit local announcement authority until
-withdrawal. The same selected-output mechanism accepts the decision from
-either choice, but implementation must incorporate Thomas's answer before
-integrating mixed-origin writers; no system route bypasses redistribution.
+The resolved Q-3 policy applies only to admitted origins: eligible learned BGP,
+explicit local BGP announcements in their authorized peer scope, and routes
+admitted by configured redistribution. System/FIB presence alone is never
+permission to export. The concrete scope and preference mapping immediately
+below is proposed for whole-design approval, not implemented behavior.
+
+### Admitted origin scopes and preference arbitration (proposed after Q-3)
+
+Source verification distinguishes three inputs. `sdk_engine.go` `UpdateRoute`
+and `UpdateRouteSel` carry a selector and command; `rpc.UpdateRouteInput` has
+no protocol or administrative distance. `announceTarget.initBatchOwner` marks
+output `originated`, and the RIB's SENT handler records `LocalOrigin` in
+`ribOutEntry`; neither is a selection candidate. `rib_inject.go` monitored BMP
+injection explicitly does not select, and pretending a local origin is a
+received peer is not an admission mechanism. The current system Loc-RIB is
+therefore not already a unified advertisement domain.
+
+`config/redistribute/consumer.go` `RouteEntry` carries `Source`, targeted `Peer`
+and the accepted `Route` view. `redistribute.go` `dispatchEntryToConsumer`
+constructs these after configured admission, but BGP `InjectRoute` ignores
+source/view and formats an ordinary UpdateRoute command. Its withdrawal API
+carries only family/prefix. Preserve origin provenance before that lossy step;
+do not reconstruct protocol or distance from BGP ORIGIN or the sender name.
+
+| Input or boundary | Proposed admission and ranking | Preservation and authority |
+|-------------------|--------------------------------|----------------------------|
+| Learned BGP | Keep the existing global BGP best-path election, including LOCAL_PREF, conditional MED and stale handling, over admitted learned candidates. Its one selected route enters cross-origin arbitration with its actual eBGP/iBGP distance class | Never replace BGP best-path with system AD ordering among learned peers. No destination filter can nominate a second learned candidate |
+| Explicit API/configured BGP origin | Retain a distinct local-BGP origin kind and producer identity. Proposed new mapping: use the existing configured `static` preference class (default 10), without pretending the route is a system static route. Explicit accepted distance override, where supplied through the existing policy contract, precedes that class | This mapping is new proposal semantics, not today's UpdateRoute behavior or an owner-approved numeric mapping. It matches the common default local-origin-winning outcome of FRR/BIRD, not their identical algorithms. No implicit FIB install; BGP attributes and late-bound next-hop behavior remain those of local origination |
+| Configured redistribution | Admit only the configured consumer's accepted source contribution, carrying source protocol/instance, effective policy override, metric, native identity and admission generation. Use original protocol class, not the redistribution sender's name or local-BGP class | Mere system winner visibility creates no candidate. Preserve redistribution loop checks, accepted transforms and targeted replay. Withdrawal removes the exact source contribution, not another origin's route with the same prefix |
+| Cross-origin order | Resolve override first, then current Ze declared protocol distance; lower wins, then lower metric, then stable admission order as in `locrib/entry.go selectBest`. Reuse/extract that comparison rather than duplicate a private numerical policy. An explicit local origin without a metric uses zero; retain accepted metrics for other origins | `locrib/distance.go resolvedDistance`, `distance/distance.go` and sysrib YANG define static 10, eBGP 20, OSPF 110, IS-IS 115 and iBGP 200. Preserve them and configured overrides where FRR/BIRD differ. No new OSPF/eBGP default or config leaf |
+| Recipient scope before election | Capture the concrete peer identities admitted by the existing selector and sender grants; a targeted origin competes only in that scope. Each scope combines its admitted local/redistributed origins with the same common learned winner. Keep shared candidate storage plus scope membership, not copied per-peer candidate RIBs | A targeted A-only announcement cannot suppress or reach B. Wildcards retain existing selector resolution semantics; new/restarted sessions replay only their admitted origins through existing lifecycle, not an expanded guessed selector |
+| Recipient export after election | Elect once for the admitted scope, then apply existing egress to that exact winner. Denial or split-horizon exclusion retires the previous selected output; it does not retry local, redistributed or learned losers | Scope admission is not an export-policy verdict. A peer outside a local origin's scope may use the common learned winner, but a peer inside the scope cannot fall back merely because its selected origin is denied |
+| Origin replacement and removal | Retain source-owned candidate identity and generation across output changes. Replacement, source withdraw, configured-route restoration, producer exit, permission removal and redistribution-rule removal update only that origin and re-elect affected scopes | A losing but still admitted origin remains available for a later genuine winner withdrawal. A loser withdrawal cannot erase another origin's current output. Existing keep/withdraw-on-exit behavior governs candidate lifetime |
+| Preference reload and replay | Re-resolve affected admitted candidates on existing distance/policy apply and rollback; issue new scoped selected revisions and join the same final-output barriers. Snapshot membership, candidate provenance and preference generation together | Config changes can replace a still-valid local origin with learned output without waiting for withdrawal. Reconnect/first-peer replay never independently resurrects old local SENT history over the current selected result |
+
+The engine validates syntax, original sender and scope using its existing API
+path, then offers the owned local-origin value to the registered deciding
+plugin before direct output at ordinary destinations. Extend the existing
+registered plugin request/response pattern with a typed fast path and the same
+external RPC; no reactor import of `bgp-rib`, shared-memory callback-only
+admission or engine candidate election. The plugin owns candidates and returns
+admission/completion receipts. The current request's cancellation and error
+semantics remain explicit; an accepted losing candidate is retained but does not increment Announced.
+Preserve existing counts, including completed withheld withdrawals; the
+explicit admission receipt below distinguishes acceptance from output. Received-origin maintenance,
+SENT replay and raw/control messages are not new local candidates. Explicit
+RS/RR destinations keep their role contract, not a second ordinary writer.
+
+#### Origin admission result transport (proposed)
+
+Current `plugin/server/dispatch.go` `extractUpdateRouteOutput` copies only
+`plugin.RouteResult.Announced` and `Withdrawn`; warning-map responses lose their
+reason and become zero-success. Both `opUpdateRoute` and
+`handleUpdateRouteSelDirect` use it, and SDK UpdateRoute returns just two counts
+and error. `config/redistribute/consumer_factory.go` `RouteUpdater` has that same
+signature. Consequently BGPConsumer's `added == 0` warning cannot distinguish
+an accepted losing candidate from a failure. Merely adding an internal RIB
+receipt would leave this defect intact.
+
+Extend the existing typed command result and `rpc.UpdateRouteOutput` with an
+explicit admission result, carried as a value on both transports. It records
+per native key and authorized scope whether a candidate was accepted/retained,
+whether it is currently selected or suppressed by selection/export, and its
+admission generation; refusal/failure carries an explicit reason. Command
+aggregation preserves partial outcomes and does not convert a warning map or
+missing receipt into accepted admission. The fields are receipt facts, not
+client-supplied authority or free-form route metadata.
+
+`extractUpdateRouteOutput` must preserve this value; the registered JSON
+`opUpdateRoute` serializes it. Add a result-bearing typed bridge entry/SDK
+method returning the same full value. Keep existing count-returning SDK and
+bridge methods as compatibility wrappers over it: old clients receive their
+existing count/error contract, new consumers can observe admission. Extend
+`RouteUpdater`/its registered factory connection with the full-result method;
+migrate the SDK implementation, BGP consumer construction and test mocks.
+BGPConsumer consumes the full receipt, retaining accepted losers without a
+false no-peer warning; admission refusal, missing required receipt and real
+transport failures remain explicit errors/owned diagnostics. Do not treat an
+arbitrary zero-success from an old server as an accepted candidate.
+
+Counts keep their existing command meaning. Announced is not incremented for
+an accepted loser. Withdrawn is not a physical wire count: `cmd/update/update_text.go`
+counts `ErrWithdrawWithheld` as completed when that session advertised nothing,
+with the explanatory warning. Preserve this compatibility, including partial
+commands, instead of redefining both fields as socket writes. Final selected
+writer completion remains its separate barrier contract.
+
+For provenance-bearing removal, extend the consumer contribution contract
+with an exact source/instance removal value. Migrate `RedistConsumer`, its BGP
+implementation, `internal/plugins/ospf/redistribute/consumer.go` and
+`internal/plugins/isis/redistribute/consumer.go`, plus factory fixtures/mocks.
+OSPF/IS-IS adapters retain their current prefix-withdraw semantics while BGP
+uses the exact origin key. Their advertisement policy and returned counts do
+not change merely to support the BGP receipt.
+
+The selected envelope distinguishes learned-source receipts from authenticated
+local-origin receipts; local output must enter the existing originated build
+path, not fabricate a received source to satisfy `resolveRelaySource`. Reuse
+per-destination next-hop/AS-path construction and egress. One selected stream
+owns replacement across these admitted origin kinds; capture revision under
+the same native-key serialization whenever either the learned winner, admitted
+scope membership, local candidate or preference generation changes. Receipts
+bind the selection scope to the authenticated destination, so scope A's newer
+revision cannot retire scope B's output. The existing current-state resource
+bound includes current admitted origin records and current scope memberships;
+withdrawn never-admitted origins cannot become history-only tombstones.
+
+This admission bridge and redistribution provenance migration are required
+parts of the proposal, not claims that a system Loc-RIB subscription already
+implements them. No additional owner semantic question is identified; exact
+contract names and implementation remain subject to whole-design approval.
 
 The recommendation is a **distinct selected-operation envelope**, containing a
 batch of selected changes and reusing the existing retained-route value for an
@@ -471,9 +574,9 @@ spelling is approved by this proposal.
 | Dispatch ordering | One RIB scheduler records latest selected state and per-destination dirty keys after selection locks release. Each destination has at most one in-flight bounded batch and its own cancellable completion worker; a blocked destination never occupies another destination's sender. Repeated pending changes coalesce to latest revision; in-flight bytes stay immutable through completion | Existing per-session writers and long-lived lifecycle workers; no goroutine per route and no blocking wire/RPC send under election locks |
 | Admission identity | Engine derives sender process incarnation and effective role from authenticated transport and destination session. The producer supplies only its selected key/revision and original source provenance. A caller cannot assert another process or override an explicit RS/RR owner | Existing `procSender`, per-peer send grant and session-bound final writer |
 | Final output ownership | Existing Adj-RIB-Out keeps the selected authority/revision beside original source ownership. Newer same-stream selection can replace the earlier ordinary winner. Equal/older completed revisions are idempotent/stale. A different or retired process incarnation cannot overwrite the current owner | Extend final-writer authority instead of a second sent table; retain source identity for source-policy and departure retirement |
-| Recipient exclusion | Run the selected announcement through existing egress. If excluded, retire this stream's previous selected output even when it came from a different source. Do not retire local/role output merely because it shares the prefix; Q-3 determines any authority transition involving local origin | Existing exact-owner removal and selected output receipt; source-bound B withdrawal alone is not sufficient to retire A |
+| Recipient exclusion | Run the selected announcement through existing egress. If excluded, retire this stream's previous selected output even when it came from a different source. Do not retire local/role output merely because it shares the prefix; an admitted local origin participates in this same selected stream, while unrelated role/scope output remains protected | Existing exact-owner removal and selected output receipt; source-bound B withdrawal alone is not sufficient to retire A |
 | Final source departure | Non-retained departure produces a selected tombstone/replacement; valid GR/LLGR retention may instead leave the retained source as winner. Its announcement uses a captured source-facts receipt plus the selection owner's live retention authority, not a current Established lookup. Expiry/revocation invalidates that retention before removal/re-election settles | Existing plugin-owned retention and selected retirement; do not route eligible retained winners through `resolveRelaySource`'s Established guard |
-| Retry/recovery | Dirty work remains owed until the writer confirms its outcome. Re-read only the current global selected record for that native key; never enumerate recipient-filtered candidates. A failure or stale source receipt requests another current-selection reconciliation, not promotion of the next candidate | Existing recovery scheduling and completion; selected-only lookup is an explicit mode/operation, separate from `recoverySurvivorsLocked` |
+| Retry/recovery | Dirty work remains owed until the writer confirms its outcome. Re-read only the current selected record for that native key and admitted scope; never enumerate recipient-filtered candidates. A failure or stale source receipt requests another current-selection reconciliation, not promotion of the next candidate | Existing recovery scheduling and completion; selected-only lookup is an explicit mode/operation, separate from `recoverySurvivorsLocked` |
 | Source-policy transaction | Apply/abort uses the same dispatcher barrier: after source eligibility changes and re-election, settle affected selected output before acknowledgment. Old queued work retains its old policy epoch and cannot become current by restamping. An unsuccessful settlement fails the transaction instead of returning applied | Existing `applySourcePolicy`, ledger, exact sent retirements and writer epoch fence |
 | Peer snapshot | Capture selected records and a replay cut while registering the destination for subsequent dirty changes. Send snapshot with the destination's current session receipt, drain changes beyond the cut, then report initial ready. Session end cancels that replay; a new session takes a new cut | Existing `SignalsSessionReady`, `FencesLiveForwards`, captured initial-session identity |
 | Stop/process replacement | Stop accepting new selection work, cancel/drain dispatcher and outstanding sends, and invalidate the process incarnation's authority. A replacement deciding process starts with a fresh incarnation and must replay before live release | Existing plugin/session lifecycle and writer fences; old queued work cannot inherit new process authority |
@@ -648,8 +751,9 @@ default must exist to observe whether it introduces a second producer.
 4. Peer establishment obtains a selected snapshot plus ordered changes before
    completing its existing ready fence. Source-policy apply/abort and shutdown
    join or invalidate captured dispatch before acknowledging completion.
-5. Q-3 decides the mixed-origin input to selection; this trace does not choose
-   that precedence. Registered explicit forwarding claims determine where
+5. The scoped-origin proposal supplies admitted origins and configured-preference
+   arbitration before export; a denied winner never triggers another election.
+   Registered explicit forwarding claims determine where
    RS/RR owns dissemination instead of ordinary output.
 
 ### Boundaries Crossed
@@ -705,10 +809,40 @@ new representation onto these rows before admission.
 | Stage-1 declarations | writer | SDK registration/handshake using `pkg/plugin/rpc/types.go` declaration value; built-in registrations | Existing readiness/claims declarations; live fence/default feed fields proposed | Same declaration for internal/forked paths, explicit opt-in |
 | Stage-1 declarations | writer | Genuine external third-party plugin handshake, without compiled registry alias | Public Stage-1 writer; existing public shape has readiness only | Proposed fence/feed opt-in supported without compiled registration |
 | Stage-1 declarations | reader | Plugin server process registration and runtime declaration lookup; `registry.FencesLiveForwards` | Current fence lookup reads compiled registration/aliases | Extend runtime process lookup/cleanup and ready dependency validation; absence stays non-fencing |
-| Selected envelope | writer | Proposed RIB selected scheduler and SDK selected-operation method | New producer specified by capture/revision/retention and per-destination completion design; not implemented | Authenticated owner, original source receipt and selected revision remain separate |
+| Selected envelope | writer | Proposed RIB selected scheduler and SDK selected-operation method | New producer specified by capture/revision/retention and per-destination completion design; not implemented | Authenticated owner, original source/local-origin receipt and selected revision remain separate |
 | Selected envelope | reader | Proposed registered engineOps handler/typed slot, shared reconstruction and final writer | New consumer specified by role/session/source checks and exact selected retirement; not implemented | Explicit selected authority only; preserve all legacy relay callers |
 | BGP UPDATE wire | writer | Existing `reactor/reactor_api_forward.go` `forwardUpdateCore` and `session_write.go` final session writer | Existing egress/wire path; proposal changes selected route population and retirement, not BGP encoding format | Preserve protocol transforms, ownership and final completion |
 | BGP UPDATE wire | reader | BGP peers, including pinned FRR/BIRD scenarios and existing reactor socket fixtures | External protocol consumers inspect actual announcements/withdrawals | Prove selected winner/retirement and preserved RS/RR behavior; no new interop run claimed |
+
+Q-3 supplemental search evidence (2026-11-16): `UpdateRoute`,
+`UpdateRouteInput`, `UpdateRouteSel`, `UpdateRouteRequest`, `update-route` and
+`send bgp.*update` across `pkg`/`internal` Go and YANG, including tests; and
+`update-route|send bgp.*update|announce route|neighbor .*announce` across
+`test`/`contrib` Python, shell and `.ci` using `rg -uuu`. Known writer control
+is SDK `UpdateRoute`; known reader controls are server `opUpdateRoute` and
+`announceTarget.initBatchOwner`. The search found actual Python producers
+for this origin contract, unlike the narrower legacy StoredRoute search.
+The following rows extend the census; external clients remain uninspected.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Origin command request | writer | SDK `sdk_engine.go` UpdateRoute family; `rpc/bridge.go` UpdateRouteSel; outside SDK/non-Go callers | Selector/command/meta/source-policy epoch, no origin preference today | Preserve request grammar, authenticated identity and selected peers; new internal admission receipt must not grant clients another source's authority |
+| Origin command request | reader | Server `dispatch_registry.go` opUpdateRoute, `dispatch.go` handleUpdateRouteSelDirect, command dispatch; BGP cmd update_text/update_wire → reactor batch path | Typed and JSON converge on command dispatch and originated output | Intercept actual new local origins for registered admission at ordinary destinations; preserve received maintenance/replay classification, errors and cancellation |
+| Origin command request | writer | `bgp/config/bgp_routes.go`, `bgp/redistribute/consumer.go`; watchdog command producers, `ls_export/export_state.go`, `ddos/flowspec/responder.go` | Existing configured, redistributed and plugin-owned origin producers reach send/update command paths | Preserve configured restoration, watchdog and producer lifetime; redistribution migrates provenance before text conversion. Non-CIDR keys keep native identity, no IP-only system-RIB conversion |
+| Origin command request | writer | `internal/exabgp/bridge/bridge_command.go`, `bridge_route_forms.go`, `bridge_flow.go`; native Go fixture/interop producers and command tests | Bridge writes selected `send bgp ... update` forms and distinguishes EOR/refresh from routes | Preserve selector/withdraw grammar and non-route controls; test actual useful output and admitted-loser result semantics |
+| Origin command request | reader | `rpc.UpdateRouteOutput` consumers in SDK, BGP redistribution consumer, native fixtures and outside clients | SDK returns Announced/Withdrawn; consumer currently treats zero as no peer announcement | Preserve legacy command-count meaning, including completed withheld withdrawal; explicit admission result distinguishes retained loser, never inflate Announced |
+| ExaBGP command text | writer | `test/exabgp-compat/etc/run/exabgp_api.py`, `old-5.0/etc/run/exabgp_api.py`, operator scripts outside checkout; `.ci` API cases under test/exabgp-compat and native send cases under test/encode and test/plugin | Python/embedded command producers exercise announce/withdraw and targeted neighbors | Preserve syntax, process matching, acknowledgments and keep/withdraw-on-exit behavior; extend mixed-origin positive and scoped-survivor cases |
+| ExaBGP command text | reader | `internal/exabgp/bridge/bridge_command.go` conversion and bridgerun dispatcher | Converts peer-scoped origin commands into native command requests | No scope broadening or local-origin inference from received replay; control messages remain controls |
+| Redistribution origin contribution | writer | `internal/plugins/redistribute/redistribute.go` dispatchEntryToConsumer, through config `RouteEntry`/`RouteUpdater` adapter | Accepted Source/Route/Peer exist before text formatting; current WithdrawRoute loses source identity | Extend the typed consumer/updater contract deliberately to retain source/instance, override and exact removal; migrate all implementers/mocks and preserve non-BGP consumer semantics |
+| Redistribution origin contribution | reader | `internal/component/config/redistribute/consumer.go` RedistConsumer and consumer factory; BGP `redistribute/consumer.go` InjectRoute/WithdrawRoute; other registered consumers | BGP currently ignores Source/Route and calls selector-plus-text UpdateRoute | BGP consumes provenance through new origin-intake; `internal/plugins/ospf/redistribute/consumer.go` and `internal/plugins/isis/redistribute/consumer.go` preserve current behavior via explicit adapters, not a silent signature change |
+| Admitted origin request | writer | Proposed authenticated reactor origin intake and BGP redistribution adapter, through generic registered typed/external plugin operation | New self-contained native key, origin kind/provenance, concrete target scope, preference inputs and generation | Bind original authority before plugin call; redistribution source/override and exact removal must survive; never serialize process-local pointers |
+| Admitted origin request | reader | Proposed `rib/rib_origins.go` registered handler, internal/forked with same value contract | Extends deciding plugin candidate storage and scoped selection | Compare only admitted origins and common learned winner; source-owned withdrawal, snapshot/reload generations and no recipient loser search |
+| Origin command result | writer | `plugin/types_bgp.go` RouteResult, BGP cmd/update result aggregation; `plugin/server/dispatch.go` extractUpdateRouteOutput | Current extraction copies only two counts and drops warning-map distinction | Extend typed result and extraction with explicit admission outcome; preserve legacy counts, partial outcomes and real errors |
+| Origin command result | writer | `plugin/server/dispatch_registry.go` opUpdateRoute; `dispatch.go` handleUpdateRouteSelDirect | Both currently call count-only extraction; direct handler returns two counts | JSON result and new typed result bridge carry identical admission receipt; old typed method remains compatibility wrapper |
+| Origin command result | reader | `pkg/plugin/sdk/sdk_engine.go` UpdateRouteRequest/UpdateRouteSel and new full-result method; `pkg/plugin/rpc/bridge.go` typed entry | Existing SDK discards everything except Announced/Withdrawn | Add result-bearing API/bridge entry and retain count wrappers for outside callers; malformed/missing receipt never accepted implicitly |
+| Origin command result | reader | `config/redistribute/consumer_factory.go` RouteUpdater/ConsumerFactory, `bgp/redistribute/consumer.go` InjectRoute, associated factories/mocks | Two-count interface feeds zero-count warning today | Extend connection method and migrate implementation/mocks; BGP consumes explicit admitted-loser result without false warning; actual failure remains reported |
+| Admitted origin receipt | writer | Proposed deciding plugin registered handler plus selected completion | Separates candidate acceptance from resulting final output | Bound to original request/scope and current generation; explicit failure and cancellation, no fabricated wire count |
+| Admitted origin receipt | reader | Proposed reactor origin intake/SDK response adapter and redistribution adapter | Joins candidate admission with actual output result | Preserve UpdateRoute response meaning; distinguish admitted loser from transport/admission failure |
 
 Supporting evidence that is not a wire speaker stays outside the table:
 
@@ -742,10 +876,9 @@ thread. It was committed with this spec's work attribution. It is CI
 maintenance, not an advertiser implementation or evidence that the seven
 selected-route probes now pass.
 
-Two wire-contract alternatives remain open independently of Q-3: extend the
-existing value with explicit selected authority, or carry the selected value
-in a distinct envelope/registered operation that still uses the shared egress
-and final writer. An optional field must preserve legacy classification when
+The recommended wire contract is the distinct selected envelope/registered
+operation using shared egress and final writer. Extending the existing value
+with optional authority remains the documented, unrecommended alternative. An optional field must preserve legacy classification when
 absent; a separate operation must not duplicate forwarding logic. Neither
 requires rewriting every legacy producer automatically. Rows marked preserve
 remain unchanged when transport/ownership tests prove their semantics; migrate
@@ -791,7 +924,7 @@ design check before extending this public operation.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Two advertisers send the same prefix to the same peer (the default and an attached `bgp-rs`, or the default and redistribution) | flapping or duplicate announcements in a `.ci` with both | Q-2 and Q-3 settle one owner per destination key before the design is approved |
+| R-1 | Two advertisers send the same prefix to the same peer (the default and an attached `bgp-rs`, or the default and redistribution) | flapping or duplicate announcements in a `.ci` with both | Resolved Q-3 policy plus proposed scope arbitration and Q-2 role resolution yield one ordinary selected stream per destination key; prove cross-origin replacement before approval |
 | R-2 | The default advertises toward eBGP routes an operator never meant to export | routes seen on an eBGP peer with no export policy | Q-5: RFC 8212 Section 3 governs |
 | R-3 | Route server and reflector regressions | `bgp-rs-*` and reflector `.ci` and interop reds | preserve both roles and run their suites |
 | R-4 | Recipient recovery promotes a lower candidate after the global winner is denied | Existing export-denial probe advertises the old loser again | Selected-only recovery contract; retain the current role-specific candidate ladder only for its existing callers |
@@ -837,9 +970,14 @@ resource-bound criteria below form one unapproved design for whole review.
 | AC-9 | Destination A blocks final flush while B accepts output | B receives selected updates without waiting for A; canceling A joins its bounded worker | B and other destinations retain their independent useful routes |
 | AC-10 | Genuine external advertiser absent from compiled registry declares ready and live-forward fence | Initial selected replay precedes its live delta using runtime declaration on both transports | External plugins without the opt-in keep their existing non-fencing behavior |
 | AC-11 | Source path ID zero, a replacement source path, and independent opaque native keys | Correct replacement and old destination path retirement with exact source/native identities | Different opaque key and unrelated selected routes survive; zero is never treated as missing |
-| AC-12 | A blocks one accepted batch while many unique routes are announced then withdrawn before A admits them; B remains writable | Pending keys stay within current selected keys, known Adj-RIB-Out keys and one in-flight batch; never-admitted churn leaves no tombstones. B receives useful current routes, and release/cancellation of A joins and releases its session state | A's genuine applied/in-flight obligations remain until resolved; B's current routes survive; no history-only obligations remain |
+| AC-12 | A blocks one accepted batch while many unique routes are announced then withdrawn before A admits them; B remains writable | Pending output keys stay within current selected keys, known Adj-RIB-Out keys and one in-flight batch; candidate storage additionally contains only current admitted origins and current scope memberships. Never-admitted churn leaves no tombstones. B receives useful current routes, and release/cancellation of A joins and releases its session state | A's genuine applied/in-flight obligations remain until resolved; B's current routes survive; no history-only obligations remain |
 | AC-13 | Source-policy apply/abort, retention expiry or shutdown reaches its completion barrier while selected work is queued | Acknowledgment follows the final writer outcome for every affected destination, or fails naming unresolved destinations; stale work cannot reappear afterward | Unaffected routes/destinations continue; valid restored abort state follows the acknowledged policy, not an old receipt |
 | AC-14 | Selected dispatch fails from permission, source-receipt or transport/resource failure after useful output | Genuine obligation stays owed and an actionable owned diagnostic identifies destination/cause/fix; successful reconciliation clears it | Healthy destinations and previously valid unrelated output survive; intentional export-policy exclusion is a completed removal, not an error diagnostic |
+| AC-15 | Explicit A-only local origin and common learned winner exist for the same key, with accepting A/B recipients | A uses its admitted scoped winner; B receives the common learned winner, never the A-only local route. Denying A's elected route withdraws A's old output without loser promotion | B's useful learned route survives because A's origin was never admitted to B; unrelated scope outputs survive |
+| AC-16 | Local origin is initially preferred, then configured distance makes the learned winner preferable; withdraw the losing local origin | Learned replacement reaches the wire while local is still valid; losing-origin withdrawal does not remove it | Other admitted origins remain candidates for genuine later reselection; unrelated prefixes survive |
+| AC-17 | Configured redistribution admits a source route beside learned BGP, while another system route lacks admission | Existing Ze distance/override determines useful selected output; rule removal retires only that source and exposes the admitted replacement; no unadmitted system route is exported | Learned replacement and unrelated admitted routes survive; a system route without redistribution remains forwarding-only |
+| AC-18 | Preference apply/rollback or recipient reconnect overlaps scoped origin replacement | Replay and final completion reflect one admitted scope/preference generation; delayed old local history cannot overwrite the selected winner | Other scoped candidates and healthy recipients retain their authorized useful output |
+| AC-19 | An API/redistribution origin is admitted but loses to a useful selected route on both typed and external transports; later remove the winner, and separately inject a true failure | Initial receipt explicitly says retained/suppressed with Announced zero and no false failure/no-peer warning; winner removal advertises the retained origin. True admission/transport failure still reports its cause; completed withheld withdrawal retains its legacy count | Current winner survives loser admission; the retained loser survives until genuine re-election; unrelated origins remain unchanged |
 
 ## End-to-End User Stories
 
@@ -873,6 +1011,11 @@ negative observation follows useful output and joins the work it observes.
 
 | Proposed test | Boundary and useful result | Permitted survivor |
 |---------------|----------------------------|--------------------|
+| `TestOrdinarySelectedAcceptedLoserReceipt` | Through SDK and BGPConsumer on typed/external rails, retain losing origin with Announced zero and no false no-peer warning; remove real winner and observe useful loser output; separately force admission/transport error and assert reported failure; preserve withheld-withdraw count | Useful winner survives initial admission; retained loser becomes useful only after true winner removal, unrelated origins survive errors |
+| `TestOrdinarySelectedScopedOriginAdmission` | A-only API/ExaBGP announcement competes with common learned winner; accepting B gets learned output, then A denies its selected origin and gets withdrawal without fallback | B and unrelated scoped origins survive because admission scope precedes export |
+| `TestOrdinarySelectedLocalPreferenceReload` | Local initially wins; change existing static distance so learned wins while local remains valid; withdraw losing local | Learned replacement survives; no unconditional pin |
+| `TestOrdinarySelectedRedistributionAdmission` | Admit static/OSPF through configured redistribution, compare using default and overridden distances, remove rule; include unadmitted system-route control | Admitted learned replacement survives; no system/FIB-only export |
+| `TestOrdinarySelectedOriginReplayRollback` | Hold old local replay during preference apply/rollback and reconnect; observe current scoped winner on both internal and forked rails | Healthy scope output survives and stale history cannot replace current winner |
 | `TestOrdinarySelectedSourceDownRetiresOutput` | Advertise A, end its source, observe B replacement or final withdrawal | B survives only when it is the new globally selected eligible candidate |
 | `TestOrdinarySelectedStaleDispatchCannotReplaceWinner` | Advertise A then B; release delayed A dispatch after B is committed | B remains, because older selection cannot replace newer output |
 | `TestOrdinarySelectedPolicyApplyAbortDrains` | Advertise useful paths, apply captured source-policy denial and abort under held dispatch | Unaffected sources/local origins survive; restored paths follow the acknowledged abort policy and exact captured ownership |
@@ -897,7 +1040,7 @@ negative observation follows useful output and joins the work it observes.
 | Selected revision within owner incarnation | Positive monotonic unsigned 64-bit revision | Maximum value handled without wrap; exhaustion requires a new owner incarnation/replay boundary | Zero/unrecorded authority refused; equal revision idempotent, older revision stale | Overflow must not wrap into a newer accepted write |
 | Encoded selected batch | At most existing `rpc.MaxMessageSize`, including envelope overhead | Exact byte ceiling accepted | Empty batch is an explicit no-op, not a readiness/completion claim | Ceiling plus one split before send; a single unsplittable item fails its destination explicitly |
 | Outstanding batches per destination | Zero or one | One may be blocked while another destination progresses | N-A | Second batch waits/coalesces in current-state difference, never creates another in-flight send |
-| Pending key population | Subset of current selected keys union known Adj-RIB-Out keys union one admitted batch's keys | Every actual output/in-flight retirement retained | Never-admitted announce then withdraw leaves no key | Unique withdrawn-history-only key is a failed invariant; churn regression asserts no accumulation |
+| Pending key population | Output subset of current selected keys union known Adj-RIB-Out keys union one admitted batch's keys; candidate/membership storage bounded by current admitted origins/scopes | Every actual output/in-flight retirement retained | Never-admitted announce then withdraw leaves no key | Unique withdrawn-history-only key is a failed invariant; churn regression asserts no accumulation |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -922,12 +1065,14 @@ the function.
 
 The following bounded file groups are the current proposal, not permission to
 edit source. The selected receipt and claim scope must be agreed before these
-groups can run independently. Q-3 may change the origin-arbitration group and
-must be incorporated before whole-design approval.
+groups can run independently. The origin-admission partition below implements
+the resolved Q-3 policy and must land with these contracts after whole-design
+approval.
 
 | Proposed partition | Source files implicated | Required integration |
 |--------------------|-------------------------|----------------------|
 | Selected-output authority | `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk_engine.go`, `internal/component/bgp/reactor/reactor_api_relay.go`, `internal/component/bgp/reactor/session_ownership.go` and the existing recovery writer | Same typed/external operation, original source provenance, selected-only recovery, replacement and denial retirement; finish the RPC producer/consumer census before approval |
+| Origin admission and arbitration | Proposed `rib/rib_origins.go`; `reactor/reactor_api_batch.go`, existing cmd update text/wire handlers, SDK/bridge and plugin dispatch; `bgp/config/bgp_routes.go`; `bgp/redistribute/consumer.go`, `config/redistribute/consumer.go`, `plugins/redistribute/redistribute.go` | Registered typed/external origin intake, source-owned withdrawal, scoped membership, preference generation and actual local/received output kind; preserve API/ExaBGP syntax and role-specific paths |
 | Selection dispatch and replay | `internal/component/bgp/plugins/rib/rib_bestchange.go`, `rib_recovery.go`, `rib.go`, `rib_replay.go`, `source_policy.go` in that package; proposed focused `rib_advertise.go` | Snapshot the retained winner, ordered dispatch outside election locks, first-peer replay, policy apply/abort and shutdown drain |
 | Default bindings and role declarations | `internal/component/plugin/registry/registry.go`, declaration transport in `pkg/plugin/rpc/types.go`, `internal/component/bgp/config/redistribute_binding.go`, RIB/RS/RR `register.go` and their SDK declarations | Extend registration and existing claims, not a plugin-name switch; aliases, explicit grants, destination scope and reload transfer |
 | Proof and user surfaces | Existing seven reactor probes, `test/plugin/bgp-best-route-transit-default.ci`, proposed forked/replay/ownership regressions, FRR/BIRD scenarios and the docs listed above | Useful wire output, surviving unrelated routes, Linux entry-point proof and preserved RS/RR role behavior |
@@ -946,12 +1091,12 @@ the design gate, including unchanged callers and non-Go clients.
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes, proposed | Declare the distinct selected operation in `internal/core/ipc/yang/ze-plugin-engine.yang` with its authenticated-envelope semantics and extend Stage-1 fence/feed declaration. Register the same operation in `plugin/server/dispatch_registry.go`. No new operator config option |
-| YANG validation constraints | Yes, proposed | Selected key/revision/announcement-or-absence consistency, source-receipt presence for announcements, size/framing limits; Stage-1 fence requires ready signaling. Validate at the registered operation and declaration boundary |
+| YANG schema (new RPCs/config) | Yes, proposed | Declare the distinct selected operation in `internal/core/ipc/yang/ze-plugin-engine.yang` with its authenticated-envelope semantics and extend Stage-1 fence/feed declaration. Register the same operation in `plugin/server/dispatch_registry.go`. No new operator config option; registered origin-intake request/receipt also needs declared plugin RPC and typed/external parity |
+| YANG validation constraints | Yes, proposed | Selected key/revision/announcement-or-absence consistency, origin-kind-appropriate receipt presence for announcements, size/framing limits; Stage-1 fence requires ready signaling. Validate at the registered operation and declaration boundary |
 | YANG custom validators | N-A | No new config leaf/path predicate. Use generic registration/declaration validation for feed requirements, eligible claimant conflict and fence/ready dependency |
 | CLI commands/flags | No in current proposal | Ordinary operation is default, with no new operator command; separate selected RPC, if chosen, is an SDK operation |
 | CLI grammar (keyword before value) | N-A in current proposal | No new CLI syntax; existing replay commands retain grammar |
-| Editor autocomplete | N-A in current proposal | No new editable leaf/command proposed; reconsider if Q-3 adds operator configuration |
+| Editor autocomplete | N-A in current proposal | No new editable leaf/command; reuse configured distance declarations |
 | Functional test for new RPC/API | Yes | Default transit test plus forked selected lifecycle and preserved legacy replay; typed/JSON dispatch tests in plugin server and reactor |
 | Pipe completeness | N-A in current proposal | No new presentation or CLI answer shape |
 | Env var registration | No in current proposal | No tunable justified; batching/failure policy is design work, not a new env knob |
@@ -964,9 +1109,9 @@ the design gate, including unchanged callers and non-Go clients.
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `docs/guide/route-reflection.md`, `docs/guide/plugins.md`; feature inventory level must follow demonstrated output, not this proposal |
-| 2 | Config syntax changed? | No new syntax proposed | Update default/role examples in guides and netlab render; Q-3 may require re-evaluation |
+| 2 | Config syntax changed? | No new syntax proposed | Update default/role examples and document explicit-origin use of the existing static preference class |
 | 3 | CLI command added/changed? | No in current proposal | Existing replay command grammar preserved; SDK operation documentation handled separately |
-| 4 | API/RPC added/changed? | Yes, proposed selected operation | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `docs/architecture/api/architecture.md`; explicit source/selected receipts and completion semantics are specified above |
+| 4 | API/RPC added/changed? | Yes, proposed selected operation | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `docs/architecture/api/architecture.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/exabgp-bridge.md`; admitted-origin scope/results plus explicit source/selected receipts and completion semantics are specified above |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | Yes | `docs/guide/route-reflection.md` |
 | 7 | Wire format changed? | Yes, proposed plugin contract | Distinct selected operation, source-event receipt and runtime Stage-1 fence/feed declaration; BGP wire encoding stays existing, route population changes |
@@ -994,7 +1139,7 @@ the design gate, including unchanged callers and non-Go clients.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- the functional test above, red at HEAD
 2. **Proposed phase: contracts and authority** -- selected envelope, captured source facts/retention receipt, public runtime fence declaration, existing writer admission and completion, selected-only recovery. Preserve legacy relay callers unchanged.
-3. **Proposed phase: RIB dissemination** -- retained capture/revision, per-destination bounded dispatch, snapshot/deltas, policy/retention/stop barriers; retain mixed-origin input parameter until Q-3 is answered.
+3. **Proposed phase: RIB dissemination** -- retained capture/revision, per-destination bounded dispatch, snapshot/deltas, policy/retention/stop barriers; include scoped origin admission and configured-preference arbitration described above.
 4. **Proposed phase: default role wiring** -- plugin-owned feed declarations, aliases/explicit precedence, destination claim resolution, conflict verification and session-restart ownership transfer.
 5. **Proposed phase: integration and migration** -- production-wired seven probes plus retained-source, external, isolation and native identity regressions; judge fixture proof changes independently; migrate transit users and run configured-role/interop coverage. Main runs all tests and gates. None of these phases starts before whole-design approval.
 
@@ -1036,7 +1181,8 @@ the design gate, including unchanged callers and non-Go clients.
 
 - The unapproved concrete proposal above replaces the earlier technical open
   alternatives as the recommendation. Historical open rows record discovery,
-  not additional owner questions. Q-3 and whole-design approval remain pending.
+  not additional owner questions. Q-3 policy is resolved; whole-design approval
+  remains pending.
 
 Research constraint: changing the initial send alone cannot satisfy AC-4 or
 export-denial correctness. The writer presently knows received-source owners,
@@ -1055,6 +1201,7 @@ representation precedent, not permission for unmeasured per-event copies.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Configured-preference competition (owner ruling, 2026-11-16) | unconditional local authority until withdrawal | Owner ruling in `docs/architecture/rib-transition.md`, "Owner ruling: local and learned route competition"; FRR/BIRD agreement guides defaults, Ze declared preferences resolve their disagreements. Exact local-origin class mapping remains a whole-design proposal |
 | Best routes reach the other peers by default (owner ruling, 2026-11-13) | keep transit behind `bgp-rs` and document it | Thomas answered "absoletely" to the question quoted under Task |
 
 ## Known Limitations

@@ -66,15 +66,62 @@ peers by default, as an ordinary BGP speaker does (RFC 4271 Section 9.1.3 and
 Section 9.2). The operator does not have to load or attach a route-server
 plugin to get it.
 
-This is not implemented yet, and the design that delivers it is not made. Today
-the behaviour is as this page describes: the engine caches the wire bytes, a
-plugin decides forwarding, and `bgp-rib` stores routes and elects the best one
-but sends nothing to another peer. A route reaches another peer only through a
+This is not implemented yet. Its proposed design is under review. Today the
+engine caches the wire bytes, and a plugin decides forwarding. The `bgp-rib`
+plugin stores routes and elects the best one but sends nothing to another peer.
+A route reaches another peer only through a
 forwarding plugin such as `bgp-rs` or `bgp-rr`, attached to the peers. The work
 is owned by
 [spec-bgp-best-route-advertised-to-peers](../../plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md).
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
+
+### Owner ruling: local and learned route competition
+
+On 2026-11-16, Thomas answered the choice between configured preferences and
+explicit-local priority:
+
+> Use your rule, in doubt do what FRR and Bird do if they agree
+
+Eligible local announcements, configured redistribution and learned BGP routes
+compete using Ze's configured route preferences. An explicit local announcement
+has no unconditional priority until withdrawal. This settles origin arbitration.
+The whole advertiser design remains under review, and the behavior is not
+implemented.
+<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-3 origin arbitration and owner decision -->
+
+BGP best-path selection chooses among learned BGP paths before cross-protocol
+competition. A route's distance override takes precedence over its protocol's
+configured distance. Lower distance wins, then lower metric, then stable
+ordering. These election rules do not authorize export of a system-table entry.
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bgpLocRIBInstance -->
+<!-- source: internal/core/rib/locrib/distance.go -- resolvedDistance -->
+<!-- source: internal/core/rib/locrib/entry.go -- selectBest -->
+
+Origin admission and destination scope remain required. An API announcement
+targeted at one peer does not become eligible for every peer. A system route
+needs configured redistribution before it can compete for BGP advertisement.
+The selected route then passes through each recipient's export policy. If that
+policy excludes the winner, withdraw the previous output. Ordinary transit
+does not search for a losing candidate that the recipient would accept.
+<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Mixed-origin admission and selected-output design -->
+
+The shared upstream principle is policy-sensitive selection followed by export.
+FRR's `bgp_path_info_cmp_distance` compares distance for redistributed versus
+installable paths. BIRD's `rte_better` compares table preference. Their numerical
+defaults differ, so this decision preserves Ze's declared distances rather than
+copying either set wholesale. The spec records the pinned upstream functions
+and the differing OSPF-versus-eBGP example.
+<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-3 pinned FRR and BIRD comparison -->
+<!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- distance defaults -->
+
+The proposal maps explicit local BGP origins to the existing static distance
+class for this comparison. It preserves their distinct origin identity,
+attributes and recipient scope. This is a proposed mapping, not an existing API
+rule. Today `UpdateRouteInput` carries no origin protocol or distance, so the
+advertiser must retain that information before command formatting loses it.
+<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-3 proposed explicit-origin preference mapping -->
+<!-- source: pkg/plugin/rpc/types.go -- UpdateRouteInput -->
 
 ### Target: API Program Owns RIB
 
@@ -515,4 +562,4 @@ This bypasses normal UPDATE construction and validation. Use it only when the AP
 
 ---
 
-**Last Updated: 2026-03-01
+**Last Updated: 2026-11-16**
