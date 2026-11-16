@@ -168,7 +168,7 @@ func TestRFCMapBrowserInteraction(t *testing.T) {
 		}{
 			{"unwalked", 1, "Unknown", "The requirement extraction is not signed off"},
 			{"no_mandatory_rows", 2, "No MUST rows", "no mandatory requirements"},
-			{"all_mandatory_rows_excluded", 3, "None owed", "not a 100% proof result"},
+			{"all_mandatory_rows_excluded", 3, "None owed", "not 100% verified coverage"},
 		} {
 			t.Run(state.name, func(t *testing.T) {
 				responses.Figure.Store(state.mode)

@@ -1335,7 +1335,7 @@ func TestTheProofRatioSitsBesideTheTestPairRatio(t *testing.T) {
 			t.Errorf("the %s proof ratio is at %d and the last coverage share at %d, so a "+
 				"reader can read one without the other", name, proof, lastPart)
 		}
-		if !strings.Contains(cards[proof].Note, "Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault") {
+		if !strings.Contains(cards[proof].Note, "Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault") {
 			t.Errorf("the %s proof card does not say what it corrects: %q", name,
 				cards[proof].Note)
 		}
@@ -1348,7 +1348,7 @@ func TestTheProofRatioSitsBesideTheTestPairRatio(t *testing.T) {
 	if len(index) == 0 || index[0].Label != "Tests shown to detect a fault" {
 		t.Fatalf("the index grid does not open with the proof card: %+v", index)
 	}
-	if !strings.Contains(index[0].Note, "Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault") {
+	if !strings.Contains(index[0].Note, "Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault") {
 		t.Errorf("the index proof card does not say what it corrects: %q", index[0].Note)
 	}
 	escapedLedger := twoStemLedger()
