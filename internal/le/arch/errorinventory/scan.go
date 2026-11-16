@@ -48,7 +48,7 @@ type sourceFile struct {
 	imports map[string]string
 }
 
-// funcRef is one package-level function declaration and its file.
+// funcRef is one function or method declaration and its file.
 type funcRef struct {
 	decl *ast.FuncDecl
 	file *sourceFile
@@ -58,6 +58,13 @@ type funcRef struct {
 type functionResult struct {
 	decl     *ast.FuncDecl
 	position int
+}
+
+// methodName selects a method only after its receiver's concrete type is known.
+type methodName struct {
+	dir      string
+	receiver string
+	name     string
 }
 
 // treeIndex is every parsed file and the declarations the classifier
@@ -70,7 +77,8 @@ type treeIndex struct {
 	// packageNames maps a directory to the package name its files declare.
 	packageNames map[string]string
 	// funcs maps a directory to its package-level functions (no receiver).
-	funcs map[string]map[string]funcRef
+	funcs   map[string]map[string]funcRef
+	methods map[methodName][]funcRef
 	// constants maps a directory to the value of each constant it declares.
 	constants map[string]map[string]ast.Expr
 	// findingTypes maps an ./le directory to the struct types it declares
@@ -296,6 +304,7 @@ func indexTree(tree string, overlay map[string]overlayFile) (*treeIndex, error) 
 		fset:         token.NewFileSet(),
 		packageNames: make(map[string]string),
 		funcs:        make(map[string]map[string]funcRef),
+		methods:      make(map[methodName][]funcRef),
 		constants:    make(map[string]map[string]ast.Expr),
 		findingTypes: make(map[string]map[string]bool),
 		typedFuncs:   make(map[functionResult]bool),
@@ -330,6 +339,19 @@ func (index *treeIndex) addDeclarations(file *sourceFile) {
 		switch node := decl.(type) {
 		case *ast.FuncDecl:
 			if node.Recv != nil {
+				if len(node.Recv.List) != 1 {
+					continue
+				}
+				receiver := node.Recv.List[0].Type
+				if pointer, ok := receiver.(*ast.StarExpr); ok {
+					receiver = pointer.X
+				}
+				name, ok := receiver.(*ast.Ident)
+				if !ok {
+					continue
+				}
+				key := methodName{dir: file.dir, receiver: name.Name, name: node.Name.Name}
+				index.methods[key] = append(index.methods[key], funcRef{decl: node, file: file})
 				continue
 			}
 			if index.funcs[file.dir] == nil {

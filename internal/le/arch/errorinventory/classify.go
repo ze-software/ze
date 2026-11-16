@@ -208,8 +208,8 @@ func fixArgument(call *ast.CallExpr, at int) bool {
 	return text != ""
 }
 
-// function answers the package-level function of the tree a call's callee
-// names: unqualified in the file's own package, or through an import.
+// function answers a package function, or a method whose receiver has a
+// declared concrete named type. An interface or inferred receiver is unproved.
 func (sc scope) function(fun ast.Expr) (funcRef, bool) {
 	switch node := ast.Unparen(fun).(type) {
 	case *ast.Ident:
@@ -220,7 +220,11 @@ func (sc scope) function(fun ast.Expr) (funcRef, bool) {
 		if !isIdent {
 			return funcRef{}, false
 		}
-		dir, inTree := cutModule(sc.file.imports[ident.Name])
+		path, imported := sc.file.imports[ident.Name]
+		if !imported {
+			return sc.receiverMethod(ident, node.Sel.Name)
+		}
+		dir, inTree := cutModule(path)
 		if !inTree {
 			return funcRef{}, false
 		}
@@ -229,6 +233,47 @@ func (sc scope) function(fun ast.Expr) (funcRef, bool) {
 	default:
 		return funcRef{}, false
 	}
+}
+
+// receiverMethod never guesses an implementation of an interface. Only a
+// method declared on the exact named receiver type can supply its contract.
+func (sc scope) receiverMethod(receiver *ast.Ident, name string) (funcRef, bool) {
+	bound, found := sc.binding(receiver)
+	if !found {
+		return funcRef{}, false
+	}
+	typ := bound.typ
+	if pointer, ok := typ.(*ast.StarExpr); ok {
+		typ = pointer.X
+	}
+	dir := bound.scope.file.dir
+	switch node := typ.(type) {
+	case *ast.Ident:
+		return sc.index.uniqueMethod(methodName{dir: dir, receiver: node.Name, name: name})
+	case *ast.SelectorExpr:
+		qualifier, ok := node.X.(*ast.Ident)
+		if !ok {
+			return funcRef{}, false
+		}
+		dir, inTree := cutModule(bound.scope.file.imports[qualifier.Name])
+		if !inTree {
+			return funcRef{}, false
+		}
+		return sc.index.uniqueMethod(methodName{dir: dir, receiver: node.Sel.Name, name: name})
+	default:
+		return funcRef{}, false
+	}
+}
+
+// uniqueMethod refuses ambiguity across build-tag variants: the inventory
+// reads all source files, so choosing whichever was parsed last proves no
+// particular platform's method contract.
+func (index *treeIndex) uniqueMethod(name methodName) (funcRef, bool) {
+	methods := index.methods[name]
+	if len(methods) != 1 {
+		return funcRef{}, false
+	}
+	return methods[0], true
 }
 
 // answersOperatorError reports whether every answer a function gives is an
@@ -362,10 +407,9 @@ type nameBinding struct {
 	callResult int
 }
 
-// binding answers the declaration a name in the scope's function refers
-// to: the last parameter, variable or assignment of that name before the
-// use, or the package constant of that name. Shadowing in a nested block is
-// not modeled, so the declaration nearest before the use wins.
+// binding answers a name's declared type and nearest value before its use,
+// or the package constant of that name. Declared types respect lexical scope;
+// value tracing remains a bounded source-order approximation.
 func (sc scope) binding(use *ast.Ident) (nameBinding, bool) {
 	if sc.fn != nil {
 		if found, isLocal := sc.localBinding(use); isLocal {
@@ -426,7 +470,77 @@ func (sc scope) localBinding(use *ast.Ident) (nameBinding, bool) {
 		}
 		return true
 	})
+	found.typ = sc.localDeclaredType(use)
 	return found, nearest != token.NoPos
+}
+
+// localDeclaredType retains a variable's static type through assignments.
+// Only declarations visible at use can supply it: an exited block, unrelated
+// struct field or another function literal cannot type this binding. The
+// syntax tree is finite, and each node is inspected at most once.
+func (sc scope) localDeclaredType(use *ast.Ident) ast.Expr {
+	var typ ast.Expr
+	declare := func(name *ast.Ident, declared ast.Expr) {
+		if name.Name == use.Name {
+			if name.Pos() < use.Pos() {
+				typ = declared
+			}
+		}
+	}
+	fields := func(list *ast.FieldList) {
+		if list == nil {
+			return
+		}
+		for _, field := range list.List {
+			for _, name := range field.Names {
+				declare(name, field.Type)
+			}
+		}
+	}
+	fields(sc.fn.Recv)
+	fields(sc.fn.Type.Params)
+	fields(sc.fn.Type.Results)
+	ast.Inspect(sc.fn.Body, func(node ast.Node) bool {
+		if node == nil {
+			return false
+		}
+		if node.Pos() >= use.Pos() {
+			return false
+		}
+		switch node.(type) {
+		case *ast.BlockStmt, *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt, *ast.FuncLit:
+			if use.Pos() > node.End() {
+				return false
+			}
+		}
+		switch declaration := node.(type) {
+		case *ast.FuncLit:
+			fields(declaration.Type.Params)
+			fields(declaration.Type.Results)
+		case *ast.ValueSpec:
+			for _, name := range declaration.Names {
+				declare(name, declaration.Type)
+			}
+		case *ast.AssignStmt:
+			if declaration.Tok == token.DEFINE {
+				for _, lhs := range declaration.Lhs {
+					if name, ok := lhs.(*ast.Ident); ok {
+						declare(name, nil)
+					}
+				}
+			}
+		case *ast.RangeStmt:
+			if declaration.Tok == token.DEFINE {
+				for _, expr := range []ast.Expr{declaration.Key, declaration.Value} {
+					if name, ok := expr.(*ast.Ident); ok {
+						declare(name, nil)
+					}
+				}
+			}
+		}
+		return true
+	})
+	return typ
 }
 
 // assignmentValue preserves the selected result of a single tuple call.

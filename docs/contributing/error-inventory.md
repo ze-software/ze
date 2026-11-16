@@ -111,6 +111,17 @@ does not type the selected result. Assignment and variable declarations retain
 the same result position through nested helper calls.
 <!-- source: internal/le/arch/errorinventory/classify.go -- assignmentValue, answersOperatorError, returnsOnlyOperatorErrors -->
 
+A local variable declared `*opererr.Error` keeps that proof when a later plain
+assignment fills it. A short declaration that shadows it starts a new binding.
+For a receiver method, the receiver must have a declared concrete named type:
+the classifier reads that type's method and judges its selected return value
+by the same rule as a package function. A dynamic interface call or an
+unresolved receiver remains plain.
+The scan reads every build-tag variant. If more than one declaration has the
+same receiver type and method name, that method remains unproved rather than
+selecting one platform's implementation by source order.
+<!-- source: internal/le/arch/errorinventory/classify.go -- localBinding, function -->
+
 ### Adding a writer
 
 The inventory contains errors, refusals and warnings. Fixed positive progress
