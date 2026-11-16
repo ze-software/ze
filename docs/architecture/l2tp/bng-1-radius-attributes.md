@@ -112,10 +112,10 @@ none of an Access-Request's do.
 
 The delay is measured from the first send attempt rather than from the session
 event, which is what Section 5.2 defines: "how many seconds the client has been
-trying to send this record". A constant zero is not a shortcut around this. It
-reports a number that is true once and false on every attempt after it.
+trying to send this record". A constant zero becomes incorrect once a retry is
+at least one second after the first attempt.
 
-<!-- source: internal/component/radius/client.go -- Exchange, encodeRequest, setAcctDelayTime -->
+<!-- source: internal/component/radius/client.go -- Client.exchange, encodeRequest, setAcctDelayTime -->
 
 **Acct-Terminate-Cause is on the Stop record and nowhere else.** RFC 2866
 Section 5.10: "This attribute indicates how the session was terminated, and can
