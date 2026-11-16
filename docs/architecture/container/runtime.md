@@ -12,9 +12,10 @@ filter, its doctor codes, its runtime doctor checks, one kernel requirement and
 the build gate exist, and so does the start sequence: a configured container is
 described, its root mounted, created through the library, released and
 watched; it is stopped with its stop signal, then killed after its stop
-timeout; a daemon stop drains every container together; and what a killed
-daemon left is swept at the next start. What is not built yet: the
-system-call filter, the device filter, the limit and grant nodes, the restart
+timeout; a daemon stop drains every container together; what a killed
+daemon left is swept at the next start; and every container runs under the
+default system-call filter. What is not built yet: the device filter, the
+limit and grant nodes, the restart
 policy, output capture and the state view. No
 shipped build holds an image store yet, so only the test build's store
 (below) answers a start. This page states what exists and grows with the work.
@@ -96,6 +97,43 @@ second registration panics, so nothing replaces the loader after start-up.
 The stub's `Enabled`, `FlagSupported` and `Version` are unchanged and still
 answer that libseccomp is absent.
 
+### The system-call filter
+
+The package `internal/plugins/container/seccomp` fills the seam. Its
+`buildAndLoad` takes the profile of the container's description, builds a
+classic BPF program for the native architecture and loads it, so a call the
+profile refuses fails in every process of the container.
+
+| Part | File | What it does |
+|------|------|--------------|
+| Default profile | `profile.go`: `DefaultProfile` | Moby's default profile (source, commit and digest in `third_party/moby-seccomp-profile/README.md`): EPERM for an unlisted call, the calls it allows, and the rules of a capability, selected by the container's bounding set as the source selects them. `describeContainer` gives it the container's own set, so without `CAP_SYS_ADMIN` `unshare`, `mount` and `setns` are refused, `clone` is refused a new namespace, and `clone3` answers ENOSYS so a C library falls back to `clone` |
+| Tables | `table.go`, `table_x86_64.go`, `table_aarch64.go` | The call numbers of x86-64 and AArch64, generated from the vendored `golang.org/x/sys/unix` `zsysnum_linux_amd64.go` and `zsysnum_linux_arm64.go`. The files carry no `_amd64` suffix, which would be a build constraint: a host of either architecture compiles and tests both |
+| Builder | `filter.go`: `assembleFilter` | A call under another audit architecture kills the process: a 32-bit program in an image is killed. A number above the largest the profile names answers ENOSYS, the x32 range included. Then one block per rule in profile order, the first match deciding, then the default. An argument is compared on both 32-bit halves of its 64-bit value. A name the table lacks, or a rule equal to the default, adds no instruction |
+| Load | `load_linux.go`: `loadFilter` | The `seccomp` call with the flag that applies the filter to every thread of the init, after no-new-privileges is set |
+
+The profile differs from its source in three ways. A name neither table holds
+is left out (the 32-bit calls such as `chown32` and the `*_time64` calls,
+`umount`, `stime`), and so are the rules for an architecture Ze ships no
+table for. The rule the source applies from kernel 4.8 (`ptrace`,
+`process_vm_readv`, `process_vm_writev`) is applied always, because a
+container starts only through a clone into its control group, which needs
+kernel 5.7.
+
+The builder refuses what it cannot enforce exactly, and a refusal fails the
+init, so a container never runs less confined than its description: a flag,
+a notify listener or action, another architecture, an argument index above
+5, an unknown operator or action, an error number above 16 bits, one call
+with rules of two different actions, a jump above 255 and a program longer
+than the kernel's 4096 instructions.
+
+<!-- source: internal/plugins/container/seccomp/profile.go -- DefaultProfile, defaultProfileFor, buildSourceRules -->
+<!-- source: internal/plugins/container/seccomp/table.go -- syscallTable, nativeTable -->
+<!-- source: internal/plugins/container/seccomp/filter.go -- assembleFilter, ruleBlocks, argumentSteps, actionReturn -->
+<!-- source: internal/plugins/container/seccomp/load_linux.go -- loadFilter -->
+<!-- test: internal/plugins/container/seccomp/filter_test.go TestFilterComparesArguments -->
+<!-- test: internal/plugins/container/seccomp/profile_test.go TestDefaultProfileFollowsTheSourceProfile -->
+<!-- test: internal/plugins/container/seccomp/tables_test.go TestSyscallTablesMatchVendoredNumbers -->
+
 ## The init role
 
 The library starts `/proc/self/exe`, sealed, with the argument `init` and its
@@ -130,6 +168,7 @@ The plugin is `container`, in `internal/plugins/container`, gated by
 | Apply | The supervisor records the desired set, wakes the worker of each container concerned and returns. It never waits for a start. The boot configure arrives before the startup handshake ends, when the engine refuses a worker's calls, so it only records: the plugin's `OnStarted` callback (`supervisor.begin`) wakes the workers |
 | Dependency | The `sysctl` plugin, which writes the kernel tunable a container's network namespace needs (below) |
 | `request container restart name NAME` | A YANG command node bound to a wire method the plugin's package proxies to the plugin's process. A disabled container is refused with the statement that enables it |
+| The image commands | Ten more command nodes of the same module, proxied the same way. `handleCommand` looks each up in the image store's table (`image_cmd.go`) before the restart ([image-store.md](image-store.md)) |
 | Daemon stop | The plugin declares a drain budget of 37 seconds and stops every running container together in its drain handler, the one call of a daemon stop that waits for a plugin (below, "The stop") |
 | Plugin start and exit | Before the engine is asked to start the plugin, the sweep removes what a previous run left. Once the engine connection closed, whatever still runs is killed at once |
 | Failure policy | `restart` |
@@ -157,7 +196,7 @@ worker, the restart command and the store's notices never interleave.
 | Hold | The store keeps the image and the folders until the cleanup ended |
 | Contribute | Each participant may add read-only file mounts |
 | Root | `mountRoot` mounts an overlay: the image folder is the read-only lower layer, and the upper and work directories are in the writable folder, so what the container writes lands on disk and the image never changes. The mount point is `/run/ze-container/root/NAME` |
-| Describe | `describeContainer` fills the library's description: its own pid, mount, network, ipc, uts and cgroup namespaces, the library's default mounts, masked and read-only paths and device nodes, thirteen capabilities (the fourteen published images expect, less `CAP_MKNOD`, which is withheld until the control group's device allowlist exists: without the allowlist, root in the container could make a node for any host device and open it; the library's init makes the default nodes before it drops to this set, and `/dev/ptmx` is a symlink into the container's own devpts), no-new-privileges, the instance name as host name, the loopback device, and the control group `/ze-container/NAME` with the default limits, 512 MiB of memory with no swap beyond it and 256 processes. `describeEntrypoint` runs the image's entrypoint followed by its command, with its variables, working directory and numeric user |
+| Describe | `describeContainer` fills the library's description: its own pid, mount, network, ipc, uts and cgroup namespaces, the library's default mounts, masked and read-only paths and device nodes, thirteen capabilities (the fourteen published images expect, less `CAP_MKNOD`, which is withheld until the control group's device allowlist exists: without the allowlist, root in the container could make a node for any host device and open it; the library's init makes the default nodes before it drops to this set, and `/dev/ptmx` is a symlink into the container's own devpts), no-new-privileges, the default system-call profile of that capability set ("The system-call filter"), the instance name as host name, the loopback device, and the control group `/ze-container/NAME` with the default limits, 512 MiB of memory with no swap beyond it and 256 processes. `describeEntrypoint` runs the image's entrypoint followed by its command, with its variables, working directory and numeric user |
 | Claim | The kernel tunable `net.core.fb_tunnels_only_for_init_net` is claimed at 1 (below), under the lock that keeps a release from falling between the claim and the create |
 | Create | `libcontainer.Create`, then `Container.Start`: the patched parent clones `ze` into the namespaces and the control group, and init blocks before the entrypoint |
 | Created call | Each participant gets the init process id and the network namespace path |
@@ -276,17 +315,23 @@ interface kind), which ask for neither.
 ### The test store and its fixture image
 
 A functional test needs an image and no network. A `zetest` build, the
-functional-test daemon, fills the store seam with a test store
-(`storeseam_zetest.go`): every container resolves to one fixture image, a
-folder holding `ze-containerprobe`, which the harness builds beside `ze` and
-the store copies into the image. The private key `ze.test.container.store`
-names the store's directory: the image is `image/` and each container's
-writable layer `layer/NAME`. The probe's `run` mode is the entrypoint: it
+functional-test daemon, has a test store (`storeseam_zetest.go`): every
+container resolves to one fixture image, a folder holding `ze-containerprobe`,
+which the harness builds beside `ze` and the store copies into the image. The
+private key `ze.test.container.store` names the store's directory: the image
+is `image/` and each container's writable layer `layer/NAME`. The key also
+chooses the store: the engine entry builds the test store when the key is set
+and the image store package's store otherwise (`engineStoreFactory`), so a
+`zetest` daemon links both and registers only one, and a test that names no
+fixture store runs the real store. The probe's `run` mode is the entrypoint: it
 appends a line to `/starts`, writes what it sees to `/report`, and records its
 stop signal in `/signals` before it exits. A container whose name starts with
 `stubborn` gets the `run-ignoring-stop` mode, which records every stop signal
 and keeps running until it is killed. On the host, `verify` judges the report,
-`gone` waits until a container left no control group, root mount or library
+`confined` judges the default confinement in it (only its own process, its
+cgroup as the root, the default capability mask, and the filter's EPERM for
+`unshare(0)` and ENOSYS for call 470, after making both calls on the host to
+show the host answers otherwise), `gone` waits until a container left no control group, root mount or library
 state and judges the time from its stop signal to its end, `starts` counts
 its starts and the processes of its control group, and `drive` runs a daemon
 itself, for a second signal during the drain or a config reload.
@@ -298,8 +343,10 @@ is tmpfs there and on the appliance. The probe's `reset` mode runs before the
 daemon starts and removes the store, so a report an earlier run left behind
 cannot pass the test. It refuses any path outside `/run/ze-container-test-*`.
 
-<!-- source: internal/plugins/container/storeseam_zetest.go -- testStore.Resolve, installProbe -->
+<!-- source: internal/plugins/container/storeseam_zetest.go -- engineStoreFactory, testStore.Resolve, installProbe -->
+<!-- source: internal/plugins/container/storeseam_engine.go -- engineStoreFactory -->
 <!-- source: internal/test/containerprobe/main.go -- observe, verify, reset, storePrefix -->
+<!-- source: internal/test/containerprobe/confinement_linux.go -- observeConfinement, confined -->
 
 ## Doctor codes, runtime checks and the kernel requirement
 
@@ -403,12 +450,13 @@ the runtime package imports none of them.
 
 | Seam | Declared in | Direction |
 |------|-------------|-----------|
-| Image store | `storeseam.go`: `Store`, `StoreNotices`, `SetStoreFactory` | The runtime asks the store to resolve and hold a container (`Ready` or `Absent`, never an empty answer). The store tells the runtime that an image is present, or to restart a container |
+| Image store | `storeseam.go`: `Store`, `StoreNotices`, `SetStoreFactory`; `storeseam_operations.go`: `ImageOperations` | The runtime asks the store to resolve and hold a container (`Ready` or `Absent`, never an empty answer). The store tells the runtime that an image is present, or to restart a container. The image commands ask a store that is also an `ImageOperations`, and refuse when it is not ([image-store.md](image-store.md)) |
 | Participants | `participant.go`: `Participant`, `RegisterParticipant` | Before create, a participant contributes read-only file mounts. After create and before the entrypoint runs it gets the created call, with the container's name, its init process id and its network namespace path. After the container's processes are gone it gets the ended call |
 | Runtime library | `supervise.go`: `runtimeLibrary`, `createdContainer` | The supervisor orders create, release, wait, kill and destroy through an interface, so the order of a start is proven with a library that creates nothing. `library_linux.go` implements it over the patched library; off Linux there is none and a start is refused |
-| Filter | `seccomp/register_linux.go`: `initFilter` | The library's `InitSeccomp` calls the function the filter package registered. A profile is refused until the filter builder exists |
+| Filter | `seccomp/register_linux.go`: `initFilter` | The library's `InitSeccomp` calls the function the filter package registered, which builds and loads the filter of the profile ("The system-call filter", above) |
 
 <!-- source: internal/plugins/container/storeseam.go -- Store, StoreNotices, SetStoreFactory -->
+<!-- source: internal/plugins/container/storeseam_operations.go -- ImageOperations -->
 <!-- source: internal/plugins/container/participant.go -- Participant, RegisterParticipant -->
 <!-- source: internal/plugins/container/supervise.go -- runtimeLibrary, createdContainer -->
 <!-- source: internal/plugins/container/seccomp/register_linux.go -- initFilter, installFilter -->
@@ -433,3 +481,11 @@ Also read `manager/new.go` (`NewWithPaths`) and `fs2/fs2.go` (`Manager.Apply`)
 of `github.com/opencontainers/cgroups` at the version the bump brings:
 `runc-04` copies the checks of the first, and `runc-01` relies on the second
 creating a cgroup with no process when the pid is -1.
+
+A bump of `golang.org/x/sys` can add or renumber a system call:
+`TestSyscallTablesMatchVendoredNumbers` then fails until the two tables of the
+filter are regenerated from the new `zsysnum_linux_amd64.go` and
+`zsysnum_linux_arm64.go`. A refresh of the default profile from a newer Moby
+commit replaces `third_party/moby-seccomp-profile/default.json` and its
+README, and `TestDefaultProfileFollowsTheSourceProfile` fails until
+`profile.go` follows it.

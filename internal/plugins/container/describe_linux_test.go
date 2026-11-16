@@ -3,18 +3,22 @@
 package container
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/opencontainers/runc/libcontainer/configs"
+	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/plugins/container/seccomp"
 )
 
 // TestDescriptionHasTheDefaultConfinement proves the description of a
 // container with no grant holds the default confinement: its own six
 // namespaces, the default mounts, masked paths, read-only paths and devices,
 // the thirteen capabilities in each set that grants one (CAP_MKNOD absent from
-// every set), no-new-privileges,
-// the instance name as host name, the loopback device, and a control group of
+// every set), no-new-privileges, the default system-call profile of that
+// bounding set (EPERM for an unlisted call), the instance name as host name, the loopback device, and a control group of
 // its own under the plugin's parent with the default limits.
 //
 // Method: describe one container and compare each field with the expected
@@ -61,6 +65,24 @@ func TestDescriptionHasTheDefaultConfinement(t *testing.T) {
 	}
 	if !config.NoNewPrivileges {
 		t.Error("no-new-privileges is not set")
+	}
+	// The default system-call profile, selected by the container's own
+	// bounding set: a profile built for another set would allow the calls of
+	// a capability the container does not hold.
+	if config.Seccomp == nil {
+		t.Fatal("the description holds no system-call profile")
+	}
+	if !reflect.DeepEqual(config.Seccomp, seccomp.DefaultProfile(config.Capabilities.Bounding)) {
+		t.Error("the system-call profile is not the default profile of the container's bounding set")
+	}
+	if config.Seccomp.DefaultAction != configs.Errno {
+		t.Errorf("the profile's default action is %v, want Errno", config.Seccomp.DefaultAction)
+	}
+	if config.Seccomp.DefaultErrnoRet == nil {
+		t.Fatal("the profile's default carries no error number, want EPERM")
+	}
+	if *config.Seccomp.DefaultErrnoRet != uint(unix.EPERM) {
+		t.Errorf("the profile's default error number is %d, want EPERM", *config.Seccomp.DefaultErrnoRet)
 	}
 	if config.Hostname != "web" {
 		t.Errorf("the host name is %q, want the instance name", config.Hostname)

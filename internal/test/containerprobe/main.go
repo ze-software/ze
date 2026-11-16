@@ -33,6 +33,13 @@
 // daemon: it waits a bounded time for the report of container NAME in the
 // test store directory STORE, compares each fact with what a container of
 // its own must see, prints one line per check, and exits 1 when one fails.
+//
+// `ze-containerprobe confined STORE NAME` runs on the host the same way and
+// judges the default confinement of container NAME: only its own process,
+// its cgroup as the root, the default capability mask in its effective and
+// bounding sets, and the two answers of the system-call filter, which it
+// first makes on the host to prove the host answers otherwise
+// (confinement_linux.go).
 package main
 
 import (
@@ -148,7 +155,7 @@ const (
 )
 
 // usage names every mode.
-const usage = "usage: ze-containerprobe run | run-ignoring-stop | reset STORE | verify STORE NAME" +
+const usage = "usage: ze-containerprobe run | run-ignoring-stop | reset STORE | verify STORE NAME | confined STORE NAME" +
 	" | gone STORE NAME [at-least|less-than SECONDS] | starts STORE NAME COUNT" +
 	" | drive STORE NAME CONFIG second-signal|remove [REMOVED-CONFIG]"
 
@@ -252,6 +259,13 @@ func main() {
 			fail("usage: ze-containerprobe verify STORE NAME")
 		}
 		if !verify(os.Args[2], os.Args[3]) {
+			os.Exit(1)
+		}
+	case "confined":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe confined STORE NAME")
+		}
+		if !confined(os.Args[2], os.Args[3]) {
 			os.Exit(1)
 		}
 	default:
@@ -375,6 +389,11 @@ func observe() (string, error) {
 		}
 		report.WriteString("ns-" + namespace + "=" + link + "\n")
 	}
+	confinement, err := observeConfinement()
+	if err != nil {
+		return "", err
+	}
+	report.WriteString(confinement)
 	return report.String(), nil
 }
 

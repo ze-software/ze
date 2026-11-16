@@ -10,3 +10,10 @@ to Thomas Mangin under the Contributor License Agreement in CLA.md.
 
 Third-party code under vendor/ and third_party/ keeps its own copyright and
 license, recorded beside it.
+
+The default system-call profile of a container
+(internal/plugins/container/seccomp/profile.go) is derived from Moby's
+default seccomp profile, github.com/moby/profiles seccomp/default.json,
+Copyright the Moby project authors, licensed under the Apache License,
+version 2.0. The source file, its license and what was derived are in
+third_party/moby-seccomp-profile/.

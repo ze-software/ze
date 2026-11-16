@@ -144,6 +144,15 @@ linters:
         linters:
           - goconst
           - misspell
+      # goconst on the container filter's two system-call tables: each is the
+      # SYS_ constants of a vendored golang.org/x/sys/unix zsysnum file
+      # transcribed as a map, compared with that file in both directions by
+      # TestSyscallTablesMatchVendoredNumbers. A key such as "clone" is the
+      # call's name in that file, not duplicated logic; written as a constant
+      # in one row of 385 it would only hide the name the test compares.
+      - path: "internal/plugins/container/seccomp/table_(x86_64|aarch64)\\.go"
+        linters:
+          - goconst
 
   enable:
     # Core linters

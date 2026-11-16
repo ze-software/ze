@@ -1,10 +1,10 @@
 // Design: docs/architecture/container/runtime.md -- the filter seam
+// Related: filter.go -- the program built from a profile
+// Related: load_linux.go -- the load of that program
 
 package seccomp
 
 import (
-	"errors"
-
 	"github.com/opencontainers/runc/libcontainer/configs"
 	libseccomp "github.com/opencontainers/runc/libcontainer/seccomp"
 )
@@ -13,16 +13,11 @@ import (
 // seccomp notify descriptor".
 const noNotifyDescriptor = -1
 
-// errFilterNotBuilt refuses a profile: this package cannot build a filter
-// yet, and a container started without the filter its description asks for
-// would run less confined than configured.
-var errFilterNotBuilt = errors.New("container system-call filter: ze cannot build a filter yet, so a profile is refused")
-
 // installFilter builds the filter of a profile and loads it into the calling
 // process, and answers the seccomp notify descriptor or noNotifyDescriptor.
 // It is a variable so the seam test replaces it: a loaded filter changes the
 // process for good, which a test process must not do to itself.
-var installFilter = refuseProfile
+var installFilter = buildAndLoad
 
 //nolint:gochecknoinits // registration: the library calls what this package registers, and never imports it
 func init() {
@@ -38,7 +33,22 @@ func initFilter(profile *configs.Seccomp) (int, error) {
 	return installFilter(profile)
 }
 
-// refuseProfile is installFilter until the builder exists.
-func refuseProfile(*configs.Seccomp) (int, error) {
-	return noNotifyDescriptor, errFilterNotBuilt
+// buildAndLoad builds the filter of profile for the native architecture and
+// loads it. A refusal at any step starts nothing: the library's init fails,
+// and the container is not run less confined than its description. A profile
+// never needs a notify descriptor, because the filter refuses the notify
+// action.
+func buildAndLoad(profile *configs.Seccomp) (int, error) {
+	table, err := nativeTable()
+	if err != nil {
+		return noNotifyDescriptor, err
+	}
+	program, err := assembleFilter(profile, table)
+	if err != nil {
+		return noNotifyDescriptor, err
+	}
+	if err := loadFilter(program); err != nil {
+		return noNotifyDescriptor, err
+	}
+	return noNotifyDescriptor, nil
 }

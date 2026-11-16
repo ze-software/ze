@@ -1,0 +1,54 @@
+# Question: does a container with no grant run under the default
+# confinement: only its own process in its process list, its own cgroup as
+# the root, the default capabilities in its effective and bounding sets, a
+# call outside the default system-call profile refused with a permission
+# error, and a call number above the profile's largest answered "not
+# implemented" (spec-container-1-runtime AC-7, the
+# container-default-confinement test)?
+#
+# A unit test cannot decide it: the filter tests run the assembled program in
+# the bpf package's virtual machine, and only a real kernel shows that the
+# library's init loads it through Ze's seam, on every thread of the init,
+# before the entrypoint runs, under the capability set the kernel applied.
+#
+# Method: the fixture image's run mode writes what it sees from inside to
+# /report: its /proc process entries, CapEff and CapBnd from
+# /proc/self/status, and the error numbers of unshare(0) and of raw call 470.
+# Neither call needs a capability or changes anything, so on the host both
+# succeed or fail for a reason of their own. The confined mode, run on the
+# host, makes the same two calls there first: unshare(0) must succeed and
+# the kernel must implement 470 (listns), so EPERM and ENOSYS in the
+# container can only be the filter's answers. It prints one line per check
+# and exits 1 when one fails.
+#
+# The capability mask is the thirteen defaults, 00000000a00425fb: CAP_MKNOD
+# is withheld until the control group's device allowlist lands (phase 6 of
+# the spec), and the mask is then 00000000a80425fb with the fourteenth.
+#
+# The store lives under /run, not in the test's work directory: in the QEMU
+# guest that directory is on the 9p share of the checkout, and an overlay
+# cannot take a 9p directory as its upper layer. $PORT keeps two runs apart.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=60s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+
+stdin=config:terminator=EOF_CONFIG
+container {
+	instance confined {
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+cmd=background:seq=2:exec=ze -:stdin=config
+cmd=foreground:seq=3:exec=ze-containerprobe confined /run/ze-container-test-$PORT confined:timeout=45s:exit=0
+expect=stdout:contains=probe: the host allows unshare(0)
+expect=stdout:contains=probe: the host kernel implements call 470
+expect=stdout:contains=probe: its process list holds only its own process
+expect=stdout:contains=probe: its own cgroup reads as the root
+expect=stdout:contains=probe: its effective capabilities are the defaults
+expect=stdout:contains=probe: its bounding capabilities are the defaults
+expect=stdout:contains=probe: the filter refuses unshare with a permission error
+expect=stdout:contains=probe: the filter answers call 470 with not implemented
+reject=stdout:contains=probe: FAIL

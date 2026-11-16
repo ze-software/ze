@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/plugins/container/seccomp"
 )
 
 // cgroupParent is the control group, under the cgroup v2 mount, that holds one
@@ -103,8 +104,9 @@ func defaultDevice(path string, major, minor int64) *devices.Device {
 // describeContainer is the library's description of one container whose root
 // is mounted at rootfs: its own pid, mount, network, ipc, uts and cgroup
 // namespaces, the default mounts, masked and read-only paths and devices, the
-// thirteen capabilities, no-new-privileges, its host name, its loopback
-// device and its control group with the default limits.
+// thirteen capabilities, no-new-privileges, the default system-call profile
+// selected by those capabilities, its host name, its loopback device and its
+// control group with the default limits.
 //
 // It never sets a parent death signal, which the patched library refuses,
 // and never fills the library's network-device list: a container's link is
@@ -133,8 +135,11 @@ func describeContainer(instance instanceConfig, rootfs string) *configs.Config {
 			Permitted: defaultCapabilities,
 		},
 		NoNewPrivileges: true,
-		Hostname:        instance.name,
-		Mounts:          defaultMounts(),
+		// The profile's capability rules are selected by the bounding set,
+		// so it is built from the set the container holds.
+		Seccomp:  seccomp.DefaultProfile(defaultCapabilities),
+		Hostname: instance.name,
+		Mounts:   defaultMounts(),
 		Devices: []*devices.Device{
 			defaultDevice("/dev/null", 1, 3),
 			defaultDevice("/dev/zero", 1, 5),
