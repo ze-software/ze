@@ -380,6 +380,11 @@ in the spec or commit it applies to.
 - Sessions share the one `main` checkout. No worktree per session: fix
   shared-checkout friction inside that model. The one exception is the
   cross-machine work below.
+- When the affected code compiles, commit the whole changed files even when
+  they also contain other sessions' edits. Include the dependencies the
+  committed snapshot needs and acknowledge the concurrent changes in the
+  commit body. Do not wait for files containing only your edits or split hunks
+  merely to isolate authorship.
 - On Thomas's two development machines (`ai/owner/machines.md`), work that is
   also tested on the other machine is developed in a worktree of its own on
   the machine the agent runs on, on a branch of its own, never in the shared

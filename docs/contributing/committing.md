@@ -234,17 +234,23 @@ refused as retired keywords naming that replacement.
 
 ## Committing some hunks of a shared file
 
-Sessions share one checkout, so one file can hold hunks from two sessions, each
-of which compiles only with its own session's other files. Neither session can
-commit the whole file, and neither may take the other's hunks out of the
-working tree. `hunks` commits yours alone:
+Sessions share one checkout and routinely edit the same files. When the affected
+code compiles, commit the whole changed files with `file`, including the
+dependencies the selected snapshot needs. Acknowledge carried concurrent changes
+in the body. Do not wait for sole authorship or use hunk selection merely to
+separate authors.
+
+Use `hunks` only when a genuinely separate change cannot land in the same coherent
+chunk. For example, another change in the file may require unfinished source
+elsewhere. Leave every session's edits in the working tree and select the coherent
+change in a private patch:
 
 ```bash
 dir=$(./le session scratch ensure)
-git diff -- internal/le/verify/lifecycle.go > "$dir/lifecycle.patch"
-# Delete the other session's hunks from the patch, then:
+git diff -- internal/le/commit/prepare.go > "$dir/prepare.patch"
+# Keep only the independently coherent change in this patch, then:
 ./le commit create subject "<subject>" file <your other files> \
-  hunks internal/le/verify/lifecycle.go "$dir/lifecycle.patch"
+  hunks internal/le/commit/prepare.go "$dir/prepare.patch"
 ```
 
 `create` reads HEAD once, before it takes any content, and applies the patch to
