@@ -30,6 +30,15 @@ in the spec or commit it applies to.
 - Every RFC Ze implements gets full, correct coverage; an absent requirement of
   an implemented RFC is owed work, never a question. The only exception is a
   basic primitive Linux cannot provide, named with evidence.
+- BGP's RFC state machine describes expected behaviour; it does not prescribe
+  the implementation's structure. Implement and assess the required externally
+  visible behaviour using RFC 4271 together with applicable updates and errata,
+  rather than copying its original state machine literally. The original
+  description is not a complete model of modern BGP. Absence of a separate FSM
+  object or a one-to-one correspondence with its states, events, timers and
+  transitions is not evidence of a defect or conformance gap. A gap must name
+  unmet behaviour required by the applicable specification. This leaves all
+  applicable protocol requirements in force.
 - Release timing: shipped code must comply with the RFC requirements of the
   capabilities it implements. A missing RFC feature may wait until after the
   first release, and a partial implementation is never announced as full
