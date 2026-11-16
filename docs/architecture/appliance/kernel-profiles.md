@@ -225,6 +225,32 @@ backtrace in a captured oops or panic still names its functions.
 <!-- source: gokrazy/kernel/runtime.config -- CONFIG_KALLSYMS_ALL -->
 <!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/modules.go -- loadModules -->
 
+**Built in by decision.** Three facilities stay built in although no Ze
+feature configures them, and the configuration base stays `defconfig`:
+
+- **Kernel tracing.** The tracing support (`CONFIG_FTRACE`, with kprobe and
+  uprobe events) and `CONFIG_KPROBES` stay built in: they are how a deployed
+  box is diagnosed live. The fragment requests none of them. The amd64
+  `defconfig` enables them, and the profile does not turn them off.
+- **KVM host support.** `CONFIG_KVM` is requested built in, with its Intel and
+  AMD parts on x86. Nested QEMU labs on the [docker-host image](docker-host.md)
+  need it, and nothing in that image loads a module for a device or a CPU: it
+  runs no udev and does not link Ze's coldplug loader, and its busybox
+  `modprobe` loads only a module that a script names.
+- **SELinux.** `CONFIG_SECURITY_SELINUX` stays built in, as the amd64
+  `defconfig` sets it: a distribution host that boots this kernel
+  (`le setup docker kernel install`) can run an SELinux userland.
+- **The `defconfig` base.** The runtime kernel is not built up from an empty
+  configuration. One kernel must also boot physical hardware, and `defconfig`
+  supplies the generic platform support for it that the fragment does not
+  list: on x86, ACPI, PCI, SMP and the serial console.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_KVM, CONFIG_KVM_INTEL, CONFIG_KVM_AMD; no tracing, SELinux, ACPI or PCI request -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+<!-- source: cmd/ze-docker-host/main.go -- main -->
+<!-- source: cmd/ze/setup_features_appliance.go -- the coldplug blank import, under ze_appliance -->
+<!-- source: internal/appliance/dockerhost/boot.go -- writableOverlays -->
+<!-- source: internal/appliance/dockerhost/guest_linux.go -- no udev in the guest -->
+
 The `=m` lines name only drivers with a Kconfig prompt. Promptless helpers
 (`LIBIE`, `PHY_PACKAGE`, `SND_PCM`, `DRM_TTM`, `INTEL_GTT`) follow the drivers
 that select them, and an `=m` line cannot demote a symbol a built-in one
