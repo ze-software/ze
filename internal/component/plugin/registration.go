@@ -87,6 +87,7 @@ type PluginRegistration struct {
 	SourcePolicy      bool // Implements the acknowledged source-policy lifecycle.
 	VerifyBudget      int  // Estimated verify time in seconds (0 = trivial)
 	ApplyBudget       int  // Estimated apply time in seconds (0 = trivial)
+	StartedHandler    bool // Post-ready initialization must complete before the next tier.
 	// DrainBudget is the longest the plugin's stop drain handler may take,
 	// declared at Stage 1 and checked there against rpc.DrainCeilingSeconds.
 	// Zero means the plugin takes no part in the stop drain, so the server

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
@@ -152,11 +151,10 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 		return fmt.Errorf("start subsystem %s: %w", h.config.Name, err)
 	}
 
-	// Complete 5-stage protocol with timeout
-	stageCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	if err := h.completeProtocol(stageCtx); err != nil {
+	// Each real protocol stage has a bounded wait. Configuration and a declared
+	// initializer each receive their accepted allowance within the caller's
+	// context, rather than sharing an unrelated total handshake deadline.
+	if err := h.completeProtocol(ctx); err != nil {
 		h.proc.Stop()
 		return fmt.Errorf("subsystem %s protocol: %w", h.config.Name, err)
 	}

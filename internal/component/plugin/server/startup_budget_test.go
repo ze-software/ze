@@ -190,7 +190,7 @@ func TestRestartConfigureBudgetHonorsParentContext(t *testing.T) {
 	if got := restartConfigureHandshakeBound(proc, time.Minute); got < time.Minute {
 		t.Fatalf("configure allowance was not selected: %s", got)
 	}
-	handshake, release := s.boundedRestartHandshake(proc, time.Minute)
+	handshake, release := s.boundedRestartHandshake(proc, restartStartupBudget{configure: time.Minute})
 	defer release()
 	parentDeadline, _ := ctx.Deadline()
 	deadline, ok := handshake.Deadline()

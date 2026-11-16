@@ -1032,17 +1032,29 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	startCtx := context.Background()
+	// Engine.Start joins this complete plugin startup before it starts any
+	// registered subsystem. Each handshake wait owns its stage/progress bound;
+	// a competing fixed deadline here must not truncate declared initialization.
+	if err := pm.SetStartupRunner(func(ctx context.Context) error {
+		if err := apiServer.StartWithContext(ctx); err != nil {
+			return err
+		}
+		if err := apiServer.WaitForStartupComplete(ctx); err != nil {
+			stopAPI()
+			return err
+		}
+		return nil
+	}); err != nil {
+		refusal := opererr.Wrap(err, "plugin startup initialization could not be registered",
+			"the startup runner must be bound once before plugins start; inspect the recorded cause before retrying startup",
+			"ze doctor")
+		fmt.Fprintln(os.Stderr, "startup failed:", refusal)
+		logStartupFailure("preparing plugin startup", refusal)
+		return 1
+	}
 	if err := eng.Start(startCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting engine: %v\n", err)
 		logStartupFailure("starting engine", err)
-		return 1
-	}
-
-	// Start plugin server (auto-loads BGP, iface, fib, etc. via ConfigRoots).
-	if err := apiServer.StartWithContext(startCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "error starting plugin server: %v\n", err)
-		logStartupFailure("starting plugin server", err)
-		_ = eng.Stop(startCtx)
 		return 1
 	}
 

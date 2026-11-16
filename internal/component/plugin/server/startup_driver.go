@@ -155,7 +155,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	}
 
 	// Stage 1: declare-registration (plugin-initiated).
-	req, err := conn.ReadRequest(ctx)
+	req, err := readStartupStage(ctx, sink, conn, plugin.StageRegistration)
 	if err != nil {
 		return fmt.Errorf("stage 1 read: %w", err)
 	}
@@ -216,7 +216,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	if !sink.transition(plugin.StageRegistration, plugin.StageConfig) {
 		return errStartupBarrierAborted
 	}
-	if err := sink.deliverConfig(ctx); err != nil {
+	if err := runStartupWire(ctx, sink, plugin.StageConfig, regInput.ApplyBudget, sink.deliverConfig); err != nil {
 		return err
 	}
 	if !sink.transition(plugin.StageConfig, plugin.StageCapability) {
@@ -224,7 +224,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	}
 
 	// Stage 3: declare-capabilities (plugin-initiated).
-	req, err = conn.ReadRequest(ctx)
+	req, err = readStartupStage(ctx, sink, conn, plugin.StageCapability)
 	if err != nil {
 		return fmt.Errorf("stage 3 read: %w", err)
 	}
@@ -253,7 +253,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	if !sink.transition(plugin.StageCapability, plugin.StageRegistry) {
 		return errStartupBarrierAborted
 	}
-	if err := sink.deliverRegistry(ctx); err != nil {
+	if err := runStartupWire(ctx, sink, plugin.StageRegistry, 0, sink.deliverRegistry); err != nil {
 		return err
 	}
 	if !sink.transition(plugin.StageRegistry, plugin.StageReady) {
@@ -261,7 +261,7 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	}
 
 	// Stage 5: ready (plugin-initiated).
-	req, err = conn.ReadRequest(ctx)
+	req, err = readStartupStage(ctx, sink, conn, plugin.StageReady)
 	if err != nil {
 		return fmt.Errorf("stage 5 read: %w", err)
 	}
@@ -306,6 +306,11 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	sink.onRunning()
 	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 5 respond: %w", err)
+	}
+	if regInput.StartedHandler {
+		if err := joinStartupInitialization(ctx, sink, conn, regInput.ApplyBudget); err != nil {
+			return fmt.Errorf("stage 5 initialization: %w", err)
+		}
 	}
 	return nil
 }

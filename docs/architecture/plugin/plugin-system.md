@@ -515,8 +515,11 @@ is owned by its plugin's `types.go`.
 
 Stages 1 to 5 of the handshake run per phase. The engine loads plugins across up
 to five phases in series: config-path auto-load, explicit, family, event-type,
-send-type. A plugin's `OnStarted` therefore fires after its own handshake, and
-before the plugins of a later phase are loaded. Before the first phase starts,
+send-type. A plugin's `OnStarted` fires after its ready acknowledgment within
+Stage 5, before plugins of a later phase are loaded. A declared initializer must
+return successfully and answer runtime-ready before its tier completes.
+
+Before the first phase starts,
 the engine resolves the dependencies of the config-path, family, event-type
 and send-type sets, and refuses startup when one names a plugin this build
 lacks (see Dependencies).
@@ -527,10 +530,13 @@ stage timeout allows at least that much work, capped at 600 seconds. An explicit
 per-process `stage-timeout` still wins, other stages keep their ordinary bounds,
 and the startup context can cancel earlier. An operator or rollback restart
 captures the outgoing process's accepted allowance before replacement and uses
-it for the configure window of its bounded five-stage handshake. Declare the
-time needed for initial configuration as well as later configuration applies.
+it for the configure window of its bounded handshake. A declared `started-handler`
+adds a separate initializer window with that allowance; explicit stage timeouts
+still win. Unbarriered ad-hoc and failure-policy startup retain their caller's
+lifetime as their only bound. Declare the time needed for initial configuration
+and local initialization as well as later configuration applies.
 <!-- source: internal/component/plugin/startup_budget.go -- DeclareConfigureBudget, ConfigureStall -->
-<!-- source: internal/component/plugin/server/startup_budget.go -- declaredConfigureBudget, startupStageStall, previousConfigureBudget, restartConfigureHandshakeBound -->
+<!-- source: internal/component/plugin/server/startup_budget.go -- declaredConfigureBudget, startupStageStall, previousStartupBudget, restartStartupHandshakeBound -->
 
 The config-path phase also resolves the FIB writer. When a plugin it is about to
 load declares `NeedsDataPlane`, and no `ProgramsFIB` plugin is configured or
@@ -551,7 +557,7 @@ producer's own doctor check is what tells the operator.
 
 | Callback | What belongs in it |
 |----------|--------------------|
-| `OnStarted(fn)` | Local setup: long-lived goroutines, subscriptions, per-plugin state |
+| `OnStarted(fn)` | Local setup: long-lived goroutines, subscriptions, per-plugin state; return only when the initialized resources are usable |
 | `OnAllPluginsReady(fn)` | Any `DispatchCommand` that targets another plugin's command at startup. The callback fires through the event loop once the dispatcher command registry is frozen, so cross-plugin dispatch resolves |
 
 `bgp-rpki` is the reference. Its `adj-rib-in enable-validation` dispatch runs

@@ -32,6 +32,42 @@ func previousConfigureBudget(proc *process.Process) time.Duration {
 	return declaredConfigureBudget(proc.Registration())
 }
 
+// restartStartupBudget retains the outgoing accepted declaration before Respawn
+// replaces the process. Configure and a declared initializer own separate phases.
+type restartStartupBudget struct {
+	configure   time.Duration
+	initializes bool
+}
+
+func previousStartupBudget(proc *process.Process) restartStartupBudget {
+	budget := restartStartupBudget{configure: previousConfigureBudget(proc)}
+	if proc != nil && proc.Stage() >= plugin.StageConfig {
+		registration := proc.Registration()
+		budget.initializes = registration != nil && registration.StartedHandler
+	}
+	return budget
+}
+
+func restartStartupHandshakeBound(proc *process.Process, budget restartStartupBudget) time.Duration {
+	bound := restartConfigureHandshakeBound(proc, budget.configure)
+	if !budget.initializes {
+		return bound
+	}
+	stage := proc.Config().StageTimeout
+	explicit := stage != 0
+	if !explicit {
+		stage = stageTimeoutFromEnv()
+	}
+	// Keep nonpositive restart bounds immediately expired, as before.
+	if stage <= 0 {
+		return bound
+	}
+	if !explicit {
+		stage = max(stage, budget.configure)
+	}
+	return bound + stage
+}
+
 func startupStageStall(coord *plugin.StartupCoordinator, proc *process.Process, complete, wait plugin.PluginStage) time.Duration {
 	timeout := proc.Config().StageTimeout
 	if timeout != 0 {

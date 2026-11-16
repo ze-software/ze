@@ -102,7 +102,28 @@ Ze uses a synchronized 5-stage startup protocol with barriers between stages.
 Within each dependency tier, all plugins must complete each stage before any
 can proceed to the next. Tiers are sequenced by dependency order (see
 Tier-Ordered Startup below).
+
+A plugin with post-ready initialization declares `started-handler` at Stage 1.
+The Go SDK derives this declaration from `OnStarted`. After acknowledging
+`ready`, the engine asks `runtime-ready` through the ordinary callback queue.
+The SDK can answer only after `OnStarted` has returned successfully and its
+event loop has begun. The startup tier waits for this receipt before starting
+a dependent tier. A plugin with no initializer declares none and owes no such
+receipt.
+
+Initialization failure, timeout or cancellation fails startup. The engine does
+not publish a ready dependency until initialization succeeds.
+
+Socket initialization may still call the engine while the receipt is pending:
+the startup reader serves those calls through the normal engine-operation
+registry. Internal initialization uses the same engine operations through its
+bridge. Neither route waits for the later runtime supervisor to begin reading.
+In tiered startup, the accepted apply allowance bounds initialization and
+configure work separately. Ordinary wire stages retain the configured stage bound.
+Unbarriered startup retains its caller's handshake scope as its only bound.
+Parent cancellation still wins.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
 
 ```
 +---------------------------------------------------------------------------+
@@ -392,7 +413,12 @@ larger of the environment's positive stage timeout and the largest accepted
 duplicate declarations cannot extend it. Other barriers retain their ordinary
 timeouts, and a nonpositive environment timeout still disables the stall check.
 The startup context can end any wait earlier.
-<!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress, StageComplete -->
+
+A wire inactivity watcher leaves a sibling's failure to declaration admission
+and the tier barrier. The plugin's own declaration and process end decide
+whether it failed. The watcher retains its inactivity bound while that
+declaration arrives.
+<!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress, WaitForStageInactivity, StageComplete -->
 <!-- source: internal/component/plugin/startup_budget.go -- DeclareConfigureBudget, ConfigureStall -->
 <!-- source: internal/component/plugin/server/startup_budget.go -- declaredConfigureBudget, startupStageStall -->
 
@@ -920,10 +946,15 @@ per-process `stage-timeout` is explicit and the environment timeout is positive,
 the configure window is the larger of the ordinary window and the outgoing
 process's accepted, capped `apply-budget`. The daemon captures that allowance
 before replacing the process; the replacement's declaration cannot change its
-own bound. The other four windows retain their ordinary duration. A missing or
-unaccepted declaration adds no allowance, and an explicit process timeout or
-nonpositive environment timeout retains the old bound. The daemon's context
-can end the handshake earlier. A handshake that runs out of its bound fails
+own bound. The other four windows retain their ordinary duration. When the
+outgoing accepted declaration includes `started-handler`, the handshake also
+gets one initializer window: the accepted allowance, or the ordinary stage
+window when that is larger. An explicit process timeout sets each window,
+including that conditional initializer window. A missing or unaccepted
+initializer declaration adds no initializer window. Nonpositive environment
+timeouts retain their immediate-expiry behavior.
+
+The daemon's context can end the handshake earlier. A handshake that runs out of its bound fails
 the restart the way a failed handshake does. The rollback that stops a
 replacement waits for it for that process's own stop bound (2s for a forked
 plugin on Linux, 1s for one in the daemon), then releases it. A forked
@@ -933,7 +964,7 @@ returns. A restart the failure policy makes holds no lock: its replacement's
 handshake runs as long as the daemon does, so a slow replacement still comes
 up, and only its rollback wait is bounded.
 <!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake, lifetimeRestartHandshake, rollbackReplacement -->
-<!-- source: internal/component/plugin/server/startup_budget.go -- previousConfigureBudget, restartConfigureHandshakeBound -->
+<!-- source: internal/component/plugin/server/startup_budget.go -- previousStartupBudget, restartStartupHandshakeBound -->
 
 A process exit clears the active warnings the plugin raised through
 `report-issue`, after its admitted requests finish. Their owner is gone and
@@ -2484,9 +2515,11 @@ starts its peers after every plugin tier.
 **Cross-Plugin DispatchCommand from Startup.** A plugin whose startup logic
 must call `DispatchCommand` on a sibling plugin's command (e.g., `bgp-rpki`
 enabling the `request bgp adj-rib-in enable-validation` gate) MUST register the call via
-`OnAllPluginsReady`, not `OnStarted`. `OnStarted` fires after the plugin's own
-5-stage handshake but potentially BEFORE other plugins in later startup phases
-are loaded, so the dispatcher may not yet know about the target command.
+`OnAllPluginsReady`.
+
+`OnStarted` fires after the plugin's ready acknowledgment, within Stage 5.
+Plugins in later startup phases may not be loaded, so the dispatcher may not
+yet know about the target command.
 `OnAllPluginsReady` fires via the event loop once the engine has frozen every
 registry after every phase completes, so the dispatch is guaranteed to resolve.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go — OnStarted vs OnAllPluginsReady -->

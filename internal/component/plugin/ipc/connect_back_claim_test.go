@@ -18,7 +18,7 @@ import (
 // a terminal escape that clears the screen, a newline that forges a second
 // row, invalid UTF-8, a bidi override, and enough printable text that a
 // three-byte rune straddles the shown bound.
-var hostileClaim = "\x1b[2J" + "evil\nrow" + "\xff\xfe" + "‮" + strings.Repeat("a", 30) + "日本語" + strings.Repeat("b", 40)
+var hostileClaim = "\x1b[2J" + "evil\nrow" + "\xff\xfe" + "\u202e" + strings.Repeat("a", 30) + "日本語" + strings.Repeat("b", 40)
 
 // assertShowable fails unless shown is valid UTF-8, holds only runes strconv
 // prints as themselves (no control character, no bidi override), and is no
@@ -76,7 +76,7 @@ func TestShownClaimKeepsTheNameForm(t *testing.T) {
 		var message textbuf.Buffer
 		assert.Equal(t, strconv.Quote(name), writeQuotedClaim(&message, name).String())
 	}
-	assert.Equal(t, "a_b", shownClaim("a_b"), "a printable name off the form is still recognisable")
+	assert.Equal(t, "a_b", shownClaim("a_b"), "a printable name off the form is still recognizable")
 	assert.Equal(t, claimEmptyShown, shownClaim(""))
 	assert.NotEqual(t, shownClaim(`""`), shownClaim(""), "a claim of two quote marks is not the empty claim")
 	assert.NotEqual(t, shownClaim("a\nb"), shownClaim(`a\nb`), "a newline and a backslash-n stay distinct")

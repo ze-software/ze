@@ -1083,7 +1083,7 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 	}
 
 	old := pm.GetProcess(pluginName)
-	configureBudget := previousConfigureBudget(old)
+	startupBudget := previousStartupBudget(old)
 	insertionsBefore := declaredInsertions(old)
 	newProc, err := pm.Respawn(pluginName)
 	if respawnRefused(err) {
@@ -1102,7 +1102,7 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 		}
 		s.releasePluginRegistrations(old)
 	}
-	if err := s.restartHandshake(newProc, configureBudget, handshake); err != nil {
+	if err := s.restartHandshake(newProc, startupBudget, handshake); err != nil {
 		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
 	s.announceInsertionChange(insertionsBefore, declaredInsertions(newProc))

@@ -415,31 +415,33 @@ func assertRowsAgreeWithPluginInfo(t *testing.T) {
 	t.Helper()
 
 	described := make(map[string]PluginInfo)
-	for _, info := range InternalPluginInfo() {
-		described[info.Name] = info
+	infos := InternalPluginInfo()
+	for index := range infos {
+		described[infos[index].Name] = infos[index]
 	}
 
 	seen := make(map[string]bool, len(described))
-	for _, row := range pluginRows() {
-		seen[row.Name] = true
-		info, registered := described[row.Name]
+	rows := pluginRows()
+	for index := range rows {
+		seen[rows[index].Name] = true
+		info, registered := described[rows[index].Name]
 		if !registered {
-			if row.Description != descriptionUnregistered {
-				t.Errorf("row %q matches no registration and does not say so: %q", row.Name, row.Description)
+			if rows[index].Description != descriptionUnregistered {
+				t.Errorf("row %q matches no registration and does not say so: %q", rows[index].Name, rows[index].Description)
 			}
-			if row.Outcome == registry.SetupUnknown {
-				t.Errorf("row %q matches no registration and recorded nothing, so it has no reason to exist", row.Name)
+			if rows[index].Outcome == registry.SetupUnknown {
+				t.Errorf("row %q matches no registration and recorded nothing, so it has no reason to exist", rows[index].Name)
 			}
 			continue
 		}
-		if row.Description != info.Description {
-			t.Errorf("row %q description = %q, registration says %q", row.Name, row.Description, info.Description)
+		if rows[index].Description != info.Description {
+			t.Errorf("row %q description = %q, registration says %q", rows[index].Name, rows[index].Description, info.Description)
 		}
-		if strings.Join(row.Families, ",") != strings.Join(info.Families, ",") {
-			t.Errorf("row %q families = %v, registration says %v", row.Name, row.Families, info.Families)
+		if strings.Join(rows[index].Families, ",") != strings.Join(info.Families, ",") {
+			t.Errorf("row %q families = %v, registration says %v", rows[index].Name, rows[index].Families, info.Families)
 		}
-		if strings.Join(row.RFCs, ",") != strings.Join(info.RFCs, ",") {
-			t.Errorf("row %q RFCs = %v, registration says %v", row.Name, row.RFCs, info.RFCs)
+		if strings.Join(rows[index].RFCs, ",") != strings.Join(info.RFCs, ",") {
+			t.Errorf("row %q RFCs = %v, registration says %v", rows[index].Name, rows[index].RFCs, info.RFCs)
 		}
 	}
 

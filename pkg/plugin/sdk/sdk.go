@@ -490,6 +490,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	if p.onDrain != nil {
 		reg.DrainHandler = true
 	}
+	reg.StartedHandler = p.onStarted != nil
 	reg.ConfigCompletion = p.callbacks[callbackConfigComplete] != nil
 	reg.SourcePolicy = p.onSourcePolicy != nil
 	if reg.SourcePolicy {

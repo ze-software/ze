@@ -38,9 +38,11 @@ var logger = slogutil.LazyLogger("plugin.manager")
 //
 // MUST call SetHubConfig before StartAll if external plugins exist.
 type Manager struct {
-	mu      sync.RWMutex
-	plugins map[string]*pluginState
-	started bool
+	mu            sync.RWMutex
+	plugins       map[string]*pluginState
+	started       bool
+	startupRunner func(context.Context) error
+	starting      *managerStartup
 
 	// Hub config for TLS acceptor (external plugins).
 	hubConfig *parent.HubConfig
@@ -128,29 +130,11 @@ func (m *Manager) Register(config ze.PluginConfig) error {
 	return nil
 }
 
-// StartAll initializes the PluginManager for process management (Phase 1).
-// Stores context and references. Does NOT spawn processes — that happens
-// when Server calls SpawnMore during Phase 2 (after Server is created).
-// Plugins are discovered from reactor config by Server, not registered here.
+// StartAll prepares process management, then joins the bound startup runner.
+// The runner discovers and spawns plugins through SpawnMore. The hub MUST bind
+// that runner before StartAll so subsystems cannot start before plugin setup.
 func (m *Manager) StartAll(ctx context.Context, eventBus ze.EventBus, config ze.ConfigProvider) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.started {
-		return errAlreadyStarted
-	}
-
-	m.ctx, m.cancel = context.WithCancel(ctx)
-	m.eventBus = eventBus
-	m.config = config
-	m.started = true
-
-	// Mark registered plugins as running (for query API).
-	for _, ps := range m.plugins {
-		ps.running = true
-	}
-
-	return nil
+	return m.startAll(ctx, eventBus, config)
 }
 
 // SpawnMore spawns additional processes for auto-loaded plugins.
@@ -271,30 +255,16 @@ func (m *Manager) GetProcessManager() any {
 	return m.procManager
 }
 
-// StopAll stops all spawned processes and cleans up.
+// StopAll cancels and joins startup, stops spawned processes and cleans up.
+// A startup runner MUST finish its canceled call before StopAll can return.
 func (m *Manager) StopAll(_ context.Context) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.procManager != nil {
-		m.procManager.Stop()
-		m.procManager = nil
+	owner := m.starting
+	m.stopAllLocked()
+	m.mu.Unlock()
+	if owner != nil {
+		<-owner.done
 	}
-
-	if m.acceptor != nil {
-		m.acceptor.Stop()
-		m.acceptor = nil
-	}
-
-	if m.cancel != nil {
-		m.cancel()
-	}
-
-	for _, ps := range m.plugins {
-		ps.running = false
-	}
-
-	m.started = false
 	return nil
 }
 

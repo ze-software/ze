@@ -319,6 +319,10 @@ const (
 // plugin started in query mode writes it to stdout.
 const MethodDeclareRegistration = "ze-plugin-engine:declare-registration"
 
+// MethodRuntimeReady joins the initializer declared by StartedHandler. It uses
+// the ordinary callback queue, never a typed bridge slot that bypasses the loop.
+const MethodRuntimeReady = "ze-plugin-callback:runtime-ready"
+
 // ProtocolVersion is the plugin protocol version this engine and this SDK
 // speak. Version 1 is the first versioned contract: a filter declares the
 // route fields it reads and sets, and its filter-update message carries those
@@ -402,6 +406,11 @@ type DeclareRegistrationInput struct {
 	// sets it when OnDrain registered a handler; a plugin written against
 	// the wire protocol declares it itself.
 	DrainHandler bool `json:"drain-handler,omitempty"`
+
+	// StartedHandler declares post-ready initialization. The plugin MUST answer
+	// MethodRuntimeReady only after that initialization succeeds. The Go SDK
+	// derives this from OnStarted; an engine MUST join it before its next tier.
+	StartedHandler bool `json:"started-handler,omitempty"`
 
 	// SignalsSessionReady declares that this plugin puts routes into a peer's
 	// INITIAL routing update and dispatches `plugin session ready` once they

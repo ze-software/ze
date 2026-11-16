@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,10 @@ import (
 // PREVENTS: Regression where coordinator != nil blocks ad-hoc sessions at barriers.
 func TestAdHocProcessHandshake(t *testing.T) {
 	t.Parallel()
+	synctest.Test(t, testAdHocProcessHandshake)
+}
 
+func testAdHocProcessHandshake(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	// Minimal server with required fields for handshake.
@@ -43,9 +47,9 @@ func TestAdHocProcessHandshake(t *testing.T) {
 	p := sdk.NewWithConn("test-adhoc", pluginSide)
 	defer p.Close() //nolint:errcheck // test cleanup
 
-	// OnStarted fires synchronously after the plugin's 5-stage handshake
-	// completes and before the event loop begins. Signal it so we close the
-	// connection only once the handshake is genuinely done -- no fixed sleep.
+	// OnStarted runs after ready is acknowledged, but before the event loop
+	// answers the engine's runtime-ready receipt. Observe entry, then wait
+	// for that exchange to become quiescent before closing the transport.
 	handshakeComplete := make(chan struct{})
 	p.OnStarted(func(context.Context) error {
 		close(handshakeComplete)
@@ -63,6 +67,7 @@ func TestAdHocProcessHandshake(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("handshake did not complete in time")
 	}
+	synctest.Wait()
 
 	// Close triggers shutdown of both sides.
 	require.NoError(t, p.Close())
@@ -145,15 +150,18 @@ func TestAdHocProcessRuntime(t *testing.T) {
 // PREVENTS: Regression where NewWithIO creates broken MuxConn.
 func TestNewWithIO(t *testing.T) {
 	t.Parallel()
+	synctest.Test(t, testNewWithIO)
+}
 
+func testNewWithIO(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	// Use NewWithIO on the plugin side (simulating SSH channel).
 	p := sdk.NewWithIO("test-io", pluginSide, pluginSide)
 	defer p.Close() //nolint:errcheck // test cleanup
 
-	// OnStarted fires after the plugin's 5-stage handshake completes; use it
-	// to synchronize the close instead of a fixed sleep.
+	// OnStarted precedes the runtime-ready receipt. Wait for the SDK event
+	// loop and engine exchange to become quiescent before disconnecting.
 	handshakeComplete := make(chan struct{})
 	p.OnStarted(func(context.Context) error {
 		close(handshakeComplete)
@@ -187,6 +195,7 @@ func TestNewWithIO(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("handshake did not complete in time")
 	}
+	synctest.Wait()
 	require.NoError(t, p.Close())
 
 	select {

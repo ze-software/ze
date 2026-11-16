@@ -195,46 +195,65 @@ func (c *StartupCoordinator) WaitForStage(ctx context.Context, stage PluginStage
 //
 // A non-positive stall disables the stall check and waits on ctx alone.
 func (c *StartupCoordinator) WaitForStageProgress(ctx context.Context, stage PluginStage, stall time.Duration) error {
-	if stall <= 0 {
-		return c.WaitForStage(ctx, stage)
-	}
+	return c.waitForStageProgress(ctx, stage, stall, true)
+}
 
+// WaitForStageInactivity bounds a wire operation by the tier's progress without
+// aborting it for a sibling's failure. Declaration admission and the barrier own
+// that failure: the wire must still admit the plugin's declaration so they can
+// distinguish a connected plugin from one whose process already ended.
+func (c *StartupCoordinator) WaitForStageInactivity(ctx context.Context, stage PluginStage, stall time.Duration) error {
+	return c.waitForStageProgress(ctx, stage, stall, false)
+}
+
+func (c *StartupCoordinator) waitForStageProgress(ctx context.Context, stage PluginStage, stall time.Duration, abortOnFailure bool) error {
 	for {
 		c.mu.Lock()
-		if c.failedPlugin >= 0 {
-			err := c.err
-			c.mu.Unlock()
-			return err
+		if abortOnFailure {
+			if c.failedPlugin >= 0 {
+				err := c.err
+				c.mu.Unlock()
+				return err
+			}
 		}
 		if c.currentStage >= stage {
 			c.mu.Unlock()
 			return nil
 		}
 		idle := time.Since(c.lastProgress)
-		stageCh := c.stageCh
+		var stageCh <-chan struct{} = c.stageCh
+		if c.failedPlugin >= 0 {
+			// The failed tier's notification is permanently closed. A wire
+			// observer retains its inactivity and parent-context bounds only.
+			stageCh = nil
+		}
 		c.mu.Unlock()
 
-		if idle >= stall {
-			return fmt.Errorf("no plugin progress for %v while waiting for stage %d", stall, stage)
+		var timer *time.Timer
+		var expired <-chan time.Time
+		if stall > 0 {
+			if idle >= stall {
+				return fmt.Errorf("no plugin progress for %v while waiting for stage %d", stall, stage)
+			}
+			// Each timer uses the latest progress, so a busy tier extends its
+			// window and no Reset can leave a stale timer notification.
+			timer = time.NewTimer(stall - idle)
+			expired = timer.C
 		}
-
-		// A fresh timer per iteration (rather than Reset on a shared one) keeps
-		// the wait free of the stale-fire race Reset has, with no drain needed.
-		// The loop is bounded by the number of progress events, so this cannot
-		// churn: at most pluginCount+1 timers per stage.
-		timer := time.NewTimer(stall - idle)
 		select {
 		case <-stageCh:
 			// Stage advanced or a plugin failed; re-evaluate.
-		case <-timer.C:
-			// The window elapsed. The next iteration re-reads lastProgress: if a
-			// plugin completed meanwhile the window simply restarts from there,
-			// otherwise the tier is stalled and the loop returns the error.
+		case <-expired:
+			// Re-read lastProgress before deciding that the tier stalled.
 		case <-ctx.Done():
-			timer.Stop()
+			if timer != nil {
+				timer.Stop()
+			}
 			return ctx.Err()
 		}
-		timer.Stop()
+		if timer != nil {
+			timer.Stop()
+		}
 	}
 }
 

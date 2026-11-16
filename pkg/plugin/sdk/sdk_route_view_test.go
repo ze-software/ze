@@ -70,7 +70,7 @@ func TestRouteViewSDKUsesBothTransports(t *testing.T) {
 					t.Cleanup(worker.stop)
 				} else {
 					var bridge *rpc.DirectBridge
-					p, engine, bridge = newBridgedTestPair(t)
+					p, _, bridge = newBridgedTestPair(t)
 					bridge.SetDispatchRPC(func(_ context.Context, method string, input json.RawMessage) (json.RawMessage, error) {
 						if method != tc.method || string(input) != tc.input {
 							return nil, errors.New("Direct call changed method or input")

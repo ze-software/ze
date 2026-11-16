@@ -73,7 +73,7 @@ func (s *Server) awaitReplacedCleanup(old *process.Process) error {
 // handshakeScope answers the context a restart runs its replacement's
 // startup handshake under, and the cancel that releases it. restartHandshake
 // cancels it once the handshake has returned.
-type handshakeScope func(proc *process.Process, configureBudget time.Duration) (context.Context, context.CancelFunc)
+type handshakeScope func(proc *process.Process, budget restartStartupBudget) (context.Context, context.CancelFunc)
 
 // restartHandshakeStages is the number of stages a replacement's handshake
 // runs, Registration through Ready: each is what the tiered startup bounds
@@ -103,16 +103,16 @@ func restartHandshakeBound(proc *process.Process) time.Duration {
 
 // boundedRestartHandshake is the handshakeScope of a restart that holds the
 // config transaction lock (the operator's command, the reload rollback):
-// restartConfigureHandshakeBound, inside the daemon's lifetime.
-func (s *Server) boundedRestartHandshake(proc *process.Process, configureBudget time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(s.ctx, restartConfigureHandshakeBound(proc, configureBudget))
+// restartStartupHandshakeBound, inside the daemon's lifetime.
+func (s *Server) boundedRestartHandshake(proc *process.Process, budget restartStartupBudget) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(s.ctx, restartStartupHandshakeBound(proc, budget))
 }
 
 // lifetimeRestartHandshake is the handshakeScope of the failure policy's
 // restart, which holds no lock: its handshake runs as long as the daemon
 // does, as it always has, so a replacement that is slow but progressing is
 // never failed for its pace. Its cancel releases nothing.
-func (s *Server) lifetimeRestartHandshake(*process.Process, time.Duration) (context.Context, context.CancelFunc) {
+func (s *Server) lifetimeRestartHandshake(*process.Process, restartStartupBudget) (context.Context, context.CancelFunc) {
 	return s.ctx, func() {}
 }
 
@@ -278,8 +278,8 @@ func (s *Server) runUnbarrieredStartupHandshake(ctx context.Context, proc *proce
 // handshake decides how long the handshake may take. A handshake that runs
 // out of it fails like any other: the replacement is stopped and released by
 // rollbackReplacement, and the error says the bound expired.
-func (s *Server) restartHandshake(proc *process.Process, configureBudget time.Duration, handshake handshakeScope) error {
-	ctx, cancel := handshake(proc, configureBudget)
+func (s *Server) restartHandshake(proc *process.Process, budget restartStartupBudget, handshake handshakeScope) error {
+	ctx, cancel := handshake(proc, budget)
 	s.runUnbarrieredStartupHandshake(ctx, proc)
 	expired := errors.Is(ctx.Err(), context.DeadlineExceeded)
 	cancel()
@@ -287,7 +287,7 @@ func (s *Server) restartHandshake(proc *process.Process, configureBudget time.Du
 	if proc.Stage() < plugin.StageRunning {
 		err := startupFailureError(proc)
 		if expired {
-			err = fmt.Errorf("%w (bound %s): %w", errRestartHandshakeLate, restartConfigureHandshakeBound(proc, configureBudget), err)
+			err = fmt.Errorf("%w (bound %s): %w", errRestartHandshakeLate, restartStartupHandshakeBound(proc, budget), err)
 		}
 		logger().Error("plugin restart failed during handshake",
 			"plugin", proc.Name(), "stage", proc.Stage(), "error", err, "code", diagnostic.CodeDoctorPluginStopped)

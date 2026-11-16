@@ -1297,6 +1297,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		SourcePolicy:        input.SourcePolicy,
 		VerifyBudget:        input.VerifyBudget,
 		ApplyBudget:         input.ApplyBudget,
+		StartedHandler:      input.StartedHandler,
 		DrainBudget:         time.Duration(input.DrainBudget) * time.Second,
 		WantsValidateOpen:   input.WantsValidateOpen,
 		Claims:              input.Claims,

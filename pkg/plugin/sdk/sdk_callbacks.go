@@ -108,7 +108,9 @@ type DoctorCheckHandler func(name string) ([]rpc.DoctorCheckDiagnostic, error)
 // ("detail" or "brief"), and base data map. Returns enrichment data to merge into the base map.
 type EnrichShowHandler func(command, key, mode string, base map[string]any) (map[string]any, error)
 
-// StartedHandler runs after the 5-stage startup completes but before the event loop.
+// StartedHandler initializes local runtime resources after ready, before the
+// event loop. It MUST return only when those resources are usable. The engine
+// MUST join its runtime-ready receipt before starting a dependent tier.
 // Do NOT call DispatchCommand from here targeting other plugins; use AllPluginsReadyHandler.
 type StartedHandler func(ctx context.Context) error
 
@@ -163,6 +165,9 @@ func (p *Plugin) initCallbackDefaults() {
 		// Post-startup: no-op when no handler registered. Plugins that need
 		// to dispatch to other plugins at startup register via OnAllPluginsReady.
 		callbackPostStartup: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+		// The event loop starts only after OnStarted succeeds. A typed bridge
+		// slot MUST NOT answer this callback before that lifecycle boundary.
+		rpc.MethodRuntimeReady: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
 	}
 }
 
@@ -937,16 +942,20 @@ func (p *Plugin) OnEnrichShow(fn EnrichShowHandler) {
 	}
 }
 
-// OnStarted sets a callback that runs after the 5-stage startup completes
+// OnStarted sets a callback that runs after ready is acknowledged
 // but before the event loop begins. This is the safe place to make engine
 // calls (e.g., SubscribeEvents) because the connection is no longer blocked
 // by the startup coordinator. OnConfigure may call operations whose owner
 // registered ConfigureSafe startup admission. Ordinary runtime operations MUST
 // wait until OnStarted. OnShareRegistry MUST NOT make engine calls while the
 // engine waits for its response.
+// The callback MUST return only after local initialization succeeds; the SDK
+// declares it at Stage 1, and the engine joins its runtime-ready receipt before
+// completing this startup tier. An error fails this plugin's startup.
 //
-// IMPORTANT: OnStarted fires after THIS plugin's 5-stage handshake completes
-// but potentially BEFORE other plugins in later startup phases are loaded. Do
+// IMPORTANT: OnStarted fires after this plugin's ready acknowledgment, within
+// Stage 5; its runtime-ready receipt still owes completion. Later startup phases
+// may not have loaded their plugins yet. Do
 // NOT call DispatchCommand from OnStarted targeting a plugin that lives in a
 // different startup phase: the dispatcher command registry may not yet contain
 // the target command. Use OnAllPluginsReady for cross-plugin dispatches.

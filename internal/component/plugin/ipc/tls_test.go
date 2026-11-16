@@ -648,7 +648,7 @@ func TestPerClientSecretUnknownName(t *testing.T) {
 func TestEmptyExpectedTokenNeverAuthenticates(t *testing.T) {
 	t.Parallel()
 
-	lookup := func(name string) (string, bool) {
+	lookup := func(name string) (string, bool) { //nolint:unparam // AuthenticateWithLookup requires both results; this fixture tests a present name with an empty token.
 		if name == "empty-secret" {
 			return "", true
 		}

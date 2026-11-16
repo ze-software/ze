@@ -366,6 +366,12 @@ module ze-plugin-engine {
                 ze:help "Acknowledge whole-reload undo release";
                 description "Declares config-complete support. Operation journals remain reversible until the engine completes the captured transaction.";
             }
+            leaf started-handler {
+                type boolean;
+                default false;
+                ze:help "Declare initialization after ready";
+                description "The plugin initializes resources after ready is acknowledged. It must answer runtime-ready only after initialization succeeds; dependent startup tiers wait for that receipt.";
+            }
             leaf source-policy-owner {
                 type boolean;
                 default false;

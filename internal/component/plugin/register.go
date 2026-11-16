@@ -137,8 +137,9 @@ func dataPlugins(command.ValidatedArgs) command.LocalAnswer {
 // outcome, for the same reason.
 func pluginRows() []pluginRow {
 	described := make(map[string]PluginInfo)
-	for _, info := range InternalPluginInfo() {
-		described[info.Name] = info
+	infos := InternalPluginInfo()
+	for index := range infos {
+		described[infos[index].Name] = infos[index]
 	}
 
 	results := registry.SetupResults()

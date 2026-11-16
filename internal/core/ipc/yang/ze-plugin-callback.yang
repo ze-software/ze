@@ -14,6 +14,12 @@ module ze-plugin-callback {
         description "Initial revision";
     }
 
+    rpc runtime-ready {
+        ze:method "ze-plugin-callback:runtime-ready";
+        ze:help "Join the plugin's declared initialization.";
+        description "An empty receipt delivered through the ordinary callback loop after ready. A plugin declaring started-handler must answer only after its initialization succeeds. Failure or a missing receipt fails startup.";
+    }
+
     grouping source-policy-receipt {
         description "Exact identity shared by a source-policy request and its receipt.";
         leaf transaction-id {
