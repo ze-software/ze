@@ -585,10 +585,10 @@ var (
 	// proof gate. Sealed after one independent review, whose findings were
 	// fixed before sealing.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xfe, 0x75, 0x50, 0x97, 0x01, 0xee, 0x7d, 0x7c,
-		0x58, 0x53, 0x60, 0x41, 0xdd, 0x10, 0xb6, 0xc9,
-		0x99, 0x53, 0x9a, 0xf7, 0xcc, 0x20, 0xfa, 0x10,
-		0x05, 0x6c, 0x4d, 0x63, 0x7e, 0x72, 0x7b, 0x0b,
+		0x0f, 0xac, 0x50, 0x8c, 0xa8, 0x58, 0x22, 0x72,
+		0x66, 0x35, 0xf5, 0xc8, 0x8f, 0x81, 0x26, 0x6c,
+		0xd8, 0x0f, 0x58, 0x35, 0xbf, 0x79, 0xd1, 0xd7,
+		0xf1, 0x4b, 0x1e, 0x39, 0x54, 0x6e, 0x39, 0x29,
 	}
 )
 
@@ -1298,9 +1298,9 @@ func designGateTree(value string) (string, error) {
 	}
 	code, output, found := hookruntime.ProbeLifecycle("mark-source-read", hookruntime.Payload{
 		SessionID: probeSession, ToolName: "Read",
-		ToolInput:    map[string]any{"file_path": filepath.Join(root, "internal/probe/probe.go")},
+		ToolInput:    map[string]any{"file_path": filepath.Join(root, "internal", "probe", "probe.go")},
 		ToolUseID:    "fixture-design-read",
-		ToolResponse: json.RawMessage(fmt.Sprintf(`{"type":"text","file":{"filePath":%q,"content":"package probe\n","startLine":1,"numLines":2,"totalLines":2}}`, filepath.Join(root, "internal/probe/probe.go"))),
+		ToolResponse: json.RawMessage(fmt.Sprintf(`{"type":"text","file":{"filePath":%q,"content":"package probe\n","startLine":1,"numLines":2,"totalLines":2}}`, filepath.Join(root, "internal", "probe", "probe.go"))),
 	}, root)
 	if !found || code != 0 {
 		return root, fmt.Errorf("record design probe source: code %d, found %v: %s", code, found, output)

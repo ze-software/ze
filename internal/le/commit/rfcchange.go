@@ -97,7 +97,8 @@ func SelectRFCApprovals(root, session string, selections []resolvedRFCApprovalSe
 	}
 	for _, selection := range selections {
 		found := false
-		for _, row := range rows {
+		for index := range rows {
+			row := &rows[index]
 			if row.Target != selection.revision || row.Name != selection.unit {
 				continue
 			}
@@ -290,7 +291,8 @@ func rfcChangeProblems(
 	claimed := make([]bool, len(changes))
 	landedBy := make([]string, len(changes))
 	staleBy := make([]string, len(changes))
-	for _, row := range rows {
+	for index := range rows {
+		row := &rows[index]
 		if row.Target != "" {
 			continue
 		}

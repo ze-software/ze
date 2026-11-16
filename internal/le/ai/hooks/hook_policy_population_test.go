@@ -29,8 +29,8 @@ func TestProductionPolicyChangeStalesHookProof(t *testing.T) {
 		t.Fatal(err)
 	}
 	hookAuthorityAccept(t, root, before)
-	changed := append(body, '\n')
-	if err := os.WriteFile(path, changed, 0o600); err != nil {
+	body = append(body, '\n')
+	if err := os.WriteFile(path, body, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	after, err := hookSourceContentDigest(root)

@@ -11,7 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/ai/rules/ruleset"
 	"github.com/ze-software/ze/internal/le/ai/tokens/contextsize"
-	"github.com/ze-software/ze/internal/le/arch/tier"
+	archtier "github.com/ze-software/ze/internal/le/arch/tier"
 	docconsistency "github.com/ze-software/ze/internal/le/doc/consistency"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
@@ -70,7 +70,7 @@ func hookAuthorityPackages(t *testing.T, checkout string) []string {
 	for _, producer := range producers {
 		packages[filepath.ToSlash(filepath.Dir(hookProducerSource(t, checkout, producer)))] = true
 	}
-	for _, category := range fixtureCategories {
+	for _, category := range &fixtureCategories {
 		packages[filepath.ToSlash(filepath.Dir(category.owner))] = true
 	}
 	for _, boundary := range fixtureProducerBoundaries {

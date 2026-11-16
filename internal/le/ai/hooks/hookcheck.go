@@ -7,21 +7,8 @@
 package aihooks
 
 import (
-	"errors"
-	"os"
-	"path/filepath"
-
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-func readCheckoutFile(root, relative string) ([]byte, error) {
-	checkout, err := os.OpenRoot(root)
-	if err != nil {
-		return nil, err
-	}
-	body, readErr := checkout.ReadFile(filepath.FromSlash(relative))
-	return body, errors.Join(readErr, checkout.Close())
-}
 
 // Result is one independently actionable selftest verdict.
 type Result struct {
