@@ -343,21 +343,97 @@ func (target announceTarget) sendOwnRouteWithdrawal(ctx context.Context, update 
 }
 
 // sendBatchUpdatePreFiltered borrows the UPDATE and any already encoded body
-// until return. A synthesized withdrawal has no body yet; only its queued path
-// materializes one. The caller MUST keep the borrowed storage alive, and
-// dispatchOverflow MUST own queued bytes before returning.
-func (target announceTarget) sendBatchUpdatePreFiltered(ctx context.Context, update *message.Update, body []byte, maxSize int, addPath bool, batch *bgptypes.NLRIBatch) error {
+// until return. removals owns already-judged source withdrawals which MUST be
+// admitted before the first effective chunk under the same owner and fence.
+// An active RIB owner may settle the wire withdrawal or replacement later.
+// The caller MUST keep borrowed storage alive, and dispatchOverflow MUST own
+// queued bytes before returning.
+func (target announceTarget) sendBatchUpdatePreFiltered(ctx context.Context, update *message.Update, body []byte, maxSize int, addPath bool, batch *bgptypes.NLRIBatch, removals [][]byte) error {
 	var owner fwdItem
 	if err := target.initBatchOwner(&owner, batch); err != nil {
 		return err
 	}
+	// An unowned stale decision cannot name a received source. Both explicit
+	// and synthesized withdrawals MUST spare routes belonging to one.
+	if owner.authority == adjOutUnspecified {
+		owner.ownRouteWithdrawal = true
+	}
+	// RFC 4271 Section 9.1.3; RFC 8654 Section 4.
+	if err := prepareOriginPolicyRemovals(&owner, removals, maxSize, addPath); err != nil {
+		return err
+	}
+	var sendErr error
 	if batch.InitialReplay == 0 && batch.SentOwnerMessage != 0 && target.peer.withdrawBehindForwards() {
 		if batch.Replay {
 			owner.meta = map[string]any{metaKeyReplay: true}
 		}
-		return target.queueBatchBodyPreFiltered(ctx, update, body, maxSize, addPath, &owner)
+		sendErr = target.queueBatchBodyPreFiltered(ctx, update, body, maxSize, addPath, &owner)
+	} else {
+		if len(owner.policyRemovals) == 0 {
+			return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner, (*Session).writeUpdatePreFiltered)
+		}
+		write := func(session *Session, chunk *message.Update) error {
+			// sendUpdateCounted holds writeMu and has checked the owner's fences.
+			// Claim the group even on a failed partial write: it MUST NOT be
+			// offered again by the build-failure cleanup below.
+			// RFC 4271 Section 9.1.3.
+			err := session.writePolicyRemovals(&owner)
+			owner.policyRemovals = nil
+			if err != nil {
+				return err
+			}
+			return session.writeUpdatePreFiltered(chunk)
+		}
+		sendErr = target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner, write)
 	}
-	return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner, (*Session).writeUpdatePreFiltered)
+	if sendErr == nil {
+		return nil
+	}
+	if len(owner.policyRemovals) == 0 {
+		return sendErr
+	}
+	if !isRouteScopedSendError(sendErr) {
+		return sendErr
+	}
+	// The splitter can refuse an indivisible survivor before its first
+	// callback writes or queues the accepted group. Retire those still-owned
+	// source keys through the same sender and fences, retaining the failure.
+	// RFC 4271 Section 9.1.3.
+	if err := target.sendStalePolicyRemovals(ctx, removals, maxSize, addPath, batch); err != nil {
+		return errors.Join(sendErr, err)
+	}
+	return sendErr
+}
+
+// sendStalePolicyRemovals sends only the accepted source retirements when the
+// surviving body's normalization or encoding fails. Its last real withdrawal
+// is the primary body; earlier bodies keep their order. No EOR is invented.
+// The caller MUST keep removals alive through this synchronous send or queue
+// transfer, and sendBatchUpdatePreFiltered MUST retain the existing owner fences.
+// Failed encoding of that last withdrawal can retire the remaining prefix of
+// the group: this recursion is bounded by policyRemovalBodiesMax (two bodies).
+//
+// RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a particular
+// Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST
+// be withdrawn from service by means of an UPDATE message (see 9.2)."
+func (target announceTarget) sendStalePolicyRemovals(ctx context.Context, removals [][]byte, maxSize int, addPath bool, batch *bgptypes.NLRIBatch) error {
+	if len(removals) > policyRemovalBodiesMax {
+		return errPolicyRemovalBodies
+	}
+	if len(removals) == 0 {
+		return nil
+	}
+	last := len(removals) - 1
+	body := removals[last]
+	// RFC 4271 Section 4.3.
+	sections, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		return err
+	}
+	update := message.Update{WithdrawnRoutes: sections.Withdrawn(body),
+		PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)}
+	// RFC 4271 Section 9.1.3.
+	return target.sendBatchUpdatePreFiltered(ctx, &update, body, maxSize, addPath, batch, removals[:last])
 }
 
 // queueBatchBodyPreFiltered uses the existing rawBodies queue contract. A
@@ -375,6 +451,9 @@ func (target announceTarget) queueBatchBodyPreFiltered(ctx context.Context, upda
 		if !target.peer.reactor.fwdPool.dispatchOverflow(key, &item) {
 			return errForwardPoolStopped
 		}
+		// The queued first chunk now owns the entire preceding group. Later
+		// effective chunks MUST NOT repeat it or share its release ownership.
+		owner.policyRemovals = nil
 		return nil
 	}
 	if body != nil && len(body)+message.HeaderLen <= maxSize {
@@ -2332,7 +2411,7 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 	}
 	// By analogy with RFC 2918 Section 4 (runStaleChain).
 	chain := staleChainFor(peer, batch.SentOwnerMessage)
-	outcome, modified := a.decideStaleReadvertise(dest, chain, body, batch.Stale)
+	outcome, modified, removals := a.decideStaleReadvertise(dest, chain, body, batch.Stale)
 	// The write's receipt must not read as current if this chain is replaced
 	// before the writer runs (Session.noteExportWrite).
 	target.exportGeneration = chain.generation
@@ -2380,7 +2459,7 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 			// RFC 4271 Section 9.1.3
 			return target.sendOwnRouteWithdrawal(ctx, wd, maxMsgSize, facts.addPath, &batch)
 		}
-		err := target.sendBatchUpdatePreFiltered(ctx, wd, nil, maxMsgSize, facts.addPath, &batch)
+		err := target.sendBatchUpdatePreFiltered(ctx, wd, nil, maxMsgSize, facts.addPath, &batch, nil)
 		return err == nil, err
 	case staleModify, staleKeep:
 		if modified != nil {
@@ -2397,6 +2476,11 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 		normalized, fail := a.r.normalizeOrdinaryNextHop(peer, exportFacts, body)
 		a.r.recordModifyFailureAddr(fail, modifySiteExportChain, exportFacts.addr)
 		if fail.failed() {
+			// RFC 4271 Section 9.1.3: the failed surviving body cannot keep
+			// source keys that the accepted policy result already excluded.
+			if err := target.sendStalePolicyRemovals(ctx, removals, maxMsgSize, facts.addPath, &batch); err != nil {
+				return false, errors.Join(errStaleReadvertiseBuildFailed, err)
+			}
 			return false, errStaleReadvertiseBuildFailed
 		}
 		if normalized != nil {
@@ -2404,13 +2488,17 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target
 		}
 		sections, parseErr := wire.ParseUpdateSections(body)
 		if parseErr != nil {
+			// RFC 4271 Section 9.1.3.
+			if err := target.sendStalePolicyRemovals(ctx, removals, maxMsgSize, facts.addPath, &batch); err != nil {
+				return false, errors.Join(parseErr, err)
+			}
 			return false, parseErr
 		}
 		// Reuse the builder's UPDATE object; every section borrows the final
 		// body through the synchronous writer or overflow ownership transfer.
 		*update = message.Update{WithdrawnRoutes: sections.Withdrawn(body),
 			PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)}
-		err := target.sendBatchUpdatePreFiltered(ctx, update, body, maxMsgSize, facts.addPath, &batch)
+		err := target.sendBatchUpdatePreFiltered(ctx, update, body, maxMsgSize, facts.addPath, &batch, removals)
 		return err == nil, err
 	default:
 		panic("BUG: invalid stale readvertise outcome")
@@ -2435,7 +2523,9 @@ const (
 
 // decideStaleReadvertise runs the readvertise filters for one destination peer
 // over the packed announce body and returns the outcome plus, for staleModify,
-// the modified UPDATE body. The filters are the members of the destination's
+// the modified UPDATE body, plus source withdrawals that MUST be admitted
+// before accepted output. An active RIB owner may settle their wire decision
+// later. The filters are the members of the destination's
 // export chain whose filter declares readvertise (runStaleChain): bgp-gr's
 // llgr-egress (RFC 9494) today, which reads the destination's facts and
 // meta["stale"]; chain.judgeAll runs every member. It is the pure decision half of
@@ -2446,15 +2536,15 @@ const (
 // RFC 4271 Section 9.1.3: "If a route in Loc-RIB is excluded from a particular
 // Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST
 // be withdrawn from service by means of an UPDATE message (see 9.2)."
-func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo, chain staleChain, body []byte, stale uint8) (staleOutcome, []byte) {
+func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo, chain staleChain, body []byte, stale uint8) (staleOutcome, []byte, [][]byte) {
 	// RFC 9494 Section 4.3
 	res, ran := a.r.runStaleChain(chain, dest, body, stale)
 	if !ran {
-		return staleKeep, nil
+		return staleKeep, nil, nil
 	}
 	switch {
 	case res.outcome.Action == policychain.OutcomeWithdraw:
-		return staleWithdraw, nil
+		return staleWithdraw, nil, nil
 	case res.outcome.Action != policychain.OutcomeAccept && res.outcome.Failed:
 		// Withheld, and it must be: the fact the member could not read is
 		// the destination's LLGR capability, so RFC 9494 Section 4.3 ("SHOULD
@@ -2462,7 +2552,7 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 		// capability") and Section 4.6's NO_EXPORT + LOCAL_PREF=0
 		// obligations cannot be applied on a guess. staleFilterFailed is no
 		// decision at all, never the filter's staleSuppress.
-		return staleFilterFailed, nil
+		return staleFilterFailed, nil, nil
 	case res.outcome.Action != policychain.OutcomeAccept && chain.judgeAll:
 		// The current policy rejects a route the peer holds, so holding back the
 		// stale readvertisement would leave it there, unmarked, until the purge.
@@ -2473,18 +2563,18 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 		// RFC 9494 Section 4.3: "The LLGR_STALE community MUST NOT be removed when
 		// the route is further advertised."
 		// The route cannot go out and cannot stay as it was, so it is withdrawn.
-		return staleWithdraw, nil
+		return staleWithdraw, nil, nil
 	case res.outcome.Action != policychain.OutcomeAccept:
-		return staleSuppress, nil
+		return staleSuppress, nil, nil
 	case res.failed:
 		// The member decided and its sets could not be applied: NOT
 		// staleSuppress, the filter asked for the Section 4.6 depreference
 		// and what failed is realizing it.
-		return staleBuildFailed, nil
+		return staleBuildFailed, nil, nil
 	case res.modifiedPayload != nil:
-		return staleModify, res.modifiedPayload
+		return staleModify, res.modifiedPayload, res.removals
 	default:
-		return staleKeep, nil
+		return staleKeep, nil, res.removals
 	}
 }
 

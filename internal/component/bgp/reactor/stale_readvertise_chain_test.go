@@ -85,7 +85,7 @@ func TestDecideStaleReadvertiseRunsOptedPluginFilter(t *testing.T) {
 			a := &reactorAPIAdapter{r: r}
 			received := libraryTestBody(100)
 
-			outcome, modified := a.decideStaleReadvertise(dest, staleExportChain(t), received, 1)
+			outcome, modified, _ := a.decideStaleReadvertise(dest, staleExportChain(t), received, 1)
 			if outcome != tc.want {
 				t.Fatalf("outcome = %v, want %v", outcome, tc.want)
 			}

@@ -136,7 +136,7 @@ func (f *fakeFilterTransport) FilterJudgesFinal(_, _ string) (judgesFinal, ok bo
 // exportFilterForBody runs body through the chain and the normalization of the
 // session's export gate, for a test that holds no session: production reaches them
 // through Peer.egressGate, which also stamps the write.
-func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override, follow []byte) {
+func (r *Reactor) exportFilterForBody(peer *Peer, body []byte) (suppress bool, override []byte, follow [][]byte) {
 	facts, pending := peer.exportGateFacts()
 	return r.exportFilterFromFacts(peer, facts, pending, body)
 }

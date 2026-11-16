@@ -34,24 +34,24 @@
   },
   {
     "rid": "RFC8669-3.1-5",
-    "polarity": "positive",
+    "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags",
-    "unit-sha": "623d7669e5db016b",
-    "claim-sha": "e5628584d5c4fd01",
-    "route": "revert",
+    "unit-sha": "8840e726f1d5be0d",
+    "claim-sha": "0b4809dfddce4ef0",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_prefix_sid.go::clearLabelIndexTLVs",
     "producer-sha": "539539cdde15ec30",
-    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 58: \"clear(value[3:6])\" -\u003e \"_ = value[3:6] // MUTATION-APPLIED: preserve Label-Index Reserved and Flags.\""
   },
   {
     "rid": "RFC8669-3.1-5",
-    "polarity": "negative",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags",
-    "unit-sha": "623d7669e5db016b",
-    "claim-sha": "0b4809dfddce4ef0",
-    "route": "revert",
+    "unit-sha": "8840e726f1d5be0d",
+    "claim-sha": "e5628584d5c4fd01",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_prefix_sid.go::clearLabelIndexTLVs",
     "producer-sha": "539539cdde15ec30",
-    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "break": "line 41: \"familyChecked := false\" -\u003e \"familyChecked := false; defer func(first []byte) { if len(first) \u003e= 6 { first[3], first[4] = 1, 1 } }(value) // MUTATION-APPLIED: corrupt clean transmitted fields.\""
   }
 ]

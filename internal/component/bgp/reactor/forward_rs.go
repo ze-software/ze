@@ -62,7 +62,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	if cached {
 		return nil, 0
 	}
-	skipped, dispatched, bySection := reactorForwardRSSection(r, update, update.WireUpdate, nil, updateID, sourcePeerAddr, sourcePeer)
+	var result forwardResult
+	defer func() { result.settle() }()
+	skipped, dispatched, bySection := reactorForwardRSSectionResult(r, update, update.WireUpdate, nil, updateID, sourcePeerAddr, sourcePeer, &result)
 	if len(bySection) == 0 {
 		return skipped, dispatched
 	}
@@ -73,6 +75,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			"id", updateID, "peers", len(bySection), "err", err)
 		return skipped, dispatched
 	}
+	result.trackDelivery = len(sections) > 1
 	// The first section's worker can finish before the remaining sections have
 	// borrowed their buffers. This retain MUST survive the whole split fan-out.
 	r.recentUpdates.retainN(updateID, 1)
@@ -86,12 +89,15 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// section reaches it from this rail as well.
 	reached := 0
 	for _, section := range sections {
-		handedBack, sectionDispatched, _ := reactorForwardRSSection(r, update, section, bySection, updateID, sourcePeerAddr, sourcePeer)
+		handedBack, sectionDispatched, _ := reactorForwardRSSectionResult(r, update, section, bySection, updateID, sourcePeerAddr, sourcePeer, &result)
 		reached = max(reached, sectionDispatched)
 		if len(handedBack) > 0 {
 			skipped = append(skipped, handedBack...)
 			bySection = withoutPeerKeys(bySection, handedBack)
 		}
+	}
+	if result.trackDelivery {
+		return skipped, dispatched + min(reached, result.deliveries())
 	}
 	return skipped, dispatched + reached
 }
@@ -121,6 +127,15 @@ func withoutPeerKeys(peers []*Peer, keys []netip.AddrPort) []*Peer {
 // destinations), with no membership map. The retry MUST recheck current peer
 // identity and live facts before accepting a pointer from the previous pass.
 func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int, []*Peer) {
+	var result forwardResult
+	defer func() { result.settle() }()
+	return reactorForwardRSSectionResult(r, update, wire, only, updateID, sourcePeerAddr, sourcePeer, &result)
+}
+
+// reactorForwardRSSectionResult shares terminal failures with the whole fan-out,
+// so section retries cannot write a session an earlier section must retire.
+// The caller MUST settle result after its last section and with no dispatch lock.
+func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wireu.WireUpdate, only []*Peer, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer, result *forwardResult) ([]netip.AddrPort, int, []*Peer) {
 	// Get source session for deferred flush tracking.
 	// Stable because we're on this session's read goroutine; RLock for formal correctness.
 	var srcSession *Session
@@ -272,6 +287,7 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// hand the destination back (recordRSCommunityEdits).
 		edits    rsCommunityEdits
 		withdraw bool
+		cleanup  bool // Accepted removals alone do not claim survivor delivery.
 	}
 	var pendingBuf [16]pendingFwd
 	pending := pendingBuf[:0]
@@ -386,6 +402,9 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 	var bySection []*Peer
 	for _, peer := range matchingPeers {
 		session := peer.currentSession()
+		if result.failed(session) {
+			continue
+		}
 		nextHopWithheld := false
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -469,11 +488,13 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		// treatments is what the destination's export chain set
 		// (egressStepResult.treatments); a chain that did not run sets none.
 		var treatments uint8
+		var policyRemovals [][]byte
 		if facts.exportChainActive && !mods.IsWithdraw() {
 			res := r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
 				policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown).WithExportMetadata(update.Meta), wire)
 			if res.accept {
 				treatments = res.treatments
+				policyRemovals = res.removals
 				if res.wireOverride != nil {
 					// A policy replaces bytes, never the ingress path identity.
 					res.wireOverride.SetSourceID(wire.SourceID())
@@ -501,6 +522,28 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				if _, isEOR := wire.IsEOR(); !isEOR {
 					mods.SetWithdraw()
 				}
+			}
+		}
+
+		// RFC 4271 Section 9.1.3: survivor construction cannot revoke an
+		// accepted source retirement. One pending slot owns this withdrawal-only
+		// group until successful materialization replaces it with the survivor.
+		retirementIndex := -1
+		if len(policyRemovals) != 0 {
+			retirement := fwdItem{peer: peer, session: session, authority: adjOutForwarded,
+				meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID,
+				receivedPeer: update.receivedPeer, receivedGeneration: update.receivedGeneration,
+				sourcePolicyEpoch: update.SourcePolicyEpoch, exportGeneration: facts.exportGeneration}
+			if err := prepareFwdPolicyRemovals(&retirement, update, update.WireUpdate, policyRemovals, facts); err != nil {
+				reportAtomicAggregateRetirementFailure(facts.addrStr, err)
+				result.fail(session, err)
+				r.fwdPool.releaseItem(&retirement)
+				continue
+			}
+			policyRemovals = nil
+			if len(retirement.policyRemovals) != 0 {
+				retirementIndex = len(pending)
+				pending = append(pending, pendingFwd{item: retirement, key: fwdKey{peerAddr: facts.peerKey}, withdraw: true, cleanup: true})
 			}
 		}
 
@@ -638,6 +681,12 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 				// invokes no policy again (forwardUpdateCore), so a destination
 				// whose chain ran is handed to it, as the plugin rail.
 				if facts.exportChainActive {
+					// The cached rail owns the entire decision after handback;
+					// this rail must not also publish its staged retirements.
+					if retirementIndex >= 0 {
+						r.fwdPool.releaseItem(&pending[retirementIndex].item)
+						pending = pending[:retirementIndex]
+					}
 					skipped = append(skipped, facts.peerKey)
 					continue
 				}
@@ -771,8 +820,8 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 		}
 	dispatch:
 		// RFC 7911 Section 2: preserve ingress identity before final admission.
-		if err := prepareFwdProvenance(&item, update.WireUpdate, peerWire,
-			mods.IsWithdraw() || wire != update.WireUpdate || base.wire != wire); err != nil {
+		if err := prepareFwdPolicy(&item, update, update.WireUpdate, peerWire,
+			mods.IsWithdraw() || wire != update.WireUpdate || base.wire != wire, policyRemovals, facts); err != nil {
 			fwdLogger().Warn("forward provenance failed", "peer", facts.addr, "err", err)
 			dedup.abandon(candidate)
 			r.fwdPool.releaseItem(&item)
@@ -784,12 +833,19 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			dedup.commit(candidate, materialization)
 		}
 
-		pending = append(pending, pendingFwd{
+		staged := pendingFwd{
 			item:     item,
 			key:      fwdKey{peerAddr: facts.peerKey},
 			edits:    rsEdits,
 			withdraw: mods.IsWithdraw(),
-		})
+		}
+		if retirementIndex >= 0 {
+			staged.item.policyRemovals = pending[retirementIndex].item.policyRemovals
+			staged.item.supersedeKey = 0
+			pending[retirementIndex] = staged
+		} else {
+			pending = append(pending, staged)
+		}
 	}
 
 	// Batch retain + dispatch.
@@ -841,7 +897,10 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			// destination's initial update, so the hold reads it as live.
 			if dst != nil && (dst.forwardOrderHold(false) || dst.forwardOverflowPending()) {
 				if r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item) {
-					delivered++
+					if !pending[i].cleanup {
+						delivered++
+						result.sentTo(pending[i].item.session)
+					}
 					r.fwdPool.recordOverflowed(sourcePeerAddr)
 				} else {
 					fwdLogger().Warn("rs fast path: no rail accepted the deferred item",
@@ -863,10 +922,11 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 			case handled:
 				pending[i].item.done()
 				r.fwdPool.releaseItem(&pending[i].item)
-				if written {
+				if written && !pending[i].cleanup {
 					delivered++
+					result.sentTo(dstSession)
 					r.fwdPool.recordForwarded(sourcePeerAddr)
-				} else {
+				} else if !written {
 					// Consumed but NOT delivered: the peer left Established, or a
 					// write failed partway. Name it -- this is the peer's route
 					// silently going missing, and the caller must not report the
@@ -878,10 +938,16 @@ func reactorForwardRSSection(r *Reactor, update *ReceivedUpdate, wire *wireu.Wir
 					srcSession.appendFwdDirty(pending[i].item.peer, dstSession)
 				}
 			case r.fwdPool.TryDispatch(pending[i].key, &pending[i].item):
-				delivered++
+				if !pending[i].cleanup {
+					delivered++
+					result.sentTo(pending[i].item.session)
+				}
 				r.fwdPool.recordForwarded(sourcePeerAddr)
 			case r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item):
-				delivered++
+				if !pending[i].cleanup {
+					delivered++
+					result.sentTo(pending[i].item.session)
+				}
 				r.fwdPool.recordOverflowed(sourcePeerAddr)
 			default:
 				// Neither rail took it. Without this arm the item vanished with no

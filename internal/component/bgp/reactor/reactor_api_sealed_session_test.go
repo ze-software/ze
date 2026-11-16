@@ -84,7 +84,7 @@ func TestAnnounceSealedDuringPolicySplitReturnsPartialFailure(t *testing.T) {
 					}
 					encoded := make([]byte, replacement.Len(nil))
 					require.Equal(t, len(encoded), replacement.WriteTo(encoded, 0, nil))
-					session.egressRouteFilter = func([]byte) (bool, []byte, []byte) {
+					session.egressRouteFilter = func([]byte) (bool, []byte, [][]byte) {
 						return false, encoded[message.HeaderLen:], nil
 					}
 					session.onWrite = session.seal

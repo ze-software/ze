@@ -36,6 +36,9 @@ func validationForwardFixture(t *testing.T, addPath bool) (*reactorAPIAdapter, *
 	src := makeRSPeer(t, "10.0.0.1", 65001, ctx, ctxID)
 	src.recvCtxID = ctxID
 	dst := makeRSPeer(t, "10.0.0.2", 65002, ctx, ctxID)
+	// The capture pool still needs the destination Session identity carried by
+	// dispatch receipts across validation partitions.
+	dst.testInitialSync().setSendCtxID(ctxID)
 	dst.settings.RSClient = true
 	dst.refreshForwardFacts()
 	capture := &validationCapture{}

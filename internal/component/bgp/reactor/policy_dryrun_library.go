@@ -87,7 +87,25 @@ func (r *Reactor) traceLibraryChain(library filterapi.LibraryChain, dry *library
 	if err != nil {
 		return PolicyChainResult{Action: PolicyReject, Failed: true}, nil, trace, nil
 	}
-	return PolicyChainResult{Action: PolicyAccept, Text: after.text()}, &after, trace, res.wireChanges
+	if len(res.removals) == 0 {
+		return PolicyChainResult{Action: PolicyAccept, Text: after.text()}, &after, trace, res.wireChanges
+	}
+	var text []byte
+	var removedNLRI []byte
+	for _, body := range res.removals {
+		removed, displayErr := displayUpdate(wireu.NewWireUpdate(body, dry.ctxID))
+		if displayErr != nil {
+			return PolicyChainResult{Action: PolicyReject, Failed: true}, nil, trace, nil
+		}
+		if len(text) != 0 {
+			text = append(text, '\n')
+		}
+		text = removed.appendText(text)
+		removedNLRI = append(append(removedNLRI, ' '), removed.nlri...)
+	}
+	text = after.appendText(append(text, '\n'))
+	after.nlri = append(removedNLRI, after.nlri...)
+	return PolicyChainResult{Action: PolicyAccept, Text: string(text)}, &after, trace, res.wireChanges
 }
 
 // dryRunWithdrawal shows a member's withdraw verdict as the live import and

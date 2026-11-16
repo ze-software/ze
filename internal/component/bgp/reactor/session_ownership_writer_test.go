@@ -391,7 +391,7 @@ func TestFinalWriterInitialLocalReplay(t *testing.T) {
 				peer.testInitialSync().initialSyncEOROwed.Store(false)
 			case "expired-policy":
 				peer.testInitialSync().initialSyncEOROwed.Store(false)
-				peer.session.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return true, nil, nil }
+				peer.session.egressRouteFilter = func([]byte) (bool, []byte, [][]byte) { return true, nil, nil }
 			case "old-session":
 				batch.InitialReplay = old.initialReplay.Load()
 			case "missing-origin":

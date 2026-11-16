@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // largeCommunityValue is the 12-octet value 65000:n:n.
@@ -152,8 +153,9 @@ func TestRFC8092PolicyAddOfPresentValueSentOnce(t *testing.T) {
 	received := largeCommunityBody(bytes.Join([][]byte{x, z}, nil))
 	policy := largeCommunityBody(bytes.Join([][]byte{x, z, x, y, y}, nil))
 	peer, conn := newAnnouncePeer(t, "192.0.2.2")
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	s := peer.session
-	s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, policy, nil }
+	s.egressRouteFilter = func([]byte) (bool, []byte, [][]byte) { return false, policy, nil }
 	sections, err := wire.ParseUpdateSections(received)
 	require.NoError(t, err)
 	require.NoError(t, s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(received), NLRI: sections.NLRI(received)}))

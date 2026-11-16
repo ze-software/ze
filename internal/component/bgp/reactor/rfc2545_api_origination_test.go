@@ -148,6 +148,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 				peer.setTestInitialSync(0, false)
 			}
 			caps := peerOffering(families...)
+			caps = append(caps, &capability.ASN4{ASN: peer.settings.LocalAS})
 			if tc.cap77 {
 				caps = append(caps, &capability.LinkLocalNextHop{})
 			}
@@ -202,7 +203,7 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 						return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: body}
 					},
 				}
-				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
+				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, [][]byte) {
 					ipv6Policy = payloadNextHop(body).mp == batch.NextHop.Addr
 					return r.exportFilterForBody(peer, body)
 				}
@@ -381,6 +382,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 			peer.negotiated.Store(initial.negotiated.Load())
 			peer.session = initial.session
 			peer.setTestInitialSync(0, false)
+			negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)
 			peer.session.SetMessageCallback(peer.messageCallback)
 			peer.refreshLinkScopeFrom(nil)
 			api := &reactorAPIAdapter{r: r}
@@ -423,7 +425,7 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 					return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 				},
 			}
-			peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
+			peer.session.egressRouteFilter = func(body []byte) (bool, []byte, [][]byte) {
 				ipv6Policy = payloadNextHop(body).mpFamily == family.IPv6Unicast
 				return r.exportFilterForBody(peer, body)
 			}

@@ -183,6 +183,7 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 		last := run(judged)
 		if last.modifiedPayload == nil && last.outcome.Action == policychain.OutcomeAccept && !last.failed {
 			last.modifiedPayload = res.modifiedPayload
+			last.removals = res.removals
 		}
 		res = last
 	}

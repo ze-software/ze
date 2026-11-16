@@ -552,6 +552,14 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 // trade against sending wrong bytes, and no route is dropped either way. The
 // handle stays with the item, so releaseItem returns it exactly once as before.
 func ownOverflowBodies(item *fwdItem) {
+	// The constructor bounds groups to two non-nesting children. Each child's
+	// manifest and private encoded bytes remain its own, under the parent hold.
+	for i := range item.policyRemovals {
+		removal := &item.policyRemovals[i]
+		child := policyRemovalItem(item, removal)
+		ownOverflowBodies(&child)
+		removal.rawBodies, removal.updates = child.rawBodies, child.updates
+	}
 	total := 0
 	for _, b := range item.rawBodies {
 		total += len(b)

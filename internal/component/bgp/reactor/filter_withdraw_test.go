@@ -165,7 +165,10 @@ func TestWithdrawVerdictTwoFamilies(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
 		peer := NewPeer(&PeerSettings{Address: addr, LocalAS: 65000, PeerAS: 65001, ExportPolicy: policy})
 		suppress, override, follow := r.exportFilterForBody(peer, body)
-		if suppress || !bytes.Equal(override, want[0]) || !bytes.Equal(follow, want[1]) {
+		if len(follow) != 1 {
+			t.Fatalf("originated export follow bodies=%d, want exactly one", len(follow))
+		}
+		if suppress || !bytes.Equal(override, want[0]) || !bytes.Equal(follow[0], want[1]) {
 			t.Fatalf("originated export = suppress %v override %x follow %x, want the withdrawals %x", suppress, override, follow, want)
 		}
 	})

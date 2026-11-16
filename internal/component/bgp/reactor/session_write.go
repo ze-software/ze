@@ -524,20 +524,20 @@ func (s *Session) writeUpdateGated(update *message.Update, gate bool) error {
 	if gate && s.egressRouteFilter != nil && !update.IsEndOfRIBAnyFamily() {
 		defer func() { s.gateGeneration = 0 }() // the gate stamped it for this write alone
 		suppress, override, follow := s.egressRouteFilter(body)
-		if suppress {
-			// No BGP message was sent, so this attempt earns no SendHold restart.
-			return nil
-		}
-		if follow != nil {
-			// The other family's withdrawal of a withdraw verdict, its own
-			// UPDATE (Peer.egressGate), shaped as an override is.
-			if err := s.writeOrdinaryUpdateBody(follow, false, true); err != nil {
-				return err
-			}
-		}
 		if override != nil {
 			body = override
 			overridden = true
+		}
+		if len(follow) > 0 {
+			// RFC 4271 Section 9.1.3: accepted source retirements survive
+			// suppression or a later refusal of the retained main body.
+			if err := s.writeOriginPolicyRemovals(follow); err != nil {
+				return err
+			}
+		}
+		if suppress {
+			// Only actual preceding withdrawals earn a SendHold restart.
+			return nil
 		}
 	}
 
@@ -1396,17 +1396,18 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, linkLocalNextHop netip.
 	if s.egressRouteFilter != nil {
 		defer func() { s.gateGeneration = 0 }() // the gate stamped it for this write alone
 		suppress, override, follow := s.egressRouteFilter(body)
-		if suppress {
-			return nil
+		if override != nil {
+			body = override
 		}
-		if follow != nil {
-			// As writeUpdateGated: a withdraw verdict's second family.
-			if err := s.writeOrdinaryUpdateBody(follow, false, true); err != nil {
+		if len(follow) > 0 {
+			// RFC 4271 Section 9.1.3: the direct origin writer shares the
+			// same source-retirement and final-framing contract.
+			if err := s.writeOriginPolicyRemovals(follow); err != nil {
 				return err
 			}
 		}
-		if override != nil {
-			body = override
+		if suppress {
+			return nil
 		}
 	}
 

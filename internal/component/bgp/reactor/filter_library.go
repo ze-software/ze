@@ -71,6 +71,9 @@ type libraryResult struct {
 	failed bool
 	// modifiedPayload is the rewritten body, nil when the sets change nothing.
 	modifiedPayload []byte
+	// removals owns source-key withdrawals omitted by an accepted marked subset.
+	// Callers MUST apply them before the effective output, without running policy again.
+	removals [][]byte
 	// treatments is the mask of the forwarding treatments the accepting
 	// run's members set (policychain.Sets.Treatments), zero otherwise.
 	treatments uint8
@@ -94,6 +97,47 @@ type libraryResult struct {
 // chain nor this function counts or logs a failure, because no route is
 // refused. A live run passes nil.
 func (r *Reactor) runLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
+	res := r.evaluateLibraryChain(library, wireUpdate, payload, session, intent, direction, site, peer, record)
+	if res.outcome.Action != policychain.OutcomeAccept {
+		return res
+	}
+	if res.failed {
+		return res
+	}
+	if res.modifiedPayload == nil {
+		return res
+	}
+	input := payload
+	if intent.chainInput != nil {
+		input = intent.chainInput
+	}
+	// RFC 4271 Section 5.1.6. The original chain input decides the condition,
+	// including on final-judge and stale passes over already rewritten bytes.
+	allowed, err := atomicAggregatePolicyAllowed(input, res.modifiedPayload, wireUpdate.SourceCtxID())
+	if err == nil {
+		if allowed {
+			// RFC 4271 Section 9.1.3: excluding a source route must retire its
+			// prior advertisement while preserving the accepted subset.
+			res.removals, err = atomicAggregatePolicyRemovals(input, res.modifiedPayload, wireUpdate.SourceCtxID())
+			if err == nil {
+				return res
+			}
+		}
+	}
+	if record == nil {
+		reportAtomicAggregatePolicyRefusal(peer, direction, err)
+	}
+	// Import's ordinary reject may retain an older route under final accept.
+	// Withdraw explicitly, using the original source identities on both rails.
+	outcome := res.outcome
+	outcome.Action = policychain.OutcomeWithdraw
+	return libraryResult{outcome: outcome}
+}
+
+// evaluateLibraryChain materializes one run's raw or folded typed answer.
+// The caller MUST pass its accepting result through marked-route admission
+// before publishing or forwarding it; runLibraryChain owns that boundary.
+func (r *Reactor) evaluateLibraryChain(library filterapi.LibraryChain, wireUpdate *wireu.WireUpdate, payload []byte, session policyview.Session, intent libraryIntentContext, direction, site, peer string, record func(policychain.MemberTrace)) libraryResult {
 	chain, ok := library.(*policychain.Chain)
 	if !ok {
 		panic("BUG: reactor: a policy's library chain is not a *policychain.Chain")
@@ -196,6 +240,7 @@ func (r *Reactor) runFinalJudges(library filterapi.LibraryChain, res libraryResu
 	last := r.runLibraryChain(library, &update, res.modifiedPayload, session, intent, directionExport, site, peer, record)
 	if last.outcome.Action == policychain.OutcomeAccept && !last.failed && last.modifiedPayload == nil {
 		last.modifiedPayload = res.modifiedPayload
+		last.removals = res.removals
 	}
 	last.treatments |= res.treatments
 	last.wireChanges = append(res.wireChanges, last.wireChanges...)

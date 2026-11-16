@@ -31,31 +31,38 @@ func payloadAIGP(body []byte) []byte {
 // SplitWireUpdate owns its output bytes and preserves source identity. A mixed
 // UPDATE without AIGP is split only for the destinations a withhold gate
 // refuses (forwardUpdateSection, withdrawalBySection).
-func (a *reactorAPIAdapter) forwardUpdateSelected(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo, sourceWire *wireu.WireUpdate) error {
+func (a *reactorAPIAdapter) forwardUpdateSelected(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo, sourceWire *wireu.WireUpdate, fatal map[*Session]error) forwardResult {
 	if !sourceWire.MixesNLRIFields() || len(payloadAIGP(sourceWire.Payload())) == 0 {
-		return a.forwardUpdateSection(update, updateID, matchingPeers, srcInfo, sourceWire)
+		return a.forwardUpdateSection(update, updateID, matchingPeers, srcInfo, sourceWire, fatal)
 	}
+	srcInfo.trackDelivery = true
+	result := forwardResult{fatal: fatal, trackDelivery: true}
 	// The first section's worker can finish before the remaining sections have
 	// borrowed their buffers. This retain MUST survive the whole split fan-out.
 	a.r.recentUpdates.retainN(updateID, 1)
 	defer a.r.recentUpdates.Release(updateID)
 	sections, err := wireu.SplitWireUpdate(sourceWire, len(sourceWire.Payload()), bgpctx.Registry.Get(sourceWire.SourceCtxID()))
 	if err != nil {
-		return err
+		result.err = err
+		return result
 	}
-	delivered := false
 	for _, section := range sections {
-		err = a.forwardUpdateSection(update, updateID, matchingPeers, srcInfo, section)
-		if err == nil {
-			delivered = true
-		} else if !errors.Is(err, errAllDestinationsSuppressed) {
-			return err
+		part := a.forwardUpdateSection(update, updateID, matchingPeers, srcInfo, section, result.fatal)
+		result.merge(part)
+		if part.err != nil {
+			if !errors.Is(part.err, errAllDestinationsSuppressed) {
+				result.err = part.err
+				return result
+			}
 		}
 	}
-	if delivered {
-		return nil
+	if result.delivered() {
+		return result
 	}
-	return errAllDestinationsSuppressed
+	if len(result.fatal) == 0 {
+		result.err = errAllDestinationsSuppressed
+	}
+	return result
 }
 
 // aigpNextHop ignores attributes that govern no announced route. The caller

@@ -1612,6 +1612,54 @@ hardcoded code block. The egress pass in `forwardUpdateCore` holds the export
 policy chain alone: the engine owns no egress step, and every egress procedure
 is a member of that chain.
 
+The shared `runLibraryChain` result boundary also restricts modifications of
+an original input carrying valid ATOMIC_AGGREGATE. Accepting raw and typed
+answers can retain a native-key subset, reorder it or change attributes.
+Announcements must retain the marker and cannot introduce new keys. Pure
+withdrawal/EOR output remains valid. This deliberately disables even
+less-specific/disjoint raw rewriting of marked input, a product restriction
+stronger than RFC 4271 Section 5.1.6. A refusal is a source withdrawal, on
+import before publication as well as on export.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+
+Final judges and stale passes retain the original chain input through
+`intent.chainInput`. An originally unmarked input keeps its existing rewrite
+behavior. The admitted bytes retain
+the marker through cache/store/replay without a new provenance envelope.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
+
+Accepted marked subsets also carry owned withdrawals for original source keys
+absent from the final effective output, including omitted original withdrawn
+siblings. Final announcements and withdrawals cover their native identities.
+Each later rewrite recomputes the difference against the original input. An
+unchanged final pass retains the preceding output and removals. The two possible
+source MP families remain separate withdrawal bodies.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+
+Forwarding groups removals and retained output under one queue item, source
+hold and write fence. Source-removal admission comes first, and children add
+no separate destination count. Where an active RIB owner receives the source,
+a non-ADD-PATH withdrawal can instead owe an asynchronous route decision.
+Kept output or EOR can pass before that decision withdraws the key or installs
+an export-permitted replacement. Paths that write withdrawals immediately
+retain their wire order.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
+Import continuations retain the original epoch and metadata and allocate
+monotonic message IDs. These continuations do not count as more physical receives.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver, notifyOneMessage -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- buildOrderedIngressSteps, buildOrderedEgressSteps -->
 
 Three categories of filters:

@@ -68,10 +68,15 @@ would satisfy the letter of Section 5.1.4 and delete the feature.
 
 ## How provenance is established
 
-Both forward rails relay an UPDATE another speaker sent, so every byte of the
-source payload came off that speaker's wire: a MULTI_EXIT_DISC in it is a
-received value by construction. A metric ze originates reaches a peer by two
-other routes, and both are visible at the egress transform:
+Both forward rails relay an UPDATE another speaker sent, after import policy
+has had a chance to rewrite it. Their source payload is that post-import
+admitted body, not necessarily the exact received bytes. A MULTI_EXIT_DISC in
+it is the received forwarding baseline for this egress comparison.
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyOneMessage -->
+<!-- source: internal/component/bgp/reactor/forward_med.go -- applyFactsMED -->
+
+A metric ze originates reaches a peer by two other routes, and both are visible
+at the egress transform:
 
 - the announce rails (`writeAnnounceUpdate`, `buildRIBRouteUpdate`), which
   encode a route ze produced and never call the forward transform at all.
@@ -83,6 +88,121 @@ other routes, and both are visible at the egress transform:
 A policy that rewrites the metric to the value it already held is
 indistinguishable on the wire from the propagation Section 5.1.4 forbids, and
 the MUST NOT decides that tie.
+
+## ATOMIC_AGGREGATE policy admission
+
+RFC 4271 Section 5.1.6 binds the marked received route even if a filter removes
+its output marker. Ze therefore restricts modifications of marked message-policy
+inputs on both import and export. If output still announces routes, it must
+retain a valid ATOMIC_AGGREGATE and announce only an exact native-key subset
+of its original chain input. Attribute changes, reordering and route removal
+remain supported. Pure withdrawal and EOR output need no marker.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+
+The RFC assigns SHOULD NOT to marker removal and MUST NOT to making NLRI more
+specific. This release boundary is stronger than those requirements. New marked native
+keys are unavailable even when a raw rewrite is less specific or disjoint.
+That optional facility would require an explicit relationship between raw
+output routes and their received sources. A raw UPDATE supplies none.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+<!-- source: rfc/full/rfc4271.txt -- Section 5.1.6 -->
+
+The restriction preserves the received condition in existing cache/store/replay
+bytes, so no extra source envelope or parallel route store is needed. An
+originally unmarked chain input retains its rewrite behavior, including when
+the result adds ATOMIC_AGGREGATE.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+<!-- source: rfc/full/rfc4271.txt -- Section 5.1.6 -->
+
+`runLibraryChain` checks every accepting modified result, raw and typed alike.
+Final-judge and stale passes use `intent.chainInput` as the original input.
+The helper uses registered native framing and keys, with per-family ADD-PATH
+identity. It does not treat labels or native length fields as CIDR bits. Later
+encoding and splitting preserve the admitted destinations or withdraw them.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+<!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdReencodeNLRIs -->
+
+A refusal becomes `OutcomeWithdraw` for the original source routes. It does
+not withdraw the rejected output's new prefixes. Import publishes source
+removals before the effective replacement. Both forwarding rails use existing
+recipient ownership admission to preserve foreign owners and omit withdrawals
+for paths the recipient never held.
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChainMeta, runEgressPolicyChainASN4, ingressChainWithdrawal -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow -->
+
+The refusal is a
+bounded historical event under `doctor-bgp-atomic-aggregate-policy`, visible in
+`ze show doctor` and `ze show errors`. Edit the offending filter so it keeps
+the marker and only original destinations. Commit the correction with
+the configuration editor (`ze config edit`). A repaired route leaves no active
+warning. The bounded event history records what happened.
+<!-- source: internal/component/bgp/reactor/filter_atomic_diagnostic.go -- reportAtomicAggregatePolicyRefusal -->
+
+An accepted marked subset must also retire source keys the final output leaves
+out. The difference includes original explicit withdrawals omitted by a raw
+answer, and excludes keys the final answer announces or withdraws. It is
+computed against the original chain input after each effective rewrite. A
+final pass that changes nothing retains the preceding result and its removals.
+The owned removal result can contain two bodies when the source's MP_REACH
+and MP_UNREACH name different families. Each body uses the registered native
+withdrawal writer and original received Path Identifier.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
+
+Forwarding keeps those removal bodies under the same queued item and write
+fence as the retained output, with separate source ownership manifests. The
+children add no destination count. Source-removal admission precedes
+announcements or EOR. Immediate withdrawals retain that wire order.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, releaseItem -->
+<!-- source: internal/component/bgp/reactor/forward_rs_direct.go -- tryDirectWriteNoFlush -->
+
+If a RIB recovery owner receives the source, a non-ADD-PATH destination can
+instead owe a later route decision. That decision withdraws the key or installs
+an export-permitted replacement. Kept output and unrelated prefixes do not wait
+for that decision.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, releaseItem -->
+<!-- source: internal/component/bgp/reactor/forward_rs_direct.go -- tryDirectWriteNoFlush -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
+Import publishes owned, already-judged continuations in that order with monotonic
+message IDs and the original admission epoch and metadata. Only the effective
+replacement takes the original receive buffer, once. Derived bodies are not
+physical receipts and do not increment the peer's receive or EOR counters.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, releaseItem -->
+<!-- source: internal/component/bgp/reactor/forward_rs_direct.go -- tryDirectWriteNoFlush -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver, notifyOneMessage -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
+Accepted received-source retirements are staged before survivor construction.
+If later AS-path resolution, attribute rebuilding or destination-size encoding
+fails, the same pending item submits only the owed source removals.
+Those removals pass through the same ownership and recovery admission. The failed
+survivor remains a forwarding failure and adds no successful destination count.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+
+Before materialization, removal sections are projected onto actual negotiated
+families, preserving eligible legacy bytes beside an omitted MP sibling.
+An unsupported indivisible native key
+cannot suppress a useful supported route, and an empty projection emits no
+generic End-of-RIB. Final source and exact-receipt admission still applies.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, projectFwdPolicyRemoval -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
 
 ## The cost constraint both rules obey
 

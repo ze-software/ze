@@ -49,7 +49,7 @@ func staleEditToward(t *testing.T, settings *PeerSettings, internal, judgeAll bo
 		r.filterTransportSeam = &staleOptedTransport{answerTransport: transport}
 	}
 
-	outcome, modified := (&reactorAPIAdapter{r: r}).decideStaleReadvertise(dest, chain, body, 1)
+	outcome, modified, _ := (&reactorAPIAdapter{r: r}).decideStaleReadvertise(dest, chain, body, 1)
 	if modified != nil {
 		return outcome, modified, len(transport.sent)
 	}

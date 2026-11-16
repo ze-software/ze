@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if
@@ -33,9 +34,11 @@ var overrideShapeIPv4NLRI = []byte{24, 10, 0, 0}
 func overrideShapeSend(t *testing.T, override []byte) [][]byte {
 	t.Helper()
 	peer, conn := newAnnouncePeer(t, "192.0.2.2")
+	// Both the originated route and the raw overrides encode a four-octet AS_PATH.
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast, family.IPv6Unicast)
 	s := peer.session
 	source := append([]byte(nil), override...)
-	s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, override, nil }
+	s.egressRouteFilter = func([]byte) (bool, []byte, [][]byte) { return false, override, nil }
 	require.NoError(t, s.SendUpdate(&message.Update{
 		PathAttributes: forwardBodyBaseAttrs(t, 65000),
 		NLRI:           overrideShapeIPv4NLRI,

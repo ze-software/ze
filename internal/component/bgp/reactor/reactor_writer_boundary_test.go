@@ -62,7 +62,7 @@ func writerBoundaryPeer(t *testing.T, r *Reactor) (*Peer, *recordingConn) {
 	peer.session.adjOut = &peer.adjOut
 	peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.1")
 	peer.reactor = r
-	peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
+	peer.session.egressRouteFilter = func(body []byte) (bool, []byte, [][]byte) {
 		return r.exportFilterForBody(peer, body)
 	}
 	return peer, conn
@@ -207,7 +207,7 @@ func TestStaleWriterDoesNotReenterExport(t *testing.T) {
 					if err := target.sendBatchUpdate(t.Context(), initial, 4096, false, batch); err != nil {
 						t.Fatal(err)
 					}
-					peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) { return r.exportFilterForBody(peer, body) }
+					peer.session.egressRouteFilter = func(body []byte) (bool, []byte, [][]byte) { return r.exportFilterForBody(peer, body) }
 				}
 				before := len(conn.written())
 				sent, err := a.sendStaleReadvertise(t.Context(), target, batch, netip.MustParseAddr("10.0.0.1"), false, peer.negotiated.Load())

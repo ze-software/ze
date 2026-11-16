@@ -67,6 +67,9 @@ type ingressStepResult struct {
 	// caller MUST deliver it as its own already-judged received UPDATE,
 	// without running ingress policy again, or the routes it withdraws stay.
 	followWithdrawal []byte
+	// removals owns the source withdrawals omitted by an accepting marked subset.
+	// The notification path MUST publish them before the effective replacement.
+	removals [][]byte
 }
 
 // orderedEgressStep is one entry of the egress pass forwardUpdateCore runs per
@@ -85,6 +88,9 @@ type orderedEgressStep struct {
 type egressStepResult struct {
 	accept       bool
 	wireOverride *wireu.WireUpdate
+	// removals owns source withdrawals admitted before an accepted subset.
+	// An active RIB owner may settle their wire withdrawal or replacement later.
+	removals [][]byte
 	// failed distinguishes "this step could not run" from "this step decided to
 	// drop the route". Both suppress (fail-closed), but only the latter is a
 	// policy outcome. A caller that reports how a forward ended -- the
@@ -180,7 +186,7 @@ func (r *Reactor) runIngressPolicyChainMeta(peer *Peer, peerAddr netip.Addr, src
 		if res.failed {
 			return ingressStepResult{} // a guard miss: drop the route
 		}
-		return ingressStepResult{accept: true, modifiedPayload: res.modifiedPayload}
+		return ingressStepResult{accept: true, modifiedPayload: res.modifiedPayload, removals: res.removals}
 	}
 	if !hasActiveFilter(policy, directionImport) {
 		// RFC 8212 Section 3.
@@ -282,7 +288,7 @@ func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAd
 		}
 		if res.modifiedPayload != nil {
 			return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(res.modifiedPayload, wireUpdate.SourceCtxID()),
-				treatments: res.treatments}
+				treatments: res.treatments, removals: res.removals}
 		}
 		return egressStepResult{accept: true, treatments: res.treatments}
 	}

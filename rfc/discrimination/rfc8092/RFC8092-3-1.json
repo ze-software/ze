@@ -3,7 +3,7 @@
     "rid": "RFC8092-3-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce",
-    "unit-sha": "5f2ee1e58fc6bc39",
+    "unit-sha": "99f6ca7ec11c0446",
     "claim-sha": "7d07e20cba99e9a2",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_egress_normalize.go::compactLargeCommunities",

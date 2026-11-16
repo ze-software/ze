@@ -117,6 +117,20 @@ neither rail relays that source.
 <!-- source: internal/component/plugin/registry/registry.go -- RelaysOnRSFastPath -->
 <!-- test: internal/component/bgp/reactor/forward_rs_permission_test.go TestReactorForwardRSHonorsRelaySendPermission, TestReactorForwardRSRetryRechecksRelaySend, TestRSFastPathGateHonorsSourceRelayReceive -->
 
+Both the cached and native forwarding paths prepare accepted source-removal
+groups. If preparation fails, this release closes the captured destination
+session with Cease/Out of Resources. The caller releases any forwarding and
+validation locks before it closes the captured session. Closure cannot affect
+a replacement session. This conservative choice includes keys that later
+ownership checks can exclude.
+
+Other destinations retain their useful output. A failed captured session
+contributes no final delivery success across partitions.
+<!-- source: internal/component/bgp/reactor/forward_result.go -- settle, outcome, deliveries -->
+<!-- source: internal/component/bgp/reactor/forward_validation.go -- forwardUpdateCore, forwardUpdateValidated -->
+<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- replayAIGP -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
+
 A destination whose export chain is active stays on the fast path, which runs
 the chain itself, through
 `runEgressPolicyChain`, the implementation the general rail runs. Who placed a
@@ -949,6 +963,97 @@ cached update's lifetime.
 <!-- source: internal/component/bgp/reactor/session_connection.go -- connectedLocalAddress -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
 <!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
+
+## Marked policy subsets retain source withdrawals
+
+An accepted ATOMIC_AGGREGATE policy subset can remove received keys and keep
+other keys useful. The engine computes the original keys absent from
+the final output, including original explicit withdrawals the raw answer
+omitted. It encodes at most two withdrawal bodies, preserving their source
+framing, for admission before the surviving output or EOR. Final judges recompute this
+difference against the original input when they change the output.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+
+The forwarding queue carries these sections under one destination item. Its
+children contain encoded bytes and their individual provenance, with no queue,
+cache-completion or recovery ownership of their own. The parent owns the queue
+slot, cache retain, completion and write fence. Children add no destination
+count, and the parent's release returns every child manifest.
+Removal writes cannot create AIGP cost-withholding candidates. A group is
+excluded from route superseding and NLRI bucketing because equal surviving
+bytes can owe different source removals.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdItem, releaseItem, fwdBatchHandler -->
+<!-- source: internal/component/bgp/reactor/forward_bucket.go -- fwdBucketMerge, recoveryPackShape -->
+
+Admission order is not a global wire-completion barrier. For a non-ADD-PATH
+destination whose RIB recovery owner receives the source, an admitted source
+removal owes an asynchronous election. The kept sibling, an unrelated prefix
+or EOR can reach the socket while that key remains owed. The election later
+withdraws it or installs an export-permitted replacement. When no recovery
+decision is owed, the writer emits the admitted withdrawal before the kept
+output as before. Both paths preserve source and exact-receipt ownership.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow, owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
+Both received forwarding rails stage the accepted retirement before they resolve
+or encode the surviving output. The first successful output takes that
+same pending slot and its children. If survivor construction fails, the slot
+contains only real source withdrawals and retains the normal source, session
+and replay fences. It adds no End-of-RIB, queue, completion or cache retain.
+Cleanup alone does not count as successful forwarding of the failed survivor.
+A native-rail handback relinquishes the staged group to the cached rail.
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+
+Recovery does not publish a partially built decision after a hard construction
+error. It releases the staged group and returns the error to its worker, which
+retires the affected destination session with Cease / Out of Resources.
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- admitRecovery, queueRecoveryOutcome -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- run, retire -->
+
+Removal materialization first projects each legacy or MP section onto the
+destination's actual negotiated families. An unnegotiated large native key
+therefore cannot fail encoding and suppress a useful negotiated sibling.
+Projection preserves an eligible legacy withdrawal sharing that body. A fully
+omitted body produces no message. The final writer still checks source and
+receipt ownership for every remaining key.
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareFwdPolicyRemovals, projectFwdPolicyRemoval -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateSection -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRSSection -->
+
+The originated and stale paths carry the same preceding withdrawal bodies
+explicitly. Suppressing the main body does not suppress its accepted source
+retirements. A stale batch prepares their destination-sized bytes before queue
+publication and transfers them only with its first effective chunk. A direct
+write admits them under that chunk's existing write lock before it writes the
+survivor.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendBatchUpdatePreFiltered, queueBatchBodyPreFiltered -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- writePolicyRemovals -->
+
+Exact replay receipts retain their revision checks. A local decision
+without a receipt can withdraw only a locally owned route. These bodies do not
+run the policy chain again, but still receive final ordinary framing and size
+admission.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendBatchUpdatePreFiltered, queueBatchBodyPreFiltered, sendStaleReadvertiseUnit -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- prepareOriginPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterFromFacts -->
+
+The originated writer flushes a nonempty retirement group before it admits
+the surviving output. A later route-scoped refusal therefore cannot leave an
+immediate withdrawal buffered. A delegated RIB decision remains owed.
+On stale normalization or route-scoped split failure, the sender sends only
+unconsumed retirements under the same owner and replay fences. It preserves
+the original error and joins any cleanup error. Cleanup submits a real withdrawal,
+never retries an attempted
+transport group and adds no End-of-RIB marker.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendBatchUpdatePreFiltered, queueBatchBodyPreFiltered, sendStaleReadvertiseUnit, sendStalePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- writeOriginPolicyRemovals, prepareOriginPolicyRemovals, writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterFromFacts -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, SendAnnounce -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor -->
 
 ## What bucketing excludes, and why
 

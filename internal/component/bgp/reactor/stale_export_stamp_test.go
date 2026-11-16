@@ -33,7 +33,7 @@ func (f *staleChangeFixture) writePreFiltered(t *testing.T, generation uint64) u
 		t.Fatal(err)
 	}
 	target := announceTarget{peer: f.peer, session: f.peer.session, exportGeneration: generation}
-	if err := target.sendBatchUpdatePreFiltered(t.Context(), update, nil, message.MaxMsgLen, facts.addPath, &f.batch); err != nil {
+	if err := target.sendBatchUpdatePreFiltered(t.Context(), update, nil, message.MaxMsgLen, facts.addPath, &f.batch, nil); err != nil {
 		t.Fatal(err)
 	}
 	return f.peer.session.sentReceipt.MessageID()
@@ -283,7 +283,7 @@ func TestOldDecisionWrittenAfterChangeReadsAsOld(t *testing.T) {
 		from := f.peer.exportPolicyFrom.Load()
 		withdrawal := message.Update{WithdrawnRoutes: []byte{24, 10, 0, 0}}
 		target := announceTarget{peer: f.peer, session: f.peer.session, exportGeneration: decided}
-		if err := target.sendBatchUpdatePreFiltered(t.Context(), &withdrawal, nil, message.MaxMsgLen, false, &f.batch); err != nil {
+		if err := target.sendBatchUpdatePreFiltered(t.Context(), &withdrawal, nil, message.MaxMsgLen, false, &f.batch, nil); err != nil {
 			t.Fatal(err)
 		}
 		if got := f.peer.exportPolicyFrom.Load(); got != from {
@@ -553,7 +553,7 @@ func TestWholeChainKeepsWhatTheRFCOwes(t *testing.T) {
 		var raws [][]byte
 		addStaleOnCall(f, 1, &raws)
 		input := nlriHex(t, llgrStaleBody)
-		outcome, modified := f.a.decideStaleReadvertise(dest, chain, input, 2)
+		outcome, modified, _ := f.a.decideStaleReadvertise(dest, chain, input, 2)
 		if outcome != staleModify || !holdsLLGRStale(t, modified) {
 			t.Fatalf("outcome=%d body=%x, want a modified body still carrying LLGR_STALE", outcome, modified)
 		}
@@ -569,7 +569,7 @@ func TestWholeChainKeepsWhatTheRFCOwes(t *testing.T) {
 		}}}
 		depreference := rpc.FilterUpdateOutput{Action: rpc.FilterModify, Sets: []rpc.FilterSet{staleNoExportSet, staleLocalPrefZeroSet}}
 		f, chain := staleKeepFixture(t, depreference, raise)
-		outcome, modified := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
+		outcome, modified, _ := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
 		if outcome != staleModify {
 			t.Fatalf("outcome=%d, want staleModify", outcome)
 		}
@@ -584,7 +584,7 @@ func TestWholeChainKeepsWhatTheRFCOwes(t *testing.T) {
 	})
 	t.Run("member-rejects-a-route-the-peer-holds", func(t *testing.T) {
 		f, chain := staleKeepFixture(t, rpc.FilterUpdateOutput{Action: rpc.FilterAccept}, rpc.FilterUpdateOutput{Action: rpc.FilterReject})
-		outcome, modified := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
+		outcome, modified, _ := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
 		if outcome != staleWithdraw || modified != nil {
 			t.Fatalf("outcome=%d body=%x, want staleWithdraw: holding back leaves an unmarked route on the peer", outcome, modified)
 		}
@@ -734,7 +734,7 @@ func TestExportChainGivesOptedMembersTheLastWord(t *testing.T) {
 			return rpc.FilterUpdateOutput{Action: rpc.FilterModify, Raw: input.Raw}, true
 		}
 		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000, LocalAS: 65000, IsIBGP: true}
-		outcome, modified := f.a.decideStaleReadvertise(dest, chain, input(t), 2)
+		outcome, modified, _ := f.a.decideStaleReadvertise(dest, chain, input(t), 2)
 		if outcome != staleFilterFailed || modified != nil {
 			t.Fatalf("outcome=%d body=%x, want staleFilterFailed: the raw answer discards the rewrite", outcome, modified)
 		}
@@ -790,7 +790,7 @@ func TestStaleRailFinalPass(t *testing.T) {
 		var raws [][]byte
 		stripOnce(f, "rail-only", &raws)
 		body := nlriHex(t, llgrStaleBody)
-		outcome, modified := f.a.decideStaleReadvertise(dest, chain, body, 2)
+		outcome, modified, _ := f.a.decideStaleReadvertise(dest, chain, body, 2)
 		if outcome != staleModify || !holdsLLGRStale(t, modified) {
 			t.Fatalf("outcome=%d body=%x, want LLGR_STALE back from the pass", outcome, modified)
 		}
@@ -807,7 +807,7 @@ func TestStaleRailFinalPass(t *testing.T) {
 		f, chain := rail(t, "stale", "stale-too")
 		var raws [][]byte
 		stripOnce(f, "stale-too", &raws)
-		outcome, modified := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
+		outcome, modified, _ := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
 		if outcome != staleModify || !holdsLLGRStale(t, modified) {
 			t.Fatalf("outcome=%d body=%x, want LLGR_STALE back from the pass", outcome, modified)
 		}
@@ -822,7 +822,7 @@ func TestStaleRailFinalPass(t *testing.T) {
 		f.answers["stale-too"] = stripLLGRStale
 		var raws [][]byte
 		addStaleOnCall(f, 2, &raws)
-		outcome, modified := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
+		outcome, modified, _ := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
 		if outcome != staleModify || holdsLLGRStale(t, modified) {
 			t.Fatalf("outcome=%d body=%x: the limit changed, so its pages must change with it", outcome, modified)
 		}
@@ -830,7 +830,7 @@ func TestStaleRailFinalPass(t *testing.T) {
 	t.Run("a-lone-judge-runs-once", func(t *testing.T) {
 		f, chain := rail(t, "stale")
 		f.answers["stale"] = rpc.FilterUpdateOutput{Action: rpc.FilterModify, Sets: []rpc.FilterSet{staleNoExportSet, staleLocalPrefZeroSet}}
-		outcome, _ := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
+		outcome, _, _ := f.a.decideStaleReadvertise(dest, chain, nlriHex(t, llgrStaleBody), 2)
 		f.callMu.Lock()
 		defer f.callMu.Unlock()
 		if outcome != staleModify || !slices.Equal(f.calls, []string{"stale"}) {
@@ -1003,7 +1003,7 @@ func TestGateStampsTheFactsItRan(t *testing.T) {
 func recordGateStamp(f *staleChangeFixture) *uint64 {
 	stamp := new(uint64)
 	gate := f.peer.egressGate(f.peer.session)
-	f.peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
+	f.peer.session.egressRouteFilter = func(body []byte) (bool, []byte, [][]byte) {
 		suppress, override, follow := gate(body)
 		*stamp = f.peer.session.gateGeneration
 		return suppress, override, follow

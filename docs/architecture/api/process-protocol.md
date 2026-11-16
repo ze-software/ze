@@ -2505,6 +2505,49 @@ UPDATE body (RFC 4271 Section 4.3, without the 19-byte header) from
 <!-- source: internal/component/plugin/registration.go -- FilterRegistration.Raw -->
 <!-- source: internal/component/bgp/policychain/external.go -- rawAnswer -->
 
+If an original chain input carries valid ATOMIC_AGGREGATE, Ze restricts any
+modified result that still announces routes. The announcements must retain
+that marker and form an exact native-key subset of the original input,
+including family and received ADD-PATH identity. Attribute edits, reordering, subset removal and pure
+withdrawal/EOR output remain supported. New marked keys, including
+less-specific or disjoint raw rewrites, and marker removal are unavailable in
+this release. This is a product restriction stronger than RFC 4271 Section
+5.1.6. Unmarked original input retains its existing rewrite facility.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+
+The same post-chain admission applies to raw and typed results on both
+transports and both directions, including final-judge and stale passes. A
+refusal uses the source route's withdraw outcome. It is not a filter transport
+failure subject to `on-error`. No request or response fields are added.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChainMeta, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/bgp/reactor/stale_readvertise_chain.go -- runStaleChain -->
+<!-- source: pkg/plugin/rpc/types.go -- FilterFieldRaw, FilterUpdateInput, FilterUpdateOutput -->
+
+An accepted marked subset also carries removals for source keys absent from
+the final result. These removals include original withdrawn siblings that a
+raw answer omitted. A final
+output announcement or withdrawal covers the same native identity. A changed
+final result recomputes the removals against the original input. An unchanged
+final pass retains the preceding result and removals.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+
+Import publishes these internal, source-owned continuations before the
+effective result or EOR. Export admits them first under the grouped write
+fence and does not run the filter again. An active RIB recovery owner that
+receives the source can defer a non-ADD-PATH removal to an asynchronous election.
+That election later withdraws the key or installs an export-permitted replacement.
+Later output does not prove that election complete. No more plugin request, response
+or event fields are required.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver, notifyOneMessage -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
 **Subscription fields:**
 <!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput -->
 

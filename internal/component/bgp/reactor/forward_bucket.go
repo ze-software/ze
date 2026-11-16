@@ -89,7 +89,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 	parsed := scratch.parsed[:0]
 	for i := range items {
 		var e bucketEligible
-		if items[i].authority == adjOutUnspecified && items[i].provenance == nil && items[i].recovery == nil && items[i].sourceMessageID == 0 && len(items[i].rawBodies) == 1 && len(items[i].updates) == 0 && items[i].peerBufIdx == 0 {
+		if items[i].authority == adjOutUnspecified && items[i].provenance == nil && items[i].recovery == nil && len(items[i].policyRemovals) == 0 && items[i].sourceMessageID == 0 && len(items[i].rawBodies) == 1 && len(items[i].updates) == 0 && items[i].peerBufIdx == 0 {
 			if parts, okParse := parseBucketBody(items[i].rawBodies[0]); okParse && parts.wdLen == 0 {
 				e.parts, e.ok = parts, true
 			}
@@ -377,7 +377,7 @@ func recoveryPackJoins(section, item *fwdItem, lead, parts *bucketBodyParts) boo
 // End-of-RIB marker.
 func recoveryPackShape(item *fwdItem) bool {
 	one := len(item.rawBodies)+len(item.updates) == 1
-	return one && !item.originated && item.provenance == nil && item.aigpReplay == nil && item.endOfRIB == nil
+	return one && !item.originated && item.provenance == nil && len(item.policyRemovals) == 0 && item.aigpReplay == nil && item.endOfRIB == nil
 }
 
 // recoveryPackBody reads the section's one UPDATE body. A survivor whose

@@ -14,8 +14,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // egressAttr is one path attribute as a test reads it off the wire.
@@ -68,10 +70,13 @@ func lowNibbleAttrs() []byte {
 
 // egressWrite sends body through one session writer and returns the UPDATE body
 // that reached the wire. The source bytes are checked unedited.
-func egressWrite(t *testing.T, rail string, body []byte) []byte {
+func egressWrite(t *testing.T, rail string, body []byte, additionalFamilies ...family.Family) []byte {
 	t.Helper()
 	source := bytes.Clone(body)
 	peer, conn := newAnnouncePeer(t, "192.0.2.2")
+	// The writer fixtures encode AS_PATH with four-octet AS numbers.
+	families := append([]family.Family{family.IPv4Unicast}, additionalFamilies...)
+	negotiateForwardTestFamilies(peer, families...)
 	s := peer.session
 	sections, err := wire.ParseUpdateSections(body)
 	require.NoError(t, err)
@@ -81,7 +86,7 @@ func egressWrite(t *testing.T, rail string, body []byte) []byte {
 	case "parsed":
 		err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 	case "override":
-		s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, body, nil }
+		s.egressRouteFilter = func([]byte) (bool, []byte, [][]byte) { return false, body, nil }
 		err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 	case "relay":
 		err = s.sendRawUpdateBody(body)
@@ -178,6 +183,14 @@ func BenchmarkWriteUpdateBodyEgressWalk(b *testing.B) {
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
 			s := NewSession(settings)
+			// lowNibbleAttrs carries a four-octet AS_PATH in every case.
+			local := []capability.Capability{&capability.ASN4{ASN: settings.LocalAS}}
+			remote := []capability.Capability{&capability.ASN4{ASN: settings.PeerAS}}
+			s.negotiated = capability.Negotiate(local, remote, capability.PeerIdentity{
+				LocalASN: settings.LocalAS,
+				PeerASN:  settings.PeerAS,
+				Internal: settings.IsIBGP(),
+			})
 			for _, ev := range []fsm.Event{fsm.EventManualStart, fsm.EventTCPConnectionConfirmed, fsm.EventBGPOpen, fsm.EventKeepaliveMsg} {
 				if err := s.fsm.Event(ev); err != nil {
 					b.Fatal(err)

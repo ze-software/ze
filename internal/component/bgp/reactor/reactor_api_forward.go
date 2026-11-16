@@ -554,6 +554,9 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 // quietly skip the RFC 4456 reflection rules and the RFC 7947 policy for a source
 // it never actually found. See errForwardNoSource.
 type forwardSourceInfo struct {
+	// trackDelivery is set before a partitioned fan-out, so a later fatal
+	// section can exclude that captured connection's earlier dispatches.
+	trackDelivery  bool
 	isIBGP         bool
 	isRRClient     bool
 	remoteRouterID uint32
@@ -579,7 +582,8 @@ type forwardSourceInfo struct {
 // forwardUpdateSection dispatches one received-next-hop section through every
 // existing egress policy. The caller MUST serialize dispatch for the source and
 // keep update's cache entry alive until every worker releases it.
-func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo, sourceWire *wireu.WireUpdate) error {
+func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo, sourceWire *wireu.WireUpdate, fatal map[*Session]error) forwardResult {
+	result := forwardResult{fatal: fatal, trackDelivery: srcInfo.trackDelivery}
 	// Unreachable from any production caller -- ForwardUpdate, ForwardUpdatesDirect
 	// and RelayStoredRoute each refuse an unresolved source before getting here.
 	// Kept so the zero value can never become a valid-looking answer at the one
@@ -588,7 +592,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	if !srcInfo.resolved {
 		fwdLogger().Error("BUG: forward refused: unresolved source facts reached forwardUpdateCore",
 			"id", updateID, "source", update.SourcePeerIP, "destinations", len(matchingPeers))
-		return errForwardNoSource
+		result.err = errForwardNoSource
+		return result
 	}
 
 	// RFC 4271 Section 9.1.2 (prepend the local AS to an EBGP peer) and RFC 6793
@@ -608,14 +613,16 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 
 	var parseCache fwdParseCache
 	var dispatchedCount int
+	ordinaryDestinations := len(matchingPeers)
 	// Destinations skipped by a policy decision rather than by a failure. Only
 	// when EVERY matching peer was skipped this way is "nothing dispatched" a
 	// correct outcome rather than a drop -- see errAllDestinationsSuppressed.
 	var suppressedCount int
 
 	type pendingFwd struct {
-		item fwdItem
-		key  fwdKey
+		item    fwdItem
+		key     fwdKey
+		cleanup bool // Accepted removals alone do not claim survivor delivery.
 	}
 	var pendingBuf [16]pendingFwd
 	pending := pendingBuf[:0]
@@ -733,6 +740,10 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	var sectionWires []*wireu.WireUpdate
 	for _, peer := range matchingPeers {
 		session := peer.currentSession()
+		if result.failed(session) {
+			ordinaryDestinations--
+			continue
+		}
 		nextHopRefusal := withholdNone
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -824,6 +835,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		// (buildOrderedEgressSteps). The chain reads the ORIGINAL payload and
 		// may produce a full wire override.
 		var exportWireOverride *wireu.WireUpdate
+		var exportRemovals [][]byte
 		// treatments collects the forwarding treatments the destination's
 		// export chain set (egressStepResult.treatments).
 		var treatments uint8
@@ -842,6 +854,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 					break
 				}
 				treatments |= res.treatments
+				exportRemovals = res.removals
 				if res.wireOverride != nil {
 					exportWireOverride = res.wireOverride
 					// A policy replaces bytes, never the ingress path identity.
@@ -868,6 +881,34 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			if suppressed {
 				mods.SetWithdraw()
 				exportWireOverride = nil
+			}
+		}
+
+		// Stage the accepted source decision before any survivor materialization
+		// can fail. A successful first section replaces this same pending slot;
+		// failures leave a real withdrawal-only parent, with no invented EOR.
+		// RFC 4271 Section 9.1.3.
+		retirementIndex := -1
+		if len(exportRemovals) != 0 {
+			retirement := fwdItem{peer: peer, session: session, authority: adjOutForwarded,
+				meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID,
+				receivedPeer: update.receivedPeer, receivedGeneration: update.receivedGeneration,
+				sourcePolicyEpoch: update.SourcePolicyEpoch, exportGeneration: facts.exportGeneration,
+				initialUpdate: srcInfo.initialUpdate}
+			if srcInfo.recovery != nil {
+				retirement.authority = adjOutRecovery
+			}
+			if err := prepareFwdPolicyRemovals(&retirement, update, update.WireUpdate, exportRemovals, facts); err != nil {
+				reportAtomicAggregateRetirementFailure(facts.addrStr, err)
+				result.fail(session, err)
+				ordinaryDestinations--
+				a.r.fwdPool.releaseItem(&retirement)
+				continue
+			}
+			exportRemovals = nil
+			if len(retirement.policyRemovals) != 0 {
+				retirementIndex = len(pending)
+				pending = append(pending, pendingFwd{item: retirement, key: fwdKey{peerAddr: facts.peerKey}, cleanup: true})
 			}
 		}
 
@@ -1229,6 +1270,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 			item.sourcePolicyEpoch = update.SourcePolicyEpoch
 			item.exportGeneration = facts.exportGeneration
+			item.initialUpdate = srcInfo.initialUpdate
 			item.aigpOrigin = announceOrigin(srcInfo.sender)
 			item.aigpRevision = metricRevision
 			item.aigpReplay = update.aigpReplay
@@ -1291,8 +1333,8 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			}
 		dispatch:
 			// RFC 7911 Section 2: preserve ingress identity before final admission.
-			if err := prepareFwdProvenance(&item, update.WireUpdate, peerWire,
-				mods.IsWithdraw() || sourceWire != update.WireUpdate || exportWireOverride != nil); err != nil {
+			if err := prepareFwdPolicy(&item, update, update.WireUpdate, peerWire,
+				mods.IsWithdraw() || sourceWire != update.WireUpdate || exportWireOverride != nil, exportRemovals, facts); err != nil {
 				fwdLogger().Warn("forward provenance failed", "peer", facts.addr, "err", err)
 				dedup.abandon(candidate)
 				a.r.fwdPool.releaseItem(&item)
@@ -1324,10 +1366,20 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			if !mods.IsWithdraw() {
 				a.r.recordRSCommunityEdits(rsEdits)
 			}
-			pending = append(pending, pendingFwd{
+			staged := pendingFwd{
 				item: item,
 				key:  fwdKey{peerAddr: facts.peerKey},
-			})
+			}
+			if retirementIndex >= 0 {
+				staged.item.policyRemovals = pending[retirementIndex].item.policyRemovals
+				staged.item.supersedeKey = 0
+				pending[retirementIndex] = staged
+				retirementIndex = -1
+			} else {
+				pending = append(pending, staged)
+			}
+			// The first staged section owns the whole decision's source removals.
+			exportRemovals = nil
 		}
 	}
 
@@ -1337,7 +1389,10 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			pending[i].item.done = func() { a.r.recentUpdates.Release(updateID) }
 			if srcInfo.recovery != nil {
 				srcInfo.recovery.items = append(srcInfo.recovery.items, pending[i].item)
-				dispatchedCount++
+				if !pending[i].cleanup {
+					dispatchedCount++
+					result.sentTo(pending[i].item.session)
+				}
 				continue
 			}
 			// Ordering gate: a destination inside its initial sync still has
@@ -1356,16 +1411,25 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			if dst := pending[i].item.peer; dst != nil && dst.forwardOrderHold(srcInfo.initialUpdate) {
 				if a.r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item) {
 					a.r.fwdPool.recordOverflowed(srcAddr)
-					dispatchedCount++
+					if !pending[i].cleanup {
+						dispatchedCount++
+						result.sentTo(pending[i].item.session)
+					}
 				}
 				continue
 			}
 			if a.r.fwdPool.TryDispatch(pending[i].key, &pending[i].item) {
 				a.r.fwdPool.recordForwarded(srcAddr)
-				dispatchedCount++
+				if !pending[i].cleanup {
+					dispatchedCount++
+					result.sentTo(pending[i].item.session)
+				}
 			} else if a.r.fwdPool.dispatchOverflow(pending[i].key, &pending[i].item) {
 				a.r.fwdPool.recordOverflowed(srcAddr)
-				dispatchedCount++
+				if !pending[i].cleanup {
+					dispatchedCount++
+					result.sentTo(pending[i].item.session)
+				}
 			}
 			// dispatchOverflow false = pool stopped; done() already called (releasing cache ref).
 		}
@@ -1374,13 +1438,25 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	if dispatchedCount == 0 {
 		// Every destination skipped by policy is a correct outcome; anything else
 		// reaching zero is a drop the caller must be able to see.
-		if suppressedCount > 0 && suppressedCount == len(matchingPeers) {
-			return errAllDestinationsSuppressed
+		if suppressedCount > 0 {
+			if suppressedCount == ordinaryDestinations {
+				if len(result.fatal) == 0 {
+					result.err = errAllDestinationsSuppressed
+				}
+				return result
+			}
 		}
-		return errNoEstablishedPeersToForwardTo
+		if ordinaryDestinations > 0 {
+			result.err = errNoEstablishedPeersToForwardTo
+			return result
+		}
+		if len(result.fatal) == 0 {
+			result.err = errNoEstablishedPeersToForwardTo
+		}
+		return result
 	}
 
-	return nil
+	return result
 }
 
 // DeleteUpdate removes an update from the cache without forwarding.

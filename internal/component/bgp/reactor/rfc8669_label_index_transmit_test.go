@@ -8,6 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // TestRFC8669LabelIndexTransmissionClearsReservedAndFlags sends both clean and
@@ -37,6 +38,7 @@ func TestRFC8669LabelIndexTransmissionClearsReservedAndFlags(t *testing.T) {
 				}
 				source := bytes.Clone(body)
 				peer, conn := newAnnouncePeer(t, "192.0.2.2")
+				negotiateForwardTestFamilies(peer, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel})
 				s := peer.session
 				sections, err := wire.ParseUpdateSections(body)
 				if err != nil {
@@ -46,7 +48,7 @@ func TestRFC8669LabelIndexTransmissionClearsReservedAndFlags(t *testing.T) {
 				case "parsed":
 					err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 				case "override":
-					s.egressRouteFilter = func([]byte) (bool, []byte, []byte) { return false, body, nil }
+					s.egressRouteFilter = func([]byte) (bool, []byte, [][]byte) { return false, body, nil }
 					err = s.SendUpdate(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)})
 				case "packet":
 					packet := message.PackTo(&message.Update{PathAttributes: sections.Attrs(body), NLRI: sections.NLRI(body)}, nil)

@@ -54,8 +54,8 @@ func (p *Peer) exportGateFacts() (*peerForwardFacts, bool) {
 // two reads and put older facts back, and an old chain's write would then read as
 // current. session's writers call the gate holding writeMu, which guards the stamp,
 // and clear it when the write ends (writeUpdateGated, SendAnnounce).
-func (p *Peer) egressGate(session *Session) func(body []byte) (suppress bool, override, follow []byte) {
-	return func(body []byte) (bool, []byte, []byte) {
+func (p *Peer) egressGate(session *Session) func(body []byte) (suppress bool, override []byte, follow [][]byte) {
+	return func(body []byte) (bool, []byte, [][]byte) {
 		facts, pending := p.exportGateFacts()
 		session.gateGeneration = facts.exportGeneration
 		return p.reactor.exportFilterFromFacts(p, facts, pending, body)
@@ -67,8 +67,9 @@ func (p *Peer) egressGate(session *Session) func(body []byte) (suppress bool, ov
 // delegating to the SAME chain body forwardUpdateCore uses
 // (runEgressPolicyChainASN4). It then normalizes the effective ordinary IPv6 next
 // hop, even with no active filters. Returns suppress=true to drop the route for this
-// peer, or override != nil to write a rewritten body instead. Unchanged bodies are
-// neither allocated nor copied.
+// peer's main body, or override != nil to write a rewritten body instead.
+// follow owns source withdrawals that MUST precede the main body or its
+// suppression. Unchanged bodies are neither allocated nor copied.
 //
 // It must not re-implement the chain: this gate used to "mirror"
 // forwardUpdateCore and honored only Reject and raw overrides, so every
@@ -82,7 +83,7 @@ func (p *Peer) egressGate(session *Session) func(body []byte) (suppress bool, ov
 // the forward pool skips export-filtered peers (forward_rs.go FastPathSkipped), so
 // it never contends for this peer's writeMu; the only serialized writes are this
 // peer's own keepalives/routes, which writeMu serializes regardless.
-func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pending bool, body []byte) (suppress bool, override, follow []byte) {
+func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pending bool, body []byte) (suppress bool, override []byte, follow [][]byte) {
 	if pending {
 		if facts.exportPolicy.RequiresIngress() {
 			return true, nil, nil
@@ -113,6 +114,7 @@ func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pen
 			}
 			return true, nil, nil
 		}
+		follow = res.removals
 		if res.wireOverride != nil {
 			override = res.wireOverride.Payload()
 			body = override
@@ -127,20 +129,20 @@ func (r *Reactor) exportFilterFromFacts(peer *Peer, facts *peerForwardFacts, pen
 	normalized, fail := r.normalizeOrdinaryNextHop(peer, facts, body)
 	r.recordModifyFailureAddr(fail, modifySiteExportChain, facts.addr)
 	if fail.failed() {
-		return true, nil, nil
+		return true, nil, follow
 	}
 	if normalized != nil {
 		// The nil-pool rebuild owns this result; no second copy is needed.
-		return false, normalized, nil
+		return false, normalized, follow
 	}
 	if override == nil {
-		return false, nil, nil
+		return false, nil, follow
 	}
 	// A raw policy override may alias the session's writeBuf. Only copy when
 	// normalization did not already rebuild it into independently owned bytes.
 	out := make([]byte, len(override))
 	copy(out, override)
-	return false, out, nil
+	return false, out, follow
 }
 
 // captureOriginatedFacts fills the pre-publication facts shared by the ordinary
@@ -334,7 +336,7 @@ func (r *Reactor) normalizeVPNNextHop(peer *Peer, facts *peerForwardFacts, body,
 // body the conversion refuses (malformed) is suppressed, and the refusal is
 // logged at WARN, because the withdraw then could not be honored. The results
 // are owned, as the caller's override contract asks.
-func egressInjectedWithdrawal(body []byte, facts *peerForwardFacts) (suppress bool, override, follow []byte) {
+func egressInjectedWithdrawal(body []byte, facts *peerForwardFacts) (suppress bool, override []byte, follow [][]byte) {
 	// One allocation for both halves: each MUST hold len(body)+4 octets.
 	buf := make([]byte, 2*(len(body)+4))
 	first, second := buf[:len(body)+4], buf[len(body)+4:]
@@ -345,7 +347,7 @@ func egressInjectedWithdrawal(body []byte, facts *peerForwardFacts) (suppress bo
 		return true, nil, nil
 	}
 	if secondN > 0 {
-		follow = second[:secondN]
+		follow = [][]byte{second[:secondN]}
 	}
 	return false, first[:firstN], follow
 }

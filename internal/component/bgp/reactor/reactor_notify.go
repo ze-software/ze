@@ -245,20 +245,31 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // again on that generated body. It owes no further continuation, so the loop
 // ends without giving ordinary received messages any bypass authority.
 func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
-	var follow []byte
+	var follow []ingressPolicyContinuation
 	var sourceCtxID bgpctx.ContextID
 	var sourceID source.SourceID
 	if wireUpdate != nil {
 		// Read before the call: the UPDATE's ownership may leave with it.
 		sourceCtxID, sourceID = wireUpdate.SourceCtxID(), wireUpdate.SourceID()
 	}
-	kept := r.notifyOneMessage(peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, ingressPolicyUndecided, &follow)
-	for follow != nil {
-		body := follow
-		follow = nil
-		followUpdate := wireu.NewWireUpdate(body, sourceCtxID)
+	kept := r.notifyOneMessage(peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, ingressPolicyUndecided, 0, &follow)
+	// One source decision yields at most two removal bodies and its surviving
+	// output. Already-judged continuations cannot enqueue another policy run.
+	for len(follow) > 0 {
+		next := follow[0]
+		follow[0] = ingressPolicyContinuation{}
+		follow = follow[1:]
+		followUpdate := wireu.NewWireUpdate(next.body, sourceCtxID)
 		followUpdate.SetSourceID(sourceID)
-		r.notifyOneMessage(peerAddr, msgtype.TypeUPDATE, body, followUpdate, ctxID, direction, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0, ingressPolicyAlreadyApplied, &follow)
+		buffer := next.buffer
+		if buffer.Buf == nil {
+			buffer = BufHandle{ID: noPoolBufID, Buf: next.body}
+		}
+		continuationKept := r.notifyOneMessage(peerAddr, msgtype.TypeUPDATE, next.body, followUpdate, ctxID, direction,
+			buffer, next.meta, "", 0, ingressPolicyAlreadyApplied, next.epoch, &follow)
+		if next.buffer.Buf != nil {
+			kept = continuationKept // Only the effective replacement owns the original receipt buffer.
+		}
 	}
 	return kept
 }
@@ -268,6 +279,15 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 // has already run ingress; zero or any other value grants no bypass.
 type ingressPolicyDisposition uint8
 
+// ingressPolicyContinuation owns an already-admitted body and its original
+// policy epoch. It is not a wire receipt and MUST NOT increment peer counters.
+type ingressPolicyContinuation struct {
+	body   []byte
+	epoch  uint64
+	meta   map[string]any
+	buffer BufHandle // Original receipt ownership transfers to the effective replacement once.
+}
+
 const (
 	ingressPolicyUnspecified ingressPolicyDisposition = iota
 	ingressPolicyUndecided
@@ -275,10 +295,11 @@ const (
 )
 
 // notifyOneMessage is notifyMessageReceiver for one message. follow receives
-// the second UPDATE an import step owes, nil when none. The caller MUST pass
+// owned source removals and the effective replacement, or the second family of
+// a whole-source withdrawal. The caller MUST pass
 // ingressPolicyAlreadyApplied only for that accepted policy continuation:
 // it uses the same cache and publication path without judging ingress twice.
-func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, policyDisposition ingressPolicyDisposition, follow *[]byte) bool {
+func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, policyDisposition ingressPolicyDisposition, admissionEpoch uint64, follow *[]ingressPolicyContinuation) bool {
 	r.mu.RLock()
 	// The region below decodes the peer's UPDATE (IsEOR) and runs per-peer
 	// hooks under the reactor-wide lock. A panic there unwinds to the read
@@ -295,9 +316,11 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
 	// Capture before any ingress policy evaluation. A delayed filter result must
 	// never acquire the epoch current when caching or publishing finally finishes.
-	var sourcePolicyEpoch uint64
-	if hasPeer && direction == rpc.DirectionReceived && msgType == msgtype.TypeUPDATE {
-		sourcePolicyEpoch = peer.sourcePolicyEpoch.Load()
+	sourcePolicyEpoch := admissionEpoch
+	if policyDisposition != ingressPolicyAlreadyApplied {
+		if hasPeer && direction == rpc.DirectionReceived && msgType == msgtype.TypeUPDATE {
+			sourcePolicyEpoch = peer.sourcePolicyEpoch.Load()
+		}
 	}
 
 	// Build PeerInfo while holding lock to avoid race on state
@@ -366,48 +389,50 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters
 		// (announce vs withdraw per prefix) belong in the RIB plugin.
 		if direction == rpc.DirectionReceived {
-			// Only received UPDATE and KEEPALIVE messages contribute to these counters.
-			//exhaustive:ignore
-			switch msgType {
-			case msgtype.TypeUPDATE:
-				peer.incrUpdatesReceived()
-				// Additionally count EOR as a subset of updates.
-				if wireUpdate != nil {
-					if eorFamily, isEOR := wireUpdate.IsEOR(); isEOR {
-						peer.incrEORReceived()
-						// RFC 4724 Section 4.1 defers the initial routing
-						// update until the End-of-RIB marker has arrived from
-						// every peer it waits for. The reactor decodes the
-						// inbound marker here, beside the peer's own EOR
-						// counter, so the startup convergence hold learns about
-						// it from that decode rather than keeping one of its own
-						// (update_delay.go). The plugin server decodes the
-						// marker again for its `eor` event (server/events.go,
-						// onMessageReceived and onMessageBatchReceived); that
-						// path feeds subscribers and never reaches the hold.
-						//
-						// It is the ONLY production caller. Without it the hold
-						// releases on establish-wait or max-delay alone and can
-						// never converge, and no unit test sees that: they call
-						// Peer.updateDelayEndOfRIB directly.
-						peer.updateDelayEndOfRIB(eorFamily)
-						// RFC 4724 Section 4.2: the marker removes the stale
-						// routes of its family, and their held generations.
-						peer.typedNLRIHeld.endOfRIB(eorFamily)
-						// Cancel EOR timeout warning (AC-11).
-						if peer.health != nil {
-							peer.health.onEORReceived()
-						}
-						// Notify weight tracker: may transition pre-EOR to
-						// post-EOR when all family EORs received, shrinking
-						// pool allocation (AC-28).
-						if r.fwdWeights != nil {
-							r.fwdWeights.PeerEORReceived(peer.peerAddrLabel())
+			if policyDisposition != ingressPolicyAlreadyApplied {
+				// Only received UPDATE and KEEPALIVE messages contribute to these counters.
+				//exhaustive:ignore
+				switch msgType {
+				case msgtype.TypeUPDATE:
+					peer.incrUpdatesReceived()
+					// Additionally count EOR as a subset of updates.
+					if wireUpdate != nil {
+						if eorFamily, isEOR := wireUpdate.IsEOR(); isEOR {
+							peer.incrEORReceived()
+							// RFC 4724 Section 4.1 defers the initial routing
+							// update until the End-of-RIB marker has arrived from
+							// every peer it waits for. The reactor decodes the
+							// inbound marker here, beside the peer's own EOR
+							// counter, so the startup convergence hold learns about
+							// it from that decode rather than keeping one of its own
+							// (update_delay.go). The plugin server decodes the
+							// marker again for its `eor` event (server/events.go,
+							// onMessageReceived and onMessageBatchReceived); that
+							// path feeds subscribers and never reaches the hold.
+							//
+							// It is the ONLY production caller. Without it the hold
+							// releases on establish-wait or max-delay alone and can
+							// never converge, and no unit test sees that: they call
+							// Peer.updateDelayEndOfRIB directly.
+							peer.updateDelayEndOfRIB(eorFamily)
+							// RFC 4724 Section 4.2: the marker removes the stale
+							// routes of its family, and their held generations.
+							peer.typedNLRIHeld.endOfRIB(eorFamily)
+							// Cancel EOR timeout warning (AC-11).
+							if peer.health != nil {
+								peer.health.onEORReceived()
+							}
+							// Notify weight tracker: may transition pre-EOR to
+							// post-EOR when all family EORs received, shrinking
+							// pool allocation (AC-28).
+							if r.fwdWeights != nil {
+								r.fwdWeights.PeerEORReceived(peer.peerAddrLabel())
+							}
 						}
 					}
+				case msgtype.TypeKEEPALIVE:
+					peer.incrKeepalivesReceived()
 				}
-			case msgtype.TypeKEEPALIVE:
-				peer.incrKeepalivesReceived()
 			}
 		} else {
 			// Only sent UPDATE and KEEPALIVE messages contribute to these counters.
@@ -549,6 +574,11 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		_, endOfRIB = wireUpdate.IsEOR()
 	}
 	var routeMeta map[string]any
+	if policyDisposition == ingressPolicyAlreadyApplied {
+		routeMeta = meta
+		msg.Meta = meta
+	}
+	var policyRemovals [][]byte
 	if policyDisposition != ingressPolicyAlreadyApplied && direction == rpc.DirectionReceived && wireUpdate != nil && !endOfRIB && len(r.orderedIngressSteps) > 0 {
 		src := filterapi.PeerFilterInfo{
 			Address:  peerAddr,
@@ -657,7 +687,10 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 				}
 			}
 			if res.followWithdrawal != nil {
-				*follow = res.followWithdrawal
+				*follow = append(*follow, ingressPolicyContinuation{body: res.followWithdrawal, epoch: sourcePolicyEpoch})
+			}
+			if len(res.removals) > 0 {
+				policyRemovals = res.removals
 			}
 		}
 		if len(ingressMeta) > 0 {
@@ -668,6 +701,17 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 			// (RFC 9494 Section 4.3).
 			msg.Meta = routeMeta
 		}
+	}
+	if len(policyRemovals) > 0 {
+		// RFC 4271 Section 9.1.3. Publish source removals before the useful
+		// replacement or EOR. Each receives a fresh monotonic message ID;
+		// the original borrowed buffer has not entered the cache and stays
+		// with its caller. The replacement and removals own their bytes.
+		for _, body := range policyRemovals {
+			*follow = append(*follow, ingressPolicyContinuation{body: body, epoch: sourcePolicyEpoch, meta: routeMeta})
+		}
+		*follow = append(*follow, ingressPolicyContinuation{body: wireUpdate.Payload(), epoch: sourcePolicyEpoch, meta: routeMeta, buffer: buf})
+		return false
 	}
 	if direction == rpc.DirectionReceived && wireUpdate != nil {
 		r.retainAIGPReceived(peerAddr, wireUpdate, routeMeta, sourcePolicyEpoch)

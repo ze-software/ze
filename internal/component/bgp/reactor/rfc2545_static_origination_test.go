@@ -171,6 +171,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 			refuse := phase == "refused-first"
 			t.Run(mode+"/"+phase, func(t *testing.T) {
 				initial, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, family.IPv6Unicast)
+				negotiateForwardTestFamilies(initial, family.IPv4Unicast, family.IPv6Unicast)
 				initial.settings.Address = netip.MustParseAddr("2001:db8:2::2")
 				initial.settings.GroupUpdates = mode != "ungrouped"
 				firstHop := netip.MustParseAddr("2001:db8:1::1")
@@ -232,7 +233,7 @@ func TestStaticOriginateContinuesAfterUnusablePolicyNextHop(t *testing.T) {
 						return rpc.FilterUpdateOutput{Action: rpc.FilterAccept}
 					},
 				}
-				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, []byte) {
+				peer.session.egressRouteFilter = func(body []byte) (bool, []byte, [][]byte) {
 					hop := payloadNextHop(body)
 					policyHop = hop.mp
 					if !policyHop.IsValid() {

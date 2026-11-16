@@ -78,7 +78,7 @@ func (f *staleChangeFixture) seedOwner(t *testing.T) uint64 {
 	}
 	gate := f.peer.session.egressRouteFilter
 	// The gate that passed the route read the chain current at that send.
-	f.peer.session.egressRouteFilter = func([]byte) (bool, []byte, []byte) {
+	f.peer.session.egressRouteFilter = func([]byte) (bool, []byte, [][]byte) {
 		f.peer.session.gateGeneration = f.peer.exportGeneration.Load()
 		return false, nil, nil
 	}
@@ -127,7 +127,7 @@ func TestExportPolicyWatermarkBoundary(t *testing.T) {
 func TestStaleWholeChainWithoutLibraryFailsClosed(t *testing.T) {
 	a := &reactorAPIAdapter{r: &Reactor{attrModHandlers: attrModHandlersWithDefaults()}}
 	chain := staleChain{policy: filterapi.Policy{}, asn4: true, judgeAll: true}
-	outcome, modified := a.decideStaleReadvertise(filterapi.PeerFilterInfo{PeerAS: 65001}, chain, minimalAnnounceBody, 1)
+	outcome, modified, _ := a.decideStaleReadvertise(filterapi.PeerFilterInfo{PeerAS: 65001}, chain, minimalAnnounceBody, 1)
 	if outcome != staleFilterFailed || modified != nil {
 		t.Fatalf("outcome=%d modified=%x, want staleFilterFailed and no body", outcome, modified)
 	}

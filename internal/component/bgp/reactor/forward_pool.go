@@ -72,9 +72,12 @@ type fwdItem struct {
 	// ownRouteWithdrawal limits an unowned withdrawal to what the key holds as this
 	// speaker's own route (adjOutWrite.allow), and ownRouteWithdrawn records that a
 	// path passed, so the caller can tell a withheld withdrawal from a sent one.
-	ownRouteWithdrawal   bool
-	ownRouteWithdrawn    bool
-	provenance           *fwdProvenance
+	ownRouteWithdrawal bool
+	ownRouteWithdrawn  bool
+	provenance         *fwdProvenance
+	// policyRemovals are at most two source-owned children written before this
+	// item's effective output. They never nest or own a queue/cache completion.
+	policyRemovals       []fwdPolicyRemoval
 	writeBody            int    // Original body ordinal, before final ownership filtering
 	expectedMessage      uint64 // Exact sent receipt for replay/cleanup, never ordinary withdrawal
 	initialReplay        uint64 // Exact peer-up Session receipt
@@ -411,6 +414,12 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 			session.sentSourceMessageID = item.sourceMessageID
 			session.sentForward = item
 			item.writeBody = 0
+			// RFC 4271 Section 9.1.3: admit source removals before output or
+			// EOR. An active RIB owner may settle the wire decision later.
+			if err := session.writePolicyRemovals(item); err != nil {
+				failRecoveryWrites(items, session, err)
+				return
+			}
 			for _, body := range item.rawBodies {
 				var err error
 				if item.originated {
@@ -850,6 +859,15 @@ func (fp *fwdPool) outgoingPool(key fwdKey) *peerPool {
 // Handles Outgoing Peer Pool buffers and Global Shared Pool handles.
 // Called from safeBatchHandle and Stop cleanup.
 func (fp *fwdPool) releaseItem(item *fwdItem) {
+	// Groups have one parent and at most two non-nesting children; only the
+	// parent has done/channel/recovery ownership. Release all private manifests.
+	for i := range item.policyRemovals {
+		if p := item.policyRemovals[i].provenance; p != nil {
+			p.release()
+		}
+	}
+	clear(item.policyRemovals)
+	item.policyRemovals = nil
 	if item.provenance != nil {
 		item.provenance.release()
 		item.provenance = nil

@@ -573,15 +573,16 @@ type Session struct {
 
 	// egressRouteFilter, when non-nil, runs the peer's export filter chain on an
 	// outbound route UPDATE body just before it is written (writeUpdate /
-	// SendAnnounce). Returns suppress=true to drop the route, or an override body
-	// to write instead, and follow, a second body to write as its own UPDATE: the
-	// other family's withdrawal of a withdraw verdict on a body naming two MP
-	// families (egressInjectedWithdrawal). Set by Peer (capturing the reactor) so originated and
+	// SendAnnounce). Returns suppress=true to omit the main route, or an override
+	// body to write instead, and follow, owned source withdrawals written before
+	// that body even when it is suppressed. These cover accepted subset removals
+	// and the other family's withdrawal of a two-family withdraw verdict.
+	// Set by Peer (capturing the reactor) so originated and
 	// injected routes, and the bgp-rs `update text` re-advertisement, honor export
 	// filters like forwarded ones. EORs and the forwarded path
 	// (writeRawUpdateBody) do not call it, and neither does the bgp-adj-rib-in
 	// stored-route replay, which is filtered in forwardUpdateCore.
-	egressRouteFilter func(body []byte) (suppress bool, override, follow []byte)
+	egressRouteFilter func(body []byte) (suppress bool, override []byte, follow [][]byte)
 
 	// egressFinalAccepts reads the atomically published forwarding facts, falling
 	// back to the locked peer policy before those facts exist. The writer MUST

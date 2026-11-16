@@ -95,8 +95,16 @@ func tryDirectWriteNoFlush(item *fwdItem) (handled, delivered bool, dst *Session
 		session.retireWrite(err)
 		return true, false, session
 	}
+	// RFC 4271 Section 9.1.3: one fenced group admits removals before its
+	// surviving output or EOR and counts this destination only once. An active
+	// RIB owner may settle the wire withdrawal or replacement later.
+	if err := session.writePolicyRemovals(item); err != nil {
+		// refuse-by-default: guards reactorForwardRSSectionResult -- its handled/written consumer consumes and releases once; written=false refuses delivery and retry after a partial removal write
+		return true, false, session
+	}
 	for _, body := range item.rawBodies {
 		if err := session.writeRawUpdateBody(body); err != nil {
+			// refuse-by-default: guards reactorForwardRSSectionResult -- handled consumes the item once; written=false records failed delivery and prevents replay after partial output
 			return true, false, session
 		}
 		item.writeBody++

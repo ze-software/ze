@@ -428,6 +428,8 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	if !src.ok || ad.key.peer.currentSession() != ad.session {
 		return
 	}
+	var result forwardResult
+	defer func() { result.settle() }()
 	r.aigp.dispatch.Lock()
 	defer r.aigp.dispatch.Unlock()
 	if !r.currentAIGPAdvertisement(ad) {
@@ -508,11 +510,13 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	update.Meta = ad.route.meta
 	update.aigpReplay = &aigpReplayTicket{state: &r.aigp, record: ad, outcome: outcome}
 	src.info.sender = ad.sender
-	if err := adapter.forwardUpdateValidated(update, id, peers, src.info); err != nil {
+	result = adapter.forwardUpdateValidated(update, id, peers, src.info)
+	// refuse-by-default: guards Reactor.readvertiseAIGP -- queued stays false so the deferred claim rollback leaves an undecided live advertisement eligible for another pass
+	if err := result.outcome(); err != nil {
 		fwdLogger().Debug("AIGP metric re-advertisement withheld", "source", src.addr, "error", err)
 		return
 	}
-	queued = true
+	queued = result.delivered()
 }
 
 // releaseAIGPReplays ends the forward queue's claim on every replay of a

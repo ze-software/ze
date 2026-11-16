@@ -23,19 +23,24 @@ import (
 // verdict. Both calls use the destination FIFO, including the reactor fast path
 // whenever receive validation is enabled.
 func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo) error {
+	var result forwardResult
+	defer func() { result.settle() }()
 	a.r.aigp.dispatch.Lock()
 	defer a.r.aigp.dispatch.Unlock()
-	return a.forwardUpdateValidated(update, updateID, matchingPeers, srcInfo)
+	result = a.forwardUpdateValidated(update, updateID, matchingPeers, srcInfo)
+	return result.outcome()
 }
 
-func (a *reactorAPIAdapter) forwardUpdateValidated(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo) error {
+func (a *reactorAPIAdapter) forwardUpdateValidated(update *ReceivedUpdate, updateID uint64, matchingPeers []*Peer, srcInfo forwardSourceInfo) forwardResult {
+	var result forwardResult
 	if peer := update.receivedPeer; peer != nil {
 		if peer != srcInfo.peer || !forwardSourceCurrent(peer, update.receivedGeneration) {
-			return errForwardNoSource
+			result.err = errForwardNoSource
+			return result
 		}
 	}
 	if !ribevents.ValidationEnabled() && !flowSpecUpdate(update.WireUpdate) {
-		return a.forwardUpdateSelected(update, updateID, matchingPeers, srcInfo, update.WireUpdate)
+		return a.forwardUpdateSelected(update, updateID, matchingPeers, srcInfo, update.WireUpdate, nil)
 	}
 	if srcInfo.peer != nil {
 		srcInfo.peer.validationForwardMu.Lock()
@@ -43,38 +48,58 @@ func (a *reactorAPIAdapter) forwardUpdateValidated(update *ReceivedUpdate, updat
 	}
 	selected, withdrawn, refused, err := forwardValidationWire(update)
 	if err != nil {
-		return err
+		result.err = err
+		return result
 	}
-	dispatched := false
-	if withdrawn != nil {
-		err := a.forwardUpdateSelected(update, updateID, matchingPeers, srcInfo, withdrawn)
-		if err != nil && !errors.Is(err, errAllDestinationsSuppressed) {
-			return err
+	partitions := 0
+	for _, part := range []*wireu.WireUpdate{withdrawn, selected, refused} {
+		if part != nil {
+			partitions++
 		}
-		dispatched = err == nil
+	}
+	srcInfo.trackDelivery = partitions > 1
+	result.trackDelivery = srcInfo.trackDelivery
+	if withdrawn != nil {
+		part := a.forwardUpdateSelected(update, updateID, matchingPeers, srcInfo, withdrawn, result.fatal)
+		result.merge(part)
+		if part.err != nil {
+			if !errors.Is(part.err, errAllDestinationsSuppressed) {
+				result.err = part.err
+				return result
+			}
+		}
 	}
 	if selected != nil {
-		err := a.forwardUpdateSelected(update, updateID, matchingPeers, srcInfo, selected)
-		if err != nil && !errors.Is(err, errAllDestinationsSuppressed) {
-			return err
+		part := a.forwardUpdateSelected(update, updateID, matchingPeers, srcInfo, selected, result.fatal)
+		result.merge(part)
+		if part.err != nil {
+			if !errors.Is(part.err, errAllDestinationsSuppressed) {
+				result.err = part.err
+				return result
+			}
 		}
-		dispatched = dispatched || err == nil
 	}
 	if refused != nil {
 		// draft-simpson-idr-flowspec-redirect-02 Section 3: the rules whose
 		// redirect-to-IP action the RIB refused leave without it.
 		refusedInfo := srcInfo
 		refusedInfo.flowSpecRedirectRefused = true
-		err := a.forwardUpdateSelected(update, updateID, matchingPeers, refusedInfo, refused)
-		if err != nil && !errors.Is(err, errAllDestinationsSuppressed) {
-			return err
+		part := a.forwardUpdateSelected(update, updateID, matchingPeers, refusedInfo, refused, result.fatal)
+		result.merge(part)
+		if part.err != nil {
+			if !errors.Is(part.err, errAllDestinationsSuppressed) {
+				result.err = part.err
+				return result
+			}
 		}
-		dispatched = dispatched || err == nil
 	}
-	if dispatched {
-		return nil
+	if result.delivered() {
+		return result
 	}
-	return errAllDestinationsSuppressed
+	if len(result.fatal) == 0 {
+		result.err = errAllDestinationsSuppressed
+	}
+	return result
 }
 
 // forwardValidationWire partitions individual paths without changing the cache's
