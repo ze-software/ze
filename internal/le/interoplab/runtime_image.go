@@ -50,7 +50,7 @@ func openRuntimeInput(path string) (*os.File, error) {
 	if !before.Mode().IsRegular() {
 		return nil, fmt.Errorf("runtime image input must be a regular file without a symlink: %s", path)
 	}
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- local staging selects this recipe or completed binary; regular-file identity is checked before and after opening.
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func copyRuntimeInput(source, path string, mode os.FileMode) (err error) {
 			return fmt.Errorf("runtime image binary is not executable: %s", source)
 		}
 	}
-	output, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	output, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode) // #nosec G304 -- fixed filename in the new caller-owned staging directory; O_EXCL refuses replacement.
 	if err != nil {
 		return err
 	}

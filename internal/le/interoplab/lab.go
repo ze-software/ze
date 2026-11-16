@@ -413,7 +413,8 @@ func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 func (s Suite) prepareImages(ctx context.Context, builds []ImageBuild) ([]ImageResult, map[string]string, error) {
 	results := make([]ImageResult, 0, len(builds))
 	references := make(map[string]string, len(builds))
-	for _, build := range builds {
+	for index := range builds {
+		build := &builds[index]
 		if build.Name == "" {
 			return results, references, errors.New("suite image has no logical name")
 		}
@@ -442,7 +443,7 @@ func (s Suite) prepareImages(ctx context.Context, builds []ImageBuild) ([]ImageR
 			references[build.Name] = build.Tag
 			continue
 		}
-		result, err := s.Docker.Build(ctx, build)
+		result, err := s.Docker.Build(ctx, *build)
 		if err == nil {
 			results = append(results, result)
 			references[build.Name] = result.Reference

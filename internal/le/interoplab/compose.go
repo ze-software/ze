@@ -29,6 +29,9 @@ const composeVerb = "compose"
 // dockerVolumeObject is the docker CLI word for a named volume.
 const dockerVolumeObject = "volume"
 
+// dockerQuietFlag limits a Docker listing to object identifiers.
+const dockerQuietFlag = "--quiet"
+
 // ComposeProjectPrefix starts every Compose proof project's name, so a volume
 // an earlier run left is named by it (ComposeProofVolumes).
 const ComposeProjectPrefix = "ze-compose-"
@@ -84,13 +87,13 @@ type ComposeProofVolume struct {
 // applies to every resource, answers ownerGone AND its project holds no
 // container. It removes nothing: the lab cleanup never touches a volume.
 func (d *Docker) ComposeProofVolumes(ctx context.Context, current string) ([]ComposeProofVolume, error) {
-	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerVolumeObject, "ls", "--quiet",
+	result, err := d.command(ctx, dockerCommandTimeout, DockerExecutable, dockerVolumeObject, "ls", dockerQuietFlag,
 		dockerFilterFlag, "label="+labelMarker+"="+labelMarkerValue)
 	if err != nil {
 		return nil, err
 	}
 	var volumes []ComposeProofVolume
-	for _, name := range strings.Fields(result.Stdout) {
+	for name := range strings.FieldsSeq(result.Stdout) {
 		if !ownedVolumeName(name) {
 			continue
 		}
@@ -315,7 +318,7 @@ func (d *Docker) ComposeContainer(ctx context.Context, project ComposeProject, s
 	if err != nil {
 		return "", err
 	}
-	argv = append(argv, "ps", "--quiet", service)
+	argv = append(argv, "ps", dockerQuietFlag, service)
 	result, err := d.commandAs(ctx, dockerCommandTimeout, "docker compose ps", argv...)
 	if err != nil {
 		return "", err
@@ -390,9 +393,9 @@ func (d *Docker) ComposeResidue(ctx context.Context, project ComposeProject) (Co
 		argv []string
 		into *[]string
 	}{
-		{[]string{DockerExecutable, "ps", "--all", "--quiet", dockerFilterFlag, "label=" + filter}, &residue.Containers},
-		{[]string{DockerExecutable, "volume", "ls", "--quiet", dockerFilterFlag, "label=" + filter}, &residue.Volumes},
-		{[]string{DockerExecutable, "network", "ls", "--quiet", dockerFilterFlag, "label=" + filter}, &residue.Networks},
+		{[]string{DockerExecutable, "ps", "--all", dockerQuietFlag, dockerFilterFlag, "label=" + filter}, &residue.Containers},
+		{[]string{DockerExecutable, "volume", "ls", dockerQuietFlag, dockerFilterFlag, "label=" + filter}, &residue.Volumes},
+		{[]string{DockerExecutable, "network", "ls", dockerQuietFlag, dockerFilterFlag, "label=" + filter}, &residue.Networks},
 	}
 	for _, listing := range listings {
 		result, err := d.command(ctx, dockerCommandTimeout, listing.argv...)
