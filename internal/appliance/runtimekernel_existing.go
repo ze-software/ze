@@ -82,7 +82,7 @@ func ExistingRuntimeKernelTree(requested, arch string) (tree string, resultErr e
 	}
 	digest, tracked := kernelbuilder.SourceDigest(defaultKernelVersion)
 	if !tracked {
-		return "", fmt.Errorf("Linux %s has no tracked source digest", defaultKernelVersion)
+		return "", fmt.Errorf("the Linux version %s has no tracked source digest", defaultKernelVersion)
 	}
 	for _, expected := range []struct{ key, value string }{
 		{kernelbuilder.ProvenanceKeyVersion, defaultKernelVersion},

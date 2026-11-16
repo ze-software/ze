@@ -5,6 +5,7 @@
 package appliance
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/binary"
@@ -54,12 +55,13 @@ func newConfigPushSSHPeer(t *testing.T, status uint32, receipt string, wrongHost
 	t.Helper()
 	host, _ := configPushSigner(t)
 	identity, private := configPushSigner(t)
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenerConfig net.ListenConfig
+	listener, err := listenerConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	agentPath := filepath.Join(t.TempDir(), "agent.sock")
-	agentListener, err := net.Listen("unix", agentPath)
+	agentListener, err := listenerConfig.Listen(t.Context(), "unix", agentPath)
 	if err != nil {
 		_ = listener.Close() //nolint:errcheck // Fixture construction cleanup.
 		t.Fatal(err)
@@ -77,7 +79,7 @@ func newConfigPushSSHPeer(t *testing.T, status uint32, receipt string, wrongHost
 		if metadata.User() != "operator" {
 			return nil, errors.New("unexpected SSH username")
 		}
-		if string(key.Marshal()) != string(identity.PublicKey().Marshal()) {
+		if !bytes.Equal(key.Marshal(), identity.PublicKey().Marshal()) {
 			return nil, errors.New("unexpected SSH identity")
 		}
 		return &ssh.Permissions{}, nil

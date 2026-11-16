@@ -39,7 +39,7 @@ func initTestAppliance(t *testing.T, name string, passphrase []byte) string {
 	return dir
 }
 
-// pinTestApplianceHostArch sets an initialised appliance's image arch to the
+// pinTestApplianceHostArch sets an initialized appliance's image arch to the
 // host's. DefaultConfig names amd64, and buildOne resolves a foreign arch's
 // runtime kernel against the fixture root before anything else, so a build
 // test that needs to reach a later step pins the arch the host builds.

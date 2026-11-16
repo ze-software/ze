@@ -32,8 +32,8 @@ func applianceBootstrapCertificate(t *testing.T, expired bool, critical map[stri
 		Key: key, Serial: 1, CertType: gossh.UserCert,
 		KeyId: "appliance-certificate-test", ValidPrincipals: []string{"admin"},
 		ValidBefore: gossh.CertTimeInfinity,
-		Permissions: gossh.Permissions{CriticalOptions: critical},
 	}
+	certificate.CriticalOptions = critical
 	if expired {
 		certificate.ValidBefore = 1
 	}

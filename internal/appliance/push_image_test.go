@@ -19,6 +19,8 @@ import (
 	"testing"
 )
 
+const pushTestTransportError = "test server client transport is not HTTP"
+
 // pushDiskFixture models the four-partition GPT layout gok overwrite --full
 // produces. Distinct metadata, boot, root and persistent bytes expose a reader
 // that starts at the wrong offset or runs past its partition.
@@ -164,7 +166,11 @@ func TestPushStreamsPartitions(t *testing.T) {
 				_, _ = io.WriteString(w, hex.EncodeToString(hash.Sum(nil)))
 			}))
 			defer server.Close()
-			config := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+			transport, ok := server.Client().Transport.(*http.Transport)
+			if !ok {
+				t.Fatal(pushTestTransportError)
+			}
+			config := transport.TLSClientConfig.Clone()
 			if err := doPushUpdater(server.URL+"/", writePushFixture(t, disk), "update-secret", config, test.opts); err != nil {
 				t.Fatal(err)
 			}
@@ -199,7 +205,11 @@ func TestPushRejectsMalformedImageBeforeNetwork(t *testing.T) {
 				w.WriteHeader(http.StatusBadRequest)
 			}))
 			defer server.Close()
-			config := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+			transport, ok := server.Client().Transport.(*http.Transport)
+			if !ok {
+				t.Fatal(pushTestTransportError)
+			}
+			config := transport.TLSClientConfig.Clone()
 			if err := doPushUpdater(server.URL+"/", writePushFixture(t, test.data), "secret", config, pushOpts{}); err == nil {
 				t.Error("malformed image accepted")
 			}
@@ -261,7 +271,11 @@ func TestPushDoesNotSwitchAfterUploadFailure(t *testing.T) {
 				_, _ = io.WriteString(w, hex.EncodeToString(hash.Sum(nil)))
 			}))
 			defer server.Close()
-			config := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+			transport, ok := server.Client().Transport.(*http.Transport)
+			if !ok {
+				t.Fatal(pushTestTransportError)
+			}
+			config := transport.TLSClientConfig.Clone()
 			if err := doPushUpdater(server.URL+"/", writePushFixture(t, disk), "token", config, pushOpts{}); err == nil {
 				t.Fatal("failed partition upload reported success")
 			}

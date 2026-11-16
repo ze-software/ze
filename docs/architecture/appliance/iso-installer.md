@@ -75,6 +75,13 @@ is retained through ISO assembly and passed to GRUB with `--directory`, so a
 custom builder cannot silently use a different compiled-in module location.
 <!-- source: internal/appliance/iso_modules.go -- checkISOGRUBModules -->
 <!-- source: internal/appliance/cmd_iso.go -- checkISOPrerequisites, resolveISOInput -->
+
+If the standalone executable is missing, doctor prints the native Linux package
+repair when one is available. On other hosts, set the shell variable
+`GRUB_BIN_DIR` to the absolute directory containing an executable named
+`grub-mkstandalone` or `grub2-mkstandalone` and run the printed `PATH` command.
+That installation must include readable EFI modules matching the host. Use a
+supported Linux build host when no complete installation is available.
 <!-- source: internal/appliance/doctor_checks.go -- checkGrubBinary -->
 
 Missing modules produce a typed operator error with a repair command. On a

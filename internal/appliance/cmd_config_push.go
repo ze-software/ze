@@ -219,7 +219,7 @@ func sshExecReal(addr, user, command, stdin string) sshResult {
 	if command != configupload.Subsystem {
 		return sshResult{Err: opererr.New("configuration upload operation is unknown", "The host and device must use the configuration upload subsystem", "./ze-host appliance config-push --help")}
 	}
-	if len(stdin) == 0 {
+	if stdin == "" {
 		return sshResult{Err: opererr.New("configuration upload is empty", "The device requires a complete replacement configuration", "./ze-host appliance config-push --dry-run <name>")}
 	}
 	if len(stdin) > configupload.MaxBytes {

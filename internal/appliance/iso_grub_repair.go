@@ -46,7 +46,7 @@ func isoGRUBSelectionError(err error, name, directory string) error {
 // names are known. Unknown hosts MUST use a complete builder, not a guessed apt
 // command. target is the GRUB target, not the host's CPU architecture.
 func isoGRUBInstallCommand(distro, target string) (string, error) {
-	aptPackage, rpmPackage := "", ""
+	var aptPackage, rpmPackage string
 	switch target {
 	case isoGRUBTargetAMD64:
 		aptPackage, rpmPackage = "grub-efi-amd64-bin", "grub2-efi-x64-modules"
@@ -96,11 +96,12 @@ func isoGRUBModuleError(cause error, builder, target, path string) *opererr.Erro
 	var problem textbuf.Buffer
 	problem.Str("GRUB builder ").Str(builder).Str(" has no usable ").Str(target).Str("/modinfo.sh module set")
 	repair := isoGRUBOverride
-	why := "the selected EFI modules are required to make this installer ISO bootable"
+	var why textbuf.Buffer
+	why.Str("the selected EFI modules are required to make this installer ISO bootable")
 	if path != "" {
 		problem.Reset()
 		problem.Str("cannot inspect GRUB ").Str(target).Str(" modules at ").Str(path)
-		why += "; select a complete GRUB installation whose executable and module directories are readable"
+		why.Str("; select a complete GRUB installation whose executable and module directories are readable")
 	} else if release, err := isoOSReleaseReadFn("/etc/os-release"); err == nil {
 		for line := range strings.SplitSeq(string(release), "\n") {
 			key, value, found := strings.Cut(line, "=")
@@ -113,17 +114,15 @@ func isoGRUBModuleError(cause error, builder, target, path string) *opererr.Erro
 			if command, err := isoGRUBHostInstallCommand(strings.Trim(value, "\"'"), target, runtime.GOARCH); err == nil {
 				repair = command
 			} else {
-				var unavailable *opererr.Error
-				if errors.As(err, &unavailable) {
-					why += "; " + unavailable.Why()
+				if unavailable, ok := errors.AsType[*opererr.Error](err); ok {
+					why.Str("; ").Str(unavailable.Why())
 				}
 			}
 			break
 		}
 	}
-	var existing *opererr.Error
-	if errors.As(cause, &existing) {
+	if existing, ok := errors.AsType[*opererr.Error](cause); ok {
 		return existing
 	}
-	return opererr.Wrap(cause, problem.String(), why, repair)
+	return opererr.Wrap(cause, problem.String(), why.String(), repair)
 }

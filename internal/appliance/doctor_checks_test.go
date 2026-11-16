@@ -130,10 +130,15 @@ func TestDoctorGrubPresent(t *testing.T) {
 	}
 }
 
+// TestDoctorGrubMissing requires an actionable repair for a host whose GRUB
+// installation cannot be selected by a known package manager.
 func TestDoctorGrubMissing(t *testing.T) {
 	old := doctorLookPathFn
+	oldRelease := isoOSReleaseReadFn
 	doctorLookPathFn = func(name string) (string, error) { return "", errors.New("not found") }
+	isoOSReleaseReadFn = func(string) ([]byte, error) { return []byte("ID=unrecognized\n"), nil }
 	t.Cleanup(func() { doctorLookPathFn = old })
+	t.Cleanup(func() { isoOSReleaseReadFn = oldRelease })
 
 	diags := checkGrubBinary(diagnostic.DoctorCheckContext{})
 	if len(diags) != 1 {
@@ -141,6 +146,18 @@ func TestDoctorGrubMissing(t *testing.T) {
 	}
 	if diags[0].Code != "doctor-appliance-grub" {
 		t.Errorf("code = %q, want doctor-appliance-grub", diags[0].Code)
+	}
+	if diags[0].Severity != diagnostic.SeverityWarning {
+		t.Errorf("severity = %v, want warning", diags[0].Severity)
+	}
+	wantFix := `PATH="${GRUB_BIN_DIR:?set GRUB_BIN_DIR to the absolute bin directory of a complete GRUB installation}:$PATH" ./ze-host doctor`
+	if diags[0].Fix != wantFix {
+		t.Errorf("fix = %q, want the complete GRUB installation exposed to doctor: %q", diags[0].Fix, wantFix)
+	}
+	for _, requirement := range []string{"grub-mkstandalone", "grub2-mkstandalone", "readable", "EFI modules", "supported Linux build host"} {
+		if !strings.Contains(diags[0].Help, requirement) {
+			t.Errorf("help = %q, missing prerequisite %q", diags[0].Help, requirement)
+		}
 	}
 }
 

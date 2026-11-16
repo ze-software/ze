@@ -24,6 +24,7 @@ const (
 	// distributions that packaged GRUB 2 beside GRUB Legacy prefix theirs.
 	grubStandalone  = "grub-mkstandalone"
 	grubStandalone2 = "grub2-mkstandalone"
+	doctorGRUBCode  = "doctor-appliance-grub"
 )
 
 var doctorLookPathFn = exec.LookPath
@@ -65,7 +66,7 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Component:    componentAppliance,
 			Dependencies: []string{dependencyExternalBinary},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{"doctor-appliance-grub"},
+			Codes:        []string{doctorGRUBCode},
 			Check:        checkGrubBinary,
 		},
 		{
@@ -161,34 +162,51 @@ func checkInitrdArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 
 func checkGrubBinary(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	for _, name := range []string{grubStandalone, grubStandalone2} {
-		if builder, err := doctorLookPathFn(name); err == nil {
-			target, _, targetErr := isoGRUBTarget(runtime.GOARCH)
-			if targetErr == nil {
-				_, targetErr = isoModuleCheckFn(builder, target)
-			}
-			if targetErr == nil {
-				return nil
-			}
-			failure := isoGRUBModuleError(targetErr, builder, target, "")
-			var message textbuf.Buffer
-			message.Str(failure.Problem())
-			if cause := failure.Unwrap(); cause != nil {
-				message.Str(": ").Err(cause)
-			}
-			return []diagnostic.Diagnostic{{
-				Code:     "doctor-appliance-grub",
-				Severity: diagnostic.SeverityWarning,
-				Message:  message.String(),
-				Help:     failure.Why(),
-				Fix:      failure.Fix(),
-			}}
+		builder, err := doctorLookPathFn(name)
+		if err != nil {
+			continue
 		}
+		target, _, targetErr := isoGRUBTarget(runtime.GOARCH)
+		if targetErr == nil {
+			_, targetErr = isoModuleCheckFn(builder, target)
+		}
+		if targetErr == nil {
+			return nil
+		}
+		failure := isoGRUBModuleError(targetErr, builder, target, "")
+		var message textbuf.Buffer
+		message.Str(failure.Problem())
+		if cause := failure.Unwrap(); cause != nil {
+			message.Str(": ").Err(cause)
+		}
+		return []diagnostic.Diagnostic{{
+			Code:     doctorGRUBCode,
+			Severity: diagnostic.SeverityWarning,
+			Message:  message.String(),
+			Help:     failure.Why(),
+			Fix:      failure.Fix(),
+		}}
 	}
-	return []diagnostic.Diagnostic{{
-		Code:     "doctor-appliance-grub",
+	missing := diagnostic.Diagnostic{
+		Code:     doctorGRUBCode,
 		Severity: diagnostic.SeverityWarning,
 		Message:  "grub-mkstandalone not found; install GRUB EFI tooling for ISO builds",
-	}}
+		Help:     "GRUB_BIN_DIR must contain an executable named grub-mkstandalone or grub2-mkstandalone, with readable matching host-target EFI modules in a supported installation layout; use a supported Linux build host if no complete installation is available",
+		Fix:      `PATH="${GRUB_BIN_DIR:?set GRUB_BIN_DIR to the absolute bin directory of a complete GRUB installation}:$PATH" ./ze-host doctor`,
+	}
+	target, _, err := isoGRUBTarget(runtime.GOARCH)
+	if err != nil {
+		var help textbuf.Buffer
+		missing.Help = help.Str(missing.Help).Str("; ").Err(err).String()
+		return []diagnostic.Diagnostic{missing}
+	}
+	failure := isoGRUBModuleError(exec.ErrNotFound, grubStandalone, target, "")
+	if failure.Fix() == isoGRUBOverride {
+		return []diagnostic.Diagnostic{missing}
+	}
+	missing.Help = failure.Why()
+	missing.Fix = failure.Fix()
+	return []diagnostic.Diagnostic{missing}
 }
 
 func checkXorrisoBinary(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {

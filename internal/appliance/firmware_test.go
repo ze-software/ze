@@ -1,6 +1,7 @@
 package appliance
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -106,7 +107,7 @@ func TestFirmwareDownloadCachesPinnedBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != string(pinned) {
+	if !bytes.Equal(got, pinned) {
 		t.Errorf("cached firmware = %q, want %q", got, pinned)
 	}
 	entries, err := os.ReadDir(filepath.Dir(dest))
@@ -154,7 +155,7 @@ func TestCachedFirmwareIsVerifiedBeforeUse(t *testing.T) {
 			t.Errorf("the refusal does not name %q:\n%v", want, err)
 		}
 	}
-	if got, readErr := os.ReadFile(dest); readErr != nil || string(got) != string(corrupted) {
+	if got, readErr := os.ReadFile(dest); readErr != nil || !bytes.Equal(got, corrupted) {
 		t.Errorf("the refused cached blob was changed or removed: %q, %v", got, readErr)
 	}
 }
