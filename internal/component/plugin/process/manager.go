@@ -244,6 +244,54 @@ func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 	return pm.startConfigs(configs)
 }
 
+// StartEach starts every config and answers, by plugin name, the error of each
+// one that did not start. Unlike StartWithContext and StartMore, one plugin
+// that fails to start stops nothing: the others stay running and held, and the
+// caller decides what a failure means. A config that started is registered
+// like any other process; a config that failed is not.
+//
+// The daemon calls it at boot for the external plugins the config declares,
+// before the full config can be parsed, so a plugin that cannot be run is an
+// outcome the load reports and never the end of the plugins that did run.
+//
+// The first start of a manager captures ctx for every later StartMore; a
+// manager already started keeps its context and ctx is not read. Configs MUST
+// hold no name the manager already runs.
+func (pm *ProcessManager) StartEach(ctx context.Context, configs []plugin.PluginConfig) map[string]error {
+	if pm.ctx == nil {
+		pm.ctx, pm.cancel = context.WithCancel(ctx)
+	}
+	pm.mu.Lock()
+	for i := range configs {
+		held := slices.ContainsFunc(pm.configs, func(config plugin.PluginConfig) bool {
+			return config.Name == configs[i].Name
+		})
+		if !held {
+			pm.configs = append(pm.configs, configs[i])
+		}
+	}
+	pm.mu.Unlock()
+
+	// Every spawn clears the re-entry guard Stop sets (startConfigs says why).
+	pm.stopping.Store(false)
+	failures := make(map[string]error)
+	for _, cfg := range configs {
+		proc := NewProcess(cfg)
+		pm.wireMetrics(proc)
+		if pm.acceptor != nil && !cfg.Internal {
+			proc.SetAcceptor(pm.acceptor)
+		}
+		if err := proc.StartWithContext(pm.ctx); err != nil {
+			failures[cfg.Name] = err
+			continue
+		}
+		pm.mu.Lock()
+		pm.processes[cfg.Name] = proc
+		pm.mu.Unlock()
+	}
+	return failures
+}
+
 // startConfigs spawns the given configs under pm.ctx and registers them in
 // pm.processes. Used by both StartWithContext (initial spawn) and StartMore
 // (incremental spawn). The shared map lets AllProcesses return every process

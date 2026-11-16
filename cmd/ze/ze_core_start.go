@@ -26,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/managed"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -295,7 +296,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		}
 	}
 
-	applied, preChange := checkPushedConfig(store, configName)
+	applied, preChange := checkPushedConfig(store, configName, plugins)
 	writeConfigActiveHash(store, configName)
 
 	if applied {
@@ -366,7 +367,11 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		return 1
 	}
 
-	if _, parseErr := config.LoadConfig(string(configData), "", nil); parseErr != nil {
+	// The fetched config is judged before it is cached. When it declares an
+	// external plugin the full verdict is boot's (judgeConfigBeforeBoot), and
+	// a refusal there removes the cached copy, below.
+	judgedAtBoot, parseErr := judgeConfigBeforeBoot(configData, nil, plugins)
+	if parseErr != nil {
 		fmt.Fprintf(os.Stderr, "error: hub config failed validation: %v\n", parseErr)
 		return 1
 	}
@@ -374,6 +379,22 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	if writeErr := store.WriteFile(configName, configData, 0); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: cache config: %v\n", writeErr)
 		return 1
+	}
+
+	if judgedAtBoot {
+		hub.ConfigRefused = func(refusal error) {
+			var tb textbuf.Buffer
+			tb.Str("error: hub config failed validation: ").Err(refusal).
+				Str("\nthe cached copy was removed, so the next start fetches the config from the hub again; ").
+				Str("correct the config on the hub, then: ze start\n")
+			tb.StdErr() //nolint:errcheck // stderr of a process that is exiting
+			if rmErr := store.Remove(configName); rmErr != nil {
+				var failed textbuf.Buffer
+				failed.Str("error: the refused config could not be removed from the cache, so the next start reads it again: ").
+					Err(rmErr).Str("\nremove it by hand, then: ze start\n")
+				failed.StdErr() //nolint:errcheck // stderr of a process that is exiting
+			}
+		}
 	}
 
 	clientCfg := extractManagedClientConfig(store, configName)
@@ -391,17 +412,18 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		return nil
 	}
 
-	loadResult, err := config.LoadConfig(string(data), "", nil)
+	// The hub client block is under `plugin`, which the first pass reads on
+	// its own. A full parse here would refuse a config that holds a section
+	// of an external plugin, whose schema the daemon learns only at boot, and
+	// would build values that keep the module set before boot publishes it.
+	firstPass, err := config.FirstPass(string(data), "", nil)
 	if err != nil {
-		slog.Warn("managed: cannot parse config for hub extraction", "config", configName, "error", err)
+		slog.Warn("managed: cannot read the plugin hub block of the config, so this daemon runs with no managed client; "+
+			"correct the block, then check it with: ze config validate",
+			"config", configName, "error", err, "code", diagnostic.CodeConfigHubInvalid)
 		return nil
 	}
-
-	hubCfg, err := config.ExtractHubConfig(loadResult.Tree)
-	if err != nil {
-		slog.Warn("managed: cannot extract hub config", "error", err)
-		return nil
-	}
+	hubCfg := firstPass.Hub
 	if len(hubCfg.Clients) == 0 {
 		return nil
 	}

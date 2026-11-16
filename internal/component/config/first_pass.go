@@ -70,8 +70,11 @@ type FirstPassResult struct {
 // validators have not judged this config, and LoadConfig publishes the block
 // once they have. It is here for what a plugin needs to be forked.
 //
-// Nothing calls FirstPass at boot yet: the daemon still parses the whole
-// config first (cmd/ze/hub runYANGConfig).
+// The daemon calls it first at boot (cmd/ze/hub runYANGConfig, then
+// joinDeclaredPlugins for the run, the join and the publish), and the start
+// path uses it where it needs the `plugin` block before boot (cmd/ze
+// judgeConfigBeforeBoot, extractManagedClientConfig). The commands that parse
+// a config with no daemon do not call it yet.
 func FirstPass(input, configPath string, cliPlugins []string) (*FirstPassResult, error) {
 	schema, err := PluginOnlySchema()
 	if err != nil {

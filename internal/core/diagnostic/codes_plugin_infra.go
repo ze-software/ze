@@ -37,6 +37,7 @@ const (
 	CodeDoctorPluginDeliveryFailed          = "doctor-plugin-delivery-failed"
 	CodeDoctorPluginStderrRelayStopped      = "doctor-plugin-stderr-relay-stopped"
 	CodeDoctorPluginRestartOverlap          = "doctor-plugin-restart-overlap"
+	CodeDoctorPluginStopUnfinished          = "doctor-plugin-stop-unfinished"
 	CodeDoctorPluginEnricherUnavailable     = "doctor-plugin-enricher-unavailable"
 	CodeDoctorPluginConnectBackRefused      = "doctor-plugin-connect-back-refused"
 	CodeDoctorManagedListenerUnbound        = "doctor-managed-listener-unbound"
@@ -248,6 +249,17 @@ var pluginInfraCodes = []CodeMeta{
 			"When the engine or the process had ended, only its event delivery or the relay of its stderr was left, and a process the plugin started may hold that stderr open. " +
 			"ze takes no further step to end what is left. The fix is the command that shows it: the goroutine dump for a plugin that runs in the daemon, and the relayed plugin output for a forked plugin. A second restart replaces the new process, not the previous one.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-restart-overlap"},
+	},
+	{
+		Code:  CodeDoctorPluginStopUnfinished,
+		Title: "Plugin stopped at boot had not finished stopping",
+		Description: "At boot ze starts each external plugin the configuration declares before it parses the whole configuration, to read the plugin's own config schema. " +
+			"It stops one that sent no declaration, one the parsed configuration no longer names, and the others of a startup phase that was refused. " +
+			"This plugin had not finished stopping within its bound (2s after the stop for a forked plugin, 1s for one that runs in the daemon), and ze went on and removed it from the plugins it runs. " +
+			"The event says what was left. A forked process that had not exited was sent the kill for its process group and may still be running; " +
+			"when the process had ended, only its event delivery or the relay of its stderr was left, and a process the plugin started may hold that stderr open. " +
+			"ze takes no further step to end what is left. The fix is the command that shows it: the relayed plugin output for a forked plugin, and the goroutine dump for a plugin that runs in the daemon.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-stop-unfinished"},
 	},
 	{
 		Code:  CodeDoctorPluginEnricherUnavailable,

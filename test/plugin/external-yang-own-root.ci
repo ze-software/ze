@@ -1,0 +1,41 @@
+# Test: an external plugin's own YANG root is accepted at start and delivered to it
+#
+# Question: when an external plugin declared in the `plugin` block brings a
+# config module at Stage 1, does `ze start` accept a block under that module's
+# root, and does the plugin receive the block at Stage 2 with the values the
+# operator wrote?
+# Why not a unit test: the answer is an order of events in one daemon (the
+# plugin block read first, the plugin run, its module joined, the full config
+# parsed, the section delivered). Only a daemon start through the real fork
+# and connect-back proves the order holds.
+#
+# The plugin is a REAL external process built on the public Go SDK
+# (internal/test/fixture/plugin_fixture_external_yang.go). It prints what it
+# received at Stage 2, and the lines below are that print.
+#
+# VALIDATES: AC-1 of spec-plugin-external-yang-at-startup -- the config is
+#   accepted and the plugin receives its section under root acme-monitor.
+# PREVENTS: the state the spec found. The config was parsed before any
+#   external plugin existed, so a block under the plugin's own root was refused
+#   with "unknown top-level keyword" and the plugin never started.
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
+await=stderr:contains=FIXTURE: external-yang generation 1 ready
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:pattern=ZE-OBSERVER-FAIL

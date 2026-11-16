@@ -1,0 +1,96 @@
+# Test: a commit under an external plugin's root reaches the plugin, and its refusal aborts the commit
+#
+# Question: once the daemon runs with a block under an external plugin's own
+# root, does a change of a leaf there reach the plugin as verify with the
+# candidate and then apply with the old and the new value, and does a candidate
+# the plugin refuses at verify abort with the plugin's text?
+# Why not a unit test: it is a sequence through one running daemon: load,
+# change, verify, apply, a second change, a refusal. Its pieces would not prove
+# the sequence.
+#
+# The change arrives as a reload (SIGHUP), which runs the same config
+# transaction a commit runs. reload/live-stages drives it from inside the
+# daemon and reads `show reload-status` between the two reloads; it asks the
+# daemon to stop when its script passed.
+#
+# VALIDATES: AC-3 of spec-plugin-external-yang-at-startup.
+# PREVENTS: a plugin whose root the schema accepts at start and whose changes
+#   never reach it afterwards, so the operator's edit is reported committed and
+#   the plugin keeps the old value.
+
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+# The accepted change: interval 5 becomes 7.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 7
+}
+EOF_CONF2
+
+# The refused change: the plugin's verify refuses this target.
+tmpfs=config3.conf:terminator=EOF_CONF3
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target refuse-me
+	interval 7
+}
+EOF_CONF3
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+reload config2.conf
+has show reload-status => "last-outcome":"applied"
+reload config3.conf
+has show reload-status => "last-outcome":"failed"
+say EXTERNAL-YANG-COMMIT: one change applied, one refused by the plugin
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
+expect=stderr:contains=FIXTURE: external-yang verify root=acme-monitor leaves=[acme-monitor/interval=7 acme-monitor/target=probe-a]
+expect=stderr:pattern=FIXTURE: external-yang apply root=acme-monitor .*acme-monitor/interval/old=5
+expect=stderr:pattern=FIXTURE: external-yang apply root=acme-monitor .*acme-monitor/interval/new=7
+expect=stderr:contains=acme-monitor cannot probe target refuse-me
+expect=stderr:contains=EXTERNAL-YANG-COMMIT: one change applied, one refused by the plugin
+reject=stderr:pattern=FIXTURE: external-yang apply root=acme-monitor .*refuse-me
+reject=stderr:pattern=ZE-OBSERVER-FAIL

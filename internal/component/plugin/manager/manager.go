@@ -9,12 +9,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	parent "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
@@ -23,6 +25,9 @@ import (
 var (
 	errAlreadyStarted = errors.New("already started")
 	errNotStarted     = errors.New("not started")
+	// errDeclaredAlreadyStarted is a Ze defect, never an operator's: boot
+	// calls StartDeclared once.
+	errDeclaredAlreadyStarted = errors.New("the declared external plugins were already started once")
 )
 
 // logger is the plugin manager subsystem logger (lazy initialization).
@@ -33,6 +38,9 @@ var logger = slogutil.LazyLogger("plugin.manager")
 // The 5-stage protocol handshake stays in pluginserver.Server (Phase 2).
 //
 // Two-phase startup:
+//   - Before either, at boot (StartDeclared): fork the external plugins the
+//     config declares, so each can send the Stage 1 declaration that carries
+//     its YANG module before the full config is parsed
 //   - Phase 1 (StartAll): spawn processes — no Server needed
 //   - Phase 2 (Server.StartWithContext): handshake with spawned processes
 //
@@ -61,6 +69,13 @@ type Manager struct {
 
 	// TLS acceptor for external plugin connect-back (shared across phases).
 	acceptor *pluginipc.PluginAcceptor
+
+	// declared holds the outcome of each external plugin StartDeclared ran
+	// before the full config was parsed, by plugin name: nil while its process
+	// is held with its Stage 1 declaration unanswered, and the reason when it
+	// is not running. SpawnMore takes an entry once, so a later start of the
+	// same name (a reload, a restart) forks as it always did.
+	declared map[string]error
 
 	// Context for process management.
 	ctx    context.Context
@@ -150,7 +165,217 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 		return nil
 	}
 
+	// A plugin StartDeclared already ran is never forked a second time: its
+	// held process is the one the phase handshakes with, and a plugin that
+	// did not start then is refused with the reason kept from that attempt.
+	configs, err := m.takeDeclared(configs)
+	if err != nil {
+		return err
+	}
+	if len(configs) == 0 {
+		return nil
+	}
+
 	return m.spawnProcesses(configs)
+}
+
+// StartDeclared forks the external plugins the config declares, before the
+// full config can be parsed and so before StartAll: running a declared plugin
+// is what lets it send the Stage 1 declaration that carries its YANG module.
+// It answers, by plugin name, the error of each plugin that did not start; a
+// plugin absent from the answer is running, connected and held.
+//
+// Each plugin it ran is recorded, and the SpawnMore that later names it takes
+// the held process and forks nothing, or answers the kept failure. The caller
+// MUST read each held plugin's Stage 1 request with
+// PluginConn.HoldStartupRequest and answer none: the startup phase answers it.
+// A held plugin the caller gives up on goes through FailDeclared, and one the
+// parsed config no longer names through DropDeclaredExcept.
+//
+// MUST be called at most once, after SetHubConfig and SetHubAuthority and
+// before StartAll. The processes live until StopAll, under ctx. An error
+// (no listener for the plugins to connect back to) means nothing was forked
+// and nothing recorded, so the startup phase reports it as it always did.
+func (m *Manager) StartDeclared(ctx context.Context, configs []parent.PluginConfig) (map[string]error, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.started {
+		return nil, errAlreadyStarted
+	}
+	if m.declared != nil {
+		return nil, errDeclaredAlreadyStarted
+	}
+	if len(configs) == 0 {
+		return map[string]error{}, nil
+	}
+	if err := m.ensureAcceptor(configs); err != nil {
+		return nil, err
+	}
+	if m.procManager == nil {
+		m.procManager = process.NewProcessManager(nil)
+		if m.metricsRegistry != nil {
+			m.procManager.SetMetricsRegistry(m.metricsRegistry)
+		}
+	}
+	if m.acceptor != nil {
+		m.procManager.SetAcceptor(m.acceptor)
+	}
+
+	failures := m.procManager.StartEach(ctx, configs)
+	m.declared = make(map[string]error, len(configs))
+	for _, cfg := range configs {
+		failure := failures[cfg.Name]
+		m.declared[cfg.Name] = failure
+		if failure != nil {
+			continue
+		}
+		m.plugins[cfg.Name] = &pluginState{
+			config:  ze.PluginConfig{Name: cfg.Name, Internal: cfg.Internal},
+			running: true,
+		}
+	}
+	logger().Debug("declared external plugins started", "count", len(configs), "failed", len(failures))
+	return failures, nil
+}
+
+// FailDeclared stops a plugin StartDeclared holds and keeps cause as the
+// reason it is not running, so the SpawnMore that names it answers cause and
+// forks nothing. The caller uses it for a held plugin that sent no Stage 1
+// declaration within its bound. cause MUST say what is wrong, why, and the
+// command that fixes it: it is the text the operator reads. A name that is
+// not held is left alone.
+func (m *Manager) FailDeclared(ctx context.Context, name string, cause error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	outcome, recorded := m.declared[name]
+	if !recorded {
+		return
+	}
+	if outcome != nil {
+		return
+	}
+	m.declared[name] = cause
+	m.stopHeldLocked(ctx, name)
+}
+
+// DropDeclaredExcept stops every plugin StartDeclared ran that keep does not
+// name, and forgets its outcome. The caller uses it once the full config is
+// parsed: a config recovered from history can declare other plugins than the
+// text the first pass read, and a held plugin nothing will start again would
+// wait on its Stage 1 answer for the life of the daemon.
+func (m *Manager) DropDeclaredExcept(ctx context.Context, keep []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for name, outcome := range m.declared {
+		if slices.Contains(keep, name) {
+			continue
+		}
+		delete(m.declared, name)
+		if outcome == nil {
+			m.stopHeldLocked(ctx, name)
+		}
+	}
+}
+
+// takeDeclared answers the configs SpawnMore still has to fork: every config
+// but the ones StartDeclared already ran, each of which is taken from the
+// record here, once. When one of them did not start, the phase cannot run, so
+// the held plugins of this same call are stopped (nothing would answer them)
+// and the kept reasons are the error. Every plugin the refused phase leaves
+// down is then recorded down, so ze doctor names it (recordDeclaredDownLocked).
+// Must be called with m.mu held.
+func (m *Manager) takeDeclared(configs []parent.PluginConfig) ([]parent.PluginConfig, error) {
+	if len(m.declared) == 0 {
+		return configs, nil
+	}
+
+	remaining := make([]parent.PluginConfig, 0, len(configs))
+	var held []string
+	var failed []string
+	var failures []error
+	for _, cfg := range configs {
+		outcome, recorded := m.declared[cfg.Name]
+		if !recorded {
+			remaining = append(remaining, cfg)
+			continue
+		}
+		delete(m.declared, cfg.Name)
+		if outcome != nil {
+			failed = append(failed, cfg.Name)
+			failures = append(failures, outcome)
+			continue
+		}
+		held = append(held, cfg.Name)
+	}
+	if len(failures) == 0 {
+		return remaining, nil
+	}
+	for _, name := range held {
+		m.stopHeldLocked(m.ctx, name)
+	}
+	// Recorded after the stops, because a stop removes the process and a
+	// removal clears the record (ProcessManager.RemoveProcess).
+	for i, name := range failed {
+		m.recordDeclaredDownLocked(name, failures[i].Error())
+	}
+	for _, name := range held {
+		m.recordDeclaredDownLocked(name, declaredPhaseRefusedDetail)
+	}
+	return nil, errors.Join(failures...)
+}
+
+// declaredPhaseRefusedDetail is why a held plugin that did declare is down:
+// another plugin of its startup phase did not, and one failure stops the phase.
+const declaredPhaseRefusedDetail = "its startup phase was refused because another external plugin " +
+	"sent no declaration before the config was parsed; the log names that plugin"
+
+// recordDeclaredDownLocked records that the declared plugin name is not
+// running and why, as the startup phase records a handshake that failed
+// (process.StopHandshakeFailed). It is the only record of a plugin that was
+// refused before its phase could run: the doctor-plugin-stopped check reads
+// it and names the plugin, detail and the command that starts it again.
+// Must be called with m.mu held.
+func (m *Manager) recordDeclaredDownLocked(name, detail string) {
+	if m.procManager == nil {
+		// StartDeclared creates the process manager before it writes the
+		// record this plugin was taken from, and StopAll clears both, so only
+		// a ze defect reaches here. It is said rather than skipped: with no
+		// process manager there is no record for doctor to read.
+		logger().Error("a declared external plugin is not running and ze holds no process manager to record it in, "+
+			"so ze doctor does not name it. This is a Ze defect: report it",
+			"plugin", name, "detail", detail, "code", diagnostic.CodeDoctorInternalDefect)
+		return
+	}
+	m.procManager.RecordStopped(name, process.PluginStop{Cause: process.StopHandshakeFailed, Detail: detail})
+}
+
+// stopHeldLocked stops the held process of name, waits for its goroutines
+// within the process's own stop bound, and removes it from the process
+// manager. A wait that expires is raised as doctor-plugin-stop-unfinished
+// (process.RecordStopUnfinished) before the removal, which is the last point
+// the manager knows the process. Must be called with m.mu held.
+func (m *Manager) stopHeldLocked(ctx context.Context, name string) {
+	if ps, ok := m.plugins[name]; ok {
+		ps.running = false
+	}
+	if m.procManager == nil {
+		return
+	}
+	proc := m.procManager.GetProcess(name)
+	if proc == nil {
+		return
+	}
+	proc.Stop()
+	bound := proc.StopJoinBound()
+	waitCtx, cancel := context.WithTimeout(ctx, bound)
+	defer cancel()
+	if err := proc.Wait(waitCtx); err != nil {
+		process.RecordStopUnfinished(proc, bound, err)
+	}
+	m.procManager.RemoveProcess(name)
 }
 
 // spawnProcesses appends configs to the shared ProcessManager and starts them.

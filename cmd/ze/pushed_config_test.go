@@ -41,7 +41,7 @@ func TestBootWithSeedConfigOnly(t *testing.T) {
 	}
 	t.Cleanup(func() { readPushedConfig = defaultReadPushedConfig })
 
-	checkPushedConfig(store, "ze.conf")
+	checkPushedConfig(store, "ze.conf", nil)
 
 	got, err := store.ReadFile(zefs.KeyFileActive.Key("ze.conf"))
 	if err != nil {
@@ -61,7 +61,7 @@ func TestBootWithValidPushedConfig(t *testing.T) {
 	}
 	t.Cleanup(func() { readPushedConfig = defaultReadPushedConfig })
 
-	checkPushedConfig(store, "ze.conf")
+	checkPushedConfig(store, "ze.conf", nil)
 
 	got, err := store.ReadFile(zefs.KeyFileActive.Key("ze.conf"))
 	if err != nil {
@@ -89,7 +89,7 @@ func TestBootWithInvalidPushedConfigFallsBack(t *testing.T) {
 		removePushedConfig = defaultRemovePushedConfig
 	})
 
-	checkPushedConfig(store, "ze.conf")
+	checkPushedConfig(store, "ze.conf", nil)
 
 	got, err := store.ReadFile(zefs.KeyFileActive.Key("ze.conf"))
 	if err != nil {
@@ -162,7 +162,7 @@ func TestCheckPushedConfigRemoveError(t *testing.T) {
 		removePushedConfig = defaultRemovePushedConfig
 	})
 
-	checkPushedConfig(store, "ze.conf")
+	checkPushedConfig(store, "ze.conf", nil)
 
 	got, _ := store.ReadFile(zefs.KeyFileActive.Key("ze.conf"))
 	if !bytes.Equal(got, seedData) {

@@ -508,6 +508,17 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		return errNoProcessspawnerSetCallSetprocessspawner
 	}
 	if err := s.spawner.SpawnMore(plugins); err != nil {
+		// A spawner that refuses the phase for a plugin that did not start
+		// before the config was parsed records that plugin down in its
+		// process manager (Manager.takeDeclared). Published here, the record
+		// reaches the doctor snapshot and the restart command the row names;
+		// left unpublished, a phase refused before any other ran would leave
+		// doctor answering that no plugin was started.
+		if held, isManager := s.spawner.GetProcessManager().(*process.ProcessManager); isManager {
+			if held != nil {
+				s.procManager.Store(held)
+			}
+		}
 		return err
 	}
 	pm, ok := s.spawner.GetProcessManager().(*process.ProcessManager)

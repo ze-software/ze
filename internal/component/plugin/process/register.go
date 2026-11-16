@@ -11,12 +11,14 @@ import (
 
 // processEventCodes are the report-bus codes the process manager raises as
 // events, which the recent-events doctor check reports: a plugin process that
-// ended unasked, a stderr relay that stopped while its plugin ran, and a
-// respawn whose replacement started before the process it replaces ended.
+// ended unasked, a stderr relay that stopped while its plugin ran, a respawn
+// whose replacement started before the process it replaces ended, and a
+// plugin stopped at boot that had not finished stopping when ze went on.
 var processEventCodes = []diagnostic.EventCode{
 	{Code: diagnostic.CodeDoctorPluginCrashed},
 	{Code: diagnostic.CodeDoctorPluginStderrRelayStopped},
 	{Code: diagnostic.CodeDoctorPluginRestartOverlap},
+	{Code: diagnostic.CodeDoctorPluginStopUnfinished},
 }
 
 func init() {

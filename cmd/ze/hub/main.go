@@ -439,6 +439,68 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	var forceCh chan os.Signal
 	defer func() { releaseForceSignals(forceCh) }()
 
+	// Phase 0: the load order's first steps, before any full parse. The first
+	// pass reads the plugin declarations (the `plugin` block and the command
+	// line); each declared external plugin is then run and sends its Stage 1
+	// declaration, which carries its YANG module, and waits for the answer;
+	// the modules are joined to the compiled-in set and published. Only then
+	// can a config that holds a section of such a plugin be parsed. A config
+	// that declares no external plugin forks nothing, waits for nothing and
+	// publishes nothing here.
+	//
+	// The certificate authority is loaded here only when a plugin is forked,
+	// and kept: the block below that loads it for every boot reuses it.
+	pm := pluginmgr.NewManager()
+	var caRoot *zepki.Root
+	var declarations []pluginserver.EarlyDeclaration
+	firstPass, firstPassErr := zeconfig.FirstPass(string(data), configPath, plugins)
+	if firstPassErr == nil {
+		var joinErr error
+		declarations, joinErr = joinDeclaredPlugins(context.Background(), firstPass, pm, func() error {
+			root, rootErr := loadHubAuthority(store)
+			if rootErr != nil {
+				return fmt.Errorf("local certificate authority: %w", rootErr)
+			}
+			caRoot = root
+			pm.SetHubAuthority(root)
+			pm.SetHubConfig(&firstPass.Hub)
+			return nil
+		})
+		if len(firstPass.External) > 0 {
+			// Every return below, until the engine owns the manager, leaves
+			// the held plugins to this: a refused boot must not leave them
+			// waiting on a daemon that is gone. After the engine stopped the
+			// manager it finds nothing to stop.
+			defer pm.StopAll(context.Background()) //nolint:errcheck // pm is the concrete plugin manager, whose StopAll answers nil on every path; the error result exists for ze.PluginManager, and a late stop is logged by the process manager under its own code
+		}
+		if joinErr != nil {
+			var tb textbuf.Buffer
+			tb.Str("error: external plugin schema: ").Err(joinErr).Byte('\n')
+			tb.StdErr() //nolint:errcheck // the process is exiting on the next line
+			logStartupFailure("external plugin schema", joinErr)
+			// declarations is set when the plugins ran and their modules
+			// were refused, which is a verdict on the config; it is nil when
+			// nothing could be forked, which is not.
+			if declarations != nil && ConfigRefused != nil {
+				ConfigRefused(joinErr)
+			}
+			return 1
+		}
+		for _, declaration := range declarations {
+			if declaration.Err != nil {
+				slog.Warn("external plugin sent no declaration before the config was parsed",
+					"plugin", declaration.Plugin, "error", declaration.Err,
+					"code", diagnostic.CodeDoctorPluginStopped)
+			}
+		}
+	}
+	// A first pass that refuses the text leaves the verdict to the full parse
+	// below, which refuses the same `plugin` or `environment` block with the
+	// message it always gave. Should the full parse accept what the first pass
+	// refused, the two parsers disagree, which is a Ze defect: it is logged
+	// after the load, and the boot goes on as it did before the first pass
+	// existed, with no plugin run early.
+
 	// Phase 1: Parse config and resolve plugins.
 	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
@@ -460,11 +522,34 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		if !ok {
 			fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
+			// A section that only an external plugin's schema defines is an
+			// unknown keyword when that plugin declared nothing: name each
+			// such plugin, why it did not declare and the command that fixes
+			// it, beside the refusal.
+			if lines := undeclaredPluginLines(declarations); lines != "" {
+				var tb textbuf.Buffer
+				tb.Str(lines)
+				tb.StdErr() //nolint:errcheck // the process is exiting below
+			}
 			logStartupFailure("load config", err)
+			if ConfigRefused != nil {
+				ConfigRefused(err)
+			}
 			return 1
 		}
 
 		loadResult = recovered
+	}
+	if firstPassErr != nil {
+		slog.Error("the first pass refused a config the full parse accepted; no external plugin was run before the parse, "+
+			"so a plugin's own config schema is not loaded. This is a Ze defect: report it",
+			"error", firstPassErr, "code", diagnostic.CodeDoctorInternalDefect)
+	}
+	// The full plugin list is the parsed config's. A config recovered from
+	// history can name other plugins than the text the first pass read, so a
+	// held plugin the list does not name is stopped rather than left waiting.
+	if len(declarations) > 0 {
+		pm.DropDeclaredExcept(context.Background(), declaredPluginNames(loadResult.Plugins))
 	}
 
 	// An invalid explicit hub must not become absent transport configuration.
@@ -863,12 +948,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Every internal listener that has no operator-named certificate takes its
 	// leaf from this root, so a failure here is a startup failure: without a
 	// root the plugin hub can serve nothing a plugin can validate.
-	var caRoot *zepki.Root
+	//
+	// A boot that forked a declared external plugin before the full parse
+	// loaded the root then, and the plugin was told to trust that one: it is
+	// kept, never loaded a second time.
 	var caErr error
-	if store == nil {
-		caRoot, caErr = zepki.NewEphemeralRoot()
-	} else {
-		caRoot, caErr = zepki.LoadOrGenerateRoot(store)
+	if caRoot == nil {
+		caRoot, caErr = loadHubAuthority(store)
 	}
 	if caErr != nil {
 		var tb textbuf.Buffer
@@ -878,7 +964,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
-	pm := pluginmgr.NewManager()
+	// The manager was built before the first pass. Setting the authority and
+	// the hub again is the same values for a boot that forked a plugin early:
+	// the root is the kept one, and the hub is the same `plugin hub` block.
 	pm.SetHubAuthority(caRoot)
 
 	// Wire hub config into process manager for external plugin startup.
@@ -887,20 +975,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	pm.SetHubConfig(&hubConfig)
 
-	// Convert explicit plugin configs from reactor format to plugin server format.
-	var explicitPlugins []zePlugin.PluginConfig
-	for _, pc := range loadResult.Plugins {
-		explicitPlugins = append(explicitPlugins, zePlugin.PluginConfig{
-			Name:          pc.Name,
-			Run:           pc.Run,
-			Encoder:       pc.Encoder,
-			Respawn:       pc.Respawn,
-			WorkDir:       loadResult.ConfigDir,
-			ReceiveUpdate: pc.ReceiveUpdate,
-			StageTimeout:  pc.StageTimeout,
-			Internal:      pc.Internal,
-		})
-	}
+	// The explicit plugins, as the plugin server takes them. A declared
+	// external plugin forked before the full parse was built by this same
+	// function, so the phase that names it here takes its held process.
+	explicitPlugins := pluginServerConfigs(loadResult.Plugins, loadResult.ConfigDir)
 
 	serverConfig := &pluginserver.ServerConfig{
 		ConfigPath:      configPath,

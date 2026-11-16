@@ -74,6 +74,26 @@ func (pc *PluginConn) ReadRequest(ctx context.Context) (*rpc.Request, error) {
 	}
 }
 
+// HoldStartupRequest reads the plugin's next request and keeps it, unanswered,
+// for the startup handshake: the next ReadRequest answers this same request
+// before it reads the connection again. The daemon calls it at boot to read
+// the Stage 1 declaration of an external plugin before it can parse the full
+// config, so the answer, and every refusal a Stage 1 check gives, still
+// travels on the request the plugin is waiting on.
+//
+// MUST be called before the startup handshake reads this connection, and from
+// the one goroutine that owns the connection's startup: the kept request is
+// not synchronized. A second call answers the kept request again and reads
+// nothing.
+func (pc *PluginConn) HoldStartupRequest(ctx context.Context) (*rpc.Request, error) {
+	request, err := pc.ReadRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pc.pendingStartup = request
+	return request, nil
+}
+
 // SetBridge publishes the negotiated bridge for engine->plugin callbacks.
 // The startup owner MUST publish it before acknowledging ready and MUST NOT
 // replace or clear it. Safe for concurrent use with transport readers.

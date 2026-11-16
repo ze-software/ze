@@ -1,0 +1,28 @@
+# Test: an external plugin declared on the command line brings its own YANG root
+#
+# Question: when the config holds no `plugin` block and the external plugin is
+# named with --plugin, does the daemon still take the plugin's module before it
+# parses the config, and deliver the block under its root at Stage 2?
+# Why not a unit test: TestFirstPassMergesCommandLinePlugins proves the merge of
+# the two sources. This proves the command line reaches that merge from the
+# real `ze` entry, and that the plugin it names is run before the full parse.
+#
+# VALIDATES: AC-16 of spec-plugin-external-yang-at-startup -- a plugin declared
+#   on the command line gives the same outcome as one declared in the config.
+# PREVENTS: the first pass reading plugin declarations from the config alone,
+#   so a plugin named only on the command line starts after the parse and its
+#   root is refused with "unknown top-level keyword".
+
+stdin=ze-conf:terminator=EOF_CONF
+acme-monitor {
+	target probe-b
+	interval 3
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze --plugin "le test fixture plugin/external-yang valid" -:stdin=ze-conf:timeout=30s
+await=stderr:contains=FIXTURE: external-yang generation 1 ready
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=3 acme-monitor/target=probe-b]
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:pattern=ZE-OBSERVER-FAIL

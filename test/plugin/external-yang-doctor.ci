@@ -1,0 +1,64 @@
+# Test: doctor does not call an external plugin's own root unclaimed
+#
+# Question: on a daemon running a block under an external plugin's root, does
+# `show doctor` leave that root out of its unclaimed-root findings?
+# Why not a unit test: TestDoctorClaimsCountExternalRoots proves the check
+# counts a declared root, and that a root nobody wants is still reported. This
+# proves the roots a live external plugin declared reach the check inside the
+# running daemon.
+#
+# The assertion on doctor is an absence, so the positive half is above it: the
+# daemon booted with the block (ready=) and the plugin received it (the
+# configure line). Without those the absence would prove nothing.
+#
+# The other doctor codes of AC-14 each have their own test:
+# doctor-plugin-schema-undeclared in external-yang-query-failed.ci,
+# doctor-plugin-schema-refused in external-yang-invalid-refused.ci and
+# doctor-plugin-schema-changed in external-yang-declaration-changed.ci.
+#
+# VALIDATES: AC-14 of spec-plugin-external-yang-at-startup, the claims half.
+# PREVENTS: checkConfigClaims building its population from compiled-in
+#   registrations alone, so every external plugin's root is reported as a root
+#   no plugin claims.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
+
+cmd=foreground:seq=2:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-config-root-unclaimed
+reject=stdout:contains=doctor-plugin-schema-

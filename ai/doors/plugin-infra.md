@@ -36,15 +36,14 @@ files, no package under `internal/component/plugin/` imports
 A field or method name in `rpc` is wire, not Go: renaming a JSON tag breaks
 every plugin written in another language.
 
-An external plugin already brings its own YANG over the protocol: the `schema`
-field of its Stage 1 declaration carries the module as `yang-text`
-(`docs/plugin-development/protocol.md`, "Stage 1: Registration"), and the
-engine stores it. What is missing is on the engine's side: the stored module
-is not compiled into the config schema yet, so the operator cannot write
-config under the plugin's own root
-(`docs/plugin-development/schema.md`, "What works today"). The work that
-compiles it at startup is
-`plan/post-release/features/spec-plugin-external-yang-at-startup.md`.
+An external plugin's own YANG is joined to the config schema at `ze start`: the
+daemon runs each declared external plugin before the full parse, reads its
+Stage 1 declaration and keeps the request unanswered until the plugin's startup
+tier (`pluginserver.HoldDeclaredPlugins`, `Manager.StartDeclared`). The plugin
+waits for its Stage 1 answer in the meantime, and the tier never forks it a
+second time. The commands that run with no daemon do not join it yet
+(`docs/plugin-development/schema.md`, "What works today";
+`docs/architecture/hub-architecture.md`, "What the daemon does at start").
 
 ## Boundaries
 

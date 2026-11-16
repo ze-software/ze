@@ -439,6 +439,62 @@ func restartOverlapText(proc *Process, bound time.Duration) (message, fix string
 	return text.String(), restartOverlapRelayLogFix
 }
 
+// RecordStopUnfinished logs and raises a process the caller stopped, joined
+// for bound and then removes from the manager although the join expired: the
+// plugin manager's stop of a plugin it started before the config was parsed
+// (Manager.stopHeldLocked), which starts no replacement, so it is no restart
+// overlap. It is the only record of what that stop left. The event code is
+// registered in register.go.
+//
+// The caller MUST have called Stop on proc and waited bound for it, and MUST
+// call it before it removes proc from the manager. Safe for concurrent use.
+func RecordStopUnfinished(proc *Process, bound time.Duration, cause error) {
+	name := proc.Name()
+	messageLine, fixLine := stopUnfinishedText(proc, bound)
+	logger().Warn("plugin stopped at boot had not finished stopping when ze went on",
+		"plugin", name, "detail", messageLine, "bound", bound, "error", cause,
+		"fix", fixLine, "code", diagnostic.CodeDoctorPluginStopUnfinished)
+	report.RaiseErrorFix(reportSourcePlugin, diagnostic.CodeDoctorPluginStopUnfinished, name,
+		messageLine, fixLine)
+}
+
+// stopUnfinishedText says what of proc had not finished when a join of bound
+// expired after a stop with no replacement, and the command that shows it. It
+// reads the one fact restartOverlapText reads (Running) and answers the same
+// fixes, for the reasons stated there; no pid is named.
+//
+// A forked plugin still running was sent the kill before the join expired:
+// superviseExit kills its process group pluginExitGrace after the stop, inside
+// StopJoinBound, and where the stop gives no grace the canceled context kills
+// it at once. Its reaper goes on waiting for it after the caller removes the
+// process from the manager.
+func stopUnfinishedText(proc *Process, bound time.Duration) (message, fix string) {
+	var text textbuf.Buffer
+	text.Str("plugin ").Str(proc.Name())
+	if proc.config.Internal {
+		if proc.Running() {
+			text.Str(" was stopped at boot and its engine had not ended: that engine runs in the daemon and had not returned ").
+				Str(bound.String()).
+				Str(" after ze stopped it, so it may still hold what it installed; ze removed it from the plugins it runs and takes no further step to end it")
+		} else {
+			text.Str(" was stopped at boot and ze had not finished stopping it: its engine had returned, but its event delivery had not finished ").
+				Str(bound.String()).
+				Str(" after ze stopped it; ze removed it from the plugins it runs and takes no further step to end it")
+		}
+		return text.String(), restartOverlapGoroutinesFix
+	}
+	if proc.Running() {
+		text.Str(" was stopped at boot and its process had not exited: ze closed its connection and sent its process group the kill, and the process had not exited ").
+			Str(bound.String()).
+			Str(" after ze stopped it, so it may still be running; ze removed it from the plugins it runs and takes no further step to end it")
+	} else {
+		text.Str(" was stopped at boot and ze had not finished stopping it: its process had exited, but ze had not finished its event delivery or reading its stderr ").
+			Str(bound.String()).
+			Str(" after ze stopped it, and that stderr stays open while a process the plugin started still holds it; ze removed it from the plugins it runs and takes no further step to end them")
+	}
+	return text.String(), restartOverlapRelayLogFix
+}
+
 // raiseRelayStopped raises the stopped stderr relay on the report bus, where
 // the recent-events check reports it: the plugin keeps running with its later
 // output, a panic block included, never relayed, and a restart starts a new

@@ -1,0 +1,38 @@
+# Test: an external module that augments the shared container service gets its subtree
+#
+# Question: when an external plugin's module augments the compiled-in
+# container `service` with a child and the plugin wants root service/chrony,
+# does `ze start` accept `service { chrony { ... } }` and deliver that subtree
+# to the plugin?
+# Why not a unit test: TestJoinAcceptsAugmentOfSharedContainer proves the
+# schema holds the child. This proves the daemon parses the block and cuts the
+# sub-path root for a plugin that is a separate process.
+#
+# The module imports ze-dns-resolver-conf, the always-compiled module that
+# defines `service`, and augments /dnsresolver:service.
+#
+# VALIDATES: AC-6 of spec-plugin-external-yang-at-startup.
+# PREVENTS: an external plugin being unable to share a container the product
+#   already owns, the only sanctioned way being `augment`: today the child is
+#   an unknown keyword under service.
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external acme-chrony {
+		run "le test fixture plugin/external-yang augment"
+		encoder json
+	}
+}
+
+service {
+	chrony {
+		server time.example.net
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
+await=stderr:contains=FIXTURE: external-yang generation 1 ready
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: external-yang configure root=service/chrony leaves=[service/chrony/server=time.example.net]
+reject=stderr:pattern=ZE-OBSERVER-FAIL

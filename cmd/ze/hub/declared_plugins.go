@@ -1,0 +1,154 @@
+// Design: docs/architecture/hub-architecture.md -- Startup Flow: the declared plugins run and declare before the full parse.
+// Related: main.go -- runYANGConfig calls joinDeclaredPlugins before LoadConfig.
+// Related: ../../../internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins reads and keeps each Stage 1.
+// Related: ../../../internal/component/config/first_pass.go -- FirstPass answers the declared plugins.
+
+package hub
+
+import (
+	"context"
+
+	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/yang"
+	zepki "github.com/ze-software/ze/internal/component/pki"
+	zePlugin "github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// ConfigRefused, when set, is called once when boot refuses, at its full
+// parse, the config it was started with, before the process exits 1. It is
+// for a caller that handed boot a config it could not judge itself: a config
+// that declares an external plugin can only be judged once that plugin has
+// run and declared its schema, which happens inside boot. The caller undoes
+// what it did on the strength of that config (a pushed config it applied, a
+// fetched config it cached).
+//
+// MUST be set before Run or RunWithManagedClient is called, and never after.
+var ConfigRefused func(err error)
+
+// loadHubAuthority answers the certificate authority the plugin hub takes its
+// leaf from: the root in the store, generated on first start, or a root for
+// the life of the process when the daemon has no store. Boot MUST call it
+// once and keep the answer: a second storeless call would answer another
+// root than the one the forked plugins were told to trust.
+func loadHubAuthority(store storage.Storage) (*zepki.Root, error) {
+	if store == nil {
+		return zepki.NewEphemeralRoot()
+	}
+	return zepki.LoadOrGenerateRoot(store)
+}
+
+// pluginServerConfigs answers plugins as the plugin server and the process
+// manager take them: each with workDir as the directory its run string
+// resolves against. Boot builds the declared external plugins and the full
+// plugin list through this one function, so the config a held plugin was
+// forked with is the config its startup phase names.
+func pluginServerConfigs(plugins []zePlugin.PluginConfig, workDir string) []zePlugin.PluginConfig {
+	configs := make([]zePlugin.PluginConfig, 0, len(plugins))
+	for _, pc := range plugins {
+		configs = append(configs, zePlugin.PluginConfig{
+			Name:          pc.Name,
+			Run:           pc.Run,
+			Encoder:       pc.Encoder,
+			Respawn:       pc.Respawn,
+			WorkDir:       workDir,
+			ReceiveUpdate: pc.ReceiveUpdate,
+			StageTimeout:  pc.StageTimeout,
+			Internal:      pc.Internal,
+		})
+	}
+	return configs
+}
+
+// joinDeclaredPlugins is steps 2 to 5 of the load order, between the first
+// pass and the full parse: it runs each external plugin the first pass found,
+// reads and keeps its Stage 1 declaration with the plugin held at the barrier,
+// then joins the modules those declarations carry to the compiled-in set and
+// publishes the joined set to the process. It answers what each plugin
+// declared, for the refusal of a section still unknown at the full parse.
+//
+// With no declared external plugin it does nothing at all: it calls neither
+// prepare nor spawner, waits for nothing and publishes nothing, so such a
+// boot is the boot it always was.
+//
+// prepare gives the spawner what a fork needs (the hub listener and its
+// certificate authority) and runs only when a plugin is to be forked. An
+// error is a refusal of the boot: prepare's, or the publish's when a declared
+// module does not compile, clashes with a module ze holds, or is published
+// after a value that keeps the module set was built. On a publish error the
+// declarations are answered too, and the plugins are still held: the caller
+// MUST stop them.
+//
+// The caller MUST call it before it parses the full config, before
+// pluginserver.NewServer and before any gNMI server exists: each of those
+// keeps the module set it finds (yang.KeepsModuleSet).
+func joinDeclaredPlugins(ctx context.Context, firstPass *zeconfig.FirstPassResult, spawner pluginserver.DeclaredSpawner, prepare func() error) ([]pluginserver.EarlyDeclaration, error) {
+	if len(firstPass.External) == 0 {
+		return nil, nil
+	}
+	if err := prepare(); err != nil {
+		return nil, err
+	}
+	declarations := pluginserver.HoldDeclaredPlugins(ctx, spawner, pluginServerConfigs(firstPass.External, firstPass.ConfigDir))
+	// Published even when no plugin declared a module: the set is then
+	// recorded as holding no external module, which is what a plugin
+	// restarted later is compared with.
+	if err := zeconfig.PublishExternalModules(declaredModules(declarations)); err != nil {
+		return declarations, err
+	}
+	return declarations, nil
+}
+
+// declaredModules answers the YANG modules the declarations carry, one for
+// each plugin that declared a module text. A plugin that did not declare, and
+// a declaration with no module text, contribute none.
+func declaredModules(declarations []pluginserver.EarlyDeclaration) []yang.ExternalModule {
+	var modules []yang.ExternalModule
+	for _, declaration := range declarations {
+		if declaration.Err != nil {
+			continue
+		}
+		if declaration.Schema == nil {
+			continue
+		}
+		if declaration.Schema.YANGText == "" {
+			continue
+		}
+		modules = append(modules, yang.ExternalModule{
+			Plugin:    declaration.Plugin,
+			Module:    declaration.Schema.Module,
+			Namespace: declaration.Schema.Namespace,
+			Text:      declaration.Schema.YANGText,
+		})
+	}
+	return modules
+}
+
+// declaredPluginNames answers the names of plugins, for DropDeclaredExcept.
+func declaredPluginNames(plugins []zePlugin.PluginConfig) []string {
+	names := make([]string, 0, len(plugins))
+	for _, pc := range plugins {
+		names = append(names, pc.Name)
+	}
+	return names
+}
+
+// undeclaredPluginLines answers, for a refused config load, one line for each
+// declared external plugin that gave the daemon no declaration, with why and
+// the command that fixes it. A section only such a plugin's schema defines is
+// refused by the load as an unknown keyword, and the load's own message
+// cannot name the plugin: nothing ties an unknown keyword to a schema the
+// daemon never received. It answers "" when every plugin declared.
+func undeclaredPluginLines(declarations []pluginserver.EarlyDeclaration) string {
+	var tb textbuf.Buffer
+	for _, declaration := range declarations {
+		if declaration.Err == nil {
+			continue
+		}
+		tb.Str("error: a config section that only plugin \"").Str(declaration.Plugin).
+			Str("\" defines is an unknown keyword to ze: ").Err(declaration.Err).Byte('\n')
+	}
+	return tb.String()
+}

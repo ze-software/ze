@@ -85,17 +85,25 @@ Against a Ze built from the branch that carries this example:
 - Registration: Ze starts the plugin, the plugin connects back over TLS,
   authenticates, and completes the five startup stages.
 - The command `show acme-monitor status`.
+- The plugin's own config section at start. Ze starts the plugin, takes its
+  YANG module from the Stage 1 declaration, and only then parses the config,
+  so the `acme-monitor` section loads. The plugin's `verify` and `apply` run,
+  and the command answers the configured endpoint and interval.
+- Ze enforces the module: an `interval` of 11 is refused when the config
+  loads, with the accepted range.
+- A config change in a running Ze. `verify` then `apply` run with the changed
+  paths, and a `verify` refusal fails the reload with the plugin's message and
+  fix while the plugin keeps its previous state.
+- A `verify` refusal at start. Ze stays up, reports the plugin as stopped with
+  the plugin's own message and fix, and the plugin's command is not there.
 
 ## What does not work yet
 
-- Ze refuses the `acme-monitor` section when it loads the config at start.
-  The plugin's module is not part of the boot schema until the spec
-  `plan/post-release/features/spec-plugin-external-yang-at-startup.md` reaches
-  its boot phase. Until then, run the plugin with the `plugin` block alone.
-  The command then answers an empty endpoint and `configured` false.
-- For the same reason, `verify`, `apply` and `rollback` have not run against a
-  live Ze. The library implements them from the documented contract and the Go
-  SDK.
+- `ze config validate` and the other commands that read a config with no
+  daemon running still refuse the `acme-monitor` section. They do not ask the
+  plugin for its module yet.
+- `rollback` has not run against a live Ze: no test yet makes another plugin
+  fail after this one applied.
 
 ## What the library leaves out
 

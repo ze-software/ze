@@ -38,7 +38,7 @@ Read `ai/doors/system.md` first. This door covers:
 | An operator | Env var names, and the precedence OS env, then the `environment { }` block, then the default | `docs/architecture/config/environment.md` |
 | A third-party plugin | Its config at Stage 2 as `rpc.ConfigSection` (a root plus a JSON body), every value a JSON string, a removed root as `{}` | `docs/plugin-development/protocol.md`, "Stage 2", and `ai/rules/config.md` |
 | A third-party plugin | The transaction callbacks `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback`, `OnConfigCommitted` (`pkg/plugin/sdk/sdk_callbacks.go`) and the `sdk.Journal` | `docs/architecture/config/transaction-protocol.md` |
-| An external plugin author | An external plugin's own YANG is stored but not compiled, so config under its own root is refused today | `docs/plugin-development/schema.md`, "What works today" |
+| An external plugin author | An external plugin's own YANG is joined and published at `ze start`, before the full parse, so config under its own root loads in the daemon; `ze config validate` and the other offline commands still refuse it. Nothing may parse the full config, or build a value that keeps the module set (`yang.KeepsModuleSet`), before that publish | `docs/plugin-development/schema.md`, "What works today"; `docs/architecture/hub-architecture.md`, "What the daemon does at start" |
 | API clients, web, MCP | The same schema, and the `-api` and `-cmd` modules that declare RPCs | `yang-config-design.md`, "YANG Module Architecture" |
 
 A leaf rename breaks every saved config and every script that writes it.

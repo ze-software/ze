@@ -94,6 +94,8 @@ func (m *Manager) stopAllLocked() {
 		m.procManager.Stop()
 		m.procManager = nil
 	}
+	// The held plugins went with the process manager, so their record goes too.
+	m.declared = nil
 	if m.acceptor != nil {
 		m.acceptor.Stop()
 		m.acceptor = nil

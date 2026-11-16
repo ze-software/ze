@@ -19,7 +19,7 @@ not for the process model.
 
 ### What We're Building
 
-A **plugin-based configuration system** where Ze acts as a central Hub orchestrating separate processes. Each plugin defines its own configuration schema using YANG, and the Hub routes configuration to the appropriate plugin. Today only plugins compiled into `ze` contribute their schema; for external plugins this is planned (section 2 below).
+A **plugin-based configuration system** where Ze acts as a central Hub orchestrating separate processes. Each plugin defines its own configuration schema using YANG, and the Hub routes configuration to the appropriate plugin. A plugin compiled into `ze` contributes its schema at build, and an external plugin at `ze start`, from its Stage 1 declaration (section 2 below).
 
 ### Why This Matters
 
@@ -151,15 +151,20 @@ carry both sides.
 
 ### 2. Plugins Define Their Own Schema
 
-This is the design goal, and today it holds only for plugins compiled into
-`ze`. An internal plugin's YANG module is registered at build and is part of
-the schema the config is parsed with. An external plugin sends its YANG text to
-the Hub at startup, but the Hub stores it and never parses it, and the config
-was already parsed before the plugin started. A third-party plugin therefore
-cannot yet extend the configuration schema without rebuilding Ze; compiling its
-module at startup is planned (`plan/post-release/features/spec-plugin-external-yang-at-startup.md`).
-<!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema, never read -->
-<!-- source: internal/component/config/loader.go -- LoadConfig parses with the compiled-in schema -->
+An internal plugin's YANG module is registered at build and is part of the
+schema the config is parsed with. An external plugin sends its YANG text in its
+Stage 1 declaration, and the daemon reads that declaration before it parses the
+full config: at `ze start` the module is joined to the compiled-in set, so a
+third-party plugin extends the configuration schema without rebuilding Ze. The
+order is the one "Startup Flow Diagram" draws, and "What the daemon does at
+start" under it names the code.
+
+The commands that parse a config with no daemon (`ze config validate` and the
+other offline config commands) do not join an external plugin's module yet:
+they still refuse its section as an unknown keyword. That work is the rest of
+`plan/post-release/features/spec-plugin-external-yang-at-startup.md`.
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
+<!-- source: internal/component/config/yang_schema.go -- PublishExternalModules -->
 
 ### 3. Hub Validates Against Combined Schema
 
@@ -541,6 +546,36 @@ The existing 5-stage protocol is **extended**, not replaced. Schema declarations
 │ 6. BGP peers start                                                       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+#### What the daemon does at start
+
+The diagram is the load order, and `ze start` follows it for the external
+plugins a config declares. The names below are the code.
+
+| Step | What runs | Where |
+|------|-----------|-------|
+| 1. Read the plugin declarations | The first pass parses the `plugin` and `environment` blocks alone and skips every other section, then merges the plugins named on the command line. A plugin compiled into `ze` is not in its answer: its module is already registered | `config.FirstPass` |
+| 2. Run each declared external plugin | The plugin manager forks them before the engine starts. A plugin that cannot be run is kept as an outcome with its reason; it stops nothing else | `Manager.StartDeclared`, `ProcessManager.StartEach` |
+| 3. Stage 1 and the barrier | The daemon reads each plugin's Stage 1 request and keeps it unanswered. The plugin waits for that answer: this is the barrier, and no stage timer measures it, because no startup tier exists yet. A plugin that connected and stays silent is stopped after its stage timeout (`timeout` of its block, else `ze.plugin.stage.timeout`) | `pluginserver.HoldDeclaredPlugins`, `PluginConn.HoldStartupRequest` |
+| 4. Join and publish | The modules the declarations carry are joined to the compiled-in set and published to the process, once. A module that does not compile or clashes refuses the start, naming the plugin | `joinDeclaredPlugins`, `config.PublishExternalModules` |
+| 5. Full parse | The config is parsed against the joined schema. When it is refused, each declared plugin that gave no declaration is named beside the refusal, with why and the command that fixes it | `runYANGConfig`, `undeclaredPluginLines` |
+| 6. Stage 2 and later | The plugin's startup tier takes the held process, forks nothing, reads the kept Stage 1 request, runs every Stage 1 check and answers it; the stages after it are unchanged. A plugin that did not declare is refused there with the kept reason, and is not run a second time | `Manager.SpawnMore`, `runStartupHandshake` |
+
+A config that declares no external plugin runs step 1 and nothing else of
+steps 2 to 4: nothing is forked, waited for or published.
+
+Everything that keeps the module set for the life of the process (the plugin
+server, a gNMI server, a parsed interface name) is built after step 4. The
+start path in `cmd/ze` therefore gives no full verdict on a config before boot
+when an external plugin is declared: a pushed config and the config a managed
+edge fetches on first boot are judged by boot, and a refusal there undoes
+their application through `hub.ConfigRefused` and ends the process, because
+the plugins a config declares change only when `ze` restarts.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins, undeclaredPluginLines, ConfigRefused -->
+<!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
+<!-- source: internal/component/plugin/manager/manager.go -- StartDeclared, SpawnMore -->
+<!-- source: cmd/ze/pushed_config.go -- judgeConfigBeforeBoot -->
 
 ### Stage 1: Declaration Messages
 

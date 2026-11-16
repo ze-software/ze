@@ -1075,6 +1075,26 @@ may already have given to another program.
 <!-- test: internal/component/plugin/process/restart_overlap_test.go TestRespawnRecordsAnExpiredJoin -->
 <!-- test: internal/component/plugin/process/restart_overlap_test.go TestRestartOverlapTextNamesWhatWasUnfinished -->
 
+A stop with no replacement raises its own event. At boot the plugin manager
+starts each external plugin the config declares before the full parse, and
+stops one that sent no declaration (`FailDeclared`), one the parsed config no
+longer names (`DropDeclaredExcept`) and the held plugins of a phase that was
+refused (`takeDeclared`). Each stop waits `Process.StopJoinBound` in
+`Manager.stopHeldLocked`. When the wait expires, `process.RecordStopUnfinished`
+logs it at WARN and raises `doctor-plugin-stop-unfinished` (`plugin` source),
+with the plugin as its subject, and the manager then removes the process. The
+message is built from the same fact (`Running`) and carries the same two
+fixes. A forked process that had not exited was already sent the kill for its
+process group, 1s after the stop, and its reaper goes on waiting for it; the
+message says it may still be running. No replacement exists, so the message
+claims no shared resources.
+<!-- source: internal/component/plugin/manager/manager.go -- stopHeldLocked, FailDeclared, DropDeclaredExcept, takeDeclared -->
+<!-- source: internal/component/plugin/process/doctor_records.go -- RecordStopUnfinished, stopUnfinishedText -->
+<!-- source: internal/component/plugin/process/register.go -- processEventCodes -->
+<!-- test: internal/component/plugin/process/stop_unfinished_test.go TestRecordStopUnfinishedRaisesTheEvent -->
+<!-- test: internal/component/plugin/process/stop_unfinished_test.go TestStopUnfinishedTextNamesWhatWasUnfinished -->
+<!-- test: internal/component/plugin/manager/declared_test.go TestFailDeclaredRaisesAStopThatOutlivedItsBound -->
+
 The operator's goroutine dump (`request quit`) reports nothing wrong, so it
 logs at `Info`.
 <!-- source: internal/component/plugin/server/server_events.go -- raiseServerEvent, serverEventSource -->
