@@ -22,7 +22,7 @@ const scaleCaptureLines = 16384
 // FRR assertion, nor can one session's traffic satisfy another session's probe.
 func checkScaleSessions(ctx context.Context, lab labOperations, timeout time.Duration) error {
 	fail := func(assertion int, cause error) error {
-		return fmt.Errorf("scenario %s assertion %d: %w", scenarioScale, assertion, cause)
+		return scaleFailureDiagnostics(ctx, lab, fmt.Errorf("scenario %s assertion %d: %w", scenarioScale, assertion, cause))
 	}
 	if timeout <= 0 {
 		return fail(1, errors.New("scale proof timeout must be positive"))
@@ -34,7 +34,7 @@ func checkScaleSessions(ctx context.Context, lab labOperations, timeout time.Dur
 		// The plan MUST keep the peer idle until this detached launch. The
 		// checker MUST release the measured real ACK hold before starting
 		// another configured tunnel; Suite cleanup owns every child process.
-		if err := lab.ExecDetached(ctx, "kl2tpd-"+strconv.Itoa(lac), []string{"kl2tpd", "-config", scaleConfigPath}, nil); err != nil {
+		if err := startScalePeer(ctx, lab, lac); err != nil {
 			return fail(1, fmt.Errorf("launch LAC%d: %w", lac, err))
 		}
 		if err := exerciseScaleWindow(ctx, lab, lac, timeout); err != nil {
@@ -54,12 +54,18 @@ func checkScaleSessions(ctx context.Context, lab labOperations, timeout time.Dur
 	if err := waitScalePeers(ctx, lab, baseline.population, timeout); err != nil {
 		return fail(3, err)
 	}
+	if err := prepareScalePeers(ctx, lab, baseline.population); err != nil {
+		return fail(3, err)
+	}
 	if err := requireScaleTraffic(ctx, lab, baseline, true); err != nil {
 		return fail(3, err)
 	}
 	for lac := 1; lac <= scaleLACCount; lac++ {
 		wire, err := scaleWireLog(ctx, lab, lac)
 		if err != nil {
+			return fail(4, err)
+		}
+		if err := writeScaleWireLog(lac, wire); err != nil {
 			return fail(4, err)
 		}
 		if err := requireScaleWireSessions(wire, baseline.population); err != nil {
@@ -94,7 +100,11 @@ func checkScaleSessions(ctx context.Context, lab labOperations, timeout time.Dur
 		return fail(6, err)
 	}
 	for lac := 1; lac <= scaleLACCount; lac++ {
-		if _, err := scaleWireLog(ctx, lab, lac); err != nil {
+		wire, err := scaleWireLog(ctx, lab, lac)
+		if err != nil {
+			return fail(6, err)
+		}
+		if err := writeScaleWireLog(lac, wire); err != nil {
 			return fail(6, err)
 		}
 	}
@@ -110,18 +120,25 @@ func scaleWireLog(ctx context.Context, lab labOperations, lac int) (string, erro
 	if !logs.Available {
 		return "", fmt.Errorf("%s capture unavailable", peer)
 	}
-	if _, err := fmt.Fprintln(os.Stdout, "L2TP-SCALE-WIRE", peer, logs.Text); err != nil {
-		return "", err
-	}
 	return logs.Text, nil
 }
 
-func exerciseScaleWindow(ctx context.Context, lab labOperations, lac int, timeout time.Duration) error {
+// writeScaleWireLog retains the full evidence at a completed check boundary,
+// rather than repeating a growing capture from every polling read.
+func writeScaleWireLog(lac int, wire string) error {
+	_, err := fmt.Fprintf(os.Stdout, "L2TP-SCALE-WIRE scale-relay-%d %s\n", lac, wire)
+	return err
+}
+
+func exerciseScaleWindow(ctx context.Context, lab labOperations, lac int, timeout time.Duration) (resultErr error) {
+	var latestWire string
+	defer func() { resultErr = errors.Join(resultErr, writeScaleWireLog(lac, latestWire)) }()
 	held, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: 10 * time.Millisecond, Description: "five processed ICRQs behind real CWND4 ACK hold"}, func(probe context.Context) (scaleWindowEvidence, error) {
 		wire, err := scaleWireLog(probe, lab, lac)
 		if err != nil {
 			return scaleWindowEvidence{}, err
 		}
+		latestWire = wire
 		window, err := readScaleWindow(wire)
 		if err != nil {
 			return scaleWindowEvidence{}, interoplab.WithSearchedOutput(err, wire)
@@ -149,6 +166,7 @@ func exerciseScaleWindow(ctx context.Context, lab labOperations, lac int, timeou
 		if err != nil {
 			return scaleWindowEvidence{}, err
 		}
+		latestWire = wire
 		window, err := readScaleWindow(wire)
 		if err != nil {
 			return scaleWindowEvidence{}, interoplab.WithSearchedOutput(err, wire)
@@ -225,16 +243,19 @@ func observeScaleRemoval(ctx context.Context, lab labOperations, before scaleObs
 	return after, nil
 }
 
-func waitScaleCDN(ctx context.Context, lab labOperations, target scaleSession, timeout time.Duration) error {
+func waitScaleCDN(ctx context.Context, lab labOperations, target scaleSession, timeout time.Duration) (resultErr error) {
 	lac, _, err := scaleUserLocation(target.username)
 	if err != nil {
 		return err
 	}
+	var latestWire string
+	defer func() { resultErr = errors.Join(resultErr, writeScaleWireLog(lac, latestWire)) }()
 	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: timeout, Interval: 100 * time.Millisecond, Description: "peer CDN for the selected session tuple"}, func(probe context.Context) (bool, error) {
 		wire, err := scaleWireLog(probe, lab, lac)
 		if err != nil {
 			return false, err
 		}
+		latestWire = wire
 		if err := requireScalePeerCDN(wire, target); err != nil {
 			return false, interoplab.WithSearchedOutput(err, wire)
 		}

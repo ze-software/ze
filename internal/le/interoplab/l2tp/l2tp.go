@@ -42,6 +42,7 @@ const (
 
 	commandShow  = "show"
 	commandLink  = "link"
+	commandRoute = "route"
 	commandType  = "type"
 	commandVTYSH = "vtysh"
 	commandCat   = "cat"

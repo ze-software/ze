@@ -60,7 +60,7 @@ func checkDNSResolverSubscriber(ctx context.Context, lab labOperations, _ time.D
 	if err := waitSubscriberDNS(ctx, lab, resolver); err != nil {
 		return fmt.Errorf("assertion 2: %w", err)
 	}
-	route, err := execOutput(ctx, lab, peerLAC, []string{"ip", "route", "get", localPPPAddress})
+	route, err := execOutput(ctx, lab, peerLAC, []string{"ip", commandRoute, "get", localPPPAddress})
 	if err != nil {
 		return fmt.Errorf("assertion 3: %w", err)
 	}

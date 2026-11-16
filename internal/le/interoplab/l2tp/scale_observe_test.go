@@ -77,7 +77,7 @@ func TestScaleSilentSessionActions(t *testing.T) {
 		if call.peer == peerRadius && len(call.arguments) > 4 && strings.Contains(call.arguments[4], fmt.Sprintf("Acct-Session-Id = %q\n", id)) {
 			request = true
 		}
-		if call.peer == "kl2tpd-2" && slices.Contains(call.arguments, "/var/run/ppp-scale-2-07.pid") && slices.Contains(call.arguments, "sc2s07") {
+		if call.peer == "kl2tpd-2" && slices.Contains(call.arguments, "/var/run/pppd/ppp-scale-2-07.pid") && slices.Contains(call.arguments, "sc2s07") {
 			process = true
 		}
 	}

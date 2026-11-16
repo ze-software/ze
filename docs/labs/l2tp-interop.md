@@ -140,11 +140,28 @@ unchanged and tracks only four sequence positions from the genuine cumulative
 ACK. An ACK across an uncaptured predecessor still fails.
 <!-- source: internal/le/interoplab/l2tp/avprelay/scale.go -- observeZe, forwardControl -->
 
+When a received ACK opens the window and delivers a request, Ze returns queued
+controls before its fresh response. A regression checks the sequence numbers
+and session identities of both responses.
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- Process -->
+<!-- source: internal/component/l2tp/process_send_order_test.go -- TestTunnelProcessQueuedSendBeforeFreshReply -->
+
 A checker marker releases a genuine held cumulative
 ACK; a deadline release cannot satisfy the assertion. The queued fifth
 response and subsequent session progress must then appear.
 <!-- source: internal/le/interoplab/l2tp/scale.go -- exerciseScaleWindow -->
 <!-- source: internal/le/interoplab/l2tp/scale_window.go -- readScaleWindow, requireScaleReliable -->
+
+The checker prints the latest full control snapshot once at each completed
+window or CDN check, and at the baseline and final checks.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- writeScaleWireLog, exerciseScaleWindow, waitScaleCDN -->
+
+Each detached kl2tpd writes its output to a file in its container. On a
+failed assertion, the checker collects bounded tails of that file and all
+48 PPP logs, plus PID-file and process state, before cleanup. All diagnostic
+reads share one separate 15-second deadline. Read failures and partial output
+are retained with the original assertion error.
+<!-- source: internal/le/interoplab/l2tp/scale_failure.go -- startScalePeer, scaleFailureDiagnostics, scaleFailureCommands, scaleFailureExcerpt -->
 
 The baseline is exactly 48 established sessions with distinct addresses in
 the configured pool. Each must complete IPCP, retain its own Ze and LAC PPP
@@ -165,6 +182,17 @@ BGP check afterward.
 <!-- source: internal/le/interoplab/l2tp/checkers.go -- frrSessionEvidence, requireFRRSession -->
 <!-- source: internal/le/interoplab/l2tp/scale_evidence.go -- readScaleSessions, readScaleRoute, readScaleAccounting -->
 <!-- source: internal/le/interoplab/l2tp/scale_kernel.go -- requireScaleKernel, requireScaleIPCP -->
+
+Before traffic, the checker validates each client's final pppd PID file,
+interface name and process name. Each LAC has sixteen PPP interfaces with
+the same LNS peer address. The fixture gives each subscriber source /32 a
+dedicated route table and source rule. It prints the unbound kernel route
+lookup before and after setup, then requires the exact source, peer,
+interface and table. These rules exist only in the Suite-owned LAC
+containers and disappear with them. The two interface-bound traffic probes
+and all Ze route checks remain required.
+<!-- source: internal/le/interoplab/l2tp/scale_peer_routes.go -- prepareScalePeers, requireScalePeerRoute -->
+<!-- source: internal/le/interoplab/l2tp/scale_observe.go -- scaleCheckPeerPPP, scalePeerPPPCommand -->
 
 One exact accounting-ID Disconnect must receive an authenticated ACK and
 remove only its selected session, leaving 47 unchanged survivors. The checker

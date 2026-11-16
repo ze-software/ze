@@ -44,7 +44,7 @@ func observeScalePopulation(ctx context.Context, lab labOperations, users []stri
 	if err != nil {
 		return scaleObservation{}, err
 	}
-	routes, err := execOutput(ctx, lab, peerZe, []string{"ip", "-j", "-4", "route", commandShow})
+	routes, err := execOutput(ctx, lab, peerZe, []string{"ip", "-j", "-4", commandRoute, commandShow})
 	if err != nil {
 		return scaleObservation{}, err
 	}
@@ -282,22 +282,34 @@ func scaleDisconnect(ctx context.Context, lab labOperations, id string) error {
 	return err
 }
 
-func scaleStopPeerPPP(ctx context.Context, lab labOperations, user string) error {
-	for lac := 1; lac <= scaleLACCount; lac++ {
-		for number := 1; number <= scaleSessionsPerLAC; number++ {
-			if scaleUsername(lac, number) != user {
-				continue
-			}
-			// The PID file is pppd 2.5.5's create_linkpidfile output: PID,
-			// then actual ifname. Validate both before signaling this process.
-			script := `read -r pid < "$1" || exit 2
+// scalePeerPPPIdentity validates pppd 2.5.5's create_linkpidfile output: PID,
+// then actual ifname. Baseline readiness and Stop MUST use these same checks;
+// Stop MUST re-read them immediately before signaling, never reuse a PID.
+const scalePeerPPPIdentity = `read -r pid < "$1" || exit 2
 case "$pid" in ''|*[!0-9]*) exit 3;; esac
 test "$(sed -n '2p' "$1")" = "$2" || exit 4
-test "$(cat "/proc/$pid/comm")" = pppd || exit 5
-kill -TERM "$pid"`
-			_, err := lab.Exec(ctx, "kl2tpd-"+strconv.Itoa(lac), []string{"sh", "-c", script, "stop-session", "/var/run/ppp-" + user + ".pid", scaleInterface(lac, number)}, nil)
-			return err
-		}
+test "$(cat "/proc/$pid/comm")" = pppd || exit 5`
+
+// scaleCheckPeerPPP MUST remain read-only: it proves the final exact PID file
+// exists at baseline even when a later assertion prevents the stop phase.
+func scaleCheckPeerPPP(ctx context.Context, lab labOperations, user string) error {
+	return scalePeerPPPCommand(ctx, lab, user, scalePeerPPPIdentity)
+}
+
+// scaleStopPeerPPP MUST revalidate the PID, interface and comm immediately
+// before TERM, matching scaleCheckPeerPPP without trusting its earlier result.
+func scaleStopPeerPPP(ctx context.Context, lab labOperations, user string) error {
+	return scalePeerPPPCommand(ctx, lab, user, scalePeerPPPIdentity+"\nkill -TERM \"$pid\"")
+}
+
+func scalePeerPPPCommand(ctx context.Context, lab labOperations, user, script string) error {
+	lac, number, err := scaleUserLocation(user)
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("unknown peer PPP identity %s", user)
+	result, err := lab.Exec(ctx, "kl2tpd-"+strconv.Itoa(lac), []string{"sh", "-c", script, "peer-session", "/var/run/pppd/ppp-" + user + ".pid", scaleInterface(lac, number)}, nil)
+	if err != nil {
+		return interoplab.WithSearchedOutput(err, result.Stdout+result.Stderr)
+	}
+	return nil
 }
