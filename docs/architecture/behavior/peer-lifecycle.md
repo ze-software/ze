@@ -644,9 +644,14 @@ timer and proposal. A remote OPEN or that timer's expiry releases its local OPEN
 
 Admission is bounded to one pending incoming exchange per peer. Additional
 arrivals during that exchange, its joined refusal or a reserved handoff are
-refused before a Session is constructed. The admitted-connection controls do
-not prove RFC 4271 Section 8.2.1's full incoming-connection scope; its requirement
-row remains partial.
+refused before a Session is constructed. This is a capacity policy. RFC 4271
+Section 8 makes the FSM conceptual and requires the same externally visible
+behavior; a refused socket's lack of a Session is not itself a conformance gap.
+The admitted-connection controls check its OPEN exchange and failure isolation.
+An excess arrival while the pending exchange or its joined retirement owns
+capacity receives Cease / Connection Rejected (6/5), then closes, before OPEN.
+This admission refusal is distinct from the OPEN-based collision loser below.
+Reserved-handoff and shutdown closures remain silent.
 <!-- source: internal/component/bgp/reactor/peer_connection.go -- setPendingConnection -->
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
 

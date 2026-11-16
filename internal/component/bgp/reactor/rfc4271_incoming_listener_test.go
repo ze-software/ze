@@ -125,12 +125,12 @@ func TestRFC4271ListenerIncomingDefaultOpen(t *testing.T) {
 }
 
 // VALIDATES: an incoming connection while the outgoing connection is OpenSent
-// has its own default (DelayOpen FALSE) OPEN exchange. The outgoing connection
+// starts its own default (DelayOpen FALSE) OPEN exchange. The outgoing connection
 // already received a real OPEN; the incoming peer deliberately sends no OPEN
-// until it receives Ze's, so a pending reader cannot impersonate its FSM.
+// until it receives Ze's, then establishes on that same incoming connection.
 // RFC 4271 Section 8.2.1: "For each incoming connection, a state machine MUST
 // be instantiated." Section 8.2.1.2: "There is one FSM per BGP connection."
-// RFC requirement: RFC4271-8.2.1-3 positive -- with the outgoing Session in OpenSent, an admitted second TCP connection on the actual listener receives an OPEN before sending its remote OPEN, then completes OPEN and KEEPALIVE exchange and publishes Established. This tests only the admitted-connection scope of the partial row.
+// RFC requirement: RFC4271-8.2.1-3 positive -- with the outgoing Session in OpenSent, an admitted second TCP connection on the actual listener receives an OPEN before sending its remote OPEN, then completes OPEN and KEEPALIVE exchange and publishes Established.
 func TestRFC4271ListenerIncomingDuringOutgoingOpenSentSendsOpen(t *testing.T) {
 	r, peer, session, outgoing, _ := incomingListenerPeer(t, true, 0)
 	delayOpenReadType(t, outgoing, 1)

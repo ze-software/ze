@@ -7,7 +7,7 @@
     "claim-sha": "0bf11060637594c5",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/reactor_connection.go::acceptOrReject",
-    "producer-sha": "823e9291986e8ee0",
-    "break": "line 254: \"go r.handlePendingCollision(peer, conn)\" -\u003e \"closeConnQuietly(conn) // MUTATION-APPLIED: stop before incoming OPEN\""
+    "producer-sha": "56025c6856e19459",
+    "break": "line 277: \"go r.handlePendingCollision(peer, conn)\" -\u003e \"closeConnQuietly(conn) // MUTATION-APPLIED: stop before incoming OPEN\""
   }
 ]

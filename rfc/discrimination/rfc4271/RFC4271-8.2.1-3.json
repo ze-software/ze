@@ -4,21 +4,21 @@
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_incoming_candidate_lifecycle_test.go::TestIncomingCandidateFailureKeepsPeerRetryHistory",
     "unit-sha": "961fda61b186424f",
-    "claim-sha": "5d53e9a6a2e194ab",
+    "claim-sha": "ff681043e977c511",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_session_factory.go::newIncomingSession",
     "producer-sha": "e8e7676fe9f49b51",
-    "break": "line 22: \"return p.newSessionWithEpoch(privateNegotiationEpoch{})\" -\u003e \"return p.currentSession() // MUTATION-APPLIED: reuse the incumbent instead of a per-connection FSM\""
+    "break": "line 22: \"return p.newSessionWithEpoch(privateNegotiationEpoch{})\" -\u003e \"return p.currentSession() // MUTATION-APPLIED: share incumbent exchange with incoming TCP connection\""
   },
   {
     "rid": "RFC4271-8.2.1-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_incoming_listener_test.go::TestRFC4271ListenerIncomingDuringOutgoingOpenSentSendsOpen",
     "unit-sha": "9063ccafc1282c7d",
-    "claim-sha": "d28a09eb6a2a8d6c",
+    "claim-sha": "3166d36b49b1e0e0",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_session_factory.go::newIncomingSession",
     "producer-sha": "e8e7676fe9f49b51",
-    "break": "line 22: \"return p.newSessionWithEpoch(privateNegotiationEpoch{})\" -\u003e \"return p.currentSession() // MUTATION-APPLIED: reuse the incumbent instead of a per-connection FSM\""
+    "break": "line 22: \"return p.newSessionWithEpoch(privateNegotiationEpoch{})\" -\u003e \"return p.currentSession() // MUTATION-APPLIED: share incumbent exchange with incoming TCP connection\""
   }
 ]

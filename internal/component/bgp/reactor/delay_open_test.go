@@ -270,7 +270,7 @@ func TestRFC4271DelayOpenBothSidesHold(t *testing.T) {
 			t.Cleanup(func() { closeConnQuietly(thirdRemote) })
 			rejected := make(chan struct{})
 			go func() { r.acceptOrReject(thirdLocal, peer, nil); close(rejected) }()
-			delayOpenReadCollisionClose(t, thirdRemote)
+			incomingReadCapacityRefusalClose(t, thirdRemote)
 			select {
 			case <-rejected:
 			case <-time.After(5 * time.Second):

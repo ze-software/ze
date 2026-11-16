@@ -1,4 +1,5 @@
 // RFC: rfc/short/rfc4271.md — Section 6.8, connection collision detection
+// RFC 4486 Section 4 -- see rfc/short/rfc4486.md; admission refusal subcode.
 // Design: docs/architecture/core-design.md — TCP accept and collision detection (RFC 4271 §6.8)
 // Overview: reactor.go — BGP reactor event loop and peer management
 
@@ -236,7 +237,7 @@ func (r *Reactor) handleDirectConnection(conn net.Conn, peerKey netip.AddrPort) 
 	r.acceptOrReject(conn, peer, cb)
 }
 
-// acceptOrReject performs collision detection and accepts or rejects an incoming connection.
+// acceptOrReject admits incoming connections and reserves their collision exchange.
 // Shared by handleConnection, handleConnectionWithContext, and handleDirectConnection.
 func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallback) {
 	settings := peer.Settings()
@@ -270,7 +271,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 				closeConnQuietly(conn)
 				return
 			}
-			r.rejectConnectionCollisionWithSettings(conn, settings)
+			r.rejectConnectionAdmissionWithSettings(conn, settings)
 			return
 		}
 		go r.handlePendingCollision(peer, conn)
@@ -300,13 +301,18 @@ func closeConnQuietly(conn net.Conn) {
 	}
 }
 
-func (r *Reactor) rejectConnectionCollisionWithSettings(conn net.Conn, settings *PeerSettings) {
+func (r *Reactor) rejectConnectionAdmissionWithSettings(conn net.Conn, settings *PeerSettings) {
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		if err := tuneTCPConnectionForSettings(tcp, settings); err != nil {
-			reactorLogger().Debug("collision notification socket tuning failed", "peer", settings.Address, "err", err)
+			reactorLogger().Debug("admission refusal socket tuning failed", "peer", settings.Address, "err", err)
 		}
 	}
-	rejectConnectionCollision(conn, r.clock)
+	// RFC 4486 Section 4: "If a BGP speaker decides to disallow a BGP
+	// connection (e.g., the peer is not configured locally) after the speaker
+	// accepts a transport protocol connection, then the BGP speaker SHOULD send
+	// a NOTIFICATION message with the Error Code Cease and the Error Subcode
+	// "Connection Rejected"."
+	rejectPendingConnection(conn, r.clock, message.NotifyCease, message.NotifyCeaseConnectionRejected)
 }
 
 // rejectConnectionCollision sends NOTIFICATION Cease/Connection Collision (6/7)

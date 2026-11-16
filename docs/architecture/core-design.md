@@ -2347,8 +2347,11 @@ A standing budget is cleared by the next release of that destination's write pat
 <!-- test: internal/component/bgp/reactor/forward_rs_direct_wedge_test.go TestFastPathRenewsAnAgedBudget -->
 <!-- test: internal/component/bgp/reactor/forward_rs_direct_wedge_test.go TestFastPathBudgetDoesNotLeak -->
 
-The two refusals written to a raw connection that has no session, the collision loser and a connection to an administratively held peer, carry a 30-second write deadline of their own.
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- rejectConnectionCollision -->
+Refusals written to a raw connection with no Session writer carry a 30-second
+write deadline of their own. Capacity admission refusal sends Cease / Connection
+Rejected (6/5); a collision loser sends Cease / Connection Collision (6/7).
+A connection to an administratively held peer has its own bounded refusal.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- rejectConnectionAdmissionWithSettings, rejectPendingConnection, rejectConnectionCollision -->
 <!-- source: internal/component/bgp/reactor/peer_admin.go -- rejectAdminDownConnection -->
 
 ---

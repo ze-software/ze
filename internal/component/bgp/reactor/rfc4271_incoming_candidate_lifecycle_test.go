@@ -1,4 +1,4 @@
-// Design: docs/architecture/behavior/peer-lifecycle.md -- one FSM per incoming connection.
+// Design: docs/architecture/behavior/peer-lifecycle.md -- incoming connection failure isolation.
 // Related: rfc4271_incoming_listener_test.go -- actual listener and wire helpers.
 // RFC 4271 Sections 8.2.1 and 8.2.2 -- see rfc/short/rfc4271.md.
 package reactor
@@ -13,9 +13,9 @@ import (
 
 // TestIncomingCandidateFailureKeepsPeerRetryHistory exercises a real second
 // TCP connection held in Active by DelayOpen. Its EOF must retire
-// its FSM and update the peer-owned retry history, while the original useful
+// its exchange and update the peer-owned retry history, while the original useful
 // connection remains able to finish its own handshake.
-// RFC requirement: RFC4271-8.2.1-3 negative -- an admitted incoming connection held in Active by DelayOpen reaches EOF, clears the pending exchange and increments the peer's ConnectRetryCounter once; the original selected Session stays held and then establishes on its original TCP connection. This tests failure isolation within the admitted-connection scope of the partial row.
+// RFC requirement: RFC4271-8.2.1-3 negative -- an admitted incoming connection held in Active by DelayOpen reaches EOF, clears the pending exchange and increments the peer's ConnectRetryCounter once; the original selected Session stays held and then establishes on its original TCP connection.
 func TestIncomingCandidateFailureKeepsPeerRetryHistory(t *testing.T) {
 	r, peer, original, _, _ := incomingListenerPeer(t, false, 240*time.Second)
 	outgoing := incomingListenerDial(t, r)

@@ -20,7 +20,7 @@ import (
 // TestIncomingRefusalRetainsAdmissionUntilRetired blocks the losing candidate's
 // actual NOTIFICATION writer. Its decision is no longer pending, but its socket,
 // Session and workers must retain the sole admission until retirement finishes.
-// A third connection must receive collision Cease, never its own local OPEN.
+// A third connection must receive Connection Rejected, never its own local OPEN.
 func TestIncomingRefusalRetainsAdmissionUntilRetired(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	session, original := firstASSession(t, settings, nil, nil)
@@ -54,8 +54,8 @@ func TestIncomingRefusalRetainsAdmissionUntilRetired(t *testing.T) {
 		r.acceptOrReject(thirdServer, peer, nil)
 	}()
 	refusal := delayOpenReadType(t, third, 3)
-	if !bytes.Equal(refusal[message.HeaderLen:], []byte{6, 7}) {
-		t.Fatalf("third arrival did not receive collision Cease: %x", refusal)
+	if !bytes.Equal(refusal[message.HeaderLen:], []byte{6, 5}) {
+		t.Fatalf("third arrival did not receive Connection Rejected: %x", refusal)
 	}
 	var octet [1]byte
 	if n, err := third.Read(octet[:]); n != 0 || !errors.Is(err, io.EOF) {

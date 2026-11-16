@@ -1,7 +1,7 @@
 // Design: docs/architecture/behavior/peer-lifecycle.md -- incoming connection ownership.
 // Related: rfc4271_incoming_listener_test.go -- actual listener and outgoing-session setup.
 // RFC 4271 Sections 8.2.1 and 8.2.2 -- see rfc/short/rfc4271.md.
-// RFC naming: untagged -- independent DelayOpen timer regression; the admitted-connection OPEN and failure controls carry the partial RFC row's tags in their own files.
+// RFC naming: untagged -- independent DelayOpen timer regression; the admitted-connection OPEN and failure controls carry the RFC row's tags in their own files.
 package reactor
 
 import (
