@@ -3342,6 +3342,29 @@ and unknown-command frames.
 <!-- source: internal/component/ssh/answer.go -- answerFrame, writeExecAnswer -->
 <!-- source: test/plugin/ssh-pubkey-auth.ci -- the key pair this reuses -->
 
+### Pending BGP refusal delivery
+
+The pending-refusal driver owns two sequential real daemons with the same
+configuration. The first runs under `le test fail-syscall syscall write errno
+EIO length 21`; the second runs without the filter. The driver itself stays
+outside the filtered process tree. This filter refuses every daemon or child
+`write(2)` of exactly 21 bytes, regardless of descriptor, so the scenario keeps
+the established session at negotiated HoldTime zero and sends its inputs from
+the unfiltered driver.
+
+Each run establishes one passive peer, sends a valid OPEN on a second TCP
+connection from that peer, and waits for that connection to close. The filtered
+case must deliver no NOTIFICATION and must retain one
+`doctor-bgp-pending-refusal-undelivered` event in both `show errors` and
+`show doctor`, naming the second connection's endpoint, `write NOTIFICATION`,
+the EIO cause and `ze show bgp peer list`. The unfiltered control must send the
+exact 21-byte Cease / Connection Collision response and retain no such event.
+Both runs then send an UPDATE over the original socket and require the received
+route, one connection establishment, no dropped connection and Established
+state. The `.ci` separately asserts the production WARN output.
+
+<!-- source: internal/test/fixture/pending_refusal_daemon_fixture.go -- pendingRefusalDaemon, pendingRefusalRun, pendingRefusalReports -->
+
 ### Tmpfs (Virtual File System)
 
 Tmpfs allows embedding config files directly in `.ci` files:

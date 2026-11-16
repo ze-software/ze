@@ -1,0 +1,64 @@
+# Question: when delivery of a pending connection's refusal fails in the real
+# daemon, do both operator reports and WARN name that failure while the original
+# Established connection remains useful? Unit net.Conn controls cannot prove
+# the production socket write, daemon report bus, SSH commands, or WARN output.
+# The standalone driver stays outside the seccomp-filtered daemon process tree.
+# Filtered run: all daemon/child write(2) calls of exactly 21 bytes return EIO.
+# The same configuration without the filter must send exact Cease 6/7 then EOF
+# and retain no delivery-failure event. Both original sockets then send a valid
+# UPDATE, observed in received RIB and the same Established session's counters.
+option=needs-linux
+option=timeout:value=120s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT2
+
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port $PORT2
+        }
+    }
+}
+plugin {
+    internal bgp-rib { use bgp-rib; }
+}
+bgp {
+    filter {
+        import { final accept }
+        export { final accept }
+    }
+    peer original {
+        connection {
+            local { ip 127.0.0.1; port $PORT; }
+            remote { ip 127.0.0.2; connect false; }
+        }
+        session {
+            asn { local 65001; remote 65001; }
+            router-id 1.1.1.1
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/pending-refusal-write-failure 127.0.0.1:$PORT:exit=0
+expect=stderr:contains=OK: pending refusal filtered=true
+expect=stderr:contains=OK: pending refusal filtered=false
+expect=stderr:pattern=WARN.*BGP rejection delivery failed.*code=doctor-bgp-pending-refusal-undelivered.*peer=127\.0\.0\.2:[0-9]+.*operation="write NOTIFICATION".*input/output error.*fix="ze show bgp peer list"
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic

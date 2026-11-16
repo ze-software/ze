@@ -625,6 +625,15 @@ decoded OPEN that loses collision resolution retains Cease / Connection
 Collision (6/7).
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- handlePendingCollision, rejectPendingConnection -->
 
+If the rejection's write deadline cannot be set or the rejection write fails,
+Ze still closes only the pending connection. One warning and a
+`doctor-bgp-pending-refusal-undelivered` event name the endpoint, failed
+operation and cause. The daemon's `show doctor` and `show errors` retain the
+event; `ze show bgp peer list` is the next inspection step. A delivered rejection
+raises no delivery-failure event.
+<!-- source: internal/component/bgp/reactor/pending_refusal_diagnostic.go -- reportPendingRefusalFailure -->
+<!-- source: internal/component/bgp/reactor/register_diagnostic.go -- init -->
+
 Connect and Active use that same single pending slot while DelayOpen holds an
 OPEN-less existing connection. The pending reader has a ReceiveHoldTime
 deadline (90 seconds if configured hold is zero); expiry closes only the

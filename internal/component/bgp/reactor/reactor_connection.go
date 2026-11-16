@@ -290,10 +290,12 @@ func rejectConnectionCollision(conn net.Conn, clk clock.Clock) {
 
 // rejectPendingConnection bounds a refusal on a connection with no Session
 // writer. OPEN decode errors retain their own code before collision resolution.
+// It MUST close conn after every outcome; reportPendingRefusalFailure reports
+// write failures but leaves that ownership here.
 func rejectPendingConnection(conn net.Conn, clk clock.Clock, code message.NotifyErrorCode, subcode uint8) {
 	defer closeConnQuietly(conn)
 	if err := conn.SetWriteDeadline(clk.Now().Add(fwdWriteDeadlineDefault)); err != nil {
-		reactorLogger().Debug("pending BGP refusal could not set its write deadline", "peer", conn.RemoteAddr(), "error", err)
+		reportPendingRefusalFailure(conn, "set write deadline", err)
 		return
 	}
 	notif := &message.Notification{
@@ -302,7 +304,7 @@ func rejectPendingConnection(conn net.Conn, clk clock.Clock, code message.Notify
 	}
 	data := message.PackTo(notif, nil)
 	if _, err := conn.Write(data); err != nil {
-		reactorLogger().Debug("pending BGP refusal could not send its NOTIFICATION", "peer", conn.RemoteAddr(), "error", err)
+		reportPendingRefusalFailure(conn, "write NOTIFICATION", err)
 	}
 }
 
