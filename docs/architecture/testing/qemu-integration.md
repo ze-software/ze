@@ -956,8 +956,7 @@ the forwarded SIGINT goes through `sudo -n kill`: the kernel refuses that user a
 signal to a root process, and `kill` still answers success once the shell alone
 receives it.
 
-A caller that boots many guests over one build of the tree names that build
-instead, and the branch then builds and resolves nothing of its own.
+A caller can reuse a guest le or a complete cached kernel/image pair.
 `guest-le <checkout-path>`, valid only with `harness`, names a guest le the
 caller cross-built itself (`BuildGuestLeAt`), and the caller's command runs that
 le (`OneCICommandWith`). It must be a local path inside the checkout, because
@@ -967,10 +966,14 @@ builds `tmp/qemu/linux-<arch>/le`. `image <image-path>`, valid only with
 `command`, names the docker-host image the caller resolved
 (`setupdockerhost.EnsureImage`), which the boot still checks against the
 selected kernel (`dockerLabImageBoot`); a path that is not a readable regular
-file refuses before the boot. A call naming neither builds the guest le and
+file refuses before the boot. With `image`, `kernel` must name the matching
+`vmlinuz` directly inside Ze's runtime-kernel cache. The command validates the
+pair without a lookup or build of the current source recipe. A `harness` call
+naming neither builds the guest le and
 ensures the image as above, so a standalone `docker-lab ... harness` run is
 unchanged. The caller is `le feature run` (`docs/contributing/feature-maturity.md`).
 <!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabMode, dockerLabImage, dockerLabGuestLe -->
+<!-- source: internal/appliance/runtimekernel_existing.go -- ExistingRuntimeKernelTree -->
 <!-- source: internal/le/test/qemu/guestle.go -- BuildGuestLeAt -->
 <!-- test: internal/le/test/qemu/dockerlab_harness_test.go TestDockerLabHarnessTakesTheCallersBuild, TestDockerLabHarnessActionPreparesTheGuest -->
 

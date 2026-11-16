@@ -93,10 +93,16 @@ var dockerLabHost = dockerLabCommandHost{
 	},
 }
 
-// runDockerLabCommand resolves the same immutable runtime tree EnsureImage uses,
-// refusing a mismatched request before an image build can start.
+// runDockerLabCommand validates an explicit image's existing runtime entry, or
+// resolves the current runtime when the caller asks it to acquire an image.
 func runDockerLabCommand(ctx context.Context, root, arch string, options RunOptions) (any, int) {
-	tree, err := dockerLabHost.runtimeTree(root, arch)
+	var tree string
+	var err error
+	if options.Image == "" {
+		tree, err = dockerLabHost.runtimeTree(root, arch)
+	} else {
+		tree, err = appliance.ExistingRuntimeKernelTree(options.Kernel, arch)
+	}
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

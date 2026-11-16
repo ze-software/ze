@@ -229,7 +229,7 @@ func TestDockerLabHarnessTakesTheCallersBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 	nameParent(t, entry)
-	tree := dockerLabRuntimeFixture(t)
+	tree := dockerLabExplicitRuntimeFixture(t, GuestArch())
 	root := t.TempDir()
 	const le = "tmp/run/le"
 	if err := os.MkdirAll(filepath.Join(root, "tmp", "run"), 0o750); err != nil {
