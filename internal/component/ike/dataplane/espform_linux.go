@@ -169,7 +169,7 @@ type espFormReceiver struct {
 	// life is the current reader's life: nil while the paths are stopped, and set, with
 	// conn and tun nil, while the reader stopped and its revive worker keeps reopening.
 	life *espFormReaderLife
-	// wg counts the reader, joined under mu by closeReaderLocked: read takes no lock.
+	// wg counts the reader, joined under mu by closeReaderLocked: read never takes mu.
 	wg sync.WaitGroup
 	// revivers counts the revive workers, joined by Close after it released mu: a
 	// worker takes mu for each attempt, so a join under mu could wait for it forever.
@@ -235,8 +235,15 @@ type espFormPaths struct {
 // espFormReaderLife is one reader's life. stop is closed when the receiver no longer
 // wants the reader (retireLocked), and dead by read when the socket failed while stop was
 // open, so the read error ended a reader the receiver still wanted. err is that error,
-// written before dead is closed and read only after it.
+// written before dead is closed and read only after it. Failure admission and publication
+// are serialized against retirement by mu, so stop cannot be observed before a failure
+// already admitted by read has been published. The zero mutex needs no initialization;
+// stop and dead MUST be created before read or retireLocked uses the life.
 type espFormReaderLife struct {
+	// mu serializes read's stop check and failure publication with retirement's stop
+	// closure. A holder MUST release it before joining read. read MUST NOT acquire the
+	// receiver mutex: its owner can join read while holding that mutex.
+	mu   sync.Mutex
 	stop chan struct{}
 	dead chan struct{}
 	err  error
@@ -452,12 +459,15 @@ func (r *espFormReceiver) startReaderLocked(paths espFormPaths) {
 
 // retireLocked tells the current reader and its revive worker that the receiver no
 // longer wants them, before its socket is closed, so the read error that close causes
-// is not taken for a failed socket. r.mu must be held.
+// is not taken for a failed socket. r.mu MUST be held. It MUST release life's mutex
+// before returning, because the caller may then join read under the receiver mutex.
 func (r *espFormReceiver) retireLocked() {
 	if r.life == nil {
 		return
 	}
+	r.life.mu.Lock()
 	close(r.life.stop)
+	r.life.mu.Unlock()
 	r.life = nil
 }
 
@@ -465,8 +475,8 @@ func (r *espFormReceiver) retireLocked() {
 // then closes the ze-espform device. Closing the socket ends the reader's ReadMsgIP, and
 // read takes no lock of the receiver's, so waiting here under r.mu cannot deadlock. The
 // reader writes into the device's fd, so closing that fd while it may still write would
-// let the number be reused by an unrelated open and a late write land in it. r.mu must
-// be held.
+// let the number be reused by an unrelated open and a late write land in it. r.mu MUST
+// be held, and the caller MUST NOT hold a reader life's mutex while joining its read.
 func (r *espFormReceiver) closeReaderLocked() {
 	if r.conn == nil {
 		return

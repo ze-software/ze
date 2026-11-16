@@ -1265,9 +1265,19 @@ stopped reader first (`servingLocked`) opens the paths itself
 (`reopenReaderLocked`), which closes the failed socket and the device before it
 opens new ones, because two `ze-espform` devices cannot exist; when that open
 fails, it refuses with the open's error and the revive worker keeps trying. The
-reader takes no lock, so its socket's close joins it under the receiver's lock
-(`closeReaderLocked`); a revive worker takes the lock for each attempt, so
-`Close` joins the workers after it released the lock.
+reader takes no receiver lock. After the socket read ends, it takes only its
+reader-life mutex while it checks retirement and publishes a failure. Its
+socket's close can therefore join it under the receiver's lock
+(`closeReaderLocked`). A revive worker takes the receiver's lock for each
+attempt, so `Close` joins the workers after it released that lock.
+A recorded failure is reported exactly once, even if replacement retires its
+reader before the worker reports it. Intentional retirement before failure
+publication produces no event. A retired worker cannot reopen its paths or
+reset the replacement reader's backoff.
+<!-- source: internal/component/ike/dataplane/espform_open_linux.go -- read, revive -->
+<!-- source: internal/component/ike/dataplane/espform_linux.go -- retireLocked, closeReaderLocked, Close -->
+<!-- test: internal/component/ike/dataplane/espform_reader_event_linux_test.go TestESPFormReceiverReportsFailureRetiredBeforeRevive, TestESPFormReceiverIntentionalRetirementHasNoFailureEvent, TestESPFormReceiverRetiredLifeCannotReopen, TestESPFormReceiverMatureRetiredLifeKeepsBackoff -->
+<!-- test: internal/component/ike/dataplane/espform_reader_publication_linux_test.go TestESPFormReceiverConcurrentFailureAndRetirementReportsEveryRecordedFailure -->
 
 The revive worker can raise its event while the plugin sends another RPC.
 `sdk.Plugin.RaiseIssue` builds a request local to the call; the pipe path

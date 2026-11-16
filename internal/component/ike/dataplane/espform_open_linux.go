@@ -53,6 +53,7 @@ const (
 // The subjects of the reader socket's refusals, each a verb phrase after "Ze ... to".
 const (
 	espFormSocketSubject = "open the raw ESP socket (" + espFormListenNetwork + ") that receives bare ESP"
+	//nolint:gosec // G101: this text names a socket operation, not a credential.
 	espFormBypassSubject = "exempt its raw ESP socket from the inbound IPsec policy check"
 )
 
@@ -197,12 +198,15 @@ func openESPFormPaths() (espFormPaths, error) {
 
 // read runs the reader on one open of the paths, and closes life.dead when the socket
 // failed while the receiver still wanted the reader, which wakes its revive worker. It
-// takes no lock, which is what lets closeReaderLocked wait for it under r.mu. The caller
-// MUST have called r.wg.Add(1); read reports its own completion.
+// takes only life's mutex after run returns, never r.mu, so closeReaderLocked can join
+// it under r.mu. The caller MUST have called r.wg.Add(1); read MUST release life's mutex
+// before reporting completion through r.wg.Done, because its closer can hold r.mu.
 func (r *espFormReceiver) read(conn espFormPacketReader, inj espFormInjector, life *espFormReaderLife) {
 	defer r.wg.Done()
 
 	err := r.run(conn, inj)
+	life.mu.Lock()
+	defer life.mu.Unlock()
 	if espFormStopped(life.stop) {
 		return
 	}
@@ -215,7 +219,9 @@ func (r *espFormReceiver) read(conn espFormPacketReader, inj espFormInjector, li
 // paths again, at most espFormReopenWaitMax apart on the receiver's backoff
 // (reopenWaitLocked, reviveLocked), until an open succeeds (the new reader has its own
 // worker) or the receiver retires the reader (stopLocked, or an open from a Watch or
-// acquire that replaced it). The SAs it was serving are in the SAD, and their bare ESP is
+// acquire that replaced it). Retirement ends recovery, but a failure already recorded
+// by read MUST still be reported once by this worker, without changing a replacement's
+// backoff. The SAs it was serving are in the SAD, and their bare ESP is
 // owed at any time, so it does not wait for a new Watch. The caller MUST have called
 // r.revivers.Add(1); Close waits for it.
 //
@@ -225,7 +231,13 @@ func (r *espFormReceiver) revive(life *espFormReaderLife) {
 
 	select {
 	case <-life.stop:
-		return
+		// Watch or acquire can retire a failed reader before this worker runs.
+		// A recorded death still owns its event; an intentional stop owns none.
+		select {
+		case <-life.dead:
+		default:
+			return
+		}
 	case <-life.dead:
 	}
 	r.logger().Warn("esp-form: Ze's own receiver for bare ESP stopped reading its raw ESP socket, so the bare "+
@@ -235,6 +247,10 @@ func (r *espFormReceiver) revive(life *espFormReaderLife) {
 	r.reportReaderStopped(life)
 
 	r.mu.Lock()
+	if r.life != life {
+		r.mu.Unlock()
+		return
+	}
 	wait := r.reopenWaitLocked(life)
 	r.mu.Unlock()
 	failing := false
