@@ -1,10 +1,11 @@
 // Design: docs/architecture/ike/ipsec-9-ikev2-eap-nat.md -- Child SA install into the dataplane
 // Related: rfc4301_sad_selector_test.go -- the same selectors read off the SAParams and SPParams Ze builds
 //
-// VALIDATES: against a real Linux XFRM stack, that a Child SA installed by createFirstChildSA
-// accepts a decrypted packet inside the negotiated selectors and drops one outside them, in
-// tunnel mode (the inbound require-policy drops it, XfrmInNoPols) and in transport mode (the
-// inbound state's own selector drops it, XfrmInStateMismatch).
+// VALIDATES: against a real Linux XFRM stack, that a Child SA installed by
+// createFirstChildSA accepts a decrypted packet inside its negotiated selectors
+// and rejects packets outside them through the inbound state's own selector
+// (XfrmInStateMismatch), in tunnel and transport modes. The tunnel checks also
+// require XfrmInNoPols and XfrmInPolBlock to stay unchanged.
 // PREVENTS: a transport-mode Child SA whose SAD entry carries no selector. A transport-only
 // secpath passes the kernel's inbound policy check, so without the state selector a peer
 // could send any port or protocol over the SA and have it delivered.
@@ -15,9 +16,9 @@
 // RFC requirement tag and `./le rfc record` runs them with no build tag
 // (docs/architecture/testing/qemu-integration.md, "Build Tags").
 //
-// The instrument is the pair of a UDP listener and /proc/net/xfrm_stat. The ESP datagrams
-// are built here with the key read back from the installed kernel state, so the kernel
-// decrypts them exactly as it would decrypt the peer's.
+// The instrument is a UDP listener and /proc/thread-self/net/xfrm_stat.
+// ESP datagrams are built here with the key read back from the installed kernel
+// state, so the kernel decrypts them exactly as it would decrypt the peer's.
 
 //go:build linux
 
@@ -130,10 +131,11 @@ func sadSelNetns(t *testing.T) {
 	}
 }
 
-// sadSelStat reads one counter out of the namespace's own /proc/net/xfrm_stat.
+// sadSelStat reads one XFRM counter from the calling thread's network namespace.
+// A caller that changes namespace MUST keep its OS thread locked through the read.
 func sadSelStat(t *testing.T, name string) int {
 	t.Helper()
-	raw, err := os.ReadFile("/proc/net/xfrm_stat")
+	raw, err := os.ReadFile("/proc/thread-self/net/xfrm_stat")
 	if err != nil {
 		t.Fatalf("read xfrm_stat: %v", err)
 	}
@@ -147,7 +149,7 @@ func sadSelStat(t *testing.T, name string) int {
 			return n
 		}
 	}
-	t.Fatalf("%s absent from /proc/net/xfrm_stat", name)
+	t.Fatalf("%s absent from /proc/thread-self/net/xfrm_stat", name)
 	return 0
 }
 

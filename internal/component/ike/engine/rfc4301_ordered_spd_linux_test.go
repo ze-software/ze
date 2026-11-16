@@ -49,7 +49,7 @@ func orderedInstall(t *testing.T, entries []dataplane.SPParams) {
 			t.Fatalf("install inbound entry %s -> %s: %v", p.Src, p.Dst, err)
 		}
 		t.Cleanup(func() {
-			if err := dp.RemovePolicy(p.Src, p.Dst, p.Dir); err != nil {
+			if err := dp.RemovePolicyParams(*p); err != nil {
 				t.Errorf("remove inbound entry %s -> %s: %v", p.Src, p.Dst, err)
 			}
 		})
@@ -80,10 +80,11 @@ func orderedInboundPriority(t *testing.T, src, dst string) (int, netlink.PolicyA
 // TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry proves the admitting side of
 // the ordered search. Method: a tunnel-mode Child SA (UDP from 10.1.0.0/16 to local port
 // 5000 of 10.2.0.0/16) and the inbound SPD catch-all DISCARD, which overlaps it. The test
-// reads back the inbound priorities Ze installed (Child SA ranked before the catch-all),
-// then sends on the SA: an inner packet inside the Child SA's selector is delivered,
-// because the first entry the search meets is the PROTECT entry, and an inner packet
-// outside it meets only the catch-all and is discarded (XfrmInPolBlock moves by one).
+// narrows only the installed inbound PROTECT policy to 10.1.0.0/24, leaving the
+// receiving SA's negotiated selector at 10.1.0.0/16. Section 4.4.2 permits the SAD
+// to retain its selectors when the SPD changes. It reads back the priorities,
+// then proves delivery inside the narrower PROTECT, a catch-all discard inside
+// the SA but outside that PROTECT, and a state-selector discard outside the SA.
 func TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry(t *testing.T) {
 	// RFC requirement: RFC4301-4.4.1-10 positive -- with Ze's inbound Child SA entry
 	// (priority 2000) and the overlapping inbound catch-all DISCARD (priority 2^32-1)
@@ -94,13 +95,24 @@ func TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry(t *testing.T) {
 	}
 	sadSelNetns(t)
 	child := sadSelChild(t, false, "10.2.0.0/16", "10.1.0.0/16")
+	// The catch-all must decide on a packet the receiving SAD entry admits.
+	// Otherwise the SA selector rejects it before the ordered SPD search.
+	policies := childPolicies(child, dataplane.SADirIn)
+	if len(policies) != 1 {
+		t.Fatalf("inbound Child policies = %d, want one to narrow", len(policies))
+	}
+	if err := dataplane.Get().RemovePolicyParams(policies[0]); err != nil {
+		t.Fatalf("remove the original inbound PROTECT policy: %v", err)
+	}
+	policies[0].Src = mustCIDRNet(t, "10.1.0.0/24")
+	orderedInstall(t, policies)
 	catchAll, err := unmatchedPolicies(net.IPv4zero, dataplane.SPActionDiscard)
 	if err != nil {
 		t.Fatalf("build the catch-all: %v", err)
 	}
 	orderedInstall(t, catchAll)
 
-	childRank, childAction := orderedInboundPriority(t, "10.1.0.0/16", "10.2.0.0/16")
+	childRank, childAction := orderedInboundPriority(t, "10.1.0.0/24", "10.2.0.0/16")
 	if childRank != dataplane.PriorityChildSA || childAction != netlink.XFRM_POLICY_ALLOW {
 		t.Fatalf("inbound Child SA entry: priority %d action %d, want %d allow", childRank, childAction, dataplane.PriorityChildSA)
 	}
@@ -120,14 +132,23 @@ func TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry(t *testing.T) {
 		t.Errorf("%s moved by %d for the in-selector packet, want 0", orderedStatPolBlock, got)
 	}
 
-	before = sadSelStat(t, orderedStatPolBlock)
+	observedBefore := sadSelReadDropCounters(t, sadSelStat)
+	sender.send(t, sadSelProtoIPv4, sadSelIPv4("10.1.1.5", sadSelProtoUDP, sadSelUDP(sadSelPort)))
+	if sadSelDelivered(t, inside) {
+		t.Error("an inner packet inside the SA but outside the narrower PROTECT policy was delivered")
+	}
+	sadSelWantDropCounters(t, "inside the SA, outside the first-ranked PROTECT", observedBefore,
+		sadSelReadDropCounters(t, sadSelStat), sadSelDropCounters{polBlock: 1})
+
+	// Keep the original outside-SA input too: it is refused by the receiving
+	// state's selector, before either ranked SPD entry can decide on it.
+	observedBefore = sadSelReadDropCounters(t, sadSelStat)
 	sender.send(t, sadSelProtoIPv4, sadSelIPv4(sadSelInnerStray, sadSelProtoUDP, sadSelUDP(sadSelPort)))
 	if sadSelDelivered(t, inside) {
-		t.Error("an inner packet outside every entry but the catch-all was delivered")
+		t.Error("an inner packet outside the receiving SA's selector was delivered")
 	}
-	if got := sadSelStat(t, orderedStatPolBlock) - before; got != 1 {
-		t.Errorf("%s moved by %d for the out-of-selector packet, want 1 (the catch-all DISCARD)", orderedStatPolBlock, got)
-	}
+	sadSelWantDropCounters(t, "outside the receiving SA", observedBefore,
+		sadSelReadDropCounters(t, sadSelStat), sadSelDropCounters{stateMismatch: 1})
 }
 
 // TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard proves the refusing side.
