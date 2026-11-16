@@ -70,6 +70,7 @@ func rfc4659UpdatesNamingVPNv6(t *testing.T, wire []byte) []string {
 // AFI 2, SAFI 128, next hop RD 0 + 2001:db8::1, and the labeled NLRI for 2001:db8:1::/48.
 func TestRFC4659VPNv6RouteSentWhenNegotiated(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast, rfc4659VPNv6Family)
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast, rfc4659VPNv6Family)
 	peer.settings.StaticRoutes = []StaticRoute{rfc4659ConfiguredVPNv6Route()}
 
 	peer.runInitialSyncNow()
@@ -89,6 +90,7 @@ func TestRFC4659VPNv6RouteSentWhenNegotiated(t *testing.T) {
 // SAFI 128, neither the route nor an End-of-RIB.
 func TestRFC4659VPNv6RouteWithheldWhenNotNegotiated(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	peer.settings.StaticRoutes = []StaticRoute{rfc4659ConfiguredVPNv6Route()}
 
 	peer.runInitialSyncNow()
