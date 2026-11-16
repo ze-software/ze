@@ -14,7 +14,7 @@ import (
 const (
 	codeAtomicAggregatePolicy        = "doctor-bgp-atomic-aggregate-policy"
 	atomicAggregatePolicyFix         = "ze config edit"
-	atomicAggregatePolicyMessage     = "BGP policy result refused: a marked route must keep ATOMIC_AGGREGATE and its original destinations; the source routes are withdrawn. Edit the import or export filter to preserve the marker and retain only original routes, then commit now."
+	atomicAggregatePolicyMessage     = "BGP policy result refused: a marked route must keep ATOMIC_AGGREGATE and its original destinations; source-route removal is requested. Edit the import or export filter to preserve the marker and retain only original routes, then commit now."
 	codeAtomicAggregateRetirement    = "doctor-bgp-atomic-aggregate-retirement"
 	atomicAggregateRetirementMessage = "BGP policy source removal could not be prepared; previously advertised routes may remain. Edit the import or export filter to keep the original routes, then commit now."
 )

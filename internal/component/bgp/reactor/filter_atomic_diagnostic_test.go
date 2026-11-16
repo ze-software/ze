@@ -33,7 +33,7 @@ func TestAtomicAggregatePolicyDiagnostic(t *testing.T) {
 	require.Equal(t, codeAtomicAggregatePolicy, issues[0].Code)
 	require.Equal(t, "192.0.2.9", issues[0].Subject)
 	require.Equal(t, "ze config edit", issues[0].Fix)
-	require.Contains(t, issues[0].Message, "source routes are withdrawn")
+	require.Contains(t, issues[0].Message, "source-route removal is requested")
 	require.Empty(t, report.Warnings(), "recovery must not leave a stale active warning")
 }
 
