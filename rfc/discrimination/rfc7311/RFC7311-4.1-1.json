@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7311-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath",
+    "unit-sha": "1631b7f6a60d7ac9",
+    "claim-sha": "b68ef6d2bcf85ee6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
+    "producer-sha": "998e7a9aab5fe43c",
+    "break": "line 325: \"if cmp := compareAIGP(a, b); cmp != 0 {\" -\u003e \"if cmp := compareAIGP(a, b); cmp != 0 \u0026\u0026 a.HasAIGP != b.HasAIGP {\""
+  },
+  {
+    "rid": "RFC7311-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath",
+    "unit-sha": "1631b7f6a60d7ac9",
+    "claim-sha": "28bb917688bd9255",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::compareBeforeMED",
+    "producer-sha": "998e7a9aab5fe43c",
+    "break": "line 325: \"if cmp := compareAIGP(a, b); cmp != 0 {\" -\u003e \"if cmp := compareAIGP(a, b); cmp != 0 \u0026\u0026 a.HasAIGP == b.HasAIGP {\""
+  }
+]

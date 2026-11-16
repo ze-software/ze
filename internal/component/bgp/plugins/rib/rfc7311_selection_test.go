@@ -1,15 +1,18 @@
 package rib
 
 import (
+	"context"
 	"encoding/binary"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
@@ -31,6 +34,22 @@ func aigpSelectionAttrs(nh [4]byte, metric *uint64, pref uint32, pathLength byte
 	return attrs
 }
 
+// aigpSelectionNextHopRoutes supplies actual terminal routes for prospective
+// admission without replacing each test's custom interior-distance provider.
+func aigpSelectionNextHopRoutes(
+	t *testing.T, loc *locrib.RIB, fam family.Family, hops ...netip.Addr,
+) {
+	t.Helper()
+	connected := redistevents.RegisterProtocol("connected")
+	for _, hop := range hops {
+		loc.Insert(fam, netip.PrefixFrom(hop, hop.BitLen()), locrib.Path{
+			Source: connected, Interface: "aigp-selection-fixture0",
+		})
+		require.True(t, igpcost.Resolve(loc, hop).Resolved,
+			"independent terminal next-hop prerequisite: %s", hop)
+	}
+}
+
 // RFC requirement: RFC7311-4.1-1 positive -- the received metric plus next-hop cost chooses a longer AS_PATH before ordinary tiebreaking.
 // RFC requirement: RFC7311-4.1-1 negative -- higher LOCAL_PREF still wins before AIGP, and a missing AIGP does not masquerade as metric zero.
 func TestAIGPSelectsStoredRoutesBeforeASPath(t *testing.T) {
@@ -40,6 +59,7 @@ func TestAIGPSelectsStoredRoutesBeforeASPath(t *testing.T) {
 	t.Cleanup(func() { r.SetLocRIB(nil) })
 	peerA, peerB := netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2")
 	nhA, nhB := [4]byte{198, 51, 100, 1}, [4]byte{198, 51, 100, 2}
+	aigpSelectionNextHopRoutes(t, loc, family.IPv4Unicast, netip.AddrFrom4(nhA), netip.AddrFrom4(nhB))
 	for _, peer := range []netip.Addr{peerA, peerB} {
 		r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
 		r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
@@ -86,6 +106,8 @@ func TestAIGPDistanceChangeReselectsRetainedRoutes(t *testing.T) {
 	loc := locrib.NewRIB()
 	r.SetLocRIB(loc)
 	t.Cleanup(func() { r.SetLocRIB(nil) })
+	aigpSelectionNextHopRoutes(t, loc, family.IPv4Unicast,
+		netip.MustParseAddr("198.51.100.1"), netip.MustParseAddr("198.51.100.2"))
 	metric := uint64(10)
 	costA := uint64(5)
 	igpcost.Set(func(nh netip.Addr) igpcost.Distance {
@@ -118,16 +140,113 @@ func TestAIGPDistanceChangeReselectsRetainedRoutes(t *testing.T) {
 	require.Equal(t, metric, path.AIGP)
 	_, changed := r.checkBestPathChange(family.IPv4Unicast, wirePrefix, false, nil)
 	require.False(t, changed)
+
+	t.Run("recursive-aigp", func(t *testing.T) {
+		// RFC 7311 Section 3.4.3: "Any change due to (a) in any of these values
+		// MUST trigger a new AIGP computation for that route."
+		loc := locrib.NewRIB()
+		r := newRIBManager(nil)
+		r.SetLocRIB(loc)
+		t.Cleanup(func() { r.SetLocRIB(nil) })
+		igpcost.Set(func(nextHop netip.Addr) igpcost.Distance { return igpcost.Resolve(loc, nextHop) })
+		t.Cleanup(func() { igpcost.Set(nil) })
+
+		fam := family.IPv4Unicast
+		interior := redistevents.RegisterProtocol("aigp-selection-test")
+		terminal := netip.MustParseAddr("203.0.113.11")
+		nextHopA := netip.MustParseAddr("198.51.100.11")
+		nextHopB := netip.MustParseAddr("198.51.100.12")
+		loc.Insert(fam, netip.PrefixFrom(terminal, 32), locrib.Path{
+			Source: interior, Interface: "aigp-selection-fixture0", Metric: 7,
+		})
+		loc.Insert(fam, netip.PrefixFrom(nextHopB, 32), locrib.Path{
+			Source: interior, Interface: "aigp-selection-fixture0", Metric: 20,
+		})
+		recursivePrefix := netip.PrefixFrom(nextHopA, 32)
+		recursivePath := locrib.Path{
+			Source: bgpProtocolID, IsBGP: true, AIGPPresent: true,
+			AIGP: 5, NextHop: terminal, Metric: 9000,
+		}
+		loc.Insert(fam, recursivePrefix, recursivePath)
+		require.Equal(t, igpcost.Distance{Cost: 12, Resolved: true, Recursive: true}, igpcost.Resolve(loc, nextHopA))
+		require.Equal(t, igpcost.Distance{Cost: 20, Resolved: true}, igpcost.Resolve(loc, nextHopB))
+
+		wirePrefix := ipv4Prefix(24, 10, 20, 0)
+		receivedMetric := uint64(10)
+		for _, candidate := range []struct{ peer, nextHop netip.Addr }{
+			{peer: netip.MustParseAddr("192.0.2.2"), nextHop: nextHopA},
+			{peer: netip.MustParseAddr("192.0.2.1"), nextHop: nextHopB},
+		} {
+			r.peerMeta[candidate.peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65001}
+			routes := storage.NewPeerRIB(candidate.peer.String())
+			r.bgpPeers[candidate.peer] = routes
+			t.Cleanup(routes.Release)
+			routes.Insert(fam, aigpSelectionAttrs(candidate.nextHop.As4(), &receivedMetric, 100, 1), wirePrefix)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		stopped := make(chan struct{})
+		go func() { defer close(stopped); r.runAIGPSelection(ctx) }()
+		t.Cleanup(func() { cancel(); <-stopped })
+
+		winnerIs := func(nextHop netip.Addr) bool {
+			path, _, found := loc.LPM(fam, netip.MustParseAddr("10.20.0.1"))
+			if !found {
+				return false
+			}
+			if !path.IsBGP {
+				return false
+			}
+			if path.NextHop != nextHop {
+				return false
+			}
+			if !path.AIGPPresent {
+				return false
+			}
+			return path.AIGP == receivedMetric
+		}
+		require.Eventually(t, func() bool { return winnerIs(nextHopA) }, 5*time.Second, 10*time.Millisecond,
+			"recursive AIGP sum 22 must beat terminal AIGP sum 30")
+
+		// Only the recursive route's received AIGP changes; no candidate UPDATE
+		// or manual selection call can trigger the winner's move.
+		recursivePath.AIGP = 30
+		_, changed := loc.Insert(fam, recursivePrefix, recursivePath)
+		require.True(t, changed)
+		require.Equal(t, igpcost.Distance{Cost: 37, Resolved: true, Recursive: true}, igpcost.Resolve(loc, nextHopA))
+		require.Equal(t, igpcost.Distance{Cost: 20, Resolved: true}, igpcost.Resolve(loc, nextHopB))
+		require.Eventually(t, func() bool { return winnerIs(nextHopB) }, 5*time.Second, 10*time.Millisecond,
+			"the production subscriber must reselect after recursive AIGP changes")
+		for peer, routes := range r.bgpPeers {
+			entry, found := routes.Lookup(fam, wirePrefix)
+			require.True(t, found, "received path retained for %s", peer)
+			metric, present := entryAIGP(entry)
+			require.True(t, present, "received AIGP retained for %s", peer)
+			require.Equal(t, receivedMetric, metric, "received AIGP is not accumulated for %s", peer)
+		}
+
+		_, changed = loc.Insert(fam, recursivePrefix, recursivePath)
+		require.False(t, changed, "an unchanged recursive path publishes no change")
+		require.Equal(t, igpcost.Distance{Cost: 37, Resolved: true, Recursive: true}, igpcost.Resolve(loc, nextHopA))
+		require.Equal(t, igpcost.Distance{Cost: 20, Resolved: true}, igpcost.Resolve(loc, nextHopB))
+		require.True(t, winnerIs(nextHopB))
+		_, changed = r.checkBestPathChange(fam, wirePrefix, false, nil)
+		require.False(t, changed)
+	})
 }
 
 // Multiprotocol next hops must participate in the same distance comparison as
 // legacy NEXT_HOP. The selected event keeps the received metric for recursion.
 func TestAIGPSelectionResolvesMultiprotocolNextHop(t *testing.T) {
 	r := newRIBManager(nil)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+	t.Cleanup(func() { r.SetLocRIB(nil) })
 	nextHops := []netip.Addr{
 		netip.MustParseAddr("2001:db8::1"),
 		netip.MustParseAddr("2001:db8::2"),
 	}
+	aigpSelectionNextHopRoutes(t, loc, family.IPv6Unicast, nextHops...)
 	igpcost.Set(func(nextHop netip.Addr) igpcost.Distance {
 		if nextHop == nextHops[0] {
 			return igpcost.Distance{Cost: 100, Resolved: true}

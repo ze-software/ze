@@ -3,23 +3,23 @@
     "rid": "RFC7311-3.4.3-7",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes",
-    "unit-sha": "5b3caa4f0a7f5217",
+    "unit-sha": "4db65b7c577f418e",
     "claim-sha": "d65cce7b2e637479",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::reselectAIGPRoutes",
-    "producer-sha": "086518b87374d8fb",
-    "break": "body of reselectAIGPRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::runAIGPSelection",
+    "producer-sha": "6030c15d2fb9bf15",
+    "break": "line 34: \"case changed \u003c- struct{}{}:\" -\u003e \"case \u003c-ctx.Done():\""
   },
   {
     "rid": "RFC7311-3.4.3-7",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPDistanceChangeReselectsRetainedRoutes",
-    "unit-sha": "5b3caa4f0a7f5217",
+    "unit-sha": "4db65b7c577f418e",
     "claim-sha": "ebf483f8f4a79a25",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rib/rib_aigp.go::reselectAIGPRoutes",
-    "producer-sha": "086518b87374d8fb",
-    "break": "body of reselectAIGPRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "3f5dec7a9b9128da",
+    "break": "line 1071: \"return bestChangeEntry{}, false\" -\u003e \"return bestChangeEntry{}, true\""
   },
   {
     "rid": "RFC7311-3.4.3-7",
