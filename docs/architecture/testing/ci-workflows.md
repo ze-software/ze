@@ -38,6 +38,14 @@ crash-capture result does not cover this behavior.
 <!-- source: internal/le/test/qemu/actions.go -- runApplianceOTAHere -->
 <!-- source: internal/le/test/qemu/install_ota.go -- executeApplianceOTA -->
 
+`./le test qemu appliance-storage` is a manual appliance proof too, outside the
+scheduled populations. It is for changes to how an appliance grows its
+persistent storage: an image copied to a larger disk boots, `ze doctor` reports
+the storage smaller than its disk, and `request system storage grow` grows it.
+The action is registered and its proof is not written yet: a run fails and says
+so, and no job calls it.
+<!-- source: internal/le/test/qemu/install_storage_grow.go -- runApplianceStorageHere -->
+
 "Advisory" means only that the job does not block a push. A job that fails
 before its first test is broken, not advisory: nothing it would have run is
 judged until it is fixed. A step a job cannot run without (a binary it builds,

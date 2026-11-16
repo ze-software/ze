@@ -5,6 +5,7 @@
 // Detail: crashcapture.go -- the two kernel crash-capture proofs
 // Detail: run.go -- the host harness this table reaches
 // Detail: install.go -- the four import-linked installer proofs
+// Detail: install_storage_grow.go -- the appliance storage growth proof
 //
 // actions.go is the table. The dispatch, the listing, the help line and the two
 // refusals are internal/le/le/action, which every ported area shares.
@@ -145,6 +146,13 @@ var actions = leaction.New(area,
 		Summary: "test an appliance image update and recovery",
 		Why:     "build two native-architecture named appliance images, upload the new root and boot files through ze appliance push, then verify the changed runtime, persistent configuration, login and previous root slot in QEMU",
 		Answer:  runApplianceOTAHere,
+	},
+	leaction.Action{
+		Verb:    "appliance-storage",
+		Does:    doesRun,
+		Summary: "test an appliance grows its persistent storage",
+		Why:     "copy an appliance image to a larger disk and boot it, read the storage smaller than its disk from ze doctor and show host storage, grow it with request system storage grow, then verify the sizes, the stored configuration and the state after a reboot",
+		Answer:  runApplianceStorageHere,
 	},
 	leaction.Action{
 		Verb:    "appliance-config-push",

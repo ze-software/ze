@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -35,6 +36,33 @@ func plugin15SetFD(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("fd-set: max should set current=%v to hard-limit=%v", m["current"], m["hard-limit"])
 	}
 	fmt.Fprintf(os.Stderr, "OK: fd-set previous=%v current=%v hard=%v\n", m["previous"], m["current"], m["hard-limit"])
+	return nil
+}
+
+// plugin15StorageGrowRefused dispatches `request system storage grow` to a
+// daemon that does not run as an appliance and requires the refusal that names
+// that reason, with the command that fixes it on its last line. Any other
+// answer is an error: a done answer, or a refusal for another reason.
+func plugin15StorageGrowRefused(ctx context.Context, p *sdk.Plugin) error {
+	if err := plugin15WaitEOR(ctx, p, "*"); err != nil {
+		return err
+	}
+	r := plugin15Dispatch(ctx, p, "request system storage grow")
+	answer := r.text()
+	if plugin15Done(r) {
+		return fmt.Errorf("storage-grow: answered done on a host that is not an appliance: %s", answer)
+	}
+	const reason = "this system is not a Ze appliance"
+	if !strings.Contains(answer, reason) {
+		return fmt.Errorf("storage-grow: refusal does not say %q: status=%s answer=%s", reason, r.status, answer)
+	}
+	const fix = "fix: show host storage"
+	if !strings.Contains(answer, fix) {
+		return fmt.Errorf("storage-grow: refusal does not carry %q: %s", fix, answer)
+	}
+	var tb textbuf.Buffer
+	tb.Str("OK: storage grow refused: ").Str(answer).Byte('\n')
+	tb.StdErr() //nolint:errcheck // a progress line; the verdict is the returned error
 	return nil
 }
 

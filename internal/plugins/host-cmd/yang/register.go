@@ -8,5 +8,6 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-host-cmd.yang", ZeHostCmdYANG)
+	configyang.RegisterModule("ze-host-request-cmd.yang", ZeHostRequestCmdYANG)
 	configyang.RegisterModule("ze-host-set-cmd.yang", ZeHostSetCmdYANG)
 }

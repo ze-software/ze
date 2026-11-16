@@ -3,6 +3,7 @@
 package disk
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -17,6 +18,16 @@ const (
 	sourceHTTP          = "http"
 	sourceISO           = "iso"
 	defaultPartPollWait = 10 * time.Second
+)
+
+// codeStorageNotGrown is the doctor code of persistent storage smaller than
+// its disk, and fixStorageGrow the command that grows it on the booted
+// system. The installer is PID 1 of the initrd and links no component, so it
+// spells the code that the storage doctor check declares instead of importing
+// it.
+const (
+	codeStorageNotGrown = "doctor-storage-not-grown"
+	fixStorageGrow      = "request system storage grow"
 )
 
 var partPollInterval = 200 * time.Millisecond
@@ -102,7 +113,7 @@ func runHTTP(cfg installConfig) int {
 		return 1
 	}
 
-	disk, err := findTargetDisk(cfg.Target, nil, "")
+	disk, err := selectTargetDisk(cfg.Target, nil, "")
 	if err != nil {
 		slog.Error("disk detection", "error", err)
 		return 1
@@ -131,11 +142,14 @@ func runHTTP(cfg installConfig) int {
 
 	imageURL := tb.Reset().Str(baseURL).Str("/install/image/").Str(cfg.Image).String()
 	slog.Info("streaming image to disk", "url", redact.URL(imageURL), "disk", disk)
-	if err := fetch.ToDisk(imageURL, disk, expectedSHA); err != nil {
+	if err := writeHTTPImage(imageURL, disk, expectedSHA); err != nil {
 		slog.Error("image write failed", "error", err)
 		return 1
 	}
 	syncFS()
+	// The table is extended before the kernel rereads it, so the node of
+	// partition 4 the install waits for below already has the grown size.
+	growInstalledTable(disk)
 	if err := blkRereadPart(disk); err != nil {
 		slog.Warn("BLKRRPART failed", "error", err)
 	}
@@ -148,7 +162,7 @@ func runHTTP(cfg installConfig) int {
 		return 1
 	}
 	slog.Info("injecting database", "partition", part4)
-	if err := mountInjectDB(part4, tb.Reset().Str(baseURL).String(), "/mnt/perm"); err != nil {
+	if err := mountInjectDB(part4, tb.Reset().Str(baseURL).String(), permMount); err != nil {
 		slog.Error("database injection failed", "error", err)
 		return 1
 	}
@@ -159,11 +173,7 @@ func runHTTP(cfg installConfig) int {
 }
 
 func runISO(cfg installConfig) int {
-	media, err := findISOMedia(cfg.Image, cfg.MediaID)
-	if err != nil {
-		slog.Info("direct ISO not found, scanning Ventoy partitions")
-		media, err = tryVentoyISO(cfg.Image, cfg.MediaID)
-	}
+	media, err := locateISOMedia(cfg.Image, cfg.MediaID)
 	if err != nil {
 		slog.Error("ISO media not found", "error", err)
 		return 1
@@ -175,7 +185,7 @@ func runISO(cfg installConfig) int {
 		sourceDisks = append(sourceDisks, media.ventoyDisk)
 	}
 
-	disk, err := findTargetDisk(cfg.Target, sourceDisks, "")
+	disk, err := selectTargetDisk(cfg.Target, sourceDisks, "")
 	if err != nil {
 		slog.Error("disk detection", "error", err)
 		return 1
@@ -186,21 +196,95 @@ func runISO(cfg installConfig) int {
 	imagePath := tb.Str(isoMount).Str("/ze-install/images/").Str(cfg.Image).String()
 	checksumPath := tb.Reset().Str(imagePath).Str(".sha256").String()
 
-	if err := localImageToDisk(imagePath, checksumPath, disk); err != nil {
+	if err := writeISOImage(imagePath, checksumPath, disk); err != nil {
 		slog.Error("image write failed", "error", err)
 		_ = umountFS(isoMount)
 		return 1
 	}
 
+	// The image is flushed before the table is extended, and the table is
+	// extended before finishISOWrite asks the kernel to reread it.
+	syncFS()
+	growInstalledTable(disk)
 	if err := finishISOWrite(disk); err != nil {
 		slog.Error("ISO image finalization failed", "disk", disk, "error", err)
 		_ = umountFS(isoMount)
 		return 1
 	}
+	// The ISO install has no seed to write, so this mount of the persistent
+	// partition exists only to grow its filesystem.
+	if err := growISOPerm(disk); err != nil {
+		reportStorageNotGrown("filesystem", disk, err)
+	}
 	_ = umountFS(isoMount)
 	slog.Info("ISO installation complete, powering off")
 	doPoweroff()
 	return 0
+}
+
+// findInstallerISO finds the installer medium: the ISO itself first, then an
+// ISO file on a Ventoy drive.
+func findInstallerISO(image, mediaID string) (*isoMedia, error) {
+	media, err := findISOMedia(image, mediaID)
+	if err == nil {
+		return media, nil
+	}
+	slog.Info("direct ISO not found, scanning Ventoy partitions")
+	return tryVentoyISO(image, mediaID)
+}
+
+// growInstalledTable extends the partition table of the disk the install has
+// just written, so that the persistent partition reaches the end of the disk.
+// A failure is logged and survived: the written system is complete on its
+// image-sized partition, and stopping here would leave a machine that holds a
+// whole system in the recovery console.
+func growInstalledTable(disk string) {
+	if err := growPermTable(disk); err != nil {
+		reportStorageNotGrown("partition table", disk, err)
+	}
+}
+
+// growInstalledFS grows the filesystem of the persistent partition, which the
+// caller MUST have mounted on mountPoint. A failure is logged and survived,
+// for the reason growInstalledTable gives.
+func growInstalledFS(mountPoint, partition string) {
+	if err := growPermFS(mountPoint, partition); err != nil {
+		reportStorageNotGrown("filesystem", partition, err)
+		return
+	}
+	syncFS()
+}
+
+// growISOPerm mounts the persistent partition of disk, grows its filesystem
+// and unmounts it. It answers the first step that failed; the unmount runs
+// whenever the mount succeeded.
+func growISOPerm(disk string) error {
+	part4 := partitionPath(disk, 4)
+	if err := waitForPartitionNode(part4, defaultPartPollWait); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(permMount, 0o750); err != nil {
+		return fmt.Errorf("mkdir %s: %w", permMount, err)
+	}
+	if err := mountFS(part4, permMount, "ext4", false); err != nil {
+		return fmt.Errorf("mount %s: %w", part4, err)
+	}
+	growErr := growPermFS(permMount, part4)
+	if growErr == nil {
+		syncFS()
+	}
+	if err := umountFS(permMount); err != nil {
+		return errors.Join(growErr, fmt.Errorf("unmount %s after the resize: %w", permMount, err))
+	}
+	return growErr
+}
+
+// reportStorageNotGrown logs one growth step that failed. step names the step
+// (the partition table or the filesystem) and device the disk or partition it
+// worked on.
+func reportStorageNotGrown(step, device string, err error) {
+	slog.Error("persistent storage was not grown to the disk: the installed system is complete and keeps the partition size of the image",
+		"step", step, "device", device, "error", err, "code", codeStorageNotGrown, "fix", fixStorageGrow)
 }
 
 // finishISOWrite reports the shared write-completion marker only after the

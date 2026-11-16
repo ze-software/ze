@@ -6,4 +6,5 @@ func init() {
 	registerShowHost()
 	registerShowKernelLog()
 	registerSetFD()
+	registerStorageGrow()
 }

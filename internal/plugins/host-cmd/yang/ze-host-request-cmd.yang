@@ -1,0 +1,35 @@
+module ze-host-request-cmd {
+    namespace "urn:ze:host:request:cmd";
+    prefix hostrequestcmd;
+    import ze-extensions { prefix ze; }
+    description "request system storage grow command. Owned by the host command plugin because it grows the persistent storage of the host the daemon runs on. See the plugin self-containment rule.";
+    revision 2026-11-16 { description "Initial: request system storage grow."; }
+
+    container request {
+        config false;
+
+        container system {
+            config false;
+            description "Actions on the system the daemon runs on. Nothing here writes
+configuration.";
+            ze:help "Actions on the system Ze runs on.";
+
+            container storage {
+                config false;
+                description "Actions on the persistent storage of an appliance: the partition that
+holds the configuration and the state across an update.";
+                ze:help "Actions on the persistent storage.";
+
+                container grow {
+                    config false;
+                    ze:command "ze-host:request-system-storage-grow";
+                    description "Extends the persistent partition to the end of its disk and grows its
+filesystem to the partition, with no reboot. The answer carries the sizes before
+and after. A system whose storage already uses the whole disk gets that answer
+and nothing is written. Read the current sizes with 'show host storage'.";
+                    ze:help "Grow the persistent storage to the size of its disk.";
+                }
+            }
+        }
+    }
+}

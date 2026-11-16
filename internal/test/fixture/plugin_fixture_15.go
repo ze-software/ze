@@ -144,6 +144,7 @@ func init() {
 	Register("plugin/rr-basic", plugin15Observe("rr-test", &sdk.Registration{}, plugin15RRBasic), StopsDaemon)
 	Register("plugin/rr-ipv6-config", plugin15Observe("rr-ipv6-test", &sdk.Registration{}, plugin15RRIPv6), StopsDaemon)
 	Register("plugin/rr-status-show", plugin15Observe("rr-status-test", &sdk.Registration{}, plugin15RRStatus), StopsDaemon)
+	Register("plugin/host-storage-grow-refused", plugin15Observe("host-storage-grow-refused-test", &sdk.Registration{}, plugin15StorageGrowRefused), StopsDaemon)
 	Register("plugin/runtime-memory-show", plugin15Observe("runtime-memory-show-test", &sdk.Registration{}, plugin15RuntimeMemory), StopsDaemon)
 	Register("plugin/send-community-suppress", plugin15Observe("test-sendcomm", &sdk.Registration{}, plugin15SendCommunity), StopsDaemon)
 	Register("plugin/set-system-file-descriptors", plugin15Observe("set-system-fd-test", &sdk.Registration{}, plugin15SetFD), StopsDaemon)

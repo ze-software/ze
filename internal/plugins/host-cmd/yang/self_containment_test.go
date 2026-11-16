@@ -59,6 +59,26 @@ func TestHostCmdSchemaOwnsSystemKernelLog(t *testing.T) {
 	}
 }
 
+// TestHostRequestCmdSchemaOwnsStorageGrow pins the grow command in the host
+// command plugin's own schema.
+//
+// VALIDATES: ze-host-request-cmd.yang declares `request system storage grow`
+// under the wire method the plugin's handler registers.
+// PREVENTS: a handler with no YANG node, which no command surface can reach.
+func TestHostRequestCmdSchemaOwnsStorageGrow(t *testing.T) {
+	for _, want := range []string{
+		`ze:command "ze-host:request-system-storage-grow"`,
+		"container request",
+		"container system",
+		"container storage",
+		"container grow",
+	} {
+		if !strings.Contains(ZeHostRequestCmdYANG, want) {
+			t.Errorf("ze-host-request-cmd.yang must declare %q so removing host removes the surface", want)
+		}
+	}
+}
+
 func TestHostSetCmdSchemaOwnsSetFileDescriptors(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-host:set-system-file-descriptors"`,

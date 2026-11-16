@@ -33,8 +33,42 @@ var (
 	flushIface        = func(string) error { return fmt.Errorf("flush: not supported on this platform") }
 )
 
+// growPermTable and growPermFS are the two growth steps of an install. On
+// Linux init() in grow_linux.go replaces them with the calls into the
+// partition-table and ext4 leaves; these defaults exist so the package
+// compiles elsewhere, and they refuse rather than report a growth.
+//
+// growPermTable extends the partition table of disk so that its fourth
+// partition ends at the last usable sector. growPermFS grows the ext4
+// filesystem mounted on mountPoint to the size of partition. The caller MUST
+// call growPermFS only while partition is mounted on mountPoint.
+var (
+	growPermTable = func(string) error {
+		return fmt.Errorf("grow partition table: not supported on this platform")
+	}
+	growPermFS = func(_, _ string) error {
+		return fmt.Errorf("grow filesystem: not supported on this platform")
+	}
+)
+
+// The steps an install runs before the growth are package variables, so a
+// test runs runHTTP and runISO whole and writes to no device. Production code
+// never assigns them.
+var (
+	selectTargetDisk = findTargetDisk
+	writeHTTPImage   = fetch.ToDisk
+	writeISOImage    = localImageToDisk
+	locateISOMedia   = findInstallerISO
+)
+
+// permMount is where the installer mounts the persistent partition of the
+// disk it has just written. A variable so a test mounts it in its own folder.
+var permMount = "/mnt/perm"
+
 // mountInjectDB mounts partition p4 and preserves its live tree or baked seed.
-// Only a seedless partition receives the image server's bootstrap blob.
+// Only a seedless partition receives the image server's bootstrap blob. With
+// the seed in place it grows the filesystem to the partition, inside the same
+// mount, and a growth that fails is logged and survived (growInstalledFS).
 func mountInjectDB(part4, baseURL, mountPoint string) error {
 	if err := os.MkdirAll(mountPoint, 0o750); err != nil {
 		return fmt.Errorf("mkdir %s: %w", mountPoint, err)
@@ -49,6 +83,16 @@ func mountInjectDB(part4, baseURL, mountPoint string) error {
 		}
 	}()
 
+	if err := injectDB(baseURL, mountPoint); err != nil {
+		return err
+	}
+	growInstalledFS(mountPoint, part4)
+	return nil
+}
+
+// injectDB puts the seed database on the persistent partition mounted on
+// mountPoint, unless the partition already holds a live store or a baked seed.
+func injectDB(baseURL, mountPoint string) error {
 	var tb textbuf.Buffer
 	zeDir := tb.Str(mountPoint).Str("/ze").String()
 	if err := os.MkdirAll(zeDir, 0o700); err != nil {

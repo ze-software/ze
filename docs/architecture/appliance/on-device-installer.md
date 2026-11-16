@@ -116,6 +116,19 @@ reachable but unprovisioned state, gated on `ze.gokrazy.enabled`.
   store path stops installation rather than being overwritten.
 
 <!-- source: internal/install/disk/system.go -- mountInjectDB, bakedSeedPresent -->
+- After the image is written, both modes run two growth steps. The partition
+  table is extended before the kernel rereads it. The filesystem of the
+  persistent partition is then resized while it is mounted: inside the seed
+  mount in PXE mode, and in a mount of its own in ISO mode, which has no seed
+  to write. A step that fails is logged as an error under the code
+  `doctor-storage-not-grown` and the install completes, because the written
+  system is whole on its image-sized partition. The two steps call the
+  `gptdisk` and `ext4fs` leaves, which are not implemented yet: today every
+  install logs that error and the disk keeps the table of the image.
+  <!-- source: internal/install/disk/run.go -- growInstalledTable, growInstalledFS, growISOPerm, reportStorageNotGrown -->
+  <!-- source: internal/install/disk/grow_linux.go -- sysGrowPermTable, sysGrowPermFS -->
+  <!-- source: internal/core/gptdisk/grow.go -- Grow -->
+  <!-- source: internal/core/ext4fs/resize_linux.go -- Resize -->
 
 ## Constraints the code does not state
 

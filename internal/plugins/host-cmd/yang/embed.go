@@ -7,5 +7,8 @@ import _ "embed"
 //go:embed ze-host-cmd.yang
 var ZeHostCmdYANG string
 
+//go:embed ze-host-request-cmd.yang
+var ZeHostRequestCmdYANG string
+
 //go:embed ze-host-set-cmd.yang
 var ZeHostSetCmdYANG string
