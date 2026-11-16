@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | A post-release feature. The owner ruled (umbrella O-3, O-7) that containers ship after the first release and that their networks and published ports are container config realised through Ze's interface and firewall mechanisms. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -812,6 +812,9 @@ device cannot run.
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
+
+- Permission: the owner allowed this spec to be claimed above the work-in-progress cap on 2026-11-16.
+- Phase 1 deviation, to be ruled by the main session: the three interface requests cannot live in `ze-iface-api.yang`. `TestAPIRPCInputMatchesCommandTree` (`internal/component/iface/yang/api_rpc_input_test.go`) requires every rpc of that module to be bound to a command path, and an engine operation is bound to none. They go in a module of their own, `ze-iface-owned-api.yang`, beside it in the same package, as the system RIB's operations live in `ze-sysrib-api.yang`.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

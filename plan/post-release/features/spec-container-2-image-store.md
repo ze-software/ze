@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | A post-release feature by owner ruling (umbrella O-3): Ze fetches and stores OCI images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime, spec-appliance-perm-grows-at-install |
-| Phase | - |
-| Handoff | - |
+| Phase | 1/9 wiring, not started: every source edit refused by the edit hook (handoff) |
+| Handoff | `tmp/handoff-image-store.md` |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
 | Updated | 2026-11-16 |
@@ -511,7 +511,7 @@ What an image is, how large it is and when it was fetched is in its folder's com
 | A-4 | Umbrella A-6: today the persistent partition is the size the image was built with, about 950 MB on the default 2 GiB image, and nothing grows it. The owner ruled that the appliance spec grows it at install | Read: `internal/install/disk/run.go` `runHTTP`, `runISO`; `internal/install/disk/system.go` `mountInjectDB`; gokrazy init's mount; `internal/appliance/config.go`. A search for a resize found none | Nothing in this design depends on a size: every fetch checks the space that exists | The reads above | confirmed |
 | A-5 | The path-safety library the runtime child brings builds with cgo off and gives descriptor-based in-root open and directory creation | The upstream runtime's `go.mod` at v1.5.3 requires it, and its vendored tree holds a descriptor-based package | The store resolves through the standard library's rooted directory handle, with the device, attribute and link calls made by descriptor through the system-call package | A type-check after the runtime child's dependency commit, and `FuzzApplyLayerNeverEscapesRoot` | unvalidated |
 | A-6 | The registry protocol works as this spec describes it: the challenge, the token answer, the four manifest types, the blob redirect | Written from memory of the published specification. No text of it is in the tree | A request or a check is wrong against a real registry | `TestRegistryInteropDistribution` against a real registry whose source is read first, and `TestRegistryLivePublicPull` | unvalidated |
-| A-7 | A plugin command may declare a bound of one hour, and a caller that goes away ends the command in the plugin, internal and forked | `internal/component/plugin/server/command_registry.go` `CommandDef.Timeout` holds a per-command bound. How a caller's departure reaches a plugin command was not read | The fetch keeps running after its caller left, until the bound. The store then needs a way to stop it | Reading the plugin command dispatch, and `image-fetch-caller-leaves` | unvalidated |
+| A-7 | A plugin command may declare a bound of one hour, and a caller that goes away ends the command in the plugin, internal and forked | `internal/component/plugin/server/command_registry.go` `CommandDef.Timeout` holds a per-command bound. How a caller's departure reaches a plugin command was not read | The fetch keeps running after its caller left, until the bound. The store then needs a way to stop it | Reading the plugin command dispatch, and `image-fetch-caller-leaves` | broken in part, by reading on 2026-11-16: a plugin cannot declare a bound today. `rpc.CommandDecl` (`pkg/plugin/rpc/types.go`) has no bound field, and `registerProcessCommands` (`internal/component/plugin/server/doctor_delivery.go`) builds every `CommandDef` with no `Timeout`, so each plugin command gets `DefaultCommandTimeout`, 30 seconds. The one-hour bound needs a Stage 1 field, which is a change to the plugin protocol, so the Documentation Update Checklist row 8 reads Yes. The caller-departure half is still unread |
 | A-8 | The zstd decoder may be used without a new module | `go.mod` lists its module, and the vendored tree holds its zstd package | A dependency commit is owed first | The read | confirmed |
 | A-9 | The appliance's var folder exists at boot and is on the persistent partition | gokrazy init creates it after the mount | The data directory needs another parent | The `container-store` QEMU action | unvalidated |
 | A-10 | A gated plugin registers its doctor codes and its kernel capability codes from its own package, so a build without the gate holds none of them | Read: `internal/plugins/vrrp/register.go` `registerVRRPDiagnosticCodes`, in a package under the `ze_vrrp` gate, calls `diagnostic.Register` for each code of the plugin's own table. `internal/component/kernelcap/kernelcap.go` `validate` refuses only an empty `CodeAbsent` or `CodeUnknown`, and `MustRegister` does not look a code up in the core table. The comment on `Capability.CodeAbsent`, which says both codes must be registered in `internal/core/diagnostic/codes.go`, is stale for a gated plugin, and the runtime child corrects it | Not reached: the reads settle it | The reads above, and `TestEveryStoreCodeIsDescribed` at implementation | confirmed |
@@ -833,7 +833,7 @@ The tests below that start a container or need a size cap run in Ze's own-system
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, in the row the runtime child adds |
 | 6 | Has a user guide page? | Yes | The guide page `spec-container-4-operator-surface.md` creates: fetching, updating, rolling back, sizes, volumes |
 | 7 | Wire format changed? | No | The registry protocol is not Ze's format. The store layout is in the design page |
-| 8 | Plugin SDK/protocol changed? | No | The SDK state calls and the doctor callback are used as they are |
+| 8 | Plugin SDK/protocol changed? | Yes | The SDK state calls and the doctor callback are used as they are. A command's own bound is not: the Stage 1 command declaration gains one (assumption A-7), with its rows in `docs/architecture/api/process-protocol.md` and `docs/plugin-development/protocol.md` |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | The registry protocol is not an RFC |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`: the registry fixture and the Redis seed action. The tests are in the `container` suite, `test/container/`, which the runtime child registers. `docs/architecture/testing/interop.md` and `docs/architecture/testing/qemu-integration.md`. The workflow page gains the action's caller |
 | 11 | Affects daemon comparison? | No | The umbrella decides whether the comparison page gains a row |
@@ -981,6 +981,10 @@ The tests below that start a container or need a size cap run in Ze's own-system
 - Images are fetched from a registry only. Building an image on the device, loading one from a file and pushing one are not part of the umbrella's scope.
 - Image signatures are not verified. The digest proves the content is what the registry named, not who built it.
 - A fetch resumes at a whole blob. A blob that was partly downloaded starts again from its first byte.
+
+## Deviations from Plan
+
+- The owner allowed this spec to be claimed above the work-in-progress cap on 2026-11-16.
 
 ## Checklist
 

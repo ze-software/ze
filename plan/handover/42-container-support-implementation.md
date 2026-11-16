@@ -165,6 +165,49 @@ and twice on 2026-11-16; one `le` build was damaged by them and set aside. A
 file that reads as corrupt on that disk is checked against the kernel log
 before it is treated as a code defect.
 
+## Where and how the work continues (written late on 2026-11-16)
+
+The owner moved the work off `main`. Everything from here is done in the
+worktree `.claude/worktrees/container-support` of the server's checkout, on
+the branch `worktree-container-support`, which started at origin's tip
+`a443bf716e`. The server's `main` equals origin and stays so. Commits stay on
+the branch until the owner lands it; ask him whether each commit should also
+be delivered to the laptop's `main`.
+
+**Start the next session inside the worktree.** A session that starts in the
+shared checkout and enters the worktree afterwards cannot edit source there:
+its edit hook still runs from the shared checkout and reads the claim state
+there, so a claim made in the worktree is invisible to it and every source
+edit is refused with "source edit while selected spec is not in-progress".
+Reads of the doors and of the Go style page count only when the
+shared-checkout copies are read. This stopped the design session's agents on
+2026-11-16. A session started in the worktree directory does not have the
+problem. It is a hook defect and no journal row records it yet.
+
+Owner permissions for this work, not rules:
+
+| Permission | His words, 2026-11-16 |
+|------------|-----------------------|
+| The container specs may be claimed above the work-in-progress cap (14 were in progress against a cap of 12). Each spec records it; the cap itself is unchanged | "Ignore the caps for that work." |
+
+The three designs named below are kept in
+`plan/handover/44-container-designs-ready-to-apply.md`, so they survive the
+worktree's scratch.
+
+State of each track:
+
+| Track | State |
+|-------|-------|
+| Runtime | Phases 1 to 3 committed. Phase 4 is the syscall filter, phase 6 the device allowlist. Phase 4 is designed and not written: `tmp/handoff-runtime.md` in the worktree holds the filter program layout, the action mapping, the loader, the default profile's rules, the probe checks, the draft test and the test list. The profile source it chose and the two syscall tables are in the worktree's `tmp/session/2026-11-16-200343/scratch/`. Four questions it raises are in that handoff: the table file names (a `_amd64.go` suffix would compile only one table per host), the profile names no supported architecture has, one kernel-version rule, and the test pinning thirteen capabilities until phase 6 |
+| Image store | Claimed above the cap and set in progress, no code written (the hook defect above). Its wiring phase is designed in `tmp/handoff-image-store.md` in the worktree: ten command nodes with their wire methods, and sixteen files in an order that keeps the tree compiling. Findings that change the plan: a plugin command cannot declare its own time bound today (every plugin command gets 30 seconds), so the one-hour bound of fetch and update needs a new field in the plugin's Stage 1 declaration, a change to the public plugin protocol to confirm before its phase 5; the image commands go in an interface of their own beside the `Store` seam; the test store is chosen at engine entry by its environment key, because a build linking both stores would register twice; no config node lands in phase 1, since a mandatory `image` leaf would refuse the runtime's six test configs; no new Go module is needed |
+| Network | Claimed above the cap and set in progress, `Phase` 1/7, no code written (the hook defect above). Phase 1 is designed file by file in `tmp/handoff-network.md` in the worktree. It is narrower than the design session assumed: it uses no container word and covers only the interface and firewall engine requests, their API modules, the SDK methods, a test plugin and four wiring tests; the participant, config nodes and doctor codes are its phases 4 and 6. The three interface requests need a module of their own beside `ze-iface-api.yang`, because a test requires every request of that module to be bound to a command path |
+| Appliance | Phases 1 to 3 committed. Open with the owner: the kernel's `gpt` boot option, so that an interrupted partition rewrite is survivable. `TestKernelReadsATableAtEveryStopOfTheRewrite` is red until he chooses, and growth stays unwired from the installer and the storage command |
+
+Not built, in order: the image store and the network (the closing Redis test
+depends on both), the device allowlist and the syscall filter, the shell, the
+operator surface, the Redis test. No real image can run on Ze yet: the
+containers that start come from a test store holding one fixture program.
+
 ## Order of implementation
 
 1. The appliance spec and the runtime child, independent of each other.
