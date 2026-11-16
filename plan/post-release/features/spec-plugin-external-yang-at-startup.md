@@ -7,7 +7,7 @@
 | Release reason | Compile external plugins own YANG at startup: a new supported plugin-config surface, not a current compiled-in schema defect. |
 | Scope | plugin |
 | Depends | - |
-| Phase | 1/9 |
+| Phase | 5/9 |
 | Handoff | - |
 | Updated | 2026-11-16 |
 
