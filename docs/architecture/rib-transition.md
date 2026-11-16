@@ -90,6 +90,14 @@ RFC 4271 Section 9.1.3 allows the exclusion, and BIRD has the same default.
 FRR advertises to an internal peer with no policy, so the two disagree and Ze
 takes the explicit side.
 
+Transit is explicit on the process side too. The `bgp-rib` plugin is fed a
+peer's routes, and may send to a peer, only where that peer's `attach process`
+block grants it, as for any process
+([API architecture](api/architecture.md), "Attaching a Process to a Peer").
+Nothing derives that binding for transit. A peer that asks for learned routes
+through an export policy and lacks the grant is reported, with the line that
+adds it.
+
 The requirement binds learned routes only, by the same ruling. A local
 announcement (API, configured or redistributed) and a destination served by an
 explicit route-server or reflector role keep the default they have today,
