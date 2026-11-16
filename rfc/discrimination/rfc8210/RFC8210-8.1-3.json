@@ -28,9 +28,9 @@
     "unit-sha": "0546a615adc79bf1",
     "claim-sha": "f7ac46ce4bfb21d4",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/rpki/rtr_expire.go::prepareQuery",
-    "producer-sha": "0195935c8e9138a8",
-    "break": "body of prepareQuery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/rpki/rtr_expire.go::RTRSession.prepareQuery",
+    "producer-sha": "0f3e518c16b838dd",
+    "break": "body of RTRSession.prepareQuery replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8210-8.1-3",
@@ -39,8 +39,8 @@
     "unit-sha": "0546a615adc79bf1",
     "claim-sha": "9539a5b788935407",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/rpki/rtr_expire.go::prepareQuery",
-    "producer-sha": "0195935c8e9138a8",
-    "break": "body of prepareQuery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/rpki/rtr_expire.go::RTRSession.prepareQuery",
+    "producer-sha": "0f3e518c16b838dd",
+    "break": "body of RTRSession.prepareQuery replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

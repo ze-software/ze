@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "c65a3114342e282e",
     "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
   },
-  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 6.3 reads 'When a router receives this, the router SHOULD attempt to connect to any more preferred caches in its cache list.  If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' The Cache Reset and Reset Query are version 0 PDUs here, and Ze exchanges none: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for a Cache Reset whose version is below rtrVersionMin = 1 and refuses a cache's Error Report code 4 that offers such a version, and RTRSession.syncOnce never downgrades below rtrVersionMin. The Cache Reset to Reset Query reload in handlePDU runs only in version 1 and 2 sessions and is proven under RFC8210-8.3-1. No version 0 path exists, so the requirement is unmet.",
+  "note": "Independent rejudgment 2026-11-15. Following a Cache Reset, RFC 6810 Section 6.3 says: 'If there are no more preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' The diagrams and Section 5 define these as version-0 PDUs. Current handlePDU refuses a version-0 Cache Reset rather than entering its Cache Reset recovery branch; its version-negotiation branch rejects version 0, and syncOnce never retries below rtrVersionMin=1. An initial unsupported version and a version change within an established response now have distinct errors, but neither reaches version-0 recovery. The version-1/2 whole-set replacement path does not meet the version-0 exchange. No test carries this id; its declared version-0 gap remains unimplemented.",
   "requirement_sha": "ffe9f790aa8a5991",
   "verdict": "unimplemented"
 }

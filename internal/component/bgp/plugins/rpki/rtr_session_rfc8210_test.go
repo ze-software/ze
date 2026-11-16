@@ -269,7 +269,9 @@ func TestRTRStartupSerialNotifyOfAnyVersionIsIgnored(t *testing.T) {
 			binary.BigEndian.PutUint32(notify[8:12], 999)
 			response := cacheResponsePDU()
 			binary.BigEndian.PutUint16(response[2:4], 7)
-			for _, pdu := range [][]byte{notify, response, endOfDataTimed(5, 3600, 600)} {
+			end := endOfDataTimed(5, 3600, 600)
+			binary.BigEndian.PutUint16(end[2:4], 7)
+			for _, pdu := range [][]byte{notify, response, end} {
 				if _, err := cache.Write(pdu); err != nil {
 					return err
 				}

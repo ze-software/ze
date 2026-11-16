@@ -60,6 +60,7 @@ type RTRSession struct {
 	sessionID uint16
 	serial    uint32
 	version   uint8 // negotiated RTR protocol version (starts at rtrVersionMax)
+	response  *rtrResponseIdentity
 
 	// synced is true once an End of Data PDU has completed a sync on this session.
 	// state cannot answer that question: it returns to "idle" between polls, and
@@ -526,24 +527,33 @@ func (s *RTRSession) readLoop(conn net.Conn) (readErr error) {
 			pduBuf = headerBuf
 		}
 
-		done, err := s.handlePDU(hdr, pduBuf)
+		// RFC 8210 Sections 5.8 and 8.1: the stream must open its payload
+		// sequence with Cache Response before a payload can reach the handler.
+		err = s.checkStreamSequence(hdr, pduBuf)
+		var done bool
+		if err == nil {
+			done, err = s.handlePDU(hdr, pduBuf)
+		}
 		if err != nil {
-			if hdr.Type != pduErrorRpt && (hdr.Type == pduASPA || errors.Is(err, errRtrUnsupportedProtocol)) {
-				// 8210bis Section 5.12: an invalid provider list requires Error
-				// Report 9. Other malformed ASPA PDUs carry Corrupt Data (0).
-				code := uint16(0)
-				if errors.Is(err, errRtrUnsupportedProtocol) {
-					code = errUnsupportedVersion
-				} else if errors.Is(err, errASPAProviderList) {
-					code = 9
+			// RFC 8210 Sections 5.1, 5.11, 7, and 12.
+			if code, classified := rtrResponseErrorCode(hdr, err); classified {
+				// RFC 8210 Section 5.1; draft-ietf-sidrops-8210bis Section 12.
+				if notify := s.revokeResponseData(err, code); notify != nil {
+					// MUST close before the joined callbacks, which can wait for
+					// route revalidation. Defers run in reverse registration order.
+					defer notify()
+					defer conn.Close() //nolint:errcheck // The protocol or write error remains authoritative; close releases the failed transport.
 				}
-				report := make([]byte, 16+len(pduBuf))
-				n := writeErrorReport(report, s.version, code, pduBuf)
-				if deadlineErr := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); deadlineErr != nil {
-					return errors.Join(err, deadlineErr)
-				}
-				if _, writeErr := conn.Write(report[:n]); writeErr != nil {
-					return errors.Join(err, writeErr)
+				// RFC 8210 Section 5.11: "An Error Report PDU MUST NOT be sent for an Error Report PDU."
+				if hdr.Type != pduErrorRpt {
+					report := make([]byte, 16+len(pduBuf))
+					n := writeErrorReport(report, s.version, code, pduBuf)
+					if deadlineErr := conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); deadlineErr != nil {
+						return errors.Join(err, deadlineErr)
+					}
+					if _, writeErr := conn.Write(report[:n]); writeErr != nil {
+						return errors.Join(err, writeErr)
+					}
 				}
 			}
 			return err
@@ -556,6 +566,10 @@ func (s *RTRSession) readLoop(conn net.Conn) (readErr error) {
 
 // handlePDU processes a single RTR PDU. Returns true when session sync is complete.
 func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
+	// RFC 8210 Sections 5.1, 5.5, 5.8, and 7.
+	if err := s.checkResponseIdentity(hdr); err != nil {
+		return false, err
+	}
 	// Section 7: unrecognized versions require downgrade or Error Report 4
 	// and termination. Serial Notify is ignored during initial synchronization
 	// regardless of its version; Error Reports must not elicit Error Reports.
@@ -568,6 +582,8 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 	case pduCacheResp:
 		s.mu.Lock()
 		s.sessionID = hdr.SessionID
+		s.version = hdr.Version
+		s.response = &rtrResponseIdentity{version: hdr.Version, sessionID: hdr.SessionID}
 		s.state = sessionEstablish
 		s.pendingVRPs = nil
 		s.pendingDels = nil
@@ -748,6 +764,7 @@ func (s *RTRSession) applyEndOfData(params endOfDataParams, received time.Time) 
 	}
 	s.serial = params.SerialNumber
 	s.synced = true
+	s.response = nil
 	if params.RefreshInterval > 0 {
 		s.refreshInterval = time.Duration(params.RefreshInterval) * time.Second
 	}

@@ -18,7 +18,7 @@
     "claim-sha": "e70d70af558f3e44",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::applyEndOfData",
-    "producer-sha": "1e37c51c11cd912f",
-    "break": "line 788: \"applied.fullSync\" -\u003e \"true\""
+    "producer-sha": "801901aa948a8f0b",
+    "break": "line 805: \"applied.fullSync\" -\u003e \"true /* MUTATION-APPLIED: ASPA delta replaces set */\""
   }
 ]

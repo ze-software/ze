@@ -1,9 +1,9 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "a35dddd57c7c0ac1",
+    "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU": "c65a3114342e282e",
     "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.syncOnce": "536ea897312fa900"
   },
-  "note": "Re-judged 2026-10-30 (independent judge) after the row moved to {gap} under the owner ruling that RTR version 0 is owed. RFC 6810 Section 5.1 reads 'Zero:  Fields shown as zero or reserved MUST be zero.  The value of such a field MUST be ignored on receipt.' for the PDUs of protocol version 0 ('currently 0', Section 5). Ze never receives a version 0 PDU into its parsers: internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU returns errRtrUnsupportedProtocol for every PDU but a Serial Notify or Error Report whose version is below rtrVersionMin = 1, refuses a cache's Error Report code 4 that offers a version below rtrVersionMin, and RTRSession.syncOnce never downgrades below rtrVersionMin. The reserved-field tolerance of parsePrefixPDU and handlePDU is real but is reached only in version 1 and 2 sessions and is proven under RFC8210-5-1 and RFC8210-5.1-1; the tests that once carried this id run version 1 and no longer tag it. No version 0 path exists, so the requirement is unmet.",
+  "note": "Independent rejudgment 2026-11-15. RFC 6810 Section 5.1 states: 'Zero: Fields shown as zero or reserved MUST be zero. The value of such a field MUST be ignored on receipt.' Its PDU version is 0. Current handlePDU refuses initial version-0 data PDUs before their reserved-field tolerance can run, refuses negotiation to version 0 in its Unsupported Protocol Version Error Report branch, and syncOnce cannot retry below rtrVersionMin=1. Ignoring a startup Serial Notify regardless of version, or reading an Error Report without answering it, does not establish a usable version-0 protocol session or prove reserved-field tolerance across its PDUs. The response-identity repair changes the classification of a version change after Cache Response, not the supported version floor. No test carries this id. The row remains an owed version-0 implementation gap, with no credit borrowed from version-1/2 tests.",
   "requirement_sha": "75ef2c8da16bedaf",
   "verdict": "unimplemented"
 }

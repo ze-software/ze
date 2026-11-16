@@ -3,23 +3,23 @@
     "rid": "RFC8210-5.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRStartupSerialNotifyOfAnyVersionIsIgnored",
-    "unit-sha": "ee2e24312ad3f947",
+    "unit-sha": "3073d82744ad61bd",
     "claim-sha": "3ddb4c98cb753c8e",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-    "producer-sha": "a330c72ba9ad30b7",
-    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU",
+    "producer-sha": "c113f1691b8f727a",
+    "break": "body of RTRSession.handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8210-5.2-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRStartupSerialNotifyOfAnyVersionIsIgnored",
-    "unit-sha": "ee2e24312ad3f947",
+    "unit-sha": "3073d82744ad61bd",
     "claim-sha": "ca6e58abfba202c7",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-    "producer-sha": "a330c72ba9ad30b7",
-    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU",
+    "producer-sha": "c113f1691b8f727a",
+    "break": "body of RTRSession.handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8210-5.2-1",
@@ -28,9 +28,9 @@
     "unit-sha": "193aaa209e7a7c56",
     "claim-sha": "4708364e884b043c",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-    "producer-sha": "a330c72ba9ad30b7",
-    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU",
+    "producer-sha": "c113f1691b8f727a",
+    "break": "body of RTRSession.handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8210-5.2-1",
@@ -39,8 +39,8 @@
     "unit-sha": "193aaa209e7a7c56",
     "claim-sha": "31e19d404a4d06f4",
     "route": "revert",
-    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
-    "producer-sha": "a330c72ba9ad30b7",
-    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::RTRSession.handlePDU",
+    "producer-sha": "c113f1691b8f727a",
+    "break": "body of RTRSession.handlePDU replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -1345,6 +1345,26 @@ that validation is not in force. A forked store stores each route's message ID
 from the JSON event, so the msgID match holds there too, and it emits
 `ValidationChange` once validation is enabled, as the daemon's store does.
 
+RTR responses retain their Cache Response's protocol version and Session ID
+until End of Data. The transport rejects valid payloads and End of Data
+received before Cache Response with Corrupt Data. An empty ASPA announcement
+retains its specific Provider List Error diagnostic without staging data. A
+Serial Query must also retain the identity of its cached base; a Reset Query
+can establish a new Session ID. An unknown initial version receives Unsupported
+Protocol Version, while a version change within a response receives Unexpected
+Protocol Version. A received Error Report never receives another Error Report.
+For v2, Corrupt Data, Unexpected Protocol Version and Provider List Error revoke
+that cache's current VRPs and ASPAs even if the report write fails. No Data
+Available, Unsupported Protocol Version and Cache Restart retain the unexpired
+base. V1 retains its base after other
+protocol errors, except that a Session ID mismatch flushes it in both versions.
+A completed replacement from another cache survives stale-session cleanup.
+Store invalidation precedes the bounded report write, and the transport closes
+before the joined revalidation callbacks run. Expiry uses the same store-clear
+and callback path.
+<!-- source: internal/component/bgp/plugins/rpki/rtr_response_identity.go -- RTRSession.checkStreamSequence, RTRSession.checkResponseIdentity, RTRSession.revokeResponseData, rtrResponseErrorCode -->
+<!-- source: internal/component/bgp/plugins/rpki/rtr_expire.go -- rtrDataLease.invalidate, rtrDataLease.expire -->
+
 FlowSpec authorization crosses the boundary the same way. `bgp-rib` registers
 its FlowSpec lookups (`ribevents.RegisterFlowSpecLookup`,
 `RegisterFlowSpecRedirectLookup`) in its own process and announces
