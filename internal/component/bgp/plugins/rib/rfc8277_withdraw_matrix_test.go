@@ -88,6 +88,7 @@ func compatibilityRouteState(t *testing.T, safi family.SAFI, addPath bool) {
 			t.Run(fam.String()+"/addpath="+strconv.FormatBool(addPath)+"/"+tc.name, func(t *testing.T) {
 				bus := newTestEventBus()
 				r := newTestRIBManagerWithBus(bus)
+				electionFixtureLocRIB(t, r, hop)
 				peer := netip.MustParseAddr("192.0.2.21")
 				r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 				ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{fam: addPath}))
@@ -213,6 +214,7 @@ func compatibilityVPNPromotion(t *testing.T) {
 				t.Run(fam.String()+"/addpath="+strconv.FormatBool(addPath)+"/"+tc.name, func(t *testing.T) {
 					bus := newTestEventBus()
 					r := newTestRIBManagerWithBus(bus)
+					electionFixtureLocRIB(t, r, hopA, hopB)
 					peA := netip.MustParseAddr("192.0.2.1")
 					peB := netip.MustParseAddr("192.0.2.2")
 					r.peerMeta[peA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}

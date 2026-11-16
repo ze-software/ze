@@ -27,6 +27,7 @@ var vpnRouteKeyRD = [8]byte{0, 0, 0, 0, 0, 0, 0, 1}
 func TestVPNRouteKeyTwoPEsDifferentLabelsMeetInOneElection(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 	peA := netip.MustParseAddr("192.0.2.1")
 	peB := netip.MustParseAddr("192.0.2.2")
 	r.peerMeta[peA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -72,6 +73,7 @@ func TestVPNRouteKeyTwoPEsDifferentLabelsMeetInOneElection(t *testing.T) {
 func TestRFC8277VPNRelabelReplacesTheRoute(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
@@ -122,6 +124,7 @@ func TestVPNWithdrawIgnoresCompatibilityValue(t *testing.T) {
 	compatibilityRouteState(t, family.SAFIVPN, true)
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	pe := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[pe] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))

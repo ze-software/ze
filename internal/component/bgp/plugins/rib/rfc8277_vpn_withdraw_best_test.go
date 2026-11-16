@@ -36,6 +36,7 @@ func TestVPNWithdrawPromotesTheOtherPE(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			bus := newTestEventBus()
 			r := newTestRIBManagerWithBus(bus)
+			electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 			peA := netip.MustParseAddr("192.0.2.1")
 			peB := netip.MustParseAddr("192.0.2.2")
 			r.peerMeta[peA] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
