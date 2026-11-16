@@ -28,9 +28,9 @@
     "unit-sha": "e75728ccb74f977b",
     "claim-sha": "aa2baaad6947741e",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/aigp_readvertise.go::replayAIGP",
-    "producer-sha": "873b00a44812902d",
-    "break": "body of replayAIGP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/aigp_readvertise.go::Reactor.replayAIGP",
+    "producer-sha": "17ce3d2e877529f4",
+    "break": "body of Reactor.replayAIGP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7311-3.4.3-7",
@@ -39,9 +39,9 @@
     "unit-sha": "e75728ccb74f977b",
     "claim-sha": "9cdb643f8ad9972f",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/aigp_readvertise.go::replayAIGP",
-    "producer-sha": "873b00a44812902d",
-    "break": "body of replayAIGP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/aigp_readvertise.go::Reactor.replayAIGP",
+    "producer-sha": "17ce3d2e877529f4",
+    "break": "body of Reactor.replayAIGP replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7311-3.4.3-7",

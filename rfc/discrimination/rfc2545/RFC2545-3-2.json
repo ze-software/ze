@@ -47,22 +47,22 @@
     "rid": "RFC2545-3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission",
-    "unit-sha": "e5e6eff49575361a",
+    "unit-sha": "6f6d3dad990d74c6",
     "claim-sha": "3842dcf26c1d90b3",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build.go::ValidateMPNextHop",
-    "producer-sha": "d1e1a9cded7c7fae",
+    "producer-sha": "56c8ec700c165186",
     "break": "body of ValidateMPNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission",
-    "unit-sha": "e5e6eff49575361a",
+    "unit-sha": "6f6d3dad990d74c6",
     "claim-sha": "6c2cab5e1e6d4ae6",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build.go::ValidateMPNextHop",
-    "producer-sha": "d1e1a9cded7c7fae",
+    "producer-sha": "56c8ec700c165186",
     "break": "body of ValidateMPNextHop replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
