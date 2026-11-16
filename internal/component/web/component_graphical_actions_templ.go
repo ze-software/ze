@@ -145,7 +145,7 @@ func graphicalActionPanel(v *GraphicalActions, readOnly bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">View history</button> <button class=\"config-btn\" type=\"button\" hx-get=\"/config/diff\" hx-target=\"#diff-modal\" hx-swap=\"outerHTML\">Review changes</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">View history</button></form><button class=\"config-btn\" type=\"button\" hx-get=\"/config/diff\" hx-target=\"#diff-modal\" hx-swap=\"outerHTML\">Review changes</button> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

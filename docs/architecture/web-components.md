@@ -370,6 +370,13 @@ engine or history store exists.
 <!-- source: internal/component/web/graphical_actions.go -- graphicalActionCommand, HandleGraphicalAction -->
 <!-- source: internal/component/web/window_notices.go -- WindowNotices -->
 
+**Review changes** remains inside **Edit**, beside the action form. Its separate
+GET replaces only the diff modal and reads the authenticated user's candidate.
+It submits no action-form fields and does not inherit that form's replacement
+target or request queue.
+<!-- source: internal/component/web/component_graphical_actions.templ -- graphicalActionPanel -->
+<!-- source: cmd/ze/hub/service_web.go -- startWebServer diffHandler -->
+
 Candidate import uses native HTMX file and paste forms at `/config/import`.
 Both forms carry the selected path through the existing token URL codec and
 choose the shared load grammar's absolute/relative and merge/replace values.

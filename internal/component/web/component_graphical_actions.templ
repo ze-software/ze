@@ -29,8 +29,8 @@ templ graphicalActionPanel(v *GraphicalActions, readOnly bool) {
 					<button class="config-btn" id="graphical-validate" name="action" value="verify">Validate candidate</button>
 					<button class="config-btn" id="graphical-save-draft" name="action" value={ verbSave }>Save draft</button>
 					<button class="config-btn" id="graphical-history" name="action" value={ verbHistory }>View history</button>
-					<button class="config-btn" type="button" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review changes</button>
 				</form>
+				<button class="config-btn" type="button" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review changes</button>
 				if v.HasEntry {
 					<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
 						<fieldset>
