@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Shipped defect: a reload that edits `l2tp pool` reports success and changes nothing, and a RADIUS-assigned address inside a pool range can be handed to a second subscriber |
@@ -25,6 +25,18 @@ Review continuation authorization: the owner answered "ok run the six" and
 for this spec if needed; this grants no further rounds. The external-mode
 reproduction and source fix precede the next independent review.
 
+## Blocker
+
+The native R6 authorization record requires Thomas's interactive terminal.
+`internal/le/spec/review.go` `recordReview` calls `requireOwnerReviewTerminal`,
+which calls `internal/le/le/human/human.go` `RequireAuthorization` before any
+artifact write. Its refusal explicitly prohibits agent issuance of owner words.
+The owner already authorized rounds six and seven. No new authorization is owed.
+Thomas runs `bash tmp/session/2026-11-15-195627/scratch/pool-round6-record-terminal.sh`
+from his terminal to record that instruction and the R6 result. Main then checks
+the actual artifact, resumes the spec and completes the two closure commits.
+Until then, hand back the eight-path record/proof change without removing this spec.
+
 ## Closure status
 
 Independent closure round five found a process-boundary defect in explicit
@@ -36,9 +48,9 @@ the internal autoload for `run ze plugin l2tp-pool`. The registration and early
 runtime guard are now implemented and their focused proof passed. Main observed
 both daemon mode cases pass, the full pool package pass under the race detector,
 and host/Linux scoped lint report no issues. Both cases also passed all 80 stress
-invocations before promotion. Independent review six and the remaining final
-checks are in progress. The owner authorized round six and, if needed, seven.
-No CLEAN artifact or closure commit is prepared.
+invocations before promotion. Independent review six found no new product defect.
+All required scoped runs and proof renewals have actual receipts. The native terminal record still gates closure.
+The owner authorized round six and, if needed, seven. No CLEAN artifact exists.
 
 ## Publication dependency
 
@@ -53,9 +65,8 @@ The earlier scoped race tests, eight Linux lifetime tests on Ze's system,
 validation counterfactuals and daemon reload regression passed. Their scope
 and source provenance remain in the current session state. The external-mode
 fix now has focused unit, daemon, race, lint and stress evidence. The owner
-authorized review six and, if needed, seven. Round six is in progress; the
-post-guard autoload control, affected consumer checks and final RFC check remain
-with the main thread. No push is authorized.
+authorized review six and, if needed, seven. Round six found no new product issue. The
+Post-guard autoload passed its named case (1/1, 2.1s). The affected L2TP suite completed with 27 PASS, 1 FAIL and 7 Darwin SKIP. The sole strict-span assertion failure is owned and acknowledged by the CI session. All three affected RFC 2866 proofs were renewed natively. The fresh RFC check has no affected-family finding. No push is authorized.
 
 ## Task
 
@@ -388,56 +399,56 @@ omission. No compatibility namespace, successor generation or epoch is added.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPoolConfigTxAppliesReloadedRanges` | `internal/component/l2tp/plugins/pool/config_tx_test.go` | AC-1, AC-2 through verify then apply | |
+| `TestPoolConfigTxAppliesReloadedRanges` | `internal/component/l2tp/plugins/pool/config_tx_test.go` | AC-1, AC-2 through verify then apply | PASS in retained scoped package receipts |
 | `TestPoolExternalRefusesBeforeDeclaration` | `internal/component/l2tp/plugins/pool/external_mode_test.go` | AC-22: external refusal returns before any SDK declaration write, with the operator reason, doctor code and correction command | Main observed RED before the guard, then named count-run PASS and full pool race PASS; zero SDK writes and complete refusal asserted |
 | `TestPoolInternalReachesDeclaration` | same | AC-22: a real bridged connection passes the mode guard and attempts SDK declaration without the external refusal; daemon controls separately prove usable allocation | Named count-run PASS and full pool race PASS; both guard outcomes measured |
-| `TestPoolReloadCarriesLiveAllocations` | same | AC-3: IPv4 and IPv6 allocations marked in the new pools; allocation after apply skips them | |
-| `TestPoolReloadOrphanKeepsAddress` | same | AC-4 | |
-| `TestPoolReloadCarriedAddressReleasedOnSessionDown` | same | AC-5, R-2 | |
-| `TestPoolConfigTxRollbackCarriesAllocations` | same | AC-6 | |
-| `TestPoolVerifyRefusesBadPool` | same | AC-7 | |
-| `TestPoolUnrelatedL2TPEditInstallsNothing` | same | AC-8, A-1 | |
-| `TestPoolAllocateConcurrentWithApply` | same, `-race` | R-1 | |
-| `TestPoolRADIUSAddressInRangeIsReserved` | `internal/component/l2tp/plugins/pool/radius_reservation_test.go` | AC-9 | |
-| `TestPoolRADIUSAddressAlreadyHeldIsRefused` | same | AC-10 | |
-| `TestPoolDrainReleasesUndeliveredAnswer` | `internal/component/l2tp/` and `internal/component/l2tp/pppoe/` drain tests | AC-11, one case per drain | |
-| `TestPoolAllocationIdentifiersDoNotWrap` | `internal/component/l2tp/plugins/pool/allocation_id_test.go` | AC-11: dynamic and RADIUS final token succeeds; exhaustion refuses without mutation, same-owner retry keeps its address with token0, and exact-token cleanup still frees the reservation | |
-| `TestPoolVerifyRefusesOverlappingPools` | `internal/component/l2tp/plugins/pool/config_validation_test.go` | AC-12 | |
-| `TestPoolVerifyRefusesOversizedRange` | same | AC-13, the wrapping range among the cases | |
-| `TestPoolVerifyRefusesZeroAndBroadcast` | same | AC-14 | |
-| `TestPoolVerifyRefusesNonIPv4DNS` | same | AC-15 | |
-| `TestPoolVerifyRefusesOverlappingIPv6Pools` | same | AC-16 | |
-| `TestPoolRADIUSAddressOutsideRangesAlreadyHeldIsRefused` | `internal/component/l2tp/plugins/pool/radius_reservation_test.go` | AC-17: two sessions cannot hold the same external RADIUS address | |
-| `TestPoolRADIUSOrphanAddressAlreadyHeldIsRefused` | same | AC-17: a removed range does not make a still-held address available to RADIUS | |
-| `TestPoolRADIUSPrefixReservesAllOverlappingSlots` | `internal/component/l2tp/plugins/pool/radius_prefix_reservation_test.go` | AC-18: reserve every covered slot across default and named pools until release | |
-| `TestPoolRADIUSPrefixOverlappingHeldIsRefused` | same | AC-18: refuse covering, contained and external prefix overlap with another subscriber | |
-| `TestPoolRADIUSPrefixOutsideRangesIsPreserved` | same | AC-18: retain unique external RADIUS delegations without requiring a configured pool | |
-| `TestPoolRADIUSPrefixCannotOverlapCarriedDelegation` | same | AC-18: a reload-carried delegation remains exclusive against new RADIUS admission | |
-| `TestPoolRADIUSDisjointPrefixesSharePoolSlot` | same | AC-18: retain disjoint smaller prefixes and reserve their shared coarse slot until final release | |
-| `TestPoolNamedOnlyPoolSelection` | `internal/component/l2tp/plugins/pool/named_pool_only_test.go` | AC-19: selected named-only pool supplies address, gateway and DNS; unselected request remains refused | |
-| `TestPoolReloadSplitsLiveDelegation` | `internal/component/l2tp/plugins/pool/config_tx_test.go` | AC-3, AC-5: every overlapping new slot is reserved, even across separate new pools | |
-| `TestPoolReloadMergesLiveDelegations` | same | AC-3, AC-5: a coarse slot remains reserved until the last smaller delegation ends | |
-| `TestPoolShowIncludesNamedReservationsAfterReload` | `internal/component/l2tp/plugins/pool/show_pool_test.go` | AC-3: JSON answer counts carried reservations in replacement named IPv4 and IPv6 pools | |
-| `TestPoolShowNamedOnlyPools` | same | AC-3, AC-19: named-only pools have usable status summaries | |
-| `TestPoolShowPreservesDefaultFields` | same | Preserve existing default statistics, session fields and absent-map omission | |
-| `TestPoolVerifyRefusesMalformedPresentBlocks` | `internal/component/l2tp/plugins/pool/parse_shape_test.go` | AC-7: present malformed root, pool, container and named-list bodies are refused without changing the running allocator | |
-| `TestPoolVerifyAcceptsExplicitRemoval` | same | AC-4, AC-7: actual empty/absent removal forms clear pools while live assignments remain until teardown | |
-| `TestPoolTransportIdentitySurvivesReloadAndRelease` | `internal/component/l2tp/plugins/pool/subscriber_identity_test.go` | AC-20: equal pairs across transports retain distinct addresses and tokens through reload/rollback and either cleanup path | |
-| `TestPoolPPPoETeardownPreservesEqualL2TPPrefix` | same | AC-20: a transport-local pair cannot release another access type's prefix | |
-| `TestPoolTransportIdentityStatusUsernames` | same | AC-20: canonical registry lookup preserves both subscriber usernames | |
-| `TestPoolMissingSubscriberIdentityIsRefused` | same | AC-21: missing pool identity is refused before allocation and reported through doctor | |
-| `TestPoolDrainRefusesMissingSubscriberIdentity` | L2TP and PPPoE drain identity test files | AC-21: each production drain refuses before invoking the allocator | |
-| `TestPoolDrainMissingIdentityDoesNotResolveProvider` | `internal/component/l2tp/drain_subscriber_identity_test.go` | AC-21: L2TP refuses before dynamic provider lookup; a valid opaque ID resolves and invokes exactly once unchanged | |
-| `TestAuthDrainRequiresSubscriberIdentity` | L2TP and PPPoE `drain_auth_identity_test.go` | AC-21: each production auth loop refuses before provider, relay, event and pending-authorization actions; valid opaque identity reaches provider and result event unchanged | |
-| `TestAuthMetadataSeparatesTransportIdentities` | `internal/component/l2tp/session_metadata_identity_test.go` | AC-20: equal driver pairs retain independent RADIUS profiles and cleanup | |
-| `TestAuthMetadataRefusesMissingIdentity` | same | AC-21: an empty ID cannot create a shared authorization entry | |
-| `TestSessionID` | `internal/component/l2tp/subscriber/id_test.go` | Existing L2TP/PPPoE spellings, full transport width and open explicit access namespace | |
-| `TestAuthRequestSubscriberID` | `internal/component/l2tp/ppp/subscriber_id_test.go` | Every auth method receives the admitted opaque ID at the central emitter; protocol-only omission remains usable | |
-| `TestIPRequestSubscriberID` | same | Both NCP families receive the admitted opaque ID; a stale request ID cannot override it | |
-| `TestDriverAdmissionSubscriberID` | same | Real queued driver admission retains the StartSession ID through request emission | |
-| `TestPoolAnswerReleaseFailureIsReported` | `internal/component/l2tp/subscriber/events/pool_answer_test.go` | AC-11: cleanup publication failure reports the existing internal-defect code | |
-| `TestPoolAnswerSynchronousReleaseDoesNotReportFailure` | `internal/component/l2tp/subscriber/events/pool_answer_recipient_test.go` | Synchronous cleanup delivery with recipient count zero remains successful | |
-| `TestRADIUSAuthRequiresSubscriberIdentity` | `internal/component/l2tp/plugins/authradius/subscriber_identity_test.go` | AC-21: direct RADIUS handler refuses a missing ID before no-auth admission; a valid opaque ID retains synchronous no-auth acceptance without invoking the asynchronous callback. Untagged guard test authored, main verification pending | |
+| `TestPoolReloadCarriesLiveAllocations` | same | AC-3: IPv4 and IPv6 allocations marked in the new pools; allocation after apply skips them | PASS in retained scoped package receipts |
+| `TestPoolReloadOrphanKeepsAddress` | same | AC-4 | PASS in retained scoped package receipts |
+| `TestPoolReloadCarriedAddressReleasedOnSessionDown` | same | AC-5, R-2 | PASS in retained scoped package receipts |
+| `TestPoolConfigTxRollbackCarriesAllocations` | same | AC-6 | PASS in retained scoped package receipts |
+| `TestPoolVerifyRefusesBadPool` | same | AC-7 | PASS in retained scoped package receipts |
+| `TestPoolUnrelatedL2TPEditInstallsNothing` | same | AC-8, A-1 | PASS in retained scoped package receipts |
+| `TestPoolAllocateConcurrentWithApply` | same, `-race` | R-1 | PASS in retained scoped package receipts |
+| `TestPoolRADIUSAddressInRangeIsReserved` | `internal/component/l2tp/plugins/pool/radius_reservation_test.go` | AC-9 | PASS in retained scoped package receipts |
+| `TestPoolRADIUSAddressAlreadyHeldIsRefused` | same | AC-10 | PASS in retained scoped package receipts |
+| `TestPoolDrainReleasesUndeliveredAnswer` | `internal/component/l2tp/` and `internal/component/l2tp/pppoe/` drain tests | AC-11, one case per drain | PASS in retained scoped package receipts |
+| `TestPoolAllocationIdentifiersDoNotWrap` | `internal/component/l2tp/plugins/pool/allocation_id_test.go` | AC-11: dynamic and RADIUS final token succeeds; exhaustion refuses without mutation, same-owner retry keeps its address with token0, and exact-token cleanup still frees the reservation | PASS in retained scoped package receipts |
+| `TestPoolVerifyRefusesOverlappingPools` | `internal/component/l2tp/plugins/pool/config_validation_test.go` | AC-12 | PASS in retained scoped package receipts |
+| `TestPoolVerifyRefusesOversizedRange` | same | AC-13, the wrapping range among the cases | PASS in retained scoped package receipts |
+| `TestPoolVerifyRefusesZeroAndBroadcast` | same | AC-14 | PASS in retained scoped package receipts |
+| `TestPoolVerifyRefusesNonIPv4DNS` | same | AC-15 | PASS in retained scoped package receipts |
+| `TestPoolVerifyRefusesOverlappingIPv6Pools` | same | AC-16 | PASS in retained scoped package receipts |
+| `TestPoolRADIUSAddressOutsideRangesAlreadyHeldIsRefused` | `internal/component/l2tp/plugins/pool/radius_reservation_test.go` | AC-17: two sessions cannot hold the same external RADIUS address | PASS in retained scoped package receipts |
+| `TestPoolRADIUSOrphanAddressAlreadyHeldIsRefused` | same | AC-17: a removed range does not make a still-held address available to RADIUS | PASS in retained scoped package receipts |
+| `TestPoolRADIUSPrefixReservesAllOverlappingSlots` | `internal/component/l2tp/plugins/pool/radius_prefix_reservation_test.go` | AC-18: reserve every covered slot across default and named pools until release | PASS in retained scoped package receipts |
+| `TestPoolRADIUSPrefixOverlappingHeldIsRefused` | same | AC-18: refuse covering, contained and external prefix overlap with another subscriber | PASS in retained scoped package receipts |
+| `TestPoolRADIUSPrefixOutsideRangesIsPreserved` | same | AC-18: retain unique external RADIUS delegations without requiring a configured pool | PASS in retained scoped package receipts |
+| `TestPoolRADIUSPrefixCannotOverlapCarriedDelegation` | same | AC-18: a reload-carried delegation remains exclusive against new RADIUS admission | PASS in retained scoped package receipts |
+| `TestPoolRADIUSDisjointPrefixesSharePoolSlot` | same | AC-18: retain disjoint smaller prefixes and reserve their shared coarse slot until final release | PASS in retained scoped package receipts |
+| `TestPoolNamedOnlyPoolSelection` | `internal/component/l2tp/plugins/pool/named_pool_only_test.go` | AC-19: selected named-only pool supplies address, gateway and DNS; unselected request remains refused | PASS in retained scoped package receipts |
+| `TestPoolReloadSplitsLiveDelegation` | `internal/component/l2tp/plugins/pool/config_tx_test.go` | AC-3, AC-5: every overlapping new slot is reserved, even across separate new pools | PASS in retained scoped package receipts |
+| `TestPoolReloadMergesLiveDelegations` | same | AC-3, AC-5: a coarse slot remains reserved until the last smaller delegation ends | PASS in retained scoped package receipts |
+| `TestPoolShowIncludesNamedReservationsAfterReload` | `internal/component/l2tp/plugins/pool/show_pool_test.go` | AC-3: JSON answer counts carried reservations in replacement named IPv4 and IPv6 pools | PASS in retained scoped package receipts |
+| `TestPoolShowNamedOnlyPools` | same | AC-3, AC-19: named-only pools have usable status summaries | PASS in retained scoped package receipts |
+| `TestPoolShowPreservesDefaultFields` | same | Preserve existing default statistics, session fields and absent-map omission | PASS in retained scoped package receipts |
+| `TestPoolVerifyRefusesMalformedPresentBlocks` | `internal/component/l2tp/plugins/pool/parse_shape_test.go` | AC-7: present malformed root, pool, container and named-list bodies are refused without changing the running allocator | PASS in retained scoped package receipts |
+| `TestPoolVerifyAcceptsExplicitRemoval` | same | AC-4, AC-7: actual empty/absent removal forms clear pools while live assignments remain until teardown | PASS in retained scoped package receipts |
+| `TestPoolTransportIdentitySurvivesReloadAndRelease` | `internal/component/l2tp/plugins/pool/subscriber_identity_test.go` | AC-20: equal pairs across transports retain distinct addresses and tokens through reload/rollback and either cleanup path | PASS in retained scoped package receipts |
+| `TestPoolPPPoETeardownPreservesEqualL2TPPrefix` | same | AC-20: a transport-local pair cannot release another access type's prefix | PASS in retained scoped package receipts |
+| `TestPoolTransportIdentityStatusUsernames` | same | AC-20: canonical registry lookup preserves both subscriber usernames | PASS in retained scoped package receipts |
+| `TestPoolMissingSubscriberIdentityIsRefused` | same | AC-21: missing pool identity is refused before allocation and reported through doctor | PASS in retained scoped package receipts |
+| `TestPoolDrainRefusesMissingSubscriberIdentity` | L2TP and PPPoE drain identity test files | AC-21: each production drain refuses before invoking the allocator | PASS in retained scoped package receipts |
+| `TestPoolDrainMissingIdentityDoesNotResolveProvider` | `internal/component/l2tp/drain_subscriber_identity_test.go` | AC-21: L2TP refuses before dynamic provider lookup; a valid opaque ID resolves and invokes exactly once unchanged | PASS in retained scoped package receipts |
+| `TestAuthDrainRequiresSubscriberIdentity` | L2TP and PPPoE `drain_auth_identity_test.go` | AC-21: each production auth loop refuses before provider, relay, event and pending-authorization actions; valid opaque identity reaches provider and result event unchanged | PASS in retained scoped package receipts |
+| `TestAuthMetadataSeparatesTransportIdentities` | `internal/component/l2tp/session_metadata_identity_test.go` | AC-20: equal driver pairs retain independent RADIUS profiles and cleanup | PASS in retained scoped package receipts |
+| `TestAuthMetadataRefusesMissingIdentity` | same | AC-21: an empty ID cannot create a shared authorization entry | PASS in retained scoped package receipts |
+| `TestSessionID` | `internal/component/l2tp/subscriber/id_test.go` | Existing L2TP/PPPoE spellings, full transport width and open explicit access namespace | PASS in retained scoped package receipts |
+| `TestAuthRequestSubscriberID` | `internal/component/l2tp/ppp/subscriber_id_test.go` | Every auth method receives the admitted opaque ID at the central emitter; protocol-only omission remains usable | PASS in retained scoped package receipts |
+| `TestIPRequestSubscriberID` | same | Both NCP families receive the admitted opaque ID; a stale request ID cannot override it | PASS in retained scoped package receipts |
+| `TestDriverAdmissionSubscriberID` | same | Real queued driver admission retains the StartSession ID through request emission | PASS in retained scoped package receipts |
+| `TestPoolAnswerReleaseFailureIsReported` | `internal/component/l2tp/subscriber/events/pool_answer_test.go` | AC-11: cleanup publication failure reports the existing internal-defect code | PASS in retained scoped package receipts |
+| `TestPoolAnswerSynchronousReleaseDoesNotReportFailure` | `internal/component/l2tp/subscriber/events/pool_answer_recipient_test.go` | Synchronous cleanup delivery with recipient count zero remains successful | PASS in retained scoped package receipts |
+| `TestRADIUSAuthRequiresSubscriberIdentity` | `internal/component/l2tp/plugins/authradius/subscriber_identity_test.go` | AC-21: direct RADIUS handler refuses a missing ID before no-auth admission; a valid opaque ID retains synchronous no-auth acceptance without invoking the asynchronous callback. Untagged guard test included in retained consumer package proof | PASS in retained scoped package receipts |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -507,8 +518,8 @@ configuration or handler contract.
 |------|--------|-------|
 | YANG schema | Test-only | Hidden fakel2tp address/prefix, explicit PPPoE address and subscriber release RPC declarations; no production configuration leaf added |
 | CLI grammar | Test-only | `show l2tp pool` spelling unchanged; hidden fakel2tp commands declare their explicit transport context |
-| Doctor check | Existing code reused | Missing NAS identity or failed cleanup publication reports internal-defect; no new check/code |
-| Env var | No | |
+| Doctor check | Existing code reused | Missing identity and cleanup failure report internal-defect. External pool registration joins the existing doctor-plugin-external-unsupported check |
+| Env var | No | No new environment variable |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Trigger | Needed | Where |
@@ -544,9 +555,16 @@ configuration or handler contract.
 | Pool process-mode refusal and diagnosis | `TestPoolExternalRefusesBeforeDeclaration`, `l2tp-pool-external-refuses.ci`, `l2tp-pool-internal-reloads.ci` and the unchanged autoload reload control |
 
 ### Security Review Checklist
-| Check | What to look for |
-|-------|------------------|
-| Address uniqueness | no path leaves one address held by two subscribers (AC-10, R-1, R-3) |
+| Check | Result and evidence |
+|-------|---------------------|
+| New assignment uniqueness | `handle` holds the allocation lock across reservation and canonical record store. RADIUS scans include external/orphan records. IPv6 reservations check actual prefix overlap and count shared coarse slots |
+| Existing duplicate owners | Reload preserves existing sessions, warns with both canonical owners and keeps the address reserved until the final owner ends. It does not claim to repair an old duplicate assignment |
+| Missing identity | Both NAS auth and pool drains refuse before provider/relay selection. Direct metadata, RADIUS and pool guards reject empty IDs. Valid opaque IDs pass unchanged |
+| Undelivered answer | Both drains emit cleanup only for accepted answers with a nonzero token. The pool matches canonical owner and exact token before release |
+| Process boundary | External pool runtime refuses before configuration and SDK declaration. Doctor resolves aliases through registry metadata. No untrusted input can acquire DirectBridge across TLS |
+| Resource bounds | Validation uses 64-bit range arithmetic before bitmap construction. One IPv4 pool is at most 128 KiB. No new runtime loop, goroutine, timer, listener or retry was added by the mode fix |
+| Errors and secrets | Runtime refusal uses `opererr` and the existing registered doctor code. It contains the problem, reason, internal replacement and `ze config edit`. New tests/configs carry no credential |
+| Manual Go style and lifecycle | Guard precedes callback registration. Deferred SDK close releases its reader/transport. No new lock ordering or shared mutable ownership. Counter connection tests make no parallel package-logger changes |
 
 ### Failure Routing
 | Failure | Route To |
@@ -581,10 +599,16 @@ configuration or handler contract.
 | Location | Purpose | Removal condition |
 |----------|---------|-------------------|
 | `tmp/stress-repro/reload-draft-pattern-l2tp-pool-range-reload-9681e20db2de0e2cb7eee13f0d0e53094d81b4695abc025e4c7d94aef52f6fdf-20261115-220714-999335715.log` | Current 80-run daemon stress evidence; the test is promoted to `test/reload/` and the draft no longer exists | Remove after the promoted-suite evidence and closure record retain the result |
-| Session scratch under `tmp/session/2026-11-15-195627/` and its named `le` build | Per-phase handoff, scoped test execution and minimal failure evidence | Remove superseded outputs as each failure clears; retain only evidence needed for unresolved findings until closure |
+| `tmp/stress-repro/plugin-draft-l2tp-pool-external-refuses-l2tp-pool-internal-reloads-8f35a4e70d24a73b57701c882dfe50b165f923b0bf9c6eba6678268eeb6943b6-20261116-142848-4264819793.log` | 487,790-byte mode stress capture: 80 independent invocations and 160 named case passes | Remove when the promoted-suite and closure record retain the result |
+| Session scratch under `tmp/session/2026-11-15-195627/` and its named `le` build | Current terminal script, reviewed pins, eight-file inventory/body, minimal proof receipts and original foreign-failure evidence | Remove preparation inputs after terminal issuance and verified closure. Keep failure originals until their owners retain the findings. Keep named `le` while the terminal step needs it |
+
+Main removed 262,637,634 bytes of completed task-owned binaries, overlays, obsolete patches/profiles and stopped-guest consoles after ownership/process checks. Total session cleanup is 586,488,521 bytes (about 559 MiB). Old patch/profile paths in historical receipts no longer identify current inputs. Shared caches and other sessions were preserved.
 
 ## RFC Documentation (Scope: protocol)
-- No RFC requirement is added or changed; RFC 2865 Section 5.8 comments in `handle` stay byte-exact.
+- No RFC requirement is added or changed. RFC 2865 Section 5.8 comments in `handle` stay byte-exact.
+- The first final check found three affected stale positives after the canonical metadata lookup changed `authradius/acct.go` `onSessionIPAssigned`: RFC2866-4.1-1 `TestSessionEventDrivesAddressAndPortID`, RFC2866-4.1-1 `test/l2tp/radius-acct-wire.ci`, and RFC2866-5.5-2 `TestAccountingAddressFamiliesShareLifetime`.
+- All three native renewals succeeded. Address unit clean PASS 0.533s/broken FAIL 0.390s. Lifetime unit clean PASS 0.266s/broken FAIL 0.309s. Real Linux `radius-acct-wire` clean PASS 67.6s/broken FAIL 33.6s, outer exit 0, on Ze kernel 7.3.0-ze `88c98f02`, SHA256 `89a57fd6746aa444a1a453feab7c0eece000075f00276fb545cb62312038beb2`. Both guests stopped. The two proof JSON files contain exactly three producer-fingerprint updates. No source, test tag or assertion changed.
+- Fresh `job-pool-final-renewed-rfc-check-4fea72ad.log` reports 416 global violations and zero lines for the affected RFC 2548/2865/2866/2869/3162 families, including audits. The entire 497-line receipt was searched. Other sessions also changed the tree, so the decrease from 424 to 416 is not attributed to these three renewals. This is affected-proof freshness, not global RFC compliance.
 
 ## Checklist
 
@@ -644,8 +668,7 @@ unbounded or malformed pool descriptions, named-only selection and shared
 transport identity are covered by the tests in the TDD plan.
 
 ### Documentation Updates
-Documentation verification was not finished before the process-mode finding
-blocked closure. Its current check evidence remains in the session state.
+Seven companion pages describe reload, validation, canonical ownership, cleanup and process mode. The documentation audit below distinguishes each changed contract from unchanged syntax and wire behavior.
 
 ### Deviations from Plan
 Assumption A-3 was broken. Existing canonical subscriber identity replaces the
@@ -663,42 +686,81 @@ The separate successor-lifetime design remains outside this correction.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Apply and roll back pool edits while preserving live subscribers | Implemented, scoped proof passed | `pool/reload.go` `configTransaction`, `installPoolConfiguration` | Declarative ConfigTx state. IPv4 then IPv6 locks cover bitmap and record carry |
+| Reserve RADIUS assignments and clean undelivered answers | Implemented, scoped proof passed | `pool/radius.go`, both `drain.go` files, `subscriber/events/pool_answer.go` | Canonical owner plus allocation token prevents delayed cleanup from freeing another answer |
+| Refuse invalid pool descriptions before allocation | Implemented, scoped proof passed | `pool/config_shape.go`, `config_validation.go` | Full pool race run includes malformed containers and numeric boundary cases |
+| Keep L2TP and PPPoE ownership distinct | Implemented, scoped proof passed | PPP central emitters, transport drains, metadata and pool stores | Existing opaque subscriber identity replaces transport-local numeric keys |
+| Refuse external pool mode and preserve internal operation | Implemented, focused and stress proof passed | `pool/register.go` `init`, `runPlugin` | Own cases passed the published suite. Post-guard autoload passed 1/1. Consumer suite completed with disclosed CI-owned assertion failure |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Implemented and tested | `config_tx_test.go` `TestPoolConfigTxAppliesReloadedRanges` | Daemon reload proof also checks the increased total and allocation |
+| AC-2 | Implemented and tested | Same transaction test and daemon named-pool/prefix assertions | IPv6 pool-handler coverage does not claim IPv6 subscriber dataplane support |
+| AC-3 | Implemented and tested | `TestPoolReloadCarriesLiveAllocations`, split/merge and show-pool tests | Carry reserves all overlapping slots and preserves negotiated settings |
+| AC-4 | Implemented and tested | `TestPoolReloadOrphanKeepsAddress` | Orphans remain owned until teardown and are logged |
+| AC-5 | Implemented and tested | `TestPoolReloadCarriedAddressReleasedOnSessionDown` | Carry records the replacement reserving pool |
+| AC-6 | Implemented and tested | `TestPoolConfigTxRollbackCarriesAllocations` | Rollback carries allocations made after apply |
+| AC-7 | Implemented and tested | `TestPoolVerifyRefusesBadPool`, malformed-present-block tests | Verify refuses before mutating running pools |
+| AC-8 | Implemented and tested | `TestPoolUnrelatedL2TPEditInstallsNothing` | Deep-equal descriptions avoid needless rebuild |
+| AC-9 | Implemented and tested | `TestPoolRADIUSAddressInRangeIsReserved` | Release and reload/rollback companion tests retain ownership |
+| AC-10 | Implemented and tested | `TestPoolRADIUSAddressAlreadyHeldIsRefused` | Refusal leaves existing ownership intact |
+| AC-11 | Implemented and tested | Both `TestPoolDrainReleasesUndeliveredAnswer` cases and exact-token tests | No release for refusals or repeated answers with token zero |
+| AC-12 | Implemented and tested | `TestPoolVerifyRefusesOverlappingPools` | Default/named and named/named cases |
+| AC-13 | Implemented and tested | `TestPoolVerifyRefusesOversizedRange` | 64-bit size computation before bounded bitmap construction |
+| AC-14 | Implemented and tested | `TestPoolVerifyRefusesZeroAndBroadcast` | Both unusable endpoints refused |
+| AC-15 | Implemented and tested | `TestPoolVerifyRefusesNonIPv4DNS` | Both DNS leaves and valid IPv4 neighbors |
+| AC-16 | Implemented and tested | `TestPoolVerifyRefusesOverlappingIPv6Pools` | Configured blocks are disjoint before build |
+| AC-17 | Implemented and tested | External-address and orphan-address RADIUS refusal tests | Live records remain authoritative outside current ranges |
+| AC-18 | Implemented and tested | All five `radius_prefix_reservation_test.go` cases | Actual prefix overlap and shared coarse-slot final release |
+| AC-19 | Implemented and tested | `TestPoolNamedOnlyPoolSelection`, named-only show test | Named selection precedes absence-of-default refusal |
+| AC-20 | Implemented and tested | Pool transport identity, PPPoE-prefix teardown and metadata identity tests | Daemon identity sequence exercises real handler and subscriber event bus |
+| AC-21 | Implemented and tested | Missing-ID tests in pool, authradius, both drains and metadata | Refuse before provider selection, realm relay and store mutation |
+| AC-22 | Implemented and tested | `external_mode_test.go`, both promoted plugin cases and autoload control | Focused pair, stress and published own cases passed. Post-guard autoload PASS 1/1 in 2.1s |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Pool transaction, reservation, validation, identity, status and mode tests in the TDD table | PASS | Full pool race run `job-unit-pkg-49b476eb.log` | 1.713s. Every listed pool test exists. Focused mode count run separately observes both guard outcomes |
+| PPP carrier, root L2TP, both drain and subscriber-event tests | PASS in retained scoped receipts | Root/PPP `ff3d6778`, PPPoE `56492705`, consumers `2b7acfde` receipts in session state | Final suite: 27 PASS, 1 CI-owned strict-span assertion FAIL, 7 Darwin SKIP. Real Linux accounting case separately passed its renewal |
+| Autoload reload daemon and explicit-internal equivalent | PASS | Promoted `.ci` cases | Earlier autoload proof and new internal proof retain default, named, prefix, identity and cleanup assertions |
+| External-mode daemon diagnosis and refusal | PASS | `test/plugin/l2tp-pool-external-refuses.ci` | Actual doctor-only runtime RED then guarded GREEN. Incorrect shorthand CLI attempt excluded |
+| Mode draft load proof | PASS | Retained stress capture named below | 80 independent invocations, 160 named cases, 1,360 structured steps. Parallel 2, burner 1 |
+| Linux subscriber lifetime cases | PASS at the recorded source/kernel | Dated receipt `5eeb6afc` in session state | Eight ordinary tests, no skips. This is not acceptance of a later kernel image |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| Planned production Go, tests and test-only YANG | Present | The 110-path owned inventory covers original work, validation and mode additions. Foundation `59f67661db` carries original source and shared producers, validation `ea14ad498d` carries bounded parsing |
+| Two mode `.ci` additions | Promoted | Both drafts moved to `test/plugin/` after stress. Autoload control remains unchanged |
+| Planned documentation | Updated | Companion docs and category audit below cover changed contracts |
+| News fragment and four owned journal rows | Written | Canonical fragment stem. Each journal fix names its producer or discriminating test |
 
 ### Audit Summary
-Independent closure round five is blocked on the process-mode finding.
-The audit tables remain unfinished; no acceptance criterion is reduced.
+Round six reviewed the R5 process-mode correction and startup siblings, then completed the unfinished acceptance and closure audit. No new product defect was found. Final main-thread receipts are recorded. Native terminal authorization recording alone blocks closure. Existing global check failures remain disclosed below.
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task) | Evidence Type | Concrete Evidence |
 |------------------|---------------|-------------------|
+| A committed pool edit takes effect without disconnecting live subscribers | Real daemon plus transaction tests | The unchanged autoload and explicit internal tests use SIGHUP, then allocate from added ranges and named pools. Carry/rollback unit cases retain live allocations |
+| One canonical subscriber owns each new allocation | Handler, transport and metadata tests | RADIUS collision/orphan/prefix tests, equal numeric-pair tests and daemon subscriber-bus identity sequence |
+| Invalid configuration changes no running state | Parser-backed unit tests | Boundary, overlap and malformed-container cases exercise ConfigTx verify before build |
+| Unsupported process mode fails with a correction | Real TLS daemon and non-vacuous unit test | External doctor alias replacement, refusal before SDK writes and post-guard internal allocation. Both mode cases passed 80 invocations under load |
 
 ## Work Not Done
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Final scoped follow-through | Focused mode proof and 80 stress invocations passed; published suite, post-guard autoload control, consumer suite and final RFC check remain with main | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
-| Final independent review and closure | Reviews six and seven are authorized if needed; no CLEAN result exists | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
+| Native review seal and closure | R6 source review has no BLOCKER or ISSUE. No CLEAN artifact exists until Thomas issues the prepared record from his terminal | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | None; round five ended blocked |
-| `./le spec review check` | Not run |
-| Rounds | 5 completed: four implementation passes and one closure review; the owner authorized six and seven if needed, neither run yet |
+| Artifact | Pending native terminal issuance. R6 source review found no BLOCKER or ISSUE. Expected native path: `tmp/review/l2tp-pool-reload-applies-08d275e8-134a-40ab-b341-f380d8550d56.md`. A prose verdict is not the machine artifact |
+| `./le spec review check` | Owed after Thomas runs `scratch/pool-round6-record-terminal.sh` from his terminal. It records 109 immutable historical blobs/modes plus eight closure snapshots (including the two prospective RFC proof JSON files), then checks four current mode code pins. The closure gate compares all historical code to its proposed tree |
+| Rounds | 6 completed: four implementation passes, R5 closure finding and this independent R6 correction review. No new product finding requires R7. The native CLEAN record still requires terminal issuance |
 | Scope | All owned reviewable files in `scratch/pool-authored-source-paths.txt`, including already-landed validation and code carried by the shared producer; foreign feature hunks are context only. Current source and selected closure blobs must match the final pin. |
 | Reviewer lenses used | Logic and wiring; security and boundaries; concurrency, lifecycle, performance and manual Go style |
 
@@ -729,7 +791,7 @@ No verdict or artifact is claimed by this scope declaration.
    implementation. Main subsequently reproduced the defect through the daemon.
    The declaration-only stage reproduced the missing runtime refusal. The early
    guard is implemented, and focused unit/daemon/race/lint/stress proof passed.
-   No CLEAN artifact is written; reviews six and seven are authorized if needed.
+   R6 source review found no new product issue. Native CLEAN recording remains a terminal-only issuance step.
 
 Main ran `./le --name session test bgp reload --draft --pattern
 l2tp-pool-external-disconnected`: the named diagnostic failed after the
@@ -760,12 +822,12 @@ configuration registration once. Both named daemon scenarios passed and then
 passed all 80 stress invocations, with 160 case passes and 1,360 structured
 step passes. Each invocation used a distinct command-PID triplet. This is
 correctness evidence under bounded load, not a performance measurement.
-The published suite and remaining scoped follow-through are still in progress.
+The full published plugin suite completed: 916 PASS, 114 FAIL, 2 TIMEOUT, 175 Darwin SKIP. Both new mode cases and the existing pool DNS-withdraw case passed. Other failures remain unclassified in this review and were routed to the CI owner. This is no global suite pass. Post-guard autoload passed 1/1 in 2.1s. The L2TP consumer suite completed with 27 PASS, 1 CI-owned strict-span assertion FAIL and 7 Darwin SKIP. Three RFC renewals succeeded, including the real Linux accounting case. The fresh RFC check has 416 global violations and no affected-family finding.
 
 ### Process-mode lifecycle scope
 
 The new refusal completes before `ConfigTx.Register`, `SignalContext` and
-`Plugin.Run`. The SDK constructor only establishes the connection wrapper.
+`Plugin.Run`. The SDK constructor starts its multiplexed reader. Deferred `Plugin.Close` closes that reader and its transport on refusal.
 An external instance sends no Stage 1 declaration. An internal instance keeps
 the existing callbacks and startup path. The lifecycle cases below follow
 that boundary; no supervision, restart or stop implementation changes.
@@ -801,6 +863,25 @@ decisions remain in `server/failure_policy.go` `pluginFailurePolicy` and
 
 ### Structural-check notes
 
+R6 native light prechecks ran once: repo check reported 59 global findings,
+and weakened-test check reported 37 findings with no deleted tests. Neither
+reported a new mode file. The owned inventory overlaps foreign current-core
+fixture migrations, including `session_event_order_test.go`: removed unsafe
+fabricated-event helpers are replaced by real driver assignment and an explicit
+acknowledgment assertion. Existing assertions remain. No blanket suppression
+or test-judge approval was issued by this review.
+
+The first documentation check could not build the live catalog because the
+concurrent hub source used `hasBGPBlock` before its declaration. That source was
+repaired by its owner. An earned R6 rerun completed and retained its full output
+in `scratch/pool-round6-doc-check.log` (64,574 bytes, 880 lines), exit 1.
+Its remaining failures are one published wiki command-catalog drift and two
+help-summary rules: `request restart` contains a semicolon, and the iface
+PPPoE `source-interface` summary exceeds the character bound. None belongs to
+this pool correction. All 459 commands validate, all 5,174 source paths in
+864 packages resolve, and all 3,086 digest anchors resolve. The scoped mode lint
+passed on host and Linux. These results do not establish whole-tree health.
+
 - `lookupSessionUsername` is display-only. `showPool` releases both allocation
   locks before registry lookup, so teardown can remove the registry entry after
   the allocation snapshot. An absent subscriber has no username to display.
@@ -816,25 +897,52 @@ decisions remain in `server/failure_policy.go` `pluginFailurePolicy` and
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
 |---|----------|---------|----------|----------|
+| R5 | PRODUCT | External configuration installed a disconnected child allocator | `pool/register.go` `runPlugin` | `RunsInProcessOnly` plus early `IsInternal` refusal. Unit RED observed one SDK write before the fix, guarded run observes zero. Actual daemon RED and GREEN retained |
+| R6 | NOTE | Closure audit tables and four owned journal fix cells were unfinished | This spec and its owned journal table | Completed evidence audit and fixed rows. No extra review round is justified by these record edits |
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| All owned source and planned tests | Yes | 110-path census and actual source reads. Mode test and both promoted `.ci` files read in full |
+| Fragment and journal rows | Yes | `website/changes/fragments/l2tp-pool-reload-applies.md` and the four class files in Owned journal rows |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1–19 | Transaction, uniqueness, cleanup and validation | Source verified against the named tests. Full pool race PASS 1.713s |
+| AC-20–21 | Canonical identity through both transports | Source and test-path audit plus retained component receipts. Final suite 27 PASS, 1 CI-owned strict-span assertion FAIL, 7 Darwin SKIP. No pool case failed |
+| AC-22 | External refuses, internal and autoload remain usable | Pair GREEN, full pool race, both guard outcomes, host/Linux lint 0 issues, 80 invocation stress. Published own cases passed. Post-guard autoload PASS 1/1 in 2.1s |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Automatic pool loading then SIGHUP | `test/reload/l2tp-pool-range-reload.ci` | Earlier RED/GREEN and promoted proof retained. Post-guard named case PASS 1/1, 2.1s in `job-pool-autoload-repaired-startup-ba07928d.log` |
+| Explicit internal then SIGHUP | `test/plugin/l2tp-pool-internal-reloads.ci` | GREEN plus 80 load invocations |
+| External alias doctor and real TLS startup | `test/plugin/l2tp-pool-external-refuses.ci` | Doctor-only RED distinguished from actual guarded GREEN plus 80 load invocations |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | Confirmed | Declarative ConfigTx comparison and unrelated-edit test |
+| A-2 | Confirmed for covered address/prefix cases | Range-safe release and orphan/out-of-range tests |
+| A-3 | Broken and corrected | Canonical identity retained through PPP emission, shared stores and cleanup. Equal-pair tests cover both transports |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Feature declaration | `features/l2tpv2-bng.md` retains its declared maturity and IPv4 subscriber scope | No level or protocol scope changed. New fragment names the existing feature |
+| User guide | `docs/guide/l2tp.md` pool behavior against `handle`, `installPoolConfiguration`, validators and mode guard | Yes |
+| Config syntax | `docs/guide/configuration.md` against pool parsers and external-mode guard | Updated constraints and internal example. No new production leaf |
+| CLI reference | Existing `show l2tp pool` declaration | No grammar change. Test-only fakel2tp commands declare YANG |
+| API/RPC docs | Subscriber session model against PPP carrier and undelivered-answer payload | Yes. Canonical ownership and cleanup token explained |
+| Plugin guide | `docs/guide/plugins.md` and L2TP guide | Internal execution documented. No SDK contract introduced |
+| Wire format | Original RFC 2865 comments retained, no encoding change | No update required |
+| SDK rules | Existing `IsInternal` contract and registration field reused | No update required |
+| RFC compliance | No requirement claim changed by mode guard | Original 31 proof pairs and 10 audits retained. Three later affected positives renewed. Fresh check: 416 global violations, zero affected-family finding lines |
+| Test infrastructure | `docs/functional-tests.md` against promoted cases and test fixtures | Yes. Daemon handler proof remains distinct from wire/kernel acceptance |
+| Comparison | No new parity or protocol claim | No update required |
+| Architecture | Subscriber session model, RADIUS attributes and integration research against shared stores/drains | Yes. Canonical identity, rollback, undelivered cleanup and process boundary described |
+| Route metadata, counters and agent discovery | No route metadata key, telemetry counter, tool or workflow added | No update required |
+| Cited-spec deletion | Exact-path census over all 41,782 tracked entries | Zero citers outside this spec. Journal stems preserve historical provenance |
