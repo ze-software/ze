@@ -649,6 +649,13 @@ the physical file eligible for standalone validation. Authenticated permission
 journeys without loads need no replay exemption. No fixture-specific validation
 exception is needed.
 
+Toggling the error drawer, dismissing its error or toast through the native
+`x` control, and waiting for HTML are presentation actions. Replay leaves the
+candidate and pending input unchanged for these actions. None establishes a
+successful load or consumes a physical input. Other unknown clicks remain
+composition findings.
+<!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- browserCorpus.action -->
+
 Supplied graphical inspection is a read carrier, separately counted from
 candidate loads and published configurations. The corpus follows the actual
 parsed command selection and submission through the native inspection form,

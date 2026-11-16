@@ -232,10 +232,20 @@ func (b *browserCorpus) action(root, source string, action *webtesting.WBAction,
 		if id == "cli-load-apply" {
 			return b.apply(source, action.Line, loaded)
 		}
+		if id == "error-toggle" {
+			return nil // cli.js changes only the error drawer's collapsed class.
+		}
+		if _, hasID := action.Values["id"]; !hasID {
+			if action.Values["text"] == `button "x"` {
+				// The native snapshot names error/toast dismissals "x"; the
+				// Workbench list editor's x button has the distinct name Remove.
+				return nil
+			}
+		}
 		if id != "cli-load-cancel" {
 			return fmt.Errorf("button %q before a browser load has no corpus composition", id)
 		}
-	case "wait", "hover", "screenshot":
+	case "wait", "wait-html", "hover", "screenshot":
 		// These observations neither enter a command nor submit configuration.
 	default:
 		return fmt.Errorf("browser action %q before a load has no corpus composition", action.Kind)
