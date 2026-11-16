@@ -35,6 +35,7 @@ EOF_PLAIN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
+ internal rib { use rib; }
  internal gr { use bgp-gr; }
  internal bgp-rib { use bgp-rib; }
  external observer { run "le test fixture plugin/llgr-stale-received-depreferenced"; encoder json; }
@@ -75,7 +76,7 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=llgr
 cmd=background:seq=2:exec=le test peer --bind ::1 --port $PORT:stdin=plain
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-community -:stdin=ze-bgp:timeout=35s
-await=stderr:contains=OK: llgr received 10.1.0.0/16:then=stop
+expect=exit:code=0
 expect=stderr:contains=OK: llgr received 10.0.0.0/8 best ::1 by stale-level
 expect=stderr:contains=OK: llgr received 10.1.0.0/16 best ::1 by local-preference
 reject=stderr:pattern=panic

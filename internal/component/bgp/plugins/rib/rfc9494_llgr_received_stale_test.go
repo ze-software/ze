@@ -88,6 +88,7 @@ func feedReceivedIBGPMeta(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID
 func receivedStaleSetup(t *testing.T, community [4]byte, meta map[string]any) (*RIBManager, bgpctx.ContextID, netip.Addr, netip.Addr) {
 	t.Helper()
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	low := netip.MustParseAddr("192.0.2.1")
 	high := netip.MustParseAddr("192.0.2.2")

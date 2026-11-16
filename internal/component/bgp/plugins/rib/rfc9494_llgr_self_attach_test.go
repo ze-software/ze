@@ -35,6 +35,7 @@ var selfAttachFreshPeer = netip.MustParseAddr("192.0.2.2")
 func selfAttachSetup(t *testing.T, lateNLRI []byte) *RIBManager {
 	t.Helper()
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	preferred := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
 	ordinary := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
@@ -91,7 +92,6 @@ func selfAttachWinner(t *testing.T, r *RIBManager, nlri []byte) *bestPathExplana
 //
 // RFC requirement: RFC9494-4.3-1 positive -- after mark-stale 192.0.2.1 120 and attach-community 192.0.2.1 ipv4/unicast ffff0006, SelectBestExplain over the gathered candidates for 10.0.0.0/24 is decided at BestStepStale and picks the LOCAL_PREF 100 route from 192.0.2.2 over the LOCAL_PREF 200 route from 192.0.2.1.
 func TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred(t *testing.T) {
-	t.Parallel()
 	r := selfAttachSetup(t, nil)
 
 	explanation := selfAttachWinner(t, r, []byte{24, 10, 0, 0})
@@ -111,7 +111,6 @@ func TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred(t *testing.T) {
 //
 // RFC requirement: RFC9494-4.3-1 negative -- 10.0.1.0/24 stored fresh from 192.0.2.1 after mark-stale and before attach-community ffff0006 is decided at BestStepLocalPref, and the LOCAL_PREF 200 route from 192.0.2.1 wins over the LOCAL_PREF 100 route from 192.0.2.2.
 func TestRFC9494SelfAttachSkipsRouteLearnedAfterLoss(t *testing.T) {
-	t.Parallel()
 	late := []byte{24, 10, 0, 1}
 	r := selfAttachSetup(t, late)
 
