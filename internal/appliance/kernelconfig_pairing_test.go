@@ -40,17 +40,12 @@ var unverifiedRuntimeSymbols = map[string]bool{
 	"CONFIG_ATA":                            true,
 	"CONFIG_BLK_DEV_NVME":                   true,
 	"CONFIG_BLK_DEV_SR":                     true,
-	"CONFIG_BNXT":                           true,
 	"CONFIG_CDROM":                          true,
 	"CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE": true,
 	"CONFIG_CPU_FREQ_GOV_POWERSAVE":         true,
 	"CONFIG_DEFAULT_BBR":                    true,
 	"CONFIG_EFIVAR_FS":                      true,
-	"CONFIG_I40E":                           true,
 	"CONFIG_I6300ESB_WDT":                   true,
-	"CONFIG_ICE":                            true,
-	"CONFIG_IGB":                            true,
-	"CONFIG_IGC":                            true,
 	"CONFIG_INET_DIAG":                      true,
 	"CONFIG_IP_ADVANCED_ROUTER":             true,
 	"CONFIG_IRQ_TIME_ACCOUNTING":            true,
@@ -60,9 +55,7 @@ var unverifiedRuntimeSymbols = map[string]bool{
 	"CONFIG_KVM_AMD_SEV":                    true,
 	"CONFIG_KVM_INTEL":                      true,
 	"CONFIG_LOOP":                           true,
-	"CONFIG_MLX5_CORE":                      true,
 	"CONFIG_MLX5_CORE_EN":                   true,
-	"CONFIG_MLX5_EN":                        true,
 	"CONFIG_MODULE_UNLOAD":                  true,
 	"CONFIG_NETFILTER_ADVANCED":             true,
 	"CONFIG_NETFILTER_XT_MATCH_COMMENT":     true,
@@ -79,9 +72,6 @@ var unverifiedRuntimeSymbols = map[string]bool{
 	"CONFIG_NVME_TARGET_PASSTHRU":           true,
 	"CONFIG_SCSI":                           true,
 	"CONFIG_SCSI_MOD":                       true,
-	"CONFIG_SENSORS_CORSAIR_CPRO":           true,
-	"CONFIG_SENSORS_K10TEMP":                true,
-	"CONFIG_SENSORS_NCT6683":                true,
 	"CONFIG_SOCK_CGROUP_DATA":               true,
 	"CONFIG_SP5100_TCO":                     true,
 	"CONFIG_SQUASHFS_XZ":                    true,
@@ -99,6 +89,10 @@ var unverifiedRuntimeSymbols = map[string]bool{
 	"CONFIG_X86_AMD_FREQ_SENSITIVITY":       true,
 	"CONFIG_X86_AMD_PLATFORM_DEVICE":        true,
 	"CONFIG_X86_POWERNOW_K8":                true,
+	// x86-only Xen guest entries; runtime.require names the Xen symbols both
+	// architectures carry.
+	"CONFIG_XEN_PVH":         true,
+	"CONFIG_XEN_PVHVM_GUEST": true,
 }
 
 var runtimeConfigSetPattern = regexp.MustCompile(`(?m)^(CONFIG_[A-Z0-9_]+)=y$`)

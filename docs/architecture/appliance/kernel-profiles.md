@@ -192,6 +192,49 @@ entry at the new release and update its `Checked` line.
 <!-- source: internal/appliance/linux_limits_test.go -- TestLinuxLimitsCheckedAtShippedVersions -->
 <!-- source: internal/le/linuxlimit/parse.go -- Parse -->
 
+## Built in or loadable
+
+The runtime profile is one kernel for hardware, QEMU and Xen. Its rule:
+
+| Kind | Value | Examples |
+|------|-------|----------|
+| A networking feature Ze configures | Built in (`=y`) | Routing, firewall, IPsec, WireGuard, MPLS, traffic control, PPP/L2TP, tunnels |
+| A virtual or boot-critical device | Built in (`=y`) | virtio, the Xen guest frontends, NVMe, SATA/AHCI, SCSI disk, USB host and storage, HID core with generic and USB HID, the watchdogs, PWM fan control, KVM, the console |
+| A driver for physical hardware | Loadable (`=m`) | Physical NICs and their PHYs, wireless, sound, i915 graphics, PC Card, vendor HID devices, board sensors, laptop platform drivers |
+
+A guest then holds only the drivers of the devices it has. A networking
+feature never depends on module loading. A hardware driver reaches its device
+only when a loader inserts it: gokrazy's boot loader inserts only
+`pwm-fan.ko`, which this profile builds in. Modules are not signed.
+<!-- source: gokrazy/kernel/runtime.config -- loadable hardware drivers, CONFIG_MODULES -->
+<!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/modules.go -- loadModules -->
+
+The `=m` lines name only drivers with a Kconfig prompt. Promptless helpers
+(`LIBIE`, `PHY_PACKAGE`, `SND_PCM`, `DRM_TTM`, `INTEL_GTT`) follow the drivers
+that select them, and an `=m` line cannot demote a symbol a built-in one
+selects. `CONFIG_DRM` and `CONFIG_AGP` stay built in: the EFI console fragment
+asks for `CONFIG_DRM_SIMPLEDRM=y`, which depends on `DRM`, and in Linux 7.3
+`DRM` depends on `AGP || AGP=n`, so a modular `AGP` would make `DRM` and
+simpledrm modular too. Only `CONFIG_DRM_I915` and the AGP chipset drivers are
+loadable.
+<!-- source: tools/kernel-builder/common/efi-console.config -- CONFIG_DRM_SIMPLEDRM -->
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_DRM_I915, CONFIG_AGP_INTEL -->
+
+Xen support is guest side only: `CONFIG_XEN`, the PVH entry
+(`CONFIG_XEN_PVH`) and the HVM guest (`CONFIG_XEN_PVHVM_GUEST`), the Xen
+console (`CONFIG_HVC_XEN`) and the block and network frontends. Legacy PV,
+dom0, every backend and the toolstack's userspace devices are turned off,
+because `XEN_PV` is `default y` once `XEN` is set and dom0 and the backends
+default from it. `runtime.require` names `XEN`, `HVC_XEN` and the two
+frontends. It cannot name `XEN_PVH` or `XEN_PVHVM_GUEST`: they exist on x86
+only, and one manifest applies to both architectures. No Xen boot of this
+kernel has been proven.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_XEN, CONFIG_XEN_PV -->
+<!-- source: gokrazy/kernel/runtime.require -- CONFIG_XEN, CONFIG_XEN_NETDEV_FRONTEND -->
+<!-- source: internal/appliance/kernelconfig_pairing_test.go -- unverifiedRuntimeSymbols -->
+
+## Runtime requirements
+
 The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state
 migration and `CONFIG_MPLS_IP_MTU` for native labeled-IP fragmentation and ICMP.
 Both requirements are in the compiled runtime floor, so an edited manifest
@@ -235,8 +278,8 @@ IPsec and WireGuard require their kernel support built in: `CONFIG_XFRM_USER`
 `CONFIG_INET_ESP`, `CONFIG_INET6_ESP`, `CONFIG_INET_AH`, `CONFIG_INET6_AH`,
 `CONFIG_WIREGUARD`, and one CRYPTO symbol for each kernel transform Ze's XFRM
 algorithm tables can install: `CBC`, `DES`, `NULL`, `GCM`, `CHACHA20POLY1305`,
-`SHA1`, `SHA256` and `SHA512`. These facilities must not depend on runtime
-module loading. The runtime fragment requests each one, and the runtime
+`SHA1`, `SHA256` and `SHA512`. Like every networking feature, these never
+depend on module loading. The runtime fragment requests each one, and the runtime
 manifest and compiled floor require each one. The transform-to-symbol map is
 `xfrmTransformKernel`, and
 `TestXfrmTransformsHaveRequiredKernelSymbol` walks the algorithm tables and
@@ -263,8 +306,12 @@ The native proof checks the emitted config and refuses preloaded modules
 before VPN traffic. Source checks alone cannot prove that Kconfig kept the
 symbols built in or that the guest reaches traffic with an empty loaded-module
 list. Keep the strict no-modules guard; an absent `modprobe` helper alone does
-not exclude gokrazy's direct module loader.
+not exclude gokrazy's direct module loader. With loadable hardware drivers the
+guard holds only while the guest gets no device whose driver is loadable: its
+NIC, disks and console are virtio devices, whose drivers are built in.
 <!-- source: internal/appliance/kernelreq_test.go -- TestRuntimeFloorRequiresBuiltInPWMFan -->
+<!-- source: internal/le/test/qemu/dockerlab.go -- dockerLabVM.argv -->
+<!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere -->
 <!-- source: docs/architecture/testing/qemu-integration.md -- VPN facilities without module loading -->
 
 TCP-MD5 sessions require built-in `CONFIG_TCP_MD5SIG`. The runtime fragment
@@ -356,3 +403,83 @@ modules tree is `7.3.0-ze`. A pin with three components builds itself.
 ## Related
 
 - `build-artifacts.md` for how a built or downloaded kernel is resolved
+
+## Loading driver modules on the device
+
+The appliance runs no udev and no modprobe. gokrazy's own loader loads one
+module it names in code, and nothing else, so a device whose driver the kernel
+builds as a module has no driver until something loads it. Ze loads the modules
+the devices present at boot need, at `ze start`, before anything lists the
+NICs.
+<!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/modules.go -- loadModules, loadModule -->
+<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug -->
+
+**When it runs.** `ze start` runs every step registered in `cmd/ze/startprep`
+before it opens its store, so before `bootstrapFromDiscovery` and before the
+iface component's apply in `hub.Run` enumerate interfaces. The start path names
+no step. The appliance flavor links the loader by a blank import in
+`cmd/ze/setup_features_appliance.go`, and the loader runs only when
+`ze.gokrazy.enabled` is set, which `gokrazy/ze/config.json` does. A
+`ze_appliance` binary started anywhere else loads nothing.
+<!-- source: cmd/ze/startprep/startprep.go -- Register, Run -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart -->
+<!-- source: internal/plugins/coldplug/register_linux.go -- coldplugOnAppliance -->
+
+**What one pass does.** The pass reads the module tree of the running kernel,
+`/lib/modules/<release>`, which the kernel build installs into the image.
+
+| Input | How the pass reads it |
+|-------|-----------------------|
+| Every `modalias` file under `/sys/devices` | One alias per device. Links are not followed, because sysfs links each device back up the tree |
+| `modules.alias` | Each pattern is a shell glob read as `fnmatch(3)` with no flags, as kmod reads it: `*`, `?`, `[...]` with ranges and `!` or `^`, and `\`. A `/` is an ordinary character. Every module whose pattern matches a device is loaded |
+| `modules.dep` | A module's dependencies load before it, each after its own dependencies, whatever order the line lists them in |
+| `modules.softdep` | `pre:` modules load before the module, `post:` modules after it. A soft dependency the index does not hold is skipped |
+| `modules.builtin`, `/proc/modules` | A module built into the kernel or already loaded is skipped |
+
+Each module loads with `finit_module(2)`, with no parameters and no flags. A
+kernel answer of `EEXIST` counts as loaded.
+<!-- source: internal/plugins/coldplug/sysfs.go -- walkDevices -->
+<!-- source: internal/plugins/coldplug/glob.go -- aliasMatch -->
+<!-- source: internal/plugins/coldplug/index.go -- readIndex -->
+<!-- source: internal/plugins/coldplug/coldplug.go -- planner.add, runPlan -->
+<!-- source: internal/plugins/coldplug/finit_linux.go -- finitModule -->
+
+**Faults never stop the boot.** Each fault costs only the devices that need
+the module. Every warning carries the doctor code `doctor-module-missing`, and
+a warning about one module names it and the device alias that asked for it.
+
+| Case | What the pass does |
+|------|--------------------|
+| No `/lib/modules/<release>`, or no `modules.alias` or `modules.dep` in it | Nothing, logged at debug: a kernel with every driver built in looks like this |
+| An index file is present and cannot be read or parsed | Loads nothing, and warns with the file, the line and the fix (rebuild the image) |
+| A module does not load | Warns with the file and the kernel's error, and names `show system kernel-log level warning` for the module's own reason. The pass goes on. A module that needs it is not tried, and is reported with the module that blocked it |
+| A device alias names a module the index does not hold | Warns, and goes on |
+| The index names a compressed module (`.ko.zst`, `.ko.xz`, `.ko.gz`) | Warns that Ze loads only uncompressed modules, and goes on |
+<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug, planner.add, runPlan -->
+
+**A NIC that appears after the pass.** `finit_module` returns after the
+module's init has run. A PCI NIC driver binds its device and registers its
+interface from the probe that init starts, and the kernel probes synchronously
+unless the driver or the `async_probe` module option asks otherwise, so the
+interface exists when the pass ends. That reading of `do_init_module`
+(`kernel/module/main.c`) and `driver_allows_async_probing`
+(`drivers/base/dd.c`) is not verified against the 7.3 source in this
+repository; the QEMU trial with an `e1000` module settles it. A driver that
+defers its probe, waits for firmware, or sits on a bus that enumerates later
+(USB) can register its interface after `ze start` lists the NICs. The netlink
+monitor announces that interface, but the iface apply skips an `ethernet` entry
+whose device is absent ("configured interface not present, skipping"), and only
+the next commit applies it. The pass has no hotplug listener: a device that
+appears after the pass gets no module from it.
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- monitor.handleLinkUpdate -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass, the skip of an absent ethernet entry -->
+
+**Why Ze loads the modules and not gokrazy's init.** The pass runs before
+anything in Ze enumerates interfaces, which is the only ordering it needs, and
+gokrazy starts no service on this image that uses a NIC. In Ze it is tested Go
+against fake trees, and the gokrazy diff (`gokrazy-build-pins.md`) does not
+grow.
+
+**Not built.** A hotplug listener for uevents, compressed modules, module
+signing, the `modprobe.d` blacklist and module options, and a `ze doctor` check
+that reports a present device whose module exists but is not loaded.

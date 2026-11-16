@@ -328,9 +328,10 @@ above; no admission-wait or hardware result follows from a process fixture.
 <!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.Run, buildHostZe, buildImage, appliance -->
 
 The first two proofs boot amd64 with an `e1000` NIC and arm64 with
-`virtio-net-pci` on the `virt` machine. The arm64 runtime kernel builds the
-e1000 driver as a module and gokrazy loads no modules, so an arm64 guest given
-an e1000 boots and never answers SSH. arm64 also needs UEFI firmware, named by
+`virtio-net-pci` on the `virt` machine. The runtime kernel builds the e1000
+driver as a module on both architectures and gokrazy loads no NIC module, so a
+guest given an e1000 answers SSH only once a loader inserts `e1000.ko`; virtio-net
+is built in. arm64 also needs UEFI firmware, named by
 `ze.vpp.hp.aarch64.bios` (env `ze_vpp_hp_aarch64_bios`). Unset, the proofs find
 it the way `./le test qemu run` does: Homebrew's `share/qemu/edk2-aarch64-code.fd`
 under `HOMEBREW_PREFIX`, the `brew` on PATH, `/opt/homebrew` or `/usr/local`,
@@ -338,6 +339,7 @@ then the Linux path `/usr/share/qemu/edk2-aarch64-code.fd`, which is also what a
 skip names when none is found.
 
 <!-- source: internal/le/test/qemu/boot.go -- Hugepages.qemuArgs -->
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_E1000 -->
 <!-- source: internal/le/test/qemu/hugepages.go -- BiosKey, DefaultBios, hostArm64BIOS -->
 
 ## Root-module pseudo-version pins

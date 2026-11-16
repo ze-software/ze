@@ -170,10 +170,11 @@ func (h *Hugepages) qemuArgs(image string, port int, report HugepagesReport) []s
 	var tb textbuf.Buffer
 	machine := tb.Str("accel=").Str(report.Accelerator).String()
 
-	// The arm64 runtime kernel builds the e1000 driver as a module, and gokrazy
-	// loads no modules, so an arm64 guest given an e1000 has no NIC and never
-	// answers SSH. virtio-net is the NIC gokrazy/kernel/runtime.require makes
-	// built in.
+	// The runtime kernel builds the e1000 driver as a module on both
+	// architectures (gokrazy/kernel/runtime.config), and gokrazy loads no NIC
+	// module, so a guest given an e1000 has a NIC only once a loader inserts
+	// e1000.ko. arm64 uses virtio-net, the NIC gokrazy/kernel/runtime.require
+	// makes built in; amd64 still asks for an e1000.
 	model := "e1000"
 	argv := make([]string, 0, 20)
 	if h.Arch == ArchARM64 {

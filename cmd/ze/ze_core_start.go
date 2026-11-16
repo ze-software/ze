@@ -20,6 +20,7 @@ import (
 
 	"github.com/ze-software/ze/cmd/ze/hub"
 	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
+	"github.com/ze-software/ze/cmd/ze/startprep"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/iface"
@@ -204,6 +205,12 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 			webListenAddr = "127.0.0.1:3443"
 		}
 	}
+
+	// The registered start steps run before the store is opened and before
+	// anything enumerates interfaces: bootstrapFromDiscovery below and the
+	// iface component's apply in hub.Run both list the NICs, and a step may
+	// be what makes a NIC appear. Each step logs its own faults and returns.
+	startprep.Run()
 
 	// Explicit-file mode keeps an absolute path through reload and commit.
 	// Stored-config mode below carries only the config's name.

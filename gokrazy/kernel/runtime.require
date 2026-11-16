@@ -225,3 +225,15 @@ CONFIG_VHOST_NET
 CONFIG_BINFMT_MISC
 # vz console hvc0:
 CONFIG_VIRTIO_CONSOLE
+
+# Xen guest support, guest side; the reason sits beside its request in
+# runtime.config. Each symbol here exists on amd64 and arm64. The frontends are
+# tristate, so a line here turns a silent =m into a failed build.
+#
+# Deliberately NOT pinned:
+#   CONFIG_XEN_PVH              x86 only, and this manifest applies to both
+#   CONFIG_XEN_PVHVM_GUEST      architectures: an arm64 build would refuse.
+CONFIG_XEN
+CONFIG_HVC_XEN
+CONFIG_XEN_BLKDEV_FRONTEND
+CONFIG_XEN_NETDEV_FRONTEND

@@ -8,7 +8,7 @@ How a Ze appliance image is built, installed, and updated. Code lives in
 | `builder.md` | `ze appliance` build-host tooling, secrets at rest, the passphrase agent |
 | `command-provider.md` | how the whole surface registers and stays removable |
 | `build-artifacts.md` | installer kernel and initrd resolution, cache, doctor checks |
-| `kernel-profiles.md` | the open kernel-profile registry and the verified guarantee |
+| `kernel-profiles.md` | the open kernel-profile registry, the verified guarantee, and the driver modules `ze start` loads on the device |
 | `installer-initrd.md` | the busybox-free PID 1, and the host-versus-target binary rule |
 | `on-device-installer.md` | `ze install disk`, build-side verification, the un-brick path |
 | `iso-installer.md` | the bootable ISO transport |
