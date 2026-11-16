@@ -1,6 +1,5 @@
 // Design: docs/architecture/route-selection.md -- interior changes repeat BGP selection
 // RFC: rfc/short/rfc4271.md -- Section 9.1.2 cost-change reselection
-// RFC naming: untagged -- Section 9.1.2.2 step (e) ranking has no separate MUST-level row.
 // The cost-change lifecycle remains tagged.
 package rib
 

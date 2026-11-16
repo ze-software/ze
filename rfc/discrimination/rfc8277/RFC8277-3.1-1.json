@@ -2,7 +2,7 @@
   {
     "rid": "RFC8277-3.1-1",
     "polarity": "positive",
-    "unit": "internal/component/bgp/plugins/rib/addpath_opaque_best_per_route_test.go::TestAddPathOpaqueMixedModeMeetInOneElection",
+    "unit": "internal/component/bgp/plugins/rib/rfc8277_addpath_opaque_best_per_route_test.go::TestAddPathOpaqueMixedModeMeetInOneElection",
     "unit-sha": "88949d2def177a4b",
     "claim-sha": "d38556c35ba9a470",
     "route": "mutant",
