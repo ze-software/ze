@@ -101,12 +101,18 @@
 1 internal/exabgp/bridge/bridge_event.go
 1 internal/le/interoplab/bgp/check_rfc_predicate.go
 1 internal/le/interoplab/bgp/helper_aigp_source_cost.go
+# parseESPFormStates reads the Linux XFRM state's reqid, not an AS number.
+1 internal/le/interoplab/ipsec/espformchange.go
 1 internal/le/interoplab/ipsec/icmperror.go
 1 internal/le/interoplab/radiussubscriber/check_policer.go
 4 internal/le/interoplab/topology/check_access_verdict.go
 1 internal/le/interoplab/topology/check_pppoe_dhcpv6_pd.go
 1 internal/le/interoplab/topology/check_pppoe_dhcpv6_pd_lan.go
+# mplsFIBEntries reads the VPP MPLS FIB entry's numeric label, not an AS number.
+1 internal/le/test/deployment/vppevidencempls.go
 3 internal/le/test/deployment/vppifaceqos.go
+# requireVPPIP4MTU reads the VPP interface's L3/IP4/IP6/MPLS MTU tuple, not AS numbers.
+1 internal/le/test/deployment/vpppppoe/mtu.go
 1 internal/plugins/as112/config.go
 1 internal/plugins/copp/config.go
 1 internal/plugins/cos/config.go
