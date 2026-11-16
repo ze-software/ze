@@ -106,6 +106,65 @@ Findings that change later phases of the runtime child:
 - The two spec files' `Phase` cells still read `-`: the spec hook refused the
   agents' one-cell edits for lack of reads in their context.
 
+## State at the end of 2026-11-16
+
+The section above is history. This is where the work stands.
+
+| Commit on the server's `main` | What | On the laptop's `main` |
+|-------------------------------|------|------------------------|
+| `9583686570` | Doctor check `storage-grown`, code `doctor-storage-not-grown` | Yes |
+| `702d01ffc2` | Container plugin behind `ze_container`: gate, early init role (`internal/core/earlyrole`), config root, seams | Yes |
+| `9b209e27e0` | Kernel enrolment for the CPU limit, four runtime doctor checks, pages | Yes |
+| `4f375c8a39` | Appliance phase 2: the ext4 and project quota leaves are real, and the guest run settles the kernel assumptions | Yes |
+| `06bea1adb5` | Runtime phase 2: a container starts and stops, `test/container/container-start.ci` green in the guest | Not yet: the tunnel to the laptop was down |
+
+Proven by guest runs on Ze's kernel 7.3, as root:
+
+- A container starts through the patched library with cgo off, under the
+  appliance's own init: the first process cloned into a control group that
+  already exists, six namespaces, loopback up and the only device. The
+  runtime spec's assumptions about the start path and control groups hold.
+- A mounted ext4 filesystem grows online (256 MiB to 1 GiB in about 0.27 s)
+  and keeps its data; a stored mount option enforces project quota at mount;
+  a write past a folder's limit is refused; enforcement can be turned on for a
+  mounted filesystem.
+- One recalled fact was wrong and is corrected in code: on a filesystem
+  without the quota feature the kernel refuses the state query, so the leaf
+  reads the feature bits from the superblock.
+
+Decisions taken on the way that the owner has not ruled on:
+
+| Decision | Why | Where |
+|----------|-----|-------|
+| The capability to create device nodes is withheld from a container's default set (thirteen capabilities, where his ruling says fourteen) until the control group's device allowlist lands | Without the allowlist it lets a container open any device of the host | Runtime spec, Key Design Decisions, marked pending the owner |
+| While a container is enabled the plugin asks the sysctl plugin for `net.core.fb_tunnels_only_for_init_net=1` | The kernel builds the tunnel drivers in, so every new network namespace otherwise holds eight fallback tunnel devices, and the network child's criterion is that loopback is the only link | `docs/architecture/container/runtime.md` |
+| Implementation agents ran on the development tier from the afternoon on | The strongest tier's allowance was exhausted until 2026-11-22 | This handover |
+
+Owed next:
+
+1. Deliver `06bea1adb5` to the laptop's `main` once the tunnel answers. A
+   plain cherry-pick is refused there on most commits because the laptop's
+   uncommitted work touches the same files: the commit's changes are merged
+   beside those edits (`git merge-file` against the commit's parent) and only
+   the commit's own hunks are committed through `./le commit create ... hunks`.
+2. Runtime spec bookkeeping for the last two changes: the exact text is in the
+   spec's state file, last handoff. The operator surface child's code table
+   must say the runtime child now declares `doctor-container-failed`.
+3. Runtime phase 3 onward (stop signal and timeout, the leftover sweep, the
+   device allowlist with its patch on the cgroups module, the syscall filter,
+   restart policy, the sealed-binary and memory-footprint tests: the 64 MiB
+   floor is still unmeasured).
+4. Appliance phase 3 onward. The draft
+   `test/draft/plugin/host-storage-grow-refused.ci` stays red by design until
+   the refusal text of its acceptance criterion lands.
+5. Not run: lint of `internal/le/test/qemu` after its last edits; a stress run
+   of the container test, which needs root and so runs only in the guest.
+
+Known and not ours: the server's root disk logged write errors on 2026-11-13
+and twice on 2026-11-16; one `le` build was damaged by them and set aside. A
+file that reads as corrupt on that disk is checked against the kernel log
+before it is treated as a code defect.
+
 ## Order of implementation
 
 1. The appliance spec and the runtime child, independent of each other.
