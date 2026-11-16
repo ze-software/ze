@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 // imageOwner is the owner this suite's registered images name.
@@ -21,6 +22,7 @@ const (
 	imageAVPRelay = "ze-l2tp-avp-relay"
 	imageKnot     = "ze-l2tp-knot"
 	imageFRR      = "frr"
+	imageBaseZe   = "ze_core"
 )
 
 // l2tpImage registers one built image. under is the Dockerfile's directory
@@ -40,9 +42,16 @@ func l2tpImage(name, under, dockerfile string, labContext bool) interoplab.Regis
 }
 
 func init() {
-	interoplab.RegisterImage(l2tpImage(imageZe, "test/interop-l2tp", "Dockerfile.ze", false))
+	ze := l2tpImage(imageZe, "test/interop-l2tp", "Dockerfile.ze", false)
+	ze.Binaries = []interoplab.LabBinary{
+		{Name: "ze", Base: imageBaseZe, Output: "test/interop-l2tp/ze-linux"},
+		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop-l2tp/le-linux", StartProbe: linuxle.StartProbe()},
+	}
+	interoplab.RegisterImage(ze)
 	interoplab.RegisterImage(l2tpImage(imageLAC, "test/interop-l2tp", "Dockerfile.lac", true))
 	interoplab.RegisterImage(l2tpImage(imageRadius, "internal/le/interoplab/l2tp/radiusmock", "Dockerfile", false))
-	interoplab.RegisterImage(l2tpImage(imageAVPRelay, "internal/le/interoplab/l2tp/avprelay", "Dockerfile", false))
+	relay := l2tpImage(imageAVPRelay, "internal/le/interoplab/l2tp/avprelay", "Dockerfile", false)
+	relay.Binaries = []interoplab.LabBinary{{Name: "avp-relay", Package: "./internal/le/interoplab/l2tp/avprelay", Base: imageBaseZe, Output: "test/interop-l2tp/avp-relay-linux"}}
+	interoplab.RegisterImage(relay)
 	interoplab.RegisterImage(l2tpImage(imageKnot, "test/interop", "Dockerfile.knot", true))
 }

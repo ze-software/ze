@@ -4965,6 +4965,28 @@ begins `test` (`le test interop-bgp speaker ...`). The image holds no program
 under a retired harness name, so a scenario `ze.conf` that still runs one fails
 to start it.
 
+Each `LabBinary` defaults to compiling `./cmd/ze`; its optional `Package` names
+a standalone Go package instead. The L2TP relay uses that declaration, so the
+RFC recorder's inherited Go overlay reaches the binary Docker copies. Docker
+does not compile a separate relay source tree. The L2TP runner resolves staged
+binaries from the selected images' registrations; its full `LabBinaries`
+inventory also drives the ignore-file checks.
+
+A declaring lab may supply `PrepareOverlay` for one binary. It returns a Go
+overlay path and cleanup; staging runs cleanup after the compile, including a
+failed compile. Preparation and cleanup failures stop the run. Staging composes
+the replacement map with any inherited `GOFLAGS` overlay, normalizing paths
+against the compiler's checkout directory. Different replacements for the same
+source are refused, including relative and absolute aliases. The combined
+overlay is a command-local build flag: inherited flags and process-global
+`GOFLAGS` stay unchanged. A binary without this callback retains its inherited
+build inputs. The L2TP scale daemon alone declares the allocator callback; its
+replacement files and combined map are removed after staging.
+<!-- source: internal/le/interoplab/zebuild.go -- LabBinary, stageBinary -->
+<!-- source: internal/le/interoplab/zebuild_overlay.go -- prepareLabBinaryOverlay, readLabOverlay, writeMergedLabOverlay -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, LabBinaries, binariesForImages -->
+<!-- source: internal/le/interoplab/l2tp/register_images.go -- init -->
+
 Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
 cross-compiles against a warm `cache/go-cache`, at a peak resident set of 1.03
 GiB and 0.98 GiB, then 54.7s for the `docker build`, which is now context

@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
-	"github.com/ze-software/ze/internal/le/linuxle"
 )
 
 const (
@@ -119,13 +118,15 @@ func runAt(ctx context.Context, root, selector string, docker *interoplab.Docker
 		return interoplab.SuiteReport{SetupError: err.Error(), Code: 1}
 	}
 
-	stage := interoplab.StageBinaries(root, environment.NoBuild, LabBinaries()...)
+	images := imageBuilds(root, plans, environment.Image)
+	binaries := binariesForImages(root, images)
+	stage := interoplab.StageBinaries(root, environment.NoBuild, binaries...)
 	suite := interoplab.Suite{
 		SuffixVariable: environment.SuffixVariable,
 		Docker:         docker,
 		Preflight:      stage,
-		StagedZe:       interoplab.StagedZePath(root, LabBinaries()),
-		Images:         imageBuilds(root, plans, environment.Image),
+		StagedZe:       interoplab.StagedZePath(root, binaries),
+		Images:         images,
 		Scenarios:      plans,
 		NoBuild:        environment.NoBuild,
 		Checkout:       root,
@@ -376,17 +377,27 @@ func knotPeer(suffix, directory string) interoplab.PeerConfig {
 	}
 }
 
-// LabBinaries declares the binaries this lab stages into its Docker build
-// context, which is what test/interop-l2tp/Dockerfile.ze copies in.
-//
-// The daemon keeps ze_core. The separate linuxle personality supplies compiled
-// fixtures inside the container, including the accepted-proxy MTU proof. The
-// producer adds every gate feature-gates.txt declares and keeps CGO disabled.
+// LabBinaries answers this lab's full staging inventory from image declarations.
+// A run stages only its selected images' binaries, so ordinary scenarios never
+// prepare the scale allocator overlay.
 func LabBinaries() []interoplab.LabBinary {
-	return []interoplab.LabBinary{
-		{Name: "ze", Base: "ze_core", Output: "test/interop-l2tp/ze-linux"},
-		{Name: linuxle.Name, Base: linuxle.Base, Output: "test/interop-l2tp/le-linux", StartProbe: linuxle.StartProbe()},
+	return binariesForImages("", interoplab.SuiteImages(imageOwner, interoplab.ImageContext{}))
+}
+
+// binariesForImages reuses the image registry's staging declarations. FRR is
+// the sole external reference: its image comes from the run's environment.
+func binariesForImages(root string, images []interoplab.ImageBuild) []interoplab.LabBinary {
+	names := make([]string, 0, len(images))
+	for index := range images {
+		if images[index].Name != imageFRR {
+			names = append(names, images[index].Name)
+		}
 	}
+	_, binaries, err := interoplab.ResolveImages(interoplab.ImageContext{Root: root}, names)
+	if err != nil {
+		panic("BUG: L2TP build declares an unresolved image: " + err.Error())
+	}
+	return binaries
 }
 
 // standardImageBuilds answers the established plans' images: Ze and LAC always,

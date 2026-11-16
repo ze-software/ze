@@ -15,9 +15,12 @@ route redistribution from a live PPP session.
 
 ```
 test/interop-l2tp/
-  Dockerfile.ze        Ze LNS image (Alpine + iproute2 + kmod + ppp; copies the
+  Dockerfile.ze        Ze LNS image (Alpine + tini + iproute2 + ppp; copies the
                        ze-linux the suite preflight cross-compiles)
   ze-linux             the staged daemon, git-ignored and rewritten each run
+  Dockerfile.ze-scale  maintained Ze runtime with the scale-only staged daemon
+  ze-scale-linux       isolated allocator build, git-ignored
+  avp-relay-linux      host-staged relay package, git-ignored
   Dockerfile.lac       LAC image (Alpine + xl2tpd + ppp + iproute2)
   daemons              FRR daemons config (zebra + bgpd)
   vtysh.conf           FRR vtysh config
@@ -44,6 +47,7 @@ internal/le/interoplab/l2tp/
   mandatory_avp.go     The l2tp-unknown-mandatory-avp-xl2tpd assertions
   ppp_code_reject.go   The ppp-code-reject-xl2tpd assertions
   lns_policy.go        MRU and CHAP-only typed assertions and daemon queries
+  scale_overlay.go    guarded allocator candidate substitution for scale only
   avprelay/            UDP relay between the LAC and Ze, on 172.29.0.4
   radiusmock/          Independent Go RADIUS peer
 ```
@@ -58,6 +62,30 @@ failure until its session proof is implemented.
 <!-- source: internal/le/interoplab/l2tp/scenarios.go -- registerScenario, scenarioCheckerMap, scenarioPlan, imageBuilds -->
 <!-- source: internal/le/interoplab/l2tp/register_scale.go -- init, checkScaleSessions -->
 <!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scaleScenarioPlan, scalePeerTemplates -->
+
+The selected image declarations determine which host binaries are staged.
+Ordinary scenarios use the normal Ze daemon. The scale image reuses the same
+runtime image and replaces only its daemon with `ze-scale-linux`. That binary
+uses a temporary Go overlay to choose the lowest unused nonzero session ID
+within each tunnel. It retains the allocator's random read and error handling,
+zero and collision guards, and retry bound. The complete parsed allocator
+method must match the expected source shape before the overlay is written;
+allocator drift stops staging for review. The original source is unchanged,
+and the replacement is removed after compilation. This instrumentation forces
+legal repeated Ze-local IDs across tunnels; it provides no evidence about
+production randomness or performance. AC-2 remains expected to fail until
+`spec-l2tp-session-identity-and-publish-stall` lands.
+
+The relay is compiled from its Go package by the same host staging action and
+copied into its Alpine image. An RFC recorder overlay therefore reaches the
+relay that runs, including the PPP framing producer. Staging composes the
+scale overlay with an inherited recorder overlay, refuses conflicting source
+replacements, and never changes process-global `GOFLAGS`.
+<!-- source: internal/le/interoplab/l2tp/scale_overlay.go -- prepareScaleAllocatorOverlay, scaleAllocatorReplacement -->
+<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
+<!-- source: internal/le/interoplab/l2tp/register_images.go -- init -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, binariesForImages -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/Dockerfile -->
 
 The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for each established
 scenario. The

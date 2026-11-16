@@ -19,7 +19,9 @@ const (
 )
 
 func init() {
-	interoplab.RegisterImage(l2tpImage(imageZeScale, "test/interop-l2tp", "Dockerfile.ze-scale", false))
+	ze := l2tpImage(imageZeScale, "test/interop-l2tp", "Dockerfile.ze-scale", false)
+	ze.Binaries = []interoplab.LabBinary{{Name: "ze-scale", Base: imageBaseZe, Output: "test/interop-l2tp/ze-scale-linux", PrepareOverlay: prepareScaleAllocatorOverlay}}
+	interoplab.RegisterImage(ze)
 	interoplab.RegisterImage(l2tpImage(imageKL2TP, "test/interop-l2tp", "Dockerfile.kl2tpd", true))
 	templates := scalePeerTemplates("", "", "")
 	peers := make([]string, 0, len(templates))

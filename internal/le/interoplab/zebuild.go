@@ -49,8 +49,8 @@ import (
 // half times that, and three times the bound that was overrun.
 const labBuildTimeout = 15 * time.Minute
 
-// labBuildPackage is the one Go package every lab binary is built from. The
-// personality is a build tag rather than a second main (cmd/ze/main.go).
+// labBuildPackage is the default package for the daemon and le personalities.
+// A standalone lab helper declares its own package in LabBinary.
 const labBuildPackage = "./cmd/ze"
 
 // labBuildGOOS is the operating system every lab image runs. Every lab base is
@@ -65,6 +65,9 @@ const labBuildGOOS = "linux"
 type LabBinary struct {
 	// Name is what the binary is called in a message: `ze`, `le`.
 	Name string
+	// Package is the Go package compiled for this binary. Empty retains the
+	// command-root package used by the daemon and le personalities.
+	Package string
 	// Base is the tag pair this personality carries before the feature gates,
 	// such as repofeaturetags.DaemonBase for a daemon and linuxle.Base for le. The gates themselves are read from feature-gates.txt, so a
 	// lab cannot declare a feature set that differs from the shipped one.
@@ -73,6 +76,11 @@ type LabBinary struct {
 	// the lab's Docker build context, .dockerignore admits it by negation, and
 	// .gitignore holds it because every run rewrites it.
 	Output string
+	// PrepareOverlay optionally stages a source overlay for this binary. Nil
+	// means the inherited build inputs are used unchanged. A successful
+	// callback MUST return a nonempty path and a cleanup function; staging MUST
+	// call that cleanup after compilation, including a failed build.
+	PrepareOverlay func(root string) (path string, cleanup func() error, err error)
 	// StartProbe is the argv, after the binary's own path, that the staged
 	// binary is started with once, after its build, to prove it starts
 	// (zebuild_probe.go). It MUST reach every check the binary runs at start,
@@ -157,7 +165,7 @@ func stageBinaries(ctx context.Context, docker *Docker, root, architecture strin
 }
 
 // stageBinary cross-compiles one declared binary.
-func stageBinary(ctx context.Context, runner ProcessRunner, root string, environment []string, binary LabBinary) error {
+func stageBinary(ctx context.Context, runner ProcessRunner, root string, environment []string, binary LabBinary) (resultErr error) {
 	if binary.Name == "" || binary.Output == "" || binary.Base == "" {
 		var tb textbuf.Buffer
 		return errors.New(tb.Str("a lab binary declares a name, a tag base and an output path; this one declares name ").
@@ -169,13 +177,32 @@ func stageBinary(ctx context.Context, runner ProcessRunner, root string, environ
 	if err != nil {
 		return err
 	}
+	overlay, cleanup, err := prepareLabBinaryOverlay(root, environment, binary)
+	if err != nil {
+		return labBinaryOverlayError("Cannot prepare source inputs for lab binary "+binary.Name, err)
+	}
+	if cleanup != nil {
+		defer func() {
+			if cleanupErr := cleanup(); cleanupErr != nil {
+				resultErr = labBinaryOverlayError("Cannot release source inputs for lab binary "+binary.Name,
+					errors.Join(resultErr, cleanupErr))
+			}
+		}()
+	}
+	buildPackage := binary.Package
+	if buildPackage == "" {
+		// An empty declaration deliberately preserves the existing daemon build.
+		buildPackage = labBuildPackage
+	}
+	arguments := []string{"go", "build", "-tags", tags, "-o", filepath.Join(root, binary.Output)}
+	if overlay != "" {
+		// A command-local flag wins over GOFLAGS without changing the caller's
+		// environment. The file already includes every inherited replacement.
+		arguments = append(arguments, "-overlay", overlay)
+	}
+	arguments = append(arguments, buildPackage)
 	command := ProcessCommand{
-		Arguments: []string{
-			"go", "build",
-			"-tags", tags,
-			"-o", filepath.Join(root, binary.Output),
-			labBuildPackage,
-		},
+		Arguments:   arguments,
 		Timeout:     labBuildTimeout,
 		Directory:   root,
 		Environment: environment,
