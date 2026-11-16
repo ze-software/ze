@@ -17,13 +17,13 @@ import (
 // address RFC 4271 Section 6.3 calls "the IP address of the receiving speaker".
 const selfAddr = "198.51.100.1"
 
-// selfNextHopRIB builds a manager with one established peer whose session-local
-// end is selfAddr, so the speaker knows what "itself" means.
-func selfNextHopRIB(t *testing.T, peers ...string) (*RIBManager, *locrib.RIB) {
+// selfNextHopRIB supplies terminal routes to selfAddr and the sound next hop.
+// Each peer retains selfAddr as its session-local end, so self rejection rather
+// than missing reachability excludes a received self-next-hop route.
+func selfNextHopRIB(t *testing.T, nextHop netip.Addr, peers ...string) (*RIBManager, *locrib.RIB) {
 	t.Helper()
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr(selfAddr), nextHop)
 	for _, p := range peers {
 		addr := netip.MustParseAddr(p)
 		r.peerMeta[addr] = &peerMetadata{
@@ -49,18 +49,16 @@ func selfNextHopRIB(t *testing.T, peers ...string) (*RIBManager, *locrib.RIB) {
 // pointing at a third party installs normally. That half is what makes the
 // positive non-vacuous: a change that stopped installing routes at all passes the
 // first assertion and fails this one.
-// RFC requirement: RFC4271-6.3-2 positive -- Section 6.3 declares a NEXT_HOP that
-// is "the IP address of the receiving speaker" semantically incorrect and says
-// the route "SHOULD be ignored"; ignoring it here is that same act, and no
-// NOTIFICATION is produced (RFC4271-6.3-3), because the exclusion happens in the
-// decision process and never touches the session.
+// RFC requirement: RFC4271-6.3-2 positive -- a received route whose NEXT_HOP is
+// this speaker's own address is ignored by the decision process: it produces
+// no best-path change and is absent from the Loc-RIB.
 //
 // PREVENTS: the local routing loop this gap left open. A route naming this
 // speaker resolves, in this speaker's own FIB, to this speaker, so every packet
 // matching the prefix is handed back to the router that just forwarded it.
 func TestRFC4271SelfNextHopRouteIsNotInstalled(t *testing.T) {
 	peer := "192.0.2.1"
-	r, loc := selfNextHopRIB(t, peer)
+	r, loc := selfNextHopRIB(t, netip.MustParseAddr("192.168.1.1"), peer)
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := netip.MustParseAddr(peer)
 
@@ -96,7 +94,7 @@ func TestRFC4271SelfNextHopRouteIsNotInstalled(t *testing.T) {
 // after selection would leave it dark whenever the broken path happened to win.
 func TestRFC4271SelfNextHopDoesNotShadowASoundAlternative(t *testing.T) {
 	broken, sound := "192.0.2.1", "192.0.2.2"
-	r, loc := selfNextHopRIB(t, broken, sound)
+	r, loc := selfNextHopRIB(t, netip.MustParseAddr("192.168.1.2"), broken, sound)
 	fam := family.Family{AFI: 1, SAFI: 1}
 	nlri := ipv4Prefix(24, 10, 0, 0)
 

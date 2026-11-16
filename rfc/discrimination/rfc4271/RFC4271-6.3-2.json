@@ -2,6 +2,17 @@
   {
     "rid": "RFC4271-6.3-2",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopRouteIsNotInstalled",
+    "unit-sha": "378b1ae6af6bbc83",
+    "claim-sha": "ff77a75d807825fd",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_commands.go::candidateAdmitted",
+    "producer-sha": "e0548f32728da0aa",
+    "break": "line 1401: \"isSelfNextHop(selfNextHops, nh)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4271-6.3-2",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored",
     "unit-sha": "6931d67fef07787e",
     "claim-sha": "c73cc7e6906854e2",
