@@ -58,7 +58,8 @@ func newICMPReturnDecoder(t *testing.T, child *ChildSA, check bool) *icmpReturnD
 		t.Fatalf("read the return policy's actual ICMP mapping flag: %v", err)
 	}
 	found := false
-	for _, policy := range policies {
+	for i := range policies {
+		policy := &policies[i]
 		if policy.Dir == dataplane.SADirOut && policy.Action == dataplane.SPActionProtect &&
 			policy.UpperProto == sadSelProtoUDP && sameIPNet(policy.Src, child.TSLocal) && sameIPNet(policy.Dst, child.TSRemote) {
 			found = true

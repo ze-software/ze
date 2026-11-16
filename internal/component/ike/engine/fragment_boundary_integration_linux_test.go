@@ -9,6 +9,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"testing"
 
@@ -98,7 +99,8 @@ func fragmentPlainSender(t *testing.T, lab *espPolLab) *ipv4.RawConn {
 // keeps that namespace when the controller returns to Ze's namespace.
 func fragmentRawSender(t *testing.T, source string) *ipv4.RawConn {
 	t.Helper()
-	conn, err := net.ListenPacket("ip4:255", source)
+	var listen net.ListenConfig
+	conn, err := listen.ListenPacket(context.Background(), "ip4:255", source)
 	if err != nil {
 		t.Fatalf("open the private peer's IPv4 sender: %v", err)
 	}
@@ -212,9 +214,12 @@ func fragmentWantOperatorPolicies(t *testing.T, entries map[string]ipsec.SPDPoli
 		t.Fatalf("read back the operator policies: %v", err)
 	}
 	for name, entry := range entries {
-		for _, want := range spdPolicyParams(entry) {
+		wanted := spdPolicyParams(entry)
+		for i := range wanted {
+			want := &wanted[i]
 			found := false
-			for _, got := range actual {
+			for j := range actual {
+				got := &actual[j]
 				if got.Role == dataplane.PolicyRoleOperator && got.Dir == want.Dir &&
 					got.Action == want.Action && got.SrcPort == want.SrcPort && got.DstPort == want.DstPort &&
 					got.UpperProto == want.UpperProto && got.Priority == want.Priority &&

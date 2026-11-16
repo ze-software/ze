@@ -498,14 +498,6 @@ func espPolLargeUDP(targetPort uint16, bodyOctets int) []byte {
 	return seg
 }
 
-// espPolNoPols reads XfrmInNoPols from the thread's own namespace: /proc/net follows the
-// thread group leader, which stayed outside. A decapsulated packet that matches no SPD
-// entry advances it.
-func espPolNoPols(t *testing.T) int {
-	t.Helper()
-	return espPolStat(t, sadSelStatNoPols)
-}
-
 // espPolStat reads one XFRM counter from the thread's own namespace.
 func espPolStat(t *testing.T, name string) int {
 	t.Helper()

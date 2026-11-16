@@ -45,7 +45,7 @@ const recordingESPFormUnavailableCause = "the recording-esp-form-unavailable tes
 // ze.test.ike.dataplane=recording-esp-form-unavailable.
 func newRecordingESPFormUnavailableBackend() (Dataplane, error) {
 	return &recordingESPFormUnavailable{
-		recordingDataplane: recordingDataplane{policies: map[recordedPolicyKey]SPParams{}},
+		policies: map[recordedPolicyKey]SPParams{},
 	}, nil
 }
 

@@ -50,7 +50,7 @@ var (
 	xfrmDefaultsRead             = readXFRMDefaults
 	xfrmDefaultWrite             = writeXFRMForwardDefault
 	errXFRMForwardDefaultChanged = errors.New("another policy manager changed the namespace's XFRM forwarding default")
-	errXFRMForwardDefaultInput   = errors.New("Ze requested an invalid forwarding-default operation")
+	errXFRMForwardDefaultInput   = errors.New("invalid forwarding-default operation requested by Ze")
 )
 
 // Native helpers keep their causes; the public backend boundary supplies the
@@ -171,7 +171,7 @@ func (b *xfrmBackend) ApplyForwardDefault(action SPAction) (undo func() error, e
 			err = xfrmForwardDefaultRefusal(err, "Ze cannot apply the final forwarding disposition configured by vpn ipsec unmatched")
 		}
 	}()
-	want := xfrmDefaultUnspecified
+	var want xfrmDefaultAction
 	switch action {
 	case SPActionDiscard:
 		want = xfrmDefaultBlock

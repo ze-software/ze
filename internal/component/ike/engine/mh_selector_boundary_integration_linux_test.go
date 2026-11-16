@@ -140,7 +140,8 @@ func mhBoundaryLANEgress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read back the private protected-LAN egress policy: %v", err)
 	}
-	for _, policy := range actual {
+	for i := range actual {
+		policy := &actual[i]
 		if policy.Dir != dataplane.SADirOut || policy.Action != dataplane.SPActionBypass {
 			continue
 		}

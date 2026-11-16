@@ -16,8 +16,9 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
-	"github.com/ze-software/ze/internal/core/opererr"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 func scopeParamSelectors() []SASelector {

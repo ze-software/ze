@@ -251,9 +251,10 @@ func runICMPForwarding(t *testing.T, ifID uint32, check bool) {
 		espPolUp(t, icmpForwardXFRMLink)
 		state := &ikeEngineState{log: slogutil.DiscardLogger()}
 		plan := xfrmInterfacePlan{entries: make(map[spdSelector]*xfrmInterfaceEntry)}
-		for _, policy := range interfaceSPDCatchAll(ifID) {
-			plan.entries[selectorOf(&policy)] = &xfrmInterfaceEntry{
-				iface: icmpForwardXFRMLink, role: dataplane.PolicyRoleInterfaceCatchAll, params: policy,
+		policies := interfaceSPDCatchAll(ifID)
+		for i := range policies {
+			plan.entries[selectorOf(&policies[i])] = &xfrmInterfaceEntry{
+				iface: icmpForwardXFRMLink, role: dataplane.PolicyRoleInterfaceCatchAll, params: policies[i],
 			}
 		}
 		if err := state.installXFRMInterfaceEntries(dataplane.Get(), plan); err != nil {

@@ -65,7 +65,7 @@ func TestDoctorIPsecForwardDefaultReadsTheLiveChecker(t *testing.T) {
 		{"healthy claimed backend", true, false}, {"unreadable or conflicting claim", true, true}, {"unsupported wrapped backend", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			dp := &forwardDefaultDoctorDP{forwardDefaultTestDP: forwardDefaultTestDP{spdDP: newSPDDP(), enabled: tc.enabled}}
+			dp := &forwardDefaultDoctorDP{spdDP: newSPDDP(), enabled: tc.enabled}
 			if tc.failed {
 				dp.failure = opererr.New("test: the namespace cannot be read", "test: its final forwarding disposition is unknown", "test-inspect-forward-default")
 			}
