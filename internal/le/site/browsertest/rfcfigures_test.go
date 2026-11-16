@@ -307,11 +307,11 @@ func TestTheBrowserDrawsRFCFiguresFromTheirFiles(t *testing.T) {
 		t.Errorf("marked values\n got: %v\nwant: %v", got.Texts, wantTexts)
 	}
 	wantBars := map[string][]string{
-		"must-bar": {"ze-proven=Ze proven 7", "os-verified=OS verified 2", "proof-pending=Proof pending 1",
+		"must-bar": {"ze-proven=Ze verified 7", "os-verified=OS verified 2", "proof-pending=Tests awaiting verification 1",
 			"os-gap=OS testing gap 3", "exclusion-unchecked=Exclusion unchecked 2", "not-assessed=Not assessed 3",
 			"not-built=Not built 1"},
-		"overview-bar": {"ze-proven=Ze MUST proven 3", "os-verified=OS verified 2", "should-proven=SHOULD proven 1",
-			"not-owed=Not owed 8", "proof-pending=Proof pending 3", "os-gap=OS testing gap 3",
+		"overview-bar": {"ze-proven=Ze MUST verified 3", "os-verified=OS verified 2", "should-proven=SHOULD verified 1",
+			"not-owed=Not owed 8", "proof-pending=Tests awaiting verification 3", "os-gap=OS testing gap 3",
 			"exclusion-unchecked=Exclusion unchecked 2", "not-assessed=Not assessed 6", "not-built=Not built 2"},
 		"empty-bar": {"no rows"},
 	}
@@ -462,7 +462,7 @@ func contrastRatio(first, second float64) float64 {
 // TestRFCSegmentColoursAreReadableInBothThemes proves every segment's words
 // meet WCAG 2.2 AA for small text (4.5:1) against every color of its fill in
 // the light and the dark theme; that OS verified, "light green", is lighter
-// than Ze proven in both; that in the light theme it stands apart from SHOULD
+// than Ze verified in both; that in the light theme it stands apart from SHOULD
 // proven's teal; and that each of the four open sections (proof pending,
 // exclusion unchecked, not assessed, not built) has a fill of its own, apart
 // from the bar's background and every other segment.
@@ -509,11 +509,11 @@ func TestRFCSegmentColoursAreReadableInBothThemes(t *testing.T) {
 			fills[segment] = colors.Fills[segment][0]
 		}
 		if luminance(fills["os-verified"]) <= luminance(fills["ze-proven"]) {
-			t.Errorf("%s: OS verified %s is not lighter than Ze proven %s", theme, fills["os-verified"], fills["ze-proven"])
+			t.Errorf("%s: OS verified %s is not lighter than Ze verified %s", theme, fills["os-verified"], fills["ze-proven"])
 		}
 		if theme == "light" {
 			if ratio := contrastRatio(luminance(fills["os-verified"]), luminance(fills["should-proven"])); ratio < 1.4 {
-				t.Errorf("light: OS verified %s and SHOULD proven %s differ by %.2f:1 in luminance, under 1.4:1",
+				t.Errorf("light: OS verified %s and SHOULD verified %s differ by %.2f:1 in luminance, under 1.4:1",
 					fills["os-verified"], fills["should-proven"], ratio)
 			}
 		}

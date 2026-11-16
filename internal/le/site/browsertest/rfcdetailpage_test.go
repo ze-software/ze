@@ -99,11 +99,11 @@ func TestTheBrowserDrawsAnRFCDetailPageFromItsFile(t *testing.T) {
 	pageURL := base + strings.TrimSuffix(golden.Detail, "index.html")
 	got := loadRFCProfilePage(ctx, t, pageURL, rfcNoFallbackLeft)
 	for key, want := range map[string][]string{
-		"rfc1:must": {"ze-proven=Ze proven 3", "os-verified=OS verified 2", "proof-pending=Proof pending 4",
+		"rfc1:must": {"ze-proven=Ze verified 3", "os-verified=OS verified 2", "proof-pending=Tests awaiting verification 4",
 			"os-gap=OS testing gap 1", "exclusion-unchecked=Exclusion unchecked 5", "not-assessed=Not assessed 7",
 			"not-built=Not built 1,184"},
-		"rfc1:overview": {"ze-proven=Ze MUST proven 3", "os-verified=OS verified 3",
-			"should-proven=SHOULD proven 1", "not-owed=Not owed 12", "proof-pending=Proof pending 5",
+		"rfc1:overview": {"ze-proven=Ze MUST verified 3", "os-verified=OS verified 3",
+			"should-proven=SHOULD verified 1", "not-owed=Not owed 12", "proof-pending=Tests awaiting verification 5",
 			"os-gap=OS testing gap 2", "exclusion-unchecked=Exclusion unchecked 6", "not-assessed=Not assessed 9",
 			"not-built=Not built 1,185"},
 	} {
@@ -156,7 +156,7 @@ func TestTheBrowserDrawsAnRFCDetailPageFromItsFile(t *testing.T) {
 		return state.Values["rfc1:must.ze-proven"] == "103" && state.Values["rfc1:must.not-built"] == "1,084" &&
 			len(state.Bars["rfc1:must"]) == 7 && state.Bars["rfc1:must"][6] == "not-built=Not built 1,084"
 	})
-	if want := "ze-proven=Ze proven 103"; got.Bars["rfc1:must"][0] != want {
+	if want := "ze-proven=Ze verified 103"; got.Bars["rfc1:must"][0] != want {
 		t.Errorf("after republishing rfc1.json the MUST bar is %q, want its first segment %q", got.Bars["rfc1:must"], want)
 	}
 	after, err := os.ReadFile(page) //nolint:gosec // the test's own temporary site

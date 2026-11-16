@@ -147,7 +147,7 @@ func TestNoAnnotationExceptSinglePolarityRaisesThePublishedProven(t *testing.T) 
 				t.Fatalf("case %s leaves the owed rows, but its kind is not one the sections count not owed", one.name)
 			}
 			if sections.Sections.Must.ZeProven != want || sections.Sections.Must.Kept != wantKept {
-				t.Fatalf("annotation changed the published sections: %+v, want Ze proven %d of %d owed",
+				t.Fatalf("annotation changed the published sections: %+v, want Ze verified %d of %d owed",
 					sections.Sections.Must, want, wantKept)
 			}
 			if len(ledger.Graph.Nodes) != 1 {

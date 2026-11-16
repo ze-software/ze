@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>L2TP PPP/NCP Interop - Ze</title>
-        <meta name="description" content="Ze as LNS against real xl2tpd, with FRR proving BGP redistribution from a live PPP session." />
+        <meta name="description" content="Ze as LNS against real xl2tpd, with FRR testing BGP redistribution from a live PPP session." />
         <meta property="og:title" content="L2TP PPP/NCP Interop - Ze" />
-        <meta property="og:description" content="Ze as LNS against real xl2tpd, with FRR proving BGP redistribution from a live PPP session." />
+        <meta property="og:description" content="Ze as LNS against real xl2tpd, with FRR testing BGP redistribution from a live PPP session." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -46,7 +46,7 @@
                     <h1 id="lab-title">L2TP PPP/NCP Interop</h1>
                     <p>
                         Ze as an LNS against a real <code>xl2tpd</code>/<code>pppd</code>
-                        LAC, with FRR proving that a subscriber route makes it
+                        LAC, with FRR checking that a subscriber route makes it
                         all the way into BGP.
                     </p>
                 </div>
@@ -57,14 +57,14 @@
                             A peer-isolated Docker lab runs Ze as an LNS, a real
                             <code>xl2tpd</code>/<code>pppd</code> LAC, and FRR
                             as a BGP peer in separate privileged containers on
-                            an isolated bridge network. It proves the complete
+                            an isolated bridge network. It tests the complete
                             path from L2TP control tunnel through PPP LCP/IPCP,
                             kernel <code>pppN</code> interface creation,
                             dataplane connectivity, and BGP route
                             redistribution from a live PPP session.
                         </p>
                         <p>
-                            Two scenarios: full PPP/IPv4 dataplane proof with
+                            Two scenarios: end-to-end PPP/IPv4 dataplane tests with
                             cleanup verification, and a subscriber /32 BGP
                             redistribution scenario -- advertised to FRR when
                             the session comes up, withdrawn on teardown.
@@ -72,7 +72,7 @@
                     </div>
                     <div class="status-table" aria-label="Lab facts">
                         <div class="status-row">
-                            <strong>Proves</strong>
+                            <strong>What this lab tests</strong>
                             <span>Full L2TP control tunnel, PPP LCP/IPCP negotiation, kernel pppN creation, BGP redistribution</span>
                         </div>
                         <div class="status-row">

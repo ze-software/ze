@@ -128,9 +128,9 @@ const (
 // the MUST and optional rows in each of them, as it does for the OS segments.
 var rfcBars = rfcBarLayout{
 	Must: []rfcBarSegment{
-		{rfcSegZeProven, "Ze proven", []string{"must.ze-proven"}},
+		{rfcSegZeProven, "Ze verified", []string{"must.ze-proven"}},
 		{rfcSegOSVerified, "OS verified", []string{"must.os-verified"}},
-		{rfcSegProofPending, "Proof pending", []string{rfcMustProofPendingField}},
+		{rfcSegProofPending, "Tests awaiting verification", []string{rfcMustProofPendingField}},
 		{rfcSegOSGap, "OS testing gap", []string{rfcMustOSGapField}},
 		{rfcSegExclusionUnchecked, "Exclusion unchecked", []string{rfcMustExclusionUncheckedField}},
 		{rfcSegNotAssessed, "Not assessed", []string{rfcMustNotAssessedField}},
@@ -138,11 +138,11 @@ var rfcBars = rfcBarLayout{
 	},
 	MustTotal: []string{"must.kept"},
 	Overview: []rfcBarSegment{
-		{rfcSegZeProven, "Ze MUST proven", []string{"must.ze-proven"}},
+		{rfcSegZeProven, "Ze MUST verified", []string{"must.ze-proven"}},
 		{rfcSegOSVerified, "OS verified", []string{"must.os-verified", "should.os-verified"}},
-		{rfcSegShouldProven, "SHOULD proven", []string{"should.proven"}},
+		{rfcSegShouldProven, "SHOULD verified", []string{"should.proven"}},
 		{rfcSegNotOwed, "Not owed", []string{rfcMustNotOwedField, "should.not-owed"}},
-		{rfcSegProofPending, "Proof pending", []string{rfcMustProofPendingField, "should.proof-pending"}},
+		{rfcSegProofPending, "Tests awaiting verification", []string{rfcMustProofPendingField, "should.proof-pending"}},
 		{rfcSegOSGap, "OS testing gap", []string{rfcMustOSGapField, "should.os-gap"}},
 		{rfcSegExclusionUnchecked, "Exclusion unchecked", []string{rfcMustExclusionUncheckedField, "should.exclusion-unchecked"}},
 		{rfcSegNotAssessed, "Not assessed", []string{rfcMustNotAssessedField, "should.not-assessed"}},

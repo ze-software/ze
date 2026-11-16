@@ -134,11 +134,11 @@ func readRFCProfileFile(t *testing.T, output, name string) string {
 
 // The fallback texts the fixture's bars and figures carry.
 const (
-	edgeRequiredMust = "Ze proven 7, OS verified 2, Proof pending 4, OS testing gap 1, Exclusion unchecked 5, " +
+	edgeRequiredMust = "Ze verified 7, OS verified 2, Tests awaiting verification 4, OS testing gap 1, Exclusion unchecked 5, " +
 		"Not assessed 7, Not built 1,184"
-	edgeRequiredView = "Ze MUST proven 7, OS verified 3, SHOULD proven 1, Not owed 12, Proof pending 5, " +
+	edgeRequiredView = "Ze MUST verified 7, OS verified 3, SHOULD verified 1, Not owed 12, Tests awaiting verification 5, " +
 		"OS testing gap 2, Exclusion unchecked 6, Not assessed 9, Not built 1,185"
-	edgeOptionalMust = "Ze proven 9"
+	edgeOptionalMust = "Ze verified 9"
 )
 
 // TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues proves a profile
@@ -161,7 +161,7 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 		`<div data-ze-rfc-bar="profile/edge/required:must">` + edgeRequiredMust + `</div>`,
 		`<div data-ze-rfc-bar="profile/edge/required:overview">` + edgeRequiredView + `</div>`,
 		`<div data-ze-rfc-bar="profile/edge/optional:must">` + edgeOptionalMust + `</div>`,
-		`<div data-ze-rfc-bar="profile/edge/optional:overview">Ze MUST proven 9</div>`,
+		`<div data-ze-rfc-bar="profile/edge/optional:overview">Ze MUST verified 9</div>`,
 		`<span data-ze-rfc="profile/edge/required:rfcs">3</span>`,
 		`<span data-ze-rfc="profile/edge/required:not-walked">1</span>`,
 		`<span data-ze-rfc="profile/edge/required:register">not complete</span>`,
@@ -179,9 +179,9 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 		`<span data-ze-rfc="profile/edge/required:should.not-built">1</span>`,
 		`<span data-ze-rfc="profile/edge/optional:register">complete</span>`,
 		`<span data-ze-rfc="profile/edge/optional:must.ze-proven">9</span>`,
-		`<div data-ze-rfc-bar="rfc1:must">Ze proven 3, OS verified 2, Proof pending 4, OS testing gap 1, Exclusion unchecked 5, Not assessed 7, Not built 1,184</div>`,
+		`<div data-ze-rfc-bar="rfc1:must">Ze verified 3, OS verified 2, Tests awaiting verification 4, OS testing gap 1, Exclusion unchecked 5, Not assessed 7, Not built 1,184</div>`,
 		`<div data-ze-rfc-bar="rfc3:overview">requirements not reviewed</div>`,
-		`<div data-ze-rfc-bar="rfc4:must">Ze proven 9</div>`,
+		`<div data-ze-rfc-bar="rfc4:must">Ze verified 9</div>`,
 		`<script src="../../../../assets/rfc-figures.js" defer></script>`,
 	} {
 		if !strings.Contains(page, want) {
@@ -196,7 +196,7 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 	mirror := readRFCProfileFile(t, output, rfcProfilesDirectory+"/edge/"+pageMirrorFile)
 	for _, want := range []string{"**MUST bar**: " + edgeRequiredMust, "**Overview bar**: " + edgeRequiredView,
 		"**MUST bar**: " + edgeOptionalMust, "| Mandatory requirements complete | not complete |",
-		"| Proof pending | 4 |", "| Exclusion unchecked | 5 |", "| Not assessed | 7 |", "| Not built | 1,184 |",
+		"| Tests awaiting verification | 4 |", "| Exclusion unchecked | 5 |", "| Not assessed | 7 |", "| Not built | 1,184 |",
 		"[data/rfc/profiles/edge.json](../../../../data/rfc/profiles/edge.json)",
 		"[data/rfc/index.json](../../../../data/rfc/index.json)"} {
 		if !strings.Contains(mirror, want) {
@@ -209,7 +209,7 @@ func TestRFCProfilePagesCarryTheMarkersAndTheLastBuildValues(t *testing.T) {
 	index := readRFCProfileFile(t, output, rfcProfilesDest)
 	for _, want := range []string{
 		`<div data-ze-rfc-bar="profile/edge/required:must">` + edgeRequiredMust + `</div>`,
-		`<div data-ze-rfc-bar="profile/core/required:must">Ze proven 4</div>`,
+		`<div data-ze-rfc-bar="profile/core/required:must">Ze verified 4</div>`,
 		`<span data-ze-rfc="profile/edge/required:rfcs">3</span></a>`,
 		`<span data-ze-rfc="profile/core/required:register">complete</span>`,
 		`<span data-ze-rfc="profile/edge/required:not-walked">1</span>`,

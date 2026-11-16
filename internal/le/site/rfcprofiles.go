@@ -371,7 +371,7 @@ func rfcProfileFigures() []rfcProfileFigure {
 	}
 	figures = append(figures,
 		rfcProfileFigure{"SHOULD / MAY rows", "should.total"},
-		rfcProfileFigure{"SHOULD proven", "should.proven"},
+		rfcProfileFigure{"SHOULD verified", "should.proven"},
 		rfcProfileFigure{"SHOULD OS verified", "should.os-verified"},
 		rfcProfileFigure{"SHOULD OS testing gap", "should.os-gap"},
 		rfcProfileFigure{"SHOULD not owed", "should.not-owed"})
@@ -379,7 +379,7 @@ func rfcProfileFigures() []rfcProfileFigure {
 		figures = append(figures, rfcProfileFigure{"SHOULD not owed: " + kind, "should.not-owed-by-kind." + kind})
 	}
 	return append(figures,
-		rfcProfileFigure{"SHOULD proof pending", "should.proof-pending"},
+		rfcProfileFigure{"SHOULD tests awaiting verification", "should.proof-pending"},
 		rfcProfileFigure{"SHOULD exclusion unchecked", "should.exclusion-unchecked"},
 		rfcProfileFigure{"SHOULD not assessed", "should.not-assessed"},
 		rfcProfileFigure{"SHOULD not built", "should.not-built"})
@@ -406,10 +406,10 @@ func rfcProfileNotOwedKinds() []string {
 func rfcProfileFiguresProse() string {
 	return "The MUST bar shows mandatory requirements (" + rfcKeywordSeries(rfc.MandatoryKeywords()) + ") " +
 		"that Ze and its operating system must meet. It includes only RFCs whose requirement lists have " +
-		"been checked against the original text. Ze proven means a test has been shown to fail when the " +
+		"been checked against the original text. Ze verified means a test has been shown to fail when the " +
 		"required behavior is deliberately broken. Behavior provided by the operating system or a library " +
 		"is OS verified when a test checks it using the settings Ze installs and has also been shown to detect " +
-		"a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a " +
+		"a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a " +
 		"tagged test covers that no deliberate fault has yet been shown to break and that nothing records as " +
 		"unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to " +
 		"be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, " +
@@ -748,7 +748,7 @@ func rfcProfilesPointerMirror() string {
 // rfcProfilesLead is the index's lead sentence.
 const rfcProfilesLead = "Each use case Ze serves and each technology it implements, with the MUST bar and " +
 	"the overview bar of the RFCs it requires. Release profiles come first: " +
-	"before release, every mandatory requirement of every RFC they require must be proven. Optional " +
+	"before release, every mandatory requirement of every RFC they require must be verified by tests that detect deliberate faults. Optional " +
 	"RFCs a use case lists are not counted."
 
 // rfcProfilesIndexColumns are the index tables' columns.

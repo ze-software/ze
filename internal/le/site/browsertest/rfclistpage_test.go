@@ -53,7 +53,7 @@ func TestTheBrowserSumsTheFilteredRFCListFromItsFiles(t *testing.T) {
 		}
 	}
 	rfcHeadlineIsNeverNarrowed(t, "unfiltered", &got)
-	if want := []string{"ze-proven=Ze proven 4"}; !reflect.DeepEqual(got.Bars["rfc2:must"], want) {
+	if want := []string{"ze-proven=Ze verified 4"}; !reflect.DeepEqual(got.Bars["rfc2:must"], want) {
 		t.Errorf("rfc2's row draws %q, want %q", got.Bars["rfc2:must"], want)
 	}
 	if want := []string{"requirements not reviewed"}; !reflect.DeepEqual(got.Bars["rfc3:overview"], want) {
@@ -69,7 +69,7 @@ func TestTheBrowserSumsTheFilteredRFCListFromItsFiles(t *testing.T) {
 			t.Errorf("filtered, all:%s shows %q, want %q", columns[index], got.Values["all:"+columns[index]], want)
 		}
 	}
-	if want := []string{"ze-proven=Ze proven 7", "os-verified=OS verified 2", "proof-pending=Proof pending 4",
+	if want := []string{"ze-proven=Ze verified 7", "os-verified=OS verified 2", "proof-pending=Tests awaiting verification 4",
 		"os-gap=OS testing gap 1", "exclusion-unchecked=Exclusion unchecked 5", "not-assessed=Not assessed 7",
 		"not-built=Not built 1,184"}; !reflect.DeepEqual(got.Bars["all:must"], want) {
 		t.Errorf("filtered, the overview MUST bar draws %q, want %q", got.Bars["all:must"], want)

@@ -4,7 +4,7 @@ Use these pages when you want Ze to play a concrete role in a network.
 
 Each example brings together the Ze configuration, the neighboring router configuration, and the lab checks for that setup. The feature guides describe individual settings; these pages explain how to combine them for a network role.
 
-To see how complete each use case is, the [completion by use case](../quality/rfc-compliance/profiles/) page counts the RFC requirements its tests prove.
+To see how complete each use case is, the [completion by use case](../quality/rfc-compliance/profiles/) page counts the RFC requirements verified by its tests.
 
 ## Examples
 
@@ -26,6 +26,6 @@ Each use case includes:
 - A topology with clear addresses and ASNs.
 - A full Ze config for the role.
 - The neighboring router or daemon config.
-- The verification command or lab scenario that proves the important behavior.
+- The verification command or lab scenario that tests the important behavior.
 
 Reference-only material stays in [Documentation](../docs/). Raw interop evidence stays in [Labs](../labs/).

@@ -599,7 +599,7 @@ func TestATagWithNoDiscriminationRecordReadsAsUnproven(t *testing.T) {
 // (docs/contributing/rfc-conformance-gates.md).
 func TestANoBreakRecordIsCountedApartFromAProof(t *testing.T) {
 	_, text, mirror := disclosurePage(t)
-	const escape = "no-break without a fault test (foreign-producer), which does not count as proof, verified"
+	const escape = "no-break without a fault test (foreign-producer), so fault detection has not been verified, verified"
 	if !strings.Contains(mirror, "| positive | `TestLogged` | unit/verify | "+escape+" |") {
 		t.Error("the mirror carries no escape row for TestLogged")
 	}
@@ -723,7 +723,7 @@ func TestAnRFCPageMirrorReadsAsThePublishedMirror(t *testing.T) {
 	}
 	for _, heading := range []string{
 		"## At a glance", "## Coverage", "## Requirements",
-		"## Gaps and untested MUSTs", "## Proof state",
+		"## Gaps and untested MUSTs", "## Test status",
 		"## Requirement list review", "## Superseded",
 	} {
 		if !strings.Contains(mirror, heading) {
@@ -750,7 +750,7 @@ func TestAnRFCPageReadsAsThePublishedPage(t *testing.T) {
 	}
 	for _, heading := range []string{
 		"<h2>At a glance</h2>", "<h2>Coverage</h2>", "<h2>Requirements</h2>",
-		"<h2>Gaps and untested MUSTs</h2>", "<h2>Proof state</h2>",
+		"<h2>Gaps and untested MUSTs</h2>", "<h2>Test status</h2>",
 		"<h2>Requirement list review</h2>", "<h2>Superseded</h2>",
 	} {
 		if !strings.Contains(page, heading) {
@@ -1513,7 +1513,7 @@ func renderRFCDetailPage(t *testing.T, ledger rfcLedger) (page, text, mirror str
 // stem's figures, each stated once on the page and in the mirror.
 func TestThePublicLedgerCellIsLabelled(t *testing.T) {
 	_, text, mirror := renderRFCDetailPage(t, disclosureLedger())
-	for _, fact := range []string{"Area: Widgets", "Proof: 3 of 7 MUST proven", "Evidence: unit 3", "Unmet: RFC9999-5-1"} {
+	for _, fact := range []string{"Area: Widgets", "Test verification: 3 of 7 MUST proven", "Evidence: unit 3", "Unmet: RFC9999-5-1"} {
 		if count := strings.Count(text, fact); count != 1 {
 			t.Errorf("the page states %q %d times, want once", fact, count)
 		}
@@ -1630,7 +1630,7 @@ func TestATestIsCitedByNameAndNotByItsFile(t *testing.T) {
 		t.Error("the mirror does not link the test name to its line")
 	}
 	// The path is nowhere in the reader's line of sight, in either table.
-	for _, table := range []string{"<h2>Requirements</h2>", "<h2>Proof state</h2>"} {
+	for _, table := range []string{"<h2>Requirements</h2>", "<h2>Test status</h2>"} {
 		body := sliceBetween(t, mainContent(t, page), table, "</section>")
 		if strings.Contains(visibleText(body), "internal/a_test.go") {
 			t.Errorf("%s still prints the file beside the test", table)
@@ -1889,7 +1889,7 @@ func TestNothingTheNoteCarriedWasLost(t *testing.T) {
 			if strings.Contains(note, "**audit:") {
 				marks["audit"]++
 				if requirement.Audit == nil {
-					t.Errorf("%s carries an audit mark and no verdict for Proof state to render",
+					t.Errorf("%s carries an audit mark and no verdict for Test status to render",
 						requirement.RID)
 				}
 			}

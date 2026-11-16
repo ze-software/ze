@@ -255,7 +255,7 @@ var rfcSatisfaction = []struct {
 }
 
 const rfcPartialBucket = "partial-scope"
-const rfcPartialLabel = "Partial proof; remaining gap"
+const rfcPartialLabel = "Partial test coverage"
 
 // rfcBucketDerived answers whether one bucket key is a Derived bucket of the
 // vocabulary: outside the gated population, so outside every sum over it.
@@ -1057,7 +1057,7 @@ func rfcTotalsOf(ledger rfcLedger) rfcLedgerTotals {
 // only to take those obligations out of view: an obligation annotated away
 // left the page, and the ratios above it rose. The owner ruled against
 // removing them, so they are a NAMED slice here instead. The home page does
-// not read these slices: it publishes Ze proven over the MUST rows Ze and the
+// not read these slices: it publishes Ze verified over the MUST rows Ze and the
 // OS owe, from rfc.ImplementedSectionsOf.
 //
 // Tone is the color a NON-ZERO value takes, and a card's color names what its
@@ -1074,22 +1074,22 @@ var rfcStanding = []struct {
 	Rule    string
 }{
 	{Label: "Tested both ways", Keys: []string{rfcBothBucket}, Tone: rfcToneOK,
-		Meaning: "a positive test proves Ze does what the requirement demands and a negative " +
-			"one proves it refuses what the requirement forbids",
+		Meaning: "a positive test checks that Ze does what the requirement demands and a negative " +
+			"one checks that it refuses what the requirement forbids",
 		Rule: "green at every value: a test pair is the outcome this gate exists to produce, " +
 			"and the count under the label is what says how far Ze has got"},
 	{Label: "One polarity plus reason", Keys: []string{rfcSingleBucket}, Tone: rfcToneOK,
 		Meaning: "the requirement admits no counter-case, so one polarity plus a recorded " +
-			"reason is the whole proof available for it",
+			"reason supplies the complete test coverage required",
 		Rule: "green at every value: where no counter-case exists, one polarity IS the " +
 			"complete answer, and a recorded reason is what the gate demands beside it"},
 	{Label: "One polarity, unexcused", Keys: []string{rfcOneSideBucket}, Tone: rfcToneBad,
 		Meaning: "one direction is tested, the other is neither tested nor excused, and " +
 			"nothing states which",
-		Rule: "green at zero, RED above it: half a proof with no reason for the other half"},
+		Rule: "green at zero, RED above it: one test direction is missing without a recorded reason"},
 	{Label: rfcPartialLabel, Keys: []string{rfcPartialBucket}, Tone: rfcToneBad,
-		Meaning: "scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit",
-		Rule:    "green at zero, RED above it: a tested clause cannot prove the whole requirement"},
+		Meaning: "scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit",
+		Rule:    "green at zero, RED above it: testing one clause does not verify the whole requirement"},
 	// The gap bucket is decided by the annotation alone, so a declared gap a
 	// test DEMONSTRATES (rfcDemonstratedGapsLabel) lands here too: the card
 	// said "No test at all" until 2026-11-13, false for those rows, and read
@@ -1111,11 +1111,11 @@ var rfcStanding = []struct {
 	{Label: rfcLowerLayerLabel, Keys: []string{rfcLowerLayerBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {lower-layer} annotation says a layer under Ze performs the behavior, on " +
 			"state Ze installs into that layer, and names the producer that installs it. The " +
-			"obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS " +
+			"obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS " +
 			"verified once a tagged test checks that layer's behavior on the state Ze " +
 			"installs, with a recorded break, and an OS testing gap until then",
 		Rule: "no color: an obligation met below Ze is neither a test Ze wrote nor work Ze " +
-			"owes, and the two green counts above are what says how much Ze proves itself"},
+			"owes, and the two green counts above are what says how much Ze's own tests verify"},
 	{Label: rfcFeatureDeclinedLabel, Keys: []string{rfcFeatureDeclinedBucket}, Tone: rfcToneNeutral,
 		Meaning: "a {feature-declined} annotation says the obligation is conditional on a " +
 			"feature the RFC makes optional and Ze does not offer, and it quotes the sentence " +
@@ -1131,8 +1131,8 @@ var rfcStanding = []struct {
 			"once its limit entry is verified, the row is not owed (OS blocked) and is left " +
 			"out of the MUST bar; one whose entry fails stays owed, and the figures count it " +
 			"as not built. It remains in the total that these cards add up to and earns no " +
-			"proof credit",
-		Rule: "neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption"},
+			"test verification credit",
+		Rule: "neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption"},
 }
 
 // Bucket answers this summary's count for one index bucket key.
@@ -1252,7 +1252,7 @@ func rfcEnrolledScope() string {
 		"They list " + rfcValueMirror(rfcAllSubject, "requirements") + " requirements across all " +
 		"levels. These totals describe the requirement inventory. Until 2026-10-31 this page led with a count of " +
 		"mandatory requirements, including requirements with explanatory annotations, " +
-		"and showed the percentage of that total proven by tests. The sections above replace " +
+		"and showed the percentage of that total verified by tests. The sections above replace " +
 		"those figures by classifying each mandatory requirement of a reviewed RFC included in automatic checks in exactly one section."
 }
 
@@ -1310,7 +1310,7 @@ func rfcProofCard(proven, units, escapes, stale int, where string) rfcCard {
 		Note: "each test was observed to fail when the code it checks was deliberately broken. " +
 			"The test, its stated claim, and the relevant code are checked against the saved record " +
 			"for changes; the deliberate fault is not run again. Having both positive and negative " +
-			"tests counts as proof only after this check has demonstrated that they can detect a fault",
+			"tests verifies a requirement only after both tests have been shown to detect a fault",
 		Tone: rfcToneOK,
 		Rule: "green at every value: these tests have been shown to detect a deliberate fault. " +
 			"This card counts individual tests separately, so its total cannot " +

@@ -3,7 +3,7 @@
     "must": [
       {
         "segment": "ze-proven",
-        "label": "Ze proven",
+        "label": "Ze verified",
         "fields": [
           "must.ze-proven"
         ]
@@ -17,7 +17,7 @@
       },
       {
         "segment": "proof-pending",
-        "label": "Proof pending",
+        "label": "Tests awaiting verification",
         "fields": [
           "must.proof-pending"
         ]
@@ -57,7 +57,7 @@
     "overview": [
       {
         "segment": "ze-proven",
-        "label": "Ze MUST proven",
+        "label": "Ze MUST verified",
         "fields": [
           "must.ze-proven"
         ]
@@ -72,7 +72,7 @@
       },
       {
         "segment": "should-proven",
-        "label": "SHOULD proven",
+        "label": "SHOULD verified",
         "fields": [
           "should.proven"
         ]
@@ -87,7 +87,7 @@
       },
       {
         "segment": "proof-pending",
-        "label": "Proof pending",
+        "label": "Tests awaiting verification",
         "fields": [
           "must.proof-pending",
           "should.proof-pending"

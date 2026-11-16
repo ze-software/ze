@@ -137,7 +137,7 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, lookup *factLookup) {
 func writeLLMSQualityModel(out *textbuf.Buffer, inputs *llmsInputs) {
 	tests := inputs.Facts.Tests
 	out.Str("## Quality and verification model\n\n")
-	out.Str("Ze uses layered proof because bugs appear at different boundaries.\n\n")
+	out.Str("Ze tests behavior at several levels because bugs appear at different boundaries.\n\n")
 	out.Str("- Local Go tests: package behavior, parser rules, encoders, state transitions, ").
 		Str("validation paths, and error shapes. Current scale: ").Str(tests.UnitDisplay).Str(" unit tests.\n")
 	out.Str("- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated ").
@@ -160,7 +160,7 @@ func writeLLMSQualityModel(out *textbuf.Buffer, inputs *llmsInputs) {
 		Str("groups related failures, and prints narrow rerun commands. `./le repo` is the ").
 		Str("narrower handoff gate.\n")
 	out.Str("- Rule for regressions: do not hide a failure with a skip or loose assertion. ").
-		Str("Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, ").
+		Str("Test at the layer that can observe the behavior, add the narrow test, rerun it, ").
 		Str("then rerun the gate that should have caught it.\n\n")
 	out.Str("Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz run`, ").
 		Str("`gomu run`, `./le test bgp plugin 42 -v`, `./le test qemu netns`, ").

@@ -19,7 +19,7 @@ import (
 )
 
 // rfcHeroLead is the first sentence under the page title.
-const rfcHeroLead = "How far Ze meets each RFC it implements, and the tests that prove it."
+const rfcHeroLead = "How far Ze meets each RFC it implements, and the tests that check it."
 
 // rfcReaderHeading is the heading of the reader's introduction.
 const rfcReaderHeading = "How to read this page"
@@ -28,7 +28,7 @@ const rfcReaderHeading = "How to read this page"
 // repository.
 var rfcReaderParagraphs = []string{
 	"This page shows how far Ze meets the standards (RFCs) it implements, and how that " +
-		"is proven. For each RFC, Ze keeps a summary of the requirements identified so far " +
+		"is tested. For each RFC, Ze keeps a summary of the requirements identified so far " +
 		"and links them to their tests. Automatic checks read those " +
 		"summaries and tests, and the figures on this page " +
 		"are computed from the same summaries and tests.",
@@ -61,8 +61,8 @@ func rfcGlossary() []rfcGlossaryTerm {
 			"of the page with the reason they are excluded. The repository calls this enrollment."},
 		{"Automatic compliance check", "the check reads RFC requirement summaries and tests " +
 			"to find missing evidence or unsupported claims. The repository calls it a gate."},
-		{"Positive and negative test (polarity)", "a positive test proves Ze does what the " +
-			"requirement demands; a negative test proves Ze refuses what the requirement " +
+		{"Positive and negative test (polarity)", "a positive test checks that Ze does what the " +
+			"requirement demands; a negative test checks that Ze refuses what the requirement " +
 			"forbids. Tested both ways means both exist."},
 		{"Test linked to a requirement", "one test that names the requirement it checks " +
 			"in a source annotation. One requirement can have several tests."},
@@ -72,19 +72,19 @@ func rfcGlossary() []rfcGlossaryTerm {
 			"source calls this a discrimination record."},
 		{"No fault test recorded", "a test record states that no deliberate code change " +
 			"could demonstrate the test failing. The source calls this escaped, and it does not " +
-			"count as proof that the test can detect a fault."},
+			"verify that the test can detect a fault."},
 		{"Outdated fault test", "a test, its stated claim, or the code it checks has changed " +
-			"since the fault test was recorded. The source calls this lapsed, and it no longer counts as proof."},
+			"since the fault test was recorded. The source calls this lapsed, and the fault-detection check is no longer current."},
 		{"Gap", "a requirement the summary openly declares Ze does not meet yet. Every gap " +
 			"is work Ze owes."},
 		{"Annotation", "a note on a requirement, written in braces, that says why it " +
 			"needs no ordinary pair of tests. {single-polarity}: the requirement admits no " +
-			"counter-case, so one direction plus a recorded reason is the whole proof. " +
+			"counter-case, so one direction plus a recorded reason is the complete test coverage required. " +
 			"{not-applicable}: the obligation does not bind Ze. {feature-declined}: the " +
 			"obligation applies only to a feature the RFC makes optional and Ze does not " +
 			"offer. {lower-layer}: a layer under Ze performs the behavior, on state Ze " +
 			"installs into that layer. {gap}: a declared gap. A partial requirement has " +
-			"tests for part of it; the rest is unmet or unproven and earns no credit."},
+			"tests for part of it; the rest is unmet or unverified and earns no credit."},
 		{"Linux cannot do this", "a verified kernel limitation prevents the required primitive. " +
 			"The annotation names the Linux Limitations Register entry. The row is OS blocked: " +
 			"a limit of the kernel, never counted against Ze, so it sits with the rows not owed " +
@@ -113,7 +113,7 @@ var rfcSegmentMeanings = map[string]string{
 		"state Ze installs, and a recorded break.",
 	rfcSegOSGap: "a row a layer under Ze performs, with no verified test of that behavior " +
 		"yet. It is a gap in testing, not in correctness.",
-	rfcSegProofPending: "a row with a tagged test and no recorded break proving it yet, that " +
+	rfcSegProofPending: "a row with a tagged test and no recorded break checking fault detection, that " +
 		"neither the summary nor a test review says Ze does not meet.",
 	rfcSegExclusionUnchecked: "a row claimed not to bind Ze whose evidence is still to " +
 		"be checked. Until it is, the row stays among the rows Ze owes.",
@@ -194,7 +194,7 @@ func rfcReaderIntroMirror() string {
 const (
 	rfcLeadVerdict = "Ze's automatic checks cover the mandatory requirements of the RFCs it " +
 		"implements. For RFCs whose requirement lists have been reviewed, the bars and Total " +
-		"row group those requirements by status: proven by Ze's tests, verified in the operating " +
+		"row group those requirements by status: verified by Ze's tests, verified in the operating " +
 		"system, not applicable, or awaiting implementation or tests. The cards below show " +
 		"how many tests have been shown to detect a deliberate fault and whether the checks pass."
 	rfcLeadProfiles = "A profile groups the RFCs one kind of deployment needs. If you are " +

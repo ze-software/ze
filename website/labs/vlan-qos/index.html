@@ -4,9 +4,9 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>VLAN QoS Wire-Level Proof - Ze</title>
+        <title>VLAN QoS Packet Tests - Ze</title>
         <meta name="description" content="Check 802.1p PCP tags in captured packets and ingress priority classification with nftables counters." />
-        <meta property="og:title" content="VLAN QoS Wire-Level Proof - Ze" />
+        <meta property="og:title" content="VLAN QoS Packet Tests - Ze" />
         <meta property="og:description" content="Check 802.1p PCP tags in captured packets and ingress priority classification with nftables counters." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
@@ -43,7 +43,7 @@
             <section aria-labelledby="lab-title">
                 <div class="section-head journey-hero reveal cat-services">
                     <span class="journey-eyebrow">Wire lab</span>
-                    <h1 id="lab-title">VLAN QoS Wire-Level Proof</h1>
+                    <h1 id="lab-title">VLAN QoS Packet Tests</h1>
                     <p>
                         Packet captures and counters check how VLAN QoS maps
                         translate packet priority into 802.1p tags and back.
@@ -76,7 +76,7 @@
                     </div>
                     <div class="status-table" aria-label="Lab facts">
                         <div class="status-row">
-                            <strong>Proves</strong>
+                            <strong>What this lab tests</strong>
                             <span>802.1p PCP tagging/classification actually on the wire (AF_PACKET capture + nftables counters)</span>
                         </div>
                         <div class="status-row">
@@ -105,7 +105,7 @@
                             <span class="terminal-title">vlan-qos</span>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># run the wire-level Go integration proof (requires Linux root)</span>
+                            <pre><span class="term-comment"># run the packet-level Go integration test (requires Linux root)</span>
 <span class="term-prompt">$</span> <span class="term-cmd">sudo -E env "PATH=$PATH" go test</span> -tags integration -count=1 ./internal/plugins/iface/netlink -run TestVLANQoS</pre>
                         </div>
                     </div>
@@ -118,7 +118,7 @@
                         <div class="link-list">
                             <a
                                 href="https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go" target="_blank" rel="noopener"
-                                >VLAN QoS integration proof
+                                >VLAN QoS integration test
                                 <span>Go producer and assertions</span></a
                             >
                         </div>

@@ -153,7 +153,7 @@ against other implementations, including FRR, BIRD, and GoBGP.
 
 The [RFC requirement ledger](https://ze-software.net/quality/rfc-compliance/)
 publishes requirements and their test evidence, including gaps. A requirement
-counts as proven when a recorded test run detects a deliberate break in the
+counts as verified when a recorded test run detects a deliberate break in the
 code behind it. Test evidence helps evaluate the implementation, but production
 confidence also requires deployment experience.
 

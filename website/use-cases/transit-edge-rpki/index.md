@@ -2,7 +2,7 @@
 
 This example uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference to select the preferred transit and its backup.
 
-**RFC completion:** the [RPKI coverage page](../../quality/rfc-compliance/profiles/rpki/) shows how much of the RFC work behind this use case is proven by tests.
+**RFC completion:** the [RPKI coverage page](../../quality/rfc-compliance/profiles/rpki/) shows which requirements have passed the recorded test checks for this use case.
 
 ## Topology
 

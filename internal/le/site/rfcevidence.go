@@ -137,7 +137,7 @@ func rfcNoGapsText(entry *rfcLedgerStem) string {
 // proof card reads them from there (independent review).
 //
 // Every count here is also published as a list of requirement ids under the
-// Proof state heading, so no count on this page stands in for a list (AC-18).
+// Test status heading, so no count on this page stands in for a list (AC-18).
 type rfcProofCounts struct {
 	Unsound    int
 	NotCurrent int
@@ -206,7 +206,7 @@ func rfcVerdictText(verdict *rfcLedgerVerdict) string {
 // rfcProofStateText says what stands behind one tagged unit, in the one column
 // that answers it.
 //
-// A unit with no record reads as the single word the legend above the table
+// A unit with no record reads as the status the legend above the table
 // explains. A `no-break` record is named as the escape it is and is never
 // counted as a proof (ai/rules/rfc-compliance.md).
 func rfcProofStateText(cover *rfcLedgerCover) string {
@@ -215,7 +215,7 @@ func rfcProofStateText(cover *rfcLedgerCover) string {
 	}
 	text := cover.Proof.Route
 	if !cover.Proof.Proves {
-		text += " without a fault test (" + cover.Proof.Reason + "), which does not count as proof"
+		text += " without a fault test (" + cover.Proof.Reason + "), so fault detection has not been verified"
 	}
 	text += ", " + cover.Proof.State
 	if cover.Proof.Detail != "" {
@@ -245,7 +245,7 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 		out.Str("<p>").Str(html.EscapeString(requirement.Subject())).Str("</p>\n")
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
 			out.Str("<p>").Str(html.EscapeString("Records cover only part of this requirement: " + requirement.Annotation.Reason)).
-				Str("; they do not prove the whole requirement.</p>\n")
+				Str("; they do not verify the whole requirement.</p>\n")
 		}
 		out.Str("<p><strong>Audit verdict:</strong> ").
 			Str(html.EscapeString(rfcVerdictText(requirement.Audit))).Str("</p>\n")
@@ -263,7 +263,7 @@ func rfcProofHTML(entry *rfcLedgerStem) string {
 				html.EscapeString(rfcProofStateText(cover))))
 		}
 		out.Str(rfcTableHTML(rfcHeadCells("Polarity", "Test",
-			"Kind and tier", "Proof state"), body.String())).Byte('\n')
+			"Kind and tier", "Test status"), body.String())).Byte('\n')
 	}
 	return strings.TrimSuffix(out.String(), "\n")
 }
@@ -283,7 +283,7 @@ func rfcProofMirror(entry *rfcLedgerStem) string {
 		out.Str(requirement.Subject()).Str("\n\n")
 		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationPartial {
 			out.Str("Records cover only part of this requirement: ").Str(rfc.TableCell(requirement.Annotation.Reason)).
-				Str("; they do not prove the whole requirement.\n\n")
+				Str("; they do not verify the whole requirement.\n\n")
 		}
 		out.Str("Audit verdict: ").Str(rfcVerdictText(requirement.Audit)).Byte('\n')
 		if len(requirement.Covers) == 0 {
@@ -292,7 +292,7 @@ func rfcProofMirror(entry *rfcLedgerStem) string {
 			continue
 		}
 		out.Byte('\n').Str(rfcMirrorHead("Polarity", "Test",
-			"Kind and tier", "Proof state"))
+			"Kind and tier", "Test status"))
 		for index := range requirement.Covers {
 			cover := &requirement.Covers[index]
 			out.Str(rfcMirrorRow(cover.Polarity,

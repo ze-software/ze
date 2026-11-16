@@ -32,7 +32,7 @@ const (
 	// own column. It is not a proof and it is never counted as one, and the
 	// sentence that says why is the legend above the table rather than a copy
 	// on every row.
-	rfcUnproven = "unproven"
+	rfcUnproven = "not verified"
 
 	// rfcGatedBucketLabel names the whole that the coverage buckets partition:
 	// the summary's MUST, MUST NOT, SHALL, SHALL NOT and REQUIRED rows
@@ -53,7 +53,7 @@ const (
 	rfcDetailMarker = ` id="rfc-detail-title"`
 	// rfcProofLegend is that sentence.
 	rfcProofLegend = "A test reads " + rfcUnproven + " when no record shows it failing " +
-		"after a deliberate fault. Until then, its claim to check the requirement remains unproven."
+		"after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior."
 	// The two facts the index and one stem's page both label. Named once, so a
 	// reader following a link from the index meets the same words on the page.
 	rfcDeclaredGapsLabel     = "Declared gaps"
@@ -108,7 +108,7 @@ var rfcDetailSections = []struct {
 	{rfcDetailFiguresHeading, rfcDetailFiguresHTML, rfcDetailFiguresMirror},
 	{"Requirements", rfcRequirementsHTML, rfcRequirementsMirror},
 	{"Gaps and untested MUSTs", rfcGapsHTML, rfcGapsMirror},
-	{"Proof state", rfcProofHTML, rfcProofMirror},
+	{"Test status", rfcProofHTML, rfcProofMirror},
 	{"Requirement list review", rfcExtractionHTML, rfcExtractionMirror},
 	{"Superseded", rfcSupersededHTML, rfcSupersededMirror},
 }
@@ -471,7 +471,7 @@ func rfcPublicLedgerFacts(entry *rfcLedgerStem) [][2]string {
 	if entry.Figures != nil {
 		proof, evidence, unmet = entry.Figures.ProofCell(), entry.Figures.EvidenceCell(), entry.Figures.UnmetCell()
 	}
-	return [][2]string{{"Area", entry.PublicArea}, {"Proof", proof}, {"Evidence", evidence}, {"Unmet", unmet}}
+	return [][2]string{{"Area", entry.PublicArea}, {"Test verification", proof}, {"Evidence", evidence}, {"Unmet", unmet}}
 }
 
 // rfcPublicLedgerHTML states what the public ledger says about this RFC: its
@@ -840,7 +840,7 @@ func rfcRequirementSubjectHTML(requirement *rfcLedgerRequirement) string {
 // right. The nightly-only mark sits with the tiers that make it nightly.
 //
 // The other two marks were duplicates and are not re-rendered: the audit
-// verdict is named with its meaning and freshness under Proof state, and the
+// verdict is named with its meaning and freshness under Test status, and the
 // superseded pointer under Superseded, both per requirement id. Measured over
 // this corpus before the column went: all 4 audit marks and all 310 superseded
 // marks have those homes, while 374 of 375 `{single-polarity}` reasons and 14
@@ -896,7 +896,7 @@ func rfcRequirementMarks(requirement *rfcLedgerRequirement) [][2]string {
 			marks = append(marks, [2]string{"derived", requirement.Annotation.Derived})
 		}
 		if requirement.Annotation.Kind == rfc.AnnotationPartial {
-			marks = append(marks, [2]string{"Partial test coverage", "Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. " + rfcVerdictText(requirement.Audit)})
+			marks = append(marks, [2]string{"Partial test coverage", "Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. " + rfcVerdictText(requirement.Audit)})
 		}
 	}
 	if requirement.NightlyOnly {

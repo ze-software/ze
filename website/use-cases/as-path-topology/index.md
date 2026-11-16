@@ -2,7 +2,7 @@
 
 Use the built-in Looking Glass to turn the AS paths for a prefix into a topology view. The graph is an operational aid for comparing what different peers advertise, not a complete map of the Internet.
 
-**RFC completion:** the [Looking glass coverage page](../../quality/rfc-compliance/profiles/looking-glass/) shows how much of the RFC work behind this use case is proven by tests.
+**RFC completion:** the [Looking glass coverage page](../../quality/rfc-compliance/profiles/looking-glass/) shows which requirements have passed the recorded test checks for this use case.
 
 ## What the graph shows
 

@@ -2,7 +2,7 @@
 
 Use Ze as an RFC 7947 route server when each member should maintain one eBGP session and receive eligible routes from the other members without next-hop rewriting.
 
-**RFC completion:** the [IXP route server coverage page](../../quality/rfc-compliance/profiles/route-server/) shows how much of the RFC work behind this use case is proven by tests.
+**RFC completion:** the [IXP route server coverage page](../../quality/rfc-compliance/profiles/route-server/) shows which requirements have passed the recorded test checks for this use case.
 
 ## Topology
 
@@ -242,7 +242,7 @@ ze cli -c "show warnings"
 ze cli -c "show errors"
 ```
 
-Prove the complete path with a test route:
+Test the complete path with a test route:
 
 1. Announce a prefix from Member A.
 2. Confirm it is accepted from Member A.

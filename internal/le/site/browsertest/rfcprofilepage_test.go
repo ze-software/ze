@@ -170,18 +170,18 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 		}
 		return true
 	})
-	mustBar := []string{"ze-proven=Ze proven 7", "os-verified=OS verified 2", "proof-pending=Proof pending 4",
+	mustBar := []string{"ze-proven=Ze verified 7", "os-verified=OS verified 2", "proof-pending=Tests awaiting verification 4",
 		"os-gap=OS testing gap 1", "exclusion-unchecked=Exclusion unchecked 5", "not-assessed=Not assessed 7",
 		"not-built=Not built 1,184"}
 	for key, want := range map[string][]string{
 		"profile/edge/required:must": mustBar,
-		"profile/edge/required:overview": {"ze-proven=Ze MUST proven 7", "os-verified=OS verified 3",
-			"should-proven=SHOULD proven 1", "not-owed=Not owed 12", "proof-pending=Proof pending 5",
+		"profile/edge/required:overview": {"ze-proven=Ze MUST verified 7", "os-verified=OS verified 3",
+			"should-proven=SHOULD verified 1", "not-owed=Not owed 12", "proof-pending=Tests awaiting verification 5",
 			"os-gap=OS testing gap 2", "exclusion-unchecked=Exclusion unchecked 6", "not-assessed=Not assessed 9",
 			"not-built=Not built 1,185"},
-		"profile/edge/optional:must": {"ze-proven=Ze proven 9"},
+		"profile/edge/optional:must": {"ze-proven=Ze verified 9"},
 		"rfc3:must":                  {"requirements not reviewed"},
-		"rfc4:overview":              {"ze-proven=Ze MUST proven 9"},
+		"rfc4:overview":              {"ze-proven=Ze MUST verified 9"},
 	} {
 		if !reflect.DeepEqual(got.Bars[key], want) {
 			t.Errorf("bar %s draws %q, want %q", key, got.Bars[key], want)
@@ -339,7 +339,7 @@ func TestTheBrowserDrawsAProfilePageFromItsFiles(t *testing.T) {
 		!strings.Contains(text, "./le site build") {
 		t.Errorf("with rfc2.json missing the RFC count shows %q, want the file and the command named", text)
 	}
-	if want := []string{"ze-proven=Ze proven 9"}; !reflect.DeepEqual(got.Bars["profile/edge/optional:must"], want) {
+	if want := []string{"ze-proven=Ze verified 9"}; !reflect.DeepEqual(got.Bars["profile/edge/optional:must"], want) {
 		t.Errorf("the optional tier, which does not count rfc2, draws %q, want %q", got.Bars["profile/edge/optional:must"], want)
 	}
 }

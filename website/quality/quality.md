@@ -34,22 +34,22 @@ Ze uses different tests for package logic, running daemons, and behavior that de
 <div class="quality-flow">
   <article class="quality-stage">
     <span class="quality-stage-number">1</span>
-    <h3>Prove package behavior</h3>
+    <h3>Test package behavior</h3>
     <p>Start with a small Go test that names the case and expected result. Use fuzzing when one or two examples cannot cover the input space. Use gomu when the code is covered but the assertion may still be too loose.</p>
   </article>
   <article class="quality-stage">
     <span class="quality-stage-number">2</span>
-    <h3>Prove visible behavior</h3>
+    <h3>Test visible behavior</h3>
     <p>When the behavior crosses a process boundary, use a functional transcript. <code>.ci</code> drives commands, peers, files, HTTP, and daemons. <code>.wb</code> drives the browser. <code>.et</code> drives the editor.</p>
   </article>
   <article class="quality-stage">
     <span class="quality-stage-number">3</span>
-    <h3>Prove Linux behavior</h3>
+    <h3>Test Linux behavior</h3>
     <p>Tests that depend on the Linux kernel run on Linux. From macOS, a functional file marked <code>option=needs-linux</code> can run in QEMU using Ze's kernel and system image.</p>
   </article>
   <article class="quality-stage">
     <span class="quality-stage-number">4</span>
-    <h3>Prove release behavior</h3>
+    <h3>Run release checks</h3>
     <p>Release checks include peer daemons, deployment tests, performance measurements, and chaos scenarios. Together these exercise interactions and failure conditions beyond the fixtures used in package tests.</p>
   </article>
 </div>

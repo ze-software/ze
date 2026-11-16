@@ -18,7 +18,7 @@ import (
 
 // rfcLedgerFixtureData answers the data/rfc/ files a build would publish
 // beside a test ledger: one per stem, walked when the stem's model row is,
-// its MUST rows split into Ze proven and proof pending and its SHOULD rows
+// its MUST rows split into Ze verified and proof pending and its SHOULD rows
 // into proven and not assessed, and one per profile from the profile's tree rows.
 // The compliance producer reads these files back, so a fixture that
 // published only the ledger would publish no figure at all.
@@ -122,11 +122,11 @@ func TestRFCDetailPageShowsItsFiguresFromItsFile(t *testing.T) {
 		}
 	}
 	mustBar := regexp.MustCompile(`<div data-ze-rfc-bar="rfc1:must">([^<]*)</div>`).FindStringSubmatch(page)
-	if len(mustBar) != 2 || mustBar[1] != "Ze proven 3, OS verified 2, Proof pending 4, OS testing gap 1, "+
+	if len(mustBar) != 2 || mustBar[1] != "Ze verified 3, OS verified 2, Tests awaiting verification 4, OS testing gap 1, "+
 		"Exclusion unchecked 5, Not assessed 7, Not built 1,184" {
 		t.Errorf("the MUST bar reads %q, not its seven segments in order", mustBar)
 	}
-	if !strings.Contains(page, `<div data-ze-rfc-bar="rfc1:overview">Ze MUST proven 3,`) {
+	if !strings.Contains(page, `<div data-ze-rfc-bar="rfc1:overview">Ze MUST verified 3,`) {
 		t.Error("the page draws no overview bar for rfc1")
 	}
 	if !strings.Contains(page, `assets/rfc-figures.js`) {
@@ -135,7 +135,7 @@ func TestRFCDetailPageShowsItsFiguresFromItsFile(t *testing.T) {
 	if strings.Contains(html.UnescapeString(page), "eiling") {
 		t.Error("the page still states a ceiling")
 	}
-	for _, text := range []string{"Ze proven 3, OS verified 2", "| Ze proven | 3 |", "data/rfc/rfc1.json"} {
+	for _, text := range []string{"Ze verified 3, OS verified 2", "| Ze verified | 3 |", "data/rfc/rfc1.json"} {
 		if !strings.Contains(mirror, text) {
 			t.Errorf("the mirror carries no %q", text)
 		}

@@ -1781,8 +1781,8 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	mirror := readArtifact(t, paths.Output, rfcComplianceDirectory+"/"+pageMirrorFile)
 	for _, want := range []string{
 		`<tr data-rfc="rfc9998">`,
-		`<div data-ze-rfc-bar="rfc9998:must">Ze proven 3, Proof pending 1</div>`,
-		`<div data-ze-rfc-bar="rfc9998:overview">Ze MUST proven 3, SHOULD proven 1, Proof pending 1, Not assessed 1</div>`,
+		`<div data-ze-rfc-bar="rfc9998:must">Ze verified 3, Tests awaiting verification 1</div>`,
+		`<div data-ze-rfc-bar="rfc9998:overview">Ze MUST verified 3, SHOULD verified 1, Tests awaiting verification 1, Not assessed 1</div>`,
 		`<span data-ze-rfc="all:must.total">4</span>`,
 		"<th>" + rfcIndexGapsTested + "</th>", `<dl class="rfc-legend">`,
 		`id="rfc-overview"`, rfcListSlot, `<section id="` + rfcDeclinedAnchor + `">`,
@@ -1794,7 +1794,7 @@ func TestTheComplianceIndexShowsEachRFCsFigures(t *testing.T) {
 	if strings.Contains(page, "<th>"+rfcDemonstratedGapsLabel+"</th>") {
 		t.Error("the index table still carries the long gaps header")
 	}
-	for _, want := range []string{"| Ze proven 3, Proof pending 1 | Ze MUST proven 3, SHOULD proven 1, Proof pending 1, Not assessed 1 |", "**" + rfcIndexGapsTested + "**"} {
+	for _, want := range []string{"| Ze verified 3, Tests awaiting verification 1 | Ze MUST verified 3, SHOULD verified 1, Tests awaiting verification 1, Not assessed 1 |", "**" + rfcIndexGapsTested + "**"} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the index mirror carries no %s", want)
 		}
