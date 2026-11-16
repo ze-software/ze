@@ -27,15 +27,22 @@ reproduction and source fix precede the next independent review.
 
 ## Blocker
 
-The native R6 authorization record requires Thomas's interactive terminal.
-`internal/le/spec/review.go` `recordReview` calls `requireOwnerReviewTerminal`,
-which calls `internal/le/le/human/human.go` `RequireAuthorization` before any
-artifact write. Its refusal explicitly prohibits agent issuance of owner words.
-The owner already authorized rounds six and seven. No new authorization is owed.
-Thomas runs `bash tmp/session/2026-11-15-195627/scratch/pool-round6-record-terminal.sh`
-from his terminal to record that instruction and the R6 result. Main then checks
-the actual artifact, resumes the spec and completes the two closure commits.
-Until then, hand back the eight-path record/proof change without removing this spec.
+Native closure preparation found one omitted code pin in the actual CLEAN
+117-file R6 artifact: `internal/component/l2tp/plugins/pool/dns_source.go`.
+The validation commit `ea14ad498d` changed only its stale parser-name comment.
+That file was omitted from the carried discovery inventory and therefore from
+the record. This is a NOTE correcting R6's pin population, not a product defect
+or a seventh review round. The source, DNS test and RFC 2548 records were read.
+
+The corrected terminal script preserves all 117 paths and 109 prior immutable
+hash/mode pairs, adding exact HEAD blob `c4fb6722c5cd168ae68ce342018b5e1bc38e011d`,
+mode `100644`. It now records 118 paths and visibly checks five code files.
+Native `ReviewArea` supports hash, record and check, with no append or inherited
+authorization route. Replacing a round-six record still requires Thomas's terminal.
+He reruns `bash tmp/session/2026-11-15-195627/scratch/pool-round6-record-terminal.sh`
+to record the already-authorized review with its complete scope. The existing
+117-file artifact was not edited. Main then checks the new artifact and resumes
+closure. The unpublished closure preparation never ran and was removed by main.
 
 ## Closure status
 
@@ -49,8 +56,7 @@ runtime guard are now implemented and their focused proof passed. Main observed
 both daemon mode cases pass, the full pool package pass under the race detector,
 and host/Linux scoped lint report no issues. Both cases also passed all 80 stress
 invocations before promotion. Independent review six found no new product defect.
-All required scoped runs and proof renewals have actual receipts. The native terminal record still gates closure.
-The owner authorized round six and, if needed, seven. No CLEAN artifact exists.
+All required scoped runs and proof renewals have actual receipts. The native R6 CLEAN artifact and its four-file hash check passed, but closure exposed the one omitted historical code pin described above. Complete pin recording and the final two closure commits remain owed.
 
 ## Publication dependency
 
@@ -65,7 +71,7 @@ The earlier scoped race tests, eight Linux lifetime tests on Ze's system,
 validation counterfactuals and daemon reload regression passed. Their scope
 and source provenance remain in the current session state. The external-mode
 fix now has focused unit, daemon, race, lint and stress evidence. The owner
-authorized review six and, if needed, seven. Round six found no new product issue. The
+authorized review six and, if needed, seven. Round six found no new product issue.
 Post-guard autoload passed its named case (1/1, 2.1s). The affected L2TP suite completed with 27 PASS, 1 FAIL and 7 Darwin SKIP. The sole strict-span assertion failure is owned and acknowledged by the CI session. All three affected RFC 2866 proofs were renewed natively. The fresh RFC check has no affected-family finding. No push is authorized.
 
 ## Task
@@ -600,7 +606,7 @@ configuration or handler contract.
 |----------|---------|-------------------|
 | `tmp/stress-repro/reload-draft-pattern-l2tp-pool-range-reload-9681e20db2de0e2cb7eee13f0d0e53094d81b4695abc025e4c7d94aef52f6fdf-20261115-220714-999335715.log` | Current 80-run daemon stress evidence; the test is promoted to `test/reload/` and the draft no longer exists | Remove after the promoted-suite evidence and closure record retain the result |
 | `tmp/stress-repro/plugin-draft-l2tp-pool-external-refuses-l2tp-pool-internal-reloads-8f35a4e70d24a73b57701c882dfe50b165f923b0bf9c6eba6678268eeb6943b6-20261116-142848-4264819793.log` | 487,790-byte mode stress capture: 80 independent invocations and 160 named case passes | Remove when the promoted-suite and closure record retain the result |
-| Session scratch under `tmp/session/2026-11-15-195627/` and its named `le` build | Current terminal script, reviewed pins, eight-file inventory/body, minimal proof receipts and original foreign-failure evidence | Remove preparation inputs after terminal issuance and verified closure. Keep failure originals until their owners retain the findings. Keep named `le` while the terminal step needs it |
+| Session scratch under `tmp/session/2026-11-15-195627/` and its named `le` build | Native review artifact, final commit body, minimal proof receipts and original foreign-failure evidence. Terminal script/pins and handback inventory remain only until final publication | Remove preparation inputs after terminal issuance and verified closure. Keep failure originals until their owners retain the findings. Keep named `le` while final native commit preparation and claim release need it |
 
 Main removed 262,637,634 bytes of completed task-owned binaries, overlays, obsolete patches/profiles and stopped-guest consoles after ownership/process checks. Total session cleanup is 586,488,521 bytes (about 559 MiB). Old patch/profile paths in historical receipts no longer identify current inputs. Shared caches and other sessions were preserved.
 
@@ -731,13 +737,13 @@ The separate successor-lifetime design remains outside this correction.
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| Planned production Go, tests and test-only YANG | Present | The 110-path owned inventory covers original work, validation and mode additions. Foundation `59f67661db` carries original source and shared producers, validation `ea14ad498d` carries bounded parsing |
+| Planned production Go, tests and test-only YANG | Present | The 111-path owned inventory covers original work, validation and mode additions. Foundation `59f67661db` carries original source and shared producers, validation `ea14ad498d` carries bounded parsing |
 | Two mode `.ci` additions | Promoted | Both drafts moved to `test/plugin/` after stress. Autoload control remains unchanged |
 | Planned documentation | Updated | Companion docs and category audit below cover changed contracts |
 | News fragment and four owned journal rows | Written | Canonical fragment stem. Each journal fix names its producer or discriminating test |
 
 ### Audit Summary
-Round six reviewed the R5 process-mode correction and startup siblings, then completed the unfinished acceptance and closure audit. No new product defect was found. Final main-thread receipts are recorded. Native terminal authorization recording alone blocks closure. Existing global check failures remain disclosed below.
+Round six reviewed the R5 process-mode correction and startup siblings, then completed the unfinished acceptance and closure audit. No new product defect was found. Final main-thread receipts are recorded. Thomas issued a CLEAN 117-file artifact and its four-file check passed. The closure population then exposed one omitted historical comment-only file. Corrected 118-file recording remains pending. No new product finding or review round is required. Existing global check failures remain disclosed below.
 
 ## Goal Validation (BLOCKING)
 
@@ -752,15 +758,15 @@ Round six reviewed the R5 process-mode correction and startup siblings, then com
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Native review seal and closure | R6 source review has no BLOCKER or ISSUE. No CLEAN artifact exists until Thomas issues the prepared record from his terminal | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
+| Complete R6 pin recording and closure | The current 117-file artifact omits one historical comment-only code path. The corrected 118-file terminal script is ready. Product implementation and all scoped proofs remain complete | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Pending native terminal issuance. R6 source review found no BLOCKER or ISSUE. Expected native path: `tmp/review/l2tp-pool-reload-applies-08d275e8-134a-40ab-b341-f380d8550d56.md`. A prose verdict is not the machine artifact |
-| `./le spec review check` | Owed after Thomas runs `scratch/pool-round6-record-terminal.sh` from his terminal. It records 109 immutable historical blobs/modes plus eight closure snapshots (including the two prospective RFC proof JSON files), then checks four current mode code pins. The closure gate compares all historical code to its proposed tree |
-| Rounds | 6 completed: four implementation passes, R5 closure finding and this independent R6 correction review. No new product finding requires R7. The native CLEAN record still requires terminal issuance |
+| Artifact | Existing CLEAN round-six record: 117 files, issued by Thomas at 2026-11-16T15:48:47Z, `tmp/review/l2tp-pool-reload-applies-08d275e8-134a-40ab-b341-f380d8550d56.md`. Closure refuses its omitted `pool/dns_source.go` pin. Corrected 118-file recording pending |
+| `./le spec review check` | Existing four-file check PASS. Native closure comparison found exactly one missing pin and no stale required pin. Corrected script records 110 immutable historical blobs/modes plus eight snapshots, then checks five code files |
+| Rounds | 6 completed: four implementation passes, R5 closure finding and this independent R6 correction review. No new product finding requires R7. R6 source review is complete. Its one-pin population correction still needs terminal recording |
 | Scope | All owned reviewable files in `scratch/pool-authored-source-paths.txt`, including already-landed validation and code carried by the shared producer; foreign feature hunks are context only. Current source and selected closure blobs must match the final pin. |
 | Reviewer lenses used | Logic and wiring; security and boundaries; concurrency, lifecycle, performance and manual Go style |
 
@@ -779,6 +785,16 @@ concurrency, lifecycle, performance and manual Go-style lenses in this context.
 The owner authorized this sixth pass and a seventh if needed on 2026-11-16.
 No verdict or artifact is claimed by this scope declaration.
 
+The pin-population correction used the actual `specWorkPopulation` algorithm:
+exact `Spec-work:` message lines, root-aware recursive no-rename path lists,
+and `reviewCodeSuffixes`. At HEAD `9093c445116f65823e0a13f6c45fddce1e89028e`,
+five attributed commits contain 22 paths, including nine reviewable code paths.
+The current artifact omits only `dns_source.go`. The corrected 118-path scope
+covers all nine with matching HEAD hashes and modes. It also preserves every
+other previously reviewed path carried by the shared foundation. The 111-path
+owned inventory now includes the comment-only source file. Existing RFC2548
+primary/secondary DNS selection tests and native proof records remain unchanged.
+
 ### Round 5 findings
 
 1. **ISSUE, plausible: explicit external pool mode configures disconnected state.**
@@ -791,7 +807,7 @@ No verdict or artifact is claimed by this scope declaration.
    implementation. Main subsequently reproduced the defect through the daemon.
    The declaration-only stage reproduced the missing runtime refusal. The early
    guard is implemented, and focused unit/daemon/race/lint/stress proof passed.
-   R6 source review found no new product issue. Native CLEAN recording remains a terminal-only issuance step.
+   R6 source review found no new product issue. Thomas completed native CLEAN recording and the subsequent four-file check on 2026-11-16.
 
 Main ran `./le --name session test bgp reload --draft --pattern
 l2tp-pool-external-disconnected`: the named diagnostic failed after the
@@ -905,7 +921,7 @@ passed on host and Linux. These results do not establish whole-tree health.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
-| All owned source and planned tests | Yes | 110-path census and actual source reads. Mode test and both promoted `.ci` files read in full |
+| All owned source and planned tests | Yes | 111-path census and actual source reads. Mode test and both promoted `.ci` files read in full |
 | Fragment and journal rows | Yes | `website/changes/fragments/l2tp-pool-reload-applies.md` and the four class files in Owned journal rows |
 
 ### AC Verified (grep/test)
