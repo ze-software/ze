@@ -1,15 +1,26 @@
-# Test: CLI bar edit command navigates to target path
-# VALIDATES: edit verb changes context to target YANG path
-# PREVENTS: CLI edit not triggering navigation, path resolution broken
+# Test: CLI edit navigates to a configured YANG path
+# VALIDATES: edit changes terminal context and schema completion follows that position
+# PREVENTS: edit leaving completion at the root or refusing an existing block
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/
-expect=element:id=cli-input
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=edit environment
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set environment daemon user browser-nav
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=edit environment
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[environment]#
+
+action=fill:id=terminal-input:value=set
+action=press:id=terminal-input:key=?
 expect=element:text=log
 expect=element:text=daemon

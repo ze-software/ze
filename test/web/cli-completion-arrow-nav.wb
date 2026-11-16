@@ -1,25 +1,25 @@
 # Test: CLI completion dropdown navigates with arrow keys
-# VALIDATES: ArrowDown/ArrowUp select completion items, Enter accepts selection
-# PREVENTS: Arrow keys always navigating history instead of dropdown items
+# VALIDATES: ArrowDown selects an actual completion and Enter accepts it and closes the menu
+# PREVENTS: history navigation replacing dropdown navigation
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/
-expect=element:id=cli-input
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-# Type partial command and trigger completion with Tab.
-action=fill:id=cli-input:value=sh
-action=press:key=Tab
-action=wait:ms=500
+# A multi-match prefix keeps the menu open; sh has only show and auto-completes.
+action=fill:id=terminal-input:value=s
+action=press:id=terminal-input:key=Tab
 expect=element:text=show
+expect=html:contains=class="terminal-completions"
 
-# ArrowDown should highlight a completion item (adds .selected class).
-action=press:key=ArrowDown
-action=wait:ms=200
-expect=element:class=selected
+action=press:id=terminal-input:key=ArrowDown
+expect=html:contains=class="cli-completion-item selected"
 
-# Enter should accept the selected completion and close the dropdown.
-action=press:key=Enter
-action=wait:ms=200
-expect=element:not-class=cli-completion-item
+action=press:id=terminal-input:key=Enter
+expect=html:contains=class="terminal-completions is-hidden" id="terminal-completions"
+expect=element:id=terminal-input

@@ -91,10 +91,11 @@ default page, rather than one flat switch in the workbench handler.
   a placeholder. `peerFlag` colors from config alone: green for configured,
   grey for disabled. When reactor state is wired in, that function changes to
   FSM state and most peers stop being green.
-- `buildPeerActionsHTML` embeds `hx-vals` JSON inside single-quoted HTML
-  attributes. `context_path` is escaped, and a peer name carrying a single
-  quote would break the JSON. YANG validation excludes the quote, which is what
-  makes this safe.
+- `buildPeerActionsHTML` sends the canonical escaped schema-token path in
+  `context_path`; templ escapes its JSON attribute. Named links in peer, group,
+  policy, user, sysctl and firewall tables use that same path transport, while
+  firewall table and chain query filters use query escaping. Punctuation in a
+  key never becomes an additional path segment or query parameter.
 
 ## Firewall
 
@@ -104,9 +105,10 @@ default page, rather than one flat switch in the workbench handler.
   matches the left nav and lets a table row link into a filtered chain or rule
   view. Drill-down uses query parameters (`?table=X&chain=Y`), so the back
   button and bookmarks work.
-- The pages read `firewall.LastApplied()`, an immutable atomic snapshot, and
-  never re-parse the config tree. That state is the applied one, not the
-  operator's draft: a pending edit appears after commit. Display names strip
+- The tables, chains, rules and sets pages read `firewall.LastApplied()`, an
+  immutable atomic snapshot, and never re-parse the config tree. That state is
+  the applied one, not the operator's draft: a pending edit appears after
+  commit. Display names strip
   the kernel `ze_` prefix.
 - Counters are joined at collect time from `GetBackend().GetCounters()`, keyed
   by term name, and show "-" when no backend is loaded.
@@ -115,6 +117,14 @@ default page, rather than one flat switch in the workbench handler.
   then shows its type name instead of vanishing from the rule display.
 - Empty states differ by context: "no rules in chain X" against "no rules
   configured", depending on whether a filter is active.
+- The connections page explicitly says live connection details are unavailable.
+  Ze has no shared producer for connection tuples yet, so this page cannot
+  distinguish an empty table from an unobserved one. Its CLI link points to
+  `/cli`; `show system conntrack` provides the existing aggregate tracking
+  status. It does not provide the missing per-connection table.
+
+<!-- source: internal/component/web/page_firewall.go -- buildFirewallConnectionsTableData -->
+<!-- source: internal/component/web/component_workbench_table.templ -- workbenchTable -->
 
 ## System, services and L2TP
 

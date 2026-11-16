@@ -66,7 +66,7 @@ templ listTable(v *FragmentData) {
 										hx-trigger="blur changed, ze-enter, input changed delay:1s"
 										hx-sync={ fieldSaveSync }
 										hx-target="closest td"
-										hx-swap="innerHTML"
+										hx-swap="innerHTML settle:0"
 										name="value"
 										hx-vals={ fieldHxVals(cell.Leaf) }
 									>

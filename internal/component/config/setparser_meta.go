@@ -216,6 +216,25 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 	switch cmd {
 	case cmdSet:
 		return p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)
+	case cmdReplaceMembers:
+		if entry.Source == "" {
+			return lineErrorf(lineNum, "replace-members requires session source metadata")
+		}
+		if !p.candidateValues {
+			// This explicit assignment judges delimiter completeness too.
+			// Keep the canonical lexer's quote provenance for literal brackets.
+			p.quotedTokens = p.quotedTokens[:0]
+			tokens, err = splitQuotedTokensMarked(line, &p.quotedTokens)
+			if err != nil {
+				return newLineError(lineNum, err)
+			}
+			tokens = tokens[1:]
+			p.lineTokens = tokens
+		}
+		p.replaceMembersLine = true
+		err := p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)
+		p.replaceMembersLine = false
+		return err
 	case cmdNop:
 		p.nopLine = true
 		err := p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)
@@ -255,6 +274,9 @@ func (p *SetParser) parseSetWithMeta(tree *Tree, meta *MetaTree, entry MetaEntry
 //nolint:cyclop // schema node dispatch mirrors walkAndSet
 func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, entry MetaEntry, tokens []string, lineNum int) error {
 	if len(tokens) == 0 {
+		if p.replaceMembersLine {
+			return lineErrorf(lineNum, "replace-members requires a leaf-list and its values")
+		}
 		return nil // structural-only: container/entry exists, no leaf to set
 	}
 
@@ -269,6 +291,14 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		}
 		return lineErrorf(lineNum, "unknown field: %s%s", name, p.unknownFieldHint(name, parent, tokens))
 	}
+	if p.replaceMembersLine {
+		switch node.(type) {
+		case *ContainerNode, *ListNode, *InlineListNode, *FlexNode, *ValueOrArrayNode:
+			// Containers and entry codecs keep walking to the leaf-list.
+		default:
+			return lineErrorf(lineNum, "replace-members requires a plain leaf-list, not %s", name)
+		}
+	}
 
 	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Source != ""
 
@@ -282,6 +312,13 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	}
 
 	if leaf, ok := node.(*LeafNode); ok {
+		if leaf.Type == TypeEmpty {
+			if len(tokens) != 0 {
+				return lineErrorf(lineNum, "leaf %s is a flag and takes no value", name)
+			}
+			setLeafMeta(configTrue)
+			return nil
+		}
 		if len(tokens) != 1 {
 			return lineErrorf(lineNum, "leaf %s expects exactly one value", name)
 		}
@@ -317,7 +354,11 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 				return p.valueLineRefusal(lineNum, name, tokens, err)
 			}
 		}
-		setLeafMeta(value)
+		tree.SetSlice(name, tokens)
+		if hasMetadata {
+			entry.Value = JoinLeafListMembers(tokens)
+			meta.SetEntry(name, entry)
+		}
 		return nil
 	}
 
@@ -367,12 +408,18 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 
 	if valueOrArray, ok := node.(*ValueOrArrayNode); ok {
 		if len(tokens) == 0 {
+			if p.replaceMembersLine {
+				return lineErrorf(lineNum, "replace-members requires values for %s", name)
+			}
 			return nil // structural-only: no value to set
 		}
 		items := bracketItems(tokens)
 		validate := !p.candidateValues
-		if p.candidateValues {
+		if p.candidateValues || p.replaceMembersLine {
 			candidateItems, complete := p.candidateMembers(tokens)
+			if p.replaceMembersLine && !complete {
+				return lineErrorf(lineNum, "replace-members has incomplete or unexpected brackets for %s", name)
+			}
 			if complete {
 				items = candidateItems
 			}
@@ -385,18 +432,25 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 				return err
 			}
 		}
-		for _, item := range items {
-			tree.AddMultiValueMember(name, item)
+		whole := p.replaceMembersLine
+		if whole {
+			tree.SetLeafListMembers(name, items)
+		} else {
+			p.storeValueOrArrayMembers(tree, valueOrArray, name, items)
 		}
 		if hasMetadata {
-			if entry.Source == "" {
+			switch {
+			case entry.Source == "":
 				// Committed annotation (no @source): one entry for the leaf,
 				// matching the bracket-form line buildCommitMeta writes. No
 				// Value: the tree's member list is the source of truth, and a
 				// joined Value would be re-emitted as one quoted token by the
 				// contested-leaf serializer when annotations accumulate.
 				meta.SetEntry(name, entry)
-			} else {
+			case whole:
+				entry.Value = JoinLeafListMembers(items)
+				meta.SetEntry(name, entry)
+			default:
 				// Session line: one entry per member so concurrent sessions
 				// can add/remove independent members without contesting the
 				// whole leaf.
@@ -412,6 +466,10 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	}
 
 	if container, ok := node.(*ContainerNode); ok {
+		if container.Presence && len(tokens) == 0 {
+			setLeafMeta(configTrue)
+			return nil
+		}
 		child := tree.GetContainer(name)
 		if child == nil {
 			child = NewTree()
@@ -423,6 +481,9 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 
 	if list, ok := node.(*ListNode); ok {
 		if len(tokens) == 0 {
+			if p.replaceMembersLine {
+				return lineErrorf(lineNum, "replace-members requires a leaf-list below %s", name)
+			}
 			return nil // structural-only: list node declared, no entries
 		}
 		if err := p.lineKeyRefusal(lineNum, list, name, tokens); err != nil {
@@ -431,6 +492,11 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		addr, err := ParseListAddress(name, list, tokens)
 		if err != nil {
 			return p.addressLineRefusal(lineNum, tokens, err)
+		}
+		if p.replaceMembersLine {
+			if len(tokens) == addr.Tokens {
+				return lineErrorf(lineNum, "replace-members requires a leaf-list below the %s entry", name)
+			}
 		}
 		// The creator judges the first key value as typed, `default` and
 		// `x#3` included.
@@ -456,7 +522,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		}
 		if hasMetadata && len(tokens) > 0 {
 			childMeta := meta.GetOrCreateContainer(name)
-			entry.Value = tokens[len(tokens)-1]
+			entry.Value, _ = tree.GetContainer(name).Get(tokens[0])
 			childMeta.SetEntry(tokens[0], entry)
 		}
 		return nil
@@ -474,6 +540,9 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 			key := tokens[0]
 			entryMeta := meta.GetOrCreateContainer(name).GetOrCreateListEntry(key)
 			return p.walkAndSetWithMeta(ensureFlexListEntry(tree, name, key), entryMeta, flex, entry, tokens[1:], lineNum)
+		}
+		if p.replaceMembersLine {
+			return lineErrorf(lineNum, "replace-members requires a leaf-list below %s", name)
 		}
 		value := configTrue
 		if len(tokens) > 0 {
@@ -504,9 +573,15 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 
 	if il, ok := node.(*InlineListNode); ok {
 		if len(tokens) == 0 {
+			if p.replaceMembersLine {
+				return lineErrorf(lineNum, "replace-members requires a leaf-list below %s", name)
+			}
 			return nil // structural-only: inline-list declared, no entries
 		}
 		if len(tokens) == 1 {
+			if p.replaceMembersLine {
+				return lineErrorf(lineNum, "replace-members requires a leaf-list below the %s entry", name)
+			}
 			// Key-only: create empty inline-list entry (incomplete config tolerance).
 			key := tokens[0]
 			entries := tree.GetList(name)
@@ -579,6 +654,12 @@ func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry M
 	// Leaf-like types: record metadata at this position. The ^previous key
 	// of a ze:sensitive leaf is written in the $9$ form (encodeSecretMeta),
 	// and the editor compares it with the committed key.
+	if _, freeform := node.(*FreeformNode); freeform {
+		if len(tokens) == 1 {
+			meta.GetOrCreateContainer(name).SetEntry(tokens[0], entry)
+		}
+		return nil
+	}
 	if isLeafLike(node) {
 		leaf, _ := node.(*LeafNode) // A leaf-like node that is no LeafNode holds no secret.
 		previous, _, err := DecodeSecretText(name, leaf, entry.Previous)

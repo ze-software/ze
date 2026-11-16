@@ -5,6 +5,15 @@ change file. It is not decomposed into leaf deletes and creates.
 
 <!-- source: internal/component/config/change_file.go -- StructuralOp, change-file parse and serialize -->
 
+A leaf or path activation whose target is created by pending assignments waits
+until those assignments are applied. Later activations of the same address
+keep their recorded order. The first missing ancestor is checked against the
+editor's original committed view: an ancestor that existed there is still a
+stale removal and is refused, so replay cannot resurrect another operator's
+deleted entry. Saved assignments and their metadata remain in the draft; the
+per-user change file retains the structural activation program.
+<!-- source: internal/component/cli/editor_draft.go -- applyReplayOpsAroundEntries, activationTargetPath, activationTargetWasNew, SaveDraft -->
+
 ## The shape
 
 A rename line carries the same metadata prefix as a leaf edit:
@@ -13,13 +22,15 @@ A rename line carries the same metadata prefix as a leaf edit:
 #user @source %time rename <parent> <list> <old> to <new>
 ```
 
-`SaveDraft()` applies structural operations first, then replays the leaf edits,
-then writes a materialized draft. A rename chain inside one session is coalesced:
+`SaveDraft()` applies address-changing operations first, then replays the leaf
+edits. Member and activation operations whose target those edits create follow
+the edits in recorded order. It then writes a materialized draft. A rename
+chain inside one session is coalesced:
 `old -> mid -> new` becomes `old -> new`.
 
-The same rule covers the session editor's other structural verbs. Each is one
-line, one pending change, and is applied by `SaveDraft()` and by the commit
-before the leaf edits:
+The same recorded program covers the session editor's other structural verbs.
+Each is one line and one pending change. Both `SaveDraft()` and the commit replay
+it using the ordering above:
 
 | Line | Recorded by | Pending change |
 |------|-------------|----------------|
@@ -67,6 +78,11 @@ be erased by a destination deletion that preceded the operator's command. A
 source deleted and recreated before a copy contributes only its latest program.
 Renames of pre-existing ancestors still need their committed source: an
 implicitly materialized parent never hides another session's deletion.
+The stale-rename scan follows prior entry-address operations on a copy of the
+committed tree. A rename may therefore consume an earlier copy's destination,
+while that copy still requires its original source and an unused destination.
+A foreign entry at the rename's destination is still refused. Explicit creations
+are handled by the creation plan; the scan never invents implicit ancestors.
 Within a creation program, committed replay collapses an existing entry's
 rename chain to its original source and final destination. Stale checks still
 require that original source even for an identity chain; replay omits the
@@ -156,6 +172,17 @@ Saving and committing still run the candidate's validation before publishing it.
 <!-- source: internal/component/config/change_file.go -- ParseCandidateChangeFile, ParseChangeFile -->
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile, SaveDraft -->
 <!-- source: internal/component/cli/editor.go -- readChangeFileContent -->
+
+A whole assignment to a plain leaf-list uses the annotated command
+`replace-members <path> [ members ]`. It requires session-source metadata and
+targets a plain leaf-list. Its one metadata entry retains whole-list ownership,
+including the sequence and quoted member boundaries, through change-file and
+saved-draft replay. Ordinary `set <path> [ members ]` stays additive and records
+one owner entry per member. The unannotated configuration parser does not accept
+`replace-members`; committed annotations and ordinary singleton output retain
+their existing `set` spelling.
+<!-- source: internal/component/config/setparser_meta.go -- parseLineWithMeta, walkAndSetWithMeta -->
+<!-- source: internal/component/config/serialize_set.go -- writeValueOrArrayAssignments, serializeSetMetaChild -->
 
 The shared token codec records quoting for candidate reads. A bracket inside
 a quoted member remains data, including when that member fails its leaf

@@ -5,6 +5,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -252,7 +254,17 @@ func HandleConfigDiscardWithAuthorizerAndAudit(mgr *EditorManager, authorizer aa
 			return
 		}
 
-		detail := mgr.Diff(username)
+		if _, err := mgr.GetOrCreate(username); err != nil {
+			var refusal *opererr.Error
+			if existing, ok := errors.AsType[*opererr.Error](err); ok {
+				refusal = existing
+			} else {
+				refusal = opererr.Wrap(err, "Cannot open your saved changes.", "Discard has not run, so your pending changes have been kept.", "Reload this page and press Discard again; if it still fails, ask an administrator to check the configuration store")
+			}
+			http.Error(w, refusal.Error(), http.StatusInternalServerError)
+			return
+		}
+		detail := mgr.discardDiff(username)
 		if err := mgr.Discard(username); err != nil {
 			http.Error(w, fmt.Sprintf("discard: %v", err), http.StatusInternalServerError)
 			return

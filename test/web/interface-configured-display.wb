@@ -2,6 +2,7 @@
 # VALIDATES: an ethernet entry created from All Interfaces remains visible on All and Ethernet pages before a real OS link exists.
 # PREVENTS: interface config existing in the editor while /show/iface/ hides it after navigation.
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=60s
 
 action=open:path=/show/iface/

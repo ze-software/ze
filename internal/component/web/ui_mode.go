@@ -17,13 +17,13 @@ type UIMode int
 const (
 	// UIModeFinder serves the established Finder columns UI.
 	UIModeFinder UIMode = iota
-	// UIModeWorkbench serves the experimental RouterOS-style operator workbench.
+	// UIModeWorkbench serves the unfinished experimental operator workbench.
 	UIModeWorkbench
 )
 
 const (
-	// uiModeCookie is the legacy cookie name. It is ignored during the
-	// Workbench cutover so stale Finder cookies cannot select the old shell.
+	// uiModeCookie is the retired cookie name. Only the current switch cookie
+	// records an explicit choice, so stale browser state cannot override startup.
 	uiModeCookie = "ze-ui"
 	// uiModeSwitchCookie is written only by the current UI switch controls.
 	uiModeSwitchCookie = "ze-ui-mode"
@@ -49,25 +49,26 @@ func (m UIMode) String() string {
 }
 
 // parseUIMode converts a token to a UIMode. Unknown or empty values
-// fall back to Workbench. Finder remains available as an explicit rollback.
+// select the graphical YANG editor. The unfinished Workbench requires an
+// explicit selection.
 func parseUIMode(s string) UIMode {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case uiModeTokenFinder:
-		return UIModeFinder
-	default:
+	case uiModeTokenWorkbench:
 		return UIModeWorkbench
+	default:
+		return UIModeFinder
 	}
 }
 
 // GetUIMode reads ze.web.ui-mode from the env registry and returns the startup
-// mode. Workbench is the normal UI; Finder is only an explicit rollback.
+// mode. Finder is the graphical YANG editor; Workbench is an explicit experiment.
 func GetUIMode() UIMode {
 	return parseUIMode(env.Get("ze.web.ui-mode"))
 }
 
 // ReadUIModeFromRequest checks the current UI switch cookie before falling back
 // to the server-selected startup mode. The legacy ze-ui cookie is deliberately
-// ignored so old browser state cannot strand operators on Finder.
+// ignored; the current switch cookie preserves an operator's explicit choice.
 func ReadUIModeFromRequest(r *http.Request, fallback UIMode) UIMode {
 	c, err := r.Cookie(uiModeSwitchCookie)
 	if err != nil || c.Value == "" {

@@ -61,6 +61,7 @@ Ask the question from Bash instead
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/templates/TEMPLATE.md`; validate during /ze-implement audit |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/repo-maintenance.md` | Update docs, rules, indexes, and verification paths in the same change |
 | Change a web or looking-glass template, handler, or route, or prove its bytes did not move | `ai/patterns/web-endpoint.md` | `go test ./internal/component/web ./internal/component/lg` runs the template, handler, and Go-markup captures. Capture a deliberate change with `go test -run 'Test(Web|LG).*GoldenOutput' ./internal/component/web ./internal/component/lg -update-golden`, then read the diff |
+| Change graphical configuration actions or the browser CLI | `docs/guide/config-editor.md`, `docs/architecture/web-interface.md` | `internal/component/web/graphical_actions.go`, `cli_terminal.go`; browser journeys in `test/web/` |
 | Compare Ze with other products | `ai/rules/writing.md` | Cite every claim, link code or official feature docs, label uncertainty, and add hide-column controls for wide product matrices |
 | Add or change an agent behavior rule | `ai/rules/repo-maintenance.md` | Put shared Ze rules in `ai/rules/` and startup pointers in `ai/INSTRUCTIONS.md` |
 | Reorganize YANG tree | `./le yang migration path-refactor operation <remove|rename|move> ...` | Add `apply` only after reviewing the preview |
@@ -589,6 +590,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | config, load | `config/syntax.md`, `config/tokenizer.md` |
 | environment, env vars | `config/environment.md`, `config/environment-block.md` |
 | web, dashboard, UI | `web-interface.md`, `web-components.md`, `chaos-web-dashboard.md` |
+| graphical configuration actions, confirmed commit, browser CLI format, set cli format | `docs/guide/config-editor.md`, `internal/component/web/graphical_actions.go`, `internal/component/web/cli_format.go`, `internal/component/cli/session_format.go`, `test/web/cli-session-format.wb` |
 | templ, `.templ`, generated markup, view-model type safety | `./le doc check templ-output` (Dev Tools above), `tools.go`, `internal/component/web/templ_typesafety_test.go` |
 | per-page asset imports, `page_assets.go`, `pageAssets`, `//ze:page`, htmx extension per page | `./le web assets check` (Dev Tools above), `internal/le/web/assets.Write`, `internal/test/markupcheck/head.go` |
 | golden fixture, rendered markup, template bytes, byte-for-byte HTML | `go test ./internal/component/web ./internal/component/lg`, `internal/test/golden`, `web-interface.md` |

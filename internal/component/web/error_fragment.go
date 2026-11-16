@@ -16,6 +16,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// candidateUnchangedWhy is shared by refusals before a candidate mutation.
+const candidateUnchangedWhy = "The candidate configuration was not changed."
+
 // ErrorData holds the data for rendering an error item via the oob_error template.
 type ErrorData struct {
 	ID      string

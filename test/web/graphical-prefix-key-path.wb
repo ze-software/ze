@@ -1,0 +1,41 @@
+# Test: default graphical navigation keeps a prefix key as one schema token
+# VALIDATES: generated links, HTMX query encoding, graphical save and reload,
+# plus a quoted browser CLI context surviving its next mutation
+# PREVENTS: slash-key splitting, double decoding and CLI context drift
+
+option=timeout:value=90s
+option=server:kind=daemon
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set policy prefix-list browser-prefix entry 192.0.2.0/24 action accept
+action=press:id=terminal-input:key=Enter
+action=wait
+action=open:path=/show/policy/prefix-list/browser-prefix/entry/
+expect=element:text=192.0.2.0/24
+action=click:text=192.0.2.0/24
+action=wait
+expect=html:contains=192.0.2.0%2F24
+expect=element:id=input-policy-sprefix--list-sbrowser--prefix-sentry-s192-d0-d2-d0-x252F24-sge
+action=fill:id=input-policy-sprefix--list-sbrowser--prefix-sentry-s192-d0-d2-d0-x252F24-sge:value=25
+action=press:id=input-policy-sprefix--list-sbrowser--prefix-sentry-s192-d0-d2-d0-x252F24-sge:key=Enter
+action=wait
+action=open:path=/show/policy/prefix-list/browser-prefix/entry/192.0.2.0%2F24/
+expect=html:contains=value="25"
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp group "browser key?/%雪" description first
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=edit bgp group "browser key?/%雪"
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set description second
+action=press:id=terminal-input:key=Enter
+action=wait
+action=open:path=/show/bgp/group/browser%20key%3F%2F%25%E9%9B%AA/
+expect=html:contains=value="second"

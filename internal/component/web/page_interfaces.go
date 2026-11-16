@@ -320,8 +320,7 @@ func buildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 			}
 		}
 
-		var tb textbuf.Buffer
-		detailURL := tb.Str("/show/iface/detail/").Str(info.Name).String()
+		detailURL := ifaceDetailURL(info.Name)
 		rows = append(rows, WorkbenchTableRow{
 			Key:       info.Name,
 			URL:       detailURL,
@@ -386,12 +385,12 @@ func buildInterfaceDetailData(renderer *Renderer, info *iface.InterfaceInfo) Wor
 	tabs := []WorkbenchDetailTab{
 		{Key: tabConfig, Label: "Configuration", Content: configHTML, Active: true},
 		{Key: tabStatus, Label: labelStatus, Content: statusHTML},
-		{Key: "counters", Label: "Traffic Counters", Content: countersHTML},
+		{Key: segCounters, Label: "Traffic Counters", Content: countersHTML},
 	}
 
 	var tb2 textbuf.Buffer
 	tools := []WorkbenchDetailTool{
-		{Label: "Clear Counters", HxPost: tb2.Str("/admin/iface/clear-counters/").Str(info.Name).String(), Class: wbToolDanger, Confirm: tb2.Reset().Str("Clear counters for ").Str(info.Name).Byte('?').String()},
+		{Label: "Clear Counters", HxPost: tb2.Str("/admin/").Str(encodeConfigPath([]string{segIface, "clear-counters", info.Name})).String(), Class: wbToolDanger, Confirm: tb2.Reset().Str("Clear counters for ").Str(info.Name).Byte('?').String()},
 	}
 
 	return WorkbenchDetailData{
@@ -430,11 +429,17 @@ type ifaceCountersData struct {
 	Rows []detailKV
 }
 
+// ifaceDetailURL is shared by the interface, address and traffic table links.
+func ifaceDetailURL(name string) string {
+	var tb textbuf.Buffer
+	return tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segIface, "detail", name})).String()
+}
+
 // ifaceCountersURL is the endpoint the counters panel re-reads.
 func ifaceCountersURL(name string) string {
 	var tb textbuf.Buffer
 
-	return tb.Str("/show/iface/counters/").Str(name).String()
+	return tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segIface, segCounters, name})).String()
 }
 
 func buildDetailConfigHTML(renderer *Renderer, info *iface.InterfaceInfo) template.HTML {
@@ -547,7 +552,7 @@ func handleInterfacesPage(renderer *Renderer, r *http.Request, path []string, vi
 	}
 
 	// Counters sub-path: /show/iface/counters/<name> (HTMX partial for auto-refresh)
-	if len(path) >= 2 && path[0] == "counters" {
+	if len(path) >= 2 && path[0] == segCounters {
 		return handleInterfaceCountersContent(renderer, path[1])
 	}
 

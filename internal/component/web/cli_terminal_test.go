@@ -27,7 +27,8 @@ func TestWebCLIShowKeepsOperatorOrder(t *testing.T) {
 	tree, err := config.NewParser(schema).Parse(source)
 	require.NoError(t, err)
 
-	_, output := executeTerminalNav(schema, tree, newTestEditorManager(t), "alice", nil,
+	mgr, _ := newPromotingEditorManagerOver(t, source)
+	_, output := executeTerminalNav(schema, tree, mgr, "alice", nil,
 		cliCommand{Verb: verbShow})
 
 	names := []string{"peer zulu", "peer alpha", "peer mike"}

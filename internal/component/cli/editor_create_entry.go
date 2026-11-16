@@ -587,17 +587,42 @@ func rebaseCreationOperation(schema *config.Schema, op config.StructuralOp, sour
 	return op, err
 }
 
-// Only explicitly created sources bypass the committed source check. An
-// implicitly materialized ancestor can never hide another user's deletion.
+// Structural checks follow entry operations on a copy of committed state, so
+// a rename can consume an entry produced by an earlier copy. Explicit creation
+// renames are checked separately; implicit ancestors never hide a stale source.
 func structuralOpConflicts(tree *config.Tree, schema *config.Schema, ops []config.StructuralOp) ([]Conflict, error) {
 	plan, err := planCreations(schema, ops)
 	if err != nil {
 		return nil, err
 	}
 	var conflicts []Conflict
+	working := tree.Clone()
 	for i := range plan.ops {
 		op := &plan.ops[i]
-		conflicts = appendStructuralOpConflict(conflicts, tree, schema, *op)
+		before := len(conflicts)
+		conflicts = appendStructuralOpConflict(conflicts, working, schema, *op)
+		if len(conflicts) != before {
+			continue
+		}
+		if op.Type == config.StructuralOpRename {
+			if op.OldKey == op.NewKey {
+				continue // Identity renames check their source without moving it.
+			}
+		}
+		// Only entry-address changes affect later rename source checks. In
+		// particular, creating an implicit ancestor must not invent a source.
+		//exhaustive:ignore
+		switch op.Type {
+		case config.StructuralOpRename, config.StructuralOpCopyEntry:
+			if err := applyStructuralOps(working, schema, []config.StructuralOp{*op}, false); err != nil {
+				return nil, err
+			}
+		case config.StructuralOpDeleteEntry, config.StructuralOpDeleteContainer, config.StructuralOpDeleteList:
+			// A creation omitted from this scan may already have been deleted.
+			if err := applyStructuralOps(working, schema, []config.StructuralOp{*op}, true); err != nil {
+				return nil, err
+			}
+		}
 	}
 	for i := range plan.createdRenames {
 		rename := &plan.createdRenames[i]

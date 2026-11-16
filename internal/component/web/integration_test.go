@@ -419,17 +419,34 @@ func TestIntegration_PathTraversal(t *testing.T) {
 
 	require.Equal(t, http.StatusSeeOther, loginResp.StatusCode)
 
-	// Attempt path traversal. Go's http client normalizes ".." in URLs,
-	// so we use percent-encoded ".." to preserve it through the client.
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+"/show/..%2Fetc%2Fpasswd", http.NoBody)
-	require.NoError(t, err)
+	// An encoded slash belongs to a single key token under AC-38. Keep
+	// this original input as a safe negative: the synthetic content handler
+	// has no filesystem reader and must return exactly its fixed document.
+	for _, target := range []struct {
+		path   string
+		status int
+	}{
+		{path: "/show/..%2Fetc%2Fpasswd", status: http.StatusOK},
+		{path: "/show/%2e%2e/etc/passwd", status: http.StatusBadRequest},
+	} {
+		t.Run(target.path, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, baseURL+target.path, http.NoBody)
+			require.NoError(t, err)
+			resp, err := client.Do(req)
+			require.NoError(t, err)
+			defer func() { require.NoError(t, resp.Body.Close()) }()
+			assert.Equal(t, target.status, resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			if target.status == http.StatusOK {
+				assert.Equal(t, "<html><body>ok</body></html>", string(body))
+				parsed, err := ParseURL(req)
+				require.NoError(t, err)
+				assert.Equal(t, []string{"../etc/passwd"}, parsed.Path)
+			}
+		})
+	}
 
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-	defer func() { require.NoError(t, resp.Body.Close()) }()
-
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode,
-		"path traversal must be rejected with 400")
 }
 
 // TestIntegration_SessionInvalidation verifies that logging in again invalidates

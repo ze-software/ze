@@ -185,7 +185,7 @@ type SurfaceAnswer struct {
 const (
 	reasonHidden       = "declared hidden: it runs when typed in full and is listed nowhere"
 	reasonServed       = "served by the daemon under its YANG path and locally by `ze <verb>`"
-	reasonStreaming    = "a monitor command streams live on the local terminal, `ze cli` and SSH"
+	reasonStreaming    = "a monitor command streams live on the local terminal, browser CLI, `ze cli` and SSH"
 	reasonPluginDaemon = "a plugin command exists in a running daemon's registry, and every daemon surface reads it"
 	reasonPluginShell  = "a plugin command exists only in a running daemon's registry, and shell completion answers with no daemon"
 	reasonPluginSchema = "a plugin command whose path is a node of the shipped schema, which shell completion walks with no daemon"
@@ -207,8 +207,8 @@ const (
 //   - a view with no other registration is offered only on SSH and `ze cli`,
 //     and only when its view registration declares it TUI-only; an undeclared
 //     one is refused, because no surface could serve it as a command;
-//   - a streaming command is offered streaming on the three terminal surfaces
-//     (SSH, `ze cli`, shell); a one-shot surface does not offer one declared
+//   - a streaming command is offered streaming on the terminal surfaces
+//     (SSH, browser CLI, `ze cli`, shell); a one-shot surface does not offer one declared
 //     streaming-only, and answers any other by its kind (its one-shot RPC
 //     answers one sample);
 //   - a local or local-data command at an offline root declares the YANG path
@@ -309,12 +309,12 @@ func answerView(reg CommandRegistration, s Surface) (SurfaceAnswer, error) {
 }
 
 // terminal answers whether s runs a command on an operator's terminal, where a
-// stream can be shown live: SSH, `ze cli` and the local shell.
+// stream can be shown live: SSH, browser CLI, `ze cli` and the local shell.
 func (s Surface) terminal() bool {
 	switch s {
-	case SurfaceSSH, SurfaceCLI, SurfaceShell:
+	case SurfaceSSH, SurfaceWebCompletion, SurfaceCLI, SurfaceShell:
 		return true
-	case SurfaceUnspecified, SurfaceWebAdmin, SurfaceWebCompletion, SurfaceMCP, SurfaceREST, SurfaceGRPC:
+	case SurfaceUnspecified, SurfaceWebAdmin, SurfaceMCP, SurfaceREST, SurfaceGRPC:
 		return false
 	}
 	panic("BUG: Surface.terminal: surface outside the declared set, unchecked by AnswerSurface")

@@ -626,8 +626,10 @@ against the peer address has two values to compare.
 | `open` | `path` | Navigate to `baseURL + path` |
 | `click` | `id` or `text` | Click element by id or visible text. A click by `id` first waits, inside the same retry budget, until no finite CSS transition or animation runs on the element or an element containing it: `agent-browser` measures the box and then presses at that point, so a control still sliding (the error drawer's tab) took the click somewhere else and reported success. Still moving at the deadline, the click fails and says so |
 | `fill` | (`id` or `text`) + `value` | Clear and type `value` |
+| `select` | `id` + `value` | Select an option by value or visible label through the browser. An explicit empty `value=` selects an empty option. Selection does not submit the form. Follow it with the submit action and an assertion that proves the application consumed the value |
+| `upload` | `id` + `file` | Select a regular local file in a file input through the browser; the following assertion must prove the application consumed its contents |
 | `hover` | `id` or `text` | Hover element |
-| `press` | `key` (+ optional `id`/`text`) | Press a key, optionally focused on an element |
+| `press` | `key` (+ optional `id`/`text`, `wait`) | Press a key, optionally focused on an element. By default wait for network idleness. `wait=none` requires `id` and returns after the key event, for a continuous stream or an explicit overlapping-command proof; follow it with an assertion on the resulting state |
 | `wait` | `ms` (or none) | Wait `ms` milliseconds, or for in-flight network to settle. A wait longer than 30s touches the browser between sleeps: the `agent-browser` daemon reaps itself after 60s with no command and takes the page with it, so a pure sleep of a minute returned to a browser holding nothing |
 | `wait-until` | `path` + `contains` | Re-open `path` until the page it serves contains the text. Stops polling at `expectDeadline`. **Leaves the browser on `path`** |
 | `wait-html` | exactly one of `contains` or `not-contains` | Re-read the body of the page the browser already holds until it contains, or no longer contains, the text. Never opens, reloads or navigates, so it judges what an htmx answer did to the current DOM (an out-of-band swap, a class removed). Stops polling at `expectDeadline` under the case deadline, and fails naming the text with an excerpt of the last page it read. Any other key, an empty value or both keys together is refused |
@@ -636,7 +638,7 @@ against the peer address has two values to compare.
 | `forward` | none | The browser's own forward button. htmx 4 traverses the Navigation API, which holds entries on both sides of the current one, and the entry AHEAD is reached by a second traversal that `back` cannot make |
 | `screenshot` | `file` | Save a screenshot only after two render frames, loaded fonts, finite animations and fetch/XHR/HTMX work settle under the case deadline |
 
-<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/hover/press/wait/wait-until/wait-html/login/back/forward/screenshot -->
+<!-- source: internal/component/web/testing/runner.go -- executeAction: open/click/fill/select/upload/hover/press/wait/wait-until/wait-html/login/back/forward/screenshot -->
 <!-- source: internal/component/web/testing/runner.go -- waitHTML, waitHTMLState -->
 
 `wait:ms=` is a blind wait and asserts on elapsed time, which is what
@@ -791,6 +793,10 @@ daemon descendants have exited.
 <!-- source: internal/component/web/testing/expect.go -- retryPositive, retryCommand, expectDeadline -->
 
 ### Expectations
+
+An `element` expectation requires at least one nonempty condition. Only `id`,
+`not-id`, `text` and `not-text` are accepted; an unknown qualifier fails before
+the browser is queried. Use `html` for markup or class assertions.
 
 | Expectation | Keys | Passes when |
 |-------------|------|-------------|

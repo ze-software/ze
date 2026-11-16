@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -57,7 +58,7 @@ func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 	for _, e := range entries {
 		rows = append(rows, WorkbenchTableRow{
 			Key: e.Name,
-			URL: tb.Reset().Str("/show/firewall/chain/?table=").Str(e.Name).String(),
+			URL: tb.Reset().Str("/show/firewall/chain/?table=").Str(url.QueryEscape(e.Name)).String(),
 			Cells: []string{
 				e.Name,
 				e.Family,
@@ -65,8 +66,8 @@ func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 				strconv.Itoa(e.SetCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Chains", URL: tb.Reset().Str("/show/firewall/chain/?table=").Str(e.Name).String()},
-				{Label: labelEdit, URL: tb.Reset().Str("/show/firewall/table/").Str(e.Name).Byte('/').String()},
+				{Label: "View Chains", URL: tb.Reset().Str("/show/firewall/chain/?table=").Str(url.QueryEscape(e.Name)).String()},
+				{Label: labelEdit, URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", e.Name})).Byte('/').String()},
 			},
 		})
 	}
@@ -169,7 +170,7 @@ func buildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 
 		rows = append(rows, WorkbenchTableRow{
 			Key: tb.Reset().Str(ce.Table).Byte('/').Str(ce.Name).String(),
-			URL: tb.Reset().Str("/show/firewall/rule/?table=").Str(ce.Table).Str("&chain=").Str(ce.Name).String(),
+			URL: tb.Reset().Str("/show/firewall/rule/?table=").Str(url.QueryEscape(ce.Table)).Str("&chain=").Str(url.QueryEscape(ce.Name)).String(),
 			Cells: []string{
 				ce.Table,
 				ce.Name,
@@ -180,8 +181,8 @@ func buildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 				strconv.Itoa(ce.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Rules", URL: tb.Reset().Str("/show/firewall/rule/?table=").Str(ce.Table).Str("&chain=").Str(ce.Name).String()},
-				{Label: labelEdit, URL: tb.Reset().Str("/show/firewall/table/").Str(ce.Table).Str("/chain/").Str(ce.Name).Byte('/').String()},
+				{Label: "View Rules", URL: tb.Reset().Str("/show/firewall/rule/?table=").Str(url.QueryEscape(ce.Table)).Str("&chain=").Str(url.QueryEscape(ce.Name)).String()},
+				{Label: labelEdit, URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", ce.Table, segChain, ce.Name})).Byte('/').String()},
 			},
 		})
 	}
@@ -193,7 +194,7 @@ func buildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 
 	addURL := ""
 	if filterTable != "" {
-		addURL = tb.Reset().Str("/show/firewall/table/").Str(filterTable).Str("/chain/").String()
+		addURL = tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", filterTable, segChain})).Byte('/').String()
 	}
 
 	return WorkbenchTableData{
@@ -476,7 +477,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 	columns := []WorkbenchTableColumn{
 		{Key: "order", Label: "#"},
 		{Key: "flags", Label: "Flags"},
-		{Key: "chain", Label: "Chain", Sortable: true},
+		{Key: colChain, Label: "Chain", Sortable: true},
 		{Key: "match", Label: "Match"},
 		{Key: "action", Label: "Action"},
 		{Key: "packets", Label: "Packets"},
@@ -494,7 +495,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 		}
 
 		var tb textbuf.Buffer
-		ruleBase := tb.Str("/show/firewall/table/").Str(re.Table).Str("/chain/").Str(re.Chain).Str("/rule/").Str(re.Name).String()
+		ruleBase := tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", re.Table, segChain, re.Chain, segRule, re.Name})).String()
 		rows = append(rows, WorkbenchTableRow{
 			Key:       tb.Reset().Str(re.Table).Byte('/').Str(re.Chain).Byte('/').Str(re.Name).String(),
 			Flags:     flagStr,
@@ -534,7 +535,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 
 	addURL := ""
 	if filterTable != "" && filterChain != "" {
-		addURL = tb2.Reset().Str("/show/firewall/table/").Str(filterTable).Str("/chain/").Str(filterChain).Str("/term/").String()
+		addURL = tb2.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", filterTable, segChain, filterChain, "term"})).Byte('/').String()
 	}
 
 	return WorkbenchTableData{
@@ -639,7 +640,7 @@ func buildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 				strconv.Itoa(se.ElementCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Elements", URL: tb.Reset().Str("/show/firewall/table/").Str(se.Table).Str("/set/").Str(se.Name).Byte('/').String()},
+				{Label: "View Elements", URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", se.Table, "set", se.Name})).Byte('/').String()},
 			},
 		})
 	}
@@ -666,8 +667,8 @@ func handleFirewallSetsPage(renderer *Renderer, r *http.Request) template.HTML {
 // --- Connections page ---
 
 // buildFirewallConnectionsTableData constructs a WorkbenchTableData for the
-// connections (conntrack) page. For v1, conntrack data requires runtime command
-// dispatch, so this shows a placeholder empty state.
+// connections (conntrack) page. No shared connection-tuple producer exists yet;
+// absence of observations MUST NOT be reported as an observed empty table.
 func buildFirewallConnectionsTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "protocol", Label: labelProtocol, Sortable: true},
@@ -679,17 +680,19 @@ func buildFirewallConnectionsTableData() WorkbenchTableData {
 		{Key: "bytes", Label: "Bytes", Sortable: true},
 	}
 
-	emptyMsg := "Connection tracking data requires a running firewall."
-	if firewall.ActiveBackendName() != "" {
-		emptyMsg = "No active connections."
+	emptyMsg := "Live connection details are unavailable in this interface."
+	if firewall.ActiveBackendName() == "" {
+		emptyMsg += " Connection tracking requires a running firewall."
 	}
 
 	return WorkbenchTableData{
-		Title:        "Firewall Connections",
-		Columns:      columns,
-		Rows:         nil,
-		EmptyMessage: emptyMsg,
-		EmptyHint:    "Conntrack entries will appear here when the firewall backend is active and tracking connections.",
+		Title:          "Firewall Connections",
+		Columns:        columns,
+		Rows:           nil,
+		EmptyMessage:   emptyMsg,
+		EmptyHint:      "Open CLI and run show system conntrack to inspect connection tracking status.",
+		EmptyLinkURL:   "/cli",
+		EmptyLinkLabel: "Open CLI",
 	}
 }
 
@@ -711,11 +714,11 @@ func renderFirewallPageContent(renderer *Renderer, r *http.Request, path []strin
 	}
 
 	switch path[0] {
-	case "chain":
+	case segChain:
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
 			return handleFirewallChainsPage(renderer, r), true
 		}
-	case "rule":
+	case segRule:
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
 			return handleFirewallRulesPage(renderer, r), true
 		}

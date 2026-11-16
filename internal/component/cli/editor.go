@@ -674,6 +674,8 @@ func (e *Editor) walkPathWithSchemaFrom(tree *config.Tree, path []string) (*conf
 			currentSchema = n
 		case *config.FlexNode:
 			currentSchema = n
+		case *config.InlineListNode:
+			currentSchema = n
 		}
 		i += step
 	}
@@ -717,6 +719,8 @@ func (e *Editor) WalkPath(path []string) *config.Tree {
 			currentSchema = n
 		case *config.FlexNode:
 			currentSchema = n
+		case *config.InlineListNode:
+			currentSchema = n
 		}
 		i += step
 	}
@@ -759,9 +763,15 @@ func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path
 		return true, entries[addr.Key], step
 	case *config.FlexNode:
 		return true, tree.GetContainer(name), 1
-	case *config.LeafNode, *config.FreeformNode,
-		*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
-		*config.InlineListNode:
+	case *config.FreeformNode:
+		return true, tree.GetContainer(name), 1
+	case *config.InlineListNode:
+		if i+1 < len(path) && n.Get(path[i+1]) == nil {
+			return true, tree.GetList(name)[path[i+1]], 2
+		}
+		return true, tree.GetList(name)[config.KeyDefault], 1
+	case *config.LeafNode,
+		*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
 		return false, nil, 0 // Leaf-like nodes — can't navigate deeper
 	}
 	return false, nil, 0 // Unknown node type
@@ -1334,6 +1344,16 @@ func (e *Editor) rollback(backupPath string) error {
 	data, err := e.readBackupContent(backupPath)
 	if err != nil {
 		return fmt.Errorf("cannot read backup: %w", err)
+	}
+	if e.session != nil {
+		// A session restores history into its candidate, the same atomic load
+		// as an operator-pasted replacement. Publishing here would bypass the
+		// session's review, conflict checks and daemon apply transaction.
+		loaded, err := e.ParseLoad(string(data), nil)
+		if err != nil {
+			return fmt.Errorf("cannot load saved configuration: %w", err)
+		}
+		return e.LoadReplace(nil, loaded)
 	}
 
 	// Read current committed config from storage (not cache) for accurate backup.

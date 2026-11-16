@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
@@ -19,19 +19,15 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
 	terminalOutputCommitSuccessful = "commit successful"
 	terminalOutputChangesDiscarded = "changes discarded"
-	// terminalOutputNoChanges is what compare answers when the two texts match.
-	// compareTreesAtPath reads it back, because a changed secret is invisible in
-	// the text and still owes the operator a line.
-	terminalOutputNoChanges = "(no changes)"
 )
 
 // terminalResponse is the JSON envelope returned by the terminal endpoint.
@@ -43,6 +39,7 @@ type terminalResponse struct {
 	Path     string `json:"path"`
 	Prompt   string `json:"prompt,omitempty"`
 	Mode     string `json:"mode,omitempty"`
+	Input    string `json:"input,omitempty"`
 }
 
 // HandleCLITerminalWithDispatchAuthorizerAndAudit returns a POST handler for
@@ -75,34 +72,41 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			return
 		}
 
-		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+		r.Body = http.MaxBytesReader(w, r.Body, editorRequestMax)
 
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		commandText := r.FormValue("command")
+		commandText := r.FormValue(webCommandField)
 		if len(commandText) > maxCommandLength {
 			http.Error(w, "command too long", http.StatusBadRequest)
 			return
 		}
 
-		pathStr := r.FormValue("path")
-		var contextPath []string
-		if pathStr != "" {
-			contextPath = strings.Split(pathStr, "/")
-		}
-
-		if err := ValidatePathSegments(contextPath); err != nil {
+		pathStr := r.FormValue(webPathField)
+		contextPath, pathErr := decodeConfigPath(pathStr)
+		if pathErr != nil {
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
 		}
 
 		mode := normalizeTerminalMode(r.FormValue("mode"))
 		cmd := parseCLICommand(commandText)
+		if values, ok := r.PostForm["content"]; ok {
+			if len(values) > 0 {
+				if len(values[0]) > editorContentMax {
+					http.Error(w, opererr.New("The selected configuration exceeds the 4 MiB limit.",
+						candidateUnchangedWhy,
+						"Select a configuration file smaller than 4 MiB in /cli").Error(), http.StatusRequestEntityTooLarge)
+					return
+				}
+				cmd.content = &values[0]
+			}
+		}
 		cmd.Operator = contextPath
-		if authCommand := terminalAuthCommandForMode(mode, cmd); authCommand != "" {
+		if authCommand := terminalAuthCommandForMode(mode, cmd, commandText); authCommand != "" {
 			if !authorizeWebConfigMutation(w, r, authorizer, username, authCommand) {
 				return
 			}
@@ -128,9 +132,10 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 		resp := terminalResponse{
 			Output:   result.output,
 			Feedback: terminalFeedback(cmd, result.output),
-			Path:     textbuf.Join(result.path, "/"),
+			Path:     encodeConfigPath(result.path),
 			Prompt:   formatTerminalPrompt(result.mode, result.path),
 			Mode:     result.mode,
+			Input:    result.input,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -158,7 +163,7 @@ func terminalAuthCommand(cmd cliCommand) string {
 		return webCommandConfigDelete
 	case verbCommit:
 		return webCommandConfigCommit
-	case verbDiscard:
+	case verbDiscard, verbDisconnect:
 		return webCommandConfigDiscard
 	case verbRollback:
 		return webCommandConfigRollback
@@ -166,24 +171,31 @@ func terminalAuthCommand(cmd cliCommand) string {
 		return webCommandConfigRename
 	case verbCopy, verbInsert:
 		return webCommandConfigAdd
-	case verbSave:
+	case verbSave, verbLoad:
 		return webCommandConfigSave
 	}
 	return ""
 }
 
-func terminalAuthCommandForMode(mode string, cmd cliCommand) string {
-	if normalizeTerminalMode(mode) == terminalModeOperational && !terminalConfigCommandInOperationalMode(cmd.Verb) {
-		return ""
+func terminalAuthCommandForMode(mode string, cmd cliCommand, raw string) string {
+	if normalizeTerminalMode(mode) == terminalModeOperational {
+		if cli.IsSessionFormatCommand(strings.TrimSpace(raw)) {
+			return ""
+		}
+		if !terminalConfigCommandInOperationalMode(cmd.Verb) {
+			return ""
+		}
 	}
 	return terminalAuthCommand(cmd)
 }
 
 type terminalCommandResult struct {
-	path       []string
-	mode       string
-	output     string
-	completion *plugin.RenderedResponse
+	auditSuccess bool
+	input        string
+	path         []string
+	mode         string
+	output       string
+	completion   *plugin.RenderedResponse
 	// navigated is set when the command answered a new position (edit, up,
 	// top), so `top <command>` keeps the operator's position unless the
 	// command behind it moved it.
@@ -224,13 +236,24 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 		return answer
 	}
 	result := terminalCommandResult{path: contextPath, mode: terminalModeConfig}
+	if shared, handled := executeTerminalEditorCommand(mgr, username, contextPath, cmd); handled {
+		return shared
+	}
+	if cmd.words.FirstPipe() >= 0 {
+		if cmd.Verb != verbRun {
+			if cmd.Verb != verbDiscard {
+				result.output = "error: command '" + cmd.Verb + "' does not support piping"
+				return result
+			}
+		}
+	}
 	switch cmd.Verb {
 	case verbRun:
 		if len(cmd.Args) == 0 {
 			result.output = "usage: run <command>"
 			return result
 		}
-		result.output, result.completion = executeTerminalOperational(ctx, dispatch, username, remoteAddr, textbuf.Join(cmd.Args, " "))
+		result.output, result.completion = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, cmd.words.Tail().String())
 		return result
 	case verbExit:
 		if mgr.ChangeCount(username) > 0 {
@@ -242,6 +265,11 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 	case verbConfigure:
 		result.output = "already in config mode"
 		return result
+	case verbCommit:
+		answer, err := runWebCommit(mgr, username, cmd.Args, cmd.Operator)
+		result.output = terminalCommitOutput(answer, err)
+		result.auditSuccess = answer.applied
+		return result
 	case verbDiscard:
 		// Discard runs here, not in executeTerminalNav, because its success is
 		// what the audit row needs and the navigator answers text only. Every
@@ -250,7 +278,13 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 			result.output = "error: " + errDiscardPipe.Error()
 			return result
 		}
-		answer, err := runWebDiscard(mgr, username, cmd.Args)
+		discardArgs := cmd.Args
+		if len(discardArgs) > 0 {
+			if discardArgs[0] != discardAll {
+				discardArgs = slices.Concat(contextPath, discardArgs)
+			}
+		}
+		answer, err := runWebDiscard(mgr, username, discardArgs)
 		if err != nil {
 			var tb textbuf.Buffer
 			result.output = tb.Str("error: ").Err(err).String()
@@ -275,6 +309,15 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 
 func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
 	result := terminalCommandResult{path: contextPath, mode: terminalModeOperational}
+	raw = strings.TrimSpace(raw)
+	if cli.IsSessionFormatCommand(raw) {
+		output, err := mgr.sessionFormatCommand(username, raw)
+		result.output = output
+		if err != nil {
+			result.output = err.Error()
+		}
+		return result
+	}
 	switch cmd.Verb {
 	case verbConfigure:
 		result.mode = terminalModeConfig
@@ -290,7 +333,7 @@ func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, 
 	if terminalConfigCommandInOperationalMode(cmd.Verb) {
 		return executeTerminalConfigMode(ctx, schema, viewTree, mgr, username, remoteAddr, contextPath, cmd, dispatch)
 	}
-	result.output, result.completion = executeTerminalOperational(ctx, dispatch, username, remoteAddr, raw)
+	result.output, result.completion = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, raw)
 	return result
 }
 
@@ -300,19 +343,18 @@ func terminalConfigCommandInOperationalMode(verb string) bool {
 		verbCompare, verbSave, verbHistory, verbRollback, verbRename, verbCopy,
 		verbInsert, verbDeactivate, verbActivate:
 		return true
+	case verbLoad, verbOption:
+		return true
 	default:
 		return false
 	}
 }
 
-func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input string) (string, *plugin.RenderedResponse) {
+func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input, sessionFormat string) (string, *plugin.RenderedResponse) {
 	if dispatch == nil {
 		return "error: operational command dispatch not available", nil
 	}
-	// No session format override: the web terminal has no `set cli format` surface
-	// (that command is dispatched only by the SSH/TUI model), so it always uses the
-	// configured default.
-	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input, "")
+	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input, sessionFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
 		return tb.Str("pipe error: ").Str(pipeErr).String(), nil
@@ -352,8 +394,13 @@ func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, r
 		detail := mgr.Diff(username)
 		return audit.ActionConfigCommit, detail
 	case verbDiscard:
-		detail := mgr.Diff(username)
-		return audit.ActionConfigDiscard, detail
+		if len(cmd.Args) == 0 {
+			return audit.ActionConfigDiscard, mgr.discardDiff(username)
+		}
+		if cmd.Args[0] == discardAll {
+			return audit.ActionConfigDiscard, mgr.discardDiff(username)
+		}
+		return audit.ActionConfigDiscard, mgr.Diff(username)
 	case verbRollback:
 		return audit.ActionConfigDiscard, raw
 	}
@@ -368,11 +415,11 @@ func terminalAuditSucceeded(cmd cliCommand, result terminalCommandResult) bool {
 	}
 	switch cmd.Verb {
 	case verbCommit:
-		return result.output == terminalOutputCommitSuccessful
+		return result.auditSuccess
 	case verbDiscard:
 		return result.discarded
 	case verbRollback:
-		return strings.HasPrefix(result.output, "rolled back to ")
+		return result.auditSuccess
 	}
 	return false
 }
@@ -385,18 +432,13 @@ func terminalFeedback(cmd cliCommand, output string) string {
 	var tb textbuf.Buffer
 	switch cmd.Verb {
 	case verbSet:
-		if len(cmd.Args) >= 2 { //nolint:mnd // set <key> <value>
-			return tb.Str("set ").Str(cmd.Args[0]).Byte(' ').Join(cmd.Args[1:], " ").String()
-		}
+		return output
 	case verbDelete:
 		if len(cmd.Args) >= 1 {
 			return tb.Str("deleted ").Join(cmd.Args, " ").String()
 		}
 	case verbCommit:
-		if strings.HasPrefix(output, "error") || strings.HasPrefix(output, "commit conflicts") {
-			return output
-		}
-		return terminalOutputCommitSuccessful
+		return output
 	case verbDiscard:
 		// The answer itself: a refusal, the path a path discard dropped, or
 		// every change. A fixed line would contradict the first two.
@@ -407,8 +449,21 @@ func terminalFeedback(cmd cliCommand, output string) string {
 		return "up"
 	case verbTop:
 		return "top"
+	case verbLoad, verbOption:
+		return output
 	}
 	return ""
+}
+
+// terminalCommandFailed recognizes the existing editor refusal envelopes. The
+// transports share it so a refused mutation never becomes a success redirect.
+func terminalCommandFailed(output string) bool {
+	for _, prefix := range []string{"error:", "unknown command:", "invalid path:", "usage:", "commit blocked:", "commit conflicts", "Commit conflicts:", "pipe error:"} {
+		if strings.HasPrefix(output, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // executeTerminalNav runs a CLI command and returns the new context path
@@ -416,357 +471,34 @@ func terminalFeedback(cmd cliCommand, output string) string {
 // return the updated path; other commands return nil.
 // Pipe filters (| format config, | match, | head, | tail) are handled
 // using the same cli.ApplyPipeFilter as the SSH CLI.
-func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username string, contextPath []string, cmd cliCommand) (newPath []string, output string) {
+func executeTerminalNav(_ *config.Schema, _ *config.Tree, mgr *EditorManager, username string, contextPath []string, cmd cliCommand) (newPath []string, output string) {
+	if shared, handled := executeTerminalEditorCommand(mgr, username, contextPath, cmd); handled {
+		return nil, shared.output
+	}
 	if !knownCLIVerbs[cmd.Verb] && cmd.Verb != "" {
 		var tb textbuf.Buffer
 		return nil, tb.Str("unknown command: ").Str(cmd.Verb).String()
 	}
 
-	// Check for pipe in args: split into command args and pipe filters.
-	if cmd.words.FirstPipe() > 0 {
-		commandWords, pipeWords := cmd.words.SplitPipe()
-		tokens := commandWords.Tokens()
-		baseCmd := cliCommand{Verb: tokens[0], Args: tokens[1:], Operator: cmd.Operator, words: commandWords}
-		filters := cli.ParsePipeFilters(pipeWords)
-		opts, classErr := cli.ClassifyShowPipes(filters)
-		if classErr != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("pipe error: ").Err(classErr).String()
-		}
-
-		newPath, output = executeTerminalNav(schema, viewTree, mgr, username, contextPath, baseCmd)
-
-		if opts.Format == cli.FmtConfig {
-			showPath := contextPath
-			if baseCmd.Verb == verbShow && len(baseCmd.Args) > 0 {
-				showPath = append(append([]string{}, contextPath...), baseCmd.Args...)
-			}
-			output = serializeSetAtPath(displayTree(viewTree, mgr, username), schema, showPath)
-		}
-		if opts.CompareTarget != "" {
-			showPath := contextPath
-			if baseCmd.Verb == verbShow && len(baseCmd.Args) > 0 {
-				showPath = append(append([]string{}, contextPath...), baseCmd.Args...)
-			}
-			output = compareTargetAtPath(viewTree, mgr, username, schema, showPath, opts.CompareTarget, opts.Format)
-		}
-
-		for _, f := range opts.TextFilters {
-			filtered, err := cli.ApplyPipeFilter(output, f)
-			if err != nil {
-				var tb textbuf.Buffer
-				return newPath, tb.Str("pipe error: ").Err(err).String()
-			}
-			output = filtered
-		}
-		return newPath, output
+	if cmd.words.FirstPipe() >= 0 {
+		return nil, "error: command '" + cmd.Verb + "' does not support piping"
 	}
 
 	switch cmd.Verb {
-	case verbEdit:
-		target := append(append([]string{}, contextPath...), cmd.Args...)
-		if len(target) > 0 {
-			if _, err := walkSchema(schema, target); err != nil {
-				var tb textbuf.Buffer
-				return nil, tb.Str("invalid path: ").Err(err).String()
-			}
-		}
-		return target, ""
-	case verbUp:
-		if len(contextPath) > 0 {
-			return contextPath[:len(contextPath)-1], ""
-		}
-		return []string{}, ""
-	case verbTop:
-		return []string{}, ""
-	case verbShow:
-		showPath := append(append([]string{}, contextPath...), cmd.Args...)
-		return nil, serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, showPath)
-	case verbSet:
-		return nil, executeTerminalSet(mgr, username, contextPath, cmd)
-	case verbDelete:
-		return nil, executeTerminalDelete(mgr, username, contextPath, cmd.Args)
 	case verbCommit:
 		return nil, executeTerminalCommit(mgr, username, cmd)
-	case verbWho:
-		sessions := mgr.ActiveSessions()
-		if len(sessions) == 0 {
-			return nil, "no active sessions"
-		}
-		var buf textbuf.Buffer
-		buf.Str("active sessions:\n")
-		for _, s := range sessions {
-			buf.Str("  ").Str(s).Byte('\n')
-		}
-		return nil, buf.String()
-	case verbCompare:
-		target := cli.SrcConfirmed
-		if len(cmd.Args) > 0 {
-			target = textbuf.Join(cmd.Args, " ")
-		}
-		return nil, compareTargetAtPath(viewTree, mgr, username, schema, contextPath, target, cli.FmtTree)
-	case verbSave:
-		if err := mgr.SaveDraft(username); err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		return nil, "changes saved to draft"
-	case verbHistory:
-		backups, err := mgr.ListBackups(username)
-		if err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		if len(backups) == 0 {
-			return nil, "no backups found"
-		}
-		var buf textbuf.Buffer
-		for i, b := range backups {
-			buf.Int(int64(i + 1)).Str(". ").Str(b.Timestamp).Str("  ").Str(b.Path).Byte('\n')
-		}
-		return nil, buf.String()
-	case verbRollback:
-		if len(cmd.Args) != 1 {
-			return nil, "usage: rollback <number>"
-		}
-		n, err := strconv.Atoi(cmd.Args[0])
-		if err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("invalid backup number: ").Str(cmd.Args[0]).String()
-		}
-		backups, bErr := mgr.ListBackups(username)
-		if bErr != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(bErr).String()
-		}
-		if n < 1 || n > len(backups) {
-			var tb textbuf.Buffer
-			return nil, tb.Str("backup ").Int(int64(n)).Str(" not found (have ").Int(int64(len(backups))).Str(" backups)").String()
-		}
-		if err := mgr.Rollback(username, backups[n-1].Path); err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		var tb textbuf.Buffer
-		return nil, tb.Str("rolled back to ").Str(backups[n-1].Path).String()
-	case verbRename:
-		return execListEntryOp(schema, cmd.Args, contextPath, cmd.Operator, listEntryRename, func(parent []string, list, src string, dst []string) error {
-			return mgr.RenameListEntry(username, parent, list, src, dst)
-		})
-	case verbCopy:
-		return execListEntryOp(schema, cmd.Args, contextPath, cmd.Operator, listEntryCopy, func(parent []string, list, src string, dst []string) error {
-			return mgr.CopyListEntry(username, parent, list, src, dst)
-		})
-	case verbInsert:
-		if len(cmd.Args) < 1 {
-			return nil, "usage: insert <path>"
-		}
-		insertPath := append(append([]string{}, contextPath...), cmd.Args...)
-		if err := mgr.CreateEntry(username, insertPath); err != nil {
-			// The creator refused a new entry's key on the way: the fix is this
-			// insert with that key corrected, framed for the operator's
-			// position, as the SSH editor's cmdInsert frames it (AC-29).
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(cli.FramedKeyRefusal(err, verbInsert, contextPath, cmd.Args, cmd.Operator)).String()
-		}
-		var tb textbuf.Buffer
-		return nil, tb.Str("inserted entry at ").Join(cmd.Args, " ").String()
-	case verbDeactivate:
-		if len(cmd.Args) < 1 {
-			return nil, "usage: deactivate <path>"
-		}
-		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
-		msg, err := mgr.ApplyActivation(username, fullPath, false)
-		if err != nil {
-			// A refused key on the way: the fix is this line with the key
-			// corrected, framed for the operator's position (AC-31).
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(cli.FramedKeyRefusal(err, verbDeactivate, contextPath, cmd.Args, cmd.Operator)).String()
-		}
-		return nil, msg
-	case verbActivate:
-		if len(cmd.Args) < 1 {
-			return nil, "usage: activate <path>"
-		}
-		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
-		msg, err := mgr.ApplyActivation(username, fullPath, true)
-		if err != nil {
-			// A refused key on the way: the fix is this line with the key
-			// corrected, framed for the operator's position (AC-31).
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(cli.FramedKeyRefusal(err, verbActivate, contextPath, cmd.Args, cmd.Operator)).String()
-		}
-		return nil, msg
-	case verbErrors:
-		// The masked pending-change diff, which is the one diff the web renders.
-		// The editor's text diff carried the stored value of every ze:sensitive
-		// leaf, and this verb needs no config authorization (secret.go).
-		return nil, mgr.Diff(username)
-	case verbDisconnect:
-		if len(cmd.Args) < 1 {
-			return nil, "usage: disconnect <session-id>"
-		}
-		if err := mgr.DisconnectSession(username, cmd.Args[0]); err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		var tb textbuf.Buffer
-		return nil, tb.Str("disconnected session ").Str(cmd.Args[0]).String()
+
 	case verbHelp:
-		return nil, `commands:
-  edit <path>          Enter a subsection context
-  top                  Return to root context
-  top <command>        Run one command as if at the root context
-  up                   Go up one level
-  show [path]          Display configuration
-  set <path> <value>   Set a configuration value
-  delete <path>        Delete a configuration value
-  rename <list> <old> to <new>   Rename a list entry
-  copy <list> <src> to <dst>     Copy a list entry
-  insert <path>        Insert a keyless list entry
-  deactivate <path>    Mark a node inactive
-  activate <path>      Re-activate a node
-  compare              Show diff vs original
-  commit now           Apply changes
-  commit accept|abort  Keep or revert a pending confirmed commit
-  discard [path|all]   Revert the changes at path, or all changes
-  save                 Save draft
-  history              List backups
-  rollback <N>         Restore backup N
-  errors               Show validation errors
-  who                  Show active sessions
-  disconnect <id>      Disconnect a session
-  help                 Show this help`
+		var output textbuf.Buffer
+		output.Str("commands:\n")
+		for _, entry := range cli.EditorHelpEntries() {
+			output.Str("  ").Str(entry.Name).Str("  ").Str(entry.Desc).Byte('\n')
+		}
+		return nil, output.String()
 	case "":
 		return nil, ""
 	}
-
-	return nil, ""
-}
-
-// compareTargetAtPath resolves the compare baseline and diffs it against the
-// user's working tree at the selected path.
-func compareTargetAtPath(committed *config.Tree, mgr *EditorManager, username string, schema *config.Schema, path []string, target, format string) string {
-	baseline, err := compareBaselineTree(committed, mgr, username, schema, target)
-	if err != nil {
-		var tb textbuf.Buffer
-		return tb.Str("compare ").Str(compareTargetLabel(target)).Str(": ").Err(err).String()
-	}
-	return compareTreesAtPath(baseline, displayTree(committed, mgr, username), schema, path, format)
-}
-
-// compareTreesAtPath diffs two in-memory trees at a path.
-// baseline is the selected reference tree, working is the editor's tree.
-//
-// Both texts are masked, so a rotated secret reads as the same placeholder on
-// each side and the text diff cannot see it. changedSecretLines names those
-// paths and publishes neither value.
-func compareTreesAtPath(baseline, working *config.Tree, schema *config.Schema, path []string, format string) string {
-	if baseline == nil || working == nil || schema == nil {
-		return "(no configuration)"
-	}
-	baseText := serializeTreeAtPath(baseline, schema, path)
-	workText := serializeTreeAtPath(working, schema, path)
-	if format == cli.FmtConfig {
-		baseText = serializeSetAtPath(baseline, schema, path)
-		workText = serializeSetAtPath(working, schema, path)
-	}
-	diff := terminalOutputNoChanges
-	if baseText != workText {
-		diff = textDiff(baseText, workText)
-	}
-	secrets := changedSecretLines(baseline, working, schema, path)
-	switch {
-	case secrets == "":
-		return diff
-	case diff == terminalOutputNoChanges:
-		return secrets
-	default:
-		return diff + secrets
-	}
-}
-
-// changedSecretLines reports one line per secret leaf whose value differs
-// between the two trees, under the compared path. Each line names the leaf and
-// stands its value in as the display placeholder, which is the shape
-// EditorManager.Diff writes for the same change. That is what the operator
-// needs, and all they get. The compare verb needs no config authorization
-// (secret.go).
-func changedSecretLines(baseline, working *config.Tree, schema *config.Schema, path []string) string {
-	var changed []string
-	if len(path) == 0 {
-		changed = config.ChangedSecretPaths(baseline, working, schema)
-	} else {
-		node, err := walkSchema(schema, path)
-		if err != nil || node == nil {
-			return ""
-		}
-		changed = config.ChangedSecretPathsSubtree(
-			walkTree(baseline, schema, path), walkTree(working, schema, path), node)
-	}
-
-	var b textbuf.Buffer
-	for _, leafPath := range changed {
-		b.Str("~ ").Str(leafPath).Byte(' ').Str(config.SecretDataPlaceholder).Str(" (secret changed)").Byte('\n')
-	}
-	return b.String()
-}
-
-func compareBaselineTree(committed *config.Tree, mgr *EditorManager, username string, schema *config.Schema, target string) (*config.Tree, error) {
-	switch cli.NormalizeCompareTarget(target) {
-	case "", cli.SrcConfirmed:
-		return committed, nil
-	case cli.SrcSaved:
-		return savedDraftTree(mgr, schema)
-	case cli.CmpRollback:
-		return rollbackTree(mgr, username, schema, target)
-	default:
-		return nil, fmt.Errorf("unsupported compare target %q", target)
-	}
-}
-
-func compareTargetLabel(target string) string {
-	if strings.TrimSpace(target) == "" {
-		return cli.SrcConfirmed
-	}
-	return strings.TrimSpace(target)
-}
-
-func savedDraftTree(mgr *EditorManager, schema *config.Schema) (*config.Tree, error) {
-	if mgr == nil {
-		return nil, errNoEditorManager
-	}
-	data, err := mgr.store.ReadFile(cli.DraftPath(mgr.configPath))
-	if err != nil {
-		return nil, errNoSavedDraft
-	}
-	return parseConfigContent(string(data), schema)
-}
-
-func rollbackTree(mgr *EditorManager, username string, schema *config.Schema, target string) (*config.Tree, error) {
-	if mgr == nil {
-		return nil, errNoEditorManager
-	}
-	nText := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(target), "rollback "))
-	n, err := strconv.Atoi(nText)
-	if err != nil {
-		return nil, fmt.Errorf("invalid rollback number: %s", nText)
-	}
-	if n < 1 {
-		return nil, fmt.Errorf("rollback number must be >= 1, got %d", n)
-	}
-	backups, err := mgr.ListBackups(username)
-	if err != nil {
-		return nil, fmt.Errorf("cannot list backups: %w", err)
-	}
-	if n > len(backups) {
-		return nil, fmt.Errorf("backup %d not found (have %d backups)", n, len(backups))
-	}
-	data, err := storage.ReadVersionEntry(mgr.store, mgr.configPath, backups[n-1].Path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read backup %d: %w", n, err)
-	}
-	return parseConfigContent(string(data), schema)
+	return nil, "unknown command: " + cmd.Verb
 }
 
 func parseConfigContent(content string, schema *config.Schema) (*config.Tree, error) {
@@ -781,90 +513,6 @@ func parseConfigContent(content string, schema *config.Schema) (*config.Tree, er
 	default:
 		panic("BUG: config format classifier returned an unknown format")
 	}
-}
-
-// textDiff produces an interleaved +/- line diff using LCS so that
-// removals and additions appear next to each other.
-func textDiff(original, modified string) string {
-	origLines := nonEmptyLines(original)
-	modLines := nonEmptyLines(modified)
-	lcs := lcsLines(origLines, modLines)
-
-	var buf textbuf.Buffer
-	oi, mi, li := 0, 0, 0
-	for li < len(lcs) {
-		for oi < len(origLines) && origLines[oi] != lcs[li] {
-			buf.Str("- ").Str(origLines[oi]).Byte('\n')
-			oi++
-		}
-		for mi < len(modLines) && modLines[mi] != lcs[li] {
-			buf.Str("+ ").Str(modLines[mi]).Byte('\n')
-			mi++
-		}
-		oi++
-		mi++
-		li++
-	}
-	for oi < len(origLines) {
-		buf.Str("- ").Str(origLines[oi]).Byte('\n')
-		oi++
-	}
-	for mi < len(modLines) {
-		buf.Str("+ ").Str(modLines[mi]).Byte('\n')
-		mi++
-	}
-	if buf.Len() == 0 {
-		return terminalOutputNoChanges
-	}
-	return buf.String()
-}
-
-func nonEmptyLines(s string) []string {
-	var out []string
-	for line := range strings.SplitSeq(s, "\n") {
-		if strings.TrimSpace(line) != "" {
-			out = append(out, line)
-		}
-	}
-	return out
-}
-
-func lcsLines(a, b []string) []string {
-	m, n := len(a), len(b)
-	dp := make([][]int, m+1)
-	for i := range dp {
-		dp[i] = make([]int, n+1)
-	}
-	for i := 1; i <= m; i++ {
-		for j := 1; j <= n; j++ {
-			switch {
-			case a[i-1] == b[j-1]:
-				dp[i][j] = dp[i-1][j-1] + 1
-			case dp[i-1][j] >= dp[i][j-1]:
-				dp[i][j] = dp[i-1][j]
-			default:
-				dp[i][j] = dp[i][j-1]
-			}
-		}
-	}
-	result := make([]string, 0, dp[m][n])
-	i, j := m, n
-	for i > 0 && j > 0 {
-		switch {
-		case a[i-1] == b[j-1]:
-			result = append(result, a[i-1])
-			i--
-			j--
-		case dp[i-1][j] >= dp[i][j-1]:
-			i--
-		default:
-			j--
-		}
-	}
-	for l, r := 0, len(result)-1; l < r; l, r = l+1, r-1 {
-		result[l], result[r] = result[r], result[l]
-	}
-	return result
 }
 
 func displayTree(fallback *config.Tree, mgr *EditorManager, username string) *config.Tree {
@@ -902,51 +550,6 @@ func serializeTreeAtPath(tree *config.Tree, schema *config.Schema, path []string
 	return config.SerializeSubtree(subtree, node)
 }
 
-func serializeSetAtPath(tree *config.Tree, schema *config.Schema, path []string) string {
-	if tree == nil || schema == nil {
-		return ""
-	}
-	// Mask every secret leaf for display; MaskSecrets clones the tree.
-	tree = config.MaskSecrets(tree, schema)
-	return config.FilterSetByPath(config.SerializeSet(tree, schema), schema, path)
-}
-
-// executeTerminalSet handles the set command in terminal mode: the words
-// after `set` relative to contextPath, refused with the fix framed for the
-// operator's position (applyWebSet).
-func executeTerminalSet(mgr *EditorManager, username string, contextPath []string, cmd cliCommand) string {
-	if len(cmd.Args) < 2 { //nolint:mnd // set requires key and value
-		return "error: usage: set <leaf> <value>"
-	}
-
-	answer, err := applyWebSet(mgr, mgr.schema, username, contextPath, cmd.Operator, cmd.Args)
-	if err != nil {
-		var tb textbuf.Buffer
-		return tb.Str("error: ").Err(err).String()
-	}
-	return answer
-}
-
-// executeTerminalDelete handles the delete command in terminal mode.
-// Schema-aware (mgr.DeleteByPath), so it deletes list entries and containers as
-// well as leaves, matching the SSH CLI's `delete` (cli.Model.cmdDelete). The
-// leaf-only DeleteValue silently no-ops on a list entry.
-func executeTerminalDelete(mgr *EditorManager, username string, contextPath, args []string) string {
-	if len(args) < 1 {
-		return "error: usage: delete <name>"
-	}
-
-	var tb textbuf.Buffer
-	// Pass every config token to the editor's schema-aware deletion. A
-	// suffix can name one leaf-list member rather than its whole container.
-	path := slices.Concat(contextPath, args[:len(args)-1])
-	if err := mgr.DeleteByPath(username, path, args[len(args)-1]); err != nil {
-		return tb.Str("error: ").Join(args, " ").Str(": ").Err(err).String()
-	}
-
-	return tb.Str("deleted ").Join(args, " ").String()
-}
-
 // webCommitRequest parses the arguments after `commit` with the grammar every
 // editor shares.
 func webCommitRequest(args []string) (contract.CommitRequest, error) {
@@ -957,6 +560,10 @@ func webCommitRequest(args []string) (contract.CommitRequest, error) {
 // refusal's fixes framed for the operator's position (cmd.Operator).
 func executeTerminalCommit(mgr *EditorManager, username string, cmd cliCommand) string {
 	answer, err := runWebCommit(mgr, username, cmd.Args, cmd.Operator)
+	return terminalCommitOutput(answer, err)
+}
+
+func terminalCommitOutput(answer webCommitAnswer, err error) string {
 	if err != nil {
 		var tb textbuf.Buffer
 		return tb.Str("error: ").Err(err).String()
@@ -1054,13 +661,9 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 		}
 
 		mode := r.FormValue("mode")
-		pathStr := r.FormValue("path")
-		var contextPath []string
-		if pathStr != "" {
-			contextPath = strings.Split(pathStr, "/")
-		}
-
-		if err := ValidatePathSegments(contextPath); err != nil {
+		pathStr := r.FormValue(webPathField)
+		contextPath, pathErr := decodeConfigPath(pathStr)
+		if pathErr != nil {
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
 		}
@@ -1095,7 +698,7 @@ func writeTerminalContent(w http.ResponseWriter, renderer *Renderer, contextPath
 func writeCLIResponse(w http.ResponseWriter, renderer *Renderer, path []string, viewData *ConfigViewData) {
 	writeHTML(w, string(renderer.renderComponent("cli_response", cliResponse(cliResponseData{
 		Prompt:      formatCLIPrompt(path),
-		ContextPath: textbuf.Join(path, "/"),
+		ContextPath: encodeConfigPath(path),
 		Crumbs:      buildBreadcrumbs(path),
 		View:        viewData,
 		PathBar:     &FragmentData{CLIPathSegments: buildPathBarSegments(path)},
@@ -1129,7 +732,7 @@ func buildPathBarSegments(path []string) []PathBarSegment {
 	segments := make([]PathBarSegment, len(path))
 	var tb textbuf.Buffer
 	for i, seg := range path {
-		joined := tb.Reset().Join(path[:i+1], "/").String()
+		joined := encodeConfigPath(path[:i+1])
 		segments[i] = PathBarSegment{
 			Name:   seg,
 			URL:    tb.Reset().Str(showPathPrefix).Str(joined).Byte('/').String(),
@@ -1169,8 +772,10 @@ type cliNotificationData struct {
 
 // cliPageData is what cliPage renders.
 type cliPageData struct {
-	Prompt string
-	Mode   string
+	Prompt         string
+	Mode           string
+	ContextPath    string
+	InitialCommand string
 }
 
 // notificationBarClass is the notification bar's class list. Anything that is
@@ -1191,17 +796,30 @@ func configLinkClass(kind string) string {
 	return tb.Str("config-link config-link-").Str(kind).String()
 }
 
+// configKeyLinks resolves schema addresses before the links reach markup.
+// The component receives only local typed display fields, never a schema node.
+func configKeyLinks(path, keys []string, listNode *config.ListNode) []ChildEntry {
+	links := make([]ChildEntry, 0, len(keys))
+	for _, key := range keys {
+		links = append(links, ChildEntry{Name: key, URL: configKeyURL(path, key, listNode)})
+	}
+	return links
+}
+
 // configKeyURL is the show URL of one list entry under path.
-func configKeyURL(path []string, key string) string {
+func configKeyURL(path []string, key string, listNodes ...*config.ListNode) string {
+	if len(listNodes) > 0 && listNodes[0] != nil {
+		return showPathPrefix + encodeConfigPath(append(append([]string{}, path...), config.ListKeyTokens(listNodes[0], key)...)) + "/"
+	}
 	var tb textbuf.Buffer
 
 	tb.Str(showPathPrefix)
 
 	if len(path) > 0 {
-		tb.Join(path, "/").Byte('/')
+		tb.Str(encodeConfigPath(path)).Byte('/')
 	}
 
-	return tb.Str(key).Byte('/').String()
+	return tb.Str(url.PathEscape(key)).Byte('/').String()
 }
 
 // leafDisplayValue is what one leaf's value cell shows. An unset leaf shows its
@@ -1223,59 +841,5 @@ func buildConfigEditURL(path []string) string {
 	}
 
 	var tb textbuf.Buffer
-	return tb.Str(configEditPath).Join(path, "/").Byte('/').String()
-}
-
-// listEntryVerb names a verb that moves a list entry to a new key: the word the
-// operator types, the label its usage line gives the source, and the word its
-// answer opens with, which is the one the SSH editor prints.
-type listEntryVerb struct {
-	name        string
-	sourceLabel string
-	done        string
-}
-
-var (
-	listEntryCopy   = listEntryVerb{name: "copy", sourceLabel: "<source>", done: "Copied"}
-	listEntryRename = listEntryVerb{name: "rename", sourceLabel: "<old-name>", done: "Renamed"}
-)
-
-// listEntryUsage is the usage line of a rename or copy.
-func listEntryUsage(verb listEntryVerb) string {
-	var tb textbuf.Buffer
-	return tb.Str("usage: ").Str(verb.name).Str(" <list> ").Str(verb.sourceLabel).Str(" to <destination>").String()
-}
-
-// execListEntryOp runs the web terminal's rename or copy: <path...>
-// <source address> to <destination address>, relative to contextPath.
-// operator is the position a refusal's fix is framed for.
-func execListEntryOp(schema *config.Schema, args, contextPath, operator []string, verb listEntryVerb, op func(parent []string, list, src string, dst []string) error) ([]string, string) {
-	fullPath := append(append([]string{}, contextPath...), args...)
-	// The source address is read by the codec's one target walk, which the
-	// SSH editor and the web rename form call too; `to` must stand where it
-	// ends, and the tokens after it are the destination address.
-	target, err := config.ResolveListEntryTarget(schema, verb.name, fullPath)
-	if err != nil {
-		var tb textbuf.Buffer
-		return nil, tb.Str("error: ").Err(err).String()
-	}
-	if target.End+1 >= len(fullPath) {
-		return nil, listEntryUsage(verb)
-	}
-	if fullPath[target.End] != "to" {
-		return nil, listEntryUsage(verb)
-	}
-	dst := fullPath[target.End+1:]
-	if err := op(target.ParentPath, target.ListName, target.Address.Key, dst); err != nil {
-		// The destination key refused (config.ListEntryDestination): the fix
-		// is this rename or copy with that key corrected, framed for the
-		// operator's position, as the SSH editor's listEntryMove frames it
-		// (AC-26). Any other error keeps its own text.
-		framed := cli.FramedWordRefusal(err, verb.name, contextPath, args, target.End+1-len(contextPath), operator)
-		var tb textbuf.Buffer
-		return nil, tb.Str("error: ").Err(framed).String()
-	}
-	var tb textbuf.Buffer
-	return nil, tb.Str(verb.done).Byte(' ').Str(target.ListName).Byte(' ').
-		Join(fullPath[len(target.ParentPath)+1:target.End], " ").Str(" to ").Join(dst, " ").String()
+	return tb.Str(configEditPath).Str(encodeConfigPath(path)).Byte('/').String()
 }

@@ -25,16 +25,16 @@ func TestSurfacePredicateByKind(t *testing.T) {
 		SurfaceSSH: must, SurfaceWebAdmin: must, SurfaceWebCompletion: must, SurfaceMCP: must,
 		SurfaceREST: must, SurfaceGRPC: must, SurfaceCLI: must, SurfaceShell: mustNot,
 	}
-	// A monitor command streams on the three terminal surfaces; its one-shot
+	// A monitor command streams on the terminal surfaces; its one-shot
 	// surfaces answer by its kind (AC-9 judges what that one answer carries).
 	streams := map[Surface]Offer{
-		SurfaceSSH: streaming, SurfaceWebAdmin: must, SurfaceWebCompletion: must, SurfaceMCP: must,
+		SurfaceSSH: streaming, SurfaceWebAdmin: must, SurfaceWebCompletion: streaming, SurfaceMCP: must,
 		SurfaceREST: must, SurfaceGRPC: must, SurfaceCLI: streaming, SurfaceShell: streaming,
 	}
 	// A streaming-only command streams on the terminals and is offered on no
 	// one-shot surface.
 	streamsOnly := map[Surface]Offer{
-		SurfaceSSH: streaming, SurfaceWebAdmin: mustNot, SurfaceWebCompletion: mustNot, SurfaceMCP: mustNot,
+		SurfaceSSH: streaming, SurfaceWebAdmin: mustNot, SurfaceWebCompletion: streaming, SurfaceMCP: mustNot,
 		SurfaceREST: mustNot, SurfaceGRPC: mustNot, SurfaceCLI: streaming, SurfaceShell: streaming,
 	}
 	tuiOnly := map[Surface]Offer{

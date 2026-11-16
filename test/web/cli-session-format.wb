@@ -1,0 +1,51 @@
+# Test: browser CLI format preference survives commands and mode changes
+# VALIDATES: a real daemon answer uses the session format, an explicit pipe
+# overrides it for one command, and config-mode run keeps the same preference.
+# PREVENTS: reporting a preference that browser dispatch ignores or loses when
+# the operator changes mode. Output assertions anchor the rendered answer,
+# rather than matching the command input or feedback.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=env:var=ze.cli.format:value=text
+
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=html:contains=>operational<
+
+action=fill:id=terminal-input:value=set cli format json
+action=press:id=terminal-input:key=Enter
+expect=html:contains=id="cli-output">cli format set to json</div>
+action=fill:id=terminal-input:value=set cli format
+action=press:id=terminal-input:key=Enter
+expect=html:contains=id="cli-output">cli format: json</div>
+
+action=fill:id=terminal-input:value=show event namespaces | display count
+action=press:id=terminal-input:key=Enter
+expect=html:contains=id="cli-output">{
+expect=html:contains="count":
+
+action=fill:id=terminal-input:value=show event namespaces | display count | text
+action=press:id=terminal-input:key=Enter
+expect=html:contains=id="cli-output">count
+expect=html:not-contains="count":
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+expect=html:contains=>config<
+action=fill:id=terminal-input:value=run show event namespaces | display count
+action=press:id=terminal-input:key=Enter
+expect=html:contains=id="cli-output">{
+expect=html:contains="count":
+
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=html:contains=>operational<
+action=fill:id=terminal-input:value=set cli format bogus
+action=press:id=terminal-input:key=Enter
+expect=element:text=not an accepted value
+action=fill:id=terminal-input:value=set cli format
+action=press:id=terminal-input:key=Enter
+expect=html:contains=id="cli-output">cli format: json</div>

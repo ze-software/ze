@@ -76,6 +76,7 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 		deps.PowerUsers,
 		deps.LocalUsersLive,
 		deps.WebCommands,
+		deps.StreamDispatch,
 	)
 	if webSrv == nil {
 		return nil, nil //nolint:nilnil // startWebServer preserves prior best-effort skip behavior
@@ -270,7 +271,7 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 //
 // powerUsers is the caller's zefs snapshot, used to NAME those accounts for the
 // UI. It never decides who may log in; localUsersLive already carries them.
-func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, configOwner *configMutationOwner, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry) (*zeweb.WebServer, *zeweb.EventBroker) {
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, configOwner *configMutationOwner, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry, streams ...plugin.CommandStreamDispatcher) (*zeweb.WebServer, *zeweb.EventBroker) {
 	dispatch = withBGPDecode(dispatch)
 	if insecureWeb {
 		authorizer = nil
@@ -453,11 +454,10 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		go zeweb.NewWindowNotices(editorMgr, broker).Run()
 	}
 
-	// Workbench is the normal UI. Finder remains as a server-side rollback when
-	// ze.web.ui=finder is set before startup; stale browser cookies do not switch
-	// operators back to the deprecated shell.
+	// The graphical YANG editor is primary. The unfinished Workbench requires
+	// ze.web.ui-mode=workbench or an explicit current browser switch cookie.
 	uiMode := zeweb.GetUIMode()
-	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
+	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb, authorizer)
 	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb,
 		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker), zeweb.WithPowerUsers(powerUserNames),
 		zeweb.WithAuthorizer(authorizer))
@@ -478,6 +478,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Config set, add, and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSetWithAuthorizer(editorMgr, schema, renderer, authorizer)
+	actionHandler := zeweb.HandleGraphicalAction(editorMgr, schema, renderer, authorizer, recorder, broker)
 	formHandler := zeweb.HandleConfigFormWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	addHandler := zeweb.HandleConfigAddWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	addFormHandler := zeweb.HandleConfigAddForm(editorMgr, schema, renderer)
@@ -531,8 +532,13 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	})
 
 	// CLI handlers: command execution, autocomplete, terminal mode.
-	cliHandler := zeweb.HandleCLICommandWithAuthorizerAndAudit(editorMgr, schema, renderer, authorizer, recorder)
+	cliHandler := zeweb.HandleCLICommandWithAuthorizerAndAudit(editorMgr, schema, renderer, authorizer, recorder, dispatch)
 	terminalHandler := zeweb.HandleCLITerminalWithDispatchAuthorizerAndAudit(editorMgr, schema, tree, dispatch, authorizer, recorder)
+	var streamDispatch plugin.CommandStreamDispatcher
+	if len(streams) > 0 {
+		streamDispatch = streams[0]
+	}
+	streamHandler := zeweb.HandleCLITerminalStream(terminalHandler, streamDispatch)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 	completeHandler := zeweb.HandleCLICompleteWithCommandCompleter(completer, commandCompleter, editorMgr, schema)
 
@@ -597,9 +603,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("POST /cli", mutationWrap(cliHandler))
 	srv.Handle("/cli/complete", authWrap(completeHandler))
 	srv.Handle("POST /cli/terminal", mutationWrap(terminalHandler))
+	srv.Handle("POST /cli/stream", mutationWrap(streamHandler))
 	srv.Handle("POST /cli/mode", mutationWrap(modeHandler))
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", mutationWrap(setHandler))
+	srv.Handle("POST /config/action", mutationWrap(actionHandler))
 	srv.Handle("POST /config/form/", mutationWrap(formHandler))
 	srv.Handle("POST /config/add/", mutationWrap(addHandler))
 	srv.Handle("GET /config/add-form/", editWrap(addFormHandler))

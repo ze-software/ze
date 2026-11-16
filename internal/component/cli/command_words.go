@@ -4,6 +4,7 @@ package cli
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/configtext"
@@ -22,6 +23,22 @@ type CommandWords struct {
 // Tokens returns decoded words owned by the caller.
 func (words CommandWords) Tokens() []string {
 	return slices.Clone(words.tokens)
+}
+
+// String prints a command that reparses to the same words and structural pipes.
+func (words CommandWords) String() string {
+	var output strings.Builder
+	for index, token := range words.tokens {
+		if index > 0 {
+			output.WriteByte(' ')
+		}
+		if words.isPipe(index) {
+			output.WriteByte('|')
+		} else {
+			output.WriteString(configtext.QuoteCommandWord(token))
+		}
+	}
+	return output.String()
 }
 
 // FirstPipe answers the first structural pipe, or -1 when there is none.

@@ -1486,6 +1486,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		ConfigPath:     configPath,
 		Resolvers:      resolvers,
 		Dispatch:       webDispatch,
+		StreamDispatch: serverStreamDispatcher(apiServer),
 		LGAddrs:        lgAddrs,
 		LGTLS:          lgTLS,
 		LGTLSExplicit:  lgTLSSet,

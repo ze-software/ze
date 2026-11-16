@@ -107,7 +107,7 @@ each source.
 
 ```
 page_layout.templ                -- pageLayout: Finder grid layout
-page_workbench.templ             -- pageWorkbench: workbench shell (default)
+page_workbench.templ             -- pageWorkbench: experimental workbench shell
 page_login.templ                 -- pageLogin, loginOverlay, loginFullPage, loginForm
 page_snapshot.templ              -- snapshotPage: one command's JSON, live over SSE
 
@@ -153,6 +153,7 @@ input_bool.templ                 -- inputBool: tristate toggle
 input_enum.templ                 -- inputEnum: select dropdown
 input_number.templ               -- inputNumber
 input_text.templ                 -- inputText, fieldValueTag
+component_graphical_values.templ -- graphicalValues, graphicalInlineList: collection rows and inline-list entry navigation
 
 config_container.templ, config_list.templ, config_inline_list.templ,
 config_freeform.templ, config_leaf_input.templ
@@ -173,7 +174,11 @@ rather than a file nobody added above.
 element rather than the start and end pair it replaced.
 
 Its label names the editor through `for`, and the id it uses is the editor's
-own: `fieldInputID` derives one from the whole config path (`view.go`). The
+own: `fieldInputID` derives one from the whole escaped config path (`view.go`).
+The reversible DOM encoding keeps ordinary IDs stable and escapes punctuation
+and percent escapes so HTMX can address keys containing slashes, spaces or
+Unicode without selector collisions. Related-tool overlays use the same
+encoding with their tool and context tokens. The
 wrapper `div` carries `field-<leaf>` instead, and that id belongs to no
 control. A `for` over the wrapper binds the label to an element that holds no
 value.
@@ -255,7 +260,15 @@ field carries `hx-sync="this:drop"` (`fieldSaveSync`, `view.go`), so a save it
 issues while its own save is in flight is dropped rather than queued: one edit
 reaches the editor once, and a refused value lists one error, not two. Every
 answer replaces the field with what the editor now holds, so the operator sees
-the outcome of the save that was sent.
+the outcome of the save that was sent. Text and number editors, including
+inline table cells, use a zero settle delay for these replacements. HTMX still
+restores focus and the selection by the stable input id, but does not first copy
+old attributes onto the new input: its normal settle step could otherwise leave
+the focused input's live value behind its updated value attribute, letting the
+next blur submit the old value again.
+<!-- source: internal/component/web/input_text.templ -- inputText -->
+<!-- source: internal/component/web/input_number.templ -- inputNumber -->
+<!-- source: internal/component/web/component_list_table.templ -- listTable -->
 
 With no errors the panel carries `collapsed`, which `style.css` renders fully
 off screen (`translateX(100%)`, `pointer-events: none`), so it covers nothing.
@@ -269,6 +282,64 @@ breadcrumb actions, and clicking it reopens the panel. With no errors the toggle
 carries no `data-count` and the collapsed panel shows nothing.
 
 ## Commit Flow
+
+The graphical YANG editor renders multi-word leaves, bracket leaf-lists and
+value-or-array leaf-lists as rows. Each row has an input or schema enum selector;
+Add, Remove, Move up, Move down, Save and Clear submit through the existing
+authorized `/config/set/` endpoint. Row order, permitted repeated members and
+leaf-list inactive markers survive the save. Multi-word leaves support activation
+of the whole setting through Configuration actions; their words have no separate
+activation controls. An invalid member refuses the entire save and leaves the
+current form available for correction. The HTMX refusal disables the main swap
+with `HX-Reswap: none`, while the error panel receives the out-of-band error.
+Freeform blocks expose entry names and values; inline lists expose entry links
+and a typed key form. Read-only views withhold mutation controls, and the normal
+set/add authorization gates still decide every submitted request.
+
+`buildGraphicalValues` and `populateInlineList` (`graphical_values.go`) read the
+candidate tree. `replaceGraphicalValues` (`handler_graphical_values.go`) holds
+the user's editor lock while it clones the candidate, changes the selected
+typed node and passes set-format serialization to the shared editor's atomic
+`load terminal absolute replace` operation. The configuration parser owns the
+text grammar; the web adapter never parses configuration text. An absent parent
+is created by parsing one quoted set statement for the first requested row.
+
+<!-- source: internal/component/web/graphical_values.go -- buildGraphicalValues, populateInlineList -->
+<!-- source: internal/component/web/handler_graphical_values.go -- replaceGraphicalValues, graphicalSeed -->
+
+Form refusals state the problem, explain why the action did not run, and end
+with the browser action that resumes it. Authentication, form decoding, entry
+addressing and candidate storage failures retain their HTTP status. A schema
+refusal that already supplies a typed correction keeps that correction rather
+than being replaced with a general retry instruction. A collection refusal
+keeps the editable rows available for correction.
+<!-- source: internal/component/web/graphical_actions.go -- HandleGraphicalAction -->
+<!-- source: internal/component/web/handler_graphical_values.go -- handleGraphicalValues -->
+<!-- source: internal/component/web/handler_inline_list.go -- handleInlineListAdd -->
+<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigRenameWithAuthorizer -->
+<!-- source: internal/component/web/handler_config_commit.go -- HandleConfigDiscardWithAuthorizerAndAudit -->
+
+The YANG editor's **Configuration actions** panel exposes the shared editor's
+copy, rename, activation, draft, history, validation and confirmed-commit
+operations. Entry tools appear only at a named list entry. A copy or rename
+refreshes the parent list so its entries agree with the candidate. History
+offers a restore button beside each saved revision; restoration changes the
+candidate and still requires commit. Root-level actions remain available when
+there are no pending changes. Read-only views omit mutation controls.
+
+<!-- source: internal/component/web/graphical_actions.go -- buildGraphicalActions, HandleGraphicalAction -->
+
+Buttons post structured form fields to `/config/action`. The adapter checks
+the path and form bounds, quotes each value through the command lexer, and
+passes the resulting configuration command to `executeTerminalCommand` after
+the same authorization check as the browser CLI. Commit, rollback and discard
+reuse the terminal's audit decision. The confirmed-commit window stays owned
+by the daemon; its owner, deadline and refusal are shown through the existing
+window notices and the action response. No separate graphical transaction
+engine or history store exists.
+
+<!-- source: internal/component/web/graphical_actions.go -- graphicalActionCommand, HandleGraphicalAction -->
+<!-- source: internal/component/web/window_notices.go -- WindowNotices -->
 
 ```
 User clicks "Review & Commit" in commit bar

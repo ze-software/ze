@@ -8,9 +8,9 @@
 #
 # Spec: plan/spec-web-2-operator-workbench.md (Phase 4 -- BGP change-and-
 # verify loop). Gates the Phase 4 default flip and Phase 7 promotion.
-# Run with: ZE_WEB_UI=workbench ./le test web -p workbench-bgp-change-verify
 
-option=skip:reason=requires ZE_WEB_UI=workbench
+option=skip:reason=unfinished Workbench BGP edit and live-tool workflow (spec-web-plugin-extension-registry)
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=60s
 
 # 1. Open peer table; row remains identifiable in DOM.

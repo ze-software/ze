@@ -74,6 +74,10 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		}
 
 		value := r.FormValue("value")
+		if r.FormValue("collection") == boolTrue {
+			handleGraphicalValues(w, r, mgr, schema, renderer, authorizer, username, path, leaf)
+			return
+		}
 
 		// __default__ means "delete this leaf, revert to YANG default".
 		// Deliberately DeleteValue, not the schema-aware DeleteByPath used by
@@ -161,7 +165,7 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 				}
 				leafNode := findLeafNode(schema, path, leaf)
 				if leafNode != nil {
-					field := buildFieldMetaFromLeaf(leaf, leafNode, effectiveValue, textbuf.Join(path, "/"))
+					field := buildFieldMetaFromLeaf(leaf, leafNode, effectiveValue, encodeConfigPath(path))
 					fieldHTML := renderer.RenderField(field)
 					if _, writeErr := w.Write([]byte(fieldHTML)); writeErr != nil {
 						return
@@ -313,8 +317,8 @@ func compareConfigFormFields(a, b configFormField) int {
 }
 
 func resolveConfigFormField(schema *config.Schema, basePath []string, fieldPath string) ([]string, string, *config.LeafNode, error) {
-	parts := strings.Split(fieldPath, "/")
-	if err := ValidatePathSegments(parts); err != nil {
+	parts, err := decodeConfigPath(fieldPath)
+	if err != nil {
 		return nil, "", nil, fmt.Errorf("invalid config form field %q: %w", fieldPath, err)
 	}
 	fullPath := append(append([]string{}, basePath...), parts...)

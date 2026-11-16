@@ -74,7 +74,7 @@ func (e *Editor) writeThroughSet(path []string, key, value, stored string) error
 
 	// A whole bracket leaf-list replaces this session's member changes to it.
 	var replacedEntry func(config.MetaEntry) bool
-	if e.bracketLeafList(path, key) != nil {
+	if e.bracketLeafList(path, key) != nil || e.isValueOrArrayLeaf(path, key) {
 		value, changeOps, replacedEntry, err = e.replaceSessionMembers(changeMeta, changeOps, committedTree, path, key, value)
 		if err != nil {
 			return err
@@ -804,9 +804,10 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 // what it names. Every op goes first, as a rename or a delete reshapes the
 // paths the entries name, except a member op memberOpWaitsForEntries holds
 // back, and every later member op on the same list: those are applied after
-// the entries, in recorded order. The change
-// file records no order between an op and an entry, both carry the session
-// start time, so presence decides.
+// the entries, in recorded order. An activation of a genuinely new target
+// also waits for its assignment, keeping subsequent activations in order.
+// The original committed view distinguishes that creation from removal of a
+// previously committed ancestor, which remains a strict refusal.
 //
 // check, when not nil, sees each op against the tree it is about to apply to,
 // and an op it answers false for is skipped. The commit pre-scan
@@ -836,18 +837,40 @@ func (e *Editor) applyReplayOpsAroundEntries(tree *config.Tree, ops []config.Str
 	}
 	var held []config.StructuralOp
 	heldLists := map[string]bool{}
+	heldActivations := map[string]bool{}
+	var original *config.Tree
 	for i := range ops {
 		// Once one member op on a list waits, every later one on that list
 		// waits too, so the list's ops keep the order the operator typed.
-		list := ops[i].ParentPath.String() + "\x00" + ops[i].ListName
-		if isMemberOp(ops[i]) && heldLists[list] {
+		targetAddress := ops[i].ParentPath.String() + "\x00" + ops[i].ListName
+		if isMemberOp(ops[i]) && heldLists[targetAddress] {
 			held = append(held, ops[i])
 			continue
 		}
 		if memberOpWaitsForEntries(tree, e.schema, ops[i]) {
-			heldLists[list] = true
+			heldLists[targetAddress] = true
 			held = append(held, ops[i])
 			continue
+		}
+		if target, activation := activationTargetPath(ops[i]); activation {
+			if heldActivations[targetAddress] {
+				held = append(held, ops[i])
+				continue
+			}
+			if walkPath(tree, e.schema, target) == nil {
+				if original == nil {
+					var err error
+					original, _, err = parseConfigWithFormat(e.originalContent, e.schema)
+					if err != nil {
+						return fmt.Errorf("read activation baseline: %w", err)
+					}
+				}
+				if activationTargetWasNew(tree, original, e.schema, target) {
+					heldActivations[targetAddress] = true
+					held = append(held, ops[i])
+					continue
+				}
+			}
 		}
 		if err := apply(ops[i]); err != nil {
 			return err
@@ -864,6 +887,54 @@ func (e *Editor) applyReplayOpsAroundEntries(tree *config.Tree, ops []config.Str
 	return nil
 }
 
+// activationTargetPath names the tree node an activation needs before it can
+// apply. A leaf marker needs its parent; a path marker needs that path itself.
+func activationTargetPath(op config.StructuralOp) ([]string, bool) {
+	//exhaustive:ignore
+	switch op.Type {
+	case config.StructuralOpDeactivateLeaf, config.StructuralOpActivateLeaf:
+		return op.ParentPath, true
+	case config.StructuralOpDeactivatePath, config.StructuralOpActivatePath:
+		return append(slices.Clip(op.ParentPath), op.ListName), true
+	}
+	return nil, false
+}
+
+// activationTargetWasNew judges the first missing semantic ancestor through the
+// same navigator as the editor. A node present in the original committed view
+// MUST NOT be recreated after a concurrent removal. A node absent there may
+// wait for an assignment; the strict apply after entries still refuses it if
+// no assignment materializes it. List addresses are consumed as complete keys.
+func activationTargetWasNew(tree, original *config.Tree, schema *config.Schema, path []string) bool {
+	current, before := tree, original
+	var parent schemaGetter = schema
+	for index := 0; index < len(path); {
+		name := path[index]
+		node := parent.Get(name)
+		if node == nil {
+			return false
+		}
+		navigable, next, step := walkSchemaNode(node, current, name, path, index)
+		if !navigable {
+			return false
+		}
+		_, previous, _ := walkSchemaNode(node, before, name, path, index)
+		if next == nil {
+			return previous == nil
+		}
+		if previous == nil {
+			return true
+		}
+		nested, ok := node.(schemaGetter)
+		if !ok {
+			return false
+		}
+		parent, current, before = nested, next, previous
+		index += step
+	}
+	return false
+}
+
 // memberOpWaitsForEntries reports whether a member op must wait for the
 // session's entries. A deactivate or an activate waits when its member is not
 // in tree yet: one of the session's own entries adds it (`set address [ a b ]`,
@@ -874,7 +945,7 @@ func (e *Editor) applyReplayOpsAroundEntries(tree *config.Tree, ops []config.Str
 // delete entry removes it (`delete address a`, then `insert address a before
 // b`), and after the entries the insert puts it back where the operator asked.
 // A positional insert also waits when its reference is not in tree yet. Any
-// other op never waits.
+// other op falls through this predicate; activation has a separate check.
 func memberOpWaitsForEntries(tree *config.Tree, schema *config.Schema, op config.StructuralOp) bool {
 	// Only the three member ops can name a member an entry adds.
 	//exhaustive:ignore
@@ -937,14 +1008,21 @@ func applyToggleOp(tree *config.Tree, schema *config.Schema, op config.Structura
 		}
 		return nil
 	}
-	target := walkPath(tree, schema, append(parentPath, op.ListName))
+	path := append(slices.Clip(parentPath), op.ListName)
+	target := walkPath(tree, schema, path)
 	if target == nil {
 		if allowAlreadyApplied {
 			return nil
 		}
 		return fmt.Errorf("%w: %s", ErrPathNotFound, op.SourcePath(schema))
 	}
-	target.SetInactive(op.Type == config.StructuralOpDeactivatePath)
+	inactive := op.Type == config.StructuralOpDeactivatePath
+	target.SetInactive(inactive)
+	// A value alias can coexist with the presence block. The saved path
+	// operation MUST cover both just as the direct activation does.
+	if parent := presenceFlagParent(tree, schema, path); parent != nil {
+		parent.SetLeafInactive(op.ListName, inactive)
+	}
 	return nil
 }
 

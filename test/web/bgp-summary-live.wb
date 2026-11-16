@@ -2,6 +2,7 @@
 # VALIDATES: AC-16 -- BGP Summary shows State/Uptime/Msg columns from dispatch
 # PREVENTS: summary page showing only "--" placeholders when dispatch is available
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 
 action=open:path=/show/bgp/summary/

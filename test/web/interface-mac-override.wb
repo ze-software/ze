@@ -4,6 +4,7 @@
 # PREVENTS: the MAC override being unreachable from the web UI -- it is a nested
 #           container leaf, not a flat interface field, so it lives on a sub-page
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=60s
 
 action=open:path=/show/iface/

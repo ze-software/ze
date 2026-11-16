@@ -26,8 +26,8 @@ A discard record's `detail` lists only the changes that discard dropped. `discar
 <!-- source: internal/component/web/handler_config_transfer.go -- config-download and config-upload audit recording -->
 <!-- source: internal/core/audit/dropped.go -- DroppedDiff -->
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdDiscardSession, cmdRollback -->
-<!-- source: internal/component/web/cli_terminal.go -- terminalAuditSucceeded -->
-<!-- source: internal/component/web/cli.go -- handleCLIDiscard -->
+<!-- source: internal/component/web/cli_terminal.go -- terminalAuditContext, terminalAuditSucceeded, runWebDiscard -->
+<!-- source: internal/component/web/cli.go -- HandleCLICommandWithAuthorizerAndAudit, dispatchCLICommand, discardAuditDetail -->
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
 <!-- source: internal/component/mcp/audit.go -- MCP auth-fail audit recording -->

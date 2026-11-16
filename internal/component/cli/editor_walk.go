@@ -71,6 +71,12 @@ func walkOrCreateTree(tree *config.Tree, schema *config.Schema, path []string) (
 			i++
 			continue
 		}
+		if _, ok := schemaNode.(*config.FreeformNode); ok {
+			if i+1 != len(path) {
+				return nil, fmt.Errorf("freeform entry path continues past %s", name)
+			}
+			return currentTree.GetOrCreateContainer(name), nil
+		}
 
 		if ilNode, ok := schemaNode.(*config.InlineListNode); ok {
 			// Inline lists use the same key navigation as regular lists.
@@ -303,6 +309,12 @@ func walkPath(tree *config.Tree, schema *config.Schema, path []string) *config.T
 			currentSchema = flexNode
 			i++
 			continue
+		}
+		if _, ok := schemaNode.(*config.FreeformNode); ok {
+			if i+1 != len(path) {
+				return nil
+			}
+			return current.GetContainer(name)
 		}
 
 		if ilNode, ok := schemaNode.(*config.InlineListNode); ok {

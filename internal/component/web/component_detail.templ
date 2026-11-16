@@ -23,11 +23,20 @@ templ detail(v *FragmentData) {
 		@commandForm(v)
 	} else if v.ListTable != nil {
 		@listTable(v)
-	} else if len(v.Fields) > 0 {
+	} else if v.InlineList != nil {
+		@graphicalInlineList(*v.InlineList, v.ReadOnly)
+	} else if len(v.Fields) > 0 || len(v.Values) > 0 {
 		<section class="config-section">
 			<div class="config-fields">
 				for _, f := range v.Fields {
-					@fieldComponent(f)
+					if v.ReadOnly {
+						<p class="ze-field">{ f.Leaf }: { f.Value }</p>
+					} else {
+						@fieldComponent(f)
+					}
+				}
+				for _, values := range v.Values {
+					@graphicalValues(values, v.ReadOnly)
 				}
 			</div>
 			if v.ActiveUI == uiModeTokenWorkbench && !v.ReadOnly {
@@ -40,5 +49,8 @@ templ detail(v *FragmentData) {
 		<section class="config-section">
 			<p class="config-hint">Select an item from the sidebar.</p>
 		</section>
+	}
+	if v.Actions != nil && v.ActiveUI == uiModeTokenFinder {
+		@graphicalActionPanel(v.Actions, v.ReadOnly)
 	}
 }

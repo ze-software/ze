@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	webtesting "github.com/ze-software/ze/internal/component/web/testing"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/test/runner"
 )
@@ -27,7 +28,7 @@ type webConfigWorkspace struct {
 	environ   []string
 }
 
-func newWebConfigWorkspace(ctx context.Context) (*webConfigWorkspace, error) {
+func newWebConfigWorkspace(ctx context.Context, overrides ...webtesting.WBEnvVar) (*webConfigWorkspace, error) {
 	if err := context.Cause(ctx); err != nil {
 		return nil, err
 	}
@@ -46,7 +47,15 @@ func newWebConfigWorkspace(ctx context.Context) (*webConfigWorkspace, error) {
 	if err := os.Mkdir(configDir, 0o750); err != nil {
 		return nil, errors.Join(err, os.RemoveAll(directory))
 	}
-	environ := env.Without(scenarioEnv(filepath.Base(directory), demoPassword), "ze.config.dir")
+	environ := scenarioEnv(filepath.Base(directory), demoPassword)
+	for _, override := range overrides {
+		// Remove alternate spellings first: an inherited dotted name otherwise
+		// wins over a journey's shell-safe spelling in env.Get.
+		environ = env.Without(environ, override.Var)
+		environ = append(environ, override.Var+"="+override.Value)
+	}
+	// The workspace owns its store even when the authored journey names one.
+	environ = env.Without(environ, "ze.config.dir")
 	environ = append(environ, "ZE_CONFIG_DIR="+configDir)
 	return &webConfigWorkspace{directory: directory, environ: environ}, nil
 }

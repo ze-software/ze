@@ -2,6 +2,7 @@
 # VALIDATES: users can add an interface from the Interfaces page and see a pending change
 # PREVENTS: interface management being possible only through the old bottom CLI
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=60s
 
 action=open:path=/show/iface/

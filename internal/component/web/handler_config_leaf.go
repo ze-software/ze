@@ -10,7 +10,6 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // buildBreadcrumbs creates breadcrumb navigation entries. Each path segment
@@ -19,7 +18,7 @@ func buildBreadcrumbs(path []string) []BreadcrumbSegment {
 	crumbs := make([]BreadcrumbSegment, 0, len(path))
 
 	for i, seg := range path {
-		url := showPathPrefix + textbuf.Join(path[:i+1], "/") + "/"
+		url := showPathPrefix + encodeConfigPath(path[:i+1]) + "/"
 		crumbs = append(crumbs, BreadcrumbSegment{
 			Name:   seg,
 			URL:    url,

@@ -1,11 +1,14 @@
-# Test: page layout includes CLI bar and toolbar elements
-# VALIDATES: layout chrome renders with CLI bar, theme toggle, and error button
-# PREVENTS: missing toolbar elements, broken layout template
+# Test: YANG editor chrome links to the dedicated CLI
+# VALIDATES: the graphical page carries its CLI link, theme toggle and error control
+# PREVENTS: missing toolbar controls or inaccessible command mode
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-expect=element:id=cli-input
 expect=element:text=CLI
 expect=element:text=Errors
+expect=element:id=theme-toggle
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input

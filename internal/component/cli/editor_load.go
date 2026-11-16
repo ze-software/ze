@@ -203,8 +203,27 @@ func (e *Editor) loadLeaves(path []string, current, want *config.Tree, replace b
 		}
 	}
 	for _, name := range multi {
+		if parent := e.walkSchema(path); parent != nil {
+			switch node := parent.Get(name).(type) {
+			case *config.MultiLeafNode:
+				if err := e.SetValue(path, name, config.JoinLeafListMembers(want.GetSlice(name))); err != nil {
+					return loadError(append(slices.Clip(path), name), err)
+				}
+				continue
+			case *config.ValueOrArrayNode:
+				if !replace {
+					if !node.Ordered {
+						break
+					}
+				}
+				if err := e.loadWholeLeafList(path, name, node.Ordered, current, want, true); err != nil {
+					return err
+				}
+				continue
+			}
+		}
 		if node := e.bracketLeafList(path, name); node != nil {
-			if err := e.loadBracketLeafList(path, name, node, current, want, replace); err != nil {
+			if err := e.loadWholeLeafList(path, name, node.Ordered, current, want, replace); err != nil {
 				return err
 			}
 			continue
@@ -245,7 +264,7 @@ func (e *Editor) bracketLeafList(path []string, name string) *config.BracketLeaf
 	return node
 }
 
-// loadBracketLeafList applies a bracket-syntax leaf-list. The editor writes the
+// loadWholeLeafList applies a whole leaf-list. The editor writes the
 // kind whole (SetValue stores it as members plus the scalar mirror), so the
 // load sets the list whole, then applies the member deactivation markers. A
 // merge keeps the members the configuration holds, a deactivated one included,
@@ -253,7 +272,7 @@ func (e *Editor) bracketLeafList(path []string, name string) *config.BracketLeaf
 // never activates a leaf. A replace, and an ordered sequence whose repeats are
 // meaningful, take the loaded members as they are; a replace also takes their
 // markers, and drops a deactivated member the input does not hold.
-func (e *Editor) loadBracketLeafList(path []string, name string, node *config.BracketLeafListNode, current, want *config.Tree, replace bool) error {
+func (e *Editor) loadWholeLeafList(path []string, name string, ordered bool, current, want *config.Tree, replace bool) error {
 	where := append(slices.Clip(path), name)
 	wantStates := want.GetMultiValuesState(name)
 	members := memberValues(wantStates)
@@ -262,7 +281,7 @@ func (e *Editor) loadBracketLeafList(path []string, name string, node *config.Br
 	// deactivated member would read as changed and record a `set` the load
 	// never made.
 	changed := !slices.Equal(memberValues(current.GetMultiValuesState(name)), members)
-	if !replace && !node.Ordered {
+	if !replace && !ordered {
 		// The value is the active view: SetValue keeps the deactivated
 		// members it does not name, so the merge appends to the active ones.
 		merged := current.GetMultiValues(name)
@@ -277,11 +296,27 @@ func (e *Editor) loadBracketLeafList(path []string, name string, node *config.Br
 		changed = appended
 	}
 	if changed {
-		if err := e.SetValue(path, name, config.JoinLeafListMembers(members)); err != nil {
+		if err := e.setWholeLeafList(path, name, members); err != nil {
 			return loadError(where, err)
 		}
 	}
 	return e.loadBracketMemberStates(path, name, current, wantStates, replace)
+}
+
+// setWholeLeafList preserves the input sequence as one assignment. Plain `set`
+// keeps add-member semantics; an explicit load replacement owns the whole list.
+func (e *Editor) setWholeLeafList(path []string, name string, members []string) error {
+	value := config.JoinLeafListMembers(members)
+	if e.session != nil {
+		return e.writeThroughSet(path, name, value, "")
+	}
+	target, err := e.walkOrCreate(path)
+	if err != nil {
+		return err
+	}
+	e.storeLeaf(target, path, name, value)
+	e.dirty.Store(true)
+	return nil
 }
 
 // memberValues answers the member values of states, in order.
@@ -374,7 +409,13 @@ func (e *Editor) loadDeletes(path []string, current, want *config.Tree) error {
 	}
 	for _, name := range multi {
 		keep := want.GetMultiValues(name)
-		if e.bracketLeafList(path, name) != nil {
+		whole := e.bracketLeafList(path, name) != nil || e.isValueOrArrayLeaf(path, name)
+		if parent := e.walkSchema(path); parent != nil {
+			if _, ok := parent.Get(name).(*config.MultiLeafNode); ok {
+				whole = true
+			}
+		}
+		if whole {
 			// Written whole in this editor: loadBracketLeafList replaces it
 			// when want holds members, deactivated ones included, and an
 			// absent leaf-list is deleted whole.

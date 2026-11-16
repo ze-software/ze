@@ -26,7 +26,7 @@ func renderSystemPageContent(renderer *Renderer, path []string, viewTree *config
 		return handleResourcesPage(renderer), true
 	case "hardware":
 		return handleHostHardwarePage(renderer), true
-	case "sysctl":
+	case segSysctl:
 		return handleSysctlProfilesPage(renderer, viewTree), true
 	}
 

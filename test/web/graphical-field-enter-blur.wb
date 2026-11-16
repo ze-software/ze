@@ -1,0 +1,107 @@
+# Test: focused graphical text and number saves survive the next blur
+# VALIDATES: Enter saves a committed setting, the next Tab cannot repost its old
+# value, and both settings publish through the shared editor without losing a sibling.
+# PREVENTS: HTMX attribute settling restoring an old live input value after success.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=env:var=ze.web.ui-mode:value=finder
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group enter-proof description original
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group enter-proof timer receive-hold-time 120
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+expect=element:text=commit successful
+# Guard the actual committed baseline; a refused seed cannot masquerade as a save.
+action=fill:id=terminal-input:value=show confirmed bgp group enter-proof
+action=press:id=terminal-input:key=Enter
+expect=element:text=description original
+expect=element:text=receive-hold-time 120
+action=open:path=/show/bgp/group/enter-proof/timer/
+expect=element:id=input-bgp-sgroup-senter--proof-stimer-sreceive--hold--time
+expect=html:contains=value="120"
+
+# Reproduce the saved structural window and rollback that exposed the stale
+# focused value in the operator journey, before exercising either field.
+action=open:path=/show/bgp/group/enter-proof/
+action=click:id=graphical-actions-toggle
+action=fill:id=graphical-entry-target:value=enter-copy
+action=click:id=graphical-copy
+action=open:path=/show/bgp/group/enter-copy/
+action=click:id=graphical-actions-toggle
+action=fill:id=graphical-entry-target:value=enter-final
+action=click:id=graphical-rename
+action=open:path=/show/bgp/group/enter-final/
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-validate
+expect=element:text=candidate is valid
+action=click:id=graphical-save-draft
+action=click:id=graphical-deactivate
+expect=element:text=Inactive
+action=click:id=graphical-activate
+expect=element:text=Active
+action=click:id=graphical-commit-options
+action=click:id=graphical-commit-confirmed
+expect=element:id=graphical-confirm-status
+action=click:id=graphical-commit-abort
+expect=element:text=rolled back
+action=open:path=/show/bgp/group/
+expect=html:not-contains=enter-final
+expect=html:contains=enter-proof
+
+action=open:path=/show/bgp/group/enter-proof/
+expect=html:contains=value="original"
+action=fill:id=input-bgp-sgroup-senter--proof-sdescription:value=accepted
+action=press:id=input-bgp-sgroup-senter--proof-sdescription:key=Enter
+# The next normal click blurs the replaced input. It must not re-post original.
+action=click:id=graphical-actions-toggle
+action=open:path=/cli
+action=fill:id=terminal-input:value=show bgp group enter-proof
+action=press:id=terminal-input:key=Enter
+expect=element:text=description accepted
+# Independently continue typing on a second replacement without refocusing.
+action=open:path=/show/bgp/group/enter-proof/
+action=fill:id=input-bgp-sgroup-senter--proof-sdescription:value=accepted
+action=press:id=input-bgp-sgroup-senter--proof-sdescription:key=Enter
+# Continue typing without refocusing: focus and the live accepted value survive.
+action=press:key=End
+action=press:key=Backspace
+action=press:key=Enter
+action=press:key=Tab
+action=open:path=/cli
+action=fill:id=terminal-input:value=show bgp group enter-proof
+action=press:id=terminal-input:key=Enter
+expect=element:text=description accepte
+expect=element:not-text=description accepted
+
+action=open:path=/show/bgp/group/enter-proof/timer/
+action=fill:id=input-bgp-sgroup-senter--proof-stimer-sreceive--hold--time:value=180
+action=press:id=input-bgp-sgroup-senter--proof-stimer-sreceive--hold--time:key=Enter
+action=press:key=End
+action=press:key=Backspace
+action=press:key=Enter
+action=press:key=Tab
+action=open:path=/cli
+action=fill:id=terminal-input:value=show bgp group enter-proof timer
+action=press:id=terminal-input:key=Enter
+expect=element:text=receive-hold-time 18
+expect=element:not-text=receive-hold-time 180
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+expect=element:text=commit successful
+
+action=open:path=/show/bgp/group/enter-proof/
+expect=html:contains=value="accepte"
+action=open:path=/show/bgp/group/enter-proof/timer/
+expect=html:contains=value="18"
+action=open:path=/show/bgp/router-id/
+expect=html:contains=value="10.0.0.9"

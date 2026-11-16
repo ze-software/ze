@@ -348,10 +348,10 @@ func (h *l2TPHandlers) handleL2TPDisconnect() http.HandlerFunc {
 
 		if NegotiateContentType(r) == formatJSON {
 			result := map[string]any{
-				"command":    cmd,
-				"output":     output,
-				jsonKeyError: execErr != nil,
-				colSessionID: int(sid),
+				webCommandField: cmd,
+				"output":        output,
+				jsonKeyError:    execErr != nil,
+				colSessionID:    int(sid),
 			}
 			w.Header().Set("Content-Type", "application/json")
 			if execErr != nil {

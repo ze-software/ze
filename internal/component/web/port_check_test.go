@@ -100,7 +100,26 @@ const portPageAssets = "the page renders no htmx attribute, so its head loads no
 // (plan/journal/helper-bypassed-by-an-open-coded-copy.md).
 const portFormDescriptionFromSchema = "each form field shows the description its YANG node declares, where the page wrote its own"
 
+// The mode switches name the graphical YANG editor and experimental backup
+// through topbarActions. Finder items and path-bar links use fragmentURL so
+// schema-token paths remain one query value after URL encoding.
+const (
+	portWorkbenchExperimental = "the Workbench switch identifies the unfinished backup as experimental"
+	portYANGEditorLabel       = "the Finder switch names the graphical YANG editor"
+	portFragmentQueryEncoding = "fragment links encode schema-token paths as query values"
+)
+
 var webPortTemplates = map[string]string{
+	"component/breadcrumb_inner--deep.html":   portWorkbenchExperimental,
+	"component/breadcrumb_inner--none.html":   portWorkbenchExperimental,
+	"component/breadcrumb_inner--one.html":    portWorkbenchExperimental,
+	"component/finder_oob--columns.html":      portFragmentQueryEncoding,
+	"component/path_bar_inner--segments.html": portFragmentQueryEncoding,
+	"component/topbar_actions--insecure.html": portYANGEditorLabel,
+	"component/topbar_actions--user.html":     portWorkbenchExperimental,
+	"component/workbench_topbar--fleet.html":  portYANGEditorLabel,
+	"component/workbench_topbar--single.html": portYANGEditorLabel,
+
 	"terminal.html":            portDeadNeverParsed,
 	"notification_banner.html": portDeadNeverParsed,
 
@@ -201,11 +220,10 @@ const portRootListsEPEAndExport = "the root listing carries the bgp-epe and bgp-
 // webPortHandlers explains each response whose content changed on purpose.
 // Every other difference is a finding.
 //
-// Eleven responses moved. Nine moved to make a page work: eight are the snapshot
-// views above, and the ninth is AC-5, recorded against A-2 in
-// spec-web-templ-migration. The tenth is the web terminal above, which is a
-// command rename rather than a port artifact. The eleventh is the CLI mode
-// root listing above, which gained two plugins' configuration roots.
+// These corrections include snapshot views, event escaping, renamed commands
+// and added configuration roots. Admin links now encode their query paths and
+// label Workbench experimental. The CLI bar uses the shared editor's show
+// output and preserves the operator's original context.
 //
 // handleDashboardEventsPage (page_dashboard.go) ran each cell through
 // template.HTMLEscapeString and handed the result to markup that escapes
@@ -286,6 +304,8 @@ var webPortHandlers = map[string]string{
 
 	"post-cli-terminal.txt": portCLITerminalKnowsShowBgp,
 	"post-cli-mode.txt":     portRootListsEPEAndExport,
+	"get-admin-htmx.txt":    "fragment links encode schema paths as query values, and the mode switch labels Workbench experimental",
+	"post-cli.txt":          "the CLI bar renders shared-editor show output and preserves the operator's context instead of changing it to the displayed path",
 }
 
 // TestWebTemplPortFidelity compares every captured unit against the bytes it

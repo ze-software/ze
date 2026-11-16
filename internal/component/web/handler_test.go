@@ -162,7 +162,7 @@ func TestParseURL_InvalidPrefix(t *testing.T) {
 }
 
 // TestValidatePathSegments validates path segment security checks.
-// VALIDATES: AC-16 (path traversal rejected), null bytes rejected, empty segments rejected, slash-in-segment rejected.
+// VALIDATES: AC-16 rejects traversal, null bytes and empty segments; AC-38 preserves decoded schema key bytes.
 // PREVENTS: directory traversal, null byte injection, malformed YANG paths.
 func TestValidatePathSegments(t *testing.T) {
 	tests := []struct {
@@ -213,10 +213,8 @@ func TestValidatePathSegments(t *testing.T) {
 			errMsg:    "null byte",
 		},
 		{
-			name:      "slash in segment",
-			segments:  []string{"bgp/peer"},
-			wantError: true,
-			errMsg:    "invalid character",
+			name:     "slash in a decoded schema key",
+			segments: []string{"bgp/peer"},
 		},
 	}
 

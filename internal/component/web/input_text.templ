@@ -15,7 +15,7 @@ templ inputText(f FieldMeta) {
 		hx-trigger="blur changed, ze-enter, input changed delay:1s"
 		hx-sync={ fieldSaveSync }
 		hx-target="closest .ze-field"
-		hx-swap="outerHTML"
+		hx-swap="outerHTML settle:0"
 		hx-vals={ fieldHxVals(f.Leaf) }
 		if fieldDescribedBy(f) != "" {
 			aria-describedby={ fieldDescribedBy(f) }

@@ -7,6 +7,7 @@
 # until it counts all four changes, so it never renders while the save is still
 # in flight, and the lines after it say which four they are.
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=60s
 
 action=open:path=/cli

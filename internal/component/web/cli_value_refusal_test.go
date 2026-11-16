@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	_ "github.com/ze-software/ze/internal/plugins/ospf/yang"
 )
 
@@ -344,11 +345,24 @@ func TestCLIBarCommitFramesTheFixWithThePosition(t *testing.T) {
 //
 // VALIDATES: AC-26 and AC-29 on the web terminal -- each refusal's fix is the
 // verb the operator typed with the key corrected: `rename|copy ospf
-// redistribute connected to <...>` and `insert ospf redistribute <...>` at the
+// redistribute connected to <...>` and `insert insert-probe lane <...> member one last` at the
 // root, the same behind `top` from `bgp`; nothing is stored.
 // PREVENTS: the creator's root `set` fix reaching the operator for a rename,
 // copy or insert, or a fix with no `top` inside a context.
 func TestWebTerminalEntryVerbFixKeepsThePosition(t *testing.T) {
+	const module = `module ze-web-insert-position-conf {
+  yang-version 1.1;
+  namespace "urn:ze:web-insert-position";
+  prefix probe;
+  container insert-probe {
+    list lane {
+      key "kind";
+      leaf kind { type enumeration { enum blue; enum red; } }
+      leaf-list member { type string; ordered-by user; }
+    }
+  }
+}`
+	t.Cleanup(configyang.RegisterModuleForTest("ze-web-insert-position-conf.yang", module))
 	mgr, terminal := newYANGTerminal(t)
 	require.False(t, strings.HasPrefix(webTerminalLine(t, terminal, "", "set ospf redistribute source connected").Output, "error"))
 	before := config.Serialize(mgr.Tree("testuser"), mgr.schema)
@@ -361,12 +375,21 @@ func TestWebTerminalEntryVerbFixKeepsThePosition(t *testing.T) {
 		assert.Equal(t, "fix: top "+line[:len(line)-len("bogus")]+ospfSourceChoices, lastLine(behindTop.Output), verb)
 	}
 
-	inserted := webTerminalLine(t, terminal, "", "insert ospf redistribute bogus")
-	assert.Equal(t, "fix: insert ospf redistribute "+ospfSourceChoices, lastLine(inserted.Output))
-	insertedBehindTop := webTerminalLine(t, terminal, "bgp", "top insert ospf redistribute bogus")
-	assert.Equal(t, "fix: top insert ospf redistribute "+ospfSourceChoices, lastLine(insertedBehindTop.Output))
+	const insert = "insert insert-probe lane bogus member one last"
+	inserted := webTerminalLine(t, terminal, "", insert)
+	assert.Contains(t, inserted.Output, `insert-probe lane bogus: "bogus" is not an accepted value`)
+	assert.Equal(t, "fix: insert insert-probe lane <blue|red> member one last", lastLine(inserted.Output))
+	assert.Empty(t, inserted.Path)
+	insertedBehindTop := webTerminalLine(t, terminal, "bgp", "top "+insert)
+	assert.Equal(t, "fix: top insert insert-probe lane <blue|red> member one last", lastLine(insertedBehindTop.Output))
+	assert.Equal(t, "bgp", insertedBehindTop.Path)
 
 	assert.Equal(t, before, config.Serialize(mgr.Tree("testuser"), mgr.schema), "a refused line changed the tree")
+	accepted := webTerminalLine(t, terminal, "", "insert insert-probe lane blue member one last")
+	require.NotContains(t, accepted.Output, "error:", "the valid key must still reach insertion")
+	entry := mgr.Tree("testuser").GetContainer("insert-probe").GetList("lane")["blue"]
+	require.NotNil(t, entry)
+	assert.Equal(t, []string{"one"}, entry.GetMultiValues("member"))
 }
 
 // TestWebFormRenameRefusalFixIsTheRename posts a refused destination key to

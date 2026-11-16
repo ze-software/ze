@@ -496,7 +496,7 @@ func buildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 				// exactly as ExtractLGConfig applies it.
 				Label:       "TLS",
 				Type:        wbFormToggleType,
-				Value:       configValueOrDefault(tree, "environment/looking-glass/tls", "true"),
+				Value:       configValueOrDefault(tree, "environment/looking-glass/tls", boolTrue),
 				Description: "Serve HTTPS (needs blob storage for certificates). Default on; turn off to serve plaintext",
 			},
 			{

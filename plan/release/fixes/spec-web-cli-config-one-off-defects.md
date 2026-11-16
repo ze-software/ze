@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | cli |
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | - |
+| Phase | web amendment implemented; original journal obligations open |
 | Handoff | verify |
-| Updated | 2026-11-13 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -25,6 +25,116 @@ Left to root-cause specs: `yangTypeToValueType` and `validateYangType` (S1);
 the `website/AI.md` checklist and the stranded-documentation rows (T2, T4).
 
 ## Required Reading
+
+### Authorized web correction amendment (2026-11-15)
+
+Owner requirement, verbatim:
+
+> Can you please look at the web interface? The default web interface should be the one allowing us to view the Yang graphically and the other one we have not completed is the backup because it's not finished. Can you check that effectively we can do all the things we do in the CLI on the web interface? It should have a graphical mode where you can click and modify things graphically, a CLI mode which effectively is the same thing as CLI but on the web page, allowing people who do not have SSH to do it via the web and the new interface. Please analyze the state of the code and the current situation. Provide me a report to help decide how we will approach this change, whether things require work or what to do.
+
+Owner authorization following the report, verbatim:
+
+> Please perform these corrections and fix the web interface.
+
+This amendment owns the authorized corrections from that analysis. It does not
+claim that the unrelated journal obligations below have been implemented or
+closed. The existing schema, editor manager, command dispatcher and web mode
+selector remain the mechanisms; no parallel editor or command service is added.
+
+Initial source audit (2026-11-15): `web.parseUIMode` selects Workbench for an empty value,
+although the environment registration and YANG leaf declare Finder as default.
+`web.buildFragmentData` leaves multi-valued and freeform schema nodes without
+editors. Browser tests for Finder are unconditionally skipped. The web terminal
+shares the editor and dispatcher but has its own command adapter; its differences
+from the SSH editor require correction and targeted coverage.
+
+| AC | Positive observable behavior | Permitted survivors and reason |
+|----|------------------------------|--------------------------------|
+| AC-31 | An authenticated browser with no mode selection opens the graphical YANG editor. An explicit Workbench selection still opens the experimental Workbench, and CLI remains directly reachable. Config, env help, labels and selection tests describe that contract. | Existing explicit mode cookies continue to select the operator's chosen mode. Workbench remains available because it is the requested alternative. |
+| AC-32 | Schema-backed graphical editing offers the missing multi-valued and freeform node editors through the existing per-user candidate and commit path. | Purpose-built Workbench pages are not promoted to complete by this correction; its incomplete workflows remain labelled experimental. |
+| AC-33 | Browser CLI corrections use the existing editor and dispatcher, with tests proving the corrected command workflows and state changes. | Unrelated journal rows remain open; the amendment makes no universal parity claim from a selected set of tests. |
+| AC-34 | Finder browser scenarios run by default, and Workbench scenarios select their mode explicitly. Existing edit, review, commit and navigation assertions continue to execute. | Scenarios requiring a separately unavailable service or an unfinished experimental Workbench workflow may keep an independently justified skip. The owner requested that unfinished Workbench remain the backup; mode selection alone is no longer a skip reason. |
+| AC-35 | A browser CLI streaming command displays successive daemon answers and provides the operator a working stop action, using the existing dispatcher and bounded output. | A finite command may use its existing single response; streaming must not be represented as a single completed answer. |
+| AC-36 | The Workbench firewall connections page displays actual connection rows when supplied by the running backend, and explicitly reports when connection state cannot be read. | An empty table is permitted only when a successful read found no connections; backend absence or a read failure is not reported as that result. |
+| AC-37 | The graphical editor provides the advanced configuration actions available through its shared editor: structural copy/rename/order, activation, review/validation and confirmed-commit controls, with the same candidate, authorization and publication semantics. | Workbench remains experimental; an action refused by the shared editor remains refused with its reason rather than being approximated by the graphical adapter. |
+| AC-38 | A legal schema-backed list key remains addressable through graphical navigation, form actions and the browser CLI context, including keys containing spaces or slashes. URL and context-path encoding preserves the original key tokens before schema validation. | Invalid schema keys and malformed encodings remain refused. Escaping is a transport operation, not permission to bypass the shared schema or editor. |
+
+Implementation phases for this amendment:
+
+1. Correct mode selection, labels, documentation and browser mode declarations;
+   retain the existing authenticated routes and explicit switch cookie.
+2. Complete the missing generic graphical editors and the identified browser CLI
+   adapters, with independent test changes judged before replacing expectations.
+3. Provide browser CLI streaming and a working stop action.
+4. Replace the Workbench firewall connection placeholder with actual rows or an
+   explicit unavailable/error answer from the owning backend.
+5. Complete the advanced graphical configuration actions through shared editor
+   methods and confirmed-commit machinery.
+6. Correct generic URL and browser-context path encoding so legal schema keys
+   round-trip without being split into extra path tokens or refused as YANG
+   identifiers. Reuse one encoder/decoder across navigation and action adapters.
+7. Run scoped unit and browser proofs, review the corrections and commit them.
+   Keep this spec open for its unrelated existing obligations.
+
+Default-selection wiring is `buildWebService` -> `GetUIMode` -> `parseUIMode`,
+with `ReadUIModeFromRequest` deciding an explicit current switch cookie. Graphical
+edits remain `HandleFragment` -> schema metadata -> config handlers ->
+`EditorManager`; operational CLI commands retain the daemon dispatcher.
+
+Pages governing this amendment: `docs/architecture/web-interface.md`,
+`docs/architecture/web-components.md`, `docs/guide/config-editor.md`, and
+`docs/architecture/api/commands.md`. Evidence is the main thread's scoped runs;
+no check of an unrelated original acceptance criterion is implied.
+
+The experimental Workbench peer-table tool chain remains unfinished: its row
+actions do not carry the tool identifier and selected-peer context required by
+the related-tool handler. The two existing peer-tool browser scenarios retain
+their complete assertions and name that missing capability explicitly. They
+were already skipped at HEAD and are not evidence of working functionality.
+Operational commands remain available through the dedicated browser CLI. This
+amendment does not promote the unfinished Workbench to the default interface.
+
+Initial AC-38 source audit (2026-11-15): `extractPath` splits the decoded request path,
+and `ValidatePathSegments` applies identifier-shaped validation to every token.
+A list key is data rather than a schema identifier. The path adapter correction
+must preserve its token boundary through escaping and leave actual key
+validation with the schema. The main thread owns the separate narrow
+implementation package and must not claim universal graphical addressability
+until its positive and malformed-input cases have run.
+
+### Web amendment implementation and evidence (2026-11-16)
+
+The amendment is implemented. The original AC-1 through AC-30 and journal
+obligations remain open; this record does not close the owning spec.
+
+| AC | Implemented result and scoped proof |
+|----|------------------------------------|
+| AC-31 | Graphical YANG is the default; explicit Workbench selection remains available and labeled experimental. Mode-selection tests and browser mode-switch journeys pass. |
+| AC-32 | Collection and freeform editors use the shared candidate. Graphical member editing, ordering, refusal recovery and publication tests pass. |
+| AC-33 | The dedicated browser CLI uses the shared editor and dispatcher. Completion, load, quoting, format, comparison, navigation and mutation tests pass. Missing saved comparisons and insertion into a new parent have recorded failing and passing CLI regressions. |
+| AC-34 | The complete browser run passes all 114 runnable scenarios in 157.2 seconds. Six explicit skips cover two unavailable credential fixtures and four unfinished Workbench workflows. |
+| AC-35 | Browser streaming, stop/resume, trusted identity, authorization and accounting tests pass. |
+| AC-36 | The connection page reports unavailable state when the backend cannot provide connection rows. It does not represent that absence as a successful empty result. |
+| AC-37 | Graphical copy/rename, activation, validation, confirmed acceptance/abort, stable history restoration and discard/fresh-view tests pass. |
+| AC-38 | Canonical paths preserve legal key tokens. Slash, space, quoted and dot-key tests pass; malformed paths and separate parent-traversal tokens remain refused. |
+
+The complete config package passes. The final complete web package passes in
+116.974 seconds, including behavioral tests, typed views, goldens and the strict
+historical comparison. Three browser journeys affected by the last shared
+editor and typed-link fixes pass. New refusal tests prove browser recovery
+instructions and preservation of the producer's correction. Stream failures
+retain a complete recovery line within the display budget and remain valid
+UTF-8. Generated templates and asset registrations agree with their sources.
+Test expectation changes retain independent per-unit judgments through the
+native commit approval route.
+
+The full documentation gate reports broader registry and publication drift.
+Earlier broad CLI, hub and terminal-demo runs also contain Linux-only fixture,
+backend, privilege and PTY failures; those packages are not claimed wholly
+green. The known scoped lint findings were corrected and their regressions
+pass; final lint confirmation was blocked by concurrent dependency edits
+during planning. Scoped local evidence is not deployment or release acceptance.
+The existing verification handoff remains in place.
 
 ### Architecture Docs
 - [ ] `ai/doors/system.md` and the web, CLI and config doors in `ai/doors/README.md`

@@ -118,7 +118,11 @@ var knownPrefixes = map[string]bool{
 func ParseURL(r *http.Request) (parsedURL, error) {
 	format := NegotiateContentType(r)
 
-	path := strings.TrimPrefix(r.URL.Path, "/")
+	escaped, err := escapedRequestPath(r)
+	if err != nil {
+		return parsedURL{}, err
+	}
+	path := strings.TrimPrefix(escaped, "/")
 	path = strings.TrimSuffix(path, "/")
 
 	if path == "" {
@@ -136,9 +140,9 @@ func ParseURL(r *http.Request) (parsedURL, error) {
 		return parsedURL{}, fmt.Errorf("unknown URL prefix: %q", prefix)
 	}
 
-	var segments []string
-	if rest != "" {
-		segments = strings.Split(rest, "/")
+	segments, err := decodeConfigPath(rest)
+	if err != nil {
+		return parsedURL{}, err
 	}
 
 	switch prefix {
@@ -196,9 +200,8 @@ func parseConfigURL(segments []string, format string) (parsedURL, error) {
 	return parsedURL{Tier: TierConfig, Verb: verb, Path: yangSegments, Format: format}, nil
 }
 
-// ValidatePathSegments rejects path segments that are unsafe or invalid
-// as YANG identifiers. It checks for path traversal (..), empty segments,
-// null bytes, and characters outside the set [a-zA-Z0-9._:-].
+// ValidatePathSegments rejects malformed transport tokens. Node identifiers and
+// typed list keys are subsequently checked by the schema/editor that uses them.
 func ValidatePathSegments(segments []string) error {
 	for _, seg := range segments {
 		if seg == "" {
@@ -210,28 +213,11 @@ func ValidatePathSegments(segments []string) error {
 		if strings.ContainsRune(seg, 0) {
 			return errNullByteInPathSegment
 		}
-		for _, ch := range seg {
-			if !isYANGIdentChar(ch) {
-				return fmt.Errorf("invalid character %q in path segment %q", ch, seg)
-			}
+		if !validPathToken(seg) {
+			return fmt.Errorf("invalid character in path segment %q", seg)
 		}
 	}
 	return nil
-}
-
-// isYANGIdentChar returns true for characters valid in YANG identifiers
-// plus IP address characters: [a-zA-Z0-9._:-].
-func isYANGIdentChar(ch rune) bool {
-	if ch >= 'a' && ch <= 'z' {
-		return true
-	}
-	if ch >= 'A' && ch <= 'Z' {
-		return true
-	}
-	if ch >= '0' && ch <= '9' {
-		return true
-	}
-	return ch == '.' || ch == '_' || ch == ':' || ch == '-'
 }
 
 // NegotiateContentType determines the response format from the request.

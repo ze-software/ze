@@ -31,6 +31,11 @@ func TestWebTerminalPipeLiteralArgument(t *testing.T) {
 			if position == "nested top" {
 				prefix = "top top "
 			}
+			// The filter consumes plain config lines, without display-only change gutters.
+			option := webTerminalLine(t, terminal, path, "option changes disable")
+			if strings.HasPrefix(option.Output, "error") {
+				t.Fatal(option.Output)
+			}
 			shown := webTerminalLine(t, terminal, path, prefix+"show")
 			var want []string
 			for line := range strings.SplitSeq(shown.Output, "\n") {

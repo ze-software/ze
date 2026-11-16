@@ -294,10 +294,25 @@ func (p *Parser) parseInactiveBracketMember(tree *Tree, name string, node *Brack
 // are dual-natured; the helper checks where the parser actually deposited
 // the data (values, multiValues, containers, lists) and marks accordingly.
 func applyInactive(tree *Tree, name string, node Node, p *Parser, line int) {
-	switch node.(type) {
+	switch node := node.(type) {
 	case *LeafNode, *MultiLeafNode, *BracketLeafListNode, *ValueOrArrayNode:
 		tree.SetLeafInactive(name, true)
 		return
+	case *ContainerNode:
+		// A presence name can hold both a value and a block. Mark the
+		// statement just parsed, rather than whichever form existed first.
+		if node.Presence {
+			if block := tree.GetContainer(name); block != nil {
+				if p.stmtTree == block {
+					block.SetInactive(true)
+					return
+				}
+			}
+			if _, present := tree.Get(name); present {
+				tree.SetLeafInactive(name, true)
+				return
+			}
+		}
 	case *FlexNode:
 		// Flex landed as scalar (values), multi (multiValues), or as a
 		// container -- mark whichever the parser produced.

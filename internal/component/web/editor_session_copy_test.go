@@ -132,24 +132,32 @@ func checkWebSessionCopyAfterCommit(t *testing.T, base string) {
 	assert.Contains(t, peers, "wbdst")
 }
 
-// TestWebTerminalListEntryOpWording pins the answer the web terminal prints for
-// copy and rename.
-//
-// GOAL: the web terminal answers in the words the SSH editor uses.
-// METHOD: run execListEntryOp with an op that succeeds, for each verb.
-//
-// VALIDATES: "Copied peer a to b" and "Renamed peer a to b".
-// PREVENTS: the verb and a bare "d" glued together ("copyd").
+// TestWebTerminalListEntryOpWording pins copy and rename answers through actual
+// authenticated HTTP requests, and checks that their reported mutations exist.
+// VALIDATES: the exact SSH wording and both resulting entry states.
 func TestWebTerminalListEntryOpWording(t *testing.T) {
-	ok := func([]string, string, string, []string) error { return nil }
-	args := []string{"bgp", "peer", "a", "to", "b"}
-	schema, _ := buildTestSchemaAndTree()
-
-	_, copied := execListEntryOp(schema, args, nil, nil, listEntryCopy, ok)
-	assert.Equal(t, "Copied peer a to b", copied)
-
-	_, renamed := execListEntryOp(schema, args, nil, nil, listEntryRename, ok)
-	assert.Equal(t, "Renamed peer a to b", renamed)
+	for _, verb := range []string{"copy", "rename"} {
+		t.Run(verb, func(t *testing.T) {
+			mgr, schema := newHandlerTestManager(t)
+			require.NoError(t, mgr.SetValue("alice", []string{"bgp", "peer", "a"}, "description", "marker"))
+			out := terminalAsUser(t, mgr, "alice", nil, verb+" bgp peer a to b").Output
+			want := "Copied peer a to b"
+			if verb == "rename" {
+				want = "Renamed peer a to b"
+			}
+			assert.Equal(t, want, out)
+			peers := walkTree(mgr.Tree("alice"), schema, []string{"bgp"}).GetList("peer")
+			require.NotNil(t, peers["b"])
+			value, exists := peers["b"].Get("description")
+			assert.True(t, exists)
+			assert.Equal(t, "marker", value)
+			if verb == "copy" {
+				assert.NotNil(t, peers["a"])
+			} else {
+				assert.Nil(t, peers["a"])
+			}
+		})
+	}
 }
 
 // TestWebTerminalDeactivateLeafAndEntry is AC-11 of

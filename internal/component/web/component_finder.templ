@@ -71,7 +71,7 @@ templ finderItem(it ColumnItem) {
 	<a
 		class={ finderItemClass(it) }
 		href={ it.URL }
-		hx-get={ "/fragment/detail?path=" + it.HxPath }
+		hx-get={ fragmentURL(it.HxPath) }
 		hx-target="#content-area"
 		hx-swap="innerHTML"
 		hx-push-url={ it.URL }

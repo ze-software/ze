@@ -93,6 +93,18 @@ func (e *Editor) applyNodeActivation(fullPath []string, activate bool) error {
 		}
 		return e.applyPathActivation(fullPath, activate)
 	case config.NodeContainer:
+		container, ok := node.(*config.ContainerNode)
+		if ok && container.Presence {
+			parentPath, name := fullPath[:len(fullPath)-1], fullPath[len(fullPath)-1]
+			if parent := e.WalkPath(parentPath); parent != nil && parent.GetContainer(name) == nil {
+				if _, present := parent.Get(name); present {
+					if activate {
+						return e.ActivateLeaf(parentPath, name)
+					}
+					return e.DeactivateLeaf(parentPath, name)
+				}
+			}
+		}
 		return e.applyPathActivation(fullPath, activate)
 	case config.NodeFreeform, config.NodeFlex, config.NodeInlineList:
 		return fmt.Errorf("path %q resolves to a node type that does not support deactivation", tb.Join(fullPath, " ").String())

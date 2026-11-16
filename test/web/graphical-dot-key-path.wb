@@ -1,0 +1,27 @@
+# Test: a literal dot key survives browser navigation and graphical save
+# VALIDATES: producer-built links and HTMX history preserve the selected key,
+# including a marker-looking sibling that must remain a different entry.
+# PREVENTS: browser or ServeMux dot-segment normalization selecting the list.
+
+option=timeout:value=90s
+option=server:kind=daemon
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group . description dot-original
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group ~. description marker-original
+action=press:id=terminal-input:key=Enter
+action=open:path=/show/bgp/group/
+expect=html:contains=/show/bgp/group/~./
+expect=html:contains=/show/bgp/group/~~./
+action=click:text=link ". ›"
+expect=url:contains=/show/bgp/group/~./
+expect=html:contains=value="dot-original"
+action=fill:id=input-bgp-sgroup-s-x7e-d-sdescription:value=dot-saved
+action=press:id=input-bgp-sgroup-s-x7e-d-sdescription:key=Enter
+action=open:path=/show/bgp/group/~./
+expect=html:contains=value="dot-saved"
+action=open:path=/show/bgp/group/~~./
+expect=html:contains=value="marker-original"

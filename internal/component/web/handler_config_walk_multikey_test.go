@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/ze-software/ze/internal/component/bfd/yang" // Register the BFD YANG: single-hop-session is keyed `peer vrf interface`.
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // twoLinkSessionsConfig is the AC-2 config of spec-bfd-link-local-peer-zone:
@@ -91,6 +92,22 @@ func TestWebWalkAddressesMultiLeafKeyEntry(t *testing.T) {
 		"fe80::b interface zbl0": "/show/bfd/single-hop-session/fe80::b/interface/zbl0/",
 		"fe80::b interface zbl1": "/show/bfd/single-hop-session/fe80::b/interface/zbl1/",
 	}, urls, "each row links to its own address segments")
+
+	view, err := buildConfigViewData(schema, tree, listPath)
+	require.NoError(t, err)
+	require.Len(t, view.KeyLinks, 2)
+	keyURLs := make(map[string]string, len(view.KeyLinks))
+	for _, link := range view.KeyLinks {
+		keyURLs[link.Name] = link.URL
+	}
+	assert.Equal(t, urls, keyURLs, "the CLI view carries the same complete entry addresses")
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	html := renderer.renderComponent("multi-key CLI links", configViewBody(view))
+	for _, link := range view.KeyLinks {
+		assert.Contains(t, html, `href="`+link.URL+`"`)
+		assert.Contains(t, html, `>`+link.Name+`</a>`)
+	}
 }
 
 // TestWebRenameOfMultiLeafKeyEntryChangesOnlyTheFirstValue is the web half of
@@ -98,7 +115,7 @@ func TestWebWalkAddressesMultiLeafKeyEntry(t *testing.T) {
 //
 // GOAL: the web rename form and the web terminal move a multi-leaf-key entry
 // by its first value only. METHOD: build the AC-2 entries in an
-// EditorManager, then POST /config/rename/ and run execListEntryOp.
+// EditorManager, then POST /config/rename/ and the actual terminal endpoint.
 //
 // VALIDATES: a rename to `fe80::c` moves the zbl0 entry to
 // `fe80::c interface zbl0`, which still holds `interface zbl0`; a destination
@@ -132,12 +149,12 @@ func TestWebRenameOfMultiLeafKeyEntryChangesOnlyTheFirstValue(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "new key must differ from current key")
 	assert.Len(t, sessionList(t, mgr.Tree("alice")), 2, "the refusals change nothing")
 
-	_, out := execListEntryOp(schema, []string{"bfd", "single-hop-session", "fe80::b", "interface", "zbl1", "to", "fe80::b", "interface", "zbl2"},
-		nil, nil, listEntryCopy, func(parent []string, list, src string, dst []string) error {
-			return mgr.CopyListEntry("alice", parent, list, src, dst)
-		})
+	before := config.Serialize(mgr.Tree("alice"), schema)
+	out := terminalAsUser(t, mgr, "alice", nil,
+		"copy bfd single-hop-session fe80::b interface zbl1 to fe80::b interface zbl2").Output
 	assert.Contains(t, out, "copy refused: interface is part of the key of single-hop-session")
 	assert.Len(t, sessionList(t, mgr.Tree("alice")), 2, "the terminal refusal changes nothing")
+	assert.Equal(t, before, config.Serialize(mgr.Tree("alice"), schema))
 
 	rec = post("fe80::c")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
@@ -151,38 +168,42 @@ func TestWebRenameOfMultiLeafKeyEntryChangesOnlyTheFirstValue(t *testing.T) {
 	assert.Equal(t, "p-zbl1", profile, "the zbl1 entry is untouched")
 }
 
-// keylessSchema holds a keyless list `rule` with a keyed list `match` under
-// it, the shape AC-19 refuses.
-func keylessSchema() *config.Schema {
-	match := config.List(config.TypeString, config.Field("value", config.Leaf(config.TypeString)))
-	match.KeyName = "name"
-	rule := config.List(config.TypeString,
-		config.Field("action", config.Leaf(config.TypeString)),
-		config.Field("match", match),
-	)
-	schema := config.NewSchema()
-	schema.Define("policy", config.Container(config.Field("rule", rule)))
-	return schema
-}
-
 // TestWebRenameAndTerminalRefuseAKeylessListEntry is the web half of AC-19 of
 // spec-bfd-link-local-peer-zone.
 //
 // GOAL: the web rename form and the web terminal refuse a rename or copy of
 // a keyless list's entry, and of a keyed entry under one, with the CLI's
-// message. METHOD: POST /config/rename/ and run execListEntryOp over a
+// message. METHOD: POST /config/rename/ and actual terminal requests over a
 // schema holding a keyless list with a keyed list under it.
 //
 // VALIDATES: each route answers "<verb> refused: rule has no key, so its
-// entries cannot be renamed or copied." and the op is never called.
+// entries cannot be renamed or copied." and no mutation is staged or written.
 // PREVENTS: the terminal renaming a keyless entry (it had no check), and the
 // form answering with a message that names no list.
 func TestWebRenameAndTerminalRefuseAKeylessListEntry(t *testing.T) {
-	schema := keylessSchema()
-	mgr, _ := newHandlerTestManager(t)
+	const module = `module ze-web-keyless-refusal-conf {
+  yang-version 1.1;
+  namespace "urn:ze:web-keyless-refusal";
+  prefix probe;
+  import ze-policy-conf { prefix policy; }
+  augment "/policy:policy" {
+    list rule {
+      config false;
+      leaf action { type string; }
+      list match { key "name"; leaf name { type string; } leaf value { type string; } }
+    }
+  }
+}`
+	t.Cleanup(configyang.RegisterModuleForTest("ze-web-keyless-refusal-conf.yang", module))
+	mgr, schema := newHandlerTestManager(t)
+	us, err := mgr.GetOrCreate("alice")
+	require.NoError(t, err)
+	before := config.Serialize(mgr.Tree("alice"), schema)
+	beforeDirty := us.editor.Dirty()
+	writes := 0
+	mgr.store.SetWriteObserver(func(string) { writes++ })
+	t.Cleanup(func() { mgr.store.SetWriteObserver(nil) })
 	handler := handleConfigRename(mgr, schema)
-	called := false
-	op := func([]string, string, string, []string) error { called = true; return nil }
 
 	for _, path := range [][]string{
 		{"policy", "rule", "1"},
@@ -195,13 +216,17 @@ func TestWebRenameAndTerminalRefuseAKeylessListEntry(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rec.Code, "%v", path)
 		assert.Contains(t, rec.Body.String(), "rename refused: rule has no key, so its entries cannot be renamed or copied.", "%v", path)
 
-		args := append(append([]string{}, path...), "to", "2")
-		_, out := execListEntryOp(schema, args, nil, nil, listEntryRename, op)
-		assert.Equal(t, "error: rename refused: rule has no key, so its entries cannot be renamed or copied.", out, "%v", path)
-		_, out = execListEntryOp(schema, args, nil, nil, listEntryCopy, op)
-		assert.Equal(t, "error: copy refused: rule has no key, so its entries cannot be renamed or copied.", out, "%v", path)
+		for _, verb := range []string{"rename", "copy"} {
+			out := terminalAsUser(t, mgr, "alice", nil, verb+" "+strings.Join(path, " ")+" to 2").Output
+			assert.Equal(t, "error: "+verb+" refused: rule has no key, so its entries cannot be renamed or copied.", out, "%v", path)
+		}
+		assert.Equal(t, before, config.Serialize(mgr.Tree("alice"), schema), "the refused paths preserve the candidate")
+		assert.Equal(t, beforeDirty, us.editor.Dirty(), "the refusals stage no mutation")
 	}
-	assert.False(t, called, "a refused rename or copy never reaches the editor")
+	assert.Zero(t, writes, "a refused rename or copy never writes a mutation to the editor store")
+	accepted := terminalAsUser(t, mgr, "alice", nil, "set bgp router-id 192.0.2.71")
+	require.NotContains(t, accepted.Output, "error:")
+	assert.Positive(t, writes, "the observer must see a valid mutation through the acquired write guard")
 }
 
 // TestWebAddKeepsTheCaseOfTheFirstKeyValue is AC-20 of

@@ -1,0 +1,26 @@
+# Test: browser file loading reads the selected local file into the candidate
+# VALIDATES: file selection supplies content; the filename is only a label;
+# loading leaves the committed configuration unchanged until commit.
+# PREVENTS: trying to read a browser filename from the daemon filesystem.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=load file absolute merge browser-config.conf
+action=press:id=terminal-input:key=Enter
+expect=element:text=Choose configuration file
+action=upload:id=cli-load-file:file=test/web/fixtures/cli-load.conf
+action=click:id=cli-load-apply
+expect=element:text=Configuration merged
+
+action=fill:id=terminal-input:value=show bgp
+action=press:id=terminal-input:key=Enter
+expect=element:text=browser-file
+expect=element:text=file ? value
+
+action=fill:id=terminal-input:value=show confirmed
+action=press:id=terminal-input:key=Enter
+expect=element:text=router-id
+expect=element:not-text=browser-file

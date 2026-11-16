@@ -4,9 +4,9 @@
 # PREVENTS: A regression that drops one of the day-one tool buttons.
 #
 # Spec: plan/spec-web-2-operator-workbench.md (Day-One BGP Related Tools).
-# Run with: ZE_WEB_UI=workbench ./le test web -p workbench-bgp-peer-tools
 
-option=skip:reason=requires ZE_WEB_UI=workbench
+option=env:var=ze.web.ui-mode:value=workbench
+option=skip:reason=unfinished Workbench peer row tools and related-tool context wiring
 option=timeout:value=30s
 
 action=open:path=/show/bgp/peer/

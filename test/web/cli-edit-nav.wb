@@ -1,12 +1,16 @@
-# Test: CLI bar is present and accepts text input
-# VALIDATES: CLI text input renders and can be filled
-# PREVENTS: CLI bar missing from layout, input not interactable
+# Test: CLI mode accepts text from the YANG editor
+# VALIDATES: the graphical editor links to a usable dedicated command input
+# PREVENTS: CLI access being lost when the bottom bar is absent
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/
-expect=element:id=cli-input
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=show bgp
-expect=element:id=cli-input
+action=fill:id=terminal-input:value=show bgp
+expect=element:id=terminal-input
+expect=element:not-id=cli-input

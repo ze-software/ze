@@ -28,6 +28,10 @@ type editorAdapter struct {
 	ed *cli.Editor
 }
 
+func (a *editorAdapter) ExecuteConfigCommand(request contract.ConfigCommandRequest) (contract.ConfigCommandResult, error) {
+	return a.ed.ExecuteConfigCommand(request)
+}
+
 func (a *editorAdapter) SetSession(s contract.EditSession) {
 	a.ed.SetSession(cli.NewEditSession(s.User, s.Origin))
 }
@@ -126,6 +130,7 @@ func (a *editorAdapter) PendingChanges(sessionID string) []contract.PendingChang
 	changes := make([]contract.PendingChange, len(entries))
 	for i, entry := range entries {
 		changes[i] = contract.PendingChange{
+			User:     entry.User,
 			Kind:     contract.PendingChangeKind(entry.Kind),
 			Path:     entry.Path,
 			Previous: entry.Previous,

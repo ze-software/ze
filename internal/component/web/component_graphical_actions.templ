@@ -1,0 +1,96 @@
+// Design: docs/architecture/web-components.md -- graphical editor operations.
+
+package web
+
+import "github.com/ze-software/ze/internal/component/cli/contract"
+
+// graphicalActionPanel keeps advanced editing in one disclosure. The forms
+// carry values, never commands the operator must write or parse.
+templ graphicalActionPanel(v *GraphicalActions, readOnly bool) {
+	<details class="config-section graphical-actions" id="graphical-actions" open?={ v.Output != "" || len(v.History) > 0 }>
+		<summary id="graphical-actions-toggle">Configuration actions</summary>
+		if v.Output != "" {
+			<pre id="graphical-action-result" role="status">{ v.Output }</pre>
+		}
+		if v.Window != "" {
+			<p id="graphical-confirm-status" role="status">{ v.Window }</p>
+		}
+		if readOnly {
+			<p>This account has read-only access.</p>
+		} else {
+			<div class="config-fields">
+				<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+					<input type="hidden" name="path" value={ v.Path }>
+					<button class="config-btn" id="graphical-validate" name="action" value="verify">Validate candidate</button>
+					<button class="config-btn" id="graphical-save-draft" name="action" value={ verbSave }>Save draft</button>
+					<button class="config-btn" id="graphical-history" name="action" value={ verbHistory }>View history</button>
+					<button class="config-btn" type="button" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review changes</button>
+				</form>
+				if v.HasEntry {
+					<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+						<fieldset>
+							<legend>Selected entry</legend>
+							<input type="hidden" name="path" value={ v.Path }>
+							<label>New entry name <input type="text" id="graphical-entry-target" name="target" required maxlength="512"></label>
+							<button class="config-btn" id="graphical-copy" name="action" value={ verbCopy }>Copy entry</button>
+							<button class="config-btn" id="graphical-rename" name="action" value={ verbRename }>Rename entry</button>
+						</fieldset>
+					</form>
+				}
+				if v.HasNode {
+					<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+						<input type="hidden" name="path" value={ v.Path }>
+						if v.Inactive {
+							<p id="graphical-activation-state">Inactive</p>
+							<button class="config-btn" id="graphical-activate" name="action" value={ verbActivate }>Activate item</button>
+						} else {
+							<p id="graphical-activation-state">Active</p>
+							<button class="config-btn" id="graphical-deactivate" name="action" value={ verbDeactivate }>Deactivate item</button>
+						}
+					</form>
+				}
+				if len(v.History) > 0 {
+					<table class="finder-table" id="graphical-revisions">
+						<thead><tr><th>Revision</th><th>Saved</th><th>Action</th></tr></thead>
+						<tbody>
+							for _, revision := range v.History {
+								<tr>
+									<td>{ intText(revision.Number) }</td><td>{ revision.Timestamp }</td>
+									<td><form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+										<input type="hidden" name="action" value={ verbRollback }>
+										<input type="hidden" name="revision" value={ revision.Key }>
+										<button class="config-btn" id={ "graphical-restore-" + intText(revision.Number) }>Restore to candidate</button>
+									</form></td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				}
+				<details open?={ v.Window != "" }>
+					<summary id="graphical-commit-options">Commit options</summary>
+					<p>Review the candidate before applying it. Automatic rollback protects a change until you accept it.</p>
+					<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+						<input type="hidden" name="action" value="confirmed">
+						<input type="hidden" name="path" value={ v.Path }>
+						<label>Rollback after seconds <input id="graphical-confirm-seconds" type="number" name="seconds" value="60" min={ intText(contract.CommitConfirmedSecondsMin) } max={ intText(contract.CommitConfirmedSecondsMax) } required></label>
+						<label><input type="checkbox" name="force" value="true">Override warnings and conflicting drafts</label>
+						<button class="config-btn" id="graphical-commit-confirmed">Apply with automatic rollback</button>
+					</form>
+					<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+						<input type="hidden" name="action" value="now">
+						<input type="hidden" name="path" value={ v.Path }>
+						<label><input type="checkbox" name="force" value="true">Override warnings and conflicting drafts</label>
+						<button class="config-btn" id="graphical-commit-now">Apply candidate now</button>
+					</form>
+					if v.Window != "" {
+						<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+							<input type="hidden" name="path" value={ v.Path }>
+							<button class="config-btn" id="graphical-commit-accept" name="action" value="accept" disabled?={ !v.WindowOwner }>Keep pending commit</button>
+							<button class="config-btn" id="graphical-commit-abort" name="action" value="abort" disabled?={ !v.WindowOwner }>Revert pending commit</button>
+						</form>
+					}
+				</details>
+			</div>
+		}
+	</details>
+}

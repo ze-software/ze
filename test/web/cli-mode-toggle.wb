@@ -11,8 +11,8 @@ option=timeout:value=30s
 action=open:path=/cli
 expect=element:id=content-area
 expect=element:id=terminal-input
-expect=element:text=Workbench
-expect=element:text=Finder
+expect=element:text=Workbench (experimental)
+expect=element:text=YANG editor
 expect=element:not-id=cli-bar
 expect=element:not-id=cli-input
 
@@ -45,12 +45,12 @@ action=press:id=terminal-input:key=Enter
 action=wait
 expect=element:text=namespace
 
-action=click:text=Workbench
+action=click:text=Workbench (experimental)
 expect=element:id=workbench-shell
 expect=element:not-id=terminal-input
 
 action=open:path=/cli
-action=click:text=Finder
+action=click:text=YANG editor
 expect=url:contains=/show/
 expect=element:text=environment
 expect=element:not-id=workbench-shell

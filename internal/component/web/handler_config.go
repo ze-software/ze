@@ -55,6 +55,8 @@ type ConfigViewData struct {
 	Children []ChildEntry
 	// Keys lists key strings for list nodes.
 	Keys []string
+	// KeyLinks contains display names and schema-expanded entry URLs.
+	KeyLinks []ChildEntry
 	// SelectedKey is the currently selected list key, if any.
 	SelectedKey string
 	// SelectedDetail holds the detail view for a selected list entry.
@@ -132,7 +134,7 @@ func redirectBackOneLevel(w http.ResponseWriter, r *http.Request, currentPath []
 	parentPath := configEditPath
 	if len(currentPath) > 0 {
 		var tb textbuf.Buffer
-		tb.Str(configEditPath).Join(currentPath[:len(currentPath)-1], "/")
+		tb.Str(configEditPath).Str(encodeConfigPath(currentPath[:len(currentPath)-1]))
 		if len(currentPath) > 1 {
 			tb.Byte('/')
 		}

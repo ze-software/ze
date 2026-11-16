@@ -126,8 +126,10 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 			return handleBGPGroupsPage(renderer, viewTree), true
 		}
 		// /show/bgp/group/<name>/peer/ shows the peer table scoped to the group.
-		if len(path) >= 3 && path[2] == bgpPeerSegment {
-			return handleBGPPeersPage(renderer, r, viewTree, path[1], dispatch), true
+		if len(path) == 3 {
+			if path[2] == bgpPeerSegment {
+				return handleBGPPeersPage(renderer, r, viewTree, path[1], dispatch), true
+			}
 		}
 		return "", false
 	case segSummary:

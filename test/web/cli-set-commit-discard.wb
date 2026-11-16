@@ -1,18 +1,39 @@
 # Test: CLI set then discard clears pending changes
-# VALIDATES: set command creates pending change, discard clears it
-# PREVENTS: discard not clearing editor state
+# VALIDATES: a set in BGP context is removed by discard through the dedicated terminal
+# PREVENTS: discard retaining the candidate value
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-expect=element:id=cli-input
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=set router-id 10.99.99.99
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
 
-action=fill:id=cli-input:value=discard
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[bgp]#
+
+action=fill:id=terminal-input:value=set router-id 10.99.99.99
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=10.99.99.99
+
+action=fill:id=terminal-input:value=discard
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+action=wait
+
 expect=element:not-text=10.99.99.99
+action=open:path=/config/diff
+expect=element:text=Review changes (0)
+expect=html:not-contains=10.99.99.99

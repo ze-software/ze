@@ -26,6 +26,8 @@ const (
 	cmdNop      = "nop"
 	cmdDelete   = command.VerbDelete
 	cmdInactive = "inactive"
+	// cmdReplaceMembers is an annotated session-file assignment, not a CLI verb.
+	cmdReplaceMembers = "replace-members"
 )
 
 // SetParser parses set-style configuration.
@@ -51,6 +53,9 @@ type SetParser struct {
 	// reads `nop <path> <member>` as the deactivation of a member the list
 	// line already set (nopBracketMember), never as a new list.
 	nopLine bool
+	// replaceMembersLine is scoped to one explicit annotated replacement. A
+	// normal set line remains additive even when its values use brackets.
+	replaceMembersLine bool
 	// inactiveLine is true while an `inactive` line is walked, so a refusal's
 	// fix is an `inactive` line, the line the operator typed (lineVerb).
 	inactiveLine bool
@@ -261,7 +266,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if err := ValidateLeafValue(multi.memberLeaf(), p.lineAt(tokens), value); err != nil {
 			return p.valueLineRefusal(lineNum, name, tokens, err)
 		}
-		tree.Set(name, value)
+		tree.SetSlice(name, tokens)
 		return nil
 	}
 
@@ -303,9 +308,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		// Add-member merge: each line appends missing members (JunOS set
 		// semantics); members land in the multi-value store the serializers
 		// read, with the scalar map kept in sync for Get() callers.
-		for _, item := range clean {
-			tree.AddMultiValueMember(name, item)
-		}
+		p.storeValueOrArrayMembers(tree, valueOrArray, name, clean)
 		for _, member := range deactivated {
 			_ = tree.DeactivateMultiValue(name, member)
 		}
@@ -313,6 +316,10 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	if container, ok := node.(*ContainerNode); ok {
+		if container.Presence && len(tokens) == 0 {
+			tree.Set(name, configTrue)
+			return nil
+		}
 		child := tree.GetContainer(name)
 		if child == nil {
 			child = NewTree()
@@ -372,6 +379,21 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	return lineErrorf(lineNum, "unknown node type %T for %s", node, name)
+}
+
+// storeValueOrArrayMembers preserves ordered repetitions in set statements.
+// A nop statement only marks a member the preceding sequence already holds;
+// adding another occurrence there would change the sequence during replay.
+func (p *SetParser) storeValueOrArrayMembers(tree *Tree, node *ValueOrArrayNode, name string, items []string) {
+	if node.Ordered {
+		if !p.nopLine {
+			tree.AppendSequence(name, items)
+			return
+		}
+	}
+	for _, item := range items {
+		tree.AddMultiValueMember(name, item)
+	}
 }
 
 // parseNop handles: nop <path...> [<value>].
@@ -492,6 +514,12 @@ func (p *SetParser) markNopInactive(tree *Tree, parent Node, tokens []string) {
 	}
 
 	if container, ok := node.(*ContainerNode); ok {
+		if container.Presence && len(tokens) == 0 {
+			if _, present := tree.Get(name); present {
+				tree.SetLeafInactive(name, true)
+				return
+			}
+		}
 		child := tree.GetContainer(name)
 		if child == nil {
 			return

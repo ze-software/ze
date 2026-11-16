@@ -247,7 +247,7 @@ func walkTree(tree *config.Tree, schema *config.Schema, path []string) *config.T
 func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string) (*ConfigViewData, error) {
 	data := &ConfigViewData{
 		Path:        path,
-		CurrentPath: textbuf.Join(path, "/"),
+		CurrentPath: encodeConfigPath(path),
 		Breadcrumbs: buildBreadcrumbs(path),
 	}
 
@@ -275,7 +275,7 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 
 	data.NodeKind = schemaNode.Kind()
 	var tb textbuf.Buffer
-	prefix := tb.Str(showPathPrefix).Join(path, "/").String()
+	prefix := tb.Str(showPathPrefix).Str(encodeConfigPath(path)).String()
 
 	switch n := schemaNode.(type) {
 	case *config.ContainerNode:
@@ -288,13 +288,14 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 		// When the path ends at the list itself (no key selected),
 		// show the list of keys with the base path for navigation.
 		data.Keys = collectListKeys(tree, schema, path)
-		data.BasePath = tb.Reset().Str(showPathPrefix).Join(path, "/").Byte('/').String()
+		data.KeyLinks = configKeyLinks(path, data.Keys, n)
+		data.BasePath = tb.Reset().Str(showPathPrefix).Str(encodeConfigPath(path)).Byte('/').String()
 
 		// When we have a list node and the path included a key (walkTree
 		// descended into an entry), also populate leaf fields.
 		subtree := walkTree(tree, schema, path)
 		if subtree != nil {
-			data.DetailPath = textbuf.Join(path, "/")
+			data.DetailPath = encodeConfigPath(path)
 			populateContainerView(data, n, subtree, prefix)
 		}
 
@@ -304,6 +305,7 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 
 	case *config.InlineListNode:
 		data.Keys = collectListKeys(tree, schema, path)
+		data.KeyLinks = configKeyLinks(path, data.Keys, nil)
 
 	case *config.LeafNode:
 		subtree := walkTree(tree, schema, path[:len(path)-1])

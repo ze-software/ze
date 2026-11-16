@@ -50,6 +50,7 @@
     var input = document.getElementById('cli-input');
     var box = document.getElementById('cli-completions');
     if (!input || !box) return;
+	var barQueue = Promise.resolve();
 
     input.addEventListener('keydown', function(e) {
       var dropdownVisible = isBoxVisible(box);
@@ -112,58 +113,20 @@
         historyPos = -1;
         input.value = '';
 
-        var tokens = cmd.split(/\s+/);
-        var verb = tokens[0];
-        var ctxPath = getContextPath();
-
-        // Navigation commands: use HTMX so OOB swaps update breadcrumb, prompt, path bar, and context.
-        if (verb === 'show' || verb === 'edit' || verb === 'top' || verb === 'up') {
-          if (window.htmx) {
-            htmx.ajax('POST', '/cli', {
-              target: '#content-area',
-              swap: 'outerHTML',
-              values: {command: cmd, path: ctxPath}
-            });
-          }
-          return;
-        }
-
-        // In terminal mode, send all commands to terminal endpoint and show output.
-        if (window.zeTerminalMode) {
-          fetch('/cli/terminal', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath)
-          }).then(function(r) { return r.text(); })
-            .then(function(html) {
-              var out = document.getElementById('terminal-scrollback');
-              if (out) {
-                // Server returns HTML fragments (terminal-entry divs).
-                out.insertAdjacentHTML('beforeend', html);
-                out.scrollTop = out.scrollHeight;
-              }
-            });
-          return;
-        }
-
-        // GUI mode: POST then refresh view.
-        fetch('/cli', {
-          method: 'POST',
-          credentials: 'same-origin',
-          redirect: 'manual',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath)
-        }).then(function() {
-          refreshDetail(ctxPath);
-          if (verb === 'set' || verb === 'delete' || verb === 'commit' || verb === 'discard') {
-            refreshCommitBar();
-          }
+        barQueue = barQueue.then(function() {
+          if (!window.htmx) throw new Error('The command interface has not loaded; reload this page.');
+          return htmx.ajax('POST', '/cli', {
+            target: '#content-area', swap: 'outerHTML',
+            values: {command: cmd, path: getContextPath()}
+          });
+        }).then(function() { refreshCommitBar(); }).catch(function(err) {
+          var notification = document.getElementById('notification-bar');
+          if (notification) notification.textContent = err.message;
         });
         return;
       }
 
-      if (e.key === 'Tab' || (e.key === '?' && !e.ctrlKey)) {
+      if (e.key === 'Tab' || (e.key === '?' && !e.ctrlKey && !inputQuoteOpen(input.value.slice(0, input.selectionStart)))) {
         e.preventDefault();
         var val = input.value;
         if (e.key === '?') {
@@ -193,9 +156,28 @@
     });
   }
 
-  // Split input into prefix (everything before last token) and partial (token being typed).
+  // Match the configuration codec's quote boundaries when replacing a token.
+  function inputQuoteOpen(value) {
+    var quote = '';
+    for (var i = 0; i < value.length; i++) {
+      var ch = value[i];
+      if (quote === '"' && ch === '\\') { i++; continue; }
+      if (quote) { if (ch === quote) quote = ''; }
+      else if (ch === '"' || ch === "'") quote = ch;
+    }
+    return quote !== '';
+  }
+
   function splitInput(val) {
-    var lastSpace = val.lastIndexOf(' ');
+    var lastSpace = -1;
+    var quote = '';
+    for (var i = 0; i < val.length; i++) {
+      var ch = val[i];
+      if (quote === '"' && ch === '\\') { i++; continue; }
+      if (quote) { if (ch === quote) quote = ''; }
+      else if (ch === '"' || ch === "'") quote = ch;
+      else if (/\s/.test(ch)) lastSpace = i;
+    }
     if (lastSpace < 0) return { prefix: '', partial: val };
     return { prefix: val.substring(0, lastSpace + 1), partial: val.substring(lastSpace + 1) };
   }
@@ -222,7 +204,7 @@
           return;
         }
 
-        showCompletions(input, box, items, cachedPrefix);
+        showBarCompletions(input, box, items, cachedPrefix);
       })
       .catch(function(){ hideBox(box); });
   }
@@ -254,7 +236,7 @@
       return;
     }
 
-    showCompletions(input, box, filtered, cachedPrefix);
+    showBarCompletions(input, box, filtered, cachedPrefix);
   }
 
   function highlightItem(box, index) {
@@ -267,12 +249,21 @@
     }
   }
 
-  function showCompletions(input, box, items, prefix) {
-    while (box.firstChild) box.removeChild(box.firstChild);
+  function showBarCompletions(input, box, items, prefix) {
     selectedIndex = 0;
+    showCompletions(input, box, items, prefix, function() {
+      cachedItems = null;
+      selectedIndex = -1;
+    });
+  }
+
+  // Rendering is shared, but each input owns its cache and selected candidate.
+  function showCompletions(input, box, items, prefix, onPick) {
+    while (box.firstChild) box.removeChild(box.firstChild);
     items.forEach(function(c) {
       var div = document.createElement('div');
       div.className = 'cli-completion-item';
+      div.dataset.explanation = c.explanation || '';
       var b = document.createElement('b');
       b.textContent = c.text;
       div.appendChild(b);
@@ -284,14 +275,13 @@
       div.addEventListener('click', function() {
         input.value = prefix + c.text + ' ';
         hideBox(box);
-        cachedItems = null;
-        selectedIndex = -1;
+        onPick();
         input.focus();
       });
       box.appendChild(div);
     });
     showBox(box);
-    highlightItem(box, selectedIndex);
+    highlightItem(box, 0);
   }
 
   function initViewToggle() {
@@ -550,7 +540,7 @@
     input.placeholder = 'new name';
 
     function submitRename() {
-      var newName = input.value.trim().toLowerCase();
+      var newName = input.value;
       if (!newName) return;
       fetch(renameURL, {
         method: 'POST',
@@ -601,7 +591,9 @@
     if (!confirm('Delete ' + key + '?')) return;
     // Extract parent path (remove the key segment) for the delete command
     var parts = path.split('/');
-    var entryKey = parts.pop();
+    var entryKey = decodeURIComponent(parts.pop());
+    if (entryKey === '~.') entryKey = '.';
+    else if (entryKey.indexOf('~~') === 0) entryKey = entryKey.slice(1);
     var parentPath = parts.join('/');
     var deletePath = '/config/delete/' + parentPath + '/';
     fetch(deletePath, {
@@ -707,6 +699,13 @@
     var termCachedItems = null;
     var termCachedPrefix = '';
     var termSelectedIndex = -1;
+    var termQueue = Promise.resolve();
+    var loadPanel = document.getElementById('cli-load-panel');
+    var activeRequest = null;
+    var streaming = false;
+    var stopButton = document.getElementById('cli-stop');
+    if (!loadPanel || !stopButton) return;
+    stopButton.addEventListener('click', function() { if (activeRequest) activeRequest.abort(); });
 
     function getTermPath() {
       return contextEl ? contextEl.textContent.trim() : '';
@@ -742,8 +741,111 @@
       hintEl.textContent = msg || 'Tab/?: complete, Enter: execute';
     }
 
+    // A queued command reads context only after the preceding answer applied it.
+    function submitTermCommand(cmd, content) {
+      termQueue = termQueue.then(function() {
+        var controller = new AbortController();
+        activeRequest = controller;
+        function send(content) {
+        var body = 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(getTermPath()) + '&mode=' + encodeURIComponent(getTermMode());
+        if (content !== undefined) body += '&content=' + encodeURIComponent(content);
+        return fetch('/cli/stream', {
+          method: 'POST', credentials: 'same-origin',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body,
+          signal: controller.signal
+        }).then(function(r) {
+          if (!r.ok) return r.text().then(function(text) { throw new Error(text); });
+          if ((r.headers.get('Content-Type') || '').indexOf('text/plain') === 0) {
+            streaming = true; stopButton.hidden = false;
+            setFeedback('Running — Stop or Ctrl+C ends the stream.', false);
+            var reader = r.body.getReader();
+            var decoder = new TextDecoder();
+            var text = '';
+            var truncated = false;
+            // UTF-16 text keeps at most 1 MiB; the marker stays outside that bound.
+            var charactersMax = 512 * 1024;
+            function receive() {
+              return reader.read().then(function(part) {
+                text += decoder.decode(part.value, {stream: !part.done});
+                if (text.length > charactersMax) { text = text.slice(-charactersMax); truncated = true; }
+                setOutput((truncated ? '[Older output removed]\n' : '') + text);
+                if (part.done) { setFeedback('Finished', false); return null; }
+                return receive();
+              });
+            }
+            return receive();
+          }
+          return r.json();
+        }).then(function(data) {
+          if (!data) return;
+          setTermState(data.path, data.prompt, data.mode);
+          setOutput(data.output || '');
+          var isError = data.feedback && (data.feedback.indexOf('error') === 0 || data.feedback.indexOf('conflict') === 0);
+          setFeedback(data.feedback ? '► ' + data.feedback : '', isError);
+          setHint('');
+          if (data.input) return collectLoadContent(data.input).then(function(payload) {
+            if (payload !== null) return send(payload);
+          });
+        });
+        }
+        return send(content).finally(function() {
+          if (activeRequest === controller) activeRequest = null;
+          streaming = false; stopButton.hidden = true;
+        });
+      }).catch(function(err) {
+        if (err.name === 'AbortError') setFeedback('Stopped', false);
+        else setFeedback('error: ' + err.message, true);
+      });
+      return termQueue;
+    }
+
+    function collectLoadContent(kind) {
+      return new Promise(function(resolve) {
+        var text = document.getElementById('cli-load-text');
+        var file = document.getElementById('cli-load-file');
+        var textLabel = document.getElementById('cli-load-text-label');
+        var fileLabel = document.getElementById('cli-load-file-label');
+        var cancel = document.getElementById('cli-load-cancel');
+        var fileMode = kind === 'file';
+        input.disabled = true;
+        loadPanel.reset();
+        text.hidden = text.disabled = textLabel.hidden = fileMode;
+        file.hidden = file.disabled = fileLabel.hidden = !fileMode;
+        loadPanel.hidden = false;
+        function close(content) {
+          loadPanel.hidden = true;
+          loadPanel.onsubmit = null;
+          cancel.onclick = null;
+          input.disabled = false;
+          input.focus();
+          resolve(content);
+        }
+        loadPanel.onsubmit = function(event) {
+          event.preventDefault();
+          var reading;
+          if (fileMode) {
+            if (!file.files.length) { setFeedback('Choose a configuration file.', true); return; }
+            if (file.files[0].size > 4 * 1024 * 1024) {
+              setFeedback('Configuration exceeds 4 MiB; choose a smaller file or load a subtree.', true);
+              return;
+            }
+            reading = file.files[0].text();
+          } else {
+            reading = Promise.resolve(text.value);
+          }
+          reading.then(close).catch(function(err) { setFeedback(err.message, true); });
+        };
+        cancel.onclick = function() { close(null); };
+        (fileMode ? file : text).focus();
+      });
+    }
+
     input.addEventListener('keydown', function(e) {
       var dropdownVisible = isBoxVisible(completionsBox);
+
+      if (e.ctrlKey && e.key.toLowerCase() === 'c' && activeRequest) {
+        e.preventDefault(); activeRequest.abort(); return;
+      }
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -798,32 +900,21 @@
         termSelectedIndex = -1;
         var cmd = input.value.trim();
         if (!cmd) return;
+        if (streaming && activeRequest) activeRequest.abort();
         termHistory.push(cmd);
         termHistoryPos = -1;
         input.value = '';
 
-        var ctxPath = getTermPath();
-        fetch('/cli/terminal', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath) + '&mode=' + encodeURIComponent(getTermMode())
-        }).then(function(r) { return r.json(); })
-          .then(function(data) {
-            setTermState(data.path, data.prompt, data.mode);
-            setOutput(data.output || '');
-            var isError = data.feedback && (data.feedback.indexOf('error') === 0 || data.feedback.indexOf('conflict') === 0);
-            setFeedback(data.feedback ? '► ' + data.feedback : '', isError);
-            setHint('');
-          })
-          .catch(function(err) {
-            setFeedback('error: ' + err.message, true);
-          });
+        submitTermCommand(cmd);
         return;
       }
 
-      if (e.key === 'Tab' || (e.key === '?' && !e.ctrlKey)) {
+      if (e.key === 'Tab' || (e.key === '?' && !e.ctrlKey && !inputQuoteOpen(input.value.slice(0, input.selectionStart)))) {
         e.preventDefault();
+        if (e.key === '?' && dropdownVisible) {
+          var chosen = completionsBox.querySelectorAll('.cli-completion-item')[termSelectedIndex < 0 ? 0 : termSelectedIndex];
+          if (chosen && chosen.dataset.explanation) { setHint(chosen.dataset.explanation); return; }
+        }
         var val = input.value;
         if (e.key === '?') {
           val = val.replace(/\?+$/, '');
@@ -869,9 +960,17 @@
             termCachedItems = null;
             return;
           }
-          showCompletions(inp, box, items, termCachedPrefix);
+          showTermCompletions(inp, box, items, termCachedPrefix);
         })
         .catch(function() { hideBox(box); });
+    }
+
+    function showTermCompletions(inp, box, items, prefix) {
+      termSelectedIndex = 0;
+      showCompletions(inp, box, items, prefix, function() {
+        termCachedItems = null;
+        termSelectedIndex = -1;
+      });
     }
 
     function filterTermCached(inp, box) {
@@ -894,20 +993,13 @@
         hideBox(box);
         return;
       }
-      showCompletions(inp, box, filtered, termCachedPrefix);
+      showTermCompletions(inp, box, filtered, termCachedPrefix);
     }
 
-    // Auto-show config on page load (matches SSH CLI behavior).
-    fetch('/cli/terminal', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'command=show&path=&mode=' + encodeURIComponent(getTermMode())
-    }).then(function(r) { return r.json(); })
-      .then(function(data) {
-        setTermState(data.path, data.prompt, data.mode);
-        setOutput(data.output || '');
-      });
+    // A load handoff opens the same content form without applying anything.
+    var page = input.closest('.cli-page');
+    var initialCommand = page ? page.getAttribute('data-initial-command') : '';
+    submitTermCommand(initialCommand || 'show');
 
     input.focus();
   }

@@ -1,14 +1,29 @@
-# Test: CLI bar executes show command via Enter key
-# VALIDATES: filling CLI bar and pressing Enter dispatches command
-# PREVENTS: CLI bar not submitting on Enter, show verb broken
+# Test: CLI show executes on Enter
+# VALIDATES: the dedicated terminal executes show at the selected BGP context
+# PREVENTS: the Enter handler or shared show producer failing
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-expect=element:id=cli-input
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=show
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set bgp router-id 192.0.2.11
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[bgp]#
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=router-id
+
 expect=element:text=bgp
+expect=element:text=192.0.2.11

@@ -130,7 +130,12 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 			}
 			currentSchema = n
 			i += step
-		case *config.LeafNode, *config.FreeformNode,
+		case *config.FreeformNode:
+			if i+1 != len(path) {
+				return nil, fmt.Errorf("freeform entry path continues past %s", name)
+			}
+			return currentTree.GetOrCreateContainer(name), nil
+		case *config.LeafNode,
 			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
 			return nil, fmt.Errorf("cannot navigate into %s (leaf node)", name)
 		}
@@ -256,7 +261,7 @@ func (e *Editor) storeLeaf(target *config.Tree, path []string, key, value string
 	if e.schema != nil {
 		if parent := e.walkSchema(path); parent != nil {
 			switch parent.Get(key).(type) {
-			case *config.BracketLeafListNode:
+			case *config.BracketLeafListNode, *config.ValueOrArrayNode, *config.MultiLeafNode:
 				target.SetLeafListMembers(key, config.SplitLeafListMembers(value))
 				return
 			case *config.FlexNode:
@@ -485,13 +490,25 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 			if i+1 < len(path) && n.Get(path[i+1]) == nil {
 				i++
 			}
-		case *config.LeafNode, *config.FreeformNode,
+		case *config.FreeformNode:
+			if i+1 != len(path) {
+				return nil
+			}
+			return freeformSettings{}
+		case *config.LeafNode,
 			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
 			return nil // Can't navigate into leaf nodes
 		}
 	}
 	return current
 }
+
+// freeformSettings lets the editor apply a parsed freeform entry through its
+// ordinary per-leaf transaction and metadata machinery. The enclosing schema
+// explicitly permits any entry name at this level.
+type freeformSettings struct{}
+
+func (freeformSettings) Get(string) config.Node { return config.Leaf(config.TypeString) }
 
 // refuseUnknownSetting refuses a SetValue whose path or key the schema does not
 // hold. Every surface reaches SetValue (the SSH editor validates first; web,
@@ -1093,13 +1110,23 @@ func (e *Editor) DeactivatePath(path []string) error {
 	if target == nil {
 		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(path, " "))
 	}
-	if target.IsInactive() {
+	flagParent := presenceFlagParent(e.tree, e.schema, path)
+	alreadyInactive := target.IsInactive()
+	if flagParent != nil {
+		if !flagParent.IsLeafInactive(path[len(path)-1]) {
+			alreadyInactive = false
+		}
+	}
+	if alreadyInactive {
 		return fmt.Errorf("%w: %s", ErrPathAlreadyInactive, textbuf.Join(path, " "))
 	}
 	if e.session != nil {
 		return e.writeThroughPathToggle(config.StructuralOpDeactivatePath, path)
 	}
 	target.SetInactive(true)
+	if flagParent != nil {
+		flagParent.SetLeafInactive(path[len(path)-1], true)
+	}
 	e.dirty.Store(true)
 	return nil
 }
@@ -1114,15 +1141,53 @@ func (e *Editor) ActivatePath(path []string) error {
 	if target == nil {
 		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(path, " "))
 	}
-	if !target.IsInactive() {
+	flagParent := presenceFlagParent(e.tree, e.schema, path)
+	alreadyActive := !target.IsInactive()
+	if flagParent != nil {
+		if flagParent.IsLeafInactive(path[len(path)-1]) {
+			alreadyActive = false
+		}
+	}
+	if alreadyActive {
 		return fmt.Errorf("%w: %s", ErrPathNotInactive, textbuf.Join(path, " "))
 	}
 	if e.session != nil {
 		return e.writeThroughPathToggle(config.StructuralOpActivatePath, path)
 	}
 	target.SetInactive(false)
+	if flagParent != nil {
+		flagParent.SetLeafInactive(path[len(path)-1], false)
+	}
 	e.dirty.Store(true)
 	return nil
+}
+
+// presenceFlagParent answers the optional value carrier beside a presence block.
+// A whole-path activation MUST toggle both carriers without deleting either
+// assignment or its metadata; applyToggleOp MUST preserve that rule on replay.
+// DeactivatePath, ActivatePath and applyToggleOp MUST resolve the actual block
+// target before querying this optional value alias.
+func presenceFlagParent(tree *config.Tree, schema *config.Schema, path []string) *config.Tree {
+	if len(path) == 0 {
+		return nil
+	}
+	container, ok := schema.LookupTokenPath(path).(*config.ContainerNode)
+	// refuse-by-default: guards DeactivatePath -- nil means this found target has no presence alias; DeactivatePath owns missing-target refusal.
+	if !ok {
+		return nil
+	}
+	if !container.Presence {
+		return nil
+	}
+	parent := walkPath(tree, schema, path[:len(path)-1])
+	if parent == nil {
+		return nil
+	}
+	// refuse-by-default: guards DeactivatePath -- a present block need not have a scalar alias; DeactivatePath refuses an absent target before this lookup.
+	if _, present := parent.Get(path[len(path)-1]); !present {
+		return nil
+	}
+	return parent
 }
 
 // resolveListTarget returns the list entry a rename or copy names, read from

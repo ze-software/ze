@@ -5,6 +5,7 @@
 # preserve the presentation's reading pace only; every transition has a state
 # assertion, and recording separately waits for actual render/network settling.
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=90s
 option=viewport:width=1680:height=1008
 option=auth:user=admin:password=secret123:role=admin

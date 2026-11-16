@@ -1,0 +1,45 @@
+# Test: browser completion accepts the visibly selected candidate before execution
+# VALIDATES: the first highlighted item and a keyboard-moved item are accepted
+# without executing a partial command; accepting clears this input's completion
+# state so a subsequent full command runs normally.
+# PREVENTS: terminal completion rendering using the retired bar's selection/cache.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=set bgp router-id 192.0.2.123
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=192.0.2.123
+
+# Tab highlights the first candidate; Enter accepts it and keeps prior output.
+action=fill:id=terminal-input:value=s
+action=press:id=terminal-input:key=Tab
+expect=html:contains=class="cli-completion-item selected" data-explanation=""><b>set</b>
+action=press:id=terminal-input:key=Enter
+expect=html:contains=class="terminal-completions is-hidden"
+expect=element:text=192.0.2.123
+expect=element:not-text=unknown command
+
+# A fresh menu starts at its first item; Down advances before Enter accepts.
+action=fill:id=terminal-input:value=s
+action=press:id=terminal-input:key=Tab
+action=press:id=terminal-input:key=ArrowDown
+expect=html:contains=class="cli-completion-item selected" data-explanation=""><b>show</b>
+action=press:id=terminal-input:key=Enter
+expect=html:contains=class="terminal-completions is-hidden"
+expect=element:text=192.0.2.123
+
+# The next command uses its own state, rather than the accepted menu's cache.
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze[bgp]#
+action=fill:id=terminal-input:value=set router-id 192.0.2.124
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=192.0.2.124
+expect=element:not-text=unknown command

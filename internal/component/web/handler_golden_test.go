@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/test/golden"
 )
 
@@ -65,6 +66,10 @@ type webHandlerCase struct {
 	// uncaptured. The data it publishes MUST be fixed: the capture serves the
 	// same request twice and compares the two answers.
 	Setup func(t *testing.T)
+	// EditorSetup configures only this case's editor before its first request.
+	EditorSetup func(t *testing.T, manager *EditorManager)
+	// CheckResponse pins the semantic result before its bytes can be captured.
+	CheckResponse func(t *testing.T, response *httptest.ResponseRecorder)
 	// Rewrites normalize a volatile span. Each one names its producer.
 	Rewrites []golden.Rewrite
 }
@@ -174,9 +179,26 @@ var webHandlerGoldenCases = []webHandlerCase{
 	{Name: "get-cli-complete", Method: http.MethodGet, Target: "/cli/complete?input=sh&path=&mode=operational"},
 	{Name: "post-cli-terminal", Method: http.MethodPost, Target: "/cli/terminal",
 		Form: "command=show+bgp&path=&mode=operational"},
+	{Name: "post-cli-stream", Method: http.MethodPost, Target: "/cli/stream",
+		Form: "command=monitor+fixture&path=&mode=operational"},
 	{Name: "post-cli-mode", Method: http.MethodPost, Target: "/cli/mode", Form: "mode=configure&path="},
 
 	// Configuration editing.
+	{Name: "post-config-action", Method: http.MethodPost, Target: "/config/action", Form: "action=verify", HTMX: true,
+		EditorSetup: func(t *testing.T, manager *EditorManager) {
+			installPeerValidator(t, func(*config.Tree) error { return nil })
+			manager.editorFactory = validatingEditorFactory()
+		},
+		CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			if response.Code != http.StatusOK {
+				t.Fatalf("graphical verification did not succeed: status=%d body=%s", response.Code, response.Body.String())
+			}
+			if !strings.Contains(response.Body.String(), webCommitVerified) {
+				t.Fatalf("graphical verification omitted its success result: %s", response.Body.String())
+			}
+		}},
+	{Name: "post-config-action-read-only", Method: http.MethodPost, Target: "/config/action", Form: "action=verify", ReadOnly: true, HTMX: true},
+	{Name: "post-config-action-anonymous", Method: http.MethodPost, Target: "/config/action", Form: "action=verify", Anonymous: true},
 	{Name: "post-config-set", Method: http.MethodPost, Target: "/config/set/bgp/",
 		Form: "leaf=router-id&value=9.9.9.9"},
 	{Name: "post-config-form", Method: http.MethodPost, Target: "/config/form/bgp/",
@@ -427,6 +449,7 @@ type webGoldenEnv struct {
 	mux     *http.ServeMux
 	handler http.Handler
 	session string
+	editors *EditorManager
 }
 
 // webGoldenShared holds what every case reuses. The renderer, the schema and
@@ -558,7 +581,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 	// developer who sets ze.web.ui-mode cannot rewrite every page fixture.
 	const uiMode = UIModeWorkbench
 
-	finderHandler := HandleFragment(renderer, schema, tree, editorMgr, false)
+	finderHandler := HandleFragment(renderer, schema, tree, editorMgr, false, authorizer)
 	workbenchHandler := HandleWorkbench(renderer, schema, tree, editorMgr, false,
 		WithDispatch(dispatch), WithBroker(broker), WithPowerUsers([]string{webGoldenUser}),
 		WithAuthorizer(authorizer))
@@ -592,9 +615,19 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 		newCompleter(t), cli.NewCommandCompleter(webGoldenCommandTree()), editorMgr, schema)))
 	mux.Handle("POST /cli/terminal", mutationWrap(HandleCLITerminalWithDispatchAuthorizerAndAudit(
 		editorMgr, schema, tree, dispatch, authorizer, nil)))
+	mux.Handle("POST /cli/stream", mutationWrap(HandleCLITerminalStream(
+		HandleCLITerminalWithDispatchAuthorizerAndAudit(editorMgr, schema, tree, dispatch, authorizer, nil),
+		func(_ context.Context, _ plugin.CallerIdentity, input string, out io.Writer) (bool, error) {
+			if input != "monitor fixture" {
+				return false, nil
+			}
+			_, err := io.WriteString(out, "monitoring: fixture\nfixture event received\n")
+			return true, err
+		})))
 	mux.Handle("POST /cli/mode", mutationWrap(HandleCLIModeToggle(editorMgr, schema, renderer)))
 	mux.Handle("/fragment/detail", authWrap(finderHandler))
 	mux.Handle("POST /config/set/", mutationWrap(HandleConfigSetWithAuthorizer(editorMgr, schema, renderer, authorizer)))
+	mux.Handle("POST /config/action", mutationWrap(HandleGraphicalAction(editorMgr, schema, renderer, authorizer, nil, broker)))
 	mux.Handle("POST /config/form/", mutationWrap(HandleConfigFormWithAuthorizer(editorMgr, schema, renderer, authorizer)))
 	mux.Handle("POST /config/add/", mutationWrap(HandleConfigAddWithAuthorizer(editorMgr, schema, renderer, authorizer)))
 	mux.Handle("GET /config/add-form/", editWrap(HandleConfigAddForm(editorMgr, schema, renderer)))
@@ -650,7 +683,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 		t.Fatalf("create the capture session: %v", err)
 	}
 
-	return &webGoldenEnv{mux: mux, handler: serverHandler(mux), session: session.Token}
+	return &webGoldenEnv{mux: mux, handler: serverHandler(mux), session: session.Token, editors: editorMgr}
 }
 
 // webGoldenRequest builds one case's request.
@@ -704,9 +737,15 @@ func webGoldenServe(t *testing.T, c webHandlerCase) []byte {
 	t.Helper()
 
 	env := newWebGoldenEnv(t, c.ReadOnly)
+	if c.EditorSetup != nil {
+		c.EditorSetup(t, env.editors)
+	}
 
 	rec := httptest.NewRecorder()
 	env.handler.ServeHTTP(rec, webGoldenRequest(t, env, c))
+	if c.CheckResponse != nil {
+		c.CheckResponse(t, rec)
+	}
 
 	// addSecurityHeaders puts the build's version header on every authenticated
 	// response. The rewrite that drops it therefore belongs to every case, not

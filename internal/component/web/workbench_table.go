@@ -19,14 +19,16 @@ const (
 
 // WorkbenchTableData holds the data for a workbench table component.
 type WorkbenchTableData struct {
-	Title        string
-	AddURL       string
-	AddLabel     string
-	AddActions   []WorkbenchTableAddAction
-	Columns      []WorkbenchTableColumn
-	Rows         []WorkbenchTableRow
-	EmptyMessage string
-	EmptyHint    string
+	Title          string
+	AddURL         string
+	AddLabel       string
+	AddActions     []WorkbenchTableAddAction
+	Columns        []WorkbenchTableColumn
+	Rows           []WorkbenchTableRow
+	EmptyMessage   string
+	EmptyHint      string
+	EmptyLinkURL   string
+	EmptyLinkLabel string
 }
 
 // WorkbenchTableAddAction describes one table-level add action.

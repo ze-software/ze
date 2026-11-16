@@ -37,10 +37,10 @@ templ topbarActions(v chromeData) {
 			<span class="user-badge">{ v.Username }</span>
 		}
 		if v.ActiveUI != uiModeTokenWorkbench {
-			<a class="view-toggle" href="/show/" title="Switch to Workbench" data-action="switch-ui" data-mode="workbench">Workbench</a>
+			<a class="view-toggle" href="/show/" title="Open the experimental Workbench" data-action="switch-ui" data-mode="workbench">Workbench (experimental)</a>
 		}
 		if v.ActiveUI != uiModeTokenFinder {
-			<a class="view-toggle" href="/show/" title="Switch to Finder" data-action="switch-ui" data-mode="finder">Finder</a>
+			<a class="view-toggle" href="/show/" title="Open the graphical YANG editor" data-action="switch-ui" data-mode="finder">YANG editor</a>
 		}
 		if v.ActiveUI != uiModeTokenCLI {
 			<a class="view-toggle" href="/cli" title="Open CLI terminal">CLI</a>

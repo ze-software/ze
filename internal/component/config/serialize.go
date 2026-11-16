@@ -853,6 +853,9 @@ func serializePresenceContainer(b *textbuf.Buffer, tree *Tree, name string, node
 	if v, ok := tree.values[name]; ok {
 		writeCommentsAbove(b, prefix, comments)
 		b.Str(prefix)
+		if tree.inactiveValues[name] {
+			b.Str("inactive: ")
+		}
 		b.Str(name)
 		if v != configTrue {
 			b.Str(" ")

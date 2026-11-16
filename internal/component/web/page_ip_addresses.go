@@ -64,7 +64,7 @@ func buildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 				Key:   cidr,
 				Cells: []string{cidr, network, info.Name, family},
 				Actions: []WorkbenchRowAction{
-					{Label: "Go to Interface", URL: "/show/iface/detail/" + info.Name},
+					{Label: "Go to Interface", URL: ifaceDetailURL(info.Name)},
 				},
 			})
 		}

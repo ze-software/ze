@@ -2,6 +2,7 @@
 # VALIDATES: a settings form save creates a pending change visible through commit UI
 # PREVENTS: forms posting to fake admin URLs with no way to commit or discard
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 
 action=open:path=/show/system/identity/

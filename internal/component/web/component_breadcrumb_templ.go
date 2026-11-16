@@ -219,13 +219,13 @@ func topbarActions(v chromeData) templ.Component {
 			}
 		}
 		if v.ActiveUI != uiModeTokenWorkbench {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<a class=\"view-toggle\" href=\"/show/\" title=\"Switch to Workbench\" data-action=\"switch-ui\" data-mode=\"workbench\">Workbench</a> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<a class=\"view-toggle\" href=\"/show/\" title=\"Open the experimental Workbench\" data-action=\"switch-ui\" data-mode=\"workbench\">Workbench (experimental)</a> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if v.ActiveUI != uiModeTokenFinder {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<a class=\"view-toggle\" href=\"/show/\" title=\"Switch to Finder\" data-action=\"switch-ui\" data-mode=\"finder\">Finder</a> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<a class=\"view-toggle\" href=\"/show/\" title=\"Open the graphical YANG editor\" data-action=\"switch-ui\" data-mode=\"finder\">YANG editor</a> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -26,6 +26,6 @@ func refusalDispatcher() CommandDispatcher {
 // "usage: ..." and not "error: usage: ...".
 // PREVENTS: the web terminal reading otherwise than the local route.
 func TestTerminalOperationalShowsTheRefusalAsWritten(t *testing.T) {
-	output, _ := executeTerminalOperational(t.Context(), refusalDispatcher(), "admin", "127.0.0.1:1", "show config list")
+	output, _ := executeTerminalOperational(t.Context(), refusalDispatcher(), "admin", "127.0.0.1:1", "show config list", "")
 	assert.Equal(t, "usage: show config list", strings.TrimRight(output, "\n"))
 }

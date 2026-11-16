@@ -70,6 +70,10 @@ func consumeOneField(tree *Tree, parent Node, tokens []string) (int, error) {
 		if leaf, ok := child.(*LeafNode); ok {
 			value = NormalizeLeafValue(leaf.Type, value)
 		}
+		if _, multi := child.(*MultiLeafNode); multi {
+			tree.SetSlice(name, []string{value})
+			return 2, nil
+		}
 		tree.Set(name, value)
 		return 2, nil
 

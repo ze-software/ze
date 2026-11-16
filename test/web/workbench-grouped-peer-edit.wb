@@ -1,0 +1,28 @@
+# Test: grouped peer Edit links open the selected generic configuration editor
+# VALIDATES: explicit Workbench table links preserve encoded group/peer keys,
+# editable entry and child pages, and a graphical save in the shared candidate.
+# PREVENTS: grouped peer entries and children reopening the peer list.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=env:var=ze.web.ui-mode:value=workbench
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group "group/100%" peer "peer-100" description grouped-original
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group "group/100%" peer "peer-100" connection remote ip 192.0.2.41
+action=press:id=terminal-input:key=Enter
+action=open:path=/show/bgp/group/group%2F100%25/peer/
+expect=element:text=BGP Peers
+expect=html:contains=/show/bgp/group/group%2F100%25/peer/peer-100/
+action=click:text=link "Edit"
+expect=url:contains=/show/bgp/group/group%2F100%25/peer/peer-100/
+expect=element:id=input-bgp-sgroup-sgroup-x252F100-x2525-speer-speer--100-sdescription
+action=fill:id=input-bgp-sgroup-sgroup-x252F100-x2525-speer-speer--100-sdescription:value=grouped-edited
+action=press:id=input-bgp-sgroup-sgroup-x252F100-x2525-speer-speer--100-sdescription:key=Enter
+action=open:path=/show/bgp/group/group%2F100%25/peer/peer-100/
+expect=html:contains=value="grouped-edited"
+action=open:path=/show/bgp/group/group%2F100%25/peer/peer-100/connection/remote/
+expect=html:contains=value="192.0.2.41"

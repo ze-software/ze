@@ -4,9 +4,9 @@
 # PREVENTS: Diff/review navigating away from the workbench.
 #
 # Spec: plan/spec-web-2-operator-workbench.md (Phase 4).
-# Run with: ZE_WEB_UI=workbench ./le test web -p workbench-bgp-pending-diff
 
-option=skip:reason=requires ZE_WEB_UI=workbench
+option=skip:reason=unfinished Workbench BGP pending-row and in-place diff workflow (spec-web-plugin-extension-registry)
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 
 action=open:path=/show/bgp/peer/

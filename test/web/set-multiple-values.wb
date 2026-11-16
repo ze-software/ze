@@ -1,22 +1,50 @@
-# Test: setting two fields both persist after navigation
-# VALIDATES: editor tree tracks multiple field changes across navigation
-# PREVENTS: second set overwriting first, editor losing state
+# Test: multiple CLI field changes survive graphical navigation
+# VALIDATES: one per-user candidate retains router ID and daemon PID across mode switches
+# PREVENTS: a second set or navigation overwriting the first value
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-action=fill:id=cli-input:value=set router-id 10.0.0.9
-action=press:key=Enter
-action=wait:ms=1000
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[bgp]#
+
+action=fill:id=terminal-input:value=set router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
 
 action=open:path=/show/environment/daemon/
-action=fill:id=cli-input:value=set pid /var/run/ze.pid
-action=press:key=Enter
-action=wait:ms=1000
+expect=element:id=input-environment-sdaemon-spid
+action=click:text=CLI
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=set environment daemon user multi-field
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=edit environment daemon
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[environment daemon]#
+
+action=fill:id=terminal-input:value=set pid /var/run/ze.pid
+action=press:id=terminal-input:key=Enter
+action=wait
 
 action=open:path=/show/bgp/
 expect=element:text=10.0.0.9
-
+expect=html:contains=value="10.0.0.9"
 action=open:path=/show/environment/daemon/
 expect=element:text=/var/run/ze.pid
+expect=html:contains=value="/var/run/ze.pid"

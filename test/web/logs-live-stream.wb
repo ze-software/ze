@@ -2,6 +2,7 @@
 # VALIDATES: AC-12 -- Live Log page opens the SSE stream and reaches "Connected"
 # PREVENTS: Live Log stuck on static "Connecting..." text forever
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 
 action=open:path=/show/logs/live/

@@ -100,11 +100,15 @@ const (
 )
 
 // PendingChange is the unified pending-change view used by session diff/count code.
+// Producers MUST encode Path, OldPath and NewPath with FormatEditPath's quote
+// codec. Consumers MUST use ParseEditPath to recover their token boundaries.
 // Leaf changes use Path/Previous/Value. Renames and copies use OldPath/NewPath.
 // Member is set for leaf-list member operations (add when Value non-empty,
 // remove when Value empty); members of the same leaf-list are independent
 // changes, not contested values.
 type PendingChange struct {
+	// User is the exact metadata owner; consumers MUST NOT infer it from SessionID.
+	User      string
 	SessionID string
 	Kind      PendingChangeKind
 	Path      string
@@ -221,18 +225,21 @@ func (op StructuralOp) PendingChange(schema *Schema) PendingChange {
 	switch op.Type {
 	case StructuralOpCreateEntry:
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeSet,
 			Path:      op.SourcePath(schema),
 		}
 	case StructuralOpDeleteEntry, StructuralOpDeleteContainer, StructuralOpDeleteList:
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeDelete,
 			Path:      op.SourcePath(schema),
 		}
 	case StructuralOpInsertMember:
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeSet,
 			Path:      joinChangePath(op.ParentPath.String(), op.ListName),
@@ -243,6 +250,7 @@ func (op StructuralOp) PendingChange(schema *Schema) PendingChange {
 		// Value stays empty: a deactivation conflicts with a concurrent set
 		// or activation of the same member (which carry Value=member).
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeDeactivate,
 			Path:      joinChangePath(op.ParentPath.String(), op.ListName),
@@ -250,6 +258,7 @@ func (op StructuralOp) PendingChange(schema *Schema) PendingChange {
 		}
 	case StructuralOpActivateMember:
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeActivate,
 			Path:      joinChangePath(op.ParentPath.String(), op.ListName),
@@ -258,6 +267,7 @@ func (op StructuralOp) PendingChange(schema *Schema) PendingChange {
 		}
 	case StructuralOpCopyEntry:
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeCopy,
 			Path:      op.DestinationPath(schema),
@@ -266,12 +276,14 @@ func (op StructuralOp) PendingChange(schema *Schema) PendingChange {
 		}
 	case StructuralOpDeactivateLeaf, StructuralOpDeactivatePath:
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeDeactivate,
 			Path:      op.SourcePath(schema),
 		}
 	case StructuralOpActivateLeaf, StructuralOpActivatePath:
 		return PendingChange{
+			User:      op.User,
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeActivate,
 			Path:      op.SourcePath(schema),
@@ -281,6 +293,7 @@ func (op StructuralOp) PendingChange(schema *Schema) PendingChange {
 		panic("BUG: invalid structural operation")
 	}
 	return PendingChange{
+		User:      op.User,
 		SessionID: op.SessionKey(),
 		Kind:      PendingChangeRename,
 		Path:      op.DestinationPath(schema),
@@ -361,6 +374,7 @@ func PendingChangeFromSessionEntry(se SessionEntry) PendingChange {
 		kind = PendingChangeDelete
 	}
 	return PendingChange{
+		User:      se.Entry.User,
 		SessionID: se.Entry.SessionKey(),
 		Kind:      kind,
 		Path:      se.Path.String(),
@@ -1011,7 +1025,7 @@ func joinChangePath(parentPath string, elems ...string) string {
 	}
 	for _, elem := range elems {
 		if elem != "" {
-			parts = append(parts, elem)
+			parts = append(parts, QuoteIfNeeded(elem))
 		}
 	}
 	return textbuf.Join(parts, " ")

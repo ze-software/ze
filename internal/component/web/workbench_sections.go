@@ -11,8 +11,6 @@ package web
 
 import (
 	"strings"
-
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Shared paths, labels, and path-segment constants used across workbench pages.
@@ -40,6 +38,10 @@ const (
 	segFamily    = "family"
 	segIface     = "iface"
 	segRules     = "rules"
+	segRule      = "rule"
+	segChain     = "chain"
+	segCounters  = "counters"
+	segSysctl    = "sysctl"
 	segSummary   = "summary"
 	segTunnel    = "tunnel"
 	segUsers     = "users"
@@ -83,6 +85,7 @@ const (
 // constant: a column named "family" is a field of a row, and /show/bgp/family/
 // is a place. Renaming one must not rename the other.
 const (
+	colChain     = "chain"
 	colComponent = "component"
 	colInterface = "interface"
 	colMessage   = "message"
@@ -189,7 +192,7 @@ func sections() []sectionDef {
 			{Key: segUsers, Label: "Users", URL: "/show/users/"},
 			{Key: "resources", Label: "Resources", URL: "/show/system/resources/"},
 			{Key: "hardware", Label: "Host Hardware", URL: "/show/system/hardware/"},
-			{Key: "sysctl", Label: "Sysctl Profiles", URL: "/show/system/sysctl/"},
+			{Key: segSysctl, Label: "Sysctl Profiles", URL: "/show/system/sysctl/"},
 		}},
 		{key: segTools, label: "Tools", children: []WorkbenchSubPage{
 			{Key: "ping", Label: "Ping", URL: "/show/tools/ping/"},
@@ -336,8 +339,8 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 // selectBestChild marks the best-matching child as selected.
 func selectBestChild(section *WorkbenchSection, currentPath []string) {
 	// Build a path for matching: /segment1/segment2/...
-	showPath := showPathPrefix + textbuf.Join(currentPath, "/")
-	adminPath := "/admin/" + textbuf.Join(currentPath, "/")
+	showPath := showPathPrefix + encodeConfigPath(currentPath)
+	adminPath := "/admin/" + encodeConfigPath(currentPath)
 
 	bestIdx := -1
 	bestLen := 0

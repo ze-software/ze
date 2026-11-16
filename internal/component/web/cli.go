@@ -8,11 +8,10 @@ package web
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
-	"slices"
+	"net/url"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
@@ -20,14 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
-	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
-)
-
-var (
-	errNoEditorManager = errors.New("no editor manager")
-	errNoSavedDraft    = errors.New("no saved draft")
 )
 
 const configEditPath = "/config/edit/"
@@ -37,8 +31,19 @@ type CommandCompleter interface {
 	Complete(input string) []contract.Completion
 }
 
+// Web command transports use these field names for the command and context.
+const (
+	webCommandField = "command"
+	webPathField    = "path"
+)
+
 // maxCommandLength is the maximum allowed CLI command text length.
 const maxCommandLength = 4096
+
+// Config payloads are bounded independently from the command line; form
+// encoding can use three bytes for each byte of the selected file.
+const editorContentMax = 4 << 20
+const editorRequestMax = 3*editorContentMax + 65536
 
 // maxAutocompleteInput is the maximum allowed autocomplete input length.
 const maxAutocompleteInput = 1024
@@ -78,6 +83,8 @@ const (
 	verbConfigure  = "configure"
 	verbExit       = "exit"
 	verbQuit       = "quit"
+	verbLoad       = "load"
+	verbOption     = "option"
 )
 
 // cliCommand holds the parsed verb and arguments from a CLI bar input.
@@ -91,6 +98,7 @@ type cliCommand struct {
 	Operator []string
 	parseErr error
 	words    cli.CommandWords
+	content  *string
 }
 
 // commandBehindTop answers the command `top <command>` runs once at the root:
@@ -106,7 +114,7 @@ func commandBehindTop(cmd cliCommand) (cliCommand, bool) {
 	if len(cmd.Args) == 0 {
 		return cliCommand{}, false
 	}
-	return cliCommand{Verb: cmd.Args[0], Args: cmd.Args[1:], Operator: cmd.Operator, words: cmd.words.Tail()}, true
+	return cliCommand{Verb: cmd.Args[0], Args: cmd.Args[1:], Operator: cmd.Operator, words: cmd.words.Tail(), content: cmd.content}, true
 }
 
 // parseCLICommand splits raw command text into a verb and argument list.
@@ -179,7 +187,47 @@ func HandleCLIPage(renderer *Renderer) template.HTML {
 func HandleCLIPageHTTP(renderer *Renderer, insecure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)
-		content := HandleCLIPage(renderer)
+		data := cliPageData{Mode: terminalModeConfig}
+		data.InitialCommand = r.URL.Query().Get(webCommandField)
+		data.ContextPath = r.URL.Query().Get(webPathField)
+		path, pathErr := decodeConfigPath(data.ContextPath)
+		if len(data.InitialCommand) > maxCommandLength {
+			http.Error(w, opererr.New("The command supplied to the CLI page is too long.",
+				"The load-content request was not opened.",
+				"Open /cli and enter a shorter load command").Error(), http.StatusBadRequest)
+			return
+		}
+		if pathErr != nil {
+			http.Error(w, opererr.New("The configuration context supplied to the CLI page is invalid.",
+				"The load-content request was not opened.",
+				"Open /cli and enter the load command from its configuration context").Error(), http.StatusBadRequest)
+			return
+		}
+		if data.InitialCommand != "" {
+			cmd := parseCLICommand(data.InitialCommand)
+			for {
+				inner, ok := commandBehindTop(cmd)
+				if !ok {
+					break
+				}
+				cmd = inner
+			}
+			// GET may open the content picker, but never execute a mutation.
+			if cmd.parseErr != nil {
+				http.Error(w, opererr.New("The CLI page can open only a load-content request.",
+					"The command was not run because opening a URL must not change configuration.",
+					"Open /cli and type the command in the terminal").Error(), http.StatusBadRequest)
+				return
+			}
+			if cmd.Verb != verbLoad {
+				http.Error(w, opererr.New("The CLI page can open only a load-content request.",
+					"The command was not run because opening a URL must not change configuration.",
+					"Open /cli and type the command in the terminal").Error(), http.StatusBadRequest)
+				return
+			}
+		}
+		data.Prompt = formatTerminalPrompt(data.Mode, path)
+		content := renderer.renderComponent("cli_page", cliPage(data))
 		layoutData := LayoutData{
 			Title:      "Ze: CLI",
 			Content:    content,
@@ -213,7 +261,7 @@ func HandleCLICommandWithAuthorizer(mgr *EditorManager, schema *config.Schema, r
 
 // HandleCLICommandWithAuthorizerAndAudit returns a POST handler for /cli that
 // enforces profile RBAC and records each successful discard in recorder.
-func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
+func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer, recorder audit.Recorder, dispatchers ...CommandDispatcher) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -226,26 +274,22 @@ func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.S
 			return
 		}
 
-		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+		r.Body = http.MaxBytesReader(w, r.Body, editorRequestMax)
 
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		command := r.FormValue("command")
+		command := r.FormValue(webCommandField)
 		if len(command) > maxCommandLength {
 			http.Error(w, "command too long", http.StatusBadRequest)
 			return
 		}
 
-		pathStr := r.FormValue("path")
-		var contextPath []string
-		if pathStr != "" {
-			contextPath = strings.Split(pathStr, "/")
-		}
-
-		if err := ValidatePathSegments(contextPath); err != nil {
+		pathStr := r.FormValue(webPathField)
+		contextPath, pathErr := decodeConfigPath(pathStr)
+		if pathErr != nil {
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
 		}
@@ -274,8 +318,19 @@ func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.S
 			contextPath = adjustListContext(schema, contextPath)
 		}
 		cmd.Operator = contextPath
+		if values, ok := r.PostForm["content"]; ok {
+			if len(values) > 0 {
+				if len(values[0]) > editorContentMax {
+					http.Error(w, opererr.New("The selected configuration exceeds the 4 MiB limit.",
+						candidateUnchangedWhy,
+						"Select a configuration file smaller than 4 MiB in /cli").Error(), http.StatusRequestEntityTooLarge)
+					return
+				}
+				cmd.content = &values[0]
+			}
+		}
 
-		dispatchCLICommand(w, r, cmd, contextPath, mgr, schema, renderer, username, recorder)
+		dispatchCLICommand(w, r, cmd, contextPath, mgr, schema, renderer, username, recorder, dispatchers...)
 	}
 }
 
@@ -288,6 +343,7 @@ var knownCLIVerbs = map[string]bool{
 	verbHistory: true, verbRollback: true, verbRename: true, verbCopy: true,
 	verbInsert: true, verbDeactivate: true, verbActivate: true,
 	verbErrors: true, verbDisconnect: true,
+	verbLoad: true, verbOption: true,
 }
 
 // dispatchCLICommand routes a parsed CLI command to the appropriate handler.
@@ -296,349 +352,73 @@ var knownCLIVerbs = map[string]bool{
 // changes only when a navigation handler answers one (writeCLIResponse), so
 // the inner command keeps it unless it navigates. The recursion is bounded by
 // the words of the line, which maxCommandLength caps.
-func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, contextPath []string, mgr *EditorManager, schema *config.Schema, renderer *Renderer, username string, recorder audit.Recorder) {
-	if !knownCLIVerbs[cmd.Verb] {
-		writeCLINotification(w, renderer, "unknown command: "+cmd.Verb, "error")
+func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, contextPath []string, mgr *EditorManager, schema *config.Schema, renderer *Renderer, username string, recorder audit.Recorder, dispatchers ...CommandDispatcher) {
+	var dispatch CommandDispatcher
+	if len(dispatchers) > 0 {
+		dispatch = dispatchers[0]
+	}
+	if _, err := mgr.GetOrCreate(username); err != nil {
+		http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
 		return
 	}
-
-	switch cmd.Verb {
-	case verbEdit:
-		handleCLIEdit(w, contextPath, cmd.Args, schema, renderer, mgr, username)
-	case verbSet:
-		handleCLISet(w, r, contextPath, cmd, schema, renderer, mgr, username)
-	case verbDelete:
-		handleCLIDelete(w, r, contextPath, cmd.Args, renderer, mgr, username)
-	case verbShow:
-		handleCLIShow(w, contextPath, cmd.Args, renderer, mgr, username)
-	case verbTop:
-		if inner, underTop := commandBehindTop(cmd); underTop {
-			dispatchCLICommand(w, r, inner, nil, mgr, schema, renderer, username, recorder)
-			return
+	line := cmd.words.String()
+	action, detail := terminalAuditContext(mgr, username, cmd, line)
+	result := executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, contextPath, terminalModeConfig, cmd, line, dispatch)
+	if result.completion != nil {
+		defer result.completion.TransportComplete()
+	}
+	if terminalAuditSucceeded(cmd, result) {
+		if cmd.Verb == verbDiscard {
+			detail = discardAuditDetail(mgr, username, detail)
 		}
-		handleCLITop(w, schema, renderer, mgr, username)
-	case verbUp:
-		handleCLIUp(w, contextPath, schema, renderer, mgr, username)
-	case verbCommit:
-		handleCLICommit(w, r, renderer, mgr, username, cmd)
-	case verbDiscard:
-		handleCLIDiscard(w, r, renderer, mgr, username, cmd, recorder)
-	case verbWho:
-		handleCLIWho(w, renderer, mgr)
-	case verbHelp:
-		writeCLINotification(w, renderer, "commands: edit, set, delete, show, top [command], up, commit now, discard [path|all], who, help", "info")
+		recordWebAudit(recorder, r, username, action, detail)
 	}
-}
-
-// handleCLIEdit processes the "edit" verb: updates context path and returns
-// new breadcrumb + content for the target path.
-func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
-	if err := ValidatePathSegments(args); err != nil {
-		writeCLINotification(w, renderer, "invalid path: "+err.Error(), "error")
+	if terminalCommandFailed(result.output) {
+		writeCLINotification(w, renderer, result.output, "error")
 		return
 	}
-
-	newPath := append(append([]string{}, contextPath...), args...)
-
-	// Validate the path exists in schema.
-	if len(newPath) > 0 {
-		if _, err := walkSchema(schema, newPath); err != nil {
-			writeCLINotification(w, renderer, "invalid path: "+err.Error(), "error")
-			return
+	base := cmd
+	for {
+		inner, underTop := commandBehindTop(base)
+		if !underTop {
+			break
 		}
+		base = inner
 	}
-
-	tree := mgr.Tree(username)
-	viewData, err := buildConfigViewData(schema, tree, newPath)
-	if err != nil {
-		writeCLINotification(w, renderer, "view error: "+err.Error(), "error")
+	if result.input != "" {
+		query := url.Values{webCommandField: {line}, webPathField: {encodeConfigPath(contextPath)}}
+		htmxRedirect(w, r, "/cli?"+query.Encode())
 		return
 	}
-
-	writeCLIResponse(w, renderer, newPath, viewData)
-}
-
-// splitSetArgs reads `set` the way the SSH editor does: the last token is the
-// value, the one before it the leaf, and the rest extend the context path. Both
-// web surfaces, the integrated CLI and the terminal, call it, so one line means
-// one thing in every editor. MUST be called with at least two arguments.
-func splitSetArgs(schema *config.Schema, contextPath, args []string) (setPath []string, key, value string, err error) {
-	value = args[len(args)-1]
-	key = args[len(args)-2]
-	setPath = append(append([]string{}, contextPath...), args[:len(args)-2]...)
-
-	// The key-leaf form creates an entry. LookupTokenPath would instead
-	// consume the key-leaf name as an entry's address, so resolve this form
-	// before checking an ordinary leaf assignment.
-	if _, keyForm := keyLeafList(schema, setPath, key); keyForm {
-		return setPath, key, value, nil
-	}
-	// An ordinary assignment must target a leaf, not a container or list.
-	if schema != nil {
-		if node := schema.LookupTokenPath(slices.Concat(setPath, []string{key})); node != nil {
-			if node.Kind() != config.NodeLeaf {
-				return nil, "", "", fmt.Errorf("%s is not a leaf -- did you forget a value?", key)
+	if !result.navigated {
+		switch base.Verb {
+		case verbSet, verbDelete:
+			htmxRedirect(w, r, buildConfigEditURL(result.path))
+			return
+		case verbDiscard:
+			htmxRedirect(w, r, configEditPath)
+			return
+		case verbCommit:
+			if result.output == terminalOutputCommitSuccessful {
+				htmxRedirect(w, r, configEditPath)
+				return
 			}
 		}
 	}
-	return setPath, key, value, nil
-}
-
-func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath []string, cmd cliCommand, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
-	if len(cmd.Args) < 2 { //nolint:mnd // set requires key and value
-		writeCLINotification(w, renderer, "usage: set <leaf> <value>", "error")
-		return
-	}
-
-	if _, err := applyWebSet(mgr, schema, username, contextPath, cmd.Operator, cmd.Args); err != nil {
-		writeCLINotification(w, renderer, "set error: "+err.Error(), "error")
-		return
-	}
-
-	htmxRedirect(w, r, buildConfigEditURL(contextPath))
-}
-
-// applyWebSet runs one `set` for the web terminal and the CLI bar alike, with
-// the checks the SSH editor's `set` makes (cli.Model cmdSet), so a line is
-// judged the same in every editor (Q-6, Q-8b). args are the words after `set`,
-// relative to at; operator is the position the fix of a refusal is framed for.
-// It answers the acknowledgement, a credential in it masked.
-//
-//   - A path ending at a list's key leaf (`set ospf redistribute source
-//     connected`) names the entry to create, which the creator judges and
-//     stores under its key, never as a leaf of an anonymous entry.
-//   - A path ending at the key leaf of an entry it names is refused: only
-//     rename changes the key of an entry that exists (AC-33).
-//   - Otherwise the value is judged where it is set (EditorManager.SetValue)
-//     and a new list key on the way where its entry is created.
-//
-// MUST be called with at least two arguments.
-func applyWebSet(mgr *EditorManager, schema *config.Schema, username string, at, operator, args []string) (string, error) {
-	setPath, key, value, err := splitSetArgs(schema, at, args)
-	if err != nil {
-		return "", err
-	}
-	leafPath := slices.Concat(setPath, []string{key})
-
-	var tb textbuf.Buffer
-	if listName, keyForm := keyLeafList(schema, setPath, key); keyForm {
-		if err := mgr.CreateEntry(username, slices.Concat(setPath, []string{value})); err != nil {
-			// The key is the last word typed, so the fix is this `set` with the
-			// key corrected.
-			return "", cli.FramedSetRefusal(err, at, args, operator)
+	if result.navigated {
+		view, err := buildConfigViewData(schema, mgr.Tree(username), result.path)
+		if err != nil {
+			writeCLINotification(w, renderer, err.Error(), "error")
+			return
 		}
-		return tb.Str("created ").Str(listName).Byte(' ').Str(value).String(), nil
-	}
-	if schema != nil {
-		if err := cli.InEntryKeyLeafRefusal(schema, leafPath, at, operator); err != nil {
-			return "", err
-		}
-	}
-	if err := mgr.SetValue(username, setPath, key, value); err != nil {
-		if refusal, typed := errors.AsType[*configyang.ValidationError](err); typed {
-			if refusal.HoldsOperatorError() {
-				// Mask the semantic operand before the frame quotes it. Keep
-				// the typed refusal and mark the mask as replacement syntax.
-				displayArgs := slices.Clone(args)
-				displayArgs[len(args)-1] = config.DisplayValueAtPath(schema, leafPath, value)
-				var placeholders []int
-				if displayArgs[len(args)-1] != value {
-					placeholders = append(placeholders, len(args)-1)
-				}
-				return "", framedWebSetRefusal(err, at, displayArgs, leafPath, operator, placeholders...)
-			}
-		}
-		return "", errors.New(config.DisplayMessageAtPath(schema, leafPath, err.Error(), value))
-	}
-	// The acknowledgement travels to the browser in the response body, so a
-	// credential in it reaches view-source, the disk cache and any proxy that
-	// reads the document.
-	return tb.Str("set ").Join(args[:len(args)-1], " ").Byte(' ').Str(config.DisplayValueAtPath(schema, leafPath, value)).String(), nil
-}
-
-// keyLeafList answers the list whose entry `set <setPath> <key> <value>` names
-// when key is that list's first key leaf and setPath ends at the list's own
-// name, the form `set <list> <key-leaf> <key>` (the SSH editor's
-// Editor.isListKeyLeafPath). A setPath ending at an entry of the list is the
-// in-entry form, which answers false here.
-func keyLeafList(schema *config.Schema, setPath []string, key string) (string, bool) {
-	if schema == nil {
-		return "", false
-	}
-	if len(setPath) == 0 {
-		return "", false
-	}
-	listName := setPath[len(setPath)-1]
-	var holder config.ChildProvider = schema
-	if len(setPath) > 1 {
-		parent, isHolder := schema.LookupTokenPath(setPath[:len(setPath)-1]).(config.ChildProvider)
-		if !isHolder {
-			return "", false
-		}
-		holder = parent
-	}
-	list, isList := holder.Get(listName).(*config.ListNode)
-	if !isList {
-		return "", false
-	}
-	return listName, list.FirstKeyLeafName() == key
-}
-
-// framedWebSetRefusal answers the refusal of a `set` with its fix replaced by
-// the line the operator typed, corrected: the value when the refusal names the
-// leaf set (its path is leafPath), else the list key the creator refused on
-// the way. An error that holds no schema refusal is answered as it is.
-func framedWebSetRefusal(err error, at, args, leafPath, operator []string, placeholders ...int) error {
-	var refusal *configyang.ValidationError
-	if !errors.As(err, &refusal) {
-		return err
-	}
-	if !refusal.HoldsOperatorError() {
-		return err
-	}
-	if slices.Equal(refusal.Segments(), leafPath) {
-		return cli.FramedSetRefusal(err, at, args, operator)
-	}
-	return cli.FramedKeyRefusal(err, verbSet, at, args, operator, placeholders...)
-}
-
-// handleCLIDelete processes the "delete" verb: removes the node named by the
-// complete argument path under the current context. Schema-aware (mgr.DeleteByPath), so
-// it deletes list entries and containers as well as leaves, matching the SSH
-// CLI's `delete` (cli.Model.cmdDelete). The leaf-only DeleteValue silently
-// no-ops on a list entry.
-func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args []string, renderer *Renderer, mgr *EditorManager, username string) {
-	if len(args) < 1 {
-		writeCLINotification(w, renderer, "usage: delete <name>", "error")
+		writeCLIResponse(w, renderer, result.path, view)
 		return
 	}
-
-	// These are config tokens, not URL segments. The editor resolves their
-	// full schema path, including a final leaf-list member.
-	path := slices.Concat(contextPath, args[:len(args)-1])
-	if err := mgr.DeleteByPath(username, path, args[len(args)-1]); err != nil {
-		var tb textbuf.Buffer
-		writeCLINotification(w, renderer, tb.Str("delete error: ").Join(args, " ").Str(": ").Err(err).String(), "error")
-		return
-	}
-
-	htmxRedirect(w, r, buildConfigEditURL(contextPath))
-}
-
-// handleCLIWho processes the "who" verb: lists active web editing sessions.
-func handleCLIWho(w http.ResponseWriter, renderer *Renderer, mgr *EditorManager) {
-	sessions := mgr.ActiveSessions()
-	if len(sessions) == 0 {
-		writeCLINotification(w, renderer, "No active web sessions.", "info")
-		return
-	}
-
-	var buf textbuf.Buffer
-	buf.Str("Active web sessions:\n")
-	for _, s := range sessions {
-		buf.Str("  ").Str(s).Byte('\n')
-	}
-	writeCLINotification(w, renderer, buf.String(), "info")
-}
-
-// handleCLIShow processes the "show" verb: renders config text in the content area.
-func handleCLIShow(w http.ResponseWriter, contextPath, args []string, renderer *Renderer, mgr *EditorManager, username string) {
-	if err := ValidatePathSegments(args); err != nil {
-		writeCLINotification(w, renderer, "invalid path: "+err.Error(), "error")
-		return
-	}
-
-	showPath := append(append([]string{}, contextPath...), args...)
-
 	writeHTML(w, string(renderer.renderComponent("cli_show_response", cliShowResponse(cliShowData{
-		Prompt:      formatCLIPrompt(showPath),
-		ContextPath: textbuf.Join(showPath, "/"),
-		Content:     mgr.ContentAtPath(username, showPath),
-		Crumbs:      buildBreadcrumbs(showPath),
-		PathBar:     &FragmentData{CLIPathSegments: buildPathBarSegments(showPath)},
+		Prompt: formatCLIPrompt(result.path), ContextPath: encodeConfigPath(result.path),
+		Content: result.output, Crumbs: buildBreadcrumbs(result.path),
+		PathBar: &FragmentData{CLIPathSegments: buildPathBarSegments(result.path)},
 	}))))
-}
-
-// handleCLITop processes the "top" verb: navigates to root context.
-func handleCLITop(w http.ResponseWriter, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
-	tree := mgr.Tree(username)
-	viewData, err := buildConfigViewData(schema, tree, nil)
-	if err != nil {
-		writeCLINotification(w, renderer, "view error: "+err.Error(), "error")
-		return
-	}
-
-	writeCLIResponse(w, renderer, nil, viewData)
-}
-
-// handleCLIUp processes the "up" verb: navigates one level up in the context path.
-func handleCLIUp(w http.ResponseWriter, contextPath []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
-	newPath := contextPath
-	if len(newPath) > 0 {
-		newPath = newPath[:len(newPath)-1]
-	}
-
-	tree := mgr.Tree(username)
-	viewData, err := buildConfigViewData(schema, tree, newPath)
-	if err != nil {
-		writeCLINotification(w, renderer, "view error: "+err.Error(), "error")
-		return
-	}
-
-	writeCLIResponse(w, renderer, newPath, viewData)
-}
-
-// handleCLICommit processes the "commit" verb. A refusal's fixes are framed
-// for the position the operator typed the commit at (cmd.Operator), so inside
-// a context they read `top set <full path> ...` (AC-23, AC-51).
-func handleCLICommit(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, cmd cliCommand) {
-	req, err := webCommitRequest(cmd.Args)
-	if err != nil {
-		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
-		return
-	}
-	answer, err := mgr.runCommit(username, req, cmd.Operator)
-	if err != nil {
-		writeCLINotification(w, renderer, "commit error: "+err.Error(), "error")
-		return
-	}
-	if len(answer.conflicts) > 0 {
-		writeCLINotification(w, renderer, formatCommitConflicts("Commit conflicts:\n", answer.conflicts), "error")
-		return
-	}
-	if answer.refusal != "" {
-		writeCLINotification(w, renderer, answer.refusal, "error")
-		return
-	}
-	// A commit that opened or closed a window, or only verified, tells the
-	// operator what to do next; a plain commit or an abort reloads the page.
-	switch req.Action {
-	case contract.CommitConfirmed, contract.CommitAccept, contract.CommitVerify:
-		writeCLINotification(w, renderer, answer.message, "info")
-		return
-	case contract.CommitNow, contract.CommitAbort, contract.CommitActionUnspecified:
-	}
-
-	htmxRedirect(w, r, configEditPath)
-}
-
-// handleCLIDiscard processes the "discard" verb: `discard` or `discard all`
-// reverts every change, `discard <path>` the changes at that path. Each
-// successful discard is audited with the diff it dropped, as the terminal,
-// the Discard button and SSH record it.
-func handleCLIDiscard(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager, username string, cmd cliCommand, recorder audit.Recorder) {
-	if cmd.words.FirstPipe() >= 0 {
-		writeCLINotification(w, renderer, "discard error: "+errDiscardPipe.Error(), "error")
-		return
-	}
-	before := mgr.Diff(username)
-	if _, err := runWebDiscard(mgr, username, cmd.Args); err != nil {
-		writeCLINotification(w, renderer, "discard error: "+err.Error(), "error")
-		return
-	}
-	recordWebAudit(recorder, r, username, audit.ActionConfigDiscard, discardAuditDetail(mgr, username, before))
-
-	htmxRedirect(w, r, configEditPath)
 }
 
 // discardAuditDetail answers the config-discard detail of a discard that
@@ -694,13 +474,9 @@ func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandComp
 			input = input[:maxAutocompleteInput]
 		}
 
-		pathStr := r.URL.Query().Get("path")
-		var contextPath []string
-		if pathStr != "" {
-			contextPath = strings.Split(pathStr, "/")
-		}
-
-		if err := ValidatePathSegments(contextPath); err != nil {
+		pathStr := r.URL.Query().Get(webPathField)
+		contextPath, pathErr := decodeConfigPath(pathStr)
+		if pathErr != nil {
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
 		}
@@ -713,6 +489,7 @@ func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandComp
 		type completionItem struct {
 			Text        string `json:"text"`
 			Description string `json:"description"`
+			Explanation string `json:"explanation,omitempty"`
 			Type        string `json:"type"`
 		}
 
@@ -721,6 +498,7 @@ func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandComp
 			items[i] = completionItem{
 				Text:        c.Text,
 				Description: c.ShortHelp,
+				Explanation: c.Description,
 				Type:        c.Type,
 			}
 		}
@@ -738,10 +516,14 @@ func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandComp
 // read under that user's session lock (EditorManager.ReadTree): no other
 // user's request and no edit of the same session can change it mid-walk.
 func completeCLIInput(completer *cli.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema, username, input string, contextPath []string, mode string) []contract.Completion {
-	if commandCompleter != nil {
-		if mode == terminalModeOperational {
-			return commandCompleter.Complete(input)
+	if mode == terminalModeOperational {
+		var completions []contract.Completion
+		if commandCompleter != nil {
+			completions = commandCompleter.Complete(input)
 		}
+		return append(completions, cli.SessionFormatCompletions(schema, input)...)
+	}
+	if commandCompleter != nil {
 		if rest, ok := strings.CutPrefix(input, verbRun+" "); ok {
 			return commandCompleter.Complete(rest)
 		}

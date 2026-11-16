@@ -119,6 +119,19 @@ func checkExpectation(b *Browser, e *WBExpectation) error {
 }
 
 func checkElement(b *Browser, e *WBExpectation) error {
+	if len(e.Values) == 0 {
+		return fmt.Errorf("element expectation requires id, not-id, text or not-text")
+	}
+	for key, value := range e.Values {
+		switch key {
+		case "id", "not-id", "text", "not-text":
+			if value == "" {
+				return fmt.Errorf("element expectation %s requires a nonempty value", key)
+			}
+		default:
+			return fmt.Errorf("unsupported element expectation qualifier %q", key)
+		}
+	}
 	snap, err := b.retryFetch(b.Snapshot)
 	if err != nil {
 		return fmt.Errorf("snapshot: %w", err)

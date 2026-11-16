@@ -203,6 +203,25 @@ value needs its own statement. Value-or-array leaves retain all their members.
 Comments or deactivation markers inside the container also keep the block.
 <!-- source: internal/component/config/serialize.go -- CanInlineContainer, writeInlineLeaf -->
 
+A bare presence container or a leaf declared `type empty` is a flag. Its
+set-format spelling ends at the keyword, for example `set system conntrack
+accounting`; no `true` value follows it. Both set readers retain the flag as
+present and preserve its authorship in metadata. Both set printers emit the
+same value-less spelling, so saving a candidate and replaying it cannot lose
+an action or introduce a value the flag refuses. A deactivated flag uses `nop`
+in set format and `inactive:` in hierarchical format; both preserve the same
+out-of-band activation state beside its value. A presence name can carry both
+a value and a child block. Their stored activation markers stay separate:
+`nop <path>` carries a deactivated value, while `inactive <path>` carries a
+deactivated block before its child assignments. Hierarchical `inactive:` marks
+the statement it prefixes, including when the other form was written first.
+Neither representation drops the other's value, children or authorship.
+<!-- source: internal/component/config/setparser.go -- walkAndSet -->
+<!-- source: internal/component/config/setparser_meta.go -- walkAndSetWithMeta -->
+<!-- source: internal/component/config/serialize_set.go -- serializeSetChild, serializeSetMetaChild, serializeSetContainer, serializeSetMetaContainer -->
+<!-- source: internal/component/config/parser.go -- applyInactive -->
+<!-- source: internal/component/config/serialize.go -- serializePresenceContainer -->
+
 ### Flex values
 
 A Flex node accepts a value statement, a container or a named list entry.

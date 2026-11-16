@@ -8,6 +8,7 @@
 # PREVENTS: a web daemon that starts on a tree but cannot authenticate, diff,
 #           or commit against it.
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 option=auth:user=admin:password=ze-web-admin:role=admin
 

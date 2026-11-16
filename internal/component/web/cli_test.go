@@ -241,8 +241,9 @@ func authedRequest(t *testing.T, method, target string, body url.Values) *http.R
 // VALIDATES: AC-3 (edit command updates breadcrumb + content).
 // PREVENTS: Edit command returns error for valid schema path.
 func TestCLIBarEditUpdatesContext(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, _ := setupCLITerminalYANGTest(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -334,8 +335,9 @@ func TestCLIBarTopClearsContext(t *testing.T) {
 // VALIDATES: AC-7 (up command navigates to parent).
 // PREVENTS: Up command does not change path.
 func TestCLIBarUpNavigates(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, _ := setupCLITerminalYANGTest(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -724,7 +726,7 @@ func TestTerminalPipes(t *testing.T) {
 
 // PREVENTS: compare verb and compare pipe ignoring the target argument.
 func TestTerminalCompareTargets(t *testing.T) {
-	mgr, _ := setupCLITest(t)
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
 
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
@@ -732,7 +734,6 @@ func TestTerminalCompareTargets(t *testing.T) {
 	// Make a change so compare has something to show.
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
 
-	schema, tree := buildTestSchemaAndTree()
 	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 
 	tests := []struct {
@@ -833,7 +834,7 @@ func TestTerminalCompareCommittedScopesToShowPath(t *testing.T) {
 
 	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))
 	resp := runTerminalCommand(t, handler, "show bgp | compare confirmed")
-	assert.Contains(t, resp.Output, "(no changes)")
+	assert.Empty(t, resp.Output, "the shared CLI prunes an unchanged subtree")
 	assert.NotContains(t, resp.Output, "interface")
 	assert.NotContains(t, resp.Output, "working uplink")
 
@@ -862,7 +863,7 @@ func TestTerminalCompareSavedScopesToShowPath(t *testing.T) {
 	resp := runTerminalCommand(t, handler, "show bgp | compare saved")
 
 	assert.Contains(t, resp.Output, "router-id")
-	assert.Contains(t, resp.Output, "8.8.8.8")
+	assert.Contains(t, resp.Output, "* router-id 9.9.9.9", "the shared tree diff marks the replacement value")
 	assert.Contains(t, resp.Output, "9.9.9.9")
 	assert.NotContains(t, resp.Output, "interface")
 	assert.NotContains(t, resp.Output, "uplink")
@@ -871,6 +872,12 @@ func TestTerminalCompareSavedScopesToShowPath(t *testing.T) {
 	assert.Contains(t, resp.Output, "set bgp router-id")
 	assert.NotContains(t, resp.Output, "interface")
 	assert.NotContains(t, resp.Output, "uplink")
+	// Select the baseline independently: equality to this target is empty,
+	// while the same working value still differs from committed.
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "8.8.8.8"))
+	assert.Empty(t, runTerminalCommand(t, handler, "show bgp | compare saved").Output)
+	assert.Contains(t, runTerminalCommand(t, handler, "show bgp | compare confirmed").Output, "8.8.8.8")
+
 }
 
 // VALIDATES: show <path> | compare rollback N diffs against rollback N at that path.
@@ -891,10 +898,16 @@ func TestTerminalCompareRollbackScopesToShowPath(t *testing.T) {
 	resp := runTerminalCommand(t, handler, "show bgp | compare rollback 1")
 
 	assert.Contains(t, resp.Output, "router-id")
-	assert.Contains(t, resp.Output, "7.7.7.7")
+	assert.Contains(t, resp.Output, "* router-id 9.9.9.9", "the shared tree diff marks the replacement value")
 	assert.Contains(t, resp.Output, "9.9.9.9")
 	assert.NotContains(t, resp.Output, "interface")
 	assert.NotContains(t, resp.Output, "uplink")
+	// Select the baseline independently: equality to this target is empty,
+	// while the same working value still differs from committed.
+	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "7.7.7.7"))
+	assert.Empty(t, runTerminalCommand(t, handler, "show bgp | compare rollback 1").Output)
+	assert.Contains(t, runTerminalCommand(t, handler, "show bgp | compare confirmed").Output, "7.7.7.7")
+
 }
 
 // VALIDATES: AC-13 (toggle back from terminal restores integrated mode).
@@ -1109,13 +1122,14 @@ func TestCLIBarCommitRefusalIsAnError(t *testing.T) {
 // VALIDATES: AC-9 (discard command clears pending changes and redirects).
 // PREVENTS: Discard command fails or does not redirect.
 func TestCLIBarDiscard(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, _ := setupCLITerminalYANGTest(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
 	// Set a value so the user has a draft to discard.
-	err := mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9")
+	err = mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value before discard")
 
 	body := url.Values{
@@ -1125,6 +1139,14 @@ func TestCLIBarDiscard(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
+
+	require.NotContains(t, w.Body.String(), "error:")
+	assert.Zero(t, mgr.ChangeCount("testuser"))
+	view, viewErr := mgr.viewTree("testuser")
+	require.NoError(t, viewErr)
+	value, present := view.GetContainer("bgp").Get("router-id")
+	require.True(t, present)
+	assert.Equal(t, "1.2.3.4", value)
 
 	// Non-HTMX discard redirects via htmxRedirect (303 See Other).
 	assert.Equal(t, http.StatusSeeOther, w.Code)

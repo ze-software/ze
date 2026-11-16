@@ -2,7 +2,7 @@
 # VALIDATES: AC-10 (dashboard panels), AC-11 (empty state hints)
 # Spec: plan/spec-web-3-foundation.md (Phase 7).
 
-option=skip:reason=requires ZE_WEB_UI=workbench
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 
 action=open:path=/show/

@@ -1,0 +1,96 @@
+// Design: docs/architecture/web-components.md -- schema-backed collection forms
+
+package web
+
+// graphicalValues edits rows without exposing configuration statement syntax.
+// The server retains row order and renders every response, including row actions.
+templ graphicalValues(v GraphicalValues, readOnly bool) {
+	<form class="ze-field" id={ "field-" + v.Name } hx-post={ configSetURL(v.Path) } hx-target="this" hx-swap="outerHTML">
+		<h3>{ v.Name }</h3>
+		<input type="hidden" name="leaf" value={ v.Name }>
+		<input type="hidden" name="collection" value="true">
+		if v.Freeform {
+			for i, entry := range v.Entries {
+				<div class="config-fields">
+					<label>Entry <input type="text" name="entry" value={ entry.Name } disabled?={ readOnly }></label>
+					<label>Value <input type="text" name="entry-value" value={ graphicalEntryValue(entry.Value) } placeholder="Flag when empty" disabled?={ readOnly }></label>
+					if !readOnly {
+						<button type="submit" id={ "collection-remove-" + v.Name + "-" + intText(i) } name="operation" value={ graphicalOperation("remove", i) }>Remove</button>
+					}
+				</div>
+			}
+			if !readOnly {
+				<label>New entry <input type="text" name="new-entry"></label>
+				<label>Value <input type="text" name="new-entry-value" placeholder="Flag when empty"></label>
+			}
+		} else {
+			for i, member := range v.Members {
+				<div class="config-fields">
+					<label>{ "Member " + intText(i+1) }
+						if len(v.Options) > 0 {
+							<select name="member" disabled?={ readOnly }>
+								for _, option := range v.Options {
+									<option value={ option } selected?={ option == member.Value }>{ option }</option>
+								}
+							</select>
+						} else {
+							<input type="text" name="member" value={ member.Value } disabled?={ readOnly }>
+						}
+					</label>
+					if v.MemberActivation {
+						<input type="hidden" name="member-inactive" value={ graphicalInactive(member.Inactive) }>
+						if member.Inactive {
+							<span>Inactive</span>
+						}
+					}
+					if !readOnly {
+						if v.MemberActivation {
+							if member.Inactive {
+								<button type="submit" id={ "collection-activate-" + v.Name + "-" + intText(i) } name="operation" value={ graphicalOperation(verbActivate, i) }>Activate</button>
+							} else {
+								<button type="submit" id={ "collection-deactivate-" + v.Name + "-" + intText(i) } name="operation" value={ graphicalOperation(verbDeactivate, i) }>Deactivate</button>
+							}
+						}
+						<button type="submit" id={ "collection-up-" + v.Name + "-" + intText(i) } name="operation" value={ graphicalOperation("up", i) } disabled?={ i == 0 }>Move up</button>
+						<button type="submit" id={ "collection-down-" + v.Name + "-" + intText(i) } name="operation" value={ graphicalOperation("down", i) } disabled?={ i+1 == len(v.Members) }>Move down</button>
+						<button type="submit" id={ "collection-remove-" + v.Name + "-" + intText(i) } name="operation" value={ graphicalOperation("remove", i) }>Remove</button>
+					}
+				</div>
+			}
+			if !readOnly {
+				<label>New member
+					if len(v.Options) > 0 {
+						<select id={ "collection-new-" + v.Name } name="new-member">
+							<option value="">Choose a value</option>
+							for _, option := range v.Options {
+								<option value={ option }>{ option }</option>
+							}
+						</select>
+					} else {
+						<input type="text" id={ "collection-new-" + v.Name } name="new-member">
+					}
+				</label>
+			}
+		}
+		if !readOnly {
+			<button type="submit" id={ "collection-add-" + v.Name } name="operation" value="add">Add</button>
+			<button type="submit" id={ "collection-save-" + v.Name } name="operation" value="save">Save</button>
+			<button type="submit" id={ "collection-clear-" + v.Name } name="operation" value="clear">Clear</button>
+		}
+	</form>
+}
+
+templ graphicalInlineList(v GraphicalInlineList, readOnly bool) {
+	<section class="config-section">
+		<h3>{ v.Name }</h3>
+		for _, entry := range v.Entries {
+			<a href={ entry.URL } hx-get={ fragmentURL(entry.HxPath) } hx-target="#content-area" hx-push-url={ entry.URL }>{ entry.Name }</a>
+		}
+		if !readOnly {
+			<form hx-post={ "/config/add/" + v.Path } hx-target="#content-area">
+				<label>Entry key <input type="text" name="name" required></label>
+				<button type="submit">Add entry</button>
+			</form>
+		}
+	</section>
+}

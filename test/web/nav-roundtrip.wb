@@ -2,11 +2,14 @@
 # VALIDATES: repeated back navigation unwinds to root correctly
 # PREVENTS: back link breaking after multiple navigation steps
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/bgp/session/asn/
-expect=element:text=Local Autonomous System Number
+expect=url:contains=/show/bgp/session/asn/
+expect=element:id=input-bgp-ssession-sasn-slocal
+expect=element:text=local
+expect=html:contains=Local Autonomous System Number
 
 action=click:id=link-back
 expect=element:text=asn

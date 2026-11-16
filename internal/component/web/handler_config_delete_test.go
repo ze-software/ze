@@ -132,7 +132,7 @@ func TestHandleConfigDeleteLeafStillRemovesValue(t *testing.T) {
 // TestWebCLIBarDeleteRemovesListEntry covers the sibling call site: the web CLI
 // bar's `delete` verb, which shares the manager and previously called DeleteValue.
 //
-// VALIDATES: `delete london` at context bgp/peer removes the peer entry.
+// VALIDATES: authenticated `delete peer london` at context bgp removes the peer entry.
 // PREVENTS: fixing the delete button while the CLI bar keeps no-opping on lists.
 func TestWebCLIBarDeleteRemovesListEntry(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
@@ -140,8 +140,11 @@ func TestWebCLIBarDeleteRemovesListEntry(t *testing.T) {
 	require.NotNil(t, peerEntries(t, mgr, "alice")["london"], "precondition: peer exists")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/cli", http.NoBody)
-	handleCLIDelete(rec, req, []string{"bgp", "peer"}, []string{"london"}, &Renderer{}, mgr, "alice")
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	req := postConfigRequest(t, "/cli", url.Values{"command": {"delete peer london"}, "path": {"bgp"}}, "alice")
+	HandleCLICommand(mgr, mgr.schema, renderer).ServeHTTP(rec, req)
+	require.Less(t, rec.Code, http.StatusBadRequest, rec.Body.String())
 
 	assert.Nil(t, peerEntries(t, mgr, "alice")["london"],
 		"CLI bar delete must remove the list entry; response: %s", rec.Body.String())
@@ -150,14 +153,14 @@ func TestWebCLIBarDeleteRemovesListEntry(t *testing.T) {
 // TestWebTerminalDeleteRemovesListEntry covers the second sibling call site: the
 // web terminal-mode `delete` command.
 //
-// VALIDATES: terminal `delete london` at context bgp/peer removes the peer entry.
+// VALIDATES: authenticated terminal `delete peer london` at context bgp removes the peer entry.
 // PREVENTS: the terminal surface keeping the DeleteValue-only behavior.
 func TestWebTerminalDeleteRemovesListEntry(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
 	require.NoError(t, mgr.CreateEntry("alice", []string{"bgp", "peer", "london"}))
 	require.NotNil(t, peerEntries(t, mgr, "alice")["london"], "precondition: peer exists")
 
-	out := executeTerminalDelete(mgr, "alice", []string{"bgp", "peer"}, []string{"london"})
+	out := terminalAsUser(t, mgr, "alice", []string{"bgp"}, "delete peer london").Output
 
 	assert.NotContains(t, out, "error:", "terminal delete must succeed, got %q", out)
 	assert.Nil(t, peerEntries(t, mgr, "alice")["london"],

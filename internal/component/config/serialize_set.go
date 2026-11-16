@@ -137,8 +137,10 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
-			b.Str(" ")
-			b.Str(QuoteIfNeeded(normalizeBool(v)))
+			if n.Type != TypeEmpty || v != configTrue {
+				b.Str(" ")
+				b.Str(QuoteIfNeeded(normalizeBool(v)))
+			}
 			b.Str("\n")
 		}
 
@@ -328,7 +330,7 @@ func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *Con
 	var tb textbuf.Buffer
 	if node.Presence {
 		if v, ok := tree.values[name]; ok {
-			b.Str("set ")
+			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
 			if v != configTrue {
@@ -338,6 +340,10 @@ func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *Con
 			b.Str("\n")
 		}
 		if child := tree.containers[name]; child != nil {
+			// nop names the value flag; inactive names the block carrier.
+			if child.IsInactive() {
+				b.Str(cmdInactive).Byte(' ').Str(prefix).Str(name).Byte('\n')
+			}
 			childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			serializeSetNode(b, child, node, childPrefix)
 		}
@@ -619,8 +625,13 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
-			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
-			writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, QuoteIfNeeded(normalizeBool(v)), QuoteIfNeeded)
+			if n.Type == TypeEmpty {
+				pathPfx := tb.Reset().Str(prefix).Str(name).String()
+				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, setFlagValue(v), setFlagValue)
+			} else {
+				pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
+				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), pathPfx, QuoteIfNeeded(normalizeBool(v)), QuoteIfNeeded)
+			}
 		}
 
 	case *MultiLeafNode:
@@ -647,6 +658,20 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 		if meta != nil {
 			entries = meta.entries[name]
 		}
+		wholeAssignment := false
+		for _, entry := range entries {
+			if entry.Member == "" && entry.Source != "" && entry.Value != "" {
+				wholeAssignment = true
+			}
+		}
+		if wholeAssignment {
+			writeValueOrArrayAssignments(b, tree, name, prefix, entries)
+			writeInactiveMemberLines(b, tree, name, prefix)
+			if hasMemberEntries(entries) {
+				writeLeafListMemberLines(b, name, prefix, nil, nil, entries)
+			}
+			return
+		}
 		if hasMemberEntries(entries) {
 			writeLeafListMemberLines(b, name, prefix, items, tree.inactiveMembers[name], entries)
 			return
@@ -660,11 +685,7 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 				if len(bare) == 1 {
 					writeMetaLeafLine(b, meta, name, pathPfx, QuoteIfNeeded(bare[0]))
 				} else {
-					parts := make([]string, len(bare))
-					for i, item := range bare {
-						parts[i] = QuoteIfNeeded(item)
-					}
-					writeMetaLeafLine(b, meta, name, pathPfx, tb.Reset().Str("[ ").Join(parts, " ").Str(" ]").String())
+					writeMetaLeafLine(b, meta, name, pathPfx, bracketValue(JoinLeafListMembers(bare)))
 				}
 			}
 		}
@@ -683,6 +704,37 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 
 	case *InlineListNode:
 		serializeSetMetaInlineList(b, tree, meta, name, n, prefix)
+	}
+}
+
+// writeValueOrArrayAssignments distinguishes whole session assignments from
+// ordinary additive set lines. The explicit verb preserves that intent in a
+// change file or saved draft without changing ordinary set/bracket ownership.
+// The caller holds the tree and metadata read locks.
+func writeValueOrArrayAssignments(b *textbuf.Buffer, tree *Tree, name, prefix string, entries []MetaEntry) {
+	for _, entry := range wholeLeafEntries(entries) {
+		writeMetaPrefix(b, entry)
+		if entry.Source != "" {
+			if entry.Value == "" {
+				b.Str("delete ").Str(prefix).Str(name).Byte('\n')
+				continue
+			}
+		}
+		value := entry.Value
+		if value == "" {
+			value = JoinLeafListMembers(tree.multiValues[name])
+		}
+		if entry.Source == "" {
+			b.Str("set ")
+		} else {
+			b.Str(cmdReplaceMembers).Byte(' ')
+		}
+		b.Str(prefix).Str(name).Byte(' ').Str(bracketValue(value)).Byte('\n')
+	}
+	if tree.inactiveValues[name] {
+		// A whole-leaf inactive marker does not turn its replacement
+		// into a second additive assignment or overwriting its ownership.
+		b.Str(cmdInactive).Byte(' ').Str(prefix).Str(name).Byte('\n')
 	}
 }
 
@@ -795,6 +847,15 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 	}
 }
 
+// setFlagValue keeps the canonical presence value off a flag's command line.
+// A malformed non-flag value stays visible so its reader can refuse it.
+func setFlagValue(value string) string {
+	if value == configTrue {
+		return ""
+	}
+	return QuoteIfNeeded(value)
+}
+
 // writeMetaLeafLine writes set/nop line(s) with optional metadata prefix.
 // Delegates to writeMetaLeafLineCmd with "set ".
 func writeMetaLeafLine(b *textbuf.Buffer, meta *MetaTree, name, pathPrefix, value string) {
@@ -831,10 +892,13 @@ func writeMetaLeafLineFormat(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathP
 				if e.Value == "" {
 					b.Str(value)
 				} else {
-					if !strings.HasSuffix(pathPrefix, " ") {
-						b.Str(" ")
+					rendered := entryValue(e.Value)
+					if rendered != "" {
+						if !strings.HasSuffix(pathPrefix, " ") {
+							b.Str(" ")
+						}
+						b.Str(rendered)
 					}
-					b.Str(entryValue(e.Value))
 				}
 				b.Str("\n")
 			}
@@ -856,12 +920,15 @@ func serializeSetMetaContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 	if node.Presence {
 		if v, ok := tree.values[name]; ok {
 			if v == configTrue {
-				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).String(), "")
+				writeMetaLeafLineFormat(b, meta, name, setOrNop(tree, name), tb.Reset().Str(prefix).Str(name).String(), "", setFlagValue)
 			} else {
-				writeMetaLeafLine(b, meta, name, tb.Reset().Str(prefix).Str(name).Byte(' ').String(), QuoteIfNeeded(v))
+				writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), tb.Reset().Str(prefix).Str(name).Byte(' ').String(), QuoteIfNeeded(v))
 			}
 		}
 		if child := tree.containers[name]; child != nil {
+			if child.IsInactive() {
+				b.Str(cmdInactive).Byte(' ').Str(prefix).Str(name).Byte('\n')
+			}
 			childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			serializeSetMetaNode(b, child, metaContainerChild(meta, name), node, childPrefix)
 		}
@@ -955,11 +1022,24 @@ func writeFreeformLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name, pre
 	for k := range child.values {
 		keys = append(keys, k)
 	}
+	if childMeta != nil {
+		for key, entries := range childMeta.entries {
+			if _, present := child.values[key]; present {
+				continue
+			}
+			for _, entry := range entries {
+				if entry.Source != "" && entry.Value == "" {
+					keys = append(keys, key)
+					break
+				}
+			}
+		}
+	}
 	slices.Sort(keys)
 
 	for _, k := range keys {
 		v := child.values[k]
-		keyPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(k).String()
+		keyPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(QuoteIfNeeded(k)).String()
 		if v == configTrue {
 			writeLine(b, childMeta, k, keyPrefix, "")
 		} else {

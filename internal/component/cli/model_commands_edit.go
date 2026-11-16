@@ -22,12 +22,12 @@ var (
 )
 
 func (m *Model) cmdSet(args []string) (commandResult, error) {
-	if len(args) < 2 {
+	if len(args) < 1 {
 		return commandResult{}, errUsageSetPathValue
 	}
 
 	// tokenizeCommand already handles quotes, so args are clean tokens.
-	// Last token is value, everything before (with context) is the path.
+	// Schema flags end at the path; ordinary settings end with a value.
 	fullPath := make([]string, 0, len(m.contextPath)+len(args))
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
@@ -57,6 +57,34 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	}
 	if endsAtEntry && entry.End == len(fullPath) && len(entry.Address.Pairs) > 0 {
 		return m.createListEntry(entry, fullPath[len(entry.ParentPath)+1:], args)
+	}
+
+	// A presence container or an empty leaf is complete at its final keyword.
+	// Resolve it before splitting a value, including a single word in edit mode.
+	if node := m.editor.schema.LookupTokenPath(fullPath); node != nil {
+		flag := false
+		switch n := node.(type) {
+		case *config.ContainerNode:
+			flag = n.Presence
+		case *config.LeafNode:
+			flag = n.Type == config.TypeEmpty
+		}
+		if flag {
+			if err := m.completer.validateTokenPath(fullPath); err != nil {
+				return commandResult{}, err
+			}
+			if m.completer.isConfigFalse(fullPath) {
+				return commandResult{}, fmt.Errorf("path %s is read-only (config false)", config.FormatEditPath(fullPath))
+			}
+			if err := m.editor.SetValue(fullPath[:len(fullPath)-1], fullPath[len(fullPath)-1], "true"); err != nil {
+				return commandResult{}, fmt.Errorf("set failed: %w", err)
+			}
+			m.refreshActiveBackends()
+			var tb textbuf.Buffer
+			tb.Str((CommandWords{tokens: slices.Concat([]string{cmdSet}, fullPath)}).String())
+			m.editor.appendConflictStatus(&tb)
+			return commandResult{statusMessage: tb.String(), refreshConfig: true, revalidate: true}, nil
+		}
 	}
 
 	value := fullPath[len(fullPath)-1]
@@ -96,6 +124,10 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		// Validate the full token path (with list keys) against schema.
 		if err := m.completer.validateTokenPath(path); err != nil {
 			return commandResult{}, err
+		}
+		if leaf, ok := m.editor.schema.LookupTokenPath(path).(*config.LeafNode); ok && leaf.Type == config.TypeEmpty {
+			command := (CommandWords{tokens: slices.Concat([]string{cmdSet}, path)}).String()
+			return commandResult{}, fmt.Errorf("%s is a flag and takes no value; run %s", key, command)
 		}
 		// Validate value against YANG type before applying. A value refusal
 		// is the schema's operator error, masked on a secret leaf where it is

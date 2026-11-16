@@ -133,8 +133,8 @@ func HandleAdminView(renderer *Renderer, trees AdminCommandTree) http.HandlerFun
 			kids := adminChildNames(adminNodeAt(tree, path))
 
 			data := map[string]any{
-				"path":     path,
-				"children": kids,
+				webPathField: path,
+				"children":   kids,
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -240,9 +240,9 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, trees Ad
 		// warned about it beside it, so the output stays the bare answer.
 		if parsed.Format == formatJSON {
 			data := map[string]any{
-				"command":    commandStr,
-				"output":     result.Output,
-				jsonKeyError: result.Error,
+				webCommandField: commandStr,
+				"output":        result.Output,
+				jsonKeyError:    result.Error,
 			}
 			if warning != "" {
 				data[jsonKeyWarnings] = rendered.Response.Warnings
@@ -303,7 +303,7 @@ func commandArguments(path []string, node *command.Node, form url.Values) string
 // using finder-style columns for navigation and a command form in the detail
 // panel for leaf commands.
 func buildAdminFragmentData(path []string, tree *command.Node) *FragmentData {
-	currentPath := textbuf.Join(path, "/")
+	currentPath := encodeConfigPath(path)
 	data := &FragmentData{
 		Path:            path,
 		CurrentPath:     currentPath,
@@ -323,7 +323,7 @@ func buildAdminFragmentData(path []string, tree *command.Node) *FragmentData {
 		var tb textbuf.Buffer
 		form := &CommandFormData{
 			CommandName: textbuf.Join(path, " "),
-			ActionURL:   tb.Str("/admin/").Join(path, "/").String(),
+			ActionURL:   tb.Str("/admin/").Str(encodeConfigPath(path)).String(),
 		}
 		// A path the tree does not hold still renders a form, which is what the
 		// children map did before it. It shows no help, because it has none to
@@ -398,7 +398,7 @@ func buildAdminFinderColumns(path []string, tree *command.Node) []FinderColumn {
 		for _, name := range kids {
 			childPath := append(append([]string{}, prefix...), name)
 			childKey := textbuf.Join(childPath, "/")
-			url := tb.Reset().Str("/admin/").Join(childPath, "/").Byte('/').String()
+			url := tb.Reset().Str("/admin/").Str(encodeConfigPath(childPath)).Byte('/').String()
 
 			col.UnnamedItems = append(col.UnnamedItems, ColumnItem{
 				Name:        name,
@@ -430,7 +430,7 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 
 	var tb textbuf.Buffer
 	for i, seg := range path {
-		url := tb.Reset().Str("/admin/").Join(path[:i+1], "/").Byte('/').String()
+		url := tb.Reset().Str("/admin/").Str(encodeConfigPath(path[:i+1])).Byte('/').String()
 		crumbs = append(crumbs, BreadcrumbSegment{
 			Name:   seg,
 			URL:    url,

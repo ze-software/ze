@@ -1,12 +1,28 @@
-# Test: CLI bar show command renders config output
-# VALIDATES: typing show in CLI bar returns config text in content area
-# PREVENTS: CLI command dispatch broken, show verb not handled
+# Test: CLI show renders configuration output
+# VALIDATES: show in the dedicated terminal returns the selected BGP configuration
+# PREVENTS: typing a command being mistaken for its execution
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/
-expect=element:id=cli-input
+action=open:path=/show/bgp/
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=show
-action=wait:ms=500
+action=fill:id=terminal-input:value=set bgp router-id 192.0.2.12
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[bgp]#
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=router-id
+
+expect=element:text=192.0.2.12

@@ -219,40 +219,43 @@ func diffWalkNode(lines *[]diffLine, orig, mod *config.Tree, name string, node c
 
 // --- Leaf-type diffs ---
 
-func diffLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix string) {
-	origVal, origOk := orig.Get(name)
-	modVal, modOk := mod.Get(name)
-
-	origFmt := formatLeafValue(origVal)
-	modFmt := formatLeafValue(modVal)
-
-	var tb textbuf.Buffer
-	switch {
-	case origOk && modOk && origFmt == modFmt:
-		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(name).Byte(' ').Str(modFmt).String()})
-	case origOk && modOk:
-		*lines = append(*lines, diffLine{diffModified, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(modFmt).String()})
-	case origOk:
-		*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(origFmt).String()})
-	case modOk:
-		*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(modFmt).String()})
+// diffActivationName retains the activation marker carried beside a node's
+// value. Equal value bytes do not make an activation change an unchanged row.
+func diffActivationName(name string, inactive bool) string {
+	if !inactive {
+		return name
 	}
+	var text textbuf.Buffer
+	return text.Str("inactive: ").Str(name).String()
+}
+
+func diffLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix string) {
+	diffFormattedLeaf(lines, orig, mod, name, prefix, formatLeafValue)
 }
 
 func diffMultiLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix string) {
+	diffFormattedLeaf(lines, orig, mod, name, prefix, func(value string) string { return value })
+}
+
+// diffFormattedLeaf compares the rendered value and activation name together.
+// Scalar leaves quote their value; multi-leaf values are already formatted.
+func diffFormattedLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix string, formatValue func(string) string) {
 	origVal, origOk := orig.Get(name)
 	modVal, modOk := mod.Get(name)
-
+	origFmt := formatValue(origVal)
+	modFmt := formatValue(modVal)
+	origName := diffActivationName(name, orig.IsLeafInactive(name))
+	modName := diffActivationName(name, mod.IsLeafInactive(name))
 	var tb textbuf.Buffer
 	switch {
-	case origOk && modOk && origVal == modVal:
-		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(name).Byte(' ').Str(origVal).String()})
+	case origOk && modOk && origFmt == modFmt && origName == modName:
+		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(modName).Byte(' ').Str(modFmt).String()})
 	case origOk && modOk:
-		*lines = append(*lines, diffLine{diffModified, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(modVal).String()})
+		*lines = append(*lines, diffLine{diffModified, tb.Reset().Str(prefix).Str(modName).Byte(' ').Str(modFmt).String()})
 	case origOk:
-		*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(origVal).String()})
+		*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(origName).Byte(' ').Str(origFmt).String()})
 	case modOk:
-		*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(modVal).String()})
+		*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(modName).Byte(' ').Str(modFmt).String()})
 	}
 }
 
@@ -260,16 +263,19 @@ func diffBracketLeaf(lines *[]diffLine, orig, mod *config.Tree, name, prefix str
 	origVal, origOk := bracketDisplay(orig, name)
 	modVal, modOk := bracketDisplay(mod, name)
 
+	origName := diffActivationName(name, orig.IsLeafInactive(name))
+	modName := diffActivationName(name, mod.IsLeafInactive(name))
+
 	var tb textbuf.Buffer
 	switch {
-	case origOk && modOk && origVal == modVal:
-		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(name).Str(" [ ").Str(origVal).Str(" ]").String()})
+	case origOk && modOk && origVal == modVal && origName == modName:
+		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(modName).Str(" [ ").Str(origVal).Str(" ]").String()})
 	case origOk && modOk:
-		*lines = append(*lines, diffLine{diffModified, tb.Str(prefix).Str(name).Str(" [ ").Str(modVal).Str(" ]").String()})
+		*lines = append(*lines, diffLine{diffModified, tb.Str(prefix).Str(modName).Str(" [ ").Str(modVal).Str(" ]").String()})
 	case origOk:
-		*lines = append(*lines, diffLine{diffRemoved, tb.Str(prefix).Str(name).Str(" [ ").Str(origVal).Str(" ]").String()})
+		*lines = append(*lines, diffLine{diffRemoved, tb.Str(prefix).Str(origName).Str(" [ ").Str(origVal).Str(" ]").String()})
 	case modOk:
-		*lines = append(*lines, diffLine{diffAdded, tb.Str(prefix).Str(name).Str(" [ ").Str(modVal).Str(" ]").String()})
+		*lines = append(*lines, diffLine{diffAdded, tb.Str(prefix).Str(modName).Str(" [ ").Str(modVal).Str(" ]").String()})
 	}
 }
 
@@ -310,16 +316,19 @@ func diffValueOrArray(lines *[]diffLine, orig, mod *config.Tree, name, prefix st
 	origText := formatSlice(memberDisplay(orig, name))
 	modText := formatSlice(memberDisplay(mod, name))
 
+	origName := diffActivationName(name, orig.IsLeafInactive(name))
+	modName := diffActivationName(name, mod.IsLeafInactive(name))
+
 	var tb textbuf.Buffer
 	switch {
-	case origText != "" && modText != "" && origText == modText:
-		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(name).Byte(' ').Str(origText).String()})
+	case origText != "" && modText != "" && origText == modText && origName == modName:
+		*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(modName).Byte(' ').Str(origText).String()})
 	case origText != "" && modText != "":
-		*lines = append(*lines, diffLine{diffModified, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(modText).String()})
+		*lines = append(*lines, diffLine{diffModified, tb.Reset().Str(prefix).Str(modName).Byte(' ').Str(modText).String()})
 	case origText != "":
-		*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(origText).String()})
+		*lines = append(*lines, diffLine{diffRemoved, tb.Reset().Str(prefix).Str(origName).Byte(' ').Str(origText).String()})
 	case modText != "":
-		*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(name).Byte(' ').Str(modText).String()})
+		*lines = append(*lines, diffLine{diffAdded, tb.Reset().Str(prefix).Str(modName).Byte(' ').Str(modText).String()})
 	}
 }
 
@@ -342,7 +351,11 @@ func diffContainer(lines *[]diffLine, orig, mod *config.Tree, name string, node 
 			diffContainerInline(lines, origChild, modChild, name, node, prefix)
 		} else {
 			var tb textbuf.Buffer
-			*lines = append(*lines, diffLine{diffUnchanged, tb.Str(prefix).Str(name).Str(" {").String()})
+			marker := diffUnchanged
+			if origChild.IsInactive() != modChild.IsInactive() {
+				marker = diffModified
+			}
+			*lines = append(*lines, diffLine{marker, tb.Str(prefix).Str(diffActivationName(name, modChild.IsInactive())).Str(" {").String()})
 			diffWalkChildren(lines, origChild, modChild, node, indent+1)
 			*lines = append(*lines, diffLine{diffUnchanged, tb.Reset().Str(prefix).Byte('}').String()})
 		}
@@ -359,7 +372,7 @@ func diffContainerInline(lines *[]diffLine, origChild, modChild *config.Tree, na
 	modText := strings.TrimRight(config.SerializeSubtree(modChild, node), "\n")
 
 	var tb textbuf.Buffer
-	modLine := tb.Str(prefix).Str(name).Byte(' ').Str(modText).String()
+	modLine := tb.Str(prefix).Str(diffActivationName(name, modChild.IsInactive())).Byte(' ').Str(modText).String()
 
 	if config.SubtreesEqual(origChild, modChild, node) {
 		*lines = append(*lines, diffLine{diffUnchanged, modLine})
@@ -377,8 +390,8 @@ func diffPresenceContainer(lines *[]diffLine, orig, mod *config.Tree, name strin
 
 	// Simple value form
 	if (origValOk || modValOk) && origChild == nil && modChild == nil {
-		origFmt := formatPresenceValue(name, origVal, origValOk)
-		modFmt := formatPresenceValue(name, modVal, modValOk)
+		origFmt := formatPresenceValue(diffActivationName(name, orig.IsLeafInactive(name)), origVal, origValOk)
+		modFmt := formatPresenceValue(diffActivationName(name, mod.IsLeafInactive(name)), modVal, modValOk)
 		var tb textbuf.Buffer
 		switch {
 		case origFmt == modFmt:
@@ -680,10 +693,10 @@ func emitContainerMarked(lines *[]diffLine, name string, tree *config.Tree, node
 	var tb textbuf.Buffer
 	if !node.Presence && config.CanInlineContainer(tree, node) {
 		text := strings.TrimRight(config.SerializeSubtree(tree, node), "\n")
-		*lines = append(*lines, diffLine{marker, tb.Str(prefix).Str(name).Byte(' ').Str(text).String()})
+		*lines = append(*lines, diffLine{marker, tb.Str(prefix).Str(diffActivationName(name, tree.IsInactive())).Byte(' ').Str(text).String()})
 		return
 	}
-	*lines = append(*lines, diffLine{marker, tb.Str(prefix).Str(name).Str(" {").String()})
+	*lines = append(*lines, diffLine{marker, tb.Str(prefix).Str(diffActivationName(name, tree.IsInactive())).Str(" {").String()})
 	emitReindentedLines(lines, config.SerializeSubtree(tree, node), marker, indent+1)
 	*lines = append(*lines, diffLine{marker, tb.Reset().Str(prefix).Byte('}').String()})
 }

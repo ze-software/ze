@@ -70,12 +70,19 @@ func TestWebFinderHandlerBehavior(t *testing.T) {
 					var next *html.Node
 					nextContext := "bgp" // A list index keeps the CLI in its parent.
 					if path == "bgp" {
-						input := finderElement(t, finderElement(t, doc, "id", "detail"), "id", fieldInputID("bgp", "router-id"))
-						assert.Equal(t, "1.2.3.4", finderAttr(input, "value"))
-						assert.Equal(t, "/config/set/bgp", finderAttr(input, "hx-post"))
-						var values map[string]string
-						require.NoError(t, json.Unmarshal([]byte(finderAttr(input, "hx-vals")), &values))
-						assert.Equal(t, "router-id", values["leaf"])
+						if readOnly {
+							detail := finderElement(t, doc, "id", "detail")
+							assert.Contains(t, finderText(detail), "router-id: 1.2.3.4")
+							assert.Empty(t, finderElements(detail, "id", fieldInputID("bgp", "router-id")))
+							assert.Empty(t, finderElements(detail, "hx-post", "/config/set/bgp"))
+						} else {
+							input := finderElement(t, finderElement(t, doc, "id", "detail"), "id", fieldInputID("bgp", "router-id"))
+							assert.Equal(t, "1.2.3.4", finderAttr(input, "value"))
+							assert.Equal(t, "/config/set/bgp", finderAttr(input, "hx-post"))
+							var values map[string]string
+							require.NoError(t, json.Unmarshal([]byte(finderAttr(input, "hx-vals")), &values))
+							assert.Equal(t, "router-id", values["leaf"])
+						}
 						next = finderElement(t, finder, "href", "/show/bgp/peer/")
 					} else {
 						assert.Contains(t, strings.Fields(finderAttr(finderElement(t, finder, "href", "/show/bgp/peer/"), "class")), "selected")
@@ -99,10 +106,14 @@ func TestWebFinderHandlerBehavior(t *testing.T) {
 								nextContext = "bgp/peer/" + key
 							}
 						}
-						add := finderElement(t, detail, "id", "btn-add-entry")
-						assert.Equal(t, "/config/add-form/bgp/peer/", finderAttr(add, "hx-get"))
-						assert.Equal(t, "body", finderAttr(add, "hx-target"))
-						assert.Equal(t, "beforeend", finderAttr(add, "hx-swap"))
+						if readOnly {
+							assert.Empty(t, finderElements(detail, "id", "btn-add-entry"))
+						} else {
+							add := finderElement(t, detail, "id", "btn-add-entry")
+							assert.Equal(t, "/config/add-form/bgp/peer/", finderAttr(add, "hx-get"))
+							assert.Equal(t, "body", finderAttr(add, "hx-target"))
+							assert.Equal(t, "beforeend", finderAttr(add, "hx-swap"))
+						}
 					}
 
 					// Follow the rendered action, then reload the pushed URL. No

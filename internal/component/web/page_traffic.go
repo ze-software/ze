@@ -82,7 +82,7 @@ func buildTrafficRows(infos []iface.InterfaceInfo) []WorkbenchTableRow {
 	for _, tr := range tRows {
 		rows = append(rows, WorkbenchTableRow{
 			Key:   tr.Interface,
-			URL:   "/show/iface/detail/" + tr.Interface,
+			URL:   ifaceDetailURL(tr.Interface),
 			Cells: trafficCells(tr),
 		})
 	}

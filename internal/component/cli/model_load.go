@@ -19,6 +19,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const loadSourceTerminal = "terminal"
+
 var (
 	errTimeoutMustBeAtLeast1           = errors.New("timeout must be at least 1 second")
 	errTimeoutMustBeAtMost3600         = errors.New("timeout must be at most 3600 seconds (1 hour)")
@@ -264,7 +266,7 @@ func parseLoadArgs(args []string) (source, location, action, path string, err er
 	}
 
 	source = args[0]
-	if source != "file" && source != "terminal" {
+	if source != "file" && source != loadSourceTerminal {
 		return "", "", "", "", fmt.Errorf("invalid source %q (must be file|terminal). %s", source, usage)
 	}
 
@@ -305,7 +307,7 @@ func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
 	}
 
 	// Terminal source enters paste mode
-	if source == "terminal" {
+	if source == loadSourceTerminal {
 		return commandResult{
 			statusMessage:     "[Paste mode - Ctrl-D to finish]",
 			enterPasteMode:    true,

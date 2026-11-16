@@ -4,8 +4,6 @@
 package web
 
 import (
-	"strings"
-
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -135,18 +133,34 @@ func configSetURL(path string) string {
 	return tb.Str("/config/set/").Str(path).String()
 }
 
-// fieldInputIDEscaper makes a config path usable as a DOM id. It keeps every
-// character, so no two paths can arrive at one id.
-//
-// A path segment holds [a-zA-Z0-9._:-] and nothing else (isYANGIdentChar,
-// handler.go). A VLAN interface is keyed eth0.100 and a peer can be keyed by an
-// address, so a raw path carries a dot or a colon. Each one ends a CSS id
-// selector, and the vendored htmx 2.0.4 calls CSS.escape nowhere.
-//
-// A literal dash doubles here, so a single dash always begins a marker. The
-// mapping therefore reverses, and no two paths collapse onto one id. A shared
-// id would send the caret to another row's field.
-var fieldInputIDEscaper = strings.NewReplacer("-", "--", "/", "-s", ".", "-d", ":", "-c")
+// escapeFieldID preserves legacy safe-name IDs and escapes every other byte.
+// Literal dashes double, so marker sequences cannot collide with key text.
+func escapeFieldID(path string) string {
+	const hex = "0123456789abcdef"
+	var escaped textbuf.Buffer
+	for i := range len(path) {
+		ch := path[i]
+		switch ch {
+		case '-':
+			escaped.Str("--")
+		case '/':
+			escaped.Str("-s")
+		case '.':
+			escaped.Str("-d")
+		case ':':
+			escaped.Str("-c")
+		default:
+			if ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '_' {
+				escaped.Byte(ch)
+			} else {
+				escaped.Str("-x")
+				escaped.Byte(hex[ch>>4])
+				escaped.Byte(hex[ch&15])
+			}
+		}
+	}
+	return escaped.String()
+}
 
 // fieldInputID is the DOM id of one leaf editor.
 //
@@ -162,7 +176,7 @@ func fieldInputID(path, leaf string) string {
 
 	qualified := tb.Str(path).Byte('/').Str(leaf).String()
 
-	return tb.Reset().Str("input-").Str(fieldInputIDEscaper.Replace(qualified)).String()
+	return tb.Reset().Str("input-").Str(escapeFieldID(qualified)).String()
 }
 
 // fieldDescriptionID is the DOM id of one leaf's description.
@@ -181,7 +195,7 @@ func fieldDescriptionID(path, leaf string) string {
 
 	qualified := tb.Str(path).Byte('/').Str(leaf).String()
 
-	return tb.Reset().Str("describe-").Str(fieldInputIDEscaper.Replace(qualified)).String()
+	return tb.Reset().Str("describe-").Str(escapeFieldID(qualified)).String()
 }
 
 // fieldDescribedBy is the aria-describedby value for one leaf's editor, or the

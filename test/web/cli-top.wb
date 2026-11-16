@@ -1,10 +1,13 @@
-# Test: CLI bar exists on nested pages
-# VALIDATES: CLI input bar renders on non-root pages
-# PREVENTS: CLI bar missing on deep navigation pages
+# Test: nested YANG pages expose the dedicated CLI mode
+# VALIDATES: a BGP leaf editor and CLI link remain usable from deep graphical navigation
+# PREVENTS: deep navigation stranding operators without command access
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-expect=element:id=cli-input
-expect=element:text=Router ID
+expect=element:id=input-bgp-srouter--id
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input

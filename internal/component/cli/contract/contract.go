@@ -120,9 +120,13 @@ const (
 )
 
 // PendingChange is the unified pending-change view used by web diff/count UI.
+// The editor MUST encode Path, OldPath and NewPath with the configuration path
+// quote codec. Consumers MUST decode that codec before using token boundaries.
 // Member is set for leaf-list member operations (one member added, removed,
 // deactivated, or activated).
 type PendingChange struct {
+	// User is the exact metadata owner. Adapters MUST preserve it for audit selection.
+	User     string
 	Kind     PendingChangeKind
 	Path     string
 	Previous string
@@ -138,11 +142,34 @@ type BackupInfo struct {
 	Timestamp string
 }
 
+// ConfigCommandRequest is one editor command supplied by a non-terminal
+// transport. Content is nil until a browser supplies a selected file or paste;
+// a filename in Line never grants access to the daemon's filesystem.
+type ConfigCommandRequest struct {
+	Line      string
+	Path      []string
+	Operator  []string
+	Content   *string
+	ShowHints bool
+}
+
+// ConfigCommandResult holds the same editor output and preferences the TUI
+// uses. Input is "file" or "terminal" when the transport must collect content.
+type ConfigCommandResult struct {
+	Path      []string
+	Navigated bool
+	Output    string
+	Feedback  string
+	Input     string
+	ShowHints bool
+}
+
 // Editor provides config editing operations for the web UI.
 // Implemented by cli.Editor; consumed by web's EditorManager.
 // Every command the SSH CLI supports must be callable through this interface
 // so both CLIs share the same code path.
 type Editor interface {
+	ExecuteConfigCommand(ConfigCommandRequest) (ConfigCommandResult, error)
 	SetSession(s EditSession)
 	SessionID() string
 	CreateEntry(path []string) error

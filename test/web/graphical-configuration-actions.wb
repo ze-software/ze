@@ -1,0 +1,110 @@
+# Test: graphical configuration actions share the editor and daemon window
+# VALIDATES: copy/rename, activation, validation, drafts, stable history restore,
+# and confirmed commit acceptance/abort without an SSH connection
+# PREVENTS: buttons that report success without changing the candidate, a second
+# graphical transaction implementation, or restoration that publishes immediately
+
+option=timeout:value=120s
+option=server:kind=daemon
+option=env:var=ze.web.ui-mode:value=finder
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp group actions-source description original
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/show/bgp/group/actions-source/
+action=click:id=graphical-actions-toggle
+action=fill:id=graphical-entry-target:value=actions-copy
+action=click:id=graphical-copy
+action=wait
+expect=html:contains=actions-copy
+action=open:path=/show/bgp/group/actions-copy/
+expect=html:contains=value="original"
+action=click:id=graphical-actions-toggle
+action=fill:id=graphical-entry-target:value=actions-final
+action=click:id=graphical-rename
+action=wait
+expect=html:contains=actions-final
+action=open:path=/show/bgp/group/actions-final/
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-validate
+action=wait
+expect=element:text=candidate is valid
+action=click:id=graphical-save-draft
+action=wait
+expect=element:id=graphical-action-result
+action=click:id=graphical-deactivate
+action=wait
+expect=element:text=Inactive
+action=click:id=graphical-activate
+action=wait
+expect=element:text=Active
+action=click:id=graphical-commit-options
+action=click:id=graphical-commit-confirmed
+action=wait
+expect=element:id=graphical-confirm-status
+action=click:id=graphical-commit-abort
+action=wait
+expect=element:text=rolled back
+action=open:path=/show/bgp/group/
+expect=html:not-contains=actions-final
+expect=html:contains=actions-source
+
+action=open:path=/show/bgp/group/actions-source/
+action=fill:id=input-bgp-sgroup-sactions--source-sdescription:value=accepted
+action=press:id=input-bgp-sgroup-sactions--source-sdescription:key=Enter
+action=wait
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-commit-options
+action=click:id=graphical-commit-confirmed
+action=wait
+expect=element:id=graphical-confirm-status
+action=click:id=graphical-commit-accept
+action=wait
+expect=element:text=accepted
+action=open:path=/show/bgp/group/actions-source/
+expect=html:contains=value="accepted"
+
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-history
+action=wait
+expect=element:id=graphical-revisions
+# Stored daemon history includes the active version. Round-trip that row first:
+# a restore button selects its actual version key, not an assumed prior state.
+action=click:id=graphical-restore-1
+action=wait
+action=open:path=/show/bgp/group/actions-source/
+expect=html:contains=value="accepted"
+# The preceding version is the original configuration restored by abort before
+# the accepted edit was staged. Restore it without publishing the candidate.
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-history
+expect=element:id=graphical-restore-2
+action=click:id=graphical-restore-2
+action=wait
+action=open:path=/show/bgp/group/actions-source/
+expect=html:contains=value="original"
+action=open:path=/cli
+action=fill:id=terminal-input:value=show confirmed bgp group actions-source
+action=press:id=terminal-input:key=Enter
+expect=element:text=description accepted
+action=open:path=/show/bgp/group/actions-source/
+expect=html:contains=value="original"
+action=click:id=commit-discard-btn
+action=wait
+action=open:path=/show/bgp/group/actions-source/
+expect=html:contains=value="accepted"

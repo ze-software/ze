@@ -21,6 +21,12 @@ import (
 // is recorded: member operations are idempotent and skip stale-conflict
 // detection.
 func (e *Editor) writeThroughSetMember(path []string, key, member string) error {
+	if e.sessionSetsWholeLeaf(path, key) {
+		return e.rewriteWholeLeaf(path, key, func(tree *config.Tree) error {
+			tree.AddMultiValueMember(key, member)
+			return nil
+		})
+	}
 	guard, err := e.draftLock()
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
@@ -244,9 +250,18 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 	guard.SetModifier(e.session.ID)
 
-	// Apply to the in-memory tree first so user errors (missing member,
-	// missing reference, already deactivated) surface before recording.
-	target := walkPath(e.tree, e.schema, path)
+	// Stage validation and the operation together. Insertion may create its
+	// schema-validated parent; a refused reference or failed write MUST leave
+	// the published tree unchanged.
+	staged := e.tree.Clone()
+	target := walkPath(staged, e.schema, path)
+	createdParent := target == nil && opType == config.StructuralOpInsertMember
+	if createdParent {
+		target, err = e.walkOrCreateIn(staged, path)
+		if err != nil {
+			return err
+		}
+	}
 	if target == nil {
 		return errPathNotFound
 	}
@@ -276,6 +291,17 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 	if err != nil {
 		return err
 	}
+	if createdParent {
+		if _, err := e.walkOrCreateIn(changeTree, path); err != nil {
+			return err
+		}
+		// Replay needs the same parent before it can apply the member operation.
+		changeOps = append(changeOps, config.StructuralOp{
+			Type: config.StructuralOpCreateEntry,
+			User: e.session.User, Source: e.session.Origin, Time: e.session.StartTime,
+			ParentPath: path[:len(path)-1], ListName: path[len(path)-1],
+		})
+	}
 	if opType == config.StructuralOpInsertMember && e.isValueOrArrayLeaf(path, leafListName) {
 		changeOps = e.addedMembersAsInserts(changeTree, changeMeta, changeOps, path, leafListName)
 	}
@@ -295,6 +321,7 @@ func (e *Editor) writeThroughMemberOp(path []string, opType config.StructuralOpT
 		return err
 	}
 
+	e.tree = staged
 	e.dirty.Store(true)
 	e.draftSaved = false
 	return nil
@@ -399,6 +426,9 @@ func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []
 	})
 
 	dropEntry := func(entry config.MetaEntry) bool {
+		if e.isValueOrArrayLeaf(path, key) {
+			return true
+		}
 		return entry.Value != "" || slices.Contains(items, entry.Member)
 	}
 	removed := walkOrCreateMeta(changeMeta, e.schema, path).RemoveSessionMemberEntries(key, e.session.ID, dropEntry)
@@ -427,7 +457,7 @@ func (e *Editor) replaceSessionMembers(changeMeta *config.MetaTree, changeOps []
 // sessionSetsWholeLeaf reports whether this session holds a whole-leaf entry,
 // a `set` of the whole list, on the bracket leaf-list key under path.
 func (e *Editor) sessionSetsWholeLeaf(path []string, key string) bool {
-	if e.bracketLeafList(path, key) == nil {
+	if e.bracketLeafList(path, key) == nil && !e.isValueOrArrayLeaf(path, key) {
 		return false
 	}
 	meta := walkMetaReadOnly(e.meta, e.schema, path)

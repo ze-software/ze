@@ -2,6 +2,7 @@
 # VALIDATES: table Add buttons open real config-entry forms and save through config mutation
 # PREVENTS: /show/.../add links routing to dead pages
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=45s
 
 action=open:path=/show/bgp/group/

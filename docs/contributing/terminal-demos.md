@@ -118,6 +118,9 @@ retain reading pace; assertions, not those waits, establish each transition.
 The case deadline also bounds the real init and import children and daemon
 readiness. Each journey has a private store; inherited case/separator spellings
 of the config-root override are removed before assigning that private root.
+The journey's `option=env` settings also reach setup and daemon children, so a
+Workbench recording selects its experimental mode explicitly. A journey cannot
+replace the workspace's private config store through those settings.
 It retains the daemon's sole-reaper owner, not a numeric PID file. Cleanup sends
 the daemon TERM, escalates after the runner's existing ten-second grace, and
 joins it before removing the store.

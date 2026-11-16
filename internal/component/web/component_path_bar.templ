@@ -16,7 +16,7 @@ templ pathBarInner(v *FragmentData) {
 		<a
 			class="cli-path-seg"
 			href={ s.URL }
-			hx-get={ "/fragment/detail?path=" + s.HxPath }
+			hx-get={ fragmentURL(s.HxPath) }
 			hx-target="#content-area"
 			hx-swap="innerHTML"
 			hx-push-url={ s.URL }

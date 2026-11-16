@@ -1,25 +1,48 @@
-# Test: create ethernet interface and unit via CLI, commit, verify persists
-# VALIDATES: CLI creates interface with mac, unit and address saved, commit works
-# PREVENTS: interface not created, commit losing data
+# Test: create interface and unit through CLI mode, commit, verify
+# VALIDATES: interface MAC and address configuration persists through a successful commit
+# PREVENTS: interface creation or publication losing configured unit data
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=60s
 
 action=open:path=/show/
-action=wait:ms=1000
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=set interface ethernet iface-test mac address 00:aa:bb:cc:dd:01
-action=press:key=Enter
-action=wait:ms=1000
+# This web-only server validates and stores configuration without applying an
+# OS dataplane. Select the target backend explicitly instead of a host default.
+action=fill:id=terminal-input:value=set interface backend netlink
+action=press:id=terminal-input:key=Enter
+action=wait
 
-action=fill:id=cli-input:value=set interface ethernet iface-test unit 0 ipv4 address 192.0.2.2/30
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set interface ethernet iface-test mac address 00:aa:bb:cc:dd:01
+action=press:id=terminal-input:key=Enter
+action=wait
 
-action=fill:id=cli-input:value=commit now
-action=press:key=Enter
-action=wait:ms=2000
+action=fill:id=terminal-input:value=set interface ethernet iface-test unit 0 ipv4 address 192.0.2.2/30
+action=press:id=terminal-input:key=Enter
+action=wait
 
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/config/diff
+expect=element:text=Review changes (0)
+action=open:path=/show/interface/
+expect=element:id=input-interface-sbackend
+expect=html:contains=value="netlink"
 action=open:path=/show/interface/ethernet/
-action=wait:ms=1000
 expect=element:text=iface-test
+action=open:path=/cli
+expect=element:id=terminal-input
+
+action=fill:id=terminal-input:value=show interface ethernet iface-test
+action=press:id=terminal-input:key=Enter
+action=wait
+
+expect=element:text=00:aa:bb:cc:dd:01
+expect=element:text=192.0.2.2/30

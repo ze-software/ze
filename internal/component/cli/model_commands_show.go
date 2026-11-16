@@ -13,6 +13,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const noSavedDraft = "(no saved draft)"
+
 // cmdShow displays configuration content.
 // "show" renders the full tree; "show confirmed" shows committed config; "show saved" shows draft.
 func (m *Model) cmdShow(args []string) (commandResult, error) {
@@ -77,7 +79,7 @@ func (m *Model) cmdShowDisplayWithSource(format, compareTarget, source string) (
 	if source == srcSaved {
 		draft := m.editor.savedDraftContent()
 		if draft == "" {
-			return commandResult{output: "(no saved draft)"}, nil
+			return commandResult{output: noSavedDraft}, nil
 		}
 		return m.showAlternateSource(m.renderRawSourceAtPath(draft, m.contextPath, format))
 	}
@@ -208,6 +210,11 @@ func (m *Model) showColumns() config.ShowColumns {
 // forceChanges: the markers ARE the output of compare, so they cannot depend on the
 // changes column the way a plain `show` does (setViewportData gates on it).
 func (m *Model) compareView(format, compareTarget, source string) (commandResult, error) {
+	if NormalizeCompareTarget(compareTarget) == srcSaved {
+		if m.editor.savedDraftContent() == "" {
+			return commandResult{output: noSavedDraft}, nil
+		}
+	}
 	baseline, err := m.resolveCompareBaselineTree(compareTarget)
 	if err != nil {
 		return commandResult{}, err
@@ -283,7 +290,7 @@ func (m *Model) sourceTree(source string) (*config.Tree, string) {
 	case srcSaved:
 		draft := m.editor.savedDraftContent()
 		if draft == "" {
-			return nil, "(no saved draft)"
+			return nil, noSavedDraft
 		}
 		return m.parseSourceTree(draft), ""
 	default:

@@ -82,6 +82,10 @@ type testEditorAdapter struct {
 	commitErr error // when set, CommitSession returns it (commit error-path tests)
 }
 
+func (a *testEditorAdapter) ExecuteConfigCommand(request contract.ConfigCommandRequest) (contract.ConfigCommandResult, error) {
+	return a.ed.ExecuteConfigCommand(request)
+}
+
 func (a *testEditorAdapter) SetSession(s contract.EditSession) {
 	a.ed.SetSession(cli.NewEditSession(s.User, s.Origin))
 }
@@ -183,6 +187,7 @@ func (a *testEditorAdapter) PendingChanges(sessionID string) []contract.PendingC
 	changes := make([]contract.PendingChange, len(entries))
 	for i, entry := range entries {
 		changes[i] = contract.PendingChange{
+			User:     entry.User,
 			Kind:     contract.PendingChangeKind(entry.Kind),
 			Path:     entry.Path,
 			Previous: entry.Previous,

@@ -213,7 +213,7 @@ func buildUsersTableData(users []userEntry) WorkbenchTableData {
 			Cells: []string{nameDisplay, profileStr, strconv.Itoa(u.KeyCount)},
 		}
 		if !u.System {
-			userURL := tb.Reset().Str("/show/system/authentication/user/").Str(u.Name).Byte('/').String()
+			userURL := tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{"system", "authentication", "user", u.Name})).Byte('/').String()
 			row.URL = userURL
 			row.Actions = []WorkbenchRowAction{
 				{Label: labelEdit, URL: userURL},
@@ -314,6 +314,8 @@ type hardwareSection struct {
 	Items []HardwareItem
 }
 
+const hardwareLinkDown = "down"
+
 // HardwareItem is one key-value pair in a hardware section.
 type HardwareItem struct {
 	Key      string
@@ -382,8 +384,8 @@ func buildHostHardwareData() []hardwareSection {
 				var bSpd textbuf.Buffer
 				speed = bSpd.Reset().Int(int64(nic.LinkSpeedMbps)).Str(" Mbps").String()
 			}
-			carrier := "down"
-			cssClass := "down"
+			carrier := hardwareLinkDown
+			cssClass := hardwareLinkDown
 			if nic.Carrier {
 				carrier = "up"
 				cssClass = "up"
@@ -524,7 +526,7 @@ func collectSysctlProfiles(tree *config.Tree) []sysctlProfileEntry {
 	if tree == nil {
 		return nil
 	}
-	sysctlTree := tree.GetContainer("sysctl")
+	sysctlTree := tree.GetContainer(segSysctl)
 	if sysctlTree == nil {
 		return nil
 	}
@@ -551,7 +553,7 @@ func buildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableD
 	rows := make([]WorkbenchTableRow, 0, len(profiles))
 	var tb textbuf.Buffer
 	for _, p := range profiles {
-		profileURL := tb.Reset().Str("/show/sysctl/profile/").Str(p.Name).Byte('/').String()
+		profileURL := tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segSysctl, "profile", p.Name})).Byte('/').String()
 		rows = append(rows, WorkbenchTableRow{
 			Key: p.Name,
 			URL: profileURL,

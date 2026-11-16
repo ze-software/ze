@@ -1,0 +1,87 @@
+# Test: graphical leaf-list rows add, order and remove members before commit
+# VALIDATES: the YANG editor changes a real BGP collection, reviews the candidate,
+# commits through the daemon and reads the stored members back with a sibling kept
+# PREVENTS: blank leaf-list panels, additive saves masquerading as replacement,
+# and a whole-parent replacement losing another setting
+
+option=timeout:value=90s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp peer wb-values connection remote ip 192.0.2.200
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp peer wb-values connection local ip auto
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp peer wb-values session asn remote 65002
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp peer wb-values session router-id 10.0.0.77
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/show/bgp/peer/wb-values/session/community/
+expect=html:contains=name="new-member"
+# Explicitly clear a selected value and prove a refused Add leaves this form
+# available for correction. Review the actual candidate without leaving it.
+action=select:id=collection-new-send:value=standard
+action=select:id=collection-new-send:value=
+action=click:id=collection-add-send
+expect=element:text=Choose or enter the new member's value.
+expect=element:id=collection-add-send
+# The refusal opens the error drawer. Close it before using the covered form.
+expect=html:contains=id="error-panel" class="error-panel">
+action=click:id=error-toggle
+expect=html:contains=id="error-panel" class="error-panel collapsed">
+expect=html:contains=data-count="1"
+# The same refusal also leaves a persistent toast above the form and modal.
+# Its visible x button precedes the collapsed drawer's x button in the page.
+expect=element:text=Error 400
+action=click:text=button "x"
+action=wait-html:contains=id="notification-area" class="notification-area"></div>
+expect=html:contains=data-count="1"
+expect=html:contains=Choose or enter the new member's value.
+action=click:id=graphical-actions-toggle
+action=click:text=Review changes
+expect=element:text=Review changes (0)
+action=click:text=Cancel
+expect=element:id=collection-add-send
+action=select:id=collection-new-send:value=standard
+action=click:id=collection-add-send
+action=wait
+expect=html:contains=<option value="standard" selected="">standard</option>
+action=select:id=collection-new-send:value=large
+action=click:id=collection-add-send
+action=wait
+expect=html:contains=<option value="large" selected="">large</option>
+action=click:id=collection-up-send-1
+action=wait
+action=click:id=collection-remove-send-1
+action=wait
+action=click:id=collection-save-send
+action=wait
+action=click:id=commit-review-btn
+expect=html:contains=diff-modal open
+expect=html:contains=large
+action=click:text=Confirm Commit
+action=wait
+action=wait-until:path=/config/diff:contains=Review changes (0)
+action=open:path=/show/bgp/peer/wb-values/session/community/
+expect=html:contains=<option value="large" selected="">large</option>
+action=open:path=/show/bgp/peer/wb-values/session/router-id/
+expect=html:contains=value="10.0.0.77"

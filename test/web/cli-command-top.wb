@@ -1,15 +1,37 @@
-# Test: CLI bar top command returns to root
-# VALIDATES: top verb resets context path to root
-# PREVENTS: top command not resetting context
+# Test: CLI top returns from a nested block to root
+# VALIDATES: top resets context and root show includes both configured root containers
+# PREVENTS: top retaining a nested context
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
-action=open:path=/show/bgp/local/
-expect=element:id=cli-input
+action=open:path=/show/bgp/session/asn/
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=top
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set environment daemon user root-nav
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=edit bgp session asn
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze[bgp session asn]#
+
+action=fill:id=terminal-input:value=top
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=ze#
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+action=wait
+
 expect=element:text=environment
 expect=element:text=bgp

@@ -59,6 +59,9 @@ type serviceDeps struct {
 	// -- so the always-on registry still names no service type. A service adapts
 	// it (rendering typed *plugin.Response at its edge via .JSON) internally.
 	Dispatch plugin.CommandDispatcher
+	// StreamDispatch serves registered live commands with the same trusted
+	// identity. A nil callback leaves the service's one-shot path available.
+	StreamDispatch plugin.CommandStreamDispatcher
 
 	// Looking-glass resolved binding (pilot). LGToken is a plain string (no lg
 	// import): empty leaves the looking glass open, which is its default

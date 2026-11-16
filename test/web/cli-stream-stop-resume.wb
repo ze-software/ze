@@ -1,0 +1,30 @@
+# Test: a browser CLI monitor can be stopped and another command can run
+# VALIDATES: real daemon stream reaches the page; Stop and Ctrl+C cancel it;
+# the command queue resumes with a finite operational answer afterwards.
+# PREVENTS: a browser-only monitoring dead end that requires SSH to escape.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=run monitor event
+action=press:id=terminal-input:key=Enter:wait=none
+expect=element:text=monitoring
+expect=element:text=all events
+action=click:id=cli-stop
+expect=element:text=Stopped
+
+action=fill:id=terminal-input:value=run show event namespaces
+action=press:id=terminal-input:key=Enter
+expect=element:text=namespace
+
+action=fill:id=terminal-input:value=run monitor event
+action=press:id=terminal-input:key=Enter:wait=none
+expect=element:text=all events
+action=press:id=terminal-input:key=Control+c:wait=none
+expect=element:text=Stopped
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=router-id

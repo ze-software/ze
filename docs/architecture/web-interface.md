@@ -1,6 +1,6 @@
 # Web Interface Architecture
 
-The ze web interface is an HTTPS server that renders YANG-driven configuration views using HTMX components. All UI is server-rendered, from typed Go components the templ generator compiles. HTMX handles navigation, auto-save, and error display via out-of-band swaps. The only JavaScript is `cli.js` for Tab/? autocomplete in the CLI bar.
+The ze web interface is an HTTPS server that renders YANG-driven configuration views using HTMX components. All UI is server-rendered, from typed Go components the templ generator compiles. HTMX handles navigation, auto-save, and error display via out-of-band swaps. `cli.js` handles browser command entry, completion, content loading and stream controls.
 
 For the component design, template filesystem, and interaction flows, see [web-components.md](web-components.md).
 
@@ -19,12 +19,13 @@ All source files in `internal/component/web/` reference this document via `// De
 | `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
 | `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `configViewComponent`, breadcrumbs |
 | `handler_admin.go` | Admin command tree navigation and execution. `HandleAdminView` takes a per-request tree source (`AdminCommandTree`). The hub's source, `adminCommandTrees` (`cmd/ze/hub/service_web.go`), answers for each request the YANG command tree (every builtin, local and local-data command under its YANG path) with the plugin commands the registry lists overlaid on a copy (`command.OverlayCommandPaths` of `VisibleCommandEntries()`, which asks the surface predicate `command.ListedOnDaemonSurfaces`), so a plugin command with no YANG node is offered, a hidden one is not, and a plugin that exits is gone on the next request; the shared tree is never written. The command still runs through the dispatcher with the caller's identity, and the route keeps its edit authorization, so an overlaid command is authorized exactly as a builtin is. The finder columns read the tree shape. The command form reads the two help texts of the node it shows: the `ze:help` summary as the lede, the `description` explanation as the body, and one text input for each argument the node declares, each carrying that leaf's two texts. `HandleAdminExecute` takes the same source: it builds the command from the URL path and the posted argument values the node declares (`commandArguments`), through `command.WriteInvocation`, the one declaration of argument placement the MCP tool call shares (`docs/architecture/mcp/overview.md`). A value whose `ArgDef.Anchor()` names a path keyword goes bare after that keyword, inside the path, which is where `anchoredDef` binds a peer selector; every other value is appended after the command as `name value`, in declaration order. An empty value is left out, so the dispatcher's own mandatory check names a missing argument. When the YANG loader fails at hub startup the tree is nil. The admin nav is then empty, and the failure is logged to stderr, rather than a stale static map taking its place. An empty admin nav tells the operator that the hub did not load its command modules. |
-| `cli.go` | CLI bar (integrated + terminal modes), tab completion |
+| `cli.go` | Legacy `POST /cli` response adapter and browser CLI completion; the adapter and dedicated CLI page share the terminal executor |
+| `cli_editor.go` | Adapts editor commands to the shared CLI model through `EditorManager.ConfigCommand` |
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
 | `render.go` | `Renderer`: embedded assets, decorators, and the entry points the hub calls (`RenderLayout`, `RenderLogin`, `RenderWorkbench`, `RenderField`, `RenderDiffModal`) |
 | `sse.go` | `EventBroker`, SSE client management (each client under its user), config change broadcast, `SendTo` one user |
 | `window_notices.go` | `WindowNotices`: one worker pushing each user the confirm window status and forced-commit discard notices the SSH status line shows |
-| `ui_mode.go` | `UIMode` selector for the workbench experiment (Phase 4 default flip pending) |
+| `ui_mode.go` | `UIMode` selector: graphical YANG editor by default, experimental Workbench by explicit selection |
 | `handler_workbench.go` | workbench shell handler; reuses fragment data path with workbench chrome |
 | `workbench_sections.go` | Left-nav section taxonomy (Dashboard/Routing/Logs/...) |
 | `workbench_enrich.go` | Promotes any named list to a workbench table; attaches per-row tools and pending markers |
@@ -81,7 +82,8 @@ Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `field
 /config/discard             Revert pending changes (POST)
 /cli                        CLI command execution (POST)
 /cli/complete?input=X       Tab/? autocomplete (GET, returns JSON)
-/cli/terminal               Terminal mode command (POST, returns plain text)
+/cli/terminal               Terminal mode command (POST, returns JSON)
+/cli/stream                 Terminal command, with streamed text for live commands and JSON for other commands (POST)
 /cli/mode                   Toggle CLI/GUI mode (POST)
 /admin/<yang-path>          Admin commands (GET browse, POST execute)
 /tools/related/run          workbench: execute a related operator tool (POST)
@@ -90,6 +92,16 @@ Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `field
 /                           Redirects to /show/
 ```
 
+YANG paths use one URL-escaped segment per schema token. A prefix key such as
+`192.0.2.0/24` is transported as `192.0.2.0%2F24`; the slash inside the key
+never becomes a hierarchy separator. Fragment query parameters and browser CLI
+context carry that same escaped path, with the usual query/form escaping around
+it. A literal `.` key uses the segment `~.` so browser dot-segment normalization
+cannot remove it; an initial `~` in a literal key is doubled. The server decodes
+each URI segment once and restores this carrier before schema validation and
+candidate editing. Labels and CLI commands continue to show the literal key.
+
+<!-- source: internal/component/web/path_transport.go -- encodeConfigPath, decodeConfigPath -->
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes -->
 
 ## Authentication
@@ -120,6 +132,24 @@ The `EditorManager` creates independent `cli.Editor` instances per authenticated
 
 Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `ApplyFormEdits`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`, `ReadTree`.
 
+Explicit discard-all also removes this user's persisted intent from an older
+browser session. Its audit detail selects the exact metadata owner and uses the
+same masked change renderer as the review; it does not infer ownership from a
+formatted session identifier or claim another user's changes were dropped.
+<!-- source: internal/component/web/editor.go -- discardDiff, diffChanges -->
+<!-- source: internal/component/web/handler_config_commit.go -- HandleConfigDiscardWithAuthorizerAndAudit -->
+<!-- source: internal/component/config/change_file.go -- PendingChangeFromSessionEntry, StructuralOp.PendingChange -->
+
+Authenticated Finder and Workbench requests open the user's current editor and
+read a tree snapshot under its session lock, including the first request and
+the first request after discard. They refuse a configuration-read failure rather
+than displaying the older startup tree. Explicit discard removes the user's
+persisted changes through the shared session discard producer before ending the
+cached editor. Idle eviction preserves those persisted changes.
+<!-- source: internal/component/web/editor.go -- viewTree, Discard, evictInactive -->
+<!-- source: internal/component/web/fragment.go -- HandleFragment -->
+<!-- source: internal/component/web/handler_workbench.go -- HandleWorkbench -->
+
 A workbench form save (`/config/form/`) is one edit: `ApplyFormEdits` holds the per-user mutex across every field the form posts, so the review diff and a commit see the whole save or none of it, and two overlapping saves never leave one save's value beside the other's. The fields apply in path order (`parseConfigFormFields` sorts them). A field the editor refuses stops the save there, and the fields sorted before it stay applied, because the editor holds no rollback.
 
 <!-- source: internal/component/web/editor.go -- ApplyFormEdits -->
@@ -129,12 +159,16 @@ A workbench form save (`/config/form/`) is one edit: `ApplyFormEdits` holds the 
 server answers every logged-in user from one process, so one value built at
 start and shared by every request (the config completer the hub creates once)
 holds only what never changes per user: the schema and the validator registry.
-Each request passes its own input into the call. CLI bar completion
+Each request passes its own input into the call. Browser CLI completion
 (`/cli/complete`) reads the user's candidate tree through `ReadTree`, which runs
 the completion under that user's session mutex, and hands the tree to
 `Completer.Complete` as an argument; the completer keeps no tree between calls.
 Two users completing at once therefore each see only their own uncommitted
 entries.
+
+Each browser command input owns its completion cache and selected candidate.
+The shared menu renderer does not hold that state. Enter accepts the visibly
+highlighted candidate without executing it; a later Enter submits the command.
 
 <!-- source: internal/component/web/cli.go -- completeCLIInput -->
 <!-- source: internal/component/web/editor.go -- ReadTree -->
@@ -150,7 +184,7 @@ An explicit-file daemon keeps that file authoritative: publication checks for ex
 Configuration downloads read the daemon's selected source, including external edits to an explicit file. Uploads use the same daemon-owned publication callback and report conflict or reload failures without replacing the committed configuration. Standalone managers stage uploads as candidates and promote them only after acceptance.
 <!-- source: internal/component/web/editor.go -- SetConfigSource, committedConfig, applyCommittedContent -->
 
-The terminal and the CLI bar parse `commit` with the grammar every editor
+The terminal and the legacy `POST /cli` adapter parse `commit` with the grammar every editor
 shares (`contract.ParseCommit`). `commit now`, `commit confirmed`,
 `commit accept` and `commit abort` run through `cli.WindowCommit`, the code the
 SSH session editor runs, against the daemon's confirmed-commit window that the
@@ -159,6 +193,61 @@ user's view and applies nothing. With no daemon window (`--web-only`),
 `commit now` applies directly and the window subcommands are refused.
 <!-- source: internal/component/web/editor_commit_window.go -- SetConfirmWindow, runCommit, verifyCommit -->
 <!-- source: cmd/ze/hub/service_web.go -- SetConfirmWindow -->
+
+The dedicated CLI page and the legacy `POST /cli` adapter execute through
+`executeTerminalCommand`. The page layout renders no integrated command bar.
+The retained adapter answers HTMX requests, while the CLI page reads a JSON
+envelope and offers the browser content picker when a load needs local input. Configuration commands other than
+commit and discard call `Editor.ExecuteConfigCommand`, which uses the existing
+CLI model's command producers. This includes `show` sources and pipes, ordered
+leaf-list insertion, list-aware navigation, display options, session visibility
+and rollback. Commit and discard keep the web manager's daemon publication and
+confirmed-commit coordination. Operational commands use the authenticated
+caller's daemon dispatcher; no SSH connection is opened.
+
+The operational `set cli format` command and its completion are produced by
+the same CLI functions as SSH. The browser stores only the validated override
+in the authenticated user's existing editor session, under its session lock.
+An empty override inherits the configured default; reading or changing a
+session preference never writes the process environment. Finite operational
+answers, including config-mode `run`, pass the override into the existing pipe
+processor, where an explicit format pipe takes precedence. Raw streaming
+handlers keep their existing text and pipe policy.
+
+<!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
+<!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
+
+<!-- source: internal/component/web/cli.go -- dispatchCLICommand -->
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalCommand, executeTerminalConfigMode, executeTerminalOperational -->
+<!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
+<!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
+
+`load terminal absolute|relative merge|replace` opens a paste editor. A `load
+file` command opens a browser file chooser: the filename is a label, never
+permission to read a file on the daemon. The selected or pasted bytes are posted
+as `content`; parsing and candidate merge/replace use `Model.applyLoad` and the
+editor's atomic load implementation. Loading changes the candidate and still
+requires commit. Content is limited to 4 MiB. Display preferences stay with the
+authenticated user's editor. The browser queues commands so each line uses the
+position returned by the previous line, and a quoted `?` stays part of its value.
+
+<!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
+<!-- source: internal/component/cli/model_load.go -- applyLoad -->
+<!-- source: internal/component/web/editor.go -- ConfigCommand -->
+
+The dedicated browser CLI submits through `/cli/stream`. A registered monitor
+streams flushed text from the daemon's existing streaming handler; ordinary
+commands retain the terminal's JSON response. Authentication, the accepted
+authorization policy and command accounting carry through to the producer.
+Stop, Ctrl+C, a new submitted command or a disconnected browser cancel the
+request and release the monitor subscription. A daemon stop cancels it too.
+The server sends at most 4 MiB per stream; the browser retains at most 1 MiB of
+visible output and marks removed older output. A failed producer reports its
+reason, and live pipe filters are refused instead of being ignored.
+
+<!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
+<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 
 ## YANG Schema Integration
 
@@ -173,6 +262,9 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 | `LeafNode` type `TypeIP/IPv4/IPv6` | Text input with pattern validation |
 | `LeafNode` type `TypeString` with `Enums` | Select dropdown |
 | `LeafNode` type `TypeString` | Text input |
+| `MultiLeafNode`, `BracketLeafListNode`, `ValueOrArrayNode` | Member rows with text inputs or schema enum selectors; add, remove, reorder, save and clear actions |
+| `FreeformNode` | Entry name and value rows with add, remove, save and clear actions |
+| `InlineListNode` | Keyed entry navigation, a typed add form and the entry's schema-backed fields |
 | `LeafNode.ShortHelp` | Three renderings of one string. The (i) tooltip on hover, on the field label and the sidebar heading. The `title=` attribute of the label and the input. The placeholder of an input whose leaf is unset and has no default (`fieldPlaceholder`, `view.go`). On the workbench editor it is also the editor's `aria-describedby` target, which is the tooltip element itself (`fieldDescriptionID`, `view.go`) |
 | `ContainerNode.ShortHelp` | (i) tooltip on sidebar heading |
 | `ListNode.ShortHelp` | (i) tooltip on sidebar heading |
@@ -192,6 +284,17 @@ and help; other member types are named in words.
 <!-- source: internal/component/web/handler_config_leaf.go -- buildLeafField -->
 <!-- source: internal/component/web/handler_config_walk.go -- buildConfigViewData -->
 <!-- source: internal/component/web/view.go -- fieldPlaceholder -->
+
+The live Finder detail path handles every node above, including a direct leaf
+URL, which reads its current candidate value. Collection saves use the shared
+editor's atomic load replacement under the user's session lock. Invalid enum,
+range, length or pattern values refuse the save; repeated members are accepted
+only for a multi-word value or a schema-declared sequence. Leaf-list inactive
+member markers follow the rows when reordered. A multi-word leaf supports only
+whole-setting activation through Configuration actions. Stored secret scalar
+values still pass through `maskSecretLeaf` before reaching an input.
+<!-- source: internal/component/web/fragment.go -- buildFragmentData, populateFragmentFields -->
+<!-- source: internal/component/web/handler_graphical_values.go -- validateGraphicalValues, replaceGraphicalValues -->
 
 ## TLS
 
@@ -231,7 +334,7 @@ header above is unchanged by it, and Ze sends no `Server` header.
 |--------|---------|
 | CLI flag | `ze start --web <port>` |
 | Config | `environment { web { enabled true; server main { ip 0.0.0.0; port 3443; } } }` |
-| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui-mode=finder` (rollback to legacy Finder) |
+| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui-mode=workbench` (explicit experimental Workbench selection) |
 
 Configured and web-only startup call `startWebServer` in
 `cmd/ze/hub/service_web.go`. Web-only mode starts the server without a BGP
@@ -254,9 +357,20 @@ graceful test times the stop against the 3 s deadline.
 <!-- source: cmd/ze/hub/service_web.go -- runWebOnly, forceExitOnSignal -->
 <!-- source: internal/test/fixture/web_interrupt_fixture.go -- webInterrupt, webInterruptHold -->
 
-## Workbench UI (default)
+## Web modes
 
-The RouterOS-style operator workbench is the default UI. Set `ze.web.ui-mode=finder` to roll back to the legacy Finder shell.
+The graphical YANG editor is the default UI, internally named `finder`. It
+provides schema navigation and graphical configuration controls. The top bar
+offers **YANG editor**, **CLI** and **Workbench (experimental)**. CLI opens the
+authenticated browser terminal at `/cli`, without requiring SSH access.
+
+The unfinished RouterOS-style Workbench is an explicit alternative. Select it
+in the top bar or set `ze.web.ui-mode=workbench` before startup. Set
+`ze.web.ui-mode=finder` to select the YANG editor explicitly. An empty or unknown
+mode selects the YANG editor. The current `ze-ui-mode` switch cookie preserves
+an operator's explicit selection; the retired `ze-ui` cookie is ignored.
+
+### Experimental Workbench layout
 
 | Region | Source |
 |--------|--------|

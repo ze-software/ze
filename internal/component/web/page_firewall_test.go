@@ -801,6 +801,20 @@ func TestFirewallSetsRowActions(t *testing.T) {
 
 // --- Connections page tests ---
 
+// TestFirewallConnectionsUnavailableDoesNotClaimEmpty pins the distinction
+// between missing tuple data and an observed empty connection table.
+func TestFirewallConnectionsUnavailableDoesNotClaimEmpty(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	data := buildFirewallConnectionsTableData()
+	assert.Contains(t, data.EmptyMessage, "unavailable")
+	assert.NotContains(t, data.EmptyMessage, "No active connections")
+	assert.Contains(t, data.EmptyHint, "show system conntrack")
+	html := string(renderer.renderComponent("connections", workbenchTable(data)))
+	assert.Contains(t, html, `href="/cli"`)
+	assert.Contains(t, html, "Open CLI")
+}
+
 func TestFirewallConnectionsRendersTable(t *testing.T) {
 	data := buildFirewallConnectionsTableData()
 	assert.Equal(t, "Firewall Connections", data.Title)

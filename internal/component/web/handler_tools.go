@@ -119,12 +119,9 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		}
 
 		rawCtxPath := strings.Trim(r.PostFormValue("context_path"), "/")
-		var contextPath []string
-		if rawCtxPath != "" {
-			contextPath = strings.Split(rawCtxPath, "/")
-		}
-		if err := ValidatePathSegments(contextPath); err != nil {
-			renderToolError(w, renderer, "invalid context path: "+err.Error(), http.StatusBadRequest)
+		contextPath, pathErr := decodeConfigPath(rawCtxPath)
+		if pathErr != nil {
+			renderToolError(w, renderer, "invalid context path: "+pathErr.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -144,7 +141,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 				State:         ToolOverlayConfirm,
 				Title:         tool.Label,
 				ToolID:        toolID,
-				ContextPath:   textbuf.Join(contextPath, "/"),
+				ContextPath:   encodeConfigPath(contextPath),
 				ConfirmPrompt: tool.Confirm,
 			}
 			renderToolOverlay(w, renderer, data, http.StatusOK)
@@ -204,7 +201,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 			Title:       tool.Label,
 			Command:     res.Command,
 			ToolID:      toolID,
-			ContextPath: textbuf.Join(contextPath, "/"),
+			ContextPath: encodeConfigPath(contextPath),
 			Truncated:   truncated,
 		}
 		assignOverlayBody(&data, cleaned)
@@ -250,7 +247,7 @@ func errorOverlay(toolID string, contextPath []string, tool *config.RelatedTool,
 		State:        ToolOverlayError,
 		Title:        title,
 		ToolID:       toolID,
-		ContextPath:  textbuf.Join(contextPath, "/"),
+		ContextPath:  encodeConfigPath(contextPath),
 		ErrorMessage: msg,
 	}
 }
@@ -310,48 +307,10 @@ func renderToolError(w http.ResponseWriter, renderer *Renderer, msg string, stat
 
 // overlayID builds a stable, DOM-safe id for one overlay instance. The id
 // embeds the tool id and the row's context-path segments so multiple
-// overlays for the same tool but different rows do not collide. Output is
-// restricted to `[a-zA-Z0-9_-]` -- enough to disambiguate the inputs the
-// resolver actually accepts (YANG identifier characters), and narrow
-// enough that the test contract (`isOverlayIDChar`) matches the
-// implementation 1:1.
+// overlays for the same tool and context use one CSS-safe, reversible token
+// encoding. Punctuation and segment boundaries cannot collapse onto one id.
 func overlayID(toolID string, contextPath []string) string {
-	parts := make([]string, 0, 2+len(contextPath))
-	parts = append(parts, "overlay", asciiSafeID(toolID))
-	for _, seg := range contextPath {
-		parts = append(parts, asciiSafeID(seg))
-	}
-	return textbuf.Join(parts, "-")
-}
-
-// asciiSafeID returns s with each non-ASCII-alphanumeric, non-`-`, non-`_`
-// rune replaced by `-`. Acts as the single point of truth for DOM-id
-// safety; tests assert against the same character class.
-//
-// Collision safety: distinct inputs can collapse to the same id when one
-// uses `/` (replaced with `-`) and the other has a literal `-` at the
-// same position. Tool ids are restricted to `[a-zA-Z0-9_-]` by the
-// `ze:related` parser and context-path segments are restricted to YANG
-// identifier characters by `ValidatePathSegments`, so `/` never appears
-// inside a segment and the only `-` survivors come from inputs that
-// already contained a `-`. Distinct overlay-id inputs therefore produce
-// distinct overlay ids in practice; if a future input domain loosens
-// the character set, revisit this contract.
-func asciiSafeID(s string) string {
-	var b textbuf.Buffer
-	b.Grow(len(s))
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z',
-			r >= 'A' && r <= 'Z',
-			r >= '0' && r <= '9',
-			r == '-' || r == '_':
-			b.WriteRune(r)
-		default:
-			b.Byte('-')
-		}
-	}
-	return b.String()
+	return "overlay-" + escapeFieldID(toolID+"/"+encodeConfigPath(contextPath))
 }
 
 // assignOverlayBody splits cleaned output into the inline preview and the

@@ -46,7 +46,7 @@ func runParsedWebConfigJourney(journey *webtesting.WBTestCase, record bool) (err
 		return err
 	}
 	defer cancel()
-	workspace, err := newWebConfigWorkspace(ctx)
+	workspace, err := newWebConfigWorkspace(ctx, journey.Env...)
 	if err != nil {
 		return err
 	}

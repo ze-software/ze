@@ -69,7 +69,7 @@ func TestAdminCommandShowsTheWarning(t *testing.T) {
 // VALIDATES: the terminal prints the warning lines, then the answer.
 // PREVENTS: the web terminal dropping a warning the SSH session shows.
 func TestTerminalOperationalShowsTheWarning(t *testing.T) {
-	output, rendered := executeTerminalOperational(t.Context(), warningDispatcher(), "admin", "127.0.0.1:1", "show config dump | json compact")
+	output, rendered := executeTerminalOperational(t.Context(), warningDispatcher(), "admin", "127.0.0.1:1", "show config dump | json compact", "")
 	require.NotNil(t, rendered)
 	assert.Equal(t, "warning: first line\nwarning: second line\n{\"answer\":\"kept\"}", strings.TrimRight(output, "\n"))
 }

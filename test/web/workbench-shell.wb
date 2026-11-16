@@ -1,7 +1,8 @@
-# Test: default Web UI renders Workbench shell without bottom CLI
-# VALIDATES: /show/ opens the operator workbench with top navigation and workspace
-# PREVENTS: Finder fallback or CLI footer leaking onto normal pages
+# Test: an explicit Workbench selection renders its shell without bottom CLI
+# VALIDATES: /show/ retains the experimental Workbench with navigation and workspace
+# PREVENTS: changing the default from removing the alternative interface
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 
 action=open:path=/show/
@@ -13,7 +14,7 @@ expect=element:text=Dashboard
 expect=element:text=Interfaces
 expect=element:text=Routing
 expect=element:text=CLI
-expect=element:text=Finder
+expect=element:text=YANG editor
 expect=element:not-id=cli-bar
 expect=element:not-id=cli-input
 expect=element:not-text=Workbench requires a viewport

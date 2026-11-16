@@ -14,18 +14,36 @@ package web
 
 // cliPage is the CLI the workbench shows inside its content area.
 templ cliPage(v cliPageData) {
-	<div class="cli-page">
+	<div class="cli-page" data-initial-command={ v.InitialCommand }>
 		<div class="cli-output" id="cli-output"></div>
 		<div class="cli-messages" id="cli-messages">
 			<div class="cli-feedback" id="cli-feedback"></div>
 			<div class="cli-hint" id="cli-hint">Tab/?: complete, Enter: execute</div>
 		</div>
+		@cliLoadPanel()
 		<div class="cli-input-line">
 			<span class="terminal-prompt" id="terminal-prompt">{ v.Prompt }</span><input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false" name="command">
+			<button type="button" id="cli-stop" hidden>Stop</button>
 			<div class="terminal-completions is-hidden" id="terminal-completions"></div>
 		</div>
-		<span id="cli-context-path" class="is-hidden"></span><span id="cli-mode" class="is-hidden">{ v.Mode }</span>
+		<span id="cli-context-path" class="is-hidden">{ v.ContextPath }</span><span id="cli-mode" class="is-hidden">{ v.Mode }</span>
 	</div>
+}
+
+// cliLoadPanel is shared by file and pasted-content loading. JavaScript only
+// selects the visible control and sends its value; the markup lives here.
+templ cliLoadPanel() {
+	<form class="cli-load" id="cli-load-panel" hidden>
+		<label id="cli-load-text-label" for="cli-load-text">Paste configuration</label>
+		<textarea id="cli-load-text" rows="12" spellcheck="false"></textarea>
+		<label id="cli-load-file-label" for="cli-load-file" hidden>Choose configuration file</label>
+		<input id="cli-load-file" type="file" hidden disabled>
+		<p>Loading changes your candidate. Review and commit it to apply the configuration.</p>
+		<div class="cli-load-actions">
+			<button type="submit" id="cli-load-apply">Load candidate</button>
+			<button type="button" id="cli-load-cancel">Cancel</button>
+		</div>
+	</form>
 }
 
 // terminalContent is the terminal shell. Its input posts each line to
@@ -77,7 +95,7 @@ templ cliShowResponse(v cliShowData) {
 // Splitting them into components did not help, so the line is the fix.
 templ configViewBody(v *ConfigViewData) {
 	if v != nil {
-		@configChildList(v.Children)@configKeyList(v.Path, v.Keys)@configLeafTable(v.LeafFields)
+		@configChildList(v.Children)@configKeyList(v.KeyLinks)@configLeafTable(v.LeafFields)
 	}
 }
 
@@ -93,11 +111,11 @@ templ configChildList(children []ChildEntry) {
 }
 
 // configKeyList links each entry of the list at path.
-templ configKeyList(path []string, keys []string) {
-	if len(keys) > 0 {
+templ configKeyList(links []ChildEntry) {
+	if len(links) > 0 {
 		<ul class="config-keys">
-			for _, key := range keys {
-				<li><a href={ configKeyURL(path, key) }>{ key }</a></li>
+			for _, link := range links {
+				<li><a href={ link.URL }>{ link.Name }</a></li>
 			}
 		</ul>
 	}

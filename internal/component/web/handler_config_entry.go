@@ -66,17 +66,23 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		}
 
 		path := parsed.Path
+		if node, nodeErr := walkSchema(schema, path); nodeErr == nil {
+			if inline, ok := node.(*config.InlineListNode); ok {
+				handleInlineListAdd(w, r, mgr, schema, username, path, inline)
+				return
+			}
+		}
 
 		// Accept entry key from "name" form field (HTMX form) or URL path (JS).
 		// The first key value keeps its case, as the CLI's `set` stores it. For
 		// a multi-leaf key the address goes on with each other key leaf the
 		// form posted, as `name value` (`fe80::b interface zbl1`).
-		if name := strings.TrimSpace(r.FormValue("name")); name != "" {
+		if name := r.FormValue("name"); name != "" {
 			listNode, isList := findListNode(schema, path)
 			path = append(path, name)
 			if isList && listNode.HasMultiLeafKey() {
 				for _, leaf := range listNode.KeyLeafNames()[1:] {
-					if value := strings.TrimSpace(r.FormValue("field:" + leaf)); value != "" {
+					if value := r.FormValue("field:" + leaf); value != "" {
 						path = append(path, leaf, value)
 					}
 				}
@@ -92,7 +98,13 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		// The path ends at the entry's address, read by the codec's one rule.
 		target, atEntry, addrErr := config.WalkListEntryPath(schema, path)
 		if addrErr != nil {
-			http.Error(w, addrErr.Error(), http.StatusBadRequest)
+			var refusal *opererr.Error
+			if existing, ok := errors.AsType[*opererr.Error](addrErr); ok {
+				refusal = existing
+			} else {
+				refusal = opererr.Wrap(addrErr, "The new entry has no valid list address.", "Ze could not identify the list and all of its key fields; no entry was added.", "Open the list, press Add entry and fill in every key field")
+			}
+			http.Error(w, refusal.Error(), http.StatusBadRequest)
 			return
 		}
 		if !atEntry || target.End != len(path) {
@@ -242,7 +254,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			if r.FormValue("_workbench") == "1" {
 				var tb textbuf.Buffer
-				target := tb.Str(showPathPrefix).Join(listPath, "/").Byte('/').String()
+				target := tb.Str(showPathPrefix).Str(encodeConfigPath(listPath)).Byte('/').String()
 				w.Header().Set("HX-Redirect", target)
 				w.WriteHeader(http.StatusOK)
 				return
@@ -250,7 +262,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			// Keyless lists: redirect to the new entry so the page reloads with it.
 			if ln, ok := listNode.(*config.ListNode); ok && ln.KeyName == "" {
 				var tb textbuf.Buffer
-				target := tb.Str(showPathPrefix).Join(path, "/").Byte('/').String()
+				target := tb.Str(showPathPrefix).Str(encodeConfigPath(path)).Byte('/').String()
 				w.Header().Set("HX-Redirect", target)
 				w.WriteHeader(http.StatusOK)
 				return
@@ -262,7 +274,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			// table to swap: reload the list view instead.
 			if data.ListTable == nil {
 				var tb textbuf.Buffer
-				target := tb.Str(showPathPrefix).Join(listPath, "/").Byte('/').String()
+				target := tb.Str(showPathPrefix).Str(encodeConfigPath(listPath)).Byte('/').String()
 				w.Header().Set("HX-Redirect", target)
 				w.WriteHeader(http.StatusOK)
 				return
@@ -328,8 +340,9 @@ func HandleConfigRenameWithAuthorizer(mgr *EditorManager, schema *config.Schema,
 		// validated, and the editor's funnel applies the first-value-only
 		// rule and refuses a destination equal to the source. Keys keep
 		// their case, as the SSH editor's `rename` keeps it.
-		dst := strings.Fields(r.FormValue("new-key"))
-		if len(dst) == 0 {
+		rawDestination := r.FormValue("new-key")
+		dst := []string{rawDestination}
+		if rawDestination == "" {
 			http.Error(w, "missing new-key", http.StatusBadRequest)
 			return
 		}
@@ -342,6 +355,20 @@ func HandleConfigRenameWithAuthorizer(mgr *EditorManager, schema *config.Schema,
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+
+		if target, err := config.ResolveListEntryTarget(schema, verbRename, parsed.Path); err == nil && target.Node.HasMultiLeafKey() {
+			dst, err = config.ParseEditPath(rawDestination)
+			if err != nil {
+				var refusal *opererr.Error
+				if existing, ok := errors.AsType[*opererr.Error](err); ok {
+					refusal = existing
+				} else {
+					refusal = opererr.Wrap(err, "The destination key cannot be read.", "The rename needs the complete key address, with correctly quoted values; no entry was renamed.", "Enter the complete destination key using the current key as a guide, then press Enter")
+				}
+				http.Error(w, refusal.Error(), http.StatusBadRequest)
+				return
+			}
 		}
 
 		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, dst); err != nil {
@@ -460,7 +487,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 		data := addFormData{
 			AddURL: func() string {
 				var tb textbuf.Buffer
-				return tb.Str("/config/add/").Join(listPath, "/").Byte('/').String()
+				return tb.Str("/config/add/").Str(encodeConfigPath(listPath)).Byte('/').String()
 			}(),
 			ListName:        listName,
 			Heading:         heading,

@@ -1,18 +1,31 @@
 # Test: CLI set then commit persists value
-# VALIDATES: set command followed by commit saves to config
-# PREVENTS: commit not applying CLI-set values
+# VALIDATES: the dedicated CLI applies set and commit, then graphical readback shows the committed value
+# PREVENTS: a successful-looking commit leaving only an uncommitted candidate
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=30s
 
 action=open:path=/show/bgp/
-expect=element:id=cli-input
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-action=fill:id=cli-input:value=set router-id 10.99.99.98
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
 
-action=fill:id=cli-input:value=commit now
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set bgp router-id 10.99.99.98
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/config/diff
+expect=element:text=Review changes (0)
 expect=element:not-text=pending
+action=open:path=/show/bgp/
+expect=html:contains=value="10.99.99.98"

@@ -1,7 +1,7 @@
 # Test: the web terminal copies, deactivates and activates in its session editor
 # VALIDATES: spec-session-editor-file-mode-parity AC-11 -- the web terminal runs a
 #            session editor; copy, deactivate and activate each succeed, show in
-#            the pending changes (`errors`), and `commit` applies them
+#            the candidate and pending view, and `commit` publishes them
 # PREVENTS: the web terminal refusing copy, deactivate and activate ("not
 #           supported in session mode")
 #
@@ -69,14 +69,30 @@ action=press:id=terminal-input:key=Enter
 action=wait
 expect=element:text=Deactivated bgp peer wbsrc
 
-# The web terminal lists this session's pending changes with `errors`
-# (EditorManager.Diff): "+ copy", "~ deactivate" and "~ activate" lines.
+# Errors uses the shared CLI validation command. The native pending view
+# shows the copied entry and both inactive settings before publication.
 action=fill:id=terminal-input:value=errors
 action=press:id=terminal-input:key=Enter
 action=wait
-expect=html:contains=+ copy bgp peer wbsrc to bgp peer wbdst
-expect=html:contains=~ deactivate bgp router-id
-expect=html:contains=~ deactivate bgp peer wbsrc
+expect=element:text=No issues
+
+action=fill:id=terminal-input:value=show | changes
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=pending changes
+expect=html:contains=peer wbdst
+expect=html:contains=inactive: router-id 10.0.0.9
+expect=html:contains=inactive: peer wbsrc
+
+# The same changes must still be absent from the confirmed configuration.
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=set bgp router-id 10.0.0.9
+expect=html:contains=set bgp peer wbsrc
+expect=html:not-contains=peer wbdst
+expect=html:not-contains=nop bgp router-id
+expect=html:not-contains=nop bgp peer wbsrc
 
 action=fill:id=terminal-input:value=commit now
 action=press:id=terminal-input:key=Enter
@@ -96,18 +112,42 @@ expect=element:text=Activated bgp peer wbsrc
 action=fill:id=terminal-input:value=errors
 action=press:id=terminal-input:key=Enter
 action=wait
-expect=html:contains=~ activate bgp router-id
-expect=html:contains=~ activate bgp peer wbsrc
+expect=element:text=No issues
+
+action=fill:id=terminal-input:value=show | changes
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=2 pending changes
+expect=html:contains=router-id 10.0.0.9
+expect=html:contains=peer wbsrc
+expect=html:contains=peer wbdst
+expect=html:not-contains=inactive: router-id 10.0.0.9
+expect=html:not-contains=inactive: peer wbsrc
 expect=html:not-contains=+ copy
+
+# Until the next commit the confirmed settings remain inactive.
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=nop bgp router-id 10.0.0.9
+expect=html:contains=nop bgp peer wbsrc
 
 action=fill:id=terminal-input:value=commit now
 action=press:id=terminal-input:key=Enter
 action=wait
 expect=element:text=commit successful
 
-action=fill:id=terminal-input:value=show bgp
+action=fill:id=terminal-input:value=show bgp | format config
 action=press:id=terminal-input:key=Enter
 action=wait
 expect=html:contains=peer wbdst
 expect=html:contains=remote ip 10.0.0.2
 
+# A confirmed readback proves the final commit published the copied peer.
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=html:contains=peer wbdst
+expect=html:contains=remote ip 10.0.0.2
+expect=html:not-contains=nop bgp router-id
+expect=html:not-contains=nop bgp peer wbsrc

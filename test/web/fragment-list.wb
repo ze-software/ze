@@ -5,4 +5,4 @@
 option=timeout:value=30s
 
 action=open:path=/show/bgp/group/
-expect=element:id=btn-add-entry
+expect=element:id=btn-add-entry-finder-show-bgp-group

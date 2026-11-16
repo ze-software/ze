@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // enrichWorkbenchTable populates the workbench-only fields on data.ListTable:
@@ -61,7 +60,7 @@ func enrichWorkbenchTable(data *FragmentData, schema *config.Schema, tree *confi
 		key := data.ListTable.Rows[i].KeyValue
 		rowPath := append([]string{}, path...)
 		rowPath = append(rowPath, config.ListKeyTokens(listNode, key)...)
-		rowPathJoined := textbuf.Join(rowPath, "/")
+		rowPathJoined := encodeConfigPath(rowPath)
 
 		data.ListTable.Rows[i].RowTools = buildRowTools(rowTools, rowPathJoined)
 		data.ListTable.Rows[i].HasPendingChanges = entryHasPendingChange(pendingPaths, path, listNode, key)
@@ -81,7 +80,7 @@ func buildWorkbenchListTable(tree *config.Tree, schema *config.Schema, path []st
 		cols = nil
 	}
 	keys := collectListKeys(tree, schema, path)
-	baseURL := showPathPrefix + textbuf.Join(path, "/") + "/"
+	baseURL := showPathPrefix + encodeConfigPath(path) + "/"
 	return buildListTable(tree, schema, path, listNode, keys, cols, baseURL)
 }
 
@@ -183,7 +182,7 @@ func buildTableTools(tools []*config.RelatedTool, listPath []string) []RelatedTo
 	if len(tools) == 0 {
 		return nil
 	}
-	cp := textbuf.Join(listPath, "/")
+	cp := encodeConfigPath(listPath)
 	out := make([]RelatedToolButton, 0, len(tools))
 	for _, t := range tools {
 		out = append(out, RelatedToolButton{
@@ -208,14 +207,18 @@ func entryHasPendingChange(paths, listPath []string, listNode *config.ListNode, 
 	if key == "" || len(listPath) == 0 {
 		return false
 	}
-	prefix := textbuf.Join(listPath, "/") + "/"
+	prefix := encodeConfigPath(listPath) + "/"
 	listName := listPath[len(listPath)-1]
 	for _, p := range paths {
 		rest, ok := strings.CutPrefix(p, prefix)
 		if !ok || rest == "" {
 			continue
 		}
-		addr, err := config.ParseListAddress(listName, listNode, strings.Split(rest, "/"))
+		tokens, err := decodeConfigPath(rest)
+		if err != nil {
+			continue
+		}
+		addr, err := config.ParseListAddress(listName, listNode, tokens)
 		if err == nil && addr.Key == key {
 			return true
 		}

@@ -72,6 +72,9 @@ templ workbenchTable(v WorkbenchTableData) {
 								if v.EmptyHint != "" {
 									<p class="wb-table-empty-hint">{ v.EmptyHint }</p>
 								}
+								if v.EmptyLinkURL != "" {
+									<a class="wb-table-empty-link" href={ v.EmptyLinkURL }>{ v.EmptyLinkLabel }</a>
+								}
 								if len(v.AddActions) > 0 {
 									for _, a := range v.AddActions {
 										<button type="button" class="wb-table-add wb-table-empty-add" data-action="add-entry" data-base-url={ a.URL }>{ a.Label }</button>

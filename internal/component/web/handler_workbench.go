@@ -72,8 +72,8 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		path := extractPath(r)
-		if err := ValidatePathSegments(path); err != nil {
+		path, err := extractPath(r)
+		if err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
@@ -85,9 +85,12 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		// button that would 403 on click. Fail-open when no authorizer (R-1).
 		readOnly := !canEdit(r, cfg.authorizer)
 		if mgr != nil && username != "" {
-			if userTree := mgr.Tree(username); userTree != nil {
-				viewTree = userTree
+			userTree, err := mgr.viewTree(username)
+			if err != nil {
+				http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
+				return
 			}
+			viewTree = userTree
 		}
 
 		routerIdentity := resolveRouterIdentity(viewTree)

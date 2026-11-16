@@ -25,13 +25,13 @@ func collectGroups(viewTree *config.Tree) []groupEntry {
 	if viewTree == nil {
 		return nil
 	}
-	bgpTree := viewTree.GetContainer("bgp")
+	bgpTree := viewTree.GetContainer(segBGP)
 	if bgpTree == nil {
 		return nil
 	}
 
 	var groups []groupEntry
-	for _, entry := range bgpTree.GetListOrdered("group") {
+	for _, entry := range bgpTree.GetListOrdered(bgpGroupSegment) {
 		ge := extractGroupEntry(entry.Key, entry.Value)
 		groups = append(groups, ge)
 	}
@@ -46,7 +46,7 @@ func extractGroupEntry(name string, groupTree *config.Tree) groupEntry {
 	}
 
 	// Count peers in this group
-	ge.PeerCount = len(groupTree.GetList("peer"))
+	ge.PeerCount = len(groupTree.GetList(bgpPeerSegment))
 
 	// Group-level session defaults
 	if sess := groupTree.GetContainer("session"); sess != nil {
@@ -79,7 +79,7 @@ func buildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 	rows := make([]WorkbenchTableRow, 0, len(groups))
 	var tb textbuf.Buffer
 	for _, ge := range groups {
-		groupURL := tb.Reset().Str("/show/bgp/group/").Str(ge.Name).Byte('/').String()
+		groupURL := tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segBGP, bgpGroupSegment, ge.Name})).Byte('/').String()
 		rows = append(rows, WorkbenchTableRow{
 			Key: ge.Name,
 			URL: groupURL,
@@ -90,7 +90,7 @@ func buildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 				valueOrDash(ge.Families),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Peers", URL: tb.Reset().Str("/show/bgp/group/").Str(ge.Name).Str("/peer/").String()},
+				{Label: "View Peers", URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segBGP, bgpGroupSegment, ge.Name, bgpPeerSegment})).Byte('/').String()},
 				{Label: labelEdit, URL: groupURL},
 			},
 		})

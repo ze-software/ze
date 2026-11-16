@@ -101,6 +101,21 @@ result. Separate sessions keep independent whole snapshots, not merged history.
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 <!-- source: internal/component/cli/editor_help.go -- editorCommands, EditorHelpEntries -->
 
+A schema flag takes no value: `set firewall table filter chain input term
+allow-bgp then accept` enables the presence action, and `set system conntrack
+accounting` enables an empty leaf. The same spelling works relative to an
+`edit` context. An ordinary leaf still requires its value, and a value after an
+empty flag is refused. Flags stay in the candidate until committed, including
+when the candidate is saved and reopened. Bare presence flags and empty leaves
+also retain activate/deactivate state through save, reload and commit. If a
+presence flag also has configured children, activating or deactivating its path
+covers both forms together. Saving retains the flag, its children and their
+assignment records; a deactivated block cannot leave an active flag alias.
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
+<!-- source: internal/component/cli/editor_activation.go -- applyNodeActivation -->
+<!-- source: internal/component/cli/editor_commands.go -- DeactivatePath, ActivatePath, presenceFlagParent -->
+<!-- source: internal/component/cli/editor_draft.go -- applyToggleOp -->
+
 `top <command>` takes any command the editor accepts and runs it once with
 the position at the root, then leaves you where you were. Inside
 `edit bgp peer peer1`, `top set bgp router-id 192.0.2.9` sets the root path,
@@ -191,7 +206,7 @@ changes to repair it.
 <!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
 <!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
-<!-- source: internal/component/web/cli.go -- handleCLICommit -->
+<!-- source: internal/component/web/cli_terminal.go -- runWebCommit, terminalCommitOutput -->
 
 `show | errors` validates the current candidate with the same checks as commit,
 including errors that `force` cannot override. It lists those errors and any
@@ -200,6 +215,41 @@ configuration view. After a repair, run it again: the list reflects the candidat
 now, not the validation hints cached before your edit. It applies nothing and
 keeps pending changes.
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdErrors, formatIssueList -->
+
+`show | changes` keeps each setting's `inactive:` spelling in the candidate
+view, including a deactivated leaf whose value is unchanged. A change between
+active and inactive is still marked as a change in the gutter. Container and
+list-entry openings retain their activation markers too. `show confirmed`
+continues to display the last committed state until the candidate is committed.
+<!-- source: internal/component/cli/diff_tree.go -- diffLeaf, diffMultiLeaf, diffBracketLeaf, diffValueOrArray, diffContainer, diffListEntry -->
+
+The web interface's CLI page uses these same editor command producers without
+an SSH connection. `show | blame`, `show | changes`, `show | history`,
+`show | active`, `show | inactive` and `show | errors` retain their editor
+meanings. `option` preferences remain with your editing session. `insert`
+inserts an ordered leaf-list member with `first`, `last`, `before` or `after`;
+create a named list entry with `set`.
+
+In operational mode (`ze>`), `set cli format` shows your current output format
+and `set cli format json` changes it for your browser editing session. Tab
+offers the formats declared by the same schema as the SSH CLI. The preference
+stays with your authenticated user when you switch modes; `run` uses it from
+config mode too. An explicit format pipe such as `| yaml` takes precedence for
+that command. Other users keep their own preference or the configured default.
+In config mode, `set` continues to address the configuration schema.
+
+<!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
+<!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
+
+To paste into the browser candidate, type `load terminal absolute merge`, or
+use `relative` and `replace` as in the terminal editor, then paste in the box
+and select **Load candidate**. For a file, type a `load file` command and choose
+the file from your computer. Its path does not read the router's filesystem.
+Both forms accept up to 4 MiB, use the same atomic loader, and leave committing
+as a separate action. Commands run in their entered order, including navigation.
+
+<!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
+<!-- source: internal/component/web/editor.go -- ConfigCommand -->
 
 Inline validation hints follow the highlighted configuration line; they never
 replace it. An invalid intermediate edit, such as copying a peer before changing
@@ -324,6 +374,11 @@ includes the operations that commit will apply.
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
 
 `show` follows the working configuration's recorded list-entry order.
+`show | compare saved` reports `(no saved draft)` when that baseline does not exist.
+An unchanged scoped comparison produces empty output. Modified leaves show the
+replacement value with a `*` marker.
+<!-- source: internal/component/cli/model_commands_show.go -- Model.compareView -->
+
 `show | compare` omits unchanged entries, except for the context retained within
 a reordered `ordered-by user` list. Reordering a plain list alone creates no
 change marker. For a list declared `ordered-by user` in YANG, order is part of
@@ -335,6 +390,13 @@ entry. Bracket leaf-list rows keep their leaf name and indentation in every
 change state, so a surviving bracket statement maps to its working line.
 <!-- source: internal/component/cli/diff_tree.go -- diffList, diffBracketLeaf, renderDiffLines -->
 <!-- source: internal/component/config/prune.go -- PruneUnchanged -->
+
+An ordered leaf-list insertion may create its schema-validated parent. The
+parent creation and insertion are recorded together, so saving, reopening and
+committing preserve the dependency. A refused position or failed write leaves
+the candidate unchanged.
+<!-- source: internal/component/cli/editor_leaflist.go -- Editor.writeThroughMemberOp -->
+<!-- source: internal/component/cli/editor_commands.go -- Editor.InsertLeafListValue -->
 
 ### Secrets are masked on every display path
 
@@ -604,6 +666,13 @@ tracked change, the same entry a typed `set` or `delete` records, so a leaf
 equal to its current value records nothing and `show | changes` lists exactly
 what the load changed.
 
+A replacement of a plain leaf-list also takes the input's member order, and a
+schema-declared ordered sequence retains repeated values. A multi-word leaf
+loads as one statement with each quoted word's boundary intact. Freeform blocks
+load their parsed entry names and values through the same per-user transaction.
+The browser's graphical collection forms use this replacement path, so a saved
+row order and the committed order agree.
+
 For a list of named entries, both forms keep existing entries in their current
 positions and append new entries in the order the input names them. A `replace`
 removes omitted entries but does not move the entries it retains; it is not a
@@ -622,7 +691,7 @@ configuration once, applies every difference in memory, and writes the change
 file once, at the end, so its cost grows with the size of the input rather than
 with its square.
 <!-- source: internal/component/cli/model_load.go -- cmdLoadNew, applyLoad -->
-<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage, loadBracketLeafList -->
+<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage, loadWholeLeafList -->
 <!-- source: internal/component/cli/editor_draft.go -- openChangeFile, writeChangeFile, readCommittedTree -->
 <!-- source: internal/component/config/parser.go -- ParseAt -->
 
@@ -856,6 +925,20 @@ stored revisions after the automatic rollback, before testing acceptance.
 ## Rollback
 
 The editor automatically saves a rollback revision before each commit. Inside the editor, use `show | history` to list revisions and `rollback <N>` to restore. From the shell: `ze config history <file>` and `ze config rollback <N> <file>`.
+
+Stored daemon history includes the active version, so its newest entry can
+be the configuration already in use. To undo a commit, select and review an
+earlier version rather than assuming the first entry is the previous state.
+<!-- source: internal/component/config/storage/store.go -- ListVersions -->
+<!-- source: internal/component/config/storage/pointer.go -- WriteCandidateVersionWithGuard, promoteCandidateLocked -->
+
+In a session editor, rollback restores the saved configuration to that
+session's candidate. Review the changes and commit them to publish and apply
+the restoration. A malformed saved configuration is refused without replacing
+the candidate or the committed configuration. Offline editors without a session
+retain their direct file restoration behavior.
+
+<!-- source: internal/component/cli/editor.go -- rollback -->
 
 ## Exit Codes
 

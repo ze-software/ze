@@ -1,0 +1,10 @@
+status: 403
+header: Cache-Control: no-store
+header: Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
+header: Content-Type: text/html; charset=utf-8
+header: Strict-Transport-Security: max-age=63072000; includeSubDomains
+header: X-Content-Type-Options: nosniff
+header: X-Frame-Options: DENY
+header: X-Ze-Version: <VERSION>
+
+<div class="error-fragment" role="alert" data-error-status="403"><span class="error-fragment-reason">Forbidden</span> <span class="error-fragment-message">forbidden</span></div>

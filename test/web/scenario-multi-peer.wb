@@ -1,42 +1,64 @@
-# Test: create multiple BGP peers via CLI, verify all appear in table after commit
-# VALIDATES: multiple peers tracked in editor, all visible in peer table after commit
-# PREVENTS: second peer overwriting first, table not showing all entries after commit
+# Test: create multiple peers in CLI mode and verify both after commit
+# VALIDATES: both peer candidates coexist and persist through one successful commit
+# PREVENTS: a later peer overwriting an earlier peer or publication dropping one
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=60s
 
 action=open:path=/show/bgp/peer/
-action=wait:ms=1000
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-# Create first peer (ISP transit)
-action=fill:id=cli-input:value=set peer multi-isp connection remote ip 198.51.100.1
-action=press:key=Enter
-action=wait:ms=1000
-action=fill:id=cli-input:value=set peer multi-isp session asn remote 64496
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
 
-# Create second peer (customer)
-action=fill:id=cli-input:value=set peer multi-cust connection remote ip 172.16.1.2
-action=press:key=Enter
-action=wait:ms=1000
-action=fill:id=cli-input:value=set peer multi-cust session asn remote 65100
-action=press:key=Enter
-action=wait:ms=1000
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
 
-# Navigate to peer table and verify both appear
+action=fill:id=terminal-input:value=set bgp peer multi-isp connection remote ip 198.51.100.1
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer multi-isp connection local ip auto
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer multi-isp session asn remote 64496
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer multi-cust connection remote ip 172.16.1.2
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer multi-cust connection local ip auto
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set bgp peer multi-cust session asn remote 65100
+action=press:id=terminal-input:key=Enter
+action=wait
+
 action=open:path=/show/bgp/peer/
-action=wait:ms=1000
 expect=element:text=multi-isp
 expect=element:text=multi-cust
 
-# Commit
-action=fill:id=cli-input:value=commit now
-action=press:key=Enter
-action=wait:ms=2000
+action=click:text=CLI
+expect=element:id=terminal-input
 
-# Both still visible after commit
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/config/diff
+expect=element:text=Review changes (0)
 action=open:path=/show/bgp/peer/
-action=wait:ms=1000
 expect=element:text=multi-isp
 expect=element:text=multi-cust
+expect=element:text=198.51.100.1
+expect=element:text=172.16.1.2

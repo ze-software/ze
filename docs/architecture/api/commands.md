@@ -989,9 +989,10 @@ The surface parity check starts the plugin that declares the command before it
 asks.
 
 The surface predicate (`command.AnswerSurface`) reads the declaration, so the
-MCP, REST and gRPC command list, the web admin tree and the web terminal
-completer leave a streaming-only command out, and the surface parity check
-fails a sample command whose one-shot answer carries no data.
+MCP, REST and gRPC command list and the web admin tree leave a streaming-only
+command out. The browser terminal completer offers it because that terminal
+has a streaming transport. The surface parity check fails a sample command
+whose one-shot answer carries no data.
 
 The refusal is decided once, from the declaration, on both one-shot routes: the
 dispatcher (`Dispatcher.Dispatch`, which MCP, REST, gRPC, the web console and a
@@ -1007,7 +1008,7 @@ route ever skipped the refusal, never a reply.
 
 #### Where a monitor command streams
 
-Every monitor command streams live on the four terminal surfaces. Each surface
+Every monitor command streams live on the terminal surfaces below. Each surface
 branches on a registry, never on a command name:
 
 | Surface | Route |
@@ -1016,6 +1017,7 @@ branches on a registry, never on a command name:
 | `ze cli -c "monitor ..."` | The client streams when `pluginserver.IsStreamingCommand` holds (`internal/component/cli/client/main.go`) |
 | SSH interactive and the `ze cli` TUI | The model opens a registered live view first (the `monitor bgp` dashboard, the `monitor ping` and `monitor traceroute` views), then a streaming session for any other streaming command (`internal/component/cli/model_keys.go`) |
 | `ze monitor ...` | A registered local handler runs its live loop in-process (`monitor ping`, `monitor traceroute`), and any other command goes through `ze cli -c` |
+| Browser CLI | `/cli/stream` checks the same streaming registry, then runs the judged handler through `serverStreamDispatcher` with the browser identity, accepted authorization policy and command accounting; other commands keep the normal terminal response |
 
 The streaming handlers of the three commands that also own a live view:
 
@@ -1032,6 +1034,8 @@ a surface would answer once instead of streaming.
 <!-- source: internal/component/ping/cmd/monitor.go -- streamMonitorPing, handleMonitorPing, writePingRows -->
 <!-- source: internal/component/traceroute/cmd/monitor.go -- streamMonitorTraceroute, writeTracerouteRounds -->
 <!-- source: cmd/ze/hub/monitor_streams_test.go -- TestEveryMonitorCommandStreams -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
+<!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream -->
 
 #### Netlink Monitor
 

@@ -12,18 +12,42 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// TestUIMode_DefaultsToWorkbench verifies that with no ze.web.ui-mode env var set,
-// the hub defaults to the Workbench UI. Finder remains available only as an
-// explicit rollback mode.
-//
-// VALIDATES: Default UI is Workbench.
-// PREVENTS: Falling back to the old Finder shell on the main page.
-func TestUIMode_DefaultsToWorkbench(t *testing.T) {
+// TestReadUIModeFromRequestUsesYANGEditorByDefault follows the startup selector
+// and request selector without an operator override.
+// VALIDATES: AC-31 of spec-web-cli-config-one-off-defects: a fresh browser opens
+// the graphical YANG editor.
+// PREVENTS: a parser fallback selecting the unfinished Workbench by default.
+func TestReadUIModeFromRequestUsesYANGEditorByDefault(t *testing.T) {
 	t.Setenv("ze.web.ui-mode", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	assert.Equal(t, UIModeWorkbench, GetUIMode())
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
+	assert.Equal(t, UIModeFinder, ReadUIModeFromRequest(req, GetUIMode()))
+}
+
+// TestReadUIModeFromRequestKeepsWorkbenchSelection checks an explicit browser
+// choice against the normal YANG editor startup mode.
+// VALIDATES: AC-31 preserves the current switch cookie for Workbench.
+// PREVENTS: changing the default from disabling the experimental alternative.
+func TestReadUIModeFromRequestKeepsWorkbenchSelection(t *testing.T) {
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
+	req.AddCookie(&http.Cookie{Name: uiModeSwitchCookie, Value: uiModeTokenWorkbench})
+
+	assert.Equal(t, UIModeWorkbench, ReadUIModeFromRequest(req, UIModeFinder))
+}
+
+// TestUIMode_DefaultsToFinder verifies that with no ze.web.ui-mode env var set,
+// the hub defaults to the graphical YANG editor.
+//
+// VALIDATES: AC-31: the graphical YANG editor is the default UI.
+// PREVENTS: Selecting the unfinished Workbench on the main page by default.
+func TestUIMode_DefaultsToFinder(t *testing.T) {
+	t.Setenv("ze.web.ui-mode", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	assert.Equal(t, UIModeFinder, GetUIMode())
 }
 
 // TestUIMode_OptInWorkbench verifies that ze.web.ui-mode=workbench selects the workbench.
@@ -38,12 +62,11 @@ func TestUIMode_OptInWorkbench(t *testing.T) {
 	assert.Equal(t, UIModeWorkbench, GetUIMode())
 }
 
-// TestUIMode_RollbackFinder verifies that ze.web.ui-mode=finder selects Finder
-// explicitly. During Phases 1-3 this is identical to the default; after the
-// Phase 4 default flip this becomes the emergency rollback path.
+// TestUIMode_RollbackFinder verifies that ze.web.ui-mode=finder selects the
+// graphical YANG editor explicitly.
 //
-// VALIDATES: AC-1a (explicit Finder rollback works).
-// PREVENTS: The rollback switch being broken when the default flips.
+// VALIDATES: Explicit selection of the graphical YANG editor works.
+// PREVENTS: Ignoring a configured Finder selection.
 func TestUIMode_RollbackFinder(t *testing.T) {
 	t.Setenv("ze.web.ui-mode", "finder")
 	env.ResetCache()
@@ -53,10 +76,10 @@ func TestUIMode_RollbackFinder(t *testing.T) {
 }
 
 // TestReadUIModeFromRequestIgnoresStaleFinderCookie verifies that an old
-// browser cookie cannot strand operators on the deprecated Finder shell.
+// browser cookie cannot override an explicit Workbench startup selection.
 //
-// VALIDATES: Workbench cutover is not overridden by stale ze-ui=finder cookies.
-// PREVENTS: Normal pages showing the old Finder layout and bottom CLI bar.
+// VALIDATES: Only the current switch cookie can override the startup mode.
+// PREVENTS: Retired browser state overriding the selected interface.
 func TestReadUIModeFromRequestIgnoresStaleFinderCookie(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: uiModeCookie, Value: uiModeTokenFinder})
@@ -77,7 +100,7 @@ func TestReadUIModeFromRequestAcceptsCurrentSwitchCookie(t *testing.T) {
 }
 
 // TestParseUIMode_KnownTokens verifies the parser recognizes both labels in
-// any case and falls back to Workbench for unknown values.
+// any case and selects the graphical YANG editor for unknown values.
 //
 // VALIDATES: Robustness against operator typos and case variation.
 // PREVENTS: An operator typo silently switching to the wrong UI.
@@ -86,15 +109,15 @@ func TestParseUIMode_KnownTokens(t *testing.T) {
 		input string
 		want  UIMode
 	}{
-		{"", UIModeWorkbench},
+		{"", UIModeFinder},
 		{"finder", UIModeFinder},
 		{"Finder", UIModeFinder},
 		{"FINDER", UIModeFinder},
 		{"workbench", UIModeWorkbench},
 		{"Workbench", UIModeWorkbench},
 		{"WORKBENCH", UIModeWorkbench},
-		{"unknown-mode", UIModeWorkbench},
-		{"v2", UIModeWorkbench},
+		{"unknown-mode", UIModeFinder},
+		{"v2", UIModeFinder},
 	}
 
 	for _, tc := range tests {

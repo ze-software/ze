@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/test/golden"
 )
 
@@ -155,9 +156,10 @@ func secretRenders(t *testing.T, schema *config.Schema, tree *config.Tree) map[s
 	out["fragment-list-table"] = renderComponentString(t, fullContent(buildFragmentData(schema, tree, listPath)))
 	out["add-entry-form"] = addFormMarkup(t, schema, renderer)
 	out["workbench-form"] = workbenchFormMarkup(t, renderer, schema, tree)
-	out["cli-terminal-show"] = terminalShowOutput(t, schema, tree)
-	out["cli-terminal-compare"] = terminalCompareOutput(t, schema, tree)
-	out["cli-bar-show"] = cliBarShowMarkup(t, schema, renderer)
+	transportSchema := registerSecretTransportSchema(t, schema)
+	out["cli-terminal-show"] = terminalShowOutput(t, transportSchema)
+	out["cli-terminal-compare"] = terminalCompareOutput(t, transportSchema)
+	out["cli-bar-show"] = cliBarShowMarkup(t, transportSchema, renderer)
 	out["commit-review"] = commitReviewMarkup(t, schema, renderer)
 
 	return out
@@ -189,11 +191,11 @@ func secretEditorManager(t *testing.T, schema *config.Schema) *EditorManager {
 // it), so the text it returns reaches any authenticated session. It serializes
 // a whole subtree, and the serializer writes what the tree holds. The parser
 // decodes a $9$ value into the tree, so the tree holds cleartext.
-func terminalShowOutput(t *testing.T, schema *config.Schema, tree *config.Tree) string {
+func terminalShowOutput(t *testing.T, schema *config.Schema) string {
 	t.Helper()
 
-	mgr := secretEditorManager(t, schema)
-	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
+	mgr := secretTransportManager(t, schema)
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, mgr.Tree(secretUser), nil, nil, nil)
 
 	req := postConfigRequest(t, "/cli/terminal", url.Values{"command": {"show"}, "mode": {"config"}}, secretUser)
 	rec := httptest.NewRecorder()
@@ -207,26 +209,63 @@ func terminalShowOutput(t *testing.T, schema *config.Schema, tree *config.Tree) 
 	return rec.Body.String()
 }
 
-// rotatedSecretTree answers the fixture tree with the container secret replaced,
-// which is what an operator does when they rotate a credential.
-func rotatedSecretTree(tree *config.Tree) *config.Tree {
-	rotated := tree.Clone()
-	rotated.GetContainer("environment").GetContainer("api-server").Set("token", replacementSecret)
-	return rotated
+// registerSecretTransportSchema builds marked and unmarked fixtures in the
+// real loaded YANG schema, so the shared CLI producer reads the same metadata
+// as every other operator interface. Registry changes are test-owned and restored.
+func registerSecretTransportSchema(t *testing.T, fixture *config.Schema) *config.Schema {
+	t.Helper()
+	leaf, ok := fixture.LookupTokenPath([]string{"environment", "api-server", "token"}).(*config.LeafNode)
+	require.True(t, ok)
+	mark := ""
+	if leaf.Sensitive {
+		mark = "ze:sensitive;"
+	}
+	module := `module ze-web-render-secret-conf {
+  yang-version 1.1;
+  namespace "urn:ze:web-render-secret";
+  prefix probe;
+  import ze-extensions { prefix ze; }
+  container web-render-secret {
+    container api-server {
+      leaf token { type string; ` + mark + ` }
+      leaf plaintext-token { type string; ze:ephemeral; ` + mark + ` }
+      leaf enabled { type boolean; }
+      list client { key "name"; leaf name { type string; } leaf token { type string; ` + mark + ` } leaf ip { type string; } }
+    }
+  }
+}`
+	t.Cleanup(configyang.RegisterModuleForTest("ze-web-render-secret-conf.yang", module))
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	return schema
 }
 
-// terminalCompareOutput answers what the compare verb prints after a rotation.
-//
-// Both sides are masked, so the text diff reads one placeholder against the same
-// placeholder and sees nothing. The verb needs no config authorization, so it
-// must name the leaf and publish neither value.
-func terminalCompareOutput(t *testing.T, schema *config.Schema, tree *config.Tree) string {
+// secretTransportManager uses a real editor/store with the fixture metadata.
+func secretTransportManager(t *testing.T, schema *config.Schema) *EditorManager {
 	t.Helper()
+	content := `web-render-secret { api-server {
+  token "` + storedSecret + `";
+  plaintext-token "` + storedEphemeralSecret + `";
+  enabled true;
+  client fleet { token "` + storedSecret + `"; ip 192.0.2.1; }
+} }`
+	path := filepath.Join(t.TempDir(), "test.conf")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	mgr := NewEditorManager(testConfigStore(t, path), path, schema, testEditorFactory(), testEditSessionFactory())
+	_, err := mgr.GetOrCreate(secretUser)
+	require.NoError(t, err)
+	assert.Equal(t, storedSecret, getConfigValue(mgr.Tree(secretUser), "web-render-secret/api-server/token"))
+	assert.Equal(t, storedEphemeralSecret, getConfigValue(mgr.Tree(secretUser), "web-render-secret/api-server/plaintext-token"))
+	return mgr
+}
 
-	out := compareTreesAtPath(tree, rotatedSecretTree(tree), schema, nil, "")
-	require.NotEqual(t, terminalOutputNoChanges, out,
-		"compare reported no change at all, so this case would prove nothing")
-
+// terminalCompareOutput rotates the actual candidate, then exercises HTTP.
+func terminalCompareOutput(t *testing.T, schema *config.Schema) string {
+	t.Helper()
+	mgr := secretTransportManager(t, schema)
+	require.NoError(t, mgr.SetValue(secretUser, []string{"web-render-secret", "api-server"}, "token", replacementSecret))
+	out := terminalAsUser(t, mgr, secretUser, nil, "compare").Output
+	require.NotEmpty(t, out, "compare must expose the credential rotation")
 	return out
 }
 
@@ -236,7 +275,7 @@ func terminalCompareOutput(t *testing.T, schema *config.Schema, tree *config.Tre
 func cliBarShowMarkup(t *testing.T, schema *config.Schema, renderer *Renderer) string {
 	t.Helper()
 
-	mgr := secretEditorManager(t, schema)
+	mgr := secretTransportManager(t, schema)
 	handler := HandleCLICommandWithAuthorizer(mgr, schema, renderer, nil)
 
 	req := postConfigRequest(t, "/cli", url.Values{"command": {"show"}}, secretUser)
@@ -340,7 +379,9 @@ func workbenchFormMarkup(t *testing.T, renderer *Renderer, schema *config.Schema
 func TestNoRenderPathEmitsAStoredSecret(t *testing.T) {
 	schema, tree := secretSchemaAndTree(true)
 
-	for name, markup := range secretRenders(t, schema, tree) {
+	renders := secretRenders(t, schema, tree)
+	require.NotEmpty(t, renders)
+	for name, markup := range renders {
 		t.Run(name, func(t *testing.T) {
 			for _, value := range secretValues {
 				assert.NotContains(t, markup, value, "a stored secret reached the response body")
@@ -363,10 +404,15 @@ func TestSecretMaskingFollowsTheSchemaMarking(t *testing.T) {
 	schema, tree := secretSchemaAndTree(false)
 
 	renders := secretRenders(t, schema, tree)
+	require.Contains(t, renders, "cli-terminal-compare", "the unmarked control includes the actual HTTP comparison")
 
 	for name, markup := range renders {
 		t.Run(name, func(t *testing.T) {
-			assert.Contains(t, markup, storedSecret,
+			expected := storedSecret
+			if name == "cli-terminal-compare" {
+				expected = replacementSecret
+			}
+			assert.Contains(t, markup, expected,
 				"an unmarked leaf must render its value, or this path masks something other than ze:sensitive")
 		})
 	}
@@ -385,31 +431,34 @@ func TestSecretMaskingFollowsTheSchemaMarking(t *testing.T) {
 //
 // VALIDATES: compare answers a change when a secret moved, at the root and at a
 // context path, and carries neither the old value nor the new one.
-// PREVENTS: the mask making compare state something false. compareTreesAtPath
-// diffs two masked texts, so a rotated ze:sensitive leaf reads as the same
+// PREVENTS: the mask making the shared CLI compare state something false.
+// A diff of two masked texts sees a rotated ze:sensitive leaf as the same
 // placeholder on each side and the verb answered "(no changes)". Before the mask
 // the change was visible, and leaking.
 func TestCompareNamesARotatedSecretAndPublishesNeitherValue(t *testing.T) {
-	schema, tree := secretSchemaAndTree(true)
-	rotated := rotatedSecretTree(tree)
+	fixture, _ := secretSchemaAndTree(true)
+	schema := registerSecretTransportSchema(t, fixture)
+	mgr := secretTransportManager(t, schema)
+	original := mgr.Tree(secretUser).Clone()
+	assert.Empty(t, terminalAsUser(t, mgr, secretUser, nil, "compare").Output,
+		"the shared CLI comparison emits no changes for an unchanged tree")
 
-	require.Equal(t, serializeTreeAtPath(tree, schema, nil), serializeTreeAtPath(rotated, schema, nil),
+	require.NoError(t, mgr.SetValue(secretUser, []string{"web-render-secret", "api-server"}, "token", replacementSecret))
+	rotated := mgr.Tree(secretUser)
+	require.Equal(t, serializeTreeAtPath(original, schema, nil), serializeTreeAtPath(rotated, schema, nil),
 		"the mask must hide the rotation from the text, or this test proves nothing")
 
-	out := compareTreesAtPath(tree, rotated, schema, nil, "")
-	assert.Contains(t, out, "environment.api-server.token", "compare must name the leaf that changed")
+	out := terminalAsUser(t, mgr, secretUser, nil, "compare").Output
+	assert.Contains(t, out, "web-render-secret.api-server.token", "compare must name the leaf that changed")
 	assert.Contains(t, out, config.SecretDataPlaceholder, "the value must read as the display placeholder")
 	for _, value := range secretValues {
 		assert.NotContains(t, out, value, "compare published a stored secret")
 	}
 
-	sub := compareTreesAtPath(tree, rotated, schema, []string{"environment", "api-server"}, "")
+	sub := terminalAsUser(t, mgr, secretUser, []string{"web-render-secret", "api-server"}, "compare").Output
 	assert.Contains(t, sub, "~ token ", "a compare at a context path names the leaf under that path")
 	assert.NotContains(t, sub, storedSecret)
 	assert.NotContains(t, sub, replacementSecret)
-
-	assert.Equal(t, terminalOutputNoChanges, compareTreesAtPath(tree, tree.Clone(), schema, nil, ""),
-		"an unchanged tree must still answer no changes")
 }
 
 // TestContentAtPathAnswersNothingWhenItCannotMask verifies the CLI-bar show

@@ -2,6 +2,7 @@
 # VALIDATES: AC-8 -- BGP Decode tool page loads with hex textarea
 # PREVENTS: decode tool page broken by routing or template error
 
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=30s
 
 action=open:path=/show/tools/bgp-decode/

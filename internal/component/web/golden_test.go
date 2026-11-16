@@ -35,13 +35,41 @@ var webTemplGolden = golden.Set{
 	SpecVar: "webTemplGoldenSpec",
 }
 
+// webGoldenGraphicalValues uses the real view builder for collection fixtures.
+func webGoldenGraphicalValues(kind string) GraphicalValues {
+	tree := config.NewTree()
+	switch kind {
+	case "enum":
+		node := &config.BracketLeafListNode{Type: config.TypeString, Enums: []string{"standard", "large"}}
+		tree.SetMemberStates("send", []config.MemberState{{Value: "standard"}, {Value: "large", Inactive: true}})
+		return buildGraphicalValues([]string{"bgp", "session", "community"}, "send", node, tree)
+	case "freeform":
+		entries := config.NewTree()
+		entries.Set("ipv4 unicast", "true")
+		entries.Set("limit", "100")
+		tree.SetContainer("options", entries)
+		return buildGraphicalValues([]string{"lab"}, "options", config.Freeform(), tree)
+	default:
+		node := &config.MultiLeafNode{Type: config.TypeString}
+		tree.SetSlice("words", []string{"first", "two words"})
+		return buildGraphicalValues([]string{"lab"}, "words", node, tree)
+	}
+}
+
+func webGoldenGraphicalInlineList() GraphicalInlineList {
+	schema := config.NewSchema()
+	schema.Define("routes", config.InlineList(config.TypeString, config.Field("description", config.Leaf(config.TypeString))))
+	tree := config.NewTree()
+	entry := config.NewTree()
+	entry.Set("description", "Lab route")
+	tree.AddListEntry("routes", "lab", entry)
+	return *buildFragmentData(schema, tree, []string{"routes"}).InlineList
+}
+
 // webTemplGoldenSpec maps each templ source to the components it declares and
-// the data each one renders with.
-//
-// Fixture names are the html/template paths these components replaced, the
-// directory included. A component is a Go function and carries a Go name.
-// Moving 30 fixtures in the commit that changes their bytes would hide the
-// delta of the port inside a rename.
+// the data each one renders with. Existing fixture names retain the paths of
+// the html/template components they replaced, so rendering changes remain
+// visible without a simultaneous rename.
 var webTemplGoldenSpec = golden.Spec{
 	// --- page components --------------------------------------------------
 	"page_layout.templ": {{
@@ -328,6 +356,30 @@ var webTemplGoldenSpec = golden.Spec{
 	// dashboardOverview is deleted, so its two cases cannot compile.
 	// No page rendered it: the Finder shell reaches workbenchDashboard, whose
 	// cases below still cover the same dashboardData.
+	"component_graphical_actions.templ": {{
+		Name: "graphicalActionPanel", Fixture: "component/graphical_actions",
+		Variants: []golden.Variant{
+			{Name: "root", Data: graphicalActionPanel(&GraphicalActions{}, false)},
+			{Name: "entry", Data: graphicalActionPanel(&GraphicalActions{Path: "bgp/group/edge", HasNode: true, HasEntry: true}, false)},
+			{Name: "inactive", Data: graphicalActionPanel(&GraphicalActions{Path: "bgp/group/edge", HasNode: true, HasEntry: true, Inactive: true}, false)},
+			{Name: "history", Data: graphicalActionPanel(&GraphicalActions{Output: "Select a saved revision to restore to the candidate.", History: []GraphicalRevision{{Number: 1, Timestamp: "2026-11-15T12:00:00Z", Key: "revision-one"}}}, false)},
+			{Name: "readonly", Data: graphicalActionPanel(&GraphicalActions{HasNode: true, HasEntry: true}, true)},
+			{Name: "owner-window", Data: graphicalActionPanel(&GraphicalActions{Window: "Your confirmed commit expires in 60 seconds.", WindowOwner: true}, false)},
+			{Name: "other-window", Data: graphicalActionPanel(&GraphicalActions{Window: "Another operator has a confirmed commit pending."}, false)},
+		},
+	}},
+	"component_graphical_values.templ": {
+		{Name: "graphicalValues", Fixture: "component/graphical_values", Variants: []golden.Variant{
+			{Name: "text", Data: graphicalValues(webGoldenGraphicalValues("text"), false)},
+			{Name: "enum", Data: graphicalValues(webGoldenGraphicalValues("enum"), false)},
+			{Name: "freeform", Data: graphicalValues(webGoldenGraphicalValues("freeform"), false)},
+			{Name: "readonly", Data: graphicalValues(webGoldenGraphicalValues("text"), true)},
+		}},
+		{Name: "graphicalInlineList", Fixture: "component/graphical_inline_list", Variants: []golden.Variant{
+			{Name: "entries", Data: graphicalInlineList(webGoldenGraphicalInlineList(), false)},
+			{Name: "readonly", Data: graphicalInlineList(webGoldenGraphicalInlineList(), true)},
+		}},
+	},
 	"component_detail.templ": {{
 		Name: "detail", Fixture: "component/detail",
 		Variants: []golden.Variant{
@@ -540,6 +592,9 @@ var webTemplGoldenSpec = golden.Spec{
 		{Name: "cliPage", Fixture: "component/cli_page", Variants: []golden.Variant{
 			{Data: cliPage(cliPageData{Prompt: "ze[bgp]# ", Mode: "config"})},
 		}},
+		{Name: "cliLoadPanel", Fixture: "component/cli_load_panel", Variants: []golden.Variant{
+			{Data: cliLoadPanel()},
+		}},
 		{Name: "terminalContent", Fixture: "component/terminal_content", Variants: []golden.Variant{
 			{Data: terminalContent("ze[bgp]# ")},
 		}},
@@ -558,8 +613,8 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "empty", Data: configChildList(nil)},
 		}},
 		{Name: "configKeyList", Fixture: "component/config_key_list", Variants: []golden.Variant{
-			{Name: "keys", Data: configKeyList([]string{"bgp", "peer"}, webCLIViewData().Keys)},
-			{Name: "root", Data: configKeyList(nil, webCLIViewData().Keys)},
+			{Name: "keys", Data: configKeyList(webCLIViewData().KeyLinks)},
+			{Name: "root", Data: configKeyList(configKeyLinks(nil, webCLIViewData().Keys, nil))},
 		}},
 		{Name: "configLeafTable", Fixture: "component/config_leaf_table", Variants: []golden.Variant{
 			{Name: "leaves", Data: configLeafTable(webCLIViewData().LeafFields)},
@@ -702,7 +757,7 @@ func webIfaceConfigData(withAddresses bool) ifaceConfigData {
 // webCLIViewData is the config node the web CLI renders: children, list keys
 // and leaves, so every branch of configViewBody draws.
 func webCLIViewData() *ConfigViewData {
-	return &ConfigViewData{
+	data := &ConfigViewData{
 		Path:     []string{"bgp", "peer"},
 		Children: []ChildEntry{{Name: "local", URL: "/show/bgp/local/", Kind: "container"}},
 		Keys:     []string{"london", "paris"},
@@ -711,6 +766,8 @@ func webCLIViewData() *ConfigViewData {
 			{Name: "keepalive", Default: "60"},
 		},
 	}
+	data.KeyLinks = configKeyLinks(data.Path, data.Keys, nil)
+	return data
 }
 
 // webCLIResponseData is one navigation command's whole answer.

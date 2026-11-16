@@ -4,14 +4,12 @@
 package cli
 
 import (
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -715,7 +713,7 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 	// result's view is drawn there.
 	at := m
 	at.contextPath = m.pasteModePosition
-	result, err := at.applyLoad(m.pasteModeLocation, m.pasteModeAction, content, "terminal")
+	result, err := at.applyLoad(m.pasteModeLocation, m.pasteModeAction, content, loadSourceTerminal)
 	if err != nil {
 		m.setError(err)
 		return m, nil
@@ -765,28 +763,10 @@ const cliFormatLeafPath = "environment/cli/format/default"
 // every value, never as "every format is valid": the set is the guard, so an
 // unread schema has to close it (ai/rules/principles.md).
 func (m *Model) cliFormatNames() []string {
-	leaf := m.cliFormatLeaf()
-	if leaf == nil {
+	if m.validator == nil {
 		return nil
 	}
-	return slices.Sorted(slices.Values(leaf.Enums))
-}
-
-// cliFormatLeaf answers the schema leaf `set cli format` sets, nil when this
-// session's schema does not declare it.
-func (m *Model) cliFormatLeaf() *config.LeafNode {
-	if m.validator == nil || m.validator.schema == nil {
-		return nil
-	}
-	node, err := m.validator.schema.Lookup(cliFormatLeafPath)
-	if err != nil {
-		return nil
-	}
-	leaf, isLeaf := node.(*config.LeafNode)
-	if !isLeaf {
-		return nil
-	}
-	return leaf
+	return sessionFormatNames(m.validator.schema)
 }
 
 // cliFormatCommandPath is the setting path `set cli format` names, as the
@@ -829,53 +809,21 @@ func appendCLIFormatCompletions(completions []Completion, input string, names []
 // handleSetCLIFormat handles `set cli format [<value>]` in operational mode.
 // Returns true if the input was handled.
 func handleSetCLIFormat(input string, m *Model) bool {
-	const prefix = "set cli format"
-	if input != prefix && !strings.HasPrefix(input, prefix+" ") {
+	var schema *config.Schema
+	if m.validator != nil {
+		schema = m.validator.schema
+	}
+	answer, handled, err := ExecuteSessionFormat(schema, input, m.cliFormat)
+	if !handled {
 		return false
 	}
-	rest := strings.TrimSpace(input[len(prefix):])
-
 	m.textInput.SetValue("")
-
-	if rest == "" {
-		current := m.sessionFormat()
-		if current == "" {
-			current = "text"
-		}
-		var tb textbuf.Buffer
-		m.statusMessage = tb.Str("cli format: ").Str(current).String()
-		return true
-	}
-
-	names := m.cliFormatNames()
-	if len(names) == 0 {
-		m.statusMessage = "cli format unavailable: the schema declares no output formats"
-		return true
-	}
-	// The value is judged by the leaf's own check, so the refusal is the
-	// schema's: the accepted formats with their help in declared order, and
-	// `fix: set cli format <...>`, shown whole in the viewport (setError).
-	if err := config.ValidateLeafValue(m.cliFormatLeaf(), cliFormatCommandPath, rest); err != nil {
+	if err != nil {
 		m.statusMessage = ""
 		m.setError(err)
 		return true
 	}
-
-	// Record on the session, NOT via env.Set: env.Set writes a process-global cache
-	// and os.Setenv (env.go), so one session's choice would change the default output
-	// format for every other concurrent SSH and web CLI session.
-	m.cliFormat = rest
-	var tb textbuf.Buffer
-	m.statusMessage = tb.Str("cli format set to ").Str(rest).String()
+	m.cliFormat = answer.Format
+	m.statusMessage = answer.Output
 	return true
-}
-
-// sessionFormat returns the format this session should use: its `set cli format`
-// override if any, otherwise the configured default (the environment cli format
-// default YANG leaf, plumbed to ze.cli.format). Empty means neither is set.
-func (m *Model) sessionFormat() string {
-	if m.cliFormat != "" {
-		return m.cliFormat
-	}
-	return env.Get("ze.cli.format")
 }

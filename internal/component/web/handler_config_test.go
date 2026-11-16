@@ -951,9 +951,9 @@ func TestHandleConfigRename(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", value)
 }
 
-// TestHandleConfigRenameNormalizesKey verifies rename input is trimmed and
-// keeps its case, as the CLI's rename stores it (spec-bfd-link-local-peer-zone
-// round 6: the form no longer lowercases a key).
+// TestHandleConfigRenameNormalizesKey verifies the destination is validated as
+// the literal key supplied by the form and retains its case. AC-38 forbids
+// trimming legal key data; the peer schema refuses surrounding spaces.
 func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
 	handler := handleConfigRename(mgr, schema)
@@ -961,7 +961,18 @@ func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
 	require.NoError(t, err)
 
-	form := url.Values{"new-key": {" Paris "}}
+	// Whitespace is key data, not command syntax. This schema refuses it.
+	refused := httptest.NewRecorder()
+	bad := postConfigRequest(t, "/config/rename/bgp/peer/london/", url.Values{"new-key": {" Paris "}}, "alice")
+	bad.Header.Set("HX-Request", "true")
+	handler.ServeHTTP(refused, bad)
+	require.Equal(t, http.StatusBadRequest, refused.Code)
+	peersBefore := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	require.NotNil(t, peersBefore["london"])
+	assert.Nil(t, peersBefore["Paris"])
+	assert.Nil(t, peersBefore[" Paris "])
+
+	form := url.Values{"new-key": {"Paris"}}
 	req := postConfigRequest(t, "/config/rename/bgp/peer/london/", form, "alice")
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
@@ -971,7 +982,7 @@ func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
 	assert.Nil(t, peers["london"])
-	require.NotNil(t, peers["Paris"], "the key is trimmed and keeps its case")
+	require.NotNil(t, peers["Paris"], "the accepted key keeps its case")
 	assert.Nil(t, peers["paris"])
 }
 

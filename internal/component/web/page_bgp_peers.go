@@ -53,7 +53,7 @@ func collectPeers(viewTree *config.Tree) []peerEntry {
 	if viewTree == nil {
 		return nil
 	}
-	bgpTree := viewTree.GetContainer("bgp")
+	bgpTree := viewTree.GetContainer(segBGP)
 	if bgpTree == nil {
 		return nil
 	}
@@ -61,19 +61,19 @@ func collectPeers(viewTree *config.Tree) []peerEntry {
 	var peers []peerEntry
 
 	// Standalone peers at bgp/peer
-	for _, entry := range bgpTree.GetListOrdered("peer") {
+	for _, entry := range bgpTree.GetListOrdered(bgpPeerSegment) {
 		pe := extractPeerEntry(entry.Key, entry.Value, "")
 		peers = append(peers, pe)
 	}
 
 	// Grouped peers at bgp/group/*/peer
-	for _, groupEntry := range bgpTree.GetListOrdered("group") {
+	for _, groupEntry := range bgpTree.GetListOrdered(bgpGroupSegment) {
 		groupName := groupEntry.Key
 		groupTree := groupEntry.Value
 		if groupTree == nil {
 			continue
 		}
-		for _, peerItem := range groupTree.GetListOrdered("peer") {
+		for _, peerItem := range groupTree.GetListOrdered(bgpPeerSegment) {
 			pe := extractPeerEntry(peerItem.Key, peerItem.Value, groupName)
 			peers = append(peers, pe)
 		}
@@ -129,9 +129,9 @@ func extractPeerEntry(name string, peerTree *config.Tree, group string) peerEntr
 	// Build edit URL
 	var tb textbuf.Buffer
 	if group == "" {
-		pe.EditURL = tb.Str(bgpPeerPathPrefix).Str(name).Byte('/').String()
+		pe.EditURL = tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segBGP, bgpPeerSegment, name})).Byte('/').String()
 	} else {
-		pe.EditURL = tb.Str("/show/bgp/group/").Str(group).Str("/peer/").Str(name).Byte('/').String()
+		pe.EditURL = tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segBGP, bgpGroupSegment, group, bgpPeerSegment, name})).Byte('/').String()
 	}
 
 	return pe
@@ -209,10 +209,6 @@ func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 		// actual command from the YANG ze:related annotations.
 		if pe.RemoteIP != "" {
 			var tb textbuf.Buffer
-			contextPath := tb.Str("bgp/peer/").Str(pe.Name).String()
-			if pe.Group != "" {
-				contextPath = tb.Reset().Str("bgp/group/").Str(pe.Group).Str("/peer/").Str(pe.Name).String()
-			}
 			actions = append(actions,
 				WorkbenchRowAction{
 					Label:  labelDetail,
@@ -226,7 +222,6 @@ func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 					Confirm: tb.Reset().Str("Tear down BGP session with ").Str(pe.Name).Str(" (").Str(pe.RemoteIP).Str(")?").String(),
 				},
 			)
-			_ = contextPath // context_path sent via hidden form fields in the template
 		}
 
 		rows = append(rows, WorkbenchTableRow{
@@ -248,7 +243,7 @@ func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 	addURL := bgpPeerPathPrefix
 	if filterGroup != "" {
 		var tb textbuf.Buffer
-		addURL = tb.Str("/show/bgp/group/").Str(filterGroup).Str("/peer/").String()
+		addURL = tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segBGP, bgpGroupSegment, filterGroup, bgpPeerSegment})).Byte('/').String()
 	}
 
 	return WorkbenchTableData{
@@ -285,7 +280,7 @@ func buildBGPPeerDetailData(renderer *Renderer, pe peerEntry) WorkbenchDetailDat
 	closeURL := bgpPeerPathPrefix
 	if pe.Group != "" {
 		var tb textbuf.Buffer
-		closeURL = tb.Str("/show/bgp/group/").Str(pe.Group).Str("/peer/").String()
+		closeURL = tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segBGP, bgpGroupSegment, pe.Group, bgpPeerSegment})).Byte('/').String()
 	}
 
 	return WorkbenchDetailData{
@@ -351,11 +346,9 @@ func buildPeerStatusHTML(renderer *Renderer, pe peerEntry) template.HTML {
 }
 
 func buildPeerActionsHTML(renderer *Renderer, pe peerEntry) template.HTML {
-	var tb textbuf.Buffer
-
-	contextPath := tb.Str("bgp/peer/").Str(pe.Name).String()
+	contextPath := encodeConfigPath([]string{segBGP, bgpPeerSegment, pe.Name})
 	if pe.Group != "" {
-		contextPath = tb.Reset().Str("bgp/group/").Str(pe.Group).Str("/peer/").Str(pe.Name).String()
+		contextPath = encodeConfigPath([]string{segBGP, bgpGroupSegment, pe.Group, bgpPeerSegment, pe.Name})
 	}
 
 	return renderer.renderComponent("peer_detail_actions", peerDetailActions(peerActionsData{

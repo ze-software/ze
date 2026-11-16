@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -25,6 +25,8 @@ import (
 // Each authenticated user gets an independent Editor instance with its own
 // working tree and change tracking.
 type userSession struct {
+	showHints    bool
+	cliFormat    string // Empty inherits the configured operational output format.
 	editor       contract.Editor
 	mu           sync.Mutex // Serializes Editor method calls for this user.
 	lastActivity time.Time
@@ -135,12 +137,32 @@ func (m *EditorManager) GetOrCreate(username string) (*userSession, error) {
 	ed.SetSession(session)
 
 	us := &userSession{
+		showHints:    true,
 		editor:       ed,
 		lastActivity: time.Now(),
 	}
 	m.sessions[username] = us
 
 	return us, nil
+}
+
+// ConfigCommand runs a shared editor producer with this user's display state.
+// A whole load holds the same lock as a field edit or commit.
+func (m *EditorManager) ConfigCommand(username string, request contract.ConfigCommandRequest) (contract.ConfigCommandResult, error) {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return contract.ConfigCommandResult{}, err
+	}
+	us.mu.Lock()
+	defer us.mu.Unlock()
+	request.ShowHints = us.showHints
+	answer, err := us.editor.ExecuteConfigCommand(request)
+	if err != nil {
+		return answer, err
+	}
+	us.showHints = answer.ShowHints
+	answer.Output = ansiStrip(answer.Output)
+	return answer, nil
 }
 
 // CreateEntry creates an empty list entry at the given path in the user's working tree.
@@ -245,8 +267,11 @@ func (m *EditorManager) ApplyFormEdits(username string, edits []configFormField)
 	for _, f := range edits {
 		var editErr error
 		if f.delete {
-			var pathbuf textbuf.Buffer
-			if getConfigValue(tree, pathbuf.Join(append(append([]string{}, f.path...), f.leaf), "/").String()) == "" {
+			subtree := walkTree(tree, m.schema, f.path)
+			if subtree == nil {
+				continue
+			}
+			if _, present := subtree.Get(f.leaf); !present {
 				continue
 			}
 			editErr = us.editor.DeleteValue(f.path, f.leaf)
@@ -417,16 +442,15 @@ func (m *EditorManager) applyCommittedContent(content string) error {
 // Discard reverts the user's working tree to the original state and removes
 // the session from the manager.
 func (m *EditorManager) Discard(username string) error {
-	m.mu.RLock()
-	us, ok := m.sessions[username]
-	m.mu.RUnlock()
-
-	if !ok {
-		return nil // No session to discard.
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
 	}
 
 	us.mu.Lock()
-	err := us.editor.Discard()
+	// Explicit discard removes durable session intent. Idle eviction uses the
+	// offline Discard separately so that an absent browser preserves its draft.
+	err = us.editor.DiscardSessionPath(nil)
 	us.mu.Unlock()
 
 	if err != nil {
@@ -513,6 +537,33 @@ func (m *EditorManager) Diff(username string) string {
 		return ""
 	}
 
+	return m.diffChanges(changes)
+}
+
+// discardDiff includes this user's durable intent from earlier editing sessions.
+// Explicit discard-all removes the whole per-user file, so its audit must name
+// those changes without claiming another user's changes were discarded.
+func (m *EditorManager) discardDiff(username string) string {
+	m.mu.RLock()
+	us, ok := m.sessions[username]
+	m.mu.RUnlock()
+	if !ok {
+		return ""
+	}
+	us.mu.Lock()
+	defer us.mu.Unlock()
+	changes := us.editor.PendingChanges("")
+	own := changes[:0]
+	for _, change := range changes {
+		if change.User == username {
+			own = append(own, change)
+		}
+	}
+	return m.diffChanges(own)
+}
+
+// diffChanges is the masked renderer shared by the session review and discard audit.
+func (m *EditorManager) diffChanges(changes []contract.PendingChange) string {
 	var b textbuf.Buffer
 	for _, change := range changes {
 		previous := m.maskChangeValue(change.Path, change.Previous)
@@ -565,7 +616,10 @@ func (m *EditorManager) maskChangeValue(path, value string) string {
 		return value
 	}
 
-	segments := strings.Fields(path)
+	segments, err := config.ParseEditPath(path)
+	if err != nil {
+		return config.SecretDataPlaceholder
+	}
 	if len(segments) == 0 {
 		return value
 	}
@@ -608,6 +662,15 @@ func (m *EditorManager) pendingChangePaths(username string) []string {
 		return nil
 	}
 	out := make([]string, 0, len(pending))
+	appendPath := func(path string) {
+		// The editor MUST quote each token before publishing a pending path.
+		// Saved and browser input never arrive here as raw display strings.
+		tokens, err := config.ParseEditPath(path)
+		if err != nil {
+			panic("BUG: pending change has invalid editor path: " + err.Error())
+		}
+		out = append(out, encodeConfigPath(tokens))
+	}
 	for _, p := range pending {
 		// Rename and copy project two paths; every other change projects its Path.
 		//exhaustive:ignore
@@ -615,13 +678,13 @@ func (m *EditorManager) pendingChangePaths(username string) []string {
 		case contract.PendingChangeRename, contract.PendingChangeCopy:
 			// Both old and new locations carry the change.
 			if p.OldPath != "" {
-				out = append(out, p.OldPath)
+				appendPath(p.OldPath)
 			}
 			if p.NewPath != "" {
-				out = append(out, p.NewPath)
+				appendPath(p.NewPath)
 			}
 		default:
-			out = append(out, p.Path)
+			appendPath(p.Path)
 		}
 	}
 	return out
@@ -672,6 +735,35 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 
 	t, _ := us.editor.Tree().(*config.Tree)
 	return t
+}
+
+// viewTree opens the authenticated user's current editor and takes a snapshot
+// under its lock. A first request or a request after discard must not render
+// the older tree captured when the web service started.
+func (m *EditorManager) viewTree(username string) (*config.Tree, error) {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return nil, err
+	}
+	us.mu.Lock()
+	defer us.mu.Unlock()
+	tree, _ := us.editor.Tree().(*config.Tree)
+	if tree == nil {
+		return nil, errors.New("configuration editor has no configuration tree")
+	}
+	return tree.Clone(), nil
+}
+
+// editorSessionRefusal describes a failed candidate-session read or open.
+// A refusal from the editor already owns its recovery instructions.
+func editorSessionRefusal(err error) *opererr.Error {
+	if refusal, ok := errors.AsType[*opererr.Error](err); ok {
+		return refusal
+	}
+	return opererr.Wrap(err,
+		"Your candidate configuration could not be opened.",
+		"This page cannot read or change the candidate while the configuration editor is unavailable",
+		"Reload /show/ to reopen your configuration")
 }
 
 // ReadTree calls read with the user's working tree while holding that

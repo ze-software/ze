@@ -8,8 +8,39 @@ import (
 	"testing"
 	"time"
 
+	webtesting "github.com/ze-software/ze/internal/component/web/testing"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/paths"
 )
+
+// TestWebConfigWorkspaceUsesJourneyModeAndKeepsPrivateStore inspects the actual
+// startup command through the same normalized environment consumer Ze uses.
+// VALIDATES: a journey can select Workbench while config storage stays owned by
+// its workspace, even if a journey tries to override that store.
+// PREVENTS: the shared recording ignoring its explicit mode after a UI default
+// change, or letting authored environment settings replace the private store.
+func TestWebConfigWorkspaceUsesJourneyModeAndKeepsPrivateStore(t *testing.T) {
+	t.Setenv("ZE_DEMO_STATE_ROOT", t.TempDir())
+	t.Setenv("ze.web.ui-mode", "finder")
+	workspace, err := newWebConfigWorkspace(t.Context(),
+		webtesting.WBEnvVar{Var: "ZE_WEB_UI_MODE", Value: "workbench"},
+		webtesting.WBEnvVar{Var: "ze.config.dir", Value: "foreign-store"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := workspace.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	command := workspace.command(t.Context(), []string{"start"}, nil, nil)
+	if got := env.LookupIn(command.Env, "ze.web.ui-mode"); got != "workbench" {
+		t.Errorf("startup ignored journey mode: got %q", got)
+	}
+	if got, want := env.LookupIn(command.Env, "ze.config.dir"), filepath.Join(workspace.directory, "config"); got != want {
+		t.Errorf("startup replaced private store: got %q want %q", got, want)
+	}
+}
 
 // TestWebConfigWorkspaceRootRejectsInheritedAliases launches an actual Go child
 // through the workspace's command owner. The child consumes DefaultConfigDir

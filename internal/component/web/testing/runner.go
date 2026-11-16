@@ -10,17 +10,24 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/trace"
 )
 
 var (
+	errSelectActionRequiresTargetValue = opererr.New(
+		"select requires id= and value= parameters.",
+		"The browser did not select an option.",
+		"action=select:id=<element-id>:value=<option-value>",
+	)
 	errPressActionRequiresKeyParameter  = errors.New("press action requires key= parameter")
 	errWaitUntilRequiresPathAndContains = errors.New("wait-until action requires path= and contains= parameters")
 	errWaitHTMLRequiresOneCondition     = errors.New("wait-html action takes exactly one of contains=<text> or not-contains=<text>, " +
@@ -398,6 +405,15 @@ func (b *Browser) pressOn(text, key string) error {
 
 // pressOnID focuses an element by HTML id and presses a key.
 func (b *Browser) pressOnID(id, key string) error {
+	if err := b.pressOnIDWithoutLoad(id, key); err != nil {
+		return err
+	}
+	return b.waitLoad()
+}
+
+// pressOnIDWithoutLoad permits a continuous response or an explicit overlap
+// proof. Its caller must assert the resulting browser state.
+func (b *Browser) pressOnIDWithoutLoad(id, key string) error {
 	var tb textbuf.Buffer
 	sel := tb.Byte('#').Str(id).String()
 	if err := b.runAgent("focus", sel); err != nil {
@@ -405,6 +421,41 @@ func (b *Browser) pressOnID(id, key string) error {
 	}
 	if err := b.runAgent("press", key); err != nil {
 		return fmt.Errorf("press %s on #%s: %w", key, id, err)
+	}
+	return nil
+}
+
+// selectID uses the browser's native select command without an Enter key that
+// can submit the surrounding form. The next action decides when to submit it.
+func (b *Browser) selectID(id, value string) error {
+	if err := b.runAgent("select", "#"+id, value); err != nil {
+		return fmt.Errorf("select %q on #%s: %w", value, id, err)
+	}
+	return b.waitLoad()
+}
+
+// uploadID selects a local file through agent-browser's native upload command.
+// https://agent-browser.dev/commands documents upload <selector> <files>.
+func (b *Browser) uploadID(id, file string) error {
+	if id == "" {
+		return errors.New("upload requires id= and file= parameters")
+	}
+	if file == "" {
+		return errors.New("upload requires id= and file= parameters")
+	}
+	path, err := filepath.Abs(file)
+	if err != nil {
+		return fmt.Errorf("upload path: %w", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("upload file: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return errors.New("upload file must be a regular file")
+	}
+	if err := b.runAgent("upload", "#"+id, path); err != nil {
+		return fmt.Errorf("upload #%s: %w", id, err)
 	}
 	return b.waitLoad()
 }
@@ -951,6 +1002,18 @@ func executeAction(b *Browser, a *WBAction) error {
 			return b.hoverID(id)
 		}
 		return b.hover(a.Values["text"])
+	case "select":
+		id := a.Values["id"]
+		if id == "" {
+			return errSelectActionRequiresTargetValue
+		}
+		value, present := a.Values["value"]
+		if !present {
+			return errSelectActionRequiresTargetValue
+		}
+		return b.selectID(id, value)
+	case "upload":
+		return b.uploadID(a.Values["id"], a.Values["file"])
 	case "wait":
 		if ms, ok := a.Values["ms"]; ok {
 			return b.waitMs(ms)
@@ -968,6 +1031,15 @@ func executeAction(b *Browser, a *WBAction) error {
 		key := a.Values["key"]
 		if key == "" {
 			return errPressActionRequiresKeyParameter
+		}
+		if wait, ok := a.Values["wait"]; ok {
+			if wait != "none" {
+				return errors.New("press wait=none requires id=; other wait values are unsupported")
+			}
+			if a.Values["id"] == "" {
+				return errors.New("press wait=none requires id=; other wait values are unsupported")
+			}
+			return b.pressOnIDWithoutLoad(a.Values["id"], key)
 		}
 		if id, ok := a.Values["id"]; ok {
 			return b.pressOnID(id, key)

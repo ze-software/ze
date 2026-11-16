@@ -84,7 +84,7 @@ func countRules(filterTree *config.Tree) int {
 		return 0
 	}
 	// Try common rule list names
-	for _, name := range []string{"rule", "entry", "term", "sequence"} {
+	for _, name := range []string{segRule, "entry", "term", "sequence"} {
 		if l := filterTree.GetList(name); len(l) > 0 {
 			return len(l)
 		}
@@ -102,16 +102,18 @@ func buildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTable
 
 	rows := make([]WorkbenchTableRow, 0, len(entries))
 	for _, pe := range entries {
+		var tb textbuf.Buffer
+		entryURL := tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segPolicy, pe.Type, pe.Name})).Byte('/').String()
 		rows = append(rows, WorkbenchTableRow{
 			Key: pe.Name,
-			URL: policyPathPrefix + pe.Type + "/" + pe.Name + "/",
+			URL: entryURL,
 			Cells: []string{
 				pe.Name,
 				pe.Type,
 				strconv.Itoa(pe.RuleCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: labelEdit, URL: policyPathPrefix + pe.Type + "/" + pe.Name + "/"},
+				{Label: labelEdit, URL: entryURL},
 			},
 		})
 	}

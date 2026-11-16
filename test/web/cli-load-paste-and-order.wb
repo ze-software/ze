@@ -1,0 +1,47 @@
+# Test: browser CLI loads pasted configuration into the candidate and orders turns
+# VALIDATES: context from edit reaches the next queued set; pasted load is staged;
+# quoted question marks remain data and the committed configuration stays unchanged.
+# PREVENTS: browser command races, completion eating a quoted ?, and load publishing
+# directly instead of giving the operator a candidate to review.
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+expect=element:text=router-id
+
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter:wait=none
+action=fill:id=terminal-input:value=set router-id 192.0.2.123
+action=press:id=terminal-input:key=Enter
+expect=element:text=192.0.2.123
+
+action=fill:id=terminal-input:value=load terminal relative merge
+action=press:id=terminal-input:key=Enter
+expect=element:text=Paste configuration
+action=fill:id=cli-load-text:value=group "two words?" { description "what ? now"; }
+action=click:id=cli-load-apply
+expect=element:text=Configuration merged
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=two words?
+expect=element:text=what ? now
+
+action=fill:id=terminal-input:value=set group quoted description "what
+action=press:id=terminal-input:key=?
+action=press:id=terminal-input:key="
+action=press:id=terminal-input:key=Enter
+expect=element:text=what?
+
+action=fill:id=terminal-input:value=show confirmed
+action=press:id=terminal-input:key=Enter
+expect=element:text=router-id
+expect=element:not-text=two words?
+expect=element:not-text=192.0.2.123
+
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=two words?
+expect=element:text=192.0.2.123

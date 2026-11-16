@@ -86,12 +86,13 @@ module ze-web-conf {
 
             leaf ui-mode {
                 type enumeration {
-                    enum finder { ze:help "Default file-browser style UI."; }
+                    enum finder { ze:help "Graphical YANG editor (default)."; }
                     enum workbench { ze:help "Experimental workbench UI."; }
                 }
                 default "finder";
-                description "finder is the default file-browser UI. workbench is the
-                             experimental one.";
+                description "finder is the default graphical YANG editor. workbench is an
+                             unfinished experimental alternative, selected explicitly.
+                             Environment variable: ze.web.ui-mode.";
                 ze:help "Web UI mode.";
 
             }

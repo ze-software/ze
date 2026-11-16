@@ -1,84 +1,100 @@
-# Test: create firewall table, chain, and rule via web forms and CLI
-# VALIDATES: firewall table/chain/term creation forms, CLI set for chain fields
-# PREVENTS: broken firewall add forms, chain fields not saving
+# Test: create firewall objects graphically and configure them in CLI mode
+# VALIDATES: table, chain and term add forms combine with CLI fields and successful publication
+# PREVENTS: broken add forms, incorrect context or configuration loss
 
-option=skip:reason=requires Finder mode (ze.web.ui=finder)
+option=env:var=ze.web.ui-mode:value=finder
 option=timeout:value=60s
 
-# Navigate to firewall tables page
 action=open:path=/show/firewall/table/
-action=wait:ms=300
-
-# Create a firewall table
-action=click:id=btn-add-entry
-action=wait:ms=400
+action=click:id=btn-add-entry-finder-show-firewall-table
 action=fill:text=name:value=filter
 action=press:key=Enter
-action=wait:ms=800
+action=wait-until:path=/show/firewall/table/:contains=/show/firewall/table/filter/
 expect=element:text=filter
 
-# Set the table family via CLI
 action=open:path=/show/
-action=wait:ms=300
-action=fill:id=cli-input:value=set firewall table filter family inet
-action=press:key=Enter
-action=wait:ms=300
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-# Navigate to chains and add an input chain
+# The web-only server commits configuration through the real validator but
+# applies no kernel rules. Name the target backend instead of a host default.
+action=fill:id=terminal-input:value=set firewall backend nft
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set firewall table filter family inet
+action=press:id=terminal-input:key=Enter
+action=wait
+
 action=open:path=/show/firewall/table/filter/chain/
-action=wait:ms=300
-action=click:id=btn-add-entry
-action=wait:ms=400
+action=click:id=btn-add-entry-finder-show-firewall-table-filter-chain
 action=fill:text=name:value=input
 action=press:key=Enter
-action=wait:ms=800
+action=wait-until:path=/show/firewall/table/filter/chain/:contains=/show/firewall/table/filter/chain/input/
 expect=element:text=input
 
-# Set chain properties via CLI
 action=open:path=/show/
-action=wait:ms=300
-action=fill:id=cli-input:value=set firewall table filter chain input type filter
-action=press:key=Enter
-action=wait:ms=200
-action=fill:id=cli-input:value=set firewall table filter chain input hook input
-action=press:key=Enter
-action=wait:ms=200
-action=fill:id=cli-input:value=set firewall table filter chain input priority 0
-action=press:key=Enter
-action=wait:ms=200
-action=fill:id=cli-input:value=set firewall table filter chain input policy drop
-action=press:key=Enter
-action=wait:ms=300
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-# Add a firewall rule (term)
+action=fill:id=terminal-input:value=set firewall table filter chain input type filter
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set firewall table filter chain input hook input
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set firewall table filter chain input priority 0
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set firewall table filter chain input policy drop
+action=press:id=terminal-input:key=Enter
+action=wait
+
 action=open:path=/show/firewall/table/filter/chain/input/term/
-action=wait:ms=300
-action=click:id=btn-add-entry
-action=wait:ms=400
+action=click:id=btn-add-entry-finder-show-firewall-table-filter-chain-input-term
 action=fill:text=name:value=allow-bgp
 action=press:key=Enter
-action=wait:ms=800
+action=wait-until:path=/show/firewall/table/filter/chain/input/term/:contains=/show/firewall/table/filter/chain/input/term/allow-bgp/
 expect=element:text=allow-bgp
 
-# Set match criteria on the term via CLI
 action=open:path=/show/
-action=wait:ms=300
-action=fill:id=cli-input:value=set firewall table filter chain input term allow-bgp from protocol tcp
-action=press:key=Enter
-action=wait:ms=200
-action=fill:id=cli-input:value=set firewall table filter chain input term allow-bgp from destination-port 179
-action=press:key=Enter
-action=wait:ms=300
+expect=element:text=CLI
+expect=element:not-id=cli-input
+action=click:text=CLI
+expect=element:id=terminal-input
 
-# Commit
-action=fill:id=cli-input:value=top
-action=press:key=Enter
-action=wait:ms=200
-action=fill:id=cli-input:value=commit now
-action=press:key=Enter
-action=wait:ms=1200
+action=fill:id=terminal-input:value=set firewall table filter chain input term allow-bgp from protocol tcp
+action=press:id=terminal-input:key=Enter
+action=wait
 
-# Verify table still exists
+action=fill:id=terminal-input:value=set firewall table filter chain input term allow-bgp from destination-port 179
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=set firewall table filter chain input term allow-bgp then accept
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=top
+action=press:id=terminal-input:key=Enter
+action=wait
+
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/config/diff
+expect=element:text=Review changes (0)
+action=open:path=/show/firewall/
+expect=element:id=input-firewall-sbackend
+expect=html:contains=value="nft"
 action=open:path=/show/firewall/table/
-action=wait:ms=400
 expect=element:text=filter
