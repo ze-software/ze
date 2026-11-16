@@ -34,6 +34,12 @@ codeberg.org/chavacava/garif
 # codeberg.org/polyfloyd/go-errorlint v1.9.0
 ## explicit; go 1.24.0
 codeberg.org/polyfloyd/go-errorlint/errorlint
+# cyphar.com/go-pathrs v0.2.6
+## explicit; go 1.18
+cyphar.com/go-pathrs
+cyphar.com/go-pathrs/internal/fdutils
+cyphar.com/go-pathrs/internal/libpathrs
+cyphar.com/go-pathrs/procfs
 # dev.gaijin.team/go/exhaustruct/v4 v4.0.0
 ## explicit; go 1.24
 dev.gaijin.team/go/exhaustruct/v4/analyzer
@@ -188,6 +194,9 @@ github.com/anmitsu/go-shlex
 # github.com/antihax/optional v1.0.0
 ## explicit; go 1.13
 github.com/antihax/optional
+# github.com/aperturerobotics/protobuf-go-lite v0.14.0
+## explicit; go 1.23
+github.com/aperturerobotics/protobuf-go-lite
 # github.com/ashanbrown/forbidigo/v2 v2.3.1
 ## explicit; go 1.24.0
 github.com/ashanbrown/forbidigo/v2/forbidigo
@@ -282,6 +291,11 @@ github.com/charmbracelet/x/windows
 # github.com/charmbracelet/x/xpty v0.1.4
 ## explicit; go 1.25.0
 github.com/charmbracelet/x/xpty
+# github.com/checkpoint-restore/go-criu/v8 v8.3.0
+## explicit; go 1.25.0
+github.com/checkpoint-restore/go-criu/v8
+github.com/checkpoint-restore/go-criu/v8/internal/proto
+github.com/checkpoint-restore/go-criu/v8/rpc
 # github.com/chromedp/cdproto v0.158.6
 ## explicit; go 1.25
 github.com/chromedp/cdproto
@@ -391,6 +405,12 @@ github.com/cloudflare/circl/math/fp448
 github.com/cloudflare/circl/math/mlsbset
 github.com/cloudflare/circl/sign
 github.com/cloudflare/circl/sign/ed448
+# github.com/containerd/console v1.0.5
+## explicit; go 1.13
+github.com/containerd/console
+# github.com/coreos/go-systemd/v22 v22.7.0
+## explicit; go 1.23
+github.com/coreos/go-systemd/v22/dbus
 # github.com/creack/pty v1.1.24
 ## explicit; go 1.18
 github.com/creack/pty
@@ -398,6 +418,20 @@ github.com/creack/pty
 ## explicit; go 1.21
 github.com/curioswitch/go-reassign
 github.com/curioswitch/go-reassign/internal/analyzer
+# github.com/cyphar/filepath-securejoin v0.7.0
+## explicit; go 1.18
+github.com/cyphar/filepath-securejoin
+github.com/cyphar/filepath-securejoin/internal/consts
+github.com/cyphar/filepath-securejoin/pathrs-lite
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal/assert
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal/fd
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal/gocompat
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal/gopathrs
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal/kernelversion
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal/linux
+github.com/cyphar/filepath-securejoin/pathrs-lite/internal/procfs
+github.com/cyphar/filepath-securejoin/pathrs-lite/procfs
 # github.com/daixiang0/gci v0.14.0
 ## explicit; go 1.24.0
 github.com/daixiang0/gci/pkg/config
@@ -527,6 +561,9 @@ github.com/gobwas/glob/syntax/ast
 github.com/gobwas/glob/syntax/lexer
 github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
+# github.com/godbus/dbus/v5 v5.2.2
+## explicit; go 1.20
+github.com/godbus/dbus/v5
 # github.com/godoc-lint/godoc-lint v0.11.4
 ## explicit; go 1.26.0
 github.com/godoc-lint/godoc-lint/pkg/analysis
@@ -999,6 +1036,18 @@ github.com/mitchellh/go-homedir
 ## explicit; go 1.19
 github.com/moby/patternmatcher
 github.com/moby/patternmatcher/ignorefile
+# github.com/moby/sys/capability v0.5.0
+## explicit; go 1.24
+github.com/moby/sys/capability
+# github.com/moby/sys/mountinfo v0.7.2
+## explicit; go 1.17
+github.com/moby/sys/mountinfo
+# github.com/moby/sys/user v0.4.0
+## explicit; go 1.17
+github.com/moby/sys/user
+# github.com/moby/sys/userns v0.2.1
+## explicit; go 1.21
+github.com/moby/sys/userns
 # github.com/modelcontextprotocol/go-sdk v1.8.0
 ## explicit; go 1.25.0
 github.com/modelcontextprotocol/go-sdk/auth
@@ -1016,6 +1065,9 @@ github.com/modelcontextprotocol/go-sdk/oauthex
 github.com/moricho/tparallel
 github.com/moricho/tparallel/pkg/ssafunc
 github.com/moricho/tparallel/pkg/ssainstr
+# github.com/mrunalp/fileutils v0.5.1
+## explicit; go 1.13
+github.com/mrunalp/fileutils
 # github.com/muesli/cancelreader v0.2.2
 ## explicit; go 1.17
 github.com/muesli/cancelreader
@@ -1067,6 +1119,45 @@ github.com/openconfig/gnmi/proto/gnmi_ext
 ## explicit; go 1.22.0
 github.com/openconfig/goyang/pkg/indent
 github.com/openconfig/goyang/pkg/yang
+# github.com/opencontainers/cgroups v0.1.0
+## explicit; go 1.24.0
+github.com/opencontainers/cgroups
+github.com/opencontainers/cgroups/devices/config
+github.com/opencontainers/cgroups/fs
+github.com/opencontainers/cgroups/fs2
+github.com/opencontainers/cgroups/fscommon
+github.com/opencontainers/cgroups/internal/path
+github.com/opencontainers/cgroups/manager
+github.com/opencontainers/cgroups/systemd
+# github.com/opencontainers/runc v1.5.3
+## explicit; go 1.25.0
+github.com/opencontainers/runc/internal/cmsg
+github.com/opencontainers/runc/internal/linux
+github.com/opencontainers/runc/internal/pathrs
+github.com/opencontainers/runc/internal/sys
+github.com/opencontainers/runc/libcontainer
+github.com/opencontainers/runc/libcontainer/apparmor
+github.com/opencontainers/runc/libcontainer/capabilities
+github.com/opencontainers/runc/libcontainer/configs
+github.com/opencontainers/runc/libcontainer/configs/validate
+github.com/opencontainers/runc/libcontainer/exeseal
+github.com/opencontainers/runc/libcontainer/intelrdt
+github.com/opencontainers/runc/libcontainer/internal/userns
+github.com/opencontainers/runc/libcontainer/keys
+github.com/opencontainers/runc/libcontainer/logs
+github.com/opencontainers/runc/libcontainer/seccomp
+github.com/opencontainers/runc/libcontainer/seccomp/patchbpf
+github.com/opencontainers/runc/libcontainer/system
+github.com/opencontainers/runc/libcontainer/utils
+github.com/opencontainers/runc/types
+# github.com/opencontainers/runtime-spec v1.3.0
+## explicit
+github.com/opencontainers/runtime-spec/specs-go
+# github.com/opencontainers/selinux v1.13.1
+## explicit; go 1.19
+github.com/opencontainers/selinux/go-selinux
+github.com/opencontainers/selinux/go-selinux/label
+github.com/opencontainers/selinux/pkg/pwalkdir
 # github.com/packetcap/go-pcap v0.0.0-20260731105150-c86974bbfbcd
 ## explicit; go 1.25.0
 github.com/packetcap/go-pcap/filter
@@ -1185,6 +1276,9 @@ github.com/sashamelentyev/interfacebloat/pkg/analyzer
 ## explicit; go 1.23.0
 github.com/sashamelentyev/usestdlibvars/pkg/analyzer
 github.com/sashamelentyev/usestdlibvars/pkg/analyzer/internal/mapping
+# github.com/seccomp/libseccomp-golang v0.12.0
+## explicit; go 1.19
+github.com/seccomp/libseccomp-golang
 # github.com/securego/gosec/v2 v2.30.0
 ## explicit; go 1.26.0
 github.com/securego/gosec/v2
