@@ -157,7 +157,7 @@ Config nodes this child realizes, under `container instance NAME` (its table S-1
 | `tmpfs` | A memory-backed mount of a mandatory size, counted in `memory` |
 | `volume` (the mount only) | The folder the store answers for the volume is mounted at `destination`, read-only when `read-only` is true |
 
-Verify rules of its table V-1 that land here: V-2 (a `sysctl` outside the per-namespace settings), V-3 (memory-backed sizes above `memory`), V-7 (one path named twice), V-8 (`cpu` above 100 times the host's processors), V-10 (one capability both added and dropped) and V-11 (a container config under a daemon that does not run as root). The message of each rule is that child's table E-1. Its code and its tests are this child's, in the plugin's package. V-11 is judged where the daemon runs, at boot, reload and commit, and by doctor (AC-15, and the Key Design Decisions row on host privilege). That child's table lists V-11 among the rules `ze config validate` judges with no daemon. The two specs differ on that one point, and it waits for a ruling.
+Verify rules of its table V-1 that land here: V-2 (a `sysctl` outside the per-namespace settings), V-3 (memory-backed sizes above `memory`), V-7 (one path named twice), V-8 (`cpu` above 100 times the host's processors), V-10 (one capability both added and dropped) and V-11 (a container config under a daemon that does not run as root). The message of each rule is that child's table E-1. Its code and its tests are this child's, in the plugin's package. V-11 is judged the way a kernel requirement is: at `ze config validate`, at start and at reload, on the host where the command runs, and by doctor (AC-15, and the Key Design Decisions row on host privilege). The message of a validate run names the user it judged.
 
 Commands: this child lands `request container restart name`. It stops and starts a running container, starts one in `stopped` or `failed`, and is refused for `disabled` and `waiting-image` with the fix that table names. There is no start command and no stop command: `enabled` states whether a container runs. The listing, the detail, the log and its stream are the operator-surface child's; they read this child's facts.
 
@@ -184,12 +184,14 @@ The operator-surface child owns the codes that follow the state (`doctor-contain
 |---------------|------|-------|-----------------------|
 | The daemon cannot create namespaces or cgroups | `doctor-container-not-privileged` | config | Run the daemon as root |
 | The cgroup v2 hierarchy is not at `/sys/fs/cgroup`, or a controller cannot be enabled | `doctor-container-cgroup-unavailable` | config | The host setting that mounts or delegates it |
-| A kernel option is absent or cannot be probed | `doctor-container-kernel-feature-absent`, `doctor-container-kernel-feature-unknown` | config, through the kernel enrolment | Rebuild the kernel with the named option |
+| A kernel option is absent or cannot be probed | One pair of codes for each enrolled capability, as every existing enrolment has: `doctor-container-kernel-NAME-unavailable` and `doctor-container-kernel-NAME-unknown`, where NAME is the capability's lower-kebab name. The network child uses the same scheme | config, through the kernel enrolment | Rebuild the kernel with the named option |
 | The init binary can only be sealed by copying it into memory | `doctor-container-seal-copies-binary` | config | The host setting that allows the overlay mount |
 | A container was killed for memory | `doctor-container-out-of-memory` | runtime | `set container instance NAME memory` with a larger value |
 | A container hit its process limit | `doctor-container-process-limit` | runtime | `set container instance NAME process-limit` with a larger value |
 | A container ignored its stop signal and was killed | `doctor-container-stop-killed` | runtime | `set container instance NAME stop-timeout` with a larger value |
 | A previous run left processes, cgroups or mounts, or a cleanup could not finish | `doctor-container-cleanup-incomplete` | runtime | `ze request container restart name NAME`, or a reboot when the kernel refuses the removal |
+
+Where the codes live: the plugin registers every code of this table from its own package, the two kernel codes of each enrolment included, as the gated VRRP plugin does (`internal/plugins/vrrp/register.go` `registerVRRPDiagnosticCodes`, which calls `diagnostic.Register` for each code the plugin owns). No container code is added to `internal/core/diagnostic/codes.go`: that file is always-on, and a code there would put a gated feature's name in a build without it. No two enrolments share a code.
 
 ### The owner's closing test (umbrella AC-14)
 
@@ -277,6 +279,10 @@ The operator-surface child owns that test: the published Redis image runs as a c
 - [ ] `internal/le/test/qemu/mplsboot.go`, `test/appliance/appliance-mpls-qemu.ci` - a proof that boots an appliance image with a seed config and asks the Ze CLI
 - [ ] `ai/allowed-system-commands.md` - the register, with one row of the same kind today: the operator's plugin program
 - [ ] `docs/contributing/patching-the-standard-library.md` - the vendor patch mechanism, its stamp and its guard tests
+- [ ] `internal/plugins/vrrp/register.go` - `registerVRRP`, called from `init()`, calls `registerVRRPDiagnosticCodes`, which hands each code the gated plugin owns to `diagnostic.Register`
+- [ ] `internal/core/diagnostic/registry.go` - `Register` adds one code with its explanation to a process-wide table and refuses a duplicate; any package may call it
+- [ ] `internal/core/diagnostic/codes.go` - the always-on code table; the existing enrolments' pairs end `-unavailable` and `-unknown` (`CodeDoctorWireGuardUnavailable` is `doctor-wireguard-unavailable`)
+- [ ] `internal/component/kernelcap/kernelcap.go` - `Capability` carries `CodeAbsent` and `CodeUnknown`, and `MustRegister` puts both on one doctor check for each capability. `validate` refuses an empty code and reads no table. The comment on `CodeAbsent` says both codes must be registered in `internal/core/diagnostic/codes.go`, which is stale for a gated plugin
 
 **Behavior to preserve:**
 - `ze init` and the session seed role keep their behavior: the container role is selected by an environment key no other caller sets, before either.
@@ -285,7 +291,7 @@ The operator-surface child owns that test: the published Redis image runs as a c
 - A build without `ze_container` behaves as today.
 
 **Behavior to change:**
-- None. This is a new feature behind a compile-time gate. The one always-on edit is a second early dispatch call in `dispatchMain`, which answers "not handled" when the key is absent.
+- None. This is a new feature behind a compile-time gate. The one always-on edit that runs is a second early dispatch call in `dispatchMain`, which answers "not handled" when the key is absent. The other always-on edit is a comment: the one on `Capability.CodeAbsent` in the kernel capability package.
 
 ## Existing Mechanisms (MANDATORY)
 
@@ -303,7 +309,8 @@ The operator-surface child owns that test: the published Redis image runs as a c
 | Restart delay loop of the VPP manager | The umbrella's row "VPP process supervisor" | Restarts VPP with a delay that doubles from 1 to 30 seconds | Model: the same numbers for a container's restart delay. Not extended as code: it belongs to another component and has no stop signal |
 | Plugin state calls | The SDK's `StatePut`, `StateGet`; `internal/core/statestore/permissions.go` `RegisterPluginKeys`; `pkg/zefs/keys.go` | Persist small values under registered keys, for an internal or a forked plugin | Extends: one key template, `meta/container/{name}`, for a container's record |
 | Doctor checks and codes | `docs/architecture/doctor-and-health-checks.md` "The runtime phase", "The phase decides what a check may read" | A config-phase check registers from its owner; a live-state check is answered by the plugin | Extends: the checks of the problem-class table |
-| Kernel requirement enrolment | `docs/architecture/doctor-and-health-checks.md` "Kernel capabilities: one enrolment, three callers"; `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` | Refuses a build without a required option, and refuses validate, start and reload on a kernel that lacks one | Extends: one enrolment per option, and one option added to the kernel files |
+| Diagnostic codes registered by a gated plugin | `internal/plugins/vrrp/register.go` `registerVRRPDiagnosticCodes`; `internal/core/diagnostic/registry.go` `Register` | A gated plugin hands the codes it owns to the code registry from its own registration, so a build without the plugin holds none of them | Extends by use: the plugin registers every code of the problem-class table the same way, from its own package |
+| Kernel requirement enrolment | `docs/architecture/doctor-and-health-checks.md` "Kernel capabilities: one enrolment, three callers"; `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` | Refuses a build without a required option, and refuses validate, start and reload on a kernel that lacks one | Extends: one enrolment per option, each with its own pair of codes registered from the plugin's package, and one option added to the kernel files. The comment on `Capability.CodeAbsent` that sends both codes to the always-on code table is corrected |
 | cgroup v2 mount locator | The umbrella's row "cgroup v2 mount and its locator" (`cgroup2Root` in the IKE dataplane package) | Finds the mount point from the mount table | Does not apply: the library fixes the mount point at `/sys/fs/cgroup`, so a host that mounts it elsewhere is refused with a doctor code. Nothing is moved to a core leaf |
 | Feature-gate manifest and build-tag tests | `feature-gates.txt`; `cmd/ze/hub/build_tag_vpp_absent_test.go` and its siblings | Declares a gate and proves it present and absent | Extends: the plugin's lines and one test pair |
 | Functional suites | `ai/doors/le-tooling.md` "Tests"; `docs/architecture/testing/qemu-integration.md` "The two entry points" | A suite is a directory under `test` that `./le test <suite>` runs, and the guest runs each suite's `needs-linux` tests | Extends: one new suite, `container`, registered in `le` and in the guest's suite list. The sibling children put their tests in it |
@@ -450,9 +457,9 @@ The operator-surface child owns that test: the published Redis image runs as a c
 | AC-10 | A container's entrypoint exits with a failure, repeatedly | Under `on-failure` and `always` it is restarted with a delay that doubles from 1 to 30 seconds, and returns to 1 second after a run of 60 seconds. The state shows `restarting` then `running`, with the restart count and the last exit status | Under `never` the container shows `stopped` with its exit status, as configured. A clean exit under `on-failure` also shows `stopped` |
 | AC-11 | A config change removes a container, or the daemon stops | The container gets its stop signal. A container still alive after `stop-timeout`, at most 30 seconds, is killed through its cgroup. Afterwards the cgroup, the root mount and the state directory are gone and its processes have exited | The image folder, the writable layer and the volumes remain on disk, so the next start finds them |
 | AC-12 | The daemon is killed while a container runs, then starts again | Before any container starts, the leftover processes are killed and the leftover cgroup and mount removed, with a warning that names the container. Each configured container then runs exactly once, as a new process | The writable layer keeps what the container wrote before the kill, because it is on disk |
-| AC-13 | A config holds a container on a kernel that lacks an option it needs, the hard CPU limit's included | Validate, start and reload refuse and name the option. Doctor reports the same | A config with no container is accepted on that kernel, because nothing needs the option |
+| AC-13 | A config holds a container on a kernel that lacks an option it needs, the hard CPU limit's included | Validate, start and reload refuse and name the option. Doctor reports it under that capability's own code, `doctor-container-kernel-NAME-unavailable`, or `doctor-container-kernel-NAME-unknown` when the probe cannot answer, which refuses nothing | A config with no container is accepted on that kernel, because nothing needs the option |
 | AC-14 | `ze` is built without `ze_container` | A config with the `container` root is refused as unknown with the build tag in the message, the plugin is not registered, and the binary holds no symbol of the plugin or of the upstream runtime | Every other feature behaves as in a build with the gate |
-| AC-15 | A daemon that runs as an unprivileged account, or a host whose cgroup v2 hierarchy is not at `/sys/fs/cgroup`, loads a config with a container | The daemon refuses the config at boot, reload and commit, with the reason, and doctor reports the cause with its fix | A config with no container loads on that host, because nothing needs the privilege |
+| AC-15 | A daemon that runs as an unprivileged account, or a host whose cgroup v2 hierarchy is not at `/sys/fs/cgroup`, loads a config with a container | `ze config validate`, the start and a reload each refuse the config, with the reason, and doctor reports the cause with its fix. A validate run names the user it judged | A config with no container loads on that host, because nothing needs the privilege |
 | AC-16 | A container writes lines to standard output and standard error | The output read answers them in order, each with a rising sequence number, a time and its stream, from a buffer that holds the newest 1 MiB per container, and answers only the rows after a given sequence number when asked. With `log system` each line is also in Ze's log | Rows older than the buffer are dropped, the output of a removed container or a previous daemon run is gone, and `log none` keeps nothing, because the buffer is in memory and the operator chose |
 | AC-17 | The plugin runs as a separate process | AC-1, AC-10, AC-11 and AC-12 hold with the same observations | Containers are children of the plugin process and not of the daemon, which no operator surface shows |
 | AC-18 | A config reload leaves one container unchanged, changes another and adds a third | The unchanged container keeps its process, the changed one is stopped and started with the new description, and the added one starts | A change to a container's `enabled` alone stops or starts it without touching the others |
@@ -503,7 +510,8 @@ Test files are listed with their paths under Files to Create. The File column na
 | `TestOutputBufferKeepsTheNewestBytes` | plugin, output test | The buffer bound, the sequence numbers, the stream mark and the read after a sequence number | |
 | `TestStateRecordRoundTrips` | plugin, state test | The stored record decodes to what was stored | |
 | `TestContainerDoctorChecksAnswerThroughTheCallback` | plugin, doctor test | Each runtime check is declared at Stage 1 and answered by the callback, with its fix | |
-| `TestContainerKernelCapabilitiesAreEnrolled` | plugin, kernel enrolment test | Each option of the kernel list is enrolled and in use whenever a container is configured | |
+| `TestContainerKernelCapabilitiesAreEnrolled` | plugin, kernel enrolment test | Each option of the kernel list is enrolled and in use whenever a container is configured, and each enrolment names its own `doctor-container-kernel-NAME-unavailable` and `doctor-container-kernel-NAME-unknown` | |
+| `TestContainerDiagnosticCodesRegisterFromThePlugin` | plugin, doctor test | After the plugin's registration, every code of the problem-class table resolves in the code registry with its explanation, both kernel codes of every enrolment included | |
 | `TestSeccompSeamIsFilledByThePlugin` | filter package, seam test | The library's `InitSeccomp` reaches Ze's builder | |
 | `TestFilterReturnsEachActionForItsCall` | filter package, filter test | The assembled program, run in the BPF package's virtual machine, returns the profile's action for a listed call | |
 | `TestFilterReturnsTheDefaultForAnUnlistedCall` | filter package, filter test | The default action and its error number | |
@@ -536,7 +544,7 @@ The ranges are the operator-surface child's, except the two this child's design 
 | Failed starts in a row before `failed` | 5, set by the code | 4 keeps trying | N/A | N/A |
 
 ### Functional Tests
-Every test below except the last is a `.ci` file of the container suite, carries `option=needs-linux` with the capability marker for root that the `.ci` format page declares, and runs in Ze's own-system guest on the fixture image of the test store. The last one is a `.ci` file of the appliance suite and drives a boot proof.
+Every test below except the last is a `.ci` file of the container suite, carries `option=needs-linux` with the capability marker for root that the `.ci` format page declares, and runs in Ze's own-system guest on the fixture image of the test store. The tests that run in that guest rest on AC-14 of `spec-appliance-perm-grows-at-install.md`: the guest's persistent partition has the appliance's format and enforces a size cap. The last one is a `.ci` file of the appliance suite and drives a boot proof.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
@@ -557,7 +565,7 @@ Every test below except the last is a `.ci` file of the container suite, carries
 | `container-drain-second-signal-kills` | container suite | A second signal during the drain kills every container at once | |
 | `container-leftover-swept` | container suite | A killed daemon's containers are removed at the next start (AC-12) | |
 | `kernel-capability-container` | container suite | A forced-absent option refuses validate, start and reload (AC-13) | |
-| `container-not-privileged-refused` | container suite | An unprivileged daemon refuses the config and doctor names the fix (AC-15) | |
+| `container-not-privileged-refused` | container suite | Under an unprivileged account, `ze config validate`, the start and a reload each refuse the config, the validate message names the user it judged, and doctor names the fix (AC-15) | |
 | `container-output` | container suite | Both streams reach the buffer, and `log system` reaches Ze's log (AC-16) | |
 | `container-external-plugin` | container suite | The start, restart and stop scenarios with the plugin forked (AC-17) | |
 | `container-plugin-killed-external` | container suite | The forked plugin is killed, its next generation sweeps and restarts (AC-17, AC-12) | |
@@ -591,6 +599,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `cmd/ze/dispatch.go` - one early-role call at the top of `dispatchMain`
 - `feature-gates.txt` - the gate `ze_container`, declared here, and the lines of the packages this child creates: the plugin, its `seccomp` package and its `yang` package. Each sibling adds the line of each package it creates, under the same tag
 - `pkg/zefs/keys.go` - the per-container state key template
+- `internal/component/kernelcap/kernelcap.go` - correct the comment on `Capability.CodeAbsent`: a code registers from the package that owns it, and only an always-on owner's codes are in `internal/core/diagnostic/codes.go`. No behavior changes
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - add `CONFIG_CFS_BANDWIDTH`; pin `CONFIG_FAIR_GROUP_SCHED`, `CONFIG_TMPFS` and `CONFIG_MEMFD_CREATE`, which are on today only by default
 - `ai/allowed-system-commands.md` - the entrypoint row, citing the ruling of 2026-11-16
 - The functional suite table of `le` and the guest's suite list - the `container` suite
@@ -611,7 +620,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `internal/core/earlyrole/earlyrole.go`, `internal/core/earlyrole/earlyrole_test.go` - the always-on leaf: register a role by environment key, dispatch before startup
 - `cmd/ze/early_role_test.go` - the dispatch order test
 - `cmd/ze/hub/build_tag_container_present_test.go`, `cmd/ze/hub/build_tag_container_absent_test.go` - the gate's test pair, which the siblings extend
-- `internal/plugins/container/register.go` - the registration, its config root and verifier entry point, the early role, the state key grant, the diagnostic codes
+- `internal/plugins/container/register.go` - the registration, its config root and verifier entry point, the early role, the state key grant, and the registration of every diagnostic code this child owns, by the shape of `registerVRRPDiagnosticCodes`
 - `internal/plugins/container/container.go` - the engine entry, the logger, the config callbacks, the drain handler, the restart command
 - `internal/plugins/container/config.go`, `internal/plugins/container/config_test.go` - the parser and the one rule set, which the siblings add rules to
 - `internal/plugins/container/describe_linux.go`, `internal/plugins/container/describe_test.go` - the library description and the merge with the image's configuration
@@ -623,7 +632,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `internal/plugins/container/output.go`, `internal/plugins/container/output_test.go` - the bounded buffer and its readers
 - `internal/plugins/container/state.go`, `internal/plugins/container/state_test.go` - the stored record and the read function for the state view
 - `internal/plugins/container/doctor.go`, `internal/plugins/container/doctor_test.go` - the checks
-- `internal/plugins/container/kernelcap_linux.go`, `internal/plugins/container/register_kernelcap_linux.go`, `internal/plugins/container/kernelcap_linux_test.go` - the enrolments
+- `internal/plugins/container/kernelcap_linux.go`, `internal/plugins/container/register_kernelcap_linux.go`, `internal/plugins/container/kernelcap_linux_test.go` - the enrolments, each with its own pair of codes
 - `internal/plugins/container/logbridge.go` - the library's log lines into Ze's logger
 - `internal/plugins/container/library_integration_linux_test.go` - the library-level integration tests
 - `internal/plugins/container/yang/ze-container-conf.yang`, `internal/plugins/container/yang/ze-container-cmd.yang` - the nodes and the one command this child realizes, with the operator-surface child's words
@@ -633,7 +642,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `internal/test/containerprobe/main.go` - the static fixture program the fixture image holds
 - `internal/le/test/qemu/containerboot.go` - the appliance boot proof
 - `docs/architecture/container/runtime.md` - the design page the plugin's files name
-- `features/container.md` - the feature declaration, which the siblings extend
+- `features/containers.md` - the feature declaration, which the siblings extend
 - `internal/component/plugin/all/all_ze_container.go` - generated by `./le repo update`
 - `test/container/container-start.ci`, `test/container/container-created-call.ci`, `test/container/container-memory-limit.ci`, `test/container/container-process-limit.ci`, `test/container/container-cpu-limit.ci`, `test/container/container-grants.ci`
 - `test/container/container-default-confinement.ci`, `test/container/container-default-devices.ci`, `test/container/container-root-and-volumes.ci`, `test/container/container-restart-on-failure.ci`, `test/container/container-restart-never.ci`
@@ -655,14 +664,14 @@ Not applicable: Scope is plugin and no wire protocol changes.
 | Pipe completeness | Yes | The restart command answers a document through the shared renderer |
 | Env var registration | Yes | The `zetest`-only private variable of the test store, registered beside its reader |
 | Doctor check for runtime dependencies | Yes | The plugin's doctor file: privilege, the cgroup hierarchy, the seal route, each kernel option |
-| Doctor code per problem class | Yes | The problem-class table of the Task section |
+| Doctor code per problem class | Yes | The problem-class table of the Task section. Each code registers from the plugin's package, and each kernel enrolment has a pair of its own |
 | Prometheus counters/metrics | Yes | `ze_container_instance_oom_kills_total`, labelled by `name`. The state metrics are the operator-surface child's |
 | BGP family surface (new SAFI / capability / attribute) | N-A | No BGP surface |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/container.md` (new): the runtime's level and evidence |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/containers.md` (new): the runtime's level and evidence |
 | 2 | Config syntax changed? | Yes | The configuration guide: the `container` root, owned jointly with the operator-surface child |
 | 3 | CLI command added/changed? | Yes | The command reference: `request container restart name` |
 | 4 | API/RPC added/changed? | Yes | The API commands page: the same command |
@@ -790,7 +799,8 @@ Not applicable: Scope is plugin and no wire protocol changes.
 | Containers are killed through their cgroup | The plugin supervisor's process-group kill | A container takes a new session and may create groups of its own. The cgroup holds every process whatever it does |
 | A new always-on leaf holds early roles by key | A hook variable for containers in `cmd/ze`; a second role inside the seed-init leaf | Always-on code must not name a feature. The seed role's checks do not fit a role with no arguments |
 | No file of the plugin supervisor is edited | Moving its relay reader and group kill to a shared leaf | Neither fits: the idle bound and the pid hold exist for cases a cgroup removes. An edit there would owe the whole lifecycle regression table for no gain |
-| Host privilege is judged in the daemon and by doctor, never by offline validation | An enrolment like a kernel option | Offline validation runs as the operator, who may not be root while the daemon is. A kernel option reads the same from any process; a privilege does not |
+| Host privilege is judged the way a kernel requirement is: at `ze config validate`, at start and at reload, on the host where the command runs, and by doctor | Judging it in the daemon and by doctor only, never by offline validation | What validate accepts is what boots, and on the appliance both run as root. A validate run by an operator who is not root judges that user and not the daemon's, so its message names the user it judged |
+| Each kernel enrolment has its own pair of codes, and the plugin registers every code it owns from its own package | One pair shared by every enrolment; the codes in the always-on table `internal/core/diagnostic/codes.go`, as the comment on `Capability.CodeAbsent` asks | Every existing enrolment has a pair of its own, so a finding names the missing capability by its code. The gated VRRP plugin already registers its codes from its package (`registerVRRPDiagnosticCodes`), and a code in the always-on table would name a gated feature in a build without it. The comment is corrected in this work |
 | One kernel option is added, for the hard CPU limit (owner ruling) | Also an I/O throttle; a CPU weight only | The owner ruled the hard limit in and the I/O throttle out. A weight shares and does not cap, and the operator-surface child's table has no weight node |
 | `memory` has a floor of 64 MiB | The schema's smaller floor | Init's start-up is charged to the container, and upstream names the same failure in its own error text |
 | A start that fails five times in a row gives `failed`; an entrypoint that keeps exiting is restarted without a bound | A bound on both; no bound on either | A start that fails needs an operator: the image or the config is wrong. An entrypoint that exits is the workload's behavior, and the policy the operator chose says to start it again. The delay is capped, and doctor reports the loop |

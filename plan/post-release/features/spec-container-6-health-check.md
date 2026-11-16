@@ -20,7 +20,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 A container that Ze runs can stop doing its work while its entrypoint keeps running. Today Ze knows only whether the entrypoint runs: the container work (`spec-container-0-umbrella.md`) has no way to ask a container whether it is healthy.
 
-A container health check is part of the operator model the owner asked Ze to follow: an operator names a command, and the system runs it inside the container on an interval and judges the container by its result. The owner ruled on 2026-11-16 that the health check is a later child of the container work, with a spec of its own. This is that spec.
+A container health check is part of the operator model the owner asked Ze to follow: an operator names a command, and the system runs it inside the container on an interval and judges the container by its result. The owner ruled on 2026-11-16 that the health check is a later child of the container work, with a spec of its own. This is that spec, row 7 of the umbrella's "Child specs" table.
 
 Two things are already fixed by the sibling specs, and this spec takes both:
 
