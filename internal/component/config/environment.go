@@ -95,7 +95,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.certificate", Type: env.TypeString, Description: "Name of the PKI store certificate to serve on the looking glass (empty means self-signed)"})
 
 	// Gokrazy management proxy (mounted on ze web server at /gokrazy/).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: env.TypeBool, Description: "Enable gokrazy appliance mode: management proxy on web at /gokrazy/ and first-boot auto-init fallback"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: env.TypeBool, Description: "Enable gokrazy appliance mode: the work Ze does only on the gokrazy appliance, such as the management proxy on web at /gokrazy/ and the first-boot auto-init fallback"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.socket", Type: env.TypeString, Default: "/run/gokrazy-http.sock", Description: "Gokrazy management Unix socket path"})
 
 	// BGP reactor tuning (YANG augment under `environment/reactor/`).

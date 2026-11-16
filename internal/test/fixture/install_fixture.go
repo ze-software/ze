@@ -1891,14 +1891,24 @@ func assertRuntimeKernelComposition(root string) error {
 	required := []string{
 		"CONFIG_MODULES", "CONFIG_PPP", "CONFIG_PPPOL2TP", "CONFIG_L2TP", "CONFIG_L2TP_V3",
 		"CONFIG_DEVTMPFS_MOUNT", "CONFIG_BLK_DEV_INITRD", "CONFIG_VIRTIO_NET",
-		"CONFIG_DRM_SIMPLEDRM", "CONFIG_X86_SYSFB", "CONFIG_I40E", "CONFIG_ICE",
-		"CONFIG_BNXT", "CONFIG_MLX5_CORE", "CONFIG_IGB", "CONFIG_IGC", "CONFIG_NF_TABLES",
+		"CONFIG_DRM_SIMPLEDRM", "CONFIG_X86_SYSFB", "CONFIG_NF_TABLES",
 		"CONFIG_WIREGUARD", "CONFIG_BRIDGE", "CONFIG_TUN", "CONFIG_MACVLAN", "CONFIG_IPV6",
 		"CONFIG_SQUASHFS", "CONFIG_FUSE_FS", "CONFIG_BPF_SYSCALL", "CONFIG_BPF_JIT", "CONFIG_VETH",
 	}
 	for _, symbol := range required {
 		if !hasExactLine(combined, symbol+"=y") {
 			return fmt.Errorf("runtime kernel composition missing %s=y", symbol)
+		}
+	}
+	// Physical NIC drivers are loadable in the runtime kernel
+	// (gokrazy/kernel/runtime.config): the composition must still carry each
+	// one, as a module.
+	loadable := []string{
+		"CONFIG_I40E", "CONFIG_ICE", "CONFIG_BNXT", "CONFIG_MLX5_CORE", "CONFIG_IGB", "CONFIG_IGC",
+	}
+	for _, symbol := range loadable {
+		if !hasExactLine(combined, symbol+"=m") {
+			return fmt.Errorf("runtime kernel composition missing %s=m", symbol)
 		}
 	}
 	configs := [][]byte{combined}
