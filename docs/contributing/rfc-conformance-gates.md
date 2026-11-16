@@ -2589,7 +2589,7 @@ draws a refusal from its paths, its source's state or its target. A refusal
 judged on an evidence record, an escaped path spelling or evidence that is not
 one JSON value, is judged by the batch's rewrite alone, so `propose` does not
 see it, and the rename then refuses the whole batch rather than writing it. The output
-file is created, never overwritten. Run `./le rfc update` after a rename.
+file is created, never overwritten.
 <!-- source: internal/le/rfc/rename.go -- renameFiles, planRename, refusePair, pairRefusals, sourceDiffersFromHead, planCitations, proposeRenames, judgeRenameTarget, applyRename -->
 <!-- source: internal/le/doc/citation/policed.go -- Policed, Excluded -->
 <!-- source: internal/le/rfc/check_baseline.go -- exactRenamesSince, coversAt -->
