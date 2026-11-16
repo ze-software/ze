@@ -73,6 +73,7 @@ func TestDraftDirIsInvisibleToRepoChecks(t *testing.T) {
 	for _, check := range []struct {
 		file, needle, name string
 	}{
+		{"internal/test/cli/ci_parse_gate_test.go", "path == filepath.Join(testRoot, runner.DraftDirName)", "encoding parser gate"},
 		{"internal/test/runner/accept_only.go", "isDraftPath(testDir, p)", "accept-only lint"},
 		{"internal/test/runner/ci_fixture_test.go", "isDraftPath(root, path)", "BGP frame-length fixtures"},
 		{"internal/test/runner/peer_asn_corpus_test.go", "isDraftPath(root, path)", "peer AS derivation corpus"},
@@ -113,6 +114,7 @@ func TestDraftReadmeNamesEveryCheck(t *testing.T) {
 	require.NoError(t, err)
 	body := string(raw)
 	for _, producer := range []string{
+		"ci_parse_gate_test.go",
 		"accept_only.go",
 		"ci_fixture_test.go",
 		"doc/wiring/checks.go",

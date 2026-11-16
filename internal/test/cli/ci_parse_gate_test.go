@@ -33,26 +33,7 @@ func TestEveryEncodingCIFileParses(t *testing.T) {
 		t.Fatalf("locate repo root: %v", err)
 	}
 	testRoot := filepath.Join(baseDir, "test")
-
-	// Every directory holding .ci files, including test/draft/<suite>: a draft
-	// is run with --draft and is exactly as able to carry a dead directive.
-	seen := make(map[string]bool)
-	var dirs []string
-	err = filepath.WalkDir(testRoot, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() || filepath.Ext(path) != ".ci" {
-			return nil
-		}
-		dir := filepath.Dir(path)
-		if seen[dir] {
-			return nil
-		}
-		seen[dir] = true
-		dirs = append(dirs, dir)
-		return nil
-	})
+	dirs, err := encodingCIGateDirs(testRoot)
 	if err != nil {
 		t.Fatalf("walk %s: %v", testRoot, err)
 	}
@@ -68,13 +49,8 @@ func TestEveryEncodingCIFileParses(t *testing.T) {
 		if relErr != nil {
 			t.Fatalf("relative path for %s: %v", dir, relErr)
 		}
-		// The suite is the first path element, so test/draft/<suite> and a
-		// nested tree both resolve to the directory the dispatch names.
+		// The suite is the first path element, including for a nested tree.
 		suite, _, _ := strings.Cut(filepath.ToSlash(rel), "/")
-		if suite == runner.DraftDirName {
-			_, after, _ := strings.Cut(filepath.ToSlash(rel), "/")
-			suite, _, _ = strings.Cut(after, "/")
-		}
 		if nonEncodingCIDirs[suite] {
 			continue
 		}
@@ -99,4 +75,36 @@ func TestEveryEncodingCIFileParses(t *testing.T) {
 		t.Fatal("no .ci records parsed; the gate covered nothing")
 	}
 	t.Logf("parsed %d .ci records across %d directories", checked, len(dirs))
+}
+
+func encodingCIGateDirs(testRoot string) ([]string, error) {
+	// Drafts are checked only by an explicit --draft run. Every canonical
+	// directory remains covered, including nested directories named draft.
+	seen := make(map[string]bool)
+	var dirs []string
+	err := filepath.WalkDir(testRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if path == filepath.Join(testRoot, runner.DraftDirName) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".ci" {
+			return nil
+		}
+		dir := filepath.Dir(path)
+		if seen[dir] {
+			return nil
+		}
+		seen[dir] = true
+		dirs = append(dirs, dir)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return dirs, nil
 }

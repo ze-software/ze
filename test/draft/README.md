@@ -93,6 +93,7 @@ Each recursive `.ci` reader explicitly skips `draft`. Add each new reader to
 
 | Check | Producer |
 |------|----------|
+| encoding parser gate | `internal/test/cli/ci_parse_gate_test.go` |
 | accept-only lint | `internal/test/runner/accept_only.go` |
 | BGP frame-length fixtures | `internal/test/runner/ci_fixture_test.go` |
 | documentation wiring | `internal/le/doc/wiring/checks.go` |
