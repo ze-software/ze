@@ -397,8 +397,10 @@ func (r *l2tpReactor) placeOnePendingCallLocked(t *L2TPTunnel, pc *pendingCall, 
 	// establish/teardown signals reach the blocking RPC. A zero localSID
 	// means the call was refused (max-sessions, allocation) -- surface that
 	// synchronously instead of leaving the caller to time out.
-	if localSID == 0 && pc.params.realm != nil {
-		pc.params.realm.end("L2TP call to realm " + pc.params.realm.realm + " refused by this LAC (session limit)")
+	if localSID == 0 {
+		if pc.params.relay != nil {
+			pc.params.relay.end("L2TP call to " + pc.params.relay.target() + " refused by this LAC (session limit)")
+		}
 	}
 	if pc.result == nil {
 		return sends
@@ -424,10 +426,10 @@ func (t *L2TPTunnel) resolvePendingCall(o callOutcome) {
 	calls := t.pendingCalls
 	t.pendingCalls = nil
 	for _, pc := range calls {
-		// A realm call whose tunnel died before the call was placed refuses
-		// its subscriber; it carries no result channel.
-		if pc.params.realm != nil {
-			pc.params.realm.end("L2TP tunnel to realm " + pc.params.realm.realm + " failed before the call was placed")
+		// Both relay kinds release the accepted access admission if their
+		// tunnel fails before a call can be placed.
+		if pc.params.relay != nil {
+			pc.params.relay.end("L2TP tunnel to " + pc.params.relay.target() + " failed before the call was placed")
 			continue
 		}
 		if pc.result == nil {

@@ -12,20 +12,21 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // independenceSession is a connected session whose mode controls record each
 // call, so a test sees which protocol an IPv6CP outcome touched.
-func independenceSession(t *testing.T, c *clientIPv6CP, v4, v6 *[]ppp.NPMode) *connectedSession {
+func independenceSession(t *testing.T, c *clientIPv6CP, v4, v6 *[]pppkernel.NPMode) *connectedSession {
 	t.Helper()
 	return &connectedSession{
 		transport: discardRWC{},
 		current: negotiatedSession{
 			localIP: netip.MustParseAddr("100.64.0.2"), peerIP: netip.MustParseAddr("100.64.0.1"), negMTU: 1492,
 		},
-		setIPv4Mode: func(mode ppp.NPMode) error { *v4 = append(*v4, mode); return nil },
-		setIPv6Mode: func(mode ppp.NPMode) error { *v6 = append(*v6, mode); return nil },
+		setIPv4Mode: func(mode pppkernel.NPMode) error { *v4 = append(*v4, mode); return nil },
+		setIPv6Mode: func(mode pppkernel.NPMode) error { *v6 = append(*v6, mode); return nil },
 		ipv6:        c,
 		changes:     make(chan iface.PPPoEResult, 1),
 		applied:     make(chan uint64, 1),
@@ -66,7 +67,7 @@ func TestRFC7084WLL3NCPIndependence(t *testing.T) {
 
 	t.Run("protocol-reject-while-opened", func(t *testing.T) {
 		c, _, _ := openedIPv6CP(t)
-		var v4, v6 []ppp.NPMode
+		var v4, v6 []pppkernel.NPMode
 		s := independenceSession(t, c, &v4, &v6)
 		if err := s.applyIPv6CP(ipv6cpOpened, logger); err != nil {
 			t.Fatalf("apply opened: %v", err)
@@ -78,7 +79,7 @@ func TestRFC7084WLL3NCPIndependence(t *testing.T) {
 		if len(v4) != 0 {
 			t.Fatalf("IPv4 mode changed %v by an IPv6CP outcome", v4)
 		}
-		if len(v6) != 2 || v6[1] != ppp.NPModeDrop {
+		if len(v6) != 2 || v6[1] != pppkernel.NPModeDrop {
 			t.Fatalf("IPv6 modes %v, want pass then drop", v6)
 		}
 		result := <-s.changes
@@ -153,7 +154,7 @@ func TestRFC7084WLL3NCPIndependence(t *testing.T) {
 		if reply.Code != ppp.LCPTerminateAck {
 			t.Fatalf("code %d, want Terminate-Ack", reply.Code)
 		}
-		var v4, v6 []ppp.NPMode
+		var v4, v6 []pppkernel.NPMode
 		s := independenceSession(t, c, &v4, &v6)
 		if err := s.applyIPv6CP(event, logger); err != nil {
 			t.Fatalf("apply: %v", err)
@@ -166,13 +167,13 @@ func TestRFC7084WLL3NCPIndependence(t *testing.T) {
 
 // ipcpIndependence builds a connected exchange whose IPv6CP is Opened when
 // withIPv6 is set, recording the IPv6 modes in v6.
-func ipcpIndependence(t *testing.T, withIPv6 bool, v6 *[]ppp.NPMode) (*connectedExchange, *connectedSession, chan struct{}) {
+func ipcpIndependence(t *testing.T, withIPv6 bool, v6 *[]pppkernel.NPMode) (*connectedExchange, *connectedSession, chan struct{}) {
 	t.Helper()
 	w := newConnectedExchange()
 	s, _ := w.session(t)
 	if withIPv6 {
 		c, _, _ := openedIPv6CP(t)
-		record := func(mode ppp.NPMode) error { *v6 = append(*v6, mode); return nil }
+		record := func(mode pppkernel.NPMode) error { *v6 = append(*v6, mode); return nil }
 		if err := s.enableIPv6CP(c, record, slogutil.DiscardLogger()); err != nil {
 			t.Fatalf("enable IPv6CP: %v", err)
 		}
@@ -222,7 +223,7 @@ func workerEnded(done chan struct{}) bool {
 func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 	t.Run("ipcp-terminates-and-reopens-alone", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
-			var v6 []ppp.NPMode
+			var v6 []pppkernel.NPMode
 			w, s, done := ipcpIndependence(t, true, &v6)
 			stop := make(chan struct{})
 			defer close(stop)
@@ -239,10 +240,10 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 			if workerEnded(done) {
 				t.Fatal("an IPCP Terminate-Request ended the session while IPv6CP is Opened")
 			}
-			if len(w.modes) != 1 || w.modes[0] != ppp.NPModeDrop {
+			if len(w.modes) != 1 || w.modes[0] != pppkernel.NPModeDrop {
 				t.Fatalf("IPv4 modes %v, want one drop", w.modes)
 			}
-			if len(v6) != 1 || v6[0] != ppp.NPModePass {
+			if len(v6) != 1 || v6[0] != pppkernel.NPModePass {
 				t.Fatalf("IPv6 modes %v, want the one pass IPv6CP opened with", v6)
 			}
 			down := pendingResult(t, s)
@@ -275,12 +276,12 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 			}
 			up := pendingResult(t, s)
 			// IPv4 stays discarded until the interface applied the result.
-			if len(w.modes) != 1 || w.modes[0] != ppp.NPModeDrop {
+			if len(w.modes) != 1 || w.modes[0] != pppkernel.NPModeDrop {
 				t.Fatalf("IPv4 modes %v before the result was applied, want [drop]", w.modes)
 			}
 			s.acknowledge(up.Seq)
 			synctest.Wait()
-			if len(w.modes) != 2 || w.modes[1] != ppp.NPModePass {
+			if len(w.modes) != 2 || w.modes[1] != pppkernel.NPModePass {
 				t.Fatalf("IPv4 modes %v, want drop then pass", w.modes)
 			}
 			if len(v6) != 1 {
@@ -316,7 +317,7 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 
 	t.Run("ipv6cp-closing-while-ipcp-stopped-ends-the-session", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
-			var v6 []ppp.NPMode
+			var v6 []pppkernel.NPMode
 			w, s, done := ipcpIndependence(t, true, &v6)
 			stop := make(chan struct{})
 			defer close(stop)
@@ -334,7 +335,7 @@ func TestRFC7084WLL3IPCPIndependence(t *testing.T) {
 			if !workerEnded(done) {
 				t.Fatal("the session went on with IPCP Stopped and IPv6CP closed")
 			}
-			if len(v6) != 2 || v6[1] != ppp.NPModeDrop {
+			if len(v6) != 2 || v6[1] != pppkernel.NPModeDrop {
 				t.Fatalf("IPv6 modes %v, want pass then drop", v6)
 			}
 		})

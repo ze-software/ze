@@ -106,6 +106,9 @@ func (f *fakePPPDriver) EventsOut() <-chan ppp.Event         { return f.eventsOu
 
 // deliverOwnedKernelSuccess models the worker's registered descriptor lease.
 func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
+	if _, recorded := r.pppDriver.(*fakePPPDriver); recorded {
+		r.newPPPSession = dispatchProtocolSessionFixture
+	}
 	tunnel := r.tunnelsByLocalID[event.localTID]
 	session := &L2TPSession{localSID: event.localSID}
 	tunnel.addSession(session)
@@ -172,7 +175,8 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	// VALIDATES: AC-2 -- reactor receives kernelSetupSucceeded and writes
 	// a ppp.StartSession onto the driver's SessionsIn channel, carrying
-	// the fds, IDs, lnsMode, and proxy LCP bytes verbatim.
+	// the claimed fds into its session factory, then the resulting owner,
+	// IDs, lnsMode, and proxy LCP bytes into the driver verbatim.
 	// PREVENTS: silently-dropped success events that leave PPP unaware
 	// of a newly established kernel session.
 	_, r, stop := newUnstartedReactor(t)
@@ -199,9 +203,13 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	case start := <-fake.sessionsIn:
 		require.Equal(t, uint16(100), start.TunnelID)
 		require.Equal(t, uint16(1001), start.SessionID)
-		require.Equal(t, 31, start.ChanFD)
-		require.Equal(t, 32, start.UnitFD)
-		require.Equal(t, 7, start.UnitNum)
+		owner, ok := start.Dataplane.(*protocolSessionFixture)
+		require.True(t, ok, "reactor must dispatch its factory-created owner")
+		require.Equal(t, 31, owner.config.ChanFD)
+		require.Equal(t, 32, owner.config.UnitFD)
+		require.Equal(t, 7, owner.config.UnitNum)
+		require.Same(t, owner, start.Frames, "frames and data plane must share the factory owner")
+		require.Equal(t, protocolFixtureIdentity(owner.config), start.Dataplane.Identity())
 		require.True(t, start.LNSMode)
 		require.Equal(t, peer, start.PeerAddr)
 		require.Equal(t, []byte{0x01, 0x02}, start.ProxyLCPInitialRecv)
@@ -549,10 +557,11 @@ var proxyLCPStreamForTest = []byte{
 func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 	_, r, stop := newUnstartedReactor(t)
 	defer stop()
-	driver := ppp.NewProductionDriver(discardLoggerForTest(), authReloadBackend{})
+	driver := ppp.NewProductionDriver(discardLoggerForTest())
 	require.NoError(t, driver.Start())
 	t.Cleanup(driver.Stop)
 	r.setPPPDriver(driver)
+	r.newPPPSession = ownedProtocolSessionFixture
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
 
 	s := newStartedSubsystem(t, Parameters{
@@ -560,6 +569,9 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ProxyLCP: ProxyLCPAccept,
 	})
 	attachReactor(s, r)
+	// Production Start supplies a validated immutable LCP snapshot. This
+	// fixture wires its reactor directly, so supply that prerequisite too.
+	r.setLCPConfig(testLCPConfig())
 
 	t.Run("accept", func(t *testing.T) {
 		proto, payload := firstProxyLCPSessionFrame(t, r, 1001, 7)

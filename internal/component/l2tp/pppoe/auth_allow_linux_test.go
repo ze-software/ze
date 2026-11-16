@@ -4,9 +4,12 @@
 package pppoe
 
 import (
+	"context"
 	"encoding/binary"
 	"log/slog"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 
 	"golang.org/x/sys/unix"
 
@@ -18,7 +21,7 @@ import (
 // implicit CHAP-first default. It also checks the unchanged PPPoE MRU ceiling.
 func TestPPPoEAuthAllowReachesDriver(t *testing.T) {
 	p := extractFromConfigText(t, "pppoe { auth-method pap; authentication-allow [pap]; interface eth0 {} }")
-	driver := ppp.NewProductionDriver(slog.Default(), mruCeilingBackend{})
+	driver := ppp.NewProductionDriver(slog.Default())
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -32,11 +35,12 @@ func TestPPPoEAuthAllowReachesDriver(t *testing.T) {
 		ifName: "eth0", hwAddr: hwAddr, sessions: newSessionTable("eth0", 8),
 		cookieKey: key, logger: slog.Default(), pppDriver: driver,
 		sendFrameFn: func([]byte) {},
-		pppoeCreateFn: func(string, uint16, [EthALen]byte) (int, error) {
-			return unix.Open("/dev/null", unix.O_RDWR|unix.O_CLOEXEC, 0)
-		},
-		devPPPSetupFn: func(int) (int, int, int, error) {
-			return channel[0], unit[0], 1, nil
+		openSession: func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
+			transport, err := unix.Open("/dev/null", unix.O_RDWR|unix.O_CLOEXEC, 0)
+			if err != nil {
+				return nil, err
+			}
+			return fixtureKernelOpened(t, transport, channel[0], unit[0], 1), nil
 		},
 	}
 	applyInterfaceConfig(srv, &p.Interfaces[0], &p)

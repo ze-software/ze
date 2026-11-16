@@ -101,13 +101,10 @@ func chapReplyThroughLocalVerifier(t *testing.T, chanFD int, session uint16, pee
 	t.Cleanup(func() { close(stop) })
 	go drainSessionEvents(d, stop)
 
-	d.SessionsIn() <- ppp.StartSession{
+	d.SessionsIn() <- ppp.BindSessionForTest(d, ppp.StartSession{
 		LCP:               testLCPConfig(),
 		TunnelID:          1,
 		SessionID:         session,
-		ChanFD:            chanFD,
-		UnitFD:            chanFD + 1,
-		UnitNum:           int(session),
 		LNSMode:           true,
 		MaxMRU:            1500,
 		AuthMethod:        ppp.AuthMethodCHAPMD5,
@@ -115,7 +112,7 @@ func chapReplyThroughLocalVerifier(t *testing.T, chanFD int, session uint16, pee
 		AuthTimeout:       2 * time.Second,
 		DisableIPCP:       true,
 		DisableIPv6CP:     true,
-	}
+	}, chanFD, chanFD+1, int(session))
 
 	if err := peer.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
 		t.Fatalf("peer SetReadDeadline: %v", err)

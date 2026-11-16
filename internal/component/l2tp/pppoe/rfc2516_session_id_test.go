@@ -188,7 +188,7 @@ func TestRFC2516PADSCarriesTheSessionsID(t *testing.T) {
 		t.Fatalf("AllocSID: %v", err)
 	}
 	if err := s.sessions.Add(&Session{
-		SID: sid, MAC: net.HardwareAddr(src[:]), IfName: "eth0", PppoxFD: -1,
+		SID: sid, MAC: net.HardwareAddr(src[:]), IfName: "eth0",
 		State: StateSession, Cookie: append([]byte(nil), cookie...),
 	}); err != nil {
 		t.Fatalf("Add: %v", err)
@@ -227,7 +227,7 @@ func TestRFC2516SessionDownSendsPADTForThatSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllocSID: %v", err)
 	}
-	if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+	if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
 
@@ -261,7 +261,7 @@ func TestRFC2516UnknownSessionIDTerminatesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllocSID: %v", err)
 	}
-	if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+	if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
 	other := sid + 1

@@ -118,6 +118,7 @@ const (
 	CodeDoctorModuleMissing                        = "doctor-module-missing"
 	CodeDoctorPPPoEUnavailable                     = "doctor-pppoe-unavailable"
 	CodeDoctorPPPoEUnknown                         = "doctor-pppoe-unknown"
+	CodeDoctorPPPCleanup                           = "doctor-ppp-cleanup"
 	CodeDoctorWireGuardUnavailable                 = "doctor-wireguard-unavailable"
 	CodeDoctorWireGuardUnknown                     = "doctor-wireguard-unknown"
 	CodeDoctorXFRMInterfaceUnavailable             = "doctor-xfrm-interface-unavailable"
@@ -957,6 +958,12 @@ var builtinCodes = append([]CodeMeta{
 			"daemon and a refusal for a Docker host that runs Ze's labs. The message carries the reason.",
 		Examples:     []string{exampleDoctorJSON, "ze show diagnostic doctor-pppoe-unknown"},
 		RelatedCodes: []string{CodeDoctorPPPoEUnavailable},
+	},
+	{
+		Code:        CodeDoctorPPPCleanup,
+		Title:       "PPP session resource removal is unconfirmed",
+		Description: "A PPP transport, session handle, or IPv6 service reported a cleanup failure. The running daemon retains the created interface identity and backend cause; a successful cleanup for another resource does not confirm this removal. Inspect the warning, repair the reported backend, and confirm that the affected resources were removed before restarting service.",
+		Examples:    []string{exampleShowDoctor, "ze show warnings"},
 	},
 	{
 		Code:  CodeDoctorWireGuardUnavailable,

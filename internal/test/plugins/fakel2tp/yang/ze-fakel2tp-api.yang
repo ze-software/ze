@@ -19,8 +19,31 @@ module ze-fakel2tp-api {
   }
 
   rpc fakel2tp-help {
-    description "The answer is the one usage line of the plugin: 'fakel2tp emit add|remove
-<family> <prefix>'. The plugin declares no other command.";
+    description "The answer lists the registered test commands and the route-emitter usage.";
       ze:help "Print the fakel2tp command surface.";
+  }
+
+  rpc fakel2tp-pool-address {
+    description "Request an IPv4 address from the real pool handler for a synthetic subscriber.
+Args: id <session-id> pool <default|name>. This fixture requires an internal plugin.";
+    ze:help "Request a synthetic subscriber address.";
+  }
+
+  rpc fakel2tp-pool-pppoe-address {
+    description "Request an IPv4 address from the real pool handler with an explicit PPPoE identity.
+Args: id <session-id> pool <default|name>. This fixture requires an internal plugin.";
+    ze:help "Request a synthetic PPPoE subscriber address.";
+  }
+
+  rpc fakel2tp-pool-release {
+    description "Emit subscriber session-down on the real daemon bus.
+Args: access <l2tp|pppoe> id <session-id>. This fixture requires an internal plugin.";
+    ze:help "Release one explicit synthetic subscriber.";
+  }
+
+  rpc fakel2tp-pool-prefix {
+    description "Request an IPv6 prefix from the real pool handler for a synthetic subscriber.
+Args: id <session-id> pool <default|name>. This fixture requires an internal plugin.";
+    ze:help "Request a synthetic subscriber prefix.";
   }
 }

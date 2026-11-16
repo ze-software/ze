@@ -5,7 +5,6 @@
 package l2tppool
 
 import (
-	"fmt"
 	"net/netip"
 	"sync"
 )
@@ -13,39 +12,21 @@ import (
 // ipv6PrefixPool is a bitmap-backed IPv6 prefix pool. Thread-safe.
 // Allocates /N prefixes from a larger block (e.g., /48s from a /32).
 type ipv6PrefixPool struct {
-	mu        sync.Mutex
-	block     netip.Prefix
-	delegLen  int
-	size      uint32
-	allocated uint32
-	bitmap    []uint64
+	mu           sync.Mutex
+	block        netip.Prefix
+	delegLen     int
+	size         uint32
+	allocated    uint32
+	bitmap       []uint64
+	extraHolders map[uint32]uint32
 }
 
 func newIPv6PrefixPool(block netip.Prefix, delegLen int) (*ipv6PrefixPool, error) {
-	blockLen := block.Bits()
-	if delegLen < 48 {
-		return nil, fmt.Errorf("l2tp-pool: delegation length %d below minimum 48", delegLen)
+	description, err := describeIPv6Pool(block, delegLen)
+	if err != nil {
+		return nil, err
 	}
-	if delegLen > 64 {
-		return nil, fmt.Errorf("l2tp-pool: delegation length %d above maximum 64", delegLen)
-	}
-	if delegLen < blockLen {
-		return nil, fmt.Errorf("l2tp-pool: delegation length %d shorter than block /%d", delegLen, blockLen)
-	}
-
-	bits := delegLen - blockLen
-	if bits > 24 {
-		return nil, fmt.Errorf("l2tp-pool: delegation spread %d bits (/%d from /%d) exceeds 24-bit maximum (16M prefixes)", bits, delegLen, blockLen)
-	}
-	size := uint32(1) << bits
-	words := (size + 63) / 64
-
-	return &ipv6PrefixPool{
-		block:    block.Masked(),
-		delegLen: delegLen,
-		size:     size,
-		bitmap:   make([]uint64, words),
-	}, nil
+	return description.build(), nil
 }
 
 func (p *ipv6PrefixPool) allocate() (netip.Prefix, bool) {
@@ -76,24 +57,79 @@ func (p *ipv6PrefixPool) allocate() (netip.Prefix, bool) {
 }
 
 func (p *ipv6PrefixPool) release(prefix netip.Prefix) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	if prefix.Bits() != p.delegLen {
 		return
 	}
+	p.releaseOverlap(prefix)
+}
 
-	idx, ok := p.prefixToIndex(prefix)
+// carry reserves all slots covered by a live prefix, including a prefix whose
+// length the reload changed. Counts exist only for slots with another owner.
+func (p *ipv6PrefixPool) carry(prefix netip.Prefix) bool {
+	first, last, ok := p.overlapRange(prefix)
+	if !ok {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// The constructor bounds the range to at most 2^24 slots.
+	for index := first; index <= last; index++ {
+		word, bit := index/64, uint64(1)<<(index%64)
+		if p.bitmap[word]&bit == 0 {
+			p.bitmap[word] |= bit
+			p.allocated++
+			continue
+		}
+		if p.extraHolders == nil {
+			p.extraHolders = make(map[uint32]uint32)
+		}
+		p.extraHolders[index]++
+	}
+	return true
+}
+
+// releaseOverlap returns every slot reserved by carry. It MUST be paired with
+// one successful carry or one allocation, and carry MUST precede its release.
+func (p *ipv6PrefixPool) releaseOverlap(prefix netip.Prefix) {
+	first, last, ok := p.overlapRange(prefix)
 	if !ok {
 		return
 	}
-
-	word := idx / 64
-	bit := idx % 64
-	if p.bitmap[word]&(1<<bit) != 0 {
-		p.bitmap[word] &^= 1 << bit
-		p.allocated--
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for index := first; index <= last; index++ {
+		if extra := p.extraHolders[index]; extra > 0 {
+			if extra == 1 {
+				delete(p.extraHolders, index)
+			} else {
+				p.extraHolders[index] = extra - 1
+			}
+			continue
+		}
+		word, bit := index/64, uint64(1)<<(index%64)
+		if p.bitmap[word]&bit != 0 {
+			p.bitmap[word] &^= bit
+			p.allocated--
+		}
 	}
+}
+
+func (p *ipv6PrefixPool) overlapRange(prefix netip.Prefix) (uint32, uint32, bool) {
+	if !p.block.Overlaps(prefix) {
+		return 0, 0, false
+	}
+	if prefix.Bits() <= p.block.Bits() {
+		return 0, p.size - 1, true
+	}
+	first, ok := p.prefixToIndex(prefix.Masked())
+	if !ok {
+		return 0, 0, false
+	}
+	if prefix.Bits() >= p.delegLen {
+		return first, first, true
+	}
+	span := uint32(1) << uint(p.delegLen-prefix.Bits())
+	return first, first + span - 1, true
 }
 
 func (p *ipv6PrefixPool) stats() (total, allocated, available uint32) {

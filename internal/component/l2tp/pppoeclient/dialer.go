@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
 )
 
@@ -173,7 +173,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		return iface.PPPoESession{}, err
 	}
 
-	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD, cfg.Name)
+	chanFD, unitFD, unitNum, err := pppkernel.DevPPPSetup(pppoxFD, cfg.Name)
 	if err != nil {
 		pppoe.ClosePPPoxFD(pppoxFD)
 		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, nil)
@@ -181,7 +181,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		return iface.PPPoESession{}, err
 	}
 
-	chanFile := ppp.NewFDFile(chanFD, "pppoe-client.chan")
+	chanFile := pppkernel.NewFDFile(chanFD, "pppoe-client.chan")
 	link := &sessionLink{
 		channel:   chanFile,
 		channelFD: chanFD,
@@ -252,7 +252,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		// received when the corresponding NCP is not in the Opened state MUST
 		// be silently discarded." IPv6CP negotiates during IPCP's
 		// negotiation, so IPv6 is held from before the first NCP request.
-		if err := link.setIPv6Mode(unitFD, ppp.NPModeDrop); err != nil {
+		if err := link.setIPv6Mode(unitFD, pppkernel.NPModeDrop); err != nil {
 			cleanup()
 			return iface.PPPoESession{}, fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err)
 		}
@@ -270,7 +270,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		return iface.PPPoESession{}, negErr
 	}
 
-	connected, err := newConnectedSession(link, result, sessCfg, func(mode ppp.NPMode) error {
+	connected, err := newConnectedSession(link, result, sessCfg, func(mode pppkernel.NPMode) error {
 		// RFC 1661 Section 3.6: the unit retains ownership while mode changes.
 		return link.setIPv4Mode(unitFD, mode)
 	})
@@ -279,7 +279,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		return iface.PPPoESession{}, err
 	}
 	if ipv6 != nil {
-		if err := connected.enableIPv6CP(ipv6, func(mode ppp.NPMode) error {
+		if err := connected.enableIPv6CP(ipv6, func(mode pppkernel.NPMode) error {
 			return link.setIPv6Mode(unitFD, mode)
 		}, logger); err != nil {
 			cleanup()
@@ -349,14 +349,14 @@ func (s *sessionLink) Write(buf []byte) (int, error) {
 // call Close before releasing unitFD, so a late call refuses a reused fd.
 // RFC 1661 Section 3.6: "Any supported network-layer protocol packets received
 // when the corresponding NCP is not in the Opened state MUST be silently discarded."
-func (s *sessionLink) setIPv4Mode(unitFD int, mode ppp.NPMode) error {
+func (s *sessionLink) setIPv4Mode(unitFD int, mode pppkernel.NPMode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return io.ErrClosedPipe
 	}
 	// RFC 1661 Section 3.6: apply the network-layer forwarding gate.
-	return ppp.SetIPv4Mode(unitFD, mode)
+	return pppkernel.SetIPv4Mode(unitFD, mode)
 }
 
 // Close MUST precede outbound PADT and discovery-reader shutdown. It releases

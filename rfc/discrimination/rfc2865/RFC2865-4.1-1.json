@@ -14,7 +14,7 @@
     "rid": "RFC2865-4.1-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress",
-    "unit-sha": "ad49636c7b114fb2",
+    "unit-sha": "9a7060c0061bad93",
     "claim-sha": "f6770f90a03fc65d",
     "route": "revert",
     "producer": "internal/component/radius/packet.go::EncodeTo",

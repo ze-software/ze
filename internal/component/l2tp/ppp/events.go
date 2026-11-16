@@ -191,21 +191,24 @@ func (EventEchoRTT) isPPPEvent() {}
 
 // EventSessionRejected is emitted when a StartSession is refused
 // before any per-session goroutine starts. The refusal reasons are
-// transport bugs or StartSession hygiene problems: invalid file
-// descriptors, duplicate (tunnelID, sessionID), etc.
+// transport bugs or StartSession hygiene problems: missing ownership or
+// frame delivery, duplicate (tunnelID, sessionID), etc.
 //
-// The transport should treat this as "PPP never owned this session"
-// -- in-flight tracking should be cleared WITHOUT running the
-// session-termination cleanup path (which assumes the session was
-// established and has FSM/auth state). Matches the semantics the
-// L2TP kernel worker would see when a session setup never reaches
-// the PPP engine.
+// The refused request started no PPP worker. If ExistingSession is true,
+// the transport MUST leave that key's admitted session intact. Otherwise
+// the transport may clear the refused attempt's in-flight tracking and
+// release its transport resources without assuming any established PPP
+// FSM or authentication state.
 //
 // Reason is human-readable for logs.
 type EventSessionRejected struct {
 	TunnelID  uint16
 	SessionID uint16
 	Reason    string
+	// ExistingSession means this incoming key was already admitted when
+	// the request was refused. The transport MUST preserve that session.
+	// Reusing an owner under a different, inactive key leaves this false.
+	ExistingSession bool
 }
 
 func (EventSessionRejected) isPPPEvent() {}

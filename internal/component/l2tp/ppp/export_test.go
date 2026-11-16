@@ -3,10 +3,25 @@ package ppp
 import (
 	"io"
 	"net"
+	"os"
 	"testing"
 )
 
-// SetNewChanFileForTest replaces the chan fd wrapper used by spawnSession.
+// These wrappers are protocol-test fixtures only. Production ownership and
+// descriptor construction live in ppp/kernel; synthetic protocol descriptors
+// resolve to their registered net.Pipe without entering the kernel adapter.
+var newChanFileFn = func(fd int, name string) io.ReadWriteCloser {
+	return os.NewFile(uintptr(fd), name)
+}
+
+var newUnitFileFn = func(fd int) io.ReadCloser {
+	if fd <= 0 {
+		return nil
+	}
+	return newChanFileFn(fd, "ppp.unit")
+}
+
+// SetNewChanFileForTest replaces the channel wrapper used by testSessionStart.
 // Tests use it to substitute a net.Pipe end (or any io.ReadWriteCloser)
 // so the Driver can be exercised without /dev/ppp. Returns the previous
 // function so the test can restore via defer. A session started with
@@ -15,14 +30,12 @@ import (
 func SetNewChanFileForTest(fn func(fd int, name string) io.ReadWriteCloser) func(int, string) io.ReadWriteCloser {
 	prev := newChanFileFn
 	newChanFileFn = fn
-	newQuiescableChanFileFn = func(fd int, name string) (io.ReadWriteCloser, error) { return fn(fd, name), nil }
 	return prev
 }
 
-// RestoreNewChanFile resets the wrapper to production.
+// RestoreNewChanFile restores the previous test wrapper.
 func RestoreNewChanFile(prev func(fd int, name string) io.ReadWriteCloser) {
 	newChanFileFn = prev
-	newQuiescableChanFileFn = newInterruptibleFDFile
 }
 
 // SetNewUnitFileForTest replaces the unit fd wrapper. Returns previous.
@@ -32,7 +45,7 @@ func SetNewUnitFileForTest(fn func(int) io.ReadCloser) func(int) io.ReadCloser {
 	return prev
 }
 
-// RestoreNewUnitFile resets the unit fd wrapper to production.
+// RestoreNewUnitFile restores the previous test wrapper.
 func RestoreNewUnitFile(prev func(int) io.ReadCloser) {
 	newUnitFileFn = prev
 }
@@ -56,4 +69,11 @@ func NewPipeDriverForTest(t *testing.T, chanFD int) (*Driver, net.Conn) {
 	}
 	t.Cleanup(d.Stop)
 	return d, pair.peerEnd
+}
+
+// BindSessionForTest gives an external-package protocol test the same created
+// session resources as NewPipeDriverForTest. It keeps the actual driver queue
+// and authentication boundary, without exposing the fixture's private recorder.
+func BindSessionForTest(driver *Driver, start StartSession, channel, unit, number int) StartSession {
+	return testStartForDriver(driver, start, channel, unit, number)
 }

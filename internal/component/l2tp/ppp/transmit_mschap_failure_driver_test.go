@@ -42,14 +42,14 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 			proto, authData := authMethodToLCPOptions(AuthMethodMSCHAPv2)
 			peer := optStream(mruOpt(1500), magicOpt(0x11223344))
 			local := optStream(mruOpt(MinIPv4MRU), magicOpt(0x01020304), authProtoOpt(proto, authData...))
-			d.SessionsIn() <- StartSession{
+			d.SessionsIn() <- testStartForDriver(d, StartSession{
 				LCP:      testLCPConfig(),
-				TunnelID: 24, SessionID: 2, ChanFD: 24201, UnitFD: 24202, UnitNum: 7,
+				TunnelID: 24, SessionID: 2,
 				MaxMRU: MinIPv4MRU, AuthMethod: AuthMethodMSCHAPv2,
 				AuthFallbackOrder: []AuthMethod{AuthMethodMSCHAPv2}, AuthRequired: true,
 				DisableIPv6CP:       true,
 				ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: local,
-			}
+			}, 24201, 24202, 7)
 			challenge := readLifecyclePacket(t, pair.peerEnd, ProtoCHAP, MSCHAPv2CodeChallenge)
 			if len(challenge.Data) != 1+mschapv2ChallengeValueLen+len(mschapv2LNSName) || challenge.Data[0] != mschapv2ChallengeValueLen {
 				t.Fatalf("MS-CHAPv2 challenge changed: %x", challenge.Data)

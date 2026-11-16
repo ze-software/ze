@@ -8,11 +8,10 @@ import (
 	"sync"
 	"testing"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/pkg/ze"
-
-	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 type testBus struct {
@@ -55,10 +54,10 @@ func TestAccessInterfacePropagation(t *testing.T) {
 	bridge := newSubscriberBridge(reg, bus, logger)
 	defer bridge.stop()
 
-	StoreSessionMetadata(1, 10, &AuthMetadata{
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 10), &AuthMetadata{
 		FramedPool: "pool1",
 	})
-	defer ClearSessionMetadata(1, 10)
+	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 10))
 
 	var received *subevents.SessionUpPayload
 	subevents.SessionUp.Subscribe(bus, func(p *subevents.SessionUpPayload) {

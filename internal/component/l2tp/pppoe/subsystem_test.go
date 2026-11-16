@@ -93,7 +93,7 @@ func TestPPPoESessionDownPublishesPoolKey(t *testing.T) {
 
 	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x01}
 	srv := sub.servers[ifIndex]
-	if err := srv.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", UnitNum: 3, PppoxFD: -1}); err != nil {
+	if err := srv.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", Opened: fixtureOpened(t, "ppp3")}); err != nil {
 		t.Fatalf("seed session table: %v", err)
 	}
 	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(pppoeSessionID(ifIndex, sid)) })
@@ -167,13 +167,13 @@ func TestPPPoESessionUpCarriesRadiusRates(t *testing.T) {
 
 	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x02}
 	srv := sub.servers[ifIndex]
-	if err := srv.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", UnitNum: 5, PppoxFD: -1}); err != nil {
+	if err := srv.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", Opened: fixtureOpened(t, "ppp5")}); err != nil {
 		t.Fatalf("seed session table: %v", err)
 	}
 	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(pppoeSessionID(ifIndex, sid)) })
 
-	l2tp.StoreSessionMetadata(uint16(ifIndex), sid, &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
-	t.Cleanup(func() { l2tp.ClearSessionMetadata(uint16(ifIndex), sid) })
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid), &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
+	t.Cleanup(func() { l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)) })
 
 	var shaped struct {
 		iface    string

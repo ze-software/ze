@@ -1,6 +1,28 @@
 [
   {
     "rid": "RFC2865-5-8",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted",
+    "unit-sha": "20066d905ccd4d15",
+    "claim-sha": "d3646071b646720f",
+    "route": "revert",
+    "producer": "internal/component/radius/attr.go::AppendTextAttr",
+    "producer-sha": "306d8e7a038b2034",
+    "break": "body of AppendTextAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-8",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted",
+    "unit-sha": "20066d905ccd4d15",
+    "claim-sha": "414b2967c1746670",
+    "route": "revert",
+    "producer": "internal/component/radius/attr.go::AppendTextAttr",
+    "producer-sha": "306d8e7a038b2034",
+    "break": "body of AppendTextAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-8",
     "polarity": "negative",
     "unit": "internal/component/radius/rfc2865_walk_test.go::TestOneOctetAttributeIsNotOmitted",
     "unit-sha": "7febfb8a466b1f79",

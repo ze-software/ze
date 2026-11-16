@@ -141,6 +141,8 @@ func sessionJSON(s *pppoe.SessionSnapshot) map[string]any {
 		"service-name": s.ServiceName,
 		"state":        state,
 		"unit":         s.UnitNum,
+		"ppp-interface": s.Identity.InterfaceName,
+		"interface-index": s.Identity.NativeIndex,
 		"created-at":   s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

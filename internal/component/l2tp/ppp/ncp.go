@@ -10,6 +10,7 @@
 package ppp
 
 import (
+	"errors"
 	"net/netip"
 	"time"
 
@@ -23,8 +24,9 @@ import (
 // Opened. Spec-l2tp-6c-ncp AC-17 mandates a default.
 const defaultIPTimeout = 30 * time.Second
 
-// runNCPPhase drives every enabled NCP to Opened, programs the pppN
-// interface (for IPv4), and emits EventSessionIPAssigned per family.
+// runNCPPhase settles every enabled NCP's initial negotiation, programs the pppN
+// interface for opened IPv4, and emits EventSessionIPAssigned per opened family.
+// A normally terminated NCP leaves independent network protocols available.
 // Returns false on failure, stop, or an LCP interruption. The caller MUST
 // resume the session loop for a nonterminal LCP transition.
 //
@@ -98,6 +100,8 @@ func (s *pppSession) runNCPPhase() bool {
 		timeout = defaultIPTimeout
 	}
 	timer := time.NewTimer(timeout)
+	timer.Stop()
+	var convergence <-chan time.Time
 	defer timer.Stop()
 
 	for {
@@ -106,6 +110,19 @@ func (s *pppSession) runNCPPhase() bool {
 		}
 		if s.ncpsComplete(ipcpEnabled, ipv6cpEnabled) {
 			return true
+		}
+		if s.ncpInitialNegotiationPending(ipcpEnabled, ipv6cpEnabled) {
+			if convergence == nil {
+				// A new Configure lifetime gets a fresh overall bound.
+				// Replies within it MUST NOT restart that bound.
+				timer.Reset(timeout)
+				convergence = timer.C
+			}
+		} else {
+			// Termination grace belongs to the family Restart timers.
+			// Nil disables this select arm until Configure resumes.
+			timer.Stop()
+			convergence = nil
 		}
 		select {
 		case <-s.stopCh:
@@ -124,10 +141,18 @@ func (s *pppSession) runNCPPhase() bool {
 				Cause:     l2tpevents.TerminateCauseNASRequest,
 			})
 			return false
-		case <-timer.C:
+		case <-convergence:
 			var tb textbuf.Buffer
 			s.fail(tb.Str("ncp: timeout after ").Str(timeout.String()).String())
 			return false
+		case <-s.ncpRestartChannel(AddressFamilyIPv4):
+			if s.handleNCPRestartTimeout(AddressFamilyIPv4) {
+				return false
+			}
+		case <-s.ncpRestartChannel(AddressFamilyIPv6):
+			if s.handleNCPRestartTimeout(AddressFamilyIPv6) {
+				return false
+			}
 		case frame, ok := <-s.framesIn:
 			if !ok {
 				s.sendEvent(EventSessionDown{
@@ -148,15 +173,21 @@ func (s *pppSession) runNCPPhase() bool {
 	}
 }
 
-// ncpsComplete reports whether every enabled NCP has reached Opened.
+// ncpsComplete reports whether every enabled NCP has opened or terminated its
+// negotiation. An independent NCP's normal closure must not strand an opened
+// family in the initial convergence wait and later terminate the whole link.
 func (s *pppSession) ncpsComplete(ipcpEnabled, ipv6cpEnabled bool) bool {
-	if ipcpEnabled && s.ipcpState != LCPStateOpened {
+	if ipcpEnabled && !ncpNegotiationSettled(s.ipcpState) {
 		return false
 	}
-	if ipv6cpEnabled && s.ipv6cpState != LCPStateOpened {
+	if ipv6cpEnabled && !ncpNegotiationSettled(s.ipv6cpState) {
 		return false
 	}
 	return true
+}
+
+func ncpNegotiationSettled(state LCPState) bool {
+	return state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped
 }
 
 // requestIPCPAddresses emits EventIPRequest for IPv4 and waits for the
@@ -237,6 +268,7 @@ func (s *pppSession) requestIPv6CPInterfaceID() (ok, declined bool) {
 // carrying a different family is silently dropped (the handler
 // responded to a future request we have not sent yet, or reordered).
 func (s *pppSession) awaitIPDecision(req EventIPRequest, family AddressFamily) (ipResponseMsg, bool) {
+	req.SubscriberID = s.subscriberID
 	select {
 	case s.ipEventsOut <- req:
 	case <-s.stopCh:
@@ -275,13 +307,7 @@ func (s *pppSession) awaitIPDecision(req EventIPRequest, family AddressFamily) (
 // and sends the first CONFREQ.
 func (s *pppSession) startNCP(family AddressFamily) bool {
 	tr := LCPDoTransition(LCPStateClosed, LCPEventOpen)
-	s.setNCPState(family, tr.NewState)
-	for _, act := range tr.Actions {
-		if !s.performNCPAction(family, act, LCPPacket{}) {
-			return false
-		}
-	}
-	return true
+	return !s.applyNCPTransition(family, LCPStateClosed, tr, LCPPacket{})
 }
 
 // setNCPState writes the per-family FSM state back into the session.
@@ -542,26 +568,7 @@ func (s *pppSession) handleNCPPacket(
 		return false
 	}
 
-	for _, act := range tr.Actions {
-		if !s.performNCPAction(family, act, pkt) {
-			return true
-		}
-	}
-
-	s.setNCPState(family, tr.NewState)
-
-	if tr.NewState == LCPStateOpened && cur != LCPStateOpened {
-		if !s.onNCPOpened(family) {
-			return true
-		}
-	}
-
-	if tr.NewState == LCPStateClosed || tr.NewState == LCPStateStopped {
-		var tb textbuf.Buffer
-		s.fail(tb.Str(family.String()).Str(": state=").Str(tr.NewState.String()).String())
-		return true
-	}
-	return false
+	return s.applyNCPTransition(family, cur, tr, pkt)
 }
 
 // ncpCodeToEvent maps the Code of a received IPCP or IPv6CP packet to the
@@ -793,12 +800,14 @@ func (s *pppSession) absorbIPv6CPReject(pkt LCPPacket) ncpReplyVerdict {
 func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, current LCPPacket) bool {
 	switch act {
 	case LCPActSCR:
+		s.spendNCPRestartCount(family)
 		return s.sendNCPConfigureRequest(family)
 	case LCPActSCA:
 		return s.sendNCPConfigureAck(family, current)
 	case LCPActSCN:
 		return s.sendNCPConfigureNakOrReject(family, current)
 	case LCPActSTR:
+		s.spendNCPRestartCount(family)
 		return s.sendNCPTerminateRequest(family)
 	case LCPActSTA:
 		return s.sendNCPTerminateAck(family, current)
@@ -809,7 +818,18 @@ func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, curre
 		// RXR: an NCP Code 9 to 11 is RUC (RFC 1332 Section 2, RFC 5072
 		// Section 3). No NCP Echo-Reply exists to send.
 		return true
-	case LCPActIRC, LCPActZRC, LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
+	case LCPActTLD:
+		if err := s.withdrawNCPFamily(family); err != nil {
+			var tb textbuf.Buffer
+			s.fail(tb.Str(family.String()).Str(" cleanup before NCP restart: ").Err(err).String())
+			return false
+		}
+		return true
+	case LCPActZRC:
+		s.ncpRestart(family).count = 0
+		s.armNCPRestartTimer(family)
+		return true
+	case LCPActIRC, LCPActTLU, LCPActTLS, LCPActTLF:
 		return true
 	default:
 		panic("BUG: unknown NCP action")
@@ -1252,17 +1272,18 @@ func (s *pppSession) nextNCPCodeRejectID(family AddressFamily) uint8 {
 // never negotiated (session.go: peerInterfaceIDNegotiated): the event
 // exists to carry the peer's identifier, and there is none to carry.
 func (s *pppSession) onNCPOpened(family AddressFamily) bool {
-	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	switch family {
 	case AddressFamilyIPv4:
 		var tb textbuf.Buffer
-		localCIDR := tb.Addr(s.localIPv4).Str("/32").String()
-		peerCIDR := tb.Reset().Addr(s.peerIPv4).Str("/32").String()
-		if err := s.backend.AddAddressP2P(ifname, localCIDR, peerCIDR); err != nil {
+		local := netip.PrefixFrom(s.localIPv4, 32)
+		peer := netip.PrefixFrom(s.peerIPv4, 32)
+		// refuse-by-default: guards pppSession.handleNCPPacket -- false ends NCP after fail publishes the address-installation error; no IP assignment is published.
+		if err := s.dataplane.AddAddressP2P(local, peer); err != nil {
 			s.fail(tb.Reset().Str("iface AddAddressP2P: ").Err(err).String())
 			return false
 		}
-		return s.sendIPAssigned(EventSessionIPAssigned{
+		s.installedIPv4 = local
+		if !s.sendIPAssigned(EventSessionIPAssigned{
 			TunnelID:     s.tunnelID,
 			SessionID:    s.sessionID,
 			Username:     s.authenticatedUsername,
@@ -1271,7 +1292,10 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			Peer:         s.peerIPv4,
 			DNSPrimary:   s.dnsPrimary,
 			DNSSecondary: s.dnsSecondary,
-		})
+		}) {
+			return false
+		}
+		return s.reconcileOpenedNCP(family)
 	case AddressFamilyIPv6:
 		// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
 		// information field to be at least as large as the minimum link MTU
@@ -1288,16 +1312,50 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			countIdentifierRefusal(reasonEventUnnegotiated)
 			return true
 		}
-		return s.sendIPAssigned(EventSessionIPAssigned{
+		if !s.sendIPAssigned(EventSessionIPAssigned{
 			TunnelID:    s.tunnelID,
 			SessionID:   s.sessionID,
 			Username:    s.authenticatedUsername,
 			Family:      AddressFamilyIPv6,
 			InterfaceID: s.peerInterfaceID,
-		})
+		}) {
+			return false
+		}
+		return s.reconcileOpenedNCP(family)
 	default:
 		panic("BUG: unknown NCP address family")
 	}
+}
+
+// reconcileOpenedNCP runs only after this family's assignment acknowledgment.
+// The session's sole frame-dispatch loop waits inside sendIPAssigned, so another
+// family cannot stage an unacknowledged assignment during this reconciliation.
+// Initial activation remains in afterLCPOpen, after all NCPs have completed.
+func (s *pppSession) reconcileOpenedNCP(family AddressFamily) bool {
+	s.mu.Lock()
+	if s.filesClosed {
+		s.mu.Unlock()
+		return false
+	}
+	if !s.channelConnected {
+		s.mu.Unlock()
+		return true
+	}
+	if family == AddressFamilyIPv6 {
+		// Startup installs this family's link-local pair, reconciles it, then
+		// opens its carrier. It preserves any failed rollback owner.
+		s.afterLCPOpenIPv6Service()
+		s.mu.Unlock()
+		return true
+	}
+	err := s.dataplane.Connect()
+	s.mu.Unlock()
+	if err != nil {
+		var tb textbuf.Buffer
+		s.fail(tb.Str("NCP forwarding reconciliation: ").Err(err).String())
+		return false
+	}
+	return true
 }
 
 // sendIPAssigned waits for the transport to publish the assignment and capture
@@ -1341,6 +1399,7 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 // RFC 1661 Section 4.4, This-Layer-Down: "This action indicates to the upper
 // layers that the automaton is leaving the Opened state.".
 func (s *pppSession) resetNCP() bool {
+	s.stopNCPRestartTimers()
 	s.ncpStarted = false
 	s.authenticatedUsername = ""
 	s.mu.Lock()
@@ -1351,7 +1410,8 @@ func (s *pppSession) resetNCP() bool {
 	if s.channelConnected {
 		// The descriptor lock MUST cover disconnect, just as it covers
 		// connect and close, so this ioctl cannot use a recycled fd.
-		if err := s.ops.disconnect(s.chanFD); err != nil {
+		// refuse-by-default: guards pppSession.performAction -- false prohibits LCP restart after fail publishes the disconnect error; the old lifetime cannot be reused.
+		if err := s.dataplane.Disconnect(); err != nil {
 			s.mu.Unlock()
 			var tb textbuf.Buffer
 			s.fail(tb.Str("PPPIOCDISCONN: ").Err(err).String())
@@ -1382,20 +1442,31 @@ func (s *pppSession) resetNCP() bool {
 	return true
 }
 
-// teardownNCPResources stops the IPv6 service and removes the IPCP-programmed
-// address on LCP down or session exit. Linux removes the address's connected
-// peer route with it. Callers MUST preserve the addresses and Opened state
-// until this returns. A removal error prohibits reuse of the PPP unit.
-func (s *pppSession) teardownNCPResources() error {
-	if s.ipv6Svc != nil {
-		s.ipv6Svc.Stop()
-		s.ipv6Svc = nil
-	}
-	if s.ipcpState != LCPStateOpened {
+// withdrawNCPFamily releases only this family's resources. Resource witnesses
+// survive a failed withdrawal even if negotiation has already changed its
+// proposal or FSM state. A removal error prohibits reuse of that lifetime.
+func (s *pppSession) withdrawNCPFamily(family AddressFamily) error {
+	switch family {
+	case AddressFamilyIPv4:
+		if !s.installedIPv4.IsValid() {
+			return nil
+		}
+		if err := s.dataplane.RemoveAddress(s.installedIPv4); err != nil {
+			return err
+		}
+		s.installedIPv4 = netip.Prefix{}
 		return nil
+	case AddressFamilyIPv6:
+		return s.stopIPv6Service()
+	default:
+		panic("BUG: unknown NCP address family")
 	}
-	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
-	var tb textbuf.Buffer
-	localCIDR := tb.Addr(s.localIPv4).Str("/32").String()
-	return s.backend.RemoveAddress(ifname, localCIDR)
+}
+
+// teardownNCPResources releases both families on LCP down or session exit.
+// Each owner is retried independently, including after an earlier failed TLD.
+func (s *pppSession) teardownNCPResources() error {
+	ipv6Err := s.withdrawNCPFamily(AddressFamilyIPv6)
+	ipv4Err := s.withdrawNCPFamily(AddressFamilyIPv4)
+	return errors.Join(ipv6Err, ipv4Err)
 }

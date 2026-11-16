@@ -9,12 +9,16 @@ package pppoe
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"log/slog"
 	"net"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // InterfaceServer owns the PPPoE state for one access interface.
@@ -59,6 +63,9 @@ type InterfaceServer struct {
 	// so PADT is the only news of its end. Nil in tests that build a bare
 	// server.
 	peerLeft func(ifindex int, sid uint16)
+	// relayWake coalesces ends for the existing event consumer.
+	// A bare server test can drain its table directly instead.
+	relayWake chan<- struct{}
 
 	// sendFrameFn, when set, replaces the real discovery-socket write.
 	// sendFrame calls it instead of sendDiscoveryFrame. Production code
@@ -68,15 +75,9 @@ type InterfaceServer struct {
 	// error and so cannot tell a test whether a send was attempted.
 	sendFrameFn func(frame []byte)
 
-	// pppoeCreateFn and devPPPSetupFn, when set, replace the kernel session
-	// setup handlePADR performs for an admitted session: pppoeCreate, which
-	// connects the AF_PPPOX socket to (SESSION_ID, peer MAC), and
-	// ppp.DevPPPSetup. Production code never sets them, so the zero value
-	// (nil) keeps the real kernel calls. A test sets them to observe which
-	// SESSION_ID and peer MAC the session stage is bound to, which an
-	// unprivileged test cannot create a real socket for.
-	pppoeCreateFn func(device string, sid uint16, remoteMAC [EthALen]byte) (int, error)
-	devPPPSetupFn func(pppoxFD int) (chanFD, unitFD, unitNum int, err error)
+	// openSession is the selected registry provider, captured for this
+	// interface generation. Tests inject the same ownership-returning boundary.
+	openSession func(context.Context, dataplane.Request) (dataplane.OpenedSession, error)
 
 	// admitting is the session the PADR in dispatch is admitting, so a
 	// contained discovery panic can end it (panic_guard.go). Only the
@@ -267,9 +268,6 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		Cookie:      append([]byte(nil), cookieTag.Value...),
 		State:       StateDiscovery,
 		CreatedAt:   time.Now(),
-		// No session socket yet: a Remove before createTransport answers
-		// -1, never the zero value, which is descriptor 0.
-		PppoxFD: -1,
 	}
 	if hostUniq := pkt.FindTag(TagHostUniq); hostUniq != nil {
 		sess.HostUniq = append([]byte(nil), hostUniq.Value...)
@@ -293,22 +291,24 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	// The session socket is bound once, here, to the SID the PADS below
 	// carries and to the PADR's unicast source (ParseDiscovery refuses a
 	// broadcast or multicast source).
-	pppoxFD, err := s.createTransport(sid, pkt.SrcMAC)
-	if err != nil {
-		s.logger.Error("pppoe: kernel socket failed", "sid", sid, "error", err)
-		closePPPoxFD(s.sessions.Remove(sid))
+	if s.openSession == nil {
+		s.reportSessionAdmissionFailure(sid, errors.New("no session data-plane provider is configured"))
+		s.closeSession(s.sessions.Remove(sid))
 		return
 	}
-	sess.PppoxFD = pppoxFD
-
-	chanFD, unitFD, unitNum, err := s.setupPPPChannel(pppoxFD)
+	opened, err := s.openSession(context.Background(), dataplane.Request{
+		AccessName: s.ifName, Device: s.device, SessionID: sid,
+		PeerMAC: pkt.SrcMAC, CaptureProxyLCP: realmRelayConfigured(),
+	})
 	if err != nil {
-		s.logger.Error("pppoe: devPPPSetup failed", "sid", sid, "error", err)
-		closePPPoxFD(s.sessions.Remove(sid))
+		s.reportSessionAdmissionFailure(sid, err)
+		s.closeSession(s.sessions.Remove(sid))
 		return
 	}
-	sess.UnitNum = unitNum
-	s.admitting.chanFD, s.admitting.unitFD, s.admitting.pppFDsOpen = chanFD, unitFD, true
+	if !s.sessions.setOpened(sid, opened) {
+		s.closeSession(opened)
+		return
+	}
 
 	// Send PADS only after kernel setup succeeds and the session has a
 	// taker (the L2TP relay or the PPP driver). If we sent it earlier and
@@ -319,9 +319,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	var buf [EthMaxLen]byte
 	frame := BuildPADS(buf[:], s.hwAddr, pkt, s.acName, sid)
 	if frame == nil {
-		closePPPoxFD(chanFD)
-		closePPPoxFD(unitFD)
-		closePPPoxFD(s.sessions.Remove(sid))
+		s.closeSession(s.sessions.Remove(sid))
 		return
 	}
 
@@ -329,14 +327,16 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	// hand the subscriber to the L2TP subsystem (LAC incoming call) instead
 	// of terminating PPP locally. The relay decision crosses the pppoe -> l2tp
 	// boundary through the neutral callsink registry (pppoe never imports
-	// l2tp). The subscriber's pppox socket fd travels with the request so the
-	// L2TP side can bridge its PPP channel to the pppol2tp channel (A-4). The
-	// unused local PPP unit is closed; the channel + pppox fds stay open (the
-	// bridge needs them) and are released when the PPPoE session ends. The
+	// l2tp). The request carries the PPPoX transport owner so L2TP can borrow
+	// its channel for the kernel bridge (A-4). The unused local PPP lease
+	// stays owned here until bridge preparation. The transport remains
+	// available to the bridge until the PPPoE session ends. The
 	// PPP driver plays no part, so a LAC with none still relays.
-	if s.relayToL2TP(pkt, sid, pppoxFD) {
-		closePPPoxFD(unitFD)
-		s.admitting.pppFDsOpen = false
+	if s.relayToL2TP(pkt, sid, opened) {
+		// refuse-by-default: guards sendPADS -- a call canceled during Relay cannot publish an accepted admission it no longer owns
+		if s.sessions.transport(sid) != opened {
+			return
+		}
 		s.sendPADS(sid, frame)
 		s.logger.Info("pppoe: subscriber relayed to L2TP; local PPP not started", "sid", sid)
 		return
@@ -356,10 +356,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 			"The PPP driver needs an interface backend, and none is loaded. "+
 			"Fix: set interface backend netlink, or bind the subscriber's Service-Name to an L2TP relay",
 			"src", net.HardwareAddr(pkt.SrcMAC[:]), "service", pkt.ServiceNameString())
-		closePPPoxFD(chanFD)
-		closePPPoxFD(unitFD)
-		s.admitting.pppFDsOpen = false
-		closePPPoxFD(s.sessions.Remove(sid))
+		s.closeAdmitted(sid)
 		refusal := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagACSystemError)
 		if refusal != nil {
 			s.sendFrame(refusal)
@@ -377,9 +374,9 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		LCP:               s.lcpConfig,
 		TunnelID:          uint16(s.ifIndex),
 		SessionID:         sid,
-		ChanFD:            chanFD,
-		UnitFD:            unitFD,
-		UnitNum:           unitNum,
+		SubscriberID:      pppoeSessionID(s.ifIndex, sid),
+		Frames:            opened.Frames(),
+		Dataplane:         opened.Dataplane(),
 		LNSMode:           true,
 		PPPoE:             true,
 		AuthMethod:        s.authMethod,
@@ -396,8 +393,10 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		CaptureProxyLCP: realmRelayConfigured(),
 	}
 
-	// From here the PPP driver owns the channel and unit descriptors.
-	s.admitting.pppFDsOpen = false
+	// From here the PPP driver owns the data-plane lease.
+	if s.sessions.takePPPLease(sid) == nil {
+		return
+	}
 	s.pppDriver.SessionsIn() <- start
 }
 
@@ -440,7 +439,8 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 	if s.sessions.markTeardown(pkt.SID) == nil {
 		return
 	}
-	closePPPoxFD(s.sessions.detachTransport(pkt.SID))
+	defer s.closeAdmitted(pkt.SID)
+	s.closeTransport(s.sessions.transport(pkt.SID))
 
 	if s.pppDriver != nil {
 		_ = s.pppDriver.StopSession(uint16(s.ifIndex), pkt.SID)
@@ -448,7 +448,6 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 	if s.peerLeft != nil {
 		s.peerLeft(s.ifIndex, pkt.SID)
 	}
-	closePPPoxFD(s.sessions.Remove(pkt.SID))
 }
 
 // handleSessionDown is called by the event consumer when PPP reports
@@ -466,12 +465,19 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 	if sess == nil {
 		return
 	}
+	s.finishSessionDown(sess)
+}
 
+// finishSessionDown publishes PADT for an admission the table already claimed.
+// The caller MUST keep its SID reserved until this method returns.
+func (s *InterfaceServer) finishSessionDown(sess *Session) {
+	sid := sess.SID
+	defer s.closeAdmitted(sid)
 	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
 	// be sent after sending or receiving a PADT." Session-down notification
 	// can precede the PPP goroutine's final cleanup, so close the transport
 	// before publishing PADT on the discovery socket.
-	closePPPoxFD(s.sessions.detachTransport(sid))
+	s.closeTransport(s.sessions.transport(sid))
 
 	var dstMAC [EthALen]byte
 	copy(dstMAC[:], sess.MAC)
@@ -481,29 +487,55 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 	if frame != nil {
 		s.sendFrame(frame)
 	}
-	closePPPoxFD(s.sessions.Remove(sid))
 }
 
-// createTransport opens the session-stage socket for an admitted session,
-// through pppoeCreateFn when a test set it. The socket binds to the resolved
-// kernel device, the one discovery runs on, never to the configured name.
-func (s *InterfaceServer) createTransport(sid uint16, remoteMAC [EthALen]byte) (int, error) {
-	if s.pppoeCreateFn != nil {
-		return s.pppoeCreateFn(s.device, sid, remoteMAC)
+// closeAdmitted releases only resources the access server still owns. The PPP
+// driver keeps a transferred lease through its final control writes. Transport
+// cleanup still runs if an unused-lease close panics at the discovery boundary.
+func (s *InterfaceServer) closeAdmitted(sid uint16) {
+	admission, removed := s.sessions.beginAdmissionClose(sid)
+	if admission == nil {
+		return
 	}
-	return pppoeCreate(s.device, sid, remoteMAC)
+	// Run completion last, including when a broken cleanup panics. The SID
+	// and access generation stay owned through transport, token and lease.
+	defer s.sessions.completeAdmissionClose(admission)
+	defer func() { s.closeTransport(removed.opened) }()
+	if removed.relay != nil {
+		defer removed.relay.cancel()
+	}
+	if removed.unusedLease != nil {
+		if err := removed.unusedLease.Close(); err != nil {
+			ppp.ReportCleanupFailure(removed.unusedLease.handle.Identity(), ppp.CleanupSession, err)
+			s.logger.Warn("pppoe: unused local PPP lease cleanup failed", "sid", sid, "error", err,
+				"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+		}
+	}
 }
 
-// setupPPPChannel attaches the session socket to a PPP channel and unit,
-// through devPPPSetupFn when a test set it.
-func (s *InterfaceServer) setupPPPChannel(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
-	// The PPPoE AC serves subscriber sessions whose device stays pppN:
-	// subscribers have no configured name. Only the PPPoE client passes a
-	// non-empty name to DevPPPSetup (plan child-1).
-	if s.devPPPSetupFn != nil {
-		return s.devPPPSetupFn(pppoxFD)
+// closeSession releases an unpublished owner that local PPP never received.
+// Admitted sessions use closeAdmitted, which preserves any PPP-owned lease.
+func (s *InterfaceServer) closeSession(opened dataplane.OpenedSession) {
+	if opened == nil {
+		return
 	}
-	return ppp.DevPPPSetup(pppoxFD, "")
+	defer s.closeTransport(opened)
+	if err := opened.Dataplane().Close(); err != nil {
+		ppp.ReportCleanupFailure(opened.Dataplane().Identity(), ppp.CleanupSession, err)
+		s.logger.Warn("pppoe: session resource cleanup failed", "error", err,
+			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+	}
+}
+
+func (s *InterfaceServer) closeTransport(opened dataplane.OpenedSession) {
+	if opened == nil {
+		return
+	}
+	if err := opened.CloseTransport(); err != nil {
+		ppp.ReportCleanupFailure(opened.Dataplane().Identity(), ppp.CleanupTransport, err)
+		s.logger.Warn("pppoe: session transport cleanup failed", "error", err,
+			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+	}
 }
 
 func (s *InterfaceServer) sendFrame(frame []byte) {
@@ -518,32 +550,43 @@ func (s *InterfaceServer) sendFrame(frame []byte) {
 
 // relayToL2TP consults the registered call-sink to decide whether an admitted
 // subscriber, whose PADS is built but not yet sent, should be relayed into an
-// L2TP tunnel rather than terminated locally. pppoxFD is the subscriber's
-// PPPoE pppox socket, passed so the L2TP side can derive its PPP channel
-// number for the kernel bridge.
+// L2TP tunnel rather than terminated locally. The transport owner lends the
+// PPPoX descriptor only while the L2TP worker performs its kernel bridge ioctl.
 // Returns true when the subscriber was handed off to L2TP (an incoming call
 // was originated). A nil sink (no L2TP subsystem) or an unmatched service
 // returns false; a matched-but-failed relay logs and returns false so the
 // subscriber falls back to local termination, or to the refusal handlePADR
 // answers when no PPP driver exists.
-func (s *InterfaceServer) relayToL2TP(pkt *Packet, sid uint16, pppoxFD int) bool {
+func (s *InterfaceServer) relayToL2TP(pkt *Packet, sid uint16, opened dataplane.OpenedSession) bool {
 	sink := callsink.Lookup()
 	if sink == nil {
 		return false
 	}
-	accepted, err := sink.Relay(callsink.Request{
+	preparation := s.beginServiceRelay(sid, opened)
+	if preparation == nil {
+		return false
+	}
+	call, accepted, err := sink.Relay(callsink.Request{
 		Service:       pkt.ServiceNameString(),
 		Interface:     s.ifName,
 		SubscriberMAC: net.HardwareAddr(pkt.SrcMAC[:]).String(),
 		SessionID:     sid,
-		ChannelFD:     pppoxFD,
+		Channel:       opened,
+		BeforeBridge:  preparation,
+		Handoff:       preparation,
 	})
 	if err != nil {
+		preparation.abandon(call)
 		s.logger.Warn("pppoe: L2TP relay failed; terminating locally",
 			"sid", sid, "service", pkt.ServiceNameString(), "error", err.Error())
 		return false
 	}
-	return accepted
+	if !accepted {
+		preparation.abandon(call)
+		return false
+	}
+	preparation.accept(call)
+	return true
 }
 
 func vendorTagsFromPacket(pkt *Packet) []byte {

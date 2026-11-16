@@ -79,7 +79,7 @@ func TestRelayTotalCountsRealmDecisions(t *testing.T) {
 		t.Fatalf(`realm bridge-failed = %q, want "1"`, got)
 	}
 
-	if accepted, err := sink.Relay(callsink.Request{Service: "unbound"}); err != nil || accepted {
+	if _, accepted, err := sink.Relay(callsink.Request{Service: "unbound"}); err != nil || accepted {
 		t.Fatalf("unbound service: accepted=%t err=%v, want neither", accepted, err)
 	}
 	if got := scrapeRelayTotal(t, reg, "service", "no-match"); got != "1" {

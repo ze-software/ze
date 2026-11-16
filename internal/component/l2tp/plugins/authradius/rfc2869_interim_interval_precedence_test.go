@@ -22,6 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -75,8 +76,10 @@ func startPrecedenceSession(t *testing.T, tunnelID, sessionID uint16, configured
 	}
 	t.Cleanup(func() { client.Close() }) //nolint:errcheck // test cleanup
 
-	l2tp.StoreSessionMetadata(tunnelID, sessionID, &l2tp.AuthMetadata{AcctInterimInterval: fromAccept})
-	t.Cleanup(func() { l2tp.ClearSessionMetadata(tunnelID, sessionID) })
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID), &l2tp.AuthMetadata{AcctInterimInterval: fromAccept})
+	t.Cleanup(func() {
+		l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID))
+	})
 
 	acct := newRADIUSAcct()
 	acct.setClient(client, "test-nas", configured, addr, nil, "")

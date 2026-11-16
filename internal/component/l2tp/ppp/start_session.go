@@ -5,15 +5,20 @@ package ppp
 import (
 	"net"
 	"net/netip"
+	"reflect"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // StartSession is the payload sent on Driver.SessionsIn to launch a PPP
 // session. It is the ownership boundary between L2TP or PPPoE and PPP.
 //
-// Channel delivery transfers exclusive ownership of both descriptors to the
-// PPP manager. It closes them on refusal, stopped-queue drain, or session
-// teardown. Producers MUST stop sending before stopping the manager.
+// Channel delivery transfers the session handle to the PPP driver. It releases
+// that handle on refusal, stopped-queue drain, or session teardown. The streams
+// are borrowed from the same owner. Producers MUST stop before the driver.
 type StartSession struct {
 	// LCP is an immutable snapshot. The transport MUST construct it with
 	// NewLCPConfig; the driver MUST reject an invalid snapshot before I/O.
@@ -22,14 +27,15 @@ type StartSession struct {
 	// events back to the caller and for log fields.
 	TunnelID  uint16
 	SessionID uint16
+	// SubscriberID is the transport's canonical subscriber identity. PPP MUST
+	// preserve it unchanged on auth and address requests. Empty is permitted
+	// for protocol-only callers; subscriber handlers require an identity.
+	SubscriberID string
 
-	// File descriptors from the kernel PPP/PPPoX setup. The chan fd
-	// carries LCP, authentication, and NCP control packets. The unit
-	// fd carries IP packets (data plane, kernel-handled) and is the
-	// target of PPPIOCSMRU after LCP completes.
-	ChanFD  int
-	UnitFD  int
-	UnitNum int // pppN unit number; iface name is "ppp" + strconv.Itoa(UnitNum)
+	// Frames lends control delivery; Dataplane owns every borrowed stream.
+	// Both MUST refer to the same created session and MUST be non-nil.
+	Frames    FrameChannel
+	Dataplane SessionHandle
 
 	// LNSMode indicates whether ze acts as the LNS (true) or LAC
 	// (false) for this session. Affects which side initiates LCP and
@@ -143,17 +149,38 @@ type StartSession struct {
 	VendorTags      []byte           // Raw vendor-specific tags from PADI/PADR (TR-101 etc.)
 }
 
-// closeFiles releases an undelivered or refused ownership transfer.
+// closeFiles releases a refused or canceled ownership transfer. The factory
+// already transferred the handle even when the driver refuses its payload.
 func (s *StartSession) closeFiles() {
-	if s.ChanFD > 0 {
-		if channel := newChanFileFn(s.ChanFD, "ppp.unstarted.chan"); channel != nil {
-			_ = channel.Close() //nolint:errcheck // rejected or canceled setup
-		}
+	if sessionResourceMissing(s.Dataplane) {
+		return
 	}
-	if s.UnitFD > 0 && s.UnitFD != s.ChanFD {
-		if unit := newUnitFileFn(s.UnitFD); unit != nil {
-			_ = unit.Close() //nolint:errcheck // rejected or canceled setup
-		}
+	if err := s.Dataplane.Close(); err != nil {
+		ReportCleanupFailure(s.Dataplane.Identity(), CleanupSession, err)
+		failure := opererr.Wrap(err, "PPP resources for a refused session could not be released",
+			"Removal remains unconfirmed; inspect the recorded owner error and repair it before retrying service", CleanupFailureFix)
+		slogutil.Logger("ppp").Warn(failure.Problem(), "error", err,
+			"tunnel-id", s.TunnelID, "session-id", s.SessionID,
+			"why", failure.Why(), "code", diagnostic.CodeDoctorPPPCleanup, "fix", failure.Fix())
 	}
-	s.ChanFD, s.UnitFD = -1, -1
+	s.Dataplane = nil
+	s.Frames = nil
+}
+
+// sessionResourceMissing checks raw session transfers before calling an
+// interface supplied by a factory. A typed nil owns no releasable resource.
+// It runs only at admission and release, never on the packet path.
+func sessionResourceMissing(resource any) bool {
+	if resource == nil {
+		return true
+	}
+	value := reflect.ValueOf(resource)
+	// Only the nil-capable kinds support IsNil.
+	//exhaustive:ignore
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }

@@ -300,13 +300,10 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:            testLCPConfig(),
 		TunnelID:       411,
 		SessionID:      511,
-		ChanFD:         18001,
-		UnitFD:         911,
-		UnitNum:        31,
 		LNSMode:        true,
 		MaxMRU:         1500,
 		AuthMethod:     AuthMethodCHAPMD5,
@@ -314,7 +311,7 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 		ReauthInterval: 150 * time.Millisecond,
 		DisableIPCP:    true,
 		DisableIPv6CP:  true,
-	}
+	}, 18001, 911, 31)
 
 	<-peerDone
 
@@ -454,8 +451,9 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	pair := newPipePair(reg, 18101)
 	defer closeConn(pair.peerEnd)
 
+	backend := &fakeBackend{}
 	ops, _, _ := newFakeOps()
-	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	d := NewProductionDriver(discardLogger())
 	if err := d.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -465,20 +463,18 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
-		LCP:           testLCPConfig(),
-		TunnelID:      421,
-		SessionID:     521,
-		ChanFD:        18101,
-		UnitFD:        921,
-		UnitNum:       32,
+	d.SessionsIn() <- testSessionStart(StartSession{
+		LCP:       testLCPConfig(),
+		TunnelID:  421,
+		SessionID: 521,
+
 		LNSMode:       true,
 		MaxMRU:        1500,
 		AuthMethod:    AuthMethodCHAPMD5,
 		AuthTimeout:   3 * time.Second,
 		DisableIPCP:   true,
 		DisableIPv6CP: true,
-	}
+	}, backend, ops, 18101, 921, 32)
 
 	<-peerDone
 

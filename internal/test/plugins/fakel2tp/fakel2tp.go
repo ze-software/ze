@@ -4,6 +4,8 @@
 // route-change batches on the L2TP event namespace, allowing .ci tests
 // to drive the bgp-redistribute consumer without a real L2TP subsystem
 // (no kernel modules, no UDP listener, no PPP).
+// Its synthetic subscriber commands also invoke the real pool handlers, for
+// portable tests of daemon reload and allocation. They require internal mode.
 //
 // Commands:
 //
@@ -21,10 +23,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"sync/atomic"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -130,17 +134,38 @@ func runEmit(args []string) (map[string]any, error) {
 	return map[string]any{"delivered": delivered}, nil
 }
 
+// commandHandlers owns the test-only command registrations and their declarations.
+// It is immutable after package initialization and safe for concurrent reads.
+var commandHandlers map[string]func([]string) (any, error)
+
+func init() {
+	commandHandlers = map[string]func([]string) (any, error){
+		"request fakel2tp emit":               func(args []string) (any, error) { return runEmit(args) },
+		"request fakel2tp pool address":       poolAddress,
+		"request fakel2tp pool pppoe-address": poolPPPoEAddress,
+		"request fakel2tp pool release":       poolRelease,
+		"request fakel2tp pool prefix":        poolPrefix,
+		"show fakel2tp help": func([]string) (any, error) {
+			names := make([]string, 0, len(commandHandlers))
+			for name := range commandHandlers {
+				names = append(names, name)
+			}
+			slices.Sort(names)
+			return map[string]any{"commands": names, "usage": "fakel2tp emit add|remove <family> <prefix>"}, nil
+		},
+	}
+}
+
 // dispatchCommand is the OnExecuteCommand entry point.
 func dispatchCommand(_, command string, args []string, _ string) (string, any, error) {
-	if command == "request fakel2tp emit" {
-		data, err := runEmit(args)
-		if err != nil {
-			return rpc.StatusError, "", err
-		}
-		return rpc.StatusDone, data, nil
+	handler, ok := commandHandlers[command]
+	if !ok {
+		return rpc.StatusError, "", opererr.New("unknown test command "+command,
+			"The synthetic subscriber did not run.", "ze show fakel2tp help")
 	}
-	if command == "show fakel2tp help" {
-		return rpc.StatusDone, map[string]any{"usage": "fakel2tp emit add|remove <family> <prefix>"}, nil
+	data, err := handler(args)
+	if err != nil {
+		return rpc.StatusError, "", err
 	}
-	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)
+	return rpc.StatusDone, data, nil
 }

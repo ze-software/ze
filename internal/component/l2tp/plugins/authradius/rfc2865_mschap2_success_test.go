@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 )
 
 // mschap2SuccessAttr builds one MS-CHAP2-Success attribute value the way RFC
@@ -102,9 +103,10 @@ func TestNoAuthIsAdmittedWithARADIUSClientConfigured(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 2,
-		Method:    ppp.AuthMethodNone,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1,
+		SessionID:    2,
+		Method:       ppp.AuthMethodNone,
 	}, func(accept bool, message string, blob []byte) error {
 		return resp.respond(accept, message, blob)
 	})
@@ -131,13 +133,14 @@ func TestCredentialBearingMethodStillReachesTheServer(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:   1,
-		SessionID:  2,
-		Method:     ppp.AuthMethodCHAPMD5,
-		Username:   "alice",
-		Identifier: 1,
-		Challenge:  bytes.Repeat([]byte{0xAA}, 16),
-		Response:   bytes.Repeat([]byte{0xBB}, 16),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1,
+		SessionID:    2,
+		Method:       ppp.AuthMethodCHAPMD5,
+		Username:     "alice",
+		Identifier:   1,
+		Challenge:    bytes.Repeat([]byte{0xAA}, 16),
+		Response:     bytes.Repeat([]byte{0xBB}, 16),
 	}, func(accept bool, message string, blob []byte) error {
 		return resp.respond(accept, message, blob)
 	})

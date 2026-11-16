@@ -97,13 +97,13 @@ func startRelaySession(t *testing.T, fd int) (*Driver, net.Conn, []byte, EventAu
 
 	sent := make(chan []byte, 1)
 	go relayPeerLCP(t, pair.peerEnd, sent)
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:      testLCPConfig(),
-		TunnelID: 7, SessionID: 9, ChanFD: fd, UnitFD: 901, UnitNum: 1,
+		TunnelID: 7, SessionID: 9,
 		LNSMode: true, PPPoE: true, MaxMRU: 1500,
 		AuthMethod: AuthMethodPAP, AuthFallbackOrder: []AuthMethod{AuthMethodPAP},
 		CaptureProxyLCP: true,
-	}
+	}, fd, 901, 1)
 	driverOptions, ok := <-sent
 	if !ok {
 		t.Fatal("LCP did not reach Opened")

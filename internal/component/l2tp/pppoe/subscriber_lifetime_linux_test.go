@@ -72,13 +72,12 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			sub := newTestSubsystem(t, bus, ifIndex)
 			server := sub.servers[ifIndex]
 			peerMAC := [EthALen]byte{2, 0, 0, 0, 4, 31}
-			sid, transportFD := newPADTSession(t, server, peerMAC)
+			sid, transportFD := newPADTSessionWithIdentity(t, server, peerMAC, "ppp43")
 			transport := server.sessions.Lookup(sid)
 			transport.IfName = "eth0"
-			transport.UnitNum = 43
 			id := pppoeSessionID(ifIndex, sid)
 			t.Cleanup(func() { subscriber.DefaultRegistry.Remove(id) })
-			t.Cleanup(func() { l2tp.ClearSessionMetadata(ifIndex, sid) })
+			t.Cleanup(func() { l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)) })
 			var discovery [][]byte
 			server.sendFrameFn = func(frame []byte) { discovery = append(discovery, append([]byte(nil), frame...)) }
 			var up []subscriber.Session
@@ -97,7 +96,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			baseline := pppoeActiveSubscribers(t)
 			key := pendingAuthKey{ifindex: ifIndex, sessionID: sid}
 			sub.pendingAuth.Store(key, pendingAuthInfo{username: "pending-user", authMethod: "chap-md5"})
-			l2tp.StoreSessionMetadata(ifIndex, sid, &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit", FramedPool: "old-pool"})
+			l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid), &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit", FramedPool: "old-pool"})
 			first := ppp.EventSessionIPAssigned{
 				TunnelID: ifIndex, SessionID: sid, Family: ppp.AddressFamilyIPv4, Username: "old-user",
 				Peer:       netip.MustParseAddr("192.0.2.43"),
@@ -126,7 +125,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			sub.handlePPPEvent(ppp.EventLCPDown{TunnelID: ifIndex, SessionID: sid, NetworkPhase: true, Reason: "peer restarted LCP"})
 			_, ok = subscriber.DefaultRegistry.Get(id)
 			require.False(t, ok, "LCPDown must withdraw the old subscriber")
-			require.Nil(t, l2tp.LoadSessionMetadata(ifIndex, sid), "old authorization must not survive replacement authentication")
+			require.Nil(t, l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)), "old authorization must not survive replacement authentication")
 			_, pending := sub.pendingAuth.Load(key)
 			require.False(t, pending, "incomplete lifetime must release its pending authorization")
 			require.Len(t, down, 1)
@@ -143,7 +142,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			// Reuse the same SID and interface with fresh authorization and
 			// reversed NCP completion order.
 			sub.pendingAuth.Store(key, pendingAuthInfo{username: "pending-replacement", authMethod: "pap"})
-			l2tp.StoreSessionMetadata(ifIndex, sid, &l2tp.AuthMetadata{FilterID: "rate:30mbit/7mbit", FramedPool: "new-pool"})
+			l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid), &l2tp.AuthMetadata{FilterID: "rate:30mbit/7mbit", FramedPool: "new-pool"})
 			second := first
 			second.Username = "new-user"
 			second.Peer = netip.MustParseAddr("192.0.2.44")
@@ -171,7 +170,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			require.Nil(t, server.sessions.Lookup(sid))
 			_, ok = subscriber.DefaultRegistry.Get(id)
 			require.False(t, ok)
-			require.Nil(t, l2tp.LoadSessionMetadata(ifIndex, sid))
+			require.Nil(t, l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)))
 			require.Len(t, down, 2)
 			require.Equal(t, second.Peer, down[1].IPv4Addr)
 			require.Equal(t, baseline, pppoeActiveSubscribers(t))
@@ -238,8 +237,8 @@ func TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 		AccessIfIndex: ifIndex, State: subscriber.StateConfiguring, IPv4Addr: addr,
 	})
 	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(id) })
-	l2tp.StoreSessionMetadata(ifIndex, sid, &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
-	t.Cleanup(func() { l2tp.ClearSessionMetadata(ifIndex, sid) })
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid), &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
+	t.Cleanup(func() { l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)) })
 	key := pendingAuthKey{ifindex: ifIndex, sessionID: sid}
 	sub.pendingAuth.Store(key, pendingAuthInfo{username: "old-user", authMethod: "pap"})
 	var down []subscriber.Session
@@ -253,7 +252,7 @@ func TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	require.Equal(t, addr, down[0].IPv4Addr)
 	_, ok := subscriber.DefaultRegistry.Get(id)
 	require.False(t, ok)
-	require.Nil(t, l2tp.LoadSessionMetadata(ifIndex, sid))
+	require.Nil(t, l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)))
 	_, pending := sub.pendingAuth.Load(key)
 	require.False(t, pending)
 	require.Equal(t, baseline, pppoeActiveSubscribers(t), "configuring lifetime was never active")

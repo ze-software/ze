@@ -11,6 +11,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+
 	"golang.org/x/sys/unix"
 )
 
@@ -18,6 +20,11 @@ import (
 // The opposite socket remains open so Write fails only after the AC closes its
 // own endpoint, rather than because the test peer disconnected.
 func newPADTSession(t *testing.T, server *InterfaceServer, mac [EthALen]byte) (uint16, int) {
+	t.Helper()
+	return newPADTSessionWithIdentity(t, server, mac, "")
+}
+
+func newPADTSessionWithIdentity(t *testing.T, server *InterfaceServer, mac [EthALen]byte, identity string) (uint16, int) {
 	t.Helper()
 	pair, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_DGRAM, 0)
 	if err != nil {
@@ -29,14 +36,15 @@ func newPADTSession(t *testing.T, server *InterfaceServer, mac [EthALen]byte) (u
 		closePPPoxFD(pair[1])
 		t.Fatal(err)
 	}
-	err = server.sessions.Add(&Session{SID: sid, MAC: net.HardwareAddr(mac[:]), PppoxFD: pair[0], State: StateSession})
+	opened := fixtureFDOpened(t, pair[0], &fixtureFrames{}, &fixtureSessionHandle{identity: ppp.SessionIdentity{InterfaceName: identity}})
+	err = server.sessions.Add(&Session{SID: sid, MAC: net.HardwareAddr(mac[:]), Opened: opened, State: StateSession})
 	if err != nil {
-		closePPPoxFD(pair[0])
+		server.closeSession(opened)
 		closePPPoxFD(pair[1])
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		closePPPoxFD(server.sessions.Remove(sid))
+		server.closeSession(server.sessions.Remove(sid))
 		closePPPoxFD(pair[1])
 	})
 	return sid, pair[0]

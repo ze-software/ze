@@ -2,6 +2,7 @@ package fakel2tp
 
 import (
 	"net"
+	"slices"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -12,6 +13,8 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+const transportL2TP = "l2tp"
+
 func init() {
 	// Register "l2tp" as a config-layer redistribute source so
 	// `redistribute { import l2tp { ... } }` is valid even without
@@ -19,8 +22,8 @@ func init() {
 	// for same name+protocol; if the real subsystem also registers,
 	// both succeed.
 	if err := configredist.RegisterSource(configredist.RouteSource{
-		Name:        "l2tp",
-		Protocol:    "l2tp",
+		Name:        transportL2TP,
+		Protocol:    transportL2TP,
 		Description: "subscriber routes from L2TP tunnels (test producer)",
 	}); err != nil {
 		panic("BUG: " + Name + " source registration failed: " + err.Error())
@@ -78,8 +81,14 @@ func runPlugin(conn net.Conn) int {
 // without starting an engine, and the runner sends it in the Stage 1
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
-	return []sdk.CommandDecl{
-		{Name: "request fakel2tp emit"},
-		{Name: "show fakel2tp help"},
+	names := make([]string, 0, len(commandHandlers))
+	for name := range commandHandlers {
+		names = append(names, name)
 	}
+	slices.Sort(names)
+	declarations := make([]sdk.CommandDecl, 0, len(names))
+	for _, name := range names {
+		declarations = append(declarations, sdk.CommandDecl{Name: name})
+	}
+	return declarations
 }

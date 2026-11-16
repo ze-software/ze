@@ -4,6 +4,8 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 )
 
 func TestStoreAndLoadSessionMetadata(t *testing.T) {
@@ -16,10 +18,10 @@ func TestStoreAndLoadSessionMetadata(t *testing.T) {
 		FilterID:            "rate:20M/5M",
 		AcctInterimInterval: 60,
 	}
-	StoreSessionMetadata(1, 2, meta)
-	defer ClearSessionMetadata(1, 2)
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), meta)
+	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2))
 
-	got := LoadSessionMetadata(1, 2)
+	got := LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2))
 	if got == nil {
 		t.Fatal("expected metadata, got nil")
 	}
@@ -35,15 +37,15 @@ func TestStoreAndLoadSessionMetadata(t *testing.T) {
 }
 
 func TestLoadSessionMetadataMultipleConsumers(t *testing.T) {
-	StoreSessionMetadata(3, 4, &AuthMetadata{FramedPool: "silver"})
-	defer ClearSessionMetadata(3, 4)
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4), &AuthMetadata{FramedPool: "silver"})
+	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4))
 
-	got := LoadSessionMetadata(3, 4)
+	got := LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4))
 	if got == nil {
 		t.Fatal("first load should return metadata")
 	}
 
-	got2 := LoadSessionMetadata(3, 4)
+	got2 := LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4))
 	if got2 == nil {
 		t.Fatal("second load should also return metadata (multiple consumers)")
 	}
@@ -53,24 +55,24 @@ func TestLoadSessionMetadataMultipleConsumers(t *testing.T) {
 }
 
 func TestLoadSessionMetadataNotStored(t *testing.T) {
-	got := LoadSessionMetadata(99, 99)
+	got := LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(99), 99))
 	if got != nil {
 		t.Error("expected nil for unstored session")
 	}
 }
 
 func TestStoreNilMetadata(t *testing.T) {
-	StoreSessionMetadata(5, 6, nil)
-	got := LoadSessionMetadata(5, 6)
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(5), 6), nil)
+	got := LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(5), 6))
 	if got != nil {
 		t.Error("expected nil after storing nil metadata")
 	}
 }
 
 func TestClearSessionMetadata(t *testing.T) {
-	StoreSessionMetadata(7, 8, &AuthMetadata{SessionTimeout: 300})
-	ClearSessionMetadata(7, 8)
-	got := LoadSessionMetadata(7, 8)
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8), &AuthMetadata{SessionTimeout: 300})
+	ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8))
+	got := LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8))
 	if got != nil {
 		t.Error("expected nil after clear")
 	}

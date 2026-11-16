@@ -6,10 +6,13 @@ package iface
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -19,40 +22,73 @@ import (
 // entry the same commit deletes, never reaches the apply.
 const ConfiguredInterfaceReference = "configured-interface"
 
-// configuredInterfaceKinds names the lists directly under the interface
-// container whose entries are interfaces. It is a copy of a fact the schema
-// holds, and TestConfiguredInterfaceKindsAreTheSchemaLists compares the two, so
-// a kind the schema gains fails that test until it is named here.
-var configuredInterfaceKinds = []string{"ethernet", "dummy", "veth", "bridge", "tunnel", "wireguard", "xfrm", "pppoe-client"}
-
 // configuredInterfaceChoicesMax bounds how many declared names a refusal
 // lists, so a config with hundreds of interfaces keeps a readable message.
 const configuredInterfaceChoicesMax = 8
 
 // configuredInterfaceReference answers the interface names one config
-// declares: the entry of every interface kind, the peer end of every veth, and
-// every VLAN unit as <entry>.<vlan-id>, the kernel name unitOSName gives it.
+// declares: the entry of every supported interface kind, the peer end of a
+// veth, and every VLAN unit as <entry>.<vlan-id>, the name unitOSName gives it.
 // The loopback container is not a list entry, and it is not offered.
 //
-// The answer reads the config alone, never the kernel, so `ze config validate`
-// gives the verdict the daemon gives. A declared name whose device is absent is
-// accepted here, and the apply decides what to do without it.
+// The answer reads the config and compiled schema, never the kernel, so
+// validation and completion use the same supported kinds. A declared name
+// whose device is absent is accepted here; apply decides what to do with it.
 //
-// Safe for concurrent use: it only reads root.
+// Safe for concurrent use: it reads root and the shared immutable schema.
 func configuredInterfaceReference(root map[string]any, _ []string) yang.ReferenceAnswer {
-	names := configuredInterfaceNames(root)
+	names, err := configuredInterfaceNames(root)
+	if err != nil {
+		return yang.ReferenceAnswer{Check: func(value string) error {
+			return opererr.Wrap(err, fmt.Sprintf("Interface reference %q could not be checked", value),
+				"The compiled interface schema is unavailable, so no interface reference can be verified.",
+				"ze doctor")
+		}}
+	}
 	return yang.ReferenceAnswer{
 		Names: names,
 		Check: func(value string) error { return checkConfiguredInterface(value, names) },
 	}
 }
 
+// configuredInterfaceKinds derives the supported lists from the current
+// compiled schema. This runs when a reference is read, after schema loading:
+// source registration never calls it. The schema cache tracks module changes,
+// so a newly registered kind requires no second list and is never frozen out.
+func configuredInterfaceKinds() ([]string, error) {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, err
+	}
+	node, err := schema.Lookup(configRootInterface)
+	if err != nil {
+		return nil, err
+	}
+	container, ok := node.(*config.ContainerNode)
+	if !ok {
+		return nil, fmt.Errorf("interface schema node is %T, want a container", node)
+	}
+	children := container.Children()
+	kinds := make([]string, 0, len(children))
+	for _, child := range children {
+		if container.Get(child).Kind() == config.NodeList {
+			kinds = append(kinds, child)
+		}
+	}
+	slices.Sort(kinds)
+	return kinds, nil
+}
+
 // configuredInterfaceNames returns the sorted, deduplicated interface names
-// the interface section of root declares.
-func configuredInterfaceNames(root map[string]any) []string {
+// the interface section of root declares under the current schema's lists.
+func configuredInterfaceNames(root map[string]any) ([]string, error) {
+	kinds, err := configuredInterfaceKinds()
+	if err != nil {
+		return nil, err
+	}
 	section, _ := root[configRootInterface].(map[string]any) // no interface section declares no interface
-	names := make([]string, 0, len(configuredInterfaceKinds))
-	for _, kind := range configuredInterfaceKinds {
+	names := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
 		entries, _ := section[kind].(map[string]any) // an absent kind declares no entry
 		for name, value := range entries {
 			names = append(names, name)
@@ -64,7 +100,7 @@ func configuredInterfaceNames(root map[string]any) []string {
 		}
 	}
 	slices.Sort(names)
-	return slices.Compact(names)
+	return slices.Compact(names), nil
 }
 
 // appendVethPeerName appends the peer end of a veth entry, a device ze creates

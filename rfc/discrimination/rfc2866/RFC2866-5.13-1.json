@@ -25,22 +25,22 @@
     "rid": "RFC2866-5.13-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes",
-    "unit-sha": "95a51e1abd2d501a",
+    "unit-sha": "5a84635f936be011",
     "claim-sha": "edccd14bca436228",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
     "producer-sha": "95509f5b3525dc3f",
-    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2866-5.13-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go::TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting",
-    "unit-sha": "9fb2d603bad7ad3d",
+    "unit-sha": "077b1dafa12f6256",
     "claim-sha": "46ef70b13b38f235",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
     "producer-sha": "95509f5b3525dc3f",
-    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

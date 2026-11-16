@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -33,7 +34,8 @@ const rfc3162FramedIPv6Pool = 100
 func TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS(t *testing.T) {
 	a, srv, resp := setupCapturingAuthIdentity(t, []byte("testing123"), "", net.ParseIP("2001:db8::7"))
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("password123"),
 	}, resp.respond)
 	resp.waitOne(t)

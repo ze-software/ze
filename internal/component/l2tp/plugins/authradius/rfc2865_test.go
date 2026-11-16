@@ -12,16 +12,18 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
 func TestRFC2865SubscriberAccessRequestUserName(t *testing.T) {
 	req := ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 2,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "subscriber@example.net",
-		Response:  []byte("secret-pw"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1,
+		SessionID:    2,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "subscriber@example.net",
+		Response:     []byte("secret-pw"),
 	}
 	attrs, ok := buildAuthAttrs(req, "nas-1", net.IPv4(10, 0, 0, 1))
 	if !ok {

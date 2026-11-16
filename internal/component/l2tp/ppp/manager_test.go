@@ -30,31 +30,12 @@ func TestDriverStartStop(t *testing.T) {
 // replaced the AuthHook interface with channel-based dispatch; auth is
 // no longer a NewDriver-time required dependency.
 func TestDriverNewDriverPanics(t *testing.T) {
-	cases := []struct {
-		name    string
-		mutator func(*driverConfig)
-	}{
-		{"nil Logger", func(c *driverConfig) { c.Logger = nil }},
-		{"nil Backend", func(c *driverConfig) { c.Backend = nil }},
-		{"nil Ops.setMRU", func(c *driverConfig) { c.Ops = pppOps{} }},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Errorf("expected panic")
-				}
-			}()
-			ops, _, _ := newFakeOps()
-			cfg := driverConfig{
-				Logger:  discardLogger(),
-				Backend: &fakeBackend{},
-				Ops:     ops,
-			}
-			tc.mutator(&cfg)
-			newDriver(cfg)
-		})
-	}
+	defer func() {
+		if recovered := recover(); recovered == nil {
+			t.Error("expected a panic for a nil logger")
+		}
+	}()
+	NewProductionDriver(nil)
 }
 
 // VALIDATES: A StartSession with proxy LCP AVPs short-circuits the
@@ -81,13 +62,10 @@ func TestDriverProxyLCPSkipsNegotiation(t *testing.T) {
 	// Build a valid proxy CONFREQ stream: MRU=1500 + Magic=0xCAFEBABE.
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           42,
-		ChanFD:              1001,
-		UnitFD:              999,
-		UnitNum:             7,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		DisableIPCP:         true,
@@ -95,7 +73,7 @@ func TestDriverProxyLCPSkipsNegotiation(t *testing.T) {
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 1001, 999, 7)
 
 	// Expect EventLCPUp then EventSessionUp on the events channel.
 	got := drainTwoEvents(t, d.EventsOut(), time.Second)
@@ -143,20 +121,17 @@ func TestDriverSessionByID(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1492), magicOpt(0xDEADBEEF)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            5,
 		SessionID:           77,
-		ChanFD:              2001,
-		UnitFD:              123,
-		UnitNum:             3,
 		LNSMode:             true,
 		DisableIPCP:         true,
 		DisableIPv6CP:       true,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 2001, 123, 3)
 	// Wait for SessionUp so we know the goroutine has settled.
 	drainTwoEvents(t, d.EventsOut(), time.Second)
 
@@ -173,8 +148,11 @@ func TestDriverSessionByID(t *testing.T) {
 	if info.NegotiatedMRU != 1492 {
 		t.Errorf("negotiated MRU = %d, want 1492", info.NegotiatedMRU)
 	}
-	if info.UnitNum != 3 {
-		t.Errorf("unit = %d, want 3", info.UnitNum)
+	if info.Identity.InterfaceName != "ppp3" {
+		t.Errorf("interface = %q, want ppp3", info.Identity.InterfaceName)
+	}
+	if info.Identity.NativeIndex != 3 {
+		t.Errorf("fixture interface index = %d, want 3", info.Identity.NativeIndex)
 	}
 
 	if _, ok := d.sessionByID(99, 99); ok {
@@ -201,19 +179,16 @@ func TestDriverStopSession(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0x12345678)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            10,
 		SessionID:           20,
-		ChanFD:              3001,
-		UnitFD:              500,
-		UnitNum:             1,
 		DisableIPCP:         true,
 		DisableIPv6CP:       true,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 3001, 500, 1)
 	drainTwoEvents(t, d.EventsOut(), time.Second)
 
 	if err := d.StopSession(10, 20); err != nil {
@@ -257,18 +232,15 @@ func TestDriverLCPNegotiationViaPipe(t *testing.T) {
 	// driver end of the pipe, which unblocks the peer's Read.
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:           testLCPConfig(),
 		TunnelID:      100,
 		SessionID:     200,
-		ChanFD:        4001,
-		UnitFD:        777,
-		UnitNum:       2,
 		LNSMode:       true,
 		MaxMRU:        1500,
 		DisableIPCP:   true,
 		DisableIPv6CP: true,
-	}
+	}, 4001, 777, 2)
 
 	// The negotiation completes when both sides exchange CR + CA.
 	// Expect EventLCPUp then EventSessionUp.
@@ -309,7 +281,9 @@ func TestDriverLCPNegotiationViaPipe(t *testing.T) {
 	}
 }
 
-// VALIDATES: StartSession with ChanFD <= 0 or UnitFD <= 0 is rejected
+// VALIDATES: StartSession without a data-plane owner, frame channel, or
+//
+//	control stream is rejected
 //
 //	before any goroutine spawns, and the transport is informed via
 //	EventSessionRejected (not EventSessionDown).
@@ -317,7 +291,7 @@ func TestDriverLCPNegotiationViaPipe(t *testing.T) {
 // PREVENTS: silent drop of malformed StartSessions -- transport would
 //
 //	leave its in-flight tracking stuck.
-func TestDriverRejectsInvalidFDs(t *testing.T) {
+func TestDriverRejectsIncompleteSessionOwnership(t *testing.T) {
 	reg := newPipeRegistry()
 	installPipeRegistry(t, reg)
 	pair := newPipePair(reg, 10)
@@ -330,13 +304,22 @@ func TestDriverRejectsInvalidFDs(t *testing.T) {
 	}
 	defer d.Stop()
 
+	missingFrames := testStartForDriver(d, StartSession{
+		LCP: testLCPConfig(), TunnelID: 1, SessionID: 2,
+	}, 10, 9001, 0)
+	missingFrames.Frames = nil
+	missingControl := testStartForDriver(d, StartSession{
+		LCP: testLCPConfig(), TunnelID: 1, SessionID: 3,
+	}, 10, 9001, 0)
+	missingControl.Frames = &testSessionFrames{}
 	cases := []struct {
 		name  string
 		start StartSession
 	}{
-		{"chan fd zero", StartSession{LCP: testLCPConfig(), TunnelID: 1, SessionID: 1, ChanFD: 0, UnitFD: 10}},
-		{"unit fd zero", StartSession{LCP: testLCPConfig(), TunnelID: 1, SessionID: 2, ChanFD: 10, UnitFD: 0}},
-		{"chan fd negative", StartSession{LCP: testLCPConfig(), TunnelID: 1, SessionID: 3, ChanFD: -1, UnitFD: 10}},
+		{"missing owner", StartSession{LCP: testLCPConfig(), TunnelID: 1, SessionID: 1,
+			Frames: &testSessionFrames{control: pair.driverEnd}}},
+		{"missing frame channel", missingFrames},
+		{"missing control stream", missingControl},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -361,19 +344,16 @@ func TestDriverRejectsInvalidFDs(t *testing.T) {
 	pair = newPipePair(reg, 8001)
 	defer closeConn(pair.peerEnd)
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xDEADBEEF)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            99,
 		SessionID:           99,
-		ChanFD:              8001,
-		UnitFD:              8002,
-		UnitNum:             1,
 		DisableIPCP:         true,
 		DisableIPv6CP:       true,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 8001, 8002, 1)
 	drainTwoEvents(t, d.EventsOut(), time.Second)
 }
 
@@ -396,19 +376,16 @@ func TestDriverRejectsDuplicate(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	first := StartSession{
+	first := testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            7,
 		SessionID:           8,
-		ChanFD:              9001,
-		UnitFD:              9002,
-		UnitNum:             2,
 		DisableIPCP:         true,
 		DisableIPv6CP:       true,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 9001, 9002, 2)
 	d.SessionsIn() <- first
 	// Drain the first session's LCPUp + SessionUp.
 	drainTwoEvents(t, d.EventsOut(), time.Second)
@@ -418,8 +395,7 @@ func TestDriverRejectsDuplicate(t *testing.T) {
 	dup := first
 	duplicatePair := newPipePair(reg, 9101)
 	defer closeConn(duplicatePair.peerEnd)
-	dup.ChanFD = 9101
-	dup.UnitFD = 9102
+	dup = testStartForDriver(d, dup, 9101, 9102, 2)
 	if err := duplicatePair.peerEnd.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}

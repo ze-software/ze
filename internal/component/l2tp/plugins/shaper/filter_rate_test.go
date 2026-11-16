@@ -7,6 +7,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/traffic"
 )
 
@@ -38,8 +39,10 @@ func TestFilterIDRateReachesBothDirections(t *testing.T) {
 	for i, c := range cases {
 		tunnel, session := uint16(100+i), uint16(900+i)
 		iface := "pppfid" + string(rune('a'+i))
-		l2tp.StoreSessionMetadata(tunnel, session, &l2tp.AuthMetadata{FilterID: c.filterID})
-		t.Cleanup(func() { l2tp.ClearSessionMetadata(tunnel, session) })
+		l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session), &l2tp.AuthMetadata{FilterID: c.filterID})
+		t.Cleanup(func() {
+			l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session))
+		})
 
 		s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: tunnel, SessionID: session, Interface: iface})
 
@@ -77,8 +80,10 @@ func TestNonRateFilterIDLeavesConfiguredRates(t *testing.T) {
 	for i, filterID := range []string{"", "rate:", "not-a-rate", "10", "abc/def"} {
 		tunnel, session := uint16(200+i), uint16(800+i)
 		iface := "pppnr" + string(rune('a'+i))
-		l2tp.StoreSessionMetadata(tunnel, session, &l2tp.AuthMetadata{FilterID: filterID})
-		t.Cleanup(func() { l2tp.ClearSessionMetadata(tunnel, session) })
+		l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session), &l2tp.AuthMetadata{FilterID: filterID})
+		t.Cleanup(func() {
+			l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnel), session))
+		})
 
 		s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: tunnel, SessionID: session, Interface: iface})
 

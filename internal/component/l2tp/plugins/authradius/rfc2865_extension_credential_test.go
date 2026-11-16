@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -23,7 +24,8 @@ import (
 func TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential(t *testing.T) {
 	a, srv, resp := setupCapturingAuth(t, []byte("testing123"))
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodMSCHAPv2,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodMSCHAPv2,
 		Username: "alice", Identifier: 7,
 		Challenge: make([]byte, 16), Response: make([]byte, 49),
 	}, resp.respond)

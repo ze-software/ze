@@ -40,6 +40,7 @@ internal/component/ike/ipsec	domain-library	VPN IPsec domain package nested unde
 internal/component/l2tp	domain-library	BNG domain root package for l2tp and subscriber integrations
 internal/component/pki	framework	shared certificate infrastructure for IPsec today and future TLS users
 internal/component/l2tp/ppp	domain-library	BNG PPP library nested under the l2tp domain root
+internal/component/l2tp/ppp/kernel	domain-library	Kernel PPP session resource adapter shared by access transports
 internal/component/l2tp/pppoe	domain-library	BNG PPPoE domain package used by subscriber integrations
 internal/component/l2tp/pppoeclient	domain-library	BNG PPPoE client library used by daemon startup
 internal/component/l2tp/subscriber	domain-library	BNG subscriber domain package used by l2tp and command plugins

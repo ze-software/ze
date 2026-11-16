@@ -18,7 +18,7 @@ func TestIPAssignmentAcknowledgmentBeforeConnect(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				s, _, events := newRFC1661Session(LCPStateInitial)
 				connects := 0
-				s.ops.connect = func(_, _ int) error {
+				testHandleFor(s).ops.connect = func(_, _ int) error {
 					connects++
 					return nil
 				}
@@ -63,7 +63,7 @@ func TestIPAssignmentCancellation(t *testing.T) {
 							events = make(chan Event)
 						}
 						connects := 0
-						s.ops.connect = func(_, _ int) error {
+						testHandleFor(s).ops.connect = func(_, _ int) error {
 							connects++
 							return nil
 						}
@@ -161,6 +161,8 @@ func startAssignmentNCP(t *testing.T, s *pppSession, events chan Event, family A
 	t.Helper()
 	server, peer := net.Pipe()
 	s.chanFile = server
+	s.frames = &testSessionFrames{control: server, opened: s.unitFile}
+	testHandleFor(s).owned = append(testHandleFor(s).owned, server)
 	s.eventsOut = events
 	s.disableIPCP = family != AddressFamilyIPv4
 	s.disableIPv6CP = family != AddressFamilyIPv6

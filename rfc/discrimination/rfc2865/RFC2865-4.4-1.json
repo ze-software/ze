@@ -7,7 +7,7 @@
     "claim-sha": "23dfc699d24ccfe0",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
-    "producer-sha": "6d789b911fc66640",
+    "producer-sha": "8146f0264628233c",
     "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "84ae7cee266b3703",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
-    "producer-sha": "6d789b911fc66640",
+    "producer-sha": "8146f0264628233c",
     "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

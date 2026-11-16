@@ -20,11 +20,11 @@ import (
 var errRealmHandoffOver = errors.New("pppoe: realm relay abandoned: the subscriber left or the PPPoE subsystem stopped")
 
 // realmSubscriber is what a realm request needs to know about the PPPoE
-// session: the access interface, the subscriber's MAC and its pppox socket.
+// session: the access interface, subscriber MAC and owned transport borrower.
 type realmSubscriber struct {
 	ifName  string
 	mac     string
-	pppoxFD int
+	channel callsink.RelayChannel
 }
 
 // relayDriver is the part of the PPP driver a realm handoff drives;
@@ -153,7 +153,7 @@ func (r *realmRelay) decide(req *ppp.EventAuthRequest) bool {
 		Interface:     sub.ifName,
 		SubscriberMAC: sub.mac,
 		SessionID:     req.SessionID,
-		ChannelFD:     sub.pppoxFD,
+		Channel:       sub.channel,
 		LCP: callsink.ProxyLCP{
 			InitialReceived: req.ProxyLCP.InitialReceived,
 			LastSent:        req.ProxyLCP.LastSent,
@@ -241,7 +241,7 @@ type realmHandoff struct {
 	done   chan struct{}
 
 	callMu   sync.Mutex
-	call     callsink.RealmCall
+	call     callsink.RelayCall
 	canceled bool
 
 	// goneOnce posts the one subscriber-gone event: PADT and the PPP
@@ -277,7 +277,7 @@ func (h *realmHandoff) post(ev realmEvent) {
 	}
 }
 
-func (h *realmHandoff) setCall(call callsink.RealmCall) {
+func (h *realmHandoff) setCall(call callsink.RelayCall) {
 	h.callMu.Lock()
 	h.call = call
 	canceled := h.canceled
@@ -353,7 +353,7 @@ func (h *realmHandoff) run() {
 			case realmEventSubscriberGone:
 				// Before the bridge the sink abandons the call; after it
 				// the sink tears the bridged L2TP session down with CDN
-				// (callsink.RealmCall). Either way the LNS learns.
+				// (callsink.RelayCall). Either way the LNS learns.
 				h.cancelCall()
 				return
 			case realmEventUnspecified:
@@ -408,8 +408,8 @@ func (st *SessionTable) relaySubscriber(sid uint16, ifName string) (realmSubscri
 	if sess == nil {
 		return realmSubscriber{}, false
 	}
-	if sess.PppoxFD < 0 {
+	if sess.Opened == nil {
 		return realmSubscriber{}, false
 	}
-	return realmSubscriber{ifName: ifName, mac: sess.MAC.String(), pppoxFD: sess.PppoxFD}, true
+	return realmSubscriber{ifName: ifName, mac: sess.MAC.String(), channel: sess.Opened}, true
 }

@@ -7,14 +7,18 @@
 // Method: replace resolveInterfaceFn with a mapping in which logical "wan"
 // names kernel device "eth7" (what `ethernet wan { os-name eth7 }` or a mac
 // match selector gives), build the server through newInterfaceServer as boot
-// and reload do, and read the device name the session socket seam receives.
+// and reload do, and drive a valid PADR through the server. The selected data-plane factory
+// records its binding request and refuses before PADS or ownership publication.
 
 package pppoe
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 )
 
 var errInjectedCreate = errors.New("pppoe test: session socket refused")
@@ -22,6 +26,7 @@ var errInjectedCreate = errors.New("pppoe test: session socket refused")
 // TestInterfaceServerSessionSocketUsesResolvedDevice fails if the configured
 // name rather than the resolved kernel device reaches the AF_PPPOX connect.
 func TestInterfaceServerSessionSocketUsesResolvedDevice(t *testing.T) {
+	fixtureSelectBackend(t)
 	restore := resolveInterfaceFn
 	resolveInterfaceFn = func(name string) (InterfaceBinding, error) {
 		if name != "wan" {
@@ -32,18 +37,32 @@ func TestInterfaceServerSessionSocketUsesResolvedDevice(t *testing.T) {
 	t.Cleanup(func() { resolveInterfaceFn = restore })
 
 	s := &Subsystem{logger: slog.Default()}
-	srv, err := s.newInterfaceServer(&InterfaceConfig{Name: "wan", MaxSessions: 1}, &Parameters{Enabled: true})
+	ic := InterfaceConfig{Name: "wan", MaxSessions: 1, MaxSessionsPerMAC: 1}
+	backend, accesses := fixturePrepareConfiguration(t, []InterfaceConfig{ic})
+	srv, err := s.newInterfaceServer(&ic, &Parameters{Enabled: true, CookieTimeout: DefaultCookieTimeout}, backend, accesses.accesses[ic.Name])
 	if err != nil {
 		t.Fatalf("newInterfaceServer: %v", err)
 	}
 
 	var device string
-	srv.pppoeCreateFn = func(dev string, _ uint16, _ [EthALen]byte) (int, error) {
-		device = dev
-		return -1, errInjectedCreate
+	var sent int
+	var called bool
+	srv.sendFrameFn = func([]byte) { sent++ }
+	srv.openSession = func(_ context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
+		called = true
+		device = request.Device
+		return nil, errInjectedCreate
 	}
-	if _, err := srv.createTransport(0x1234, [EthALen]byte{0x02, 0, 0, 0, 0, 0x01}); !errors.Is(err, errInjectedCreate) {
-		t.Fatalf("createTransport error = %v, want the injected refusal", err)
+	peer := [EthALen]byte{0x02, 0, 0, 0, 0, 0x01}
+	srv.handlePADR(&Packet{Code: CodePADR, SrcMAC: peer, DstMAC: srv.hwAddr, Tags: []Tag{
+		{Type: TagACCookie, Value: GenerateCookie(srv.cookieKey, srv.hwAddr[:], peer[:], nil)},
+		{Type: TagServiceName},
+	}})
+	if !called {
+		t.Fatal("PADR did not reach the selected data-plane factory")
+	}
+	if sent != 0 || srv.sessions.Count() != 0 {
+		t.Fatalf("factory refusal published %d frames and retained %d sessions, want neither", sent, srv.sessions.Count())
 	}
 	if device != "eth7" {
 		t.Fatalf("session socket device = %q, want the resolved kernel device %q", device, "eth7")

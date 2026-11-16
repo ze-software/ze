@@ -418,6 +418,10 @@ Responsibilities:
 
 ### 6.2 l2tp-pool (IP address management)
 
+The registration below is an early sketch. The current plugin consumes root
+`l2tp` and binds the shared pool handlers at registration time.
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- init, runPlugin -->
+
 ```go
 registry.Register(registry.Registration{
     Name:        "l2tp-pool",
@@ -433,10 +437,19 @@ registry.Register(registry.Registration{
 
 Responsibilities:
 - Manage IPv4 and IPv6 address pools.
-- Allocate addresses on `(l2tp, session-ip-request)` events.
-- Release addresses on `(l2tp, session-down)` events.
+- Answer address requests through the shared L2TP and PPPoE pool handler registry.
+- Release addresses on subscriber `session-down` events.
 - Support RADIUS-directed pool selection (Framed-Pool attribute).
 - Expose pool statistics via CLI commands.
+
+The pool uses `sdk.ConfigTx` to stage a declarative candidate at verify and
+install it at apply. Installation rebuilds the bitmaps from live session
+records. Removed ranges leave their live assignments with the sessions.
+Rollback repeats that reconciliation against the previous configuration.
+Allocation, record insertion, release and reconciliation share the pool
+plugin's locks, so an assignment cannot fall between the old and new bitmaps.
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- configTransaction, installPoolConfiguration -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- setEventBus, handle, handlePrefix, onSessionDown -->
 
 ### 6.3 l2tp-shaper (traffic shaping)
 
@@ -808,6 +821,60 @@ without changing the admitted NCP policy.
 Alternatively, Router Advertisements (SLAAC, RFC 4862) can assign a /64
 prefix to the subscriber.
 
+The session IPv6 carrier contract separates these protocols from the socket
+that carries them. `IPv6Carrier` provides cancellable solicitation and DHCPv6
+reads, RA and DHCPv6 writes, and one idempotent close. Read cancellation keeps
+the write path available: the owner joins the DHCPv6 and solicitation workers,
+sends the final RA, then closes the carrier. A carrier borrowing a PPP frame
+endpoint must never close that endpoint or start a second reader of it.
+The kernel carrier owns dedicated ICMPv6 and UDPv6 sockets on the created
+interface; its cancellation changes only the read deadline.
+
+Startup installs the negotiated link-local pair, reconciles forwarding through
+the existing session handle, then opens its carrier. The assignment has already
+been acknowledged; neither RA nor DHCPv6 workers start before this reconciliation.
+If reconciliation or carrier acquisition fails, the service withdraws that pair before returning.
+A failed withdrawal returns both causes and retains the partial service in the
+session. NCP reset and final teardown retry its existing cleanup lifecycle;
+they do not forget an address whose removal was never confirmed. The original
+carrier refusal remains nonfatal to an independent network protocol. A failed
+rollback also raises the retained PPP cleanup warning for the created interface.
+<!-- source: internal/component/l2tp/ppp/ipv6_service_start.go -- startIPv6Service, rollbackIPv6ServiceStart -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service, stopIPv6Service -->
+<!-- source: internal/component/l2tp/ppp/ipv6_carrier.go -- IPv6Carrier -->
+<!-- source: internal/component/l2tp/ppp/kernel/ipv6.go -- carrierRead, Close -->
+
+The VPP carrier borrows the existing PPP endpoint instead. Its one control
+reader validates direct IPv6 RS and DHCPv6 datagrams, including their
+pseudoheader checksums, and hands admitted controls to two fixed-depth queues.
+It constructs outbound IPv6 RA and UDPv6 packets itself, using the actual
+IPv6CP local link-local source already installed by the service. Received
+RS and DHCPv6 source addresses need not match the IPv6CP peer identifier.
+The shared RS validator permits unspecified or unicast sources. RFC 9915
+Sections 5 and 7.2 allow DHCPv6 clients to use other unicast addresses and
+source ports; Section 18.3.10 requires a reply to the received source address,
+through the same link, and Section 7.2 fixes its destination port at 546.
+This provider accepts client requests to `ff02::1:2` port 547 and rejects
+the obsolete server-unicast request delivery, following Section 16.
+Closing the carrier
+unregisters the queues and wakes reads; only the session closes the endpoint.
+<!-- source: internal/component/l2tp/pppoe/dataplane/vpp/ipv6_carrier.go -- ipv6Carrier.Close, ipv6Carrier.WriteRA, ipv6Carrier.WriteDHCPv6 -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/vpp/socket.go -- controlSocket.Read -->
+
+Solicitation admission checks the received interface and Hop Limit before it
+signals the RA scheduler. The shared body validator checks the type, code,
+minimum length and bounded option lengths, and rejects a source link-layer
+option with an unspecified source. Reserved fields, unknown options and
+options defined for other ND messages remain accepted. The kernel ICMPv6
+receive path owns checksum validation; a carrier reading full PPP IPv6 frames
+must validate that checksum before calling the body validator.
+The source check is Linux v6.18 `net/ipv6/raw.c`: `rawv6_init_sk` enables
+checksum verification for ICMPv6, and `rawv6_rcv_skb` refuses a bad checksum
+before queueing the packet. This source check does not replace the shipped
+kernel's receiver proof.
+<!-- source: internal/component/l2tp/ppp/router_solicitation.go -- ValidRouterSolicitation -->
+<!-- source: internal/component/l2tp/ppp/kernel/ipv6.go -- ReadRS -->
+
 When a delegated prefix is assigned (via DHCPv6-PD or SLAAC), it is
 injected as a redistribute route:
 
@@ -1037,11 +1104,81 @@ deadline, processes all expired timers, calculates next wake.
 
 ### 11.3 PPP session ownership
 
-Each admitted PPP session owns its main goroutine and one reader for each
-channel or unit descriptor. The main goroutine drives LCP, authentication and
-the NCPs. Shutdown closes the descriptors, waits for both readers, and returns
-queued frames to the pool before it releases the session.
+Each admitted PPP session receives a borrowed `FrameChannel` and its owning
+`SessionHandle` through `StartSession`. The protocol driver holds no descriptors
+or global interface backend. Its main goroutine drives LCP, authentication and
+the NCPs, and starts one reader per supplied lane. The kernel handle supplies
+separate Control and Opened streams; a single-stream backend omits Opened.
+The handle supplies the created interface's identity and performs typed address,
+route, MTU, activation and counter operations for that session.
+
+Address cleanup is idempotent within that owner: no owned receipt means no
+native delete is issued. An attempted add records its receipt before mutation,
+and an uncertain add or failed withdrawal retains it until cleanup succeeds.
+This distinguishes a known refusal before submission from an unknown native
+outcome without deleting another owner's address or discarding an error.
+
+L2TP owns a separate OS interface backend for its kernel PPP sessions. It opens
+that backend through the iface registry without changing the configured active
+backend, and passes the same owner to interface operations and raw counter
+reads. Reactors never reread the global backend when a session arrives. The
+subsystem closes this owner after workers, PPP drivers and their drains stop;
+changing the active backend to VPP cannot redirect a Linux `pppN` operation.
+<!-- source: internal/component/l2tp/subsystem.go -- Start, Stop, unwindLocked -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
+
+The reactor constructs a kernel session through its own factory binding, fixed
+before the reactor starts. Production binds `kernel.NewSession`, which consumes
+the transferred descriptors on every outcome. This boundary also lets protocol
+fixtures supply socket-owned streams without pretending a socket is `/dev/ppp`;
+descriptor-transfer assertions inspect the factory's actual input.
+
+Factory refusals and ownership conflicts raise `doctor-ppp-session-admission`
+through the existing runtime `recent-events` check. The retained event names
+the affected call and original cause, including any joined rollback error;
+`ze show errors` opens its details. IPv6 carrier read, parse, handler and write
+failures, and a refused service replacement, similarly raise
+`doctor-ppp-ipv6-service` with the interface and failed operation. Plain or
+singly wrapped cancellation or closure after the reader's context ends is
+normal. Composite errors remain visible with all their causes, as does an
+unexpected closure or unrelated backend error. These
+are historical events, distinct from unconfirmed removal. A refused session
+whose owning handle fails to close uses the existing retained
+`doctor-ppp-cleanup` warning.
+<!-- source: internal/component/l2tp/reactor.go -- newL2TPReactor -->
+
+The transport also supplies its canonical subscriber ID in `StartSession`.
+The driver copies that opaque value at admission and stamps every authentication
+and address request in `awaitAuthDecision` and `awaitIPDecision`. PPP neither
+constructs an access namespace nor derives subscriber identity from its uint16
+routing pair. A protocol-only caller may omit the ID; production subscriber
+drains require it. Transport producers use the shared `subscriber.SessionID`
+formatter with their full transport identifier before narrowing an interface
+index for PPP routing.
+<!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession -->
+<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- awaitIPDecision -->
+<!-- source: internal/component/l2tp/subscriber/id.go -- SessionID -->
+
+Local shutdown stops IPv6 service before closing the frame owner. The run's
+finalizer cancels both readers' queued frame sends, joins both readers and
+returns queued frames to the pool. This per-run cancellation also covers a
+natural session failure, when neither the per-session nor whole-driver stop
+signal has fired. The first session-down publication
+also stops IPv6 first: receiving that event permits the transport to send PADT.
+A peer PADT instead gates its transport immediately, so service cleanup cannot
+emit frames after the peer ended the session. Rejected or canceled queue
+transfers release their distinct supplied handle as well. An admitted owner
+cannot transfer again, even under another key or through a malformed payload.
+The driver reserves each owner until its worker exits and removes only that
+worker's incarnation, preserving a replacement admitted under its old key.
+`EventSessionRejected.ExistingSession` is true only when the incoming key was
+already active at refusal; the transport must preserve that admitted session.
+Reusing its owner under a different key leaves the flag false, so the refused
+new transport can still be released.
 <!-- source: internal/component/l2tp/ppp/session_run.go -- run, closeFiles, drainFramesToPool -->
+<!-- source: internal/component/l2tp/ppp/start_session.go -- StartSession, closeFiles -->
+<!-- source: internal/component/l2tp/ppp/session_handle.go -- SessionHandle -->
 
 The LCP Restart timer is a stopped, per-session one-shot timer. Only a
 Configure-Request, Terminate-Request or Zero-Restart-Count action arms it.
@@ -1076,11 +1213,56 @@ Leaving LCP Opened first disconnects the PPP channel and removes its NCP
 resources. EventLCPDown then waits for the transport's network-lifetime cleanup
 acknowledgment before the accompanying LCP responses are sent. Authentication
 and NCP negotiate anew on the same transport. An Echo keeps Opened and invokes
-none of this cleanup.
+none of this cleanup. Failed route or address withdrawal retains its ownership
+state and refuses reuse of the handle. A kernel reconnect also waits for the
+Opened reader's EOF acknowledgment and discards frames from the prior lifetime.
 <!-- source: internal/component/l2tp/ppp/session_run.go -- run, applyTransition, performAction, sendConfigureNakOrReject -->
 <!-- source: internal/component/l2tp/ppp/ncp.go -- resetNCP -->
 
+Each NCP also owns an independent network lifetime. Leaving its Opened state
+withdraws only that family's resources before any replacement Configure output.
+IPCP retains the prefix actually installed separately from its mutable proposal,
+so a Nak cannot redirect cleanup to the proposed replacement address. IPv6CP
+stops its existing service and keeps that owner if withdrawal fails. Normal
+Closed or Stopped NCP state leaves the other family and PPP link available;
+mandatory-option rejection retains its separate refusal policy. A failed
+withdrawal ends negotiation and prohibits reusing the unresolved lifetime.
+Each family owns its own bounded Restart counter and timer, driven by the same
+RFC 1661 transition table as LCP. A peer's Terminate-Request receives one
+Terminate-Ack and enters its termination grace; the timer settles Stopping to
+Stopped without an acknowledgment of that Ack. Both the initial convergence
+loop and the active session dispatch these timers. Once only termination grace
+remains, the initial convergence deadline cannot shorten it or end an
+independently opened family. LCP down and final session exit stop both timers.
+The convergence deadline is disabled while only that grace remains. If another
+family resumes Configure negotiation before the grace finishes, it gets a new
+bounded convergence interval; valid replies inside that interval may reset the
+RFC Restart budget but cannot extend the convergence deadline.
+
+A connected reopen installs IPv4 before publishing its assignment, waits for
+the existing acknowledgment, then reconciles forwarding. IPv6 waits for the
+same acknowledgment before restarting its service and installing its pair.
+The session's single frame-dispatch loop is blocked at that acknowledgment,
+so another NCP cannot stage an unacknowledged address during reconciliation.
+Concrete handles stage address ownership without granting traffic; repeated
+Connect calls reconcile eligible families without repeating physical attachment.
+The kernel handle drops both protocol modes before its first attachment, and
+drops the retiring family before address removal. Failed or uncertain address
+operations retain cleanup-only ownership which later reconciliation cannot
+enable; the handle bounds these address witnesses at 1024.
+Initial activation still preserves MTU, channel connection, receive MRU and
+admin-up ordering, with the later IPv6 pair reconciled before its carrier opens.
+<!-- source: internal/component/l2tp/ppp/ncp.go -- performNCPAction, onNCPOpened, reconcileOpenedNCP, withdrawNCPFamily -->
+<!-- source: internal/component/l2tp/ppp/ipv6_service_start.go -- startIPv6Service -->
+<!-- source: internal/component/l2tp/ppp/kernel/session.go -- Connect, AddAddressP2P, RemoveAddress -->
+
 ### 11.4 Event emission
+
+PPP admission refusal distinguishes an already admitted session key from a
+new call. A duplicate refusal preserves the existing L2TP session and queues
+no CDN. A refused new call is removed and receives a CDN, including when its
+PPP owner already belongs to another key.
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handlePPPEvent -->
 
 A session event is emitted via `eventBus.Emit()` on the goroutine that changed
 the session: the reactor goroutine, or the operator, timeout or CoA goroutine
@@ -1098,14 +1280,30 @@ reactor goroutine.
 
 ### 11.5 Receiver goroutines and a failing socket
 
-Four receiver goroutines read from a socket and dispatch what arrives: the
+Four receiver workers consume network input and dispatch what arrives: the
 UDP listener's `readLoop` (`listener.go`), the PPPoE discovery reader
 (`pppoe/subsystem.go`), and the RA and DHCPv6-PD readers
-(`ppp/ra_linux.go`, `ppp/dhcpv6_linux.go`). Each goroutine tests its own
+(`ppp/ra_carrier.go`, `ppp/dhcpv6_carrier.go`). Each worker tests its own
 exit signal on every read error: `readLoop` checks a `closed` flag under a
 mutex, the discovery reader checks for `errSocketClosed` from its own
 `readDiscoveryFrame`, and the RA and DHCPv6-PD readers check a canceled
 context. It returns when that signal fires.
+
+IPv6 service stop joins DHCPv6 and solicitation readers before the final RA
+and carrier close. Concurrent stop calls share that one worker shutdown, then
+serialize address and delegated-route withdrawals. A failed withdrawal keeps
+its installed marker and lease; its error prevents replacement negotiation.
+The service claims the exact attempted link-local pair or delegated route
+before asking its handle to add it, because an error can follow a partial
+native installation. Startup runs the same rollback after a failed address
+add as after a failed carrier acquisition. A failed rollback returns its owner
+for the session to retain and retry; a delegated prefix is released only after
+its possibly installed route is withdrawn. A handle's withdrawal of an absent
+owned receipt performs no foreign native delete and completes idempotently.
+Repeated Solicit messages reuse the one prefix that this service already owns;
+they cannot allocate a replacement and overwrite a retained route's cleanup key.
+The final transport close still releases the handle and joins PPP readers.
+<!-- source: internal/component/l2tp/ppp/ipv6_service.go -- Stop, cleanupPrefix, removeLinkLocal -->
 
 Every other read error cannot be classified. It can clear on the next
 read, or the socket can stay broken for as long as the daemon runs. A
@@ -1256,19 +1454,65 @@ Creation order:
 6. PPP unit fd
    -> open("/dev/ppp", O_RDWR)
    -> ioctl(PPPIOCNEWUNIT)  // allocate pppN interface
-   -> ioctl(PPPIOCCONNECT)  // connect channel to unit
+   -> transfer channel/unit ownership to ppp/kernel.NewSession
 
-Destruction order (MUST reverse):
-1. Close PPP unit fd
-2. Close PPP channel fd
-3. Close PPPoL2TP socket
-4. L2TP_CMD_SESSION_DELETE
-5. L2TP_CMD_TUNNEL_DELETE (only if last session)
-6. Close UDP socket (only if tunnel being destroyed)
+7. After authentication and NCP complete
+   -> SessionHandle.SetMTU
+   -> SessionHandle.Connect  // PPPIOCCONNECT, then wake the Opened reader
+   -> SessionHandle.SetReceiveMRU
+   -> SessionHandle.SetAdminUp
+
+Local PPP lease shutdown:
+1. Stop IPv6 services while their transport is still available
+2. Close the owning handle's PPP channel and unit
+3. Join borrowed frame readers and return queued buffers
+
+Transport teardown:
+1. Close PPPoL2TP socket
+2. L2TP_CMD_SESSION_DELETE
+3. L2TP_CMD_TUNNEL_DELETE (only if last session)
+4. Close UDP socket (only if tunnel being destroyed)
 ```
 
-Each fd must be tracked per-session and closed in order. A leaked fd
-or out-of-order close orphans kernel resources.
+The transport worker transfers both PPP descriptors to the kernel session
+constructor on every outcome; it never closes them again after that call.
+The kernel handle closes each once. The PPPoL2TP socket has a separate owner,
+which permits a realm relay to release local PPP while retaining the transport.
+An abort initiated by the peer gates that transport before waiting for PPP
+cleanup, rather than permitting a late protocol frame onto an ended session.
+
+Every nonnegative kernel descriptor is owned, including descriptor zero; a
+negative value denotes no descriptor. Before publication, a returned error or
+a panic releases each distinct supplied descriptor once. Rollback attempts both
+resources even when one close fails or panics, and preserves the construction
+failure together with cleanup failures. Only successful construction publishes
+a frame channel and its owning handle.
+Final handle cleanup uses the same independent per-resource panic boundaries:
+both descriptors are attempted once, close failures and cleanup panics are
+returned together, and concurrent or repeated closes receive the retained result.
+Failed final network-resource removal is retained for `show warnings` and the
+runtime `doctor-ppp-cleanup` check; closing the handle does not prove removal.
+
+Kernel route programming shares that session's exclusive PPP unit lease and
+mutex. Before invoking a backend add, the handle retains the destination,
+gateway, metric and protocol as a cleanup receipt, including an uncertain add
+that returns an error. Withdrawal with no matching receipt performs no native
+operation. A failed withdrawal preserves both its error and receipt for retry;
+successful withdrawal consumes the receipt. The handle retains at most 1024
+route receipts and refuses another distinct route before native mutation.
+The wildcard protocol is refused as a producer before a receipt is acquired.
+Prefix and gateway aliases share canonical receipts; both backend requests use
+the masked network and unmapped IPv4 gateway. Priority must fit uint32 and
+protocol must fit uint8, with negative values refused before receipt acquisition.
+Peer gateways must be specified, including after IPv4 unmapping.
+Because Linux treats priority zero as a deletion wildcard, the owner refuses
+concurrent zero and nonzero priorities sharing the same canonical destination,
+gateway and protocol, including uncertain cleanup intents. Distinct nonzero
+priorities and different match tuples remain permitted. This relies on the
+session's exclusive unit and producer namespace; it does not recognize another
+writer's state injected into that same namespace.
+<!-- source: internal/component/l2tp/ppp/kernel/session.go -- NewSession, Close, AddRoute, RemoveRoute -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
 
 ---
 

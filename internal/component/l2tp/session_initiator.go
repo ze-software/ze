@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -31,45 +30,45 @@ type callParams struct {
 	maxBPS         uint32
 	calledNumber   string
 	callingNumber  string
-	// pppoeChannelFD is the relayed PPPoE session's kernel PPP channel fd,
-	// carried on a LAC incoming call so the reactor can bridge it to the
-	// pppol2tp channel (A-4) when the session's kernel resources are created.
-	// Zero for calls not originating from a PPPoE relay.
-	pppoeChannelFD int
-	// realm carries a realm relay's identity, proxy data and handoff. Nil
-	// for a Service-Name relay and every other call.
-	realm *realmCall
+	// channel retains the relayed PPPoE transport owner across asynchronous
+	// call setup. The worker borrows its descriptor only for the bridge ioctl.
+	// Nil means this call is not relaying a PPPoE transport.
+	channel callsink.RelayChannel
+	// beforeBridge releases the Service-Name relay's unused local PPP lease
+	// before the kernel worker attaches its channel. Nil means this call has
+	// no local resource preparation; ordinary calls and realm handoffs use nil.
+	beforeBridge callsink.BridgePreparation
+	// relay owns either relay kind. Nil means this is an ordinary call.
+	relay *relayCall
 }
 
-// realmCall is what a realm-relayed incoming call carries beside the common
-// call attributes: the binding that matched, the proxy AVPs its ICCN writes
-// (nil when they could not fit, see newICCNProxy), why proxy authentication
-// is not sent (empty when it is), and the PPPoE side's handoff.
-type realmCall struct {
-	realm      string
-	remote     string
-	proxy      *iccnProxy
-	authReason string
-	handoff    callsink.RealmHandoff
-	// teardown ends the bridged L2TP session tid/sid with CDN. Set by the
-	// relay sink to the reactor that placed the call; nil only in tests
-	// that never bridge.
-	teardown func(tid, sid uint16)
-	// canceled is set by Cancel from the PPPoE side; ended guards the one
-	// Ended report. Both are read across goroutines, hence atomic.
-	canceled atomic.Bool
-	ended    atomic.Bool
-	// bridgeMu orders Cancel against markBridged, so a Cancel that lands
-	// while the kernel worker bridges either stops the bridge or tears the
-	// bridged session down, never neither. bridged, bridgedTID and
-	// bridgedSID are guarded by it.
+// relayCall owns the accepted access-to-L2TP call lifetime. Its handoff is
+// immutable; bridgeMu orders cancellation, bridge publication and completion.
+// Only realm calls carry proxy metadata, so service calls publish no realm
+// snapshot and invoke no proxy-PPP callbacks.
+type relayCall struct {
+	remote  string
+	realm   *relayRealmDetails
+	handoff callsink.RelayHandoff
+	// teardown MUST compare this exact owner under tunnelsMu before removal.
+	teardown func(expected *relayCall, tid, sid uint16)
+	canceled bool
+	// bridgeMu protects cancellation, completion and the bridged target. Callers MUST release
+	// it before invoking teardown, whose reactor path can call end again.
 	bridgeMu   sync.Mutex
+	ended      bool
 	bridged    bool
 	bridgedTID uint16
 	bridgedSID uint16
-	// iccnSent is set by the reactor once the ICCN was enqueued; read under
-	// tunnelsMu by the snapshot.
-	iccnSent bool
+}
+
+// relayRealmDetails is the realm-only ICCN payload and its observed outcome.
+// It is absent on a Service-Name call; iccnSent is guarded by tunnelsMu.
+type relayRealmDetails struct {
+	name       string
+	proxy      *iccnProxy
+	authReason string
+	iccnSent   bool
 }
 
 // framingOrDefault returns the framing type, defaulting to 1 (synchronous)
@@ -211,8 +210,9 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 		rxConnectSpeed: p.rxConnectSpeed,
 		framingType:    p.framingOrDefault(),
 		callingNumber:  p.callingNumber,
-		pppoeChannelFD: p.pppoeChannelFD,
-		realm:          p.realm,
+		channel:        p.channel,
+		beforeBridge:   p.beforeBridge,
+		relay:          p.relay,
 	}
 	// Record the origination as an FSM transition so the initiator session's
 	// history and metrics reflect it entered wait-reply on our request (AC-5),
@@ -247,18 +247,22 @@ func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time
 		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
 	sess.remoteSID = info.assignedSessionID
-	if sess.realm != nil && sess.realm.isCancelled() {
-		// The subscriber left while the call was placed: CDN, no ICCN.
-		logger.Info("l2tp: realm call abandoned by the subscriber before ICCN; sending CDN",
-			"local-sid", sess.localSID, "realm", sess.realm.realm)
-		return t.teardownSession(sess, cdnResultAdministrative, l2tpevents.TerminateCauseUserRequest, now, logger)
+	if sess.relay != nil {
+		if sess.relay.stopped() {
+			// The subscriber left while the call was placed: CDN, no ICCN.
+			logger.Info("l2tp: relay call abandoned by the subscriber before ICCN; sending CDN",
+				"local-sid", sess.localSID, "remote", sess.relay.remote)
+			return t.teardownSession(sess, cdnResultAdministrative, l2tpevents.TerminateCauseUserRequest, now, logger)
+		}
 	}
 
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
 	var proxy *iccnProxy
-	if sess.realm != nil {
-		proxy = sess.realm.proxy
+	if sess.relay != nil {
+		if sess.relay.realm != nil {
+			proxy = sess.relay.realm.proxy
+		}
 	}
 	n := writeICCNBody(*bodyBuf, sess.txConnectSpeed, sess.framingType, proxy)
 	wire, enqErr := t.engine.Enqueue(sess.remoteSID, (*bodyBuf)[:n], now, false)
@@ -267,8 +271,10 @@ func (t *L2TPTunnel) handleICRP(sess *L2TPSession, payload []byte, now time.Time
 			"local-sid", sess.localSID, "error", enqErr.Error())
 		return t.teardownSession(sess, cdnResultGeneralError, l2tpevents.TerminateCauseNASError, now, logger)
 	}
-	if sess.realm != nil {
-		sess.realm.iccnSent = true
+	if sess.relay != nil {
+		if sess.relay.realm != nil {
+			sess.relay.realm.iccnSent = true
+		}
 	}
 	sess.transition(L2TPSessionEstablished, "ICRP received")
 	sess.kernelSetupNeeded = true

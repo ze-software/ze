@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -102,7 +103,8 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	// User-Password attribute, one of the three Section 4.1 admits.
 	a, srv, resp := setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("password123"),
 	}, resp.respond)
 	resp.waitOne(t)
@@ -115,7 +117,8 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	// CHAP-Password attribute instead.
 	a, srv, resp = setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodCHAPMD5,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodCHAPMD5,
 		Username: "alice", Identifier: 3,
 		Challenge: make([]byte, 16), Response: make([]byte, 16),
 	}, resp.respond)
@@ -138,7 +141,8 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	// for that deployment too.
 	a, srv, resp = setupCapturingAuth(t, key)
 	noAuth := a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodNone, Username: "alice",
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodNone, Username: "alice",
 	}, resp.respond)
 	if noAuth.Handled {
 		t.Fatal("a request with no credential was sent to the server; RFC 2865 Section 4.1 describes no such Access-Request")
@@ -150,7 +154,8 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	// attribute either, so no Access-Request is sent.
 	a, srv, resp = setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodMSCHAPv2,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodMSCHAPv2,
 		Username: "alice", Challenge: make([]byte, 16), Response: make([]byte, 39),
 	}, resp.respond)
 	if call := resp.waitOne(t); call.accept {
@@ -168,7 +173,8 @@ func TestRFC2865SubscriberZeroLengthUserNameOmitted(t *testing.T) {
 	// non-zero length, so the User-Name attribute is sent and carries it.
 	a, srv, resp := setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("pw"),
 	}, resp.respond)
 	resp.waitOne(t)
@@ -181,7 +187,8 @@ func TestRFC2865SubscriberZeroLengthUserNameOmitted(t *testing.T) {
 	// omitted entirely rather than sent empty.
 	a, srv, resp = setupCapturingAuth(t, key)
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "", Response: []byte("pw"),
 	}, resp.respond)
 	resp.waitOne(t)
@@ -207,7 +214,8 @@ func TestRFC2865SubscriberServiceTypeAuthorization(t *testing.T) {
 		a, resp, cleanup := setupAuthWithAttrs(t, key, radius.CodeAccessAccept, reply)
 		defer cleanup()
 		a.handle(ppp.EventAuthRequest{
-			TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+			TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 			Username: "alice", Response: []byte("pw"),
 		}, resp.respond)
 		return resp.waitOne(t).accept

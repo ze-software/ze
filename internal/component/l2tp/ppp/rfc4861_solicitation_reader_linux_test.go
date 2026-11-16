@@ -80,7 +80,7 @@ func TestRFC4861SubscriberSolicitationReaderIgnoresReservedAndOptions(t *testing
 	reports := make(chan struct{}, 1)
 	go func() {
 		defer close(done)
-		rsReaderLoop(ctx, ipv6.NewPacketConn(listener), reports, "ppp0", slog.New(slog.DiscardHandler))
+		rsReaderLoop(ctx, solicitationPacketReader{ipv6.NewPacketConn(listener)}, reports, "ppp0", slog.New(slog.DiscardHandler))
 	}()
 	defer func() {
 		cancel()

@@ -103,17 +103,14 @@ func TestNormalPathDispatchesCHAPMD5(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   301,
 		SessionID:  401,
-		ChanFD:     17001,
-		UnitFD:     917,
-		UnitNum:    17,
 		LNSMode:    true,
 		MaxMRU:     1500,
 		AuthMethod: AuthMethodCHAPMD5,
-	}
+	}, 17001, 917, 17)
 
 	// peerDone fires once scriptedPeerLCPOnly consumes ze's CA; after
 	// that the pipe is quiet until runCHAPAuthPhase writes the
@@ -170,17 +167,14 @@ func TestNormalPathDispatchesMSCHAPv2(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   302,
 		SessionID:  402,
-		ChanFD:     17101,
-		UnitFD:     918,
-		UnitNum:    18,
 		LNSMode:    true,
 		MaxMRU:     1500,
 		AuthMethod: AuthMethodMSCHAPv2,
-	}
+	}, 17101, 918, 18)
 
 	<-peerDone
 	proto, payload := readPeerFrame(t, pair.peerEnd)
@@ -373,18 +367,15 @@ func TestAuthFallbackOnNakProceedsToCHAP(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:               testLCPConfig(),
 		TunnelID:          303,
 		SessionID:         403,
-		ChanFD:            17201,
-		UnitFD:            919,
-		UnitNum:           19,
 		LNSMode:           true,
 		MaxMRU:            1500,
 		AuthMethod:        AuthMethodMSCHAPv2,
 		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
-	}
+	}, 17201, 919, 19)
 
 	<-peerDone
 	proto, payload := readPeerFrame(t, pair.peerEnd)

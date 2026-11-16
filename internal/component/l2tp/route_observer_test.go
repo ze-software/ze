@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/redistribute"
@@ -362,13 +364,13 @@ func TestObserver_OnSessionIPUp_EmitsFramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(1, 70, &AuthMetadata{
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 70), &AuthMetadata{
 		FramedRoutes: []FramedRoute{
 			{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
 			{Prefix: netip.MustParsePrefix("172.16.0.0/12"), Metric: 2},
 		},
 	})
-	defer ClearSessionMetadata(1, 70)
+	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 70))
 
 	o.OnSessionIPUp(1, 70, "alice", netip.MustParseAddr("192.0.2.70"))
 
@@ -391,12 +393,12 @@ func TestObserver_OnSessionDown_WithdrawsFramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(1, 71, &AuthMetadata{
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 71), &AuthMetadata{
 		FramedRoutes: []FramedRoute{
 			{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
 		},
 	})
-	defer ClearSessionMetadata(1, 71)
+	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 71))
 
 	o.OnSessionIPUp(1, 71, "bob", netip.MustParseAddr("192.0.2.71"))
 	bus.mu.Lock()
@@ -420,12 +422,12 @@ func TestObserver_OnSessionIPUp_EmitsIPv6FramedRoutes(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(1, 72, &AuthMetadata{
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 72), &AuthMetadata{
 		FramedRoutes: []FramedRoute{
 			{Prefix: netip.MustParsePrefix("2001:db8::/32"), Metric: 5},
 		},
 	})
-	defer ClearSessionMetadata(1, 72)
+	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 72))
 
 	o.OnSessionIPUp(1, 72, "carol", netip.MustParseAddr("192.0.2.72"))
 
@@ -446,12 +448,12 @@ func TestObserver_OnSessionIPUp_DualStack_FramedRoutesOnce(t *testing.T) {
 	bus := &recordingBus{}
 	o := newSubscriberRouteObserver(slog.Default(), bus)
 
-	StoreSessionMetadata(1, 74, &AuthMetadata{
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 74), &AuthMetadata{
 		FramedRoutes: []FramedRoute{
 			{Prefix: netip.MustParsePrefix("10.0.0.0/8"), Metric: 1},
 		},
 	})
-	defer ClearSessionMetadata(1, 74)
+	defer ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 74))
 
 	o.OnSessionIPUp(1, 74, "eve", netip.MustParseAddr("192.0.2.74"))
 	o.OnSessionIPUp(1, 74, "eve", netip.MustParseAddr("2001:db8::74"))

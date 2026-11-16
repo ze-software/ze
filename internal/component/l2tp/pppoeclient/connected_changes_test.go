@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // TestConnectedChangesEveryCompletion proves unchanged completions still notify
@@ -68,7 +69,7 @@ func TestConnectedChangesNewestWins(t *testing.T) {
 		peer := []byte{3, 6, 203, 0, 113, 1}
 		// RFC 1661 Section 4.1, Opened: RCR takes tld, scr, sca.
 		w.send(ppp.ProtoIPCP, ppp.LCPConfigureRequest, 95, peer)
-		if len(w.modes) != 1 || w.modes[0] != ppp.NPModeDrop {
+		if len(w.modes) != 1 || w.modes[0] != pppkernel.NPModeDrop {
 			t.Fatalf("IPv4 modes %v, want one drop when IPCP left Opened", w.modes)
 		}
 		if len(s.changes) != 1 {
@@ -103,7 +104,7 @@ func TestConnectedChangesNewestWins(t *testing.T) {
 		}
 		s.acknowledge(got.Seq)
 		synctest.Wait()
-		if len(w.modes) != 2 || w.modes[1] != ppp.NPModePass {
+		if len(w.modes) != 2 || w.modes[1] != pppkernel.NPModePass {
 			t.Fatalf("IPv4 modes %v, want drop then exactly one pass once applied", w.modes)
 		}
 		if len(s.changes) != 0 {
@@ -149,7 +150,7 @@ func TestConnectedChangesInterruptedExchange(t *testing.T) {
 func TestConnectedChangesFailureSilent(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w := newConnectedExchange()
-		w.modeFailure = ppp.NPModePass
+		w.modeFailure = pppkernel.NPModePass
 		s, initial := w.session(t)
 		stop, done := make(chan struct{}), make(chan struct{})
 		defer close(stop)

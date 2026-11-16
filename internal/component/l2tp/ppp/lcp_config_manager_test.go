@@ -25,7 +25,7 @@ func TestPPPManagerAppliesLCPRestartConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xcafebabe)})
-	d.SessionsIn() <- StartSession{LCP: c, TunnelID: 19, SessionID: 2, ChanFD: 19201, UnitFD: 19202, UnitNum: 7, LNSMode: true, MaxMRU: 1500, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: stream, ProxyLCPLastSent: stream, ProxyLCPLastRecv: stream}
+	d.SessionsIn() <- testStartForDriver(d, StartSession{LCP: c, TunnelID: 19, SessionID: 2, LNSMode: true, MaxMRU: 1500, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: stream, ProxyLCPLastSent: stream, ProxyLCPLastRecv: stream}, 19201, 19202, 7)
 	drainTwoEvents(t, d.EventsOut(), time.Second)
 	d.mu.Lock()
 	s := d.sessions[sessionKey{19, 2}]
@@ -53,7 +53,7 @@ func TestPPPManagerRefusesMissingLCPConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(d.Stop)
-	d.SessionsIn() <- StartSession{TunnelID: 19, SessionID: 3, ChanFD: 19301, UnitFD: 19302}
+	d.SessionsIn() <- testStartForDriver(d, StartSession{TunnelID: 19, SessionID: 3}, 19301, 19302, 0)
 	select {
 	case event := <-d.EventsOut():
 		if _, ok := event.(EventSessionRejected); !ok {

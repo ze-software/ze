@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/crashlog"
 )
@@ -117,7 +118,8 @@ func TestRADIUSLoginPanicContained(t *testing.T) {
 	a, resp, cleanup := setupAuth(t, []byte("testing123"), radius.CodeAccessAccept)
 	defer cleanup()
 	login := ppp.EventAuthRequest{
-		TunnelID: 7, SessionID: 9, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 9),
+		TunnelID:     7, SessionID: 9, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("password123"),
 	}
 	policy := attributePolicy{nasPortIDFormat: a.nasPortIDFormat, exclusions: a.exclusions}

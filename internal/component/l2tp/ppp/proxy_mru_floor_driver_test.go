@@ -72,9 +72,9 @@ func TestInterfaceSetupRefusesMRUBelowIPv4Floor(t *testing.T) {
 	if !ok || !bytes.Contains([]byte(down.Reason), []byte("MRU 67")) {
 		t.Fatalf("interface setup result=%+v, want explicit MRU67 failure", event)
 	}
-	backend, ok := s.backend.(*fakeBackend)
+	backend, ok := testHandleFor(s).backend.(*fakeBackend)
 	if !ok {
-		t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+		t.Fatalf("session backend is %T, want *fakeBackend", testHandleFor(s).backend)
 	}
 	if calls := backend.MTUCalls(); len(calls) != 0 {
 		t.Fatalf("invalid peer MRU reached interface installation: %+v", calls)

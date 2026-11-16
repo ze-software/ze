@@ -34,7 +34,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | MACsec | missing | lower |
 | | MACVLAN | missing | lower |
 | | Geneve | missing | lower |
-| | PPPoE client (`pppoe-client`; the session device carries the configured name, so routes, firewall and NAT name it directly) | have | <!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup --> |
+| | PPPoE client (`pppoe-client`; the session device carries the configured name, so routes, firewall and NAT name it directly) | have | <!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup --> |
 | | L2TPv3 | missing | lower |
 | | WiFi | missing | lower |
 | | XFRM (route-based IPsec, if_id) | have | |
@@ -162,6 +162,21 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 
 <!-- source: internal/component/iface/backend.go — Backend interface, RegisterBackend, LoadBackend -->
 <!-- source: internal/component/iface/dispatch.go — package-level functions delegating to backend -->
+
+Session providers that require a particular interface backend use
+`RequireActiveBackend(name)`. It checks the selected name and returns the
+matching backend under one lock; a missing or different selection is an error.
+This prevents a reload between separate name and backend reads from mixing
+different data planes. The returned backend remains subject to the existing
+reload and close lifecycle.
+<!-- source: internal/component/iface/backend.go -- RequireActiveBackend -->
+
+A consumer whose resources belong to another data plane uses `OpenBackend(name)`
+to obtain a separate owner from the registered factory. This does not replace or
+close the active backend, change its generation, or start its monitor. The
+consumer MUST close its owner after its dependent resources stop. L2TP uses this
+for Linux PPP interfaces even when the interface configuration selects VPP.
+<!-- source: internal/component/iface/backend.go -- OpenBackend -->
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
@@ -379,7 +394,7 @@ every reconnect, so `pppoe-client pppoe0` is the kernel device `pppoe0` and neve
 only while a session is up. A static route through it waits for the device and follows
 it across a reconnect (`docs/guide/static-routes.md`, "Interface-only next-hops").
 
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->

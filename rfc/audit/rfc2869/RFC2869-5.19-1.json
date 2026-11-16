@@ -2,8 +2,8 @@
   "note": "Rejudged 2026-10-14 by a reader who did not author the tests. - TestRFC2869EAPBesideAnotherCredentialIsRefused drives EAP-Message beside User-Password, CHAP-Password and now ARAP-Password through Client.Exchange: each errors and no datagram reaches the server. + TestRFC2869EAPOnlyAccessRequestIsSent sends one datagram carrying EAP-Message and none of the other three. The L2TP builder pair covers PAP and CHAP-MD5 carrying only their own credential. User-Password beside CHAP-Password is not driven by this row's units; the same guard (client.go oneCredentialType) refuses it under RFC3579-3.3-2's units.",
   "requirement_sha": "4cd8d7ba61bbaf17",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "b4e757fe4cae524f",
-    "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "b4e757fe4cae524f",
+    "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential": "894688aeebed3943",
+    "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod": "894688aeebed3943",
     "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused": "1c0e9beadd76f803",
     "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent": "1c0e9beadd76f803"
   },

@@ -179,7 +179,7 @@ func newFakeOps() (pppOps, *[]fakeOpsCall, *sync.Mutex) {
 	return ops, &calls, &mu
 }
 
-// pipeRegistry maps StartSession.ChanFD ints to the driver-side end
+// pipeRegistry maps test-only channel identifiers to the driver-side end
 // of a net.Pipe. The test installs a wrap function that returns the
 // matching connection.
 type pipeRegistry struct {
@@ -301,14 +301,14 @@ func scriptedPeer(t *testing.T, conn net.Conn, done chan<- struct{}) {
 // auth-reject or auth-timeout paths MUST construct the Driver with
 // NewDriver directly and drive the auth channel themselves rather
 // than call this helper.
-func makeTestDriver(backend IfaceBackend, ops pppOps) *Driver {
+func makeTestDriver(backend testIfaceBackend, ops pppOps) *Driver {
 	return makeTestDriverWithLogger(backend, ops, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 // makeTestDriverWithLogger is makeTestDriver with a caller-supplied logger, so
 // a test can capture what the session goroutine logs and observe a gated code
 // path whose only externally visible side effect is a log line.
-func makeTestDriverWithLogger(backend IfaceBackend, ops pppOps, logger *slog.Logger) *Driver {
+func makeTestDriverWithLogger(backend testIfaceBackend, ops pppOps, logger *slog.Logger) *Driver {
 	d := newDriver(driverConfig{
 		Logger:  logger,
 		Backend: backend,

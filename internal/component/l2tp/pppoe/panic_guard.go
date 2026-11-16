@@ -53,18 +53,12 @@ var pppoePanics = sync.OnceValue(func() *pppoePanicTasks {
 })
 
 // admission is the session a PADR in dispatch is admitting. handlePADR writes
-// it once the session is in the table, records the PPP channel and unit
-// descriptors while it still owns them, and marks padsSent as it sends the
-// PADS; only the discovery reader goroutine touches it.
+// it once the session is in the table and marks padsSent as it sends PADS.
+// The table retains any unused lease until preparation or local PPP takes it.
+// Only the discovery reader goroutine touches this admission marker.
 type admission struct {
 	sid      uint16
 	padsSent bool
-	// pppFDsOpen says chanFD and unitFD are open and still handlePADR's: set
-	// once the PPP channel is set up, cleared as the session is handed to the
-	// PPP driver, which owns them from then on.
-	pppFDsOpen bool
-	chanFD     int
-	unitFD     int
 }
 
 // dispatchDiscovery parses one discovery frame and hands it to its interface's
@@ -129,13 +123,8 @@ func (s *InterfaceServer) endAdmissionAfterPanic() {
 	if admitted.sid == 0 {
 		return
 	}
-	if admitted.pppFDsOpen {
-		closePPPoxFD(admitted.chanFD)
-		closePPPoxFD(admitted.unitFD)
-	}
 	if !admitted.padsSent {
-		closePPPoxFD(s.sessions.detachTransport(admitted.sid))
-		closePPPoxFD(s.sessions.Remove(admitted.sid))
+		s.closeAdmitted(admitted.sid)
 		return
 	}
 	if s.pppDriver != nil {

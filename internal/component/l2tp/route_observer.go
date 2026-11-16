@@ -106,7 +106,7 @@ func (o *subscriberRouteObserver) OnSessionIPUp(tunnelID, sessionID uint16, user
 	if r == nil {
 		r = &routeRecord{tunnelID: tunnelID, sessionID: sessionID, username: username}
 		o.records[sessionID] = r
-		if meta := LoadSessionMetadata(tunnelID, sessionID); meta != nil && len(meta.FramedRoutes) > 0 {
+		if meta := LoadSessionMetadata(l2tpSessionID(tunnelID, sessionID)); meta != nil && len(meta.FramedRoutes) > 0 {
 			r.framedRoutes = make([]FramedRoute, len(meta.FramedRoutes))
 			copy(r.framedRoutes, meta.FramedRoutes)
 		}

@@ -8,12 +8,10 @@ import (
 	"net/netip"
 	"time"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
-
-	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
 type subscriberBridge struct {
@@ -50,8 +48,7 @@ func (b *subscriberBridge) stop() {
 }
 
 func l2tpSessionID(tunnelID, sessionID uint16) string {
-	var buf textbuf.Buffer
-	return buf.Reset().Str("l2tp-").Uint16(tunnelID).Byte('-').Uint16(sessionID).String()
+	return subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID)
 }
 
 func (b *subscriberBridge) onSessionUp(p *l2tpevents.SessionUpPayload) {
@@ -66,7 +63,7 @@ func (b *subscriberBridge) onSessionUp(p *l2tpevents.SessionUpPayload) {
 	sess.PppInterface = p.Interface
 	sess.AccessInterface = p.AccessInterface
 	sess.ActivatedAt = time.Now()
-	if meta := LoadSessionMetadata(p.TunnelID, p.SessionID); meta != nil {
+	if meta := LoadSessionMetadata(id); meta != nil {
 		sess.PoolName = meta.FramedPool
 	}
 	sess.AcctSessionID = sess.ID

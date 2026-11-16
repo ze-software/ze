@@ -23,7 +23,7 @@ const (
 // PPPoE discovery frames (ethertype 0x8863). One socket handles all
 // access interfaces; dispatch is by ifindex from recvfrom.
 func openDiscoverySocket() (int, error) {
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW, int(htons(unix.ETH_P_PPP_DISC)))
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(htons(unix.ETH_P_PPP_DISC)))
 	if err != nil {
 		return -1, fmt.Errorf("pppoe: socket(AF_PACKET): %w", err)
 	}

@@ -1,14 +1,12 @@
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- realm relay handoff (LAC role)
 // RFC: rfc/short/rfc2661.md -- RFC 2661 Section 4.4.5 (proxy LCP and authentication)
-// Related: relay_reader_linux.go -- the channel reader a quiesce can wake
+// Related: frame_channel.go -- borrowed reader interruption for a relay
 // Related: proxy_capture.go -- the LCP exchange the relay forwards
 
 package ppp
 
 import (
 	"errors"
-	"io"
-	"time"
 )
 
 // errChannelNotQuiescable is returned by QuiesceSession for a session whose
@@ -16,30 +14,6 @@ import (
 // StartSession.CaptureProxyLCP, or its transport offers no way to interrupt
 // a blocked read.
 var errChannelNotQuiescable = errors.New("ppp: session channel cannot be quiesced; only a session started with CaptureProxyLCP can hand its subscriber to a realm relay")
-
-// readInterrupter is a channel file whose blocked Read can be woken.
-// relay_reader_linux.go implements it for /dev/ppp.
-type readInterrupter interface {
-	InterruptRead() error
-}
-
-// readDeadliner is a channel file with read deadlines, as net.Conn has; a
-// deadline in the past wakes a blocked Read.
-type readDeadliner interface {
-	SetReadDeadline(t time.Time) error
-}
-
-// interruptRead wakes a Read blocked on f. A file that offers neither form
-// cannot be quiesced, and the caller refuses the handoff.
-func interruptRead(f io.Reader) error {
-	if v, ok := f.(readInterrupter); ok {
-		return v.InterruptRead()
-	}
-	if v, ok := f.(readDeadliner); ok {
-		return v.SetReadDeadline(time.Now())
-	}
-	return errChannelNotQuiescable
-}
 
 // QuiesceSession stops the session's reader on its channel descriptor and
 // returns only once that reader has returned, so a kernel channel bridge set
@@ -61,7 +35,7 @@ func (d *Driver) QuiesceSession(tunnelID, sessionID uint16) error {
 		return errChannelNotQuiescable
 	}
 	s.readerQuiesceOnce.Do(func() { close(s.readerQuiesce) })
-	if err := interruptRead(s.chanFile); err != nil {
+	if err := s.frames.InterruptRead(); err != nil {
 		return err
 	}
 	select {

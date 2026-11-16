@@ -257,30 +257,39 @@ func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16, cause l
 	return r.teardownSessionOnTunnelWith(localTID, localSID, cdnResultAdministrative, cause)
 }
 
-// teardownRealmSession ends a bridged realm-relay session whose PPPoE
-// subscriber left (PADT, or the PPPoE side stopped). It is the realm call's
-// teardown hook (relay_sink.go realmCall.Cancel), so a subscriber hang-up
-// reaches the LNS. Caller MUST NOT hold tunnelsMu. A session or tunnel
-// already gone means the LNS ended the call first, which is the outcome
-// wanted, so only another failure is logged.
-func (r *l2tpReactor) teardownRealmSession(localTID, localSID uint16) {
-	// RFC 2661 Section 6.12: "The Call-Disconnect-Notify (CDN) message is an
-	// L2TP control message sent by either the LAC or LNS to request
-	// disconnection of a specific call within the tunnel." The subscriber's
-	// link is gone, so the Result Code is 1 (Section 4.4.2, "Call
-	// disconnected due to loss of carrier").
-	err := r.teardownSessionOnTunnelWith(localTID, localSID, cdnResultLossOfCarrier, l2tpevents.TerminateCauseUserRequest)
-	if err == nil {
+// teardownRelaySession ends only the exact call that requested cancellation.
+// Caller MUST hold neither tunnelsMu nor the expected owner's bridgeMu.
+// The numeric pair may have been reused while Cancel waited for tunnelsMu.
+// RFC 2661 Section 6.12: "The Call-Disconnect-Notify (CDN) message is an L2TP
+// control message sent by either the LAC or LNS to request disconnection of
+// a specific call within the tunnel."
+func (r *l2tpReactor) teardownRelaySession(expected *relayCall, localTID, localSID uint16) {
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	// refuse-by-default: guards teardownRelaySession -- an absent tunnel cannot own this call
+	if tunnel == nil {
+		r.tunnelsMu.Unlock()
 		return
 	}
-	if errors.Is(err, ErrSessionNotFound) {
+	session := tunnel.sessions[localSID]
+	// refuse-by-default: guards teardownRelaySession -- repeated cancellation has no session to remove
+	if session == nil {
+		r.tunnelsMu.Unlock()
 		return
 	}
-	if errors.Is(err, ErrTunnelNotFound) {
+	// refuse-by-default: guards teardownRelaySession -- numeric IDs cannot authorize removal of a replacement owner
+	if session.relay != expected {
+		r.tunnelsMu.Unlock()
 		return
 	}
-	r.logger.Warn("l2tp: realm relay session not torn down after the subscriber left",
-		"local-tid", localTID, "local-sid", localSID, "error", err)
+	now := r.params.Clock()
+	// RFC 2661 Sections 6.12 and 4.4.2: report subscriber loss of carrier.
+	outbound := tunnel.teardownSession(session, cdnResultLossOfCarrier, l2tpevents.TerminateCauseUserRequest, now, r.logger)
+	teardowns, downs := tunnel.drainPendingTeardowns()
+	r.tunnelsMu.Unlock()
+	r.deliverSessionDowns(downs)
+	r.transmit(localTID, outbound)
+	r.enqueueKernelEvents(nil, teardowns)
 }
 
 // teardownSessionOnTunnelWith is teardownSessionOnTunnel with the CDN

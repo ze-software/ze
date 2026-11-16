@@ -355,6 +355,11 @@ var activeBackend Backend
 // backend matches its data plane before trusting a resolved index.
 var activeBackendName string
 
+// activeBackendGeneration changes on every successful replacement or close,
+// even when a registered factory returns the same owner again. Guarded by
+// backendsMu; an exact-backend read uses it to refuse a result crossing reload.
+var activeBackendGeneration uint64
+
 // RegisterBackend registers a backend factory under the given name.
 // Called from init() in backend packages (e.g., ifacenetlink).
 // MUST be called before LoadBackend. Duplicate names are rejected.
@@ -380,24 +385,34 @@ func LoadBackend(name string) error {
 	return loadBackendLocked(name)
 }
 
+// OpenBackend creates an independent owner without activating it. It neither
+// changes the active backend's generation nor closes any existing owner.
+// The caller MUST close the returned backend after its dependent resources
+// stop. The registered factory MUST return a distinct owner for each call.
+// Safe for concurrent use; the factory runs without the registry lock held.
+func OpenBackend(name string) (Backend, error) {
+	backendsMu.Lock()
+	factory, err := backendFactoryLocked(name)
+	backendsMu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	backend, err := factory()
+	if err != nil {
+		return nil, fmt.Errorf("iface: backend %q init: %w", name, err)
+	}
+	if backend == nil {
+		return nil, fmt.Errorf("iface: backend %q factory returned no owner", name)
+	}
+	return backend, nil
+}
+
 // loadBackendLocked is LoadBackend for a caller that holds backendsMu.
 func loadBackendLocked(name string) error {
-	factory, ok := backends[name]
-	if !ok {
-		// A backend whose provider was compiled out names the build tag and
-		// both fixes (registry.CompiledOutValueError), from the same
-		// ConfigNeed the config doors refuse it by (register.go). The owner is
-		// the registration name, which is what the registry looks it up by.
-		if compiledOut := registry.CompiledOutValueError(componentNameInterface, name); compiledOut != nil {
-			return compiledOut
-		}
-		registered := make([]string, 0, len(backends))
-		for k := range backends {
-			registered = append(registered, k)
-		}
-		return fmt.Errorf("iface: unknown backend %q (registered: %v)", name, registered)
+	factory, err := backendFactoryLocked(name)
+	if err != nil {
+		return err
 	}
-
 	b, err := factory()
 	if err != nil {
 		return fmt.Errorf("iface: backend %q init: %w", name, err)
@@ -407,6 +422,7 @@ func loadBackendLocked(name string) error {
 	prev := activeBackend
 	activeBackend = b
 	activeBackendName = name
+	activeBackendGeneration++
 	if prev != nil {
 		if closeErr := prev.Close(); closeErr != nil {
 			loggerPtr.Load().Warn("iface: close previous backend", "err", closeErr)
@@ -415,11 +431,55 @@ func loadBackendLocked(name string) error {
 	return nil
 }
 
+// backendFactoryLocked resolves the registered factory without creating an
+// owner. The caller MUST hold backendsMu while reading the registry.
+func backendFactoryLocked(name string) (func() (Backend, error), error) {
+	factory, ok := backends[name]
+	if !ok {
+		// A backend whose provider was compiled out names the build tag and
+		// both fixes (registry.CompiledOutValueError), from the same
+		// ConfigNeed the config doors refuse it by (register.go). The owner is
+		// the registration name, which is what the registry looks it up by.
+		if compiledOut := registry.CompiledOutValueError(componentNameInterface, name); compiledOut != nil {
+			return nil, compiledOut
+		}
+		registered := make([]string, 0, len(backends))
+		for k := range backends {
+			registered = append(registered, k)
+		}
+		return nil, fmt.Errorf("iface: unknown backend %q (registered: %v)", name, registered)
+	}
+	return factory, nil
+}
+
 // GetBackend returns the active backend, or nil if none loaded.
 func GetBackend() Backend {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
 	return activeBackend
+}
+
+// RequireActiveBackend returns the existing owner only when its registered name
+// matches name. Name and owner are observed under one lock; a reload cannot mix
+// one generation's name with another generation's backend. It never loads a
+// substitute. Safe for concurrent use; the existing reload lifecycle may close
+// the returned backend after this snapshot, so this does not extend its lease.
+func RequireActiveBackend(name string) (Backend, error) {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+	return requireActiveBackendLocked(name)
+}
+
+// requireActiveBackendLocked requires backendsMu held by the caller, so a
+// consumer can capture the corresponding generation in the same observation.
+func requireActiveBackendLocked(name string) (Backend, error) {
+	if activeBackendName != name {
+		return nil, fmt.Errorf("iface: active backend %q does not match required backend %q", activeBackendName, name)
+	}
+	if activeBackend == nil {
+		return nil, fmt.Errorf("iface: required backend %q is not loaded", name)
+	}
+	return activeBackend, nil
 }
 
 // EnsureBackend loads the build-time default backend when none is loaded, so a
@@ -471,5 +531,6 @@ func CloseBackend() error {
 	err := activeBackend.Close()
 	activeBackend = nil
 	activeBackendName = ""
+	activeBackendGeneration++
 	return err
 }

@@ -1,14 +1,14 @@
 {
-  "note": "Rejudged 2026-10-28 after BlastRADIUS. TestRADIUSAuthNASIPAddress changed only to sign its mock Access-Accept (signAccessAnswer) so the reply survives the default Message-Authenticator presence check; its NAS-IP-Address assertions on the captured request are unchanged. TestAdminAccessRequestIdentifiesTheNAS (hasIP || hasID on the wire) and TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured (non-empty NAS-Identifier with nothing configured) still go red if a request names no NAS.",
+  "note": "Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: 'It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).' TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.",
   "requirement_sha": "57dcd4808cf06bba",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "a196c38aadacaac3",
-    "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "56729cfe29b63816",
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "b090f2710856c0e7",
+    "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "731fd53fb2a3534b",
     "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "a27d914d3a804f8a"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "d14e2840cc684656",
-    "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "df3abcd1d982d711",
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured": "abc7b083cead6eb3",
+    "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress": "31bf614d7271a80e",
     "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS": "97148f41ab5c48f9"
   },
   "verdict": "enforced"

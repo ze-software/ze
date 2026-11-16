@@ -316,6 +316,7 @@ func authMethodToLCPOptions(m AuthMethod) (uint16, []byte) {
 // (the helper only synthesizes the timeout failure because accept vs
 // reject fan-out differs per method).
 func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (authResponseMsg, bool) {
+	req.SubscriberID = s.subscriberID
 	s.proxyCapture.fill(&req)
 	select {
 	case s.authEventsOut <- req:

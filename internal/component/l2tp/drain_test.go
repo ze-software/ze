@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 )
 
 func TestAuthDrainCallsHandler(t *testing.T) {
@@ -25,7 +26,7 @@ func TestAuthDrainCallsHandler(t *testing.T) {
 
 	go drainAuth(authCh, handler, responded)
 
-	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 2, Username: "alice"}
+	authCh <- ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), TunnelID: 1, SessionID: 2, Username: "alice"}
 	close(authCh)
 
 	resp := <-responded
@@ -46,7 +47,7 @@ func TestAuthDrainNilHandlerRejects(t *testing.T) {
 
 	go drainAuth(authCh, nil, responded)
 
-	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 1}
+	authCh <- ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 1), TunnelID: 1, SessionID: 1}
 	close(authCh)
 
 	resp := <-responded
@@ -70,8 +71,8 @@ func TestAuthDrainPanicRecovery(t *testing.T) {
 
 	go drainAuth(authCh, handler, responded)
 
-	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 1}
-	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 2}
+	authCh <- ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 1), TunnelID: 1, SessionID: 1}
+	authCh <- ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), TunnelID: 1, SessionID: 2}
 	close(authCh)
 
 	resp1 := <-responded
@@ -100,7 +101,7 @@ func TestAuthDrainHandledSentinel(t *testing.T) {
 
 	go drainAuth(authCh, handler, responded)
 
-	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 2, Username: "bob"}
+	authCh <- ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), TunnelID: 1, SessionID: 2, Username: "bob"}
 	close(authCh)
 
 	resp := <-responded
@@ -124,7 +125,7 @@ func TestPoolDrainCallsHandler(t *testing.T) {
 
 	go drainPool(ipCh, handler, responded)
 
-	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 2, Family: ppp.AddressFamilyIPv4}
+	ipCh <- ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), TunnelID: 1, SessionID: 2, Family: ppp.AddressFamilyIPv4}
 	close(ipCh)
 
 	resp := <-responded
@@ -145,7 +146,7 @@ func TestPoolDrainDefaultReject(t *testing.T) {
 
 	go drainPool(ipCh, nil, responded)
 
-	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 1}
+	ipCh <- ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 1), TunnelID: 1, SessionID: 1}
 	close(ipCh)
 
 	select {
@@ -173,8 +174,8 @@ func TestPoolDrainPanicRecovery(t *testing.T) {
 
 	go drainPool(ipCh, handler, responded)
 
-	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 1}
-	ipCh <- ppp.EventIPRequest{TunnelID: 1, SessionID: 2}
+	ipCh <- ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 1), TunnelID: 1, SessionID: 1}
+	ipCh <- ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), TunnelID: 1, SessionID: 2}
 	close(ipCh)
 
 	resp1 := <-responded

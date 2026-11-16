@@ -62,12 +62,9 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 	pair := newPipePair(reg, 9001)
 	defer closeConn(pair.peerEnd)
 
+	backend := &fakeBackend{}
 	ops, _, _ := newFakeOps()
-	d := newDriver(driverConfig{
-		Logger:  discardLogger(),
-		Backend: &fakeBackend{},
-		Ops:     ops,
-	})
+	d := NewProductionDriver(discardLogger())
 	go autoAcceptAuth(d)
 	if err := d.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
@@ -75,19 +72,17 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
-		LCP:                 testLCPConfig(),
-		TunnelID:            1,
-		SessionID:           1,
-		ChanFD:              9001,
-		UnitFD:              9002,
-		UnitNum:             1,
+	d.SessionsIn() <- testSessionStart(StartSession{
+		LCP:       testLCPConfig(),
+		TunnelID:  1,
+		SessionID: 1,
+
 		LNSMode:             true,
 		MaxMRU:              1500,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, backend, ops, 9001, 9002, 1)
 
 	select {
 	case ev := <-d.IPEventsOut():
@@ -577,13 +572,10 @@ func TestIPTimeout(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            77,
 		SessionID:           88,
-		ChanFD:              12001,
-		UnitFD:              12002,
-		UnitNum:             11,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		IPTimeout:           100 * time.Millisecond,
@@ -591,7 +583,7 @@ func TestIPTimeout(t *testing.T) {
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 12001, 12002, 11)
 
 	// Drain the parked EventIPRequest so the session goroutine is
 	// inside the timeout select, not blocked on send.

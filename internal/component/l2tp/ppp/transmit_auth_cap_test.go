@@ -46,13 +46,13 @@ func TestAuthenticationResultTransmitCap(t *testing.T) {
 					proto, authData := authMethodToLCPOptions(method)
 					peer := optStream(mruOpt(tc.peer), magicOpt(0x11223344))
 					local := optStream(mruOpt(tc.cap), magicOpt(0x01020304), authProtoOpt(proto, authData...))
-					d.SessionsIn() <- StartSession{
+					d.SessionsIn() <- testStartForDriver(d, StartSession{
 						LCP:      testLCPConfig(),
-						TunnelID: 24, SessionID: 1, ChanFD: 24101, UnitFD: 24102, UnitNum: 7,
+						TunnelID: 24, SessionID: 1,
 						MaxMRU: tc.cap, AuthMethod: method, AuthFallbackOrder: []AuthMethod{method}, AuthRequired: true,
 						DisableIPCP: true, DisableIPv6CP: true,
 						ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: local,
-					}
+					}, 24101, 24102, 7)
 					identifier := uint8(0x5a)
 					wireProto := ProtoPAP
 					if method == AuthMethodPAP {

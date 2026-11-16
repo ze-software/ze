@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -559,7 +560,7 @@ func rejectsIPv6CP(pkt ppp.LCPPacket) bool {
 // RFC 1661 Section 3.6: "Any supported network-layer protocol packets
 // received when the corresponding NCP is not in the Opened state MUST be
 // silently discarded."
-func (s *connectedSession) enableIPv6CP(ipv6 *clientIPv6CP, setIPv6Mode func(ppp.NPMode) error, logger *slog.Logger) error {
+func (s *connectedSession) enableIPv6CP(ipv6 *clientIPv6CP, setIPv6Mode func(pppkernel.NPMode) error, logger *slog.Logger) error {
 	if ipv6 == nil {
 		return errors.New("pppoe-client: missing IPv6CP automaton")
 	}
@@ -571,7 +572,7 @@ func (s *connectedSession) enableIPv6CP(ipv6 *clientIPv6CP, setIPv6Mode func(ppp
 	if ipv6.opened() {
 		return s.applyIPv6CP(ipv6cpOpened, logger)
 	}
-	if err := setIPv6Mode(ppp.NPModeDrop); err != nil {
+	if err := setIPv6Mode(pppkernel.NPModeDrop); err != nil {
 		return fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err)
 	}
 	return nil
@@ -589,7 +590,7 @@ func (s *connectedSession) applyIPv6CP(event ipv6cpEvent, logger *slog.Logger) e
 	case ipv6cpUnchanged:
 		return nil
 	case ipv6cpOpened:
-		if err := s.setIPv6Mode(ppp.NPModePass); err != nil {
+		if err := s.setIPv6Mode(pppkernel.NPModePass); err != nil {
 			return fmt.Errorf("pppoe-client: cannot pass IPv6 after IPv6CP opened: %w", err)
 		}
 		s.linkLocal = s.ipv6.linkLocal()
@@ -601,7 +602,7 @@ func (s *connectedSession) applyIPv6CP(event ipv6cpEvent, logger *slog.Logger) e
 		// The gauge drops before the mode change: IPv6CP left Opened, so the
 		// session no longer carries IPv6 whether or not the discard succeeds.
 		recordIPv6CPOpened(s.cfg.name, false)
-		if err := s.setIPv6Mode(ppp.NPModeDrop); err != nil {
+		if err := s.setIPv6Mode(pppkernel.NPModeDrop); err != nil {
 			return fmt.Errorf("pppoe-client: cannot discard IPv6 after IPv6CP closed: %w", err)
 		}
 		s.linkLocal = netip.Addr{}
@@ -616,11 +617,11 @@ func (s *connectedSession) applyIPv6CP(event ipv6cpEvent, logger *slog.Logger) e
 
 // setIPv6Mode serializes the unit ioctl with transport closure, as
 // setIPv4Mode does.
-func (s *sessionLink) setIPv6Mode(unitFD int, mode ppp.NPMode) error {
+func (s *sessionLink) setIPv6Mode(unitFD int, mode pppkernel.NPMode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return io.ErrClosedPipe
 	}
-	return ppp.SetIPv6Mode(unitFD, mode)
+	return pppkernel.SetIPv6Mode(unitFD, mode)
 }

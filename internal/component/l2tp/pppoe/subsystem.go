@@ -17,12 +17,13 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/traffic"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/pacer"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -31,16 +32,6 @@ var errPppoeSubsystemAlreadyStarted = errors.New("pppoe: subsystem already start
 var _ ze.Subsystem = (*Subsystem)(nil)
 
 const SubsystemName = "pppoe"
-
-var ifaceBackendFn = defaultIfaceBackend
-
-func defaultIfaceBackend() ppp.IfaceBackend {
-	b := iface.GetBackend()
-	if b == nil {
-		return nil
-	}
-	return b
-}
 
 // Subsystem is the ze.Subsystem implementation for PPPoE.
 type Subsystem struct {
@@ -56,9 +47,13 @@ type Subsystem struct {
 	started    bool
 	discFD     int
 	servers    map[int]*InterfaceServer
+	accesses   *accessConfiguration
+	backend    dataplane.Backend
 	pppDriver  *ppp.Driver
 	readDone   chan struct{}
 	eventDone  chan struct{}
+	// relayWake is a coalesced hint; tables own every pending end.
+	relayWake  chan struct{}
 	drainDones []<-chan struct{}
 	bus        ze.EventBus
 
@@ -87,9 +82,10 @@ type pendingAuthInfo struct {
 // NewSubsystem constructs a PPPoE subsystem from parsed Parameters.
 func NewSubsystem(p Parameters) *Subsystem {
 	return &Subsystem{
-		params: p,
-		logger: slogutil.Logger(SubsystemName),
-		discFD: -1,
+		params:    p,
+		logger:    slogutil.Logger(SubsystemName),
+		discFD:    -1,
+		relayWake: make(chan struct{}, 1),
 	}
 }
 
@@ -108,7 +104,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	}
 
 	s.bus = bus
-	if err := s.startLocked(); err != nil {
+	if err := s.startLocked(ctx); err != nil {
 		return err
 	}
 	s.started = true
@@ -117,14 +113,15 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 
 // startLocked brings up discovery for s.params: the discovery socket, the PPP
 // driver, one InterfaceServer per resolved access interface, and the workers
-// that serve them. A disabled configuration, or one naming no interface, or
-// one whose interfaces all fail to resolve, starts nothing and answers nil:
-// the subsystem is then started and idle, and a Reload can bring it up.
+// that serve them. A disabled configuration, or one naming no interface,
+// starts nothing and answers nil: the subsystem is then started and idle, and
+// a Reload can bring it up. A failed access preparation refuses the start and
+// releases every unpublished lease before opening discovery.
 //
 // MUST be called with lifecycleMu and mu held, on a subsystem that is not
 // running (readDone nil). Start calls it at boot, and Reload when a reload
 // enables an idle subsystem.
-func (s *Subsystem) startLocked() error {
+func (s *Subsystem) startLocked(ctx context.Context) (err error) {
 	if !s.params.Enabled {
 		s.logger.Info("PPPoE subsystem disabled in config, skipping start")
 		return nil
@@ -134,62 +131,66 @@ func (s *Subsystem) startLocked() error {
 		return nil
 	}
 
-	fd, err := openDiscoverySocket()
+	backend, err := selectedSessionBackend()
 	if err != nil {
-		return fmt.Errorf("pppoe: discovery socket: %w", err)
+		return err
 	}
+	accesses, err := prepareAccessConfiguration(ctx, backend, s.params.Interfaces, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, closeAccessConfiguration(accesses.accesses, nil))
+		}
+	}()
+	fd, err := openDiscoverySocketInNamespace(accesses.namespace)
+	if err != nil {
+		return opererr.Wrap(err, "PPPoE discovery socket could not be opened", "The selected access control devices cannot receive discovery traffic.", "ze doctor")
+	}
+	defer func() {
+		if err != nil {
+			closeDiscoverySocket(fd)
+		}
+	}()
 	if err := SetRecvTimeout(fd, 100*time.Millisecond); err != nil {
-		closeDiscoverySocket(fd)
 		return fmt.Errorf("pppoe: discovery receive timeout: %w", err)
 	}
-	s.discFD = fd
-
-	if backend := ifaceBackendFn(); backend == nil {
-		if name := iface.DefaultBackendName(); name != "" {
-			if loadErr := iface.LoadBackend(name); loadErr != nil {
-				s.logger.Warn("pppoe: fallback iface backend load failed", "error", loadErr.Error())
-			}
+	driver := ppp.NewProductionDriver(s.logger.With("component", "ppp"))
+	if err := driver.Start(); err != nil {
+		return fmt.Errorf("pppoe: start PPP driver: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			driver.Stop()
 		}
-	}
-	if backend := ifaceBackendFn(); backend != nil {
-		s.pppDriver = ppp.NewProductionDriver(s.logger.With("component", "ppp"), backend)
-	}
-
-	if s.pppDriver != nil {
-		if err := s.pppDriver.Start(); err != nil {
-			closeDiscoverySocket(s.discFD)
-			s.discFD = -1
-			return fmt.Errorf("pppoe: start PPP driver: %w", err)
-		}
-	}
+	}()
 
 	// Asks for the discovery-refusal counters (metrics.go). The metrics
 	// registry can arrive after this method returns, so the call registers a
 	// hook rather than reading a registry.
 	registerDiscoveryMetrics()
 
-	s.servers = make(map[int]*InterfaceServer)
+	servers := make(map[int]*InterfaceServer, len(s.params.Interfaces))
 	for i := range s.params.Interfaces {
 		ic := &s.params.Interfaces[i]
-		srv, srvErr := s.newInterfaceServer(ic, &s.params)
+		srv, srvErr := s.newInterfaceServer(ic, &s.params, backend, accesses.accesses[ic.Name])
 		if srvErr != nil {
-			s.logger.Error("pppoe: access interface not started", "interface", ic.Name, "error", srvErr)
-			continue
+			return srvErr
 		}
-		s.servers[srv.ifIndex] = srv
+		srv.discFD = fd
+		srv.pppDriver = driver
+		servers[srv.ifIndex] = srv
 		s.logger.Info("PPPoE interface configured", "interface", ic.Name, "ifindex", srv.ifIndex)
 	}
-
-	if len(s.servers) == 0 {
-		s.logger.Warn("PPPoE subsystem: no interfaces resolved, nothing to start")
-		if s.pppDriver != nil {
-			s.pppDriver.Stop()
-			s.pppDriver = nil
-		}
-		closeDiscoverySocket(s.discFD)
-		s.discFD = -1
-		return nil
+	if err := ctx.Err(); err != nil {
+		return err
 	}
+	s.servers = servers
+	s.accesses = accesses
+	s.backend = backend
+	s.discFD = fd
+	s.pppDriver = driver
 
 	s.readDone = make(chan struct{})
 	s.stop = make(chan struct{})
@@ -207,7 +208,7 @@ func (s *Subsystem) startLocked() error {
 		s.realmRelay = newRealmRelay(s.logger, s.pppDriver, s.realmSubscriber, s.endRelayedSession)
 		s.drainDones = append(s.drainDones,
 			startPPPoEAuthDrain(s.logger, s.pppDriver, subscriber.GetAuthHandler, s.bus, &s.pendingAuth, s.realmRelay),
-			startPPPoEPoolDrain(s.logger, s.pppDriver, poolH),
+			startPPPoEPoolDrain(s.logger, s.pppDriver, poolH, s.bus),
 		)
 		s.eventDone = make(chan struct{})
 		go s.eventConsumer()
@@ -225,16 +226,15 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	if !s.started {
 		return nil
 	}
-	s.stopLocked()
-	return nil
+	return s.stopLocked()
 }
 
 // stopLocked stops discovery and the PPP driver and joins every worker
-// startLocked started, leaving the subsystem not started. It sends no PADT:
-// a caller that ends sessions on the wire closes their interfaces first
-// (closeInterface). MUST be called with lifecycleMu held and mu not held,
+// startLocked started, leaving the subsystem not started. Remaining published
+// admissions receive PADT while discovery and their access generation live.
+// MUST be called with lifecycleMu held and mu not held,
 // because the workers it joins take mu.
-func (s *Subsystem) stopLocked() {
+func (s *Subsystem) stopLocked() error {
 	PublishService(nil)
 	s.logger.Info("PPPoE subsystem stopping")
 
@@ -260,12 +260,21 @@ func (s *Subsystem) stopLocked() {
 		s.realmRelay.stopAll()
 		s.realmRelay = nil
 	}
+	// Service relays have no PPP worker to release their admissions. Local
+	// PPP workers are joined now, so their final writes have finished too.
+	s.closeAdmissions()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.discFD >= 0 {
 		closeDiscoverySocket(s.discFD)
 		s.discFD = -1
 	}
+	var accessErr error
+	if s.accesses != nil {
+		accessErr = closeAccessConfiguration(s.accesses.accesses, nil)
+	}
+	s.accesses = nil
+	s.backend = nil
 
 	s.pppDriver = nil
 	s.readDone = nil
@@ -273,6 +282,18 @@ func (s *Subsystem) stopLocked() {
 	s.stop = nil
 	s.servers = nil
 	s.started = false
+	return accessReleaseError(accessErr)
+}
+
+// selectedSessionBackend refuses unavailable selections; the access
+// concentrator never loads a default interface backend or tries a fallback.
+func selectedSessionBackend() (dataplane.Backend, error) {
+	backend, err := dataplane.LookupSessionDataplane(iface.ActiveBackendName())
+	if err != nil {
+		return nil, opererr.Wrap(err, "The selected interface backend cannot terminate PPPoE sessions",
+			"PPPoE requires a registered session data plane for the active interface backend.", "ze doctor")
+	}
+	return backend, nil
 }
 
 // discoveryReader is the one goroutine that reads the shared AF_PACKET
@@ -345,15 +366,25 @@ func (s *Subsystem) dispatchFrame(ifindex int, frame []byte) {
 }
 
 func pppoeSessionID(ifindex int, sid uint16) string {
-	var buf textbuf.Buffer
-	return buf.Reset().Str("pppoe-").Uint(uint64(ifindex)).Byte('-').Uint16(sid).String()
+	return subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifindex), sid)
 }
 
 func (s *Subsystem) eventConsumer() {
 	defer close(s.eventDone)
 
-	for ev := range s.pppDriver.EventsOut() {
-		s.handlePPPEvent(ev)
+	// The driver closes its events only after discovery and PPP workers stop.
+	// Service callbacks retain work in the bounded access tables.
+	for {
+		select {
+		case ev, open := <-s.pppDriver.EventsOut():
+			if !open {
+				s.drainServiceRelayEnds()
+				return
+			}
+			s.handlePPPEvent(ev)
+		case <-s.relayWake:
+			s.drainServiceRelayEnds()
+		}
 	}
 }
 
@@ -375,6 +406,13 @@ func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 		s.onSessionIPAssigned(e)
 	case ppp.EventSessionDown:
 		s.onSessionDown(e)
+	case ppp.EventSessionRejected:
+		if e.ExistingSession {
+			return
+		}
+		s.onSessionDown(ppp.EventSessionDown{
+			TunnelID: e.TunnelID, SessionID: e.SessionID, Reason: e.Reason,
+		})
 	}
 }
 
@@ -388,8 +426,8 @@ func (s *Subsystem) subscriberSession(tid, sid uint16) (subscriber.Session, bool
 		s.logger.Debug("pppoe: ignoring an event for a removed access interface", "ifindex", ifindex)
 		return subscriber.Session{}, false
 	}
-	snap := srv.sessions.Lookup(sid)
-	if snap == nil {
+	snap, live := srv.sessions.LookupSnapshot(sid)
+	if !live {
 		s.logger.Debug("pppoe: ignoring an event for a removed session", "ifindex", ifindex, "session", sid)
 		return subscriber.Session{}, false
 	}
@@ -404,7 +442,7 @@ func (s *Subsystem) subscriberSession(tid, sid uint16) (subscriber.Session, bool
 	sess.MAC = snap.MAC
 	sess.AccessInterface = snap.IfName
 	sess.ServiceName = snap.ServiceName
-	sess.PppInterface = "ppp" + textbuf.StringUint(uint64(snap.UnitNum))
+	sess.PppInterface = snap.Identity.InterfaceName
 	if val, ok := s.pendingAuth.Load(pendingAuthKey{ifindex: ifindex, sessionID: sid}); ok {
 		info, valid := val.(pendingAuthInfo)
 		if !valid {
@@ -435,11 +473,11 @@ func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
 	s.pendingAuth.Delete(pendingAuthKey{ifindex: int(e.TunnelID), sessionID: e.SessionID})
 	// RFC 2865 Section 5.11: the Access-Accept Filter-Id carries the
 	// subscriber's rates. The RADIUS handler stores the profile under the same
-	// (ifindex, session-id) pair this event carries, so a PPPoE subscriber's
+	// canonical subscriber ID, so a PPPoE subscriber's
 	// authorized rates reach the shaper exactly as an L2TP one's do. Without
 	// this the two rate fields had no producer at all and every PPPoE session
 	// was shaped at the configured default whatever the RADIUS server answered.
-	if meta := l2tp.LoadSessionMetadata(e.TunnelID, e.SessionID); meta != nil && meta.FilterID != "" {
+	if meta := l2tp.LoadSessionMetadata(sess.ID); meta != nil && meta.FilterID != "" {
 		if download, upload, ok := traffic.ParseFilterIDRate(meta.FilterID); ok {
 			sess.DownloadRate = download
 			sess.UploadRate = upload
@@ -547,5 +585,5 @@ func (s *Subsystem) withdrawSubscriber(tid, sid uint16, reason string) {
 			s.logger.Warn("pppoe: subscriber session-down emit failed", "error", err)
 		}
 	}
-	l2tp.ClearSessionMetadata(tid, sid)
+	l2tp.ClearSessionMetadata(sess.ID)
 }

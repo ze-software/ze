@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/traffic"
 	"github.com/ze-software/ze/pkg/ze"
@@ -127,7 +128,7 @@ func (s *shaperPlugin) onSessionUp(payload *l2tpevents.SessionUpPayload) {
 	s.invalidateRateInterface(payload.Interface)
 
 	// RFC 2865 Section 5.11: Filter-Id from RADIUS overrides default rate.
-	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil && meta.FilterID != "" {
+	if meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(payload.TunnelID), payload.SessionID)); meta != nil && meta.FilterID != "" {
 		if down, up, ok := traffic.ParseFilterIDRate(meta.FilterID); ok {
 			state.downloadRate = down
 			state.uploadRate = up

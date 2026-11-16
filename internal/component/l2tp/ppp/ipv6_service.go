@@ -2,13 +2,14 @@
 // RFC: rfc/short/rfc5072.md -- RFC 5072 Section 5 (link-local address of a PPP interface)
 // Related: ra.go -- RA message building
 // Related: dhcpv6.go -- DHCPv6 codec
-// Related: dhcpv6_linux.go -- DHCPv6 UDP listener
+// Related: dhcpv6_carrier.go -- DHCPv6 carrier worker
 // Related: session_run.go -- afterLCPOpen starts this, teardownNCPResources stops it
 
 package ppp
 
 import (
 	"bytes"
+	"errors"
 	"net/netip"
 	"sync"
 
@@ -43,23 +44,24 @@ func dhcpv6LifetimeDefaults(l DHCPv6Lifetimes) DHCPv6Lifetimes {
 // iPv6ServiceConfig holds the parameters needed to start RA and DHCPv6
 // services on a PPP session's interface.
 type iPv6ServiceConfig struct {
-	Ifname           string
 	TunnelID         uint16
 	SessionID        uint16
 	LocalInterfaceID [8]byte
 	PeerInterfaceID  [8]byte
-	Backend          IfaceBackend
+	Dataplane        SessionHandle
 	Lifetimes        DHCPv6Lifetimes
 	ReleasePrefix    func(netip.Prefix)
 }
 
 // IPv6Service manages the RA sender and DHCPv6-PD server for a single
-// PPP session. Created by startIPv6Service (platform-specific); stopped
+// PPP session. Created by startIPv6Service; stopped
 // by Stop(). The session goroutine owns the lifecycle.
 type IPv6Service struct {
 	cfg       iPv6ServiceConfig
 	lifetimes DHCPv6Lifetimes
-	stop      func()
+	stop      func() error
+	stopOnce  sync.Once
+	stopErr   error
 
 	mu                 sync.Mutex
 	delegatedPrefix    netip.Prefix
@@ -76,15 +78,20 @@ func newIPv6Service(cfg iPv6ServiceConfig) *IPv6Service {
 
 // Stop terminates the RA and DHCPv6 goroutines, removes any installed
 // route, and releases the delegated prefix back to the pool.
-func (s *IPv6Service) Stop() {
+// Safe for concurrent use: worker shutdown completes once, and resource
+// withdrawals serialize under mu. A failed withdrawal retains its state for a
+// later retry. The caller MUST NOT begin another network lifetime after an
+// error; final transport teardown still closes the session handle.
+func (s *IPv6Service) Stop() error {
 	if s == nil {
-		return
+		return nil
 	}
-	if s.stop != nil {
-		s.stop()
-	}
-	s.cleanupPrefix()
-	s.removeLinkLocal()
+	s.stopOnce.Do(func() {
+		if s.stop != nil {
+			s.stopErr = s.stop()
+		}
+	})
+	return errors.Join(s.stopErr, s.cleanupPrefix(), s.removeLinkLocal())
 }
 
 // linkLocalPrefixBits is the length of the link-local prefix FE80::/64 that
@@ -107,53 +114,63 @@ const linkLocalPrefixBits = 64
 func (s *IPv6Service) installLinkLocal() error {
 	local := netip.PrefixFrom(linkLocalFromInterfaceID(s.cfg.LocalInterfaceID), linkLocalPrefixBits)
 	peer := netip.PrefixFrom(linkLocalFromInterfaceID(s.cfg.PeerInterfaceID), linkLocalPrefixBits)
-	if err := s.cfg.Backend.AddAddressP2P(s.cfg.Ifname, local.String(), peer.String()); err != nil {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// An add error can follow a partial native install. Stop MUST retain and
+	// withdraw this attempted pair, even when installation was not confirmed.
+	s.linkLocalInstalled = true
+	if err := s.cfg.Dataplane.AddAddressP2P(local, peer); err != nil {
 		return err
 	}
-	s.mu.Lock()
-	s.linkLocalInstalled = true
-	s.mu.Unlock()
 	return nil
 }
 
 // removeLinkLocal withdraws the pair installLinkLocal put on pppN, so an
 // IPv6CP renegotiation inside one session installs its new pair cleanly.
-func (s *IPv6Service) removeLinkLocal() {
+func (s *IPv6Service) removeLinkLocal() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.linkLocalInstalled {
-		return
+		return nil
 	}
 	local := netip.PrefixFrom(linkLocalFromInterfaceID(s.cfg.LocalInterfaceID), linkLocalPrefixBits)
-	// The device usually goes with the session, taking the address with it,
-	// so a failed removal here has nothing left to undo.
-	_ = s.cfg.Backend.RemoveAddress(s.cfg.Ifname, local.String()) //nolint:errcheck // pppN is normally gone with the session
+	if err := s.cfg.Dataplane.RemoveAddress(local); err != nil {
+		return err
+	}
 	s.linkLocalInstalled = false
+	return nil
 }
 
-func (s *IPv6Service) cleanupPrefix() {
+func (s *IPv6Service) cleanupPrefix() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.routeInstalled && s.delegatedPrefix.IsValid() {
+	if s.routeInstalled {
 		peerLL := linkLocalFromInterfaceID(s.cfg.PeerInterfaceID)
-		_ = s.cfg.Backend.RemoveRoute(s.cfg.Ifname, s.delegatedPrefix.String(), peerLL.String(), 0, rtproto.Iface)
+		if err := s.cfg.Dataplane.RemoveRoute(s.delegatedPrefix, peerLL, 0, rtproto.Iface); err != nil {
+			return err
+		}
 		s.routeInstalled = false
 	}
-	if s.delegatedPrefix.IsValid() && s.cfg.ReleasePrefix != nil {
-		s.cfg.ReleasePrefix(s.delegatedPrefix)
+	if s.delegatedPrefix.IsValid() {
+		if s.cfg.ReleasePrefix != nil {
+			s.cfg.ReleasePrefix(s.delegatedPrefix)
+		}
 		s.delegatedPrefix = netip.Prefix{}
 	}
+	return nil
 }
 
 func (s *IPv6Service) installRoute(prefix netip.Prefix) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	peerLL := linkLocalFromInterfaceID(s.cfg.PeerInterfaceID)
-	if err := s.cfg.Backend.AddRoute(s.cfg.Ifname, prefix.String(), peerLL.String(), 0, rtproto.Iface); err != nil {
-		return err
-	}
+	// Stop MUST withdraw an attempted route before releasing its prefix,
+	// including when the add's reply cannot confirm whether it took effect.
 	s.delegatedPrefix = prefix
 	s.routeInstalled = true
+	if err := s.cfg.Dataplane.AddRoute(prefix, peerLL, 0, rtproto.Iface); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -178,18 +195,24 @@ func (s *IPv6Service) handleSolicit(msg *dHCPv6Message, serverID DHCPv6DUID, all
 		return nil, nil
 	}
 
-	if allocPrefix == nil {
-		return s.noPrefixAvailReply(msg, serverID, "no pool configured")
-	}
-
-	prefix, ok := allocPrefix()
-	if !ok {
-		return s.noPrefixAvailReply(msg, serverID, "pool exhausted")
-	}
-
 	s.mu.Lock()
-	s.delegatedPrefix = prefix
+	prefix := s.delegatedPrefix
 	s.mu.Unlock()
+	// One service owns one prefix. A Solicit retransmission MUST NOT replace
+	// the cleanup key of a possibly installed route or leak another lease.
+	if !prefix.IsValid() {
+		if allocPrefix == nil {
+			return s.noPrefixAvailReply(msg, serverID, "no pool configured")
+		}
+		var ok bool
+		prefix, ok = allocPrefix()
+		if !ok {
+			return s.noPrefixAvailReply(msg, serverID, "pool exhausted")
+		}
+		s.mu.Lock()
+		s.delegatedPrefix = prefix
+		s.mu.Unlock()
+	}
 
 	var buf [512]byte
 	n, err := checkedBuildDHCPv6Reply(buf[:], dHCPv6ReplyConfig{
@@ -291,7 +314,9 @@ func (s *IPv6Service) handleRelease(msg *dHCPv6Message, serverID DHCPv6DUID) ([]
 	if !duidEqual(msg.ServerID, &serverID) {
 		return nil, nil
 	}
-	s.cleanupPrefix()
+	if err := s.cleanupPrefix(); err != nil {
+		return nil, err
+	}
 
 	var buf [512]byte
 	n, err := checkedBuildDHCPv6StatusReply(buf[:], dHCPv6StatusReplyConfig{

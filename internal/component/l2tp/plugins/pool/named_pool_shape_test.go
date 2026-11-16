@@ -15,6 +15,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -109,10 +111,10 @@ func TestHandleIPRequestAcceptsFramedPoolFromKeyedList(t *testing.T) {
 	p.namedPools = result.namedPools
 
 	const tunnelID, sessionID = 21, 22
-	l2tp.StoreSessionMetadata(tunnelID, sessionID, &l2tp.AuthMetadata{FramedPool: "gold"})
-	defer l2tp.ClearSessionMetadata(tunnelID, sessionID)
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID), &l2tp.AuthMetadata{FramedPool: "gold"})
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID))
 
-	got := p.handle(ppp.EventIPRequest{TunnelID: tunnelID, SessionID: sessionID, Family: ppp.AddressFamilyIPv4})
+	got := p.handle(ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID), TunnelID: tunnelID, SessionID: sessionID, Family: ppp.AddressFamilyIPv4})
 
 	require.True(t, got.Accept, "reject reason: %s", got.Reason)
 	assert.Equal(t, netip.MustParseAddr("10.1.0.254"), got.Local, "gateway comes from the named pool")

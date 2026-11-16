@@ -95,7 +95,7 @@ func TestRelaySinkRealmMatchPlacesCallWithProxyLCP(t *testing.T) {
 	handoff := &fakeRealmHandoff{}
 	call, accepted, err := (&relaySink{s: s}).RelayRealm(callsink.RealmRequest{
 		Realm: "EXAMPLE.NET", Username: "cpe@example.net", SubscriberMAC: "aa:bb:cc:dd:ee:ff",
-		ChannelFD: 7, LCP: lcp,
+		Channel: relayDescriptorForTest(7), LCP: lcp,
 		Auth:    callsink.ProxyAuth{Kind: callsink.AuthKindCHAP, Identifier: 9, Challenge: challenge, Response: response},
 		Handoff: handoff,
 	})
@@ -152,9 +152,9 @@ func TestRelaySinkRealmMatchPlacesCallWithProxyLCP(t *testing.T) {
 	require.NotNil(t, tun)
 	sess := tun.lookupSession(zeSID)
 	require.NotNil(t, sess)
-	require.NotNil(t, sess.realm)
-	require.Equal(t, "example.net", sess.realm.realm)
-	require.Equal(t, "lns-a", sess.realm.remote)
+	require.NotNil(t, sess.relay)
+	require.Equal(t, "example.net", sess.relay.realm.name)
+	require.Equal(t, "lns-a", sess.relay.remote)
 	r.tunnelsMu.Unlock()
 }
 
@@ -202,8 +202,8 @@ func TestRelaySinkRealmDialFailureReportsRefusal(t *testing.T) {
 	require.False(t, accepted)
 
 	handoff := &fakeRealmHandoff{}
-	rc := &realmCall{realm: "example.net", remote: "lns-a", handoff: handoff}
-	tun := &L2TPTunnel{pendingCalls: []*pendingCall{{params: callParams{realm: rc}}}}
+	rc := &relayCall{realm: &relayRealmDetails{name: "example.net"}, remote: "lns-a", handoff: handoff}
+	tun := &L2TPTunnel{pendingCalls: []*pendingCall{{params: callParams{relay: rc}}}}
 	tun.resolvePendingCall(callOutcome{err: errCallTunnelSetupFailed})
 	require.Len(t, handoff.ended, 1, "a tunnel that died before the call reports Ended once")
 	require.Contains(t, handoff.ended[0], "example.net")
@@ -223,9 +223,9 @@ func TestRelaySinkRealmDialFailureReportsRefusal(t *testing.T) {
 func TestRealmCallCancelOrdersAgainstBridge(t *testing.T) {
 	type torn struct{ tid, sid uint16 }
 	var got []torn
-	newCall := func() *realmCall {
-		return &realmCall{realm: "example.net", handoff: &fakeRealmHandoff{},
-			teardown: func(tid, sid uint16) { got = append(got, torn{tid, sid}) }}
+	newCall := func() *relayCall {
+		return &relayCall{realm: &relayRealmDetails{name: "example.net"}, handoff: &fakeRealmHandoff{},
+			teardown: func(_ *relayCall, tid, sid uint16) { got = append(got, torn{tid, sid}) }}
 	}
 
 	got = nil
@@ -233,7 +233,7 @@ func TestRealmCallCancelOrdersAgainstBridge(t *testing.T) {
 	rc.Cancel()
 	require.Empty(t, got, "Cancel before the bridge tears nothing down")
 	require.False(t, rc.markBridged(4, 9), "a canceled call MUST NOT be marked bridged")
-	require.True(t, rc.isCancelled())
+	require.True(t, rc.stopped())
 
 	got = nil
 	rc = newCall()
@@ -271,9 +271,9 @@ func TestRealmCallCancelAfterBridgeSendsCDN(t *testing.T) {
 	handoff := &fakeRealmHandoff{}
 	call, accepted, err := (&relaySink{s: s}).RelayRealm(callsink.RealmRequest{
 		Realm: "example.net", Username: "cpe@example.net", SubscriberMAC: "aa:bb:cc:dd:ee:ff",
-		ChannelFD: 7,
-		Auth:      callsink.ProxyAuth{Kind: callsink.AuthKindCHAP, Identifier: 1, Challenge: []byte{1}, Response: []byte{2}},
-		Handoff:   handoff,
+		Channel: relayDescriptorForTest(7),
+		Auth:    callsink.ProxyAuth{Kind: callsink.AuthKindCHAP, Identifier: 1, Challenge: []byte{1}, Response: []byte{2}},
+		Handoff: handoff,
 	})
 	require.NoError(t, err)
 	require.True(t, accepted)
@@ -296,7 +296,7 @@ func TestRealmCallCancelAfterBridgeSendsCDN(t *testing.T) {
 	// Acknowledge the ICCN so the CDN is not queued behind it.
 	client.Send(t, buildZLBAck(zeTID, 2, 4))
 
-	rc, ok := call.(*realmCall)
+	rc, ok := call.(*relayCall)
 	require.True(t, ok)
 	require.True(t, rc.markBridged(zeTID, zeSID), "the kernel worker's mark on a live call")
 	call.Cancel()

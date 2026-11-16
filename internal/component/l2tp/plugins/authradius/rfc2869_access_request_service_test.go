@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -34,19 +35,23 @@ var rfc2869CredentialAttrs = map[uint8]string{
 func rfc2869AuthRequests() map[string]ppp.EventAuthRequest {
 	return map[string]ppp.EventAuthRequest{
 		"pap": {
-			TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+			TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 			Username: "alice", Response: []byte("secret"),
 		},
 		"chap-md5": {
-			TunnelID: 1, SessionID: 3, Method: ppp.AuthMethodCHAPMD5, Identifier: 7,
+			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 3),
+			TunnelID:     1, SessionID: 3, Method: ppp.AuthMethodCHAPMD5, Identifier: 7,
 			Username: "bob", Challenge: make([]byte, 16), Response: make([]byte, 16),
 		},
 		"mschapv2": {
-			TunnelID: 1, SessionID: 4, Method: ppp.AuthMethodMSCHAPv2, Identifier: 9,
+			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 4),
+			TunnelID:     1, SessionID: 4, Method: ppp.AuthMethodMSCHAPv2, Identifier: 9,
 			Username: "carol", Challenge: make([]byte, 16), Response: make([]byte, 40),
 		},
 		"none": {
-			TunnelID: 1, SessionID: 5, Method: ppp.AuthMethodNone, Username: "dave",
+			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 5),
+			TunnelID:     1, SessionID: 5, Method: ppp.AuthMethodNone, Username: "dave",
 		},
 	}
 }

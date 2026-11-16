@@ -15,10 +15,6 @@ import (
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 )
 
-// The test stops at authentication, before any interface configuration. Calling
-// the embedded nil backend would fail if a session crossed that boundary.
-type authReloadBackend struct{ ppp.IfaceBackend }
-
 // MUTATION: resolving the handler once before starting the goroutine makes the
 // second session use the previous provider, despite the registry replacement.
 func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
@@ -32,7 +28,7 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 	subevents.SessionAuthResult.Subscribe(bus, func(result *subevents.SessionAuthResultPayload) {
 		decisions <- result
 	})
-	driver := ppp.NewProductionDriver(slog.Default(), authReloadBackend{})
+	driver := ppp.NewProductionDriver(slog.Default())
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -72,10 +68,11 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 			}
 			// Proxy LCP with only MRU gets the production PPP driver to its
 			// authentication request without a kernel PPP device or timer.
+			frames, handle := fixtureKernelSession(t, fds[0], unit, 0)
 			options := []byte{1, 4, 5, 220}
 			driver.SessionsIn() <- ppp.StartSession{
 				LCP:      testLCPConfig(),
-				TunnelID: 7, SessionID: uint16(index + 1), ChanFD: fds[0], UnitFD: unit,
+				TunnelID: 7, SessionID: uint16(index + 1), Frames: frames, Dataplane: handle,
 				LNSMode: true, ProxyLCPInitialRecv: options,
 				ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
 			}
@@ -108,7 +105,7 @@ func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
 	subevents.SessionAuthResult.Subscribe(bus, func(result *subevents.SessionAuthResultPayload) {
 		decisions <- result
 	})
-	driver := ppp.NewProductionDriver(slog.Default(), authReloadBackend{})
+	driver := ppp.NewProductionDriver(slog.Default())
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -132,10 +129,11 @@ func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
 		_ = unix.Close(fds[0])
 		t.Fatal(err)
 	}
+	frames, handle := fixtureKernelSession(t, fds[0], unit, 0)
 	options := []byte{1, 4, 5, 220}
 	driver.SessionsIn() <- ppp.StartSession{
 		LCP:      testLCPConfig(),
-		TunnelID: 7, SessionID: 1, ChanFD: fds[0], UnitFD: unit,
+		TunnelID: 7, SessionID: 1, Frames: frames, Dataplane: handle,
 		LNSMode: true, ProxyLCPInitialRecv: options,
 		ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
 	}

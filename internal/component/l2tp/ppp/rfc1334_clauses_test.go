@@ -112,8 +112,9 @@ func TestConfiguredPAPStillOffersCHAPFirst(t *testing.T) {
 		installPipeRegistry(t, reg)
 		pair := newPipePair(reg, tc.fd)
 
+		backend := &fakeBackend{}
 		ops, _, _ := newFakeOps()
-		d := newTestDriverNoResponder(&fakeBackend{}, ops)
+		d := NewProductionDriver(discardLogger())
 		if err := d.Start(); err != nil {
 			t.Fatalf("%s: Start: %v", tc.name, err)
 		}
@@ -122,19 +123,17 @@ func TestConfiguredPAPStillOffersCHAPFirst(t *testing.T) {
 		peerDone := make(chan struct{})
 		go authProtoReplyPeer(t, pair.peerEnd, tc.firstWant, LCPConfigureNak, authProtoPAP, nil, secondCR, peerDone)
 
-		d.SessionsIn() <- StartSession{
-			LCP:               testLCPConfig(),
-			TunnelID:          183,
-			SessionID:         uint16(tc.fd - 16000),
-			ChanFD:            tc.fd,
-			UnitFD:            tc.fd - 15000,
-			UnitNum:           23,
+		d.SessionsIn() <- testSessionStart(StartSession{
+			LCP:       testLCPConfig(),
+			TunnelID:  183,
+			SessionID: uint16(tc.fd - 16000),
+
 			LNSMode:           true,
 			MaxMRU:            1500,
 			AuthMethod:        AuthMethodPAP,
 			AuthFallbackOrder: tc.order,
 			AuthRequired:      true,
-		}
+		}, backend, ops, tc.fd, tc.fd-15000, 23)
 
 		select {
 		case pkt := <-secondCR:

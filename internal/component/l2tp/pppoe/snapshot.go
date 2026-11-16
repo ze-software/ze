@@ -4,7 +4,12 @@ package pppoe
 
 import (
 	"net"
+	"strconv"
+	"strings"
+
 	"time"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // SessionSnapshot is a point-in-time copy of a PPPoE session, safe to
@@ -15,7 +20,8 @@ type SessionSnapshot struct {
 	IfName      string
 	ServiceName string
 	State       SessionState
-	UnitNum     int
+	UnitNum     int // Kernel display only; -1 when the interface is not pppN.
+	Identity    ppp.SessionIdentity
 	CreatedAt   time.Time
 }
 
@@ -50,7 +56,8 @@ func (st *SessionTable) Sessions() []SessionSnapshot {
 			IfName:      s.IfName,
 			ServiceName: s.ServiceName,
 			State:       s.State,
-			UnitNum:     s.UnitNum,
+			UnitNum:     sessionUnitDisplay(s),
+			Identity:    sessionIdentity(s),
 			CreatedAt:   s.CreatedAt,
 		})
 	}
@@ -88,7 +95,7 @@ func (s *Subsystem) Snapshot() Snapshot {
 
 // LookupSnapshot returns a snapshot of the session with the given SID,
 // copying all fields under the lock to avoid racing with handlePADR
-// which mutates State/UnitNum/PppoxFD after Add().
+// which publishes the admitted owner after Add().
 func (st *SessionTable) LookupSnapshot(sid uint16) (SessionSnapshot, bool) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -103,7 +110,8 @@ func (st *SessionTable) LookupSnapshot(sid uint16) (SessionSnapshot, bool) {
 		IfName:      s.IfName,
 		ServiceName: s.ServiceName,
 		State:       s.State,
-		UnitNum:     s.UnitNum,
+		UnitNum:     sessionUnitDisplay(s),
+		Identity:    sessionIdentity(s),
 		CreatedAt:   s.CreatedAt,
 	}, true
 }
@@ -120,4 +128,30 @@ func (s *Subsystem) LookupSession(sid uint16) (SessionSnapshot, bool) {
 		}
 	}
 	return SessionSnapshot{}, false
+}
+
+// sessionIdentity is read while the session table lock is held. The backend
+// identity is immutable after the admitted owner is published.
+func sessionIdentity(session *Session) ppp.SessionIdentity {
+	if session.Opened == nil {
+		return ppp.SessionIdentity{}
+	}
+	return session.Opened.Dataplane().Identity()
+}
+
+// sessionUnitDisplay preserves the kernel's existing human-facing unit field.
+// A VPP interface never acquires a fabricated kernel unit number.
+func sessionUnitDisplay(session *Session) int {
+	name, kernel := strings.CutPrefix(sessionIdentity(session).InterfaceName, "ppp")
+	if !kernel {
+		return -1
+	}
+	unit, err := strconv.Atoi(name)
+	if err != nil {
+		return -1
+	}
+	if unit < 0 {
+		return -1
+	}
+	return unit
 }

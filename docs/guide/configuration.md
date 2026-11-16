@@ -4733,9 +4733,17 @@ fallback must explicitly name every permitted method. PPPoE retains its fixed
 
 The `l2tp-pool` plugin provides IPv4 address allocation for PPP sessions.
 A default pool and optional named pools are configured under `l2tp { pool { } }`.
-Named pools are selected per-session via the RADIUS `Framed-Pool` attribute;
-when `Framed-IP-Address` is present in Access-Accept, the pool is bypassed
-and the RADIUS-assigned address is used directly.
+Named pools are selected per-session via the RADIUS `Framed-Pool` attribute.
+The default pool can be absent when every subscriber selects a named pool.
+Without either selection or a default pool, the address request is refused.
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
+
+When `Framed-IP-Address` is present in Access-Accept, the RADIUS-assigned address
+is used directly with the selected pool's gateway and DNS. An address inside
+any configured range is reserved in that pool until the session ends. An
+address another subscriber holds is refused, even outside the current ranges.
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
 
 ```
 l2tp {
@@ -4782,6 +4790,13 @@ primary slot, then the secondary, so a pool naming only `dns-secondary`
 offers it as the primary. A loopback address is never offered, and each one
 dropped is logged.
 The gateway must not overlap the pool range.
+
+Pool changes apply on a committed reload. Existing subscribers retain their
+assignments, and the new pools reserve them until those sessions end. Removing
+a range does not disconnect its subscribers. Their assignments remain outside
+the replacement pools until release. Gateway and DNS changes apply to new
+sessions.
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
 
 Each IPv4 range is limited to 1,048,576 addresses and excludes `0.0.0.0` and
 `255.255.255.255`. IPv4 ranges cannot overlap another pool's range, and IPv6

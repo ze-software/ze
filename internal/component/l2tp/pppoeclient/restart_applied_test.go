@@ -14,6 +14,7 @@ import (
 	"testing/synctest"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -181,8 +182,8 @@ func TestDualStackLCPRestartTakesIPv6Down(t *testing.T) {
 				} else {
 					c, _, _ = startedIPv6CP(t)
 				}
-				setIPv6 := func(mode ppp.NPMode) error {
-					if mode == ppp.NPModeDrop {
+				setIPv6 := func(mode pppkernel.NPMode) error {
+					if mode == pppkernel.NPModeDrop {
 						w.events = append(w.events, "drop6")
 					} else {
 						w.events = append(w.events, "pass6")

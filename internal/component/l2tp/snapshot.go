@@ -204,23 +204,27 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 		KernelSetupNeeded:  s.kernelSetupNeeded,
 		PppInterface:       s.pppInterface,
 		ProxyLCP:           proxyLCPOutcomeName(s.proxyLCPOutcome),
-		RealmRelay:         s.realm.snapshot(),
+		RealmRelay:         s.relay.snapshot(),
 	}
 }
 
 // snapshot returns the realm relay state for show, or nil when rc is nil.
 // The proxy AVPs count as sent once the ICCN carrying them was enqueued.
-func (rc *realmCall) snapshot() *RealmRelaySnapshot {
+func (rc *relayCall) snapshot() *RealmRelaySnapshot {
 	if rc == nil {
 		return nil
 	}
-	out := &RealmRelaySnapshot{Realm: rc.realm, Remote: rc.remote, ProxyAuthReason: rc.authReason}
-	if rc.proxy == nil {
+	// permission: guards the realm projection -- a Service-Name call has no realm snapshot
+	if rc.realm == nil {
+		return nil
+	}
+	out := &RealmRelaySnapshot{Realm: rc.realm.name, Remote: rc.remote, ProxyAuthReason: rc.realm.authReason}
+	if rc.realm.proxy == nil {
 		out.ProxyAuthReason = proxyAuthReasonTooLarge
 		return out
 	}
-	out.ProxyLCPSent = rc.iccnSent
-	out.ProxyAuthSent = rc.iccnSent && rc.proxy.sendAuth
+	out.ProxyLCPSent = rc.realm.iccnSent
+	out.ProxyAuthSent = rc.realm.iccnSent && rc.realm.proxy.sendAuth
 	return out
 }
 

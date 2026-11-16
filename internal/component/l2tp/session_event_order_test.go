@@ -572,8 +572,8 @@ func TestSessionUpStartsTimeoutsAfterPublication(t *testing.T) {
 	r := newReactorForEventOrder(t, bus)
 	sess := orderTestSession(7, "ppp7")
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, sess)
-	StoreSessionMetadata(11, 7, &AuthMetadata{SessionTimeout: 3600})
-	t.Cleanup(func() { ClearSessionMetadata(11, 7) })
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(11), 7), &AuthMetadata{SessionTimeout: 3600})
+	t.Cleanup(func() { ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(11), 7)) })
 	t.Cleanup(func() {
 		r.tunnelsMu.Lock()
 		cancelSessionTimeouts(sess)

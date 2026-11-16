@@ -12,15 +12,17 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
 // challengeLogins are the PAP and CHAP-MD5 subscriber logins each test drives.
 func challengeLogins() map[string]ppp.EventAuthRequest {
 	return map[string]ppp.EventAuthRequest{
-		"pap": {TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP, Username: "alice", Response: []byte("pw")},
+		"pap": {SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP, Username: "alice", Response: []byte("pw")},
 		"chap-md5": {
-			TunnelID: 1, SessionID: 3, Method: ppp.AuthMethodCHAPMD5, Identifier: 7,
+			SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 3),
+			TunnelID:     1, SessionID: 3, Method: ppp.AuthMethodCHAPMD5, Identifier: 7,
 			Username: "bob", Challenge: make([]byte, 16), Response: make([]byte, 16),
 		},
 	}

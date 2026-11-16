@@ -15,6 +15,10 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
 var (
@@ -63,10 +67,32 @@ type Session struct {
 	// admitting PADR apart from a distinct, concurrent request from the
 	// same MAC.
 	Cookie    []byte
-	PppoxFD   int // -1 when not set or already closed
-	UnitNum   int
+	Opened    dataplane.OpenedSession
 	State     SessionState
 	CreatedAt time.Time
+	// unusedLease belongs to the access server until local PPP takes it or
+	// a Service-Name relay prepares its bridge. It is protected by the table.
+	unusedLease *sessionLease
+	// relay belongs to this exact admission; mutable fields use table.mu.
+	relay *serviceBridgePreparation
+	// closeDone joins this admission, including cleanup after it was claimed.
+	// The table owns both fields; only external generation shutdown waits.
+	closeDone    chan struct{}
+	closeStarted bool
+}
+
+// sessionLease closes an unused local lease once, whether bridge preparation
+// or access teardown wins. Only setOpened creates it with a validated handle.
+// Close is safe for concurrent use; a nil *sessionLease is invalid.
+type sessionLease struct {
+	handle ppp.SessionHandle
+	once   sync.Once
+	err    error
+}
+
+func (lease *sessionLease) Close() error {
+	lease.once.Do(func() { lease.err = lease.handle.Close() })
+	return lease.err
 }
 
 // SessionTable manages PPPoE sessions for a single access interface.
@@ -77,6 +103,8 @@ type SessionTable struct {
 	bitmap   [bitmapWords]uint64
 	hint     int // word index to start scanning from
 	sessions map[uint16]*Session
+	// relayEnds is bounded by admissions and removed with their ownership.
+	relayEnds map[uint16]serviceRelayEnd
 
 	// byMAC indexes every live session by subscriber MAC address. RFC 2516
 	// places no per-peer session limit (rfc/short/rfc2516.md), so one MAC can
@@ -94,6 +122,7 @@ func newSessionTable(ifName string, maxSessions int) *SessionTable {
 	}
 	st := &SessionTable{
 		sessions:    make(map[uint16]*Session),
+		relayEnds:   make(map[uint16]serviceRelayEnd),
 		byMAC:       make(map[[6]byte]map[uint16]*Session),
 		maxSessions: maxSessions,
 		ifName:      ifName,
@@ -162,6 +191,7 @@ func (st *SessionTable) Add(s *Session) error {
 	if _, exists := st.sessions[s.SID]; exists {
 		return ErrSessionExists
 	}
+	s.closeDone = make(chan struct{})
 	st.sessions[s.SID] = s
 	if len(s.MAC) == 6 {
 		var key [6]byte
@@ -176,22 +206,45 @@ func (st *SessionTable) Add(s *Session) error {
 	return nil
 }
 
-// Remove deletes a session from the table, frees its SID, and returns
-// the PppoxFD that was associated with the session (-1 if none or
-// already removed). The caller is responsible for closing the fd via
-// closePPPoxFD. Returning the fd instead of closing it here keeps
-// the session table free of kernel dependencies.
-func (st *SessionTable) Remove(sid uint16) int {
+// Remove deletes a session, frees its SID, and transfers its admitted owner
+// to the caller. A missing entry returns nil. The caller MUST close the owner;
+// the table itself performs no transport or data-plane operation.
+func (st *SessionTable) Remove(sid uint16) dataplane.OpenedSession {
+	return st.removeAdmitted(sid).opened
+}
+
+// removedAdmission carries both ownership roles out of the table in one
+// operation. Its zero value means there was no admission to remove.
+type removedAdmission struct {
+	opened      dataplane.OpenedSession
+	unusedLease *sessionLease
+	relay       *serviceBridgePreparation
+}
+
+// removeAdmitted atomically detaches the transport and any unused local lease.
+// Callers MUST finish any outbound PADT before this frees the SID, and MUST
+// release the returned ownership after this method releases the table lock.
+func (st *SessionTable) removeAdmitted(sid uint16) removedAdmission {
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	return st.removeAdmittedLocked(sid)
+}
+
+// removeAdmittedLocked releases table ownership after its caller finished cleanup.
+// Caller MUST hold mu. Closing admissions use completeAdmissionClose instead.
+func (st *SessionTable) removeAdmittedLocked(sid uint16) removedAdmission {
 
 	s, ok := st.sessions[sid]
+	// refuse-by-default: guards closeAdmitted -- repeated teardown has no admission to close
 	if !ok {
-		return -1
+		return removedAdmission{}
 	}
 
-	pppoxFD := s.PppoxFD
-	s.PppoxFD = -1
+	removed := removedAdmission{opened: s.Opened, unusedLease: s.unusedLease, relay: s.relay}
+	s.Opened = nil
+	s.unusedLease = nil
+	s.relay = nil
+	delete(st.relayEnds, sid)
 
 	delete(st.sessions, sid)
 	if len(s.MAC) == 6 {
@@ -206,12 +259,12 @@ func (st *SessionTable) Remove(sid uint16) int {
 	}
 
 	if sid == 0 {
-		return pppoxFD
+		return removed
 	}
 	word := int(sid) / 64
 	bit := uint(sid) % 64
 	st.bitmap[word] |= 1 << bit
-	return pppoxFD
+	return removed
 }
 
 // Lookup returns the session for the given SID, or nil.
@@ -245,17 +298,96 @@ func (st *SessionTable) markTeardown(sid uint16) *Session {
 	return s
 }
 
-// detachTransport leaves the SID reserved while its owner finishes teardown.
-func (st *SessionTable) detachTransport(sid uint16) int {
+// transport returns the admitted owner while the SID stays reserved. The
+// owner's idempotent CloseTransport serializes competing teardown requests.
+func (st *SessionTable) transport(sid uint16) dataplane.OpenedSession {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	s := st.sessions[sid]
-	if s == nil {
-		return -1
+	session := st.sessions[sid]
+	// refuse-by-default: guards closeTransport -- an absent session has no transport; repeated teardown must not touch another owner
+	if session == nil {
+		return nil
 	}
-	fd := s.PppoxFD
-	s.PppoxFD = -1
-	return fd
+	return session.Opened
+}
+
+// setOpened publishes an immutable session owner before PPP can emit events.
+func (st *SessionTable) setOpened(sid uint16, opened dataplane.OpenedSession) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	session := st.sessions[sid]
+	if session == nil {
+		return false
+	}
+	if session.State == StateTeardown {
+		return false
+	}
+	session.Opened = opened
+	session.unusedLease = &sessionLease{handle: opened.Dataplane()}
+	return true
+}
+
+// takePPPLease transfers the server's retained local lease. Local PPP MUST
+// take it before queueing StartSession. A nil result means this admission no
+// longer owns a transferable lease, so the caller MUST NOT start local PPP.
+func (st *SessionTable) takePPPLease(sid uint16) *sessionLease {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	session := st.sessions[sid]
+	// refuse-by-default: guards handlePADR -- a removed admission cannot transfer a lease into a new PPP session
+	if session == nil {
+		return nil
+	}
+	if session.State == StateTeardown {
+		return nil
+	}
+	lease := session.unusedLease
+	session.unusedLease = nil
+	return lease
+}
+
+// serviceBridgePreparation names the exact admission whose local lease the
+// worker releases. Keeping that owner prevents a delayed worker from acting on
+// a new subscriber that reused the SID. PrepareBridge is safe for concurrent use.
+type serviceBridgePreparation struct {
+	sessions *SessionTable
+	sid      uint16
+	opened   dataplane.OpenedSession
+	wake     chan<- struct{}
+	// call is captured once after Relay returns, protected by sessions.mu.
+	call callsink.RelayCall
+}
+
+func (preparation *serviceBridgePreparation) PrepareBridge() error {
+	lease, err := preparation.sessions.bridgeLease(preparation.sid, preparation.opened)
+	if err != nil {
+		return err
+	}
+	return lease.Close()
+}
+
+// bridgeLease checks the original admission under the table lock, then lends
+// its once-owner so bridge preparation and teardown can close outside the lock.
+func (st *SessionTable) bridgeLease(sid uint16, opened dataplane.OpenedSession) (*sessionLease, error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	session := st.sessions[sid]
+	if session == nil {
+		return nil, ErrSessionNotFound
+	}
+	if session.Opened != opened {
+		return nil, ErrSessionNotFound
+	}
+	if session.State == StateTeardown {
+		return nil, ErrSessionNotFound
+	}
+	if _, err := opened.RelayDescriptor(); err != nil {
+		return nil, err
+	}
+	if session.unusedLease == nil {
+		return nil, errors.New("pppoe: local PPP already owns this session; an L2TP bridge cannot take its channel")
+	}
+	return session.unusedLease, nil
 }
 
 // markSession moves sid from StateDiscovery to StateSession. It leaves every
@@ -287,6 +419,11 @@ func (st *SessionTable) markSession(sid uint16) {
 		return
 	}
 	s.State = StateSession
+	if s.relay != nil {
+		if _, pending := st.relayEnds[sid]; pending {
+			s.relay.notify()
+		}
+	}
 }
 
 // matchLiveCookie returns the SID of the session held by mac whose stored

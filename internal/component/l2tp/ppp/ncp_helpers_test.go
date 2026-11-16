@@ -101,13 +101,10 @@ func newNCPTestDriverUnit(t *testing.T, overrides *StartSession, ipFn func(*Driv
 	// Short-circuit LCP via proxy AVPs so the test does not have to
 	// play the full LCP exchange as well; spec 6c's focus is NCP.
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	start := StartSession{
+	start := testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           1,
-		ChanFD:              fd,
-		UnitFD:              9001,
-		UnitNum:             42,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthTimeout:         2 * time.Second,
@@ -115,7 +112,7 @@ func newNCPTestDriverUnit(t *testing.T, overrides *StartSession, ipFn func(*Driv
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, fd, 9001, 42)
 	// Apply caller overrides.
 	if overrides.TunnelID != 0 {
 		start.TunnelID = overrides.TunnelID

@@ -4,9 +4,9 @@ package ppp
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"net/netip"
-	"runtime"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -20,13 +20,28 @@ func TestLCPRestartEndsSessionWhenAddressRemovalFails(t *testing.T) {
 	s.ipcpState = LCPStateOpened
 	s.localIPv4 = netip.MustParseAddr("192.0.2.1")
 	s.peerIPv4 = netip.MustParseAddr("192.0.2.2")
-	backend, ok := s.backend.(*fakeBackend)
+	backend, ok := testHandleFor(s).backend.(*fakeBackend)
 	if !ok {
-		t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+		t.Fatalf("session backend is %T, want *fakeBackend", testHandleFor(s).backend)
 	}
-	backend.removeAddrErr = net.ErrClosed
 	stopRelay := relayLifecycleEvents(s)
 	defer stopRelay()
+
+	// Establish the actual installed-address receipt before faulting its
+	// withdrawal. Negotiation proposals alone do not own native state.
+	if !s.onNCPOpened(AddressFamilyIPv4) {
+		t.Fatal("could not install the IPv4 lifetime before testing its withdrawal")
+	}
+	select {
+	case event := <-events:
+		assignment, assigned := event.(EventSessionIPAssigned)
+		if !assigned || assignment.Family != AddressFamilyIPv4 || assignment.Local != s.localIPv4 || assignment.Peer != s.peerIPv4 {
+			t.Fatalf("installed IPv4 assignment = %+v", event)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("installed IPv4 assignment was not published")
+	}
+	backend.removeAddrErr = net.ErrClosed
 
 	if !s.handleLCPPacket(LCPPacket{Code: LCPConfigureRequest, Identifier: 0x41}) {
 		t.Fatal("LCP restarted on a unit whose previous address could not be removed")
@@ -164,9 +179,9 @@ func TestPendingNCPCompletionFollowsLCPLifetime(t *testing.T) {
 					s.echoInterval = time.Hour
 					s.disableIPCP = family != AddressFamilyIPv4
 					s.disableIPv6CP = family != AddressFamilyIPv6
-					backend, ok := s.backend.(*fakeBackend)
+					backend, ok := testHandleFor(s).backend.(*fakeBackend)
 					if !ok {
-						t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+						t.Fatalf("session backend is %T, want *fakeBackend", testHandleFor(s).backend)
 					}
 					auth := make(chan AuthEvent, 16)
 					ips := make(chan IPEvent, 4)
@@ -219,6 +234,12 @@ func runLifecycleSession(t *testing.T, s *pppSession) net.Conn {
 	t.Helper()
 	server, peer := net.Pipe()
 	s.chanFile = server
+	s.frames = &testSessionFrames{control: server, opened: s.unitFile}
+	owner := testHandleFor(s)
+	owner.owned = append(owner.owned, server)
+	owner.openIPv6Carrier = func(context.Context) (IPv6Carrier, error) {
+		return newServiceCarrier(), nil
+	}
 	done := make(chan struct{})
 	stop := make(chan struct{})
 	s.stopCh = stop
@@ -488,17 +509,8 @@ func assertLifecycleNCPPublished(t *testing.T, events <-chan Event, backend *fak
 		}
 		return
 	}
-	// The non-Linux IPv6 service stub returns errNotLinux without touching
-	// the backend. The portable assignment and session-up events above still
-	// prove that the authenticated NCP exchange completed.
-	if runtime.GOOS != "linux" {
-		if len(calls) != 0 {
-			t.Fatalf("unsupported IPv6 service programmed addresses: %+v", calls)
-		}
-		return
-	}
-	// On Linux, IPv6-only completion programs no IPv4 address. Its one p2p
-	// call is the negotiated link-local pair the IPv6 service installs on pppN.
+	// The fixture supplies an IPv6 carrier on every platform. IPv6-only
+	// completion programs its negotiated link-local pair, never an IPv4 address.
 	if len(calls) != 1 {
 		t.Fatalf("IPv6-only completion programmed %d addresses, want the link-local pair only: %+v", len(calls), calls)
 	}
@@ -525,9 +537,9 @@ func TestNCPRepliesCannotCompleteReplacementLifetime(t *testing.T) {
 					s.echoInterval = time.Hour
 					s.disableIPCP = family != AddressFamilyIPv4
 					s.disableIPv6CP = family != AddressFamilyIPv6
-					backend, ok := s.backend.(*fakeBackend)
+					backend, ok := testHandleFor(s).backend.(*fakeBackend)
 					if !ok {
-						t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+						t.Fatalf("session backend is %T, want *fakeBackend", testHandleFor(s).backend)
 					}
 					auth := make(chan AuthEvent, 16)
 					ips := make(chan IPEvent, 4)

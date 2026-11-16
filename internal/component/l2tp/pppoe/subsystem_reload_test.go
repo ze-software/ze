@@ -36,6 +36,7 @@ const (
 
 func newReloadFixture(t *testing.T) *reloadFixture {
 	t.Helper()
+	fixtureSelectBackend(t)
 	f := &reloadFixture{}
 	restore := resolveInterfaceFn
 	resolveInterfaceFn = func(name string) (InterfaceBinding, error) {
@@ -65,7 +66,8 @@ func newReloadFixture(t *testing.T) *reloadFixture {
 	sub.logger = slog.Default()
 	sub.started = true
 	sub.servers = make(map[int]*InterfaceServer)
-	srv, err := sub.newInterfaceServer(&sub.params.Interfaces[0], &sub.params)
+	sub.backend, sub.accesses = fixturePrepareConfiguration(t, sub.params.Interfaces)
+	srv, err := sub.newInterfaceServer(&sub.params.Interfaces[0], &sub.params, sub.backend, sub.accesses.accesses["eth0"])
 	if err != nil {
 		t.Fatalf("build eth0 server: %v", err)
 	}
@@ -114,7 +116,7 @@ func (f *reloadFixture) padtSIDs(t *testing.T) []uint16 {
 func addReloadSession(t *testing.T, srv *InterfaceServer, sid uint16) {
 	t.Helper()
 	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, byte(sid)}
-	if err := srv.sessions.Add(&Session{SID: sid, MAC: mac, IfName: srv.ifName, PppoxFD: -1, State: StateSession}); err != nil {
+	if err := srv.sessions.Add(&Session{SID: sid, MAC: mac, IfName: srv.ifName, State: StateSession}); err != nil {
 		t.Fatalf("seed session %d: %v", sid, err)
 	}
 }

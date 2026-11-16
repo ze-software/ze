@@ -103,14 +103,16 @@ type AuthEvent interface {
 // AuthMethodNone with all opaque fields empty; later phases populate
 // them as wire codecs land.
 type EventAuthRequest struct {
-	TunnelID   uint16
-	SessionID  uint16
-	Method     AuthMethod
-	Identifier uint8
-	Username   string
-	Challenge  []byte
-	Response   []byte
-	PeerName   string
+	// SubscriberID is the opaque identity supplied by StartSession.
+	SubscriberID string
+	TunnelID     uint16
+	SessionID    uint16
+	Method       AuthMethod
+	Identifier   uint8
+	Username     string
+	Challenge    []byte
+	Response     []byte
+	PeerName     string
 	// ProxyLCP is the LCP exchange of a session started with
 	// StartSession.CaptureProxyLCP (a PPPoE AC that has realm relay
 	// bindings), nil otherwise. A realm relay sends it to the LNS.

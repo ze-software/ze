@@ -28,24 +28,6 @@ import (
 
 var errL2tpSubsystemAlreadyStarted = errors.New("l2tp: subsystem already started")
 
-// ifaceBackendFn returns the active iface backend wrapped in the small
-// interface ppp.Driver consumes. Production wires iface.GetBackend();
-// if no backend is loaded the subsystem skips PPP driver construction.
-// Package-level var so a future test can swap it when a test-only
-// fake iface backend is introduced; no injector exists today.
-var ifaceBackendFn = defaultIfaceBackend
-
-// defaultIfaceBackend returns iface.GetBackend() typed as ppp.IfaceBackend
-// when one is loaded; nil when none. The PPP driver is only constructed
-// when this returns non-nil so MTU-set on pppN is always reachable.
-func defaultIfaceBackend() ppp.IfaceBackend {
-	b := iface.GetBackend()
-	if b == nil {
-		return nil
-	}
-	return b
-}
-
 // Compile-time interface check: Subsystem must satisfy ze.Subsystem.
 var _ ze.Subsystem = (*Subsystem)(nil)
 
@@ -93,7 +75,11 @@ type Subsystem struct {
 	// under mu so the health check never waits on a Stop draining sessions.
 	dataPlaneFault atomic.Pointer[error]
 	pppDrivers     []*ppp.Driver
-	drainDones     []<-chan struct{} // auth + pool drain goroutine completion
+	// This independent OS owner MUST outlive every kernel PPP session and
+	// stats poller. It never aliases the configured active interface owner.
+	kernelBackend     iface.Backend
+	openKernelBackend func(string) (iface.Backend, error)
+	drainDones        []<-chan struct{} // auth + pool drain goroutine completion
 	// routeObserver tracks subscriber routes (session IP-up / down).
 	// One instance per subsystem; installed into every reactor at
 	// Start. See spec-l2tp-7 "Redistribute" and route_observer.go.
@@ -131,8 +117,9 @@ func (s *Subsystem) recordDataPlaneFault(fault error) {
 // value is inert until Start is called.
 func NewSubsystem(p Parameters) *Subsystem {
 	return &Subsystem{
-		params: p,
-		logger: slogutil.Logger(SubsystemName),
+		params:            p,
+		logger:            slogutil.Logger(SubsystemName),
+		openKernelBackend: iface.OpenBackend,
 	}
 }
 
@@ -344,23 +331,18 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		}
 		reactor.setKernelWorker(worker, errCh, successCh)
 
-		// Phase 6a: construct a PPP driver if an iface backend is loaded.
-		// The driver owns per-session goroutines that drive LCP and (in
-		// later specs) auth + NCPs. The iface plugin delivers config
-		// asynchronously, so the backend may not be loaded yet. As a
-		// fallback, load the OS default backend directly; this is safe
-		// because LoadBackend is idempotent when the same backend is
-		// already active.
+		// Kernel PPP interfaces remain in the OS data plane even when the
+		// configured interface backend is VPP. Open a separate OS owner once;
+		// no active backend is loaded, replaced or borrowed here.
 		var pppDriver *ppp.Driver
-		if backend := ifaceBackendFn(); backend == nil {
-			if name := iface.DefaultBackendName(); name != "" {
-				if err := iface.LoadBackend(name); err != nil {
-					s.logger.Warn("l2tp: fallback iface backend load failed", "error", err.Error())
-				}
+		if worker != nil {
+			if err := s.prepareKernelBackend(); err != nil {
+				closeErr := ln.Stop()
+				s.unwindLocked()
+				return errors.Join(err, closeErr)
 			}
-		}
-		if backend := ifaceBackendFn(); backend != nil {
-			pppDriver = ppp.NewProductionDriver(s.logger.With("component", "ppp"), backend)
+			reactor.kernelBackend = s.kernelBackend
+			pppDriver = ppp.NewProductionDriver(s.logger.With("component", "ppp"))
 			reactor.setPPPDriver(pppDriver)
 		}
 
@@ -391,7 +373,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			}
 			s.drainDones = append(s.drainDones,
 				startAuthDrain(s.logger, pppDriver, GetAuthHandler, bus),
-				startPoolDrain(s.logger, pppDriver, GetPoolHandler),
+				startPoolDrain(s.logger, pppDriver, GetPoolHandler, bus),
 			)
 		}
 		if worker != nil {
@@ -441,6 +423,9 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		subscriber.BindMetrics(reg)
 		pollInterval := parsePollInterval()
 		poller := newL2TPStatsPoller(s.reactors, pollInterval)
+		if s.kernelBackend != nil {
+			poller.readStats = s.kernelBackend.GetStats
+		}
 		poller.start()
 		s.statsPoller = poller
 		s.logger.Info("l2tp: metrics bound and stats poller started",
@@ -565,6 +550,9 @@ func (s *Subsystem) unwindLocked() {
 		s.subBridge.stop()
 		s.subBridge = nil
 	}
+	if err := s.closeKernelBackend(); err != nil {
+		errs = append(errs, err)
+	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil
 	s.dataPlaneFault.Store(nil)
@@ -637,6 +625,9 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	if s.subBridge != nil {
 		s.subBridge.stop()
 		s.subBridge = nil
+	}
+	if err := s.closeKernelBackend(); err != nil {
+		errs = append(errs, err)
 	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil

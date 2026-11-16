@@ -14,6 +14,7 @@ import (
 	"log/slog"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // ipcpRun says which IPCP negotiation runIPCP performs. Its zero value, or
@@ -190,7 +191,7 @@ func (s *connectedSession) ipcpDown() error {
 	// RFC 1661 Section 3.6: "Any supported network-layer protocol packets
 	// received when the corresponding NCP is not in the Opened state MUST be
 	// silently discarded."
-	if err := s.setIPv4Mode(ppp.NPModeDrop); err != nil {
+	if err := s.setIPv4Mode(pppkernel.NPModeDrop); err != nil {
 		return fmt.Errorf("pppoe-client: cannot discard IPv4 after IPCP left Opened: %w", err)
 	}
 	s.ipcpStopped = true
@@ -239,7 +240,7 @@ func (s *connectedSession) renegotiateIPCP(buf []byte, queued *ppp.LCPPacket, st
 	}
 	// RFC 1661 Section 3.6: "After a NCP has reached the Opened state, PPP
 	// will carry the corresponding network-layer protocol packets."
-	if err := s.setIPv4Mode(ppp.NPModePass); err != nil {
+	if err := s.setIPv4Mode(pppkernel.NPModePass); err != nil {
 		return fmt.Errorf("pppoe-client: cannot pass IPv4 after IPCP reopened: %w", err)
 	}
 	return nil

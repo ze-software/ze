@@ -56,7 +56,7 @@ func TestProxyLCPPolicy(t *testing.T) {
 				sent = append(sent, LCPOption{Type: LCPOptAuthProto, Data: tc.auth})
 			}
 			peer := optStream(mruOpt(tc.peerMRU), magicOpt(0x11223344))
-			d.SessionsIn() <- StartSession{LCP: testLCPConfig(), TunnelID: 19, SessionID: 1, ChanFD: 19001, UnitFD: 19002, MaxMRU: tc.maxMRU, AuthMethod: AuthMethodCHAPMD5, AuthFallbackOrder: tc.order, AuthRequired: tc.required, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: optStream(sent...)}
+			d.SessionsIn() <- testStartForDriver(d, StartSession{LCP: testLCPConfig(), TunnelID: 19, SessionID: 1, MaxMRU: tc.maxMRU, AuthMethod: AuthMethodCHAPMD5, AuthFallbackOrder: tc.order, AuthRequired: tc.required, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: optStream(sent...)}, 19001, 19002, 0)
 			if tc.proxy {
 				select {
 				case ev := <-d.EventsOut():
@@ -133,15 +133,16 @@ func TestReceiveFullFrameBelowConfiguredMRU(t *testing.T) {
 	t.Cleanup(func() { RestoreNewChanFile(prev) })
 	pair := newPipePair(reg, 19101)
 	defer closeConn(pair.peerEnd)
+	backend := &fakeBackend{}
 	ops, calls, mu := newFakeOps()
-	d := makeTestDriver(&fakeBackend{}, ops)
+	d := newSessionTestDriver()
 	if err := d.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer d.Stop()
 	peer := optStream(mruOpt(1500), magicOpt(0x11223344))
 	sent := optStream(mruOpt(1492), magicOpt(0x01020304))
-	d.SessionsIn() <- StartSession{LCP: testLCPConfig(), TunnelID: 19, SessionID: 2, ChanFD: 19101, UnitFD: 19102, MaxMRU: 1492, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: sent}
+	d.SessionsIn() <- testSessionStart(StartSession{LCP: testLCPConfig(), TunnelID: 19, SessionID: 2, MaxMRU: 1492, DisableIPCP: true, DisableIPv6CP: true, ProxyLCPInitialRecv: peer, ProxyLCPLastRecv: peer, ProxyLCPLastSent: sent}, backend, ops, 19101, 19102, 0)
 	evs := drainTwoEvents(t, d.EventsOut(), time.Second)
 	if _, ok := evs[1].(EventSessionUp); !ok {
 		t.Fatalf("session event %T", evs[1])
@@ -240,12 +241,12 @@ func TestAuthAllowPAPFallbackAndOptionalNoAuth(t *testing.T) {
 				order = []AuthMethod{AuthMethodCHAPMD5}
 				wantMethod = AuthMethodNone
 			}
-			d.SessionsIn() <- StartSession{
+			d.SessionsIn() <- testStartForDriver(d, StartSession{
 				LCP:      testLCPConfig(),
-				TunnelID: 19, SessionID: 3, ChanFD: 19201, UnitFD: 19202,
+				TunnelID: 19, SessionID: 3,
 				AuthMethod: AuthMethodCHAPMD5, AuthFallbackOrder: order,
 				AuthRequired: !optional, DisableIPCP: true, DisableIPv6CP: true,
-			}
+			}, 19201, 19202, 0)
 			first := readPolicyLCP(t, pair.peerEnd)
 			writePolicyPeerPacket(t, pair.peerEnd, LCPConfigureNak, first.Identifier,
 				optStream(authProtoOpt(authProtoPAP)))

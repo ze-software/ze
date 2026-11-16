@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -88,8 +89,8 @@ func drainFramesToPool(frames <-chan []byte) {
 // gates the convergence timer at actual LCP transitions and enables the echo
 // ticker only after authentication and NCP complete.
 func (s *pppSession) run(start *StartSession) {
-	// Teardown order must be: close unitStop (ends a readUnitFrames that
-	// waits for a connect or a free queue slot) -> close both files
+	// Teardown order must be: close readerStop (ends either reader waiting
+	// for a free queue slot, or readUnitFrames waiting for a connect) -> close both files
 	// (unblocks a test pipe's read; the kernel ends both reads when the
 	// channel unregisters) -> wait for both readers to exit -> drain
 	// leftover frames back to the pool. A single defer guarantees the
@@ -100,7 +101,7 @@ func (s *pppSession) run(start *StartSession) {
 		unitFramesCh chan []byte
 		readerWG     sync.WaitGroup
 	)
-	unitStop := make(chan struct{})
+	readerStop := make(chan struct{})
 	defer func() {
 		// A released session (Driver.ReleaseSession) reports no teardown:
 		// the transport still carries the subscriber.
@@ -117,9 +118,11 @@ func (s *pppSession) run(start *StartSession) {
 			}
 		}
 		if err := s.teardownNCPResources(); err != nil {
-			s.logger.Warn("ppp: final NCP cleanup failed; closing unit", "error", err)
+			ReportCleanupFailure(s.dataplane.Identity(), CleanupNetwork, err)
+			s.logger.Warn("ppp: final network cleanup failed; resource removal is unconfirmed",
+				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 		}
-		close(unitStop)
+		close(readerStop)
 		s.closeFiles()
 		readerWG.Wait()
 		if framesCh != nil {
@@ -130,6 +133,7 @@ func (s *pppSession) run(start *StartSession) {
 		}
 	}()
 
+	defer s.stopNCPRestartTimers()
 	mag, err := generateMagic()
 	if err != nil {
 		var tb textbuf.Buffer
@@ -148,7 +152,7 @@ func (s *pppSession) run(start *StartSession) {
 	framesCh = frames
 	s.framesIn = frames
 	readerWG.Go(func() {
-		s.readFrames(frames, readDone)
+		s.readFrames(frames, readDone, readerStop)
 	})
 
 	// The unit reader starts here too, and sleeps until afterLCPOpen
@@ -164,7 +168,7 @@ func (s *pppSession) run(start *StartSession) {
 		s.unitIdle = make(chan struct{}, 1)
 		s.unitGone = make(chan struct{})
 		readerWG.Go(func() {
-			s.readUnitFrames(unitFramesCh, unitReadDone, unitStop)
+			s.readUnitFrames(unitFramesCh, unitReadDone, readerStop)
 		})
 	}
 
@@ -370,6 +374,14 @@ func (s *pppSession) run(start *StartSession) {
 			s.fail(tb.Str("LCP convergence timeout after ").Str(convergenceLimit.String()).String())
 			return
 
+		case <-s.ncpRestartChannel(AddressFamilyIPv4):
+			if s.handleNCPRestartTimeout(AddressFamilyIPv4) {
+				return
+			}
+		case <-s.ncpRestartChannel(AddressFamilyIPv6):
+			if s.handleNCPRestartTimeout(AddressFamilyIPv6) {
+				return
+			}
 		case <-s.restartTimer.C:
 			// RFC 1661 Section 4.3, Timeout: "The TO+ event indicates that
 			// the Restart counter continues to be greater than zero, which
@@ -520,6 +532,17 @@ func (s *pppSession) sendEvent(ev Event) {
 	if _, ok := ev.(EventSessionDown); ok && s.sessionDownSent {
 		return
 	}
+	if _, ending := ev.(EventSessionDown); ending {
+		// The transport may publish PADT as soon as it receives this event.
+		// Finish the last IPv6 advertisement before granting that permission.
+		// A peer-initiated transport close has already gated the wire, so
+		// its cleanup can only fail a write rather than send after PADT.
+		if err := s.stopIPv6Service(); err != nil {
+			ReportCleanupFailure(s.dataplane.Identity(), CleanupIPv6, err)
+			s.logger.Warn("ppp: IPv6 cleanup before session-down failed; resource removal is unconfirmed",
+				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+		}
+	}
 	select {
 	case s.eventsOut <- ev:
 		if _, ok := ev.(EventSessionDown); ok {
@@ -529,22 +552,53 @@ func (s *pppSession) sendEvent(ev Event) {
 	}
 }
 
-// closeFiles releases both descriptors once. mu also guards interface setup,
-// so a late ioctl cannot target a descriptor number reused after shutdown.
+// closeFiles releases the session owner once. mu also guards interface setup,
+// so a late operation cannot target resources reused after shutdown.
 func (s *pppSession) closeFiles() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.filesClosed {
+		s.mu.Unlock()
 		return
 	}
 	s.filesClosed = true
 	s.channelConnected = false
-	if s.chanFile != nil {
-		_ = s.chanFile.Close() //nolint:errcheck // exit cleanup
+	owner := s.dataplane
+	s.mu.Unlock()
+	if err := s.stopIPv6Service(); err != nil {
+		ReportCleanupFailure(owner.Identity(), CleanupIPv6, err)
+		s.logger.Warn("ppp: IPv6 cleanup before session release failed; resource removal is unconfirmed",
+			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
-	if s.unitFile != nil {
-		_ = s.unitFile.Close() //nolint:errcheck // exit cleanup
+	if owner != nil {
+		if err := owner.Close(); err != nil {
+			ReportCleanupFailure(owner.Identity(), CleanupSession, err)
+			s.logger.Warn("ppp: session release failed; resource removal is unconfirmed",
+				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+		}
 	}
+}
+
+// stopIPv6Service joins service workers and finishes its final advertisement
+// before the frame owner closes. Stop is idempotent and resource failures keep
+// the service available for a truthful retry while the handle is still live.
+// Callers MUST hold no session lock.
+func (s *pppSession) stopIPv6Service() error {
+	s.mu.Lock()
+	service := s.ipv6Svc
+	s.mu.Unlock()
+	// refuse-by-default: guards pppSession.closeFiles -- no IPv6 service is valid before activation or after a successful stop; owner release must still proceed.
+	if service == nil {
+		return nil
+	}
+	if err := service.Stop(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	if s.ipv6Svc == service {
+		s.ipv6Svc = nil
+	}
+	s.mu.Unlock()
+	return nil
 }
 
 // afterLCPOpenIPv6Service starts the RA sender and DHCPv6 server on
@@ -560,7 +614,14 @@ func (s *pppSession) closeFiles() {
 // (ai/rules/principles.md). An independent NCP's refusal must not fail
 // the session, so both refusals here are logged and counted, never
 // fatal.
-func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
+func (s *pppSession) afterLCPOpenIPv6Service() {
+	if s.ipv6Svc != nil {
+		// A retained partial service still owns cleanup. Never replace it
+		// with another service, or its address-removal receipt would be lost.
+		reportIPv6Failure(s.logger, s.dataplane.Identity().InterfaceName, "service replacement",
+			errors.New("the previous IPv6 service still owns this network lifetime; replacement requires its successful stop"))
+		return
+	}
 	// RFC 5072 Section 2: "PPP links supporting IPv6 MUST allow the
 	// information field to be at least as large as the minimum link MTU
 	// size required for IPv6 [2]."
@@ -577,18 +638,27 @@ func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
 	}
 
 	svc, err := startIPv6Service(iPv6ServiceConfig{
-		Ifname:           ifname,
 		TunnelID:         s.tunnelID,
 		SessionID:        s.sessionID,
 		LocalInterfaceID: s.localInterfaceID,
 		PeerInterfaceID:  s.peerInterfaceID,
-		Backend:          s.backend,
+		Dataplane:        s.dataplane,
 	}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), s.localInterfaceID[:]...)}, nil, s.logger)
+	if svc != nil {
+		// A failed startup may still own an address whose withdrawal failed.
+		// Keep that owner for resetNCP and final session cleanup to retry.
+		s.ipv6Svc = svc
+	}
 	if err != nil {
+		if svc != nil {
+			ReportCleanupFailure(s.dataplane.Identity(), CleanupIPv6, err)
+			s.logger.Warn("ppp: IPv6 service startup cleanup remains unconfirmed",
+				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+			return
+		}
 		s.logger.Warn("ppp: IPv6 service start failed (non-fatal)", "error", err)
 		return
 	}
-	s.ipv6Svc = svc
 }
 
 // transmitMRU applies the admitted session cap without replacing the peer's
@@ -666,7 +736,6 @@ func (s *pppSession) afterLCPOpen() bool {
 	}
 
 	var tb textbuf.Buffer
-	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	// RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted
 	// over a PPP link is the same as the maximum length of the Information
 	// field of a PPP data link layer frame." MRU already excludes framing.
@@ -677,7 +746,8 @@ func (s *pppSession) afterLCPOpen() bool {
 	// The MTU goes first because the interface of a reopened lifetime is still
 	// up with the previous MTU: resetNCP disconnects the channel and leaves the
 	// interface alone, and the connect below is what lets it transmit again.
-	if err := s.backend.SetMTU(ifname, int(mru)); err != nil {
+	// refuse-by-default: guards pppSession.applyTransition -- false blocks network activation after fail publishes the MTU error, before any channel connect.
+	if err := s.dataplane.SetMTU(int(mru)); err != nil {
 		s.mu.Unlock()
 		s.fail(tb.Str("iface SetMTU: ").Err(err).String())
 		return false
@@ -689,7 +759,8 @@ func (s *pppSession) afterLCPOpen() bool {
 	// deferred-connect pattern): from here on the NCP frames arrive on
 	// the unit, so readUnitFrames is woken to read them. MRU/AdminUp
 	// follow.
-	if err := s.ops.connect(s.chanFD, s.unitNum); err != nil {
+	// refuse-by-default: guards pppSession.applyTransition -- false blocks network activation after fail publishes the connect error, before receive-MRU or admin-up.
+	if err := s.dataplane.Connect(); err != nil {
 		s.mu.Unlock()
 		s.fail(tb.Reset().Str("PPPIOCCONNECT: ").Err(err).String())
 		return false
@@ -700,19 +771,21 @@ func (s *pppSession) afterLCPOpen() bool {
 	// implementation MUST still be able to receive the full 1500 octet
 	// information field in case link synchronization is lost."
 	// The peer's MRU limits our sends, not the kernel's receive buffer.
-	if err := s.ops.setMRU(s.unitFD, MaxFrameLen); err != nil {
+	// refuse-by-default: guards pppSession.applyTransition -- false blocks network activation after fail publishes the receive-MRU error, before admin-up.
+	if err := s.dataplane.SetReceiveMRU(MaxFrameLen); err != nil {
 		s.mu.Unlock()
 		s.fail(tb.Reset().Str("PPPIOCSMRU: ").Err(err).String())
 		return false
 	}
-	if err := s.backend.SetAdminUp(ifname); err != nil {
+	// refuse-by-default: guards pppSession.applyTransition -- false blocks SessionUp after fail publishes the admin-up error; the interface never became usable.
+	if err := s.dataplane.SetAdminUp(); err != nil {
 		s.mu.Unlock()
 		s.fail(tb.Reset().Str("iface SetAdminUp: ").Err(err).String())
 		return false
 	}
 
 	if s.ipv6cpState == LCPStateOpened {
-		s.afterLCPOpenIPv6Service(ifname)
+		s.afterLCPOpenIPv6Service()
 	}
 	s.mu.Unlock()
 
@@ -918,7 +991,9 @@ func (s *pppSession) readUnitFrames(out chan<- []byte, done chan<- error, stop <
 // them on the channel. Exits on read error, which it reports on done,
 // and on a quiesce (Driver.QuiesceSession), which it does not: the session
 // is being handed to a realm relay, not ending.
-func (s *pppSession) readFrames(out chan<- []byte, done chan<- error) {
+// The owner MUST close stop before closing the frame owner and joining this
+// reader, so a queued sender can exit even after its consumer has returned.
+func (s *pppSession) readFrames(out chan<- []byte, done chan<- error, stop <-chan struct{}) {
 	defer close(out)
 	if s.readerGone != nil {
 		defer close(s.readerGone)
@@ -941,6 +1016,9 @@ func (s *pppSession) readFrames(out chan<- []byte, done chan<- error) {
 		}
 		select {
 		case out <- buf[:n]:
+		case <-stop:
+			putFrameBuf(buf)
+			return
 		case <-s.stopCh:
 			putFrameBuf(buf)
 			return

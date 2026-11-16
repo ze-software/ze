@@ -1,0 +1,232 @@
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- registered session data planes
+// Related: session.go -- validated resource ownership returned by a provider
+
+// Package dataplane selects a registered PPPoE session provider. It contains no
+// backend imports: each provider registers its own factory from init.
+package dataplane
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
+
+	"github.com/ze-software/ze/internal/core/naming"
+)
+
+// Request is the raw admission request passed unchanged to the selected
+// provider. The provider MUST validate its transport-specific requirements.
+type Request struct {
+	AccessName string
+	// Device is the resolved session-side device (kernel OS name or VPP DP name).
+	Device string
+	// ControlDevice is the resolved Linux Ethernet device used for control frames.
+	ControlDevice string
+	// Namespace is the Linux control device's namespace; empty means the caller's.
+	Namespace       string
+	SessionID       uint16
+	PeerMAC         [6]byte
+	CaptureProxyLCP bool
+}
+
+// OpenFunc creates one session. Ownership of any nonnil result passes to the
+// caller even on error; Backend.Open closes that result before refusing it.
+// A successful result MUST come from NewOpenedSession.
+type OpenFunc func(context.Context, Request) (OpenedSession, error)
+
+// PrepareFunc resolves an access and installs any provider-specific control
+// mapping before discovery can admit sessions. Ownership of a nonnil result
+// passes to the caller even on error; Backend.Prepare closes it on refusal.
+type PrepareFunc func(context.Context, string) (Access, error)
+
+// Backend is an exact registry selection. Only a successful lookup can create
+// one; its nil interface is invalid, and callers cannot construct a zero value.
+// Prepare and Open are safe for concurrent use if their registered factories
+// are also safe.
+type Backend interface {
+	Name() string
+	// Prepare requires a nonnil context. A successful caller MUST Close the
+	// access after stopping its sessions and discovery dispatch.
+	Prepare(context.Context, string) (Access, error)
+	// Open requires a nonnil context. A successful caller MUST close Dataplane
+	// and CloseTransport when their respective ownership lifetimes end.
+	Open(context.Context, Request) (OpenedSession, error)
+	sessionDataplane()
+}
+
+var sessionDataplanes sessionRegistry
+
+// RegisterSessionDataplane registers a provider's factory, normally from its
+// register.go init. Names use the shared node-name syntax, bounded to 63 bytes.
+// Invalid names, nil factories/preparers and duplicates are refused. Safe for
+// concurrent use.
+func RegisterSessionDataplane(name string, open OpenFunc, prepare PrepareFunc) error {
+	return sessionDataplanes.register(name, open, prepare)
+}
+
+// LookupSessionDataplane selects exactly name. An unavailable provider returns
+// an error; no default or alternative provider is tried. Safe for concurrent use.
+func LookupSessionDataplane(name string) (Backend, error) {
+	return sessionDataplanes.lookup(name)
+}
+
+// SessionDataplaneNames returns an independent, sorted snapshot of registered
+// provider names. Safe for concurrent use; a caller may change its copy.
+func SessionDataplaneNames() []string {
+	return sessionDataplanes.names()
+}
+
+// sessionRegistry's zero value is ready for registration and lookup. Its mutex
+// protects only registration state; a factory runs without holding that mutex.
+type sessionRegistry struct {
+	mu        sync.RWMutex
+	providers map[string]sessionProvider
+}
+
+type sessionProvider struct {
+	open    OpenFunc
+	prepare PrepareFunc
+}
+
+func (r *sessionRegistry) register(name string, open OpenFunc, prepare PrepareFunc) error {
+	const nameMax = 63
+	if err := naming.ValidateNodeName("PPPoE session backend", name, nameMax); err != nil {
+		return err
+	}
+	if open == nil {
+		return fmt.Errorf("PPPoE session backend %q has no open factory", name)
+	}
+	if prepare == nil {
+		return fmt.Errorf("PPPoE session backend %q has no access preparer", name)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.providers[name]; exists {
+		return fmt.Errorf("PPPoE session backend %q is already registered", name)
+	}
+	if r.providers == nil {
+		r.providers = make(map[string]sessionProvider)
+	}
+	r.providers[name] = sessionProvider{open: open, prepare: prepare}
+	return nil
+}
+
+func (r *sessionRegistry) lookup(name string) (Backend, error) {
+	r.mu.RLock()
+	provider, exists := r.providers[name]
+	r.mu.RUnlock()
+	if !exists {
+		names := r.names()
+		if len(names) == 0 {
+			return nil, fmt.Errorf("PPPoE session backend %q is unavailable: no session backends are registered", name)
+		}
+		return nil, fmt.Errorf("PPPoE session backend %q is unavailable (registered: %s)",
+			name, strings.Join(names, ", "))
+	}
+	return &sessionBackend{name: name, open: provider.open, prepare: provider.prepare}, nil
+}
+
+func (r *sessionRegistry) names() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	names := make([]string, 0, len(r.providers))
+	for name := range r.providers {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// sessionBackend is private so the registry alone can create a validated
+// selection. Its fields remain immutable after lookup.
+type sessionBackend struct {
+	name    string
+	open    OpenFunc
+	prepare PrepareFunc
+}
+
+func (b *sessionBackend) Name() string { return b.name }
+
+func (b *sessionBackend) Prepare(ctx context.Context, name string) (Access, error) {
+	if nilResource(ctx) {
+		return nil, fmt.Errorf("PPPoE session backend %q requires a context", b.name)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	access, err := b.prepare(ctx, name)
+	if !nilResource(access) {
+		if _, constructed := access.(*preparedAccess); !constructed {
+			err = errors.Join(err, errors.New("access result was not created by NewAccess"))
+		}
+	}
+	if err == nil {
+		err = ctx.Err()
+	}
+	if err != nil {
+		if !nilResource(access) {
+			err = errors.Join(err, closeAccessOwner(access))
+		}
+		return nil, fmt.Errorf("PPPoE session backend %q: %w", b.name, err)
+	}
+	if nilResource(access) {
+		return nil, fmt.Errorf("PPPoE session backend %q returned no access", b.name)
+	}
+	return access, nil
+}
+
+func (b *sessionBackend) Open(ctx context.Context, request Request) (OpenedSession, error) {
+	if nilResource(ctx) {
+		return nil, fmt.Errorf("PPPoE session backend %q requires a context", b.name)
+	}
+	opened, err := b.open(ctx, request)
+	if !nilResource(opened) {
+		// Embedding an exported interface can inherit its unexported marker.
+		// Require the constructor's concrete result, not the marker alone.
+		if _, constructed := opened.(*openedSession); !constructed {
+			err = errors.Join(err, errors.New("session result was not created by NewOpenedSession"))
+		}
+	}
+	if err != nil {
+		if !nilResource(opened) {
+			err = errors.Join(err, closeSessionResult(opened))
+		}
+		return nil, fmt.Errorf("PPPoE session backend %q: %w", b.name, err)
+	}
+	if nilResource(opened) {
+		return nil, fmt.Errorf("PPPoE session backend %q returned no session", b.name)
+	}
+	return opened, nil
+}
+
+func closeSessionResult(opened OpenedSession) error {
+	return errors.Join(closeSessionDataplane(opened), closeSessionTransport(opened))
+}
+
+// A refused factory result may inherit a nil accessor through interface
+// embedding. Contain each owner's cleanup separately so one broken owner
+// cannot prevent the other ownership role from being released.
+func closeSessionDataplane(opened OpenedSession) (err error) {
+	defer func() {
+		if failure := recover(); failure != nil {
+			err = fmt.Errorf("PPPoE session data-plane cleanup panicked: %v", failure)
+		}
+	}()
+	if handle := opened.Dataplane(); !nilResource(handle) {
+		return handle.Close()
+	}
+	return nil
+}
+
+func closeSessionTransport(opened OpenedSession) (err error) {
+	defer func() {
+		if failure := recover(); failure != nil {
+			err = fmt.Errorf("PPPoE session transport cleanup panicked: %v", failure)
+		}
+	}()
+	return opened.CloseTransport()
+}
+
+func (*sessionBackend) sessionDataplane() {}

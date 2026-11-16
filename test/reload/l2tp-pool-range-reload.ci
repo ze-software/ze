@@ -1,0 +1,111 @@
+# Question: does an operator's SIGHUP pool edit reach the running allocator
+# while a subscriber retains the sole boot address? A unit test cannot decide
+# the daemon's config transaction and registered command-to-handler wiring.
+# VALIDATES: spec-l2tp-pool-reload-applies AC-1, AC-2, AC-3, AC-20.
+# The zetest-only internal fakel2tp plugin invokes the real registered pool
+# handlers. Linux IPCP wire/kernel proof remains in the L2TP interop scenarios.
+# DISCRIMINATION: the old apply no-op retains total=1; the observer requires
+# total=2 with one carried allocation, then receives .11 from the added range.
+# The first named-pool read also requires the named IPv4 and IPv6 pools to report
+# their exact ranges and reservation counts after the synthetic requests.
+# Equal numeric L2TP/PPPoE pairs then hold distinct gold addresses through a
+# second real reload. Either subscriber teardown must retain the other owner;
+# a repeated request must not create another reservation for that survivor.
+
+stdin=ze-bgp:terminator=EOF_CONF
+l2tp {
+    enabled false
+    pool {
+        ipv4 {
+            gateway 10.100.0.1
+            start 10.100.0.10
+            end 10.100.0.10
+        }
+    }
+}
+plugin {
+    internal pool-source {
+        use fakel2tp
+    }
+    external pool-observer {
+        run "le test fixture reload/l2tp-pool-range"
+    }
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+l2tp {
+    enabled false
+    pool {
+        ipv4 {
+            gateway 10.100.0.1
+            start 10.100.0.10
+            end 10.100.0.11
+        }
+        named-pool gold {
+            gateway 10.101.0.1
+            start 10.101.0.10
+            end 10.101.0.11
+        }
+        ipv6-pd {
+            block fd00:100::/56
+            delegation-length 64
+        }
+        named-ipv6-pool gold6 {
+            block fd00:101::/56
+            delegation-length 64
+        }
+    }
+}
+plugin {
+    internal pool-source {
+        use fakel2tp
+    }
+    external pool-observer {
+        run "le test fixture reload/l2tp-pool-range"
+    }
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+l2tp {
+    enabled false
+    pool {
+        ipv4 {
+            gateway 10.100.0.1
+            start 10.100.0.10
+            end 10.100.0.11
+        }
+        named-pool gold {
+            gateway 10.101.0.1
+            start 10.101.0.10
+            end 10.101.0.12
+        }
+        ipv6-pd {
+            block fd00:100::/56
+            delegation-length 64
+        }
+        named-ipv6-pool gold6 {
+            block fd00:101::/56
+            delegation-length 64
+        }
+    }
+}
+plugin {
+    internal pool-source {
+        use fakel2tp
+    }
+    external pool-observer {
+        run "le test fixture reload/l2tp-pool-range"
+    }
+}
+EOF_CONF3
+
+option=env:var=ze.log.l2tp.pool:value=info
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: reloaded pool allocated added address 10.100.0.11, named address and IPv6 prefix
+expect=stderr:contains=OK: show l2tp pool reports named IPv4 and IPv6 reservations
+expect=stderr:contains=OK: equal L2TP and PPPoE numeric ids retain distinct addresses through reload and either teardown
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

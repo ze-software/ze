@@ -18,12 +18,12 @@ func TestAuthAllowEmptyRefusesPAPNak(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer d.Stop()
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:      testLCPConfig(),
-		TunnelID: 16, SessionID: 1, ChanFD: 16001, UnitFD: 16002,
+		TunnelID: 16, SessionID: 1,
 		AuthMethod: AuthMethodCHAPMD5, AuthRequired: true,
 		DisableIPCP: true, DisableIPv6CP: true,
-	}
+	}, 16001, 16002, 0)
 	proto, payload := readPeerFrame(t, pair.peerEnd)
 	if proto != ProtoLCP {
 		t.Fatalf("first protocol = %04x, want LCP", proto)

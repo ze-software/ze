@@ -156,6 +156,8 @@ func pppoxSetRecvSeq(fd int, enabled bool) error {
 // and unit setup via /dev/ppp. All four fds must be closed during
 // teardown in reverse order (unitFD, chanFD, pppoxFD, then genl delete).
 type pppSessionFDs struct {
+	// relay pins the call that created these worker-owned resources.
+	relay   *relayCall
 	pppoxFD int // PPPoL2TP socket fd
 	chanFD  int // /dev/ppp fd attached to channel
 	unitFD  int // /dev/ppp fd with allocated PPP unit

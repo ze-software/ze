@@ -21,29 +21,33 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe"
+	_ "github.com/ze-software/ze/internal/plugins/iface/netlink"
 	"github.com/ze-software/ze/internal/test/pppoeac"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // realmBridgeRig is the kernel path a realm-relayed subscriber crosses, built
 // the way the LAC builds it: the PPPoE server's session socket and /dev/ppp
-// channel (pppoe.PPPoECreate, ppp.DevPPPSetup, as handlePADR does), and the
-// kernel L2TP tunnel, session and pppol2tp channel
-// (l2tp.OpenKernelL2TPSession, ppp.DevPPPSetup, as setupSession and
-// pppSetupReal do). The far ends are a
+// channel (pppoe.PPPoECreate, pppkernel.DevPPPSetup), and the kernel L2TP
+// tunnel, session and pppol2tp channel (l2tp.OpenKernelL2TPSession,
+// pppkernel.DevPPPSetup, as setupSession and pppSetupReal do). Both local
+// channel/unit pairs transfer to pppkernel.NewSession; their handles own
+// closure while the separate PPPoX transports remain open. The far ends are a
 // raw subscriber on the veth pair and a plain UDP socket standing for the
 // LNS, so a test sees exactly which frames the kernel delivers where.
 type realmBridgeRig struct {
-	subscriber    *pppoeac.Peer
-	acMAC         [pppoe.EthALen]byte
-	pppoeFD       int // the subscriber's PPPoE session socket
-	driverChanFD  int // the /dev/ppp channel the PPP driver reads
-	l2tpChanFD    int // the /dev/ppp channel of the pppol2tp socket
-	lnsFD         int // the LNS's end of the tunnel
-	driverChanSet bool
+	subscriber   *pppoeac.Peer
+	acMAC        [pppoe.EthALen]byte
+	pppoeFD      int               // the subscriber's PPPoE session socket
+	driverChanFD int               // borrowed /dev/ppp channel for probes
+	driverOwner  ppp.SessionHandle // owns the driver's channel and unit
+	l2tpChanFD   int               // borrowed pppol2tp channel for bridging
+	lnsFD        int               // the LNS's end of the tunnel
 }
 
 const (
@@ -72,23 +76,24 @@ func newRealmBridgeRig(t *testing.T) *realmBridgeRig {
 	var subscriberMAC [pppoe.EthALen]byte
 	copy(subscriberMAC[:], subscriberLink.Attrs().HardwareAddr)
 
-	// The PPPoE side, as handlePADR builds it for a session that runs PPP
-	// locally first.
+	backend, err := iface.OpenBackend("netlink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Errorf("close the kernel interface backend: %v", err)
+		}
+	})
+
+	// The PPPoE side, as the kernel session factory builds it for a session
+	// that runs PPP locally first.
 	rig.pppoeFD, err = pppoe.PPPoECreate(pppoe.InterfaceBinding{Device: "zrl0"}, realmRigSessionID, subscriberMAC)
 	if err != nil {
 		t.Fatalf("PPPoE session socket: %v; the kernel needs pppoe (CONFIG_PPPOE)", err)
 	}
 	t.Cleanup(func() { pppoe.ClosePPPoxFD(rig.pppoeFD) })
-	driverChanFD, driverUnitFD, _, err := ppp.DevPPPSetup(rig.pppoeFD, "")
-	if err != nil {
-		t.Fatalf("PPPoE /dev/ppp channel: %v", err)
-	}
-	rig.driverChanFD = driverChanFD
-	rig.driverChanSet = true
-	t.Cleanup(func() {
-		rig.closeDriverChannel(t)
-		closeFD(t, driverUnitFD)
-	})
+	rig.driverChanFD, rig.driverOwner = realmRigPPPSession(t, rig.pppoeFD, backend)
 
 	// The L2TP side: the LAC's listener, the LNS's socket, and the kernel
 	// tunnel and session between them.
@@ -100,16 +105,44 @@ func newRealmBridgeRig(t *testing.T) *realmBridgeRig {
 	}
 	l2tpFD := l2tp.OpenKernelL2TPSession(t, lacFD, lnsAddr,
 		realmRigLocalTID, realmRigLocalSID, realmRigRemoteTID, realmRigRemoteSID)
-	l2tpChanFD, l2tpUnitFD, _, err := ppp.DevPPPSetup(l2tpFD, "")
-	if err != nil {
-		t.Fatalf("pppol2tp /dev/ppp channel: %v", err)
-	}
-	rig.l2tpChanFD = l2tpChanFD
-	t.Cleanup(func() {
-		closeFD(t, l2tpUnitFD)
-		closeFD(t, l2tpChanFD)
-	})
+	rig.l2tpChanFD, _ = realmRigPPPSession(t, l2tpFD, backend)
 	return rig
+}
+
+// realmRigPPPSession transfers a real attached channel and unit to the same
+// kernel owner used by both transports. Its returned descriptor is borrowed
+// only for native probes and bridge ioctls; cleanup closes the owner instead.
+func realmRigPPPSession(t *testing.T, pppoxFD int, backend iface.Backend) (int, ppp.SessionHandle) {
+	t.Helper()
+	chanFD, unitFD, unitNum, err := pppkernel.DevPPPSetup(pppoxFD, "")
+	if err != nil {
+		t.Fatalf("kernel PPP channel/unit setup: %v", err)
+	}
+	_, owner, err := pppkernel.NewSession(pppkernel.SessionConfig{
+		ChanFD: chanFD, UnitFD: unitFD, UnitNum: unitNum, Backend: backend,
+		ReadCounters: func(name string) (ppp.SessionCounters, error) {
+			stats, err := backend.GetStats(name)
+			if err != nil {
+				return ppp.SessionCounters{}, err
+			}
+			if stats == nil {
+				return ppp.SessionCounters{}, errors.New("kernel interface returned no raw counter snapshot")
+			}
+			return ppp.SessionCounters{
+				RxBytes: stats.RxBytes, TxBytes: stats.TxBytes,
+				RxPackets: stats.RxPackets, TxPackets: stats.TxPackets,
+			}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("kernel PPP session owner: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := owner.Close(); err != nil {
+			t.Errorf("close the kernel PPP session: %v", err)
+		}
+	})
+	return chanFD, owner
 }
 
 // realmRigUDP opens a UDP socket on 127.0.0.1 with a kernel-chosen port.
@@ -148,15 +181,13 @@ func closeFD(t *testing.T, fd int) {
 	}
 }
 
-// closeDriverChannel closes the driver's channel descriptor the way
-// ReleaseSession does after a successful bridge. It is idempotent.
+// closeDriverChannel releases the driver's channel and unit through their
+// owner, as ReleaseSession does after a successful bridge. It is idempotent.
 func (rig *realmBridgeRig) closeDriverChannel(t *testing.T) {
 	t.Helper()
-	if !rig.driverChanSet {
-		return
+	if err := rig.driverOwner.Close(); err != nil {
+		t.Errorf("release the driver's kernel PPP session: %v", err)
 	}
-	rig.driverChanSet = false
-	closeFD(t, rig.driverChanFD)
 }
 
 // sendMarked sends one LCP Configure-Request from the subscriber whose data
@@ -305,8 +336,8 @@ func TestLACRealmHandoffRetransmission(t *testing.T) {
 		t.Fatal("the LNS received a second message: the frame sent while quiesced was delivered late")
 	}
 
-	// ReleaseSession closes the driver's channel; the queued frame goes with
-	// it, and the bridge, which the pppox sockets hold, stays.
+	// ReleaseSession closes the driver's local channel/unit owner; the queued
+	// frame goes with it, and the bridge, which the pppox sockets hold, stays.
 	rig.closeDriverChannel(t)
 	upstream := []byte{0xfe, 0x06, 'U', 'P', 'S', '1'}
 	rig.sendMarked(t, 8, upstream)

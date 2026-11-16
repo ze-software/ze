@@ -211,6 +211,7 @@ ze_l2tp    internal/component/l2tp
 ze_l2tp    internal/component/l2tp/cli
 ze_l2tp    internal/component/l2tp/cmd
 ze_l2tp    internal/component/l2tp/events
+ze_l2tp    internal/component/l2tp/ppp
 ze_l2tp    internal/component/l2tp/pppoe
 ze_l2tp    internal/component/l2tp/pppoe/cmd
 ze_l2tp    internal/component/l2tp/pppoeclient
@@ -218,6 +219,7 @@ ze_l2tp    internal/component/l2tp/subscriber
 ze_l2tp    internal/component/l2tp/subscriber/cmd
 ze_l2tp    internal/component/l2tp/plugins/authlocal
 ze_l2tp    internal/component/l2tp/plugins/pool
+ze_l2tp    internal/component/l2tp/plugins/pppoe-kernel
 ze_l2tp    internal/component/l2tp/plugins/shaper
 
 # ze_radius -- the RADIUS (RFC 2865) client library and AAA backend. Usable

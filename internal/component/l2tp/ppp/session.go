@@ -13,8 +13,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
 // pppSession is the per-session state owned by one goroutine in the
@@ -28,8 +26,9 @@ import (
 // resulting actions are performed inline by the goroutine.
 type pppSession struct {
 	// Identification (immutable after StartSession).
-	tunnelID  uint16
-	sessionID uint16
+	tunnelID     uint16
+	sessionID    uint16
+	subscriberID string
 
 	// The channel carries userspace PPP control frames. unitFile owns
 	// the kernel PPP unit attached by PPPIOCCONNECT; framesIn is fed
@@ -47,17 +46,16 @@ type pppSession struct {
 	// reads EOF and goes back to sleep, and unitGone closes when it returns.
 	// resetNCP MUST set unitDrainOwed when it disconnects, and afterLCPOpen
 	// MUST then run awaitUnitDrained before it connects again.
-	chanFile      io.ReadWriteCloser
-	unitFile      io.ReadCloser
+	chanFile      io.ReadWriter
+	unitFile      io.Reader
 	framesIn      <-chan []byte
 	unitFramesIn  <-chan []byte
 	unitConnected chan struct{}
 	unitIdle      chan struct{}
 	unitGone      chan struct{}
 	unitDrainOwed bool
-	chanFD        int
-	unitFD        int
-	unitNum       int
+	frames        FrameChannel
+	dataplane     SessionHandle
 	lnsMode       bool
 	pppoe         bool
 
@@ -178,12 +176,6 @@ type pppSession struct {
 	// Wraps at 256 which is far beyond any realistic re-auth cadence.
 	chapIdentifier uint8
 
-	// Iface backend for setting pppN MTU after LCP-Opened.
-	backend IfaceBackend
-
-	// pppOps for ioctls (PPPIOCSMRU). Injected for tests.
-	ops pppOps
-
 	// Driver's lifecycle events channel (write-only from this
 	// goroutine). Carries Event (EventLCPUp / EventSessionUp / ...).
 	eventsOut chan<- Event
@@ -218,6 +210,10 @@ type pppSession struct {
 	disableIPCP   bool
 	disableIPv6CP bool
 	ipTimeout     time.Duration
+	// Each NCP has the same RFC automaton as LCP and an independent Restart
+	// budget. The session goroutine owns these; run/resetNCP MUST stop them.
+	ipcpRestart   ncpRestart
+	ipv6cpRestart ncpRestart
 
 	// NCP dispatch starts only after authentication completes. runNCPPhase
 	// MUST set ncpStarted; LCP This-Layer-Down MUST clear it through resetNCP.
@@ -326,6 +322,10 @@ type pppSession struct {
 	peerIPv4     netip.Addr
 	dnsPrimary   netip.Addr
 	dnsSecondary netip.Addr
+	// installedIPv4 owns the successful address installation independently
+	// of the proposal, which a Configure-Nak can change before TLD runs.
+	// Only confirmed withdrawal clears it; FSM state is not a resource receipt.
+	installedIPv4 netip.Prefix
 	// localInterfaceID is Ze's own IPv6CP Interface-Identifier, seeded
 	// once by requestIPv6CPInterfaceID (ncp.go) from
 	// generateIPv6CPInterfaceID (ipv6cp.go), which retries until the
@@ -376,7 +376,7 @@ type pppSession struct {
 type sessionInfo struct {
 	TunnelID        uint16
 	SessionID       uint16
-	UnitNum         int
+	Identity        SessionIdentity
 	State           LCPState
 	NegotiatedMRU   uint16
 	EchoOutstanding uint8
@@ -388,29 +388,9 @@ func (s *pppSession) snapshot() sessionInfo {
 	return sessionInfo{
 		TunnelID:        s.tunnelID,
 		SessionID:       s.sessionID,
-		UnitNum:         s.unitNum,
+		Identity:        s.dataplane.Identity(),
 		State:           s.state,
 		NegotiatedMRU:   s.negotiatedMRU,
 		EchoOutstanding: s.echoOutstanding,
 	}
-}
-
-// IfaceBackend is the small subset of internal/component/iface.Backend
-// that the PPP package needs, expressed locally so ppp does not import
-// iface (which would create a cycle through transport packages later).
-// Production callers wrap iface.GetBackend(); tests inject fakes.
-type IfaceBackend interface {
-	SetMTU(name string, mtu int) error
-	SetAdminUp(name string) error
-	// AddAddressP2P installs a point-to-point address on pppN after
-	// IPCP negotiation completes (spec-l2tp-6c-ncp AC-5), and the
-	// IPv6CP link-local pair when the IPv6 service starts.
-	AddAddressP2P(name, localCIDR, peerCIDR string) error
-	// AddRoute installs IPv6 delegated-prefix routes through the peer.
-	AddRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error
-	// RemoveAddress removes the IPCP address or the IPv6CP link-local
-	// address, with its kernel-created peer route.
-	RemoveAddress(name, cidr string) error
-	// RemoveRoute withdraws IPv6 delegated-prefix routes.
-	RemoveRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error
 }

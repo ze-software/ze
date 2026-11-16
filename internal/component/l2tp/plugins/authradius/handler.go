@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/taskguard"
 )
@@ -73,6 +74,9 @@ func (a *radiusAuth) setExclusions(exclusions attributeExclusions) {
 // It spawns a goroutine per request for async RADIUS I/O, returning
 // Handled=true so the drain goroutine skips its own AuthResponse call.
 func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
+	if err := subscriber.RequireID(logger(), req.SubscriberID); err != nil {
+		return l2tp.AuthResult{Accept: false, Message: err.Error()}
+	}
 	a.mu.RLock()
 	client := a.client
 	nasID := a.nasID
@@ -206,7 +210,7 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 
 		// RFC 2865: extract subscriber profile attributes from Access-Accept.
 		if meta := extractAuthMetadata(resp); meta != nil {
-			l2tp.StoreSessionMetadata(req.TunnelID, req.SessionID, meta)
+			l2tp.StoreSessionMetadata(req.SubscriberID, meta)
 			logger().Info("l2tp-auth-radius: stored session metadata",
 				"tunnel", req.TunnelID, "session", req.SessionID,
 				"framed-ip", meta.FramedIP, "framed-pool", meta.FramedPool)

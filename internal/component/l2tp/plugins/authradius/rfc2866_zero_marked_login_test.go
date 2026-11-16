@@ -37,6 +37,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -137,7 +138,7 @@ func (s *loginRADIUS) nextAccounting(t *testing.T) *radius.Packet {
 // the server received for it, in that order.
 func loginSession(t *testing.T, bus *providerLifecycleBus, srv *loginRADIUS, req ppp.EventAuthRequest) (start, stop *radius.Packet) {
 	t.Helper()
-	t.Cleanup(func() { l2tp.ClearSessionMetadata(req.TunnelID, req.SessionID) })
+	t.Cleanup(func() { l2tp.ClearSessionMetadata(req.SubscriberID) })
 	handler := l2tp.GetAuthHandler()
 	if handler == nil {
 		t.Fatal("no authentication provider is registered")
@@ -239,7 +240,8 @@ func TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes(t *testing.T)
 	bus, srv := startLoginProvider(t, loginAcceptServiceAttrs())
 
 	start, stop := loginSession(t, bus, srv, ppp.EventAuthRequest{
-		TunnelID: 80, SessionID: 21, Method: ppp.AuthMethodCHAPMD5, Identifier: 3,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(80), 21),
+		TunnelID:     80, SessionID: 21, Method: ppp.AuthMethodCHAPMD5, Identifier: 3,
 		Username: "dave", Challenge: bytes.Repeat([]byte{0x5a}, 16), Response: bytes.Repeat([]byte{0x6b}, 16),
 	})
 	assertNoZeroMarkedAttribute(t, "Start", start, nil)
@@ -275,12 +277,14 @@ func TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting(t *testing.T)
 	challenge := bytes.Repeat([]byte{0xc7}, 16)
 	chapResponse := bytes.Repeat([]byte{0xd9}, 16)
 	chapStart, chapStop := loginSession(t, bus, srv, ppp.EventAuthRequest{
-		TunnelID: 81, SessionID: 22, Method: ppp.AuthMethodCHAPMD5, Identifier: 9,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(81), 22),
+		TunnelID:     81, SessionID: 22, Method: ppp.AuthMethodCHAPMD5, Identifier: 9,
 		Username: "carol", Challenge: challenge, Response: chapResponse,
 	})
 	papPassword := []byte("pap-secret-9q")
 	papStart, papStop := loginSession(t, bus, srv, ppp.EventAuthRequest{
-		TunnelID: 81, SessionID: 23, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(81), 23),
+		TunnelID:     81, SessionID: 23, Method: ppp.AuthMethodPAP,
 		Username: "erin", Response: papPassword,
 	})
 

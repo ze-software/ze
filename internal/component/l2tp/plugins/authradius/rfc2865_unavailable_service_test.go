@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -22,7 +23,8 @@ func acceptOutcome(t *testing.T, reply []radius.Attr) bool {
 	a, resp, cleanup := setupAuthWithAttrs(t, []byte("testing123"), radius.CodeAccessAccept, reply)
 	defer cleanup()
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("pw"),
 	}, resp.respond)
 	return resp.waitOne(t).accept

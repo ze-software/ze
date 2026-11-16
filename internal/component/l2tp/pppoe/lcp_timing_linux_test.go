@@ -5,9 +5,12 @@
 package pppoe
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 
 	"golang.org/x/sys/unix"
 
@@ -20,7 +23,7 @@ import (
 // fails the wire observation instead of merely comparing configuration structs.
 func TestPPPoEStartSessionCarriesLCPRestartConfig(t *testing.T) {
 	p := extractFromConfigText(t, "set pppoe interface eth0\nset pppoe lcp restart-timer 150\nset pppoe lcp max-configure 3\n")
-	driver := ppp.NewProductionDriver(slog.Default(), mruCeilingBackend{})
+	driver := ppp.NewProductionDriver(slog.Default())
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -31,10 +34,13 @@ func TestPPPoEStartSessionCarriesLCPRestartConfig(t *testing.T) {
 	server := &InterfaceServer{
 		ifName: "eth0", hwAddr: hardware, sessions: newSessionTable("eth0", 8), cookieKey: key, logger: slog.Default(), pppDriver: driver,
 		sendFrameFn: func([]byte) {},
-		pppoeCreateFn: func(string, uint16, [EthALen]byte) (int, error) {
-			return unix.Open("/dev/null", unix.O_RDWR|unix.O_CLOEXEC, 0)
+		openSession: func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
+			transport, err := unix.Open("/dev/null", unix.O_RDWR|unix.O_CLOEXEC, 0)
+			if err != nil {
+				return nil, err
+			}
+			return fixtureKernelOpened(t, transport, channel[0], unit[0], 1), nil
 		},
-		devPPPSetupFn: func(int) (int, int, int, error) { return channel[0], unit[0], 1, nil },
 	}
 	applyInterfaceConfig(server, &p.Interfaces[0], &p)
 	server.handlePADR(&Packet{Code: CodePADR, SrcMAC: peer, Tags: []Tag{

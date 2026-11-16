@@ -41,11 +41,11 @@ func TestNewLCPLifetimeRestoresConfiguredMRU(t *testing.T) {
 		closeConn(pair.peerEnd)
 		d.Stop()
 	})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:      testLCPConfig(),
-		TunnelID: 29, SessionID: 4, ChanFD: 29301, UnitFD: 29302, UnitNum: 42,
+		TunnelID: 29, SessionID: 4,
 		MaxMRU: 1500, AuthTimeout: 5 * time.Second, IPTimeout: 5 * time.Second,
-	}
+	}, 29301, 29302, 42)
 	td := &ncpTestDriver{t: t, driver: d, backend: backend, peer: pair.peerEnd}
 
 	// First lifetime: the Nak lowers Ze's offer and refuses IPv6 service.
@@ -189,11 +189,11 @@ func TestInterfaceMTUInstalledBeforeChannelConnect(t *testing.T) {
 	s.negotiatedMRU = 1400
 	s.authRespCh <- authResponseMsg{accept: true}
 	var steps []string
-	s.backend = &mtuOrderBackend{
+	testHandleFor(s).backend = &mtuOrderBackend{
 		fakeBackend: &fakeBackend{},
 		onSetMTU:    func() { steps = append(steps, "mtu") },
 	}
-	s.ops.connect = func(_, _ int) error {
+	testHandleFor(s).ops.connect = func(_, _ int) error {
 		steps = append(steps, "connect")
 		return nil
 	}
@@ -210,9 +210,9 @@ func TestInterfaceMTUInstalledBeforeChannelConnect(t *testing.T) {
 func TestFailedMTUDoesNotConnectChannel(t *testing.T) {
 	s, _, events := newRFC1661Session(LCPStateOpened)
 	s.authRespCh <- authResponseMsg{accept: true}
-	s.backend = &fakeBackend{mtuErr: errors.New("mtu refused")}
+	testHandleFor(s).backend = &fakeBackend{mtuErr: errors.New("mtu refused")}
 	connects := 0
-	s.ops.connect = func(_, _ int) error {
+	testHandleFor(s).ops.connect = func(_, _ int) error {
 		connects++
 		return nil
 	}

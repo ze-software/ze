@@ -41,11 +41,23 @@ subscriptions would deliver each L2TP teardown twice. The two emitters cannot
 disagree about whether the bridge exists: `Subsystem.Start` gives the reactor
 and the bridge the same event bus, and builds neither when that bus is nil.
 
-**`Session.PPPKey` names the PPP driver's identifier pair.** A consumer that
-stored per-session state when the driver asked it for an address reads that
-state back under the same pair. It is the tunnel and session id for L2TP, and
-the access interface index with the PPPoE session id for PPPoE. The branch lives
-on the session rather than in each consumer.
+**`Session.PPPKey` names a transport-local PPP driver pair.** L2TP uses its
+tunnel and session IDs; PPPoE uses its access interface and session IDs.
+Those pairs can be equal across transports. Shared authorization and pool
+ownership use the existing canonical `Session.ID`, carried unchanged through
+PPP requests and cleanup events. Numeric coordinates remain display fields.
+<!-- source: internal/component/l2tp/subscriber/session.go -- PPPKey -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, onSessionDown -->
+<!-- source: internal/component/l2tp/session_metadata.go -- StoreSessionMetadata -->
+
+Both NAS authentication drains require the ID before provider lookup, realm
+selection or pending-authorization changes. A missing ID receives a refusal
+without a subscriber result event. Valid opaque IDs pass unchanged to the
+provider and its result event. Pool drains apply the same guard before
+invoking the allocator. The L2TP pool drain also validates the ID before
+resolving its current provider.
+<!-- source: internal/component/l2tp/drain.go -- startAuthDrain, startPoolDrain -->
+<!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEAuthDrain, startPPPoEPoolDrain -->
 
 ## Subscriber transmit limit
 
@@ -245,3 +257,81 @@ function and the auth result exist in both the l2tp and the subscriber package
 with the same shape and different names. The delegation layer converts field by
 field; assignment does not compile and a type conversion would hide a future
 divergence.
+
+## Pool ownership across reload
+
+Verification distinguishes removal from malformed input before it constructs
+pool descriptions. An absent `l2tp` root or `pool` block removes the configured
+pools. Empty root and pool objects also remove the pools; empty named lists
+have no entries. A present block or named-list entry must be an object.
+Scalars, arrays and null values are refused, so a malformed
+candidate cannot silently clear the running pools. The engine sends an empty
+object section when it removes a root.
+<!-- source: internal/component/l2tp/plugins/pool/config.go -- parsePoolDescription -->
+<!-- source: internal/component/l2tp/plugins/pool/config_shape.go -- poolConfigObject, poolConfigList -->
+<!-- source: internal/component/plugin/server/reload_compensation.go -- reloadConfigSections -->
+
+Session allocation records are keyed only by canonical subscriber ID and are
+the source of truth. A pool reload rebuilds its
+bitmaps from those records while allocation and release are excluded by the
+same locks. Each IPv4 record names the replacement pool that contains its
+address. A prefix reserves every overlapping new IPv6 slot, including slots in
+different replacement pools. A shared slot remains reserved until its last
+live owner releases it.
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
+<!-- source: internal/component/l2tp/plugins/pool/pool.go -- carry, release -->
+<!-- source: internal/component/l2tp/plugins/pool/pool_v6.go -- carry, releaseOverlap -->
+
+An assignment outside all replacement ranges stays with its session. Teardown
+removes that record without changing another pool. Rollback rebuilds the old
+ranges from the records held then, so it also preserves sessions admitted
+after apply.
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- carryIPv4, carryIPv6 -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- onSessionDown, releasePrefix -->
+
+RADIUS admission checks the same live records before reserving an assignment.
+An IPv4 address stays exclusive even outside every current range. The pool
+that contains it owns its bitmap reservation; the `Framed-Pool` profile still
+supplies the gateway and DNS. IPv6 admission checks actual prefix overlap,
+then reserves every overlapping configured slot. Disjoint smaller prefixes
+may therefore share a coarse slot without sharing subscriber address space.
+Each family holds its allocation lock through the check, reservation and
+record store, so a reload cannot pass between those steps.
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked, reserveRADIUSPrefixLocked -->
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, handlePrefix -->
+
+Pool status takes both family read locks in installation order to snapshot the
+default pools, named pools and IPv4 allocation records together. It releases
+those locks before looking up usernames by canonical ID in the subscriber
+registry. Existing
+top-level default statistics remain unchanged; optional `named-pools` and
+`named-ipv6-pools` maps expose the same statistics for named pools.
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- showPool, showPoolSnapshot, poolShowResult -->
+
+## Undelivered pool answers
+
+A pool answer owns its reservation before PPP receives it. If the session ends
+while the request waits in a drain, its session-down can run before that
+reservation exists. Both transport drains therefore return an accepted
+answer's reservation when `Driver.IPResponse` cannot deliver it. The release
+travels as `(subscriber, pool-answer-undelivered)`, carrying the canonical
+subscriber ID and the pool's opaque `AllocationID`. Numeric PPP coordinates
+are included only for diagnostics.
+
+The pool releases only the record whose subscriber ID and allocation ID match
+the answer.
+A delayed failure therefore cannot release a successor's reservation, even
+when the transport reuses its identifiers. This event concerns one address
+answer; it does not publish another session-down or clear authentication,
+shaping or accounting state. Refusals and answers without an owned allocation
+produce no release. A missing bus or a failed publication raises
+`doctor-internal-defect`, visible through `ze show errors`.
+
+The caller stops the PPP driver and joins its drain before discarding the
+subscriber bus. A small driver interface in each drain lets unit tests order
+session removal before delivery without needing a kernel PPP session.
+
+<!-- source: internal/component/l2tp/ppp/manager.go -- IPResponseArgs, IPResponse -->
+<!-- source: internal/component/l2tp/drain.go -- startPoolDrain -->
+<!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEPoolDrain -->
+<!-- source: internal/component/l2tp/subscriber/events/pool_answer.go -- PoolAnswerUndeliveredPayload, ReleaseUndeliveredPoolAnswer -->

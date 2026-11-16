@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2869-1.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestNamesTheServiceZeOffers",
+    "unit-sha": "b8dde666311b0231",
+    "claim-sha": "cc80c17622492c84",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
+    "producer-sha": "e642f001446972f0",
+    "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2869-1.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestNeverRequestsAnUnavailableService",
+    "unit-sha": "5e6105511740234e",
+    "claim-sha": "8ca825f2ca920992",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
+    "producer-sha": "e642f001446972f0",
+    "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  }
+]

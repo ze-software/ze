@@ -7,9 +7,10 @@ package ppp
 
 import (
 	"errors"
-	"io"
+	"fmt"
 	"log/slog"
 	"net/netip"
+	"reflect"
 	"sync"
 )
 
@@ -54,23 +55,6 @@ type sessionKey struct {
 	sessionID uint16
 }
 
-// newChanFileFn wraps an owned blocking control-channel descriptor.
-// Tests replace it with a pipe transport.
-var newChanFileFn = NewFDFile
-
-// newQuiescableChanFileFn wraps the channel descriptor of a session that
-// may be handed to a realm relay, in a file whose blocked Read
-// Driver.QuiesceSession can wake. SetNewChanFileForTest replaces it too.
-var newQuiescableChanFileFn = newInterruptibleFDFile
-
-// newUnitFileFn wraps the owned kernel PPP unit descriptor.
-var newUnitFileFn = func(fd int) io.ReadCloser {
-	if fd <= 0 {
-		return nil
-	}
-	return NewFDFile(fd, "ppp.unit")
-}
-
 // Driver owns all active PPP sessions. It accepts StartSession
 // payloads on SessionsIn(), spawns one long-lived goroutine per
 // session, and emits Event values on EventsOut() that the transport
@@ -87,9 +71,7 @@ var newUnitFileFn = func(fd int) io.ReadCloser {
 //
 // Safe for concurrent use across the documented public methods.
 type Driver struct {
-	logger  *slog.Logger
-	backend IfaceBackend
-	ops     pppOps
+	logger *slog.Logger
 
 	sessionsIn    chan StartSession
 	eventsOut     chan Event
@@ -103,71 +85,29 @@ type Driver struct {
 	started  bool
 	stopped  bool
 	sessions map[sessionKey]*pppSession
-	wg       sync.WaitGroup
+	// owners retains each admitted lease until its worker exits, including
+	// the interval after StopSession or ReleaseSession removes its key.
+	owners map[SessionHandle]sessionKey
+	wg     sync.WaitGroup
 }
 
-// driverConfig captures the dependencies the Driver needs.
-// Construction fails (panics on nil required fields) at NewDriver
-// to keep the start-time check explicit.
-type driverConfig struct {
-	// Logger is required. Use slogutil.Logger("ppp") in production.
-	Logger *slog.Logger
-
-	// Backend configures pppN interface properties (MTU, admin
-	// state) after LCP-Opened. iface.GetBackend() in production;
-	// fake in tests.
-	Backend IfaceBackend
-
-	// Ops is the syscall surface for /dev/ppp ioctls. newPPPOps()
-	// in production; fake func fields in tests.
-	Ops pppOps
-}
-
-// NewProductionDriver constructs a Driver wired to the real /dev/ppp
-// ioctl ops, the supplied logger, and the iface backend for pppN MTU
-// set. The transport (l2tp today, PPPoE later) calls this rather than
-// NewDriver because pppOps is package-private.
-//
-// Authentication is delivered through AuthEventsOut() / AuthResponse();
-// the constructor does not take an auth handler. Production wires a
-// consumer (l2tp-auth plugin in Phase 8); tests wire an auto-accept
-// responder.
-//
-// Caller MUST call Start before sending on SessionsIn(). Caller MUST
-// call Stop before discarding the Driver.
-func NewProductionDriver(logger *slog.Logger, backend IfaceBackend) *Driver {
-	return newDriver(driverConfig{
-		Logger:  logger,
-		Backend: backend,
-		Ops:     newPPPOps(),
-	})
-}
-
-// newDriver constructs a Driver. Does NOT start the dispatch
-// goroutine; call Start when ready.
-//
-// Panics with "BUG: ..." if any required field is nil; these are
-// programmer errors caught at boot, not runtime conditions.
-func newDriver(cfg driverConfig) *Driver {
-	if cfg.Logger == nil {
-		panic("BUG: ppp.NewDriver: Logger is required")
-	}
-	if cfg.Backend == nil {
-		panic("BUG: ppp.NewDriver: Backend is required")
-	}
-	if cfg.Ops.setMRU == nil {
-		panic("BUG: ppp.NewDriver: Ops.setMRU is required")
+// NewProductionDriver constructs the protocol driver. Each transport supplies
+// its own created frame channel and data-plane owner on StartSession.
+// Authentication stays on AuthEventsOut/AuthResponse.
+// Caller MUST call Start before enqueueing and Stop before discarding it.
+func NewProductionDriver(logger *slog.Logger) *Driver {
+	if logger == nil {
+		panic("BUG: ppp.NewProductionDriver: Logger is required")
 	}
 	return &Driver{
-		logger:        cfg.Logger,
-		backend:       cfg.Backend,
-		ops:           cfg.Ops,
+		logger:        logger,
 		sessionsIn:    make(chan StartSession, defaultSessionsInBuf),
 		eventsOut:     make(chan Event, defaultEventsOutBuf),
 		authEventsOut: make(chan AuthEvent, defaultAuthEventsOutBuf),
 		ipEventsOut:   make(chan IPEvent, defaultIPEventsOutBuf),
 		dispatchDone:  make(chan struct{}),
 		sessions:      make(map[sessionKey]*pppSession),
+		owners:        make(map[SessionHandle]sessionKey),
 	}
 }
 
@@ -279,9 +219,14 @@ func (d *Driver) IPEventsOut() <-chan IPEvent {
 // non-zero value forces the peer to use that identifier, zero
 // accepts whatever the peer offered.
 type IPResponseArgs struct {
-	Accept           bool
-	Family           AddressFamily
-	Reason           string
+	Accept bool
+	Family AddressFamily
+	Reason string
+	// AllocationID identifies the pool reservation this answer owns. A pool
+	// MUST give each reservation a nonzero ID; a drain MUST return that ID
+	// through the subscriber event bus if IPResponse cannot deliver it.
+	// Zero means the answer owns no pool reservation. PPP does not interpret it.
+	AllocationID     uint64
 	Local            netip.Addr
 	Peer             netip.Addr
 	DNSPrimary       netip.Addr
@@ -439,20 +384,47 @@ func (d *Driver) dispatch() {
 // spawnSession creates a pppSession, registers it in the map, and
 // launches its goroutine. Logs and drops if a duplicate
 // (tunnelID, sessionID) arrives, or if the StartSession contains
-// invalid file descriptors.
+// missing session ownership or frame delivery.
 func (d *Driver) spawnSession(start *StartSession) {
-	// Reject sentinel zero / negative fd values. Production fds always
-	// come from socket()/open() and are >= 3 (stdio holds 0-2), so this
-	// is a defensive guard against uninitialized StartSession structs
-	// rather than a meaningful range check.
-	//
-	// Queue delivery transferred ownership even when the request is refused.
-	if start.ChanFD <= 0 || start.UnitFD <= 0 {
-		d.logger.Warn("ppp: StartSession with invalid fds ignored",
-			"tunnel-id", start.TunnelID, "session-id", start.SessionID,
-			"chan-fd", start.ChanFD, "unit-fd", start.UnitFD)
+	k := sessionKey{start.TunnelID, start.SessionID}
+	comparableOwner := !sessionResourceMissing(start.Dataplane) && reflect.ValueOf(start.Dataplane).Comparable()
+	// Detect an existing lease before validating borrowed resources or LCP:
+	// a malformed requeue has not transferred that live owner again.
+	d.mu.Lock()
+	existingKey, existingOwner := d.existingTransferLocked(k, start.Dataplane, comparableOwner)
+	stopped := d.stopped
+	d.mu.Unlock()
+	if stopped {
+		if !existingOwner {
+			start.closeFiles()
+		}
+		return
+	}
+	ownershipConflict := existingKey || existingOwner
+	if ownershipConflict {
+		d.rejectExistingTransfer(start, existingKey, existingOwner)
+		return
+	}
+	// Missing ownership or missing control delivery is an invalid transfer;
+	// release any supplied owner before publishing its refusal.
+	if sessionResourceMissing(start.Dataplane) {
 		start.closeFiles()
-		d.emitRejection(start, "invalid fds")
+		d.emitRejection(start, "missing session data plane")
+		return
+	}
+	if !comparableOwner {
+		start.closeFiles()
+		d.emitRejection(start, "session data-plane owner cannot be compared for safe lease admission")
+		return
+	}
+	if sessionResourceMissing(start.Frames) {
+		start.closeFiles()
+		d.emitRejection(start, "missing frame channel")
+		return
+	}
+	if sessionResourceMissing(start.Frames.Control()) {
+		start.closeFiles()
+		d.emitRejection(start, "missing control stream")
 		return
 	}
 	maxMRU := start.MaxMRU
@@ -470,20 +442,19 @@ func (d *Driver) spawnSession(start *StartSession) {
 		d.emitRejection(start, err.Error())
 		return
 	}
-	k := sessionKey{start.TunnelID, start.SessionID}
-
 	d.mu.Lock()
+	existingKey, existingOwner = d.existingTransferLocked(k, start.Dataplane, true)
 	if d.stopped {
 		d.mu.Unlock()
-		start.closeFiles()
+		if !existingOwner {
+			start.closeFiles()
+		}
 		return
 	}
-	if _, exists := d.sessions[k]; exists {
+	ownershipConflict = existingKey || existingOwner
+	if ownershipConflict {
 		d.mu.Unlock()
-		start.closeFiles()
-		d.logger.Warn("ppp: duplicate StartSession ignored",
-			"tunnel-id", start.TunnelID, "session-id", start.SessionID)
-		d.emitRejection(start, "duplicate (tunnelID, sessionID)")
+		d.rejectExistingTransfer(start, existingKey, existingOwner)
 		return
 	}
 
@@ -497,36 +468,23 @@ func (d *Driver) spawnSession(start *StartSession) {
 		readerQuiesce chan struct{}
 		readerGone    chan struct{}
 	)
-	var chanFile io.ReadWriteCloser
 	if start.CaptureProxyLCP {
-		qf, err := newQuiescableChanFileFn(start.ChanFD, "ppp.chan")
-		if err != nil {
-			d.mu.Unlock()
-			start.closeFiles()
-			d.logger.Warn("ppp: StartSession refused: its channel reader cannot be made interruptible for a realm relay",
-				"tunnel-id", start.TunnelID, "session-id", start.SessionID, "error", err)
-			d.emitRejection(start, err.Error())
-			return
-		}
-		chanFile = qf
 		capture = &lcpCapture{}
 		readerQuiesce = make(chan struct{})
 		readerGone = make(chan struct{})
-	} else {
-		chanFile = newChanFileFn(start.ChanFD, "ppp.chan")
 	}
 	s := &pppSession{
 		lcpConfig:            start.LCP,
 		proxyCapture:         capture,
+		subscriberID:         start.SubscriberID,
 		tunnelID:             start.TunnelID,
 		sessionID:            start.SessionID,
-		chanFile:             chanFile,
+		chanFile:             start.Frames.Control(),
+		frames:               start.Frames,
+		dataplane:            start.Dataplane,
 		readerQuiesce:        readerQuiesce,
 		readerGone:           readerGone,
-		unitFile:             newUnitFileFn(start.UnitFD),
-		chanFD:               start.ChanFD,
-		unitFD:               start.UnitFD,
-		unitNum:              start.UnitNum,
+		unitFile:             start.Frames.Opened(),
 		lnsMode:              start.LNSMode,
 		pppoe:                start.PPPoE,
 		maxMRU:               maxMRU,
@@ -540,8 +498,6 @@ func (d *Driver) spawnSession(start *StartSession) {
 		disableIPCP:          start.DisableIPCP,
 		disableIPv6CP:        start.DisableIPv6CP,
 		ipTimeout:            start.IPTimeout,
-		backend:              d.backend,
-		ops:                  d.ops,
 		eventsOut:            d.eventsOut,
 		authEventsOut:        d.authEventsOut,
 		ipEventsOut:          d.ipEventsOut,
@@ -553,10 +509,11 @@ func (d *Driver) spawnSession(start *StartSession) {
 		logger: d.logger.With(
 			"tunnel-id", start.TunnelID,
 			"session-id", start.SessionID,
-			"unit", start.UnitNum,
+			"interface", start.Dataplane.Identity().InterfaceName,
 		),
 	}
 	d.sessions[k] = s
+	d.owners[start.Dataplane] = k
 	d.wg.Add(1)
 	d.mu.Unlock()
 
@@ -567,31 +524,74 @@ func (d *Driver) spawnSession(start *StartSession) {
 			// On natural exit (peer teardown, LCP failure, auth
 			// reject, timeout), remove the session from the map so
 			// AuthResponse / SessionByID observe ErrSessionNotFound
-			// instead of holding a stale reference. StopSession has
-			// already done the delete when it fires; delete of an
-			// absent key is a no-op.
+			// instead of holding a stale reference. StopSession may have
+			// already released the key for a replacement, which this old
+			// worker must preserve. Its lease stays reserved until now.
 			d.mu.Lock()
-			delete(d.sessions, k)
+			if d.sessions[k] == s {
+				delete(d.sessions, k)
+			}
+			if ownerKey, present := d.owners[s.dataplane]; present {
+				if ownerKey == k {
+					delete(d.owners, s.dataplane)
+				}
+			}
 			d.mu.Unlock()
 		}()
 		s.run(start)
 	}()
 }
 
-// emitRejection is called when spawnSession refuses a StartSession
-// (invalid fds, duplicate). Emits EventSessionRejected (distinct
+// existingTransferLocked uses the reverse index only for comparable owners.
+// Caller MUST hold d.mu. The key and owner can belong to different sessions.
+func (d *Driver) existingTransferLocked(key sessionKey, owner SessionHandle, comparableOwner bool) (bool, bool) {
+	_, existingKey := d.sessions[key]
+	if !comparableOwner {
+		return existingKey, false
+	}
+	_, existingOwner := d.owners[owner]
+	return existingKey, existingOwner
+}
+
+// rejectExistingTransfer refuses a request without releasing any already
+// admitted owner. Only an active incoming key forbids transport teardown;
+// an owner reused under another key does not establish that new transport.
+func (d *Driver) rejectExistingTransfer(start *StartSession, existingKey, existingOwner bool) {
+	if !existingOwner {
+		start.closeFiles()
+	}
+	reason := "session data-plane owner is already admitted"
+	if existingKey {
+		reason = "duplicate (tunnelID, sessionID)"
+	}
+	subject := start.SubscriberID
+	if subject == "" {
+		subject = fmt.Sprintf("tunnel %d session %d", start.TunnelID, start.SessionID)
+	}
+	ReportAdmissionFailure(d.logger, subject, AdmissionOwnership, errors.New(reason),
+		map[string]any{"tunnel-id": start.TunnelID, "session-id": start.SessionID})
+	d.sendRejection(start, reason, existingKey)
+}
+
+// emitRejection is called when spawnSession refuses a new StartSession
+// for invalid ownership, frame delivery or negotiation. Emits EventSessionRejected (distinct
 // from EventSessionDown) so the transport can discriminate between
 // "PPP never took this session" and "PPP ran this session then it
 // ended" without parsing reason strings.
 //
-// The refused request's descriptors have already been released; the transport
-// still owns its PPPoX socket and reconciles that separate resource.
+// The refused request's PPP handle has already been released. The transport
+// reconciles its separate session owner.
 func (d *Driver) emitRejection(start *StartSession, reason string) {
+	d.sendRejection(start, reason, false)
+}
+
+func (d *Driver) sendRejection(start *StartSession, reason string, existingSession bool) {
 	select {
 	case d.eventsOut <- EventSessionRejected{
-		TunnelID:  start.TunnelID,
-		SessionID: start.SessionID,
-		Reason:    reason,
+		TunnelID:        start.TunnelID,
+		SessionID:       start.SessionID,
+		Reason:          reason,
+		ExistingSession: existingSession,
 	}:
 	case <-d.stopCh:
 	}

@@ -27,7 +27,7 @@ func TestIPMTUInstalledFromNegotiatedMRU(t *testing.T) {
 
 	backend := &fakeBackend{}
 	ops, opsCalls, opsMu := newFakeOps()
-	d := makeTestDriver(backend, ops)
+	d := newSessionTestDriver()
 	if err := d.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -35,13 +35,11 @@ func TestIPMTUInstalledFromNegotiatedMRU(t *testing.T) {
 
 	const peerMRU = 1400
 	stream := buildOptionStream([]LCPOption{mruOpt(peerMRU), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
-		LCP:                 testLCPConfig(),
-		TunnelID:            1,
-		SessionID:           42,
-		ChanFD:              1001,
-		UnitFD:              999,
-		UnitNum:             7,
+	d.SessionsIn() <- testSessionStart(StartSession{
+		LCP:       testLCPConfig(),
+		TunnelID:  1,
+		SessionID: 42,
+
 		LNSMode:             true,
 		MaxMRU:              1500,
 		DisableIPCP:         true,
@@ -49,7 +47,7 @@ func TestIPMTUInstalledFromNegotiatedMRU(t *testing.T) {
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, backend, ops, 1001, 999, 7)
 	got := drainTwoEvents(t, d.EventsOut(), time.Second)
 	if _, ok := got[1].(EventSessionUp); !ok {
 		t.Fatalf("event 1 = %T, want EventSessionUp", got[1])

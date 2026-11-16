@@ -80,7 +80,7 @@ func TestDHCPv6ServerLoopPacesAFailingSocket(t *testing.T) {
 	}
 
 	svc := newIPv6Service(iPv6ServiceConfig{})
-	go dhcpv6ServerLoop(ctx, udpConn, svc, DHCPv6DUID{}, nil, "test0", slog.Default())
+	go dhcpv6ServerLoop(ctx, dhcpPacketReader{udpConn}, svc, DHCPv6DUID{}, nil, "test0", slog.Default())
 
 	// Long enough for several paced retries (growth 0, 10, 20, 40, 80,
 	// 160ms then the 250ms ceiling), short of the ceiling itself.

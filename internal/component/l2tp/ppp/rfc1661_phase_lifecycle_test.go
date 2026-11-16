@@ -183,9 +183,9 @@ func TestNCPHeldUntilNetworkPhase(t *testing.T) {
 				if len(ipEvents) != 0 {
 					t.Fatal("address requested while authentication is pending")
 				}
-				backend, ok := s.backend.(*fakeBackend)
+				backend, ok := testHandleFor(s).backend.(*fakeBackend)
 				if !ok {
-					t.Fatalf("session backend is %T, want *fakeBackend", s.backend)
+					t.Fatalf("session backend is %T, want *fakeBackend", testHandleFor(s).backend)
 				}
 				if calls := backend.P2PCalls(); len(calls) != 0 {
 					t.Fatalf("address installed while authentication is pending: %+v", calls)

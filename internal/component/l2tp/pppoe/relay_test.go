@@ -17,14 +17,17 @@ type fakeRelaySink struct {
 	calls    int
 }
 
-func (f *fakeRelaySink) Relay(req callsink.Request) (bool, error) {
+func (f *fakeRelaySink) Relay(req callsink.Request) (callsink.RelayCall, bool, error) {
 	f.calls++
 	f.last = req
-	return f.accepted, f.err
+	if !f.accepted {
+		return nil, false, f.err
+	}
+	return fixtureServiceCall{}, true, f.err
 }
 
 // RelayRealm answers no realm binding: these tests drive the Service-Name path.
-func (f *fakeRelaySink) RelayRealm(callsink.RealmRequest) (callsink.RealmCall, bool, error) {
+func (f *fakeRelaySink) RelayRealm(callsink.RealmRequest) (callsink.RelayCall, bool, error) {
 	return nil, false, nil
 }
 
@@ -41,27 +44,34 @@ func TestRelayToL2TP_ConsultsSink(t *testing.T) {
 	callsink.Unregister()
 	t.Cleanup(callsink.Unregister)
 
-	s := &InterfaceServer{ifName: "eth0", logger: slog.Default()}
+	s := &InterfaceServer{ifName: "eth0", sessions: newSessionTable("eth0", 10), logger: slog.Default()}
+	opened := fixtureRelayOpened(t, 99)
+	require.NoError(t, s.sessions.Add(&Session{SID: 7}))
+	require.True(t, s.sessions.setOpened(7, opened))
 	pkt := &Packet{
 		SrcMAC: [EthALen]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff},
 		Tags:   []Tag{{Type: TagServiceName, Value: []byte("wholesale")}},
 	}
 
 	// No sink registered -> not relayed (terminate locally).
-	require.False(t, s.relayToL2TP(pkt, 7, 99))
+	require.False(t, s.relayToL2TP(pkt, 7, opened))
 
 	// Sink accepts -> relayed; the request carries the subscriber context.
 	fs := &fakeRelaySink{accepted: true}
 	callsink.Register(fs)
-	require.True(t, s.relayToL2TP(pkt, 7, 99))
+	require.True(t, s.relayToL2TP(pkt, 7, opened))
 	require.Equal(t, 1, fs.calls)
 	require.Equal(t, "wholesale", fs.last.Service)
 	require.Equal(t, "eth0", fs.last.Interface)
 	require.EqualValues(t, 7, fs.last.SessionID)
-	require.Equal(t, 99, fs.last.ChannelFD)
+	require.NotNil(t, fs.last.Channel)
+	require.NoError(t, fs.last.Channel.WithDescriptor(func(descriptor int) error {
+		require.Equal(t, 99, descriptor)
+		return nil
+	}))
 	require.Equal(t, "aa:bb:cc:dd:ee:ff", fs.last.SubscriberMAC)
 
 	// Sink returns an error -> not relayed (fall back to local termination).
 	callsink.Register(&fakeRelaySink{accepted: false, err: errors.New("dial failed")})
-	require.False(t, s.relayToL2TP(pkt, 7, 99))
+	require.False(t, s.relayToL2TP(pkt, 7, opened))
 }

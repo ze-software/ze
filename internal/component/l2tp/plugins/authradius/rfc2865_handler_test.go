@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -145,11 +146,12 @@ func TestRADIUSAuthPAPAccept(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 2,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "alice",
-		Response:  []byte("password123"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1,
+		SessionID:    2,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "alice",
+		Response:     []byte("password123"),
 	}, resp.respond)
 
 	if !result.Handled {
@@ -167,11 +169,12 @@ func TestRADIUSAuthPAPReject(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 3,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "bob",
-		Response:  []byte("wrong"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 3),
+		TunnelID:     1,
+		SessionID:    3,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "bob",
+		Response:     []byte("wrong"),
 	}, resp.respond)
 
 	if !result.Handled {
@@ -189,13 +192,14 @@ func TestRADIUSAuthCHAPAccept(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:   1,
-		SessionID:  4,
-		Method:     ppp.AuthMethodCHAPMD5,
-		Identifier: 42,
-		Username:   "charlie",
-		Challenge:  make([]byte, 16),
-		Response:   make([]byte, 16),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 4),
+		TunnelID:     1,
+		SessionID:    4,
+		Method:       ppp.AuthMethodCHAPMD5,
+		Identifier:   42,
+		Username:     "charlie",
+		Challenge:    make([]byte, 16),
+		Response:     make([]byte, 16),
 	}, resp.respond)
 
 	if !result.Handled {
@@ -233,13 +237,14 @@ func TestRADIUSAuthMSCHAPv2Accept(t *testing.T) {
 	mschapResp := make([]byte, 40)
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:   1,
-		SessionID:  5,
-		Method:     ppp.AuthMethodMSCHAPv2,
-		Identifier: 7,
-		Username:   "dave",
-		Challenge:  make([]byte, 16),
-		Response:   mschapResp,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 5),
+		TunnelID:     1,
+		SessionID:    5,
+		Method:       ppp.AuthMethodMSCHAPv2,
+		Identifier:   7,
+		Username:     "dave",
+		Challenge:    make([]byte, 16),
+		Response:     mschapResp,
 	}, resp.respond)
 
 	if !result.Handled {
@@ -294,11 +299,12 @@ func TestRADIUSAuthAcceptsProfileAttributes(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 5,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "erin",
-		Response:  []byte("password123"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 5),
+		TunnelID:     1,
+		SessionID:    5,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "erin",
+		Response:     []byte("password123"),
 	}, resp.respond)
 
 	if !result.Handled {
@@ -310,8 +316,8 @@ func TestRADIUSAuthAcceptsProfileAttributes(t *testing.T) {
 		t.Fatalf("expected accept, got reject: %s", call.message)
 	}
 
-	meta := l2tp.LoadSessionMetadata(1, 5)
-	defer l2tp.ClearSessionMetadata(1, 5)
+	meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 5))
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 5))
 	if meta == nil {
 		t.Fatal("expected session metadata to be stored")
 	}
@@ -332,11 +338,12 @@ func TestRADIUSAuthAcceptNoProfileAttributes(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 50,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "plain-user",
-		Response:  []byte("password123"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 50),
+		TunnelID:     1,
+		SessionID:    50,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "plain-user",
+		Response:     []byte("password123"),
 	}, resp.respond)
 
 	if !result.Handled {
@@ -348,7 +355,7 @@ func TestRADIUSAuthAcceptNoProfileAttributes(t *testing.T) {
 		t.Fatalf("expected accept, got reject: %s", call.message)
 	}
 
-	meta := l2tp.LoadSessionMetadata(1, 50)
+	meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 50))
 	if meta != nil {
 		t.Error("expected no metadata for plain accept")
 	}
@@ -376,11 +383,12 @@ func TestRADIUSAuthTimeout(t *testing.T) {
 	resp := newFakeResponder()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 6,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "timeout-user",
-		Response:  []byte("pass"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 6),
+		TunnelID:     1,
+		SessionID:    6,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "timeout-user",
+		Response:     []byte("pass"),
 	}, resp.respond)
 
 	if !result.Handled {
@@ -398,11 +406,12 @@ func TestRADIUSHandledSentinel(t *testing.T) {
 	defer cleanup()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 7,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "alice",
-		Response:  []byte("pass"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 7),
+		TunnelID:     1,
+		SessionID:    7,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "alice",
+		Response:     []byte("pass"),
 	}, resp.respond)
 
 	if !result.Handled {
@@ -482,11 +491,12 @@ func TestRADIUSAuthNASIPAddress(t *testing.T) {
 	resp := newFakeResponder()
 
 	a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 9,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "alice",
-		Response:  []byte("pass"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 9),
+		TunnelID:     1,
+		SessionID:    9,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "alice",
+		Response:     []byte("pass"),
 	}, resp.respond)
 
 	resp.waitOne(t)
@@ -522,11 +532,12 @@ func TestRADIUSNoClient(t *testing.T) {
 	resp := newFakeResponder()
 
 	result := a.handle(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 8,
-		Method:    ppp.AuthMethodPAP,
-		Username:  "nobody",
-		Response:  []byte("pass"),
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 8),
+		TunnelID:     1,
+		SessionID:    8,
+		Method:       ppp.AuthMethodPAP,
+		Username:     "nobody",
+		Response:     []byte("pass"),
 	}, resp.respond)
 
 	if result.Handled {

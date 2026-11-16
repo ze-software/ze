@@ -13,6 +13,7 @@ import (
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
 // L2TPSessionState enumerates the session FSM states from RFC 2661 S10.
@@ -145,17 +146,19 @@ type L2TPSession struct {
 	// Used by SessionUp EventBus event so the shaper can apply TC.
 	pppInterface string
 
-	// pppoeChannelFD is the relayed PPPoE session's kernel PPP channel fd for
-	// a LAC-relayed incoming call (spec-followup-l2tp-call AC-3). The reactor
-	// bridges it to the pppol2tp channel (A-4) at kernel setup. Zero for
-	// sessions not originating from a PPPoE relay.
-	pppoeChannelFD int
+	// channel retains the relayed PPPoE transport owner until the worker
+	// borrows its descriptor for bridging. A departed subscriber refuses
+	// that borrow instead of exposing a descriptor number the OS could reuse.
+	// Nil means this session has no relayed PPPoE transport.
+	channel callsink.RelayChannel
+	// beforeBridge is optional resource preparation supplied only by an
+	// accepted Service-Name relay. The kernel worker runs it before attaching
+	// its own PPP channel; nil means no local lease needs releasing.
+	beforeBridge callsink.BridgePreparation
 
-	// realm is set on a realm-relayed incoming call (spec-home-cpe-14): the
-	// binding that matched, the proxy AVPs its ICCN carries, and the PPPoE
-	// side's handoff, which teardown before the bridge reports to. Nil for
-	// every other session.
-	realm *realmCall
+	// relay is the exact owner of an accepted Service-Name or realm call.
+	// Ordinary sessions carry no relay owner.
+	relay *relayCall
 
 	// RADIUS timeout cancellation. Set by handleSessionUp when the
 	// RADIUS Access-Accept carried Session-Timeout or Idle-Timeout.
@@ -417,21 +420,22 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		return
 	}
 	cancelSessionTimeouts(sess)
-	ClearSessionMetadata(t.localTID, sid)
+	ClearSessionMetadata(l2tpSessionID(t.localTID, sid))
 	established := sess.state == L2TPSessionEstablished
 	if established {
 		t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
 			localTID: t.localTID,
 			localSID: sid,
+			relay:    sess.relay,
 		})
 	}
 	// AC-4: an operator call torn down before it established fails its RPC.
 	// No-op once the session established (resolveCall already fired success).
 	sess.resolveCall(callOutcome{err: errCallTornDown})
-	// A realm call reports its end to the PPPoE side: before the bridge the
-	// subscriber is refused, after it the PPPoE session ends (PADT).
-	if sess.realm != nil {
-		sess.realm.end("L2TP session to realm " + sess.realm.realm + " ended")
+	// Every accepted relay reports its end. The access owner decides
+	// when discovery has completed and may publish PADT.
+	if sess.relay != nil {
+		sess.relay.end("L2TP session to " + sess.relay.target() + " ended")
 	}
 	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
 		localTID:    t.localTID,

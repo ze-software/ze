@@ -71,18 +71,18 @@ type Session struct {
 // in ppp.EventIPRequest and ppp.EventAuthRequest. L2TP starts a PPP session
 // under its tunnel and session ids; PPPoE starts one under the access
 // interface index and the PPPoE session id (pppoe.InterfaceServer.handlePADR
-// builds ppp.StartSession that way). A consumer that keyed per-session state
-// off one of those driver requests, the address pool among them, reads it
-// back under this pair.
+// builds ppp.StartSession that way). These are transport-local driver
+// coordinates, not a key for shared subscriber state.
 //
 // The pair is not unique across transports: an L2TP session and a PPPoE
 // session can hold numerically equal pairs. A consumer that needs one
-// identity for both transports uses ID.
+// identity for both transports MUST use ID, as the address pool and shared
+// authorization metadata do.
 //
 // The branch on access type lives here rather than open-coded in each
 // consumer because the overload is a property of the driver's request rather
-// than of any one consumer, and the accounting and shaping consumers owe the
-// same answer when they move onto this namespace.
+// than of any one consumer. Callers needing numeric driver coordinates use
+// this method; callers owning shared subscriber state use ID.
 func (s *Session) PPPKey() (tunnelID, sessionID uint16) {
 	if s.AccessType == AccessPPPoE {
 		return uint16(s.AccessIfIndex), s.PPPoESID

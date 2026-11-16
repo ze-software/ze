@@ -220,7 +220,7 @@ func (r *resolver) addresses(name string) ([]AddrInfo, error) {
 
 // osDeviceFor resolves a logical name to its kernel device InterfaceInfo. The
 // mac/match selector wins when set: the resolver scans every interface and
-// binds to the one carrying the configured hardware MAC (matchByMAC). Without a
+// binds to the one carrying the configured hardware MAC (matchByMACFrom). Without a
 // MAC selector the os-name selector (or the logical name itself) is looked up
 // directly through read: GetLink for a caller that needs only link facts,
 // GetInterface for one that needs the addresses. On success it records the
@@ -228,25 +228,7 @@ func (r *resolver) addresses(name string) ([]AddrInfo, error) {
 // name. The backend call runs outside the lock; only the small map
 // reads/writes are locked.
 func (r *resolver) osDeviceFor(name string, read func(string) (*InterfaceInfo, error)) (*InterfaceInfo, error) {
-	r.mu.Lock()
-	wantMAC := r.permMACs[name]
-	osn := r.osNames[name]
-	r.mu.Unlock()
-
-	if wantMAC != "" {
-		info, err := r.matchByMAC(name, wantMAC)
-		if err != nil {
-			return nil, err
-		}
-		r.recordBinding(name, info.OsName)
-		return info, nil
-	}
-
-	osName := osn
-	if osName == "" {
-		osName = name
-	}
-	info, err := read(osName)
+	info, err := r.selectedDeviceFor(name, read, ListInterfaces)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +236,28 @@ func (r *resolver) osDeviceFor(name string, read func(string) (*InterfaceInfo, e
 	return info, nil
 }
 
-// matchByMAC returns the interface whose hardware MAC equals want. It matches
+// selectedDeviceFor applies the shared selectors through the supplied link
+// and population readers. It neither caches nor publishes a learned binding:
+// an exact-backend caller first checks that its captured generation survived.
+func (r *resolver) selectedDeviceFor(name string, read func(string) (*InterfaceInfo, error),
+	list func() ([]InterfaceInfo, error)) (*InterfaceInfo, error) {
+	r.mu.Lock()
+	wantMAC := r.permMACs[name]
+	osn := r.osNames[name]
+	r.mu.Unlock()
+
+	if wantMAC != "" {
+		return r.matchByMACFrom(name, wantMAC, list)
+	}
+
+	osName := osn
+	if osName == "" {
+		osName = name
+	}
+	return read(osName)
+}
+
+// matchByMACFrom returns the interface whose hardware MAC equals want. It matches
 // the permanent (factory) MAC when the device reports one -- so the binding
 // survives an operational MAC override on a real NIC -- and falls back to the
 // current MAC for the virtual kinds that report no permanent address
@@ -264,9 +267,9 @@ func (r *resolver) osDeviceFor(name string, read func(string) (*InterfaceInfo, e
 // distinguishes the candidates, so picking one -- by lowest ifindex or by any
 // other rule -- is a guess about which physical port a caller's addresses,
 // routes and admin state reach.
-func (r *resolver) matchByMAC(name, want string) (*InterfaceInfo, error) {
+func (r *resolver) matchByMACFrom(name, want string, list func() ([]InterfaceInfo, error)) (*InterfaceInfo, error) {
 	target := normalizeMAC(want)
-	infos, err := ListInterfaces()
+	infos, err := list()
 	if err != nil {
 		return nil, err
 	}

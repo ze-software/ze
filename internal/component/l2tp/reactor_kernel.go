@@ -9,7 +9,8 @@ import (
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	"github.com/ze-software/ze/internal/core/textbuf"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // collectKernelEventsLocked scans the tunnel for sessions that need
@@ -61,8 +62,9 @@ func (r *l2tpReactor) kernelSetupsLocked(tunnel *L2TPTunnel) []kernelSetupEvent 
 			socketFD:                   socketFD,
 			lnsMode:                    sess.lnsMode,
 			sequencing:                 sess.sequencingRequired,
-			pppoeChannelFD:             sess.pppoeChannelFD,
-			realm:                      sess.realm,
+			channel:                    sess.channel,
+			beforeBridge:               sess.beforeBridge,
+			relay:                      sess.relay,
 			proxyInitialRecvLCPConfReq: sess.proxyInitialRecvLCPConfReq,
 			proxyLastSentLCPConfReq:    sess.proxyLastSentLCPConfReq,
 			proxyLastRecvLCPConfReq:    sess.proxyLastRecvLCPConfReq,
@@ -131,14 +133,27 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	if !claimed {
 		return
 	}
+	backend := r.kernelBackend
+	frames, dataplane, err := r.newPPPSession(pppkernel.SessionConfig{
+		ChanFD: chanFD, UnitFD: unitFD, UnitNum: ksucc.fds.unitNum,
+		Backend: backend, ReadCounters: kernelPPPCounters(backend),
+	})
+	if err != nil {
+		ppp.ReportAdmissionFailure(r.logger, fmt.Sprintf("tunnel %d session %d", ksucc.localTID, ksucc.localSID),
+			ppp.AdmissionSessionFactory, err, map[string]any{
+				"tunnel-id": ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum,
+			})
+		r.handleKernelError(kernelSetupFailed{localTID: ksucc.localTID, localSID: ksucc.localSID})
+		return
+	}
 
 	start := ppp.StartSession{
 		LCP:                 policy.LCP,
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
-		ChanFD:              chanFD,
-		UnitFD:              unitFD,
-		UnitNum:             ksucc.fds.unitNum,
+		SubscriberID:        l2tpSessionID(ksucc.localTID, ksucc.localSID),
+		Frames:              frames,
+		Dataplane:           dataplane,
 		LNSMode:             ksucc.lnsMode,
 		PeerAddr:            peerAddr,
 		AuthMethod:          policy.AuthMethod,
@@ -158,7 +173,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		EchoInterval:        policy.CQMEchoInterval,
 	}
 
-	ifaceName := textbuf.StrInt("ppp", int64(ksucc.fds.unitNum))
+	ifaceName := dataplane.Identity().InterfaceName
 	r.tunnelsMu.Lock()
 	if tunnel, ok := r.tunnelsByLocalID[ksucc.localTID]; ok {
 		if sess := tunnel.lookupSession(ksucc.localSID); sess != nil {
@@ -170,14 +185,17 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	select {
 	case r.pppDriver.SessionsIn() <- start:
 	case <-r.stop:
-		_ = ppp.NewFDFile(unitFD, "ppp.canceled.unit").Close() //nolint:errcheck // canceled ownership transfer
-		_ = ppp.NewFDFile(chanFD, "ppp.canceled.chan").Close() //nolint:errcheck // canceled ownership transfer
+		if err := dataplane.Close(); err != nil {
+			ppp.ReportCleanupFailure(dataplane.Identity(), ppp.CleanupSession, err)
+			r.logger.Warn("l2tp: canceled PPP session cleanup failed", "error", err,
+				"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+		}
 	}
 }
 
-// handlePPPEvent reacts to a PPP lifecycle event. EventSessionDown and
-// EventSessionRejected mean the L2TP session is no longer carrying PPP
-// traffic; emit a CDN to the peer so the L2TP-side state matches.
+// handlePPPEvent reacts to a PPP lifecycle event. EventSessionDown and a
+// refused new session emit a CDN so the L2TP-side state matches PPP. Refusing
+// another admission for an active key preserves its existing transport.
 // LCP events publish and withdraw the negotiated session values;
 // EventSessionUp publishes the authenticated network lifetime.
 //
@@ -210,9 +228,13 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	case ppp.EventSessionDown:
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, e.Cause
 	case ppp.EventSessionRejected:
-		// A rejected StartSession never ran a session goroutine: the refusals
-		// are invalid file descriptors and duplicate session keys, which are
-		// the NAS's own errors. RFC 2866 Section 5.10 value 9.
+		// Refusal of a duplicate says nothing about the admitted session's
+		// lifetime. A reused owner under another key still refuses a new call.
+		if e.ExistingSession {
+			return
+		}
+		// A refused new StartSession never ran a session goroutine. The NAS
+		// supplied invalid ownership or setup: RFC 2866 Section 5.10 value 9.
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, l2tpevents.TerminateCauseNASError
 	case ppp.EventLCPDown:
 		r.handleLCPDown(e)
@@ -325,14 +347,14 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	cancelSessionTimeouts(sess)
 	if !r.hasSessionNoticeReader() {
 		r.tunnelsMu.Unlock()
-		ClearSessionMetadata(ev.TunnelID, ev.SessionID)
+		ClearSessionMetadata(l2tpSessionID(ev.TunnelID, ev.SessionID))
 		return
 	}
 	ticket := tunnel.issueNoticeTicket()
 	r.tunnelsMu.Unlock()
 
 	ticket.deliver(func() { r.notifyNetworkLifetimeDown(ev.TunnelID, ev.SessionID, username) })
-	ClearSessionMetadata(ev.TunnelID, ev.SessionID)
+	ClearSessionMetadata(l2tpSessionID(ev.TunnelID, ev.SessionID))
 }
 
 // hasSessionNoticeReader reports whether a session notification has anybody
@@ -548,6 +570,11 @@ func (r *l2tpReactor) handleKernelError(kerr kernelSetupFailed) {
 	sess := tunnel.lookupSession(kerr.localSID)
 	if sess == nil {
 		// Session was already removed (CDN arrived from peer concurrently).
+		r.tunnelsMu.Unlock()
+		return
+	}
+	// A delayed setup refusal belongs only to its exact accepted relay.
+	if sess.relay != kerr.relay {
 		r.tunnelsMu.Unlock()
 		return
 	}

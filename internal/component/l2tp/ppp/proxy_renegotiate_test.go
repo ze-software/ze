@@ -19,14 +19,11 @@ func proxyStreamCHAP() []byte {
 
 // proxyStart is a StartSession for an LNS session carrying valid proxy LCP,
 // with CHAP-MD5 configured and both NCPs off so LCP and auth are all it runs.
-func proxyStart(fd int, stream []byte, renegotiate bool) StartSession {
-	return StartSession{
+func proxyStart(d *Driver, fd int, stream []byte, renegotiate bool) StartSession {
+	return testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           uint16(fd),
-		ChanFD:              fd,
-		UnitFD:              999,
-		UnitNum:             7,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthMethod:          AuthMethodCHAPMD5,
@@ -38,7 +35,7 @@ func proxyStart(fd int, stream []byte, renegotiate bool) StartSession {
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
 		RenegotiateProxyLCP: renegotiate,
-	}
+	}, fd, 999, 7)
 }
 
 // readDriverFrame reads one frame the driver wrote, failing the test after 2s.
@@ -120,7 +117,7 @@ func TestDriverProxyLCPRenegotiateSendsConfReq(t *testing.T) {
 	}
 	defer d.Stop()
 
-	d.SessionsIn() <- proxyStart(1101, proxyStreamCHAP(), true)
+	d.SessionsIn() <- proxyStart(d, 1101, proxyStreamCHAP(), true)
 
 	proto, payload := readDriverFrame(t, pair.peerEnd)
 	if proto != ProtoLCP {
@@ -168,7 +165,7 @@ func TestDriverProxyLCPRenegotiateNoProxyIsNormalPath(t *testing.T) {
 	}
 	defer d.Stop()
 
-	d.SessionsIn() <- proxyStart(1105, nil, true)
+	d.SessionsIn() <- proxyStart(d, 1105, nil, true)
 
 	proto, payload := readDriverFrame(t, pair.peerEnd)
 	if proto != ProtoLCP {
@@ -213,7 +210,7 @@ func TestDriverProxyLCPRenegotiateOwnMagic(t *testing.T) {
 	}
 	defer d.Stop()
 
-	d.SessionsIn() <- proxyStart(1102, proxyStreamCHAP(), true)
+	d.SessionsIn() <- proxyStart(d, 1102, proxyStreamCHAP(), true)
 
 	_, payload := readDriverFrame(t, pair.peerEnd)
 	req, err := ParseLCPPacket(payload)
@@ -248,7 +245,7 @@ func TestDriverProxyLCPRenegotiateUsesConfiguredAuth(t *testing.T) {
 	defer d.Stop()
 
 	papProxy := buildOptionStream([]LCPOption{mruOpt(1500), authProtoOpt(ProtoPAP), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- proxyStart(1103, papProxy, true)
+	d.SessionsIn() <- proxyStart(d, 1103, papProxy, true)
 
 	_, payload := readDriverFrame(t, pair.peerEnd)
 	req, err := ParseLCPPacket(payload)
@@ -290,7 +287,7 @@ func TestDriverProxyLCPAcceptUnchanged(t *testing.T) {
 	}
 	defer d.Stop()
 
-	d.SessionsIn() <- proxyStart(1104, proxyStreamCHAP(), false)
+	d.SessionsIn() <- proxyStart(d, 1104, proxyStreamCHAP(), false)
 
 	up := waitLCPUp(t, d.EventsOut())
 	if up.ProxyLCP != ProxyLCPOutcomeAccepted || up.NegotiatedMRU != 1500 {
@@ -319,7 +316,7 @@ func TestNonLCPBeforeOpenedDiscarded(t *testing.T) {
 	}
 	defer d.Stop()
 
-	d.SessionsIn() <- proxyStart(1105, proxyStreamCHAP(), true)
+	d.SessionsIn() <- proxyStart(d, 1105, proxyStreamCHAP(), true)
 
 	_, payload := readDriverFrame(t, pair.peerEnd)
 	req, err := ParseLCPPacket(payload)
@@ -359,7 +356,7 @@ func TestProxyLCPPAPWaitsForRetransmittedRequest(t *testing.T) {
 	defer d.Stop()
 
 	papProxy := buildOptionStream([]LCPOption{mruOpt(1500), authProtoOpt(ProtoPAP), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- proxyStart(1106, papProxy, false)
+	d.SessionsIn() <- proxyStart(d, 1106, papProxy, false)
 
 	up := waitLCPUp(t, d.EventsOut())
 	if up.ProxyLCP != ProxyLCPOutcomeAccepted || up.NegotiatedAuthMethod != AuthMethodPAP {

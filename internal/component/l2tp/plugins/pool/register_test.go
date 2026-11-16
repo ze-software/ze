@@ -87,13 +87,15 @@ func newSingleAddressPlugin(t *testing.T, bus ze.EventBus) *poolPlugin {
 }
 
 // allocate asks the plugin for an address exactly as the transport pool drains
-// do: one ppp.EventIPRequest carrying the PPP driver's session pair.
-func allocate(t *testing.T, p *poolPlugin, tunnelID, sessionID uint16) netip.Addr {
+// do: one ppp.EventIPRequest carrying its canonical subscriber ID and the PPP
+// driver's numeric pair for display and transport routing.
+func allocate(t *testing.T, p *poolPlugin, tunnelID, sessionID uint16, access subscriber.AccessType) netip.Addr {
 	t.Helper()
 	resp := p.handle(ppp.EventIPRequest{
-		TunnelID:  tunnelID,
-		SessionID: sessionID,
-		Family:    ppp.AddressFamilyIPv4,
+		SubscriberID: subscriber.SessionID(access, uint64(tunnelID), sessionID),
+		TunnelID:     tunnelID,
+		SessionID:    sessionID,
+		Family:       ppp.AddressFamilyIPv4,
 	})
 	if !resp.Accept {
 		t.Fatalf("pool refused (%d, %d): %s", tunnelID, sessionID, resp.Reason)
@@ -115,7 +117,7 @@ func TestPoolReleasesPPPoEAddressOnSessionDown(t *testing.T) {
 	bus := newReleaseBus()
 	p := newSingleAddressPlugin(t, bus)
 
-	first := allocate(t, p, uint16(ifIndex), sid)
+	first := allocate(t, p, uint16(ifIndex), sid, subscriber.AccessPPPoE)
 	if _, allocated, available := p.pool.stats(); allocated != 1 || available != 0 {
 		t.Fatalf("after allocate: allocated=%d available=%d, want 1 and 0", allocated, available)
 	}
@@ -137,7 +139,7 @@ func TestPoolReleasesPPPoEAddressOnSessionDown(t *testing.T) {
 		t.Fatalf("PPPoE address never came back: allocated=%d available=%d, want 0 and 1", allocated, available)
 	}
 
-	second := allocate(t, p, uint16(ifIndex), sid+1)
+	second := allocate(t, p, uint16(ifIndex), sid+1, subscriber.AccessPPPoE)
 	if second != first {
 		t.Fatalf("next session got %s, want the released %s", second, first)
 	}
@@ -154,7 +156,7 @@ func TestPoolReleasesL2TPAddressOnSessionDown(t *testing.T) {
 	bus := newReleaseBus()
 	p := newSingleAddressPlugin(t, bus)
 
-	first := allocate(t, p, tunnelID, sessionID)
+	first := allocate(t, p, tunnelID, sessionID, subscriber.AccessL2TP)
 
 	if _, err := subevents.SessionDown.Emit(bus, &subevents.SessionDownPayload{
 		Session: subscriber.Session{
@@ -173,7 +175,7 @@ func TestPoolReleasesL2TPAddressOnSessionDown(t *testing.T) {
 		t.Fatalf("L2TP address never came back: allocated=%d available=%d, want 0 and 1", allocated, available)
 	}
 
-	second := allocate(t, p, tunnelID, sessionID)
+	second := allocate(t, p, tunnelID, sessionID, subscriber.AccessL2TP)
 	if second != first {
 		t.Fatalf("next session got %s, want the released %s", second, first)
 	}
@@ -191,7 +193,7 @@ func TestPoolSessionDownReleasesOnce(t *testing.T) {
 	bus := newReleaseBus()
 	p := newSingleAddressPlugin(t, bus)
 
-	first := allocate(t, p, tunnelID, sessionID)
+	first := allocate(t, p, tunnelID, sessionID, subscriber.AccessL2TP)
 
 	down := &subevents.SessionDownPayload{
 		Session: subscriber.Session{
@@ -207,7 +209,7 @@ func TestPoolSessionDownReleasesOnce(t *testing.T) {
 	}
 
 	// The next subscriber takes the address the first one returned.
-	second := allocate(t, p, tunnelID+1, sessionID)
+	second := allocate(t, p, tunnelID+1, sessionID, subscriber.AccessL2TP)
 	if second != first {
 		t.Fatalf("next session got %s, want the released %s", second, first)
 	}

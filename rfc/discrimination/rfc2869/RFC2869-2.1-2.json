@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2869-2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge",
+    "unit-sha": "7bda05f0d6461c30",
+    "claim-sha": "54b435e45b2981f1",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::acctInterval",
+    "producer-sha": "283d19c5c29ed006",
+    "break": "line 726: \"time.Duration(clampAcctInterval(fromAccept)) * time.Second\" -\u003e \"40 * time.Millisecond\""
+  },
+  {
+    "rid": "RFC2869-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_interim_interval_precedence_test.go::TestRFC2869LocalAcctIntervalOverridesAccessAccept",
+    "unit-sha": "9554977292be40ca",
+    "claim-sha": "e23da3aa38f1bc89",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::acctInterval",
+    "producer-sha": "283d19c5c29ed006",
+    "break": "line 722: \"configured \u003e 0\" -\u003e \"false\""
+  }
+]

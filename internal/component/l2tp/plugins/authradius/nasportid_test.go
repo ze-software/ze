@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -88,7 +89,7 @@ func TestValidateNASPortIDFormatRejects(t *testing.T) {
 // RFC 2869 Section 5.17: NAS-Port-Id "is only used in Access-Request and
 // Accounting-Request packets" and carries UTF-8 text.
 func TestAccessRequestCarriesNASPortID(t *testing.T) {
-	req := ppp.EventAuthRequest{TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
+	req := ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1027), 42), TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
 
 	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, attributePolicy{nasPortIDFormat: "{nas-id}:{tunnel-id}.{session-id}"})
 	if !ok {
@@ -106,7 +107,7 @@ func TestAccessRequestCarriesNASPortID(t *testing.T) {
 
 // No format configured: the Access-Request is byte-identical to today's.
 func TestAccessRequestOmitsNASPortIDWhenUnset(t *testing.T) {
-	req := ppp.EventAuthRequest{TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
+	req := ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1027), 42), TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
 
 	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, attributePolicy{})
 	if !ok {
@@ -139,7 +140,7 @@ func TestAcctRequestCarriesNASPortID(t *testing.T) {
 func TestNASPortIDSameInAuthAndAcct(t *testing.T) {
 	const format = "{nas-id}:{tunnel-id}.{session-id}"
 
-	req := ppp.EventAuthRequest{TunnelID: 7, SessionID: 9, Username: "bob", Method: ppp.AuthMethodPAP}
+	req := ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 9), TunnelID: 7, SessionID: 9, Username: "bob", Method: ppp.AuthMethodPAP}
 	authAttrs, ok := buildAccessRequestAttrs(req, "lns1", nil, attributePolicy{nasPortIDFormat: format})
 	if !ok {
 		t.Fatal("a PAP request MUST build an Access-Request")

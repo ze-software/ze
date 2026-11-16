@@ -55,13 +55,100 @@ negotiate ACCM and ACFC.
 
 ## Decisions
 
+**A session data plane is selected by registration and exact name.** Each
+provider calls `RegisterSessionDataplane` from its own registration package.
+`LookupSessionDataplane` returns a sealed `Backend` for that name or refuses it;
+it never tries another provider. `SessionDataplaneNames` derives a sorted copy
+of the installed names for configuration diagnostics. The registry imports no
+backend, and adding a provider needs no central list of backend names. An open
+receives the access name, device, namespace, session ID, peer MAC and proxy-LCP
+capture choice unchanged in `Request`.
+<!-- source: internal/component/l2tp/pppoe/dataplane/registry.go -- RegisterSessionDataplane, LookupSessionDataplane, SessionDataplaneNames, Request -->
+
+**Access preparation separates the session device from its Linux control
+device.** A provider's `Prepare` resolves both identities before discovery can
+admit a subscriber. Its immutable `Access` carries the Linux discovery index,
+control MAC, MTU and namespace alongside the session-side device name. The
+control MAC supplies discovery and cookie processing.
+`NewAccess`
+consumes the preparation owner on every outcome, and `Backend.Prepare`
+releases partial or canceled results. The
+caller retains each lease until its sessions stop and discovery detaches;
+failed preparation must release every unpublished lease.
+<!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- Access, AccessInfo, NewAccess -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/registry.go -- sessionBackend.Prepare -->
+
+The common original-tree gate checks the installed provider registry against
+the candidate's interface backend and its schema default; it never probes the
+host or constructs a session.
+<!-- source: internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate, ConfiguredSessionBackendName -->
+
+**A factory result has two explicit owners.** `NewOpenedSession` is the only
+constructor for the sealed `OpenedSession` result. It validates the borrowed
+frame streams, data-plane handle and transport owner, including typed nils.
+The PPP driver borrows the frame channel and owns `Dataplane`; the access
+concentrator ends the transport with `CloseTransport`. That operation invokes
+the transport close once and returns the same result on every call. Construction
+consumes both owners on failure as well as success. If a factory returns a
+session with an error, `Backend.Open` closes both owners before returning the
+failure, preserving cleanup errors. A backend that uses one owner for both
+roles must meet the handle's idempotent close contract.
+<!-- source: internal/component/l2tp/pppoe/dataplane/session.go -- NewOpenedSession, OpenedSession, openedSession.CloseTransport -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/registry.go -- sessionBackend.Open -->
+
+A missing provider or refused factory also raises a historical
+`doctor-ppp-session-admission` event. Runtime doctor shows the access interface,
+full access index, control device and session ID; `ze show errors` retains the
+original cause, including a joined rollback error. An invalid discovery request
+does not invent an admission failure. The discovery owner still rolls back the
+failed session before returning.
+
+<!-- source: internal/component/l2tp/pppoe/doctor_admission.go -- InterfaceServer.reportSessionAdmissionFailure -->
+<!-- source: internal/component/l2tp/pppoe/server.go -- InterfaceServer.handlePADR -->
+
+**A PPP admission refusal distinguishes an existing key from a new attempt.**
+`EventSessionRejected.ExistingSession` preserves the already admitted session
+and its transport. A refusal of a new key releases its pending admission,
+publishes subscriber teardown and sends PADT through the normal teardown path.
+<!-- source: internal/component/l2tp/pppoe/subsystem.go -- handlePPPEvent, onSessionDown -->
+
+**Kernel relay borrows its descriptor from the transport owner.** A transport
+may implement the optional `RelayTransport` capability. The opened session's
+`RelayDescriptor` checks that capability while excluding transport close, and
+refuses unsupported, closed or invalid owners. The descriptor remains borrowed
+until `CloseTransport`; the relay owner must serialize its use against that
+close. Neither the session wrapper nor the frame channel caches a descriptor.
+<!-- source: internal/component/l2tp/pppoe/dataplane/session.go -- RelayTransport, openedSession.RelayDescriptor, openedSession.CloseTransport -->
+
 **The interface index is the tunnel id and the PPPoE session id is the session
 id.** The PPP driver treats both as opaque keys, so this is the natural scope
 mapping and needs no translation layer.
 
-**One AF_PACKET raw socket per namespace.** A single socket handles every access
-interface, and dispatch is by the interface index from the receive call. This
-matches the accel-ppp design.
+**Access preparation precedes discovery.** The selected provider's `Prepare`
+resolves both the data-plane device and the Linux control device and owns any
+control mapping as an access lease. Its immutable snapshot carries the control
+device's namespace, Linux index, source MAC and MTU separately from the
+data-plane device. Startup prepares every configured access before opening
+discovery; a failed preparation closes every unpublished lease. A server
+captures this snapshot in its session factory, so session creation uses the
+same control device and namespace as discovery. The access lease stays live
+until its sessions stop and discovery no longer dispatches to it.
+<!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- NewAccess, Access -->
+<!-- source: internal/component/l2tp/pppoe/subsystem_access.go -- prepareAccessConfiguration, closeAccessConfiguration -->
+<!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- newInterfaceServer -->
+
+**One AF_PACKET raw socket serves the selected control namespace.** Every
+prepared access must name that namespace and a distinct Linux index within the
+shared PPP driver's 16-bit tunnel-key range; discovery dispatches by the index
+from the receive call. A named-namespace socket is
+opened by a temporary worker on a locked OS thread. It restores the original
+namespace and closes the namespace handles before publishing the socket. If
+restoration fails, the worker closes the socket and exits while still locked,
+so Go discards that thread. The caller's thread never enters the control
+namespace. The existing PPPoE client socket API retains its caller-namespace
+behavior.
+<!-- source: internal/component/l2tp/pppoe/discovery_namespace.go -- openDiscoveryNamespace, openDiscoveryNamespaceThread -->
+<!-- source: internal/component/l2tp/pppoe/discovery_namespace_linux.go -- openDiscoverySocketInNamespace -->
 
 **A reload applies the diff live, and refuses only what cannot apply.** The
 hub registers the subsystem whatever the boot config says, so a commit that
@@ -71,9 +158,14 @@ gets a new `InterfaceServer` carrying the new settings over the same session
 table and cookie key, swapped in while the discovery reader is between frames
 (`dispatchMu`), so live sessions and outstanding cookies survive. A removed
 interface leaves the map first, then each of its sessions gets a PADT and its
-PPP session is stopped. An added interface that does not resolve refuses the
-reload before anything changed. Disabling stops discovery and leaves the
-subsystem started and idle, so a later reload can start it again.
+PPP session is stopped, and its access lease is released. Added accesses are
+prepared and their servers constructed before the live map changes. A failed
+preparation releases only these additions and preserves the running servers,
+configuration and leases. A kept access retains its lease and namespace; a
+live change to the selected backend or discovery namespace is refused. A
+cleanup failure is reported after the removed access stops serving sessions.
+Disabling stops discovery and leaves the subsystem started and idle, so a
+later reload can start it again.
 
 **Session state is per interface.** Each interface holds its own session table
 with an independent session id space over the range 1 to 65534: 0 is the
@@ -292,22 +384,23 @@ request union at known offsets.
   component's schema package; the command module lives under the CLI handler's
   yang directory. Blank imports in the CLI handler wire all three.
 - **Shared PPP integration.** Each transport supplies its session fields,
-  including the explicit PPPoE LCP policy. Discovery and kernel transport
-  lifetime remain outside the PPP driver. Kernel setup is shared, and the
-  device name decides which path `DevPPPSetup` takes. The L2TP LNS and the
+  including the explicit PPPoE LCP policy. Discovery and transport lifetime
+  remain outside the PPP driver. Kernel setup is shared by kernel-backed
+  sessions, and the
+  device name decides which path `kernel.DevPPPSetup` takes. The L2TP LNS and the
   PPPoE access concentrator pass no name, so `PPPIOCNEWUNIT` creates the unit
   and the kernel names it `pppN`: a subscriber session has no configured name.
   The PPPoE client passes its `pppoe-client` key, so the unit is created by an
   rtnetlink `RTM_NEWLINK` of kind `ppp` carrying `IFLA_PPP_DEV_FD`, and the
   device carries the configured name (`docs/architecture/l2tp/cpe-1-pppoe-client.md`).
 
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
-<!-- source: internal/component/l2tp/ppp/devppp_other.go -- non-Linux stub -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_other.go -- non-Linux stub -->
 
-The shared `SetIPv4Mode` operation changes a unit's IPv4 mode to PASS or DROP.
+The shared `kernel.SetIPv4Mode` operation changes a unit's IPv4 mode to PASS or DROP.
 The caller serializes the operation against descriptor closure. The PPPoE client
 uses DROP during LCP restart, then PASS after IPCP reaches Opened.
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- SetIPv4Mode -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- SetIPv4Mode -->
 <!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart -->
 
 The shared setup came out of an exact duplicate: L2TP and PPPoE carried
@@ -315,4 +408,4 @@ character-for-character identical ioctl sequences that differed only in the
 error message prefix. Extracting it removed 148 lines with no behavior change.
 The two steps before unit creation (`PPPIOCGCHAN` on the PPPoX socket, then
 `PPPIOCATTCHAN` on a newly opened `/dev/ppp` file) are still common to every
-transport. Only the client creates its unit by name.
+kernel-backed transport. Only the client creates its unit by name.

@@ -102,13 +102,10 @@ func startProxyTransmitCapDriver(t *testing.T, peerMRU uint16) *ncpTestDriver {
 		peer = append(peer, mruOpt(peerMRU))
 	}
 	peerOptions := optStream(peer...)
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            24,
 		SessionID:           1,
-		ChanFD:              24001,
-		UnitFD:              24002,
-		UnitNum:             9,
 		LNSMode:             true,
 		MaxMRU:              1492,
 		AuthMethod:          AuthMethodPAP,
@@ -120,7 +117,7 @@ func startProxyTransmitCapDriver(t *testing.T, peerMRU uint16) *ncpTestDriver {
 		ProxyLCPInitialRecv: peerOptions,
 		ProxyLCPLastRecv:    peerOptions,
 		ProxyLCPLastSent:    optStream(mruOpt(1492), magicOpt(0x01020304), authProtoOpt(authProtoPAP)),
-	}
+	}, 24001, 24002, 9)
 	return &ncpTestDriver{t: t, driver: d, backend: backend, peer: pair.peerEnd, peerFD: 24001}
 }
 

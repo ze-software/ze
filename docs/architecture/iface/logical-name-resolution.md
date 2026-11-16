@@ -36,6 +36,21 @@ listing, addresses included.
 
 The kernel device is never renamed. The binding is a map only.
 
+`ResolveForBackend(required, name)` resolves for a consumer that must distinguish
+a Linux ifindex from a userspace data-plane index. It checks the selected backend
+name and captures its owner and generation together. Both an `os-name` read and
+a `mac/match` listing use that captured owner and the same selector rules as
+`Resolve`. This read bypasses the ordinary cache, whose entries carry no backend
+generation. A successful backend swap or close during the read refuses the
+result, including a swap back to the same owner; no stale binding is published.
+The check does not extend the backend's lifetime after returning.
+`ResolveBackend` also returns the captured owner for backend-specific readback,
+so a caller does not pair a binding with a separate active-backend observation.
+
+<!-- source: internal/component/iface/resolve_backend.go -- ResolveForBackend, ResolveBackend -->
+<!-- source: internal/component/iface/backend.go -- loadBackendLocked, CloseBackend -->
+<!-- source: internal/component/iface/resolve.go -- selectedDeviceFor, matchByMACFrom -->
+
 ## The config apply path translates, and does not go through the resolver
 
 The apply path is the one consumer that does NOT call `Resolve`. It takes one
@@ -82,14 +97,17 @@ refuses any other name. The `ingress` and `egress` leaves are references
 (`Validator.ValidateReferences`) judges them at `ze config validate`, at boot
 and at every commit, whatever order the entries are written in. A declared name
 is an entry of any interface kind, the peer end of a veth, or a VLAN unit
-written `<interface>.<vlan-id>`. The check reads the config alone and never the
-kernel, so a mistyped target, and a target the same commit deletes, are refused
+written `<interface>.<vlan-id>`. The check reads the config and compiled schema,
+never the kernel, so a mistyped target, and a target the same commit deletes, are refused
 with the set command that declares them, while a declared target whose
-selector has no device still defers as above.
+selector has no device still defers as above. Supported interface kinds come
+from list nodes in the current compiled schema, including registered additions.
+If the schema cannot be read, completion offers no unverified names and
+validation returns the schema failure with `ze doctor` as the next step.
 
 <!-- source: internal/component/iface/config_apply.go -- the Phase 2a bridge member loop -->
 <!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination, newMirrorTargets, applyMirror -->
-<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, configuredInterfaceNames, checkConfiguredInterface -->
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, configuredInterfaceKinds, configuredInterfaceNames, checkConfiguredInterface -->
 
 Which names must be declared follows what the leaf does with the name. A leaf
 that configures an interface Ze owns must name an interface the config
@@ -174,22 +192,25 @@ as an external process, as VRRP does.
 <!-- source: internal/plugins/dhcpserver/doctor.go -- checkDHCPInterfaces -->
 <!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice, selectedNetDevice -->
 
-PPPoE binds both ends of a session to ONE resolution. The client's
-`source-interface` and the access concentrator's `pppoe interface` are logical
-names, and `pppoe.ResolveInterface` turns each into an `InterfaceBinding`
-holding the kernel device (`Binding.OsName`), its ifindex, MAC and MTU, read
-together. Discovery sends and filters on the binding's ifindex, and the session
-socket's `connect(AF_PPPOX)`, which takes a device NAME, takes the binding's
-device. Handing it the configured name instead failed the session after PADS
-with an `os-name` or `mac match` selector, or bound it to whichever NIC wore that
-name. `pppoe.PPPoECreate` takes the binding, not a string, so the configured
-name cannot reach it, and the access concentrator keeps the device beside the
-configured name it reports in `show`, logs and events.
+PPPoE clients resolve `source-interface` through `pppoe.ResolveInterface`
+into one `InterfaceBinding` with the kernel device, ifindex, MAC and MTU.
+Discovery uses that ifindex, and `pppoe.PPPoECreate` takes the binding's device
+for `connect(AF_PPPOX)`.
 
 <!-- source: internal/component/l2tp/pppoe/resolve.go -- InterfaceBinding, resolveInterface -->
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dialer.Dial -->
-<!-- source: internal/component/l2tp/pppoe/server.go -- InterfaceServer, createTransport -->
+
+Access concentrators prepare `pppoe interface` through the selected data-plane
+backend. The netlink backend uses `iface.ResolveForBackend` to capture the
+kernel device, ifindex, MAC and MTU. `newInterfaceServer` keeps that prepared
+access for discovery and session setup, beside the configured name used in
+reports. Its `openSession` passes the prepared device to the backend, so the
+netlink socket connects with the resolved device name.
+
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, prepareWithResolver -->
+<!-- source: internal/component/l2tp/pppoe/server.go -- InterfaceServer, handlePADR -->
 <!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- newInterfaceServer -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/socket_linux.go -- openTransportWithOps -->
 
 A tracked interface is the second name VRRP resolves, and it takes the OTHER
 route. `track interface <name>` names a device VRRP only READS, so it calls
@@ -274,7 +295,7 @@ resolves only while a session is up. The static plugin learns from the
 candidate `interface` section that the name is declared and may be absent
 (`iface.DeclaredDynamicNames`). A route through it then waits for the device
 instead of being skipped.
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
 <!-- source: internal/component/iface/declared_dynamic.go -- DeclaredDynamicNames -->
 
 ## Cache invalidation rides the monitor events

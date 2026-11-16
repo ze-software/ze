@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 )
 
 func TestIPv6PrefixPoolAllocate(t *testing.T) {
@@ -236,8 +237,8 @@ func TestPrefixHandlerRADIUSOverride(t *testing.T) {
 	p.v6pool = pool
 
 	radiusPrefix := netip.MustParsePrefix("2001:db8:abcd::/48")
-	l2tp.StoreSessionMetadata(3, 4, &l2tp.AuthMetadata{DelegatedIPv6Prefix: radiusPrefix})
-	defer l2tp.ClearSessionMetadata(3, 4)
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4), &l2tp.AuthMetadata{DelegatedIPv6Prefix: radiusPrefix})
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4))
 
 	result := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 3, SessionID: 4})
 	if !result.OK {
@@ -369,8 +370,8 @@ func TestPrefixHandlerNamedPool(t *testing.T) {
 	p := &poolPlugin{}
 	p.v6namedPools = map[string]*ipv6PrefixPool{"v6-gold": gold}
 
-	l2tp.StoreSessionMetadata(7, 8, &l2tp.AuthMetadata{FramedIPv6Pool: "v6-gold"})
-	defer l2tp.ClearSessionMetadata(7, 8)
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8), &l2tp.AuthMetadata{FramedIPv6Pool: "v6-gold"})
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8))
 
 	result := p.handlePrefix(l2tp.PrefixRequest{TunnelID: 7, SessionID: 8})
 	if !result.OK {

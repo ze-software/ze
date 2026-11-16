@@ -385,10 +385,18 @@ func TestLCPDownPrecedesRestartWireResponse(t *testing.T) {
 	for _, refused := range []bool{false, true} {
 		s, rec, events := configuredLCPSession(t, LCPStateOpened, time.Second, 2, 3, 5)
 		s.ncpStarted = true
+		if err := testHandleFor(s).Connect(); err != nil {
+			t.Fatal(err)
+		}
 		s.channelConnected = true
 		s.ipcpState = LCPStateOpened
 		s.localIPv4 = netip.MustParseAddr("192.0.2.1")
 		s.peerIPv4 = netip.MustParseAddr("192.0.2.2")
+		local := netip.PrefixFrom(s.localIPv4, 32)
+		if err := s.dataplane.AddAddressP2P(local, netip.PrefixFrom(s.peerIPv4, 32)); err != nil {
+			t.Fatal(err)
+		}
+		s.installedIPv4 = local
 		writer := &lcpDownOrderWriter{frameRecorder: rec, session: s, events: events}
 		s.chanFile = writer
 		stopRelay := relayLifecycleEvents(s)

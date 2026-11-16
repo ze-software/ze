@@ -213,14 +213,10 @@ func TestHandleLCPPacketOpenedRXRDoesNotReenterOpened(t *testing.T) {
 			eventsOut := make(chan Event, 4)
 			authEventsOut := make(chan AuthEvent, 4)
 			chanFile := &recordingChanFile{}
-			s := &pppSession{
+			s := testProtocolSession(&pppSession{
 				tunnelID:             1,
 				sessionID:            2,
 				chanFile:             chanFile,
-				unitFD:               99,
-				unitNum:              7,
-				backend:              backend,
-				ops:                  ops,
 				eventsOut:            eventsOut,
 				authEventsOut:        authEventsOut,
 				authRespCh:           make(chan authResponseMsg, 1),
@@ -236,7 +232,7 @@ func TestHandleLCPPacketOpenedRXRDoesNotReenterOpened(t *testing.T) {
 				echoOutstanding:      2,
 				disableIPCP:          true,
 				disableIPv6CP:        true,
-			}
+			}, backend, ops, 0, 99, 7)
 			// If the old re-entry path runs, the preloaded decision keeps
 			// the test from hanging and lets the side effects become visible.
 			s.authRespCh <- authResponseMsg{accept: true}

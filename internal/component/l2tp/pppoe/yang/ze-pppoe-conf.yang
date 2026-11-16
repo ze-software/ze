@@ -160,7 +160,10 @@ module ze-pppoe-conf {
 
         list interface {
             key "name";
-            description "Each interface has an independent session ID space.";
+            description "Each interface has an independent session ID space. Access interfaces
+                         use the session provider registered for the selected interface backend.
+                         Configuration is refused when this build has no such provider. VPP
+                         access interfaces also require VPP and its Linux Control Plane enabled.";
             ze:help "Access interfaces on which PPPoE discovery listens.";
 
             leaf name {

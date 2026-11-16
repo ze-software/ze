@@ -92,7 +92,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			transport := addEstablishedSession(tun, sid, 511, true)
 			transport.pppInterface = "ppp41"
 			t.Cleanup(func() { cancelSessionTimeouts(transport) })
-			t.Cleanup(func() { ClearSessionMetadata(tid, sid) })
+			t.Cleanup(func() { ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid)) })
 
 			bus := newTestBus()
 			reg := subscriber.NewRegistry()
@@ -140,7 +140,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			baseline := l2tpActiveSubscribers(t)
 			oldRoute := netip.MustParsePrefix("198.51.100.0/24")
 			oldV6Route := netip.MustParsePrefix("2001:db8:41::/64")
-			StoreSessionMetadata(tid, sid, &AuthMetadata{
+			StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid), &AuthMetadata{
 				FramedPool: "old-pool", FilterID: "rate:20mbit/5mbit",
 				SessionTimeout: 3600, IdleTimeout: 3600,
 				FramedRoutes: []FramedRoute{{Prefix: oldRoute}, {Prefix: oldV6Route}},
@@ -190,7 +190,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			require.False(t, ok, "LCPDown must withdraw the old subscriber")
 			require.Empty(t, liveRoutes, "LCPDown must publish route withdrawals")
 			require.ElementsMatch(t, oldPrefixes, removed)
-			require.Nil(t, LoadSessionMetadata(tid, sid), "old authorization must not survive replacement authentication")
+			require.Nil(t, LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid)), "old authorization must not survive replacement authentication")
 			require.Len(t, down, 1)
 			tidDown, sidDown := down[0].PPPKey()
 			require.Equal(t, tid, tidDown)
@@ -206,7 +206,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			// A different authorization and both NCPs reuse the exact transport;
 			// reverse the completion order to catch family overwrite in either direction.
 			newRoute := netip.MustParsePrefix("203.0.113.0/24")
-			StoreSessionMetadata(tid, sid, &AuthMetadata{FramedPool: "new-pool", FramedRoutes: []FramedRoute{{Prefix: newRoute}}})
+			StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid), &AuthMetadata{FramedPool: "new-pool", FramedRoutes: []FramedRoute{{Prefix: newRoute}}})
 			second := first
 			second.Username = "new-user"
 			second.Peer = netip.MustParseAddr("192.0.2.42")
@@ -234,7 +234,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			_, ok = reg.Get(id)
 			require.False(t, ok)
 			require.Empty(t, liveRoutes)
-			require.Nil(t, LoadSessionMetadata(tid, sid))
+			require.Nil(t, LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid)))
 			require.Len(t, down, 2)
 			require.Equal(t, second.Peer, down[1].IPv4Addr)
 			require.Equal(t, baseline, l2tpActiveSubscribers(t))
@@ -369,8 +369,8 @@ func TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 		ID: l2tpSessionID(tid, sid), AccessType: subscriber.AccessL2TP,
 		TunnelID: tid, SessionID: sid, State: subscriber.StateConfiguring, IPv4Addr: addr,
 	})
-	StoreSessionMetadata(tid, sid, &AuthMetadata{FramedPool: "old-pool"})
-	t.Cleanup(func() { ClearSessionMetadata(tid, sid) })
+	StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid), &AuthMetadata{FramedPool: "old-pool"})
+	t.Cleanup(func() { ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid)) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	transport.sessionTimeoutCancel = cancel
@@ -397,7 +397,7 @@ func TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	require.False(t, ok)
 	require.Len(t, down, 1)
 	require.Equal(t, addr, down[0].IPv4Addr)
-	require.Nil(t, LoadSessionMetadata(tid, sid))
+	require.Nil(t, LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tid), sid)))
 	require.ErrorIs(t, ctx.Err(), context.Canceled)
 	require.Same(t, transport, tun.lookupSession(sid))
 	assertNoL2TPLifetimePacket(t, peer)

@@ -3,7 +3,7 @@
     "rid": "RFC3162-2.1-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go::TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS",
-    "unit-sha": "3904ca9cae82fdb3",
+    "unit-sha": "da67509feabe50a5",
     "claim-sha": "21cd6628a8efcc7a",
     "route": "revert",
     "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",

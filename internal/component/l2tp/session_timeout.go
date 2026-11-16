@@ -24,7 +24,7 @@ import (
 // seconds. The session is disconnected when no traffic has been
 // observed for this duration.
 func (r *l2tpReactor) startSessionTimeouts(tid, sid uint16) {
-	meta := LoadSessionMetadata(tid, sid)
+	meta := LoadSessionMetadata(l2tpSessionID(tid, sid))
 	if meta == nil {
 		return
 	}

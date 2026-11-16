@@ -96,9 +96,11 @@ func (c fakeRealmCall) Cancel() {
 	}
 }
 
-func (f *fakeRealmSink) Relay(callsink.Request) (bool, error) { return false, nil }
-func (f *fakeRealmSink) RealmRelayConfigured() bool           { return true }
-func (f *fakeRealmSink) RelayRealm(req callsink.RealmRequest) (callsink.RealmCall, bool, error) {
+func (f *fakeRealmSink) Relay(callsink.Request) (callsink.RelayCall, bool, error) {
+	return nil, false, nil
+}
+func (f *fakeRealmSink) RealmRelayConfigured() bool { return true }
+func (f *fakeRealmSink) RelayRealm(req callsink.RealmRequest) (callsink.RelayCall, bool, error) {
 	if f.err != nil {
 		return nil, false, f.err
 	}
@@ -129,7 +131,7 @@ func newRealmHarness(t *testing.T) *realmHarness {
 	callsink.Register(h.sink)
 	h.relay = newRealmRelay(slog.New(slog.NewTextHandler(io.Discard, nil)), h.driver,
 		func(int, uint16) (realmSubscriber, bool) {
-			return realmSubscriber{ifName: "eth1", mac: "02:00:00:00:00:01", pppoxFD: 42}, true
+			return realmSubscriber{ifName: "eth1", mac: "02:00:00:00:00:01", channel: fixtureRelayOpened(t, 42)}, true
 		},
 		func(_ int, sid uint16) { h.ended <- sid },
 	)
@@ -250,7 +252,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 	})
 	t.Run("bridged, subscriber leaves", func(t *testing.T) {
 		// The Bridged row: a PADT after the bridge MUST reach the sink,
-		// which tears the L2TP session down with CDN (callsink.RealmCall).
+		// which tears the L2TP session down with CDN (callsink.RelayCall).
 		// Twice reported (PADT, then a PPP session-down) is one cancel.
 		h := newRealmHarness(t)
 		h.handoff().Bridged(nil)
@@ -303,7 +305,9 @@ func TestRelayRealmStartFailureRefuses(t *testing.T) {
 	callsink.Register(sink)
 	driver := newFakeRelayDriver()
 	relay := newRealmRelay(slog.New(slog.NewTextHandler(io.Discard, nil)), driver,
-		func(int, uint16) (realmSubscriber, bool) { return realmSubscriber{pppoxFD: 42}, true },
+		func(int, uint16) (realmSubscriber, bool) {
+			return realmSubscriber{channel: fixtureRelayOpened(t, 42)}, true
+		},
 		func(int, uint16) {})
 	t.Cleanup(relay.stopAll)
 	req := ppp.EventAuthRequest{TunnelID: 3, SessionID: 5, Method: ppp.AuthMethodPAP,
@@ -323,7 +327,9 @@ func TestRelayRealmNoRealmAuthenticatesLocally(t *testing.T) {
 	t.Cleanup(callsink.Unregister)
 	callsink.Register(&fakeRealmSink{canceled: make(chan struct{}, 1)})
 	relay := newRealmRelay(slog.New(slog.NewTextHandler(io.Discard, nil)), newFakeRelayDriver(),
-		func(int, uint16) (realmSubscriber, bool) { return realmSubscriber{pppoxFD: 42}, true },
+		func(int, uint16) (realmSubscriber, bool) {
+			return realmSubscriber{channel: fixtureRelayOpened(t, 42)}, true
+		},
 		func(int, uint16) {})
 	t.Cleanup(relay.stopAll)
 	noRealm := ppp.EventAuthRequest{Username: "cpe", ProxyLCP: &ppp.ProxyLCPCapture{}}

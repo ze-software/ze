@@ -4,12 +4,15 @@ package pppoe
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"net"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 
 	"golang.org/x/sys/unix"
 
@@ -122,14 +125,14 @@ func awaitFrame(t *testing.T, sent <-chan *Packet, code byte, host [EthALen]byte
 // session; a PADT after it, RFC 2516 Section 5.5), a session admitted earlier
 // is untouched, and the panic is logged, counted and crash-recorded.
 // METHOD: the real discoveryReader over a socketpair; the injected panic fires
-// in the server's own seams, pppoeCreateFn (before the PADS) or sendFrameFn on
+// in the server's own seams, openSession (before the PADS) or sendFrameFn on
 // the PADS itself (after the PADS is marked sent).
 // PREVENTS: one malformed admission ending discovery for every access
 // interface, and a host left believing in a session Ze abandoned.
 func TestPPPoEReadPanicContained(t *testing.T) {
 	cases := []struct {
 		name string
-		// panicCreate breaks the victim's admission in pppoeCreateFn, before
+		// panicCreate breaks the victim's admission in openSession, before
 		// the PADS; otherwise the panic fires as the victim's PADS is sent.
 		panicCreate bool
 		wantPADT    bool
@@ -146,13 +149,12 @@ func TestPPPoEReadPanicContained(t *testing.T) {
 			sent := make(chan *Packet, 64)
 			srv := newRecordingServer(new([][]byte), nil, 8)
 			srv.acName = "ze-ac"
-			srv.pppDriver = ppp.NewProductionDriver(slog.Default(), admissionBackend{})
-			srv.devPPPSetupFn = func(int) (int, int, int, error) { return -1, -1, 7, nil }
-			srv.pppoeCreateFn = func(_ string, _ uint16, remoteMAC [EthALen]byte) (int, error) {
-				if tc.panicCreate && remoteMAC == panicHost {
-					panic("injected test panic in pppoeCreateFn")
+			srv.pppDriver = ppp.NewProductionDriver(slog.Default())
+			srv.openSession = func(_ context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
+				if tc.panicCreate && request.PeerMAC == panicHost {
+					panic("injected test panic in openSession")
 				}
-				return -1, nil
+				return fixtureOpened(t, "ppp7"), nil
 			}
 			srv.sendFrameFn = func(frame []byte) {
 				// The server reuses its frame buffer, so the test keeps a copy.

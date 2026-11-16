@@ -3,11 +3,22 @@
     "rid": "RFC2865-5-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName",
-    "unit-sha": "2b5bbf618f9c89c7",
+    "unit-sha": "3fd1b5ab2616fe05",
     "claim-sha": "032699ecf371fdd9",
     "route": "revert",
     "producer": "internal/component/radius/attr.go::AppendTextAttr",
     "producer-sha": "306d8e7a038b2034",
-    "break": "body of AppendTextAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of AppendTextAttr replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName",
+    "unit-sha": "65e3d67790793fea",
+    "claim-sha": "e7bacce14484530f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
+    "producer-sha": "e642f001446972f0",
+    "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

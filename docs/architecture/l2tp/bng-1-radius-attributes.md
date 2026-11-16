@@ -320,13 +320,28 @@ tearing the call down before the accounting checks reach Interim.
   attribute such as Delegated-IPv6-Prefix or Class extends that struct.
 - Named pools are available to any feature that needs pool selection, not only
   to Framed-Pool.
-- The pool handler's from-pool flag is load-bearing at teardown. An address
-  assigned by RADIUS must not be released back into the pool.
+- The pool handler's from-pool flag names a current bitmap reservation.
+  A RADIUS address inside a configured range reserves that pool and returns
+  its slot at teardown. An external assignment consumes no bitmap slot.
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- releaseAddressLocked -->
 
 ## Traps this code exists to avoid
 
-**The metadata key is the tunnel id AND the session id.** Session ids are per
-tunnel, so a plain session id collides across tunnels.
+**The metadata key is the canonical subscriber ID.** An L2TP tunnel/session
+pair and a PPPoE interface/session pair can be numerically equal. The existing
+subscriber ID keeps those transports separate. Transports supply it through
+PPP authentication and address requests; metadata readers and teardown use
+the same ID. Missing identities are refused and reported through doctor.
+<!-- source: internal/component/l2tp/session_metadata.go -- StoreSessionMetadata, LoadSessionMetadata, ClearSessionMetadata -->
+<!-- source: internal/component/l2tp/subscriber/id_required.go -- RequireID -->
+
+The RADIUS provider also checks identity when called directly, before its
+no-auth shortcut. A missing ID receives a synchronous refusal without invoking
+the response callback. A no-auth request with a valid opaque ID remains
+accepted synchronously.
+<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- handle -->
+<!-- source: internal/component/l2tp/subscriber/session.go -- PPPKey -->
 
 **The two timeout entry points have opposite locking rules.** Cancelling must
 happen while the tunnel lock is held, inside teardown. Starting must NOT hold

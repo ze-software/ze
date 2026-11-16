@@ -32,13 +32,10 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 	)
 	proxiedPeer := optStream(mruOpt(proxiedPeerMRU), magicOpt(0x11223344))
 	proxiedLocal := optStream(mruOpt(1492), magicOpt(0x01020304), authProtoOpt(authProtoPAP))
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            tunnelID,
 		SessionID:           sessionID,
-		ChanFD:              19301,
-		UnitFD:              19302,
-		UnitNum:             8,
 		MaxMRU:              1492,
 		AuthMethod:          AuthMethodCHAPMD5,
 		AuthFallbackOrder:   []AuthMethod{AuthMethodCHAPMD5},
@@ -48,7 +45,7 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 		ProxyLCPInitialRecv: proxiedPeer,
 		ProxyLCPLastRecv:    proxiedPeer,
 		ProxyLCPLastSent:    proxiedLocal,
-	}
+	}, 19301, 19302, 8)
 
 	request := readPolicyLCP(t, pair.peerEnd)
 	if request.Code != LCPConfigureRequest {

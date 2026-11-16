@@ -165,13 +165,10 @@ func startProxyMRUOptionEncodingDriver(t *testing.T, cap uint16, initial, local,
 		closeConn(pair.peerEnd)
 		d.Stop()
 	})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            24,
 		SessionID:           1,
-		ChanFD:              24001,
-		UnitFD:              24002,
-		UnitNum:             9,
 		LNSMode:             true,
 		MaxMRU:              cap,
 		AuthMethod:          AuthMethodPAP,
@@ -181,6 +178,6 @@ func startProxyMRUOptionEncodingDriver(t *testing.T, cap uint16, initial, local,
 		ProxyLCPInitialRecv: initial,
 		ProxyLCPLastSent:    local,
 		ProxyLCPLastRecv:    peer,
-	}
+	}, 24001, 24002, 9)
 	return &ncpTestDriver{t: t, driver: d, backend: backend, peer: pair.peerEnd, peerFD: 24001}
 }

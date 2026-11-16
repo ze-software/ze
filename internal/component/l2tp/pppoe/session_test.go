@@ -240,14 +240,14 @@ func TestSessionTableRemoveKeepsSiblingSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllocSID sid1: %v", err)
 	}
-	if err := st.Add(&Session{SID: sid1, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+	if err := st.Add(&Session{SID: sid1, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 		t.Fatalf("Add sid1: %v", err)
 	}
 	sid2, err := st.AllocSID()
 	if err != nil {
 		t.Fatalf("AllocSID sid2: %v", err)
 	}
-	if err := st.Add(&Session{SID: sid2, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+	if err := st.Add(&Session{SID: sid2, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 		t.Fatalf("Add sid2: %v", err)
 	}
 
@@ -326,7 +326,7 @@ func TestMarkSessionDoesNotResurrectATeardownSession(t *testing.T) {
 		t.Fatalf("AllocSID: %v", err)
 	}
 	if err := st.Add(&Session{
-		SID: sid, MAC: mac, IfName: "eth0", PppoxFD: -1,
+		SID: sid, MAC: mac, IfName: "eth0",
 		State: StateDiscovery, Cookie: cookie,
 	}); err != nil {
 		t.Fatalf("Add: %v", err)

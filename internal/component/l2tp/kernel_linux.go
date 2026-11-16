@@ -22,7 +22,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
 // No "l2tp:" prefix: the subsystem Start wraps this with fmt.Errorf("l2tp: %w"),
@@ -90,7 +91,7 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 	// An L2TP LNS and LAC name their subscriber sessions pppN: the name is
 	// not set by config here, only the PPPoE client passes a configured
 	// name (plan child-1).
-	chanFD, unitFD, unitNum, err := ppp.DevPPPSetup(pppoxFD, "")
+	chanFD, unitFD, unitNum, err := prepareAndSetupPPP(ev, pppoxFD, pppkernel.DevPPPSetup)
 	if err != nil {
 		unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is err
 		return pppSessionFDs{}, err
@@ -102,33 +103,36 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 	// the session is torn down: no userspace frame relay exists. A realm call
 	// first has its PPPoE side quiesce the subscriber's channel reader, so the
 	// bridge is the channel's only consumer, and is told the bridge result.
-	if ev.realm != nil {
-		if qerr := quiesceRealmSubscriber(ev.realm); qerr != nil {
-			unix.Close(chanFD)  //nolint:errcheck // rollback path; primary error is qerr
-			unix.Close(unitFD)  //nolint:errcheck // rollback path; primary error is qerr
-			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is qerr
-			return pppSessionFDs{}, qerr
+	if ev.relay != nil {
+		if qerr := quiesceRelaySubscriber(ev.relay); qerr != nil {
+			return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, qerr, unix.Close)
 		}
 	}
 	bridged, berr := maybeBridgePPPoE(ev, chanFD)
-	if ev.realm != nil && berr == nil && !ev.realm.markBridged(ev.localTID, ev.localSID) {
-		// The subscriber left while the bridge was issued. Closing the
-		// pppol2tp channel undoes the bridge; the setup failure sends CDN.
-		unix.Close(chanFD)  //nolint:errcheck // rollback path; primary error is the cancel
-		unix.Close(unitFD)  //nolint:errcheck // rollback path; primary error is the cancel
-		unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is the cancel
-		return pppSessionFDs{}, errRealmCallCancelled
+	if ev.relay != nil {
+		if berr == nil {
+			if !ev.relay.markBridged(ev.localTID, ev.localSID) {
+				return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, errRelayCallCancelled, unix.Close)
+			}
+		}
 	}
-	if ev.realm != nil {
+
+	if ev.relay != nil {
 		// A realm call never takes the userspace relay fall-back: the PPPoE
 		// side refuses the subscriber on a bridge error (Bridged(err)).
 		// markBridged ran first, so a Cancel the PPPoE side sends once it
 		// saw Bridged(nil) tears the bridged session down.
-		countRealmBridge(berr)
-		ev.realm.handoff.Bridged(berr)
+		if ev.relay.realm != nil {
+			// quiesceRelaySubscriber checked this immutable handoff before bridging.
+			handoff := ev.relay.handoff.(callsink.RealmHandoff)
+			countRealmBridge(berr)
+			handoff.Bridged(berr)
+		}
 	}
 	if berr != nil {
-		return pppSessionFDs{}, fmt.Errorf("l2tp: LAC channel bridge: %w", berr)
+		// The kernel worker cannot close a local lease setup never published.
+		return pppSessionFDs{}, fmt.Errorf("l2tp: LAC channel bridge: %w",
+			rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, berr, unix.Close))
 	}
 
 	return pppSessionFDs{
@@ -138,6 +142,31 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 		unitNum: unitNum,
 		bridged: bridged,
 	}, nil
+}
+
+// rollbackPPPBridge closes unpublished setup descriptors once each, retaining
+// cleanup errors beside cause. Zero is owned; only negative values mean no
+// allocation. The three-slot bound keeps alias detection allocation-free.
+func rollbackPPPBridge(fds [3]int, cause error, closeFD func(int) error) error {
+	for index, fd := range fds {
+		if fd < 0 {
+			continue
+		}
+		duplicate := false
+		for _, previous := range fds[:index] {
+			if previous == fd {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+		if err := closeFD(fd); err != nil {
+			cause = errors.Join(cause, err)
+		}
+	}
+	return cause
 }
 
 // kernelTunnelState tracks kernel-side resources for one L2TP tunnel.
@@ -153,22 +182,23 @@ type sessionKey struct {
 	sessionID uint16
 }
 
-// errRealmCallCancelled is the setup failure of a realm call the subscriber
-// abandoned before the bridge completed (before quiesce, or while the
-// kernel worker bridged it: realmCall.markBridged); the session is then
-// torn down with CDN.
-var errRealmCallCancelled = errors.New("l2tp: realm call abandoned by the subscriber before the bridge completed")
-
-// quiesceRealmSubscriber asks the PPPoE side to stop reading the subscriber's
-// channel before PPPIOCBRIDGECHAN, so only one reader owns the channel at any
-// instant. It returns an error when the subscriber left, and the caller then
-// tears the session down instead of bridging.
-func quiesceRealmSubscriber(rc *realmCall) error {
-	if rc.isCancelled() {
-		return errRealmCallCancelled
+// quiesceRelaySubscriber refuses a stopped call before PPPIOCBRIDGECHAN. A
+// realm then joins its local PPP reader; a Service-Name call has no reader,
+// and BeforeBridge has already released its unused local lease.
+func quiesceRelaySubscriber(rc *relayCall) error {
+	if rc.stopped() {
+		return errRelayCallCancelled
 	}
-	if err := rc.handoff.Quiesce(); err != nil {
-		return fmt.Errorf("l2tp: realm %q subscriber could not be quiesced: %w", rc.realm, err)
+	// permission: guards pppSetupReal -- a Service-Name call has no local PPP reader; BeforeBridge owns its unused lease
+	if rc.realm == nil {
+		return nil
+	}
+	handoff, ok := rc.handoff.(callsink.RealmHandoff)
+	if !ok {
+		return errors.New("l2tp: realm relay has no PPP handoff")
+	}
+	if err := handoff.Quiesce(); err != nil {
+		return fmt.Errorf("l2tp: realm %q subscriber could not be quiesced: %w", rc.realm.name, err)
 	}
 	return nil
 }
@@ -328,7 +358,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		if ready != nil {
 			w.reportSuccess(ev, snapshot, ready)
 		} else if setupError != nil {
-			w.reportError(ev.localTID, ev.localSID, setupError)
+			w.reportError(ev, setupError)
 		}
 	}()
 
@@ -415,6 +445,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	}
 
 	key := sessionKey{tunnelID: ev.localTID, sessionID: ev.localSID}
+	fds.relay = ev.relay
 	w.sessions[key] = &fds
 
 	w.logger.Info("l2tp: kernel session established",
@@ -475,6 +506,10 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 		return
 	}
 
+	// A delayed removal cannot target a replacement using the same pair.
+	if fds.relay != ev.relay {
+		return
+	}
 	w.teardownSessionFDsLocked(key, fds)
 
 	// If this was the last session, delete the kernel tunnel.
@@ -573,11 +608,12 @@ func (w *kernelWorker) cleanupTunnelIfNew(localTID uint16, tunnelExisted bool) {
 }
 
 // reportError sends a setup failure to the reactor via errCh.
-func (w *kernelWorker) reportError(localTID, localSID uint16, err error) {
+func (w *kernelWorker) reportError(ev kernelSetupEvent, err error) {
 	select {
 	case w.errCh <- kernelSetupFailed{
-		localTID: localTID,
-		localSID: localSID,
+		localTID: ev.localTID,
+		localSID: ev.localSID,
+		relay:    ev.relay,
 		err:      err,
 	}:
 	case <-w.stop:

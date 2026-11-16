@@ -39,7 +39,7 @@ func newCHAPLinkTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent, ch
 		logger:        discardLogger(),
 	}
 	readDone := make(chan error, 1)
-	go s.readFrames(frames, readDone)
+	go s.readFrames(frames, readDone, s.sessStop)
 	return s, authEventsOut, eventsOut
 }
 

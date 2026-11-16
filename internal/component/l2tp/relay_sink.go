@@ -12,6 +12,8 @@ import (
 )
 
 var (
+	errRelayNoHandoff     = errors.New("l2tp: relayed subscriber has no call-end handoff")
+	errRelayCallCancelled = errors.New("l2tp: relay call abandoned by the subscriber before the bridge completed")
 	errRelayNoListener    = errors.New("l2tp: relay configured but no L2TP listener is running")
 	errRelayRealmNoRemote = errors.New("l2tp: relay-realm names a remote that is not declared")
 	errRelayRealmNoAuth   = errors.New("l2tp: realm relay request carries no authentication exchange")
@@ -33,7 +35,7 @@ type relaySink struct {
 // by the reactor). Returns accepted=true so the caller skips local PPP
 // termination. A match whose remote cannot be dialed returns an error so the
 // caller can fall back to local termination rather than strand the subscriber.
-func (rs *relaySink) Relay(req callsink.Request) (bool, error) {
+func (rs *relaySink) Relay(req callsink.Request) (callsink.RelayCall, bool, error) {
 	rs.s.mu.Lock()
 	rem, matched := rs.s.relayTargetLocked(req.Service)
 	var reactor *l2tpReactor
@@ -45,28 +47,35 @@ func (rs *relaySink) Relay(req callsink.Request) (bool, error) {
 	if !matched {
 		// No relay binding for this service: terminate locally.
 		countRelay(relayKindService, relayOutcomeNoMatch)
-		return false, nil
+		return nil, false, nil
 	}
 	if reactor == nil {
 		countRelay(relayKindService, relayOutcomeRefused)
-		return false, errRelayNoListener
+		return nil, false, errRelayNoListener
 	}
 
+	if req.Handoff == nil {
+		countRelay(relayKindService, relayOutcomeRefused)
+		return nil, false, errRelayNoHandoff
+	}
+	rc := &relayCall{remote: rem.Name, handoff: req.Handoff, teardown: reactor.teardownRelaySession}
 	target := DialTarget{Remote: rem.Address, SharedSecret: rem.SharedSecret}
 	// The LAC forwards the subscriber's identity as the Calling Number; the
-	// PPPoE channel fd travels with the call for the kernel data-plane bridge
-	// (A-4), which the reactor performs when the session's kernel resources
-	// are created.
-	params := callParams{callingNumber: req.SubscriberMAC, pppoeChannelFD: req.ChannelFD}
+	// PPPoE transport lease travels with the call for the kernel data-plane
+	// bridge (A-4). The worker borrows its descriptor only during that ioctl.
+	params := callParams{
+		callingNumber: req.SubscriberMAC, channel: req.Channel,
+		beforeBridge: req.BeforeBridge, relay: rc,
+	}
 	if _, err := reactor.placeIncomingCall(target, params); err != nil {
 		countRelay(relayKindService, relayOutcomeRefused)
-		return false, err
+		return nil, false, err
 	}
 	countRelay(relayKindService, relayOutcomePlaced)
 	rs.s.logger.Info("l2tp: relaying PPPoE subscriber into L2TP incoming call",
 		"service", req.Service, "remote", rem.Name, "subscriber", req.SubscriberMAC,
 		"interface", req.Interface)
-	return true, nil
+	return rc, true, nil
 }
 
 // RealmRelayConfigured reports whether any relay-realm binding is configured
@@ -97,7 +106,7 @@ func (s *Subsystem) relayTargetLocked(service string) (Remote, bool) {
 // reaches req.Handoff. No match returns accepted=false and a nil error, so the
 // caller authenticates locally. A match whose call cannot start returns the
 // error: the caller refuses the subscriber, never authenticating it locally.
-func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RealmCall, bool, error) {
+func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RelayCall, bool, error) {
 	if req.Handoff == nil {
 		panic("BUG: l2tp RelayRealm called with a nil handoff")
 	}
@@ -141,12 +150,12 @@ func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RealmCall, 
 			"realm", binding.Realm, "remote", rem.Name,
 			"fix", "set `l2tp remote "+rem.Name+" shared-secret <secret>` on both ends")
 	}
-	rc := &realmCall{
-		realm: binding.Realm, remote: rem.Name, proxy: proxy, authReason: authReason,
-		handoff: req.Handoff, teardown: reactor.teardownRealmSession,
+	rc := &relayCall{
+		remote: rem.Name, realm: &relayRealmDetails{name: binding.Realm, proxy: proxy, authReason: authReason},
+		handoff: req.Handoff, teardown: reactor.teardownRelaySession,
 	}
 	target := DialTarget{Remote: rem.Address, SharedSecret: rem.SharedSecret}
-	params := callParams{callingNumber: req.SubscriberMAC, pppoeChannelFD: req.ChannelFD, realm: rc}
+	params := callParams{callingNumber: req.SubscriberMAC, channel: req.Channel, relay: rc}
 	if _, err := reactor.placeIncomingCall(target, params); err != nil {
 		countRelay(relayKindRealm, relayOutcomeRefused)
 		return nil, false, err
@@ -158,36 +167,47 @@ func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RealmCall, 
 	return rc, true, nil
 }
 
-// Cancel ends the realm call for a subscriber that left (callsink.RealmCall).
+// Cancel ends the relay call for a subscriber that left (callsink.RelayCall).
 // Before the bridge, the next event the reactor or the kernel worker sees
 // for it (ICRP, the bridge) tears the call down with CDN instead of going
 // on. After the bridge, Cancel tears the bridged session down now: nothing
-// else would, because the PPP driver released the subscriber and the
-// kernel forwards its frames to an LNS that never hears it left.
+// else would: a bridged subscriber has no local PPP worker to tell the
+// LNS that its access transport ended.
 // Idempotent; safe for concurrent use. Caller MUST NOT hold tunnelsMu.
-func (rc *realmCall) Cancel() {
+func (rc *relayCall) Cancel() {
 	rc.bridgeMu.Lock()
-	rc.canceled.Store(true)
+	// refuse-by-default: guards relay lifetime -- a completed call owns no bridge to cancel or republish
+	if rc.ended {
+		rc.bridgeMu.Unlock()
+		return
+	}
+	rc.canceled = true
 	bridged, tid, sid := rc.bridged, rc.bridgedTID, rc.bridgedSID
 	rc.bridged = false
 	rc.bridgeMu.Unlock()
+	// refuse-by-default: guards Cancel -- a pre-bridge cancellation is observed by the pending call or worker
 	if !bridged {
 		return
 	}
 	if rc.teardown == nil {
-		panic("BUG: l2tp realm call bridged with no teardown")
+		panic("BUG: l2tp relay call bridged with no teardown")
 	}
-	rc.teardown(tid, sid)
+	rc.teardown(rc, tid, sid)
 }
 
 // markBridged records that the kernel worker bridged session tid/sid, so a
-// later Cancel tears it down. It answers false when Cancel already ran: the
+// later Cancel tears it down. It refuses cancellation or completion: the
 // caller then fails the setup, which sends CDN, instead of reporting a
 // bridge nobody owns.
-func (rc *realmCall) markBridged(tid, sid uint16) bool {
+func (rc *relayCall) markBridged(tid, sid uint16) bool {
 	rc.bridgeMu.Lock()
 	defer rc.bridgeMu.Unlock()
-	if rc.canceled.Load() {
+	// refuse-by-default: guards markBridged -- an abandoned subscriber cannot publish a live bridge
+	if rc.canceled {
+		return false
+	}
+	// refuse-by-default: guards relay lifetime -- a completed call owns no bridge to cancel or republish
+	if rc.ended {
 		return false
 	}
 	rc.bridged = true
@@ -196,15 +216,38 @@ func (rc *realmCall) markBridged(tid, sid uint16) bool {
 	return true
 }
 
-// isCancelled reports whether the PPPoE side abandoned the call.
-func (rc *realmCall) isCancelled() bool { return rc.canceled.Load() }
+// stopped reports whether cancellation or completion forbids new bridging.
+// Safe for concurrent use; callers MUST hold neither bridgeMu nor a callback lock.
+func (rc *relayCall) stopped() bool {
+	rc.bridgeMu.Lock()
+	defer rc.bridgeMu.Unlock()
+	// refuse-by-default: guards relay lifetime -- a completed call owns no bridge to cancel or republish
+	if rc.ended {
+		return true
+	}
+	return rc.canceled
+}
 
 // end reports the end of the call to the PPPoE side exactly once.
-func (rc *realmCall) end(reason string) {
-	if rc.ended.Swap(true) {
+func (rc *relayCall) end(reason string) {
+	rc.bridgeMu.Lock()
+	// refuse-by-default: guards relay lifetime -- a completed call owns no bridge to cancel or republish
+	if rc.ended {
+		rc.bridgeMu.Unlock()
 		return
 	}
+	rc.ended = true
+	rc.bridged = false
+	rc.bridgeMu.Unlock()
 	rc.handoff.Ended(reason)
 }
 
-var _ callsink.RealmCall = (*realmCall)(nil)
+var _ callsink.RelayCall = (*relayCall)(nil)
+
+// target describes a call without inventing a realm for Service-Name relay.
+func (rc *relayCall) target() string {
+	if rc.realm != nil {
+		return "realm " + rc.realm.name
+	}
+	return "remote " + rc.remote
+}

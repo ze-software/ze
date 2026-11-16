@@ -115,15 +115,11 @@ func newRFC1661Session(state LCPState) (*pppSession, *frameRecorder, chan Event)
 	rec := &frameRecorder{}
 	events := make(chan Event, 16)
 	ops, _, _ := newFakeOps()
-	s := &pppSession{
+	s := testProtocolSession(&pppSession{
 		lcpConfig:            testLCPConfig(),
 		tunnelID:             1,
 		sessionID:            2,
 		chanFile:             rec,
-		unitFD:               99,
-		unitNum:              7,
-		backend:              &fakeBackend{},
-		ops:                  ops,
 		eventsOut:            events,
 		authEventsOut:        make(chan AuthEvent, 16),
 		ipEventsOut:          make(chan IPEvent, 16),
@@ -142,7 +138,7 @@ func newRFC1661Session(state LCPState) (*pppSession, *frameRecorder, chan Event)
 		authFallbackOrder:    []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP},
 		disableIPCP:          true,
 		disableIPv6CP:        true,
-	}
+	}, &fakeBackend{}, ops, 0, 99, 7)
 	return s, rec, events
 }
 
@@ -504,9 +500,9 @@ func TestRFC1661NoAuthProtocolWhenNotDesired(t *testing.T) {
 func TestRFC1661NoNetworkPhaseUntilAuthCompletes(t *testing.T) {
 	s, _, _ := newRFC1661Session(LCPStateAckSent)
 	backend := &fakeBackend{}
-	s.backend = backend
+	testHandleFor(s).backend = backend
 	ops, opsCalls, opsMu := newFakeOps()
-	s.ops = ops
+	testHandleFor(s).ops = ops
 	s.authRespCh <- authResponseMsg{accept: false, message: "denied"}
 
 	if s.afterLCPOpen() {
@@ -536,9 +532,9 @@ func TestRFC1661NoNetworkPhaseUntilAuthCompletes(t *testing.T) {
 func TestRFC1661NetworkPhaseRunsAfterAuthCompletes(t *testing.T) {
 	s, _, _ := newRFC1661Session(LCPStateAckSent)
 	backend := &fakeBackend{}
-	s.backend = backend
+	testHandleFor(s).backend = backend
 	ops, opsCalls, opsMu := newFakeOps()
-	s.ops = ops
+	testHandleFor(s).ops = ops
 	s.authRespCh <- authResponseMsg{accept: true}
 
 	if !s.afterLCPOpen() {

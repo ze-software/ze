@@ -359,7 +359,7 @@ rule. Do not write `ppp*` for the client: the kernel names `pppN` only the
 subscriber sessions of an L2TP LNS or a PPPoE access concentrator, which have
 no configured name. On such a box, `ppp*` matches the subscribers and never the
 client.
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup -->
 <!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerIfaceMatch -->
 
 ## Action Types (then block)

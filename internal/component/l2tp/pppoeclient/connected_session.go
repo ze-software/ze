@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // connectedSession permits restart only after a complete initial negotiation.
@@ -25,7 +26,7 @@ type connectedSession struct {
 	transport        io.ReadWriteCloser
 	reader           *frameReader
 	cfg              sessionConfig
-	setIPv4Mode      func(ppp.NPMode) error
+	setIPv4Mode      func(pppkernel.NPMode) error
 	current          negotiatedSession
 	ipcpIdentifier   uint8
 	lcpIdentifier    uint8
@@ -41,7 +42,7 @@ type connectedSession struct {
 	// guard, keepaliveLoop then drops IPv6CP like any unconfigured protocol.
 	// enableIPv6CP sets it with setIPv6Mode.
 	ipv6        *clientIPv6CP
-	setIPv6Mode func(ppp.NPMode) error
+	setIPv6Mode func(pppkernel.NPMode) error
 	// linkLocal is the local link-local address while IPv6CP is Opened, the
 	// invalid address otherwise; publish carries it in every result.
 	linkLocal netip.Addr
@@ -59,7 +60,7 @@ type connectedSession struct {
 // The transport is borrowed until Cleanup, which MUST stop it before releasing
 // the unit. Typed-nil transports and missing mode operations are rejected.
 func newConnectedSession(transport io.ReadWriteCloser, initial sessionResult,
-	cfg sessionConfig, setIPv4Mode func(ppp.NPMode) error) (*connectedSession, error) {
+	cfg sessionConfig, setIPv4Mode func(pppkernel.NPMode) error) (*connectedSession, error) {
 	if transport == nil {
 		return nil, errors.New("pppoe-client: missing connected transport")
 	}
@@ -173,7 +174,7 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 	countRenegotiation(s.cfg.name)
 	// RFC 1661 Section 3.6: "Any supported network-layer protocol packets received
 	// when the corresponding NCP is not in the Opened state MUST be silently discarded."
-	if err := s.setIPv4Mode(ppp.NPModeDrop); err != nil {
+	if err := s.setIPv4Mode(pppkernel.NPModeDrop); err != nil {
 		return fmt.Errorf("pppoe-client: cannot suspend IPv4 for LCP restart: %w", err)
 	}
 	// RFC 1661 Sections 3.4-3.6: reuse the initial phase owner and ordered reader.
@@ -200,14 +201,14 @@ func (s *connectedSession) restart(pending *lcpReentry, stop <-chan struct{}, lo
 	}
 	// RFC 1661 Section 3.6: "After a NCP has reached the Opened state, PPP will
 	// carry the corresponding network-layer protocol packets."
-	if err := s.setIPv4Mode(ppp.NPModePass); err != nil {
+	if err := s.setIPv4Mode(pppkernel.NPModePass); err != nil {
 		return fmt.Errorf("pppoe-client: cannot resume IPv4 after LCP restart: %w", err)
 	}
 	if ipv6Opened {
 		// RFC 5072 Section 2: "Before any IPv6 packets may be communicated,
 		// PPP MUST reach the network-layer protocol phase, and the IPv6
 		// Control Protocol MUST reach the Opened state."
-		if err := s.setIPv6Mode(ppp.NPModePass); err != nil {
+		if err := s.setIPv6Mode(pppkernel.NPModePass); err != nil {
 			return fmt.Errorf("pppoe-client: cannot pass IPv6 after IPv6CP opened: %w", err)
 		}
 		recordIPv6CPOpened(s.cfg.name, true)

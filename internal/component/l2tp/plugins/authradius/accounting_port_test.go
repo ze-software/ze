@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -169,7 +170,8 @@ func TestAccountingRequestGoesToTheAccountingPort(t *testing.T) {
 
 	resp := newFakeResponder()
 	authInstance.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("password123"),
 	}, resp.respond)
 	resp.waitOne(t)

@@ -59,6 +59,8 @@ type IPEvent interface {
 // non-zero PeerInterfaceID to force a specific value or zero to
 // accept the peer's offer.
 type EventIPRequest struct {
+	// SubscriberID is the opaque identity supplied by StartSession.
+	SubscriberID         string
 	TunnelID             uint16
 	SessionID            uint16
 	Family               AddressFamily

@@ -253,12 +253,12 @@ func TestReconnectDiscardsFramesOfTheEndedLifetime(t *testing.T) {
 	s, _, _ := newRFC1661Session(LCPStateOpened)
 	unit := newKernelUnit()
 	s.unitFile = unit
-	s.ops.connect = func(int, int) error { unit.setConnected(true); return nil }
+	testHandleFor(s).ops.connect = func(int, int) error { unit.setConnected(true); return nil }
 	stale := make([][]byte, 6)
 	for i := range stale {
 		stale[i] = ipcpTerminateRequest(0x60 + uint8(i))
 	}
-	s.ops.disconnect = func(int) error { unit.setConnected(false, stale...); return nil }
+	testHandleFor(s).ops.disconnect = func(int) error { unit.setConnected(false, stale...); return nil }
 
 	frames := make(chan []byte, 4)
 	done := make(chan error, 1)

@@ -143,10 +143,11 @@ func deleteLoginMetrics(username string) {
 // Prometheus metrics. Owns per-session series lifecycle: creates on first
 // poll, deletes when the session disappears from snapshots.
 type l2tpStatsPoller struct {
-	reactors []*l2tpReactor
-	interval time.Duration
-	cancel   context.CancelFunc
-	done     chan struct{}
+	reactors  []*l2tpReactor
+	readStats func(string) (*iface.InterfaceStats, error)
+	interval  time.Duration
+	cancel    context.CancelFunc
+	done      chan struct{}
 
 	prev     map[string]ifaceSnapshot
 	prevKeys map[string][5]string // pppN -> label set, for deletion on disappearance
@@ -163,10 +164,11 @@ var getStatsFn = iface.GetStats
 
 func newL2TPStatsPoller(reactors []*l2tpReactor, interval time.Duration) *l2tpStatsPoller {
 	return &l2tpStatsPoller{
-		reactors: reactors,
-		interval: interval,
-		prev:     make(map[string]ifaceSnapshot),
-		prevKeys: make(map[string][5]string),
+		reactors:  reactors,
+		readStats: getStatsFn,
+		interval:  interval,
+		prev:      make(map[string]ifaceSnapshot),
+		prevKeys:  make(map[string][5]string),
 	}
 }
 
@@ -245,7 +247,7 @@ func (p *l2tpStatsPoller) poll() {
 				seen[s.PppInterface] = struct{}{}
 				p.prevKeys[s.PppInterface] = labels
 
-				stats, err := getStatsFn(s.PppInterface)
+				stats, err := p.readStats(s.PppInterface)
 				if err != nil {
 					continue
 				}

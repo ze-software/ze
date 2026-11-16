@@ -77,15 +77,20 @@ func unbridgeChannel(l2tpChanFD int) error {
 }
 
 // maybeBridgePPPoE bridges a LAC-relayed session's pppol2tp channel to the
-// subscriber's PPPoE channel when the session carries one (ev.pppoeChannelFD
-// set, lnsMode false). Returns true when a bridge was requested (so the
+// subscriber's PPPoE channel when the session carries its transport owner
+// (lnsMode false). Returns true when a bridge was requested (so the
 // caller skips starting a local PPP unit), along with any error. A false
 // return means "not a relay session; run PPP locally as usual".
 func maybeBridgePPPoE(ev kernelSetupEvent, l2tpChanFD int) (bridged bool, err error) {
-	if ev.lnsMode || ev.pppoeChannelFD <= 0 {
+	if ev.lnsMode {
 		return false, nil
 	}
-	if berr := bridgeChannels(l2tpChanFD, ev.pppoeChannelFD); berr != nil {
+	if ev.channel == nil {
+		return false, nil
+	}
+	if berr := ev.channel.WithDescriptor(func(fd int) error {
+		return bridgeChannels(l2tpChanFD, fd)
+	}); berr != nil {
 		// The bridge was requested, so PPP is not run locally. pppSetupReal
 		// fails the kernel setup on this error and the session is torn
 		// down; no userspace frame relay exists, and a realm call refuses

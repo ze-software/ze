@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpauthlocal "github.com/ze-software/ze/internal/component/l2tp/plugins/authlocal"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -160,7 +161,7 @@ func assertProviderPAP(t *testing.T, password string, wantAccept, wantRadius boo
 		t.Fatal("no authentication provider")
 	}
 	response := newFakeResponder()
-	result := handler(ppp.EventAuthRequest{TunnelID: 1, SessionID: 1, Method: ppp.AuthMethodPAP,
+	result := handler(ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 1), TunnelID: 1, SessionID: 1, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte(password)}, response.respond)
 	if result.Handled != wantRadius {
 		t.Fatalf("RADIUS ownership=%t, want %t (accept=%t, message=%q)", result.Handled, wantRadius, result.Accept, result.Message)

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -50,7 +50,7 @@ func TestIPv6CPOpenedMetric(t *testing.T) {
 	reg := ipv6cpMetricsRegistry(t)
 	logger := slogutil.DiscardLogger()
 	c, _, _ := openedIPv6CP(t)
-	var v4, v6 []ppp.NPMode
+	var v4, v6 []pppkernel.NPMode
 	s := independenceSession(t, c, &v4, &v6)
 	s.cfg.name = "wan-v6"
 
@@ -76,7 +76,7 @@ func TestIPv6CPOpenedMetric(t *testing.T) {
 func TestIPv6CPOpenedMetricSessionEnd(t *testing.T) {
 	reg := ipv6cpMetricsRegistry(t)
 	synctest.Test(t, func(t *testing.T) {
-		var v6 []ppp.NPMode
+		var v6 []pppkernel.NPMode
 		_, s, done := ipcpIndependence(t, true, &v6)
 		s.cfg.name = "wan-end"
 		recordIPv6CPOpened("wan-end", true)

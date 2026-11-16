@@ -27,29 +27,70 @@ imports the other.
 
 **A Service-Name relay needs no PPP driver.** `handlePADR` sets up the session
 socket and the PPP channel, builds the PADS, and asks `Sink.Relay` before it
-sends that PADS. A relayed subscriber then gets its PADS and its unused PPP unit
-is closed, whether or not the box has a PPP driver, so a LAC with no interface
-backend still relays. Local termination and the realm relay both run LCP on
+sends that PADS. A relayed subscriber then gets its PADS. The accepted call
+carries an optional preparation owner to the kernel worker, which releases
+the unused local PPP channel and unit immediately before attaching its own
+channel. Until that point, PPPoE retains the local lease and owns cleanup if
+the subscriber leaves. Failed preparation refuses kernel setup before any
+attachment. A caller with no unused lease supplies no preparation; its ordinary
+PPP setup still runs. This handler bypasses the local PPP driver. Normal
+subsystem startup requires a registered session backend and prepared access
+interfaces before discovery starts. Local termination and the realm relay both run LCP on
 the PPP driver. With no driver, a subscriber no Service-Name binding relays
 gets a PADS with AC-System-Error and SESSION_ID 0 (RFC 2516 Section 5.4), and
 a WARN names the missing interface backend and the
 `set interface backend netlink` that fixes it.
 
 <!-- source: internal/component/l2tp/pppoe/server.go -- handlePADR, relayToL2TP, sendPADS -->
+<!-- source: internal/component/l2tp/relay_preparation.go -- prepareAndSetupPPP -->
+<!-- source: internal/component/l2tp/kernel_linux.go -- pppSetupReal -->
+
+**The bridge borrows the transport for the complete descriptor operation.**
+Both relay requests carry `callsink.RelayChannel`. Its `WithDescriptor` callback
+keeps the PPPoX transport open through the bridge ioctl. Departure waits for an
+active callback, and a callback after departure receives an error. An asynchronous
+call therefore cannot use a closed descriptor that the operating system reused.
+If the borrow or native bridge fails, the worker closes its unpublished PPP
+channel, unit and transport before reporting refusal. Each distinct descriptor,
+including zero, closes once; cleanup failures remain beside the bridge error.
+
+<!-- source: internal/core/callsink/callsink.go -- RelayChannel, Request, RealmRequest -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/session.go -- openedSession.WithDescriptor, openedSession.CloseTransport -->
+<!-- source: internal/component/l2tp/bridge_linux.go -- maybeBridgePPPoE -->
+<!-- source: internal/component/l2tp/kernel_linux.go -- rollbackPPPBridge -->
 
 **A realm relay crosses the same sink, after local LCP.** `Sink.RelayRealm`
 takes a request the PPPoE auth drain makes once the subscriber's
 authentication arrived, before any credential check. The sink places the
 incoming call with the proxy AVPs; the kernel worker asks the PPPoE side to
 quiesce the subscriber's channel reader, bridges, then reports the result. The
-returned `RealmCall.Cancel` is the PPPoE side's one report that the subscriber
+returned `RelayCall.Cancel` is the PPPoE side's one report that the subscriber
 left: before the bridge it abandons the call, after it the sink tears the L2TP
 session down with CDN. A call to a remote whose tunnel is established or still
 connecting rides that tunnel, so one remote's subscribers share one tunnel.
 
-<!-- source: internal/component/l2tp/relay_sink.go -- relaySink.RelayRealm, realmCall.Cancel, realmCall.markBridged -->
+<!-- source: internal/component/l2tp/relay_sink.go -- relaySink.RelayRealm, relayCall.Cancel, relayCall.markBridged -->
 <!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmRelay.decide, realmHandoff.run -->
 <!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, connectingTunnelToLocked, placePendingCallLocked -->
+
+**Both relay kinds own the call until it ends.** Each accepted request returns
+one `RelayCall` token. Subscriber departure, access removal and subsystem stop
+cancel that token outside access-table locks. A remote CDN, tunnel failure or
+kernel setup refusal reports `Ended` once for either kind. Service-Name end
+notifications wait in the admitted session table until PADS publication, then
+wake the existing PPPoE event consumer; no extra per-call worker is created.
+The table drains before its access generation is released at stop.
+
+Cancellation and every queued worker refusal or teardown carry the exact call
+owner. The reactor and worker compare that owner while holding their own map
+locks, so an old callback cannot delete a subscriber that reused the numeric
+tunnel/session pair. Only realm calls carry proxy metadata or run Quiesce and
+Bridged callbacks; a Service-Name call never publishes a fabricated realm
+snapshot.
+
+<!-- source: internal/component/l2tp/relay_sink.go -- relayCall.Cancel, relayCall.end -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownRelaySession -->
+<!-- source: internal/component/l2tp/kernel_linux.go -- kernelWorker.teardownSession, kernelWorker.reportError -->
 
 **A call is an operational event, not config.** The operator surface is the
 remote dial-target list plus a `request l2tp outgoing-call` RPC. A config-driven

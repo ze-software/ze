@@ -12,22 +12,20 @@ import (
 func newTestIPv6Service() (*IPv6Service, *fakeBackend) {
 	fb := &fakeBackend{}
 	svc := newIPv6Service(iPv6ServiceConfig{
-		Ifname:          "ppp0",
 		TunnelID:        1,
 		SessionID:       2,
 		PeerInterfaceID: [8]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11},
-		Backend:         fb,
+		Dataplane:       newTestSessionHandle(fb, "ppp0"),
 	})
 	return svc, fb
 }
 
 func newTestIPv6ServiceWithRelease(released *atomic.Value) *IPv6Service {
 	return newIPv6Service(iPv6ServiceConfig{
-		Ifname:          "ppp0",
 		TunnelID:        1,
 		SessionID:       2,
 		PeerInterfaceID: [8]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11},
-		Backend:         &fakeBackend{},
+		Dataplane:       newTestSessionHandle(&fakeBackend{}, "ppp0"),
 		ReleasePrefix: func(p netip.Prefix) {
 			released.Store(p)
 		},
@@ -304,7 +302,9 @@ func TestHandleDHCPv6StopCleansUpRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc.Stop()
+	if err := svc.Stop(); err != nil {
+		t.Fatal(err)
+	}
 
 	removes := fb.RouteRemoveCalls()
 	if len(removes) != 1 {
@@ -326,7 +326,9 @@ func TestHandleDHCPv6StopReleasesPrefixToPool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc.Stop()
+	if err := svc.Stop(); err != nil {
+		t.Fatal(err)
+	}
 
 	got, ok := released.Load().(netip.Prefix)
 	if !ok {
@@ -339,9 +341,8 @@ func TestHandleDHCPv6StopReleasesPrefixToPool(t *testing.T) {
 
 func TestHandleDHCPv6LifetimeDefaults(t *testing.T) {
 	svc := newIPv6Service(iPv6ServiceConfig{
-		Ifname:          "ppp0",
 		PeerInterfaceID: [8]byte{},
-		Backend:         &fakeBackend{},
+		Dataplane:       newTestSessionHandle(&fakeBackend{}, "ppp0"),
 	})
 	if svc.lifetimes.T1 != 302400 {
 		t.Errorf("T1 = %d, want 302400", svc.lifetimes.T1)
@@ -351,9 +352,8 @@ func TestHandleDHCPv6LifetimeDefaults(t *testing.T) {
 	}
 
 	svc2 := newIPv6Service(iPv6ServiceConfig{
-		Ifname:          "ppp0",
 		PeerInterfaceID: [8]byte{},
-		Backend:         &fakeBackend{},
+		Dataplane:       newTestSessionHandle(&fakeBackend{}, "ppp0"),
 		Lifetimes:       DHCPv6Lifetimes{T1: 100, T2: 200, PrefLifetime: 300, ValidLifetime: 400},
 	})
 	if svc2.lifetimes.T1 != 100 {
@@ -459,10 +459,9 @@ func TestIPv6ServiceRefusesUnnegotiatedIdentifier(t *testing.T) {
 func TestIPv6ServiceInstallsNegotiatedLinkLocal(t *testing.T) {
 	fb := &fakeBackend{}
 	svc := newIPv6Service(iPv6ServiceConfig{
-		Ifname:           "ppp0",
 		LocalInterfaceID: [8]byte{0x02, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x00, 0x01},
 		PeerInterfaceID:  [8]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11},
-		Backend:          fb,
+		Dataplane:        newTestSessionHandle(fb, "ppp0"),
 	})
 	if err := svc.installLinkLocal(); err != nil {
 		t.Fatal(err)
@@ -471,11 +470,15 @@ func TestIPv6ServiceInstallsNegotiatedLinkLocal(t *testing.T) {
 	if len(fb.p2pCalls) != 1 || fb.p2pCalls[0] != want {
 		t.Fatalf("p2p calls = %+v, want [%+v]", fb.p2pCalls, want)
 	}
-	svc.Stop()
+	if err := svc.Stop(); err != nil {
+		t.Fatal(err)
+	}
 	if len(fb.addrRemoves) != 1 || fb.addrRemoves[0] != (addrCall{"ppp0", "fe80::200:ff:fe00:1/64"}) {
 		t.Fatalf("address removals = %+v, want the link-local only", fb.addrRemoves)
 	}
-	svc.Stop()
+	if err := svc.Stop(); err != nil {
+		t.Fatal(err)
+	}
 	if len(fb.addrRemoves) != 1 {
 		t.Fatalf("a second Stop removed again: %+v", fb.addrRemoves)
 	}

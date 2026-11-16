@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // connectedExchange records a single worker's bounded output. Tests inspect it
@@ -27,9 +28,9 @@ type connectedExchange struct {
 	frames       chan readFrame
 	unit         chan readFrame
 	writes       chan []byte
-	modes        []ppp.NPMode
+	modes        []pppkernel.NPMode
 	events       []string
-	modeFailure  ppp.NPMode
+	modeFailure  pppkernel.NPMode
 	writeFailure error
 	closes       int
 	reads        int
@@ -64,9 +65,9 @@ func (w *connectedExchange) Close() error {
 	return nil
 }
 
-func (w *connectedExchange) setMode(mode ppp.NPMode) error {
+func (w *connectedExchange) setMode(mode pppkernel.NPMode) error {
 	w.modes = append(w.modes, mode)
-	if mode == ppp.NPModeDrop {
+	if mode == pppkernel.NPModeDrop {
 		w.events = append(w.events, "drop")
 	} else {
 		w.events = append(w.events, "pass")
@@ -80,7 +81,7 @@ func (w *connectedExchange) setMode(mode ppp.NPMode) error {
 func (w *connectedExchange) passes() int {
 	count := 0
 	for _, mode := range w.modes {
-		if mode == ppp.NPModePass {
+		if mode == pppkernel.NPModePass {
 			count++
 		}
 	}

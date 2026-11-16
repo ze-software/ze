@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/core/dnssource"
 )
 
@@ -31,10 +32,12 @@ func askIPCP(t *testing.T, p *poolPlugin, sessionID uint16, meta *l2tp.AuthMetad
 	t.Helper()
 	const tunnelID = 23
 	if meta != nil {
-		l2tp.StoreSessionMetadata(tunnelID, sessionID, meta)
-		t.Cleanup(func() { l2tp.ClearSessionMetadata(tunnelID, sessionID) })
+		l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID), meta)
+		t.Cleanup(func() {
+			l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID))
+		})
 	}
-	resp := p.handle(ppp.EventIPRequest{TunnelID: tunnelID, SessionID: sessionID, Family: ppp.AddressFamilyIPv4})
+	resp := p.handle(ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID), TunnelID: tunnelID, SessionID: sessionID, Family: ppp.AddressFamilyIPv4})
 	if !resp.Accept {
 		t.Fatalf("pool refused the session: %s", resp.Reason)
 	}

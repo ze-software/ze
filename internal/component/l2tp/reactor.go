@@ -20,12 +20,13 @@ import (
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
 // pppDriverIface is the subset of *ppp.Driver the reactor uses. Defined
 // as an interface so subsystem_test.go can plug in a fake without
-// constructing a real ppp.Driver (which requires an iface backend).
+// constructing a real ppp.Driver and its per-session stream owners.
 type pppDriverIface interface {
 	SessionsIn() chan<- ppp.StartSession
 	EventsOut() <-chan ppp.Event
@@ -146,6 +147,12 @@ type l2tpReactor struct {
 	// when pppDriver is unset, which is the desired semantics.
 	pppDriver    pppDriverIface
 	pppEventsOut <-chan ppp.Event
+	// Captured before Start; its subsystem retains this OS owner until all
+	// reactors and PPP sessions stop, independent of active-backend reloads.
+	kernelBackend pppkernel.InterfaceOperations
+	// newPPPSession MUST be bound before Start; the factory MUST consume both
+	// descriptors on every outcome. The reactor transfers its claim only once.
+	newPPPSession func(pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error)
 
 	// spec-l2tp-7 Phase 6: optional route observer. When set, the
 	// reactor invokes OnSessionIPUp on EventSessionIPAssigned and
@@ -187,6 +194,7 @@ func newL2TPReactor(listener *UDPListener, logger *slog.Logger, params reactorPa
 		listener:         listener,
 		logger:           logger,
 		params:           params,
+		newPPPSession:    pppkernel.NewSession,
 		nextLocalTID:     listener.bind.Port(),
 		tunnelsByLocalID: make(map[uint16]*L2TPTunnel),
 		tunnelsByPeer:    make(map[peerKey]*L2TPTunnel),

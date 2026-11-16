@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/traffic"
 )
 
@@ -316,8 +317,8 @@ func TestSessionUpEnforcesRadiusUploadHalf(t *testing.T) {
 	s := &shaperPlugin{}
 	s.cfgPtr.Store(&shaperConfig{QdiscType: traffic.QdiscHTB, DefaultRate: 10_000_000})
 
-	l2tp.StoreSessionMetadata(6, 600, &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
-	t.Cleanup(func() { l2tp.ClearSessionMetadata(6, 600) })
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(6), 600), &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
+	t.Cleanup(func() { l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(6), 600)) })
 
 	s.onSessionUp(&l2tpevents.SessionUpPayload{TunnelID: 6, SessionID: 600, Interface: "ppp6"})
 

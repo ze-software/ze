@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
@@ -46,7 +47,7 @@ func TestKernelTeardownDoesNotCloseTransferredDescriptors(t *testing.T) {
 		t.Fatal("live setup was not transferred")
 	}
 	for _, fd := range []int{channel, unit} {
-		file := ppp.NewFDFile(fd, "transferred-ppp")
+		file := pppkernel.NewFDFile(fd, "transferred-ppp")
 		if err := file.Close(); err != nil {
 			t.Fatal(err)
 		}
@@ -100,6 +101,7 @@ func TestKernelSuccessCancellationReleasesClaimedDescriptors(t *testing.T) {
 	fake.sessionsIn = make(chan ppp.StartSession)
 	reactor := &l2tpReactor{
 		logger: discardLoggerForTest(), kernelWorker: worker, pppDriver: fake, stop: stop,
+		newPPPSession:    ownedProtocolSessionFixture,
 		tunnelsByLocalID: map[uint16]*L2TPTunnel{1: {sessions: map[uint16]*L2TPSession{2: event.session}}},
 	}
 	reactor.handleKernelSuccess(event)
@@ -194,8 +196,8 @@ func TestKernelClaimProceedsWhileReportingBlocked(t *testing.T) {
 				result = <-claimed
 			}
 			if result.ok {
-				_ = ppp.NewFDFile(result.channel, "claimed-channel").Close()
-				_ = ppp.NewFDFile(result.unit, "claimed-unit").Close()
+				_ = pppkernel.NewFDFile(result.channel, "claimed-channel").Close()
+				_ = pppkernel.NewFDFile(result.unit, "claimed-unit").Close()
 			}
 			if late || !result.ok {
 				t.Fatalf("claim could not complete independently of reporting: late=%v acquired=%v", late, result.ok)

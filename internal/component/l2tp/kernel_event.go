@@ -3,7 +3,11 @@
 
 package l2tp
 
-import "net/netip"
+import (
+	"net/netip"
+
+	"github.com/ze-software/ze/internal/core/callsink"
+)
 
 // kernelSetupEvent requests the kernel worker to create kernel resources
 // for a newly established L2TP session. Produced by the reactor when a
@@ -27,17 +31,17 @@ type kernelSetupEvent struct {
 	lnsMode    bool // true for LNS-side (handleICCN), false for LAC-side (handleOCCN)
 	sequencing bool // from session.sequencingRequired
 
-	// pppoeChannelFD is the relayed PPPoE session's pppox socket fd for a
-	// LAC-relayed incoming call (spec-followup-l2tp-call AC-3, A-4). When
-	// non-zero and lnsMode is false, the kernel worker bridges the pppol2tp
-	// channel to this PPPoE channel (PPPIOCBRIDGECHAN) so PPP frames flow
-	// directly between subscriber and LNS. Zero for non-relayed sessions.
-	pppoeChannelFD int
+	// channel is the relayed PPPoE transport owner. The worker borrows its
+	// descriptor only inside the bridge ioctl, excluding transport closure
+	// until that ioctl returns. Nil deliberately means no PPPoE relay.
+	channel callsink.RelayChannel
+	// beforeBridge must finish before PPP channel attachment. Nil means the
+	// originating call has no unused local lease to release.
+	beforeBridge callsink.BridgePreparation
 
-	// realm is the realm relay a LAC incoming call carries (nil otherwise).
-	// The kernel worker asks its handoff to quiesce the subscriber's PPP
-	// before the bridge, and reports the bridge result to it.
-	realm *realmCall
+	// relay is the exact accepted call owner (nil for ordinary sessions).
+	// Only a realm call quiesces local PPP before bridging.
+	relay *relayCall
 
 	// RFC 2661 Section 4.4.5: proxy LCP AVPs from ICCN. Empty slices when
 	// the peer omitted the AVPs. Carried verbatim through the kernel
@@ -53,6 +57,8 @@ type kernelSetupEvent struct {
 type kernelTeardownEvent struct {
 	localTID uint16
 	localSID uint16
+	// relay pins the call that owned this removal; nil is an ordinary call.
+	relay *relayCall
 }
 
 // kernelSetupFailed is sent from the kernel worker to the reactor when
@@ -61,7 +67,9 @@ type kernelTeardownEvent struct {
 type kernelSetupFailed struct {
 	localTID uint16
 	localSID uint16
-	err      error
+	// relay preserves the failed setup's owner across asynchronous reporting.
+	relay *relayCall
+	err   error
 }
 
 // kernelSetupSucceeded is sent from the kernel worker to the reactor

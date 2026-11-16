@@ -16,15 +16,23 @@ type fakeSink struct {
 	calls    int
 }
 
-func (f *fakeSink) Relay(req callsink.Request) (bool, error) {
+func (f *fakeSink) Relay(req callsink.Request) (callsink.RelayCall, bool, error) {
 	f.calls++
 	f.last = req
-	return f.accepted, f.err
+	if f.accepted {
+		return fakeRelayCall{}, true, f.err
+	}
+	return nil, false, f.err
 }
+
+// fakeRelayCall owns no resources in these registry-only tests.
+type fakeRelayCall struct{}
+
+func (fakeRelayCall) Cancel() {}
 
 // RelayRealm answers that no realm binding matches, so these tests exercise
 // only the service relay of the seam.
-func (f *fakeSink) RelayRealm(callsink.RealmRequest) (callsink.RealmCall, bool, error) {
+func (f *fakeSink) RelayRealm(callsink.RealmRequest) (callsink.RelayCall, bool, error) {
 	return nil, false, nil
 }
 
@@ -47,7 +55,7 @@ func TestCallSink_RegisterLookupUnregister(t *testing.T) {
 	got := callsink.Lookup()
 	require.NotNil(t, got)
 
-	accepted, err := got.Relay(callsink.Request{Service: "wholesale", SessionID: 7})
+	_, accepted, err := got.Relay(callsink.Request{Service: "wholesale", SessionID: 7})
 	require.NoError(t, err)
 	require.True(t, accepted)
 	require.Equal(t, 1, s.calls)
@@ -72,7 +80,7 @@ func TestCallSink_RelayError(t *testing.T) {
 	t.Cleanup(callsink.Unregister)
 	boom := errors.New("dial failed")
 	callsink.Register(&fakeSink{accepted: false, err: boom})
-	accepted, err := callsink.Lookup().Relay(callsink.Request{Service: "x"})
+	_, accepted, err := callsink.Lookup().Relay(callsink.Request{Service: "x"})
 	require.ErrorIs(t, err, boom)
 	require.False(t, accepted)
 }

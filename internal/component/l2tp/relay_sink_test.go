@@ -22,7 +22,7 @@ func TestRelaySink_UnmatchedServiceTerminatesLocally(t *testing.T) {
 		},
 		logger: slog.Default(),
 	}
-	accepted, err := (&relaySink{s: s}).Relay(callsink.Request{Service: "retail"})
+	_, accepted, err := (&relaySink{s: s}).Relay(callsink.Request{Service: "retail"})
 	require.NoError(t, err)
 	require.False(t, accepted)
 }
@@ -40,7 +40,7 @@ func TestRelaySink_MatchedButNoListener(t *testing.T) {
 		},
 		logger: slog.Default(),
 	}
-	accepted, err := (&relaySink{s: s}).Relay(callsink.Request{Service: "wholesale"})
+	_, accepted, err := (&relaySink{s: s}).Relay(callsink.Request{Service: "wholesale"})
 	require.ErrorIs(t, err, errRelayNoListener)
 	require.False(t, accepted)
 }
@@ -66,8 +66,8 @@ func TestRelaySink_MatchedDialsRemote(t *testing.T) {
 		logger:   slog.Default(),
 	}
 
-	accepted, err := (&relaySink{s: s}).Relay(callsink.Request{
-		Service: "wholesale", SubscriberMAC: "aa:bb:cc:dd:ee:ff", ChannelFD: 7,
+	_, accepted, err := (&relaySink{s: s}).Relay(callsink.Request{
+		Service: "wholesale", SubscriberMAC: "aa:bb:cc:dd:ee:ff", Channel: relayDescriptorForTest(7), Handoff: &fakeRealmHandoff{},
 	})
 	require.NoError(t, err)
 	require.True(t, accepted, "matched relay hands the subscriber to L2TP")

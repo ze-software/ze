@@ -19,6 +19,6 @@
     "route": "mutant",
     "producer": "internal/component/l2tp/plugins/pool/dns_source.go::selectSubscriberDNS",
     "producer-sha": "d634154e0025ef4b",
-    "break": "line 75: \"slotAddresses(meta.DNSPrimary, meta.DNSSecondary)\" -\u003e \"slotAddresses(meta.DNSPrimary, netip.Addr{})\""
+    "break": "line 77: \"slotAddresses(meta.DNSPrimary, meta.DNSSecondary)\" -\u003e \"slotAddresses(meta.DNSPrimary, netip.Addr{})\""
   }
 ]

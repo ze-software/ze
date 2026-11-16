@@ -202,7 +202,7 @@ func TestSessionEventReaderDoesNotCallBackIntoTheReactor(t *testing.T) {
 	p := newSingleAddressPlugin(t, bus)
 
 	const tunnelID, sessionID = uint16(11), uint16(7)
-	allocate(t, p, tunnelID, sessionID)
+	allocate(t, p, tunnelID, sessionID, subscriber.AccessL2TP)
 	if _, allocated, _ := p.pool.stats(); allocated != 1 {
 		t.Fatalf("allocated addresses before the SessionDown = %d, want 1", allocated)
 	}

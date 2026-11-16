@@ -152,13 +152,10 @@ func startProxyLCPBudgetDriver(t *testing.T, maximum int) proxyLCPBudgetDriver {
 		t.Fatal(err)
 	}
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	driver.SessionsIn() <- StartSession{
+	driver.SessionsIn() <- testStartForDriver(driver, StartSession{
 		LCP:                 lcp,
 		TunnelID:            1,
 		SessionID:           42,
-		ChanFD:              1201,
-		UnitFD:              999,
-		UnitNum:             7,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		EchoInterval:        time.Hour,
@@ -167,7 +164,7 @@ func startProxyLCPBudgetDriver(t *testing.T, maximum int) proxyLCPBudgetDriver {
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 1201, 999, 7)
 	up := waitLCPUp(t, driver.EventsOut())
 	if up.ProxyLCP != ProxyLCPOutcomeAccepted {
 		t.Fatalf("proxy outcome = %s, want accepted", up.ProxyLCP)

@@ -1,17 +1,20 @@
 package pppoe
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
+
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // errInjectedSocketSetup is the session socket failure a test injects through
-// pppoeCreateFn to stop an admission before its PADS.
+// openSession to stop an admission before its PADS.
 var errInjectedSocketSetup = errors.New("injected test failure: session socket setup")
 
 // VALIDATES: handlePADT tears a session down only when the PADT's
@@ -26,7 +29,7 @@ func TestHandlePADTVerifiesMACAndSID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AllocSID: %v", err)
 		}
-		if err := st.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+		if err := st.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 			t.Fatalf("Add: %v", err)
 		}
 		return &InterfaceServer{ifName: "eth0", sessions: st, logger: slog.Default()}, sid
@@ -62,14 +65,14 @@ func TestPADTRemovesOnlyTheNamedSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AllocSID sid1: %v", err)
 	}
-	if err := st.Add(&Session{SID: sid1, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+	if err := st.Add(&Session{SID: sid1, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 		t.Fatalf("Add sid1: %v", err)
 	}
 	sid2, err := st.AllocSID()
 	if err != nil {
 		t.Fatalf("AllocSID sid2: %v", err)
 	}
-	if err := st.Add(&Session{SID: sid2, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+	if err := st.Add(&Session{SID: sid2, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 		t.Fatalf("Add sid2: %v", err)
 	}
 
@@ -246,7 +249,7 @@ func TestPADRAtPerMACCapAnswersError(t *testing.T) {
 	// State is StateSession, not StateDiscovery, so the dedup branch above
 	// this check does not match: this PADR is a genuine attempt at a second
 	// session, which is what the per-MAC cap must judge.
-	if err := st.Add(&Session{SID: existingSID, MAC: mac, IfName: "eth0", PppoxFD: -1, State: StateSession}); err != nil {
+	if err := st.Add(&Session{SID: existingSID, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
 		t.Fatalf("Add: %v", err)
 	}
 
@@ -326,7 +329,7 @@ func TestPADRReplayAfterPPPReturnsExistingSID(t *testing.T) {
 	// same value the replay below presents: this is what "the session this
 	// PADR already admitted" means to matchLiveCookie.
 	if err := st.Add(&Session{
-		SID: existingSID, MAC: mac, IfName: "eth0", PppoxFD: -1,
+		SID: existingSID, MAC: mac, IfName: "eth0",
 		State: StateSession, Cookie: append([]byte(nil), cookie...),
 	}); err != nil {
 		t.Fatalf("Add: %v", err)
@@ -382,7 +385,7 @@ func TestPADRReplayAfterPPPReturnsExistingSID(t *testing.T) {
 // PADR replaying that session's cookie: the mitigation is "the dedup branch
 // answers only sessions the table still holds ... a session in teardown is
 // treated as absent." maxSessionsPerMAC is set well above 1 and the session
-// socket setup (pppoeCreateFn) fails, so if the fix correctly treats the
+// socket setup (openSession) fails, so if the fix correctly treats the
 // teardown session as absent, the PADR falls through toward a fresh admission
 // attempt that stops at that setup and sends nothing -- any frame at all would
 // have to be the wrongly-deduped PADS naming the dying session's real SID, so
@@ -402,7 +405,7 @@ func TestPADRReplayDuringTeardownIsNotDeduped(t *testing.T) {
 		t.Fatalf("AllocSID: %v", err)
 	}
 	if err := st.Add(&Session{
-		SID: teardownSID, MAC: mac, IfName: "eth0", PppoxFD: -1,
+		SID: teardownSID, MAC: mac, IfName: "eth0",
 		State: StateSession, Cookie: append([]byte(nil), cookie...),
 	}); err != nil {
 		t.Fatalf("Add: %v", err)
@@ -425,8 +428,8 @@ func TestPADRReplayDuringTeardownIsNotDeduped(t *testing.T) {
 		sendFrameFn: func(frame []byte) {
 			sent = append(sent, frame)
 		},
-		pppoeCreateFn: func(string, uint16, [EthALen]byte) (int, error) {
-			return -1, errInjectedSocketSetup
+		openSession: func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
+			return nil, errInjectedSocketSetup
 		},
 	}
 

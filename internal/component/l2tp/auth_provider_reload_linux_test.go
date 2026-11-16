@@ -10,13 +10,10 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 )
-
-// Authentication completes before interface configuration. The nil embedded
-// backend fails if a session unexpectedly reaches that boundary.
-type authReloadBackend struct{ ppp.IfaceBackend }
 
 // MUTATION: resolving the auth handler once at drain startup makes the second
 // session retain the accepting provider after the registry switches to rejection.
@@ -32,7 +29,7 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 	subevents.SessionAuthResult.Subscribe(bus, func(result *subevents.SessionAuthResultPayload) {
 		decisions <- result
 	})
-	driver := ppp.NewProductionDriver(slog.Default(), authReloadBackend{})
+	driver := ppp.NewProductionDriver(slog.Default())
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -76,13 +73,19 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			// Proxy LCP with only MRU reaches the production admission request
 			// without a kernel PPP device. NCP remains unconfigured.
 			options := []byte{1, 4, 5, 220}
+			frames, owner, err := ownedProtocolSessionFixture(pppkernel.SessionConfig{ChanFD: fds[0], UnitFD: unit, UnitNum: index})
+			if err != nil {
+				t.Fatal(err)
+			}
 			driver.SessionsIn() <- ppp.StartSession{
 				LCP:      testLCPConfig(),
-				TunnelID: tunnelID, SessionID: sessionID, ChanFD: fds[0], UnitFD: unit,
+				TunnelID: tunnelID, SessionID: sessionID,
+				SubscriberID: l2tpSessionID(tunnelID, sessionID),
+				Frames:       frames, Dataplane: owner,
 				LNSMode: true, ProxyLCPInitialRecv: options,
 				ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
 			}
-			// Queue delivery transfers both descriptors to the driver.
+			// Queue delivery transfers the factory-created stream owner to the driver.
 			select {
 			case decision := <-decisions:
 				if decision.Accept != want || decision.AccessType != subscriber.AccessL2TP ||

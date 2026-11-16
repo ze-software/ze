@@ -14,6 +14,7 @@ import (
 	"testing/synctest"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
@@ -46,7 +47,7 @@ func TestConnectedRenegotiationMetric(t *testing.T) {
 	}
 	synctest.Test(t, func(t *testing.T) {
 		w := newConnectedExchange()
-		w.modeFailure = ppp.NPModeDrop
+		w.modeFailure = pppkernel.NPModeDrop
 		s, _ := w.session(t)
 		s.cfg.name = "wan-failed"
 		stop, done := make(chan struct{}), make(chan struct{})

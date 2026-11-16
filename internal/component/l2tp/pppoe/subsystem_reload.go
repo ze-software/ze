@@ -11,6 +11,8 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -18,11 +20,6 @@ var (
 	errPppoeReloadNilProvider = errors.New("pppoe reload: no config provider")
 	errPppoeReloadNotStarted  = errors.New("pppoe reload: subsystem not started")
 )
-
-// resolveInterfaceFn resolves an access interface's logical name to the kernel
-// device it names, with that device's index, MAC address and MTU. A test
-// replaces it, because the real resolver reads the kernel's interface table.
-var resolveInterfaceFn = resolveInterface
 
 // Reload applies a committed `pppoe` configuration to the running access
 // concentrator. Every leaf applies live; none is accepted and left for a
@@ -41,9 +38,9 @@ var resolveInterfaceFn = resolveInterface
 //   - enabled true, or a first interface, starts an idle subsystem; enabled
 //     false, or no interface left, ends every session and stops it.
 //
-// An error refuses the reload before anything changed, and the engine rolls
-// the reload back (cmd/ze/hub/main_reload.go, runReloadContext).
-func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
+// Preparation errors refuse the reload before anything changes. Cleanup
+// errors after removing a served access are reported after its sessions stop.
+func (s *Subsystem) Reload(ctx context.Context, cfg ze.ConfigProvider) error {
 	next, err := parametersFromProvider(cfg)
 	if err != nil {
 		return err
@@ -55,25 +52,51 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 	if !s.started {
 		return errPppoeReloadNotStarted
 	}
-	if err := s.checkAddedInterfaces(&next); err != nil {
-		return err
-	}
-
 	running := s.readDone != nil
 	wantRun := next.Enabled && len(next.Interfaces) > 0
 	if !running {
-		return s.reloadIdle(next, wantRun)
+		return s.reloadIdle(ctx, next, wantRun)
 	}
-	removed := s.swapServers(&next, wantRun)
+	var prepared *accessConfiguration
+	var additions map[string]*InterfaceServer
+	if wantRun {
+		selected, err := selectedSessionBackend()
+		if err != nil {
+			return err
+		}
+		if selected.Name() != s.backend.Name() {
+			return opererr.New("The PPPoE interface backend changed while discovery is running",
+				"Existing sessions and control mappings belong to the previously selected backend.", "ze doctor")
+		}
+		prepared, err = prepareAccessConfiguration(ctx, s.backend, next.Interfaces, s.accesses.accesses)
+		if err != nil {
+			return err
+		}
+		if prepared.namespace != s.accesses.namespace {
+			return errors.Join(opererr.New("The PPPoE discovery namespace changed during a live reload",
+				"Existing sessions still use the running discovery socket.", "ze doctor"),
+				closeAccessConfiguration(prepared.accesses, s.accesses.accesses))
+		}
+		additions, err = s.prepareAddedServers(&next, prepared)
+		if err != nil {
+			return errors.Join(err, closeAccessConfiguration(prepared.accesses, s.accesses.accesses))
+		}
+	}
+	previous := s.accesses
+	removed := s.swapServers(&next, wantRun, additions)
+	if wantRun {
+		s.accesses = prepared
+	}
 	for _, srv := range removed {
 		s.closeInterface(srv)
 	}
 	if !wantRun {
-		s.stopLocked()
+		stopErr := s.stopLocked()
 		s.started = true
 		s.logger.Info("pppoe reload: subsystem stopped by configuration")
+		return stopErr
 	}
-	return nil
+	return accessReleaseError(closeAccessConfiguration(previous.accesses, prepared.accesses))
 }
 
 // parametersFromProvider reads the `pppoe` root through ExtractParameters, the
@@ -94,26 +117,6 @@ func parametersFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	return p, nil
 }
 
-// checkAddedInterfaces refuses a reload that adds an access interface the
-// kernel does not have. An interface the running configuration already named
-// is not checked: boot logged it when it failed to resolve, and refusing every
-// later commit for it would block unrelated changes.
-func (s *Subsystem) checkAddedInterfaces(next *Parameters) error {
-	if !next.Enabled {
-		return nil
-	}
-	for i := range next.Interfaces {
-		name := next.Interfaces[i].Name
-		if s.configuredInterface(name) {
-			continue
-		}
-		if _, err := resolveInterfaceFn(name); err != nil {
-			return fmt.Errorf("pppoe reload: access interface %q does not exist (%w): create it, or remove it with `delete pppoe interface %s`, then commit again", name, err, name)
-		}
-	}
-	return nil
-}
-
 // configuredInterface reports whether the running configuration names the
 // access interface.
 func (s *Subsystem) configuredInterface(name string) bool {
@@ -122,15 +125,17 @@ func (s *Subsystem) configuredInterface(name string) bool {
 
 // reloadIdle applies a reload to a subsystem that serves nothing: it records
 // the configuration and, when that configuration asks for discovery, starts it.
-func (s *Subsystem) reloadIdle(next Parameters, wantRun bool) error {
+func (s *Subsystem) reloadIdle(ctx context.Context, next Parameters, wantRun bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	previous := s.params
 	s.params = next
 	if !wantRun {
 		return nil
 	}
-	if err := s.startLocked(); err != nil {
+	if err := s.startLocked(ctx); err != nil {
+		s.params = previous
 		return fmt.Errorf("pppoe reload: start: %w", err)
 	}
 	s.logger.Info("pppoe reload: subsystem started by configuration", "interfaces", len(s.servers))
@@ -146,7 +151,7 @@ func (s *Subsystem) reloadIdle(next Parameters, wantRun bool) error {
 // It holds dispatchMu, so the discovery reader is between frames: no frame is
 // handled by a server after it is taken out, and the copy of a kept server
 // does not race the reader's write of its admission state.
-func (s *Subsystem) swapServers(next *Parameters, wantRun bool) []*InterfaceServer {
+func (s *Subsystem) swapServers(next *Parameters, wantRun bool, additions map[string]*InterfaceServer) []*InterfaceServer {
 	s.dispatchMu.Lock()
 	defer s.dispatchMu.Unlock()
 	s.mu.Lock()
@@ -168,11 +173,7 @@ func (s *Subsystem) swapServers(next *Parameters, wantRun bool) []*InterfaceServ
 			delete(byName, ic.Name)
 			continue
 		}
-		srv, err := s.newInterfaceServer(ic, next)
-		if err != nil {
-			s.logger.Error("pppoe reload: access interface not started", "interface", ic.Name, "error", err)
-			continue
-		}
+		srv := additions[ic.Name]
 		servers[srv.ifIndex] = srv
 		s.logger.Info("pppoe reload: access interface added", "interface", ic.Name, "ifindex", srv.ifIndex)
 	}
@@ -203,30 +204,51 @@ func (s *Subsystem) reconfiguredServer(old *InterfaceServer, ic *InterfaceConfig
 	return &srv
 }
 
-// newInterfaceServer resolves one access interface and builds its server for
-// configuration p, with a fresh session table and cookie key. MUST be called
-// with mu held after the discovery socket is open.
-func (s *Subsystem) newInterfaceServer(ic *InterfaceConfig, p *Parameters) (*InterfaceServer, error) {
-	binding, err := resolveInterfaceFn(ic.Name)
-	if err != nil {
-		return nil, err
+// prepareAddedServers builds every new server before the live map changes.
+// Its accesses MUST already be prepared and owned by the pending reload.
+func (s *Subsystem) prepareAddedServers(next *Parameters, prepared *accessConfiguration) (map[string]*InterfaceServer, error) {
+	additions := make(map[string]*InterfaceServer)
+	for i := range next.Interfaces {
+		ic := &next.Interfaces[i]
+		if s.configuredInterface(ic.Name) {
+			continue
+		}
+		srv, err := s.newInterfaceServer(ic, next, s.backend, prepared.accesses[ic.Name])
+		if err != nil {
+			return nil, err
+		}
+		additions[ic.Name] = srv
 	}
+	return additions, nil
+}
+
+// newInterfaceServer consumes an immutable prepared access snapshot. The
+// caller MUST retain that access lease until sessions stop and the server is
+// detached from discovery. Safe only under the subsystem's lifecycle lock.
+func (s *Subsystem) newInterfaceServer(ic *InterfaceConfig, p *Parameters, backend dataplane.Backend, access dataplane.Access) (*InterfaceServer, error) {
 	cookieKey, err := NewCookieKey()
 	if err != nil {
 		return nil, fmt.Errorf("pppoe: generate cookie key for %s: %w", ic.Name, err)
 	}
 	srv := &InterfaceServer{
 		ifName:    ic.Name,
-		device:    binding.Device,
-		ifIndex:   binding.Ifindex,
-		hwAddr:    binding.HWAddr,
-		mtu:       binding.MTU,
+		device:    access.Device(),
+		ifIndex:   access.DiscoveryIfIndex(),
+		hwAddr:    access.HWAddr(),
+		mtu:       access.MTU(),
 		sessions:  newSessionTable(ic.Name, ic.MaxSessions),
 		cookieKey: cookieKey,
 		limiter:   NewPADILimiter(p.PADIRateLimit),
 		discFD:    s.discFD,
 		pppDriver: s.pppDriver,
+		openSession: func(ctx context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
+			request.Device = access.Device()
+			request.ControlDevice = access.ControlDevice()
+			request.Namespace = access.Namespace()
+			return backend.Open(ctx, request)
+		},
 		peerLeft:  s.peerLeftSession,
+		relayWake: s.relayWake,
 		logger:    s.logger.With("interface", ic.Name),
 	}
 	applyInterfaceConfig(srv, ic, p)
@@ -256,15 +278,19 @@ func applyInterfaceConfig(srv *InterfaceServer, ic *InterfaceConfig, p *Paramete
 // out of service. Each session's transport is closed and a PADT sent first
 // (handleSessionDown), then its PPP session is stopped; the driver's
 // session-down event then withdraws the subscriber (onSessionDown). MUST be
-// called with mu not held: the stop waits for that event to be consumed, and
-// its consumer takes mu.
+// called with mu, dispatchMu and every session-table lock not held: teardown
+// and the PPP stop both need the event consumer to make progress.
 func (s *Subsystem) closeInterface(srv *InterfaceServer) {
-	for _, sid := range srv.sessions.sids() {
+	for _, admission := range srv.sessions.admissions() {
+		sid := admission.session.SID
 		// RFC 2516 Section 5.5: "This packet may be sent anytime after a
 		// session is established to indicate that a PPPoE session has been
 		// terminated.  It may be sent by either the Host or the Access
 		// Concentrator."
 		srv.handleSessionDown(sid)
+		// Another owner may already be sending PADT or releasing its lease.
+		// Join outside all locks before the old access generation can close.
+		<-admission.session.closeDone
 		s.pendingAuth.Delete(pendingAuthKey{ifindex: srv.ifIndex, sessionID: sid})
 		if s.pppDriver == nil {
 			continue

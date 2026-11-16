@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -54,7 +55,8 @@ func setupCapturingAuthIdentity(t *testing.T, sharedKey []byte, nasID string,
 func TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured(t *testing.T) {
 	a, srv, resp := setupCapturingAuthIdentity(t, []byte("testing123"), "", nil)
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "alice", Response: []byte("password123"),
 	}, resp.respond)
 	resp.waitOne(t)
@@ -79,7 +81,8 @@ func TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured(t *testing.T) {
 func TestRFC2865AccessRequestOmitsAnUnavailableUserName(t *testing.T) {
 	a, srv, resp := setupCapturingAuthIdentity(t, []byte("testing123"), "lns1", nil)
 	a.handle(ppp.EventAuthRequest{
-		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodPAP,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1, SessionID: 2, Method: ppp.AuthMethodPAP,
 		Username: "", Response: []byte("password123"),
 	}, resp.respond)
 	resp.waitOne(t)

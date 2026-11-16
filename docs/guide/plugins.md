@@ -675,8 +675,13 @@ address. A session whose events named it nothing is selected by no name.
 |--------|-------------|
 | `l2tp-auth-local` | Static user/password authentication for L2TP PPP sessions (PAP/CHAP-MD5/MS-CHAPv2) |
 | `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval) |
-| `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address bypasses pool (direct RADIUS IP assignment), Framed-Pool selects a named pool; IPCP DNS from the pool's `dns-source` list (default `source [ radius configured received ]`: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else `dns-primary`/`dns-secondary`, else the learned resolvers) |
+| `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address chooses an address and reserves any containing pool, Framed-Pool selects the gateway and DNS profile; IPCP DNS from the pool's `dns-source` list (default `source [ radius configured received ]`: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else `dns-primary`/`dns-secondary`, else the learned resolvers) |
 | `l2tp-shaper` | TC traffic shaping (TBF/HTB) on pppN interfaces with configured default rates, RADIUS CoA rate updates, and initial rate from Filter-Id at session establishment |
+
+The pool applies committed range edits while subscribers remain connected.
+It reserves live assignments in the replacement pools and retains an
+assignment whose range was removed until that subscriber ends its session.
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
 
 These plugins register via the L2TP handler registry (`RegisterAuthHandler`,
 `RegisterPoolHandler`) at init time. Only one auth handler is active at a
@@ -688,6 +693,7 @@ See [L2TP guide](l2tp.md) for configuration details.
 <!-- source: internal/component/l2tp/plugins/authlocal/register.go -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
 <!-- source: internal/component/l2tp/plugins/shaper/register.go -->
 
 The `iface` plugin defines a `Backend` interface and loads a backend by name (YANG

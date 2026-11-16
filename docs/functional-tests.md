@@ -2606,6 +2606,30 @@ and fakel2tp without polluting normal `cmd/ze` builds.
 <!-- source: internal/test/plugins/all/all.go -- test-only aggregator -->
 <!-- source: cmd/ze/plugins_zetest.go -- zetest-only import -->
 
+The pool reload test uses the same internal `fakel2tp` plugin as a synthetic
+subscriber. Its hidden `request fakel2tp pool address id <id> pool <default|name>`
+and `request fakel2tp pool prefix id <id> pool <default|name>` commands invoke
+the production pool handlers. The observer consumes the sole boot address,
+widens its range with SIGHUP, and requires the next allocation to use the added
+address while the first remains reserved. It also requests an address from a
+new named pool and prefixes from the new default and named IPv6 blocks. Its
+final `show l2tp pool` read requires both named pools to report their exact
+ranges and reservation counts. The same reservation lifecycle also proves
+transport identity: a PPPoE subscriber
+uses the L2TP subscriber's exact numeric pair, receives a different named-pool
+address, and retains it through another SIGHUP. The hidden
+`request fakel2tp pool pppoe-address id <id> pool <default|name>` command supplies
+the explicit PPPoE identity; `request fakel2tp pool release access <l2tp|pppoe> id <id>`
+emits the real subscriber teardown topic. After each transport releases, the
+observer requires the other transport's original address and exactly one live
+reservation. After the final release it requires zero named IPv4 reservations.
+This portable test proves
+the daemon's reload and handler wiring; the existing Linux IPCP and interop
+scenarios prove the wire and kernel paths. These commands require `fakel2tp`
+to run internally and are absent from production builds.
+<!-- source: internal/test/plugins/fakel2tp/pool.go -- poolAddress, poolPrefix -->
+<!-- source: internal/test/fixture/l2tp_pool_reload.go -- l2tpPoolReload -->
+
 ### 4. Reload Tests (`test/reload/`)
 
 Config reload tests - verify SIGHUP-triggered reload behavior end-to-end.

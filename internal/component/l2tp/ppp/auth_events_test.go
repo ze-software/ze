@@ -12,7 +12,7 @@ import (
 // responder. Tests that exercise the auth channel directly -- reject,
 // timeout, request-content assertions -- use this instead of
 // makeTestDriver so autoAcceptAuth does not race them to the channel.
-func newTestDriverNoResponder(backend IfaceBackend, ops pppOps) *Driver {
+func newTestDriverNoResponder(backend testIfaceBackend, ops pppOps) *Driver {
 	return newDriver(driverConfig{
 		Logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 		Backend: backend,
@@ -117,19 +117,16 @@ func TestDriverStopSessionDuringAuthPhase(t *testing.T) {
 	// Proxy-LCP short-circuit so the session reaches afterLCPOpen
 	// (and therefore runAuthPhase) without needing a scripted peer.
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            11,
 		SessionID:           22,
-		ChanFD:              7001,
-		UnitFD:              999,
-		UnitNum:             1,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 7001, 999, 1)
 
 	// Wait for the auth request to hit the channel -- this proves
 	// the session is parked in runAuthPhase's receive select.
@@ -180,20 +177,17 @@ func TestRunAuthPhaseTimeout(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            30,
 		SessionID:           40,
-		ChanFD:              7101,
-		UnitFD:              1001,
-		UnitNum:             2,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthTimeout:         100 * time.Millisecond,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 7101, 1001, 2)
 
 	// Drain EventAuthRequest so it does not pin the buffer.
 	<-d.AuthEventsOut()
@@ -242,19 +236,16 @@ func TestRunAuthPhaseReject(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            50,
 		SessionID:           60,
-		ChanFD:              7201,
-		UnitFD:              2001,
-		UnitNum:             3,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 7201, 2001, 3)
 
 	// First event must be the auth request.
 	select {
@@ -316,20 +307,17 @@ func TestEventAuthRequestContent(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            55,
 		SessionID:           66,
-		ChanFD:              7301,
-		UnitFD:              3001,
-		UnitNum:             4,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthTimeout:         100 * time.Millisecond,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 7301, 3001, 4)
 
 	select {
 	case ev := <-d.AuthEventsOut():
@@ -374,13 +362,10 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            70,
 		SessionID:           80,
-		ChanFD:              7401,
-		UnitFD:              4001,
-		UnitNum:             5,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		DisableIPCP:         true,
@@ -388,7 +373,7 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,
-	}
+	}, 7401, 4001, 5)
 
 	// EventAuthRequest arrives first on the auth channel.
 	select {

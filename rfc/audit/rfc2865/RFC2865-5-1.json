@@ -1,14 +1,14 @@
 {
-  "note": "Forbidden: an Access-Request without User-Name when the name is available. The admin (radius TestRFC2865AccessRequestUserName) and L2TP (authradius buildAuthAttrs test) units assert User-Name present with the right value; the negative TestRFC2865AccessRequestOmitsAnUnavailableUserName covers the if-available condition.",
+  "note": "Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 5.1: 'It MUST be sent in Access-Request packets if available.' The unchanged admin test reads the transmitted alice User-Name; the subscriber builder test requires subscriber@example.net exactly. The subscriber negative supplies an empty name with a usable PAP password, then reads a real Access-Request with User-Password and no User-Name. That retained credential proves omission did not merely suppress the whole packet. The new canonical ID changes only transport context for the same subscriber and leaves username values, credentials and all assertions unchanged. Both the available-name obligation and its absence condition remain covered. Native discrimination refresh remains separate main-thread evidence.",
   "requirement_sha": "437669fad98017c7",
   "tests": {
-    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "a196c38aadacaac3",
-    "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "3e3eaab50ae82f2a",
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "b090f2710856c0e7",
+    "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "054d6a1a1f61250c",
     "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "03d2bcc722828db4"
   },
   "units": {
-    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "9124583de2883fdd",
-    "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "11168d7dfe297c7d",
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "3e9558c8b591ea4d",
+    "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "c20f45fcf57a2ddc",
     "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "043b4bc65d28cb2b"
   },
   "verdict": "enforced"

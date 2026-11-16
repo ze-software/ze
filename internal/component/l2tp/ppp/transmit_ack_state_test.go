@@ -47,7 +47,7 @@ func TestUnsentLCPAckCannotAdvanceNegotiation(t *testing.T) {
 							t.Errorf("unsent Configure-Ack published later-phase event %T", event)
 						}
 					}
-					if backend, ok := s.backend.(*fakeBackend); !ok || len(backend.MTUCalls()) != 0 || len(backend.P2PCalls()) != 0 {
+					if backend, ok := testHandleFor(s).backend.(*fakeBackend); !ok || len(backend.MTUCalls()) != 0 || len(backend.P2PCalls()) != 0 {
 						t.Error("unsent Configure-Ack installed interface state")
 					}
 					return
@@ -95,9 +95,9 @@ func TestUnsentIPCPAckCannotAssignAddress(t *testing.T) {
 				}
 				opts := bytes.Repeat([]byte{IPCPOptIPAddress, 6, 192, 0, 2, 2}, copies)
 				terminated := s.handleIPCPPacket(LCPPacket{Code: LCPConfigureRequest, Identifier: 0x31, Data: opts})
-				backend, ok := s.backend.(*fakeBackend)
+				backend, ok := testHandleFor(s).backend.(*fakeBackend)
 				if !ok {
-					t.Fatalf("backend is %T", s.backend)
+					t.Fatalf("backend is %T", testHandleFor(s).backend)
 				}
 				if oversized {
 					if state := s.ipcpState; state == LCPStateAckSent || state == LCPStateOpened {

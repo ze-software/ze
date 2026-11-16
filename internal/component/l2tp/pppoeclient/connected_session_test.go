@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // newTestConnectedSession supplies the resources of an already connected unit
@@ -65,8 +65,8 @@ var testDialTiming = iface.PPPoEClientTiming{
 
 // acceptTestIPv4Mode models a successful kernel mode change for the existing
 // packet-consumer fixtures. It does not model or claim packet forwarding.
-func acceptTestIPv4Mode(mode ppp.NPMode) error {
-	if mode == ppp.NPModeUnspecified {
+func acceptTestIPv4Mode(mode pppkernel.NPMode) error {
+	if mode == pppkernel.NPModeUnspecified {
 		return io.ErrUnexpectedEOF
 	}
 	return nil

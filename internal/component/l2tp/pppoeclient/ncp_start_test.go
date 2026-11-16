@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -201,12 +202,12 @@ func TestEnableIPv6CPAppliesNegotiatedState(t *testing.T) {
 
 	t.Run("opened-passes", func(t *testing.T) {
 		c, _, _ := openedIPv6CP(t)
-		var v4, v6 []ppp.NPMode
+		var v4, v6 []pppkernel.NPMode
 		s := independenceSession(t, nil, &v4, &v6)
 		if err := s.enableIPv6CP(c, s.setIPv6Mode, logger); err != nil {
 			t.Fatalf("enable: %v", err)
 		}
-		if len(v6) != 1 || v6[0] != ppp.NPModePass {
+		if len(v6) != 1 || v6[0] != pppkernel.NPModePass {
 			t.Fatalf("IPv6 modes %v, want [pass]", v6)
 		}
 		if len(v4) != 0 {
@@ -220,12 +221,12 @@ func TestEnableIPv6CPAppliesNegotiatedState(t *testing.T) {
 
 	t.Run("negotiating-drops", func(t *testing.T) {
 		c, _, _ := startedIPv6CP(t)
-		var v4, v6 []ppp.NPMode
+		var v4, v6 []pppkernel.NPMode
 		s := independenceSession(t, nil, &v4, &v6)
 		if err := s.enableIPv6CP(c, s.setIPv6Mode, logger); err != nil {
 			t.Fatalf("enable: %v", err)
 		}
-		if len(v6) != 1 || v6[0] != ppp.NPModeDrop {
+		if len(v6) != 1 || v6[0] != pppkernel.NPModeDrop {
 			t.Fatalf("IPv6 modes %v, want [drop]", v6)
 		}
 		select {

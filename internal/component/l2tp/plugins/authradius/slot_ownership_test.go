@@ -35,10 +35,11 @@ func TestUnconfiguredRadiusLeavesTheAuthSlotToLocal(t *testing.T) {
 	}
 
 	result := handler(ppp.EventAuthRequest{
-		TunnelID:  1,
-		SessionID: 1,
-		Method:    ppp.AuthMethodCHAPMD5,
-		Username:  "alice",
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 1),
+		TunnelID:     1,
+		SessionID:    1,
+		Method:       ppp.AuthMethodCHAPMD5,
+		Username:     "alice",
 	}, func(bool, string, []byte) error { return nil })
 
 	if strings.Contains(result.Message, "RADIUS") {

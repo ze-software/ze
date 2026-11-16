@@ -15,10 +15,12 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/pool/yang"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/dnssource"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -47,26 +49,39 @@ type poolPlugin struct {
 	// (publishPools), so an unchanged set is not sent again.
 	published poolPublished
 
-	sessionAddrs    sync.Map // sessionKey -> sessionAddr (IPv4)
-	sessionPrefixes sync.Map // sessionKey -> sessionPrefix (IPv6)
+	// Both maps are private: storeAddressLocked and carryIPv4 write only
+	// string/sessionAddr pairs; handlePrefix and carryIPv6 write only
+	// string/sessionPrefix pairs. Peer data supplies fields, never Go types.
+	// A failed assertion while reading one is therefore an internal defect.
+	sessionAddrs    sync.Map // canonical subscriber ID -> sessionAddr (IPv4)
+	sessionPrefixes sync.Map // canonical L2TP subscriber ID -> sessionPrefix (IPv6)
+	// mu serializes address ownership with pool replacement. Tokens name
+	// individual answers, so a late failed answer cannot free a successor.
+	nextAllocationID   uint64
+	duplicateAddresses map[netip.Addr]uint32
 }
 
 type sessionPrefix struct {
-	prefix   netip.Prefix
-	fromPool bool
-	poolName string
-}
-
-type sessionKey struct {
+	prefix    netip.Prefix
+	fromPool  bool
+	poolName  string
 	tunnelID  uint16
 	sessionID uint16
 }
 
 type sessionAddr struct {
-	addr     netip.Addr
-	fromPool bool   // false = RADIUS-assigned, skip pool.release
-	poolName string // "" = default pool, non-empty = named pool
+	tunnelID     uint16
+	sessionID    uint16
+	addr         netip.Addr
+	fromPool     bool   // true when a current pool reserves this address
+	poolName     string // "" = default pool, non-empty = named pool
+	allocationID uint64
+	local        netip.Addr
+	dnsPrimary   netip.Addr
+	dnsSecondary netip.Addr
 }
+
+const invalidIPv4RecordPanic = "BUG: pool IPv4 record is not a sessionAddr"
 
 // configRootL2TP is the YANG container this plugin reads.
 const configRootL2TP = "l2tp"
@@ -121,6 +136,7 @@ func (p *poolPlugin) setEventBus(eb ze.EventBus) {
 		subevents.SessionDown.Subscribe(eb, func(payload *subevents.SessionDownPayload) {
 			p.onSessionDown(payload)
 		}),
+		subevents.PoolAnswerUndelivered.Subscribe(eb, p.onPoolAnswerUndelivered),
 		// The selection is evaluated when a session asks; a fresh snapshot
 		// only changes what is published for show system dns.
 		dnssource.SnapshotEvent.Subscribe(eb, func(snapshot *dnssource.Snapshot) {
@@ -152,49 +168,33 @@ func (p *poolPlugin) setEventBus(eb ze.EventBus) {
 // sessionPrefixes.LoadAndDelete hand the entry to exactly one caller, so no
 // second call reaches pool.release and no reassigned address is freed.
 func (p *poolPlugin) onSessionDown(payload *subevents.SessionDownPayload) {
-	tunnelID, sessionID := payload.Session.PPPKey()
-
-	key := sessionKey{tunnelID: tunnelID, sessionID: sessionID}
-	val, ok := p.sessionAddrs.LoadAndDelete(key)
-	if ok {
-		sa, ok2 := val.(sessionAddr)
-		if ok2 {
-			if sa.fromPool {
-				p.mu.RLock()
-				var pool *ipv4Pool
-				if sa.poolName == "" {
-					pool = p.pool
-				} else if p.namedPools != nil {
-					pool = p.namedPools[sa.poolName]
-				}
-				p.mu.RUnlock()
-				if pool != nil {
-					pool.release(sa.addr)
-					logger().Info("l2tp-pool: released address on session-down",
-						"session", payload.Session.ID,
-						"address", sa.addr, "pool", sa.poolName)
-				}
-			} else {
-				logger().Info("l2tp-pool: RADIUS-assigned address cleared on session-down",
-					"session", payload.Session.ID, "address", sa.addr)
-			}
-		}
+	if err := subscriber.RequireID(logger(), payload.Session.ID); err != nil {
+		return
 	}
-
-	p.releasePrefix(tunnelID, sessionID)
+	p.mu.Lock()
+	p.releaseAddressLocked(payload.Session.ID)
+	p.mu.Unlock()
+	p.releasePrefixBySubscriberID(payload.Session.ID)
 }
 
 func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
-	key := sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID}
+	p.v6mu.Lock()
+	defer p.v6mu.Unlock()
+	key := subscriber.SessionID(subscriber.AccessL2TP, uint64(req.TunnelID), req.SessionID)
 	if _, already := p.sessionPrefixes.Load(key); already {
 		return l2tp.PrefixResult{OK: false, Reason: "prefix already allocated for this session"}
 	}
 
-	meta := l2tp.LoadSessionMetadata(req.TunnelID, req.SessionID)
+	meta := l2tp.LoadSessionMetadata(key)
 	if meta != nil && meta.DelegatedIPv6Prefix.IsValid() {
+		poolName, inRange, err := p.reserveRADIUSPrefixLocked(meta.DelegatedIPv6Prefix)
+		if err != nil {
+			return l2tp.PrefixResult{OK: false, Reason: err.Error()}
+		}
 		p.sessionPrefixes.Store(
-			sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
-			sessionPrefix{prefix: meta.DelegatedIPv6Prefix, fromPool: false},
+			key,
+			sessionPrefix{prefix: meta.DelegatedIPv6Prefix, fromPool: inRange, poolName: poolName,
+				tunnelID: req.TunnelID, sessionID: req.SessionID},
 		)
 		logger().Info("l2tp-pool: using RADIUS-assigned IPv6 prefix",
 			"tunnel", req.TunnelID, "session", req.SessionID, "prefix", meta.DelegatedIPv6Prefix)
@@ -206,14 +206,12 @@ func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
 		poolName = meta.FramedIPv6Pool
 	}
 
-	p.v6mu.RLock()
 	var pool *ipv6PrefixPool
 	if poolName == "" {
 		pool = p.v6pool
 	} else if p.v6namedPools != nil {
 		pool = p.v6namedPools[poolName]
 	}
-	p.v6mu.RUnlock()
 
 	if pool == nil {
 		return l2tp.PrefixResult{OK: false, Reason: "no IPv6 prefix pool configured"}
@@ -227,8 +225,9 @@ func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
 	}
 
 	p.sessionPrefixes.Store(
-		sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
-		sessionPrefix{prefix: prefix, fromPool: true, poolName: poolName},
+		key,
+		sessionPrefix{prefix: prefix, fromPool: true, poolName: poolName,
+			tunnelID: req.TunnelID, sessionID: req.SessionID},
 	)
 
 	logger().Info("l2tp-pool: allocated IPv6 prefix",
@@ -237,8 +236,16 @@ func (p *poolPlugin) handlePrefix(req l2tp.PrefixRequest) l2tp.PrefixResult {
 }
 
 func (p *poolPlugin) releasePrefix(tunnelID, sessionID uint16) {
-	key := sessionKey{tunnelID: tunnelID, sessionID: sessionID}
-	val, ok := p.sessionPrefixes.LoadAndDelete(key)
+	p.releasePrefixBySubscriberID(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID))
+}
+
+func (p *poolPlugin) releasePrefixBySubscriberID(subscriberID string) {
+	if err := subscriber.RequireID(logger(), subscriberID); err != nil {
+		return
+	}
+	p.v6mu.Lock()
+	defer p.v6mu.Unlock()
+	val, ok := p.sessionPrefixes.LoadAndDelete(subscriberID)
 	if !ok {
 		return
 	}
@@ -248,39 +255,48 @@ func (p *poolPlugin) releasePrefix(tunnelID, sessionID uint16) {
 	}
 	if !sp.fromPool {
 		logger().Info("l2tp-pool: RADIUS-assigned IPv6 prefix cleared",
-			"tunnel", tunnelID, "session", sessionID, "prefix", sp.prefix)
+			"subscriber", subscriberID, "tunnel", sp.tunnelID, "session", sp.sessionID, "prefix", sp.prefix)
 		return
 	}
-	p.v6mu.RLock()
-	var pool *ipv6PrefixPool
-	if sp.poolName == "" {
-		pool = p.v6pool
-	} else if p.v6namedPools != nil {
-		pool = p.v6namedPools[sp.poolName]
+	if p.v6pool != nil {
+		p.v6pool.releaseOverlap(sp.prefix)
 	}
-	p.v6mu.RUnlock()
-	if pool != nil {
-		pool.release(sp.prefix)
-		logger().Info("l2tp-pool: released IPv6 prefix",
-			"tunnel", tunnelID, "session", sessionID, "prefix", sp.prefix)
+	for _, pool := range p.v6namedPools {
+		pool.releaseOverlap(sp.prefix)
 	}
+	logger().Info("l2tp-pool: released IPv6 prefix",
+		"subscriber", subscriberID, "tunnel", sp.tunnelID, "session", sp.sessionID, "prefix", sp.prefix)
 }
 
 func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
+	if err := subscriber.RequireID(logger(), req.SubscriberID); err != nil {
+		return ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: err.Error()}
+	}
 	if req.Family != ppp.AddressFamilyIPv4 {
 		return ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: "IPv6 not supported by static pool"}
 	}
 
-	p.mu.RLock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	key := req.SubscriberID
+	if stored, ok := p.sessionAddrs.Load(key); ok {
+		allocation, ok := stored.(sessionAddr)
+		if !ok {
+			panic(invalidIPv4RecordPanic)
+		}
+		return allocation.answer()
+	}
+	// The counter never wraps into the identity of an earlier answer.
+	if p.nextAllocationID == ^uint64(0) {
+		return ppp.IPResponseArgs{Family: req.Family, Reason: opererr.New(
+			"Subscriber address allocation identifiers are exhausted",
+			"Ze cannot identify another address answer safely before restarting",
+			"ze show l2tp pool").Error()}
+	}
 	pool := p.pool
 	named := p.namedPools
-	p.mu.RUnlock()
 
-	if pool == nil {
-		return ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: "no pool configured"}
-	}
-
-	meta := l2tp.LoadSessionMetadata(req.TunnelID, req.SessionID)
+	meta := l2tp.LoadSessionMetadata(key)
 
 	var poolName string
 
@@ -303,6 +319,10 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 		poolName = meta.FramedPool
 	}
 
+	if pool == nil {
+		return ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: "no pool configured"}
+	}
+
 	// RFC 2548 Sections 2.7.6 and 2.7.7: the radius source is the
 	// Access-Accept's MS DNS servers, offered by the pool's dns-source list.
 	dns := selectSubscriberDNS(pool, meta, p.learned.Records(), time.Now(), logger())
@@ -311,13 +331,18 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 	// Uses the selected pool's gateway/DNS (named pool if Framed-Pool
 	// was also set, default pool otherwise).
 	if meta != nil && meta.FramedIP.IsValid() {
-		p.sessionAddrs.Store(
-			sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
-			sessionAddr{addr: meta.FramedIP, fromPool: false},
-		)
+		reservationPool, inRange, err := p.reserveRADIUSAddressLocked(meta.FramedIP)
+		if err != nil {
+			return ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: err.Error()}
+		}
+		allocationID := p.storeAddressLocked(key, sessionAddr{addr: meta.FramedIP,
+			tunnelID: req.TunnelID, sessionID: req.SessionID,
+			fromPool: inRange, poolName: reservationPool,
+			local: pool.gateway, dnsPrimary: dns.primary, dnsSecondary: dns.secondary})
 		logger().Info("l2tp-pool: using RADIUS-assigned address",
 			"tunnel", req.TunnelID, "session", req.SessionID, "address", meta.FramedIP)
 		return ppp.IPResponseArgs{
+			AllocationID: allocationID,
 			Accept:       true,
 			Family:       ppp.AddressFamilyIPv4,
 			Local:        pool.gateway,
@@ -334,15 +359,15 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 		return ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: "pool exhausted"}
 	}
 
-	p.sessionAddrs.Store(
-		sessionKey{tunnelID: req.TunnelID, sessionID: req.SessionID},
-		sessionAddr{addr: addr, fromPool: true, poolName: poolName},
-	)
+	allocationID := p.storeAddressLocked(key, sessionAddr{addr: addr, fromPool: true, poolName: poolName,
+		tunnelID: req.TunnelID, sessionID: req.SessionID,
+		local: pool.gateway, dnsPrimary: dns.primary, dnsSecondary: dns.secondary})
 
 	logger().Info("l2tp-pool: allocated address",
 		"tunnel", req.TunnelID, "session", req.SessionID, "address", addr)
 
 	return ppp.IPResponseArgs{
+		AllocationID: allocationID,
 		Accept:       true,
 		Family:       ppp.AddressFamilyIPv4,
 		Local:        pool.gateway,
@@ -359,102 +384,12 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigVerify(verifyPoolConfig)
+	poolInstance.configTransaction().Register(p)
 	// A plugin the engine removes while the daemon runs withdraws its
 	// selections, so show system dns and ze doctor stop reporting them. On
 	// daemon stop no bye arrives, and the registry stops with the daemon.
 	p.OnBye(func(string) error {
 		poolInstance.withdraw()
-		return nil
-	})
-
-	var pendingResult *poolConfigResult
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, sec := range sections {
-			if sec.Root != configRootL2TP {
-				continue
-			}
-			result, err := parseFullPoolConfig(sec.Data)
-			if err != nil {
-				return err
-			}
-			if result.found {
-				pendingResult = &result
-			}
-		}
-		if pendingResult != nil {
-			poolInstance.mu.Lock()
-			poolInstance.pool = pendingResult.defaultPool
-			poolInstance.namedPools = pendingResult.namedPools
-			poolInstance.mu.Unlock()
-			poolInstance.publishPools(poolInstance.currentBus())
-			poolInstance.v6mu.Lock()
-			poolInstance.v6pool = pendingResult.defaultV6Pool
-			poolInstance.v6namedPools = pendingResult.namedV6Pools
-			poolInstance.v6mu.Unlock()
-			if pendingResult.defaultPool != nil {
-				total, _, _ := pendingResult.defaultPool.stats()
-				logger().Info("l2tp-pool: configured", "total", total, "named-pools", len(pendingResult.namedPools))
-			}
-			if pendingResult.defaultV6Pool != nil {
-				total, _, _ := pendingResult.defaultV6Pool.stats()
-				logger().Info("l2tp-pool: IPv6 configured", "total", total, "named-v6-pools", len(pendingResult.namedV6Pools))
-			}
-			pendingResult = nil
-		}
-		return nil
-	})
-
-	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		if pendingResult != nil {
-			poolInstance.mu.Lock()
-			poolInstance.v6mu.Lock()
-			var liveAllocs uint32
-			if old := poolInstance.pool; old != nil {
-				_, a, _ := old.stats()
-				liveAllocs += a
-			}
-			for _, np := range poolInstance.namedPools {
-				_, a, _ := np.stats()
-				liveAllocs += a
-			}
-			if old := poolInstance.v6pool; old != nil {
-				_, a, _ := old.stats()
-				liveAllocs += a
-			}
-			for _, np := range poolInstance.v6namedPools {
-				_, a, _ := np.stats()
-				liveAllocs += a
-			}
-			if liveAllocs > 0 {
-				poolInstance.v6mu.Unlock()
-				poolInstance.mu.Unlock()
-				pendingResult = nil
-				return fmt.Errorf("l2tp-pool: cannot replace pools with %d live allocations; tear down sessions first", liveAllocs)
-			}
-			poolInstance.pool = pendingResult.defaultPool
-			poolInstance.namedPools = pendingResult.namedPools
-			poolInstance.v6pool = pendingResult.defaultV6Pool
-			poolInstance.v6namedPools = pendingResult.namedV6Pools
-			poolInstance.v6mu.Unlock()
-			poolInstance.mu.Unlock()
-			poolInstance.publishPools(poolInstance.currentBus())
-			if pendingResult.defaultPool != nil {
-				total, _, _ := pendingResult.defaultPool.stats()
-				logger().Info("l2tp-pool: configured", "total", total, "named-pools", len(pendingResult.namedPools))
-			}
-			if pendingResult.defaultV6Pool != nil {
-				total, _, _ := pendingResult.defaultV6Pool.stats()
-				logger().Info("l2tp-pool: IPv6 configured", "total", total, "named-v6-pools", len(pendingResult.namedV6Pools))
-			}
-			pendingResult = nil
-		}
-		return nil
-	})
-
-	p.OnConfigRollback(func(_ string) error {
-		pendingResult = nil
 		return nil
 	})
 
@@ -480,37 +415,60 @@ func runPlugin(conn net.Conn) int {
 }
 
 func (p *poolPlugin) showPool() any {
-	p.mu.RLock()
-	pool := p.pool
-	p.mu.RUnlock()
-
-	p.v6mu.RLock()
-	v6pool := p.v6pool
-	p.v6mu.RUnlock()
-
-	if pool == nil && v6pool == nil {
+	result, configured := p.showPoolSnapshot()
+	if !configured {
 		// Marshaled once by the SDK: return a Go value, not a JSON string
 		// literal (which would double-encode on the wire).
 		return map[string]any{"status": "no pool configured"}
 	}
+	// Subscriber registry lookups MUST run after the allocation locks are released.
+	// Session-down callbacks can acquire those same allocation locks.
+	for index := range result.Sessions {
+		session := &result.Sessions[index]
+		session.Username = lookupSessionUsername(session.subscriberID)
+	}
+	return result
+}
 
+// showPoolSnapshot captures one installed pool set and its reservations. It
+// MUST take the family locks in installation order and release both before
+// the caller performs any subscriber registry lookup. Safe for concurrent use.
+func (p *poolPlugin) showPoolSnapshot() (poolShowResult, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	p.v6mu.RLock()
+	defer p.v6mu.RUnlock()
 	var result poolShowResult
-
-	if pool != nil {
-		total, allocated, available := pool.stats()
-		end := uint32ToAddr(addrToUint32(pool.start) + pool.size - 1)
-		result.Gateway = pool.gateway.String()
-		result.RangeStart = pool.start.String()
-		result.RangeEnd = end.String()
-		result.DNSPrimary = pool.dnsPrimary.String()
-		result.DNSSecondary = pool.dnsSecondary.String()
-		result.Total = total
-		result.Allocated = allocated
-		result.Available = available
-
-		var sessions []sessionAlloc
+	configured := false
+	hasIPv4 := false
+	if p.pool != nil {
+		result.poolIPv4ShowResult = p.pool.showPoolSnapshot()
+		configured = true
+		hasIPv4 = true
+	}
+	if len(p.namedPools) > 0 {
+		result.NamedPools = make(map[string]poolIPv4ShowResult, len(p.namedPools))
+		for name, pool := range p.namedPools {
+			result.NamedPools[name] = pool.showPoolSnapshot()
+		}
+		configured = true
+		hasIPv4 = true
+	}
+	if p.v6pool != nil {
+		snapshot := p.v6pool.showPoolSnapshot()
+		result.IPv6PD = &snapshot
+		configured = true
+	}
+	if len(p.v6namedPools) > 0 {
+		result.NamedIPv6Pools = make(map[string]poolV6ShowResult, len(p.v6namedPools))
+		for name, pool := range p.v6namedPools {
+			result.NamedIPv6Pools[name] = pool.showPoolSnapshot()
+		}
+		configured = true
+	}
+	if hasIPv4 {
 		p.sessionAddrs.Range(func(key, value any) bool {
-			sk, ok := key.(sessionKey)
+			id, ok := key.(string)
 			if !ok {
 				return true
 			}
@@ -518,43 +476,35 @@ func (p *poolPlugin) showPool() any {
 			if !ok {
 				return true
 			}
-			username := lookupSessionUsername(sk.tunnelID, sk.sessionID)
-			sessions = append(sessions, sessionAlloc{
-				TunnelID:  sk.tunnelID,
-				SessionID: sk.sessionID,
-				Address:   sa.addr.String(),
-				Username:  username,
+			result.Sessions = append(result.Sessions, sessionAlloc{
+				subscriberID: id,
+				TunnelID:     sa.tunnelID,
+				SessionID:    sa.sessionID,
+				Address:      sa.addr.String(),
 			})
 			return true
 		})
-		result.Sessions = sessions
 	}
-
-	if v6pool != nil {
-		v6Total, v6Allocated, v6Available := v6pool.stats()
-		result.IPv6PD = &poolV6ShowResult{
-			Block:            v6pool.block.String(),
-			DelegationLength: v6pool.delegLen,
-			Total:            v6Total,
-			Allocated:        v6Allocated,
-			Available:        v6Available,
-		}
-	}
-
-	return result
+	return result, configured
 }
 
 type poolShowResult struct {
-	Gateway      string            `json:"gateway"`
-	RangeStart   string            `json:"range-start"`
-	RangeEnd     string            `json:"range-end"`
-	DNSPrimary   string            `json:"dns-primary"`
-	DNSSecondary string            `json:"dns-secondary"`
-	Total        uint32            `json:"total"`
-	Allocated    uint32            `json:"allocated"`
-	Available    uint32            `json:"available"`
-	Sessions     []sessionAlloc    `json:"sessions"`
-	IPv6PD       *poolV6ShowResult `json:"ipv6-pd,omitempty"`
+	poolIPv4ShowResult
+	Sessions       []sessionAlloc                `json:"sessions"`
+	IPv6PD         *poolV6ShowResult             `json:"ipv6-pd,omitempty"`
+	NamedPools     map[string]poolIPv4ShowResult `json:"named-pools,omitempty"`
+	NamedIPv6Pools map[string]poolV6ShowResult   `json:"named-ipv6-pools,omitempty"`
+}
+
+type poolIPv4ShowResult struct {
+	Gateway      string `json:"gateway"`
+	RangeStart   string `json:"range-start"`
+	RangeEnd     string `json:"range-end"`
+	DNSPrimary   string `json:"dns-primary"`
+	DNSSecondary string `json:"dns-secondary"`
+	Total        uint32 `json:"total"`
+	Allocated    uint32 `json:"allocated"`
+	Available    uint32 `json:"available"`
 }
 
 type poolV6ShowResult struct {
@@ -565,23 +515,34 @@ type poolV6ShowResult struct {
 	Available        uint32 `json:"available"`
 }
 
-type sessionAlloc struct {
-	TunnelID  uint16 `json:"tunnel-id"`
-	SessionID uint16 `json:"session-id"`
-	Address   string `json:"address"`
-	Username  string `json:"username"`
+func (p *ipv4Pool) showPoolSnapshot() poolIPv4ShowResult {
+	total, allocated, available := p.stats()
+	return poolIPv4ShowResult{
+		Gateway:    p.gateway.String(),
+		RangeStart: p.start.String(),
+		RangeEnd:   uint32ToAddr(addrToUint32(p.start) + p.size - 1).String(),
+		DNSPrimary: p.dnsPrimary.String(), DNSSecondary: p.dnsSecondary.String(),
+		Total: total, Allocated: allocated, Available: available,
+	}
 }
 
-func lookupSessionUsername(tunnelID, sessionID uint16) string {
-	svc := l2tp.LookupService()
-	if svc == nil {
-		return ""
-	}
-	sess, ok := svc.LookupSession(sessionID)
+func (p *ipv6PrefixPool) showPoolSnapshot() poolV6ShowResult {
+	total, allocated, available := p.stats()
+	return poolV6ShowResult{Block: p.block.String(), DelegationLength: p.delegLen,
+		Total: total, Allocated: allocated, Available: available}
+}
+
+type sessionAlloc struct {
+	subscriberID string
+	TunnelID     uint16 `json:"tunnel-id"`
+	SessionID    uint16 `json:"session-id"`
+	Address      string `json:"address"`
+	Username     string `json:"username"`
+}
+
+func lookupSessionUsername(subscriberID string) string {
+	sess, ok := subscriber.DefaultRegistry.Get(subscriberID)
 	if !ok {
-		return ""
-	}
-	if sess.TunnelLocalTID != tunnelID {
 		return ""
 	}
 	return sess.Username

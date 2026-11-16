@@ -4,14 +4,17 @@
 
 package cos
 
-import "github.com/ze-software/ze/internal/component/l2tp"
+import (
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+)
 
 func storeMetadataForTest(tunnelID, sessionID uint16, cosProfile string) {
-	l2tp.StoreSessionMetadata(tunnelID, sessionID, &l2tp.AuthMetadata{
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID), &l2tp.AuthMetadata{
 		CoSProfile: cosProfile,
 	})
 }
 
 func clearMetadataForTest(tunnelID, sessionID uint16) {
-	l2tp.ClearSessionMetadata(tunnelID, sessionID)
+	l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(tunnelID), sessionID))
 }

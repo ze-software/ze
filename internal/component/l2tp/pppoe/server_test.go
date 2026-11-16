@@ -8,6 +8,7 @@
 package pppoe
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/callsink"
 )
 
@@ -27,14 +29,17 @@ type precedenceSink struct {
 	realmCalls int
 }
 
-func (p *precedenceSink) Relay(req callsink.Request) (bool, error) {
+func (p *precedenceSink) Relay(req callsink.Request) (callsink.RelayCall, bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.relays = append(p.relays, req)
-	return req.Service == "wholesale", nil
+	if req.Service != "wholesale" {
+		return nil, false, nil
+	}
+	return fixtureServiceCall{}, true, nil
 }
 
-func (p *precedenceSink) RelayRealm(callsink.RealmRequest) (callsink.RealmCall, bool, error) {
+func (p *precedenceSink) RelayRealm(callsink.RealmRequest) (callsink.RelayCall, bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.realmCalls++
@@ -42,10 +47,6 @@ func (p *precedenceSink) RelayRealm(callsink.RealmRequest) (callsink.RealmCall, 
 }
 
 func (p *precedenceSink) RealmRelayConfigured() bool { return true }
-
-// precedenceBackend satisfies NewProductionDriver's non-nil backend check.
-// The driver is never started, so no method of it is called.
-type precedenceBackend struct{ ppp.IfaceBackend }
 
 // TestServiceNameRelayPrecedesRealm -- AC-7.
 //
@@ -58,9 +59,9 @@ type precedenceBackend struct{ ppp.IfaceBackend }
 // PPP driver, so local termination is possible and the relay decision is what
 // keeps it from starting. Only the kernel calls are faked. The driver is never
 // started, so a StartSession handed to it stays queued and keeps the PPP unit
-// descriptor open, while the relay path closes that descriptor itself. The
-// unit is one end of a socket pair: EOF on the other end means the relay
-// took the subscriber, and an open unit means local PPP was started.
+// descriptor open. Relay acceptance also retains the unused unit until
+// bridge preparation, so the driver queue directly proves local PPP did
+// not start; the socket pair proves that acceptance retains the unit.
 // PREVENTS: realm relay taking (or delaying with local LCP) a subscriber a
 // Service-Name binding already relays.
 func TestServiceNameRelayPrecedesRealm(t *testing.T) {
@@ -72,30 +73,19 @@ func TestServiceNameRelayPrecedesRealm(t *testing.T) {
 	p := extractFromConfigText(t, "pppoe { service-name wholesale; interface eth0 {} }")
 	ic := &p.Interfaces[0]
 
-	var nullFDs []int
-	t.Cleanup(func() {
-		for _, fd := range nullFDs {
-			unix.Close(fd) //nolint:errcheck // test cleanup of /dev/null descriptors
-		}
-	})
 	openNull := func() int {
 		fd, err := unix.Open("/dev/null", unix.O_RDWR|unix.O_CLOEXEC, 0)
 		if err != nil {
 			t.Fatalf("open /dev/null: %v", err)
 		}
-		nullFDs = append(nullFDs, fd)
 		return fd
 	}
 	unit, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)
 	if err != nil {
 		t.Fatalf("socketpair: %v", err)
 	}
-	unitHeld := true
 	t.Cleanup(func() {
 		unix.Close(unit[1]) //nolint:errcheck // test cleanup
-		if unitHeld {
-			unix.Close(unit[0]) //nolint:errcheck // test cleanup: the queued StartSession is never run
-		}
 	})
 
 	key := CookieKey{}
@@ -106,14 +96,11 @@ func TestServiceNameRelayPrecedesRealm(t *testing.T) {
 		hwAddr:      hwAddr,
 		sessions:    newSessionTable(ic.Name, ic.MaxSessions),
 		cookieKey:   key,
-		pppDriver:   ppp.NewProductionDriver(slog.Default(), precedenceBackend{}),
+		pppDriver:   ppp.NewProductionDriver(slog.Default()),
 		logger:      slog.Default(),
 		sendFrameFn: func([]byte) {},
-		pppoeCreateFn: func(string, uint16, [EthALen]byte) (int, error) {
-			return openNull(), nil
-		},
-		devPPPSetupFn: func(int) (int, int, int, error) {
-			return openNull(), unit[0], 1, nil
+		openSession: func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
+			return fixtureKernelOpened(t, openNull(), openNull(), unit[0], 1), nil
 		},
 	}
 	applyInterfaceConfig(srv, ic, &p)
@@ -123,7 +110,7 @@ func TestServiceNameRelayPrecedesRealm(t *testing.T) {
 		{Type: TagServiceName, Value: []byte("wholesale")},
 	}})
 
-	unitHeld = !unitClosed(t, unit[1])
+	unitHeld := !unitClosed(t, unit[1])
 
 	sink.mu.Lock()
 	defer sink.mu.Unlock()
@@ -136,8 +123,11 @@ func TestServiceNameRelayPrecedesRealm(t *testing.T) {
 	if sink.realmCalls != 0 {
 		t.Fatalf("realm relay asked %d times for a Service-Name relayed subscriber", sink.realmCalls)
 	}
-	if unitHeld {
+	if queued := len(srv.pppDriver.SessionsIn()); queued != 0 {
 		t.Fatal("a Service-Name relay subscriber started local PPP on a LAC with realm bindings")
+	}
+	if !unitHeld {
+		t.Fatal("a Service-Name relay closed its unused unit before bridge preparation")
 	}
 }
 
@@ -182,10 +172,10 @@ func newHeldFD(t *testing.T) *heldFD {
 	}
 	h := &heldFD{given: pair[0], kept: pair[1]}
 	t.Cleanup(func() {
-		unix.Close(h.kept) //nolint:errcheck // test cleanup
-		if !h.released {
+		if !h.released && !unitClosed(t, h.kept) {
 			unix.Close(h.given) //nolint:errcheck // test cleanup: the server kept this end
 		}
+		unix.Close(h.kept) //nolint:errcheck // test cleanup
 	})
 	return h
 }
@@ -237,11 +227,8 @@ func newDriverlessFixture(t *testing.T, config string) *driverlessFixture {
 		cookieKey:   f.key,
 		logger:      slog.Default(),
 		sendFrameFn: func(frame []byte) { f.sent = append(f.sent, append([]byte(nil), frame...)) },
-		pppoeCreateFn: func(string, uint16, [EthALen]byte) (int, error) {
-			return f.pppox.given, nil
-		},
-		devPPPSetupFn: func(int) (int, int, int, error) {
-			return f.chann.given, f.unit.given, 1, nil
+		openSession: func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
+			return fixtureKernelOpened(t, f.pppox.given, f.chann.given, f.unit.given, 1), nil
 		},
 	}
 	applyInterfaceConfig(f.srv, ic, &p)
@@ -290,7 +277,8 @@ func (f *driverlessFixture) relayAsks() (services []string, realmCalls int) {
 // VALIDATES: with no PPP driver, a PADR whose Service-Name a relay binding
 // names is still relayed: the relay is asked once, the subscriber gets one
 // admitting PADS whose SESSION_ID the table holds, the unused PPP unit is
-// closed, and the session socket and PPP channel stay open for the bridge.
+// retained until bridge preparation, and the session socket and PPP channel
+// stay open for the bridge.
 // METHOD: driverlessFixture. Red when handlePADR checks for the driver before
 // the relay decision: the relay is then never asked and no frame is sent.
 // PREVENTS: a relay-only LAC, which needs no local PPP, refusing every
@@ -320,8 +308,8 @@ func TestServiceNameRelayNeedsNoPPPDriver(t *testing.T) {
 	if f.srv.sessions.Lookup(pads.SID) == nil {
 		t.Fatalf("the table holds no session %d for the relayed subscriber", pads.SID)
 	}
-	if !f.unit.closedByServer(t) {
-		t.Fatal("the unused PPP unit of a relayed subscriber was left open")
+	if f.unit.closedByServer(t) {
+		t.Fatal("the unused PPP unit was closed before bridge preparation")
 	}
 	if f.chann.closedByServer(t) {
 		t.Fatal("the PPP channel the L2TP bridge needs was closed")

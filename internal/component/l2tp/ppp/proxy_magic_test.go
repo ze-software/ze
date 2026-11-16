@@ -73,13 +73,13 @@ func TestProxyLCPMalformedMagicRenegotiates(t *testing.T) {
 	defer d.Stop()
 	sent := optStream(mruOpt(1500), magicOpt(0x01020304))
 	recv := optStream(mruOpt(1500), LCPOption{Type: LCPOptMagic, Data: []byte{1, 2}})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:      testLCPConfig(),
-		TunnelID: 29, SessionID: 5, ChanFD: 29401, UnitFD: 29402,
+		TunnelID: 29, SessionID: 5,
 		MaxMRU: 1500, DisableIPCP: true, DisableIPv6CP: true,
 		AuthTimeout: 5 * time.Second, IPTimeout: 5 * time.Second,
 		ProxyLCPInitialRecv: recv, ProxyLCPLastRecv: recv, ProxyLCPLastSent: sent,
-	}
+	}, 29401, 29402, 0)
 	if request := readPolicyLCP(t, pair.peerEnd); request.Code != LCPConfigureRequest {
 		t.Fatalf("code = %d, want Configure-Request", request.Code)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/pkg/ze"
@@ -113,7 +114,7 @@ func (h *cosHandler) onSessionUp(p *l2tpevents.SessionUpPayload) {
 		return
 	}
 
-	meta := l2tp.LoadSessionMetadata(p.TunnelID, p.SessionID)
+	meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(p.TunnelID), p.SessionID))
 	if meta == nil || meta.CoSProfile == "" {
 		return
 	}

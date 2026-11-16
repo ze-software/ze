@@ -163,8 +163,9 @@ func TestAuthProtoRejectClearsMethod(t *testing.T) {
 	pair := newPipePair(reg, 16001)
 	defer closeConn(pair.peerEnd)
 
+	backend := &fakeBackend{}
 	ops, _, _ := newFakeOps()
-	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	d := NewProductionDriver(discardLogger())
 	if err := d.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -179,20 +180,18 @@ func TestAuthProtoRejectClearsMethod(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
-		LCP:        testLCPConfig(),
-		TunnelID:   181,
-		SessionID:  281,
-		ChanFD:     16001,
-		UnitFD:     981,
-		UnitNum:    21,
+	d.SessionsIn() <- testSessionStart(StartSession{
+		LCP:       testLCPConfig(),
+		TunnelID:  181,
+		SessionID: 281,
+
 		LNSMode:    true,
 		MaxMRU:     1500,
 		AuthMethod: AuthMethodPAP,
 		// PAP alone, so the first CONFREQ offers PAP: with CHAP in the
 		// order, RFC 1334 Section 2 makes ze offer CHAP first.
 		AuthFallbackOrder: []AuthMethod{AuthMethodPAP},
-	}
+	}, backend, ops, 16001, 981, 21)
 
 	select {
 	case pkt := <-secondCR:
@@ -251,20 +250,17 @@ func TestAuthFallbackOnNakDispatches(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   182,
 		SessionID:  282,
-		ChanFD:     16101,
-		UnitFD:     982,
-		UnitNum:    22,
 		LNSMode:    true,
 		MaxMRU:     1500,
 		AuthMethod: AuthMethodMSCHAPv2,
 		// Explicit order so the test does not depend on the package
 		// default silently matching CHAP-MD5.
 		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
-	}
+	}, 16101, 982, 22)
 
 	select {
 	case pkt := <-secondCR:
@@ -337,18 +333,15 @@ func TestAuthFallbackOnNakExhaustsToNone(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:               testLCPConfig(),
 		TunnelID:          183,
 		SessionID:         283,
-		ChanFD:            16201,
-		UnitFD:            983,
-		UnitNum:           23,
 		LNSMode:           true,
 		MaxMRU:            1500,
 		AuthMethod:        AuthMethodCHAPMD5,
 		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5},
-	}
+	}, 16201, 983, 23)
 
 	select {
 	case pkt := <-secondCR:
@@ -420,20 +413,17 @@ func TestStartSessionAuthMethodThreaded(t *testing.T) {
 	go scriptedPeer(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   101,
 		SessionID:  201,
-		ChanFD:     15001,
-		UnitFD:     901,
-		UnitNum:    1,
 		LNSMode:    true,
 		MaxMRU:     1500,
 		AuthMethod: AuthMethodPAP,
 		// PAP alone, so the session negotiates PAP: with CHAP in the
 		// order, RFC 1334 Section 2 makes ze offer CHAP first.
 		AuthFallbackOrder: []AuthMethod{AuthMethodPAP},
-	}
+	}, 15001, 901, 1)
 
 	// Wait for EventLCPUp before writing PAP bytes. Without this the
 	// test's write races scriptedPeer's CA/CR writes on the shared
@@ -506,13 +496,10 @@ func TestProxyLCPAuthMethodOverrides(t *testing.T) {
 		mruOpt(1500),
 		magicOpt(0xCAFEBABE),
 	})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            111,
 		SessionID:           222,
-		ChanFD:              15101,
-		UnitFD:              902,
-		UnitNum:             2,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthMethod:          AuthMethodNone, // overridden by proxy
@@ -520,7 +507,7 @@ func TestProxyLCPAuthMethodOverrides(t *testing.T) {
 		ProxyLCPInitialRecv: plain,
 		ProxyLCPLastSent:    lastSent,
 		ProxyLCPLastRecv:    plain,
-	}
+	}, 15101, 902, 2)
 
 	// Peer sends PAP Authenticate-Request; if dispatch works we see
 	// AuthMethodPAP on the auth channel.
@@ -577,20 +564,17 @@ func TestProxyLCPDispatchesCHAPMD5(t *testing.T) {
 		mruOpt(1500),
 		magicOpt(0xCAFEBABE),
 	})
-	d.SessionsIn() <- StartSession{
+	d.SessionsIn() <- testStartForDriver(d, StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            121,
 		SessionID:           232,
-		ChanFD:              15201,
-		UnitFD:              903,
-		UnitNum:             3,
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthFallbackOrder:   []AuthMethod{AuthMethodCHAPMD5},
 		ProxyLCPInitialRecv: plain,
 		ProxyLCPLastSent:    lastSent,
 		ProxyLCPLastRecv:    plain,
-	}
+	}, 15201, 903, 3)
 
 	proto, payload := readPeerFrame(t, pair.peerEnd)
 	if proto != ProtoCHAP {
@@ -621,8 +605,9 @@ func TestProxyLCPDispatchesMSCHAPv2(t *testing.T) {
 	pair := newPipePair(reg, 15301)
 	defer closeConn(pair.peerEnd)
 
+	backend := &fakeBackend{}
 	ops, _, _ := newFakeOps()
-	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	d := NewProductionDriver(discardLogger())
 	if err := d.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -636,20 +621,18 @@ func TestProxyLCPDispatchesMSCHAPv2(t *testing.T) {
 		mruOpt(1500),
 		magicOpt(0xCAFEBABE),
 	})
-	d.SessionsIn() <- StartSession{
-		LCP:                 testLCPConfig(),
-		TunnelID:            131,
-		SessionID:           242,
-		ChanFD:              15301,
-		UnitFD:              904,
-		UnitNum:             4,
+	d.SessionsIn() <- testSessionStart(StartSession{
+		LCP:       testLCPConfig(),
+		TunnelID:  131,
+		SessionID: 242,
+
 		LNSMode:             true,
 		MaxMRU:              1500,
 		AuthFallbackOrder:   []AuthMethod{AuthMethodMSCHAPv2},
 		ProxyLCPInitialRecv: plain,
 		ProxyLCPLastSent:    lastSent,
 		ProxyLCPLastRecv:    plain,
-	}
+	}, backend, ops, 15301, 904, 4)
 
 	proto, payload := readPeerFrame(t, pair.peerEnd)
 	if proto != ProtoCHAP {
@@ -708,27 +691,26 @@ func TestLocalCONFREQAdvertisesAuthMethod(t *testing.T) {
 			pair := newPipePair(reg, 15400+int(tc.method))
 			defer closeConn(pair.peerEnd)
 
+			backend := &fakeBackend{}
 			ops, _, _ := newFakeOps()
-			d := newTestDriverNoResponder(&fakeBackend{}, ops)
+			d := NewProductionDriver(discardLogger())
 			if err := d.Start(); err != nil {
 				t.Fatalf("Start: %v", err)
 			}
 			defer d.Stop()
 
-			d.SessionsIn() <- StartSession{
-				LCP:        testLCPConfig(),
-				TunnelID:   uint16(140 + int(tc.method)),
-				SessionID:  uint16(240 + int(tc.method)),
-				ChanFD:     15400 + int(tc.method),
-				UnitFD:     905 + int(tc.method),
-				UnitNum:    5 + int(tc.method),
+			d.SessionsIn() <- testSessionStart(StartSession{
+				LCP:       testLCPConfig(),
+				TunnelID:  uint16(140 + int(tc.method)),
+				SessionID: uint16(240 + int(tc.method)),
+
 				LNSMode:    true,
 				MaxMRU:     1500,
 				AuthMethod: tc.method,
 				// The configured method alone, so no stronger method
 				// displaces PAP in the first CONFREQ (RFC 1334 Section 2).
 				AuthFallbackOrder: []AuthMethod{tc.method},
-			}
+			}, backend, ops, 15400+int(tc.method), 905+int(tc.method), 5+int(tc.method))
 
 			proto, payload := readPeerFrame(t, pair.peerEnd)
 			if proto != ProtoLCP {

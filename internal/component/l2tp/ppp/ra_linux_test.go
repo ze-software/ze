@@ -43,7 +43,7 @@ func TestRSReaderLoopPacesAFailingSocket(t *testing.T) {
 	defer cancel()
 
 	rsCh := make(chan struct{}, 1)
-	go rsReaderLoop(ctx, pc, rsCh, "test0", slog.Default())
+	go rsReaderLoop(ctx, rsPacketReader{pc}, rsCh, "test0", slog.Default())
 
 	// Force every read already in flight, and every one after it, to fail
 	// at once and persistently: a deadline already in the past. Not
@@ -113,7 +113,7 @@ func TestRSReaderLoopStopsPromptlyWhilePacing(t *testing.T) {
 	rsCh := make(chan struct{}, 1)
 	done := make(chan struct{})
 	go func() {
-		rsReaderLoop(ctx, pc, rsCh, "test0", slog.Default())
+		rsReaderLoop(ctx, rsPacketReader{pc}, rsCh, "test0", slog.Default())
 		close(done)
 	}()
 

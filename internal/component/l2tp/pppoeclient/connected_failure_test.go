@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // TestConnectedRestartFailures checks the actual supervisor's termination and
@@ -36,10 +37,10 @@ func TestConnectedRestartFailures(t *testing.T) {
 				var log bytes.Buffer
 				done := make(chan struct{})
 				if name == "drop" {
-					w.modeFailure = ppp.NPModeDrop
+					w.modeFailure = pppkernel.NPModeDrop
 				}
 				if name == "pass" {
-					w.modeFailure = ppp.NPModePass
+					w.modeFailure = pppkernel.NPModePass
 				}
 				if name == "write" {
 					w.writeFailure = io.ErrShortWrite
@@ -177,7 +178,7 @@ func TestConnectedRestartFailures(t *testing.T) {
 				if _, err := link.Write([]byte{1}); !errors.Is(err, io.ErrClosedPipe) {
 					t.Fatalf("post-close write: %v", err)
 				}
-				if err := link.setIPv4Mode(-1, ppp.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
+				if err := link.setIPv4Mode(-1, pppkernel.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
 					t.Fatalf("post-close mode touched unit: %v", err)
 				}
 			})
@@ -231,10 +232,10 @@ func TestConnectedRestartReentry(t *testing.T) {
 		if len(w.modes) != 2 {
 			t.Fatalf("interruption changed forwarding: %v", w.modes)
 		}
-		if w.modes[0] != ppp.NPModeDrop {
+		if w.modes[0] != pppkernel.NPModeDrop {
 			t.Fatalf("first mode: %v", w.modes)
 		}
-		if w.modes[1] != ppp.NPModePass {
+		if w.modes[1] != pppkernel.NPModePass {
 			t.Fatalf("last mode: %v", w.modes)
 		}
 		w.send(ppp.ProtoLCP, 9, 99, []byte{0, 0, 0, 1})

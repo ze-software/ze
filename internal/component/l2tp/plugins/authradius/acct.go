@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -342,7 +343,7 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 	// Section 5.16 defines. Section 2.1 decides which of the two values wins,
 	// and acctInterval enforces it.
 	var fromAccept uint32
-	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil {
+	if meta := l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(payload.TunnelID), payload.SessionID)); meta != nil {
 		fromAccept = meta.AcctInterimInterval
 	}
 	interval := acctInterval(configured, fromAccept)

@@ -10,17 +10,16 @@ package pppoe
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"log/slog"
 	"net"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
+
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
-
-// admissionBackend satisfies ppp.IfaceBackend for an unstarted driver: the
-// tests only enqueue StartSession, so no backend method is ever called.
-type admissionBackend struct{ ppp.IfaceBackend }
 
 // boundTransport is one session-stage socket handlePADR asked the kernel for.
 type boundTransport struct {
@@ -35,12 +34,11 @@ func newAdmittingServer(t *testing.T, sent *[][]byte, bound *[]boundTransport, s
 	t.Helper()
 	s := newRecordingServer(sent, serviceNames, 8)
 	s.acName = "ze-ac"
-	s.pppDriver = ppp.NewProductionDriver(slog.Default(), admissionBackend{})
-	s.pppoeCreateFn = func(_ string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
-		*bound = append(*bound, boundTransport{sid: sid, remoteMAC: remoteMAC})
-		return -1, nil
+	s.pppDriver = ppp.NewProductionDriver(slog.Default())
+	s.openSession = func(_ context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
+		*bound = append(*bound, boundTransport{sid: request.SessionID, remoteMAC: request.PeerMAC})
+		return fixtureOpened(t, "ppp7"), nil
 	}
-	s.devPPPSetupFn = func(int) (int, int, int, error) { return -1, -1, 7, nil }
 	return s
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 )
 
 var testGW = netip.MustParseAddr("10.0.0.254")
@@ -149,13 +150,14 @@ func TestPoolHandleFramedIPBypass(t *testing.T) {
 	p.pool = pool
 
 	framedIP := netip.MustParseAddr("198.51.100.5")
-	l2tp.StoreSessionMetadata(1, 2, &l2tp.AuthMetadata{FramedIP: framedIP})
-	defer l2tp.ClearSessionMetadata(1, 2)
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), &l2tp.AuthMetadata{FramedIP: framedIP})
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2))
 
 	result := p.handle(ppp.EventIPRequest{
-		TunnelID:  1,
-		SessionID: 2,
-		Family:    ppp.AddressFamilyIPv4,
+		SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2),
+		TunnelID:     1,
+		SessionID:    2,
+		Family:       ppp.AddressFamilyIPv4,
 	})
 
 	if !result.Accept {
@@ -188,12 +190,12 @@ func TestPoolHandleFramedIPBypassTracksSession(t *testing.T) {
 	p.pool = pool
 
 	framedIP := netip.MustParseAddr("198.51.100.7")
-	l2tp.StoreSessionMetadata(3, 4, &l2tp.AuthMetadata{FramedIP: framedIP})
-	defer l2tp.ClearSessionMetadata(3, 4)
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4), &l2tp.AuthMetadata{FramedIP: framedIP})
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4))
 
-	p.handle(ppp.EventIPRequest{TunnelID: 3, SessionID: 4, Family: ppp.AddressFamilyIPv4})
+	p.handle(ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4), TunnelID: 3, SessionID: 4, Family: ppp.AddressFamilyIPv4})
 
-	val, ok := p.sessionAddrs.Load(sessionKey{tunnelID: 3, sessionID: 4})
+	val, ok := p.sessionAddrs.Load(subscriber.SessionID(subscriber.AccessL2TP, uint64(3), 4))
 	if !ok {
 		t.Fatal("session address should be tracked for teardown release")
 	}
@@ -216,7 +218,7 @@ func TestPoolHandleNoMetadataFallsThrough(t *testing.T) {
 	p := &poolPlugin{}
 	p.pool = pool
 
-	result := p.handle(ppp.EventIPRequest{TunnelID: 5, SessionID: 6, Family: ppp.AddressFamilyIPv4})
+	result := p.handle(ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(5), 6), TunnelID: 5, SessionID: 6, Family: ppp.AddressFamilyIPv4})
 
 	if !result.Accept {
 		t.Fatalf("expected accept from pool, got reject: %s", result.Reason)
@@ -242,10 +244,10 @@ func TestPoolHandleNamedPool(t *testing.T) {
 	p.pool = defaultPool
 	p.namedPools = map[string]*ipv4Pool{"gold": goldPool}
 
-	l2tp.StoreSessionMetadata(7, 8, &l2tp.AuthMetadata{FramedPool: "gold"})
-	defer l2tp.ClearSessionMetadata(7, 8)
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8), &l2tp.AuthMetadata{FramedPool: "gold"})
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8))
 
-	result := p.handle(ppp.EventIPRequest{TunnelID: 7, SessionID: 8, Family: ppp.AddressFamilyIPv4})
+	result := p.handle(ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(7), 8), TunnelID: 7, SessionID: 8, Family: ppp.AddressFamilyIPv4})
 
 	if !result.Accept {
 		t.Fatalf("expected accept, got reject: %s", result.Reason)
@@ -277,10 +279,10 @@ func TestPoolHandleNamedPoolNotFound(t *testing.T) {
 	p := &poolPlugin{}
 	p.pool = defaultPool
 
-	l2tp.StoreSessionMetadata(9, 10, &l2tp.AuthMetadata{FramedPool: "nonexistent"})
-	defer l2tp.ClearSessionMetadata(9, 10)
+	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(9), 10), &l2tp.AuthMetadata{FramedPool: "nonexistent"})
+	defer l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessL2TP, uint64(9), 10))
 
-	result := p.handle(ppp.EventIPRequest{TunnelID: 9, SessionID: 10, Family: ppp.AddressFamilyIPv4})
+	result := p.handle(ppp.EventIPRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(9), 10), TunnelID: 9, SessionID: 10, Family: ppp.AddressFamilyIPv4})
 
 	if result.Accept {
 		t.Fatal("expected reject for nonexistent named pool")

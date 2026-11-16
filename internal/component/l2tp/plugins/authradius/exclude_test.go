@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
@@ -242,7 +243,7 @@ func TestExcludeOnAccessRequestOnly(t *testing.T) {
 	body := "                    nas-port-id {\n                        packet-type [ access-request ]\n                    }"
 	cfg := exclusionConfig(t, body)
 
-	req := ppp.EventAuthRequest{TunnelID: 1, SessionID: 2, Username: "alice", Method: ppp.AuthMethodPAP}
+	req := ppp.EventAuthRequest{SubscriberID: subscriber.SessionID(subscriber.AccessL2TP, uint64(1), 2), TunnelID: 1, SessionID: 2, Username: "alice", Method: ppp.AuthMethodPAP}
 	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, attributePolicy{
 		nasPortIDFormat: "{nas-id}:{tunnel-id}.{session-id}",
 		exclusions:      cfg.Exclusions,

@@ -14,6 +14,7 @@ import (
 	"testing/synctest"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // transitionInput inserts one reader event at a phase-completion log, on the
@@ -92,7 +93,7 @@ func TestConnectedTransitionReadErrors(t *testing.T) {
 				if len(w.modes) != 1 {
 					t.Fatalf("transition error resumed forwarding: %v", w.modes)
 				}
-				if w.modes[0] != ppp.NPModeDrop {
+				if w.modes[0] != pppkernel.NPModeDrop {
 					t.Fatalf("transition failed to suspend: %v", w.modes)
 				}
 			})

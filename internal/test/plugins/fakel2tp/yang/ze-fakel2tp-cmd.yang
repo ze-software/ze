@@ -30,9 +30,42 @@ carries one entry and it goes out under the l2tp protocol ID. The answer carries
             config false;
             ze:command "ze-test-fakel2tp:help";
             ze:rpc "ze-fakel2tp-api:fakel2tp-help";
-            description "The answer is the one usage line of the plugin: 'fakel2tp emit add|remove
-<family> <prefix>'.";
+            description "The answer lists registered test commands and the route-emitter usage.";
             ze:help "Print the fakel2tp command surface.";
+        }
+
+        container pool {
+            config false;
+            description "Internal synthetic subscribers for pool reload tests.";
+            ze:help "Request a synthetic subscriber allocation.";
+            container pppoe-address {
+                config false;
+                ze:command "ze-test-fakel2tp:pool-pppoe-address";
+                ze:rpc "ze-fakel2tp-api:fakel2tp-pool-pppoe-address";
+                description "Takes id <session-id> pool <default|name> and requests an IPv4 address with an explicit PPPoE subscriber identity.";
+                ze:help "Request a synthetic PPPoE subscriber address.";
+            }
+            container release {
+                config false;
+                ze:command "ze-test-fakel2tp:pool-release";
+                ze:rpc "ze-fakel2tp-api:fakel2tp-pool-release";
+                description "Takes access <l2tp|pppoe> id <session-id> and emits subscriber session-down on the real daemon bus.";
+                ze:help "Release one explicit synthetic subscriber.";
+            }
+            container address {
+                config false;
+                ze:command "ze-test-fakel2tp:pool-address";
+                ze:rpc "ze-fakel2tp-api:fakel2tp-pool-address";
+                description "Takes id <session-id> pool <default|name> and answers address and gateway.";
+                ze:help "Request a synthetic subscriber address.";
+            }
+            container prefix {
+                config false;
+                ze:command "ze-test-fakel2tp:pool-prefix";
+                ze:rpc "ze-fakel2tp-api:fakel2tp-pool-prefix";
+                description "Takes id <session-id> pool <default|name> and answers prefix.";
+                ze:help "Request a synthetic subscriber prefix.";
+            }
         }
     }
 }

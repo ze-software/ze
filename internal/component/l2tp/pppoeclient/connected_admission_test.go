@@ -13,6 +13,7 @@ import (
 	"testing/synctest"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // TestConnectedSessionAdmission exercises each independent input invariant and
@@ -180,7 +181,7 @@ func TestConnectedLinkModeAfterClose(t *testing.T) {
 	if err := link.Close(); err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []ppp.NPMode{ppp.NPModeUnspecified, ppp.NPModePass, ppp.NPModeDrop, 255} {
+	for _, mode := range []pppkernel.NPMode{pppkernel.NPModeUnspecified, pppkernel.NPModePass, pppkernel.NPModeDrop, 255} {
 		if err := link.setIPv4Mode(-1, mode); !errors.Is(err, io.ErrClosedPipe) {
 			t.Fatalf("closed mode %d reached validation/ioctl: %v", mode, err)
 		}
@@ -212,7 +213,7 @@ func TestConnectedLinkModeCloseRace(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	if err := link.setIPv4Mode(-1, ppp.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
+	if err := link.setIPv4Mode(-1, pppkernel.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatalf("mode after concurrent close: %v", err)
 	}
 	if closes != 1 {
@@ -226,7 +227,7 @@ func TestConnectedLinkModeCloseRace(t *testing.T) {
 func connectedModeWorker(link *sessionLink, started chan<- struct{}, done chan<- error) {
 	close(started)
 	for range 64 {
-		err := link.setIPv4Mode(-1, ppp.NPMode(255))
+		err := link.setIPv4Mode(-1, pppkernel.NPMode(255))
 		if errors.Is(err, io.ErrClosedPipe) {
 			continue
 		}

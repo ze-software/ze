@@ -157,12 +157,13 @@ Initial negotiation failures have no phase worker to join.
 
 When the `pppoe-client` sets `ipv6 enabled true`, the client runs IPv6CP
 (RFC 5072). It runs beside IPCP and independently of it (RFC 7084 WLL-3). IPv6 is set
-to discard on the unit (`PPPIOCSNPMODE` for protocol 0x57, `ppp.SetIPv6Mode`)
+to discard on the unit (`PPPIOCSNPMODE` for protocol 0x57, `kernel.SetIPv6Mode`)
 before negotiation starts. On entering the network phase the client sends its
 IPv6CP Configure-Request right after IPCP's, carrying exactly one
 Interface-Identifier, and answers IPv6CP on the same reader while IPCP
 negotiates.
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateIPCP -->
+<!-- source: internal/component/l2tp/ppp/kernel/npmode_ipv6_linux.go -- SetIPv6Mode -->
 
 IPv6CP's configured one-shot Restart timer follows its automaton across IPCP
 and the network phase. IPCP retains its separate three-second timer.
@@ -241,7 +242,7 @@ the session MTU is the MRU the client proposes.
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateSession -->
 
 **The session device carries the configured name.** `Dial` passes the
-`pppoe-client` list key to `ppp.DevPPPSetup`, which creates the unit with an
+`pppoe-client` list key to `kernel.DevPPPSetup`, which creates the unit with an
 rtnetlink `RTM_NEWLINK` of kind `ppp` carrying `IFLA_PPP_DEV_FD` on the opened
 `/dev/ppp` file. The kernel keeps the name the request carries
 (`ppp_nl_newlink` in `drivers/net/ppp/ppp_generic.c`), and `PPPIOCGUNIT` reads
@@ -256,7 +257,7 @@ the previous session's device is still being released. A name another program
 holds fails with an error that names the device and the fix. The access
 concentrator and the LNS still use `PPPIOCNEWUNIT`, because a subscriber
 session has no configured name.
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink, sendPPPLinkCreate -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink, sendPPPLinkCreate -->
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial -->
 
 **Session loss stops transport, not unit ownership.** A PADT or keepalive failure

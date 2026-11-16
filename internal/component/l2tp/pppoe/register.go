@@ -8,6 +8,9 @@ import (
 )
 
 func init() {
+	if err := config.RegisterTreeValidator("pppoe-backend", validateBackendGate); err != nil {
+		panic("BUG: register PPPoE backend validation: " + err.Error())
+	}
 	if err := config.RegisterTreeValidator("pppoe-authentication-policy", validateAuthPolicy); err != nil {
 		panic("BUG: register PPPoE authentication policy: " + err.Error())
 	}

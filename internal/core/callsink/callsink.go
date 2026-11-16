@@ -18,6 +18,26 @@ package callsink
 
 import "sync/atomic"
 
+// RelayChannel lends a live kernel transport only for the callback's duration.
+// WithDescriptor MUST exclude transport close until the callback returns and
+// MUST refuse a closed or unsupported transport. The callback MUST be nonnil,
+// MUST NOT retain or close the descriptor, and MUST NOT reenter the channel.
+// Implementations MUST be safe for concurrent use. A nil interface means no
+// kernel transport is supplied, never a fabricated descriptor. A typed nil
+// inside the interface is invalid.
+type RelayChannel interface {
+	WithDescriptor(func(int) error) error
+}
+
+// BridgePreparation releases resources that the access side no longer needs
+// before the sink attaches its own bridge channel. Implementations MUST be
+// safe for concurrent use and idempotent, and MUST refuse a departed subscriber.
+// The sink MUST call PrepareBridge after matching the service and immediately
+// before attaching its bridge channel. A nil preparation needs no release.
+type BridgePreparation interface {
+	PrepareBridge() error
+}
+
 // Request describes a PPPoE subscriber whose discovery (PADI/PADO/PADR/PADS)
 // completed and who is a candidate for relay into an L2TP tunnel. The Sink
 // decides, from Service, whether a relay binding matches.
@@ -31,12 +51,18 @@ type Request struct {
 	SubscriberMAC string
 	// SessionID is the PPPoE session ID assigned at PADS.
 	SessionID uint16
-	// ChannelFD is the subscriber's PPPoE pppox socket file descriptor. The
-	// L2TP LAC data-plane bridge derives its kernel PPP channel number
-	// (PPPIOCGCHAN) from it and cross-connects that channel to the pppol2tp
-	// channel (PPPIOCBRIDGECHAN). Zero or negative when the platform has no
-	// such fd (non-Linux) or the caller does not relay the data plane.
-	ChannelFD int
+	// Channel lends the subscriber's PPPoE PPPoX socket during the bridge
+	// ioctl. The sink MUST use WithDescriptor for every descriptor operation,
+	// so subscriber departure cannot close or reuse it during that operation.
+	Channel RelayChannel
+	// BeforeBridge retains the access side's unused local PPP lease until the
+	// sink is ready to attach its bridge channel. The sink MUST call it at that
+	// point; a nil value means there is no unused lease to release.
+	BeforeBridge BridgePreparation
+	// Handoff receives the end of an accepted call and MUST NOT block.
+	// The caller MUST keep the handoff valid until Ended, including after a
+	// pre-bridge Cancel returns before deferred completion.
+	Handoff RelayHandoff
 }
 
 // AuthKind names the PPP authentication a realm-relayed subscriber ran with
@@ -92,13 +118,20 @@ type RealmRequest struct {
 	Interface     string
 	SubscriberMAC string
 	SessionID     uint16
-	// ChannelFD is the subscriber's pppox socket, bridged once Handoff
-	// reports the driver quiesced.
-	ChannelFD int
-	LCP       ProxyLCP
-	Auth      ProxyAuth
+	// Channel lends the subscriber's PPPoX socket, bridged once Handoff
+	// reports the driver quiesced. The sink MUST bridge inside WithDescriptor.
+	Channel RelayChannel
+	LCP     ProxyLCP
+	Auth    ProxyAuth
 	// Handoff receives the call's progress. MUST be non-nil.
 	Handoff RealmHandoff
+}
+
+// RelayHandoff receives exactly one end notification for an accepted call.
+// Ended MUST NOT block: it can run while the reactor owns its tunnel lock.
+// It may arrive before Relay returns or discovery publishes the PADS.
+type RelayHandoff interface {
+	Ended(reason string)
 }
 
 // RealmHandoff is the caller's side of a realm relay. The sink calls Quiesce
@@ -113,20 +146,21 @@ type RealmRequest struct {
 // (the sink then tears the call down instead of bridging). Bridged and Ended
 // MUST NOT block: the sink calls them from its reactor and kernel worker.
 type RealmHandoff interface {
+	RelayHandoff
 	Quiesce() error
 	Bridged(err error)
-	Ended(reason string)
 }
 
-// RealmCall is a realm relay the sink accepted. The caller MUST call Cancel
+// RelayCall is a relay the sink accepted. The caller MUST call Cancel
 // when the subscriber leaves (PADT, PPP session down) or the caller stops,
-// in every phase. Before the bridge the sink sends CDN for any call it placed
-// and never bridges. After Bridged(nil) the sink tears the L2TP session down
-// with CDN, as for a subscriber that hung up. Cancel is idempotent, safe for
-// concurrent use, and a no-op after the call ended. A teardown it causes
-// reports Ended before Cancel returns, so the caller MUST NOT hold a lock
-// its Ended takes.
-type RealmCall interface {
+// in every phase. Before the bridge Cancel marks the call abandoned and never
+// bridges it; its pending reply, worker or tunnel timeout later completes local
+// cleanup, sends CDN when a remote call exists, and reports Ended. Cancel need
+// not wait for that pre-bridge completion. After the bridge Cancel tears down
+// the local L2TP session, sends CDN and reports Ended before returning.
+// Cancel is idempotent, safe for concurrent use, and a no-op after the call
+// ended. The caller MUST NOT hold a lock its Ended takes.
+type RelayCall interface {
 	Cancel()
 }
 
@@ -137,6 +171,10 @@ type RealmCall interface {
 // matched (terminate locally as normal). A non-nil error is a relay attempt
 // that matched but failed; the caller logs it and, per policy, terminates
 // locally so the subscriber is not stranded.
+//
+// An accepted call MUST return a nonnil RelayCall and report Ended exactly
+// once. The caller MUST call Cancel on departure or stop. An unmatched or
+// synchronously refused request returns no call.
 //
 // Implementations MUST be safe for concurrent use.
 //
@@ -149,8 +187,8 @@ type RealmCall interface {
 // RealmRelayConfigured reports whether any realm binding exists, so the
 // caller records the LCP exchange a realm relay forwards for a new session.
 type Sink interface {
-	Relay(req Request) (accepted bool, err error)
-	RelayRealm(req RealmRequest) (call RealmCall, accepted bool, err error)
+	Relay(req Request) (call RelayCall, accepted bool, err error)
+	RelayRealm(req RealmRequest) (call RelayCall, accepted bool, err error)
 	RealmRelayConfigured() bool
 }
 

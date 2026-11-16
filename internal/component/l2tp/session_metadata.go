@@ -7,6 +7,9 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // FramedRoute is a static route learned from RADIUS Framed-Route (attr 22)
@@ -52,11 +55,6 @@ type AuthMetadata struct {
 	DNSSecondary netip.Addr
 }
 
-type metadataKey struct {
-	tunnelID  uint16
-	sessionID uint16
-}
-
 var sessionMeta sync.Map
 
 // StoreSessionMetadata stores RADIUS-extracted metadata for the given
@@ -64,19 +62,25 @@ var sessionMeta sync.Map
 // before responding to the PPP session goroutine. Multiple consumers
 // (pool, reactor, shaper, acct) read via LoadSessionMetadata;
 // ClearSessionMetadata removes the entry on session teardown.
-func StoreSessionMetadata(tunnelID, sessionID uint16, meta *AuthMetadata) {
+func StoreSessionMetadata(subscriberID string, meta *AuthMetadata) {
 	if meta == nil {
 		return
 	}
-	sessionMeta.Store(metadataKey{tunnelID, sessionID}, meta)
+	if err := subscriber.RequireID(slogutil.Logger(SubsystemName), subscriberID); err != nil {
+		return
+	}
+	sessionMeta.Store(subscriberID, meta)
 }
 
 // LoadSessionMetadata retrieves the RADIUS metadata for the given
 // session. Returns nil if no metadata was stored. The entry remains
 // in the store so multiple consumers (pool, reactor, shaper, acct)
 // can each read it. Call ClearSessionMetadata on session teardown.
-func LoadSessionMetadata(tunnelID, sessionID uint16) *AuthMetadata {
-	v, ok := sessionMeta.Load(metadataKey{tunnelID, sessionID})
+func LoadSessionMetadata(subscriberID string) *AuthMetadata {
+	if err := subscriber.RequireID(slogutil.Logger(SubsystemName), subscriberID); err != nil {
+		return nil
+	}
+	v, ok := sessionMeta.Load(subscriberID)
 	if !ok {
 		return nil
 	}
@@ -87,6 +91,9 @@ func LoadSessionMetadata(tunnelID, sessionID uint16) *AuthMetadata {
 // ClearSessionMetadata removes any stored metadata for the session
 // without returning it. Called on session teardown to prevent leaks
 // when metadata was stored but never consumed.
-func ClearSessionMetadata(tunnelID, sessionID uint16) {
-	sessionMeta.Delete(metadataKey{tunnelID, sessionID})
+func ClearSessionMetadata(subscriberID string) {
+	if err := subscriber.RequireID(slogutil.Logger(SubsystemName), subscriberID); err != nil {
+		return
+	}
+	sessionMeta.Delete(subscriberID)
 }

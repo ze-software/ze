@@ -102,7 +102,7 @@ func TestConfiguredInterfaceReferenceCheck(t *testing.T) {
 }
 
 // TestConfiguredInterfaceKindsAreTheSchemaLists keeps configuredInterfaceKinds
-// equal to the schema it copies. Method: read the lists directly under the
+// equal to the compiled schema. Method: read the lists directly under the
 // interface container of the compiled schema and require the same set, so a
 // kind the schema gains, or loses, fails here rather than being refused as a
 // mirror target.
@@ -126,7 +126,11 @@ func TestConfiguredInterfaceKindsAreTheSchemaLists(t *testing.T) {
 		}
 	}
 	slices.Sort(lists)
-	kinds := slices.Sorted(slices.Values(configuredInterfaceKinds))
+	kinds, err := configuredInterfaceKinds()
+	if err != nil {
+		t.Fatalf("read configured interface kinds: %v", err)
+	}
+	slices.Sort(kinds)
 	if !slices.Equal(lists, kinds) {
 		t.Errorf("schema lists under %s = %v, configuredInterfaceKinds = %v", configRootInterface, lists, kinds)
 	}

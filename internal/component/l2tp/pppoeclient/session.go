@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -139,12 +140,12 @@ func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, 
 	if link.closed {
 		return sessionResult{}, io.ErrClosedPipe
 	}
-	if err := ppp.Connect(cfg.chanFD, unitNum); err != nil {
+	if err := pppkernel.Connect(cfg.chanFD, unitNum); err != nil {
 		return sessionResult{}, errors.New("pppoe-client: PPPIOCCONNECT: " + err.Error())
 	}
 	// RFC 1661 Section 6.1 requires reception of the full 1500-octet
 	// Information field even after requesting a smaller MRU.
-	if err := ppp.SetMRU(unitFD, ppp.MaxFrameLen); err != nil {
+	if err := pppkernel.SetMRU(unitFD, ppp.MaxFrameLen); err != nil {
 		return sessionResult{}, errors.New("pppoe-client: PPPIOCSMRU: " + err.Error())
 	}
 

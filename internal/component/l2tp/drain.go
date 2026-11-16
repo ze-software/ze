@@ -10,6 +10,8 @@ import (
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -60,6 +62,12 @@ func drainAuth(ch <-chan ppp.AuthEvent, handler AuthHandler, out chan<- authDrai
 	}
 }
 
+// authDrainDriver is the authentication decision boundary of the PPP driver.
+type authDrainDriver interface {
+	AuthEventsOut() <-chan ppp.AuthEvent
+	AuthResponse(tunnelID, sessionID uint16, accept bool, message string, blob []byte) error
+}
+
 // startAuthDrain spawns the production auth drain goroutine that reads
 // from d.AuthEventsOut(), calls the registered handler, and forwards
 // the decision to d.AuthResponse(). Exits when the channel closes
@@ -77,16 +85,20 @@ func drainAuth(ch <-chan ppp.AuthEvent, handler AuthHandler, out chan<- authDrai
 // .366, and local answered the request at .390 -- one millisecond too late to
 // matter. A registry written to be re-claimed needs a consumer that re-reads
 // it.
-func startAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() AuthHandler, bus ze.EventBus) <-chan struct{} {
+func startAuthDrain(logger *slog.Logger, d authDrainDriver, resolve func() AuthHandler, bus ze.EventBus) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for ev := range d.AuthEventsOut() {
-			handler := resolve()
 			req, ok := ev.(ppp.EventAuthRequest)
 			if !ok {
 				continue
 			}
+			if err := subscriber.RequireID(logger, req.SubscriberID); err != nil {
+				sendAuthDrainResponse(logger, d, req, AuthResult{Accept: false, Message: err.Error()})
+				continue
+			}
+			handler := resolve()
 			respond := func(accept bool, msg string, blob []byte) error {
 				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
 			}
@@ -94,7 +106,7 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() AuthHandl
 			subscriber.RecordAuthResult(subscriber.AccessL2TP, r.Accept)
 			if bus != nil {
 				if _, err := subevents.SessionAuthResult.Emit(bus, &subevents.SessionAuthResultPayload{
-					SessionID:  l2tpSessionID(req.TunnelID, req.SessionID),
+					SessionID:  req.SubscriberID,
 					AccessType: subscriber.AccessL2TP,
 					Username:   req.Username,
 					Accept:     r.Accept,
@@ -106,13 +118,24 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() AuthHandl
 			if r.Handled {
 				continue
 			}
-			if err := d.AuthResponse(req.TunnelID, req.SessionID, r.Accept, r.Message, r.AuthResponseBlob); err != nil {
-				logger.Warn("l2tp: auth drain response failed",
-					"tunnel", req.TunnelID, "session", req.SessionID, "error", err)
-			}
+			sendAuthDrainResponse(logger, d, req, r)
 		}
 	}()
 	return done
+}
+
+// sendAuthDrainResponse serves both ordinary decisions and missing-ID refusals.
+// Callers MUST pass only a synchronous decision; an async provider owns its reply.
+func sendAuthDrainResponse(logger *slog.Logger, d authDrainDriver, req ppp.EventAuthRequest, result AuthResult) {
+	if cause := d.AuthResponse(req.TunnelID, req.SessionID, result.Accept, result.Message, result.AuthResponseBlob); cause != nil {
+		const problem = "Ze could not deliver a subscriber authentication decision"
+		const why = "The PPP session may have ended before its decision arrived"
+		const fix = "ze show errors"
+		err := opererr.Wrap(cause, problem, why, fix)
+		logger.Warn(err.Error(), "code", report.CodeInternalDefect,
+			"subscriber", req.SubscriberID, "tunnel", req.TunnelID, "session", req.SessionID)
+		report.RaiseWarningFix("subscriber", report.CodeInternalDefect, "authentication answer", problem+": "+why, fix)
+	}
 }
 
 func callAuthHandler(handler AuthHandler, req ppp.EventAuthRequest, respond AuthRespondFunc) (result AuthResult) {
@@ -147,25 +170,36 @@ func drainPool(ch <-chan ppp.IPEvent, handler PoolHandler, out chan<- poolDrainR
 	}
 }
 
-// startPoolDrain spawns the production pool drain goroutine that reads
-// from d.IPEventsOut(), calls the registered handler, and forwards the
-// decision to d.IPResponse(). Exits when the channel closes
-// (Driver.Stop). The done channel is closed on exit.
-func startPoolDrain(logger *slog.Logger, d *ppp.Driver, resolve func() PoolHandler) <-chan struct{} {
+// poolDrainDriver is the address-decision boundary of a PPP driver. Keeping
+// this seam narrow lets a test order session teardown before answer delivery.
+type poolDrainDriver interface {
+	IPEventsOut() <-chan ppp.IPEvent
+	IPResponse(tunnelID, sessionID uint16, answer ppp.IPResponseArgs) error
+}
+
+// startPoolDrain reads the driver's requests until Driver.Stop closes them.
+// The caller MUST stop the driver and wait for done before releasing its bus.
+// An undelivered answer returns its allocation through that bus.
+func startPoolDrain(logger *slog.Logger, d poolDrainDriver, resolve func() PoolHandler, bus ze.EventBus) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		for ev := range d.IPEventsOut() {
-			// Per request, for the same reason startAuthDrain resolves per
-			// request: l2tp-pool claims its slot at configure time, after the
-			// listener has bound.
-			handler := resolve()
 			req, ok := ev.(ppp.EventIPRequest)
 			if !ok {
 				continue
 			}
-			r := callPoolHandler(handler, req)
+			var r ppp.IPResponseArgs
+			if err := subscriber.RequireID(logger, req.SubscriberID); err != nil {
+				r = ppp.IPResponseArgs{Accept: false, Family: req.Family, Reason: err.Error()}
+			} else {
+				// Resolve per valid request: l2tp-pool claims its slot at
+				// configure time, after the listener has bound.
+				handler := resolve()
+				r = callPoolHandler(handler, req)
+			}
 			if err := d.IPResponse(req.TunnelID, req.SessionID, r); err != nil {
+				subevents.ReleaseUndeliveredPoolAnswer(logger, bus, req, r)
 				logger.Warn("l2tp: pool drain response failed",
 					"tunnel", req.TunnelID, "session", req.SessionID, "error", err)
 			}
