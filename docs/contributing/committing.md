@@ -107,6 +107,23 @@ unpublished block's message and unrelated pending approvals intact.
 The native read-only consumer is `./le commit approval parent <fullSHA>
 verdict "<whole verdict line>"`; `verdict` repeats when the block selected
 several ordinary approvals.
+
+Approval upserts and post-publication cleanup share a process lock on a stable
+sidecar and replace the ledger through a unique sibling file. A failed staged
+write leaves earlier rows intact. Cleanup removes only the exact captured
+whole rows, so a renewed verdict for the same unit survives. Missing ledgers
+stay missing, and preparation or failed publication consumes no row.
+The generated script calls `./le --name commit-approval-<eight-hex namespace>
+commit approval clean kind <rfc|weakening>
+session <eight-hex namespace> row "<exact consumed ledger row>"`; `row` repeats
+for each consumed row. The source kind and approval namespace are captured
+during preparation and never inferred from the script's runtime session.
+The explicit named launcher builds synchronously from the working tree, so a
+commit that introduces cleanup can run it immediately while the shared HEAD
+launcher is still rebuilding its previous binary. A failed named build refuses
+cleanup and leaves its pending rows available for the same native command.
+<!-- source: internal/le/commit/approval_actions.go -- approvalTable, answerApprovalClean, approvalCleanCommand -->
+<!-- source: internal/le/rfc/approval_storage.go -- withApprovalLedgerLock, PruneApprovals -->
 <!-- source: internal/le/commit/script.go -- renderPublish, renderEmptyPublish -->
 <!-- source: internal/le/commit/prepare.go -- checkSourceGates, mergeRFCApprovals -->
 

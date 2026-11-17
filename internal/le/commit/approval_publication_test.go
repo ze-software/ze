@@ -90,6 +90,7 @@ func approvalPublicationFixture(t *testing.T) (root, first, second string) {
 	t.Helper()
 	root = newCommitRepository(t)
 	configureCommitAuthor(t, root)
+	installNativeReviewChecker(t, root)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "explicit-approval-publication")
 	t.Setenv("ZE_REPO_ROOT", root)
 	env.ResetCache()

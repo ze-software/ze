@@ -376,8 +376,8 @@ func Create(root string, options *Options) (Prepared, error) {
 		ApprovalTargets:   result.RFCApprovals.targets,
 		OrdinaryApprovals: selectedOrdinaryApprovalTrailers(result.RFCApprovals, result.WeakeningApprovals.Trailers),
 		Approvals: []approvalPrune{
-			{Path: result.RFCApprovals.Path, Dropped: result.RFCApprovals.Dropped},
-			{Path: result.WeakeningApprovals.Path, Dropped: result.WeakeningApprovals.Dropped},
+			{Kind: approvalKindRFC, Session: approvalSession, Dropped: result.RFCApprovals.Dropped},
+			{Kind: approvalKindWeakening, Session: approvalSession, Dropped: result.WeakeningApprovals.Dropped},
 		},
 	}
 	if options.Replace && existing != "" {

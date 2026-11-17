@@ -191,32 +191,32 @@ func ApproveInto(root string, file ApprovalFile, unit, reason string) (ApprovalR
 		return report, err
 	}
 	full := filepath.Join(root, filepath.FromSlash(report.Path))
-	content, err := os.ReadFile(full) //nolint:gosec // the path is this session's own tmp/ file under the checkout root
-	if errors.Is(err, os.ErrNotExist) {
-		content = []byte(file.Header)
-		err = nil
-	}
-	if err != nil {
-		return report, err
-	}
-	row := "| " + unit + " | " + report.Reason + " | " + file.Target + " | " + QualifiedApprovalContentCell(judged, file.Carrier) + " |"
-	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
-	var page textbuf.Buffer
-	for _, line := range lines {
-		if rowNames(line, file.Target, unit, file.Carrier) {
-			report.Replaced = true
-			page.Str(row).Byte('\n')
-			continue
+	err = withApprovalLedgerLock(full, func() error {
+		content, err := os.ReadFile(full) //nolint:gosec // the path is this session's own tmp/ file under the checkout root
+		if errors.Is(err, os.ErrNotExist) {
+			content = []byte(file.Header)
+			err = nil
 		}
-		page.Str(line).Byte('\n')
-	}
-	if !report.Replaced {
-		page.Str(row).Byte('\n')
-	}
-	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
-		return report, err
-	}
-	return report, os.WriteFile(full, []byte(page.String()), 0o600)
+		if err != nil {
+			return err
+		}
+		row := "| " + unit + " | " + report.Reason + " | " + file.Target + " | " + QualifiedApprovalContentCell(judged, file.Carrier) + " |"
+		lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
+		var page textbuf.Buffer
+		for _, line := range lines {
+			if rowNames(line, file.Target, unit, file.Carrier) {
+				report.Replaced = true
+				page.Str(row).Byte('\n')
+				continue
+			}
+			page.Str(line).Byte('\n')
+		}
+		if !report.Replaced {
+			page.Str(row).Byte('\n')
+		}
+		return writeApprovalLedger(full, []byte(page.String()))
+	})
+	return report, err
 }
 
 // TrailerLanded reports whether a commit in this repository already carries

@@ -28,7 +28,7 @@ func TestAdvertisedApprovalCheckerRouteQueriesActualParent(t *testing.T) {
 	writeCommitFixture(t, root, "tmp/route-pending.txt", "unrelated pending bytes must not change\n")
 	installNativeReviewChecker(t, root)
 
-	page, held := Actions().ActionPage("./le", actionApprovalCheck)
+	page, held := ApprovalActions().ActionPage("./le", actionReviewCheck)
 	if !held {
 		t.Fatal("public help exposes no approval checker command")
 	}
@@ -40,12 +40,16 @@ func TestAdvertisedApprovalCheckerRouteQueriesActualParent(t *testing.T) {
 		name    string
 		verdict string
 		want    int
+		command string
 	}{
-		{"fresh exact verdict", fresh, 0},
-		{"spent exact verdict", spent, 1},
+		{"fresh exact verdict", fresh, 0, ApprovalActions().Page("./le").Command},
+		{"spent exact verdict", spent, 1, ApprovalActions().Page("./le").Command},
+		{"fresh explicit check", fresh, 0, page.Command},
+		{"spent explicit check", spent, 1, page.Command},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			before := approvalRouteFiles(t, root)
+			words := strings.Fields(test.command)
 			arguments := append([]string(nil), words[1:]...)
 			arguments = append(arguments, "parent", parent, "verdict", test.verdict)
 			command := exec.CommandContext(t.Context(), filepath.Join(root, words[0]), arguments...)
@@ -60,7 +64,7 @@ func TestAdvertisedApprovalCheckerRouteQueriesActualParent(t *testing.T) {
 				code = exit.ExitCode()
 			}
 			if code != test.want {
-				t.Errorf("space-tokenized public command %q answered %d, want authority result %d:\n%s", page.Command, code, test.want, output)
+				t.Errorf("space-tokenized public command %q answered %d, want authority result %d:\n%s", test.command, code, test.want, output)
 			}
 			if strings.Contains(string(output), "unknown keyword") || strings.Contains(string(output), "unknown action") {
 				t.Errorf("public help command failed dispatch instead of querying its actual parent:\n%s", output)

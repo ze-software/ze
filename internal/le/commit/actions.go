@@ -18,6 +18,8 @@ import (
 
 const area = "commit"
 
+const leLauncherPath = "./le"
+
 // The keywords the table declares and the bodies read, each spelled once.
 const (
 	keywordSubject     = "subject"
@@ -147,11 +149,14 @@ type sessionResult struct {
 	Session string `json:"session"`
 }
 
-// Answer dispatches one commit-workflow line through the action table. A verb
-// the derived debt removed is refused naming its replacement first, because the
-// table holds only live verbs and would answer that it has no such action.
+// Answer delegates approval lines to their registered sub-area's table.
+// Other commit-workflow lines use the parent table. A removed verb is refused
+// with its replacement before the table answers that it has no such action.
 func Answer(args []string) (any, int) {
 	if len(args) != 0 {
+		if args[0] == actionApprovalCheck {
+			return ApprovalAnswer(args[1:])
+		}
 		if replacement, retired := retiredVerbs[args[0]]; retired {
 			leaction.ReportError(errors.New("commit verb " + strconv.Quote(args[0]) +
 				" was removed: " + replacement))
@@ -210,19 +215,6 @@ func table() leaction.Area {
 					Help: "the actual proposed tree object, required with artifact"},
 			},
 			AnswerArgs: withRoot(answerReviewCheck),
-		},
-		leaction.Action{
-			Verb:    actionApprovalCheck,
-			Does:    actionReviewCheck,
-			Summary: "refuse already-spent ordinary approval verdicts",
-			Why:     "check captured verdicts against the actual publication parent",
-			Parameters: []leaction.Parameter{
-				{Keyword: keywordParent, Kind: leaction.KindRevision, Value: "commit", Requirement: leaction.Required,
-					Help: "the actual full parent commit of this CAS attempt"},
-				{Keyword: keywordVerdict, Kind: leaction.KindString, Value: "line", Requirement: leaction.Required, Repeat: true,
-					Help: "one captured ordinary approval trailer line"},
-			},
-			AnswerArgs: withRoot(answerApprovalCheck),
 		},
 		leaction.Action{
 			Verb: keywordPush, Writes: true,
@@ -407,7 +399,7 @@ func answerApprovalCheck(root string, args leaction.Arguments) (any, int) {
 // as reviewCheckCommand, with the parent expanded only by the actual CAS loop.
 func ordinaryApprovalCheckCommand(verdicts []string) string {
 	var command strings.Builder
-	command.WriteString(quotePaths([]string{"./le", area, actionApprovalCheck, keywordParent}))
+	command.WriteString(quotePaths([]string{leLauncherPath, area, actionApprovalCheck, keywordParent}))
 	command.WriteString(` "$_ze_parent"`)
 	for _, verdict := range verdicts {
 		command.WriteByte(' ')

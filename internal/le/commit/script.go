@@ -64,7 +64,8 @@ type commitBlock struct {
 
 // approvalPrune is one approval file and the lines a block drops from it.
 type approvalPrune struct {
-	Path    string
+	Kind    approvalKind
+	Session string
 	Dropped []string
 }
 
@@ -123,24 +124,12 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-// renderApprovalPrune emits the step that drops the used owner approval rows
-// from one session approval file. It sits after the publish under `set -e`, so it
-// runs only once the branch holds the trailers: a row removed before that would be
-// an approval lost with nothing to show for it. `grep -v` answers 1 when no
-// line is left to print, which is not a failure here.
+// renderApprovalPrune emits exact-row cleanup only after successful publish.
+// Kind and namespace were captured during preparation; runtime session state
+// cannot redirect the native transaction to a different approval ledger.
 func renderApprovalPrune(approvals approvalPrune) string {
-	var page textbuf.Buffer
-	page.Str("# Owner approvals this commit carries as trailers, dropped now that git holds them.\n")
-	page.Str("_ze_approved=").Str(shellQuote(approvals.Path)).Byte('\n')
-	page.Str(`if [ -f "$_ze_approved" ]; then`).Byte('\n')
-	page.Str("  grep -v -x -F")
-	for _, line := range approvals.Dropped {
-		page.Str(" -e ").Str(shellQuote(line))
-	}
-	page.Str(` -- "$_ze_approved" > "$_ze_approved.pruned" || [ "$?" -eq 1 ]`).Byte('\n')
-	page.Str(`  mv -- "$_ze_approved.pruned" "$_ze_approved"`).Byte('\n')
-	page.Str("fi")
-	return page.String()
+	return "# Owner approvals this commit carries as trailers, dropped now that git holds them.\n" +
+		approvalCleanCommand(approvals.Kind, approvals.Session, approvals.Dropped)
 }
 
 // publishAttemptsMax bounds how many times a block builds its commit again on

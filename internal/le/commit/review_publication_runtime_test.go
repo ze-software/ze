@@ -40,7 +40,17 @@ func installNativeReviewChecker(t *testing.T, root string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeCommitFixture(t, root, "le", "#!/bin/bash\nexec "+shellQuote(binary)+" -test.run '^TestGeneratedReviewNativeHelper$' -- \"${@:2}\"\n")
+	writeCommitFixture(t, root, "le", "#!/bin/bash\n"+
+		"_ze_named=\n"+
+		"case ${1:-} in\n"+
+		"  --name) [ $# -ge 3 ] || exit 2; _ze_named=yes; _ze_name=${2:-}; shift 2 ;;\n"+
+		"  --name=*) _ze_named=yes; _ze_name=${1#--name=}; shift ;;\n"+
+		"esac\n"+
+		"if [ -n \"$_ze_named\" ]; then\n"+
+		"  case $_ze_name in ''|*[!A-Za-z0-9._-]*|*..*) exit 2 ;; esac\n"+
+		"fi\n"+
+		"[ \"${1:-}\" = commit ] || exit 2\nshift\n"+
+		"exec "+shellQuote(binary)+" -test.run '^TestGeneratedReviewNativeHelper$' -- \"$@\"\n")
 	if err := os.Chmod(filepath.Join(root, "le"), 0o700); err != nil { //nolint:gosec // executable native test bridge
 		t.Fatal(err)
 	}
