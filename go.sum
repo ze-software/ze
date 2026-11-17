@@ -144,8 +144,8 @@ github.com/charmbracelet/x/xpty v0.1.4 h1:4jaW7u+8AHQMxesiVc+zUMsspu7GyDwtJO+gy/
 github.com/charmbracelet/x/xpty v0.1.4/go.mod h1:7t8P7BpPiolHJ1pLzz7/4ujDbD+sUxI9yA3CBOLOIcU=
 github.com/checkpoint-restore/go-criu/v8 v8.3.0 h1:UC3Ioay1OMN2Wg33U53enRoG2701vJ9Y2Ex4APmC52w=
 github.com/checkpoint-restore/go-criu/v8 v8.3.0/go.mod h1:33d6FwGJGwnzKVvaO0SxlN0tPSuArKU9X/inD/L7/qA=
-github.com/chromedp/cdproto v0.158.6 h1:jaKiXWuhcxbvKbSe8U6Dp5U4Hcj2w6lETYgZqBD5n34=
-github.com/chromedp/cdproto v0.158.6/go.mod h1:h68JaIuFr9o3yiayxEYhBdvaxgYO3shDrPSYhNlyfu0=
+github.com/chromedp/cdproto v0.159.0 h1:wepTaKq5AGTwIxXh6h5bESQcvcfnSb2ItnFChA62/b8=
+github.com/chromedp/cdproto v0.159.0/go.mod h1:h68JaIuFr9o3yiayxEYhBdvaxgYO3shDrPSYhNlyfu0=
 github.com/chromedp/chromedp v0.21.0 h1:nVHgS2LHyhZJ1l3BWRbG2eFIFYiJMnvkJbELbd8WBoQ=
 github.com/chromedp/chromedp v0.21.0/go.mod h1:6z1Y5FdKUxRzxx2qcC5h1xjaBJrSWrZp1mjgITfNZig=
 github.com/cilium/ebpf v0.22.0 h1:v2ktp0roffpMOj2MMf3idtCQZOsAoC4BJbAJN+ke2bY=

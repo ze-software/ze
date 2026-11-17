@@ -296,7 +296,7 @@ github.com/charmbracelet/x/xpty
 github.com/checkpoint-restore/go-criu/v8
 github.com/checkpoint-restore/go-criu/v8/internal/proto
 github.com/checkpoint-restore/go-criu/v8/rpc
-# github.com/chromedp/cdproto v0.158.6
+# github.com/chromedp/cdproto v0.159.0
 ## explicit; go 1.25
 github.com/chromedp/cdproto
 github.com/chromedp/cdproto/accessibility
