@@ -1,0 +1,165 @@
+Ze-Reviewed-Against: go.fd.io/govpp v0.13.0
+
+Upstream pull request: none opened yet.
+
+The PPPoE ownership requirement in
+plan/post-release/features/spec-pppoe-vpp-dataplane.md, AC-16, requires the
+session socket to be "closed exactly once by its one owner".
+Completing that lifetime also requires its native API cleanup writer and
+reader to join. The upstream Unix adapter can block indefinitely in a buffered
+Flush, or wait behind that writer while disconnecting. A Go context cannot
+interrupt that syscall.
+
+Bound native writes and publish the shutdown deadline before joining readers
+or waiting for a writer. A separate deadline mutex serializes publication,
+selection and reset, so an ordinary writer cannot overwrite or clear the
+shutdown bound. Refuse queued ordinary sends after shutdown starts, preserve
+the graceful client-delete request, and close a partially written connection
+before another message can use it. Ignore an already closed native socket at
+the final close, since a failed partial write already poisoned it.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a
+vendored module". Apply and commit the patched vendor file through the
+canonical vendor publication route. Delete this patch when Ze requires an
+upstream release containing the repair.
+
+diff --git a/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go b/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go
+--- a/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go
++++ b/vendor/go.fd.io/govpp/adapter/socketclient/socketclient.go
+@@ -92,6 +92,9 @@
+ 	sockDelMsgId uint16
+ 	writeMu      sync.Mutex
+ 
++	deadlineMu      sync.Mutex
++	closingDeadline time.Time
++
+ 	headerPool *sync.Pool
+ 
+ 	quit chan struct{}
+@@ -257,6 +260,9 @@
+ }
+ 
+ func (c *Client) Connect() error {
++	c.deadlineMu.Lock()
++	c.closingDeadline = time.Time{}
++	c.deadlineMu.Unlock()
+ 	// check if socket exists
+ 	if _, err := os.Stat(c.socketPath); os.IsNotExist(err) {
+ 		return fmt.Errorf("VPP API socket file %s does not exist", c.socketPath)
+@@ -286,6 +292,19 @@
+ 	}
+ 	log.Debugf("Disconnecting..")
+ 
++	// Publish and install the closing bound without waiting for writeMu.
++	// Writers select and reset deadlines under the same lock, so neither can
++	// lengthen or clear this bound after shutdown begins.
++	c.deadlineMu.Lock()
++	c.closingDeadline = time.Now().Add(c.disconnectTimeout)
++	deadlineErr := c.conn.SetWriteDeadline(c.closingDeadline)
++	if deadlineErr != nil && !errors.Is(deadlineErr, net.ErrClosed) {
++		deadlineErr = errors.Join(deadlineErr, c.conn.Close())
++	} else {
++		deadlineErr = nil
++	}
++	c.deadlineMu.Unlock()
++
+ 	close(c.quit)
+ 
+ 	if err := c.conn.CloseRead(); err != nil {
+@@ -300,10 +319,10 @@
+ 	}
+ 
+ 	if err := c.disconnect(); err != nil {
+-		return err
+-	}
+-
+-	return nil
++		return errors.Join(deadlineErr, err)
++	}
++
++	return deadlineErr
+ }
+ 
+ const defaultBufferSize = 4096
+@@ -346,7 +365,7 @@
+ 	// cleanup msg table
+ 	c.setMsgTable(make(map[string]uint16), 0)
+ 
+-	if err := c.conn.Close(); err != nil {
++	if err := c.conn.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+ 		log.Debugln("Closing socket failed:", err)
+ 		return err
+ 	}
+@@ -374,7 +393,7 @@
+ 	// set non-0 context
+ 	msg[5] = createMsgContext
+ 
+-	if err := c.writeMsg(msg); err != nil {
++	if err := c.writeMsg(msg, false); err != nil {
+ 		log.Debugln("Write error: ", err)
+ 		return err
+ 	}
+@@ -427,7 +446,7 @@
+ 	}
+ 	setMsgRequestHeader(msg, c.clientIndex, uint32(deleteMsgContext))
+ 
+-	if err := c.writeMsg(msg); err != nil {
++	if err := c.writeMsg(msg, true); err != nil {
+ 		log.Debugln("Write error: ", err)
+ 		return err
+ 	}
+@@ -485,7 +504,7 @@
+ 		log.Debugf("sendMsg (%d) context=%v client=%d: % 02X", len(data), context, c.clientIndex, data)
+ 	}
+ 
+-	if err := c.writeMsg(data); err != nil {
++	if err := c.writeMsg(data, false); err != nil {
+ 		log.Debugln("writeMsg error: ", err)
+ 		return err
+ 	}
+@@ -508,16 +527,43 @@
+ 	binary.BigEndian.PutUint32(data[6:10], context)
+ }
+ 
+-func (c *Client) writeMsg(msg []byte) error {
++func (c *Client) writeMsg(msg []byte, disconnecting bool) (err error) {
+ 	// we lock to prevent mixing multiple message writes
+ 	c.writeMu.Lock()
+ 	defer c.writeMu.Unlock()
+ 
++	c.deadlineMu.Lock()
++	if c.conn == nil || (!c.closingDeadline.IsZero() && !disconnecting) {
++		c.deadlineMu.Unlock()
++		return net.ErrClosed
++	}
++	deadline := time.Now().Add(c.connectTimeout)
++	if !c.closingDeadline.IsZero() {
++		deadline = c.closingDeadline
++	}
++	err = c.conn.SetWriteDeadline(deadline)
++	c.deadlineMu.Unlock()
++	if err != nil {
++		return err
++	}
++	defer func() {
++		c.deadlineMu.Lock()
++		defer c.deadlineMu.Unlock()
++		if err == nil && c.closingDeadline.IsZero() {
++			err = c.conn.SetWriteDeadline(time.Time{})
++		}
++		if err != nil {
++			// A partial API frame cannot be followed safely by another one.
++			// Closing also interrupts the read worker and queued writers.
++			err = errors.Join(err, c.conn.Close())
++		}
++	}()
++
+ 	header, ok := c.headerPool.Get().(*[]byte)
+ 	if !ok {
+ 		return fmt.Errorf("failed to get header from pool")
+ 	}
+-	err := writeMsgHeader(c.writer, *header, len(msg))
++	err = writeMsgHeader(c.writer, *header, len(msg))
+ 	if err != nil {
+ 		return err
+ 	}
