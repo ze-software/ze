@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 	"strings"
+	"sync"
 )
 
 type AllowPair struct {
@@ -12,117 +13,134 @@ type AllowPair struct {
 	Fun string
 }
 
-var allowedErrorsMap = make(map[string]map[string]struct{})
-
-func setDefaultAllowedErrors() {
-	allowedMapAppend([]AllowPair{
-		// pkg/archive/tar
-		{Err: "io.EOF", Fun: "(*archive/tar.Reader).Next"},
-		{Err: "io.EOF", Fun: "(*archive/tar.Reader).Read"},
-		// pkg/bufio
-		{Err: "io.EOF", Fun: "(*bufio.Reader).Discard"},
-		{Err: "io.EOF", Fun: "(*bufio.Reader).Peek"},
-		{Err: "io.EOF", Fun: "(*bufio.Reader).Read"},
-		{Err: "io.EOF", Fun: "(*bufio.Reader).ReadByte"},
-		{Err: "io.EOF", Fun: "(*bufio.Reader).ReadBytes"},
-		{Err: "io.EOF", Fun: "(*bufio.Reader).ReadLine"},
-		{Err: "io.EOF", Fun: "(*bufio.Reader).ReadSlice"},
-		{Err: "io.EOF", Fun: "(*bufio.Reader).ReadString"},
-		{Err: "io.EOF", Fun: "(*bufio.Scanner).Scan"},
-		// pkg/bytes
-		{Err: "io.EOF", Fun: "(*bytes.Buffer).Read"},
-		{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadByte"},
-		{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadBytes"},
-		{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadRune"},
-		{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadString"},
-		{Err: "io.EOF", Fun: "(*bytes.Reader).Read"},
-		{Err: "io.EOF", Fun: "(*bytes.Reader).ReadAt"},
-		{Err: "io.EOF", Fun: "(*bytes.Reader).ReadByte"},
-		{Err: "io.EOF", Fun: "(*bytes.Reader).ReadRune"},
-		{Err: "io.EOF", Fun: "(*bytes.Reader).ReadString"},
-		// pkg/database/sql
-		{Err: "database/sql.ErrNoRows", Fun: "(*database/sql.Row).Scan"},
-		// pkg/debug/elf
-		{Err: "io.EOF", Fun: "debug/elf.Open"},
-		{Err: "io.EOF", Fun: "debug/elf.NewFile"},
-		// pkg/io
-		{Err: "io.EOF", Fun: "(io.ReadCloser).Read"},
-		{Err: "io.EOF", Fun: "(io.Reader).Read"},
-		{Err: "io.EOF", Fun: "(io.ReaderAt).ReadAt"},
-		{Err: "io.EOF", Fun: "(*io.LimitedReader).Read"},
-		{Err: "io.EOF", Fun: "(*io.SectionReader).Read"},
-		{Err: "io.EOF", Fun: "(*io.SectionReader).ReadAt"},
-		{Err: "io.ErrClosedPipe", Fun: "(*io.PipeWriter).Write"},
-		{Err: "io.EOF", Fun: "io.ReadAtLeast"},
-		{Err: "io.ErrShortBuffer", Fun: "io.ReadAtLeast"},
-		{Err: "io.ErrUnexpectedEOF", Fun: "io.ReadAtLeast"},
-		{Err: "io.EOF", Fun: "io.ReadFull"},
-		{Err: "io.ErrUnexpectedEOF", Fun: "io.ReadFull"},
-		// pkg/mime
-		{Err: "mime.ErrInvalidMediaParameter", Fun: "mime.ParseMediaType"},
-		// pkg/net/http
-		{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ListenAndServe"},
-		{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ListenAndServeTLS"},
-		{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).Serve"},
-		{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ServeTLS"},
-		{Err: "net/http.ErrServerClosed", Fun: "net/http.ListenAndServe"},
-		{Err: "net/http.ErrServerClosed", Fun: "net/http.ListenAndServeTLS"},
-		{Err: "net/http.ErrServerClosed", Fun: "net/http.Serve"},
-		{Err: "net/http.ErrServerClosed", Fun: "net/http.ServeTLS"},
-		// pkg/os
-		{Err: "io.EOF", Fun: "(*os.File).Read"},
-		{Err: "io.EOF", Fun: "(*os.File).ReadAt"},
-		{Err: "io.EOF", Fun: "(*os.File).ReadDir"},
-		{Err: "io.EOF", Fun: "(*os.File).Readdir"},
-		{Err: "io.EOF", Fun: "(*os.File).Readdirnames"},
-		// pkg/strings
-		{Err: "io.EOF", Fun: "(*strings.Reader).Read"},
-		{Err: "io.EOF", Fun: "(*strings.Reader).ReadAt"},
-		{Err: "io.EOF", Fun: "(*strings.Reader).ReadByte"},
-		{Err: "io.EOF", Fun: "(*strings.Reader).ReadRune"},
-		// pkg/context
-		{Err: "context.DeadlineExceeded", Fun: "(context.Context).Err"},
-		{Err: "context.Canceled", Fun: "(context.Context).Err"},
-		// pkg/encoding/json
-		{Err: "io.EOF", Fun: "(*encoding/json.Decoder).Decode"},
-		{Err: "io.EOF", Fun: "(*encoding/json.Decoder).Token"},
-		// pkg/encoding/csv
-		{Err: "io.EOF", Fun: "(*encoding/csv.Reader).Read"},
-		// pkg/mime/multipart
-		{Err: "io.EOF", Fun: "(*mime/multipart.Reader).NextPart"},
-		{Err: "io.EOF", Fun: "(*mime/multipart.Reader).NextRawPart"},
-		{Err: "mime/multipart.ErrMessageTooLarge", Fun: "(*mime/multipart.Reader).ReadForm"},
-	})
+// allowList holds the errors that may be compared directly when returned by specific functions.
+type allowList struct {
+	errors    map[string]map[string]struct{}
+	wildcards []AllowPair
 }
 
-func allowedMapAppend(ap []AllowPair) {
+// newAllowList returns an allowList populated with the defaults.
+func newAllowList() *allowList {
+	l := &allowList{errors: map[string]map[string]struct{}{}}
+	l.addErrors(defaultAllowedErrors)
+	l.addWildcards(defaultAllowedWildcards)
+	return l
+}
+
+// defaultAllowList is used when a TypesInfoExt is constructed without an allow list.
+var defaultAllowList = sync.OnceValue(newAllowList)
+
+var defaultAllowedErrors = []AllowPair{
+	// pkg/archive/tar
+	{Err: "io.EOF", Fun: "(*archive/tar.Reader).Next"},
+	{Err: "io.EOF", Fun: "(*archive/tar.Reader).Read"},
+	// pkg/bufio
+	{Err: "io.EOF", Fun: "(*bufio.Reader).Discard"},
+	{Err: "io.EOF", Fun: "(*bufio.Reader).Peek"},
+	{Err: "io.EOF", Fun: "(*bufio.Reader).Read"},
+	{Err: "io.EOF", Fun: "(*bufio.Reader).ReadByte"},
+	{Err: "io.EOF", Fun: "(*bufio.Reader).ReadBytes"},
+	{Err: "io.EOF", Fun: "(*bufio.Reader).ReadLine"},
+	{Err: "io.EOF", Fun: "(*bufio.Reader).ReadSlice"},
+	{Err: "io.EOF", Fun: "(*bufio.Reader).ReadString"},
+	{Err: "io.EOF", Fun: "(*bufio.Scanner).Scan"},
+	// pkg/bytes
+	{Err: "io.EOF", Fun: "(*bytes.Buffer).Read"},
+	{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadByte"},
+	{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadBytes"},
+	{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadRune"},
+	{Err: "io.EOF", Fun: "(*bytes.Buffer).ReadString"},
+	{Err: "io.EOF", Fun: "(*bytes.Reader).Read"},
+	{Err: "io.EOF", Fun: "(*bytes.Reader).ReadAt"},
+	{Err: "io.EOF", Fun: "(*bytes.Reader).ReadByte"},
+	{Err: "io.EOF", Fun: "(*bytes.Reader).ReadRune"},
+	{Err: "io.EOF", Fun: "(*bytes.Reader).ReadString"},
+	// pkg/database/sql
+	{Err: "database/sql.ErrNoRows", Fun: "(*database/sql.Row).Scan"},
+	// pkg/debug/elf
+	{Err: "io.EOF", Fun: "debug/elf.Open"},
+	{Err: "io.EOF", Fun: "debug/elf.NewFile"},
+	// pkg/io
+	{Err: "io.EOF", Fun: "(io.ReadCloser).Read"},
+	{Err: "io.EOF", Fun: "(io.Reader).Read"},
+	{Err: "io.EOF", Fun: "(io.ReaderAt).ReadAt"},
+	{Err: "io.EOF", Fun: "(*io.LimitedReader).Read"},
+	{Err: "io.EOF", Fun: "(*io.SectionReader).Read"},
+	{Err: "io.EOF", Fun: "(*io.SectionReader).ReadAt"},
+	{Err: "io.ErrClosedPipe", Fun: "(*io.PipeWriter).Write"},
+	{Err: "io.EOF", Fun: "io.ReadAtLeast"},
+	{Err: "io.ErrShortBuffer", Fun: "io.ReadAtLeast"},
+	{Err: "io.ErrUnexpectedEOF", Fun: "io.ReadAtLeast"},
+	{Err: "io.EOF", Fun: "io.ReadFull"},
+	{Err: "io.ErrUnexpectedEOF", Fun: "io.ReadFull"},
+	// pkg/mime
+	{Err: "mime.ErrInvalidMediaParameter", Fun: "mime.ParseMediaType"},
+	// pkg/net/http
+	{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ListenAndServe"},
+	{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ListenAndServeTLS"},
+	{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).Serve"},
+	{Err: "net/http.ErrServerClosed", Fun: "(*net/http.Server).ServeTLS"},
+	{Err: "net/http.ErrServerClosed", Fun: "net/http.ListenAndServe"},
+	{Err: "net/http.ErrServerClosed", Fun: "net/http.ListenAndServeTLS"},
+	{Err: "net/http.ErrServerClosed", Fun: "net/http.Serve"},
+	{Err: "net/http.ErrServerClosed", Fun: "net/http.ServeTLS"},
+	// pkg/os
+	{Err: "io.EOF", Fun: "(*os.File).Read"},
+	{Err: "io.EOF", Fun: "(*os.File).ReadAt"},
+	{Err: "io.EOF", Fun: "(*os.File).ReadDir"},
+	{Err: "io.EOF", Fun: "(*os.File).Readdir"},
+	{Err: "io.EOF", Fun: "(*os.File).Readdirnames"},
+	// pkg/strings
+	{Err: "io.EOF", Fun: "(*strings.Reader).Read"},
+	{Err: "io.EOF", Fun: "(*strings.Reader).ReadAt"},
+	{Err: "io.EOF", Fun: "(*strings.Reader).ReadByte"},
+	{Err: "io.EOF", Fun: "(*strings.Reader).ReadRune"},
+	// pkg/context
+	{Err: "context.DeadlineExceeded", Fun: "(context.Context).Err"},
+	{Err: "context.Canceled", Fun: "(context.Context).Err"},
+	// pkg/encoding/json
+	{Err: "io.EOF", Fun: "(*encoding/json.Decoder).Decode"},
+	{Err: "io.EOF", Fun: "(*encoding/json.Decoder).Token"},
+	// pkg/encoding/jsontext
+	{Err: "io.EOF", Fun: "(*encoding/json/jsontext.Decoder).ReadToken"},
+	{Err: "io.EOF", Fun: "(*encoding/json/jsontext.Decoder).ReadValue"},
+	{Err: "io.EOF", Fun: "encoding/json/v2.UnmarshalDecode"},
+	// pkg/encoding/csv
+	{Err: "io.EOF", Fun: "(*encoding/csv.Reader).Read"},
+	// pkg/mime/multipart
+	{Err: "io.EOF", Fun: "(*mime/multipart.Reader).NextPart"},
+	{Err: "io.EOF", Fun: "(*mime/multipart.Reader).NextRawPart"},
+	{Err: "mime/multipart.ErrMessageTooLarge", Fun: "(*mime/multipart.Reader).ReadForm"},
+}
+
+func (l *allowList) addErrors(ap []AllowPair) {
 	for _, pair := range ap {
-		if _, ok := allowedErrorsMap[pair.Err]; !ok {
-			allowedErrorsMap[pair.Err] = make(map[string]struct{})
+		if _, ok := l.errors[pair.Err]; !ok {
+			l.errors[pair.Err] = make(map[string]struct{})
 		}
-		allowedErrorsMap[pair.Err][pair.Fun] = struct{}{}
+		l.errors[pair.Err][pair.Fun] = struct{}{}
 	}
 }
 
-var allowedErrorWildcards = []AllowPair{
+var defaultAllowedWildcards = []AllowPair{
 	// pkg/syscall
 	{Err: "syscall.E", Fun: "syscall."},
 	// golang.org/x/sys/unix
 	{Err: "golang.org/x/sys/unix.E", Fun: "golang.org/x/sys/unix."},
 }
 
-func allowedWildcardAppend(ap []AllowPair) {
-	allowedErrorWildcards = append(allowedErrorWildcards, ap...)
+func (l *allowList) addWildcards(ap []AllowPair) {
+	l.wildcards = append(l.wildcards, ap...)
 }
 
-func isAllowedErrAndFunc(err, fun string) bool {
-	if allowedFuncs, allowErr := allowedErrorsMap[err]; allowErr {
+func (l *allowList) isAllowedErrAndFunc(err, fun string) bool {
+	if allowedFuncs, allowErr := l.errors[err]; allowErr {
 		if _, allow := allowedFuncs[fun]; allow {
 			return true
 		}
 	}
 
-	for _, allow := range allowedErrorWildcards {
+	for _, allow := range l.wildcards {
 		if strings.HasPrefix(fun, allow.Fun) && strings.HasPrefix(err, allow.Err) {
 			return true
 		}
@@ -176,7 +194,7 @@ func isAllowedErrorComparison(pass *TypesInfoExt, a, b ast.Expr) bool {
 
 	// All assignments done must be allowed.
 	for _, funcName := range functionNames {
-		if !isAllowedErrAndFunc(errName, funcName) {
+		if !pass.allowList().isAllowedErrAndFunc(errName, funcName) {
 			return false
 		}
 	}
@@ -186,12 +204,11 @@ func isAllowedErrorComparison(pass *TypesInfoExt, a, b ast.Expr) bool {
 // assigningCallExprs finds all *ast.CallExpr nodes that are part of an
 // *ast.AssignStmt that assign to the subject identifier.
 func assigningCallExprs(pass *TypesInfoExt, subject *ast.Ident, visitedObjects map[types.Object]bool) []*ast.CallExpr {
-	if subject.Obj == nil {
+	// Only variables can be assigned to.
+	sobj, ok := pass.TypesInfo.ObjectOf(subject).(*types.Var)
+	if !ok {
 		return nil
 	}
-
-	// Find other identifiers that reference this same object.
-	sobj := pass.TypesInfo.ObjectOf(subject)
 
 	if visitedObjects[sobj] {
 		return nil
@@ -234,7 +251,7 @@ func assigningCallExprs(pass *TypesInfoExt, subject *ast.Ident, visitedObjects m
 				callExprs = append(callExprs, assignT)
 			case *ast.Ident:
 				// Skip assignments here the RHS points to the same object as the subject.
-				if assignT.Obj == subject.Obj {
+				if pass.TypesInfo.ObjectOf(assignT) == sobj {
 					continue
 				}
 				// The subject was the result of assigning from another identifier.

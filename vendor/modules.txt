@@ -31,8 +31,8 @@ charm.land/wish/v2/bubbletea
 # codeberg.org/chavacava/garif v0.2.1
 ## explicit; go 1.25
 codeberg.org/chavacava/garif
-# codeberg.org/polyfloyd/go-errorlint v1.9.0
-## explicit; go 1.24.0
+# codeberg.org/polyfloyd/go-errorlint v1.9.1
+## explicit; go 1.26.0
 codeberg.org/polyfloyd/go-errorlint/errorlint
 # cyphar.com/go-pathrs v0.2.6
 ## explicit; go 1.18
