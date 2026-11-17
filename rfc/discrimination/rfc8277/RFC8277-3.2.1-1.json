@@ -7,8 +7,8 @@
     "claim-sha": "f98b05825d842ead",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler",
-    "producer-sha": "c4bf13528ffe058f",
-    "break": "line 255: \"keepOrDrop(p)\" -\u003e \"p.Drop()\""
+    "producer-sha": "a078a8f1801f98e5",
+    "break": "line 264: \"keepOrDrop(p)\" -\u003e \"if len(val) \u003e= 5 \u0026\u0026 len(p.Source()) \u003e 0 \u0026\u0026 val[0] == 0 \u0026\u0026 val[1] == 1 \u0026\u0026 (val[2] == 4 || val[2] == 128) \u0026\u0026 len(val) \u003e= 9+int(val[3]) { labelOff := 6+int(val[3]); p.Keep(0, labelOff); p.NewByte(val[labelOff]^0x10); p.Keep(labelOff+1, len(val)-labelOff-1); if p.Source()[0]\u0026byte(attribute.FlagExtLength) != 0 { p.EmitExtended(p.Source()[0], byte(attribute.AttrMPReachNLRI)) } else { p.Emit(p.Source()[0], byte(attribute.AttrMPReachNLRI)) } } else { keepOrDrop(p) }\""
   },
   {
     "rid": "RFC8277-3.2.1-1",
@@ -18,7 +18,7 @@
     "claim-sha": "dc66d35ae3a63e2b",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler",
-    "producer-sha": "c4bf13528ffe058f",
-    "break": "line 255: \"keepOrDrop(p)\" -\u003e \"p.Drop()\""
+    "producer-sha": "a078a8f1801f98e5",
+    "break": "line 264: \"keepOrDrop(p)\" -\u003e \"if len(val) \u003e= 5 \u0026\u0026 len(p.Source()) \u003e 0 \u0026\u0026 val[0] == 0 \u0026\u0026 val[1] == 1 \u0026\u0026 (val[2] == 4 || val[2] == 128) \u0026\u0026 len(val) \u003e= 9+int(val[3]) { labelOff := 6+int(val[3]); p.Keep(0, labelOff); p.NewByte(val[labelOff]^0x10); p.Keep(labelOff+1, len(val)-labelOff-1); if p.Source()[0]\u0026byte(attribute.FlagExtLength) != 0 { p.EmitExtended(p.Source()[0], byte(attribute.AttrMPReachNLRI)) } else { p.Emit(p.Source()[0], byte(attribute.AttrMPReachNLRI)) } } else { keepOrDrop(p) }\""
   }
 ]
