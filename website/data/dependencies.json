@@ -116,6 +116,14 @@
                 {
                     "module": "github.com/opencontainers/runc",
                     "why": "Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence."
+                },
+                {
+                    "module": "github.com/opencontainers/cgroups",
+                    "why": "Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup."
+                },
+                {
+                    "module": "github.com/opencontainers/runtime-spec",
+                    "why": "Provides OCI seccomp action definitions used by the container plugin's system-call filter tests."
                 }
             ]
         },
@@ -226,6 +234,14 @@
         {
             "name": "Testing & Build Tooling",
             "modules": [
+                {
+                    "module": "github.com/gofrs/flock",
+                    "why": "Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals."
+                },
+                {
+                    "module": "github.com/moby/sys/user",
+                    "why": "Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines."
+                },
                 {
                     "module": "github.com/moby/patternmatcher",
                     "why": "Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds."
