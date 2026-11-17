@@ -214,6 +214,7 @@ baseline fields would remove the condition that the browser test proves.
 | P5 | Authenticated permission fixtures | Actual admin/read-only daemon setup; retained authorization/download browser cases and allowed-read controls |
 | P6 | Interactive monitoring and complete capability evidence | Existing monitor/view producers plus browser sorting/detail/back/stop journeys; registry-derived inventory and executable gap probes |
 | P6c | Caller-supplied configuration inspection through owned daemon commands | Registered supplied dump, validation, formatting, dependency graph and comparison commands; local-producer equivalence, bounded input, secret masking and shared dispatcher authorization/accounting probes |
+| P6d | Declared-schema integration for configuration inspection | File, stored, history and supplied diff, dump and graph use the shared declared-schema step; published external modules remain usable, unavailable sections explain the daemon recovery, ordinary parse/range refusals retain their existing meaning, and no inspection starts a plugin |
 | P6e | Conformance of committed configured plugins through the daemon | Model `request plugin conformance name <configured-name>` as an executing action; resolve its target from the accepted daemon generation, reuse the existing conformance report, and prove allowed, denied, unconfigured, candidate-only, removed, canceled and stopped-generation cases before claiming this capability |
 
 P1 and the shared-history foundation P2a have independent source concerns.
@@ -238,6 +239,19 @@ byte-based producers as the file readers.
 | Comparison content | One encoded JSON object containing the native configuration strings in `before` and `after`. Both are required; duplicate fields, unknown fields, malformed JSON and trailing data are refused. The combined envelope has the same packet bound as a single source. |
 | Command selections | Dump retains strip-private; fmt retains check and diff. The supplied forms have no write selection. |
 | Supplied-input descriptor | Generic optional command metadata declares input count and envelope for actual supplied commands. The descriptor reads bounds and label constraints from the YANG arguments, so the browser can derive controls without a config-domain import or a second command inventory. |
+
+The validation client contract is `show config supplied validation content
+<base64> [name <label>]`. It shares the file command's validation producer and
+`diagnostic.ValidateResult`: invalid configuration retains its diagnostics
+payload beside the failed verdict. Malformed command arguments can be refused
+before validation and carry no such payload. The daemon validates against the
+module set published at startup, including external-plugin YANG. The local
+route starts no plugin. This command, its arguments and its result shape remain
+unchanged by P6d. Commit `b93ff713b3` contains the schema behavior from
+`c7f081849d`. The validation client should use `552c08a28a`, which includes
+both and fixes SSH exec retaining a validation payload beside its refusal.
+That commit adds the daemon-first client and a result decoder without changing
+the endpoint's arguments or result fields.
 
 The one comparison envelope puts both inputs behind the already masked
 `content` keyword. Authorization, accounting, caller context, cancellation and
@@ -353,10 +367,11 @@ existing test assertions and inputs and have independent final source judgments.
 Their focused CLI history, option, browser-view and graphical per-user
 preference tests pass in `1638aec6`. Config CLI tests pass in `7d4351cf`, as
 do graphical import, bootstrap credential/certificate and SSH listener controls.
-That run's complete local/daemon command comparison fails: five supplied-input
-refusals omit the local help hint, and plugin conformance has no supported
-daemon form for its caller-supplied executable. These are open parity defects;
-the arbitrary remote program execution guard remains enforced. Systemd tests
+That run's complete local/daemon command comparison failed on five supplied-input
+help hints and the local-only plugin conformance command. The help fix is now
+committed as `2ec7abaa6f`; all five original comparison cases pass by name in
+`633cf5b4`. Arbitrary caller-supplied executable conformance still has no daemon
+form, and its remote execution guard remains enforced. Systemd tests
 pass on the host in `d5cb506e` and in Ze's Linux guest in `bcc1fcd6`, including
 the original policy preservation and refusal cases. Plugin-server lint
 findings are with the BGP owner. These
@@ -365,7 +380,8 @@ The final five-package follow-up completed all rows and reported three
 response-ownership findings in `web_monitor_pipe_test.go`. The independently
 judged corrections retain the original stream reads, controls and
 cancellation/join assertions. All four affected monitor units pass in
-`d642f003`; their final lint confirmation remains owed.
+`d642f003`. Reached lint no longer reports response ownership findings; other
+findings remain. The monitor cleanup is committed as `4bbafc7f45`.
 
 The error-inventory classifier now recognizes operator errors extracted with
 `errors.AsType`. Its two positive regression cases failed before the correction,
@@ -380,11 +396,23 @@ controls now pass in `e2811165`. A configured-plugin conformance operation is
 under implementation, with daemon-owned executable selection. Eleven new hub
 cases executed and failed because that command is not registered yet. A real
 started-query test also failed because caller cancellation did not reach the
-query's independent budget. Its shared context fix must preserve the newer
-offline no-spawn declaration rule from `d4fb5888c7`. Successful reloads without
+query's independent budget. The shared context fix now passes that regression,
+preserving the offline no-spawn declaration rule from `d4fb5888c7`. Full plugin
+and conformance package runs passed before the final pointer correction; the
+current affected consumer checks pass in `7527ae72` (plugin 4.715 seconds,
+conformance 2.007 seconds). Successful reloads without
 an authoritative tree must withdraw executable authority; rejected reloads must
 retain the prior accepted snapshot. Neither that implementation nor full
 conformance execution parity is claimed complete.
+
+P6d is implemented locally. Its initial baseline reproduced twelve missing
+offline explanations. The corrected published-schema fixture then passed all
+eight positive controls. Current consumer checks in `7527ae72` pass all 32
+schema cases, existing diff/secret/history and supplied-input checks, invalid
+validation diagnostics and the new daemon-first client routes (22.598 seconds).
+The independently judged recovery assertions follow the committed content
+validation client in `552c08a28a`. Final scoped lint and documentation checks
+remain separate from these execution results.
 The complete
 web package is not claimed to pass: the separately owned
 `TestL2TPDisconnectRefusesAnUnguardedForm` currently receives HTTP 200 where its

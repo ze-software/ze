@@ -124,30 +124,46 @@ func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*c
 		fromRevision = true
 	}
 
-	schema, err := config.YANGSchema()
+	firstStore := store
+	if revisionStore != nil {
+		firstStore = revisionStore
+	}
+	firstData := revisionData
+	if !fromRevision {
+		var readErr error
+		firstData, readErr = readDiffSource(firstStore, file1)
+		if readErr != nil {
+			diag.Str("error: ").Str(file1).Str(": ").Err(readErr).Byte('\n')
+			return nil, exitError
+		}
+	}
+	// Read each source once before selecting the schema. A failed second read
+	// contributes no declaration; report it after any refusal of the first
+	// source, preserving the existing precedence over a later stdin error.
+	secondData, secondReadErr := readDiffSource(store, file2)
+	sources := make([]config.ConfigSource, 0, 2)
+	sources = append(sources, config.ConfigSource{Text: string(firstData), Path: file1})
+	if secondReadErr == nil {
+		sources = append(sources, config.ConfigSource{Text: string(secondData), Path: file2})
+	}
+	schema, declared, err := config.SchemaWithDeclaredPlugins(sources...)
 	if err != nil {
 		diag.Str("error: YANG schema: ").Err(err).Byte('\n')
 		return nil, exitError
 	}
 
-	firstStore := store
-	if revisionStore != nil {
-		firstStore = revisionStore
-	}
-	var tree1 *diffSource
-	if fromRevision {
-		tree1, err = parseAndResolve(schema, revisionData)
-	} else {
-		tree1, err = loadAndResolve(firstStore, schema, file1)
-	}
+	tree1, err := parseAndResolve(schema, firstData)
 	if err != nil {
-		diag.Str("error: ").Str(file1).Str(": ").Err(err).Byte('\n')
+		diag.Str("error: ").Str(file1).Str(": ").Err(declared.Explain(err)).Byte('\n')
 		return nil, exitError
 	}
-
-	tree2, err := loadAndResolve(store, schema, file2)
+	if secondReadErr != nil {
+		diag.Str("error: ").Str(file2).Str(": ").Err(secondReadErr).Byte('\n')
+		return nil, exitError
+	}
+	tree2, err := parseAndResolve(schema, secondData)
 	if err != nil {
-		diag.Str("error: ").Str(file2).Str(": ").Err(err).Byte('\n')
+		diag.Str("error: ").Str(file2).Str(": ").Err(declared.Explain(err)).Byte('\n')
 		return nil, exitError
 	}
 
@@ -187,20 +203,17 @@ type diffSource struct {
 	resolved map[string]any
 }
 
-// loadAndResolve parses one source and resolves its BGP tree when present.
-// A nil store means an explicit path, including "-" for stdin.
-func loadAndResolve(store storage.Storage, schema *config.Schema, path string) (*diffSource, error) {
-	var data []byte
-	var err error
-	if store == nil || cliio.IsStdin(path) {
-		data, err = cliio.ReadFile(path)
-	} else {
-		data, err = store.ReadFile(path)
+// readDiffSource reads one input exactly once, before selecting the schema.
+// A nil store means an explicit path. Stdin remains a stream even when the
+// other source comes from storage.
+func readDiffSource(store storage.Storage, path string) ([]byte, error) {
+	if store == nil {
+		return cliio.ReadFile(path)
 	}
-	if err != nil {
-		return nil, err
+	if cliio.IsStdin(path) {
+		return cliio.ReadFile(path)
 	}
-	return parseAndResolve(schema, data)
+	return store.ReadFile(path)
 }
 
 // parseAndResolve retains the parsed tree for schema-driven order comparison.

@@ -106,16 +106,25 @@ func suppliedDiff(_ command.ValidatedArgs, data []byte, _ string) command.LocalA
 	if err != nil {
 		return suppliedRefusal(path, "comparison content must contain before and after configuration strings", err)
 	}
-	schema, err := config.YANGSchema()
+	schema, declared, err := config.SchemaWithDeclaredPlugins(
+		config.ConfigSource{Text: string(before)},
+		config.ConfigSource{Text: string(after)},
+	)
 	if err != nil {
 		return suppliedRefusal(path, "configuration schema is unavailable", err)
 	}
 	first, err := parseAndResolve(schema, before)
 	if err != nil {
+		if refusal := declaredParseExplanation(declared, err); refusal != nil {
+			return command.LocalRefusal(exitError, command.LocalErrorLine(refusal))
+		}
 		return suppliedRefusal(path, "before configuration could not be parsed or resolved", err)
 	}
 	second, err := parseAndResolve(schema, after)
 	if err != nil {
+		if refusal := declaredParseExplanation(declared, err); refusal != nil {
+			return command.LocalRefusal(exitError, command.LocalErrorLine(refusal))
+		}
 		return suppliedRefusal(path, "after configuration could not be parsed or resolved", err)
 	}
 	return diffAnswer(diffSources(schema, first, second))

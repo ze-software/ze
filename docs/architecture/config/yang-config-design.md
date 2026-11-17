@@ -647,8 +647,16 @@ process (`command.ServeLocal`) and asks no daemon.
 <!-- test: internal/component/config/cli/validate_route_test.go TestValidateRouteFallsBackWhenNoDaemonListens -->
 <!-- test: internal/component/config/cli/validate_route_test.go TestValidateRouteDoesNotAskForCompiledInConfig -->
 
-A command that compares two configs passes both, so the plugins of both sides
-are remembered. The callers are the `ze config` commands (`validate`, `fmt`,
+A comparison passes each successfully read input, including stored revision
+bytes, before either full parse, so the plugins of both sides are remembered.
+File and supplied-content dump and graph readers use the same step and retain
+its explanation when a plugin's schema is unavailable.
+<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, readDiffSource -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedDiff -->
+<!-- source: internal/component/config/cli/cmd_dump.go -- resolveDumpBytes -->
+<!-- source: internal/component/config/cli/cmd_graph.go -- graphBytesAnswer, declaredParseExplanation -->
+
+The callers are the `ze config` commands (`validate`, `fmt`,
 `dump`, `diff`, `migrate`, `completion`), `show config graph`, the editor,
 `ze doctor`, the support report, the crash-capture readiness read, the TACACS+
 probe, `show plugin declarations config` and `ze plugin test`.

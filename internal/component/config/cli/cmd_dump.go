@@ -202,7 +202,7 @@ func resolveDump(configPath string, stripPrivate bool, diag *textbuf.Buffer) (du
 // resolveDumpBytes is the file and supplied-content routes' shared producer.
 // It parses and masks bytes without reading or publishing configuration.
 func resolveDumpBytes(data []byte, stripPrivate bool, diag *textbuf.Buffer) (dumpResult, error) {
-	schema, err := config.YANGSchema()
+	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data)})
 	if err != nil {
 		return dumpResult{}, opererr.Wrap(err, "The configuration schema could not be loaded.",
 			"The configuration could not be interpreted; no dump was produced.",
@@ -211,6 +211,9 @@ func resolveDumpBytes(data []byte, stripPrivate bool, diag *textbuf.Buffer) (dum
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
+		if refusal := declaredParseExplanation(declared, err); refusal != nil {
+			return dumpResult{}, refusal
+		}
 		return dumpResult{}, opererr.Wrap(err, "Error parsing config",
 			"The supplied configuration could not be parsed; no configuration dump was produced.",
 			"ze config validate -")

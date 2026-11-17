@@ -76,7 +76,7 @@ func graphAnswer(route command.Route, args []string) command.LocalAnswer {
 // graphBytesAnswer builds the same inactive-pruned graph for a caller file
 // and supplied bytes, without running the configuration loader.
 func graphBytesAnswer(data []byte) command.LocalAnswer {
-	schema, err := config.YANGSchema()
+	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data)})
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.Wrap(err,
 			"The configuration schema could not be loaded.",
@@ -87,6 +87,9 @@ func graphBytesAnswer(data []byte) command.LocalAnswer {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
+		if refusal := declaredParseExplanation(declared, err); refusal != nil {
+			return command.LocalRefusal(exitError, command.LocalErrorLine(refusal))
+		}
 		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.Wrap(err,
 			"The configuration dependency graph could not be built.",
 			"The supplied configuration could not be parsed; no graph was produced.",
@@ -108,4 +111,22 @@ func graphBytesAnswer(data []byte) command.LocalAnswer {
 	}
 
 	return command.LocalAnswer{Payload: command.Blob(out.Bytes()), Code: exitOK}
+}
+
+// declaredParseExplanation answers only a new operator explanation added by
+// the declared-schema step. Nil means the cause was unchanged: callers MUST
+// keep their existing ordinary parse/refusal wrapper. Only operator-error
+// pointers are compared, never arbitrary parser errors.
+func declaredParseExplanation(declared *config.DeclaredSchemas, cause error) *opererr.Error {
+	explained, isOperator := errors.AsType[*opererr.Error](declared.Explain(cause))
+	if !isOperator {
+		return nil
+	}
+	original, wasOperator := errors.AsType[*opererr.Error](cause)
+	if wasOperator {
+		if explained == original {
+			return nil
+		}
+	}
+	return explained
 }

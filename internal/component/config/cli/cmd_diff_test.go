@@ -298,7 +298,7 @@ func captureDiffStdout(t *testing.T, fn func() int) (int, string) {
 //
 // VALIDATES: no `ze config diff` shape renders a value the schema marks.
 // PREVENTS: the third command in this directory publishing BOTH halves of a
-// rotation. It loads through loadAndResolve, which parses and therefore decodes
+// rotation. It loads through parseAndResolve, which parses and therefore decodes
 // the stored $9$ value, and it printed `~ path: old -> new`. Its siblings
 // `ze config dump` and `ze config show` mask.
 func TestConfigDiffMasksASecret(t *testing.T) {
