@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.2-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271OptionalParameterErrors",
+    "unit-sha": "5b1d8f1301cc1c07",
+    "claim-sha": "4ad6b400ff4bfbae",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::rejectOpenCapabilityError",
+    "producer-sha": "a9cde4c048eddd82",
+    "break": "line 302: \"subcode = message.NotifyOpenUnsupportedOptParam\" -\u003e \"subcode = uint8(0) /* MUTATION-APPLIED: lose unsupported-parameter subcode */\""
+  },
+  {
+    "rid": "RFC4271-6.2-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271OptionalParameterErrors",
+    "unit-sha": "5b1d8f1301cc1c07",
+    "claim-sha": "1b21e6f1bc2716c3",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::parseCapability",
+    "producer-sha": "4a766c5bcced3ecc",
+    "break": "line 260: \"return \u0026Unknown{code: code, Data: append([]byte{}, data...)}, nil\" -\u003e \"if code == Code(200) { return nil, ErrUnsupportedParameter }; return \u0026Unknown{code: code, Data: append([]byte{}, data...)}, nil /* MUTATION-APPLIED: confuse unknown capability200 with unknown OPEN parameter */\""
+  }
+]

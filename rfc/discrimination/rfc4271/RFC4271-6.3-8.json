@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.3-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications",
+    "unit-sha": "1378e88f502866aa",
+    "claim-sha": "bcb5dc20b5213145",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "line 455: \"Data:         pathAttrs[attrStart:pos]\" -\u003e \"Data:         pathAttrs[attrStart+2:pos] /* MUTATION-APPLIED: omit unrecognized attribute flags/type */\""
+  },
+  {
+    "rid": "RFC4271-6.3-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications",
+    "unit-sha": "1378e88f502866aa",
+    "claim-sha": "1d8bd83c09b02ce1",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "line 446: \"if flags\u0026attrFlagOptional == 0 {\" -\u003e \"if flags\u0026attrFlagOptional != 0 \u0026\u0026 flags\u00260x40 != 0 \u0026\u0026 attrCode == 250 \u0026\u0026 !attribute.AttributeCode(attrCode).Recognized() { return \u0026RFC7606ValidationResult{Action: RFC7606ActionTreatAsWithdraw, AttrCode: attrCode, Description: \\\"MUTATION-APPLIED: falsely withdraw unknown optional transitive code250\\\"} }; if flags\u0026attrFlagOptional == 0 {\""
+  }
+]

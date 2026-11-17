@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271OptionalParameterErrors",
+    "unit-sha": "5b1d8f1301cc1c07",
+    "claim-sha": "5bb4e50a1e59bdf3",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::rejectOpenCapabilityError",
+    "producer-sha": "a9cde4c048eddd82",
+    "break": "line 300: \"subcode := uint8(0)\" -\u003e \"subcode := message.NotifyOpenUnsupportedOptParam /* MUTATION-APPLIED: wrong malformed-parameter subcode */\""
+  },
+  {
+    "rid": "RFC4271-6.2-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271OptionalParameterErrors",
+    "unit-sha": "5b1d8f1301cc1c07",
+    "claim-sha": "14aa6e0624a3deb3",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::parseZeroLengthCapability",
+    "producer-sha": "215540971eebc6bf",
+    "break": "line 269: \"if len(data) != 0 {\" -\u003e \"if len(data) != 0 || code == CodeRouteRefresh { /* MUTATION-APPLIED: falsely reject correctly zero-length Route Refresh capability */\""
+  }
+]
