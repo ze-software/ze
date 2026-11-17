@@ -7,7 +7,7 @@
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (owns dual-form receive; its local IPv4 single-pair ICMP clean and proofs (c)/(d) are observed on 2026-11-16, while full per-SA scope remains open) |
-| Phase | 2b -- guard and report repair landed; first seven-guest batch accepted; blocked context proof and 48 guest renewals remain |
+| Phase | 2b -- guard and report repair landed; second six-SAD guest batch accepted; blocked context proof and 42 guest renewals remain |
 | Handoff | - |
 | Updated | 2026-11-17 |
 
@@ -46,8 +46,8 @@ a partial claim, not C enforcement or the whole requirement. Runs 94797, 40175 a
 also renewed host-positive orders 9, 15 and 44 after exact selected clean PASS and
 native installChildSA halt FAIL; only their selected producer seals changed to
 `17aa3b0ab62f6479`. These are partial-claim dependency proofs; the dual-form checkpoint
-names the logs. The original 83 historical rows remain unchanged; the ended first
-seven-guest batch has 31 current renewals RECORDED and 48 commands UNEXECUTED,
+names the logs. The original 83 historical rows remain unchanged; the ended second
+six-SAD guest batch (17–22) has 37 current renewals RECORDED and 42 commands UNEXECUTED,
 all guest. Native selected reports now verify all four historical records against
 current source/fingerprints, without a new packet observation or whole-ID/full-RFC
 credit; the CE ID retains six other unproven tags. Both safety holds, the pending safety-action owner question,
@@ -59,7 +59,7 @@ recorder builds is PENDING. Seven later RFC792 rows stay post-release, with no t
 implementation or proof credit. No push was made by this session.
 
 The [dual-form current checkpoint](spec-ipsec-dual-form-receive-spd-bypass.md#current-continuation-checkpoint-2026-11-17)
-owns the completed host and first seven-guest batch's native evidence and proof
+owns the completed host and both guest batches' native evidence and proof
 limits. It also records report repair `3d6aa6c86f`, AC-30's existing lint
 limitation and four current VERIFIED historical records; those bounded
 conclusions and pending approvals apply here.

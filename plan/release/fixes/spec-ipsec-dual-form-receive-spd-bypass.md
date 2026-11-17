@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard and report repair landed; first seven-guest batch accepted; context proof and 48 guest renewals remain; AC-4 stays open |
+| Phase | Guard and report repair landed; second six-SAD guest batch accepted; context proof and 42 guest renewals remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -162,7 +162,7 @@ and fingerprint verdicts, with no new runtime observation or kernel proof.
 The CE ID still has six other unproven tags; no whole-ID or full-RFC credit,
 safety approval or C-design approval follows.
 
-The ended first seven-guest batch records orders 5, 6, 8, 10, 11, 12 and 14:
+The first seven-guest batch landed in `b621e0f124`, recording orders 5, 6, 8, 10, 11, 12 and 14:
 31 current renewals RECORDED and 48 UNEXECUTED, all guest. Native runs were
 91595, 86837, 71760, 2610, 65543, 8642 and 74918, respectively, each exit 0.
 The five native JSON files are RFC4301-4.4.2-1, RFC4106-10-2, RFC4301-4-1,
@@ -178,6 +178,20 @@ Every accepted normal/fault observation uses B1/f826 and matching d9, with no
 skips, check/lab exits 0, no interruption and stopped VMs. No full-requirement,
 C-enforcement or AC-4 credit follows. The pending C-route and safety decisions,
 final audit and Review Gate remain open.
+
+The ended second six-SAD batch, orders 17–22, brings the current snapshot to
+37 RECORDED and 42 UNEXECUTED commands, all guest. Clean tests check negotiated
+SPI in both directions, AEAD fields without separate transforms, tunnel and
+transport mode, IPv4/IPv6 tunnel addresses, ESN false with no preset Replay,
+and rollover/ESN flags for ESP/AH in both directions. Each selected test then
+fails at its own xfrmStateFromParams halt; later loop cases are not reached
+by that fault. These six constructed-state dependency proofs install no state
+and add no C, whole-clause or AC-4 credit. Native selected seal is
+`0c882b938c258e96`; membership, units, claims and unselected records are preserved.
+All normal/fault observations use B1/f826+d9, with no skips, check/lab 0,
+normal command 0, fault command 2, no interruption and stopped VMs. The serial
+batch stopped before order 23 when fresh admission showed four occupied slots
+and none free; order 23 was neither queued nor run and remains UNEXECUTED.
 
 ## Task
 
