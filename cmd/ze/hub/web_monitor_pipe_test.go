@@ -92,6 +92,7 @@ func TestWebMonitorPipesSharedViews(t *testing.T) {
 			}
 			server, accounting, client, base := webMonitorPipeHTTP(t, bind, webStreamPolicy{allowed: true})
 			response := webMonitorPipeOpen(t, client, base, line, zeweb.CLIViewMediaType)
+			defer func() { require.NoError(t, response.Body.Close()) }()
 			require.Equal(t, http.StatusOK, response.StatusCode)
 			decoder := json.NewDecoder(response.Body)
 			var frame webMonitorPipeFrame
@@ -157,6 +158,7 @@ func TestWebMonitorPipesRefuseBeforeFactory(t *testing.T) {
 				}
 				line := "monitor ping 192.0.2.1 " + suffix
 				response := webMonitorPipeOpen(t, client, base, line, accept)
+				defer func() { require.NoError(t, response.Body.Close()) }()
 				body, err := io.ReadAll(response.Body)
 				require.NoError(t, err)
 				assert.Equal(t, test.status, response.StatusCode, string(body))
@@ -186,7 +188,13 @@ func TestWebMonitorPipesRawFilters(t *testing.T) {
 		err      error
 	}
 	result := make(chan opened, 1)
-	go func() { response, err := client.Do(request); result <- opened{response, err} }()
+	go func() {
+		response, err := client.Do(request)
+		if response != nil {
+			t.Cleanup(func() { require.NoError(t, response.Body.Close()) })
+		}
+		result <- opened{response, err}
+	}()
 	joined := false
 	t.Cleanup(func() {
 		cancel()
