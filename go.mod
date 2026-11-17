@@ -83,7 +83,7 @@ require (
 	cyphar.com/go-pathrs v0.2.6 // indirect
 	dev.gaijin.team/go/exhaustruct/v4 v4.0.0 // indirect
 	dev.gaijin.team/go/exhaustruct/v5 v5.2.0 // indirect
-	dev.gaijin.team/go/golib v0.8.1 // indirect
+	dev.gaijin.team/go/golib v0.9.0 // indirect
 	github.com/4meepo/tagalign v1.4.4 // indirect
 	github.com/Abirdcfly/dupword v0.1.8 // indirect
 	github.com/AdminBenni/iota-mixing v1.0.0 // indirect

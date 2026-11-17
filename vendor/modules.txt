@@ -54,8 +54,8 @@ dev.gaijin.team/go/exhaustruct/v5/internal/cache
 dev.gaijin.team/go/exhaustruct/v5/internal/directive
 dev.gaijin.team/go/exhaustruct/v5/internal/pattern
 dev.gaijin.team/go/exhaustruct/v5/internal/structure
-# dev.gaijin.team/go/golib v0.8.1
-## explicit; go 1.24
+# dev.gaijin.team/go/golib v0.9.0
+## explicit; go 1.26
 dev.gaijin.team/go/golib/e
 dev.gaijin.team/go/golib/fields
 # filippo.io/mlockexe v1.0.0
