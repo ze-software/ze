@@ -1059,6 +1059,15 @@ always did.
 
 ### Event codes
 
+The BGP RIB registers `doctor-bgp-selected-output` from its `init()` for
+selected capture, source authorization and destination output failures raised
+through `report-issue`. This event registration admits those reports on the
+daemon's bus when the RIB runs internally or in another process. Its separate
+Stage 1 `bgp-rib-selected-output` doctor declaration lets the daemon query the
+RIB's live state; that declaration alone does not register a report-bus code.
+<!-- source: internal/component/bgp/plugins/rib/register.go -- init -->
+<!-- test: internal/component/bgp/plugins/rib/rib_selected_report_registration_test.go TestSelectedOutputReportRegistrationBothTransports -->
+
 The BGP source authority service declares `doctor-bgp-source-lease-cleanup`
 for a stopped selecting process or a permanently removed source whose revoked
 final writes miss their join deadline. The event names the process or exact

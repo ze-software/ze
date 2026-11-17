@@ -30,6 +30,9 @@ func init() {
 	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeRemoteMetricFailure}); err != nil {
 		panic("BUG: bgp rib: next-hop metric event registration failed: " + err.Error())
 	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorBGPSelectedOutput}); err != nil {
+		panic("BUG: bgp rib: selected output event registration failed: " + err.Error())
+	}
 	// Publish the TABLE_DUMP_V2 snapshot provider through the leaf registry
 	// seam. MRT reads it from there, so neither plugin imports the other and
 	// the always-on hub no longer names a BGP package (spec-feature-gate-10).

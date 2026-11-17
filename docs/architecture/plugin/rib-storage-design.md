@@ -1741,8 +1741,11 @@ An extraction failure or exhausted revision clock latches the original cause.
 The RIB declares `bgp-rib-selected-output` at Stage 1 and answers that runtime
 doctor check in its own process, so a forked RIB reads the same state as an
 internal one. The finding and report-bus event use
-`doctor-bgp-selected-output` and give the restart command for the configured
-instance. Before an instance name is acknowledged, the repair is
+`doctor-bgp-selected-output`, which the RIB registers as an event code from
+its `init()` so the daemon accepts its `report-issue` raises and clears. The
+Stage 1 doctor declaration does not replace that event registration. The
+capture failure gives the restart command for the configured instance.
+Before an instance name is acknowledged, the repair is
 `ze request restart`. Capture cannot resume from an incomplete snapshot, so
 the failure remains visible until the deciding process restarts.
 
