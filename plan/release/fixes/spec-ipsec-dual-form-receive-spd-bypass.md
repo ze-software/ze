@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard landed; raw/packet matrix accepted; IPv6 queue observation, context proof and 78 renewals remain; AC-4 stays open |
+| Phase | Guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; context proof and 75 renewals remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -18,82 +18,95 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Current continuation checkpoint, 2026-11-17
 
-This checkpoint supersedes the progress statements below about unrun raw and
-packet populations, source-only SA lifetime, and 79 unexecuted renewals. Their
-dated receipts retain their original scope and source identities.
+This checkpoint supersedes the progress statements below about unrun raw and packet
+populations, source-only SA lifetime, and 79 unexecuted renewals. Their dated receipts
+retain their original scope and source identities.
 
-The normal guard phase landed in `bde4a49a63473a875f99beb9754650fcd7521387`:
-23 files, including exact directional Child scopes, complete-capability refusal
-and runtime doctor, active 0005 guard `235e022a`, its runtime inputs, packet
-regressions and owning documentation. The commit also carries the coordinated
-shared VPP/PPP diagnostic catalog; the IPsec tests make no runtime claim for
-those components. No push was made by this session.
+The normal guard phase landed in `bde4a49a63473a875f99beb9754650fcd7521387`: 23 files,
+including exact directional Child scopes, complete-capability refusal and runtime
+doctor, active 0005 guard `235e022a`, its runtime inputs, packet regressions and owning
+documentation. The commit also carries the coordinated shared VPP/PPP diagnostic
+catalog; the IPsec tests make no runtime claim for those components. No push was made by
+this session.
 
-Main's separate native run 86673 accepted all three raw-socket authority/lifetime
-tests in both families and the original eight packet tests: 11 top-level PASS,
-no FAIL or SKIP (`job-ipsec-d87-raw-and-packet-matrix-e9855a9d.log`). It ran the
-unchanged `bbe5ef43` engine binary on actual d87 kernel SHA256
-`d2eb6a14cd07c913deb1a0e9f7ff667230982b64c597ebf8fbee8bc3f80d8f65` and matching
-image `43a1d1b2ecccc59c`; check, command and lab exits were zero, interrupted
-was false, and the VM stopped. Scoped engine lint 29505 also passed with zero
-host and Linux integration issues (`job-ipsec-current-engine-scoped-lint-b4881bf4.log`).
+Main's separate native run 86673 accepted all three raw-socket authority/lifetime tests
+in both families and the original eight packet tests: 11 top-level PASS, no FAIL or SKIP
+(`job-ipsec-d87-raw-and-packet-matrix-e9855a9d.log`). It ran the unchanged `bbe5ef43`
+engine binary on actual d87 kernel SHA256
+`d2eb6a14cd07c913deb1a0e9f7ff667230982b64c597ebf8fbee8bc3f80d8f65` and matching image
+`43a1d1b2ecccc59c`; check, command and lab exits were zero, interrupted was false, and
+the VM stopped. Scoped engine lint 29505 also passed with zero host and Linux
+integration issues (`job-ipsec-current-engine-scoped-lint-b4881bf4.log`).
 
-SA replacement remains incomplete. Native 70977 passed both IPv4 arrival orders,
-then failed IPv6 before removing the original SA: `Ip6ReasmReqds` was 0, expected
-1 (`job-ipsec-sa-lifetime-and-packet-matrix-41ab9d9e.log`). Its conditional next
-matrix did not execute; the 11-test acceptance above is a separate run.
-`fragmentSALifetimeReassemblyRequests` reads the local IPv6 reassembler counter,
-while 0005's `xfrm6_fragment_gather` calls `nf_ct_frag6_gather`. That zero does
-not establish a packet defect or queue-lifetime acceptance. An additive ordinary
-`TestIPv6XFRMFragmentQueueCounter` now asserts a proposed per-namespace
-`XfrmFrag6Queued` witness for unique pending admission, duplicates, completion
-and whole controls in both arrival orders. Independently CLEAR source `1f26a203`
-passed formatting 7763 and Linux compilation 28641, both exit 0 with silent
-logs (`job-ipsec-frag6-counter-format-after-role-end-8e41c26b.log` and
-`job-ipsec-frag6-queue-counter-build-d5edab12.log`). Static Linux arm64 binary
-SHA256 is `0b37d35e648b107919a53c6e9ab171eab82bb2960276c3d44f2b4d3aaeaf4ff2`.
-Old-normal guest 21799 produced the expected exact-test RED: `XfrmFrag6Queued`
-was absent from `/proc/thread-self/net/xfrm_stat`
-(`job-ipsec-frag6-counter-old-normal-red-128347fd.log`). There were no skips;
-check/command/lab exits were 0/1/0, interrupted was false, and the VM stopped
-on accepted d87/d2eb with matching 43a1. This is the counter test's RED, not
-native RFC discrimination.
+The earlier lifetime run 70977 failed before IPv6 SA removal because local
+`Ip6ReasmReqds` did not observe the guard's netfilter queue
+(`job-ipsec-sa-lifetime-and-packet-matrix-41ab9d9e.log`); its conditional matrix never
+executed. The additive ordinary counter test then went RED at absent `XfrmFrag6Queued`
+on d87/d2eb+43a1, run 21799, no skips, check/command/lab exits 0/1/0, and the VM stopped
+(`job-ipsec-frag6-counter-old-normal-red-128347fd.log`). These remain observer diagnosis
+and TDD receipts, without packet-defect or native RFC proof credit. Fourteen reached
+parser sites tolerate the additive field.
 
-The normal C counter is now authored as 0005 SHA256
-`e3ecc903d6fb4e05cd3fd7c91636dca9905f386f2fac1bab48a63cc544fb5850` and independently
-judged CLEAR at source. It appends the MIB ID, exports the proc name and counts
-successful incomplete insertions in the retained XFRM defrag-user range in the
-queue's network namespace. Duplicates, completion and errors do not increment
-it. Fourteen reached parser sites tolerate the additive field. Owning architecture
-text is updated (`51e7f9d1`). This candidate is source only and unbuilt; the
-accepted `235e022a`/d2eb recipe above does not prove it. Normal build awaits
-all eight input and Colima compiler acknowledgments; no new candidate path is
-resolved. Changed-kernel GREEN and the independently judged lifetime-helper
-correction remain owed. Lifetime helpers are byte-unchanged, and no native
-probe approval has been issued.
+Normal counter build 43301 subsequently completed successfully with patch `e3ecc903`
+(`job-ipsec-frag6-queue-counter-kernel-9c693ee4.log`). Actual B1 kernel SHA256 is
+`f82654a4d1458db3094449274348cf5268e0f09e912776a95b52263f27816536`, matching image
+`d9efda5bec4fd7f7`. First boot run 36055 passed the complete capability test and
+`TestIPv6XFRMFragmentQueueCounter` in 4.73 seconds
+(`job-ipsec-frag6-counter-first-boot-b1ed0e0b.log`). Unique pending admissions advance
+the per-namespace counter; authenticated duplicates, completion and whole controls do
+not, and the peer namespace stays zero. All eight kernel-input and Colima compiler holds
+were released after the accepted first boot run stopped its VM.
+
+The independently approved helper correction reads `XfrmFrag6Queued` for IPv6 and
+rejects negatives before conversion. The IPv4 parser and lifetime assertions remain
+unchanged. Source SHA256 is
+`08e8a270890fb408a80e3f6c74fc0975bbdf28fd48cd33d79fe46a6b8cfdd1d6`; owning architecture
+text is `3601b075`. Native helper approval binds `703a94a5..8749dfbd`. Formatting 84982
+and Linux compilation 96345 passed; current static arm64 binary SHA256 is
+`b1a1994cfb308964931342ebe052101fc6862295cb7a0ab4c64c18a74892fb19`
+(`job-ipsec-sa-witness-linux-build-2cec0089.log`). Exact lifetime run 55413 passed in
+7.08 seconds, both families and both arrival orders
+(`job-ipsec-sa-witness-lifetime-b1-383e1e3c.log`). Separate run 59439 passed the three
+raw tests and original eight packet tests: eleven top-level PASS
+(`job-ipsec-sa-witness-packet-matrix-b1-0a3ac6e3.log`). Both used the B1/f826 kernel,
+matching d9 image and current b1a1994c binary. Neither skipped a test; check, command
+and lab exits were zero, interrupted was false, and both VMs stopped. Scoped engine lint
+60545 passed host and Linux integration with zero issues
+(`job-ipsec-sa-witness-engine-lint-45efbd1a.log`). The counter and helper phase landed
+in `84d13c03ee526447bc06646b4fb652fb35dd9bd1` (three paths, 176 additions and three
+deletions); native commit consumed the helper approval. These normal regressions retain
+bounded scope; full context discrimination and RFC evidence remain open.
 
 The first current renewal is recorded: native 19280 exited 0 after the exact
-`TestSPDPolicyOrderInsideBypassBandRefused` clean PASS and its own producer-halt
-FAIL (`job-ipsec-rfc4301-spd-order-proof-64ae3e54.log`). It wrote only the negative
-unit in `rfc/discrimination/rfc4301/RFC4301-4.4.1-4.json`, producer seal
-`33222aa0e1c35ebb`; the existing positive record is preserved. This is a
-function-dependency proof of the partial tagged claim, with no C-enforcement or
-whole-requirement credit. The current preparation manifest marks only order 58
-RECORDED: 78 commands remain UNEXECUTED, 55 guest and 23 host. The original 83
-rows remain unchanged, and current freshness of the four historical receipts
-is still UNKNOWN. A fresh native RFC check remains owed after renewals.
+`TestSPDPolicyOrderInsideBypassBandRefused` clean PASS and its own producer-halt FAIL
+(`job-ipsec-rfc4301-spd-order-proof-64ae3e54.log`). It wrote only the negative unit in
+`rfc/discrimination/rfc4301/RFC4301-4.4.1-4.json`, producer seal `33222aa0e1c35ebb`; the
+existing positive record is preserved. This is a function-dependency proof of the
+partial tagged claim, with no C-enforcement or whole-requirement credit. Main
+subsequently renewed orders 9, 15 and 44 through native runs 94797, 40175 and 17887:
+RFC4301-3.2-1, RFC4301-4.4.2-1 and RFC4303-2-1 host-positive claims. Each selected unit
+passed clean and failed at its own native installChildSA producer halt; only the three
+selected producer seals changed to `17aa3b0ab62f6479`. Receipts are
+`job-ipsec-rfc4301-esp-association-proof-05c96c4a.log`,
+`job-ipsec-rfc4301-negotiated-selectors-proof-c580bfc1.log` and
+`job-ipsec-rfc4303-esp-protocol-proof-e05930b5.log`. These remain dependency proofs of
+partial tagged claims, including distinct claims on the same ESP unit. The current
+manifest marks orders 58, 9, 15 and 44 RECORDED: 75 commands remain UNEXECUTED, 55 guest
+and 20 host. The original 83 rows remain unchanged, and current freshness of the four
+historical receipts is still UNKNOWN. A fresh native RFC check remains owed after
+renewals.
 
-Both automatic safety holds and the pending owner question remain unchanged:
-no constrained-fixture retry or rejected private fault preparation/use is
-approved. The generic C-proof design now has independent schema and native-image
-reviews CLEAR; its separate owner design question is PENDING: prepare the two
-kernel/image pairs separately (recommended), or let the recorder build them.
-The design remains UNAPPROVED, P3 and post-release, with the seven later RFC792
-rows preserved and no tooling implementation or proof credit. That design
-question grants no approval for either rejected safety action. The
-compliant-fragment RED, full AC-4,
-partial RFC annotation and separate mapped ICMP-return gap remain open.
-
+Both automatic safety holds and the pending owner question remain unchanged: no
+constrained-fixture retry or rejected private fault preparation/use is approved. The
+generic C-proof design has independent schema, native-image and observer-manifest
+reviews CLEAR (draft `2438aa68`, prose commit
+`467baad97515e924378d0e7a58a8e56735046f98`); A-R2 and A-R4 stay unvalidated. Its
+separate owner design question is PENDING: prepare the two kernel and image pairs
+separately (recommended), or let the recorder build them. The design remains UNAPPROVED,
+P3 and post-release, with the seven later RFC792 rows preserved and no tooling
+implementation or proof credit. That design question grants no approval for either
+rejected safety action. The compliant-fragment RED, full AC-4, partial RFC annotation
+and separate mapped ICMP-return gap remain open.
 ## Task
 
 Close the inbound SPD bypass of the dual-form receive path, keeping both ESP

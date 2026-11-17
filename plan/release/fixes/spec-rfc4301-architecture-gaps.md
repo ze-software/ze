@@ -7,7 +7,7 @@
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (owns dual-form receive; its local IPv4 single-pair ICMP clean and proofs (c)/(d) are observed on 2026-11-16, while full per-SA scope remains open) |
-| Phase | 2b -- guard landed and raw/packet matrix accepted; IPv6 queue observation, blocked context proof and 78 renewals remain |
+| Phase | 2b -- guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; blocked context proof and 75 renewals remain |
 | Handoff | - |
 | Updated | 2026-11-17 |
 
@@ -15,37 +15,46 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Current continuation checkpoint, 2026-11-17
 
-The dual-form spec's **Current continuation checkpoint, 2026-11-17** is the
-current detailed record. It supersedes the unrun populations, source-only
-lifetime and 79-unexecuted progress statements in the dated checkpoints below.
-Normal guard implementation landed in `bde4a49a63473a875f99beb9754650fcd7521387`.
-The separate d87/d2eb kernel and matching 43a1 image run accepted all three raw
-tests in both families plus the original eight packet tests: 11 top-level PASS,
-no FAIL/SKIP, zero exits and stopped VM. Scoped host/Linux engine lint passed.
+The dual-form spec's **Current continuation checkpoint, 2026-11-17** is the current
+detailed record. It supersedes the unrun populations, source-only lifetime and
+79-unexecuted progress statements in the dated checkpoints below. Normal guard
+implementation landed in `bde4a49a63473a875f99beb9754650fcd7521387`. The separate
+d87/d2eb kernel and matching 43a1 image run accepted all three raw tests in both
+families plus the original eight packet tests: 11 top-level PASS, no FAIL/SKIP, zero
+exits and stopped VM. Scoped host/Linux engine lint passed.
 
-The ordinary SA-replacement run passed both IPv4 orders; IPv6 stopped before
-replacement because its local `Ip6ReasmReqds` counter does not observe the
-`nf_ct_frag6_gather` queue used by the guard. The additive ordinary queue-counter
-test is independently CLEAR, formatted and Linux-compiled. Old-normal run 21799
-failed exactly because `XfrmFrag6Queued` was absent, with no skips, exits 0/1/0
-and stopped VM on d87/d2eb+43a1. The normal C counter is authored (`e3ecc903`),
-with independent source judgment CLEAR and owning documentation updated; it
-is unbuilt and has no changed-kernel GREEN. Build awaits all eight input and
-Colima compiler acknowledgments, with no new candidate path resolved. Lifetime
-helpers are unchanged and no native probe approval is issued. Native renewal
-19280 recorded only manifest
-order 58, the negative SPD-order unit, after its clean PASS and own producer-halt
-FAIL. It proves function dependency for a partial claim, not C enforcement or
-the whole requirement. The original 83 historical rows remain unchanged; 78
-current commands remain UNEXECUTED (55 guest, 23 host), and four historical
-receipts still have UNKNOWN current freshness. Both safety holds, the pending
-safety-action owner question, compliant-fragment RED, full AC-4 and separate
-mapped-return gap remain open. The P3 C-proof proposal has independent design
-reviews CLEAR but remains UNAPPROVED; its separate owner design question about
-prepared pairs versus recorder builds is PENDING. Seven later RFC792 rows stay
-post-release, with no tooling implementation or proof credit. No push was made
-by this session.
+The earlier lifetime local-counter failure and missing-field RED in run 21799 on the
+preceding normal kernel retain their observer diagnosis/TDD scope; neither establishes a
+packet defect or native RFC proof. Their receipts are in the dual-form checkpoint.
 
+Normal counter build 43301 subsequently succeeded with C patch `e3ecc903`; actual B1
+kernel SHA256 `f82654a4d1458db3094449274348cf5268e0f09e912776a95b52263f27816536` and
+matching image `d9efda5bec4fd7f7` passed capability and counter tests in first boot run
+36055. All eight input and Colima holds were released after its VM stopped.
+Independently approved helper source `08e8a270`, with negative rejection and unchanged
+lifetime assertions, passed formatting 84982 and Linux compilation 96345. Current binary
+`b1a1994c` passed exact lifetime run 55413 in 7.08 seconds, covering both families and
+arrival orders. Separate run 59439 passed the three raw tests and eight packet tests:
+eleven top-level PASS results on the B1/f826 kernel and matching d9 image. Both runs had
+no skips, all zero exits, interrupted false and stopped VMs. Scoped engine lint 60545
+passed host and Linux integration with zero issues. Owning docs are `3601b075`. The
+counter and helper phase landed in `84d13c03ee526447bc06646b4fb652fb35dd9bd1`. The
+dual-form checkpoint names the exact logs; these normal regressions do not renew RFC
+proofs. Native renewal 19280 recorded only manifest order 58, the negative SPD-order
+unit, after its clean PASS and own producer-halt FAIL. It proves function dependency for
+a partial claim, not C enforcement or the whole requirement. Runs 94797, 40175 and 17887
+also renewed host-positive orders 9, 15 and 44 after exact selected clean PASS and
+native installChildSA halt FAIL; only their selected producer seals changed to
+`17aa3b0ab62f6479`. These are partial-claim dependency proofs; the dual-form checkpoint
+names the logs. The original 83 historical rows remain unchanged; 75 current commands
+remain UNEXECUTED (55 guest, 20 host), and four historical receipts still have UNKNOWN
+current freshness. Both safety holds, the pending safety-action owner question,
+compliant-fragment RED, full AC-4 and separate mapped-return gap remain open. The P3
+C-proof proposal has independent design reviews CLEAR, including the observer manifest
+in draft `2438aa68`, but remains UNAPPROVED with A-R2 and A-R4 unvalidated; its prose
+landed in `467baad97515`. Its separate owner design question about prepared pairs versus
+recorder builds is PENDING. Seven later RFC792 rows stay post-release, with no tooling
+implementation or proof credit. No push was made by this session.
 ## Local ICMP proof receipt, 2026-11-16
 
 The dual-form spec's AC-1 now has all seven native runs of

@@ -12,33 +12,44 @@ must lose `{partial}` only when the broader obligation is actually proven.
 
 ## Current continuation, 2026-11-17
 
-Continue from the dual-form spec's **Current continuation checkpoint,
-2026-11-17**. It records landed guard commit `bde4a49a6347`, the separate
-11-test raw/packet PASS on d87/d2eb with matching 43a1 image, and scoped
-host/Linux engine lint PASS. Older unrun and source-only statements below
-are historical. Both specs remain open; no push was made by this session.
+Continue from the dual-form spec's **Current continuation checkpoint, 2026-11-17**. It
+records landed guard commit `bde4a49a6347`, the separate eleven-test raw and packet PASS
+on d87/d2eb with matching 43a1 image, and scoped host/Linux engine lint PASS. Older
+unrun and source-only statements below are historical. Both specs remain open; no push
+was made by this session.
 
-Next work is the sound IPv6 queue witness: both IPv4 SA-replacement orders
-passed, but IPv6 failed at the local reassembly counter before replacement.
-The independently CLEAR additive `TestIPv6XFRMFragmentQueueCounter` passed
-formatting and Linux compilation. Old-normal run 21799 failed at the absent
-`XfrmFrag6Queued` field, with no skips, exits 0/1/0 and stopped d87/d2eb+43a1 VM.
-Normal C counter source `e3ecc903` is independently CLEAR, with owning docs
-updated, but unbuilt and without changed-kernel GREEN. Build awaits all eight
-input and Colima compiler acknowledgments; no new candidate path is resolved.
-Lifetime helpers remain unchanged; native probe approval is not issued.
-The first native renewal recorded manifest order 58 after its selected clean
-PASS and producer-halt FAIL. Remaining current preparation is 78 UNEXECUTED
-commands (55 guest, 23 host); four historical receipts' freshness is UNKNOWN.
-This partial function-dependency proof gives no C-enforcement or full-RFC credit.
-Both rejected tasks and their owner question remain pending. Full AC-4,
-compliant-fragment RED and mapped-return work remain open. The generic C-proof
-route has independent schema/native-image reviews CLEAR, but remains an
-UNAPPROVED P3 design proposal with seven later RFC792 rows preserved. Its
-separate owner design question (prepare pairs separately versus recorder builds)
-is PENDING and does not approve either rejected safety action. No tooling
-implementation or C-proof credit is established.
-
+The sound IPv6 queue witness is now accepted. The missing-field RED in run 21799 on the
+preceding normal kernel retains its TDD scope. Normal build 43301 succeeded with C patch
+`e3ecc903`; actual B1 kernel SHA256
+`f82654a4d1458db3094449274348cf5268e0f09e912776a95b52263f27816536` and matching image
+`d9efda5bec4fd7f7` passed capability and counter tests in first boot run 36055. All
+eight input and Colima holds were released after its VM stopped. Independently approved
+helper source `08e8a270` observes `XfrmFrag6Queued` with negative rejection; IPv4
+parsing and lifetime assertions remain unchanged. Formatting 84982 and Linux compilation
+96345 passed; binary `b1a1994c` then passed exact lifetime run 55413 in 7.08 seconds,
+covering both families and arrival orders. Separate run 59439 passed the three raw tests
+and eight packet tests: eleven top-level PASS results on the B1/f826 kernel and matching
+d9 image. Both runs had no skips, zero exits, interrupted false and stopped VMs. Scoped
+engine lint 60545 passed host and Linux integration with zero issues. Owning docs are
+`3601b075`; this counter and helper phase landed in
+`84d13c03ee526447bc06646b4fb652fb35dd9bd1`. The dual-form checkpoint names the exact
+logs. Next is the remaining proof work. The first native renewal recorded manifest order
+58 after its selected clean PASS and producer-halt FAIL. Main also renewed host-positive
+orders 9, 15 and 44, runs 94797, 40175 and 17887, each exact selected clean PASS then
+native installChildSA halt FAIL, with only selected producer seals changed to
+`17aa3b0ab62f6479`. The dual-form checkpoint names the logs. These remain dependency
+proofs of partial tagged claims. Current orders 58, 9, 15 and 44 are RECORDED; remaining
+preparation is 75 UNEXECUTED commands (55 guest, 20 host); four historical receipts'
+freshness is UNKNOWN. This partial function-dependency proof gives no C-enforcement or
+full-RFC credit. Both rejected tasks and their owner question remain pending. Full AC-4,
+compliant-fragment RED and mapped-return work remain open. The generic C-proof route has
+independent schema, native-image and observer-manifest reviews CLEAR (draft `2438aa68`),
+but remains an UNAPPROVED P3 design proposal with A-R2 and A-R4 unvalidated and seven
+later RFC792 rows preserved. The design prose landed in
+`467baad97515e924378d0e7a58a8e56735046f98`; that commit grants no design approval. Its
+separate owner design question (prepare pairs separately versus recorder builds) is
+PENDING and does not approve either rejected safety action. No tooling implementation or
+C-proof credit is established.
 ## Landed work
 
 | Commit | Change and evidence limit |
