@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught",
+    "unit-sha": "342c2a3303e57002",
+    "claim-sha": "4446a4ff5e640dae",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateMEDAttr",
+    "producer-sha": "fb713b2e47d0bbb4",
+    "break": "line 818: \"if length != 4 {\" -\u003e \"if length != 4 \u0026\u0026 length != 3 { /* MUTATION-APPLIED: accept only malformed three-octet MED */\""
+  },
+  {
+    "rid": "RFC4271-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized",
+    "unit-sha": "2eacc232a8d5aa3e",
+    "claim-sha": "0463112287281d59",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/attribute.go::Recognized",
+    "producer-sha": "6722289bbb60e85a",
+    "break": "line 145: \"recognizedCodes[c\u003e\u003e6]\u0026(1\u003c\u003c(c\u002663)) != 0\" -\u003e \"c != AttrLocalPref \u0026\u0026 recognizedCodes[c\u003e\u003e6]\u0026(1\u003c\u003c(c\u002663)) != 0 /* MUTATION-APPLIED: misclassify LOCAL_PREF as unrecognized */\""
+  }
+]

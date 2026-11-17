@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller",
+    "unit-sha": "fed91dd1d440fe49",
+    "claim-sha": "edc9e0bb95dee570",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::publishNegotiation",
+    "producer-sha": "2fca262b9841d217",
+    "break": "line 169: \"s.timers.SetHoldTime(negotiatedHold)\" -\u003e \"s.timers.SetHoldTime(localHold) /* MUTATION-APPLIED: install local proposal instead of accepted negotiated Hold Time */\""
+  },
+  {
+    "rid": "RFC4271-6.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NegotiatedHoldTimeDrivesTimers",
+    "unit-sha": "c78c7971adba5641",
+    "claim-sha": "ddcb16ead7bd6398",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::publishNegotiation",
+    "producer-sha": "2fca262b9841d217",
+    "break": "line 169: \"s.timers.SetHoldTime(negotiatedHold)\" -\u003e \"s.timers.SetHoldTime(localHold) /* MUTATION-APPLIED: install local proposal instead of accepted negotiated Hold Time */\""
+  }
+]

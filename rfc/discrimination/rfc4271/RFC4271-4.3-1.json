@@ -4,7 +4,7 @@
     "polarity": "negative",
     "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught",
     "unit-sha": "342c2a3303e57002",
-    "claim-sha": "05581ed2fb654eb8",
+    "claim-sha": "81a2c216e6b5ebbb",
     "route": "mutant",
     "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
     "producer-sha": "473336292a0cad0a",

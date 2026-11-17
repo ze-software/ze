@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationSpecifiedSubcodePreserved",
+    "unit-sha": "8f039aff5fa9f632",
+    "claim-sha": "d01bf4d31b036ce7",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/notification.go::WriteTo",
+    "producer-sha": "1aa73dbc4e65ea69",
+    "break": "line 206: \"buf[off+HeaderLen+1] = n.ErrorSubcode\" -\u003e \"buf[off+HeaderLen+1] = n.ErrorSubcode; if n.ErrorSubcode != 0 { buf[off+HeaderLen+1] = 0 } /* MUTATION-APPLIED: erase caller-supplied specified subcodes */\""
+  },
+  {
+    "rid": "RFC4271-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationUnspecifiedSubcodeIsZero",
+    "unit-sha": "5b77b1d43a9ad911",
+    "claim-sha": "1010f9c1e468b3e3",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/notification.go::WriteTo",
+    "producer-sha": "1aa73dbc4e65ea69",
+    "break": "line 206: \"buf[off+HeaderLen+1] = n.ErrorSubcode\" -\u003e \"buf[off+HeaderLen+1] = n.ErrorSubcode; if n.ErrorCode == NotifyHoldTimerExpired \u0026\u0026 n.ErrorSubcode == 0 { buf[off+HeaderLen+1] = 1 } /* MUTATION-APPLIED: nonzero unspecified HoldTimerExpired subcode */\""
+  }
+]

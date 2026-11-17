@@ -366,17 +366,19 @@ func TestRFC4271NotificationUnspecifiedSubcodeIsZero(t *testing.T) {
 	assert.Equal(t, uint8(0), back.ErrorSubcode)
 }
 
-// TestRFC4271NotificationSpecifiedSubcodePreserved verifies the zero default does not
-// overwrite a subcode that was specified.
+// TestRFC4271NotificationSpecifiedSubcodePreserved verifies that packing retains a
+// caller-supplied nonzero subcode.
 //
-// VALIDATES: Cease/Administrative Shutdown and UPDATE/Malformed Attribute List keep their
-// non-zero subcodes through pack and unpack.
+// VALIDATES: The packed subcode octet equals the supplied value and is nonzero for
+// Cease/Administrative Shutdown, UPDATE/Malformed Attribute List and
+// OPEN/Unacceptable Hold Time. This root does not unpack the result.
 //
-// PREVENTS: Collapsing every NOTIFICATION to subcode zero.
+// PREVENTS: Replacing every specified subcode with the zero default.
 //
-// RFC requirement: RFC4271-6-1 negative -- a specified subcode is not replaced by the
-// zero default: the encoder writes the caller's value verbatim
-// (internal/component/bgp/message/notification.go:203).
+// RFC requirement: RFC4271-6-1 negative -- each of these three specified subcodes
+// is preserved in the packed NOTIFICATION body, contrasting with the separate
+// unspecified-subcode case
+// (internal/component/bgp/message/notification.go::Notification.WriteTo).
 func TestRFC4271NotificationSpecifiedSubcodePreserved(t *testing.T) {
 	for _, tc := range []struct {
 		code    NotifyErrorCode
@@ -452,21 +454,25 @@ func TestRFC4271FittingRouteIsAdvertised(t *testing.T) {
 	assert.Equal(t, []byte{24, 10, 0, 0}, got[0].NLRI)
 }
 
-// TestRFC4271WellKnownAttributesAreRecognized verifies the receiver knows every well-known
-// attribute type rather than treating unknown codes alike.
+// TestRFC4271WellKnownAttributesAreRecognized verifies recognition of the five
+// RFC 4271 well-known codes in one valid attribute bundle.
 //
-// VALIDATES: An UPDATE carrying ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ATOMIC_AGGREGATE
-// and AGGREGATOR validates clean on an internal session, and each well-known code runs its
-// own validator.
+// VALIDATES: With legacy NLRI declared, iBGP validation and four-octet ASNs,
+// ORIGIN, AS_PATH, NEXT_HOP, LOCAL_PREF and ATOMIC_AGGREGATE together produce
+// RFC7606ActionNone. MED and AGGREGATOR are optional extras in the same bundle;
+// this result does not independently prove that each optional codec ran.
 //
-// PREVENTS: Silently ignoring a well-known attribute the RFC requires every speaker to know.
+// PREVENTS: Classifying a correctly flagged well-known member of this bundle as
+// unknown, which the receive validator would report as a session reset.
 //
-// RFC requirement: RFC4271-5-1 positive -- every RFC 4271 well-known attribute has a
-// registered per-code validator that runs on receipt, so the code is recognized rather than
-// skipped (internal/component/bgp/message/rfc7606.go:414-438).
-// RFC requirement: RFC4271-5-2 positive -- an UPDATE carrying NLRI together with all three
-// well-known mandatory attributes is accepted
-// (internal/component/bgp/message/rfc7606.go:341-363).
+// RFC requirement: RFC4271-5-1 positive -- this complete five-code bundle passes
+// the unknown-well-known recognition guard with exact RFC7606ActionNone. This
+// checks recognition, rather than tracing every per-code validator invocation
+// (internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer).
+// RFC requirement: RFC4271-5-2 positive -- with legacy NLRI declared and ORIGIN,
+// AS_PATH and NEXT_HOP present, the default receive validator returns exactly
+// RFC7606ActionNone
+// (internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer).
 func TestRFC4271WellKnownAttributesAreRecognized(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
@@ -481,26 +487,32 @@ func TestRFC4271WellKnownAttributesAreRecognized(t *testing.T) {
 	require.Equal(t, RFC7606ActionNone, res.Action, res.Description)
 }
 
-// TestRFC4271WellKnownAttributeErrorsAreCaught verifies recognition is real: a malformation
-// in a well-known attribute is detected per type code.
+// TestRFC4271WellKnownAttributeErrorsAreCaught checks the listed malformed
+// attributes and ORIGIN flags/absence through the default receive validator.
 //
-// VALIDATES: A bad length on each of ORIGIN, NEXT_HOP, MED, LOCAL_PREF, ATOMIC_AGGREGATE and
-// AGGREGATOR is reported against that attribute's own type code; a well-known attribute
-// marked Optional is refused; and a missing well-known mandatory attribute is refused.
+// VALIDATES: Bad lengths for ORIGIN, NEXT_HOP, MED, LOCAL_PREF,
+// ATOMIC_AGGREGATE and AGGREGATOR produce a non-None action and their own type
+// code. These checks do not pin the exact action or cover malformed AS_PATH.
+// Separate ORIGIN Optional-bit, Transitive-bit and missing-ORIGIN cases require
+// exact TreatAsWithdraw and AttrCode ORIGIN.
 //
-// PREVENTS: A validator table that accepts anything, which would make the positive vacuous.
+// PREVENTS: Accepting these listed malformations and ORIGIN flag/absence cases
+// under the current default validation rules.
 //
-// RFC requirement: RFC4271-5-1 negative -- each well-known code is dispatched to its own
-// validator and a malformation is reported against that code, which is only possible if the
-// code was recognized (internal/component/bgp/message/rfc7606.go:414-438,441-545); a
-// well-known attribute carrying the Optional bit is refused
-// (internal/component/bgp/message/rfc7606.go:121-134).
-// RFC requirement: RFC4271-5-2 negative -- an UPDATE carrying NLRI but missing a well-known
-// mandatory attribute is not accepted
-// (internal/component/bgp/message/rfc7606.go:341-363).
-// RFC requirement: RFC4271-4.3-1 negative -- a well-known attribute received with the
-// Transitive bit clear is non-conformant and is refused
-// (internal/component/bgp/message/rfc7606.go:136-144).
+// RFC requirement: RFC4271-5-1 negative -- supplementary listed-malformation and
+// ORIGIN-flags controls accompany the recognition bundle. Non-None plus the
+// same reported code does not independently establish per-code recognition:
+// those length assertions also admit a same-code unknown-attribute reset
+// (internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer,
+// internal/component/bgp/message/rfc7606.go::validateAttributeFlags).
+// RFC requirement: RFC4271-5-2 negative -- with legacy NLRI declared, missing
+// ORIGIN produces exact TreatAsWithdraw and AttrCode ORIGIN under RFC 7606
+// Section 3(d)
+// (internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer).
+// RFC requirement: RFC4271-4.3-1 negative -- ORIGIN with its Transitive bit clear,
+// while the other mandatory attributes are valid, produces exact
+// TreatAsWithdraw and AttrCode ORIGIN under RFC 7606 Section 3(c)
+// (internal/component/bgp/message/rfc7606.go::validateAttributeFlags).
 func TestRFC4271WellKnownAttributeErrorsAreCaught(t *testing.T) {
 	origin := []byte{0x40, 0x01, 0x01, 0x00}
 	asPath := []byte{0x40, 0x02, 0x00}

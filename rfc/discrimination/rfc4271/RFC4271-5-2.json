@@ -31,5 +31,27 @@
     "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
     "producer-sha": "9a2131cf7338716b",
     "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught",
+    "unit-sha": "342c2a3303e57002",
+    "claim-sha": "83e41371368d3f07",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "line 609: \"if !hasOrigin {\" -\u003e \"if !hasOrigin \u0026\u0026 false { /* MUTATION-APPLIED: omit only legacy missing-ORIGIN enforcement */\""
+  },
+  {
+    "rid": "RFC4271-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized",
+    "unit-sha": "2eacc232a8d5aa3e",
+    "claim-sha": "82ec02ced0f4c815",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "line 556: \"hasOrigin = true\" -\u003e \"hasOrigin = false /* MUTATION-APPLIED: fail to retain presence of the valid ORIGIN */\""
   }
 ]
