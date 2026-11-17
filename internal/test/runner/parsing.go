@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"sort"
 	"strconv"
@@ -86,10 +87,19 @@ type parsingTest struct {
 	// Environment variables to set when running commands.
 	EnvVars []string
 
-	// SkipReason: when non-empty, the runner reports SKIP without
-	// running the test. Set by option=skip-os:value=<list>
-	// when the current GOOS is in the list.
+	// SkipReason: when non-empty, the runner reports SKIP without running
+	// the test. Set by explicit admission or the shared population filter.
 	SkipReason string
+
+	// NeedsLinux retains the shared option reader's declaration until every
+	// option is parsed and the common population filter can judge this test.
+	NeedsLinux bool
+
+	// buildTags are validated conditions on the selected DUT, not host tags.
+	// Empty means that the test needs no build metadata admission.
+	buildTags []buildTagRequirement
+	// buildTagResult distinguishes a previous build verdict from host admission.
+	buildTagResult bool
 
 	// ParseError marks a .ci file that could not be parsed at discovery time.
 	// Discover records the file as a permanent failure and continues, so one
@@ -314,6 +324,9 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 		return test, errNoConfigContentOrCommandsFound
 	}
 
+	// Every option is now final. Malformed files return above and never use
+	// a selection filter to hide their discovery failure.
+	test.SkipReason = linuxOnlySkipReason(test.SkipReason, test.NeedsLinux)
 	return test, nil
 }
 
@@ -330,6 +343,9 @@ type ciFileParser struct {
 // ciDirective binds one .ci directive prefix to the parser that reads its value.
 type ciDirective struct {
 	prefix string
+	// wholeToken requires the prefix to end the directive's option name.
+	// Only an empty suffix or colon-delimited fields can follow it.
+	wholeToken bool
 	// needsCommand marks a directive whose value asserts against the preceding
 	// cmd=. The dispatcher refuses such a directive when no cmd= has been read.
 	needsCommand bool
@@ -368,6 +384,8 @@ var ciDirectives = []ciDirective{
 	{prefix: "reject=stderr:pattern=", needsCommand: true, parse: (*ciFileParser).parseRejectStderrPattern},
 	{prefix: "option=skip-os:value=", parse: (*ciFileParser).parseSkipOS},
 	{prefix: "option=env:", parse: (*ciFileParser).parseEnv},
+	{prefix: "option=needs-linux", wholeToken: true, parse: (*ciFileParser).parseNeedsLinux},
+	{prefix: "option=" + optionNeedsBuildTag, wholeToken: true, parse: (*ciFileParser).parseNeedsBuildTag},
 }
 
 // line reads one directive line and refuses one no entry of ciDirectives reads.
@@ -387,6 +405,13 @@ func (p *ciFileParser) line(trimmed string) error {
 		after, ok := strings.CutPrefix(trimmed, d.prefix)
 		if !ok {
 			continue
+		}
+		if d.wholeToken {
+			if after != "" {
+				if !strings.HasPrefix(after, ":") {
+					continue
+				}
+			}
 		}
 		if d.needsCommand && p.cur == nil {
 			return fmt.Errorf("%q has no cmd= line before it to assert against", trimmed)
@@ -497,6 +522,51 @@ func (p *ciFileParser) parseRejectStderrPattern(value string) error {
 	return nil
 }
 
+// parseNeedsLinux shares the generic option's key and admission rules. The
+// dispatcher MUST check the option-name boundary before passing the suffix.
+// Passing the actual file retains the guest route instead of a placeholder.
+func (p *ciFileParser) parseNeedsLinux(value string) error {
+	arm := recordOptionArms["needs-linux"]
+	fields := strings.Split(value, ":")[1:]
+	kv, err := parseDirectiveKV("option=needs-linux", fields, arm.keys)
+	if err != nil {
+		return err
+	}
+	if err := checkKeys("option=needs-linux", kv, arm.keys...); err != nil {
+		return err
+	}
+	record := &Record{}
+	if err := arm.parse(record, p.test.File, kv); err != nil {
+		return err
+	}
+	p.test.NeedsLinux = record.NeedsLinux
+	if record.SkipReason != "" {
+		p.test.SkipReason = record.SkipReason
+	}
+	return nil
+}
+
+// parseNeedsBuildTag uses the registered whole-option parser and retains its
+// typed conditions across lines, including duplicate/contradiction checks.
+func (p *ciFileParser) parseNeedsBuildTag(value string) error {
+	arm := recordOptionArms[optionNeedsBuildTag]
+	name := "option=" + optionNeedsBuildTag
+	fields := strings.Split(value, ":")[1:]
+	kv, err := parseDirectiveKV(name, fields, arm.keys)
+	if err != nil {
+		return err
+	}
+	if err := checkKeys(name, kv, arm.keys...); err != nil {
+		return err
+	}
+	record := &Record{buildTags: p.test.buildTags}
+	if err := arm.parse(record, p.test.File, kv); err != nil {
+		return err
+	}
+	p.test.buildTags = record.buildTags
+	return nil
+}
+
 func (p *ciFileParser) parseSkipOS(value string) error {
 	for skipOS := range strings.SplitSeq(value, ",") {
 		if strings.TrimSpace(skipOS) != runtime.GOOS {
@@ -567,6 +637,9 @@ type parsingRunner struct {
 	tests   *ParsingTests
 	baseDir string
 	zePath  string
+	// readDUTBuildInfo models the artifact boundary in tests. Nil selects the
+	// real Go build information reader on this run's final zePath.
+	readDUTBuildInfo func(string) (*debug.BuildInfo, error)
 	// lePath is this runner's own executable, so a `cmd=...:exec=le ...` line
 	// runs the le that runs the suite and never a PATH lookup: the gate's bin
 	// directory is not on PATH, and the generic runner (runner_exec.go)
@@ -644,6 +717,39 @@ func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	runner.setNoHeader(true) // header managed by caller
 	runner.SetBaseDir(r.baseDir)
 
+	for _, test := range selected {
+		if test.buildTagResult {
+			test.SkipReason = ""
+			test.Error = nil
+			test.buildTagResult = false
+		}
+	}
+	for _, test := range selected {
+		if test.ParseError != nil {
+			continue
+		}
+		if test.SkipReason != "" {
+			continue
+		}
+		if len(test.buildTags) == 0 {
+			continue
+		}
+		dut := newDUTBuildTags(r.zePath, r.readDUTBuildInfo)
+		runner.setAdmission(func(parsed *parsingTest) (string, error) {
+			reason, err := dut.admit(parsed.buildTags)
+			if err != nil {
+				parsed.Error = err
+				parsed.buildTagResult = true
+			}
+			if reason != "" {
+				parsed.SkipReason = reason
+				parsed.buildTagResult = true
+			}
+			return reason, err
+		})
+		break
+	}
+
 	// An authored `timeout=` is measured on an uncontended run, so a budget set
 	// near the uncontended time flakes when tests share CPU. Widen it by the
 	// same ParallelTimeoutHeadroom the generic runner applies, and only when
@@ -669,12 +775,13 @@ func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		// file, so honoring it would let a malformed skip-marked test report SKIP
 		// (and pass) instead of failing. See the argument in parallel.go.
 		if test.ParseError != nil {
+			test.Error = test.ParseError
 			rec.ParseFailed = true
 			rec.SetState(StateFail)
 			rec.Error = test.ParseError
 			continue
 		}
-		// Propagate per-test SkipReason (from option=skip-os) onto the
+		// Propagate per-test SkipReason (from skip-os or needs-linux) onto the
 		// Record so ParallelRunner.Run honors it without running the test.
 		rec.SkipReason = test.SkipReason
 	}

@@ -239,11 +239,25 @@ generateDecoded:
 	// QEMU VM spends its time on the Linux-only surface, not re-running tests
 	// that already pass natively. Applied after all options are parsed so the
 	// needs-linux flag is final. Never overrides an existing skip reason.
-	if r.SkipReason == "" && !r.NeedsLinux && os.Getenv("ZE_QEMU_LINUX_ONLY") == "1" {
-		r.SkipReason = "ZE_QEMU_LINUX_ONLY (not option=needs-linux)"
-	}
+	r.SkipReason = linuxOnlySkipReason(r.SkipReason, r.NeedsLinux)
 
 	return r, nil
+}
+
+// linuxOnlySkipReason preserves an existing admission decision, then applies
+// the QEMU Linux-only population filter. An empty result keeps the test runnable.
+// Callers MUST finish parsing every option before asking for this decision.
+func linuxOnlySkipReason(existing string, needsLinux bool) string {
+	if existing != "" {
+		return existing
+	}
+	if needsLinux {
+		return ""
+	}
+	if os.Getenv("ZE_QEMU_LINUX_ONLY") == "1" {
+		return "ZE_QEMU_LINUX_ONLY (not option=needs-linux)"
+	}
+	return ""
 }
 
 // parseLine parses a single .ci line in the action=type:key=value format.

@@ -171,16 +171,17 @@ type parallelRunner[T any] struct {
 	colors         *Colors
 	quiet          bool
 	verbose        bool
-	label          string         // test suite label for header
-	noHeader       bool           // if true, don't print header in Run (caller manages it)
-	noSummary      bool           // if true, skip Summary/TimingDetail/DebugHints in Run
-	onFail         func(T, error) // Called for each failed test to print its reason
-	onReport       func(*Tests)   // Called after run when there are failures (for PrintAllFailures)
-	onVerbose      func(*Tests)   // Called after run under -v, failures or not (for the step trace)
-	baseDir        string         // project root for timing baseline persistence
-	concurrency    int            // max concurrent tests; 0 means DefaultParallelConcurrent
-	statusInterval time.Duration  // status ticker interval; 0 means StatusUpdateInterval
-	hostLoad       *HostLoad      // snapshot at run start; suppresses baseline when contended
+	label          string                  // test suite label for header
+	noHeader       bool                    // if true, don't print header in Run (caller manages it)
+	noSummary      bool                    // if true, skip Summary/TimingDetail/DebugHints in Run
+	onFail         func(T, error)          // Called for each failed test to print its reason
+	admission      func(T) (string, error) // Optional: empty reason permits execution, nonempty skips.
+	onReport       func(*Tests)            // Called after run when there are failures (for PrintAllFailures)
+	onVerbose      func(*Tests)            // Called after run under -v, failures or not (for the step trace)
+	baseDir        string                  // project root for timing baseline persistence
+	concurrency    int                     // max concurrent tests; 0 means DefaultParallelConcurrent
+	statusInterval time.Duration           // status ticker interval; 0 means StatusUpdateInterval
+	hostLoad       *HostLoad               // snapshot at run start; suppresses baseline when contended
 }
 
 // NewParallelRunner creates a parallel test runner.
@@ -276,6 +277,12 @@ func (r *parallelRunner[T]) setHostLoad(h *HostLoad) {
 	r.hostLoad = h
 }
 
+// setAdmission supplies a pre-resource verdict for eligible tests. The caller
+// MUST set it before Run. Nil performs no additional admission work.
+func (r *parallelRunner[T]) setAdmission(admit func(T) (string, error)) {
+	r.admission = admit
+}
+
 // addRecord adds a test with a pre-existing Record. The Record must already
 // be registered in the Display's Tests. Use when the caller owns the Records
 // (e.g., .ci Runner delegates scheduling but keeps its own Record set).
@@ -369,6 +376,21 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 				t.Record.SetState(StateSkip)
 				outcome.passed = true
 				return
+			}
+			if r.admission != nil {
+				skipReason, err := r.admission(t.Test)
+				if err != nil {
+					t.Record.Error = err
+					t.Record.SetState(StateFail)
+					outcome.err = err
+					return
+				}
+				if skipReason != "" {
+					t.Record.SkipReason = skipReason
+					t.Record.SetState(StateSkip)
+					outcome.passed = true
+					return
+				}
 			}
 
 			// Take the group lock BEFORE the concurrency semaphore. Reversing these

@@ -114,22 +114,23 @@ var (
 // key going red (ai/rules/principles.md, one declaration).
 var (
 	recordOptionArms = map[string]optionArm{
-		"asn":             {keys: []string{keyValue}, parse: parseOptionAsn},
-		"bind":            {keys: []string{keyValue}, parse: parseOptionBind},
-		"env":             {keys: []string{keyVar, keyValue}, parse: parseOptionEnv},
-		"exclusive":       {keys: []string{keyGroup}, parse: parseOptionExclusive, resource: true},
-		directiveTypeFile: {keys: []string{"path"}, parse: parseOptionFile},
-		"needs-arch":      {keys: []string{keyValue}, parse: parseOptionNeedsArch},
-		"needs-linux":     {keys: []string{"caps"}, parse: parseOptionNeedsLinux, resource: true},
-		"needs-path":      {keys: []string{keyValue, "hint"}, parse: parseOptionNeedsPath},
-		"netns-link":      {keys: []string{"name", keyPeer, "address", "vlan"}, parse: parseOptionNetnsLink},
-		directiveTypeOpen: {keys: []string{keyValue}, parse: parseOptionOpen},
-		"skip-env":        {keys: []string{keyVar, keyValue}, parse: parseOptionSkipEnv},
-		"skip-os":         {keys: []string{keyValue}, parse: parseOptionSkipOs},
-		"storage":         {keys: []string{keyValue}, parse: parseOptionStorage},
-		"tcp_connections": {keys: []string{keyValue}, parse: parseOptionTcpConnections},
-		"timeout":         {keys: []string{keyValue}, parse: parseOptionTimeout},
-		"update":          {keys: []string{keyValue}, parse: parseOptionUpdate},
+		"asn":               {keys: []string{keyValue}, parse: parseOptionAsn},
+		"bind":              {keys: []string{keyValue}, parse: parseOptionBind},
+		"env":               {keys: []string{keyVar, keyValue}, parse: parseOptionEnv},
+		"exclusive":         {keys: []string{keyGroup}, parse: parseOptionExclusive, resource: true},
+		directiveTypeFile:   {keys: []string{"path"}, parse: parseOptionFile},
+		"needs-arch":        {keys: []string{keyValue}, parse: parseOptionNeedsArch},
+		optionNeedsBuildTag: {keys: []string{keyValue, "state"}, parse: parseOptionNeedsBuildTag, selectedDUT: true},
+		"needs-linux":       {keys: []string{"caps"}, parse: parseOptionNeedsLinux, resource: true},
+		"needs-path":        {keys: []string{keyValue, "hint"}, parse: parseOptionNeedsPath},
+		"netns-link":        {keys: []string{"name", keyPeer, "address", "vlan"}, parse: parseOptionNetnsLink},
+		directiveTypeOpen:   {keys: []string{keyValue}, parse: parseOptionOpen},
+		"skip-env":          {keys: []string{keyVar, keyValue}, parse: parseOptionSkipEnv},
+		"skip-os":           {keys: []string{keyValue}, parse: parseOptionSkipOs},
+		"storage":           {keys: []string{keyValue}, parse: parseOptionStorage},
+		"tcp_connections":   {keys: []string{keyValue}, parse: parseOptionTcpConnections},
+		"timeout":           {keys: []string{keyValue}, parse: parseOptionTimeout},
+		"update":            {keys: []string{keyValue}, parse: parseOptionUpdate},
 	}
 
 	recordActionArms = map[string]kvArm{
@@ -153,9 +154,10 @@ var (
 // The parser takes the .ci path because option=file and option=needs-path
 // resolve a path against it.
 type optionArm struct {
-	resource bool // Shared resource admission, also consumed by non-.ci adapters.
-	keys     []string
-	parse    func(r *Record, ciFile string, kv map[string]string) error
+	resource    bool // Shared resource admission, also consumed by non-.ci adapters.
+	selectedDUT bool // Requires the .ci runner's final DUT, absent in resource-only adapters.
+	keys        []string
+	parse       func(r *Record, ciFile string, kv map[string]string) error
 }
 
 // kvArm is one type of a key=value directive family that needs no path.

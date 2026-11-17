@@ -40,6 +40,9 @@ func ParseResourceOption(r *Record, declaration string) (bool, error) {
 	if !found {
 		return false, nil
 	}
+	if arm.selectedDUT {
+		return true, fmt.Errorf("option=%s requires a selected DUT; resource-only admission does not supply one", parts[0])
+	}
 	if !arm.resource {
 		return false, nil
 	}
@@ -165,7 +168,7 @@ func parseOptionSkipOs(r *Record, _ string, kv map[string]string) error {
 		return errOptionSkipOsMissingValue
 	}
 	// Record a skip reason when the current GOOS is in the skip list.
-	// The .ci format has no build tags, so OS-specific features (e.g.
+	// OS-specific features (e.g.
 	// Linux-only IP_RECVTTL for BFD echo) gate at parse time. The runner
 	// honors SkipReason regardless of whether the user selected the test
 	// by name -- asking for an unsupported test on the wrong OS reports

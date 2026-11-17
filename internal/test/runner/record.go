@@ -269,6 +269,13 @@ type Record struct {
 	// platforms). Set at parse time and persists across Activate() calls.
 	SkipReason string
 
+	// buildTags holds validated predicates on this run's selected DUT.
+	// An empty slice declares no condition and MUST NOT cause metadata IO.
+	buildTags []buildTagRequirement
+	// buildTagResult marks a previous DUT admission's Error or SkipReason.
+	// A later Run clears only this verdict before selecting its new artifact.
+	buildTagResult bool
+
 	// NeedsLinux is set when the test carries option=needs-linux: it requires a
 	// real Linux kernel and is validated in the QEMU Alpine VM. Used by the
 	// ZE_QEMU_LINUX_ONLY filter (the `./le test qemu all` tight loop) to

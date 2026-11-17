@@ -548,6 +548,19 @@ reference the old inode, and a replacement would allow two holders.
 <!-- source: internal/test/runner/parallel.go -- parallelRunner.Run -->
 <!-- source: internal/test/runner/exclusive.go -- leaseExclusiveGroup, waitExclusiveGroup -->
 
+The generic `.ci` and parse runners apply `needs-build-tag` to their final
+selected DUT path. A snapshot for each run reads embedded Go build information
+only for a declaring case that passed parse and host admission. A known
+present/absent mismatch skips that case with the artifact and predicate;
+unknown metadata fails it. This admission runs before the exclusive lease and
+concurrency semaphore. Parse-runner failures and skips are retained on both the
+scheduler record and original parsing test so failure output preserves the
+cause. Resource-only consumers reject this declaration.
+<!-- source: internal/test/runner/build_tags.go -- dutBuildTags.admit, explicitDUTBuildTags -->
+<!-- source: internal/test/runner/parallel.go -- parallelRunner.Run -->
+<!-- source: internal/test/runner/parsing.go -- parsingRunner.Run -->
+<!-- source: internal/test/runner/runner.go -- Runner.runSelected -->
+
 Every participating runner MUST be rebuilt after this cutover. Old in-memory
 gates do not coordinate with these leases, and there is no fallback to them.
 Different users, isolated `/tmp` filesystems, and nonparticipating processes

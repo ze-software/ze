@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -146,11 +147,14 @@ type Runner struct {
 	baseDir string
 	tmpDir  string
 	zePath  string
-	lePath  string // this process's own le, which answers every harness command
-	display *Display
-	report  *Report
-	colors  *Colors
-	timings Timings // rolling timing baseline
+	// readDUTBuildInfo is set only by metadata-boundary tests. Nil selects
+	// debug/buildinfo.ReadFile on this run's final zePath.
+	readDUTBuildInfo func(string) (*debug.BuildInfo, error)
+	lePath           string // this process's own le, which answers every harness command
+	display          *Display
+	report           *Report
+	colors           *Colors
+	timings          Timings // rolling timing baseline
 
 	// observeProcessExit replaces the kernel observation in lifecycle fault tests.
 	// Nil uses beforeReap. Set before running tests; never changed during a run.
@@ -603,6 +607,38 @@ func (r *Runner) runSelected(ctx context.Context, opts *RunOptions) bool {
 	pr.SetLabel(r.display.label)
 	pr.setNoHeader(true)
 	pr.setHostLoad(&load)
+
+	for _, rec := range selected {
+		if rec.buildTagResult {
+			rec.SkipReason = ""
+			rec.Error = nil
+			rec.SetState(StateNone)
+			rec.buildTagResult = false
+		}
+	}
+	for _, rec := range selected {
+		if rec.ParseFailed {
+			continue
+		}
+		if rec.SkipReason != "" {
+			continue
+		}
+		if len(rec.buildTags) == 0 {
+			continue
+		}
+		dut := newDUTBuildTags(r.zePath, r.readDUTBuildInfo)
+		pr.setAdmission(func(record *Record) (string, error) {
+			reason, err := dut.admit(record.buildTags)
+			if err != nil {
+				record.buildTagResult = true
+			}
+			if reason != "" {
+				record.buildTagResult = true
+			}
+			return reason, err
+		})
+		break
+	}
 
 	if !opts.SkipTimings {
 		pr.SetBaseDir(r.baseDir)

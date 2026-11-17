@@ -159,7 +159,7 @@ func linuxProcessDisappearance(procRoot, pid string, pgid int, taskErr error) (b
 }
 
 func readLinuxProcessState(path string) (byte, int, error) {
-	stat, err := os.ReadFile(path)
+	stat, err := os.ReadFile(path) //nolint:gosec // Production builds stat paths under /proc from numeric task entries; only package tests supply their own proc root.
 	if err != nil {
 		return 0, 0, err
 	}
