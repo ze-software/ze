@@ -95,6 +95,8 @@ func (e *Engine) Start(ctx context.Context) error {
 
 // Stop gracefully shuts down all components in reverse order:
 // subsystems stop (reverse registration order) → plugins stop.
+// Every owner runs after another fails, and the result retains every failure.
+// The result is nil only when every owner succeeds.
 // Idempotent — second call returns nil.
 func (e *Engine) Stop(ctx context.Context) error {
 	e.mu.Lock()
@@ -105,20 +107,20 @@ func (e *Engine) Stop(ctx context.Context) error {
 	}
 
 	// Stop subsystems in reverse registration order.
-	var firstErr error
+	var cleanupFailure error
 	for _, sub := range slices.Backward(e.subsystems) {
-		if err := sub.Stop(ctx); err != nil && firstErr == nil {
-			firstErr = fmt.Errorf("stop subsystem %q: %w", sub.Name(), err)
+		if err := sub.Stop(ctx); err != nil {
+			cleanupFailure = errors.Join(cleanupFailure, fmt.Errorf("stop subsystem %q: %w", sub.Name(), err))
 		}
 	}
 
 	// Stop plugins.
-	if err := e.plugins.StopAll(ctx); err != nil && firstErr == nil {
-		firstErr = fmt.Errorf("stop plugins: %w", err)
+	if err := e.plugins.StopAll(ctx); err != nil {
+		cleanupFailure = errors.Join(cleanupFailure, fmt.Errorf("stop plugins: %w", err))
 	}
 
 	e.stopped = true
-	return firstErr
+	return cleanupFailure
 }
 
 // Reload re-reads config and notifies all subsystems in registration order.

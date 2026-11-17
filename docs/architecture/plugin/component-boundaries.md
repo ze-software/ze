@@ -30,6 +30,12 @@ plugins depend on them.
 daemon is a subsystem: it owns TCP and the FSM. `bgp-rib`, `bgp-rs` and `bgp-gr`
 are plugins.
 
+`Engine.Stop` visits every subsystem in reverse registration order, then the
+plugin manager. A failure never skips the next owner. Its returned error keeps
+every cleanup cause, so the hub can report an unclean stop with the complete
+diagnosis. A repeated Stop performs no cleanup and returns nil.
+<!-- source: internal/component/engine/engine.go -- Stop -->
+
 `Engine.Reload` calls every registered subsystem once, in registration order,
 with the same context and config provider. A subsystem failure does not prevent
 later subsystems from reloading. The returned error retains each failure with
