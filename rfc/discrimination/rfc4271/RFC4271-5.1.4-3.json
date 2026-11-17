@@ -9,5 +9,16 @@
     "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::genericAttrSetHandler",
     "producer-sha": "8412bbcfb16f03b3",
     "break": "line 66: \"p.Op(setIdx)\" -\u003e \"if code == 4 { keepOrDrop(p); return }; p.Op(setIdx) /* MUTATION-APPLIED: preserve received MED */\""
+  },
+  {
+    "rid": "RFC4271-5.1.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress",
+    "unit-sha": "8e42881d51980f80",
+    "claim-sha": "bae3d5dc6b9aebf4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyOneMessage",
+    "producer-sha": "b526419fda491cdc",
+    "break": "line 722: \"res.modifiedPayload != nil\" -\u003e \"res.modifiedPayload != nil \u0026\u0026 step.policyChain\""
   }
 ]

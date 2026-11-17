@@ -9,5 +9,27 @@
     "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
     "producer-sha": "8b0b0d30f493cd20",
     "break": "line 804: \"!srcInfo.isRRClient \u0026\u0026 !facts.rrClient\" -\u003e \"false /* MUTATION-APPLIED: allow iBGP non-client redistribution */\""
+  },
+  {
+    "rid": "RFC4271-9.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient",
+    "unit-sha": "ebcc53f80e8af144",
+    "claim-sha": "8748a80ed5764936",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "60e111189d9f0054",
+    "break": "line 452: \"!srcIsRRClient \u0026\u0026 !facts.rrClient\" -\u003e \"(!srcIsRRClient || srcIsRRClient) \u0026\u0026 !facts.rrClient /* MUTATION-APPLIED: ignore source-client exception */\""
+  },
+  {
+    "rid": "RFC4271-9.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution",
+    "unit-sha": "40dc7aa994fbd553",
+    "claim-sha": "2b0797ad1f13fc31",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "60e111189d9f0054",
+    "break": "line 452: \"!srcIsRRClient \u0026\u0026 !facts.rrClient\" -\u003e \"!srcIsRRClient \u0026\u0026 !facts.rrClient \u0026\u0026 false /* MUTATION-APPLIED: permit ordinary internal redistribution */\""
   }
 ]

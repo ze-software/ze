@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"context"
 	"net/netip"
 	"sync"
 	"testing"
@@ -16,10 +17,12 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // rfc4271Announce encodes an announce UPDATE for 10.0.0.0/24 toward an internal or
@@ -457,24 +460,80 @@ func TestRFC4271OwnASUnreachabilityChangeAdvertised(t *testing.T) {
 // UPDATE is dispatched to the RIB plugin that runs phases 1 and 2
 // (internal/component/bgp/reactor/reactor_notify.go:427-466).
 func TestRFC4271MEDAlterationHappensAtIngress(t *testing.T) {
-	original := []byte{
-		0x00, 0x00, 0x00, 0x0b,
-		0x40, 0x01, 0x01, 0x00,
-		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED = 100
-	}
-	rewritten := append([]byte(nil), original...)
-	rewritten[len(rewritten)-1] = 0x0a // MED = 10
+	t.Run("wrapper-return", func(t *testing.T) {
+		original := []byte{
+			0x00, 0x00, 0x00, 0x0b,
+			0x40, 0x01, 0x01, 0x00,
+			0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED = 100
+		}
+		rewritten := append([]byte(nil), original...)
+		rewritten[len(rewritten)-1] = 0x0a // MED = 10
 
-	medFilter := func(_ filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
-		require.Equal(t, original, payload, "the filter sees the received UPDATE")
-		return true, rewritten
-	}
-	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+		medFilter := func(_ filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
+			require.Equal(t, original, payload, "the filter sees the received UPDATE")
+			return true, rewritten
+		}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 
-	accept, modified := safeIngressFilter(medFilter, src, original, map[string]any{})
-	require.True(t, accept)
-	require.Equal(t, rewritten, modified,
-		"the altered MED is what the ingress loop installs before dispatch")
+		accept, modified := safeIngressFilter(medFilter, src, original, map[string]any{})
+		require.True(t, accept)
+		require.Equal(t, rewritten, modified,
+			"the altered MED is what the ingress loop installs before dispatch")
+	})
+
+	t.Run("received-route", func(t *testing.T) {
+		addr := netip.MustParseAddr("203.0.113.9")
+		ctx := bgpctx.EncodingContextForASN4(true)
+		ctxID, err := bgpctx.Registry.Register(ctx)
+		require.NoError(t, err)
+		source := wkPeer(t, addr.String(), 65001, ctx, ctxID)
+
+		attrs := []byte{
+			0x40, 0x01, 0x01, 0x00, // ORIGIN igp
+			0x40, 0x02, 0x06, 0x02, 0x01, 0, 0, 0xFD, 0xE9, // AS_PATH [65001]
+			0x40, 0x03, 0x04, 203, 0, 113, 9, // NEXT_HOP
+			0x80, 0x04, 0x04, 0, 0, 0, 100, // MED 100
+		}
+		received := buildUpdatePayload(attrs, []byte{24, 192, 0, 2})
+		rewrittenAttrs := append([]byte(nil), attrs...)
+		rewrittenAttrs[len(rewrittenAttrs)-1] = 10
+		rewritten := buildUpdatePayload(rewrittenAttrs, []byte{24, 192, 0, 2})
+		calls := 0
+		medFilter := func(_ filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
+			calls++
+			require.Equal(t, received, payload, "the ingress step sees the received route")
+			return true, rewritten
+		}
+		var dispatched []bgptypes.RawMessage
+		r := &Reactor{
+			clock:           source.clock,
+			config:          &Config{LocalAS: 65000},
+			peers:           map[netip.AddrPort]*Peer{source.Settings().PeerKey(): source},
+			recentUpdates:   newRecentUpdateCache(100),
+			attrModHandlers: attrModHandlersWithDefaults(),
+			messageReceiver: &testDeliveryReceiver{consumerCount: 1, onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
+				dispatched = append(dispatched, msg)
+			}},
+			orderedIngressSteps: []orderedIngressStep{{name: "alter-med-inproc", inproc: medFilter}},
+		}
+		wu := wireu.NewWireUpdate(received, ctxID)
+		wu.SetSourceID(source.SourceID())
+		r.notifyMessageReceiver(addr, msgtype.TypeUPDATE, received, wu, ctxID, rpc.DirectionReceived,
+			BufHandle{ID: noPoolBufID, Buf: received}, nil, "", 0)
+
+		require.Equal(t, 1, calls, "the production ingress loop invokes the configured alteration")
+		require.Len(t, dispatched, 1, "one useful route reaches the RIB receiver")
+		msg := dispatched[0]
+		raw := payloadMED(msg.RawBytes)
+		require.True(t, raw.present)
+		require.Equal(t, []byte{0, 0, 0, 10}, raw.raw, "the RIB receives the altered raw MED")
+		require.NotNil(t, msg.WireUpdate)
+		view := payloadMED(msg.WireUpdate.Payload())
+		require.True(t, view.present)
+		require.Equal(t, []byte{0, 0, 0, 10}, view.raw, "the RIB receives the altered wire-view MED")
+		require.Equal(t, rewritten, msg.RawBytes, "the received route and its other attributes survive")
+		require.Equal(t, rewritten, msg.WireUpdate.Payload())
+	})
 }
 
 // rfc4271IBGPPeer builds an established iBGP RS fast-path peer.
@@ -515,50 +574,138 @@ func rfc4271IBGPPeer(t *testing.T, addr string, routerID uint32, rrClient bool, 
 // destination for an internally learned route unless the source or the destination is a
 // route reflector client (internal/component/bgp/reactor/forward_rs.go:309-313).
 func TestRFC4271NoIBGPToIBGPRedistribution(t *testing.T) {
-	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID, _ := bgpctx.Registry.Register(ctx)
+	t.Run("empty-update", func(t *testing.T) {
+		ctx := bgpctx.EncodingContextForASN4(true)
+		ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	payload := []byte{0, 0, 0, 0}
-	wu := wireu.NewWireUpdate(payload, ctxID)
-	wu.SetMessageID(81)
-	update := &ReceivedUpdate{
-		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	}
-	cache := newRecentUpdateCache(100)
-	cache.Add(update)
-	cache.Activate(81, 1)
+		payload := []byte{0, 0, 0, 0}
+		wu := wireu.NewWireUpdate(payload, ctxID)
+		wu.SetMessageID(81)
+		update := &ReceivedUpdate{
+			WireUpdate:   wu,
+			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+			ReceivedAt:   time.Now(),
+		}
+		cache := newRecentUpdateCache(100)
+		cache.Add(update)
+		cache.Activate(81, 1)
 
-	src := rfc4271IBGPPeer(t, "10.0.0.1", 0x01020301, false, ctx, ctxID)
-	src.remoteRouterID.Store(0x0A000001)
-	dst := rfc4271IBGPPeer(t, "10.0.0.2", 0x01020302, false, ctx, ctxID)
+		src := rfc4271IBGPPeer(t, "10.0.0.1", 0x01020301, false, ctx, ctxID)
+		src.remoteRouterID.Store(0x0A000001)
+		dst := rfc4271IBGPPeer(t, "10.0.0.2", 0x01020302, false, ctx, ctxID)
 
-	var mu sync.Mutex
-	var dispatched []fwdItem
-	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		var mu sync.Mutex
+		var dispatched []fwdItem
+		testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+			mu.Lock()
+			dispatched = append(dispatched, items...)
+			mu.Unlock()
+		}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+		defer testPool.Stop()
+
+		r := &Reactor{
+			recentUpdates:   cache,
+			attrModHandlers: attrModHandlersWithDefaults(),
+			peers: map[netip.AddrPort]*Peer{
+				src.Settings().PeerKey(): src,
+				dst.Settings().PeerKey(): dst,
+			},
+			fwdPool: testPool,
+		}
+
+		reactorForwardRS(r, update, 81, netip.MustParseAddr("10.0.0.1"), src)
+
+		time.Sleep(50 * time.Millisecond)
 		mu.Lock()
-		dispatched = append(dispatched, items...)
-		mu.Unlock()
-	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
-	defer testPool.Stop()
+		defer mu.Unlock()
+		assert.Empty(t, dispatched, "iBGP-learned route must not be redistributed to another iBGP peer")
+	})
 
-	r := &Reactor{
-		recentUpdates:   cache,
-		attrModHandlers: attrModHandlersWithDefaults(),
-		peers: map[netip.AddrPort]*Peer{
-			src.Settings().PeerKey(): src,
-			dst.Settings().PeerKey(): dst,
-		},
-		fwdPool: testPool,
-	}
+	t.Run("received-route", func(t *testing.T) {
+		ctx := bgpctx.EncodingContextForASN4(true)
+		ctxID, err := bgpctx.Registry.Register(ctx)
+		require.NoError(t, err)
+		src := rfc4271IBGPPeer(t, "10.0.0.1", 0x01020301, false, ctx, ctxID)
+		src.remoteRouterID.Store(0x0A000001)
+		dst := rfc4271IBGPPeer(t, "10.0.0.2", 0x01020302, false, ctx, ctxID)
+		external := wkPeer(t, "10.0.0.3", 65003, ctx, ctxID)
+		destinations := []*Peer{dst, external}
+		client := rfc4271IBGPPeer(t, "10.0.0.4", 0x01020304, true, ctx, ctxID)
+		destinations = append(destinations, client)
 
-	reactorForwardRS(r, update, 81, netip.MustParseAddr("10.0.0.1"), src)
+		attrs := []byte{
+			0x40, 0x01, 0x01, 0x00, // ORIGIN igp
+			0x40, 0x02, 0x06, 0x02, 0x01, 0, 0, 0xFD, 0xE9, // AS_PATH [65001]
+			0x40, 0x03, 0x04, 10, 0, 0, 1, // received NEXT_HOP
+			0x40, 0x05, 0x04, 0, 0, 0, 100, // LOCAL_PREF
+		}
+		prefix := []byte{24, 192, 0, 2}
+		payload := buildUpdatePayload(attrs, prefix)
+		cache := newRecentUpdateCache(100)
+		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
+		update.WireUpdate.SetSourceID(src.SourceID())
 
-	time.Sleep(50 * time.Millisecond)
-	mu.Lock()
-	defer mu.Unlock()
-	assert.Empty(t, dispatched, "iBGP-learned route must not be redistributed to another iBGP peer")
+		// Copy the observable fields before the pool releases each item's bytes.
+		// Decode and assert only in the test goroutine after the bounded barrier.
+		var mu sync.Mutex
+		dispatched := make(map[netip.Addr][]fwdItem)
+		testPool := newFwdPool(func(key fwdKey, items []fwdItem) {
+			var copied []fwdItem
+			for _, item := range items {
+				if len(item.rawBodies) == 0 {
+					if len(item.updates) == 0 {
+						continue // Barrier sentinel, not a route.
+					}
+				}
+				var snapshot fwdItem
+				for _, body := range item.rawBodies {
+					snapshot.rawBodies = append(snapshot.rawBodies, append([]byte(nil), body...))
+				}
+				for _, update := range item.updates {
+					snapshot.updates = append(snapshot.updates, &message.Update{
+						WithdrawnRoutes: append([]byte(nil), update.WithdrawnRoutes...),
+						NLRI:            append([]byte(nil), update.NLRI...),
+					})
+				}
+				copied = append(copied, snapshot)
+			}
+			if len(copied) == 0 {
+				return
+			}
+			mu.Lock()
+			dispatched[key.peerAddr.Addr()] = append(dispatched[key.peerAddr.Addr()], copied...)
+			mu.Unlock()
+		}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+		t.Cleanup(testPool.Stop)
+
+		peers := map[netip.AddrPort]*Peer{src.Settings().PeerKey(): src}
+		for _, destination := range destinations {
+			peers[destination.Settings().PeerKey()] = destination
+			testPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)
+		}
+		r := &Reactor{
+			recentUpdates:   cache,
+			attrModHandlers: attrModHandlersWithDefaults(),
+			peers:           peers,
+			fwdPool:         testPool,
+		}
+		skipped, _ := reactorForwardRS(r, update, id, src.Settings().Address, src)
+		require.Empty(t, skipped)
+		barrierContext, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		require.NoError(t, testPool.Barrier(barrierContext), "the native fan-out drains")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Empty(t, dispatched[dst.Settings().Address],
+			"iBGP-learned route must not be redistributed to another ordinary iBGP peer")
+		for _, destination := range []*Peer{external, client} {
+			items := dispatched[destination.Settings().Address]
+			require.NotEmpty(t, items, "%s is owed the route", destination.Settings().Address)
+			parts := wkItemParts(t, items)
+			require.Empty(t, parts.withdrawn)
+			require.Equal(t, prefix, parts.nlri, "%s receives the exact route", destination.Settings().Address)
+		}
+	})
 }
 
 // TestRFC4271IBGPRedistributionAllowedForReflectorClient verifies the split-horizon drop is
@@ -574,57 +721,142 @@ func TestRFC4271NoIBGPToIBGPRedistribution(t *testing.T) {
 // exception: with a route reflector client on one side the same forward is not skipped
 // (internal/component/bgp/reactor/forward_rs.go:309-313).
 func TestRFC4271IBGPRedistributionAllowedForReflectorClient(t *testing.T) {
-	ctx := bgpctx.EncodingContextForASN4(true)
-	ctxID, _ := bgpctx.Registry.Register(ctx)
+	t.Run("empty-update", func(t *testing.T) {
+		ctx := bgpctx.EncodingContextForASN4(true)
+		ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	payload := []byte{0, 0, 0, 0}
-	wu := wireu.NewWireUpdate(payload, ctxID)
-	wu.SetMessageID(82)
-	update := &ReceivedUpdate{
-		WireUpdate:   wu,
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	}
-	cache := newRecentUpdateCache(100)
-	cache.Add(update)
-	cache.Activate(82, 1)
+		payload := []byte{0, 0, 0, 0}
+		wu := wireu.NewWireUpdate(payload, ctxID)
+		wu.SetMessageID(82)
+		update := &ReceivedUpdate{
+			WireUpdate:   wu,
+			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+			ReceivedAt:   time.Now(),
+		}
+		cache := newRecentUpdateCache(100)
+		cache.Add(update)
+		cache.Activate(82, 1)
 
-	src := rfc4271IBGPPeer(t, "10.0.0.1", 0x01020301, true, ctx, ctxID)
-	src.remoteRouterID.Store(0x0A000001)
-	dst := rfc4271IBGPPeer(t, "10.0.0.2", 0x01020302, false, ctx, ctxID)
+		src := rfc4271IBGPPeer(t, "10.0.0.1", 0x01020301, true, ctx, ctxID)
+		src.remoteRouterID.Store(0x0A000001)
+		dst := rfc4271IBGPPeer(t, "10.0.0.2", 0x01020302, false, ctx, ctxID)
 
-	var mu sync.Mutex
-	var dispatched []fwdItem
-	done := make(chan struct{})
-	var once sync.Once
-	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		var mu sync.Mutex
+		var dispatched []fwdItem
+		done := make(chan struct{})
+		var once sync.Once
+		testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+			mu.Lock()
+			dispatched = append(dispatched, items...)
+			mu.Unlock()
+			once.Do(func() { close(done) })
+		}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+		defer testPool.Stop()
+
+		r := &Reactor{
+			recentUpdates:   cache,
+			attrModHandlers: attrModHandlersWithDefaults(),
+			peers: map[netip.AddrPort]*Peer{
+				src.Settings().PeerKey(): src,
+				dst.Settings().PeerKey(): dst,
+			},
+			fwdPool: testPool,
+		}
+
+		reactorForwardRS(r, update, 82, netip.MustParseAddr("10.0.0.1"), src)
+
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout waiting for the reflected forward")
+		}
 		mu.Lock()
-		dispatched = append(dispatched, items...)
-		mu.Unlock()
-		once.Do(func() { close(done) })
-	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
-	defer testPool.Stop()
+		defer mu.Unlock()
+		assert.NotEmpty(t, dispatched, "a route reflector client's route is reflected to iBGP")
+	})
 
-	r := &Reactor{
-		recentUpdates:   cache,
-		attrModHandlers: attrModHandlersWithDefaults(),
-		peers: map[netip.AddrPort]*Peer{
-			src.Settings().PeerKey(): src,
-			dst.Settings().PeerKey(): dst,
-		},
-		fwdPool: testPool,
-	}
+	t.Run("received-route", func(t *testing.T) {
+		ctx := bgpctx.EncodingContextForASN4(true)
+		ctxID, err := bgpctx.Registry.Register(ctx)
+		require.NoError(t, err)
+		src := rfc4271IBGPPeer(t, "10.0.0.1", 0x01020301, true, ctx, ctxID)
+		src.remoteRouterID.Store(0x0A000001)
+		dst := rfc4271IBGPPeer(t, "10.0.0.2", 0x01020302, false, ctx, ctxID)
+		external := wkPeer(t, "10.0.0.3", 65003, ctx, ctxID)
+		destinations := []*Peer{dst, external}
 
-	reactorForwardRS(r, update, 82, netip.MustParseAddr("10.0.0.1"), src)
+		attrs := []byte{
+			0x40, 0x01, 0x01, 0x00, // ORIGIN igp
+			0x40, 0x02, 0x06, 0x02, 0x01, 0, 0, 0xFD, 0xE9, // AS_PATH [65001]
+			0x40, 0x03, 0x04, 10, 0, 0, 1, // received NEXT_HOP
+			0x40, 0x05, 0x04, 0, 0, 0, 100, // LOCAL_PREF
+		}
+		prefix := []byte{24, 192, 0, 2}
+		payload := buildUpdatePayload(attrs, prefix)
+		cache := newRecentUpdateCache(100)
+		update, id := newLeakTestUpdate(t, cache, payload, ctxID)
+		update.WireUpdate.SetSourceID(src.SourceID())
 
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for the reflected forward")
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	assert.NotEmpty(t, dispatched, "a route reflector client's route is reflected to iBGP")
+		// Copy the observable fields before the pool releases each item's bytes.
+		// Decode and assert only in the test goroutine after the bounded barrier.
+		var mu sync.Mutex
+		dispatched := make(map[netip.Addr][]fwdItem)
+		testPool := newFwdPool(func(key fwdKey, items []fwdItem) {
+			var copied []fwdItem
+			for _, item := range items {
+				if len(item.rawBodies) == 0 {
+					if len(item.updates) == 0 {
+						continue // Barrier sentinel, not a route.
+					}
+				}
+				var snapshot fwdItem
+				for _, body := range item.rawBodies {
+					snapshot.rawBodies = append(snapshot.rawBodies, append([]byte(nil), body...))
+				}
+				for _, update := range item.updates {
+					snapshot.updates = append(snapshot.updates, &message.Update{
+						WithdrawnRoutes: append([]byte(nil), update.WithdrawnRoutes...),
+						NLRI:            append([]byte(nil), update.NLRI...),
+					})
+				}
+				copied = append(copied, snapshot)
+			}
+			if len(copied) == 0 {
+				return
+			}
+			mu.Lock()
+			dispatched[key.peerAddr.Addr()] = append(dispatched[key.peerAddr.Addr()], copied...)
+			mu.Unlock()
+		}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+		t.Cleanup(testPool.Stop)
+
+		peers := map[netip.AddrPort]*Peer{src.Settings().PeerKey(): src}
+		for _, destination := range destinations {
+			peers[destination.Settings().PeerKey()] = destination
+			testPool.registerOutgoingPool(fwdKey{peerAddr: destination.Settings().PeerKey()}, 4096)
+		}
+		r := &Reactor{
+			recentUpdates:   cache,
+			attrModHandlers: attrModHandlersWithDefaults(),
+			peers:           peers,
+			fwdPool:         testPool,
+		}
+		skipped, _ := reactorForwardRS(r, update, id, src.Settings().Address, src)
+		require.Empty(t, skipped)
+		barrierContext, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		require.NoError(t, testPool.Barrier(barrierContext), "the native fan-out drains")
+		mu.Lock()
+		defer mu.Unlock()
+		// Check the independent external control before the reflected route.
+		for _, destination := range []*Peer{external, dst} {
+			items := dispatched[destination.Settings().Address]
+			require.NotEmpty(t, items, "%s receives a useful route", destination.Settings().Address)
+			parts := wkItemParts(t, items)
+			require.Empty(t, parts.withdrawn)
+			require.Equal(t, prefix, parts.nlri, "%s receives the exact route", destination.Settings().Address)
+		}
+	})
 }
 
 // TestRFC4271UpdateErrorReportedAsUpdateMessageError verifies an error detected in a
