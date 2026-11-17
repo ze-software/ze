@@ -37,6 +37,7 @@ func TestContainerDiagnosticCodesRegisterFromThePlugin(t *testing.T) {
 		codeStopKilled,
 		codeCleanupIncomplete,
 		codeFailed,
+		codeStopped,
 		codeKernelCPULimitUnavailable,
 		codeKernelCPULimitUnknown,
 	}
@@ -98,6 +99,7 @@ func TestContainerDoctorChecksAnswerThroughTheCallback(t *testing.T) {
 		problemStopKilled:        "set container instance web stop-timeout SECONDS",
 		problemCleanupIncomplete: "ze request container restart name web",
 		problemFailed:            "ze request container restart name web",
+		problemStopped:           "ze request container restart name web",
 	}
 	if len(wantFix) != len(runtimeDoctorChecks) {
 		t.Fatalf("the test names %d fixes for %d runtime checks", len(wantFix), len(runtimeDoctorChecks))
@@ -110,6 +112,7 @@ func TestContainerDoctorChecksAnswerThroughTheCallback(t *testing.T) {
 		problemStopKilled:        severityWarning,
 		problemCleanupIncomplete: severityWarning,
 		problemFailed:            severityError,
+		problemStopped:           severityWarning,
 	}
 	if len(wantSeverity) != len(runtimeDoctorChecks) {
 		t.Fatalf("the test names %d severities for %d runtime checks", len(wantSeverity), len(runtimeDoctorChecks))

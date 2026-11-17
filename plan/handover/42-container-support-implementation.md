@@ -187,8 +187,11 @@ When a pick stops on a file he has uncommitted edits in: `git cherry-pick
 `git stash push <file>`, `git cherry-pick <remaining commits>`, `git stash
 pop`. The session cannot drive git on the laptop while it is confined to the
 worktree, and it leaves the worktree only when he asks. Last delivered
-(2026-11-17, midday): server `97e15015ab` is laptop `20f563fbc2`; everything
-after it on the worktree branch is waiting for him. He has uncommitted edits
+(2026-11-17, afternoon): server `71a4db392f` is laptop `ce943f9195`;
+everything after it on the worktree branch is waiting for him. The real Redis
+image ran as a container in the guest that day (an exploratory draft against
+the public registry, never to be promoted); the specified closing test is the
+next target. He has uncommitted edits
 on the laptop in `feature-gates.txt`, the two plugin protocol pages and the
 fixture package, so a range that touches one of them needs the stash recipe
 with that file named. He updated the dependencies on the laptop's `main`:
@@ -243,10 +246,11 @@ Proven only by a guest run on the Ze kernel, never on this server's: the
 
 Open with the owner, none blocking the next step:
 
-1. Storage caps before or after the first Redis run. His ruling refuses a
-   container where the kernel cannot cap its storage; capped storage waits on
-   the appliance format. The session proceeds uncapped for now and records
-   the cap as owed.
+1. (Ruled: the storage cap comes after the release. See the rulings below.)
+   Still open here: whether an enabled container whose first start has not
+   ended shows as `stopped` in the listing, or gets a state of its own; and
+   the listing's restart count and last exit status, which the supervisor
+   does not record yet.
 2. A time bound a plugin command can declare. Every plugin command is cut at
    30 seconds, so the fetch command waits 20, answers "still running" and
    finishes on the worker; `TestFetchCommandDeclaresItsBound` stays red.
@@ -355,6 +359,14 @@ allowed by the operator's firewall policy; no `privileged` node and no
 host-path volumes; containers restart when Ze restarts; both external-program
 uses (a container's entrypoint, and a program an operator names for a shell)
 are authorised, and each register row lands with the code it names.
+
+Ruled on 2026-11-17, not yet carried into the umbrella's table:
+
+- "Storage is uncapped: cap can be added post release." The cap on a
+  container's writable layer and volumes (image store phase 6), with the
+  refusal of a container where the kernel cannot cap its storage, comes after
+  the release. It blocks nothing before it.
+- "show container list: needed." It is built (`list_cmd.go`).
 
 ## Found on the way
 

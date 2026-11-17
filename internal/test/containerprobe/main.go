@@ -27,6 +27,14 @@
 // connection with one fixed line (serve.go). The test store gives it to a
 // container whose name starts with "serving".
 //
+// `ze-containerprobe run-talking` is the entrypoint of a container that
+// explains why it cannot start: it writes one known line to its standard
+// output and one to its standard error, then exits with status 3 (talk.go).
+// The test store gives it to a container whose name starts with "talking".
+// `ze-containerprobe stopped-finding NAME SECONDS` runs on the host: it waits
+// at most SECONDS for the daemon's doctor answer to hold the stopped finding
+// of container NAME with both lines, and prints the answer.
+//
 // `ze-containerprobe published ADDRESS PORT` runs on the client's side: it
 // dials ADDRESS:PORT within a bounded wait and requires the serving line.
 // `ze-containerprobe refused ADDRESS PORT` requires one attempt to be
@@ -206,7 +214,8 @@ const (
 )
 
 // usage names every mode.
-const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | run-serving | reset STORE | verify STORE NAME" +
+const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | run-serving | run-talking | reset STORE | verify STORE NAME" +
+	" | stopped-finding NAME SECONDS" +
 	" | confined STORE NAME | networked STORE NAME ADDRESS GATEWAY MTU | host-end BRIDGE OWNER FILE" +
 	" | published ADDRESS PORT | refused ADDRESS PORT | resp ADDRESS PORT" +
 	" | fetch TYPED LISTED SECONDS | running NAME COMMAND | diagnose NAME" +
@@ -275,6 +284,19 @@ func main() {
 	case "run-serving":
 		if err := run(entrypoint{networked: true, serving: true}); err != nil {
 			fail("probe run-serving: " + err.Error())
+		}
+	case "run-talking":
+		os.Exit(talk())
+	case "stopped-finding":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe stopped-finding NAME SECONDS")
+		}
+		seconds, err := strconv.Atoi(os.Args[3])
+		if err != nil {
+			fail("probe stopped-finding: SECONDS is not a number: " + err.Error())
+		}
+		if !stoppedFinding(os.Args[2], time.Duration(seconds)*time.Second) {
+			os.Exit(1)
 		}
 	case "published":
 		if len(os.Args) != 4 {

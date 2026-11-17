@@ -12,8 +12,8 @@ module ze-container-cmd {
          the plugin adds the commands it realizes to this module.";
 
     revision 2026-11-16 {
-        description "Initial revision: request container restart name, and the image
-store's commands: the image, store and volume listings, the fetch, the
+        description "Initial revision: request container restart name, show container
+list, and the image store's commands: the image, store and volume listings, the fetch, the
 update and its rollback, the image and volume deletes and the layer clear.";
     }
 
@@ -61,8 +61,22 @@ The word after the name keyword is the value.";
 
         container container {
             config false;
-            description "What the container plugin holds: its images, its store and its volumes.";
-            ze:help "Show the containers' images, store and volumes.";
+            description "What the container plugin holds: its containers, its images, its store and
+its volumes.";
+            ze:help "Show the containers, their images, store and volumes.";
+
+            container list {
+                config false;
+                ze:command "ze-container:show-list";
+                description "One row for each configured container: its name, its state (running,
+waiting-image, restarting, stopped, disabled or failed), a reason sentence, the
+whole reference its image leaf completes to, and, while it runs, the digest of
+the image it runs and when its entrypoint was released. A container waiting
+for its image names the reference and why the store does not hold it: never
+fetched, a fetch running, a fetch that failed, or an image the store lost. A
+failed container names the step that failed.";
+                ze:help "Show every configured container, its state and the image it runs.";
+            }
 
             container image {
                 config false;

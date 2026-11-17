@@ -45,6 +45,12 @@ const (
 const (
 	containerPlaceholder = "<container>"
 	keyState             = "state"
+	// keyName is the key and the column of a container's or a volume's name
+	// in an answer. It is not selectorKeyword, the word of a command line,
+	// though both read "name".
+	keyName = "name"
+	// textUnspecified is what the zero of a state or a stream prints as.
+	textUnspecified = "unspecified"
 )
 
 // drainBudgetSeconds is the longest the stop drain may take, declared at
@@ -162,8 +168,8 @@ func engineRegistration() *sdk.Registration {
 }
 
 // commandDecls are the commands this plugin answers (SDK Stage 1): the
-// restart, then the image commands (image_cmd.go), then each sibling's
-// (sibling.go). The registration and the engine entry declare the same list
+// restart, the container listing (list_cmd.go), then the image commands
+// (image_cmd.go), then each sibling's (sibling.go). The registration and the engine entry declare the same list
 // from this function. The registration calls it from this package's init,
 // before any sibling registered, so the registry's copy holds no sibling
 // command: a sibling command reaches the daemon at Stage 1 only.
@@ -176,14 +182,19 @@ func commandDecls() []sdk.CommandDecl {
 			// tokens as the invocation form.
 			Args: []string{selectorKeyword, containerPlaceholder},
 		},
+		listCommandDecl(),
 	}, imageCommandDecls()...)
 	return append(decls, registeredSiblings.commandDecls()...)
 }
 
-// handleCommand answers one command from the engine side. An image command
-// is looked up in its table, then a sibling's command in the siblings'; the
+// handleCommand answers one command from the engine side. The container
+// listing is answered from the supervisor's records; an image command is
+// looked up in its table, then a sibling's command in the siblings'; the
 // restart is the one command left.
 func handleCommand(ctx context.Context, sup *supervisor, command string, args []string) (string, any, error) {
+	if command == cmdShowList {
+		return answerContainerList(sup)
+	}
 	if handler, ok := imageCommandHandlers[command]; ok {
 		return runImageCommand(ctx, sup, command, handler, args)
 	}
@@ -212,7 +223,7 @@ func handleCommand(ctx context.Context, sup *supervisor, command string, args []
 	if err != nil {
 		return rpc.StatusError, nil, err
 	}
-	return rpc.StatusDone, map[string]any{"name": name, keyState: state.String()}, nil
+	return rpc.StatusDone, map[string]any{keyName: name, keyState: state.String()}, nil
 }
 
 // selectorValue answers the value after the name keyword, or the one bare

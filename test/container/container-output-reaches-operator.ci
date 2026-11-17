@@ -1,0 +1,71 @@
+# Question: when a container's program writes a line to its standard output
+# and one to its standard error and then exits with a failure, does the
+# operator read both lines, and the exit status, in the finding ze show
+# doctor reports for the stopped container (spec-container-1-runtime, the
+# output capture of phase 7; the operator-surface child's table D-1 row 3)?
+#
+# A unit test cannot decide it: the answer is whether the pipes the patched
+# runtime library hands the entrypoint as its descriptors 1 and 2 survive
+# init's own start inside the ze binary and the final exec, whether the
+# daemon's readers see every byte through to end of file once the control
+# group is gone, and whether the finding reaches the operator through the
+# daemon's doctor answer over the CLI.
+#
+# Method: the test daemon's container store answers one fixture image holding
+# ze-containerprobe. A container whose name starts with "talking" runs its
+# run-talking mode, which writes one known line to each stream and exits with
+# status 3. The stopped-finding mode, run on the host, asks the daemon for
+# show doctor | json through ze cli and the SSH server the config holds,
+# until the answer holds the stopped finding of the container with both
+# lines, within a bounded wait, and prints it. Its reset mode runs first and
+# removes the store.
+#
+# Red before the output capture: the entrypoint had no standard output or
+# error the daemon read, and a container that ended on its own was recorded
+# for no doctor check, so the answer never held the finding.
+#
+# The store lives under /run, not in the test's work directory: in the QEMU
+# guest that directory is on the 9p share of the checkout, and an overlay
+# cannot take a 9p directory as its upper layer. $PORT keeps two runs apart.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=90s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+container {
+	instance talking-probe {
+		image probe
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=3:exec=ze-containerprobe stopped-finding talking-probe 60:timeout=75s:exit=0
+expect=stdout:contains=probe: the doctor answer holds the stopped finding of talking-probe
+expect=stdout:contains="code": "doctor-container-stopped"
+expect=stdout:contains=container talking-probe ended on its own and stays stopped until it is started again: it exited with status 3
+expect=stdout:contains=stdout: probe stdout: the service read its configuration
+expect=stdout:contains=stderr: probe stderr: the service cannot start, its port setting is missing
+expect=stdout:contains="fix": "ze request container restart name talking-probe"
+reject=stdout:contains=probe: FAIL

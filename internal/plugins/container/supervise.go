@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -44,7 +45,7 @@ const (
 
 // stateNames holds the word of each state, indexed by its value.
 var stateNames = [...]string{
-	StateUnspecified:  "unspecified",
+	StateUnspecified:  textUnspecified,
 	StateWaitingImage: "waiting-image",
 	StateRunning:      "running",
 	StateRestarting:   "restarting",
@@ -72,13 +73,16 @@ const (
 )
 
 // startRequest is what the supervisor hands the runtime library to create
-// one container: its config, the store's answer and the file mounts the
-// participants contributed. The library takes it by pointer and MUST NOT keep
-// it after create returns.
+// one container: its config, the store's answer, the file mounts the
+// participants contributed and the buffer its output goes to. The library
+// takes it by pointer and MUST NOT keep it after create returns; it keeps the
+// buffer, which the readers of the container's output fill until its end.
+// output MUST NOT be nil.
 type startRequest struct {
 	instance instanceConfig
 	ready    Ready
 	mounts   []FileMount
+	output   *outputBuffer
 }
 
 // runtimeLibrary is the supervisor's view of the patched runtime library.
@@ -147,6 +151,17 @@ type runningContainer struct {
 	// still has them.
 	stopSignal  syscall.Signal
 	stopTimeout time.Duration
+	// digest is the image this run of the container runs, and since is when
+	// its entrypoint was released: what the container listing shows of it.
+	digest string
+	since  time.Time
+	// output is the buffer this run's output goes to, which the watcher
+	// quotes when the container ends on its own.
+	output *outputBuffer
+	// stopRequested is set before a stop signals or kills the container, so
+	// its watcher tells an end Ze asked for from one the entrypoint made on
+	// its own.
+	stopRequested atomic.Bool
 	// ended is closed by the watcher once the cleanup ended.
 	ended chan struct{}
 }
@@ -201,8 +216,9 @@ type supervisor struct {
 	// container no start was made for has no entry.
 	states map[string]State
 	// waiting holds, for each container in the waiting-image state, the
-	// reference the store said is absent. The present notice is matched to it.
-	waiting map[string]string
+	// store's absent answer: the reference it said is absent, which the present
+	// notice is matched to, and why it is absent, which the listing shows.
+	waiting map[string]Absent
 	// running holds each container whose entrypoint was released and whose
 	// cleanup has not ended.
 	running map[string]*runningContainer
@@ -210,7 +226,9 @@ type supervisor struct {
 	// for each container and kind, with the detail of the kinds that carry
 	// one. A container in the failed state holds a problemFailed entry, the
 	// step that failed and its fix, for exactly as long as it holds the
-	// state. It is what the runtime doctor checks read (doctor.go). It is
+	// state, and one stopped after a non-zero exit of its own a
+	// problemStopped entry, its status and its last output, the same way. It
+	// is what the runtime doctor checks read (doctor.go). It is
 	// bounded by the number of configured containers times the number of
 	// kinds.
 	problems map[problemRecord]problemDetail
@@ -227,6 +245,10 @@ type supervisor struct {
 	// entry lasts until that container runs again, or for this run of the
 	// plugin. It is bounded by the containers the sweep found.
 	leftovers map[string]problemDetail
+	// outputs holds the output buffer of each configured container
+	// (output.go). install drops the buffer of a container the config no
+	// longer holds.
+	outputs outputSet
 	// started is set by begin; apply wakes no worker before it.
 	started bool
 	// stopping is set when the daemon's stop reached the plugin, by the drain
@@ -254,7 +276,7 @@ func newSupervisor(log *slog.Logger, library runtimeLibrary, buildStore StoreFac
 		siblings:     &siblingRegistry{},
 		desired:      map[string]instanceConfig{},
 		states:       map[string]State{},
-		waiting:      map[string]string{},
+		waiting:      map[string]Absent{},
 		running:      map[string]*runningContainer{},
 		problems:     map[problemRecord]problemDetail{},
 		leftovers:    map[string]problemDetail{},
@@ -300,12 +322,13 @@ func (s *supervisor) install(cfg containerConfig) error {
 			delete(s.problems, record)
 			continue
 		}
-		// The failed record lasts as long as the failed state: a container
-		// the config disables leaves both.
-		if record.kind != problemFailed {
+		// The failed and the stopped record last as long as their state: a
+		// container the config disables leaves both.
+		state, followsState := recordState(record.kind)
+		if !followsState {
 			continue
 		}
-		if states[record.name] != StateFailed {
+		if states[record.name] != state {
 			delete(s.problems, record)
 		}
 	}
@@ -326,6 +349,7 @@ func (s *supervisor) install(cfg containerConfig) error {
 		}
 	}
 	s.desired, s.states = desired, states
+	s.outputs.keepOnly(desired)
 	s.log.Debug("container: desired set installed", "containers", len(desired))
 	return nil
 }
@@ -535,6 +559,9 @@ func (s *supervisor) setState(name string, state State) {
 	if state != StateFailed {
 		delete(s.problems, problemRecord{name: name, kind: problemFailed})
 	}
+	if state != StateStopped {
+		delete(s.problems, problemRecord{name: name, kind: problemStopped})
+	}
 	// A container that runs again was created over what a previous run left,
 	// so nothing of that leftover stands in its way any more.
 	if state == StateRunning {
@@ -671,7 +698,7 @@ func (s *supervisor) startLocked(ctx context.Context, name string) (State, error
 	switch resolved := answer.(type) {
 	case Absent:
 		s.mu.Lock()
-		s.waiting[name] = resolved.Reference
+		s.waiting[name] = resolved
 		s.mu.Unlock()
 		s.setState(name, StateWaitingImage)
 		return StateWaitingImage, nil
@@ -699,7 +726,7 @@ func (s *supervisor) run(ctx context.Context, instance instanceConfig, ready Rea
 		releaseHold()
 		return StateUnspecified, err
 	}
-	request := &startRequest{instance: instance, ready: ready, mounts: mounts}
+	request := &startRequest{instance: instance, ready: ready, mounts: mounts, output: s.outputs.of(name)}
 	created, err := s.createWithTunables(ctx, request)
 	if err != nil {
 		releaseHold()
@@ -727,6 +754,9 @@ func (s *supervisor) run(ctx context.Context, instance instanceConfig, ready Rea
 		releaseHold: releaseHold,
 		stopSignal:  signal,
 		stopTimeout: instance.stopTimeout,
+		output:      request.output,
+		digest:      ready.Digest,
+		since:       time.Now(),
 		ended:       make(chan struct{}),
 	}
 	s.mu.Lock()
@@ -826,22 +856,55 @@ func (s *supervisor) created(ctx context.Context, participant Participant, call 
 
 // watch is the watcher of one running container: it waits for init to exit,
 // cleans up and closes ended. A container whose entrypoint ended on its own
-// takes the stopped state.
+// takes the stopped state. One that ended on its own with a status other than
+// 0 is also recorded for the stopped check and logged at Warn, with its status
+// and the newest rows of its output, so its own explanation of why it ended
+// reaches the operator. The rows are read after the cleanup, which returns
+// once the readers added every line the container wrote
+// (libraryContainer.destroy). The record is written under the same hold of mu
+// as the state, so a start that follows cannot be overtaken by it.
 func (s *supervisor) watch(name string, running *runningContainer) {
 	code, err := running.created.wait()
 	if err != nil {
 		s.log.Warn("container: its exit could not be read", "name", name, "error", err, "code", codeCleanupIncomplete)
-	} else {
-		s.log.Info("container: ended", "name", name, "exit", code)
 	}
 	s.cleanup(name, running.created, running.releaseHold)
+	cause := endedCause(code, running.output.newest(endedOutputRows))
+	recorded := false
 	s.mu.Lock()
 	delete(s.running, name)
 	if s.states[name] == StateRunning {
 		s.states[name] = StateStopped
+		recorded = s.recordFailedExitLocked(name, running, err == nil, code, cause)
 	}
 	s.mu.Unlock()
+	switch {
+	case recorded:
+		s.log.Warn("container: it ended on its own and stays stopped", "name", name, "exit", code, "cause", cause,
+			"fix", restartCommand(name), "code", codeStopped)
+	case err == nil:
+		s.log.Info("container: ended", "name", name, "exit", code)
+	}
 	close(running.ended)
+}
+
+// recordFailedExitLocked records, for the stopped check, a container that
+// ended on its own with a status other than 0, with cause as its detail, and
+// answers whether it did. An end a stop asked for is not recorded: the
+// operator or the daemon ended it. exitRead is whether code was read at all.
+// The caller MUST hold mu, and has set the stopped state.
+func (s *supervisor) recordFailedExitLocked(name string, running *runningContainer, exitRead bool, code int, cause string) bool {
+	if !exitRead {
+		return false
+	}
+	if code == 0 {
+		return false
+	}
+	if running.stopRequested.Load() {
+		return false
+	}
+	s.problems[problemRecord{name: name, kind: problemStopped}] = problemDetail{cause: cause}
+	return true
 }
 
 // cleanup destroys a created container, makes the ended call of every
@@ -928,6 +991,7 @@ const (
 func (s *supervisor) stopTogether(ctx context.Context, targets []stopTarget) error {
 	signaled := time.Now()
 	for _, target := range targets {
+		target.running.stopRequested.Store(true)
 		if err := target.running.created.signal(target.running.stopSignal); err != nil {
 			// An init that already exited cannot take a signal; its watcher
 			// is cleaning up, and the wait below sees it end.
@@ -1097,6 +1161,7 @@ func (s *supervisor) killRunning() {
 	targets := s.runningTargets()
 	for _, target := range targets {
 		s.log.Info("container: killed at once, because the plugin is stopping", "name", target.name)
+		target.running.stopRequested.Store(true)
 		if err := target.running.created.kill(); err != nil {
 			s.log.Warn("container: the kill failed", "name", target.name, "error", err, "code", codeCleanupIncomplete)
 		}
@@ -1155,7 +1220,7 @@ func (s *supervisor) ImagePresent(ctx context.Context, reference string) []strin
 	s.mu.Lock()
 	var waiting []string
 	for name, awaited := range s.waiting {
-		if awaited == reference {
+		if awaited.Reference == reference {
 			waiting = append(waiting, name)
 		}
 	}

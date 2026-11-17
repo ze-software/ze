@@ -1,0 +1,89 @@
+# Question: does show container list tell an operator what a container is
+# doing, from the daemon's command surface: a container whose image the store
+# does not hold is listed as waiting-image with the reference the store waits
+# for and why, and once create container image reference fetched it, the same
+# container is listed as running with the digest of the image it runs
+# (spec-container-4-operator-surface, table C-1 and table T-1, AC-1 and AC-2,
+# operator half)?
+#
+# VALIDATES: the listing's YANG node, its proxy and the plugin's handler answer
+# over SSH; the waiting row carries the store's completed reference and its
+# never-fetched reason and no digest; the fetch's present notice moves the
+# container to running, and the running row carries a sha256 digest and the
+# time its entrypoint was released, and no reason.
+# PREVENTS: a listing that cannot see a waiting container, one that names the
+# configured short name in place of the reference the store waits for, and a
+# running row with no digest.
+#
+# A unit test cannot decide it: the answer is what the daemon's command
+# registry, the plugin's proxy, the real image store fetching over HTTP and the
+# supervisor on a real kernel give together, through the CLI an operator uses.
+#
+# Method: as test/container/container-image-fetched-runs.ci. The compiled
+# registry fixture serves library/probe:latest on the loopback port $PORT2,
+# ze.test.container.registry.port makes it the mirror of every registry, so
+# the short name probe completes to docker.io/library/probe:latest. The
+# daemon runs the real image store, with its data directory under /run.
+#
+# The worker's first start runs after the daemon reports it is running, so
+# the listing right after the start could race it. The restart command is the
+# barrier: it takes the container's lifecycle lock, so it runs after any start
+# in progress, and its own start answers waiting-image because the store
+# holds no image. After it the container is in waiting-image, whichever
+# start resolved first.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=120s
+option=env:var=ze.data.dir:value=/run/ze-container-test-list-$PORT
+option=env:var=ze.test.container.registry.port:value=$PORT2
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+container {
+	instance probe {
+		image probe
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-list-$PORT:exit=0
+cmd=background:seq=2:exec=le test fixture container/registry $PORT2:name=registry:timeout=110s:ready=REGISTRY: listening on
+cmd=background:seq=3:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=ze cli -c "request container restart name probe | json":timeout=30s:exit=0
+expect=stdout:pattern="state":\s*"waiting-image"
+cmd=foreground:seq=5:exec=ze cli -c "show container list | json":exit=0
+expect=stdout:pattern="name":\s*"probe"
+expect=stdout:pattern="state":\s*"waiting-image"
+expect=stdout:pattern="image":\s*"docker\.io/library/probe:latest"
+expect=stdout:pattern="reason":\s*"its image docker\.io/library/probe:latest was never fetched"
+reject=stdout:contains="digest"
+reject=stdout:contains="since"
+cmd=foreground:seq=6:exec=ze cli -c "create container image reference probe | json":timeout=60s:exit=0
+expect=stdout:pattern="started":\s*\[\s*"probe"\s*\]
+cmd=foreground:seq=7:exec=ze cli -c "show container list | json":exit=0
+expect=stdout:pattern="name":\s*"probe"
+expect=stdout:pattern="state":\s*"running"
+expect=stdout:pattern="image":\s*"docker\.io/library/probe:latest"
+expect=stdout:pattern="digest":\s*"sha256:[0-9a-f]{64}"
+expect=stdout:pattern="since":\s*"[0-9]{4}-[0-9]{2}-[0-9]{2}T
+reject=stdout:contains="waiting-image"
+reject=stdout:contains="reason"
+cmd=stop:seq=8:name=daemon:signal=term

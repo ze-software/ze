@@ -122,6 +122,7 @@ ze-container:delete-image-all
 ze-container:delete-volume
 ze-container:request-restart
 ze-container:show-image-list
+ze-container:show-list
 ze-container:show-store
 ze-container:show-volume-list
 ze-container:update-image

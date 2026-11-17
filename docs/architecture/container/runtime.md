@@ -14,9 +14,12 @@ described, its root mounted, created through the library, released and
 watched; it is stopped with its stop signal, then killed after its stop
 timeout; a daemon stop drains every container together; what a killed
 daemon left is swept at the next start; and every container runs under the
-default system-call filter. What is not built yet: the device filter, the
-limit and grant nodes, the restart
-policy, output capture and the state view. No
+default system-call filter. A container's standard output and standard
+error are captured into a bounded buffer, and a container that ends on its
+own with a failure is reported by doctor with its last lines ("The output",
+below). What is not built yet: the device filter, the limit and grant nodes,
+the restart policy, the `log` setting and the commands that read the output,
+and the state view. No
 shipped build holds an image store yet, so only the test build's store
 (below) answers a start. This page states what exists and grows with the work.
 
@@ -169,6 +172,7 @@ The plugin is `container`, in `internal/plugins/container`, gated by
 | Apply | Each config sibling applies its part first, then the supervisor records the desired set, wakes the worker of each container concerned and returns. It never waits for a start. The boot configure arrives before the startup handshake ends, when the engine refuses a worker's calls, so it only records: the plugin's `OnStarted` callback applies the siblings' part, then wakes the workers (`configInstaller.begin`, `supervisor.begin`) |
 | Dependency | The `sysctl` plugin, which writes the kernel tunable a container's network namespace needs (below) |
 | `request container restart name NAME` | A YANG command node bound to a wire method the plugin's package proxies to the plugin's process. A disabled container is refused with the statement that enables it |
+| `show container list` | The command node `ze-container:show-list` of the same module, proxied the same way and answered from the supervisor's records (`list_cmd.go`): rows under `containers`, below |
 | The image commands | Ten more command nodes of the same module, proxied the same way. `handleCommand` looks each up in the image store's table (`image_cmd.go`) before the restart ([image-store.md](image-store.md)), then a sibling's command in the siblings' table |
 | Daemon stop | The plugin declares a drain budget of 37 seconds and stops every running container together in its drain handler, the one call of a daemon stop that waits for a plugin (below, "The stop") |
 | Plugin start and exit | Before the engine is asked to start the plugin, the sweep removes what a previous run left. Once the engine connection closed, whatever still runs is killed at once |
@@ -181,6 +185,31 @@ one is started by its worker.
 <!-- source: internal/plugins/container/config.go -- parseContainerSections, parseSectionsWith -->
 <!-- source: internal/plugins/container/container.go -- runContainerEngine, handleCommand -->
 <!-- source: internal/plugins/container/supervise.go -- supervisor.install, supervisor.apply, supervisor.restart, supervisor.drain -->
+
+### The container listing
+
+`show container list` answers one row for each configured container, sorted
+by name, with the keys `name`, `state`, `reason`, `image`, `digest` and
+`since`. The rows are read under one hold of the supervisor's lock, so a state
+and the record that details it come from the same moment, and never under a
+container's lifecycle lock, so a start or a stop in progress never delays it.
+
+| State | What the row carries |
+|-------|----------------------|
+| `running` | `digest`, the image the run started from, and `since`, when its entrypoint was released |
+| `waiting-image` | `reason` names the reference the store waits for and why it does not hold it, from the store's absent answer: never fetched, a fetch running, a fetch that failed (with its error) or an image the store lost (with the digest and the fetch that brings it back) |
+| `failed` | `reason` is the failed record's cause, the step that failed and why, on one line |
+| `disabled`, `stopped`, `restarting` | Nothing more: no restart policy and no exit record exist yet, so the command table's `restart-count` and `last-exit-status` are not in the rows |
+
+`image` is the whole reference the container's image leaf completes to, in
+every state. An enabled container no start has ended for holds no state yet;
+a start in progress shows the state it left, so it is listed as `stopped`
+with the reason that no start of it has ended. A container still in
+`waiting-image` once the present notice or a changed image ended its wait
+says that a start of it is in progress.
+
+<!-- source: internal/plugins/container/list_cmd.go -- listCommandDecl, listCommandRPC, answerContainerList, supervisor.containerRows, waitingReason -->
+<!-- test: internal/plugins/container/list_cmd_test.go TestContainerListShowsEachState -->
 
 ## The start sequence
 
@@ -202,7 +231,8 @@ worker, the restart command and the store's notices never interleave.
 | Create | `libcontainer.Create`, then `Container.Start`: the patched parent clones `ze` into the namespaces and the control group, and init blocks before the entrypoint |
 | Created call | Each participant gets the init process id and the network namespace path |
 | Release | `Container.Exec` lets init execute the entrypoint. The state is `running` |
-| Watch | One goroutine per running container waits for init to exit, then cleans up: destroy (the control group and the library's state directory), unmount the root, the ended calls, release the hold |
+| Output | Before the start, two pipes become the entrypoint's standard output and standard error, and one reader per pipe copies its lines into the container's output buffer ("The output", below). Standard input is not connected: the library opens `/dev/null` |
+| Watch | One goroutine per running container waits for init to exit, then cleans up: destroy (the control group and the library's state directory), unmount the root, wait for the output readers, the ended calls, release the hold. An end of its own with a status other than 0 is recorded for the `container-stopped` check |
 
 A failed step after the create destroys the container, makes the ended calls
 and releases the hold. A failed `Container.Start` is destroyed by the library
@@ -220,6 +250,53 @@ image user given by name is refused until the image's account files are read.
 <!-- source: internal/plugins/container/describe_linux.go -- describeContainer, describeEntrypoint -->
 <!-- source: internal/plugins/container/rootfs_linux.go -- mountRoot, unmountRoot -->
 <!-- test: internal/plugins/container/describe_linux_test.go TestDescriptionHasTheDefaultConfinement -->
+
+### The output
+
+The create makes two pipes and hands their write ends to the library's
+process as the entrypoint's descriptors 1 and 2, the shape the plugin process
+package uses for a forked plugin's stderr: a pipe the command did not create
+is never closed by its wait, so a reader sees every byte. The daemon closes
+its copy of the write ends once the start returned, so only the container's
+processes hold them, and each reader reaches end of file once the control
+group is empty. No idle bound applies: every writer dies with the group.
+
+Each reader cuts its stream into lines and adds one row per line to the
+container's buffer: a sequence number rising by one from 1, the time, the
+stream and the line without its line end. A line longer than 4096 bytes
+becomes several rows, cut at a character boundary, so nothing is lost and no
+character is split. A byte sequence that is not UTF-8 becomes the replacement
+character, and every control character but the tab is stripped, the carriage
+return of a CRLF line end and the escape of a terminal sequence included, so
+a row can neither drive a terminal nor forge a line of Ze's log.
+
+The buffer holds the newest 1 MiB of rows; each row costs its line and 64
+bytes, so a stream of empty lines is bounded too. A reader only copies into
+memory, and the buffer drops its oldest rows to make room, so a container
+never waits on its output. A read after a sequence number answers the rows
+after it and how many rows after it were dropped, so a reader that fell
+behind learns how much it missed. A container keeps its buffer across its
+starts and loses it when it leaves the configuration; the buffer is in
+memory, so a daemon restart loses it too. The commands that read it (`show
+container log`, `monitor container log`) and the `log` setting that also
+sends the rows to Ze's log, or keeps none, belong to the operator surface and
+do not exist yet: every container keeps its buffer.
+
+The destroy waits for both readers, so once the cleanup ended every line the
+container wrote is in its buffer. A container whose entrypoint ended on its
+own, with no stop asked for, takes the `stopped` state; with a status other
+than 0 the watcher records it for the `container-stopped` check and logs it
+at `Warn` under `doctor-container-stopped`, both carrying the status and the
+newest five rows, each cut at 200 bytes, so the operator reads the
+container's own explanation. The record lasts as long as the stopped state.
+An end that a stop asked for (a config change, the restart command, the drain
+or the plugin's exit) is not recorded.
+
+<!-- source: internal/plugins/container/output.go -- outputBuffer, outputText, runeCut, outputSet, endedCause -->
+<!-- source: internal/plugins/container/output_linux.go -- attachOutput, containerOutput, copyOutputLines -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.watch, supervisor.recordFailedExitLocked -->
+<!-- test: internal/plugins/container/output_test.go TestOutputBufferKeepsTheNewestBytes, TestOutputBufferBoundsEmptyLines, TestOutputTextStripsControlCharacters, TestContainerEndedOnItsOwnIsReportedWithItsOutput -->
+<!-- test: internal/plugins/container/output_linux_test.go TestCopyOutputLinesCutsALongLineAtACharacterBoundary, TestCopyOutputLinesKeepsTheOrderOfAStream, TestOutputPipesNeverBlockTheContainer -->
 
 ### The stop
 
@@ -328,7 +405,11 @@ fixture store runs the real store. The probe's `run` mode is the entrypoint: it
 appends a line to `/starts`, writes what it sees to `/report`, and records its
 stop signal in `/signals` before it exits. A container whose name starts with
 `stubborn` gets the `run-ignoring-stop` mode, which records every stop signal
-and keeps running until it is killed. On the host, `verify` judges the report,
+and keeps running until it is killed. A container whose name starts with
+`talking` gets the `run-talking` mode, which writes one known line to each of
+its standard output and standard error and exits with status 3; on the host,
+`stopped-finding` waits until the daemon's doctor answer holds its stopped
+finding with both lines. On the host, `verify` judges the report,
 `confined` judges the default confinement in it (only its own process, its
 cgroup as the root, the default capability mask, and the filter's EPERM for
 `unshare(0)` and ENOSYS for call 470, after making both calls on the host to
@@ -367,6 +448,7 @@ explains each one.
 | `doctor-container-stop-killed` | A container ignored its stop signal and was killed | Runtime check `container-stop-killed` |
 | `doctor-container-cleanup-incomplete` | A container left processes, a control group or a mount behind | Runtime check `container-cleanup-incomplete` |
 | `doctor-container-failed` | A container the configuration enables does not run: its last start failed | Runtime check `container-failed`, as an error |
+| `doctor-container-stopped` | A container's entrypoint ended on its own with a status other than 0, and the container stays stopped | Runtime check `container-stopped`, with the status and the last output ("The output") |
 | `doctor-container-kernel-cpu-limit-unavailable`, `doctor-container-kernel-cpu-limit-unknown` | The kernel has no hard CPU limit, or Ze could not tell | The kernel enrolment `container-cpu-limit` |
 
 The first three codes are registered and explained. No doctor check reports
@@ -374,7 +456,7 @@ them today: their checks arrive with the code that reads the host.
 
 ### Runtime checks
 
-The five runtime checks are declared in the plugin's Stage 1 registration
+The six runtime checks are declared in the plugin's Stage 1 registration
 (`engineRegistration`) at the `runtime` phase and answered by its doctor
 callback (`supervisor.answerDoctorCheck`), because the records they read live
 in the plugin's process, internal and forked alike

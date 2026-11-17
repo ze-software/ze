@@ -89,7 +89,7 @@ func imageCommandDecls() []sdk.CommandDecl {
 			ShortHelp: "Show the stored volumes, their size and their use.",
 			// The rows are under "volumes" (handleShowVolumeList).
 			Shape:   shapeTable,
-			Columns: []string{"instance", "name", "size", "used", keyState},
+			Columns: []string{"instance", keyName, "size", "used", keyState},
 		},
 		{
 			Name:      cmdCreateImage,

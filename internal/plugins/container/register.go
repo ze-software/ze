@@ -39,6 +39,7 @@ func registerContainer() {
 	// to this plugin's process, internal or forked.
 	pluginserver.RegisterRPCs(append([]pluginserver.RPCRegistration{
 		{WireMethod: wireRequestRestart, Handler: forwardRestart, PluginCommand: cmdRequestRestart},
+		listCommandRPC(),
 	}, imageCommandRPCs()...)...)
 
 	reg := registry.Registration{

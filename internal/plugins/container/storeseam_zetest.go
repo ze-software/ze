@@ -47,6 +47,12 @@ const (
 	// the container, so a test can reach it through a published port.
 	servingPrefix        = "serving"
 	probeServingArgument = "run-serving"
+	// A container whose name starts with talkingPrefix runs the probe mode
+	// that writes one known line to each of its standard output and standard
+	// error and exits with a failure, so a test can find both lines where
+	// the operator reads why a container ended.
+	talkingPrefix        = "talking"
+	probeTalkingArgument = "run-talking"
 	testDigest           = "sha256:7a65000000000000000000000000000000000000000000000000000000000001"
 )
 
@@ -100,6 +106,8 @@ func (testStore) Resolve(_ context.Context, request ResolveRequest) (Resolution,
 		argument = probeNetworkedArgument
 	case strings.HasPrefix(request.Instance, servingPrefix):
 		argument = probeServingArgument
+	case strings.HasPrefix(request.Instance, talkingPrefix):
+		argument = probeTalkingArgument
 	}
 	return Ready{
 		Digest:           testDigest,

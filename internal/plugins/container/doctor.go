@@ -16,8 +16,10 @@ import (
 
 // The doctor codes this plugin owns, one per problem class. Every container
 // code starts with doctor-container-. codeFailed follows the failed state,
-// which the supervisor sets where a start fails; the other codes that follow
-// a container's state are the operator surface package's.
+// which the supervisor sets where a start fails, and codeStopped the stopped
+// state after a non-zero exit (the operator-surface child's table D-1 row 3,
+// landed with the output capture its finding quotes); the other codes that
+// follow a container's state are the operator surface package's.
 const (
 	codeNotPrivileged     = "doctor-container-not-privileged"
 	codeCgroupUnavailable = "doctor-container-cgroup-unavailable"
@@ -27,6 +29,7 @@ const (
 	codeStopKilled        = "doctor-container-stop-killed"
 	codeCleanupIncomplete = "doctor-container-cleanup-incomplete"
 	codeFailed            = "doctor-container-failed"
+	codeStopped           = "doctor-container-stopped"
 )
 
 // The pair of codes of each kernel capability this plugin enrolls
@@ -59,7 +62,26 @@ const (
 	// failed state. Its record carries the cause and the fix of that start,
 	// and it lasts only while the state does.
 	problemFailed
+	// problemStopped: the container's entrypoint ended on its own with a
+	// status other than 0 and it holds the stopped state. Its record carries
+	// the status and the newest rows of its output, and it lasts only while
+	// the state does.
+	problemStopped
 )
+
+// recordState answers the state a record of kind lasts with, for a kind whose
+// record follows a state, and false for a kind whose record outlives it.
+func recordState(kind problemKind) (State, bool) {
+	switch kind {
+	case problemFailed:
+		return StateFailed, true
+	case problemStopped:
+		return StateStopped, true
+	case problemOutOfMemory, problemProcessLimit, problemStopKilled, problemCleanupIncomplete:
+		return StateUnspecified, false
+	}
+	return StateUnspecified, false
+}
 
 // The severities of the runtime findings of this plugin. A warning reports
 // something that happened to one container that runs, or ran, while the
@@ -136,6 +158,13 @@ var runtimeDoctorChecks = []runtimeDoctorCheck{
 		kind:     problemFailed,
 		severity: severityError,
 		problem:  "cannot run: its last start failed, and Ze starts it again at the next configuration commit or restart command",
+		fix:      restartCommand,
+	},
+	{
+		decl:     rpc.DoctorCheckDecl{Name: "container-stopped", Phase: rpc.DoctorPhaseRuntime, Order: 797, Codes: []string{codeStopped}},
+		kind:     problemStopped,
+		severity: severityWarning,
+		problem:  "ended on its own and stays stopped until it is started again",
 		fix:      restartCommand,
 	},
 }
@@ -269,6 +298,12 @@ var containerDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "A container the configuration enables does not run",
 		Description: "The last start of a container failed, so the container holds the failed state and runs nothing. A start fails when the image store cannot answer, when a participant such as the network refuses the container, when the runtime library cannot create it, or when its entrypoint cannot be released; a failed start leaves nothing behind. Ze starts the container again at the next configuration commit and at a restart command. The finding names the container, the step that failed and its cause, and the command that fixes that cause. Fix the cause, then run ze request container restart name NAME.",
 		Examples:    []string{exampleShowDoctor, "ze show diagnostic " + codeFailed},
+	},
+	{
+		Code:        codeStopped,
+		Title:       "A container ended on its own with a failure",
+		Description: "The entrypoint of a container exited by itself with a status other than 0, so the container holds the stopped state and runs nothing; Ze does not start it again by itself. The finding names the container, its exit status and the last lines it wrote to its standard output and standard error, which usually say why it ended. Fix what those lines name, then run ze request container restart name NAME.",
+		Examples:    []string{exampleShowDoctor, "ze show diagnostic " + codeStopped},
 	},
 	{
 		Code:         codeKernelCPULimitUnavailable,

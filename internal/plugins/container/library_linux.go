@@ -59,14 +59,25 @@ func (patchedLibrary) create(_ context.Context, request *startRequest) (createdC
 	if err != nil {
 		return nil, errors.Join(createFailed(name, "the runtime library refused its description", err), unmountRoot(rootfs))
 	}
-	if err := container.Start(process); err != nil {
-		return nil, errors.Join(createFailed(name, "its init did not start", err), container.Destroy(), unmountRoot(rootfs))
+	output, err := attachOutput(name, process, request.output)
+	if err != nil {
+		return nil, errors.Join(createFailed(name, "the pipes of its output could not be made", err), container.Destroy(), unmountRoot(rootfs))
+	}
+	// The daemon's copy of the write ends is closed whatever the start
+	// answered: a copy left open would keep the readers from their end.
+	startErr := container.Start(process)
+	if closeErr := output.closeWriteEnds(); closeErr != nil {
+		return nil, errors.Join(createFailed(name, "the daemon's end of its output pipes did not close", closeErr), startErr,
+			container.Destroy(), unmountRoot(rootfs))
+	}
+	if startErr != nil {
+		return nil, errors.Join(createFailed(name, "its init did not start", startErr), container.Destroy(), unmountRoot(rootfs))
 	}
 	pid, err := process.Pid()
 	if err != nil {
 		return nil, errors.Join(createFailed(name, "its init has no process id", err), container.Destroy(), unmountRoot(rootfs))
 	}
-	return &libraryContainer{name: name, container: container, process: process, rootfs: rootfs, pid: pid}, nil
+	return &libraryContainer{name: name, container: container, process: process, output: output, rootfs: rootfs, pid: pid}, nil
 }
 
 // libraryContainer is one container the runtime library created. Its methods
@@ -76,6 +87,7 @@ type libraryContainer struct {
 	name      string
 	container *libcontainer.Container
 	process   *libcontainer.Process
+	output    *containerOutput
 	rootfs    string
 	pid       int
 }
@@ -136,9 +148,16 @@ func (c *libraryContainer) kill() error {
 }
 
 // destroy removes the container's control group and its state directory
-// through the library, then unmounts its root.
+// through the library, then unmounts its root, then waits for the readers of
+// its output: a control group the kernel removed holds no process, so no
+// writer of the pipes is left, and once destroy returns every line the
+// container wrote is in its buffer. A destroy that failed does not wait: a
+// process may still hold a pipe.
 func (c *libraryContainer) destroy() error {
-	return errors.Join(c.container.Destroy(), unmountRoot(c.rootfs))
+	if err := errors.Join(c.container.Destroy(), unmountRoot(c.rootfs)); err != nil {
+		return err
+	}
+	return c.output.wait()
 }
 
 func createFailed(name, step string, err error) error {
