@@ -260,13 +260,13 @@ For a `library` entry, read the module in the module cache:
 - **Effect:** blocks
 - **Status:** verified
 - **Checked:** Linux 7.3, 2026-10-30
-- **Limitation:** An XFRM state holds one selector, and inbound processing
+- **Limitation:** A stock XFRM state holds one selector, and inbound processing
   drops a packet that does not match the selector of the state that
   decrypted it. A transport-mode Child SA therefore carries one selector pair:
   a selector wide enough for several pairs admits traffic no pair negotiated.
 - **Blocks:** a transport-mode Child SA with several traffic selector pairs
-  (RFC 7296 Section 2.9 lets a peer propose several).
-- **Evidence:** `include/net/xfrm.h` `struct xfrm_state` has one
+  through the stock ABI (RFC 7296 Section 2.9 lets a peer propose several).
+- **Evidence:** stock `include/net/xfrm.h` `struct xfrm_state` has one
   `struct xfrm_selector	sel;`. `net/xfrm/xfrm_policy.c` `__xfrm_policy_check`
   checks each state that decrypted the packet:
   `if (!xfrm_selector_match(&x->sel, &fl, family)) {`, then excuses an ICMP
@@ -285,14 +285,24 @@ For a `library` entry, read the module in the module cache:
   non-transport state. The one exception is a namespace whose default input
   policy is block (`XFRM_USERPOLICY_BLOCK`), which drops every packet that
   matches no policy, protected or not.
-- **Re-check:** read `struct xfrm_state` and `__xfrm_policy_check`. Lifted
-  if a state gains a selector list, or if a transport-mode decrypted packet
-  that matches no policy, or a template-less one, is rejected.
-- **Ze meanwhile:** refuses a transport-mode peer with more than one
+- **Re-check:** read `struct xfrm_state` and `__xfrm_policy_check`, including
+  Ze's carried state-scope patch. The stock limitation does not describe a
+  state installed through that extension's complete directional selector set.
+  The carried ABI still requires one transport-mode record identical to the
+  legacy selector.
+- **Ze meanwhile:** carries `XFRMA_STATE_SCOPE` for complete directional
+  tunnel-mode selector sets and checks a fresh full capability receipt before
+  installing a scoped state. This does not establish full packet proof; the
+  remaining validation is described in the
+  [IKE architecture page](ike/ipsec-8-ikev2-child-xfrm.md). Ze still
+  refuses a transport-mode peer with more than one
   `traffic-selector` entry; as responder it answers several proposed pairs
   with the first, as initiator it refuses an answer of several pairs.
 
 <!-- source: internal/component/ike/engine/config.go -- validateTransportOnePair -->
+<!-- source: internal/component/ike/engine/child_scope.go -- childStateScope -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities -->
+<!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_state_scope_from_user, xfrm_state_scope_match -->
 
 ### LL-XFRM-STATE-ONE-ESP-FORM
 
@@ -387,7 +397,7 @@ For a `library` entry, read the module in the module cache:
 - **Effect:** constrains design
 - **Status:** verified
 - **Checked:** Linux 7.3, 2026-11-10
-- **Limitation:** XFRM classifies an IP fragment, initial or not, with port 0,
+- **Limitation:** Stock XFRM classifies an IP fragment, initial or not, with port 0,
   ICMP type 0 and ICMP code 0: the flow dissector reads no transport header
   from a fragment, and XFRM does not ask it to parse the first one. On the
   forward path the policy lookups run before any reassembly of XFRM's own
@@ -401,7 +411,7 @@ For a `library` entry, read the module in the module cache:
   entry for ICMP type 0 with a code range holding 0 (the RFC4301-7.4-2
   concern for a bypass). Both requirements stay met, because Ze refuses the
   selector rather than install it.
-- **Evidence:** `net/core/flow_dissector.c` `__skb_flow_dissect`, IPv4:
+- **Evidence:** stock `net/core/flow_dissector.c` `__skb_flow_dissect`, IPv4:
   `if (iph->frag_off & htons(IP_OFFSET)) {` `fdret = FLOW_DISSECT_RET_OUT_GOOD;`,
   and for the first fragment `if (!(flags & FLOW_DISSECTOR_F_PARSE_1ST_FRAG)) {`
   `fdret = FLOW_DISSECT_RET_OUT_GOOD;`; after the protocol step
@@ -417,10 +427,16 @@ For a `library` entry, read the module in the module cache:
   `!xfrm6_policy_check(NULL, XFRM_POLICY_FWD, skb)) {` and
   `if (!xfrm6_route_forward(skb)) {`.
 - **Re-check:** read `__xfrm_decode_session` and the fragment cases of
-  `__skb_flow_dissect`. Lifted when XFRM decodes a fragment's ports from
-  reassembly state (stateful fragment checking) or stops matching a fragment
-  against a port or ICMP selector.
-- **Ze meanwhile:** refuses. Negotiation narrows a proposed single port 0 or
+  `__skb_flow_dissect`, together with Ze's carried fragment-context and guard
+  patches. While the live guard has references, it gathers fragments before
+  port-sensitive policy lookup and repeats deferred raw-output routing using
+  the completed packet and captured socket authority. Scope identities also
+  separate protected reassembly contexts. The stock limitation alone does
+  not describe that guarded path; complete route and context validation
+  remains owed as described in the
+  [IKE architecture page](ike/ipsec-8-ikev2-child-xfrm.md).
+- **Ze meanwhile:** retains its selector refusals. Negotiation narrows a
+  proposed single port 0 or
   ICMP type 0 code 0 away and refuses such an answer (`programmableSelector`,
   `engine/ts_narrow.go`), the policy builder installs no pair carrying one
   (`childPolicyPair`, `engine/child.go`), and commit refuses an `out` or `both`
@@ -433,6 +449,8 @@ For a `library` entry, read the module in the module cache:
 <!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, portMatchesEveryFragment -->
 <!-- source: internal/component/ike/engine/child.go -- childPolicyPair -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- validateICMPFragments -->
+<!-- source: gokrazy/kernel/patches/0004-ip-fragment-xfrm-context.patch -- inet_frag_xfrm_context_init -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_fragment_guard_active, xfrm_fragment_local_out, xfrm_fragment_route -->
 
 ### LL-RTNL-NEWLINK-NO-ALIAS
 

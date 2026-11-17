@@ -89,6 +89,7 @@ const (
 	CodeDoctorIPsecESPFormOffload                  = "doctor-ipsec-esp-form-offload"
 	CodeDoctorIPsecESPFormOffloadUnknown           = "doctor-ipsec-esp-form-offload-unknown"
 	CodeDoctorIPsecForwardDefault                  = "doctor-ipsec-forward-default"
+	CodeDoctorIPsecStateScope                      = "doctor-ipsec-state-scope"
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
 	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
 	CodeDoctorIPsecImplicitDiscard                 = "doctor-ipsec-implicit-discard"
@@ -123,6 +124,7 @@ const (
 	CodeDoctorPPPoEUnavailable                     = "doctor-pppoe-unavailable"
 	CodeDoctorPPPoEUnknown                         = "doctor-pppoe-unknown"
 	CodeDoctorPPPCleanup                           = "doctor-ppp-cleanup"
+	CodeDoctorPPPoEVPPReconcile                    = "doctor-pppoe-vpp-reconcile"
 	CodeDoctorWireGuardUnavailable                 = "doctor-wireguard-unavailable"
 	CodeDoctorWireGuardUnknown                     = "doctor-wireguard-unknown"
 	CodeDoctorXFRMInterfaceUnavailable             = "doctor-xfrm-interface-unavailable"
@@ -149,6 +151,7 @@ const (
 	CodeDoctorTLSReference                         = "doctor-tls-reference"
 	CodeDoctorVPPLCPNetns                          = "doctor-vpp-lcp-netns"
 	CodeDoctorVPPLCPPlugin                         = "doctor-vpp-lcp-plugin"
+	CodeDoctorVPPStats                             = "doctor-vpp-stats"
 	CodeDoctorVPPWireguard                         = "doctor-vpp-wireguard" //nolint:gosec // G101 reads the "pw" in VPPWireguard as a credential name
 	CodeDoctorWriteDestination                     = "doctor-write-destination"
 	CodeConfigGNMIInvalid                          = "config-gnmi-invalid"
@@ -717,6 +720,12 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
+		Code:        CodeDoctorVPPStats,
+		Title:       "VPP runtime statistics unavailable",
+		Description: "The running VPP statistics connection or a statistics read failed. Interface counters used by subscriber accounting and idle detection cannot be treated as zero. Inspect show warnings for the retained socket or read failure, then check the configured VPP statistics socket and its permissions. A successful read clears only its own statistics category from the same live API owner; an unrelated read cannot hide the failure.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-vpp-stats"},
+	},
+	{
 		Code:        CodeDoctorVPPWireguard,
 		Title:       "VPP wireguard plugin not enabled",
 		Description: "A wireguard interface is configured under the vpp backend, but the VPP wireguard plugin is not enabled (vpp.plugins.wireguard) or not loaded in the running VPP. VPP cannot program wireguard tunnels without it, so the interface will fail at apply.",
@@ -1029,6 +1038,12 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleShowDoctor, exampleShowWarnings},
 	},
 	{
+		Code:        CodeDoctorPPPoEVPPReconcile,
+		Title:       "PPPoE VPP resource cleanup is incomplete",
+		Description: "A PPPoE session or control mapping retains an uncertain VPP mutation. Ze keeps the exact owner reserved instead of reusing a native index or deleting another owner's resource. Inspect the retained warning and restore the reported VPP connection; only confirmed cleanup or a proven process exit can clear it.",
+		Examples:    []string{exampleShowDoctor, exampleShowWarnings},
+	},
+	{
 		Code:  CodeDoctorWireGuardUnavailable,
 		Title: "WireGuard unavailable",
 		Description: "The configuration uses a wireguard interface and the kernel does not provide the wireguard generic netlink family (CONFIG_WIREGUARD). " +
@@ -1309,6 +1324,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "IPsec forwarding-default dependency or restoration failed",
 		Description: "The IKE process cannot read or restore its namespace's final forwarding disposition, or another policy manager changed the value it holds.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-forward-default"},
+	},
+	{
+		Code:        CodeDoctorIPsecStateScope,
+		Title:       "IPsec complete state-scope support cannot be verified",
+		Description: "Configured IPsec peers need complete per-SA traffic selector, ICMP quote and fragment checks. The running kernel did not provide a complete, readable capability receipt. Child SA installation is refused until Ze's native runtime kernel is rebuilt and booted; the runtime doctor finding preserves the exact cause and native repair commands.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-state-scope"},
 	},
 	{
 		Code:  CodeDoctorIPsecChildInstallRefused,

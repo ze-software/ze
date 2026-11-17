@@ -1,11 +1,6 @@
-Uncompiled, unenrolled proposal.
-Transport plaintext-fragment rejection remains unresolved.
-This proposal is not proof of support.
-
-Base: K1 state scope followed by K2 fragment context on Linux 7.3.
-Original proposal SHA256:
-a106cdf1e964a08281f90fd7cac0c7ee881c3ee66b47ed22a87faf04101e648e
-Only the new-file creation header was repaired in this preserved copy.
+Ze Linux 7.3 XFRM fragment guard, after state scope and fragment context.
+Enable CONFIG_XFRM_FRAGMENT_GUARD for port-sensitive gathering and routing.
+The authenticated transport boundary applies independently of that option.
 
 diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
 --- a/include/linux/skbuff.h
@@ -128,11 +123,14 @@ diff --git a/include/net/netfilter/ipv6/nf_defrag_ipv6.h b/include/net/netfilter
 diff --git a/include/net/xfrm.h b/include/net/xfrm.h
 --- a/include/net/xfrm.h
 +++ b/include/net/xfrm.h
-@@ -214,6 +214,74 @@
+@@ -214,6 +214,77 @@
  bool xfrm_state_scope_match(const struct xfrm_state *x,
  			    const struct flowi *fl, unsigned short family);
  void xfrm_state_scope_hold_guard(struct xfrm_state *x);
 +bool xfrm_state_noninitial_allowed(const struct xfrm_state *x);
++bool xfrm6_fragment_allowed(const struct xfrm_state *x,
++			    const struct sk_buff *skb, unsigned int offset,
++			    u8 nexthdr);
 +
 +/* Presence is the deferred-lookup flag. Immutable while queued; clone/morph
 + * MUST retain the offset-zero packet's seed until successful final lookup.
@@ -203,7 +201,7 @@ diff --git a/include/net/xfrm.h b/include/net/xfrm.h
  
  /* Full description of state of transformer. */
  struct xfrm_state {
-@@ -686,6 +754,10 @@
+@@ -686,6 +757,10 @@
  	struct xfrm_policy_queue polq;
  	bool                    bydst_reinsert;
  	bool			fragment_guard_held;
@@ -573,7 +571,7 @@ diff --git a/net/ipv4/raw.c b/net/ipv4/raw.c
 +		err = xfrm_raw_route_capture(&route_seed, sk, &fl4, AF_INET);
 +		if (err)
 +			goto done;
-+		rt = ip_route_output_key(net, &fl4);
++		rt = __ip_route_output_key(net, &fl4);
 +	} else {
 +		rt = ip_route_output_flow(net, &fl4, sk);
 +	}
@@ -909,7 +907,7 @@ diff --git a/net/xfrm/xfrm_fragment.c b/net/xfrm/xfrm_fragment.c
 new file mode 100644
 --- /dev/null
 +++ b/net/xfrm/xfrm_fragment.c
-@@ -0,0 +1,395 @@
+@@ -0,0 +1,435 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/* RFC 4301 Sections 7.1, 7.3 and 7.4 -- see rfc/short/rfc4301.md. */
 +
@@ -1057,7 +1055,7 @@ new file mode 100644
 +	if (family == AF_INET) {
 +		struct rtable *rt;
 +
-+		rt = ip_route_output_key(state->net, &fl.u.ip4);
++		rt = __ip_route_output_key(state->net, &fl.u.ip4);
 +		if (IS_ERR(rt))
 +			return PTR_ERR(rt);
 +		dst = &rt->dst;
@@ -1107,9 +1105,16 @@ new file mode 100644
 +		return true;
 +	if (sp->len > XFRM_MAX_DEPTH)
 +		goto reject;
-+	for (i = 0; i < sp->len; i++)
++	for (i = 0; i < sp->len; i++) {
++		/* The current transport boundary rejected exposed fragments.
++		 * An earlier transport state can enclose this inner tunnel;
++		 * its permission does not describe the now-visible fragment.
++		 */
++		if (sp->xvec[i]->props.mode == XFRM_MODE_TRANSPORT)
++			continue;
 +		if (!xfrm_state_noninitial_allowed(sp->xvec[i]))
 +			goto reject;
++	}
 +	return true;
 +
 +reject:
@@ -1209,9 +1214,42 @@ new file mode 100644
 +					     struct sk_buff *skb,
 +					     const struct nf_hook_state *state)
 +{
++	struct ipv6_opt_hdr option, *hop;
++	unsigned int verdict, cursor = sizeof(struct ipv6hdr);
++	int network;
 +	bool reassembled;
 +
-+	return xfrm6_fragment_gather(skb, state, false, &reassembled);
++	verdict = xfrm6_fragment_gather(skb, state, false, &reassembled);
++	if (verdict != NF_ACCEPT || !reassembled)
++		return verdict;
++
++	/* RFC 8200 Section 4.5: "Only those headers in the Offset zero
++	 * fragment packet are retained in the reassembled packet."
++	 * Gather moves transport_header beyond the removed Fragment header.
++	 * Resume the receive walk from the retained first fragment's state,
++	 * not the completing fragment's cursor or its relocated absolute value.
++	 * Hop-by-Hop was already processed by ip6_rcv_core; later extensions
++	 * MUST remain for ip6_protocol_deliver_rcu to process in order.
++	 */
++	network = skb_network_offset(skb);
++	if (network < 0 || network > skb->len ||
++	    cursor > skb->len - network)
++		return NF_DROP;
++	if (IP6CB(skb)->flags & IP6SKB_HOPBYHOP) {
++		if (IP6CB(skb)->nhoff != cursor ||
++		    ipv6_hdr(skb)->nexthdr != NEXTHDR_HOP)
++			return NF_DROP;
++		hop = skb_header_pointer(skb, network + cursor,
++					 sizeof(option), &option);
++		if (!hop || ipv6_optlen(hop) > skb->len - network - cursor)
++			return NF_DROP;
++		cursor += ipv6_optlen(hop);
++	} else if (IP6CB(skb)->nhoff != offsetof(struct ipv6hdr, nexthdr) ||
++		   ipv6_hdr(skb)->nexthdr == NEXTHDR_HOP) {
++		return NF_DROP;
++	}
++	skb_set_transport_header(skb, network + cursor);
++	return NF_ACCEPT;
 +}
 +
 +static unsigned int xfrm_fragment_local_out(struct sk_buff *skb,
@@ -1305,65 +1343,63 @@ new file mode 100644
 +	return err;
 +}
 +late_initcall(xfrm_fragment_init);
+diff --git a/net/xfrm/xfrm_input.c b/net/xfrm/xfrm_input.c
+--- a/net/xfrm/xfrm_input.c
++++ b/net/xfrm/xfrm_input.c
+@@ -712,6 +712,17 @@
+ 			goto drop;
+ 		}
+ resume_decapped:
++		/* Check only the state that just authenticated this plaintext.
++		 * Ciphertext fragments were reassembled before authentication;
++		 * historical transport states can wrap a now-visible inner tunnel.
++		 */
++		if (x->props.mode == XFRM_MODE_TRANSPORT &&
++		    ((x->props.family == AF_INET && ip_is_fragment(ip_hdr(skb))) ||
++		     (x->props.family == AF_INET6 &&
++		      !xfrm6_fragment_allowed(x, skb, 0, nexthdr)))) {
++			XFRM_INC_STATS(net, LINUX_MIB_XFRMINSTATEMODEERROR);
++			goto drop;
++		}
+ 		if (x->outer_mode.flags & XFRM_MODE_FLAG_TUNNEL) {
+ 			decaps = 1;
+ 			break;
 diff --git a/net/xfrm/xfrm_output.c b/net/xfrm/xfrm_output.c
 --- a/net/xfrm/xfrm_output.c
 +++ b/net/xfrm/xfrm_output.c
-@@ -496,6 +496,63 @@
+@@ -496,6 +496,40 @@
  EXPORT_SYMBOL_GPL(pktgen_xfrm_outer_mode_output);
  #endif
  
-+/* RFC 4301 Section 7.3: enforce permission before changing inner headers.
++/* RFC 4301 Sections 7 and 7.3: check before changing inner headers.
 + * This deliberately does not recheck selectors: an ICMP error may already
 + * have been authorized using its reversed quoted flow.
 + */
 +static bool xfrm_output_fragment_allowed(const struct xfrm_state *x,
 +					 const struct sk_buff *skb)
 +{
-+	if (xfrm_state_noninitial_allowed(x))
-+		return true;
 +	if (skb->protocol == htons(ETH_P_IP)) {
 +		struct iphdr header, *iph;
++		__be16 forbidden = htons(IP_OFFSET);
 +
++		if (xfrm_state_noninitial_allowed(x))
++			return true;
++		if (x->props.mode == XFRM_MODE_TRANSPORT)
++			forbidden |= htons(IP_MF);
 +		iph = skb_header_pointer(skb, skb_network_offset(skb),
 +					 sizeof(header), &header);
-+		return iph && !(iph->frag_off & htons(IP_OFFSET));
++		return iph && !(iph->frag_off & forbidden);
 +	}
 +#if IS_ENABLED(CONFIG_IPV6)
 +	if (skb->protocol == htons(ETH_P_IPV6)) {
 +		struct ipv6hdr header, *ip6h;
-+		unsigned int proto;
 +		int offset = skb_network_offset(skb);
 +
 +		ip6h = skb_header_pointer(skb, offset, sizeof(header), &header);
 +		if (!ip6h)
 +			return false;
-+		proto = ip6h->nexthdr;
-+		offset += sizeof(header);
-+		/* Local parsing avoids a built-in XFRM dependency on modular IPv6. */
-+		for (;;) {
-+			struct ipv6_opt_hdr option, *opt;
-+			unsigned int length;
-+
-+			if (proto == NEXTHDR_FRAGMENT) {
-+				struct frag_hdr fragment, *fh;
-+
-+				fh = skb_header_pointer(skb, offset,
-+							sizeof(fragment), &fragment);
-+				return fh && !(fh->frag_off & htons(IP6_OFFSET));
-+			}
-+			if (proto != NEXTHDR_HOP && proto != NEXTHDR_ROUTING &&
-+			    proto != NEXTHDR_AUTH && proto != NEXTHDR_DEST)
-+				return true;
-+			opt = skb_header_pointer(skb, offset, sizeof(option), &option);
-+			if (!opt)
-+				return false;
-+			length = proto == NEXTHDR_AUTH ? (opt->hdrlen + 2) * 4 :
-+				 (opt->hdrlen + 1) * 8;
-+			if (length > skb->len - offset)
-+				return false;
-+			proto = opt->nexthdr;
-+			offset += length;
-+		}
++		return xfrm6_fragment_allowed(x, skb, offset + sizeof(header),
++					      ip6h->nexthdr);
 +	}
 +#endif
 +	return true;
@@ -1372,7 +1408,7 @@ diff --git a/net/xfrm/xfrm_output.c b/net/xfrm/xfrm_output.c
  static int xfrm_output_one(struct sk_buff *skb, int err)
  {
  	struct dst_entry *dst = skb_dst(skb);
-@@ -506,6 +563,11 @@
+@@ -506,6 +540,11 @@
  		goto resume;
  
  	do {
@@ -1384,7 +1420,7 @@ diff --git a/net/xfrm/xfrm_output.c b/net/xfrm/xfrm_output.c
  		err = xfrm_skb_check_space(skb);
  		if (err) {
  			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
-@@ -768,6 +830,11 @@
+@@ -768,6 +807,11 @@
  	}
  
  	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
@@ -1770,19 +1806,30 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
 diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
 --- a/net/xfrm/xfrm_state.c
 +++ b/net/xfrm/xfrm_state.c
-@@ -763,10 +763,31 @@
+@@ -17,6 +17,7 @@
+ #include <linux/compat.h>
+ #include <linux/workqueue.h>
+ #include <net/xfrm.h>
++#include <net/ipv6.h>
+ #include <linux/pfkeyv2.h>
+ #include <linux/ipsec.h>
+ #include <linux/module.h>
+@@ -763,10 +764,88 @@
  }
  EXPORT_SYMBOL_GPL(xfrm_state_scope_match);
  
-+/* RFC 4301 Section 7.3 -- see rfc/short/rfc4301.md.
++/* RFC 4301 Sections 7 and 7.3 -- see rfc/short/rfc4301.md.
 + * Permission belongs to the SA, including every selector in its OR-set.
-+ * Protocol-only selectors retain the ANY-port behavior of Section 7.1.
++ * Transport mode cannot carry fragments, regardless of selector or flag.
++ * Tunnel protocol-only selectors retain Section 7.1's ANY-port behavior.
 + */
 +bool xfrm_state_noninitial_allowed(const struct xfrm_state *x)
 +{
 +	const struct xfrm_state_scope *scope = x->scope;
 +	unsigned int i;
 +
++	if (x->props.mode == XFRM_MODE_TRANSPORT)
++		return false;
 +	if (scope->flags & XFRM_STATE_SCOPE_NONINITIAL)
 +		return true;
 +	if (!scope->count)
@@ -1794,6 +1841,60 @@ diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
 +}
 +EXPORT_SYMBOL_GPL(xfrm_state_noninitial_allowed);
 +
++/* RFC 4301 Section 7: "Note: In Section 4.1, transport mode SAs have been
++ * defined to not carry fragments (IPv4 or IPv6)."
++ * Input supplies the current authenticated plaintext's offset/protocol;
++ * output supplies the unmodified IPv6 packet's first extension header.
++ * Local parsing avoids a built-in XFRM dependency on modular IPv6.
++ */
++bool xfrm6_fragment_allowed(const struct xfrm_state *x,
++			    const struct sk_buff *skb, unsigned int offset,
++			    u8 nexthdr)
++{
++#if IS_ENABLED(CONFIG_IPV6)
++	__be16 forbidden = htons(IP6_OFFSET);
++
++	if (xfrm_state_noninitial_allowed(x))
++		return true;
++	if (x->props.mode == XFRM_MODE_TRANSPORT)
++		forbidden |= htons(IP6_MF);
++	for (;;) {
++		struct ipv6_opt_hdr option, *opt;
++		unsigned int length;
++
++		if (offset > skb->len)
++			return false;
++		if (nexthdr == NEXTHDR_FRAGMENT) {
++			struct frag_hdr fragment, *fh;
++
++			fh = skb_header_pointer(skb, offset, sizeof(fragment), &fragment);
++			if (!fh || (fh->frag_off & forbidden))
++				return false;
++			if (x->props.mode != XFRM_MODE_TRANSPORT)
++				return true;
++			/* Atomic headers do not hide a later exposed fragment. */
++			nexthdr = fh->nexthdr;
++			offset += sizeof(fragment);
++			continue;
++		}
++		if (nexthdr != NEXTHDR_HOP && nexthdr != NEXTHDR_ROUTING &&
++		    nexthdr != NEXTHDR_AUTH && nexthdr != NEXTHDR_DEST)
++			return true;
++		opt = skb_header_pointer(skb, offset, sizeof(option), &option);
++		if (!opt)
++			return false;
++		length = nexthdr == NEXTHDR_AUTH ? (opt->hdrlen + 2) * 4 :
++			 (opt->hdrlen + 1) * 8;
++		if (length > skb->len - offset)
++			return false;
++		nexthdr = opt->nexthdr;
++		offset += length;
++	}
++#endif
++	return true;
++}
++EXPORT_SYMBOL_GPL(xfrm6_fragment_allowed);
++
  /* Acquire before publication; final state GC MUST balance this ownership. */
  void xfrm_state_scope_hold_guard(struct xfrm_state *x)
  {
@@ -1803,7 +1904,7 @@ diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
  		atomic_inc(&xs_net(x)->xfrm.fragment_guard_refs);
  		x->fragment_guard_held = true;
  	}
-@@ -1684,6 +1705,7 @@
+@@ -1684,6 +1763,7 @@
  	}
  
  	if (x && x->km.state == XFRM_STATE_VALID && !cached &&
@@ -1811,3 +1912,18 @@ diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
  	    (!(pol->flags & XFRM_POLICY_CPU_ACQUIRE) || x->pcpu_num == pcpu_id)) {
  		spin_lock_bh(&net->xfrm.xfrm_state_lock);
  		if (hlist_unhashed(&x->state_cache))
+diff --git a/net/xfrm/xfrm_user.c b/net/xfrm/xfrm_user.c
+--- a/net/xfrm/xfrm_user.c
++++ b/net/xfrm/xfrm_user.c
+@@ -2720,6 +2720,10 @@
+ #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
+ 	caps.features |= XFRM_ZE_CAP_FRAGMENT_CONTEXT;
+ #endif
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	if (xfrm_fragment_guard_ready())
++		caps.features |= XFRM_ZE_CAP_FRAGMENT_GUARD;
++#endif
+ 
+ 	r_skb = nlmsg_new(len, GFP_ATOMIC);
+ 	if (!r_skb)
+

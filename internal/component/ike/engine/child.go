@@ -551,30 +551,51 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 		IsAEAD:    isAEAD,
 	}
 
-	// RFC 4301 Section 5.2: "Then match the packet against the inbound selectors
-	// identified by the SAD entry to verify that the received packet is appropriate
-	// for the SA via which it was received." An SPD lookup alone can find a sibling's
-	// policy at the same endpoints and reqid. A backend that declares state-selector
-	// support receives this state's own immutable negotiated pair too.
-	//
-	// One XFRM state holds ONE selector (LL-XFRM-STATE-ONE-SELECTOR). Tunnel states
-	// with several pairs still keep their complete policy set; general per-SA binding
-	// there remains open. Transport remains strict: negotiation guarantees one pair,
-	// and inboundStateSelector refuses a broken transport producer before any install.
+	// RFC 4301 Sections 4.4.2 and 5.2: each state owns its complete directional
+	// negotiated set. Validate BOTH directions before publishing either state.
+	// The declaration describes the backend's representation, not the live kernel:
+	// XFRM still requires a fresh full capability receipt on every scoped install.
 	inboundPolicies := childPolicies(child, dataplane.SADirIn)
-	bindState := mode == modeTransport
-	if mode == modeTunnel {
-		bindState = tunnelStateSelectorSupported(dp, inboundPolicies)
+	var outboundScope *dataplane.SAStateScope
+	var outboundSelector *dataplane.SASelector
+	scopeInstaller, scoped := dp.(dataplane.SAStateScopeInstaller)
+	if scoped {
+		scoped = scopeInstaller.SAStateScopeSupported()
 	}
-	if bindState {
-		// RFC 4301 Section 4.4.2: "For each of the selectors defined in Section 4.4.1.1,
-		// the entry for an inbound SA in the SAD MUST be initially populated with the
-		// value or values negotiated at the time the SA was created."
-		sel, err := inboundStateSelector(inboundPolicies)
+	if scoped {
+		// RFC 4301 Section 4.4.2.
+		scope, err := childStateScope(inboundPolicies, mode)
 		if err != nil {
-			return nil, fmt.Errorf("child-sa: inbound state selector: %w", err)
+			return nil, fmt.Errorf("child-sa: inbound state scope: %w", err)
 		}
-		inbound.Sel = sel
+		inbound.Scope = scope
+		// RFC 4301 Section 4.4.2.
+		outboundScope, err = childStateScope(childPolicies(child, dataplane.SADirOut), mode)
+		if err != nil {
+			return nil, fmt.Errorf("child-sa: outbound state scope: %w", err)
+		}
+		if mode == modeTransport {
+			// The kernel requires canonical legacy selectors identical to the scope
+			// singleton, independently owned in each transport direction.
+			inbound.Sel = &inbound.Scope.Selectors()[0]
+			outboundSelector = &outboundScope.Selectors()[0]
+		}
+	}
+	if !scoped {
+		// Keep the distinct optional legacy inbound-selector contract for backends
+		// that have not declared complete directional scope support.
+		bindState := mode == modeTransport
+		if mode == modeTunnel {
+			bindState = tunnelStateSelectorSupported(dp, inboundPolicies)
+		}
+		if bindState {
+			// RFC 4301 Section 4.4.2.
+			sel, err := inboundStateSelector(inboundPolicies)
+			if err != nil {
+				return nil, fmt.Errorf("child-sa: inbound state selector: %w", err)
+			}
+			inbound.Sel = sel
+		}
 	}
 	// RFC 4301 Section 6.2: "If an IPsec implementation receives an inbound ICMP error
 	// message on an SA, and the IP and ICMP headers of the message do not match the
@@ -668,6 +689,8 @@ func installChildDataplane(child, previous *ChildSA, prop ipsec.ESPProposal, dp 
 		AuthAlgo:  authAlgo,
 		AuthKey:   outInteg,
 		IsAEAD:    isAEAD,
+		Scope:     outboundScope,
+		Sel:       outboundSelector,
 	}
 	// RFC 4301 Section 8.1: the encapsulator applies the configured DF treatment to the
 	// tunnel header it emits. A transport-mode SA emits none, so it keeps the default.
@@ -1461,9 +1484,9 @@ func tunnelStateSelectorSupported(dp dataplane.Dataplane, policies []dataplane.S
 // entry for an inbound SA in the SAD MUST be initially populated with the value or
 // values negotiated at the time the SA was created."
 //
-// An XFRM state carries ONE selector (x->sel), and one SPI names one state (Linux
-// limitation LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md), so the
-// state holds the negotiated values exactly only when exactly one pair was negotiated.
+// The legacy XFRM selector (x->sel) holds exactly one pair (Linux limitation
+// LL-XFRM-STATE-ONE-SELECTOR, docs/architecture/linux-limitations.md). This helper
+// serves that legacy path; declared complete scopes use childStateScope instead.
 // Both producers guarantee that in transport mode: the responder narrows to one pair
 // (narrowChildSelectorsIn) and the initiator refuses an answer of several
 // (recordInitiatorSelectorsIn, ts_narrow.go). The tunnel caller checks exact

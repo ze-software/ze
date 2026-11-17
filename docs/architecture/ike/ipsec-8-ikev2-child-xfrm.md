@@ -95,30 +95,35 @@ is expected to reach the refusal.
 
 <!-- source: internal/component/ike/engine/create_child.go -- childEncapPorts -->
 
-**A representable inbound selector is bound to the XFRM state itself.** RFC
-4301 Sections 4.4.2 and 5.2 require the received packet to match the selectors of
-the SA that carried it. An SPD search alone can find a sibling SA's policy at the
-same endpoints and request id. Linux declares `InboundStateSelectorInstaller`,
-so `installChildDataplane` gives a tunnel-mode inbound state its own
-`SAParams.Sel` when one concrete same-family pair describes its entire scope.
-`__xfrm_policy_check` checks this immutable state selector before looking up the
-SPD and drops an outside packet as `XfrmInStateMismatch`. The selector is built
-from the same inbound policy fields, including the protocol and port masks.
-Transport mode retains its strict one-pair state selector independently of the
-optional tunnel declaration. An undeclared backend keeps its existing policy
-installation path; this makes no per-SA isolation claim for that backend.
+**Each declared state owns its complete directional selector set.** RFC 4301
+Sections 4.4.2 and 5.2 require a received packet to match the selectors of the
+SA that carried it. An SPD search alone can find a sibling SA's policy at the
+same endpoints and request id. A backend declares complete scope representation
+with `SAStateScopeInstaller`. Linux XFRM declares it, including its MOBIKE
+wrapper. `installChildDataplane` constructs and validates both immutable scopes
+from the expanded directional `childPolicies` before publishing either state.
+The sets preserve each record's family, canonical prefixes, protocol, port masks
+and interface index, with no covering selector. The 64-record limit applies
+after expansion. Each state retains its independent XFRM interface id.
+Transport requires one record and gives both states an independently owned
+legacy selector identical to their own scope singleton. Noninitial-fragment
+permission remains false because Ze does not negotiate `NON_FIRST_FRAGMENTS_ALSO`.
+<!-- source: internal/component/ike/engine/child_scope.go -- childStateScope -->
+<!-- source: internal/component/ike/engine/child.go -- installChildDataplane, childPolicies -->
 
-**General multiple-pair binding remains open.** One XFRM state selector cannot
-express arbitrary or mixed-family negotiated pairs. Those tunnel states still
-leave `SAParams.Sel` nil and install every negotiated policy. A missing-family
-legacy selector also keeps that path. The state selector correction does not
-settle isolation between unequal overlapping selector sets or the fragment
-obligations of RFC 4301 Sections 7.3 and 7.4; the architecture-gaps spec remains
-open for them. Identical-selector parallel SAs retain their shared policy, and
-each representable state carries its own scope through rekey overlap, including
-when the successor's scope is wider.
+The declaration states what the backend can represent. Every scoped XFRM SA
+installation still requires the fresh full capability receipt described below;
+a refusal never retries without scope. An undeclared backend, including VPP,
+retains its existing selector and policy contracts and gains no per-SA scope
+claim. The separate `InboundStateSelectorInstaller` contract still supplies
+exactly representable legacy inbound selectors to backends that declare only
+that contract. Kernel enforcement and packet proofs remain separate from this
+engine wiring.
+<!-- source: internal/component/ike/dataplane/state_scope.go -- SAStateScopeInstaller -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- SAStateScopeSupported, checkXFRMStateScopeCapabilities -->
+<!-- source: internal/component/ike/engine/child.go -- installChildDataplane, tunnelStateSelectorSupported -->
 
-**Kernel scope ABI under implementation.** The state-scope patch extends
+**Carried kernel scope ABI.** The state-scope patch extends
 ordinary XFRM netlink construction with `XFRMA_STATE_SCOPE` (42). Its payload
 is native-endian `u32 flags`, `u32 count`, then 1 through 64 existing
 `xfrm_selector` records. Each record describes one directional inner flow;
@@ -149,15 +154,17 @@ equal `0x5a450001`; an absent or different receipt proves no support. Feature
 bits are 0 for state scope, 1 for quote availability, 2 for fragment context,
 3 for fragment gathering and 4 for strict ICMP final-policy mapping. K1
 advertises only bits 0 and 1; K2 adds bit 2 when both IP families are compiled.
+K3 adds bit 3 only when `CONFIG_XFRM_FRAGMENT_GUARD` is built and its namespace
+hooks initialized successfully.
 Guard references belong to scoped states and
 policies with a nonzero protocol or port mask, including socket policies and
 template-free BYPASS/DISCARD. Construction gets ownership before publication;
 state GC and final policy RCU destruction release it. The count has no disable
-control and is independent of the FWD-default lease. This staged kernel work
-does not establish fragment gathering, IKE negotiation or an engine writer for
-the new attribute; their implementation and packet proof remain owed before
-the general scope boundary is declared supported.
+control and is independent of the FWD-default lease. A complete receipt
+establishes the live kernel's advertised capabilities, not full packet proof.
+The general scope boundary still requires the remaining validation below.
 <!-- source: gokrazy/kernel/patches/0003-xfrm-state-scope.patch -- xfrm_get_default, xfrm_state_scope_hold_guard, xfrm_policy_hold_fragment_guard, xfrm_state_gc_destroy, xfrm_policy_destroy_rcu -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- XFRM_ZE_CAP_FRAGMENT_GUARD, xfrm_fragment_guard_ready, xfrm_fragment_init -->
 
 Ze's dataplane owns both attributes and their wire form. The vendored netlink
 library knows neither: a state request carries the scope as an opaque
@@ -203,7 +210,16 @@ commands. It never becomes the platform-wide `ErrNotSupported` result.
 <!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- checkXFRMStateScopeCapabilities, xfrmStateScopeRefusal -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA -->
 
-**Fragment context isolation under implementation.** K2 extends the existing
+The engine's `ipsec-state-scope` runtime doctor check can report the same fresh
+capability failure even before a Child SA attempt. It reads the applied configured
+peer set, so waiting or not-yet-started sessions cannot hide the dependency.
+With no configured peers or no backend checker it reports nothing; each request
+rereads the live receipt. A failure preserves the installation gate's cause,
+explanation and native runtime-kernel repair commands.
+<!-- source: internal/component/ike/engine/doctor_state_scope.go -- answerStateScope, stateScopeCheckDecl -->
+<!-- source: internal/component/ike/dataplane/xfrm_state_scope_linux.go -- CheckSAStateScope -->
+
+**Fragment context isolation.** K2 extends the existing
 IPv4, local IPv6 and conntrack IPv6 fragment keys with the complete ordered
 vector of scope identities and its length. Clear traffic has an empty vector;
 legacy protected states still carry their distinct identities. Keys are fully
@@ -221,19 +237,30 @@ charge remains until the final RCU destructor releases those references;
 overflow is checked before publication. The existing fragment-directory memory
 thresholds and timers govern these charges. One lightweight header supplies the
 single transform-depth bound without importing XFRM's namespace-dependent
-helpers into fragment-key declarations. This is authored source awaiting native
-kernel compilation, queue-lifetime checks and the unchanged mixed-context
-packet tests; no queue-isolation runtime proof is claimed yet.
+helpers into fragment-key declarations. The carried patch has compiled and
+booted with K1 and K3 in Ze's native own-system guest. Bounded ANY-port
+same-SA and mixed-SA packet checks have passed; the private K2 fault-kernel
+run, remaining queue-lifetime checks and complete mixed-context proof remain
+owed. These observations do not establish full queue-isolation support.
 <!-- source: gokrazy/kernel/patches/0004-ip-fragment-xfrm-context.patch -- inet_frag_xfrm_context_init, inet_frag_xfrm_context_get, inet_frag_xfrm_context_put, inet_frag_alloc, inet_frag_destroy_rcu, ip4_frag_init, ip4_frag_free, ip6frag_init, ip6frag_free -->
+<!-- test: internal/component/ike/engine/rfc4301_any_scope_fragment_context_integration_linux_test.go TestRFC4301AnyScopeFragmentsKeepSAIdentity -->
 
-**Fragment gathering: uncompiled, unenrolled proposal.** K3 is preserved in
-`gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch`, outside the active
-series. Authenticated IPv6 transport plaintext fragments still need rejection
-before reassembly and before outbound transformation. Capability bit 3 remains
-absent, and the proposal has no native compilation or packet proof.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_fragment_inbound_allowed, xfrm_output_fragment_allowed -->
+**Fragment gathering.** K3 is enrolled
+as `gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch`. It rejects plaintext
+fragments at the current authenticated transport-state boundary before
+reassembly, and checks outbound fragments before transformation. IPv6 atomic
+fragments and outer ciphertext fragmentation remain permitted. Native guest
+checks have passed the complete `0xf` receipt, authenticated transport-fragment
+rejection, whole/atomic/ciphertext and nested-tunnel controls, and bounded
+IPv4 clear/forward and IPv6 raw-output port-policy cases. These checks do not
+complete the full route's validation or its RFC discrimination records.
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_input, xfrm6_fragment_allowed, xfrm_output_fragment_allowed -->
+<!-- test: internal/component/ike/dataplane/rfc4301_complete_scope_integration_linux_test.go TestRFC4301KernelAdvertisesCompleteStateScope -->
+<!-- test: internal/component/ike/engine/rfc4301_transport_fragment_boundary_integration_linux_test.go TestRFC4301TransportRejectsAuthenticatedIPv6PlaintextFragments -->
+<!-- test: internal/component/ike/engine/rfc4301_transport_fragment_boundary_integration_linux_test.go TestRFC4301NestedTransportKeepsTunnelFragments -->
+<!-- test: internal/component/ike/engine/rfc4301_ipv6_fragment_policy_integration_linux_test.go TestRFC4301IPv6RawOutputFragmentsRespectPortPolicies -->
 
-The proposal requires the optional
+The guard requires the optional
 `CONFIG_XFRM_FRAGMENT_GUARD`, with built-in IPv6 and netfilter. It selects both
 family defrag implementations as built-ins; XFRM with modular IPv6 can retain
 scope support without compiling this guard. Dedicated XFRM defrag-user ranges
@@ -251,10 +278,33 @@ some malformed fragments, so the hook checks that the fragment header was
 removed before it reports a completed packet. Valid atomic fragments continue
 without a queue. Jumbo fragments and incomplete or malformed fragments cannot
 continue as a whole packet through this path.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_fragment_net_init, xfrm_fragment_net_exit, xfrm4_fragment_gather, xfrm6_fragment_gather -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_fragment_net_init, xfrm_fragment_net_exit, xfrm4_fragment_gather, xfrm6_fragment_gather -->
+<!-- source: gokrazy/kernel/patches/0004-ip-fragment-xfrm-context.patch -- frag_expire_skip_icmp -->
 
-Before a protected noninitial fragment enters a queue, every state in its
-secpath must permit it. Without the negotiated flag, any nonzero port/type
+After successful IPv6 PRE_ROUTING gathering, the receive hook reconstructs
+the extension-header cursor from the retained offset-zero fragment's control
+block and headers. It resumes after the IPv6 base header or an already
+processed Hop-by-Hop header, leaving later extensions to the ordinary receive
+parser. The completing fragment's header layout and absolute cursor cannot
+replace that retained state: fragments may have different headers before the
+Fragment header, and reassembly relocates the headers. LOCAL_OUT keeps its
+existing route continuation. Native Linux validation on 16 November 2026 passed
+the original 16-row IPv6 ANY matrix, including all four previously failing
+same-SA Destination Options cases and all mixed-SA rejections, plus six
+first-fragment Hop-by-Hop cases and the eight-test reached packet matrix.
+The accepted kernel is `1b3b839f` (6a87), with matching image `913df5db17ebb20a`.
+This validates the cursor repair; the wider three-point proof, RFC renewals and
+separate fragment-contract and mapped-ICMP-return gaps remain open. The original
+seven-test population also passed five times in one process, with no skips and
+zero guest exits. The earlier batch-only receive loss remains unlocalized;
+these passes establish no cause or fix for that observation.
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm6_fragment_prerouting -->
+
+Before a protected noninitial fragment enters a queue, every tunnel state in
+its secpath must permit it. Historical transport entries do not describe the
+now-visible inner tunnel fragment; the current authenticated transport boundary
+checks exposed plaintext before it reaches gathering. Without the negotiated
+flag, any nonzero port/type
 mask in the state's selector set refuses the fragment and increments
 `XfrmInStateMismatch`. A mixed ANY/constrained set still needs permission;
 a protocol-specific set with only ANY ports does not. Whole-packet scope
@@ -262,9 +312,9 @@ matching stays in the K1 matcher after reassembly. Legacy states with port
 masks also own a guard reference, even if their policies have ANY selectors.
 State construction and migration initialize the selector before getting that
 reference; final GC releases it.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_state_noninitial_allowed, xfrm_state_scope_hold_guard, xfrm_fragment_inbound_allowed -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_input, xfrm6_fragment_allowed, xfrm_state_noninitial_allowed, xfrm_state_scope_hold_guard, xfrm_fragment_inbound_allowed -->
 
-The authored raw IPv4 and IPv6 paths defer their initial XFRM lookup while the
+The carried raw IPv4 and IPv6 paths defer their initial XFRM lookup while the
 guard is active. Before ordinary routing they capture the original flow,
 socket mark, bound-interface flag, IPv6 source preferences and an immutable
 OUT socket-policy receipt, including explicit policy absence. The receipt
@@ -273,7 +323,27 @@ and contains no socket, namespace, device or original-policy pointer. Each
 policy caches one current generation under its lock; migration refreshes that
 generation while existing captures keep the old identity. The sender releases
 its stack reference on every exit.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- raw_sendmsg, rawv6_sendmsg, xfrm_raw_route_capture, xfrm_policy_receipt_capture -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- raw_send_hdrinc, rawv6_send_hdrinc, xfrm_raw_route_capture, xfrm_policy_receipt_capture -->
+
+Both IPv4 routing stages use `__ip_route_output_key`, which selects the ordinary
+route without applying XFRM. The similarly named `ip_route_output_key` calls
+`ip_route_output_flow` and performs an XFRM lookup with no socket. Using that
+wrapper here classifies an incomplete flow before the captured authority can
+apply. The normal `1b3b839f` kernel exposed this defect: the new IPv4 socket-policy
+and marked-policy positive controls returned `EPERM` under namespace DISCARD.
+The rebuilt normal kernel `d2eb6a14` with matching image `43a1d1b2ecccc59c`
+passed the full state-scope capability check (mask `0xf`, ABI 1, 64 selectors).
+The unchanged integration binary then passed both address families of
+`TestRawSocketFragmentPolicyAuthority`, `TestRawSocketFragmentRouteAuthority`
+and `TestRawSocketFragmentPolicyLifetime`, plus the original eight-test reached
+packet matrix: eleven top-level tests passed with no skips, accepting the
+two-call repair. A separate `TestFragmentSAReplacementKeepsQueuedIdentity` run
+passed both IPv4 arrival orders but stopped before IPv6 SA removal: its
+`Ip6ReasmReqds` assertion observes local IPv6 reassembly, while the carried guard
+uses the separate netfilter queue. An actual IPv6 queue observable and independent
+judgment of the test correction remain owed; this failure establishes no C defect.
+The earlier 35-run population remains evidence for the earlier kernel.
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_fragment_route, xfrm_raw_route_capture -->
 
 A private skb extension owns another
 reference and survives clone and first-fragment reassembly. Its presence also
@@ -283,7 +353,7 @@ then replaces its route through ordinary routing and XFRM lookup using the
 capture. Every IPv6 source-selection, fallback and optimistic-DAD route lookup
 uses the captured bound-interface and source-preference values. The completing
 socket supplies neither route parameters nor policy authority.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_raw_route_save, xfrm_fragment_local_out, xfrm_fragment_route, ip6_dst_lookup_params -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_raw_route_save, xfrm_fragment_local_out, xfrm_fragment_route, ip6_dst_lookup_params -->
 
 Socket-policy
 lookup materializes an unpublished, dead policy with another deep security
@@ -292,7 +362,7 @@ It inserts no state-cache links and owns no guard, timers or offload device;
 normal policy destruction releases it without accessing its namespace.
 A decode or route failure drops the packet. Successful lookup removes the
 extension from that skb. Ordinary whole UDP keeps its existing route producer.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_policy_from_receipt, xfrm_lookup_raw, xfrm_fragment_route, xfrm_state_find -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_policy_from_receipt, xfrm_lookup_raw, xfrm_fragment_route, detached_receipt -->
 
 Both fragment keys include canonical raw authority beside the complete SA
 vector and existing IP, user, interface and zone identity. They copy each
@@ -301,7 +371,7 @@ family, IPv6 flowlabel, captured socket values and receipt identity. Equal
 contexts with absent policies can combine across sockets; unequal authority
 or policy generations cannot. Queue construction owns a receipt reference
 even when the first fragment is later rejected.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- inet_frag_raw_authority, inet_frag_xfrm_context_get -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- inet_frag_raw_authority, inet_frag_xfrm_context_get -->
 
 Queues charge each receipt's
 actual allocation and security-copy allocation, and each successfully inserted
@@ -311,12 +381,12 @@ the charge stays until final RCU queue destruction. These charges bound
 queue-retained references. A live policy separately owns its single current
 cached receipt. Socket skb truesize and write-memory accounting stay with
 their existing owners.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_policy_receipt_size, inet_frag_xfrm_context_get, inet_frag_queue_insert, inet_frag_destroy_rcu -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_policy_receipt_size, inet_frag_xfrm_context_get, inet_frag_queue_insert, inet_frag_xfrm_context_put -->
 
 COW takes receipt refs for
 all allocated slots, including inactive ones; exclusive deletion clears its
 receipt, shared deletion retains it, and inactive-slot reuse releases it.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- skb_ext_maybe_cow, skb_ext_add, __skb_ext_del, __skb_ext_put -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- SKB_EXT_XFRM_RAW_ROUTE, skb_ext_add, __skb_ext_del, __skb_ext_put -->
 
 The transmit transform checks noninitial-fragment permission before it changes
 the inner headers. Selector checks remain in the original state lookup, so
@@ -325,13 +395,14 @@ fragmentation, every state in the bundle must permit the resulting tails.
 Otherwise the permitted branch transforms the whole packet and lets the outer
 output path fragment it. Existing explicit local DONTFRAG and PMTU errors keep
 their earlier priority.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- xfrm_output_fragment_allowed, xfrm_output_one, __xfrm6_output -->
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_output_fragment_allowed, xfrm_output_one, __xfrm6_output -->
 
-The raw-authority correction is preserved in this proposal. Source review
-identified the unresolved transport case above. Before enrollment, the proposal
-still owes that correction, native compilation, queue-lifetime checks and
-packet proofs over the complete route and transmit paths.
-<!-- source: gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch -- XFRM_FRAGMENT_GUARD, nf_ct_defrag_user, nf_ct6_defrag_user, frag_expire_skip_icmp -->
+The carried patch includes the raw-authority correction and current
+authenticated transport-boundary check. Complete route and transmit-path
+validation, queue-lifetime checks and renewed RFC discrimination records
+remain owed. The constrained fragment-context fixture is unresolved; the
+bounded passing cases do not replace that proof or establish full support.
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- XFRM_FRAGMENT_GUARD, nf_ct_defrag_user, nf_ct6_defrag_user -->
 
 **A tunnel-mode state with no selector carries `XFRM_STATE_AF_UNSPEC`.** A zero
 selector is not "any family" to the kernel. `copy_from_user_state`
@@ -647,7 +718,7 @@ which Ze sends and reads its private kernel attribute, and sorts last:
   state reader returns each attribute whose type is above `XFRMA_MAX`, with its
   own copy of the value. Ze carries `XFRMA_STATE_SCOPE` through it. The hook
   names no Ze concept: the scope's wire form and the GETDEFAULT capability
-  receipt live in Ze's dataplane (see "Kernel scope ABI under implementation"
+  receipt live in Ze's dataplane (see "Carried kernel scope ABI"
   above). No upstream pull request is opened for it.
   Patch: `netlink-xfrm-90-state-extra-attributes.patch`.
 <!-- source: internal/le/vendorpatch/patches/ -- netlink-xfrm-*.patch, XFRM state and policy decoding corrections -->

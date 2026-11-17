@@ -13,6 +13,21 @@ import (
 
 const saStateScopeMaxSelectors = 64
 
+// SAStateScopeInstaller declares that a backend can represent and enforce the
+// complete directional SAParams.Scope. It does not assert live kernel support:
+// an installer MUST check its runtime capabilities before publishing each state.
+// An undeclared backend retains its existing selector and policy contracts.
+type SAStateScopeInstaller interface {
+	SAStateScopeSupported() bool
+}
+
+// SAStateScopeChecker exposes a backend's live, read-only scope capability check.
+// Implementations MUST read the current namespace without publishing state or
+// changing host settings. A failed check MUST retain its cause and repair command.
+type SAStateScopeChecker interface {
+	CheckSAStateScope() error
+}
+
 // SAStateScope owns a complete directional selector set. Its zero value and nil
 // are uninitialized. Installers MUST refuse an explicit uninitialized scope.
 // Construction owns the records, and accessors never expose their storage.

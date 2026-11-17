@@ -16,6 +16,17 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
+// SAStateScopeSupported declares XFRM's complete directional representation.
+// InstallSA still requires a fresh full capability receipt for every scoped state.
+func (*xfrmBackend) SAStateScopeSupported() bool { return true }
+
+// CheckSAStateScope reads the same fresh receipt that InstallSA requires, so
+// doctor can expose a missing dependency before the first Child SA attempt.
+// Safe for concurrent use; the check owns its read and changes no host state.
+func (*xfrmBackend) CheckSAStateScope() error {
+	return checkXFRMStateScopeCapabilities()
+}
+
 // checkXFRMStateScopeCapabilities reads the live namespace before InstallSA can
 // publish any state. Every explicit scope needs all four features, independently
 // of whether this particular SA permits noninitial fragments.
