@@ -5,6 +5,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -708,7 +709,6 @@ func (s *sweepContext) judgeCarrier(c *sweepCarrier) {
 	}
 	s.report.zeConfigs++
 	if c.refused != "" {
-		s.report.refused++
 		s.checkRefused(c.source, c.body, c.refused)
 		return
 	}
@@ -731,7 +731,6 @@ func (s *sweepContext) judgeSequence(seq *loadSequence) {
 		source := step.source + " (loaded by " + seq.source + ")"
 		running := s.runningAfter(seq, i)
 		if step.refused != "" && s.on(ruleDeclaredRefusal) {
-			s.report.refused++
 			body := step.body
 			if loaded, loadErr := s.load(running, step); loadErr == nil {
 				body = loaded
@@ -741,6 +740,14 @@ func (s *sweepContext) judgeSequence(seq *loadSequence) {
 		}
 		loaded, err := s.load(running, step)
 		if err != nil {
+			if s.on(ruleHostVerdict) {
+				if _, ok := errors.AsType[*config.NodeOfAnotherOSError](err); ok {
+					if isHostVerdict(diagnostic.CodeConfigNodeOtherOS) {
+						s.report.hostVerdicts[diagnostic.CodeConfigNodeOtherOS]++
+						continue // The editor refused it, so later loads retain the prior config.
+					}
+				}
+			}
 			s.report.find(source + ": " + err.Error())
 			continue // Reported; later steps load onto the config before it.
 		}
@@ -792,7 +799,7 @@ func (s *sweepContext) load(running string, step *loadStep) (string, error) {
 func loadCorpusStep(editor *editorcli.Editor, step *loadStep) error {
 	fragment, err := editor.ParseLoad(step.body, step.path)
 	if err != nil {
-		return errors.New("config-parse: " + err.Error())
+		return fmt.Errorf("config-parse: %w", err)
 	}
 	if step.replace {
 		return editor.LoadReplace(step.path, fragment)
@@ -819,22 +826,38 @@ func (s *sweepContext) checkBody(c sweepCarrier) {
 	}
 }
 
-// checkRefused asserts a body its test declares refused is refused with the
-// declared code.
+// checkRefused counts a declared refusal only when validation observes its
+// code. Host verdicts cannot prove that refusal, and cannot hide config errors.
 func (s *sweepContext) checkRefused(source, body, code string) {
 	result := runValidation(body, source)
 	var codes []string
+	var hostErrors int
+	var matched bool
 	for i := range result.Diagnostics {
 		d := &result.Diagnostics[i]
 		if d.Severity != diagnostic.SeverityError {
 			continue
 		}
 		if d.Code == code {
-			return
+			matched = true
+		}
+		if s.on(ruleHostVerdict) {
+			if isHostVerdict(d.Code) {
+				s.report.hostVerdicts[d.Code]++
+				hostErrors++
+				continue
+			}
 		}
 		codes = append(codes, d.Code)
 	}
+	if matched {
+		s.report.refused++
+		return
+	}
 	if len(codes) == 0 {
+		if hostErrors > 0 {
+			return
+		}
 		s.report.find(source + ": declared refused=" + code + ", and ze config validate accepts it")
 		return
 	}

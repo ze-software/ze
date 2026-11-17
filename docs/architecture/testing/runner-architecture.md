@@ -690,6 +690,14 @@ nothing. Actual commits still use full publication validation.
 <!-- source: internal/component/config/cli/validate_corpus_browser_graphical_replay_test.go -- browserImportErrorDeclaration, browserCorpus.graphicalAction -->
 <!-- source: internal/component/web/graphical_import.go -- GraphicalImportDefaults, GraphicalImportError -->
 <!-- source: internal/component/config/cli/validate_corpus_test.go -- loadCorpusStep, sweepContext.judgeSequence -->
+
+The corpus counts registered host verdicts separately from config errors,
+including verdicts returned by the editor's parser during a load. A refused
+load leaves the candidate unchanged for later steps. A declared refusal counts
+as asserted only when validation reports its declared code. Host verdicts alone
+cannot assert that refusal, and a mismatched config error remains a finding.
+<!-- source: internal/component/config/cli/validate_corpus_test.go -- sweepContext.judgeSequence, sweepContext.runningAfter, sweepContext.checkRefused -->
+
 The scheduler starts the case deadline before server startup. It passes the
 parsed case and that context to `RunWBCase`; browser execution does not re-read
 the authored file or restart its budget. Parse errors refuse execution before

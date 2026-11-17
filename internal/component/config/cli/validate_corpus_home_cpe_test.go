@@ -2,12 +2,18 @@
 
 package cli
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ze-software/ze/internal/component/config"
+)
 
 // TestSweepRendersHomeCPE validates the same rendered CPE configuration that
 // the topology lab boots, and proves that bypassing rendering exposes its
 // invalid placeholder values rather than dropping the config from the sweep.
 func TestSweepRendersHomeCPE(t *testing.T) {
+	// The topology lab runs Linux, whose schema reaches the placeholder checks.
+	t.Cleanup(config.SetSchemaOSForTest("linux"))
 	keep := sweepKeep{"test/interop-topology/cpe/ze-cpe.conf"}
 	rendered := runSweep(t, ruleNone, keep)
 	if rendered.zeConfigs != 1 {
