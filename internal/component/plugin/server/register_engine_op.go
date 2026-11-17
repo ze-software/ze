@@ -153,8 +153,10 @@ func allEngineOps() []*engineOp {
 }
 
 // ProcessGenerationCleanup receives the owning server and exact process whose
-// dispatch drained. A callback MUST scope state by those captured identities,
-// never by a global server or a reused process name.
+// dispatch drained. A callback MUST use that exact process generation, never
+// a reused process name. Server-owned state MUST additionally use the captured
+// server, never a global server. Process-owned host-global resources may ignore
+// the server argument while retaining the exact process identity.
 type ProcessGenerationCleanup func(*Server, *process.Process)
 
 var processGenerationCleanups []ProcessGenerationCleanup

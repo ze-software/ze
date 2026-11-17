@@ -107,10 +107,14 @@ because an announcement, a redistribution rule and a role attachment are each
 already an explicit operator decision. An external session keeps RFC 8212 for
 every route.
 
-This is not implemented yet. Today an unconfigured policy accepts on an
-internal session and rejects on an external one, for every route and every
-writer.
-<!-- source: internal/component/bgp/filterapi/policy.go -- UnconfiguredAccepts -->
+The export final now takes an engine-derived route kind. On an internal
+session, absent policy rejects ordinary learned output and permits explicit
+local or role output; external sessions reject both. The policy dry run uses
+the same rule for its read-only learned or local simulation. General absence
+reporting and learned-only policy reload are still being implemented.
+<!-- source: internal/component/bgp/filterapi/policy.go -- AcceptsExportAtEnd -->
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
+<!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
 <!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-5 export default -->
 
