@@ -18,7 +18,7 @@
     "claim-sha": "808d03c783349b6c",
     "route": "mutant",
     "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
-    "producer-sha": "505e7d653500c0bc",
-    "break": "line 308: \"var inSPI uint32\" -\u003e \"keys.EncryptKeyI = append([]byte(nil), sa.EAPMSK[:len(keys.EncryptKeyI)]...); var inSPI uint32 // MUTATION-APPLIED\""
+    "producer-sha": "2494b50d7e92ff78",
+    "break": "line 335: \"var inSPI uint32\" -\u003e \"keys.EncryptKeyI = append([]byte(nil), sa.EAPMSK[:len(keys.EncryptKeyI)]...); var inSPI uint32\""
   }
 ]

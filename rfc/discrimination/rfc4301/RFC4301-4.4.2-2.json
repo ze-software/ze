@@ -56,17 +56,6 @@
   },
   {
     "rid": "RFC4301-4.4.2-2",
-    "polarity": "positive",
-    "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
-    "unit-sha": "d1e0930c7c24a02f",
-    "claim-sha": "410bc88451cc8ce4",
-    "route": "mutant",
-    "producer": "internal/component/ike/engine/child.go::childPolicyPair",
-    "producer-sha": "d946f6b170fe8cee",
-    "break": "line 891: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
-  },
-  {
-    "rid": "RFC4301-4.4.2-2",
     "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
     "unit-sha": "d1e0930c7c24a02f",
@@ -75,6 +64,17 @@
     "producer": "internal/component/ike/engine/child.go::childPolicyPair",
     "producer-sha": "d946f6b170fe8cee",
     "break": "line 891: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
+    "unit-sha": "d1e0930c7c24a02f",
+    "claim-sha": "410bc88451cc8ce4",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::childPolicyPair",
+    "producer-sha": "803be5c1b1871596",
+    "break": "line 954: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
   },
   {
     "rid": "RFC4301-4.4.2-2",

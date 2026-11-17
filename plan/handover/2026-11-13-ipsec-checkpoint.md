@@ -38,8 +38,8 @@ logs. Next is the remaining proof work. The first native renewal recorded manife
 orders 9, 15 and 44, runs 94797, 40175 and 17887, each exact selected clean PASS then
 native installChildSA halt FAIL, with only selected producer seals changed to
 `17aa3b0ab62f6479`. The dual-form checkpoint names the logs. These remain dependency
-proofs of partial tagged claims. Current orders 58, 9, 15 and 44 are RECORDED; remaining
-preparation is 75 UNEXECUTED commands (55 guest, 20 host); four historical receipts'
+proofs of partial tagged claims. Current orders 58, 9, 15, 44, 7, 13, 16, 31 and 38 are RECORDED; remaining
+preparation is 70 UNEXECUTED commands (55 guest, 15 host); four historical receipts'
 freshness is UNKNOWN. This partial function-dependency proof gives no C-enforcement or
 full-RFC credit. Both rejected tasks and their owner question remain pending. Full AC-4,
 compliant-fragment RED and mapped-return work remain open. The generic C-proof route has
@@ -50,6 +50,11 @@ later RFC792 rows preserved. The design prose landed in
 separate owner design question (prepare pairs separately versus recorder builds) is
 PENDING and does not approve either rejected safety action. No tooling implementation or
 C-proof credit is established.
+
+The [dual-form current checkpoint](../release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md#current-continuation-checkpoint-2026-11-17)
+records the five positive host mutations and their native record references.
+Its acceptance limits apply here.
+
 ## Landed work
 
 | Commit | Change and evidence limit |
