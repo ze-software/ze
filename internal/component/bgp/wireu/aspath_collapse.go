@@ -159,6 +159,10 @@ func PrepareAS4Family(payload []byte, srcASN4 bool) (AS4FamilyPlan, error) {
 // attributes; its withdrawn and announced NLRI may differ after coalescing or
 // route-ignore processing. Borrowed spans are rebased to its current attribute
 // section, so the plan never depends on the lifetime of the original buffer.
+// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+// is accepted and passed along to other BGP peers and the Partial bit in the
+// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+// to 0 by the current AS." The selected aggregating node's header owns that bit.
 func (p *AS4FamilyPlan) WriteTo(dst, payload []byte) (int, []attribute.ASPathDiscard, error) {
 	if !p.rewrite {
 		return 0, nil, nil
@@ -180,9 +184,10 @@ func (p *AS4FamilyPlan) WriteTo(dst, payload []byte) (int, []attribute.ASPathDis
 		span.off += attrsStart - p.attrsStart
 		canonical.ASPath = span.value(payload)
 	}
-	if span := p.aggregatorSpan; span.hdrLen != 0 {
-		span.off += attrsStart - p.attrsStart
-		canonical.Aggregator = span.value(payload)
+	aggregator := p.aggregatorSpan
+	if aggregator.hdrLen != 0 {
+		aggregator.off += attrsStart - p.attrsStart
+		canonical.Aggregator = aggregator.value(payload)
 	}
 
 	// The writes below are sized from the reconciled values rather than from the
@@ -214,7 +219,17 @@ func (p *AS4FamilyPlan) WriteTo(dst, payload []byte) (int, []attribute.ASPathDis
 			// UPDATE carried no AGGREGATOR, so the reconciled value always has
 			// this slot to be written into and never needs one appended.
 			if canonical.Aggregator != nil {
-				written += writeAttrValue(dst, n+written, attribute.FlagOptional|attribute.FlagTransitive,
+				// Prepare already chose the node under RFC 6793 Section 4.2.3.
+				// Borrowed values use that selected, rebased header; an owned
+				// widened value came from this original AGGREGATOR. Never OR
+				// flags from an ignored counterpart into the selected node.
+				source := span
+				if aggregator.hdrLen != 0 {
+					source = aggregator
+				}
+				flags := attribute.FlagOptional | attribute.FlagTransitive |
+					(attribute.AttributeFlags(payload[source.off]) & attribute.FlagPartial)
+				written += writeAttrValue(dst, n+written, flags,
 					attribute.AttrAggregator, canonical.Aggregator)
 			}
 		case attribute.AttrAS4Path, attribute.AttrAS4Aggregator:

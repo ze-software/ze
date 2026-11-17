@@ -240,6 +240,27 @@ original read buffer without repeating reconciliation or copying that buffer.
 `TestAS4FamilyPlanRebindsPayload` clears the original buffer before encoding a
 replacement payload with a moved attribute section.
 
+The reconciled AGGREGATOR retains the Partial bit of the attribute selected as
+the information about the aggregating node. An OLD speaker's mappable
+AGGREGATOR supplies that bit when its value is widened; when AS4_AGGREGATOR is
+selected, its own received header supplies the bit. A NEW speaker's original
+AGGREGATOR supplies it while the AS4 companion is discarded. Partial on an
+ignored attribute does not mark the selected information partial.
+
+Prepared encoding rebinds the selected header and value through the same span,
+so recycling the original buffer or moving the withdrawal section cannot change
+which attribute supplies Partial. Narrowing the canonical AGGREGATOR for an OLD
+destination also retains its received Partial bit in the rewritten AGGREGATOR.
+These are conversions of surviving information, not a new rule for attaching an
+attribute or replacing it through explicit policy. RFC 4271 Section 5 forbids
+clearing Partial set by a previous AS when the recognized optional-transitive
+attribute is accepted and passed along.
+<!-- source: internal/component/bgp/wireu/aspath_collapse.go -- AS4FamilyPlan.WriteTo -->
+<!-- source: internal/component/bgp/wireu/aspath_transcode.go -- TranscodeASPath -->
+<!-- test: internal/component/bgp/wireu/partial_aggregator_test.go TestAggregatorPartialSurvivesAS4Collapse -->
+<!-- test: internal/component/bgp/wireu/partial_aggregator_test.go TestAggregatorPartialSurvivesASWidthTranscode -->
+<!-- test: internal/component/bgp/wireu/partial_aggregator_selected_test.go TestSelectedAggregatorPartialSurvivesCollapse -->
+
 No AS4_PATH and no AS4_AGGREGATOR survives that step. RFC 6793 Section 4.1
 forbids carrying either between NEW BGP speakers, and everything downstream of
 the reconciliation is one, so the RIB stores a canonical path, both forward

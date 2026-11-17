@@ -7,8 +7,8 @@
     "claim-sha": "94342e79c1c74418",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/aspath_transcode.go::TranscodeASPath",
-    "producer-sha": "03f676f8ebb458bb",
-    "break": "body of TranscodeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b9d72af029bc1e6d",
+    "break": "body of TranscodeASPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC6793-4.2.2-4",
@@ -18,7 +18,7 @@
     "claim-sha": "470a1bb525dcff7c",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/aspath_transcode.go::TranscodeASPath",
-    "producer-sha": "03f676f8ebb458bb",
-    "break": "body of TranscodeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "b9d72af029bc1e6d",
+    "break": "body of TranscodeASPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

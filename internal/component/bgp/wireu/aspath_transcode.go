@@ -41,6 +41,11 @@ import (
 // RFC 4271 Section 4.3: "This 2-octet unsigned integer indicates the total
 // length of the Path Attributes field in octets."
 //
+// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+// is accepted and passed along to other BGP peers and the Partial bit in the
+// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+// to 0 by the current AS." Narrowing a surviving AGGREGATOR retains that fact.
+//
 // UPDATE body offsets (w = withdrawn length, a = total attribute length):
 //
 //	0       2       2+w     4+w             4+w+a
@@ -250,7 +255,7 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 			switch {
 			case newAggValueLen != 0:
 				n += attribute.WriteHeaderTo(dst, n,
-					attribute.FlagOptional|attribute.FlagTransitive,
+					attribute.FlagOptional|attribute.FlagTransitive|(flags&attribute.FlagPartial),
 					attribute.AttrAggregator, uint16(newAggValueLen)) //nolint:gosec // bounded by BGP max
 				// RFC 6793 Section 4.2.2: "set the AS number field in the existing
 				// AGGREGATOR attribute to the reserved AS number, AS_TRANS".
