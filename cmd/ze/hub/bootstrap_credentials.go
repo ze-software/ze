@@ -17,7 +17,7 @@ import (
 
 const localAdminCredentialSource = "hub"
 const localAdminCredentialSubject = "local-admin"
-const localAdminCredentialRestore = "ze data --path <database> write <credential-key> <credential-backup-file>"
+const localAdminCredentialRestore = "ze data --path <database> write <credential-key> <credential-backup-file>" // #nosec G101 -- Recovery command with placeholders only, no credential values.
 
 // localAdminCredentialFailure interprets a canonical credential read. A nil
 // error or explicit admin disable is healthy and returns nil. Every other

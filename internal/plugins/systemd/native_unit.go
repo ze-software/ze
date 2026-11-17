@@ -97,11 +97,11 @@ func (service nativeService) readNativePolicy(path string) ([]byte, error) {
 func validateNativePolicy(data []byte, binary, configDir string) error {
 	unit := parseServiceUnit(data)
 	if unit.unsupported != "" {
-		return fmt.Errorf("Ze service directive %s can change execution or config ownership; preserve the unit and inspect systemctl cat ze.service", unit.unsupported)
+		return fmt.Errorf("ze.service directive %s can change execution or config ownership; preserve the unit and inspect systemctl cat ze.service", unit.unsupported)
 	}
 	if unit.execStartValue != binary+" start" {
 		if unit.execStartValue != execStartShell+" -c 'trap \"\" HUP; exec "+binary+" start'" {
-			return errors.New("Ze service start command has unsupported arguments; preserve the unit and inspect systemctl cat ze.service")
+			return errors.New("ze.service start command has unsupported arguments; preserve the unit and inspect systemctl cat ze.service")
 		}
 	}
 	return matchNativeUnit(unit, binary, configDir)

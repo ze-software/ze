@@ -128,8 +128,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 			placeholders = append(placeholders, len(displayArgs)-1)
 		}
 		framed := cli.FramedKeyRefusal(err, "set", nil, displayArgs, nil, placeholders...)
-		var refusal *opererr.Error
-		if errors.As(framed, &refusal) {
+		if refusal, ok := errors.AsType[*opererr.Error](framed); ok {
 			fmt.Fprintln(os.Stderr, "error:", refusal)
 			return exitError
 		}

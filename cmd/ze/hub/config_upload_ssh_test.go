@@ -318,7 +318,8 @@ func TestSSHConfigUploadPublishesPersistentAndRunningState(t *testing.T) {
 // listener must close, and the new listener must accept the same pinned key.
 func TestSSHConfigUploadMovesItsOwnListener(t *testing.T) {
 	f := newSSHUploadFixture(t, false)
-	reservation, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	reservation, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

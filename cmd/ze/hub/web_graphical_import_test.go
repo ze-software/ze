@@ -80,10 +80,12 @@ func (s *graphicalImportServer) login(t *testing.T, username string) *http.Cooki
 	t.Helper()
 	form := url.Values{"username": {username}, "password": {"synthetic"}}
 	response, _ := s.request(t, http.MethodPost, "/login", strings.NewReader(form.Encode()), "application/x-www-form-urlencoded", nil, s.base)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusSeeOther, response.StatusCode)
 	for _, cookie := range response.Cookies() {
 		if cookie.Name == "ze-session" {
 			page, body := s.request(t, http.MethodGet, "/show/", http.NoBody, "", cookie, s.base)
+			require.NoError(t, page.Body.Close())
 			require.Equal(t, http.StatusOK, page.StatusCode, body)
 			return cookie
 		}
@@ -108,7 +110,6 @@ func (s *graphicalImportServer) request(t *testing.T, method, path string, body 
 	require.NoError(t, err)
 	data, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
-	require.NoError(t, response.Body.Close())
 	return response, string(data)
 }
 
@@ -130,6 +131,7 @@ func TestGraphicalImportPasteStagesUntilSeparateCommit(t *testing.T) {
 	s := newGraphicalImportServer(t)
 	before := s.committed(t)
 	response, body := s.paste(t, url.Values{"source": {"terminal"}, "location": {"absolute"}, "action": {"merge"}, "path": {""}, "content": {"system { host import-pasted; }"}})
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	assert.Contains(t, s.editors.ContentAtPath("import-admin", []string{"system"}), "import-pasted")
 	assert.Contains(t, s.editors.ContentAtPath("import-reader", []string{"system"}), "import-original")
@@ -139,6 +141,7 @@ func TestGraphicalImportPasteStagesUntilSeparateCommit(t *testing.T) {
 	assert.Equal(t, "/show/", response.Header.Get("HX-Push-Url"))
 	form := url.Values{"action": {"now"}, "path": {""}}
 	accepted, output := s.request(t, http.MethodPost, "/config/action", strings.NewReader(form.Encode()), "application/x-www-form-urlencoded", s.admin, s.base)
+	require.NoError(t, accepted.Body.Close())
 	require.Equal(t, http.StatusOK, accepted.StatusCode, output)
 	assert.Contains(t, string(s.committed(t)), "import-pasted")
 	assert.Zero(t, s.editors.ChangeCount("import-admin"))
@@ -169,6 +172,7 @@ func TestGraphicalImportFileUsesSharedScopedReplace(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
 	response, body := s.request(t, http.MethodPost, "/config/import", &form, writer.FormDataContentType(), s.admin, s.base)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	assert.Equal(t, s.editors.ContentAtPath("import-oracle", path), s.editors.ContentAtPath("import-admin", path))
 	assert.Contains(t, s.editors.ContentAtPath("import-admin", path), "imported-file")
@@ -186,6 +190,7 @@ func TestGraphicalImportAbsoluteReplaceReturnsSurvivingNavigation(t *testing.T) 
 	require.NoError(t, s.editors.SetValue("import-admin", []string{"bgp", "group", "removed/key"}, "description", "removed-draft"))
 	before := s.committed(t)
 	response, body := s.paste(t, url.Values{"source": {"terminal"}, "location": {"absolute"}, "action": {"replace"}, "path": {"bgp/group/removed%2Fkey"}, "content": {"system { host root-replacement; }"}})
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	assert.Contains(t, s.editors.ContentAtPath("import-admin", []string{"system"}), "root-replacement")
 	assert.NotContains(t, s.editors.ContentAtPath("import-admin", nil), "removed-draft")
@@ -203,6 +208,7 @@ func TestGraphicalImportMalformedContentPreservesCandidate(t *testing.T) {
 	before := s.editors.ContentAtPath("import-admin", nil)
 	committed := s.committed(t)
 	response, body := s.paste(t, url.Values{"source": {"terminal"}, "location": {"absolute"}, "action": {"merge"}, "content": {"system { host attempted-change; } bgp { router-id not-an-address; }"}})
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusBadRequest, response.StatusCode, body)
 	assert.Contains(t, body, "router-id")
 	assert.Contains(t, strings.ToLower(body), "fix:")
@@ -226,6 +232,7 @@ func TestGraphicalImportRefusesForgedChoices(t *testing.T) {
 		fields := url.Values{"source": {"terminal"}, "location": {"absolute"}, "action": {"merge"}, "path": {""}, "content": {"system { host forged; }"}}
 		maps.Copy(fields, altered)
 		response, body := s.paste(t, fields)
+		require.NoError(t, response.Body.Close())
 		require.Equal(t, http.StatusBadRequest, response.StatusCode, body)
 		assert.Contains(t, strings.ToLower(body), "fix:")
 		assert.Equal(t, before, s.editors.ContentAtPath("import-admin", nil))
@@ -238,6 +245,7 @@ func TestGraphicalImportBoundsTheRequest(t *testing.T) {
 	s := newGraphicalImportServer(t)
 	before := s.editors.ContentAtPath("import-admin", nil)
 	response, body := s.paste(t, url.Values{"source": {"terminal"}, "location": {"absolute"}, "action": {"merge"}, "content": {strings.Repeat("x", (4<<20)+1)}})
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusRequestEntityTooLarge, response.StatusCode, body)
 	assert.Contains(t, strings.ToLower(body), "fix:")
 	assert.Equal(t, before, s.editors.ContentAtPath("import-admin", nil))
@@ -259,6 +267,7 @@ func TestGraphicalImportRequiresLoginEditAndSameOrigin(t *testing.T) {
 	} {
 		fields := url.Values{"source": {"terminal"}, "location": {"absolute"}, "action": {"merge"}, "content": {"system { host denied-import; }"}}
 		response, body := s.request(t, http.MethodPost, "/config/import", strings.NewReader(fields.Encode()), "application/x-www-form-urlencoded", attempt.cookie, attempt.origin)
+		require.NoError(t, response.Body.Close())
 		require.Equal(t, attempt.status, response.StatusCode, body)
 	}
 	assert.Contains(t, s.editors.ContentAtPath("import-admin", []string{"system"}), "import-original")

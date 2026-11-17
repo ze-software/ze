@@ -181,7 +181,7 @@ func (service nativeService) compatibleUnit(binary, configDir string) error {
 			return fmt.Errorf("service %s is masked or is not regular; preserve its policy and inspect systemctl cat ze.service", service.rt.unitPath)
 		}
 		if identity.state != nativeUnitLoaded {
-			return errors.New("Ze service file differs from systemd's loaded policy; inspect it, then run sudo systemctl daemon-reload")
+			return errors.New("ze.service file differs from systemd's loaded policy; inspect it, then run sudo systemctl daemon-reload")
 		}
 		data, err = service.readNativePolicy(service.rt.unitPath)
 		if err != nil {
@@ -189,21 +189,23 @@ func (service nativeService) compatibleUnit(binary, configDir string) error {
 		}
 		for _, path := range staticDropins {
 			if !slices.Contains(identity.dropins, path) {
-				return errors.New("Ze service drop-ins differ from systemd's loaded policy; inspect them, then run sudo systemctl daemon-reload")
+				return errors.New("ze.service drop-ins differ from systemd's loaded policy; inspect them, then run sudo systemctl daemon-reload")
 			}
 		}
 	}
 	// The manager's resolved list also includes global service.d tuning and
 	// supplies the actual ordering, rather than a second copy of that policy.
-	combined := string(data)
+	var combined strings.Builder
+	combined.Write(data)
 	for _, path := range identity.dropins {
 		fragment, err := service.readNativePolicy(path)
 		if err != nil {
 			return err
 		}
-		combined += "\n" + string(fragment)
+		combined.WriteByte('\n')
+		combined.Write(fragment)
 	}
-	return validateNativePolicy([]byte(combined), binary, configDir)
+	return validateNativePolicy([]byte(combined.String()), binary, configDir)
 }
 
 func matchNativeUnit(unit serviceUnitInfo, binary, configDir string) error {

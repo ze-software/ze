@@ -535,15 +535,6 @@ func (f *fakeServiceOps) owner(info fs.FileInfo) (uint32, error) {
 	return file.uid, nil
 }
 
-type fakeDirEntry struct{ name string }
-
-func (entry fakeDirEntry) Name() string      { return entry.name }
-func (entry fakeDirEntry) IsDir() bool       { return false }
-func (entry fakeDirEntry) Type() fs.FileMode { return 0 }
-func (entry fakeDirEntry) Info() (fs.FileInfo, error) {
-	return fakeFileInfo{name: entry.name, mode: 0o644}, nil
-}
-
 func assertCalls(t *testing.T, got []string, wants ...string) {
 	t.Helper()
 	for _, want := range wants {

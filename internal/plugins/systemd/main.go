@@ -158,7 +158,9 @@ func (r realServiceOps) stat(path string) (fs.FileInfo, error) { return os.Stat(
 
 func (r realServiceOps) lstat(path string) (fs.FileInfo, error) { return os.Lstat(path) }
 
-func (r realServiceOps) readFile(path string) ([]byte, error) { return os.ReadFile(path) }
+func (r realServiceOps) readFile(path string) ([]byte, error) {
+	return os.ReadFile(path) // #nosec G304 - readNativePolicy validates root ownership, modes and regular paths.
+}
 
 func (r realServiceOps) readDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
 

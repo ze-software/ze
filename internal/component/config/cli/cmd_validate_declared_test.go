@@ -49,10 +49,10 @@ func requireNotStarted(t *testing.T, marker string) {
 	require.True(t, errors.Is(err, os.ErrNotExist), "validate started the declared program (marker %s, stat error %v)", marker, err)
 }
 
-// monitorConfig answers a config that declares external plugin name with run,
+// monitorConfig answers a config that declares external plugin acme with run,
 // followed by section.
-func monitorConfig(name, run, section string) string {
-	return "plugin {\n\texternal " + name + " {\n\t\trun \"" + run + "\"\n\t\tencoder json\n\t}\n}\n\n" + section
+func monitorConfig(run, section string) string {
+	return "plugin {\n\texternal acme {\n\t\trun \"" + run + "\"\n\t\tencoder json\n\t}\n}\n\n" + section
 }
 
 // messagesOf answers the messages of result's diagnostics of one severity,
@@ -83,7 +83,7 @@ func TestValidateRefusesSectionOfExternalPluginWithoutStartingIt(t *testing.T) {
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
 	run, marker := markingPlugin(t)
 
-	result := runValidation(monitorConfig("acme", run, "acme-monitor {\n\tinterval 5\n}\n"), "ze.conf")
+	result := runValidation(monitorConfig(run, "acme-monitor {\n\tinterval 5\n}\n"), "ze.conf")
 
 	require.False(t, result.Valid, "a section ze could not check was accepted")
 	errs := messagesOf(result, diagnostic.SeverityError)
@@ -108,7 +108,7 @@ func TestValidateAcceptsConfigWithNoSectionOfExternalPlugin(t *testing.T) {
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
 	run, marker := markingPlugin(t)
 
-	result := runValidation(monitorConfig("acme", run, ""), "ze.conf")
+	result := runValidation(monitorConfig(run, ""), "ze.conf")
 
 	require.True(t, result.Valid, "a config with no section of the plugin is refused:\n%s", messagesOf(result, diagnostic.SeverityError))
 	assert.NotContains(t, messagesOf(result, diagnostic.SeverityWarning), "acme")
@@ -134,11 +134,11 @@ func TestValidateJudgesSectionWithThePublishedModule(t *testing.T) {
 		Plugin: "acme", Module: "acme-monitor-conf", Namespace: "urn:acme:monitor", Text: monitorModule,
 	}}))
 
-	valid := runValidation(monitorConfig("acme", run, "acme-monitor {\n\tinterval 10\n}\n"), "ze.conf")
+	valid := runValidation(monitorConfig(run, "acme-monitor {\n\tinterval 10\n}\n"), "ze.conf")
 	require.True(t, valid.Valid, "interval 10 is refused:\n%s", messagesOf(valid, diagnostic.SeverityError))
 
 	for _, value := range []string{"0", "11"} {
-		refused := runValidation(monitorConfig("acme", run, "acme-monitor {\n\tinterval "+value+"\n}\n"), "ze.conf")
+		refused := runValidation(monitorConfig(run, "acme-monitor {\n\tinterval "+value+"\n}\n"), "ze.conf")
 		require.False(t, refused.Valid, "interval %s is outside range 1..10 and was accepted", value)
 		errs := messagesOf(refused, diagnostic.SeverityError)
 		assert.Contains(t, errs, "interval")

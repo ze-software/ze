@@ -20,8 +20,8 @@ func bootstrapCertificate(t *testing.T, expired bool, critical map[string]string
 	certificate := &gossh.Certificate{
 		Key: subject.PublicKey(), Serial: 1, CertType: gossh.UserCert,
 		KeyId: "bootstrap-certificate-test", ValidPrincipals: []string{"admin"},
-		ValidBefore: gossh.CertTimeInfinity,
-		Permissions: gossh.Permissions{CriticalOptions: critical},
+		ValidBefore:     gossh.CertTimeInfinity,
+		CriticalOptions: critical,
 	}
 	if expired {
 		certificate.ValidBefore = 1

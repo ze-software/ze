@@ -2,8 +2,9 @@
 package cli
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestHistoryCommandModeFollowsEnter pins useful operational and configuration

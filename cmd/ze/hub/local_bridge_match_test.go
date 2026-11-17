@@ -514,13 +514,13 @@ func matchMandatoryArgs(defs []command.ArgDef) string {
 		if !defs[i].Mandatory() {
 			continue
 		}
-		words = append(words, matchValue(defs[i]))
+		words = append(words, matchValue(&defs[i]))
 	}
 	return strings.Join(words, " ")
 }
 
 // matchValue answers one value the leaf's declaration accepts.
-func matchValue(def command.ArgDef) string {
+func matchValue(def *command.ArgDef) string {
 	switch def.Kind() {
 	case command.ArgEnum, command.ArgUnion:
 		values := slices.Collect(def.EnumValues())

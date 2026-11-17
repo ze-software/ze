@@ -3,6 +3,7 @@
 package systemd
 
 import (
+	"io/fs"
 	"os"
 	"strings"
 	"testing"
@@ -138,4 +139,13 @@ func TestNativeServicePreservesEffectiveGlobalTuning(t *testing.T) {
 	if fake.files[path] != original {
 		t.Fatal("global tuning changed")
 	}
+}
+
+type fakeDirEntry struct{ name string }
+
+func (entry fakeDirEntry) Name() string      { return entry.name }
+func (entry fakeDirEntry) IsDir() bool       { return false }
+func (entry fakeDirEntry) Type() fs.FileMode { return 0 }
+func (entry fakeDirEntry) Info() (fs.FileInfo, error) {
+	return fakeFileInfo{name: entry.name, mode: 0o644}, nil
 }
