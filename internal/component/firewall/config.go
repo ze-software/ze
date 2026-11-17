@@ -249,6 +249,11 @@ func parseFromBlock(m map[string]any) ([]Match, error) {
 		matches = append(matches, match)
 	}
 
+	// An empty leaf: its presence is the whole value.
+	if _, ok := m["destination-local"]; ok {
+		matches = append(matches, MatchDestinationLocal{})
+	}
+
 	if v, ok := m["source-asn"].(string); ok {
 		matches = append(matches, irrSetMatch(v, false, true))
 	}

@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"golang.org/x/sys/unix"
 
@@ -127,6 +128,19 @@ const (
 // golang.org/x/sys/unix nor google/nftables names. nft_rt_get_eval stores one byte,
 // 1 when the packet's dst is an XFRM bundle (`rt ipsec exists`).
 const nftRtXFRM expr.RtKey = 4
+
+// lowerDestinationLocalMatch lowers firewall.MatchDestinationLocal to nft
+// `fib daddr type local`: a fib lookup of the destination address that stores
+// its route type, compared with RTN_LOCAL. nft_fib_eval stores the type as a
+// host-order u32, so the comparison data is host order too. No interface flag
+// is set, so the kernel accepts the lookup at every hook of the ip, ip6 and
+// inet families (nft_fib_validate).
+func lowerDestinationLocalMatch() []expr.Any {
+	return []expr.Any{
+		&expr.Fib{Register: 1, FlagDADDR: true, ResultADDRTYPE: true},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: binaryutil.NativeEndian.PutUint32(unix.RTN_LOCAL)},
+	}
+}
 
 // lowerHook converts a ze ChainHook to the kernel hook number of the table's
 // family. The arp family has only input and output, numbered in its own space;
@@ -490,6 +504,8 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 		return lowerAddrMatch(ctx.tableFamily(), v.Prefix, true)
 	case firewall.MatchDestinationAddress:
 		return lowerAddrMatch(ctx.tableFamily(), v.Prefix, false)
+	case firewall.MatchDestinationLocal:
+		return lowerDestinationLocalMatch(), nil
 	case firewall.MatchSourcePort:
 		return lowerPortMatch(ctx, v.Ranges, 0) // src port offset in transport header
 	case firewall.MatchDestinationPort:

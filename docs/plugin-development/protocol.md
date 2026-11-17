@@ -1278,12 +1278,20 @@ namespace with its name, hardware address and MTU, then given its addresses,
 set up, and given one default route per gateway. A refused bridge set or link
 changes nothing: the previous bridge set stays in place, and a link that fails
 part way is deleted. When the plugin's process ends, the bridges and links it
-declared are withdrawn and their devices deleted. `FirewallTablesReplace` is
-still refused for every accepted caller as not implemented in this build, and
-no table is created (`docs/architecture/api/process-protocol.md`, "Owned
-interface devices and firewall table contribution").
+declared are withdrawn and their devices deleted.
+
+`FirewallTablesReplace` also answers with the kernel's outcome: the tables are
+validated as an operator's firewall config is, registered under the plugin's
+name and reconciled with every other owner's tables, the operator's included,
+before the call returns. The answer names the kernel tables the plugin now
+contributes. A refused set changes nothing, because the previous set is
+registered and reconciled again. A config commit leaves contributed tables in
+place, the tables of a plugin process that ended are withdrawn, and the
+firewall's orderly stop removes them with every other Ze table
+(`docs/architecture/api/process-protocol.md`, "Owned interface devices and
+firewall table contribution").
 <!-- source: internal/component/iface/owned_bridge_link.go -- ReplaceOwnedBridges, CreateOwnedLink, WithdrawOwnedDevices -->
-<!-- source: internal/component/firewall/register_contribution.go -- tablesContributionNotBuilt -->
+<!-- source: internal/component/firewall/contribution.go -- replaceContributedTables, withdrawContributedTables -->
 
 ## Message Flow Example
 

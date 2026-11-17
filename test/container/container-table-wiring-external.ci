@@ -1,0 +1,65 @@
+# Test: a forked plugin contributes a firewall table it reserved, through the
+#       firewall engine operation, and the table is in the ruleset listing.
+# Spec: spec-container-3-network, Wiring Test row 4, phases 1 and 3
+# VALIDATES: tablesReplaceHandler
+#   (internal/component/firewall/register_contribution.go), reached over RPC
+#   from the forked fakeowner plugin through sdk.Plugin.FirewallTablesReplace;
+#   refuseUnreservedContribution (contribution.go) accepts ze_fakeowner, which
+#   the plugin reserved from its init(), and replaceContributedTables registers
+#   it under the plugin's name and reconciles it through ApplyAll.
+# PREVENTS: a producer that can run forked writing through a process-local
+#   registry call, which changes only its own copy.
+# Why not a unit test: only a forked process proves the request crosses RPC
+#   under its authenticated name, and only the applied ruleset shows the table.
+#
+# The config holds a firewall section. ApplyAll loads the OS default backend
+# on demand, so the table would reach the kernel without it, but the firewall
+# engine runs only for a present firewall root, and its orderly stop is what
+# removes every ze table (FlushAllTables), the contributed one included.
+#
+# Red before phase 3: the handler refused every contribution as not built, so
+# the barrier never saw table-accepted.
+
+option=timeout:value=60s
+option=needs-linux:caps=net-admin
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+firewall {
+	backend nft
+}
+plugin {
+	external fakeowner {
+		run "ze plugin fakeowner"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: the contribution was accepted.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer table-accepted "show fakeowner outcome":exit=0
+
+# The applied ruleset holds the contributed table. The operator names it
+# without the ze_ prefix its kernel name carries.
+cmd=foreground:seq=3:exec=ze cli -c "show firewall ruleset fakeowner":exit=0
+expect=stdout:contains=fakeowner

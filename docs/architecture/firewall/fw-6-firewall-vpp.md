@@ -21,6 +21,11 @@ lowers to `ct helper` objects and `ct helper set` assignments in the
 `ze_conntrack_helpers` tables) is refused too: VPP has no conntrack helper or
 ALG, so the helper would never see a connection.
 
+The `destination-local` match (`MatchDestinationLocal`, a destination address
+this router holds) is refused as well: a VPP ACL rule matches a fixed prefix
+and has no lookup of the router's own addresses. The refusal names the nft
+backend, or `destination-address` with the router's addresses written out.
+
 `MatchConnState` maps to `PERMIT_REFLECT` for established and related only.
 `ConnStateNew` and `ConnStateInvalid` have no VPP ACL equivalent and are
 rejected.

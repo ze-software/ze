@@ -293,13 +293,21 @@ type Action interface {
 	actionMarker()
 }
 
-// --- Match types (24) ---
+// --- Match types (25) ---
 
 // MatchSourceAddress matches packets by source IP prefix.
 type MatchSourceAddress struct{ Prefix netip.Prefix }
 
 // MatchDestinationAddress matches packets by destination IP prefix.
 type MatchDestinationAddress struct{ Prefix netip.Prefix }
+
+// MatchDestinationLocal matches a packet whose destination address is one this
+// router holds, as the kernel's local routing table answers when the packet is
+// seen, so an address added after the commit matches too. A packet routed
+// through the router to another host does not match. Its zero value is the
+// complete predicate. A destination translation that carries it captures only
+// traffic addressed to the router, never transit traffic to the same port.
+type MatchDestinationLocal struct{}
 
 // PortRange is a single port (Lo==Hi) or contiguous range (Lo<Hi).
 type PortRange struct {
@@ -563,6 +571,7 @@ type MatchTCPFlags struct {
 // but silently fails the `m.(Match)` assertion at runtime.
 func (MatchSourceAddress) matchMarker()      {}
 func (MatchDestinationAddress) matchMarker() {}
+func (MatchDestinationLocal) matchMarker()   {}
 func (MatchSourcePort) matchMarker()         {}
 func (MatchDestinationPort) matchMarker()    {}
 func (MatchProtocol) matchMarker()           {}

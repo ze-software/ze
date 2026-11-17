@@ -142,6 +142,21 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 		if err := validateSetFieldMatch(tbl, ch, term, v, setType); err != nil {
 			return err
 		}
+	case MatchDestinationLocal:
+		// The nft lowering is a fib lookup of the destination address
+		// (lowerMatch, internal/plugins/firewall/nft/lower_linux.go). The
+		// kernel provides that lookup per family, and Ze's kernel is built
+		// with the ip and ip6 ones only: in an inet table the kernel refuses
+		// the whole ruleset, so verify refuses the leaf there first.
+		if tbl.Family == FamilyInet {
+			return fmt.Errorf("table %q chain %q term %q: destination-local is valid only in family ip or ip6, got inet; "+
+				"write the term in a table of family ip and, for IPv6, again in a table of family ip6",
+				tbl.Name, ch.Name, term.Name)
+		}
+		if tbl.Family != FamilyIP && tbl.Family != FamilyIP6 {
+			return fmt.Errorf("table %q chain %q term %q: destination-local is valid only in family ip or ip6, got %s",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
 	case MatchICMPType:
 		// ICMPv4 type numbers only apply to IPv4. An `inet` table is
 		// accepted, and lowerICMPTypeMatch

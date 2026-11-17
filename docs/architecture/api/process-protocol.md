@@ -3519,10 +3519,31 @@ withdraws nothing. A withdrawal that fails is logged with the code
 <!-- source: internal/component/iface/cmd/owned_devices.go -- ownedDevicesCleanup, noteOwnedDeviceCaller -->
 <!-- source: internal/component/iface/owned_bridge_link.go -- WithdrawOwnedDevices -->
 
-The firewall request is declared, admitted and judged as above, and every
-request a permitted caller sends is then refused with an operator error saying
-the operation is not implemented in this build. No table is created yet.
-<!-- source: internal/component/firewall/register_contribution.go -- tablesContributionNotBuilt -->
+The firewall request changes the kernel before it answers too.
+`tables-replace` parses the section with the parser of the operator's firewall
+config, validates the tables as that config is validated, makes them the
+caller's complete set in the table registry under its authenticated name, and
+reconciles the merged set of every owner, the backend's verifier included. The
+answer names the kernel tables the caller contributes. An empty table map
+withdraws them all. When the backend refuses the set, the caller's previous set
+is registered and reconciled again and the request is refused with an operator
+error, so the kernel keeps what it held.
+<!-- source: internal/component/firewall/register_contribution.go -- tablesReplaceHandler -->
+<!-- source: internal/component/firewall/contribution.go -- replaceContributedTables, restoreContributedTables -->
+
+Contributed tables take the path configured tables take, so they coexist with
+them: a config commit registers only the operator's owners and leaves the
+contributed tables in place, and the firewall engine's orderly stop removes
+every Ze table, contributed ones included. When a plugin process ends, its
+generation cleanup withdraws the tables that process contributed and
+reconciles; an older process of the same name that ends after its replacement
+contributed withdraws nothing. A restore or a withdrawal that the backend
+refuses has no caller to answer, so it is logged and raised with the code
+`doctor-firewall-contributed-tables`, which the doctor check
+`firewall-contributed-tables` reports until the next successful reconcile
+clears it.
+<!-- source: internal/component/firewall/contribution.go -- withdrawContributedTables, raiseContributionFailure -->
+<!-- source: internal/component/firewall/doctor_contribution.go -- checkContributedTables, clearContributionWarnings -->
 
 ### Direct bridge calls and shutdown
 

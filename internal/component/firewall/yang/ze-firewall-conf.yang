@@ -174,6 +174,18 @@ module ze-firewall-conf {
                 reads IPv6 bytes.";
             ze:help "Destination IP prefix or @set-name";
         }
+        leaf destination-local {
+            type empty;
+            description "The term matches a packet whose destination address is one this router holds on any
+                of its interfaces, as the kernel's local routing table answers when the packet is seen, so an
+                address added after the commit matches too. A packet routed through the router to another
+                host does not match. A destination translation that carries this match captures only traffic
+                addressed to the router, never transit traffic to the same port. Ze reads the leaf as a
+                presence flag, so it takes no value. The nft backend lowers it to fib daddr type local.
+                It is valid in a table of family ip or ip6. Verify refuses it in a table of family inet,
+                arp, bridge or netdev, and the vpp backend refuses it.";
+            ze:help "Match a destination address this router holds";
+        }
         leaf source-port {
             type port-spec;
             description "The value is one port, a range such as 80-90, a comma list such as 22,80,443, or @name

@@ -317,6 +317,8 @@ func matchSummary(matches []firewall.Match) string {
 			parts = append(parts, "saddr "+v.Prefix.String())
 		case firewall.MatchDestinationAddress:
 			parts = append(parts, "daddr "+v.Prefix.String())
+		case firewall.MatchDestinationLocal:
+			parts = append(parts, "fib daddr type local")
 		case firewall.MatchSourcePort:
 			parts = append(parts, "sport "+formatPortRanges(v.Ranges))
 		case firewall.MatchDestinationPort:

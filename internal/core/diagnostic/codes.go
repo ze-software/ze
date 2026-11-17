@@ -77,6 +77,7 @@ const (
 	CodeDoctorIfaceOwnedDeviceCleanup              = "doctor-iface-owned-device-cleanup"
 	CodeDoctorIfaceOwnedDeviceReconcile            = "doctor-iface-owned-device-reconcile"
 	CodeDoctorIfaceBackendClose                    = "doctor-iface-backend-close"
+	CodeDoctorFirewallContributedTables            = "doctor-firewall-contributed-tables"
 	CodeDoctorL2TPUnavailable                      = "doctor-l2tp-unavailable"
 	CodeDoctorL2TPUnknown                          = "doctor-l2tp-unknown"
 	CodeDoctorL2TPPPPUnavailable                   = "doctor-l2tp-ppp-unavailable"
@@ -1105,6 +1106,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "nftables kernel support unavailable",
 		Description: "The firewall is configured with the nft backend but nf_tables kernel support is not loaded.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-firewall-nftables"},
+	},
+	{
+		Code:        CodeDoctorFirewallContributedTables,
+		Title:       "Firewall tables a plugin contributed may not match the kernel",
+		Description: "A plugin compiled into ze contributes nft tables it reserved through the firewall engine operation, and a step that keeps the kernel in line with that contribution failed. Either a refused replacement could not put the plugin's previous set back, so the kernel may hold neither set, or the plugin ended and its tables could not be removed. The finding names the plugin and the backend's answer. `ze show firewall ruleset` lists what the kernel holds. Restarting the plugin contributes its set again, and the finding clears at the next firewall reconcile that succeeds, which also removes the tables of a plugin that ended.",
+		Examples:    []string{exampleShowDoctor, "ze show firewall ruleset", "ze show diagnostic doctor-firewall-contributed-tables"},
 	},
 	{
 		Code:        "doctor-dhcp-iface",

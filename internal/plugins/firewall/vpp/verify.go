@@ -189,6 +189,8 @@ func verifyNATDestMatches(prefix string, term *firewall.Term) error {
 			hasPort = true
 		case firewall.MatchDestinationAddress, firewall.MatchSourceAddress:
 			// Accepted: destination/source address narrow the mapping scope.
+		case firewall.MatchDestinationLocal:
+			return fmt.Errorf("%s: destination-local match not supported with dnat by backend vpp (a VPP NAT44 static mapping names a fixed external address and has no lookup of the router's own addresses); use backend nft, or name the router's address with destination-address", prefix)
 		default:
 			return fmt.Errorf("%s: match %T not supported with dnat by backend vpp (only protocol, destination port/address, source address)", prefix, m)
 		}
@@ -309,6 +311,8 @@ func verifyMatch(prefix string, m firewall.Match) error {
 		return fmt.Errorf("%s: input-interface match not supported by backend vpp (VPP ACL is bound per-interface, not matched per-rule)", prefix)
 	case firewall.MatchUnicast:
 		return fmt.Errorf("%s: link-layer unicast match not supported by backend vpp (VPP ACL has no host packet-type metadata); use backend nft", prefix)
+	case firewall.MatchDestinationLocal:
+		return fmt.Errorf("%s: destination-local match not supported by backend vpp (VPP ACL matches a fixed prefix and has no lookup of the router's own addresses); use backend nft, or name the router's addresses with destination-address", prefix)
 	case firewall.MatchIPsecTransform:
 		return fmt.Errorf("%s: IPsec transform match not supported by backend vpp (VPP ACL has no route or XFRM metadata); use backend nft", prefix)
 	case firewall.MatchOutputInterface:

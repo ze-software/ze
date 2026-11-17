@@ -109,6 +109,8 @@ func formatMatch(m firewall.Match) string {
 		return tb.Str("source address ").Prefix(v.Prefix).String()
 	case firewall.MatchDestinationAddress:
 		return tb.Str("destination address ").Prefix(v.Prefix).String()
+	case firewall.MatchDestinationLocal:
+		return "destination local"
 	case firewall.MatchSourcePort:
 		return formatPort("source port", v.Ranges)
 	case firewall.MatchDestinationPort:
@@ -436,6 +438,8 @@ func matchTypeName(m firewall.Match) string {
 		return "firewall.MatchSourceAddress"
 	case firewall.MatchDestinationAddress:
 		return "firewall.MatchDestinationAddress"
+	case firewall.MatchDestinationLocal:
+		return "firewall.MatchDestinationLocal"
 	case firewall.MatchSourcePort:
 		return "firewall.MatchSourcePort"
 	case firewall.MatchDestinationPort:

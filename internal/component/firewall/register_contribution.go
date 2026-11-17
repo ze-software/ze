@@ -1,10 +1,12 @@
 // Design: docs/architecture/api/process-protocol.md -- firewall table contribution
-// Related: contribution.go -- the reservation checks a contribution passes
+// Related: contribution.go -- the reservation checks, the replacement and the withdrawal
+// Related: doctor_contribution.go -- the doctor check and the warning-clearing observer
 // Related: ../../../pkg/plugin/rpc/firewall_tables.go -- the request values
 //
 // The table registry is process-local, so a producer that can run forked
 // reaches it through this engine operation, never through RegisterTables. The
-// owner of every contributed table is the authenticated calling process.
+// owner of every contributed table is the authenticated calling process, and
+// the tables of a process that ended are withdrawn by its generation cleanup.
 
 package firewall
 
@@ -14,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -29,6 +32,13 @@ func init() {
 	if err := pluginserver.RegisterEngineOp(operation); err != nil {
 		panic("BUG: firewall table contribution registration failed: " + err.Error())
 	}
+	if err := pluginserver.RegisterProcessGenerationCleanup(withdrawContributedTables); err != nil {
+		panic("BUG: firewall table contribution cleanup registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterDoctorCheck(contributionDoctorCheck); err != nil {
+		panic("BUG: firewall contributed-tables doctor check registration failed: " + err.Error())
+	}
+	RegisterCommitObserver(clearContributionWarnings)
 }
 
 func tablesReplaceHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
@@ -54,7 +64,11 @@ func tablesReplaceHandler(_ *pluginserver.Server, _ context.Context, proc *proce
 	if err := refuseUnreservedContribution(owner, tables); err != nil {
 		return nil, err
 	}
-	return nil, tablesContributionNotBuilt()
+	output, err := replaceContributedTables(proc, tables)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
 // refuseSectionWithoutTableMap refuses a section that holds no firewall table
@@ -80,16 +94,4 @@ func refuseSectionWithoutTableMap(owner string, section json.RawMessage) error {
 		return opererr.New("Plugin "+owner+" contributed a firewall section with no table map", why, fix)
 	}
 	return nil
-}
-
-// tablesContributionNotBuilt is the refusal every contribution answers until
-// the firewall component registers contributed tables. Nothing is recorded
-// while every request is refused, so a process that ends holds nothing and no
-// generation cleanup is registered yet.
-func tablesContributionNotBuilt() error {
-	return opererr.New(
-		"Firewall table contribution is not implemented in this build",
-		"The firewall component declares the request and registers no contributed table yet, so nothing was changed",
-		"Run a ze build that implements firewall table contribution; ze show version names the running build",
-	)
 }

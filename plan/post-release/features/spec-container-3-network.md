@@ -8,7 +8,7 @@
 | Release reason | A post-release feature. The owner ruled (umbrella O-3, O-7) that containers ship after the first release and that their networks and published ports are container config realised through Ze's interface and firewall mechanisms. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime |
-| Phase | 2/7 |
+| Phase | 3/7 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -580,17 +580,18 @@ creates it; this child's package is `network` under it.
 | `TestLinkRequestRefusesNamespaceMismatch` | `internal/component/iface/cmd/owned_link_test.go` | The inode check | written in phase 2, passed in the scoped package run |
 | `TestStopPathDeletesOwnedDevices` | `internal/component/iface/register_stop_test.go` | The ordered stop deletion | written in phase 2, passed in the scoped package run |
 | `TestVPPBackendRefusesOwnedLink` | `internal/plugins/iface/vpp/owned_test.go` | Exact or refuse | written in phase 2, passed in the scoped package run |
-| `TestParseLocalDestinationMatch` | `internal/component/firewall/config_local_test.go` | The new match parses | |
-| `TestContributionRefusesUnreservedTable` | `internal/component/firewall/contribution_test.go` | Only the caller's reserved names | |
-| `TestGenerationCleanupWithdrawsOwner` | same | A gone process's tables are withdrawn | |
-| `TestLowerLocalDestination` | `internal/plugins/firewall/nft/lower_local_test.go` | The nft expressions of the match | |
-| `TestVPPVerifierRefusesLocalDestination` | `internal/plugins/firewall/vpp/verify_local_test.go` | The VPP verdict on the match | |
+| `TestParseLocalDestinationMatch` | `internal/component/firewall/config_local_test.go` | The new match parses, only from its leaf, and is refused in a bridge table | written in phase 3, not run |
+| `TestContributionRefusesUnreservedTable` | `internal/component/firewall/contribution_test.go` | Only the caller's reserved names | written in phase 1 |
+| `TestContributionReplacesOwnersCompleteSet` | `internal/component/firewall/contribution_replace_test.go` | The contribution reaches the backend beside an operator table, a config apply keeps it, a refused set leaves the previous set in the registry and the backend, an empty set withdraws it | written in phase 3, not run |
+| `TestGenerationCleanupWithdrawsOwner` | `internal/component/firewall/contribution_replace_test.go` | A gone process's tables are withdrawn, an older generation withdraws nothing, a refused withdrawal raises `doctor-firewall-contributed-tables` until a reconcile succeeds | written in phase 3, not run |
+| `TestLowerLocalDestination` | `internal/plugins/firewall/nft/lower_local_test.go` | The nft expressions of the match | written in phase 3, not run |
+| `TestVPPVerifierRefusesLocalDestination` | `internal/plugins/firewall/vpp/verify_local_test.go` | The VPP verdict on the match, in a filter term and in a destination translation | written in phase 3, not run |
 | `TestListenerContributorJoinsConflictCheck` | `internal/component/config/listener_contributor_test.go` | A contributed endpoint conflicts with a service | |
 | `TestPortRangeOverlapIsAConflict` | same | Ranges that overlap | |
 | `TestOwnedLinkIsCreatedInsideNamespace` | `internal/plugins/iface/netlink/owned_link_integration_linux_test.go` | Kernel: the peer end, its name, address, route and state inside a namespace | written in phase 2, not run |
 | `TestHostEndVanishesWithNamespace` | same | Kernel: the pair is gone when the namespace is | written in phase 2, not run |
 | `TestOwnedBridgeIsAdoptedAfterRestart` | `internal/component/iface/owned_bridge_integration_linux_test.go` (it drives the unexported pass) | Kernel: a marked bridge is adopted, and its drifted MTU and addresses are put back in place, never re-made | written in phase 2, not run |
-| `TestLocalDestinationDNATLeavesTransitAlone` | `internal/plugins/firewall/nft/local_dnat_integration_linux_test.go` | Kernel: two namespaces and a router namespace; only router-addressed traffic is translated, with a positive control | |
+| `TestLocalDestinationDNATLeavesTransitAlone` | `internal/plugins/firewall/nft/local_dnat_integration_linux_test.go` | Kernel: a router namespace and a client namespace (phase 3 difference 2); only router-addressed traffic is translated, with a positive control and a control without the match | written in phase 3, not run |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -621,7 +622,7 @@ device cannot run.
 | `container-network-wiring-external` | `test/container/container-network-wiring-external.ci` | A forked test plugin's bridge appears in the kernel with the owner mark | drafted in `test/draft/container/`, not run since phase 2; expected green |
 | `container-network-wiring-internal` | `test/container/container-network-wiring-internal.ci` | The same, internal | drafted in `test/draft/container/`, not run since phase 2; expected green |
 | `container-link-wiring-external` | `test/container/container-link-wiring-external.ci` | A forked test plugin's link has its peer end configured in a namespace | drafted in `test/draft/container/`; phase 2 added the `link-netnsid` check and the peer end's facts through the `iface/peer-end` fixture; not run; expected green |
-| `container-table-wiring-external` | `test/container/container-table-wiring-external.ci` | A forked test plugin's table is in the ruleset listing | drafted in `test/draft/container/`; red until phase 3 |
+| `container-table-wiring-external` | `test/container/container-table-wiring-external.ci` | A forked test plugin's table is in the ruleset listing | drafted in `test/draft/container/`; phase 3 added a `firewall { backend nft }` section; not run since phase 3; expected green |
 | `container-network-reach-gateway` | `test/container/container-network-reach-gateway.ci` | AC-1, AC-2: an entrypoint that connects to the gateway at once succeeds | |
 | `container-network-forked` | `test/container/container-network-forked.ci` | AC-16: the same with the plugin forked | |
 | `container-network-address-stable` | `test/container/container-network-address-stable.ci` | AC-3 | |
@@ -679,7 +680,12 @@ device cannot run.
 - `internal/test/plugins/all/all.go` - the blank import of `fakeowner`
 - `docs/plugin-development/protocol.md`, `docs/functional-tests.md` - the SDK methods, the `fakeowner` test plugin and the `iface/peer-end` fixture
 - `internal/plugins/iface/vpp/ifacevpp.go`, and the non-Linux backend - refuse both new methods
-- `internal/component/firewall/model.go`, `config.go`, `validate.go`, `yang/ze-firewall-conf.yang` - the local-address match
+- `internal/component/firewall/model.go`, `config.go`, `validate.go`, `yang/ze-firewall-conf.yang` - the local-address match (the leaf `destination-local`, the type `MatchDestinationLocal`)
+- `internal/component/firewall/cmd/show.go` - both match switches name the new match (phase 3)
+- `internal/component/firewall/contribution.go`, `register_contribution.go` - the replacement, the restore, the generation cleanup; `tablesContributionNotBuilt` deleted (phase 3)
+- `internal/core/diagnostic/codes.go` - the code `doctor-firewall-contributed-tables`, a firewall code, not a container one (phase 3)
+- `test/container/container-table-wiring-external.ci` - a `firewall { backend nft }` section, so the firewall engine runs and its orderly stop flushes the contributed table (phase 3)
+- `docs/plugin-development/protocol.md` - the table request answers with the kernel's outcome (phase 3)
 - `internal/plugins/firewall/nft/lower_linux.go` - its lowering
 - `internal/plugins/firewall/vpp/verify.go` - its refusal
 - `internal/component/config/listener.go` - contributed endpoints and the upper port
@@ -714,10 +720,13 @@ device cannot run.
 - `internal/component/firewall/contribution.go`, `register_contribution.go` - the firewall request and cleanup
 - `internal/component/firewall/yang/ze-firewall-api.yang` - the request
 - `internal/component/firewall/contribution_test.go` - `TestContributionRefusesUnreservedTable`
+- `internal/component/firewall/contribution_replace_test.go` - `TestContributionReplacesOwnersCompleteSet`, `TestGenerationCleanupWithdrawsOwner` (phase 3)
+- `internal/component/firewall/doctor_contribution.go` - the doctor check `firewall-contributed-tables` and the commit observer that clears its warnings (phase 3)
+- `internal/component/firewall/config_local_test.go`, `internal/plugins/firewall/nft/lower_local_test.go`, `internal/plugins/firewall/nft/local_dnat_integration_linux_test.go`, `internal/plugins/firewall/vpp/verify_local_test.go` - the local-address match tests (phase 3)
 - `internal/component/iface/yang/ze-iface-owned-api.yang` - the three interface requests
 - `internal/component/plugin/server/engine_op_decode.go` - `DecodeEngineOperationInput`, the strict request decoder both components use
 - `test/container/container-network-wiring-external.ci`, `container-network-wiring-internal.ci`, `container-link-wiring-external.ci` - the bridge and link wiring tests, green in the guest since phase 2 and promoted. Each config holds an `interface` section: the owned-device requests are refused while no interface backend is loaded, and the backend loads only when the interface component is configured
-- `test/draft/container/container-table-wiring-external.ci` - the table wiring draft, red until phase 3
+- `test/container/container-table-wiring-external.ci` - the table wiring test, green in the guest since phase 3 and promoted
 - `pkg/plugin/rpc/owned_devices.go`, `pkg/plugin/rpc/firewall_tables.go` - the value types and method names
 - `pkg/plugin/sdk/sdk_owned_devices.go`, `pkg/plugin/sdk/sdk_firewall_tables.go` - the SDK methods
 - `internal/plugins/container/network/` - `verify.go`, `address.go`, `name.go`, `tables.go`, `resolver.go`, `listeners.go`, `attach.go` (the participant), `command.go` (the two listings and the read function), `register_tables.go`, `register_kernelcap_linux.go`, `kernelcap_linux.go`, `doctor.go`, and the tests named above
@@ -852,6 +861,15 @@ device cannot run.
   5. The bridge and link records live in the new `internal/component/iface/owned_bridge_link.go`, not in `device_owner.go`.
   6. Scope widened: a configured interface name, or a veth peer name, inside a prefix a plugin granted itself is refused when the config is parsed (AC-23). Without it the config apply could adopt or delete a device a plugin owns. Owner question Q-1 below is open on it.
   7. An unmarked device holding an owned bridge name is refused and left alone, never adopted. The owned macvlan pass still adopts and re-marks an unmarked macvlan under a registered name; the bridge pass does not, because an unmarked bridge may be the operator's. A crash between the netlink backend's create and its mark leaves such a bridge, and the operator deletes it (`CreateOwnedBridge` comment).
+
+- Phase 3 as applied, seven differences from the design above (the Data Flow steps 3 and 9 are read through them):
+  1. The config word of the local-address match is `destination-local`, an empty leaf of the `from` block, lowered by nft to `fib daddr type local`. It is valid in families ip and ip6, as A-7 assumes; verify refuses it elsewhere, family inet included: the runtime kernel leaves `NFT_FIB_INET` unset, so a ruleset with the match in an inet table is refused whole by the kernel (seen in the guest: `flush: ... no such file or directory`). Open for the owner: set `NFT_FIB_INET` in the kernel so a dual-stack table may carry the match. Verify refuses it and the VPP verifier refuses it in a filter term and in a destination translation, each naming the leaf.
+  2. `TestLocalDestinationDNATLeavesTransitAlone` builds a router namespace and one client namespace, not two namespaces beside a router: the transit target is an address on no link of the router, so an untranslated connection to it is never answered. A second control applies the same term without the match and the transit connection reaches the router's service, so the transit assertion could have gone the other way. It covers IPv4; the ip6 lowering is the same expressions. It carries `//go:build linux` and `userns.Enter`, as every test of the nft package does.
+  3. A contribution failure with no caller to answer (the restore after a refused set, the withdrawal after a process ended) is logged and raised with a new firewall code, `doctor-firewall-contributed-tables`, which the doctor check `firewall-contributed-tables` reports. A commit observer clears it at the next successful reconcile of any owner, when the kernel holds the registry's merged set. The Problem classes table holds container codes only, so this code is not in it.
+  4. A config apply needed no change to keep contributed tables: `registerConfigTables` registers only the firewall engine's two owners. `TestContributionReplacesOwnersCompleteSet` proves it.
+  5. The stop path needed no change: with a `firewall` section the engine's orderly stop calls `FlushAllTables`, which clears every owner. Without one the firewall engine does not run, and contributed tables leave only through the generation cleanup when the plugin process ends. Whether that cleanup runs at an orderly daemon stop was not read, so A-6 stays open, and the table wiring draft carries a `firewall { backend nft }` section.
+  6. `TestGenerationCleanupWithdrawsOwner` lives in `contribution_replace_test.go`, not `contribution_test.go`.
+  7. Scope widened by one line: the web firewall page (`internal/component/web/page_firewall.go`) names the new match as `fib daddr type local` rather than its Go type through the default arm. The kernel enrolment of the fib expression (A-7) stays with phase 6.
 
 ### Owner questions
 
