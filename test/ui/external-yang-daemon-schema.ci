@@ -1,0 +1,48 @@
+# Test: the schema commands a running daemon serves show an external plugin's module
+#
+# Question: dispatched by the daemon, do `show schema list` and
+# `show yang tree config` answer the module an external plugin declared when
+# ze started, and does `show config running` hold the plugin's section?
+# Why not a unit test: TestSchemaRegistryHoldsPublishedExternalModule proves
+# the registry reads the published set. Only a command the daemon dispatches
+# proves boot published the module a live plugin declared before that
+# registry was asked. `ze cli -c` cannot prove it: it answers these local-data
+# commands in the client process, from the compiled-in modules.
+#
+# The commands are the ones the daemon has. It serves `show schema list`,
+# `methods`, `events`, `handlers` and `protocol`
+# (internal/plugins/config-schema/yang/ze-schema-cli-cmd.yang) and no
+# `show schema show <module>`, which the daemon answers `unknown command`.
+# What the daemon shows of one module is
+# its nodes, in `show yang tree config`.
+#
+# Asserted:
+#   - SSH exec of `show schema list` names acme-monitor-conf;
+#   - SSH exec of `show yang tree config | json` holds the node acme-monitor
+#     with the leaves target and interval, and interval carries the
+#     description the module gives it;
+#   - `show schema list | match acme-mon` TYPED at the operational prompt of
+#     the daemon's session, which is what a `ze cli` session is, names
+#     acme-monitor-conf: the route the `ze schema` warning tells an operator
+#     to take (externalNotShown, internal/component/config/schema/cli/main.go);
+#   - SSH exec of `show config running | json` holds the acme-monitor section.
+#
+# VALIDATES: AC-13 of spec-plugin-external-yang-at-startup, the schema
+#   listing and `show config` half, on the SSH surface.
+# PREVENTS: the daemon's schema commands answering compiled-in modules alone
+#   while the config it runs holds a section the plugin's module defines; and
+#   a warning that names a command the daemon does not know.
+#
+# Method: the compiled fixture
+# (internal/test/fixture/ui_fixture_external_yang_session.go) starts a daemon
+# with the external-yang fixture plugin in its valid mode, execs the commands
+# over SSH (sshclient.ExecCommand), the route
+# test/ui/cli-local-command-daemon-ssh.ci takes, and types one in a session.
+#
+# The timeout is DECLARED because this file starts a daemon and drives one
+# interactive terminal session with a settling window.
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture ui/external-yang-daemon-schema $PORT
+expect=exit:code=0
+expect=stdout:contains=OK: the daemon listed acme-monitor-conf, showed its nodes, and its running config holds the acme-monitor section

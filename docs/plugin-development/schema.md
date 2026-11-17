@@ -37,7 +37,35 @@ A plugin that cannot be run, or that sends no declaration within its stage
 timeout, declares nothing: a config section only its module defines is then
 refused as `unknown top-level keyword: <root>`, and the refusal names the
 plugin, why it did not declare and the command that checks it
-(`ze show plugin conformance run "<command>"`).
+(`ze show plugin conformance run "<command>"`). The same holds for a plugin
+that sends its declaration with no YANG module: it defines no config section,
+and a section written for it is refused with a message that says so.
+
+Each of these outcomes has a doctor code:
+
+| Code | When | Where you read it |
+|------|------|-------------------|
+| `doctor-plugin-schema-undeclared` | Ze holds no config schema of your plugin: it could not be run, it sent no declaration in time, or it declared no module and the config holds a section no schema defines | On the refusal and in the log when the start is refused, and then in `ze doctor`, from the record Ze wrote before it exited, until Ze next starts cleanly. In `ze show doctor` when the config holds no section of your plugin, so Ze starts |
+| `doctor-plugin-schema-refused` | Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a validator Ze does not hold, or it adds nothing | On the refusal and in the log. Ze does not start, and `ze doctor` reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly |
+| `doctor-plugin-schema-changed` | Your plugin was started again with another schema | In `ze show doctor` |
+
+In a running Ze your module is part of the schema every surface reads: the
+session editor parses and completes under your root, `show config running`
+answers your section, `show yang tree config` shows your nodes with their
+types and descriptions, and `show schema list` lists your module with the
+roots your plugin wants. Type them in a `ze cli` session or send them over
+SSH: both reach the running Ze, while `ze cli -c` answers these two in its own
+process, from the modules compiled into `ze`. A running Ze has no command that
+prints the YANG text of one module; `ze schema show <module>` prints it for a
+module compiled into `ze` only. The doctor check for config that reaches no plugin counts the roots
+your running plugin declared, so your section is not reported as having no
+effect.
+
+With no daemon, `ze schema` shows the modules compiled into `ze` only. A
+`--plugin` that names your program does not start it: the answer is followed
+by a warning that your module is not available with no running Ze, whose fix
+is `ze cli`: typed in that session, `show schema list` lists your module and
+`show yang tree config` shows its nodes.
 
 With no daemon running, Ze never starts an external plugin's program. Your
 module reaches Ze only when `ze start` runs your plugin, so a command that

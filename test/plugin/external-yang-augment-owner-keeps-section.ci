@@ -1,0 +1,97 @@
+# Test: the compiled-in owner's child of service stays beside an external augment
+#
+# Question: when an external module augments the compiled-in container
+# `service` with `chrony`, and the config holds both `service dns-resolver`
+# (the compiled-in owner's child) and `service chrony`, does the daemon start,
+# hand the external plugin its own subtree alone, hand the owner its child,
+# and still hold both in the config it runs?
+# Why not a unit test: TestJoinAcceptsAugmentOfSharedContainer proves the
+# schema holds both children. This proves the daemon parses one `service`
+# block that two owners share and cuts the external plugin's root out of it
+# without the owner's child.
+#
+# test/plugin/external-yang-augment-shared-root.ci holds `service chrony`
+# alone, so it proves the external half of AC-6 and nothing about the owner.
+#
+# The owner's half is read from the owner: `show dns resolver` answers the
+# config the dns-resolver plugin is running (resolver.show,
+# internal/plugins/dnsresolver/show.go), and that plugin answers
+# `"enabled": false` with no listener until a config reaches it. The listener
+# name, the allow-from count and `"enabled": true` are in the answer only when
+# the plugin received `service dns-resolver` out of the shared block.
+#
+# The resolver serves UDP and TCP on $PORT2. The daemon's SSH server listens
+# on TCP $PORT.
+#
+# VALIDATES: AC-6 of spec-plugin-external-yang-at-startup, "the internal owner
+#   of `service` keeps working": its child is accepted and kept beside the
+#   augment, and delivery is by declared root.
+# PREVENTS: an augment of a shared container that replaces the owner's
+#   children, or a delivery that hands the whole `service` block to the
+#   external plugin.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-chrony {
+		run "le test fixture plugin/external-yang augment"
+		encoder json
+	}
+}
+
+service {
+	dns-resolver {
+		enabled true
+		listener lan {
+			ip 127.0.0.1
+			port $PORT2
+		}
+		allow-from 127.0.0.1/32
+	}
+	chrony {
+		server time.example.net
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+# The external plugin gets its declared root and nothing of the owner's child.
+expect=stderr:contains=FIXTURE: external-yang configure root=service/chrony leaves=[service/chrony/server=time.example.net]
+reject=stderr:contains=service/dns-resolver
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+# The wait is on the daemon's own answer, and it retries a refused connection,
+# so it also holds the SSH listener.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer chrony "show config running | json":exit=0
+
+cmd=foreground:seq=3:exec=ze cli -c "show config running | json":exit=0
+expect=stdout:contains="dns-resolver"
+expect=stdout:contains="chrony"
+expect=stdout:contains="server": "time.example.net"
+
+# The owner received its child of the shared container and runs it.
+cmd=foreground:seq=4:exec=ze cli -c "show dns resolver | json":exit=0
+expect=stdout:contains="running": true
+expect=stdout:contains="enabled": true
+expect=stdout:contains="name": "lan"
+expect=stdout:contains="allow-from": 1

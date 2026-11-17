@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"io"
 	"os"
 	"slices"
@@ -11,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // captureStdout runs fn and returns whatever it wrote to os.Stdout.
@@ -363,23 +365,6 @@ func TestRegisterYANGDeduplication(t *testing.T) {
 	}
 }
 
-// TestGetExternalPluginYANG verifies external plugin execution with --yang flag.
-//
-// VALIDATES: External plugins can be queried for YANG via --yang flag.
-// PREVENTS: External plugin schema discovery being broken.
-func TestGetExternalPluginYANG(t *testing.T) {
-	// Test with echo to verify --yang is appended
-	yangContent, err := getExternalPluginYANG("echo module test")
-	if err != nil {
-		t.Fatalf("getExternalPluginYANG failed: %v", err)
-	}
-
-	// echo "module test" --yang should output "module test --yang"
-	if !strings.Contains(yangContent, "--yang") {
-		t.Errorf("expected --yang to be appended, got: %q", yangContent)
-	}
-}
-
 // TestRunWithPlugins verifies Run accepts plugins parameter.
 //
 // VALIDATES: ze --plugin X schema list includes external plugin schemas.
@@ -443,28 +428,101 @@ func TestSchemaWantsConfigPopulated(t *testing.T) {
 	}
 }
 
-// TestExternalPluginEmptySpec verifies empty plugin spec handling.
+// TestExternalPluginEmptySpec proves a `--plugin` whose value is empty or only
+// spaces is refused: the registry is not built, the refusal is an operator
+// error that says the option names no plugin and gives the command that lists
+// the names, and `ze schema list` with such a value exits 1, writes that
+// refusal to stderr and lists nothing.
 //
-// VALIDATES: Empty plugin spec returns error.
-// PREVENTS: Panic on empty plugin command.
+// VALIDATES: Empty plugin spec returns error, and the command exits 1.
+// PREVENTS: an empty spec skipped as an external program with an empty name,
+// so `ze --plugin "" schema list` exits 0 with a warning about plugin "".
 func TestExternalPluginEmptySpec(t *testing.T) {
-	_, err := getExternalPluginYANG("")
-	if err == nil {
-		t.Error("expected error for empty plugin spec, got nil")
+	for _, spec := range []string{"", "   ", "\t"} {
+		registry, err := buildSchemaRegistry([]string{spec})
+		if err == nil {
+			t.Fatalf("spec %q: expected error for empty plugin spec, got nil", spec)
+		}
+		if registry != nil {
+			t.Errorf("spec %q: a registry was built beside the refusal", spec)
+		}
+		refusal, ok := errors.AsType[*opererr.Error](err)
+		if !ok {
+			t.Fatalf("spec %q: the refusal is not an operator error: %v", spec, err)
+		}
+		if refusal.Problem() != "ze schema: a --plugin option names no plugin: its value is empty" {
+			t.Errorf("spec %q: problem = %q", spec, refusal.Problem())
+		}
+		if !strings.Contains(refusal.Why(), "names neither a plugin compiled into ze") {
+			t.Errorf("spec %q: why = %q", spec, refusal.Why())
+		}
+		if refusal.Fix() != "ze show plugin list" {
+			t.Errorf("spec %q: fix = %q", spec, refusal.Fix())
+		}
 	}
-	if !strings.Contains(err.Error(), "no plugin command specified") {
-		t.Errorf("expected 'no plugin command specified' error, got: %v", err)
+
+	var code int
+	var stdout string
+	stderr := captureStderr(t, func() {
+		stdout = captureStdout(t, func() { code = Run([]string{"list"}, []string{""}) })
+	})
+	if code != 1 {
+		t.Errorf("Run(list) with an empty --plugin = %d, want 1", code)
+	}
+	if !strings.Contains(stderr, "error: ze schema: a --plugin option names no plugin: its value is empty") {
+		t.Errorf("stderr lacks the refusal: %q", stderr)
+	}
+	if !strings.Contains(stderr, "ze show plugin list") {
+		t.Errorf("stderr lacks the fix: %q", stderr)
+	}
+	if strings.Contains(stderr, "not available with no running ze") {
+		t.Errorf("an empty spec was reported as an external plugin: %q", stderr)
+	}
+	if stdout != "" {
+		t.Errorf("a refused command listed schemas: %q", stdout)
 	}
 }
 
-// TestExternalPluginNonexistent verifies handling of nonexistent plugins.
+// TestRunWarnsOfExternalPluginOnStderr proves a `ze schema` command that the
+// command line gives an external plugin still answers from the compiled-in
+// modules, exits 0, and writes on stderr which plugin its answer shows nothing
+// of, why, and the command that reaches a running ze. Every command that reads
+// the registry does. A command line of compiled-in plugins writes no warning.
 //
-// VALIDATES: Nonexistent plugin returns error.
-// PREVENTS: Silent failure on missing plugins.
-func TestExternalPluginNonexistent(t *testing.T) {
-	_, err := getExternalPluginYANG("/nonexistent/plugin/path")
-	if err == nil {
-		t.Error("expected error for nonexistent plugin, got nil")
+// VALIDATES: the owner ruling of 2026-11-16 at the command: the answer says
+// the external plugin's schema is not available and names what to run.
+// PREVENTS: commandLineRegistry losing its writeExternalNotShown call, after
+// which the answer reads as the whole schema and every other test stays green.
+func TestRunWarnsOfExternalPluginOnStderr(t *testing.T) {
+	commands := [][]string{{"list"}, {"show", bgpConfModule}, {"handlers"}, {"methods"}, {"events"}}
+	for _, args := range commands {
+		var code int
+		var stdout string
+		stderr := captureStderr(t, func() {
+			stdout = captureStdout(t, func() { code = Run(args, []string{"./acme-monitor"}) })
+		})
+		if code != 0 {
+			t.Errorf("Run(%v) = %d, want 0: the compiled-in answer stands", args, code)
+		}
+		if stdout == "" {
+			t.Errorf("Run(%v) wrote no answer", args)
+		}
+		for _, want := range []string{
+			`warning: ze schema answered from the modules compiled into ze alone: the config schema of external plugin "./acme-monitor" is not available with no running ze`,
+			"ze starts no external plugin's program",
+			"ze cli",
+		} {
+			if !strings.Contains(stderr, want) {
+				t.Errorf("Run(%v) stderr lacks %q: %q", args, want, stderr)
+			}
+		}
+	}
+
+	stderr := captureStderr(t, func() {
+		captureStdout(t, func() { Run([]string{"list"}, []string{"ze.bgp"}) })
+	})
+	if strings.Contains(stderr, "warning:") {
+		t.Errorf("a command line of compiled-in plugins wrote a warning: %q", stderr)
 	}
 }
 

@@ -1,0 +1,55 @@
+# Test: after a start refused for a section of a plugin that gave no schema,
+#       the next ze doctor reports doctor-plugin-schema-undeclared
+#
+# Question: when the config holds a section under an external plugin's root,
+# the plugin cannot be run, and `ze start` refuses the unknown keyword and
+# exits, does `ze doctor`, run afterwards with no daemon, name that plugin
+# under doctor-plugin-schema-undeclared, with why ze held no schema of it and
+# the command that fixes it?
+# Why not a unit test: TestSchemaStopSurvivesTheRefusedStart and
+# TestSchemaStopRowsNameTheCodeTheCauseAndTheFix prove the record and the row.
+# Only the two runs prove boot writes the record where the load refuses the
+# name, and that the local doctor reads it from the store it opens.
+#
+# VALIDATES: AC-14 of spec-plugin-external-yang-at-startup, the undeclared
+#   code when the load is refused (recordUndeclaredSchemaStops,
+#   cmd/ze/hub/declared_plugins.go).
+# PREVENTS: the plugin named only on the terminal of a process that is gone,
+#   while the local doctor, which starts no plugin, cannot find it again.
+#
+# The form is the one of test/plugin/doctor-plugin-fatal-stop.ci, whose header
+# gives the reason for each option. The run line names a program that does
+# not exist, so the plugin never reaches its Stage 1.
+option=storage:value=disk
+option=timeout:value=60s
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+plugin {
+	external absent-plugin {
+		run "./no-such-plugin-program"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/doctor-fatal-stop:exit=0
+expect=stderr:contains=unknown top-level keyword
+expect=stderr:contains=a config section that only plugin "absent-plugin" defines is an unknown keyword to ze
+expect=stderr:contains=created live store:
+reject=stderr:contains=could not record why ze is stopping
+reject=stderr:contains=created memory store
+reject=stderr:contains=Ze running.
+
+cmd=foreground:seq=2:exec=ze doctor --json config running.conf
+expect=stdout:contains="code": "doctor-plugin-schema-undeclared"
+expect=stdout:pattern=ze refused to start at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z on a configuration name no schema defines, and it held no config schema of external plugin
+expect=stdout:contains=absent-plugin
+expect=stdout:contains=could not be started, so it declared nothing
+expect=stdout:contains=ze show plugin conformance run
+expect=stdout:contains=./no-such-plugin-program
+reject=stdout:contains="code": "doctor-plugin-fatal-stop"

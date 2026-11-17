@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/claims"
 	schemacli "github.com/ze-software/ze/internal/component/config/schema/cli"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -36,6 +37,14 @@ import (
 // the other.
 func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
 	cs := claims.FromConfigRoots(pluginregistry.ConfigSectionRootsMap())
+
+	// An external plugin's roots are in no registry: its program declares
+	// them when ze runs it, and the plugin server keeps the roots of each one
+	// that is running. They are claims like any other, so a section under an
+	// external plugin's own root is not reported, and a root whose plugin
+	// ended, or that no running plugin wants, still is. With no daemon in
+	// this process the list is empty.
+	cs = append(cs, claims.FromConfigRoots(pluginserver.ExternalConfigRoots())...)
 
 	// The hub delivers a config path to a subsystem through
 	// SchemaRegistry.FindHandler, so a handler path claims as much as a plugin

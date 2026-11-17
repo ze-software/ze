@@ -96,6 +96,16 @@ Against a Ze built from the branch that carries this example:
   fix while the plugin keeps its previous state.
 - A `verify` refusal at start. Ze stays up, reports the plugin as stopped with
   the plugin's own message and fix, and the plugin's command is not there.
+- In a running Ze, the schema surfaces hold the plugin's module: `show config
+  running` answers the `acme-monitor` section, and typed in a `ze cli`
+  session `show schema list` lists `acme-monitor-conf` with the root the
+  plugin wants and `show yang tree config` shows the `acme-monitor` nodes.
+  `ze show doctor` does not report the section as delivered to no plugin.
+- Doctor codes for a schema Ze did not get: `doctor-plugin-schema-undeclared`
+  when the plugin cannot be run or declares no module, and
+  `doctor-plugin-schema-refused` when Ze refuses the module at start. Both are
+  on the refusal Ze prints; `ze show plugin conformance run "<command>"` shows
+  what the program declares.
 
 ## What does not work yet
 

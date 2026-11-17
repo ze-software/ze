@@ -3,8 +3,9 @@
 // Related: startup.go -- signalStartupComplete, which settles the record at the end of startup
 //
 // The last-stop record is why ze last stopped itself: a plugin whose failure
-// policy is fatal failed, the boot refused a plugin, or a stop-time cleanup ran
-// late. Nothing else survives the stop, so the next `ze doctor` reads this
+// policy is fatal failed, the boot refused a plugin, the start was refused for
+// an external plugin's config schema (external_schema_report.go), or a
+// stop-time cleanup ran late. Nothing else survives the stop, so the next `ze doctor` reads this
 // record to name the cause. It is written to the daemon's store before the
 // stop, and deleted when the next start completes cleanly, so it never names a
 // stale reason after a clean restart. It names the run that wrote it, so a
@@ -42,6 +43,14 @@ const (
 	// LastStopCleanupLate: a plugin engine or the config transaction did not
 	// finish its cleanup before the stop went on.
 	LastStopCleanupLate
+	// LastStopSchemaRefused: the join of the YANG modules the declared external
+	// plugins brought refused one, before the config was parsed, so ze did not
+	// start (RecordRefusedSchemaStop).
+	LastStopSchemaRefused
+	// LastStopSchemaUndeclared: the config load was refused for a name no
+	// schema defines while ze held no config schema of a declared external
+	// plugin, so ze did not start (RecordUndeclaredSchemaStop).
+	LastStopSchemaUndeclared
 )
 
 // lastStopEntriesMax bounds the record. The first entries of the run are
@@ -63,6 +72,10 @@ func (r LastStopReason) Code() string {
 		return diagnostic.CodeDoctorPluginFatalStop
 	case LastStopCleanupLate:
 		return diagnostic.CodeDoctorPluginStopCleanupLate
+	case LastStopSchemaRefused:
+		return diagnostic.CodeDoctorPluginSchemaRefused
+	case LastStopSchemaUndeclared:
+		return diagnostic.CodeDoctorPluginSchemaUndeclared
 	case LastStopUnspecified:
 		panic("BUG: LastStopReason.Code on an unspecified reason")
 	}
@@ -78,6 +91,10 @@ func (r LastStopReason) MarshalText() ([]byte, error) {
 		return []byte("boot-refused"), nil
 	case LastStopCleanupLate:
 		return []byte("stop-cleanup-late"), nil
+	case LastStopSchemaRefused:
+		return []byte("schema-refused"), nil
+	case LastStopSchemaUndeclared:
+		return []byte("schema-undeclared"), nil
 	case LastStopUnspecified:
 		return nil, errors.New("last-stop reason is unspecified")
 	}
@@ -94,6 +111,10 @@ func (r *LastStopReason) UnmarshalText(text []byte) error {
 		*r = LastStopBootRefused
 	case "stop-cleanup-late":
 		*r = LastStopCleanupLate
+	case "schema-refused":
+		*r = LastStopSchemaRefused
+	case "schema-undeclared":
+		*r = LastStopSchemaUndeclared
 	default:
 		return fmt.Errorf("last-stop reason %q is unknown", text)
 	}
@@ -107,9 +128,13 @@ type LastStopEntry struct {
 	// the entry. A boot refusal names it when the refusal is a missing
 	// dependency (registry.MissingDependencyError); any other refusal leaves
 	// it empty and Detail carries the whole refusal.
-	Plugin string    `json:"plugin,omitempty"`
-	Detail string    `json:"detail"`
-	Time   time.Time `json:"time"`
+	Plugin string `json:"plugin,omitempty"`
+	Detail string `json:"detail"`
+	// Fix is the command the refusal behind the entry names, kept so the
+	// doctor row gives it as the refusal did. Empty when the refusal named
+	// none: the row then points at ze's log up to Time.
+	Fix  string    `json:"fix,omitempty"`
+	Time time.Time `json:"time"`
 }
 
 // LastStop is the whole record: the run that wrote it (lastStopRun), its
@@ -241,6 +266,16 @@ func recordLastStopLogged(entry LastStopEntry) bool {
 	if entry.Reason == LastStopCleanupLate {
 		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
 			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginStopCleanupLate)
+		return false
+	}
+	if entry.Reason == LastStopSchemaRefused {
+		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
+			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginSchemaRefused)
+		return false
+	}
+	if entry.Reason == LastStopSchemaUndeclared {
+		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
+			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginSchemaUndeclared)
 		return false
 	}
 	logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",

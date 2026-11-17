@@ -494,6 +494,33 @@ answers the published modules and whether a publish happened, and
 namespace and text) with the published set: not yet published, published,
 changed, or no module of that plugin.
 
+A refused join at boot is logged and raised as `doctor-plugin-schema-refused`
+and ends the start (`pluginserver.ReportRefusedSchema`). A declared plugin of
+which boot holds no schema is reported as `doctor-plugin-schema-undeclared`
+(`docs/architecture/hub-architecture.md`, "What the daemon does at start").
+
+The schema CLI reads the published set and never a plugin. Inside a running
+daemon `buildSchemaRegistry` registers each published module beside the
+compiled-in ones, so `show schema list` lists an external plugin's module
+with the config roots it wants. The daemon serves no `show schema show`: the
+text of one module is printed by the local `ze schema show <module>` alone,
+which holds compiled-in modules only when no daemon published a set. With no
+daemon the published set is empty, and a `--plugin` that names
+an external program is not started: `ze schema` answers the compiled-in
+modules and says on stderr that the plugin's module is not available with no
+running ze, with `ze cli` as the fix: its why names `show schema list` and
+`show yang tree config`, typed in that session. The earlier run of the program with
+`--yang` is deleted; `--yang` remains a flag of Ze's own plugin CLI
+(`ze plugin <name> --yang`), which prints a module compiled into `ze` and
+starts no program. `show yang` reads `yang.DefaultLoader`, so inside the daemon
+it answers the published set by itself: `show yang tree config` shows the
+nodes of an external plugin's module, with their types and descriptions.
+`ze cli -c` answers both commands in its own process, so the daemon's answer
+is read in a `ze cli` session or over SSH.
+<!-- source: internal/component/config/schema/cli/main.go -- buildSchemaRegistry, registerPublishedYANG, externalNotShown, commandLineRegistry -->
+<!-- source: internal/test/fixture/ui_fixture_external_yang_session.go -- externalYANGDaemonSchema -->
+<!-- source: internal/component/config/schema/cli/external_plugin_test.go -- TestSchemaRegistryStartsNoExternalProgram, TestSchemaRegistryHoldsPublishedExternalModule, TestExternalNotShownNamesThePluginAndTheFix -->
+
 A plugin the daemon starts again, after it ended or by `request plugin
 restart`, sends its Stage 1 declaration again, and the `schema-unchanged`
 entry of the Stage 1 table compares it with that set (`refuseChangedSchema`).

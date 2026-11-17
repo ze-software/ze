@@ -4,27 +4,21 @@
 package cli
 
 import (
-	"bytes"
-	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"os"
-	"os/exec"
 	"slices"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-var errNoPluginCommandSpecified = errors.New("no plugin command specified")
 
 // Plugin ID prefix for internal plugins (e.g., "ze.bgp", "ze.gr").
 const internalPluginPrefix = "ze."
@@ -34,9 +28,6 @@ const moduleNamePrefix = "ze-"
 
 // YANG module name for the core BGP configuration schema.
 const bgpConfModule = "ze-bgp-conf"
-
-// Timeout for external plugin YANG queries.
-const externalPluginTimeout = 10 * time.Second
 
 // Core YANG modules that are always available (not shown as imports).
 var coreModules = map[string]bool{
@@ -155,7 +146,7 @@ func cmdList(args, plugins []string) int {
 		return writeArgumentError(err)
 	}
 
-	registry, err := buildSchemaRegistry(plugins)
+	registry, err := commandLineRegistry(plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -207,7 +198,7 @@ func cmdShow(args, plugins []string) int {
 	}
 
 	moduleName := positional[0]
-	registry, err := buildSchemaRegistry(plugins)
+	registry, err := commandLineRegistry(plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -237,7 +228,7 @@ func cmdHandlers(args, plugins []string) int {
 		return writeArgumentError(err)
 	}
 
-	registry, err := buildSchemaRegistry(plugins)
+	registry, err := commandLineRegistry(plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -364,7 +355,7 @@ func cmdListSchema(
 		module = positional[0]
 	}
 
-	registry, err := buildSchemaRegistry(plugins)
+	registry, err := commandLineRegistry(plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -447,19 +438,38 @@ func buildSchemaRegistry(extPlugins []string) (*pluginserver.SchemaRegistry, err
 		}
 	}
 
-	// Register external plugin schemas
-	// Note: External plugins don't have static WantsConfig metadata - they declare it at runtime
+	// Register the schemas of the plugins named on the command line that are
+	// compiled into ze. A spec that names an external program registers
+	// nothing: with no daemon running ze starts no external plugin's program
+	// (owner ruling), and commandLineRegistry says so beside the answer (writeExternalNotShown).
+	//
+	// A spec that names nothing is refused first: it is neither kind, and the
+	// loop would otherwise skip it as an external program with an empty name.
 	for _, pluginSpec := range extPlugins {
+		if strings.TrimSpace(pluginSpec) == "" {
+			return nil, emptyPluginSpecRefusal()
+		}
+		if !namesCompiledInPlugin(pluginSpec) {
+			continue
+		}
 		yangContent, pluginName, err := getPluginYANG(pluginSpec)
 		if err != nil {
 			return nil, fmt.Errorf("get YANG from %s: %w", pluginSpec, err)
 		}
-		if yangContent == "" {
-			continue // Plugin doesn't provide YANG
-		}
-
 		if err := registerYANG(registry, yangContent, pluginName, nil, nil, loaded); err != nil {
 			return nil, fmt.Errorf("register %s: %w", pluginSpec, err)
+		}
+	}
+
+	// Register the module each external plugin of this process declared when
+	// ze started (yang.PublishedExternalModules). Only a running daemon holds
+	// any: it joined them once, at start, and this reads that set and never
+	// the plugin again. A command with no daemon holds none.
+	published, _ := yang.PublishedExternalModules()
+	wanted := pluginserver.ExternalConfigRoots()
+	for _, module := range published {
+		if err := registerPublishedYANG(registry, module, wanted[module.Plugin], loaded); err != nil {
+			return nil, fmt.Errorf("register the module of plugin %s: %w", module.Plugin, err)
 		}
 	}
 
@@ -645,60 +655,150 @@ func formatModuleAsNamespace(module string) string {
 	return module
 }
 
-// getPluginYANG gets YANG from a plugin based on its specification.
-// Handles: "ze.name" (internal), "ze-name" (internal), or path (external).
+// namesCompiledInPlugin reports whether a plugin spec of the command line
+// names a plugin compiled into ze: "ze.name" or "ze-name". Every other spec
+// names an external program.
+func namesCompiledInPlugin(pluginSpec string) bool {
+	if strings.HasPrefix(pluginSpec, internalPluginPrefix) {
+		return true
+	}
+	return strings.HasPrefix(pluginSpec, moduleNamePrefix)
+}
+
+// emptyPluginSpecRefusal answers the operator error for a `--plugin` whose
+// value is empty or only spaces: what is wrong, why ze schema does not answer
+// without it, and the command that lists the names a `--plugin` can take.
+func emptyPluginSpecRefusal() *opererr.Error {
+	return opererr.New(
+		"ze schema: a --plugin option names no plugin: its value is empty",
+		"an empty value names neither a plugin compiled into ze, written ze.<name>, nor a program, "+
+			"so the answer would leave out the plugin the command line meant and say nothing of it",
+		"ze show plugin list")
+}
+
+// getPluginYANG answers the YANG and the plugin ID of a plugin compiled into
+// ze, from its spec "ze.name" or "ze-name". The caller MUST pass a spec
+// namesCompiledInPlugin holds for.
 //
 // Note: ze.X (goroutine mode) and ze-X (direct call mode) are treated identically
 // for schema discovery because both just need the YANG content. The execution mode
 // distinction only matters at runtime when actually running plugin commands.
 func getPluginYANG(pluginSpec string) (string, string, error) {
-	// Internal plugin "ze.name" or "ze-name" - both have 3-char prefix
-	// Both modes use the same YANG content; mode only affects runtime execution.
-	if strings.HasPrefix(pluginSpec, internalPluginPrefix) || strings.HasPrefix(pluginSpec, moduleNamePrefix) {
-		name := pluginSpec[len(internalPluginPrefix):] // Strip prefix (both are same length)
+	name := pluginSpec[len(internalPluginPrefix):] // both prefixes are the same length
 
-		yangContent := plugin.GetInternalPluginYANG(name)
-		if yangContent == "" {
-			return "", "", fmt.Errorf("internal plugin %q has no YANG", name)
-		}
-
-		var tb3 textbuf.Buffer
-		return yangContent, tb3.Str("ze.").Str(name).String(), nil
-	}
-
-	// External plugin - execute with --yang flag
-	yangContent, err := getExternalPluginYANG(pluginSpec)
-	if err != nil {
-		return "", "", err
-	}
+	yangContent := plugin.GetInternalPluginYANG(name)
 	if yangContent == "" {
-		return "", "", nil
+		return "", "", fmt.Errorf("internal plugin %q has no YANG", name)
 	}
 
-	return yangContent, pluginSpec, nil
+	var tb3 textbuf.Buffer
+	return yangContent, tb3.Str("ze.").Str(name).String(), nil
 }
 
-// getExternalPluginYANG executes an external plugin with --yang and returns its YANG.
-func getExternalPluginYANG(pluginSpec string) (string, error) {
-	args := strings.Fields(pluginSpec)
-	if len(args) == 0 {
-		return "", errNoPluginCommandSpecified
+// registerPublishedYANG registers the module an external plugin declared when
+// ze started, with wantsConfig the config roots that plugin declared it
+// wants. The join that published the module already resolved its imports
+// against the whole module set (yang.Join), so none is checked again here.
+func registerPublishedYANG(registry *pluginserver.SchemaRegistry, module yang.ExternalModule, wantsConfig []string, loaded map[string]bool) error {
+	meta, err := yang.ParseYANGMetadata(module.Text)
+	if err != nil {
+		return err
 	}
-
-	// Append --yang to get YANG output
-	args = append(args, "--yang")
-
-	ctx, cancel := context.WithTimeout(context.Background(), externalPluginTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // Plugin command from user
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("execute %v: %w (stderr: %s)", args, err, stderr.String())
+	var displayImports []string
+	for _, imp := range meta.Imports {
+		if !coreModules[imp] {
+			displayImports = append(displayImports, imp)
+		}
 	}
+	if err := registry.Register(&pluginserver.Schema{
+		Module:      meta.Module,
+		Namespace:   yang.FormatNamespace(meta.Namespace),
+		Yang:        module.Text,
+		Imports:     displayImports,
+		Handlers:    []string{},
+		Plugin:      module.Plugin,
+		WantsConfig: wantsConfig,
+	}); err != nil {
+		return err
+	}
+	loaded[meta.Module] = true
+	return nil
+}
 
-	return strings.TrimSpace(stdout.String()), nil
+// externalPluginSpecs answers the specs of plugins that name an external
+// program, in the order given.
+func externalPluginSpecs(plugins []string) []string {
+	var external []string
+	for _, pluginSpec := range plugins {
+		if !namesCompiledInPlugin(pluginSpec) {
+			external = append(external, pluginSpec)
+		}
+	}
+	return external
+}
+
+// externalNotShown answers the operator error `ze schema` adds after its
+// answer when the command line names external plugins: the answer holds the
+// modules compiled into ze alone, why, and the command that reaches a running
+// ze, which holds the module each external plugin declared. It answers nil
+// when plugins names no external program.
+//
+// The why names the two commands a running ze has for it. The daemon serves
+// no `show schema show <module>`: the text of one module is printed by the
+// local `ze schema show` alone, so the why names `show yang tree config`,
+// which shows the module's nodes. test/ui/external-yang-daemon-schema.ci
+// sends both to a daemon that runs an external plugin.
+//
+// With no daemon running ze starts no external plugin's program (owner
+// ruling), so nothing here runs a spec to read its module.
+func externalNotShown(plugins []string) *opererr.Error {
+	external := externalPluginSpecs(plugins)
+	if len(external) == 0 {
+		return nil
+	}
+	var problem textbuf.Buffer
+	problem.Str("ze schema answered from the modules compiled into ze alone: the config schema of external plugin")
+	if len(external) > 1 {
+		problem.Byte('s')
+	}
+	for i, pluginSpec := range external {
+		if i > 0 {
+			problem.Byte(',')
+		}
+		problem.Byte(' ').Quoted(pluginSpec)
+	}
+	problem.Str(" is not available with no running ze")
+	return opererr.New(problem.String(),
+		"with no daemon running ze starts no external plugin's program, and such a plugin's module exists only in what its "+
+			"program declares; a running ze holds the module each external plugin declared when it started: typed in a "+
+			"`ze cli` session, `show schema list` lists that module and `show yang tree config` shows its nodes",
+		"ze cli")
+}
+
+// commandLineRegistry answers the schema registry a `ze schema` command reads,
+// for the plugins named on the command line. It is buildSchemaRegistry, which
+// starts no program, and it says on stderr which of those plugins the answer
+// shows nothing of (writeExternalNotShown). Every `ze schema` command that
+// answers from the registry builds it here; a command the daemon serves names
+// no plugin and calls buildSchemaRegistry.
+func commandLineRegistry(plugins []string) (*pluginserver.SchemaRegistry, error) {
+	registry, err := buildSchemaRegistry(plugins)
+	if err != nil {
+		return nil, err
+	}
+	writeExternalNotShown(plugins)
+	return registry, nil
+}
+
+// writeExternalNotShown writes externalNotShown to stderr, beside the answer
+// the command writes on stdout. It writes nothing when plugins names no
+// external program.
+func writeExternalNotShown(plugins []string) {
+	notShown := externalNotShown(plugins)
+	if notShown == nil {
+		return
+	}
+	var tb textbuf.Buffer
+	tb.Str("warning: ").Err(notShown).Byte('\n')
+	tb.StdErr() //nolint:errcheck // a notice on stderr; the command's answer and exit code do not depend on it
 }

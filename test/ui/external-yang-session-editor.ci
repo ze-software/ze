@@ -1,0 +1,44 @@
+# Test: the daemon's session editor completes, explains and judges an external plugin's root
+#
+# Question: in the configuration editor a running daemon hosts, does an
+# operator get the root of an external plugin offered by completion, its
+# leaves under it, the description the plugin's module gives a leaf, and a
+# refusal that names the range when a value is outside it?
+# Why not a unit test: TestEditorCompletesExternalRootFromThePublishedSet
+# proves the editor and the completer read the published module set. Only a
+# session on a real daemon proves the model it hosts is built after boot
+# published the module a live plugin declared. The headless editor runner
+# (.et) has no daemon and by the owner ruling of 2026-11-16 starts no external
+# program, so it never holds the module.
+#
+# What the screen shows, read from the producing code and not guessed:
+#   - Tab draws the completion box, which holds NAMES alone. The row under it
+#     adds the ze:help summary of the selected name (Model.warningText), and
+#     the fixture module declares none, so no description is on the screen
+#     after Tab.
+#   - `?` after Tab draws the YANG description of the candidate the box
+#     singles out (Model.revealCandidateExplanation): "Seconds between two
+#     probes." for interval, the first candidate.
+#   - a value outside the range is refused by config.ValidateLeafValue with
+#     `acme-monitor interval: "99" is outside the accepted range`, then
+#     `interval accepts a value in 1..10`.
+#
+# VALIDATES: AC-13 of spec-plugin-external-yang-at-startup, the editor half:
+#   completion, the leaf's description, and validation.
+# PREVENTS: an operator who can load a config under an external root and
+#   cannot edit it in the daemon, because the editor answers from compiled-in
+#   modules alone.
+# Not proven here: that a commit or a save of the edit reaches the plugin.
+#
+# Method: the compiled fixture
+# (internal/test/fixture/ui_fixture_external_yang_session.go) starts a daemon
+# with the external-yang fixture plugin in its valid mode and drives a plain
+# ssh client under a pseudo-terminal, in edit mode.
+#
+# The timeout is DECLARED because this file starts a daemon and drives five
+# interactive terminal sessions, each with a settling window.
+option=timeout:value=120s
+
+cmd=foreground:seq=1:exec=le test fixture ui/external-yang-session-editor $PORT
+expect=exit:code=0
+expect=stdout:contains=OK: the daemon's editor offered acme-monitor and its leaves, explained interval, refused 99 with the range and took 7

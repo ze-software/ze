@@ -18,6 +18,13 @@
 # PREVENTS: the state the spec found. The config was parsed before any
 #   external plugin existed, so a block under the plugin's own root was refused
 #   with "unknown top-level keyword" and the plugin never started.
+#
+# The exit assertion is of the DAEMON'S own exit. `then=stop` on the await
+# makes the runner wait for daemon.ready and for the awaited line, stop the
+# daemon itself, and compare the code the daemon ended with
+# (docs/architecture/testing/ci-format.md, "Await", step 3). So exit 0 means
+# the daemon started, ran the plugin and stopped cleanly. A plain await
+# compares the peers' wait, and this file starts no peer.
 
 tmpfs=ze.conf:terminator=EOF_CONF
 plugin {
@@ -34,7 +41,7 @@ acme-monitor {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
-await=stderr:contains=FIXTURE: external-yang generation 1 ready
+await=stderr:contains=FIXTURE: external-yang generation 1 ready:then=stop
 expect=exit:code=0
 expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
 reject=stderr:contains=unknown top-level keyword

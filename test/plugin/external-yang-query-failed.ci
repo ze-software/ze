@@ -1,0 +1,47 @@
+# Test: a config under the root of a plugin that never declared is refused, naming that plugin
+#
+# Question: when the config holds a block under an external plugin's root and
+# the plugin cannot be run, does `ze start` refuse with the unknown keyword AND
+# say which declared plugin gave ze no config schema, under the doctor code
+# for it, with the command that fixes it?
+# Why not a unit test: TestEarlyStage1KeepsFailureOutcome proves the outcome is
+# kept, and TestReportUndeclaredSchemaRaisesTheWarning that it is reported
+# under the code. This proves the outcome of a real fork that fails reaches
+# the refusal the operator reads on the terminal.
+#
+# The run line names a program that does not exist, so the plugin never
+# reaches its Stage 1.
+#
+# Where the code is read: the daemon does not run after this refusal, so the
+# code is on the terminal and in the log, on the line boot writes when it
+# learns the plugin sent no declaration. `ze show doctor` reports it only on a
+# daemon whose config holds no section of the plugin, which then starts.
+#
+# VALIDATES: AC-8 of spec-plugin-external-yang-at-startup, and the
+#   doctor-plugin-schema-undeclared code of AC-14.
+# PREVENTS: a bare "unknown top-level keyword: acme-monitor" with no word about
+#   the plugin that should have brought the root.
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external absent-plugin {
+		run "./no-such-plugin-program"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=unknown top-level keyword
+expect=stderr:contains=acme-monitor
+expect=stderr:contains=doctor-plugin-schema-undeclared
+expect=stderr:contains=a config section that only plugin "absent-plugin" defines is an unknown keyword to ze
+expect=stderr:contains=external plugin "absent-plugin" could not be started, so it declared nothing
+expect=stderr:contains=fix: ze show plugin conformance run "./no-such-plugin-program"
+reject=stderr:contains=Ze running.

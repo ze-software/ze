@@ -125,17 +125,21 @@ type pipeAliasTerminal struct {
 	transcript string
 }
 
-// pipeAliasStart logs a pseudo-terminal into the daemon's own session model.
+// sessionTerminalStart logs a pseudo-terminal into the daemon's own session model.
 // The sequence is the one a person performs: OpenSSH asks for the password and
-// the hub greets. The session asks for command mode the way `ze cli -c` does
+// the hub greets. A pipe alias session asks for command mode the way `ze cli -c` does
 // (sshclient.EnvCLIMode, read by internal/component/ssh parseSessionRequest),
 // which lands on the operational prompt where a pipe character means anything
 // at all; a login that names no mode opens the configuration editor once the
 // daemon owns a store, and since storage-1 every daemon does.
-func pipeAliasStart(ctx context.Context, account login) (*pipeAliasTerminal, error) {
+//
+// mode is the session mode asked for, sshclient.CLIModeCommand or
+// sshclient.CLIModeEdit: the model opens on the operational prompt or in the
+// configuration editor.
+func sessionTerminalStart(ctx context.Context, account login, mode string) (*pipeAliasTerminal, error) {
 	client := exec.CommandContext(ctx, "ssh", "-tt", "-p", account.port, //nolint:gosec // the fixture chooses the program and its arguments
 		"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-		"-o", "SetEnv="+sshclient.EnvCLIMode+"="+sshclient.CLIModeCommand,
+		"-o", "SetEnv="+sshclient.EnvCLIMode+"="+mode,
 		"-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no",
 		"-o", "NumberOfPasswordPrompts=1", "-o", "ConnectTimeout=5", account.user+"@127.0.0.1")
 	client.Env = append(os.Environ(), "TERM=xterm-256color")
@@ -166,7 +170,7 @@ func (t *pipeAliasTerminal) drain() {
 }
 
 // close stops the reader and the client. It MUST be called after
-// pipeAliasStart.
+// sessionTerminalStart.
 //
 // The channel is drained after the terminal is closed. drain can be parked on a
 // send that nobody is reading once the caller has its answer, and a closed
@@ -228,7 +232,18 @@ func (t *pipeAliasTerminal) settle(ctx context.Context, from int) (string, error
 // screen must show before Tab is pressed, chosen so it cannot match the prompt
 // or the box the hub draws.
 func pipeAliasTabOffer(ctx context.Context, account login, text, echo string) (string, error) {
-	terminal, err := pipeAliasStart(ctx, account)
+	return sessionScreenAfterKeys(ctx, account, sshclient.CLIModeCommand, sessionCommandPrompt, text, echo, "\t")
+}
+
+// sessionScreenAfterKeys logs into the daemon's session model in mode, waits
+// for prompt, types text, waits for echo (the last word of text, as
+// pipeAliasTabOffer describes), presses keys in order, and answers what the model drew
+// afterwards. Tab asks for the completion offer, `?` after it for the long
+// explanation of the candidate the offer singles out, and "\r" runs the line.
+// The model handles one key at a time in the order written, so keys sent in
+// one write need no wait between them.
+func sessionScreenAfterKeys(ctx context.Context, account login, mode, prompt, text, echo, keys string) (string, error) {
+	terminal, err := sessionTerminalStart(ctx, account, mode)
 	if err != nil {
 		return "", err
 	}
@@ -246,8 +261,8 @@ func pipeAliasTabOffer(ctx context.Context, account login, text, echo string) (s
 	// there is nothing to leave and nothing else to wait for. Sending `exit`
 	// here would close the session rather than change mode.
 	if err := terminal.readUntil(ctx, func(seen string) bool {
-		return strings.Contains(seen, "ze> ")
-	}, "the session model did not reach the operational prompt"); err != nil {
+		return strings.Contains(seen, prompt)
+	}, "the session model did not reach its prompt "+prompt); err != nil {
 		return "", err
 	}
 
@@ -268,8 +283,8 @@ func pipeAliasTabOffer(ctx context.Context, account login, text, echo string) (s
 	}
 
 	offered := len(terminal.transcript)
-	if _, err := terminal.file.Write([]byte{'\t'}); err != nil {
-		return "", fmt.Errorf("press Tab: %w", err)
+	if _, err := terminal.file.WriteString(keys); err != nil {
+		return "", fmt.Errorf("press the keys after the typed text: %w", err)
 	}
 	return terminal.settle(ctx, offered)
 }

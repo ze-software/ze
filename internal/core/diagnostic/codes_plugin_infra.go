@@ -39,6 +39,8 @@ const (
 	CodeDoctorPluginRestartOverlap          = "doctor-plugin-restart-overlap"
 	CodeDoctorPluginStopUnfinished          = "doctor-plugin-stop-unfinished"
 	CodeDoctorPluginSchemaChanged           = "doctor-plugin-schema-changed"
+	CodeDoctorPluginSchemaUndeclared        = "doctor-plugin-schema-undeclared"
+	CodeDoctorPluginSchemaRefused           = "doctor-plugin-schema-refused"
 	CodeDoctorPluginEnricherUnavailable     = "doctor-plugin-enricher-unavailable"
 	CodeDoctorPluginConnectBackRefused      = "doctor-plugin-connect-back-refused"
 	CodeDoctorManagedListenerUnbound        = "doctor-managed-listener-unbound"
@@ -270,6 +272,28 @@ var pluginInfraCodes = []CodeMeta{
 			"ze refused the plugin at its first startup stage and does not run it. The running configuration, the schema ze holds and every other plugin are unchanged. " +
 			"The warning says what differs. Restart ze to load the new schema, or put back the program that declares the schema ze started with and restart the plugin.",
 		Examples: []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-plugin-schema-changed"},
+	},
+	{
+		Code:  CodeDoctorPluginSchemaUndeclared,
+		Title: "External plugin gave ze no config schema",
+		Description: "At start ze runs each external plugin the configuration declares before it parses the whole configuration, and reads the plugin's config schema (its YANG module) from the plugin's declaration. " +
+			"ze holds no schema of this plugin: its program could not be started, it sent no declaration within its bound, its connection ended first, or its declaration carries no YANG module. " +
+			"A configuration section that only this plugin's schema defines is then an unknown keyword, and ze refuses to start with it; the refusal names this code beside the unknown keyword, and `ze doctor` reports the plugin from the record that refusal leaves, until ze next starts cleanly. " +
+			"A configuration with no such section starts, the plugin that sent no declaration does not run, and the warning stays until ze restarts. " +
+			"The fix is the conformance check of the plugin's run line, which starts the program the way ze does and shows what its declaration lacks. Correct the program or the run line, then restart ze.",
+		Examples:     []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-plugin-schema-undeclared"},
+		RelatedCodes: []string{CodeDoctorPluginStopped, CodeDoctorPluginSchemaRefused},
+	},
+	{
+		Code:  CodeDoctorPluginSchemaRefused,
+		Title: "External plugin's config schema refused at start",
+		Description: "At start ze joins the config schema (the YANG module) each external plugin declares to the schema compiled into ze, before it parses the configuration. " +
+			"ze refused a module: it does not compile, its name or namespace is held by another module, it defines a top-level node another module already defines, " +
+			"it names a validator or a reference source ze does not hold, the name or namespace the plugin declared is not the one in the text, or it adds nothing to the configuration schema. " +
+			"ze does not start with a module it refused: the refusal ends the start, on the terminal and in the log, and names the plugin, the module, the cause and the command that shows it. " +
+			"No daemon runs afterwards. ze records the refusal before it exits, and `ze doctor` reports it from that record, with the time, until ze next starts cleanly. Correct the plugin's module, then start ze again.",
+		Examples:     []string{"ze doctor", "ze show diagnostic doctor-plugin-schema-refused", "ze show plugin conformance run \"./my-plugin\""},
+		RelatedCodes: []string{CodeDoctorPluginSchemaUndeclared, CodeDoctorPluginSchemaChanged},
 	},
 	{
 		Code:  CodeDoctorPluginEnricherUnavailable,

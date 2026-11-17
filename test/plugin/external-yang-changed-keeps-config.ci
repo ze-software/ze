@@ -1,0 +1,73 @@
+# Test: a plugin refused for a changed schema leaves its config section loaded
+#
+# Question: after a restarted external plugin is refused at Stage 1 because it
+# declared another module, does the running daemon still hold the section
+# under that plugin's root, with the values it started with?
+# Why not a unit test: TestStage1RefusesChangedDeclaration proves the refusal
+# writes nothing to the published set. This proves the running config of a
+# real daemon, read back through its own command after a real second process
+# was refused, still holds the section.
+#
+# The fixture's redeclare variant declares the valid module on its first
+# start, exits once the daemon is ready, and declares the same module with one
+# more leaf on every later start (externalYANGVariants,
+# internal/test/fixture/plugin_fixture_external_yang.go). It declares failure
+# policy restart, so the daemon starts it again with no operator action.
+#
+# The refusal is asserted first, as the barrier and as the positive half:
+# without it the section being present would only show a daemon that booted.
+# test/plugin/external-yang-declaration-changed.ci asserts the doctor finding
+# itself; this file asserts what the refusal left in place.
+#
+# VALIDATES: AC-7 of spec-plugin-external-yang-at-startup, "the config under
+#   its root stays loaded".
+# PREVENTS: a refused restart dropping the plugin's section from the running
+#   config, or the schema losing the root so the section no longer reads back.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang redeclare"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang generation 1 is exiting
+reject=stderr:contains=FIXTURE: external-yang generation 2 ready
+
+# The wait is on the daemon's own answer: the warning the refused second start
+# raises. It retries a refused connection, so it also holds the SSH listener.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer doctor-plugin-schema-changed "show warnings | json":exit=0
+
+cmd=foreground:seq=3:exec=ze cli -c "show config running | json":exit=0
+expect=stdout:contains="acme-monitor"
+expect=stdout:contains="target": "probe-a"
+expect=stdout:contains="interval": "5"

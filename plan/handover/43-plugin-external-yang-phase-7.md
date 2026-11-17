@@ -100,6 +100,125 @@ himself. A page edited by another session between assessment and apply made the
 plain patch refuse; the apply script now merges such a file three-way and
 refuses before writing anything on a real conflict.
 
+## Added 2026-11-17, later: the switch and phase 7 are done and on the laptop
+
+This section replaces what the one above says is pending.
+
+| Piece | Laptop `main` | Server |
+|-------|---------------|--------|
+| `ze config validate` asks a running ze first, through `show config supplied validation` (item 1, spec phase 10) | `552c08a28a` | `09ad03b19d` on `worktree-validate-client` |
+| Phase 7, the restart rule (item 3) | `2210546edb` | `350a334e1c` on `worktree-validate-client`; first built as `b4a5be2c4c` on `worktree-spec-external-yang` |
+
+The session doing `show config supplied` (Codex) confirmed its contract in
+writing, said the command, arguments and answer shape will not change, and
+took the `diff`, `dump` and `graph` gap itself (item 7): it corrects those
+producers to read `config.SchemaWithDeclaredPlugins`.
+
+**Where to work from now.** The laptop's `main` is the truth. The server branch
+`worktree-spec-external-yang` has diverged from it: it still holds `a0656f1c59`
+with the duplicate `content` leaf, and none of the laptop's other work. Build
+further phases in `.claude/worktrees/validate-client` (branch
+`worktree-validate-client`), or in a fresh worktree made the same way: on the
+laptop, `git bundle create` of `main` from the newest commit the server holds,
+`scp` to the server, `git fetch` the bundle there, `git worktree add -b <branch>
+<path> FETCH_HEAD`. Run every `./le` there with the working directory set to
+that worktree (`env -C <worktree> ./le ...`): invoked by absolute path from
+another worktree, the launcher tests the directory it was called from.
+
+**What is left of the spec:** phase 8 (the schema CLI `getExternalPluginYANG`,
+the editor's completion with the draft `test/draft/editor/external-yang-completion.et`,
+the codes `doctor-plugin-schema-undeclared` and `-refused` that the drafts
+`external-yang-query-failed`, `-invalid-refused` and `-clash-refused` wait for;
+`doctor-plugin-schema-changed` exists since phase 7), phase 9 (the measurement,
+on the owner's Mac), and the same client route for `fmt`, `dump`, `diff` and
+`graph` through their supplied commands. Those drafts are git-ignored and exist
+only in the server worktree `spec-external-yang`.
+
+**For the owner to pass to the supplied-config session:** its `supplied-content`
+grouping does not declare `ze:keyword-only` (added by `552c08a28a`), so a stray
+word that is valid base64 binds to `content` before the handler's check of
+positional words.
+
+**Reds seen on the laptop's history at `0402601f9d`, not from this work:** in
+`plugin/server`, `TestRecognizesCommandUsesDispatchRegistrations`,
+`TestRecognizesCommandTracksHiddenPluginsAndSubsystems`,
+`TestRelayStoredRouteFromAnUnnamedCallerStaysUnnamed`,
+`TestRelayStoredRouteJSONTransport`,
+`TestHandleDispatchCommandRPCPreservesPluginIdentity`; in `cmd/ze/hub`, the
+`TestGraphicalImport` tests, `TestWebCLIViewActionRouteRefusesUnknownHandle`,
+and `TestLocalCommandDaemonMatchesLocal` on the supplied commands (a help hint
+printed locally and omitted by the daemon route; a later commit on `main`
+appears to fix it); in `config/cli`, the config sweep on 28 configs refused as
+`config-bgp-peer` "incomplete destination grants"; in `test/reload`,
+`bgp-attach-no-route-refresh-restarts` and `bgp-attach-sent-direction-restarts`
+(their reload completes, then a `changed=ProcessBindings` line is missing).
+
+**This server's disk stalls.** A live reload on a disk-backed directory was
+seen waiting on the store's boot record and on a file write barrier; on a
+memory-backed directory (`/dev/shm`) the same reload completes at once. Run
+live daemon checks there. One hub test,
+`TestInfraSSHOwnerDrainsBeforeStoreCloseOnDaemonShutdown`, is intermittent on
+this host.
+
+## Added 2026-11-17, phase 8: surfaces and doctor, written and not run
+
+Built in the worktree `.claude/worktrees/yang-phase8` (branch
+`worktree-yang-phase8`, from the laptop's `main` at `2210546edb`). Nothing was
+run: the supervising session runs the owed commands. The spec's step 8 holds
+the full account.
+
+| Piece | State |
+|-------|-------|
+| Schema CLI | `getExternalPluginYANG` deleted. The daemon's schema commands answer an external module from the published set; with no daemon `ze schema` answers compiled-in modules and says the external module is not available, fix `ze cli` |
+| Doctor codes | `doctor-plugin-schema-undeclared` and `doctor-plugin-schema-refused` declared, registered and raised by boot through `pluginserver.ReportUndeclaredSchema` and `ReportRefusedSchema` |
+| Claims check | Counts the roots each running external plugin declared (`pluginserver.ExternalConfigRoots`) |
+| Editor | No product change needed; a Go test proves completion from the published set |
+| Drafts | `external-yang-query-failed`, `-invalid-refused`, `-clash-refused` corrected to the current texts; `external-yang-show-config` new |
+
+What is left of phase 8, for its continuation:
+
+| # | Item | Detail |
+|---|------|--------|
+| 1 | Three tracked tests no longer compile | `TestGetExternalPluginYANG`, `TestExternalPluginEmptySpec` and `TestExternalPluginNonexistent` (`internal/component/config/schema/cli/main_test.go`) call the deleted run of a program with `--yang`. Their removal needs the test judge; until then the package's tests do not build |
+| 2 | The editor's functional test | `test/draft/editor/external-yang-completion.et` cannot run: the `.et` runner has no daemon and starts no plugin, so it never holds the module. It needs an `.et` option that publishes a fixture module, or a driver that types into the daemon's SSH session |
+| 3 | `show schema`, `show yang` and save in the daemon | No functional test. `ze cli -c` answers these local-data commands in its own process, so the test needs a caller that dispatches through the daemon |
+| 4 | AC-6 and AC-7 halves | "The internal owner of `service` keeps working" and "the config under its root stays loaded" have no functional test yet |
+| 5 | A refused module after the failed start | Nothing reports it again: the daemon is not running, and a local `ze doctor` starts no plugin. Read on the refusal and in the log only. Whether a record that survives the failed start is wanted is the owner's to say |
+| 6 | A hook refusal met | The edit hook refused a change to the `switch` in `Run` of the schema CLI ("switch-based command dispatch"). The switch is unchanged; the notice is written where the commands build their registry (`commandLineRegistry`) |
+
+## Added 2026-11-17, phase 8 after its first test run
+
+The table of leftovers above is superseded by this section. Nothing here is
+committed; the supervising session runs the owed commands and commits.
+
+What landed in the worktree, and where each piece is seen:
+
+| Piece | Where it is observable |
+|-------|------------------------|
+| Schema codes after a failed start | Boot writes the refusal to the last-stop record (`RecordRefusedSchemaStop`, `RecordUndeclaredSchemaStop`). The local `ze doctor` reports it under `doctor-plugin-schema-refused` or `doctor-plugin-schema-undeclared` until ze next starts cleanly. Drafts `external-yang-refused-doctor` (green), `external-yang-undeclared-doctor` |
+| Empty `--plugin` | `ze schema` refuses it with exit 1, fix `ze show plugin list` |
+| `ze schema` with an external plugin and no daemon | Answers compiled-in modules, exit 0, and warns on stderr. The why now names the two commands a running ze has, typed in a `ze cli` session: `show schema list` lists the module, `show yang tree config` shows its nodes |
+| The daemon's schema commands | `show schema list` and `show yang tree config` hold the external module. The daemon has no `show schema show <module>` and no command that prints a module's YANG text. Draft `test/draft/ui/external-yang-daemon-schema.ci` |
+| The daemon's editor | Offers the external root and its leaves, shows a leaf's description on `?` after Tab, refuses a value outside the range with the range. Draft `test/draft/ui/external-yang-session-editor.ci`, which supersedes the `.et` draft |
+| The owner of a shared container | `show dns resolver` holds the listener the config gives it beside the external augment. Draft `test/draft/plugin/external-yang-augment-owner-keeps-section.ci` |
+
+Green in the first run: unit packages `core/diagnostic` and `plugin/doctor`;
+drafts `external-yang-query-failed`, `-invalid-refused`, `-clash-refused`,
+`-refused-doctor`, `-show-config`, `-changed-keeps-config`. Red and corrected,
+not run again: the schema CLI package (a helper declared twice), the two UI
+drafts above.
+
+What is left:
+
+| # | Item | Detail |
+|---|------|--------|
+| 1 | Run and promote the drafts | The two UI drafts, the owner-keeps-section draft and `external-yang-undeclared-doctor` after their next run; each promotion follows the stress run of the `ze-test` skill |
+| 2 | AC-13, save | No functional test: a commit typed in the daemon's session, the stored config holding the external block, and a second start that parses it. The session driver (`sessionScreenAfterKeys`) can type it; the commit grammar in the daemon's window and the second start were not written |
+| 3 | The vacuous exit assertion | `await=stderr` beside `expect=exit:code=` compares the peers' wait, never the daemon's exit (journal `green-that-could-not-have-been-red.md`, 2026-11-17). Drafts of `external-yang-own-root`, `-command-line` and `-augment-shared-root` add `then=stop`; each replaces a tracked test, so each needs the test judge. `external-yang-boot-accepts-what-offline-refuses.ci` holds three commands and is not converted, and five tracked tests of other work hold the same pair |
+| 4 | Phase 9, measure | Spec Q10, on a host whose performance is known |
+| 5 | `ze config fmt`, `dump`, `diff`, `graph` | The client route that sends these commands to a running ze, as `ze config validate` has since phase 10, is not built. Another session was working on `cmd_diff.go`, `cmd_dump.go`, `cmd_graph.go` and `config_supplied.go`; this phase did not touch them |
+| 6 | A page that disagrees with the code | `docs/guide/command-reference.md`, near "Command help at the prompt", says `ze cli` with no command runs the interactive model in the client process. `runInteractiveSession` opens the daemon's session in command mode (`sshclient.RunInteractive`). Not corrected here: it is about pipe aliases, outside this phase's files |
+
 ## Reds that predate this work
 
 In `./internal/le/`: `TestNoPythonLeRemains`, `TestCensusActionsDeclareHeavy`,

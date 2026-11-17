@@ -878,6 +878,9 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if len(input.Enrichers) > 0 {
 		registerProxyEnrichers(proc.Config().Name, input.Enrichers, proc.Conn())
 	}
+	// The roots an external plugin wants exist only in this declaration: keep
+	// them for the doctor check that asks which config reaches a consumer.
+	recordExternalConfigRoots(proc.Config(), reg.WantsConfigRoots)
 	return nil
 }
 

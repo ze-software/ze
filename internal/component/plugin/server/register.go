@@ -18,9 +18,11 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 // queue that never reached its plugin, a config parent left behind, a
 // deprecated command name, a managed client never told of a change, a
 // configuration reload the server refused, a restarted external plugin whose
-// config schema is not the one ze started with (stage1_schema.go), and an
-// external plugin's connect-back refused by the acceptor the server starts
-// (plugin/ipc tls.go; ipc cannot import diagnostic without a cycle).
+// config schema is not the one ze started with (stage1_schema.go), an external
+// plugin that gave boot no config schema and a module boot refused at the join
+// (external_schema_report.go), and an external plugin's connect-back refused by
+// the acceptor the server starts (plugin/ipc tls.go; ipc cannot import
+// diagnostic without a cycle).
 var serverEventCodes = []diagnostic.EventCode{
 	{Code: diagnostic.CodeDoctorPluginConnectBackRefused},
 	{Code: diagnostic.CodeDoctorInternalDefect},
@@ -32,6 +34,8 @@ var serverEventCodes = []diagnostic.EventCode{
 	{Code: diagnostic.CodeDoctorManagedClientNotifyDropped},
 	{Code: diagnostic.CodeDoctorConfigReloadRefused},
 	{Code: diagnostic.CodeDoctorPluginSchemaChanged},
+	{Code: diagnostic.CodeDoctorPluginSchemaUndeclared},
+	{Code: diagnostic.CodeDoctorPluginSchemaRefused},
 }
 
 func init() {
@@ -42,4 +46,7 @@ func init() {
 	}
 	// A plugin's proxy enrichers and their doctor failures go with its process.
 	RegisterProcessCleanup(unregisterProxyEnrichers)
+	// The config roots an external plugin declared stop counting as delivered
+	// when its process ends (external_roots.go).
+	RegisterProcessCleanup(forgetExternalConfigRoots)
 }

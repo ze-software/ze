@@ -12,6 +12,13 @@
 # PREVENTS: the first pass reading plugin declarations from the config alone,
 #   so a plugin named only on the command line starts after the parse and its
 #   root is refused with "unknown top-level keyword".
+#
+# The exit assertion is of the DAEMON'S own exit. `then=stop` on the await
+# makes the runner wait for daemon.ready and for the awaited line, stop the
+# daemon itself, and compare the code the daemon ended with
+# (docs/architecture/testing/ci-format.md, "Await", step 3). So exit 0 means
+# the daemon started, ran the plugin and stopped cleanly. A plain await
+# compares the peers' wait, and this file starts no peer.
 
 stdin=ze-conf:terminator=EOF_CONF
 acme-monitor {
@@ -21,7 +28,7 @@ acme-monitor {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze --plugin "le test fixture plugin/external-yang valid" -:stdin=ze-conf:timeout=30s
-await=stderr:contains=FIXTURE: external-yang generation 1 ready
+await=stderr:contains=FIXTURE: external-yang generation 1 ready:then=stop
 expect=exit:code=0
 expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=3 acme-monitor/target=probe-b]
 reject=stderr:contains=unknown top-level keyword

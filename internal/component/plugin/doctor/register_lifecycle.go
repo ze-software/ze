@@ -53,8 +53,11 @@ func init() {
 			Component:    componentPlugin,
 			Dependencies: []string{"store"},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorPluginFatalStop, diagnostic.CodeDoctorPluginStopCleanupLate},
-			Check:        checkPluginFatalStop,
+			Codes: []string{
+				diagnostic.CodeDoctorPluginFatalStop, diagnostic.CodeDoctorPluginStopCleanupLate,
+				diagnostic.CodeDoctorPluginSchemaRefused, diagnostic.CodeDoctorPluginSchemaUndeclared,
+			},
+			Check: checkPluginFatalStop,
 		},
 		{
 			// Resolves the config's auto-load set, so it needs the parsed tree.

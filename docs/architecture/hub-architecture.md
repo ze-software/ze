@@ -611,6 +611,29 @@ Boot also records what each started plugin declared: a module, none, or no
 declaration at all (`config.RecordStartedPlugins`). A command the daemon
 serves reads the record so that, beside a name no schema defines, it names
 only the declared plugins that could define it.
+
+Two outcomes of that step have a doctor code of their own, raised by boot
+through the plugin server's reporters.
+
+| Outcome at boot | What ze does | Where the code is read |
+|-----------------|--------------|------------------------|
+| A declared external plugin gave no declaration: it could not be started, it sent nothing within its bound, or its connection ended first | Logs and raises the warning `doctor-plugin-schema-undeclared` about the plugin, with the reason and the conformance check as the fix. The boot goes on: a plugin that did not declare refuses nothing by itself | On the log line at once. In `ze show doctor` when the daemon starts, which it does when the config holds no section only that plugin defines. When the full parse is then refused (the next row), no daemon runs: boot writes the plugin to the last-stop record (`recordUndeclaredSchemaStops`, `RecordUndeclaredSchemaStop`), and the local `ze doctor` reports it from that record under the same code until ze next starts cleanly |
+| The full parse refuses a name no schema defines | Beside the refusal, one operator error for each plugin that gave no declaration and one for each plugin whose declaration carries no YANG module (the same code, `SchemalessRefusal`). The start ends with exit 1 | On the terminal and in the log. No daemon runs afterwards, so `ze doctor` reads each of those plugins from the last-stop record boot wrote before it exited |
+| The join refuses a declared module (invalid YANG, a name or namespace clash, a redefined top-level node, an unheld validator, a module that adds nothing) | Logs and raises the error `doctor-plugin-schema-refused` with the join's operator error, stops the held plugins, and the start ends with exit 1 | On the terminal and in the log. No daemon runs afterwards, and with no daemon `ze doctor` starts no plugin, so it reads the refusal from the last-stop record boot wrote (`RecordRefusedSchemaStop`) and reports it under the same code until ze next starts cleanly. The conformance check of the plugin's run line shows the declaration |
+
+The roots a running external plugin declared it wants are kept by the plugin
+server (`pluginserver.ExternalConfigRoots`) from its accepted Stage 1 until its
+process ends. Doctor's config-claims check counts them as claims, so a section
+under an external plugin's own root is not reported as delivered to nobody,
+and a root whose plugin ended, or that no running plugin wants, still is. The
+schema command the daemon serves, `show schema list`, lists each published
+module with those roots, from the published set and with no second read of
+the plugin; `show yang tree config` shows the module's nodes.
+<!-- source: internal/component/plugin/server/external_schema_report.go -- ReportUndeclaredSchema, ReportRefusedSchema, SchemalessRefusal, RecordRefusedSchemaStop, RecordUndeclaredSchemaStop -->
+<!-- source: internal/component/plugin/server/external_roots.go -- ExternalConfigRoots -->
+<!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
+<!-- source: internal/component/config/schema/cli/main.go -- buildSchemaRegistry, registerPublishedYANG -->
+<!-- source: cmd/ze/hub/declared_plugins.go -- schemalessPlugins, schemalessPluginLines, recordUndeclaredSchemaStops -->
 <!-- source: cmd/ze/hub/main_reload.go -- diskConfigLoaders, unreadDeclarationsRefusal -->
 <!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations, declarationChanges -->
 <!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema -->

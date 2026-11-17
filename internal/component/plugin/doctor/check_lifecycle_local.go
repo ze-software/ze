@@ -28,6 +28,12 @@ import (
 // A stop-time cleanup that ran late is reported from the same record as a
 // doctor-plugin-stop-cleanup-late warning (AC-32), written by the server when
 // the config transaction or a plugin engine ran late (stop_cleanup_late.go).
+//
+// A start refused for an external plugin's config schema is reported from the
+// same record under its own code: doctor-plugin-schema-refused for a module
+// the join refused, doctor-plugin-schema-undeclared for a config name no
+// schema defines while ze held no schema of a declared plugin
+// (server.RecordRefusedSchemaStop, server.RecordUndeclaredSchemaStop).
 func checkPluginFatalStop(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	if ctx.Store == nil {
 		return nil // The store open diagnostic already names an absent store.
@@ -60,6 +66,10 @@ func fatalStopRows(record *server.LastStop) []diagnostic.Diagnostic {
 			rows = append(rows, fatalStopRow(entry))
 		case server.LastStopCleanupLate:
 			rows = append(rows, cleanupLateRow(entry))
+		case server.LastStopSchemaRefused:
+			rows = append(rows, schemaRefusedRow(entry))
+		case server.LastStopSchemaUndeclared:
+			rows = append(rows, schemaUndeclaredRow(entry))
 		case server.LastStopUnspecified:
 			// RecordLastStop refuses an unspecified reason.
 		default:
@@ -128,6 +138,50 @@ func cleanupLateRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 		Message:  message.String(),
 		Fix:      fix.String(),
 	}
+}
+
+// schemaRefusedRow writes one start that ended because ze refused the YANG
+// module an external plugin declared: when, and the refusal's own problem and
+// why, which name the plugin, the module and the cause. The fix is the one the
+// refusal named.
+func schemaRefusedRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
+	at := entry.Time.UTC().Format(time.RFC3339)
+	var message textbuf.Buffer
+	message.Str("ze refused to start at ").Str(at).
+		Str(" because it refused the config schema an external plugin declared: ").Str(entry.Detail)
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorPluginSchemaRefused,
+		Severity: diagnostic.SeverityError,
+		Message:  message.String(),
+		Fix:      schemaStopFix(entry, at),
+	}
+}
+
+// schemaUndeclaredRow writes one start that ended on a config name no schema
+// defines while ze held no config schema of a declared external plugin: when,
+// which plugin, and why ze held none. A section written for that plugin is
+// such a name. The fix is the one the refusal named.
+func schemaUndeclaredRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
+	at := entry.Time.UTC().Format(time.RFC3339)
+	var message textbuf.Buffer
+	message.Str("ze refused to start at ").Str(at).
+		Str(" on a configuration name no schema defines, and it held no config schema of external plugin ").
+		Quoted(entry.Plugin).Str(", so a section written for that plugin is such a name: ").Str(entry.Detail)
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorPluginSchemaUndeclared,
+		Severity: diagnostic.SeverityError,
+		Message:  message.String(),
+		Fix:      schemaStopFix(entry, at),
+	}
+}
+
+// schemaStopFix answers the fix of a schema row: the command the refusal
+// named, or, for an entry that kept none, ze's log up to the refusal.
+func schemaStopFix(entry *server.LastStopEntry, at string) string {
+	if entry.Fix != "" {
+		return entry.Fix
+	}
+	return "journalctl -u ze --until " + at
 }
 
 // checkPluginAutoload resolves the plugins the config's roots load, as boot

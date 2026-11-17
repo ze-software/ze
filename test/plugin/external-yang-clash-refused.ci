@@ -1,0 +1,40 @@
+# Test: an external plugin whose module is named like a compiled-in module is refused at start
+#
+# Question: when an external plugin declares a module named ze-plugin-conf,
+# the name of the compiled-in module that defines the `plugin` block, does
+# `ze start` refuse, naming the plugin and the module, under the doctor code
+# for a refused module?
+# Why not a unit test: TestJoinRefusesModuleNameClash proves the join's
+# refusal and both holders. This proves the daemon's start reaches it with the
+# module a live plugin declared.
+#
+# Where the code is read: a refused module ends the start, so no daemon runs
+# to answer `ze show doctor`. The code is on the terminal and in the log, on
+# the line boot writes beside the refusal.
+#
+# VALIDATES: AC-5 of spec-plugin-external-yang-at-startup, the module-name
+#   case, and the doctor-plugin-schema-refused code of AC-14. The namespace
+#   and the redefined-node cases are the join's unit tests
+#   (TestJoinRefusesNamespaceClash, TestJoinRefusesTopLevelRedefinition).
+# PREVENTS: a module that shares a compiled-in module's name being dropped
+#   with no word to the operator, so its config root is later refused for a
+#   reason nobody can find.
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external clash-module {
+		run "le test fixture plugin/external-yang clash"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=doctor-plugin-schema-refused
+expect=stderr:contains=error: external plugin schema:
+expect=stderr:contains=clash-module
+expect=stderr:contains=ze-plugin-conf
+reject=stderr:contains=FIXTURE: external-yang generation 1 ready
+reject=stderr:contains=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL

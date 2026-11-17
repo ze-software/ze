@@ -1,0 +1,57 @@
+# Test: after a start refused for an external plugin's YANG module, the next
+#       ze doctor reports doctor-plugin-schema-refused, with no daemon running
+#
+# Question: when `ze start` refuses the module an external plugin declared and
+# exits, does `ze doctor`, run afterwards with no daemon, name the refusal
+# under doctor-plugin-schema-refused, with the plugin, the module and the time?
+# Why not a unit test: TestSchemaStopSurvivesTheRefusedStart proves the record
+# is written and cleared, and TestSchemaStopRowsNameTheCodeTheCauseAndTheFix the
+# row the check builds from it. Only the two runs prove that boot writes the
+# record on the join's refusal, before any plugin server exists, and that the
+# local doctor process, which registers no statestore, reads it from the
+# store it opens. That a clean start deletes the record is the unit test's
+# (Server.settleLastStop): it is the path doctor-plugin-fatal-stop already
+# takes.
+#
+# VALIDATES: AC-14 of spec-plugin-external-yang-at-startup: the code survives
+#   the failed start (server.RecordRefusedSchemaStop, cmd/ze/hub/main.go; the
+#   plugin-fatal-stop check, plugin/doctor/check_lifecycle_local.go).
+# PREVENTS: a refusal that lives only on the terminal and in the log of a
+#   process that is gone, so doctor says nothing of why ze is down.
+#
+# The form is the one of test/plugin/doctor-plugin-fatal-stop.ci, whose header
+# gives the reason for each option: the disk store outlives the daemon, one
+# budget for the whole file, and the doctor's SSH probe on this test's own
+# port. The driver starts `ze start running.conf`, waits for the process to
+# exit and refuses every result except exit 1, which is what a refused start
+# returns (runYANGConfig, cmd/ze/hub/main.go).
+option=storage:value=disk
+option=timeout:value=60s
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+plugin {
+	external broken-module {
+		run "le test fixture plugin/external-yang invalid"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/doctor-fatal-stop:exit=0
+expect=stderr:contains=error: external plugin schema:
+expect=stderr:contains=doctor-plugin-schema-refused
+expect=stderr:contains=created live store:
+reject=stderr:contains=could not record why ze is stopping
+reject=stderr:contains=created memory store
+reject=stderr:contains=Ze running.
+
+# The daemon is gone, so the ask fails and the local checks answer. The
+# plugin-fatal-stop check reads meta/plugin/last-stop from the store beside
+# running.conf. The reject proves the entry did not fall to the fatal-stop
+# row, which is what an unknown reason reads as.
+cmd=foreground:seq=2:exec=ze doctor --json config running.conf
+expect=stdout:contains="code": "doctor-plugin-schema-refused"
+expect=stdout:pattern=ze refused to start at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z because it refused the config schema an external plugin declared
+expect=stdout:contains=broken-module
+expect=stdout:contains=acme-broken-conf
+reject=stdout:contains="code": "doctor-plugin-fatal-stop"

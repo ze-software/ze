@@ -15,6 +15,13 @@
 # PREVENTS: an external plugin being unable to share a container the product
 #   already owns, the only sanctioned way being `augment`: today the child is
 #   an unknown keyword under service.
+#
+# The exit assertion is of the DAEMON'S own exit. `then=stop` on the await
+# makes the runner wait for daemon.ready and for the awaited line, stop the
+# daemon itself, and compare the code the daemon ended with
+# (docs/architecture/testing/ci-format.md, "Await", step 3). So exit 0 means
+# the daemon started, ran the plugin and stopped cleanly. A plain await
+# compares the peers' wait, and this file starts no peer.
 
 tmpfs=ze.conf:terminator=EOF_CONF
 plugin {
@@ -32,7 +39,7 @@ service {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
-await=stderr:contains=FIXTURE: external-yang generation 1 ready
+await=stderr:contains=FIXTURE: external-yang generation 1 ready:then=stop
 expect=exit:code=0
 expect=stderr:contains=FIXTURE: external-yang configure root=service/chrony leaves=[service/chrony/server=time.example.net]
 reject=stderr:pattern=ZE-OBSERVER-FAIL

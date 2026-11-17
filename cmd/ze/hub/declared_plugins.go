@@ -165,6 +165,50 @@ func schemaOutcome(name string, declarations []pluginserver.EarlyDeclaration) ze
 	return zeconfig.SchemaUnread
 }
 
+// schemalessPlugins answers the declared external plugins whose declaration
+// boot read and that carries no YANG module, in config order. external is
+// FirstPassResult.External and declarations what joinDeclaredPlugins answered
+// for it. Such a plugin defines no config section, which is no problem by
+// itself: it matters only beside the refusal of a name no schema defines.
+func schemalessPlugins(external []zePlugin.PluginConfig, declarations []pluginserver.EarlyDeclaration) []zePlugin.PluginConfig {
+	var schemaless []zePlugin.PluginConfig
+	for _, declared := range external {
+		if schemaOutcome(declared.Name, declarations) == zeconfig.SchemaNone {
+			schemaless = append(schemaless, declared)
+		}
+	}
+	return schemaless
+}
+
+// schemalessPluginLines answers, for a config load refused for a name no
+// schema defines, one operator error for each plugin of schemaless: the
+// plugin declared no YANG module, what follows, and the command that shows
+// what its program declares. It answers "" for no plugin.
+func schemalessPluginLines(schemaless []zePlugin.PluginConfig) string {
+	var tb textbuf.Buffer
+	for _, declared := range schemaless {
+		tb.Str("error: ").Err(pluginserver.SchemalessRefusal(declared)).Byte('\n')
+	}
+	return tb.String()
+}
+
+// recordUndeclaredSchemaStops writes to the last-stop record, for a config load
+// refused for a name no schema defines, each declared external plugin ze holds
+// no config schema of: the ones of declarations that sent no declaration, then
+// the ones of schemaless, whose declaration carries no YANG module. They are
+// the plugins undeclaredPluginLines and schemalessPluginLines name on the
+// terminal.
+func recordUndeclaredSchemaStops(declarations []pluginserver.EarlyDeclaration, schemaless []zePlugin.PluginConfig) {
+	for _, declaration := range declarations {
+		if declaration.Err != nil {
+			pluginserver.RecordUndeclaredSchemaStop(declaration.Plugin, declaration.Err)
+		}
+	}
+	for _, declared := range schemaless {
+		pluginserver.RecordUndeclaredSchemaStop(declared.Name, pluginserver.SchemalessRefusal(declared))
+	}
+}
+
 // declaredPluginNames answers the names of plugins, for DropDeclaredExcept.
 func declaredPluginNames(plugins []zePlugin.PluginConfig) []string {
 	names := make([]string, 0, len(plugins))

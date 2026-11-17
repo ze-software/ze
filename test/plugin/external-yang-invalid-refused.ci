@@ -1,0 +1,42 @@
+# Test: an external plugin whose YANG module does not compile is refused at start
+#
+# Question: when an external plugin declares a module the loader cannot
+# compile, does `ze start` refuse, on the operator's terminal, naming the
+# plugin and the module, under the doctor code for a refused module?
+# Why not a unit test: TestJoinRefusesInvalidModule proves the refusal text of
+# the join, the loader's location included, and
+# TestReportRefusedSchemaRaisesTheError that a refusal is reported under the
+# code. This proves the daemon reaches the join with the module a live plugin
+# declared, and stops instead of running with a module it stored and never
+# read.
+#
+# The plugin is named broken-module so its name is not a prefix of its module,
+# acme-broken-conf: each needle below proves one of the two.
+#
+# Where the code is read: a refused module ends the start, so no daemon runs
+# to answer `ze show doctor`. The code is on the terminal and in the log, on
+# the line boot writes beside the refusal.
+#
+# VALIDATES: AC-4 of spec-plugin-external-yang-at-startup, and the
+#   doctor-plugin-schema-refused code of AC-14.
+# PREVENTS: the state the spec found. The declared text was stored and never
+#   compiled, so a broken module was accepted in silence and the daemon ran.
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external broken-module {
+		run "le test fixture plugin/external-yang invalid"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=doctor-plugin-schema-refused
+expect=stderr:contains=error: external plugin schema:
+expect=stderr:contains=broken-module
+expect=stderr:contains=acme-broken-conf
+reject=stderr:contains=FIXTURE: external-yang generation 1 ready
+reject=stderr:contains=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL

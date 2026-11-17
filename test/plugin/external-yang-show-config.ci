@@ -1,0 +1,71 @@
+# Test: the running daemon shows the section of an external plugin's own root
+#
+# Question: on a daemon that started with a block under an external plugin's
+# root, does `show config running` answer that block, with the values the
+# operator wrote, in the JSON every API surface returns?
+# Why not a unit test: TestPublishedSetReachesSchemaCaches proves the schema
+# holds the root after a publish. This proves the config the daemon applied,
+# read back through the daemon's own command, holds the section the plugin's
+# module defines, after a real plugin declared that module at start.
+#
+# `show config running` is answered by the daemon (running_rpc.go
+# handleShowConfigRunning), so `ze cli -c` reaches the running process and
+# does not answer from its own. The schema commands (`show schema list`,
+# `show yang tree`) are local-data commands, which `ze cli -c` answers in its
+# own process from the compiled-in modules: they are not asserted here.
+# test/draft/ui/external-yang-daemon-schema.ci sends them through the daemon.
+#
+# The positive half comes first: the daemon booted with the block (ready=) and
+# the plugin received it (the configure line).
+#
+# VALIDATES: AC-13 of spec-plugin-external-yang-at-startup, the `show config`
+#   and API JSON half.
+# PREVENTS: a daemon that loads and delivers a section under an external root
+#   and then answers its running config without it.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
+
+# The wait is on the daemon's own answer, and it retries a refused connection,
+# so it also holds the SSH listener.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer acme-monitor "show config running | json":exit=0
+
+cmd=foreground:seq=3:exec=ze cli -c "show config running | json":exit=0
+expect=stdout:contains="acme-monitor"
+expect=stdout:contains="target": "probe-a"
+expect=stdout:contains="interval": "5"

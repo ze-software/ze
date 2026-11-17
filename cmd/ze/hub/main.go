@@ -487,16 +487,25 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			// declarations is set when the plugins ran and their modules
 			// were refused, which is a verdict on the config; it is nil when
 			// nothing could be forked, which is not.
-			if declarations != nil && ConfigRefused != nil {
-				ConfigRefused(joinErr)
+			if declarations != nil {
+				// The refusal of a module is a doctor code of its own. No
+				// daemon runs after it, so the terminal and the log carry
+				// it now, and the last-stop record carries it to the next
+				// `ze doctor`, until a clean start deletes the record.
+				pluginserver.ReportRefusedSchema(joinErr)
+				pluginserver.RecordRefusedSchemaStop(joinErr)
+				if ConfigRefused != nil {
+					ConfigRefused(joinErr)
+				}
 			}
 			return 1
 		}
 		for _, declaration := range declarations {
 			if declaration.Err != nil {
-				slog.Warn("external plugin sent no declaration before the config was parsed",
-					"plugin", declaration.Plugin, "error", declaration.Err,
-					"code", diagnostic.CodeDoctorPluginStopped)
+				// ze holds no config schema of this plugin. The daemon still
+				// starts when the config holds no section of it, and doctor
+				// then reports the plugin under this code.
+				pluginserver.ReportUndeclaredSchema(declaration.Plugin, declaration.Err)
 			}
 		}
 		// What each started plugin declared, kept for the commands this
@@ -533,13 +542,26 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if !ok {
 			fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 			// A section that only an external plugin's schema defines is an
-			// unknown keyword when that plugin declared nothing: name each
-			// such plugin, why it did not declare and the command that fixes
-			// it, beside the refusal.
-			if lines := undeclaredPluginLines(declarations); lines != "" {
+			// unknown keyword when ze holds no schema of that plugin: name
+			// each declared plugin that sent no declaration, and each one
+			// whose declaration carries no YANG module, with why and the
+			// command that fixes it, beside the refusal. No plugin's missing
+			// schema explains any other refusal, so they are named only
+			// beside the refusal of a name no schema defines.
+			if zeconfig.RefusesUnknownNode(err) && firstPassErr == nil {
+				schemaless := schemalessPlugins(firstPass.External, declarations)
+				for _, declared := range schemaless {
+					pluginserver.ReportUndeclaredSchema(declared.Name, pluginserver.SchemalessRefusal(declared))
+				}
+				// The start ends here and the report bus with it: the
+				// last-stop record carries each such plugin to the next
+				// `ze doctor`, until a clean start deletes the record.
+				recordUndeclaredSchemaStops(declarations, schemaless)
 				var tb textbuf.Buffer
-				tb.Str(lines)
-				tb.StdErr() //nolint:errcheck // the process is exiting below
+				tb.Str(undeclaredPluginLines(declarations)).Str(schemalessPluginLines(schemaless))
+				if tb.Len() > 0 {
+					tb.StdErr() //nolint:errcheck // the process is exiting below
+				}
 			}
 			logStartupFailure("load config", err)
 			if ConfigRefused != nil {
