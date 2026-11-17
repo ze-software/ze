@@ -18,7 +18,7 @@
     "claim-sha": "9ae058c0009e40cf",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "ec6448c16802f3e0",
+    "producer-sha": "17aa3b0ab62f6479",
     "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "b4ed6047370c2f24",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "ec6448c16802f3e0",
+    "producer-sha": "17aa3b0ab62f6479",
     "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -47,7 +47,7 @@
     "rid": "RFC4301-4.4.2-1",
     "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy",
-    "unit-sha": "9d5b2939d7902708",
+    "unit-sha": "4b12728f3d98f11a",
     "claim-sha": "d809d645bf2b61d8",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::appendChildPolicies",

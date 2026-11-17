@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; context proof and 55 guest renewals remain; AC-4 stays open |
+| Phase | Guard and report repair landed; first seven-guest batch accepted; context proof and 48 guest renewals remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -90,12 +90,12 @@ selected producer seals changed to `17aa3b0ab62f6479`. Receipts are
 `job-ipsec-rfc4301-esp-association-proof-05c96c4a.log`,
 `job-ipsec-rfc4301-negotiated-selectors-proof-c580bfc1.log` and
 `job-ipsec-rfc4303-esp-protocol-proof-e05930b5.log`. These remain dependency proofs of
-partial tagged claims, including distinct claims on the same ESP unit. The current
-manifest at the end of the nine-host REVERT batch marks 24 current renewals RECORDED.
-There are 55 UNEXECUTED commands, all guest; no host renewal remains.
-The original 83 rows remain unchanged, and current freshness of the four
-historical receipts is still UNKNOWN; no genuinely scoped native verifier for those
-four is established. A fresh native RFC check remains owed after renewals.
+partial tagged claims, including distinct claims on the same ESP unit. The manifest
+at the end of the nine-host REVERT batch marked 24 current renewals RECORDED.
+There were 55 UNEXECUTED commands, all guest; no host renewal remained.
+At that phase boundary the four historical receipts' current freshness was UNKNOWN.
+The original 83 rows remain unchanged; subsequent guest and freshness results are
+recorded below. A fresh native RFC check remains owed after renewals.
 
 Both automatic safety holds and the pending owner question remain unchanged: no
 constrained-fixture retry or rejected private fault preparation/use is approved. The
@@ -142,11 +142,10 @@ producer; the earlier programmableSelector R10 refusal ran no fault and wrote no
 record. Order 82 halts installChildSA through createFirstChildSA. Native records are
 RFC4303-2.1-2, RFC4303-3.4.3-2, RFC5216-2.4-4, RFC7296-2.23-11, RFC4301-7.1-3 and
 RFC7296-2.23-2 under `rfc/discrimination/`. No code fix, additional EAP semantic proof,
-native C enforcement or AC-4 closure is credited. Next are the 55 guest renewals,
-resolution of the four UNKNOWN freshness verdicts, the pending C-route and safety
-decisions, and the final audit and Review Gate.
+native C enforcement or AC-4 closure is credited. That ended-host phase left 55 guest
+renewals and four UNKNOWN freshness verdicts; subsequent results follow below.
 
-AC-30's direct id/stem prefilter is independently source-reviewed CLEAR.
+AC-30's direct id/stem prefilter landed in `3d6aa6c86f`, independently source-reviewed CLEAR.
 Main's gofmt 27933 and goimports 43050 exited 0; targeted verbose race run
 72909 passed all eight named tests without skips
 (`job-ipsec-rfc-report-scope-green-603abaca.log`). The independent judge approved
@@ -162,6 +161,23 @@ OuterCE positive and GTSM UnknownNotDropped positive. These are current source
 and fingerprint verdicts, with no new runtime observation or kernel proof.
 The CE ID still has six other unproven tags; no whole-ID or full-RFC credit,
 safety approval or C-design approval follows.
+
+The ended first seven-guest batch records orders 5, 6, 8, 10, 11, 12 and 14:
+31 current renewals RECORDED and 48 UNEXECUTED, all guest. Native runs were
+91595, 86837, 71760, 2610, 65543, 8642 and 74918, respectively, each exit 0.
+The five native JSON files are RFC4301-4.4.2-1, RFC4106-10-2, RFC4301-4-1,
+RFC4301-4.1-9 and RFC4301-4.2-1 under `rfc/discrimination/`.
+
+Orders 5/6 pass normal transport-selector packet checks; order 14 passes normal
+tunnel source/port/protocol rejection with StateMismatch +1 and NoPols/PolBlock
+unchanged. UDP cases check non-delivery; ICMP is counter-only. Orders 8/10/11/12
+check constructed netlink state without installing it. Orders 10/11 fail their
+intended protocol/SPI field assertions. The other faults are producer-halt
+dependency proofs; order 14 halts through childPolicies before packet assertions.
+Every accepted normal/fault observation uses B1/f826 and matching d9, with no
+skips, check/lab exits 0, no interruption and stopped VMs. No full-requirement,
+C-enforcement or AC-4 credit follows. The pending C-route and safety decisions,
+final audit and Review Gate remain open.
 
 ## Task
 

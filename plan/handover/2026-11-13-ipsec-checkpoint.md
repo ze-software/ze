@@ -38,9 +38,11 @@ logs. Next is the remaining proof work. The first native renewal recorded manife
 orders 9, 15 and 44, runs 94797, 40175 and 17887, each exact selected clean PASS then
 native installChildSA halt FAIL, with only selected producer seals changed to
 `17aa3b0ab62f6479`. The dual-form checkpoint names the logs. These remain dependency
-proofs of partial tagged claims. There are 24 current renewals RECORDED; remaining
-preparation is 55 UNEXECUTED commands, all guest; four historical receipts'
-freshness is UNKNOWN. This partial function-dependency proof gives no C-enforcement or
+proofs of partial tagged claims. The ended first seven-guest batch has 31 current
+renewals RECORDED and 48 UNEXECUTED commands, all guest. All four historical records
+now have current VERIFIED source/fingerprint verdicts from native selected reports;
+the CE ID retains six other unproven tags. This supplies no new packet observation,
+whole-ID or full-RFC credit. Partial function-dependency proof gives no C-enforcement or
 full-RFC credit. Both rejected tasks and their owner question remain pending. Full AC-4,
 compliant-fragment RED and mapped-return work remain open. The generic C-proof route has
 independent schema, native-image and observer-manifest reviews CLEAR (draft `2438aa68`),
@@ -52,8 +54,10 @@ PENDING and does not approve either rejected safety action. No tooling implement
 C-proof credit is established.
 
 The [dual-form current checkpoint](../release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md#current-continuation-checkpoint-2026-11-17)
-records the completed host renewals and their native record references.
-Its acceptance limits apply here.
+owns the completed host and first seven-guest batch's native evidence and proof
+limits. It also records report repair `3d6aa6c86f`, AC-30's existing lint
+limitation and four current VERIFIED historical records; those bounded
+conclusions and pending approvals apply here.
 
 ## Landed work
 
