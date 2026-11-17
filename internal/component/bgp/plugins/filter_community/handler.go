@@ -170,16 +170,23 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 	emitCommunity(p, code)
 }
 
-// emitCommunity writes the header these handlers have always written: Optional
-// Transitive with the Extended Length bit set, whatever the value length.
+// emitCommunity writes an Optional Transitive header with the source's Partial
+// bit and the Extended Length bit set, whatever the value length.
 //
 // EmitExtended rather than Emit, so the header size class does not change for
 // any community attribute Ze forwards. Letting the length decide the class would
 // be equally legal (RFC 4271 Section 4.3) and one byte shorter, but it would
-// move bytes on the wire for every short community list in a change whose
-// purpose is to move none.
+// change the header size for every short community list unnecessarily.
 func emitCommunity(p *filterapi.AttrPlan, code attribute.AttributeCode) {
-	p.EmitExtended(0xC0, byte(code))
+	flags := byte(attribute.FlagOptional | attribute.FlagTransitive)
+	// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+	// is accepted and passed along to other BGP peers and the Partial bit in the
+	// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+	// to 0 by the current AS."
+	if source := p.Source(); len(source) > 0 {
+		flags |= source[0] & byte(attribute.FlagPartial)
+	}
+	p.EmitExtended(flags, byte(code))
 }
 
 // wholeValues reports whether buf is a whole number of valueSize-byte wire values.
