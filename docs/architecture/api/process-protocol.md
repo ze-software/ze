@@ -1762,6 +1762,25 @@ or a later event without blocking either SDK callback loop. Each request has
 its own completion; overload is refused and a handler panic fails the connection.
 <!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement, eventSettlementWorker -->
 
+`Process.SettleEventsApplied` composes the strict FIFO receipt with this declared
+callback on one captured `PluginConn`. The callback runs outside the event
+delivery worker and every process lock. The same connection and process must
+still be live after its receipt; a same-name replacement cannot complete the
+old process's work. An observer without the support declaration retains strict
+FIFO application semantics. A declared observer requires a caller deadline;
+missing support, a failed receipt or a lost lifetime cannot imply completion.
+The caller budget includes reply time. The Process gives work an earlier
+deadline, reserving at most the existing one-second worker-answer allowance
+and at most half its remaining budget. IPC may receive a failed receipt after
+that work deadline, within the original caller ceiling, preserving the named
+unfinished destinations and deadline cause. An `ok` receipt after the work
+deadline is still refused; the reply allowance never extends successful work.
+Settlement failure is retryable and never becomes the lifetime-sticky delivery
+error. The pure `DrainEventsApplied` contract and its existing source-policy,
+recovery and command-read callers remain unchanged.
+<!-- source: internal/component/plugin/process/event_settlement.go -- SettleEventsApplied, eventSettlementOwnerError -->
+<!-- source: internal/component/plugin/ipc/event_settlement.go -- SendEventSettlement -->
+
 Each process owns a FIFO event queue. A sent-event callback enqueues work without
 waiting for its handler; the delivery worker applies it through DirectBridge or
 the plugin's acknowledged `deliver-batch` RPC. Internal runners that never

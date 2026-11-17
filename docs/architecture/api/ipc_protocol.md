@@ -119,6 +119,31 @@ delivery receipt, not from transport liveness alone.
 <!-- source: pkg/plugin/rpc/conn.go -- Conn.Err -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.DeliveryError -->
 
+Asynchronous event work has a separate declared `event-settlement` callback.
+Its request carries a future absolute `deadline-ms`; its receipt echoes that
+deadline with `status` and the cause of a failed settlement. The SDK admits
+these requests to an independent bounded FIFO so event application and nested
+engine requests continue while settlement waits. A receipt acknowledges the
+handler's completed work, not its queue admission.
+<!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
+<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- eventSettlementWorker -->
+
+The engine sender uses the same captured `PluginConn` on both transports and
+puts the earlier of the work and caller deadlines into the request. Its bounded
+reply wait can follow work expiry so a failed receipt can still name unfinished
+destinations; the original caller deadline remains its absolute ceiling. A
+success after work expiry is refused, and an expiry failure retains both its
+detail and deadline cause. The Process reserves reply time within the caller's
+remaining budget, capped by the SDK's existing one-second answer-write allowance
+and half that remaining budget. It checks the exact echo, outcome and error
+fields before acknowledging; even a valid success cannot complete a canceled
+caller. The Process composition first joins
+strict FIFO application, then waits outside delivery and lifecycle locks, and
+checks the original connection and process again. A failed downstream attempt
+can be retried without poisoning the successful event-application receipt.
+<!-- source: internal/component/plugin/ipc/event_settlement.go -- SendEventSettlement -->
+<!-- source: internal/component/plugin/process/event_settlement.go -- SettleEventsApplied -->
+
 ---
 
 ## Wire Format
@@ -179,6 +204,24 @@ queued response before returning the reader's terminal error. A peer that
 closes without responding still fails the call. Waiting calls remain cancelable
 through their context.
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn.CallRPC, MuxConn.queuedResponse -->
+
+Operations that explicitly support acknowledged cancellation use
+`MuxConn.CallRPCCancellable`. Their receiver enrolls the request on its
+authenticated connection before concurrent dispatch. On context cancellation
+the caller sends `ze-plugin-engine:cancel-request` with the original method
+and ID, and waits for its final settlement receipt. Live entries are removed
+on completion; another connection's identical ID has no authority. A missing
+receipt or transport failure returns `CancellationUnsettledError`, never a
+successful remote join. A partial cancellable frame ends the connection rather
+than leaving a reusable stream with incomplete framing. The selected-output
+contract specifies its work and cancellation deadlines.
+Every live request also reserves its correlation ID until its response attempt
+ends. A duplicate live ID, from any method, ends the connection and cancels and
+joins admitted work; the daemon never answers the duplicate under an ID the
+original call still owns. Completed IDs are not retained as history.
+<!-- source: pkg/plugin/rpc/cancel.go -- CancelRequestInput, CancelRequestOutput, CancellationUnsettledError -->
+<!-- source: pkg/plugin/rpc/mux_cancel.go -- MuxConn.CallRPCCancellable, cancelAndJoin -->
+<!-- source: pkg/plugin/rpc/write_cancel.go -- Conn.armWriteCancellation -->
 
 ### Event Format (Engine → Plugin)
 
