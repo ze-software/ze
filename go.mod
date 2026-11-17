@@ -25,7 +25,7 @@ require (
 	github.com/cloudflare/circl v1.6.5
 	github.com/creack/pty v1.1.24
 	github.com/gaissmai/bart v0.30.0
-	github.com/gofrs/flock v0.13.1
+	github.com/gofrs/flock v0.13.2
 	github.com/gokrazy/gokapi v0.0.0-20251205165548-0927bab199d4
 	github.com/gokrazy/tools v0.0.0-20261026191944-942a8faaca93
 	github.com/gokrazy/updater v0.0.0-20260620140544-0a84d8ab3878
