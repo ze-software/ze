@@ -71,7 +71,13 @@ func TestRFC8212PolicyDryRunWiring(t *testing.T) {
 				})
 				r := &Reactor{peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}}
 				api := &reactorAPIAdapter{r: r}
-				result, err := api.PolicyDryRun(addr.String(), direction, "", policyChainAdvertisingBody(), true)
+				simulatedKind := ""
+				if direction == directionExport {
+					// This existing control tests the explicit/local absent-policy
+					// default; ordinary learned rejection has its own regression.
+					simulatedKind = "local"
+				}
+				result, err := api.PolicyDryRun(peer.sourceOwner, direction, "", policyChainAdvertisingBody(), true, simulatedKind)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -369,7 +375,7 @@ func TestRFC8212UnknownDryRunNeverExecutes(t *testing.T) {
 	api := &reactorAPIAdapter{r: r}
 	for _, direction := range []string{directionImport, directionExport} {
 		for _, override := range []string{"", "guard"} {
-			got, err := api.PolicyDryRun(addr.String(), direction, override, policyChainAdvertisingBody(), true)
+			got, err := api.PolicyDryRun(peer.sourceOwner, direction, override, policyChainAdvertisingBody(), true, "")
 			if err != nil {
 				t.Fatal(err)
 			}

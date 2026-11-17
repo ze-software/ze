@@ -15,7 +15,7 @@ func TestPolicyDryRunExportDefaultsToLearned(t *testing.T) {
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	r.peers[settings.PeerKey()] = peer
-	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(settings.Address.String(), directionExport, "", dryRunUpdateBody(t), true)
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(peer.sourceOwner, directionExport, "", dryRunUpdateBody(t), true, "")
 	require.NoError(t, err)
 	require.Equal(t, dryRunActionReject, result.Action)
 	require.False(t, settings.ExportPolicy.Configured(), "a simulation must not install policy")

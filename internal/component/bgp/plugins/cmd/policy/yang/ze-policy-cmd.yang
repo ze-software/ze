@@ -3,6 +3,7 @@ module ze-policy-cmd {
     prefix policycmd;
     import ze-extensions { prefix ze; }
     description "Policy chain inspection and dry-run testing commands. Owned by the BGP plugin because these handlers read per-peer policy chains and test UPDATE processing through the reactor. See ai/rules/plugin-self-containment.md.";
+    revision 2026-11-17 { description "Declare the export-only learned or local route-kind simulation. Omitted export simulates learned; import has no route-kind argument."; }
     revision 2026-08-30 { description "State filter, update and source-asn4 as keyword groups rather than leaves. Each is a keyword the operator types before its value, so a leaf published update as a bare positional the parser refuses, and the declaration order is what puts the chain being tested in front of the payload."; }
     revision 2026-08-29 { description "Declare the peer selector both policy commands read, and the filter, update and source-asn4 values show policy test peer takes as keyword pairs."; }
     revision 2026-06-06 { description "Relocated show policy chain/test out of the central show schema (plugin self-containment)."; }
@@ -73,7 +74,7 @@ see its final decision and attribute modifications. Named in-process protocol
 checks are marked not-evaluated, not simulated; the result does not establish
 that those checks would accept a live UPDATE. Selecting one as a single-filter
 override is refused. Read-only: no routes are actually forwarded.
-The selector and the direction, filter, update and source-asn4 tokens are
+The selector and the direction, filter, update, source-asn4 and route-kind tokens are
 parsed by the handler, so the peer selector can be a free-form name or
 address and the tokens can arrive in any order.";
                     ze:help "Test what your policy does to a specific UPDATE.";
@@ -142,6 +143,24 @@ it is refused.";
 digits with an optional 0x prefix. It is at most 65535 bytes once decoded, and its type
 byte MUST be 2. A body that does not parse as an UPDATE is refused.";
                             ze:help "The UPDATE octets, hex-encoded.";
+                        }
+                    }
+                    container route-kind {
+                        config false;
+                        ze:modifier "once";
+                        description "The argument selects a read-only export prediction and authorizes no live
+route. Omitted on export, it simulates learned. Import refuses the argument.
+A resolved explicit role keeps its existing default for either choice.";
+                        ze:help "Simulate export of a learned or local route.";
+                        leaf kind {
+                            type enumeration {
+                                enum learned { ze:help "Predict the ordinary learned-route export decision."; }
+                                enum local { ze:help "Predict export of an explicit local announcement."; }
+                            }
+                            mandatory true;
+                            description "Only learned and local are accepted, and only for export. There is no
+schema default: omitted import must remain distinct from an explicit simulation.";
+                            ze:help "The read-only route kind to simulate.";
                         }
                     }
                     container source-asn4 {

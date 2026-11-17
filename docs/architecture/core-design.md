@@ -2200,8 +2200,13 @@ Ze has no field to send it, so such a member fails every route under
   is the one the live step builds (`dryRunSession`): on import the peer's
   session facts with a fresh writable metadata map, on export the
   destination's facts with no source peer, since a pasted UPDATE came from
-  none. A member reading `peer-name` or setting a metadata field answers in
-  the dry-run what it answers on the session.
+  none. Export also has a read-only simulated route kind: `learned` by
+  default or an explicit `local`. A resolved explicit dissemination role
+  keeps its existing default for either simulation. The empty-chain final,
+  compiled chain and withdrawal preservation all read that same session.
+  This context never reaches a live route writer. A member reading `peer-name`
+  or setting a metadata field answers in the dry-run what it answers on the
+  session.
 - **Allocation-free per route.** The compiled chain is immutable and shared;
   each goroutine brings one view and one `policychain.RunSets`, reused across
   runs, and neither escapes the synchronous run.

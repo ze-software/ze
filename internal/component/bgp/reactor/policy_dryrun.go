@@ -8,7 +8,6 @@ package reactor
 
 import (
 	"errors"
-	"net/netip"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
@@ -31,13 +30,13 @@ var errUncompiledChain = errors.New("the peer's filter chain is not compiled, so
 // active one fails closed: a reject with its trace entry naming why, as the
 // session rejects the route. A named in-process check is marked
 // not-evaluated, never called. A policy holding neither ends on its final,
-// RFC 8212 Section 3 deciding an absent one. On a direction other than import
+// the run's route kind and RFC 8212 deciding an absent one. On export
 // a policy that requires the ingress stage is refused before any filter, its
 // first in-process check named as not evaluated. The caller shows the
 // resulting UPDATE: the pasted one on accept, none on reject.
-func traceUncompiledChain(policy filterapi.Policy, external bool, direction string) (PolicyChainResult, []plugin.PolicyTraceEntry) {
+func traceUncompiledChain(policy filterapi.Policy, session policyview.Session) (PolicyChainResult, []plugin.PolicyTraceEntry) {
 	var trace []plugin.PolicyTraceEntry
-	refused := direction != directionImport && policy.RequiresIngress()
+	refused := session.IsExport() && policy.RequiresIngress()
 	for i, ref := range policy.Filters() {
 		if ref.Inactive {
 			continue
@@ -64,7 +63,7 @@ func traceUncompiledChain(policy filterapi.Policy, external bool, direction stri
 		return PolicyChainResult{Action: PolicyReject, Failed: true}, trace
 	}
 	// RFC 8212 Section 3.
-	if !policy.AcceptsAtEnd(external) {
+	if !dryRunFinalAccepts(policy, session) {
 		return PolicyChainResult{Action: PolicyReject}, trace
 	}
 	return PolicyChainResult{Action: PolicyAccept}, trace
@@ -88,7 +87,7 @@ var (
 )
 
 // PolicyDryRun implements plugin.PolicyDryRunner on reactorAPIAdapter.
-func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride string, updateBody []byte, asn4 bool) (*plugin.PolicyDryRunResult, error) {
+func (a *reactorAPIAdapter) PolicyDryRun(peerOwner uint64, direction, filterOverride string, updateBody []byte, asn4 bool, simulatedKind string) (*plugin.PolicyDryRunResult, error) {
 	// Defense-in-depth: the CLI parser already enforces import/export, but
 	// PolicyDryRun is an exported interface. Reject an unknown direction so a
 	// direct caller cannot silently get an empty (accept) chain.
@@ -96,9 +95,15 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		return nil, errInvalidDirection
 	}
 
-	addr, err := netip.ParseAddr(peerAddr)
+	kind, err := dryRunSimulationKind(direction, simulatedKind)
 	if err != nil {
-		return nil, errPeerNotFound
+		return nil, err
+	}
+	if direction == directionExport && simulatedKind == "" {
+		simulatedKind = "learned"
+	}
+	if peerOwner == 0 {
+		return nil, dryRunMissingPeer(peerOwner)
 	}
 
 	// Read policy and session type from the same dynamic-resolution generation.
@@ -106,16 +111,20 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	var policy filterapi.Policy
 	var peerAS, localAS uint32
 	var facts filterapi.PeerFilterInfo
+	var peerAddr string
+	var explicitRole bool
 	internal := false
 	found := false
 	r.mu.RLock()
 	for _, p := range r.peers {
 		p.mu.RLock()
-		if p.settings.Address != addr {
+		if p.sourceOwner != peerOwner {
 			p.mu.RUnlock()
 			continue
 		}
 		found = true
+		peerAddr = p.settings.Address.String()
+		explicitRole = p.settings.DisseminationOwner.Explicit()
 		peerAS = p.settings.PeerAS
 		localAS = p.settings.LocalAS
 		internal = p.settings.IsIBGP()
@@ -142,20 +151,32 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	r.mu.RUnlock()
 
 	if !found {
-		return nil, errPeerNotFound
+		return nil, dryRunMissingPeer(peerOwner)
 	}
-	// The direction's effective policy, taken before any filter override: an
-	// override replaces the refs and keeps the disposition, and the report is
-	// the policy the live session runs, not the one-filter test chain.
+	if direction == directionExport && explicitRole {
+		kind = filterapi.ExportExplicit
+	}
+	session := dryRunSession(direction, facts, kind)
+	// The effective policy precedes any filter override: an override replaces
+	// refs and keeps the disposition. Only the absent internal export final
+	// additionally depends on the simulated class below.
 	effective := policyInfo(policy, policySessionOf(peerAS, internal))
 	if peerAS == 0 {
 		return &plugin.PolicyDryRunResult{
-			Direction: direction,
-			Peer:      peerAddr,
-			Policy:    effective,
-			Action:    "undetermined",
-			Reason:    "remote AS is unresolved; wait for the peer session to establish, then repeat show policy test",
+			Direction:          direction,
+			Peer:               peerAddr,
+			SimulatedRouteKind: simulatedKind,
+			Policy:             effective,
+			Action:             "undetermined",
+			Reason:             "remote AS is unresolved; wait for the peer session to establish, then repeat show policy test",
 		}, nil
+	}
+	roleDefault := direction == directionExport && explicitRole && !policy.Configured()
+	if direction == directionExport && internal && !policy.Configured() && kind == filterapi.ExportOrdinaryLearned {
+		effective = &plugin.PolicyInfo{
+			Filters: filterapi.FilterRefStrings(policy.Filters()),
+			Final:   plugin.PolicyFinalReject, FinalSource: plugin.PolicyFinalSourceLearnedExport,
+		}
 	}
 
 	// If a single filter override is specified, find it in the chain.
@@ -232,11 +253,11 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	if library := policy.Library(); library != nil {
 		// D-11: a library chain runs as it runs live, display only, its
 		// plugin members reached through the chain (traceLibraryChain).
-		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, session: dryRunSession(direction, facts),
+		dry := libraryDryRun{wireUpdate: wu, payload: updateBody, ctxID: ctxID, direction: direction, peer: peerAddr, session: session,
 			intent: libraryIntentContext{asn4: asn4, localAS: localAS, peerAS: peerAS, asPathEditable: direction == directionImport || !internal}}
 		result, after, trace, wireChanges = r.traceLibraryChain(library, &dry, &before)
 	} else {
-		result, trace = traceUncompiledChain(policy, !internal, direction)
+		result, trace = traceUncompiledChain(policy, session)
 		if result.Action == PolicyAccept {
 			result.Text = textBefore
 			after = &before
@@ -244,7 +265,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 	}
 	// A policy rejection removes announcements, not explicit withdrawals.
 	// Execution failures and teardown still drop the entire UPDATE.
-	if result.Action == PolicyReject && !policy.AcceptsAtEnd(!internal) && !result.Failed && !result.Teardown {
+	if result.Action == PolicyReject && !dryRunFinalAccepts(policy, session) && !result.Failed && !result.Teardown {
 		if withdrawals := policyWithdrawals(updateBody); withdrawals != nil {
 			withdrawn, displayErr := displayUpdate(wireu.NewWireUpdate(withdrawals, ctxID))
 			if displayErr != nil {
@@ -285,34 +306,43 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		changedAttrs = before.changed(after)
 	}
 
+	reason := ""
+	if roleDefault {
+		reason = "the destination's explicit role keeps its existing export default for this simulation"
+	}
 	return &plugin.PolicyDryRunResult{
-		Direction:    direction,
-		Peer:         peerAddr,
-		Action:       actionStr,
-		Policy:       effective,
-		Trace:        trace,
-		TextBefore:   textBefore,
-		TextAfter:    textAfter,
-		ChangedAttrs: changedAttrs,
-		WireChanges:  wireChanges,
+		Direction:          direction,
+		Peer:               peerAddr,
+		SimulatedRouteKind: simulatedKind,
+		RoleDefault:        roleDefault,
+		Reason:             reason,
+		Action:             actionStr,
+		Policy:             effective,
+		Trace:              trace,
+		TextBefore:         textBefore,
+		TextAfter:          textAfter,
+		ChangedAttrs:       changedAttrs,
+		WireChanges:        wireChanges,
 	}, nil
 }
 
 // dryRunSession answers the session show policy test runs a chain under,
 // built as the live step of direction builds it, so a session fact field or a
 // metadata field answers in the dry-run what it answers on the session.
+// The simulated export kind is read-only; a live writer MUST derive its own.
 //
 // On import the session is the peer's (filter_ordered.go importSession) with a
 // fresh writable metadata map (WithImportMetadata): a member's metadata set
 // succeeds as it does live, and the map is discarded with the dry-run. On
 // export the peer is the destination (reactor_api_forward.go ExportSession). A
 // pasted UPDATE came from no peer, so the source facts are unknown and the
-// source fields answer absent, and it carries no received metadata.
-func dryRunSession(direction string, peer filterapi.PeerFilterInfo) policyview.Session {
+// source fields answer absent, and it carries no received metadata. The caller
+// MUST pass the validated simulation kind; absent source facts do not select it.
+func dryRunSession(direction string, peer filterapi.PeerFilterInfo, kind filterapi.ExportKind) policyview.Session {
 	if direction == directionImport {
 		return policyview.ImportSession(peer).WithImportMetadata(make(map[string]any, 2))
 	}
-	return policyview.ExportSession(peer, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
+	return policyview.ExportSession(peer, filterapi.PeerFilterInfo{}, false, kind)
 }
 
 // describeWireOps renders each attribute operation as "<ATTRIBUTE> <verb>"

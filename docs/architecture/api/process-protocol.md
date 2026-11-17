@@ -784,7 +784,18 @@ direction with no policy and no automatic references is omitted.
 `import` and `export`; peer detail nests canonical strings and final under
 `import-policy` and `export-policy`. These are whole effective policies, not
 only the references declared directly on the peer. Dry-run reports the same
-final outcome as runtime, including terminal raw rewrites.
+final outcome as runtime for its simulated class, including terminal raw
+rewrites. The export-only `route-kind` argument takes `learned` or `local`;
+omission simulates `learned`. It does not authorize live output.
+`simulated-route-kind` names that class in the result. A resolved explicit
+dissemination role retains its existing default for either class, reported
+with `role-default: true`. Import refuses the argument, and an unknown value
+is refused. An internal ordinary learned rejection has
+`policy.final-source: learned-export-policy`, distinct from RFC 8212's
+external-session rejection.
+The command handler passes the resolved peer's stable owner to the dry-run
+adapter. A missing or removed owner is refused; a same-address sibling cannot
+supply its policy, session facts or role in the requested peer's place.
 With `final reject`, dry-run preserves explicit withdrawals: a pure withdrawal
 reports `accept`, while a mixed UPDATE reports `modify` and renders only the
 surviving withdrawal sections. Execution failures and teardown remain `reject`
@@ -792,7 +803,8 @@ with no resulting text.
 An unresolved remote AS instead produces `action: "undetermined"` and a `reason`
 to wait for establishment and repeat `show policy test`. It executes no filters,
 even with an override, and returns no trace, input text or resulting route.
-Known-session results omit `reason`. Every dry-run result also carries `policy`,
+Known-session results omit `reason` unless an explicit role's absent-policy
+default applies. Every dry-run result also carries `policy`,
 the direction's status object above, so the per-UPDATE action and the
 direction's final stay distinct.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->

@@ -82,7 +82,7 @@ func TestPolicyDryRunWithdrawVerdict(t *testing.T) {
 	settings.ImportPolicy = mixedPolicy(t, "", policychain.Member{Name: "f", Plugin: "probe"})
 	r.peers[settings.PeerKey()] = NewPeer(settings)
 
-	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", directionImport, "", libraryTestBody(100), true)
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(r.peers[settings.PeerKey()].sourceOwner, directionImport, "", libraryTestBody(100), true, "")
 	if err != nil {
 		t.Fatalf("dry run: %v", err)
 	}

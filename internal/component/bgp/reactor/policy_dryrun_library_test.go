@@ -45,7 +45,7 @@ func TestPolicyDryRunRunsLibraryChain(t *testing.T) {
 			settings.ImportPolicy = libraryPolicy(t, libraryTestImport, tc.filterType, routepolicy.FinalAccept)
 			r.peers[settings.PeerKey()] = NewPeer(settings)
 			result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-				"192.0.2.1", directionImport, "", libraryTestBody(100), true)
+				r.peers[settings.PeerKey()].sourceOwner, directionImport, "", libraryTestBody(100), true, "")
 			require.NoError(t, err)
 			require.Equal(t, tc.action, result.Action)
 			if tc.textAfter != "" {
@@ -92,7 +92,7 @@ func TestPolicyDryRunLibraryFilterOverride(t *testing.T) {
 	r.peers[settings.PeerKey()] = NewPeer(settings)
 	adapter := &reactorAPIAdapter{r: r}
 
-	result, err := adapter.PolicyDryRun("192.0.2.1", directionImport, "second", libraryTestBody(100), true)
+	result, err := adapter.PolicyDryRun(r.peers[settings.PeerKey()].sourceOwner, directionImport, "second", libraryTestBody(100), true, "")
 	require.NoError(t, err)
 	require.Equal(t, dryRunActionModify, result.Action)
 	require.Len(t, result.Trace, 1)
@@ -104,7 +104,7 @@ func TestPolicyDryRunLibraryFilterOverride(t *testing.T) {
 	require.Equal(t, []string{"first", "second"}, result.Policy.Filters,
 		"the report names the policy the live session runs")
 
-	_, err = adapter.PolicyDryRun("192.0.2.1", directionImport, "absent", libraryTestBody(100), true)
+	_, err = adapter.PolicyDryRun(r.peers[settings.PeerKey()].sourceOwner, directionImport, "absent", libraryTestBody(100), true, "")
 	require.ErrorIs(t, err, errFilterNotFound)
 
 	chain, ok := settings.ImportPolicy.Library().(*policychain.Chain)
@@ -126,7 +126,7 @@ func TestPolicyDryRunLibraryEntryTextAfter(t *testing.T) {
 	settings.ImportPolicy = twoMemberLibraryPolicy(t, libraryTypeLP200, libraryTypeReject)
 	r.peers[settings.PeerKey()] = NewPeer(settings)
 
-	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", directionImport, "", libraryTestBody(100), true)
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(r.peers[settings.PeerKey()].sourceOwner, directionImport, "", libraryTestBody(100), true, "")
 	require.NoError(t, err)
 	require.Equal(t, dryRunActionReject, result.Action)
 	require.Len(t, result.Trace, 2)
@@ -167,7 +167,7 @@ func TestPolicyDryRunLibraryReportsWireChanges(t *testing.T) {
 	peer.state.Store(int32(PeerStateEstablished))
 	r.peers[settings.PeerKey()] = peer
 
-	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", directionExport, "", body, false)
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(peer.sourceOwner, directionExport, "", body, false, "")
 	if err != nil {
 		t.Fatalf("dry-run: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestPolicyDryRunAnswersTheSessionFacts(t *testing.T) {
 				settings.ExportPolicy = libraryPolicy(t, libraryTestExport, libraryTypeSessionFacts, routepolicy.FinalAccept)
 			}
 			r.peers[settings.PeerKey()] = NewPeer(settings)
-			result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", direction, "", libraryTestBody(100), true)
+			result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(r.peers[settings.PeerKey()].sourceOwner, direction, "", libraryTestBody(100), true, "")
 			require.NoError(t, err)
 			require.Equal(t, dryRunActionAccept, result.Action, "trace %+v", result.Trace)
 		})

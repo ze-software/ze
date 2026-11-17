@@ -31,8 +31,9 @@ import (
 // establishes), and empty for an absent policy on a known IBGP session, which
 // carries automatic filters only. FinalSource is empty for a configured final and
 // PolicyFinalSourceRFC8212 for the reject that RFC 8212 Section 3 derives for an
-// EBGP session with no explicit policy, so a default reject is never read as one
-// the operator configured.
+// EBGP session with no explicit policy. A dry-run of an ordinary learned route
+// on IBGP uses PolicyFinalSourceLearnedExport. Neither default reject is read
+// as a final the operator configured.
 type PolicyInfo struct {
 	Filters     []string `json:"filters"`
 	Final       string   `json:"final,omitempty"`
@@ -41,10 +42,11 @@ type PolicyInfo struct {
 
 // The values PolicyInfo.Final and PolicyInfo.FinalSource carry.
 const (
-	PolicyFinalAccept        = "accept"
-	PolicyFinalReject        = "reject"
-	PolicyFinalUndetermined  = "undetermined"
-	PolicyFinalSourceRFC8212 = "rfc8212"
+	PolicyFinalAccept              = "accept"
+	PolicyFinalReject              = "reject"
+	PolicyFinalUndetermined        = "undetermined"
+	PolicyFinalSourceRFC8212       = "rfc8212"
+	PolicyFinalSourceLearnedExport = "learned-export-policy"
 )
 
 // PeerState represents the high-level state of a BGP peer.
@@ -482,10 +484,16 @@ type PolicyDryRunResult struct {
 	Direction string `json:"direction"`
 	Peer      string `json:"peer"`
 	Action    string `json:"action"`
-	// Reason explains an undetermined action when the remote AS is unresolved.
+	// SimulatedRouteKind is present on export only. It selects a read-only
+	// prediction and MUST NOT be treated as authority for a live route.
+	SimulatedRouteKind string `json:"simulated-route-kind,omitempty"`
+	// RoleDefault says an explicit dissemination role supplies the absent
+	// export policy's default for either simulated route class.
+	RoleDefault bool `json:"role-default,omitempty"`
+	// Reason explains an unresolved remote AS or the explicit role's default.
 	Reason string `json:"reason,omitempty"`
-	// Policy is the direction's effective policy in the PolicyInfo form peer
-	// detail reports, so the exhaustion verdict stays distinct from Action: a
+	// Policy is the simulated class's effective policy in the PolicyInfo form
+	// peer detail reports, so the exhaustion verdict stays distinct from Action: a
 	// pure withdrawal is accepted under a default-reject policy. Nil for an
 	// absent direction on an IBGP session with no automatic filters.
 	Policy       *PolicyInfo        `json:"policy,omitempty"`
@@ -506,7 +514,9 @@ type PolicyDryRunResult struct {
 // PolicyDryRunner is an optional interface for reactors that support
 // read-only policy dry-run testing. Command handlers type-assert to this.
 type PolicyDryRunner interface {
-	PolicyDryRun(peerAddr, direction, filterOverride string, updatePayload []byte, asn4 bool) (*PolicyDryRunResult, error)
+	// Callers MUST pass the stable owner of the concrete peer they resolved.
+	// The reactor MUST refuse a missing owner rather than select an alias.
+	PolicyDryRun(peerOwner uint64, direction, filterOverride string, updatePayload []byte, asn4 bool, simulatedKind string) (*PolicyDryRunResult, error)
 }
 
 // FSMTransitionRecord is one peer FSM state change for diagnostic display.

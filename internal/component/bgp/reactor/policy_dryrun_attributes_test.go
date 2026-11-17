@@ -78,7 +78,7 @@ func TestPolicyDryRunAttributeOverride(t *testing.T) {
 				routepolicy.FinalAccept).WithLibrary(chain)
 			r.peers[settings.PeerKey()] = NewPeer(settings)
 			result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-				"192.0.2.1", directionImport, "second", libraryTestBody(100), true)
+				r.peers[settings.PeerKey()].sourceOwner, directionImport, "second", libraryTestBody(100), true, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -119,7 +119,7 @@ func TestPolicyDryRunAIGPDeltaMatchesRewrite(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	settings.ImportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "second"}}, routepolicy.FinalAccept).WithLibrary(only)
 	r.peers[settings.PeerKey()] = NewPeer(settings)
-	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun("192.0.2.1", directionImport, "", libraryTestBody(100), true)
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(r.peers[settings.PeerKey()].sourceOwner, directionImport, "", libraryTestBody(100), true, "")
 	if err != nil {
 		t.Fatal(err)
 	}

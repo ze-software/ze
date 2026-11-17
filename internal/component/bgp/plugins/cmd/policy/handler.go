@@ -4,6 +4,7 @@ package policy
 
 import (
 	"encoding/hex"
+	"errors"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -117,7 +119,7 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, validated command.V
 
 func isPolicyTestKeyword(tok string) bool {
 	switch strings.ToLower(tok) {
-	case policyDirImport, policyDirExport, "filter", "update", "source-asn4":
+	case policyDirImport, policyDirExport, "filter", "update", "source-asn4", "route-kind":
 		return true
 	default:
 		return false
@@ -134,65 +136,95 @@ var (
 	errMissingUpdateHex  = policyTestError("missing UPDATE hex bytes after the 'update' keyword")
 	errMissingASN4Value  = policyTestError("missing value after 'source-asn4' (true or false)")
 	errInvalidASN4Value  = policyTestError("invalid source-asn4 value (expected true or false)")
+	errMissingRouteKind  = policyTestError("missing value after 'route-kind' (learned or local)")
+	errInvalidRouteKind  = policyTestError("invalid route-kind value (expected learned or local)")
+	errImportRouteKind   = policyTestError("route-kind is only available for export; import has one policy answer")
+	errRepeatedRouteKind = policyTestError("route-kind is accepted only once (learned or local)")
 )
 
-func parsePolicyTestArgs(args []string) (direction, filter, hexPayload string, asn4 bool, err error) {
-	asn4 = true
+type policyTestArgs struct {
+	direction     string
+	filter        string
+	hexPayload    string
+	simulatedKind string
+	asn4          bool
+}
+
+func parsePolicyTestArgs(args []string) (policyTestArgs, error) {
+	parsed := policyTestArgs{asn4: true}
 
 	i := 0
 	for i < len(args) {
 		switch strings.ToLower(args[i]) {
 		case policyDirImport, policyDirExport:
-			direction = strings.ToLower(args[i])
+			parsed.direction = strings.ToLower(args[i])
 			i++
 		case "filter":
 			i++
 			if i >= len(args) {
-				return "", "", "", false, errMissingFilterName
+				return policyTestArgs{}, errMissingFilterName
 			}
-			filter = args[i]
+			parsed.filter = args[i]
 			i++
 		case "update":
 			i++
 			if i >= len(args) {
-				return "", "", "", false, errMissingUpdateHex
+				return policyTestArgs{}, errMissingUpdateHex
 			}
 			if strings.EqualFold(args[i], "hex") {
 				i++
 				if i >= len(args) {
-					return "", "", "", false, errMissingUpdateHex
+					return policyTestArgs{}, errMissingUpdateHex
 				}
 			}
-			hexPayload = args[i]
+			parsed.hexPayload = args[i]
 			i++
 		case "source-asn4":
 			i++
 			if i >= len(args) {
-				return "", "", "", false, errMissingASN4Value
+				return policyTestArgs{}, errMissingASN4Value
 			}
 			switch strings.ToLower(args[i]) {
 			case "true":
-				asn4 = true
+				parsed.asn4 = true
 			case "false":
-				asn4 = false
+				parsed.asn4 = false
 			default:
-				return "", "", "", false, errInvalidASN4Value
+				return policyTestArgs{}, errInvalidASN4Value
+			}
+			i++
+		case "route-kind":
+			if parsed.simulatedKind != "" {
+				return policyTestArgs{}, errRepeatedRouteKind
+			}
+			i++
+			if i >= len(args) {
+				return policyTestArgs{}, errMissingRouteKind
+			}
+			switch args[i] {
+			case "learned", "local":
+				parsed.simulatedKind = args[i]
+			default:
+				return policyTestArgs{}, errInvalidRouteKind
 			}
 			i++
 		default:
 			var tb textbuf.Buffer
-			return "", "", "", false, policyTestError(tb.Str("unexpected token ").Str(strconv.Quote(args[i])).Str(" (expected import, export, filter, update, or source-asn4)").String())
+			return policyTestArgs{}, policyTestError(tb.Str("unexpected token ").Str(strconv.Quote(args[i])).Str(" (expected import, export, filter, update, source-asn4, or route-kind)").String())
 		}
 	}
 
-	if direction == "" {
-		return "", "", "", false, errMissingDirection
+	if parsed.direction == "" {
+		return policyTestArgs{}, errMissingDirection
 	}
-	if hexPayload == "" {
-		return "", "", "", false, errMissingUpdateHex
+	if parsed.direction == policyDirImport && parsed.simulatedKind != "" {
+		return policyTestArgs{}, errImportRouteKind
+	}
+	if parsed.hexPayload == "" {
+		return policyTestArgs{}, errMissingUpdateHex
 	}
 
-	return direction, filter, hexPayload, asn4, nil
+	return parsed, nil
 }
 
 func handleShowPolicyTest(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
@@ -206,12 +238,14 @@ func handleShowPolicyTest(ctx *pluginserver.CommandContext, validated command.Va
 		args = args[1:]
 	}
 
-	direction, filter, hexPayload, asn4, err := parsePolicyTestArgs(args)
+	parsed, err := parsePolicyTestArgs(args)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
+		return plugin.OperatorErrorResponse(opererr.Wrap(err,
+			"policy test arguments are invalid", "The UPDATE was not tested.",
+			"ze help show policy test peer")), nil
 	}
 
-	hexPayload = strings.TrimPrefix(hexPayload, "0x")
+	hexPayload := strings.TrimPrefix(parsed.hexPayload, "0x")
 	hexPayload = strings.TrimPrefix(hexPayload, "0X")
 	if len(hexPayload) > bgpMaxMessageLen*2 {
 		return &plugin.Response{
@@ -282,8 +316,11 @@ func handleShowPolicyTest(ctx *pluginserver.CommandContext, validated command.Va
 		}, nil
 	}
 
-	result, err := dryRunner.PolicyDryRun(peer.Address.String(), direction, filter, updateBody, asn4)
+	result, err := dryRunner.PolicyDryRun(peer.PeerOwner, parsed.direction, parsed.filter, updateBody, parsed.asn4, parsed.simulatedKind)
 	if err != nil {
+		if refusal, ok := errors.AsType[*opererr.Error](err); ok {
+			return plugin.OperatorErrorResponse(refusal), nil
+		}
 		//nolint:nilerr // operational error in Response
 		return &plugin.Response{
 			Status: plugin.StatusError,

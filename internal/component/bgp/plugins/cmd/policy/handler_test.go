@@ -32,19 +32,19 @@ func TestIsPolicyTestKeyword(t *testing.T) {
 }
 
 func TestParsePolicyTestArgs(t *testing.T) {
-	dir, filter, hexp, asn4, err := parsePolicyTestArgs([]string{"import", "update", "DEADBEEF"})
-	if err != nil || dir != "import" || filter != "" || hexp != "DEADBEEF" || !asn4 {
-		t.Errorf("happy path = (%q,%q,%q,%v,%v), want (import,,DEADBEEF,true,nil)", dir, filter, hexp, asn4, err)
+	got, err := parsePolicyTestArgs([]string{"import", "update", "DEADBEEF"})
+	if err != nil || got.direction != "import" || got.filter != "" || got.hexPayload != "DEADBEEF" || !got.asn4 {
+		t.Errorf("happy path = (%q,%q,%q,%v,%v), want (import,,DEADBEEF,true,nil)", got.direction, got.filter, got.hexPayload, got.asn4, err)
 	}
 
-	_, filter, hexp, _, err = parsePolicyTestArgs([]string{"export", "filter", "myf", "update", "hex", "CAFE"})
-	if err != nil || filter != "myf" || hexp != "CAFE" {
-		t.Errorf("filter+update-hex = (%q,%q,%v), want (myf,CAFE,nil)", filter, hexp, err)
+	got, err = parsePolicyTestArgs([]string{"export", "filter", "myf", "update", "hex", "CAFE"})
+	if err != nil || got.filter != "myf" || got.hexPayload != "CAFE" {
+		t.Errorf("filter+update-hex = (%q,%q,%v), want (myf,CAFE,nil)", got.filter, got.hexPayload, err)
 	}
 
-	_, _, _, asn4, err = parsePolicyTestArgs([]string{"import", "update", "AA", "source-asn4", "false"})
-	if err != nil || asn4 {
-		t.Errorf("source-asn4 false = (%v,%v), want (false,nil)", asn4, err)
+	got, err = parsePolicyTestArgs([]string{"import", "update", "AA", "source-asn4", "false"})
+	if err != nil || got.asn4 {
+		t.Errorf("source-asn4 false = (%v,%v), want (false,nil)", got.asn4, err)
 	}
 
 	for _, tc := range []struct {
@@ -58,13 +58,13 @@ func TestParsePolicyTestArgs(t *testing.T) {
 		{"missing asn4 value", []string{"import", "update", "AA", "source-asn4"}, errMissingASN4Value},
 		{"invalid asn4 value", []string{"import", "update", "AA", "source-asn4", "maybe"}, errInvalidASN4Value},
 	} {
-		if _, _, _, _, err := parsePolicyTestArgs(tc.args); !errors.Is(err, tc.want) {
+		if _, err := parsePolicyTestArgs(tc.args); !errors.Is(err, tc.want) {
 			t.Errorf("%s: err = %v, want %v", tc.name, err, tc.want)
 		}
 	}
 
 	// An unexpected token yields a descriptive (non-sentinel) error.
-	if _, _, _, _, err := parsePolicyTestArgs([]string{"import", "bogus"}); err == nil || !strings.Contains(err.Error(), "unexpected token") {
+	if _, err := parsePolicyTestArgs([]string{"import", "bogus"}); err == nil || !strings.Contains(err.Error(), "unexpected token") {
 		t.Errorf("unexpected token err = %v, want contains 'unexpected token'", err)
 	}
 }

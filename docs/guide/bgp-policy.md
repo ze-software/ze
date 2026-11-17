@@ -677,8 +677,18 @@ EBGP sessions would carry nothing is visible without bringing one up
 ([`ze config validate`](command-reference.md#ze-config-validate)).
 <!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy, RFC8212Absences, rfc8212Fix -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
-Policy dry-run applies the same final: absence rejects on EBGP and
-accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
+An export dry-run simulates a learned route by default. Add `route-kind local`
+to predict a local announcement instead, or `route-kind learned` to state the
+default explicitly. This choice changes only the prediction: it installs no
+route and grants no permission to a live writer. An internal destination with
+no export policy rejects the learned simulation and accepts the local one.
+A destination served by an explicit role uses that role's existing default
+for either choice; an external session rejects both without export policy.
+The result names its `simulated-route-kind` and marks `role-default` when the
+role determines the answer. The argument is refused on import, and any value
+other than `learned` or `local` is refused. Import keeps its existing default.
+
+With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports `reject` without resulting text; neither is a successful withdrawal.
@@ -703,8 +713,10 @@ explanation; exercise it with an UPDATE on the peer session instead. Inactive
 references do not execute and have no trace entry.
 When the remote AS is unresolved, the overall action is `undetermined` and
 `reason` tells you to wait for establishment and repeat `show policy test`.
-`policy` still reports the direction, with `undetermined` for an absent final.
 No filter executes, including a single-filter override. Trace and text are empty.
+`policy` reports the simulated class's final, with `undetermined` for an absent
+final whose session type is unresolved. A known internal learned-route rejection
+uses `final-source: learned-export-policy`, distinct from `rfc8212`.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo, absentPolicyInfo -->
 

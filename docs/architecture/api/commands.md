@@ -671,12 +671,28 @@ An unresolved remote AS returns `action: "undetermined"` with a `reason` telling
 the operator to wait for establishment and repeat `show policy test`. No filter
 executes, including a single-filter override. Trace, input and resulting text
 are empty, and no changed attributes or wire changes are returned. Known-session
-results omit `reason`. An absent EBGP direction uses the RFC 8212 rejecting final.
-Every result carries `policy`, the direction's effective policy in the shape
+results omit `reason` unless an explicit role's absent-policy default applies.
+An absent EBGP direction uses the RFC 8212 rejecting final.
+Every result carries `policy`, the simulated class's effective policy in the shape
 `show policy chain` uses for one direction (canonical filter strings, `final`,
 `final-source`), so the verdict for this UPDATE stays distinct from the final the
-session applies. `policy` is omitted only for an IBGP direction with no policy
-and no automatic filters.
+session applies. `policy` is omitted only when that simulated class has no
+final on IBGP and there are no automatic filters.
+
+The export-only `route-kind learned|local` keyword selects a read-only
+simulation; omission means `learned`. Import refuses it, and unknown values
+are refused. The result names `simulated-route-kind`; this choice never
+authorizes live output. An absent internal ordinary export policy reports
+`final: reject` with `final-source: learned-export-policy` for a learned
+simulation. A resolved explicit dissemination role retains its existing
+default for either class, reported with `role-default: true` when the policy
+is absent. Configured policies retain their configured final. External
+sessions retain RFC 8212 for both classes.
+
+After resolving one peer, the handler passes its nonzero stable peer owner to
+the dry-run interface. The adapter captures that peer's policy, role and facts
+under its lock. A removed owner is refused, even if another peer has the same
+address; neither zero nor an address lookup substitutes a different peer.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 
 | WireMethod | Handler | Response shape |

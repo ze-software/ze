@@ -182,7 +182,7 @@ func TestLoopPolicyDryRunScope(t *testing.T) {
 	r.peers[settings.PeerKey()] = peer
 	adapter := &reactorAPIAdapter{r: r}
 	body := policyChainAdvertisingBody()
-	result, err := adapter.PolicyDryRun(settings.Address.String(), directionImport, "", body, true)
+	result, err := adapter.PolicyDryRun(peer.sourceOwner, directionImport, "", body, true, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,13 +197,13 @@ func TestLoopPolicyDryRunScope(t *testing.T) {
 		t.Fatalf("JSON lost the evaluation boundary: %s", encoded)
 	}
 	for _, name := range []string{"AUTO", "loop:AUTO"} {
-		if _, err := adapter.PolicyDryRun(settings.Address.String(), directionImport, name, body, true); !errors.Is(err, errInProcessDryRun) {
+		if _, err := adapter.PolicyDryRun(peer.sourceOwner, directionImport, name, body, true, ""); !errors.Is(err, errInProcessDryRun) {
 			t.Fatalf("internal override %q returned %v", name, err)
 		}
 	}
 	ref.Inactive = true
 	settings.ImportPolicy = bindRefs(settings.ImportPolicy.WithFilters([]routepolicy.Ref{ref}), ref)
-	result, err = adapter.PolicyDryRun(settings.Address.String(), directionImport, "", body, true)
+	result, err = adapter.PolicyDryRun(peer.sourceOwner, directionImport, "", body, true, "")
 	if err != nil {
 		t.Fatal(err)
 	}

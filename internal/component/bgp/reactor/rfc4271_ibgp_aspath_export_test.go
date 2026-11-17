@@ -200,7 +200,7 @@ func dryRunWireChanges(t *testing.T, settings *PeerSettings, direction string) [
 	r.peers[settings.PeerKey()] = peer
 
 	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-		settings.Address.String(), direction, "", dryRunUpdateBody(t), true)
+		peer.sourceOwner, direction, "", dryRunUpdateBody(t), true, "")
 	require.NoError(t, err)
 	return result.WireChanges
 }

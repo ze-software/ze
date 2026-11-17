@@ -145,7 +145,7 @@ func TestPolicyDryRunSubjectNamesEveryAttribute(t *testing.T) {
 	r.peers[settings.PeerKey()] = peer
 
 	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-		"192.0.2.1", directionImport, "", dryRunUpdateBody(t), true)
+		peer.sourceOwner, directionImport, "", dryRunUpdateBody(t), true, "")
 	require.NoError(t, err)
 
 	for _, name := range []string{
@@ -185,7 +185,7 @@ func TestPolicyDryRunEmptyFinal(t *testing.T) {
 				}
 				r.peers[settings.PeerKey()] = NewPeer(settings)
 				result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-					"192.0.2.1", direction, "", dryRunUpdateBody(t), true)
+					r.peers[settings.PeerKey()].sourceOwner, direction, "", dryRunUpdateBody(t), true, "")
 				require.NoError(t, err)
 				require.Empty(t, result.Trace)
 				if final == routepolicy.FinalReject {
@@ -242,7 +242,7 @@ func TestPolicyDryRunOverrideKeepsFinal(t *testing.T) {
 	settings.ExportPolicy = mustPolicy(t, []routepolicy.Ref{{Name: "FIRST"}, {Name: "LAST"}}, routepolicy.FinalReject).WithLibrary(chain)
 	r.peers[settings.PeerKey()] = NewPeer(settings)
 	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-		"192.0.2.1", directionExport, "FIRST", dryRunUpdateBody(t), true)
+		r.peers[settings.PeerKey()].sourceOwner, directionExport, "FIRST", dryRunUpdateBody(t), true, "")
 	require.NoError(t, err)
 	require.Equal(t, dryRunActionReject, result.Action)
 	require.Empty(t, result.TextAfter)
@@ -271,7 +271,7 @@ func TestPolicyDryRunUncompiledChainFailsClosed(t *testing.T) {
 	}}
 	r.filterTransportSeam = guard
 	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-		"192.0.2.1", directionExport, "", dryRunUpdateBody(t), true)
+		r.peers[settings.PeerKey()].sourceOwner, directionExport, "", dryRunUpdateBody(t), true, "")
 	require.NoError(t, err)
 	require.Zero(t, guard.calls(), "no plugin filter runs outside a compiled chain")
 	require.Equal(t, dryRunActionReject, result.Action)
@@ -355,7 +355,7 @@ func TestPolicyDryRunFinalRejectPreservesWithdrawals(t *testing.T) {
 					}
 					r.peers[settings.PeerKey()] = NewPeer(settings)
 					result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-						"192.0.2.1", direction, "", body.update, true)
+						r.peers[settings.PeerKey()].sourceOwner, direction, "", body.update, true, "")
 					if err != nil {
 						t.Fatal(err)
 					}

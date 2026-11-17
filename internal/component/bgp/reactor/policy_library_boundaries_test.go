@@ -256,7 +256,7 @@ func assertDryRunMatchesStep(t *testing.T, r *Reactor, peer *Peer, transport *an
 	t.Helper()
 	r.peers = map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}
 	before := transport.calls()
-	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(peer.Settings().Address.String(), directionImport, "", received, true)
+	result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(peer.sourceOwner, directionImport, "", received, true, "")
 	if err != nil {
 		t.Fatalf("dry-run: %v", err)
 	}

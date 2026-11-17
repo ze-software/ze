@@ -231,7 +231,7 @@ moves you keeps its move, so `top edit bgp` goes to `bgp`. A fix line the
 editor prints inside an `edit` context reads `top set <full path> ...`, which
 is exact from any position. The editor commands are in
 [Configuration Editor](config-editor.md#editor-commands).
-<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 
 **Storage:**
 
@@ -3603,6 +3603,7 @@ answered a different peer on each call.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show policy test peer <sel> export update <HEX>` | read-only | Dry-run the peer's configured export chain against a BGP UPDATE |
+| `show policy test peer <sel> export route-kind local update <HEX>` | read-only | Predict export of a local announcement instead of the default learned route |
 | `show policy test peer <sel> import update <HEX>` | read-only | Dry-run the peer's configured import chain against a BGP UPDATE |
 | `show policy test peer <sel> export filter <NAME> update <HEX>` | read-only | Dry-run a single named filter against a BGP UPDATE |
 
@@ -3612,13 +3613,22 @@ The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`)
 
 Optional: `source-asn4 false` to paste an UPDATE as received over a two-octet session (default: ASN4). The dry-run first merges its AS4_PATH and AS4_AGGREGATOR into the four-octet form, as the live import does (RFC 6793 Section 4.2.3), and explains that route, which is the one the filters see.
 
+On export, `route-kind learned` is the default and `route-kind local` predicts
+a local announcement. The result reports `simulated-route-kind`. A resolved
+explicit role keeps its default for either choice, identified by
+`role-default: true`. The choice is read-only and authorizes no live route.
+Import refuses this argument; unknown values are also refused. Without an
+export policy, an internal destination rejects learned routes and permits
+local routes, while an external destination rejects both. An internal
+learned-route rejection reports `policy.final-source: learned-export-policy`.
+
 Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify/undetermined), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (the wire-level attribute operations the chain applies, such as `AS_PATH set`, which `text-before` and `text-after` cannot show). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
 
 If the remote AS is unresolved, `action` is `undetermined` and `reason` tells you
 to wait for establishment and repeat `show policy test`. No filter executes,
 including a single-filter override. Trace and text are empty, with no wire
 changes. For a known EBGP session, an absent direction has a rejecting final.
-`policy` reports the direction's effective final, as `show policy chain` does:
+`policy` reports the simulated route class's effective final:
 `final-source: rfc8212` marks the RFC 8212 default reject on an EBGP direction
 with no policy, and `undetermined` an absent direction whose session type is not
 known yet.

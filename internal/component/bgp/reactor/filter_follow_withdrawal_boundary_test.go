@@ -127,7 +127,7 @@ func TestPolicyWithdrawalFollowUsesOriginalDecision(t *testing.T) {
 			}
 			enabled.Store(true)
 			body, _ := twoFamilyBody()
-			dry, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(address.String(), directionImport, "", body, true)
+			dry, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(peer.sourceOwner, directionImport, "", body, true, "")
 			if err != nil {
 				t.Fatal(err)
 			}

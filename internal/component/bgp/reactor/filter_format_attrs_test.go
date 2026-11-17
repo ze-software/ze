@@ -313,7 +313,7 @@ func TestFilterSubjectDryRunWithdrawalFallback(t *testing.T) {
 				settings.ExportPolicy = policy
 				r.peers[settings.PeerKey()] = NewPeer(settings)
 				result, err := (&reactorAPIAdapter{r: r}).PolicyDryRun(
-					settings.Address.String(), direction, "", body, true)
+					r.peers[settings.PeerKey()].sourceOwner, direction, "", body, true, "")
 				require.NoError(t, err)
 				require.Len(t, transport.sent, 1, "probe:f is asked once")
 				require.Len(t, result.Trace, 1)
