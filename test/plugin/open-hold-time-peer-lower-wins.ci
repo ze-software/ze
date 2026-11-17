@@ -1,14 +1,19 @@
 # Test: the PEER's Hold Time wins the negotiation when it is the smaller one.
+# Question: does peer3/local180 produce the daemon's expiry notification within20s?
+# A unit's timer value cannot establish the loaded-config and real-peer wire path.
 #
-# RFC requirement: RFC4271-4.2-1 positive -- ze holds the session on the hold
-#   time the PEER proposed, proven by the byte-exact NOTIFICATION with Error Code
-#   Hold Timer Expired (4) arriving inside the peer's 3 seconds rather than after
-#   ze's own 180. RFC 4271 Section 4.2: "A BGP speaker MUST calculate the value
-#   of the Hold Timer by using the smaller of its configured Hold Time and the
-#   Hold Time received in the OPEN message."
+# RFC requirement: RFC4271-4.2-2 positive -- with ze proposing 180 seconds
+#   and the peer proposing 3, the byte-exact Hold Timer Expired NOTIFICATION
+#   (4) is observed within the 20-second budget rather than after ze's own 180.
+#   This is a coarse bound, not an assertion of exact three-second expiry.
+#   RFC 4271 Section 4.2: "Upon receipt of an OPEN message, a BGP speaker MUST
+#   calculate the value of the Hold Timer by using the smaller of its configured
+#   Hold Time and the Hold Time received in the OPEN message."
 #
-# VALIDATES: session_negotiate takes min(peerHold, localHold) and passes it to
-# timers.SetHoldTime (internal/component/bgp/reactor/session_negotiate.go).
+# VALIDATES: the EOR and expiry response arrive within 20 seconds for peer3/local180.
+# Exact minimum selection and timer installation are checked separately by
+# TestNegotiateWith_HoldTimeMinOfBoth and TestRFC4271NegotiatedHoldTimeDrivesTimers.
+# Producer: internal/component/bgp/reactor/session_negotiate.go.
 #
 # PREVENTS: the mirror returning. ze-peer copied the two Hold Time octets out of
 # ze's own OPEN body, so the two advertised values were always EQUAL and the
@@ -34,8 +39,9 @@ option=open:value=hold-time:seconds=3
 
 # End-of-RIB from ze once the (empty) initial sync completes.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# NOTIFICATION, Hold Timer Expired (4), subcode 0, no data: 21 octets. It can
-# only arrive this soon if ze armed its hold timer on the PEER's 3 seconds.
+# NOTIFICATION, Hold Timer Expired (4), subcode 0, no data: 21 octets.
+# Its arrival within the 20-second budget distinguishes the peer3 proposal from
+# ze's local180; the separate unit checks establish the exact minimum value.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030400
 EOF_PEER
 
@@ -64,8 +70,8 @@ bgp {
 				graceful-restart disable
 			}
 		}
-		# 180 seconds, sixty times the peer's. Ze can only tear the session down
-		# inside this test's budget by holding on the peer's number.
+		# Expiry inside this test's 20-second budget distinguishes the peer3 case
+		# from waiting for local180; it does not measure exact expiry.
 		timer {
 			receive-hold-time 180
 		}

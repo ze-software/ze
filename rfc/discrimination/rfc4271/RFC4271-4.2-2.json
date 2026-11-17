@@ -1,0 +1,36 @@
+[
+  {
+    "rid": "RFC4271-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeMinOfBoth",
+    "unit-sha": "80e9a3a72a162910",
+    "claim-sha": "fbc11cad6c0f7b10",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::publishNegotiation",
+    "producer-sha": "2fca262b9841d217",
+    "break": "line 161: \"negotiatedHold = min(peerHold, localHold)\" -\u003e \"negotiatedHold = max(peerHold, localHold)\""
+  },
+  {
+    "rid": "RFC4271-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeZero",
+    "unit-sha": "3d38c627ecd01543",
+    "claim-sha": "ba52e5c2447d592f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::publishNegotiation",
+    "producer-sha": "2fca262b9841d217",
+    "break": "line 159: \"negotiatedHold = 0\" -\u003e \"negotiatedHold = max(peerHold, localHold)\""
+  },
+  {
+    "rid": "RFC4271-4.2-2",
+    "polarity": "positive",
+    "unit": "test/plugin/open-hold-time-peer-lower-wins.ci",
+    "unit-sha": "39adb9d2ec25af98",
+    "claim-sha": "b0ec85c714494b20",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::publishNegotiation",
+    "producer-sha": "2fca262b9841d217",
+    "break": "line 161: \"negotiatedHold = min(peerHold, localHold)\" -\u003e \"negotiatedHold = max(peerHold, localHold)\"",
+    "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030400"
+  }
+]

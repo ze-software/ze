@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/component/bgp/message/open.go::Open.ValidateHoldTime": "77a26bb0dde38f3f",
+    "internal/component/bgp/message/open.go::UnpackOpen": "9e8b0a85ce72f3e4",
+    "internal/component/bgp/reactor/session_connection.go::Session.processOpen": "2d8bae9415b7d22d",
+    "internal/component/bgp/reactor/session_handlers.go::Session.admitOpen": "e9d8083d7c29c147",
+    "internal/component/bgp/reactor/session_handlers.go::Session.admitParsedOpen": "896c7e4fc2a352ab",
+    "internal/component/bgp/reactor/session_handlers.go::Session.handleOpen": "5bd6dc63d6ec803a",
+    "internal/component/bgp/reactor/session_handlers.go::Session.validateOpenLocked": "d04c415e5533020e",
+    "internal/component/bgp/reactor/session_open_admission.go::openAdmission.advance": "e0fab710145ce95c"
+  },
+  "note": "Independently read full RFC4271 Section6.2 and both current tagged scopes on message/open_test.go::TestOpenValidateHoldTime. The whole mandatory sentence is 'An implementation MUST reject Hold Time values of one or two seconds.' The immediately following sentence is 'An implementation MAY reject any proposed Hold Time.' The required rejected-value set is exactly1/2; both table children call actual Open.ValidateHoldTime and require an error, typed *Notification and exact OPEN Error2/Unacceptable Hold Time6. The positive tag explicitly describes CURRENT PERMITTED DEFAULT-VALIDATOR POLICY: zero,three,90,180,65535 are accepted. That acceptance and its rejection-of-legal3 fault are not a universal RFC duty, an RFC violation under alternate policy, sole MUST evidence or additional conformance credit; explicit operator extensions and rejection discretion remain supported. Other OPEN fields are fixed, but only the HoldTime method is called, isolating its real uint16 nonzero/<3 guard from unrelated validators. Ordinary and pre-parsed Session admissions both call validateOpenLocked; rejection returns an error before constructing/advancing openAdmission. UnpackOpen reads fixed wire HoldTime octets3:5 unchanged; a later negotiation floor cannot admit an OPEN already rejected here. These eight bound producer functions matched HEAD at the source publication check. Their reachability is source evidence, not runtime socket coverage. Independently read both complete accepted receipts and both canonical6.2-1 record tuples. Required negative receipt job-rfc4271-required-invalid-hold-rejection-proof-5607166d.log (main23950) shows the named root and all seven clean children PASS; under<3-><2, only two_invalid fails fatal Error378 because nil was returned. zero_valid,one_invalid,three_valid,90_valid,180_valid,max_valid all PASS. The faultytwo child's typed errors.As381 and code382/subcode383 assertions are skipped after its fatal, not passing controls; one_invalid still exercises those exact typed2/6 checks. Supplementary positive receipt job-rfc4271-rejection-validator-policy-supplement-83b3cad1.log (main14496) again shows the named root/all seven clean children PASS; under<3-><=3, only three_valid fails fatal NoError385 with the printed OPEN Message Error/Unacceptable Hold Time and Data0003. All other six children PASS, including both mandatory1/2 typed-error controls. No later assertion exists in the faultythree child; sibling t.Runs still execute. Both receipts explicitly record the matching RID/polarity/root and intended normal-return guard cut; no panic, compilation failure or timeout supplies either red. The enforced source judgment rests on the actual mandatory1/2-rejection oracles, meaningful required-rejection fault and reachable default producer; the legal3-policy record only renews the separately scoped supplementary claim. Scope is method-return/error/type/code/subcode and observed diagnostics, not live Session/TCP/foreign peer acceptance, elapsed timers, Established/teardown, RIB or kernel state. Existing4.2-1 emitted-range and other-row timer/CI proofs are separate and are not inherited by this row. Actual record acceptance is distinguished from main's still-owed native freshness/publication gates; no such gate or native stamp ran in this child.",
+  "requirement_sha": "3682c8fed1529e4c",
+  "tests": {
+    "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime": "181c534be26e0523",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime#2": "181c534be26e0523"
+  },
+  "units": {
+    "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime": "6bc16a225a970ade",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime#2": "6bc16a225a970ade"
+  },
+  "verdict": "enforced"
+}

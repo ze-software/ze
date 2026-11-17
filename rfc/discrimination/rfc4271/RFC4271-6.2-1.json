@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime",
+    "unit-sha": "d975b14aa778e421",
+    "claim-sha": "0778b97fb805d3c6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/open.go::ValidateHoldTime",
+    "producer-sha": "5c50ea45361e6069",
+    "break": "line 304: \"if o.HoldTime != 0 \u0026\u0026 o.HoldTime \u003c 3 {\" -\u003e \"if o.HoldTime != 0 \u0026\u0026 o.HoldTime \u003c 2 {\""
+  },
+  {
+    "rid": "RFC4271-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/open_test.go::TestOpenValidateHoldTime",
+    "unit-sha": "d975b14aa778e421",
+    "claim-sha": "394d6e0b89ade0a1",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/open.go::ValidateHoldTime",
+    "producer-sha": "5c50ea45361e6069",
+    "break": "line 304: \"if o.HoldTime != 0 \u0026\u0026 o.HoldTime \u003c 3 {\" -\u003e \"if o.HoldTime != 0 \u0026\u0026 o.HoldTime \u003c= 3 {\""
+  }
+]
