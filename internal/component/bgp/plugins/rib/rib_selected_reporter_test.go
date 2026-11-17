@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -115,11 +117,22 @@ func TestSelectedDispatchLostRaiseStillClearsUncertainIssue(t *testing.T) {
 func TestSelectedDispatchSuccessfulRaisesRespectOwnerWindow(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx := t.Context()
+		var reportMu sync.Mutex
 		var reports []error
+		// Wait orders completed callbacks before an observation, but a later
+		// timer callback may append after that observation. Protect both ends
+		// and assert on a snapshot that the next callback cannot mutate.
+		snapshot := func() []error {
+			reportMu.Lock()
+			defer reportMu.Unlock()
+			return slices.Clone(reports)
+		}
 		d, err := newSelectedDispatch(ctx, func(_ context.Context, input rpc.SelectRoutesInput) (*rpc.SelectRoutesOutput, error) {
 			return selectedDispatchAnswer(input, rpc.SelectedWritten), nil
 		}, nil, func(_ context.Context, cause error) error {
+			reportMu.Lock()
 			reports = append(reports, cause)
+			reportMu.Unlock()
 			return nil
 		})
 		require.NoError(t, err)
@@ -137,23 +150,28 @@ func TestSelectedDispatchSuccessfulRaisesRespectOwnerWindow(t *testing.T) {
 		for attempt := range rpc.ReportRaisesPerWindow + 1 {
 			change(fmt.Errorf("controlled changing failure %d", attempt))
 		}
-		require.Len(t, reports, 1, "one changing aggregate must not spend the owner's shared raise allowance")
-		require.ErrorContains(t, reports[0], "controlled changing failure 0")
+		observed := snapshot()
+		require.Len(t, observed, 1, "one changing aggregate must not spend the owner's shared raise allowance")
+		require.ErrorContains(t, observed[0], "controlled changing failure 0")
 		change(nil)
-		require.Len(t, reports, 2, "clearing a recovered issue must not wait for the raise window")
-		require.NoError(t, reports[1])
+		observed = snapshot()
+		require.Len(t, observed, 2, "clearing a recovered issue must not wait for the raise window")
+		require.NoError(t, observed[1])
 		change(errors.New("controlled replaced failure"))
 		latest := errors.New("controlled latest failure")
 		change(latest)
-		require.Len(t, reports, 2, "a clear cannot renew the owner's raise allowance")
+		observed = snapshot()
+		require.Len(t, observed, 2, "a clear cannot renew the owner's raise allowance")
 		// The timer under test runs on synctest's clock; no wall-clock sleep or
 		// polling determines when this report becomes eligible.
 		<-time.After(rpc.ReportRaiseWindow)
 		synctest.Wait()
-		require.Len(t, reports, 3)
-		require.ErrorIs(t, reports[2], latest, "only the latest current aggregate is raised after the window")
+		observed = snapshot()
+		require.Len(t, observed, 3)
+		require.ErrorIs(t, observed[2], latest, "only the latest current aggregate is raised after the window")
 		change(nil)
-		require.Len(t, reports, 4)
-		require.NoError(t, reports[3])
+		observed = snapshot()
+		require.Len(t, observed, 4)
+		require.NoError(t, observed[3])
 	})
 }
