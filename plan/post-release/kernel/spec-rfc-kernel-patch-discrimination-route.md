@@ -387,23 +387,28 @@ rows describe current mechanisms, not implementation of this proposal.
 
 ## Design refresh for owner review, 2026-11-16 — UNAPPROVED
 
-### Disposition and decision required
+### Disposition and owner decision
 
 **REWORK of the earlier design is proposed.** The metadata remains `design`,
 P3, in the post-release bucket, with its original release reason. This refresh
 does not authorize implementation, a priority change, a fault patch, a build,
-an observation or a record. The main session presents the design and records
-the owner's decision before a ready/status/bucket transition.
+an observation or a record.
 
-The concrete scheduling decision is whether to bring forward **only the
-generic patched-kernel route and its receipt/packaging dependencies**, so the
-selected IPsec work can meet AC-4 in
-`plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`. That AC requires
-new-test discrimination before `RFC4301-5.2-2` loses `{partial}`. The IPsec spec
-continues to own its exact directional SA permissions, full fragment-context
-isolation, port-sensitive fragment enforcement, test changes, observations and
-records. Approval of this design alone is not approval of previously refused
-fault preparation; that separate decision remains pending.
+On 2026-11-17 the owner rejected bringing the generic patched-kernel route and
+its receipt/packaging framework forward for the IPsec product fix, calling
+option 1 "an overkill" and clarifying: "if the kernel can be used to run the
+test - it works !" For this fix, passing positive, negative and control packet
+tests on the normal Ze kernel governs runtime acceptance and closure. This
+generic C-proof route is no longer a closure dependency of
+`plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`; its promotion
+and implementation are not authorized.
+
+The IPsec spec retains ownership of the directional SA permissions, full
+fragment-context isolation, port-sensitive fragment enforcement and the normal
+runtime evidence required to close that fix. This bounded owner decision does
+not rewrite global proof rules or remove existing records. Previously refused
+fault preparation remains subject to its existing safety holds; the runtime
+acceptance decision grants no fault-preparation approval.
 
 The seven RFC792 rows in the original First population table and AC-7 remain
 later population under this spec. They are not additional release work, are not
@@ -445,9 +450,13 @@ close this whole spec or satisfy its later population criterion.
 | Recorder builds both pairs | `recordDiscrimination` orchestrates the same native builder and selected-tree packer before observing | Fewer caller steps, but adds build admission, cache/error/lifecycle orchestration to record and makes a record attempt expensive before it can be judged | Do not implement in this minimum |
 
 Keeping the existing escape is valid only where its packet-only precondition
-holds, and leaves debt. It cannot satisfy the selected IPsec AC-4. A Go
-setup/install break remains appropriate for the claim it actually falsifies;
-it cannot substitute for an observed C assertion failure.
+holds, and leaves debt with no C-discrimination credit. A Go setup/install
+break remains appropriate for the claim it actually falsifies; it cannot
+substitute for an observed C assertion failure. Under the owner's 2026-11-17
+decision, passing positive, negative and control packet tests on the normal Ze
+kernel can satisfy the selected product AC-4 without this generic route. That
+runtime acceptance does not grant C-discrimination credit or change global
+proof gates.
 
 ### Proposed entry and data flow
 
@@ -1197,6 +1206,10 @@ This records the completed source-admission checks for owner review.
 
 The proposal remains **UNAPPROVED**, with status `design`, priority P3 and
 post-release placement. A-R2, A-R3 and A-R4 remain **Unvalidated**. The owner
-still decides the complete dependency promotion and design approval; all
-existing safety holds remain in force. These source comparisons imply no owner
-approval, implementation, runtime proof or automatic-review approval.
+did not accept release promotion of this framework; the IPsec product fix
+closes on its passing normal Ze-kernel positive, negative and control packet
+tests, with this generic route removed from its closure dependencies. The
+source-admission CLEAR above remains a bounded review result, with no design
+or implementation approval, completed runtime proof or automatic-review
+approval implied. All existing safety holds remain in force, and the original
+seven RFC792 rows retain their post-release purpose under this spec.

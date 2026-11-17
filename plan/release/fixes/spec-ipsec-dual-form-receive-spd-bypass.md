@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Legacy renewal and scoped fingerprint debt complete; context proof and final gate remain; AC-4 stays open |
+| Phase | Legacy renewal/fingerprints complete; normal Ze-kernel packet acceptance and final gate remain; historical C-framework/fault-kernel closure dependencies superseded; AC-4 open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -20,8 +20,29 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 All 79 current renewals are RECORDED and all 79 exact roster keys are VERIFIED,
 with zero pending or mismatched records. The bounded legacy renewal/fingerprint
-debt is complete. Safety-action approvals and the generic C-proof design remain
-pending; full AC-4/context proof and the final Review Gate stay open.
+debt is complete. Under Thomas's one-off acceptance decision recorded in Task,
+AC-4 requires the remaining normal Ze-kernel packet tests to pass, including
+all positive, negative and control assertions without skips. Exact per-SA
+permissions, fragment-context isolation and fragment port-rule enforcement
+remain required. AC-4 and the final Review Gate stay open.
+
+The two held normal fixtures are
+`TestRFC4301FragmentsOfACompliantPacketAreDelivered` and
+`TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate`. The current
+port-constrained production Child sets noninitial permission false, while the
+positive fixture expects delivery. Their assertions are unchanged; correction
+and retry remain blocked by the prior automatic-review rejection.
+
+This decision supersedes historical statements below that make general C-proof
+tooling, a deliberately broken kernel or new C discrimination dependencies of
+this closure. Outstanding RFC proof remains separate debt under
+`plan/release/fixes/spec-rfc4301-architecture-gaps.md` and
+`plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md`;
+the generic design remains unapproved, without implementation authorization.
+Existing RFC records retain their meanings and the `{partial}` annotation
+stays unless independent RFC judgment supports promotion. Both actual safety
+rejections remain in force: the fixture-correction rejection is still blocked,
+and no retry or private fault preparation/use is authorized by this decision.
 
 This checkpoint supersedes the progress statements below about unrun raw and packet
 populations, source-only SA lifetime, and 79 unexecuted renewals. Their dated receipts
@@ -299,6 +320,24 @@ forms on one Child SA, for IPv4 outer headers. Serving both forms over an IPv6
 outer header is a gap owed after the first release (AC-8): Ze has no IPv6 IKE
 socket, so no IPv6 dual-form SA can be negotiated, and
 `plan/post-release/features/spec-ike-ipv6-transport.md` owns that work.
+
+For this closure, Thomas rejected new kernel-proof tooling as "1 is an overkill"
+and ruled "if the kernel can be used to run the test - it works !". Accept
+passing real packet tests on Ze's actual kernel for implementation acceptance,
+preserving exact per-SA permissions, fragment-context isolation and fragment
+port-rule enforcement, with every positive, negative and control assertion
+and no skips. General proof tooling and deliberately broken kernels are no
+longer prerequisites for this closure. This is a one-off acceptance decision,
+not a change to global RFC proof rules: discrimination debt and the existing
+partial annotation remain separate, and producer-halt records do not acquire
+kernel-enforcement credit. AC-4 stays open until the remaining normal fragment
+tests pass, including the held
+`TestRFC4301FragmentsOfACompliantPacketAreDelivered` and
+`TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate` fixtures. Their
+positive delivery expectation conflicts with the current port-constrained
+production Child's noninitial permission false. Assertions remain unchanged;
+the previous automatic-review rejection still blocks fixture correction and
+retry, and this ruling grants no permission to perform either.
 
 Repair the existing id/stem discrimination report's closure blocker (AC-30):
 `discriminate.go` `discriminationStatusOf` must verify source and fingerprints
@@ -981,7 +1020,7 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-1 | interop `icmp-error-payload-check`, strongSwan sending bare ESP (no `encap = yes`) | the scenario passes; its two red proofs in `plan/release/fixes/spec-rfc4301-architecture-gaps.md` are recorded. Proof (c) omits the state ICMP flag and fails consistent-error delivery with generation and SA carriage observed. Proof (d) runs clean PASS, inbound protect-policy source widened alone PASS, inbound state-selector source widened alone PASS, both widened packet-delivery RED, then clean PASS. The private IPv4 tunnel faults preserve negotiated selectors and all other state and policy fields | the in-selector error is still delivered, because the selector check passes it; each single-source fault still rejects the inconsistent error through the other selector |
 | AC-2 | interop `esp-form-change` | one Child SA delivers traffic in both forms, before and after the peer changes form, and keeps its SPI | both forms delivered, because RFC 7296 Section 2.23 requires it |
 | AC-3 | bare ESP on a veth between two network namespaces, on a 4500-without-NAT tunnel-mode SA installed by `createFirstChildSA`, under the production SPD (`unmatched discard` through `installUnmatched`, then the inbound IKE bypass through `installIKEBypass`, in `applyConfig`'s order): whole and fragmented datagrams inside and outside the SA selectors, then an explicit higher-priority host DISCARD inside that scope and its exact removal | inside: delivered; outside: refused by the actual SA selector before SPD lookup. Exact `(XfrmInStateMismatch, XfrmInNoPols, XfrmInPolBlock)` deltas: whole outside `(1,0,0)`, fragmented outside `(2,0,0)`, fragmented inside `(1,0,0)`. The original bare-form refusal contributes one mismatch on the complete path. The explicit DISCARD separately proves SPD consultation: whole `(0,0,1)`, fragmented `(1,0,1)`, neither delivered; after removal both valid forms deliver, whole `(0,0,0)` and fragmented `(1,0,0)`. Whole datagrams advance `Rewritten4` by exactly one; fragmented datagrams leave it unchanged, advance reassembly and are re-presented through `ze-espform`. Counter observations wait for exact terminal deltas within a fixed bound | in-selector traffic delivered in both forms because the SA carries it, and again after the temporary DISCARD is removed; the production catch-all, inbound IKE bypass and reader exemption remain present in SPD readback |
-| AC-4 | `rfc/short/rfc4301.md` `RFC4301-5.2-2` | carries no `{partial}` annotation, with discrimination records for the new tests | other annotations unchanged |
+| AC-4 | The selected exact per-SA permission, fragment-context isolation and fragment port-rule cases run on Ze's actual kernel | every required positive, negative and control packet case passes without skips, preserving its delivery/refusal, counter and control assertions. This satisfies this closure's implementation acceptance without general kernel-proof tooling, a deliberately broken kernel or new C discrimination. AC-4 remains open until the remaining normal fragment tests pass | RFC discrimination remains separate debt. Keep `RFC4301-5.2-2`'s `{partial}` annotation unless independent RFC judgment supports promotion under existing evidence rules; other annotations and record meanings remain unchanged |
 | AC-5 | the KNOWN DEFECT notes | `docs/guide/ipsec.md`, `LL-XFRM-STATE-ONE-ESP-FORM` and the `espFormBypassInboundPolicy` comment describe the two policy-checked paths and the firewall cost | the one-form limitation entry stays, because the kernel limit stands |
 | AC-6 | `BPF_PROG_TEST_RUN` over crafted frames | a watched SPI from its peer to its local address comes out as ESP-in-UDP with the template ports, correct lengths and a valid IPv4 header checksum, and the program returns `TCX_NEXT` | unwatched SPI, other source, other destination, a fragment, IPv4 options, IPv6 extension headers and non-ESP come out byte-identical, because the complete path or the kernel owns them |
 | AC-7 | first `Watch`, a link created afterwards, last `Forget`, `Close` | the program is attached to every non-loopback link of a supported type, a new link is attached, and links, map, TUN and sockets are released at the end; an unsupported link is logged by name | `lo` and `ze-espform` stay unattached, because a packet there is local or already encapsulated |
