@@ -160,11 +160,11 @@ func TestListenerClaimantsCountsGroupsSoTheSocketOutlivesTheLastPeer(t *testing.
 	group.IsDynamic = true
 
 	r := attrReactor(t, 0, nil, []*PeerSettings{group})
-	count, only := r.listenerClaimants(local, attrTestPort)
+	count, only, _ := r.listenerClaimants(local, attrTestPort)
 	assert.Equal(t, 1, count, "the group claims the listener on its own")
 	assert.Nil(t, only, "a group is never the peer a direct route attributes to")
 
 	elsewhere := netip.MustParseAddr("127.0.0.9")
-	count, _ = r.listenerClaimants(elsewhere, attrTestPort)
+	count, _, _ = r.listenerClaimants(elsewhere, attrTestPort)
 	assert.Equal(t, 0, count, "a group claims only the address it accepts on")
 }

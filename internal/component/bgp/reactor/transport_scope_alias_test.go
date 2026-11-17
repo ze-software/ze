@@ -147,7 +147,7 @@ func TestScopedTransportAliasListenerOwnership(t *testing.T) {
 					}
 				}
 				observedLocal := netip.MustParseAddr(scopeAliasLocalIP).WithZone(aliases.observed)
-				count, only := r.listenerClaimants(observedLocal, attrTestPort)
+				count, only, _ := r.listenerClaimants(observedLocal, attrTestPort)
 				assert.Equal(t, wantCount, count)
 				assert.Len(t, r.listenerSpecs(), wantSpecs, "distinct configured spellings retain their declarations")
 				switch owner {

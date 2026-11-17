@@ -281,6 +281,9 @@ type Reactor struct {
 	metricsRegistry   metrics.Registry // injected by caller; nil when metrics not enabled
 	rmetrics          *reactorMetrics  // cached metric references (nil when registry not set)
 
+	// Set before handlers run; nil keeps the kernel reader for partial reactors.
+	readInterfaces func() ([]net.Interface, error)
+
 	peers           map[netip.AddrPort]*Peer // keyed by netip.AddrPort (zero-alloc lookup)
 	peerGeneration  atomic.Uint64            // incremented on peer add/remove; used by ForwardUpdatesDirect batch cache
 	routerIDs       routerIDClaims           // RFC 6286 Section 2.1 AS-wide BGP Identifier claims (own leaf mutex)
@@ -580,6 +583,7 @@ func New(config *Config) *Reactor {
 		dialer:            &network.RealDialer{},
 		listenerFactory:   network.RealListenerFactory{},
 		pluginServerMaker: pluginserver.NewServer,
+		readInterfaces:    net.Interfaces,
 		peers:             make(map[netip.AddrPort]*Peer),
 		listeners:         make(map[string]*Listener),
 		recentUpdates:     newRecentUpdateCache(maxEntries),

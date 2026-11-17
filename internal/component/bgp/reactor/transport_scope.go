@@ -17,35 +17,72 @@ import (
 // transportZoneIndexMax is net's decimal-zone fallback bound (net/parse.go).
 const transportZoneIndexMax = 0xFFFFFF
 
+// transportAddressMatch keeps an unreadable interface table distinct from a
+// proven different endpoint. Zero is unspecified and never grants a match.
+type transportAddressMatch uint8
+
+const (
+	transportAddressUnspecified transportAddressMatch = iota
+	transportAddressUnknown
+	transportAddressDifferent
+	transportAddressSame
+)
+
 // sameTransportAddress compares scoped addresses at runtime socket boundaries.
 // Configuration construction MUST retain distinct zone spellings until the
 // binding boundary. Different spellings alias only when they resolve to the
 // same nonzero interface; an unreadable table denies the
 // alias. It never changes either address or a configured PeerKey.
 func sameTransportAddress(a, b netip.Addr) bool {
+	return sameTransportAddressUsing(a, b, net.Interfaces) == transportAddressSame
+}
+
+// sameTransportAddress gives ownership decisions a reactor-local interface
+// source. The production reader and comparison algorithm remain shared with
+// the other socket boundaries above. An unreadable table returns Unknown so
+// a caller cannot infer exclusive ownership from a failed alias comparison.
+func (r *Reactor) sameTransportAddress(a, b netip.Addr) transportAddressMatch {
+	return sameTransportAddressUsing(a, b, r.readInterfaces)
+}
+
+func sameTransportAddressUsing(a, b netip.Addr, read func() ([]net.Interface, error)) transportAddressMatch {
+	// TCPAddr can present IPv4 in sixteen bytes. Canonicalize comparison
+	// values without changing declarations or IPv6 interface scopes.
+	a = a.Unmap()
+	b = b.Unmap()
 	if a == b {
-		return true
+		return transportAddressSame
 	}
 	if a.WithZone("") != b.WithZone("") {
-		return false
+		return transportAddressDifferent
 	}
 	if a.Zone() == "" {
-		return false
+		return transportAddressDifferent
 	}
 	if b.Zone() == "" {
-		return false
+		return transportAddressDifferent
 	}
-	interfaces, err := readTransportInterfaces()
+	interfaces, err := readTransportInterfacesFrom(read)
 	if err != nil {
-		return false
+		return transportAddressUnknown
 	}
-	return sameTransportAddressOn(a, b, interfaces)
+	if sameTransportAddressOn(a, b, interfaces) {
+		return transportAddressSame
+	}
+	return transportAddressDifferent
 }
 
 // readTransportInterfaces publishes the same bounded diagnostic for socket
 // matching and for the physical-identity validation before sockets start.
 func readTransportInterfaces() ([]net.Interface, error) {
-	interfaces, err := net.Interfaces()
+	return readTransportInterfacesFrom(net.Interfaces)
+}
+
+func readTransportInterfacesFrom(read func() ([]net.Interface, error)) ([]net.Interface, error) {
+	if read == nil {
+		read = net.Interfaces
+	}
+	interfaces, err := read()
 	if err != nil {
 		failure := transportScopeDiagnostic(err)
 		reactorLogger().Warn(failure.Message, "code", codeTransportScopeUnknown,
@@ -191,19 +228,113 @@ func (r *Reactor) listenerForAddressPort(addr netip.Addr, port int) (string, *Li
 		return key, listener, true
 	}
 	for key, listener := range r.listeners {
-		bound, ok := listener.Addr().(*net.TCPAddr)
-		if !ok {
+		binding := newListenerBinding(netip.Addr{}, port, listener)
+		if !binding.bound.IsValid() {
 			// Simulation listeners may have no TCP endpoint. Their exact
 			// configured key above is authoritative; no alias is inferred.
 			continue
 		}
-		endpoint := bound.AddrPort()
-		if int(endpoint.Port()) != port {
-			continue
-		}
-		if sameTransportAddress(endpoint.Addr(), addr) {
+		// No query identity participates while choosing the socket: only
+		// its original declaration and actual endpoint can establish a match.
+		binding = binding.withStoredDeclaration(key)
+		if binding.matches(r, addr) == transportAddressSame {
 			return key, listener, true
 		}
 	}
 	return key, nil, false
+}
+
+// listenerBinding captures one existing socket's identity while r.mu is held.
+// The declaration and the actual TCP endpoint can differ after wildcard binding.
+// An absent TCP endpoint leaves declaration-only matching. An invalid stored
+// key records its error and makes ownership Unknown. The zero value matches no
+// valid address. This value owns no resource and is not cached.
+type listenerBinding struct {
+	address        netip.Addr
+	port           int
+	bound          netip.Addr
+	declaration    netip.Addr
+	declarationErr error
+}
+
+// newListenerBinding records the observed endpoint, when the socket has one on
+// this port. The caller MUST hold r.mu through every use of the returned value.
+func newListenerBinding(addr netip.Addr, port int, listener *Listener) listenerBinding {
+	binding := listenerBinding{address: addr.Unmap(), port: port}
+	if listener == nil {
+		return binding
+	}
+	bound, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return binding
+	}
+	if bound == nil {
+		return binding
+	}
+	endpoint := bound.AddrPort()
+	if int(endpoint.Port()) != port {
+		return binding
+	}
+	binding.bound = endpoint.Addr().Unmap()
+	return binding
+}
+
+// withStoredDeclaration retains the configured identity of an existing socket.
+// An invalid internal key makes the whole claim count Unknown; query and bound
+// observations stay available, but cannot justify exclusive or absent ownership.
+func (binding listenerBinding) withStoredDeclaration(key string) listenerBinding {
+	endpoint, err := netip.ParseAddrPort(key)
+	if err != nil {
+		binding.declarationErr = err
+		return binding
+	}
+	if int(endpoint.Port()) != binding.port {
+		binding.declarationErr = fmt.Errorf("stored listener port %d differs from binding port %d",
+			endpoint.Port(), binding.port)
+		return binding
+	}
+	binding.declaration = endpoint.Addr().Unmap()
+	return binding
+}
+
+// listenerBindingForAddressPort keeps the observed socket when runtime lookup
+// established one. The caller MUST hold r.mu until the binding is no longer used.
+func (r *Reactor) listenerBindingForAddressPort(addr netip.Addr, port int) listenerBinding {
+	key, listener, found := r.listenerForAddressPort(addr, port)
+	if !found {
+		return newListenerBinding(addr, port, nil)
+	}
+	return newListenerBinding(addr, port, listener).withStoredDeclaration(key)
+}
+
+// matches counts the query, stored declaration or observed endpoint as the same
+// binding. A positive identity overrides an unresolved alternate spelling;
+// otherwise Unknown stays Unknown. The caller MUST hold r.mu.
+func (binding listenerBinding) matches(r *Reactor, candidate netip.Addr) transportAddressMatch {
+	if binding.declarationErr != nil {
+		return transportAddressUnknown
+	}
+	match := r.sameTransportAddress(candidate, binding.address)
+	if match == transportAddressSame {
+		return match
+	}
+	if binding.declaration.IsValid() {
+		declarationMatch := r.sameTransportAddress(candidate, binding.declaration)
+		if declarationMatch == transportAddressSame {
+			return declarationMatch
+		}
+		if declarationMatch == transportAddressUnknown {
+			match = declarationMatch
+		}
+	}
+	if binding.bound.IsValid() {
+		boundMatch := r.sameTransportAddress(candidate, binding.bound)
+		if boundMatch == transportAddressSame {
+			return boundMatch
+		}
+		if boundMatch == transportAddressUnknown {
+			return boundMatch
+		}
+	}
+	return match
 }

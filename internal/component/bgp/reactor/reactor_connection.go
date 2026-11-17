@@ -48,8 +48,9 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 
 // handleConnectionWithContext handles an incoming TCP connection with listener context.
 // listenerAddr is the local address the listener is bound to.
-// Static peers must match that binding. Dynamic peers are already qualified by
-// the actual accepted endpoint, which can differ from a wildcard declaration.
+// Static peers must match that declaration or a verified address of the same
+// stored socket. Dynamic peers are already qualified by the accepted endpoint,
+// which can differ from a wildcard declaration.
 func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.Addr) {
 	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
 	if !ok {
@@ -66,13 +67,34 @@ func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.
 
 	settings := peer.Settings()
 
-	// A dynamic template's wildcard declaration need not match the listener's
-	// declaration: peerForConnection has already checked its actual endpoint.
+	// A dynamic template's endpoint is already checked. For a static peer,
+	// generic TCP may have translated the original wildcard declaration; only
+	// the existing socket can establish that its other declaration is eligible.
 	if !settings.IsDynamic {
 		if settings.LocalAddress.IsValid() {
 			if !sameTransportAddress(settings.LocalAddress, listenerAddr) {
-				closeConnQuietly(conn)
-				return
+				local, ok := conn.LocalAddr().(*net.TCPAddr)
+				if !ok {
+					closeConnQuietly(conn)
+					return
+				}
+				if local == nil {
+					closeConnQuietly(conn)
+					return
+				}
+				port := local.Port
+				if r.peerListenPort(settings) != port {
+					closeConnQuietly(conn)
+					return
+				}
+				r.mu.RLock()
+				binding := r.listenerBindingForAddressPort(listenerAddr, port)
+				match := binding.matches(r, settings.LocalAddress)
+				r.mu.RUnlock()
+				if match != transportAddressSame {
+					closeConnQuietly(conn)
+					return
+				}
 			}
 		}
 	}
@@ -143,9 +165,9 @@ func (r *Reactor) handleListenerConnection(conn net.Conn, listenerAddr netip.Add
 // IP instead.
 //
 // A key is returned only when both hold:
-//   - exactly one object in the configuration claims that address and port, and
-//     it is a passive peer. listenerClaimants counts a dynamic group as a
-//     claimant too, because a group accepts on the same socket.
+//   - ownership is known and exactly one object in the configuration claims
+//     that address and port, and it is a passive peer. listenerClaimants counts
+//     a dynamic group too, because a group accepts on the same socket.
 //   - the socket is not on the well-known BGP port. A peer that names no local
 //     address gets no listener here at all: its inbound arrives on the daemon's
 //     global socket, which attributes by remote IP (handleConnection). On port
@@ -163,8 +185,14 @@ func (r *Reactor) handleListenerConnection(conn net.Conn, listenerAddr netip.Add
 // and closes what it cannot match.
 // Must be called with r.mu held.
 func (r *Reactor) listenerPeerKey(addr netip.Addr, port int) netip.AddrPort {
-	count, only := r.listenerClaimants(addr, port)
-	if count != 1 || only == nil {
+	count, only, known := r.listenerClaimants(addr, port)
+	if !known {
+		return netip.AddrPort{}
+	}
+	if count != 1 {
+		return netip.AddrPort{}
+	}
+	if only == nil {
 		return netip.AddrPort{}
 	}
 	if port == DefaultBGPPort {
@@ -173,17 +201,30 @@ func (r *Reactor) listenerPeerKey(addr netip.Addr, port int) netip.AddrPort {
 	return only.PeerKey()
 }
 
-// listenerClaimants reports how many configured objects need a listener on
+// listenerClaimants reports how many configured objects need the binding at
 // addr:port, and the settings of the single passive peer among them when there
-// is exactly one claimant and no dynamic group.
+// is exactly one claimant and no dynamic group. The final result says whether
+// the count is known: an unreadable interface table leaves possible aliases
+// unknown, so callers MUST NOT infer exclusive ownership or an unused socket.
 //
-// A claimant is a passive peer whose local address is addr and whose listen port
-// is port, or a dynamic group with the same pair. A dynamic group accepts
+// A claimant is a passive peer or dynamic group on this listen port whose local
+// declaration identifies this stored socket or its actual endpoint. With no
+// stored socket, only the supplied address is known. A dynamic group accepts
 // connections nothing in the configuration names. That is why it opens a
 // listener of its own (startMultiListeners), and why a listener it shares must
 // attribute by remote IP.
 // Must be called with r.mu held.
-func (r *Reactor) listenerClaimants(addr netip.Addr, port int) (int, *PeerSettings) {
+func (r *Reactor) listenerClaimants(addr netip.Addr, port int) (int, *PeerSettings, bool) {
+	return r.listenerClaimantsForBinding(r.listenerBindingForAddressPort(addr, port))
+}
+
+// listenerClaimantsForBinding counts each configured claimant once across the
+// declaration and observed endpoint of one stored socket. The caller MUST hold
+// r.mu while constructing and counting the binding.
+func (r *Reactor) listenerClaimantsForBinding(binding listenerBinding) (int, *PeerSettings, bool) {
+	if binding.declarationErr != nil {
+		return 0, nil, false
+	}
 	count := 0
 	var only *PeerSettings
 	for _, peer := range r.peers {
@@ -191,10 +232,14 @@ func (r *Reactor) listenerClaimants(addr netip.Addr, port int) (int, *PeerSettin
 		if !s.LocalAddress.IsValid() || !s.Connection.IsPassive() {
 			continue
 		}
-		if r.peerListenPort(s) != port {
+		if r.peerListenPort(s) != binding.port {
 			continue
 		}
-		if !sameTransportAddress(s.LocalAddress, addr) {
+		match := binding.matches(r, s.LocalAddress)
+		if match == transportAddressUnknown {
+			return 0, nil, false
+		}
+		if match != transportAddressSame {
 			continue
 		}
 		count++
@@ -204,19 +249,23 @@ func (r *Reactor) listenerClaimants(addr netip.Addr, port int) (int, *PeerSettin
 		if dg.Settings == nil || !dg.Settings.LocalAddress.IsValid() || !dg.Settings.Connection.IsPassive() {
 			continue
 		}
-		if r.peerListenPort(dg.Settings) != port {
+		if r.peerListenPort(dg.Settings) != binding.port {
 			continue
 		}
-		if !sameTransportAddress(dg.Settings.LocalAddress, addr) {
+		match := binding.matches(r, dg.Settings.LocalAddress)
+		if match == transportAddressUnknown {
+			return 0, nil, false
+		}
+		if match != transportAddressSame {
 			continue
 		}
 		count++
 		only = nil
 	}
 	if count != 1 {
-		return count, nil
+		return count, nil, true
 	}
-	return count, only
+	return count, only, true
 }
 
 // handleDirectConnection handles a connection on a per-peer-port listener.

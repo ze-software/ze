@@ -1216,17 +1216,40 @@ their distinct spellings; runtime binding reuses one physical socket for aliases
 with all of its configured claimants. This applies
 when a listener starts, gains or loses a claimant, and follows address events.
 An unreadable host interface table refuses an alias match and scoped peer
-startup or live admission. It appears in
+startup or live admission. A stored socket's configured key and observed TCP
+endpoint can establish a claim without that lookup. Otherwise, a remaining
+claimant differing only in its interface zone leaves ownership unknown. Such
+a listener attributes incoming connections by remote address, and removing a
+peer retains the socket until no possible claimant remains. Different addresses
+or listen ports need no interface lookup. The read failure appears in
 `ze doctor` under `doctor-bgp-transport-scope-unknown`; inspect the reported
 access failure and run `ze show interface brief`.
 <!-- source: internal/component/bgp/reactor/transport_scope.go -- sameTransportAddress, transportZoneIndex, listenerForAddressPort -->
 <!-- source: internal/component/bgp/reactor/register_transport_scope.go -- doctorTransportScopes, transportScopeDiagnostic -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- listenerClaimants, listenerPeerKey -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer -->
+
+When generic TCP translates an IPv4 wildcard bind into an IPv6 wildcard socket,
+a declaration matching its observed endpoint can share that socket. Both
+declarations remain claimants; removing either preserves the other, and shared
+attribution selects the configured remote peer. This applies only to the
+verified stored binding, not to arbitrary wildcard address pairs.
+The original stored declaration also keeps a canonical replacement group as an
+owner when a reload changes an IPv4-mapped spelling. Comparison does not rewrite
+the retained listener key or group declaration. The same identity is used when
+a peer is added and when its final removal selects the socket, so a canonical
+replacement does not try a second bind or leave a historical entry open.
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- newListenerBinding, listenerBindingForAddressPort, withStoredDeclaration -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- listenerClaimantsForBinding, handleConnectionWithContext -->
 
 Dynamic groups first qualify the accepted socket's actual local address and
 listen port, then choose the longest matching remote prefix among those groups.
 An `auto` local address accepts any local address on the group's listen port.
 Explicit wildcard addresses `0.0.0.0` and `::` retain TCP wildcard binding
 semantics; the actual receiving port still has to match the group's listen port.
+Wildcard eligibility first compares canonical IPv4 identity, so a mapped
+`::ffff:0.0.0.0` declaration keeps `0.0.0.0` semantics without rewriting the
+template's address.
 The member retains the incoming remote zone in its identity. A connection on
 an ineligible local address or port cannot create, count or reuse that group's member.
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- handleConnection, handleConnectionWithContext -->

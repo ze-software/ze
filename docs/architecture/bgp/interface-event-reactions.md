@@ -59,9 +59,40 @@ physical aliases; building the declarations never drops a prospective socket.
 <!-- source: internal/component/bgp/reactor/reactor.go -- listenerSpecs, startListenerForAddressPort -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- addPeerLocked, doRemovePeer -->
 
+The original declaration and the observed TCP endpoint identify one stored
+socket. Generic TCP can bind an IPv4 wildcard as an IPv6 wildcard; a later
+declaration matching that observed endpoint reuses the same listener. Each
+configured peer or group counts once across those verified identities. Shared
+listeners attribute by remote address, and static context accepts another
+declaration only when it identifies that same stored socket on the receiving
+port. Wildcards are not treated as interchangeable without that binding.
+The stored declaration is compared with canonical IPv4 identity, so a group
+reload can change its mapped spelling without losing ownership of a retained
+socket. Its original map key and configured group spelling remain unchanged.
+The original declaration participates when choosing a socket for a live peer
+addition and when selecting an entry for final removal, before claims are
+counted. A canonical replacement therefore reuses and releases the original
+mapped-key entry even when its observed wildcard has another address family.
+
+If neither the stored declaration nor the observed endpoint establishes a
+possible interface alias, an unreadable interface table leaves ownership
+unknown. Removal retains that socket and incoming connections use remote-address
+attribution. Removal checks the exact configured key and other bindings whose
+stored or observed zone-free address matches the removed peer on its listen
+port. Only a known empty claimant
+set closes the original entry, even when the last peer's spelling cannot resolve
+to its key. Other ports and the global listener remain unchanged. A simulation
+without a TCP endpoint uses its exact configured key alone.
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- newListenerBinding, listenerBindingForAddressPort, withStoredDeclaration -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- listenerClaimants, listenerPeerKey -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handleConnectionWithContext, listenerClaimantsForBinding -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer -->
+
 **Addresses are normalized with `addr.Unmap()` before comparison.** An IPv4
 address can be read as `::ffff:10.0.0.1`. Without `Unmap`, the match against a
 peer `LocalAddress` of `10.0.0.1` fails in silence.
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- sameTransportAddressUsing -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer -->
 
 **Subnet membership compares addresses without transport zones.**
 `network.SharesSubnet` and the peer address captured by `newLinkScopeWith`
