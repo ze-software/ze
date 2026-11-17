@@ -94,7 +94,7 @@ main.go:8:1: the methods of "RPC" use pointer receiver and non-pointer receiver
 # .golangci.yml
 linters-settings:
   recvcheck:
-    # Disable default exclusions (MarshalJSON, etc.)
+    # Disable default exclusions (UnmarshalJSON, etc.)
     disable-builtin: false
     
     # Custom exclusions
@@ -106,7 +106,7 @@ linters-settings:
 ### Default Exclusions
 
 Unmarshal methods are excluded by default as they must use pointer receivers:
-- `*.UnmarshalText`, `*.UnmarshalJSON`, `*.UnmarshalYAML`
+- `*.UnmarshalText`, `*.UnmarshalJSON`, `*.UnmarshalJSONFrom`, `*.UnmarshalYAML`
 - `*.UnmarshalXML`, `*.UnmarshalBinary`, `*.GobDecode`
 
 ## Examples

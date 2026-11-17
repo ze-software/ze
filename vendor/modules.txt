@@ -1230,8 +1230,8 @@ github.com/quasilyte/regex/syntax
 # github.com/quasilyte/stdinfo v0.0.0-20220114132959-f7386bf02567
 ## explicit; go 1.17
 github.com/quasilyte/stdinfo
-# github.com/raeperd/recvcheck v0.3.1
-## explicit; go 1.25.0
+# github.com/raeperd/recvcheck v0.3.2
+## explicit; go 1.26.0
 github.com/raeperd/recvcheck
 # github.com/rivo/uniseg v0.4.7
 ## explicit; go 1.18
