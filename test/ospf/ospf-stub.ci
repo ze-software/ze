@@ -1,4 +1,6 @@
 # Test: OSPFv2 stub / totally-stubby area config surface (spec-ospf-11).
+# QUESTION: Does config validate accept a stub area and refuse a 25-bit default cost?
+# WHY NOT UNIT: This exercises the registered schema through the CLI's stdin validation and diagnostic output.
 #
 # VALIDATES: spec-ospf-11-stub-nssa -- a `area-type stub` area with `default-cost` and
 # `no-summary` (totally-stubby) validates through the OSPF YANG schema and verifier; the
@@ -55,4 +57,4 @@ EOF_BAD
 
 cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-stub-badcost:exit=1
 expect=exit:code=1
-expect=stdout:contains=range 0..16777215
+expect=stdout:contains=default-cost accepts a value in 0..16777215
