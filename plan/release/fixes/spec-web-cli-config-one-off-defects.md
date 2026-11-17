@@ -190,6 +190,31 @@ cannot expose or restore discarded intent. Positive evidence must include the
 real browser journey from failure through cancellation and confirmed recovery
 to a usable editor, plus unauthorized negative cases.
 
+Implementation: the independent `/config/recover` form and registered POST use
+the existing discard authorization, same-origin middleware and audit sink.
+`TestBrowserConfigRecoveryFromBrokenFinder` passes the native browser journey
+through cancellation, required confirmation, removal, reopening and a new edit
+(2.80 seconds). `TestCorruptChangeRecovery*` covers guarded identity, readable
+candidate refusal and injected storage outcomes. `TestConfigRecovery*` covers
+both graphical shells, authorization, preserved files, busy-editor refusal and
+failed-refresh fencing. The route and admitted-editor regressions each failed
+before their fixes. Existing corrupt-file refusal/discard tests pass. The new
+component and handler captures pass; no unrelated fixture was refreshed.
+Fault injection also reproduced a false retention claim after uncertain removal
+and a raw parser echo from a concurrently recreated malformed file. Recovery
+now fences uncertain state without reparsing it and redacts the replacement's
+contents while retaining the confirmed removal outcome.
+The final backend/rendering run passed every selected case except one obsolete
+warning sentence; its independently approved correction then passed its named
+rerun. Repository-wide documentation checks report published command-catalog
+drift outside this change. Scoped lint produced no plan because another session
+changed `internal/component/plugin/server/dispatch.go` and two dependencies
+during its input survey; a completed lint verdict is not claimed.
+The regenerated documentation indexes are current. Source-anchor checks resolve
+the recovery pages and report seven unrelated stale `validate_route.go` symbols
+in the API-command and YANG-design pages.
+The broader parent spec remains open for its other work.
+
 ### Correctness before further parity work (2026-11-17)
 
 Owner priority, verbatim:
@@ -624,12 +649,12 @@ that startup authority. Neither that implementation nor full conformance
 execution parity is claimed complete.
 
 The broader source inventory also leaves these executable gaps open: a browser
-workspace for a caller's offline backup artifact, daemon forms of standalone
-root/flag workflows outside the registered-command census, and explicit remote
-recovery of an unreadable pending change file. Ordinary web recovery and
-discard refuse unreadable intent rather than bypassing their audit guard.
-These remain parity work; registered-path coverage does not establish their
-implementation or execution.
+workspace for a caller's offline backup artifact and daemon forms of standalone
+root/flag workflows outside the registered-command census. Explicit remote
+recovery of an unreadable pending change file is implemented under the amendment
+above. Ordinary discard still refuses an unreadable audit snapshot; the separate
+recovery action requires its own warning and confirmation. Registered-path
+coverage alone does not establish the remaining parity work.
 
 P6d is implemented locally. Its initial baseline reproduced twelve missing
 offline explanations. The corrected published-schema fixture then passed all

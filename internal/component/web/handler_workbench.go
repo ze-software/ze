@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -87,6 +88,10 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		if mgr != nil && username != "" {
 			userTree, err := mgr.viewTree(username)
 			if err != nil {
+				if cli.IsCorruptChangeFile(err) {
+					writeConfigRecoveryError(w, r, renderer)
+					return
+				}
 				http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
 				return
 			}

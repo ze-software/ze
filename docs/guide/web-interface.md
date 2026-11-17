@@ -643,13 +643,22 @@ Admin command results are displayed as titled cards showing the command name, ou
 **Corrupt change files:** An unknown path, malformed command or invalid
 structural syntax in a stored per-user change file prevents the browser from
 reopening that candidate. The error names the file, which remains unchanged.
-Normal web discard also stops when it cannot read the audit snapshot. Preserve
-the file and ask an administrator to inspect and repair the named storage
-problem before reopening the editor. An invalid leaf value or leaf-list member
+Normal web discard also stops when it cannot read the audit snapshot. Open
+`/config/recover` with an account authorized to discard configuration changes.
+Review the warning, select the confirmation checkbox, and press **Discard
+unreadable pending change file** to discard that account's corrupt change file.
+This also discards SSH or console changes in the same file: their ownership
+cannot be read. The file can retain structural instructions after **Save draft**;
+those instructions are lost too. The separate saved draft file, other accounts
+and running configuration are kept. Cancel leaves the corrupt file intact. If the file changes
+after the form opens, recovery refuses; open the form again to review it.
+An invalid leaf value or leaf-list member
 in an otherwise readable API candidate remains editable: commit refuses the
 value, and the operator can apply its proposed correction while preserving
 other changes.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
+<!-- source: internal/component/cli/editor_change_recovery.go -- InspectCorruptChangeFile, CorruptChangeFile.Discard -->
+<!-- source: internal/component/web/component_config_recovery.templ -- recovery confirmation -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.
 <!-- source: internal/component/web/render.go -- AssetHandler -->

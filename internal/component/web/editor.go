@@ -788,6 +788,11 @@ func (m *EditorManager) viewTree(username string) (*config.Tree, error) {
 // editorSessionRefusal describes a failed candidate-session read or open.
 // A refusal from the editor already owns its recovery instructions.
 func editorSessionRefusal(err error) *opererr.Error {
+	if cli.IsCorruptChangeFile(err) {
+		return opererr.New("Your pending configuration changes could not be opened.",
+			"The unreadable change file was kept; review the recovery warning before discarding its contents",
+			"Open /config/recover")
+	}
 	if refusal, ok := errors.AsType[*opererr.Error](err); ok {
 		return refusal
 	}

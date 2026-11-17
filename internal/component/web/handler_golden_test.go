@@ -278,6 +278,19 @@ var webHandlerGoldenCases = []webHandlerCase{
 		Form: "config=" + webUploadedConfig},
 	{Name: "post-config-discard", Method: http.MethodPost, Target: "/config/discard"},
 	{Name: "post-config-discard-path", Method: http.MethodPost, Target: "/config/discard/bgp/"},
+	{Name: "get-config-recovery", Method: http.MethodGet, Target: "/config/recover",
+		EditorSetup: webGoldenCorruptChangeFile,
+		CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			require.Equal(t, http.StatusOK, response.Code)
+			require.Contains(t, response.Body.String(), `id="config-recovery-confirm"`)
+		}},
+	{Name: "post-config-recovery", Method: http.MethodPost, Target: "/config/recover",
+		Form:        "confirm=discard&fingerprint=" + recoveryFingerprint(corruptRecoveryContent),
+		EditorSetup: webGoldenCorruptChangeFile,
+		CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			require.Equal(t, http.StatusSeeOther, response.Code)
+			require.Equal(t, "/show/", response.Header().Get("Location"))
+		}},
 
 	// Workbench related-tool execution.
 	{Name: "post-tools-related-run", Method: http.MethodPost, Target: "/tools/related/run",
@@ -322,6 +335,11 @@ var webHandlerGoldenCases = []webHandlerCase{
 	{Name: "get-l2tp-samples-csv", Method: http.MethodGet, Target: "/l2tp/user1/samples.csv"},
 	{Name: "get-l2tp-samples-stream", Method: http.MethodGet, Target: "/l2tp/user1/samples/stream", Stream: true},
 	{Name: "get-gokrazy", Method: http.MethodGet, Target: "/gokrazy/"},
+}
+
+func webGoldenCorruptChangeFile(t *testing.T, manager *EditorManager) {
+	t.Helper()
+	require.NoError(t, manager.store.WriteFile(cli.ChangePath(manager.configPath, webGoldenUser), []byte(corruptRecoveryContent), 0o600))
 }
 
 // webNavRewrites names the navigation pages whose handler reads the machine
@@ -723,7 +741,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool, policies ...aaaAuthorizer) *we
 		WrapAuth:     authWrap,
 		WrapMutation: mutationWrap,
 	}
-	routeDeps := RouteDeps{Renderer: renderer, Dispatch: dispatch}
+	routeDeps := RouteDeps{Renderer: renderer, Dispatch: dispatch, Authorizer: authorizer, EditorManager: editorMgr}
 
 	for _, route := range RegisteredWebRoutes() {
 		mux.Handle(route.Pattern, routeWraps[route.Wrap](route.Build(routeDeps)))

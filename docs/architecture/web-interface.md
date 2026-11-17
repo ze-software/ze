@@ -80,6 +80,7 @@ Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `field
 /config/diff-close          Close diff modal (GET, returns closed modal HTML)
 /config/commit              Apply pending changes (POST)
 /config/discard             Revert pending changes (POST)
+/config/recover             Review corrupt change-file recovery (GET), confirm (POST)
 /config/import              Stage local file or pasted content in the user's candidate (POST)
 /cli                        CLI command execution (POST)
 /cli/complete?input=X       Tab/? autocomplete (GET, returns JSON)
@@ -195,6 +196,32 @@ lock, so it also serializes with that user's edits.
 <!-- source: internal/component/web/editor.go -- discardDiff, diffChanges -->
 <!-- source: internal/component/web/handler_config_commit.go -- HandleConfigDiscardWithAuthorizerAndAudit -->
 <!-- source: internal/component/config/change_file.go -- PendingChangeFromSessionEntry, StructuralOp.PendingChange -->
+
+An unreadable per-account change file has a separate recovery form at
+`/config/recover`. The form opens without creating an editor. Both viewing it
+and confirming recovery require configuration-discard authorization; the POST
+also requires the normal same-origin check. Confirmation discards the entire
+authenticated account's unreadable pending change file, including any SSH or
+console intent in that file, because its ownership cannot be parsed. Structural
+instructions retained in that file after saving are lost too. The separate
+saved draft file, other accounts and committed configuration are kept.
+The recovery producer checks the file's content fingerprint under the storage
+guard before removing it, so a stale confirmation cannot delete replacement
+changes. Readable candidates, including invalid leaf values that remain
+editable, are refused. The page and audit record never include raw file contents.
+<!-- source: internal/component/cli/editor_change_recovery.go -- InspectCorruptChangeFile, CorruptChangeFile.Discard -->
+<!-- source: internal/component/cli/editor_draft.go -- SaveDraft -->
+<!-- source: internal/component/web/handler_config_recovery.go -- recovery form and confirmation -->
+
+Recovery refuses while the account has an active editor request. If removal is
+uncertain or cached candidate reconstruction fails, already-admitted requests receive
+an unavailable editor that cannot expose or mutate the old candidate. A later
+request opens a fresh editor and retries stored recovery. Storage failures
+distinguish a kept file, confirmed removal and an uncertain removal result;
+confirmed removals remain audited even when final cleanup reports an error.
+<!-- source: internal/component/web/recovery_blocked_editor.go -- blockedRecoveryEditor -->
+<!-- source: internal/component/web/handler_config_recovery.go -- recoverCorruptChangeFile -->
+<!-- source: internal/component/cli/editor_change_recovery.go -- ChangeRecoveryOutcome -->
 
 Authenticated Finder and Workbench requests open the user's current editor and
 read a tree snapshot under its session lock, including the first request and

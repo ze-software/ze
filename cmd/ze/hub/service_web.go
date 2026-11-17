@@ -725,7 +725,8 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		zeweb.WrapAuth:     authWrap,
 		zeweb.WrapMutation: mutationWrap,
 	}
-	routeDeps := zeweb.RouteDeps{Renderer: renderer, Dispatch: dispatch, Authorizer: authorizer}
+	routeDeps := zeweb.RouteDeps{Renderer: renderer, Dispatch: dispatch, Authorizer: authorizer,
+		EditorManager: editorMgr, Recorder: recorder}
 	for _, route := range zeweb.RegisteredWebRoutes() {
 		if route.Enabled != nil && !route.Enabled() {
 			continue

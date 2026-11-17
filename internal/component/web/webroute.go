@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/audit"
 )
 
 // WrapKind selects the auth/mutation middleware the hub applies to a route. The
@@ -34,6 +35,10 @@ const (
 type RouteDeps struct {
 	Renderer *Renderer
 	Dispatch CommandDispatcher
+	// EditorManager and Recorder let editor routes use the shared candidate
+	// owner and audit sink without adding feature-specific wiring in the hub.
+	EditorManager *EditorManager
+	Recorder      audit.Recorder
 	// Authorizer is the hub's live authorizer, the fallback for a session
 	// that carries none of its own (authorizerForRequest). Nil when no
 	// authorization is configured, and in insecure mode.

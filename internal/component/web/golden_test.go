@@ -168,6 +168,14 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "clean", Data: diffModalOpen(commitModalData{})},
 		}},
 	},
+	"component_config_recovery.templ": {
+		{Name: "configRecovery", Fixture: "component/config_recovery", Variants: []golden.Variant{
+			{Data: configRecovery(configRecoveryData{Username: "operator", Fingerprint: strings.Repeat("f", 64)})},
+		}},
+		{Name: "configRecoveryError", Fixture: "component/config_recovery_error", Variants: []golden.Variant{
+			{Data: configRecoveryError()},
+		}},
+	},
 	"component_error_panel.templ": {{
 		Name:     "errorPanel",
 		Fixture:  "component/error_panel",
