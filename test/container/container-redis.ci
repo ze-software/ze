@@ -1,0 +1,399 @@
+# Test: the closing test of the container work. An operator fetches the
+#       published Redis image by its short name, declares a container for it
+#       on a container network with port 6379 published, allows that port in
+#       the firewall policy and commits. A client beyond the router then
+#       speaks the Redis protocol to it, the value it stored survives
+#       `request container restart`, a port no container publishes is
+#       refused, and with the policy term removed the client is cut off and
+#       `show doctor` names the term to add.
+# Spec: spec-container-4-operator-surface, section X-1 and AC-15 (umbrella
+#       AC-14)
+# QUESTION: does the real published Redis image run as a Ze container and
+#   serve a client beyond the router, through the operator's own entry
+#   points, with its data kept across a restart and its published port
+#   subject to the firewall policy?
+# VALIDATES: the registry entry of the config and its mirror, the fetch of a
+#   multi-platform image into the real image store, a container added by a
+#   commit after its image is present, the image's own entrypoint under the
+#   runtime's confinement, the port's translation, the forward policy, the
+#   writable layer kept across `request container restart`, and the
+#   port-blocked finding of doctor.
+# PREVENTS: a feature that runs the test images and not a published one; a
+#   writable layer that a restart discards; a restart that restarts nothing;
+#   a published port that opens the firewall by itself; a blocked port doctor
+#   is silent about.
+# Why not a unit test: the answer is what the registry client, the image
+#   store's layer application, the runtime against the image's own start
+#   script, the network plugin's translation, the firewall plugin and the
+#   kernel do together, from the config and the CLI an operator uses. No
+#   unit test holds the published image or a forward hook.
+#
+# The image: the compiled registry fixture, with the word `redis`, serves the
+# seeded published Redis image (the index pinned in
+# test/interop-container/redis.pin, linux/amd64 and linux/arm64) as
+# library/redis:latest on the loopback port $PORT2. Without the seed the
+# fixture refuses to start and names `./le test container-seed fetch`, so
+# this test fails and never skips. The config names that port as the mirror
+# of docker.io over plain HTTP, and no test key is set: the short name
+# `redis` completes to docker.io/library/redis:latest and reaches the
+# fixture, as it reaches the hub on a router with Internet access. The
+# daemon runs with no fixture store named, so the real image store answers,
+# with its data directory under /run: in the QEMU guest the test's work
+# directory is on the 9p share, and an overlay cannot take a 9p directory as
+# its upper layer.
+#
+# The order is the operator's: fetch first, then declare. The daemon starts
+# on running.conf, which holds the registry entry and no container. After
+# the fetch the probe's adopt mode writes declared.conf over running.conf
+# and sends `request reload`, which answers once every plugin applied the
+# file: that is the commit of steps 2 to 5 of section X-1. blocked.conf is
+# declared.conf without the term that accepts the published port: the commit
+# of step 9.
+#
+# The client runs beyond the router: in a network namespace of its own,
+# joined to the router by a veth pair with an address on each end, connecting
+# to the router's address on that link. Its connection is translated at
+# prerouting and then crosses the forward hook, where the policy decides.
+#
+# How the restart is proven: the client's save script stores a value, stores
+# the run id the server reports in INFO (a value a Redis server draws at each
+# start), and sends SAVE, which answers once the snapshot file is written.
+# After the restart the kept script, on a new connection, writes nothing: it
+# reads the value and the stored run id back and requires the server's own
+# run id to be another one. So the value came from the disk of a server
+# started since, in the container's writable layer: the config declares no
+# volume.
+#
+# What differs from section X-1, and why:
+# - Step 1 asserts the whole reference and the digest on the listing's row,
+#   not on the fetch command's answer: the command answers after 20 seconds
+#   that the fetch still runs (imagestore/fetch.go fetchAnswerWaitDefault),
+#   and this image can take longer. The probe prints the answer either way.
+# - Step 7's listing has no restart-count: show container list carries none
+#   yet (list_cmd.go listCommandDecl). The run id proves the restart.
+# - Ports 6379 and 6380 are literal, as the section states them, where a
+#   test takes its ports from the runner: the published port is the one an
+#   operator's first Redis container uses. The suite runs serially in its
+#   guest and the runner's ports start at 25000.
+# - The step before the last doctor check is a control the section does not
+#   list: with the client cut off, the router itself still reads the value
+#   through the output hook, so the container serves and the forward policy
+#   alone stops the client.
+#
+# caps: sys-admin for the container and the namespace, net-admin for the
+# bridge, the links and the nft tables.
+
+option=needs-linux:caps=net-admin,sys-admin
+option=exclusive:group=container
+option=timeout:value=1200s
+option=env:var=ze.data.dir:value=/run/ze-container-test-redis-$PORT
+option=env:var=ze.log.container:value=debug
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+interface {
+	backend netlink
+}
+firewall {
+	backend nft
+}
+container {
+	registry docker.io {
+		transport http
+		mirror {
+			address 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+EOF_CONF
+tmpfs=declared.conf:terminator=EOF_DECLARED
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+interface {
+	backend netlink
+}
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain forward {
+			type filter
+			hook forward
+			priority 0
+			policy drop
+			term replies {
+				from {
+					connection-state established,related
+				}
+				then {
+					accept
+				}
+			}
+			term container_redis_redis {
+				from {
+					protocol tcp
+					destination-port 6379
+					output-interface zcn-lan
+				}
+				then {
+					accept
+				}
+			}
+		}
+	}
+}
+container {
+	registry docker.io {
+		transport http
+		mirror {
+			address 127.0.0.1
+			port $PORT2
+		}
+	}
+	network lan {
+		prefix 10.88.0.0/24
+	}
+	instance redis {
+		image redis
+		network lan {
+		}
+		port redis {
+			listen-port 6379
+			container-port 6379
+		}
+	}
+}
+EOF_DECLARED
+tmpfs=blocked.conf:terminator=EOF_BLOCKED
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+interface {
+	backend netlink
+}
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain forward {
+			type filter
+			hook forward
+			priority 0
+			policy drop
+			term replies {
+				from {
+					connection-state established,related
+				}
+				then {
+					accept
+				}
+			}
+		}
+	}
+}
+container {
+	registry docker.io {
+		transport http
+		mirror {
+			address 127.0.0.1
+			port $PORT2
+		}
+	}
+	network lan {
+		prefix 10.88.0.0/24
+	}
+	instance redis {
+		image redis
+		network lan {
+		}
+		port redis {
+			listen-port 6379
+			container-port 6379
+		}
+	}
+}
+EOF_BLOCKED
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-redis-$PORT:exit=0
+
+# X-1 step 0: the client's namespace, and the veth pair that joins it to the
+# router.
+cmd=foreground:seq=2:exec=ip netns add zerds$PORT:exit=0
+cmd=foreground:seq=3:exec=ip link add zro$PORT type veth peer name zri$PORT netns zerds$PORT:exit=0
+cmd=foreground:seq=4:exec=ip address add 172.31.251.1/24 dev zro$PORT:exit=0
+cmd=foreground:seq=5:exec=ip link set dev zro$PORT up:exit=0
+cmd=foreground:seq=6:exec=ip -n zerds$PORT address add 172.31.251.2/24 dev zri$PORT:exit=0
+cmd=foreground:seq=7:exec=ip -n zerds$PORT link set dev zri$PORT up:exit=0
+
+# The outside namespace reaches the router's address on the link: a
+# connection to a port nothing listens on gets the router's reset back.
+cmd=foreground:seq=8:exec=ip netns exec zerds$PORT ze-containerprobe refused 172.31.251.1 6380:timeout=15s:exit=0
+expect=stdout:pattern=probe: the connection to 172\.31\.251\.1:6380 was refused
+reject=stdout:contains=probe: FAIL
+
+# The registry the config's mirror names, serving the seeded published image.
+cmd=background:seq=9:exec=le test fixture container/registry $PORT2 redis:name=registry:timeout=1190s:ready=REGISTRY: listening on
+
+cmd=background:seq=10:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# X-1 step 1: the operator fetches the short name. The probe types the
+# command, prints its answer, then waits for the listing's row of the whole
+# reference to be present.
+cmd=foreground:seq=11:exec=ze-containerprobe fetch redis docker.io/library/redis:latest 600:timeout=660s:exit=0
+expect=stdout:contains=probe: the fetch command answered
+expect=stdout:pattern=probe: image docker\.io/library/redis:latest is present after .*: digest sha256:[0-9a-f]{64}
+reject=stdout:contains=probe: FAIL
+
+cmd=foreground:seq=12:exec=ze cli -c "show container image list | json":exit=0
+expect=stdout:contains=docker.io/library/redis:latest
+expect=stdout:pattern="state":\s*"present"
+expect=stdout:pattern="digest":\s*"sha256:[0-9a-f]{64}"
+
+# X-1 steps 2 to 5: the operator declares the network, the container and the
+# policy that allows its published port, and commits.
+cmd=foreground:seq=13:exec=ze-containerprobe adopt running.conf declared.conf:timeout=90s:exit=0
+expect=stdout:contains=probe: the daemon reloaded its configuration
+reject=stdout:contains=probe: FAIL
+
+# Barrier: the image's entrypoint ended in the server's process.
+cmd=foreground:seq=14:exec=ze-containerprobe running redis redis-server:timeout=120s:exit=0
+expect=stdout:pattern=probe: redis-server runs in container redis after .*: pid [0-9]+, uid [0-9]+
+reject=stdout:contains=probe: FAIL
+
+# The listing shows it running, with the digest the image listing gives the
+# fetched image.
+cmd=foreground:seq=15:exec=ze-containerprobe listed redis docker.io/library/redis:latest:timeout=150s:exit=0
+expect=stdout:pattern=probe: container redis is listed running after .* with digest sha256:[0-9a-f]{64}, the digest of image docker\.io/library/redis:latest
+reject=stdout:contains=probe: FAIL
+
+# The port is translated: the plugin's table holds its term.
+cmd=foreground:seq=16:exec=ze cli -c "show firewall ruleset container":exit=0
+expect=stdout:contains=port_redis_redis
+
+# X-1 step 4: the policy allows the port, so doctor has no finding for it.
+cmd=foreground:seq=17:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-container-port-blocked
+
+# X-1 step 6: the client beyond the router gets the pong, stores a value,
+# reads it back, and the server writes it to disk.
+cmd=foreground:seq=18:exec=ip netns exec zerds$PORT ze-containerprobe resp 172.31.251.1 6379 save:timeout=240s:exit=0
+expect=stdout:pattern=probe: connected to 172\.31\.251\.1:6379 after
+expect=stdout:contains=probe: PING answered +PONG
+expect=stdout:contains=probe: SET ze-key ze-value answered +OK
+expect=stdout:contains=probe: GET ze-key answered $8 "ze-value"
+expect=stdout:pattern=probe: INFO server answered run id [0-9a-f]+
+expect=stdout:contains=probe: SAVE answered +OK
+expect=stdout:contains=probe: the service answered every exchange
+reject=stdout:contains=probe: FAIL
+
+# X-1 step 7: the operator restarts the container.
+cmd=foreground:seq=19:exec=ze cli -c "request container restart name redis | json":timeout=60s:exit=0
+expect=stdout:pattern="name":\s*"redis"
+
+cmd=foreground:seq=20:exec=ze-containerprobe running redis redis-server:timeout=120s:exit=0
+expect=stdout:pattern=probe: redis-server runs in container redis after .*: pid [0-9]+, uid [0-9]+
+reject=stdout:contains=probe: FAIL
+
+cmd=foreground:seq=21:exec=ze-containerprobe listed redis docker.io/library/redis:latest:timeout=150s:exit=0
+expect=stdout:pattern=probe: container redis is listed running after .* with digest sha256:[0-9a-f]{64}, the digest of image docker\.io/library/redis:latest
+reject=stdout:contains=probe: FAIL
+
+# The same client, on a new connection and with no write, reads the value
+# back from a server that is another process than the one that saved.
+cmd=foreground:seq=22:exec=ip netns exec zerds$PORT ze-containerprobe resp 172.31.251.1 6379 kept:timeout=240s:exit=0
+expect=stdout:pattern=probe: connected to 172\.31\.251\.1:6379 after
+expect=stdout:contains=probe: PING answered +PONG
+expect=stdout:contains=probe: GET ze-key answered $8 "ze-value"
+expect=stdout:contains=probe: the server is another process than the one that saved
+expect=stdout:contains=probe: the service answered every exchange
+reject=stdout:contains=probe: SET
+reject=stdout:contains=probe: FAIL
+
+# X-1 step 8: a port no container publishes is not translated and not
+# forwarded: the router's own stack refuses it, while the policy still holds
+# the term for the published port.
+cmd=foreground:seq=23:exec=ip netns exec zerds$PORT ze-containerprobe refused 172.31.251.1 6380:timeout=15s:exit=0
+expect=stdout:pattern=probe: the connection to 172\.31\.251\.1:6380 was refused
+reject=stdout:contains=probe: FAIL
+
+# X-1 step 9: the operator deletes the term that accepts the published port
+# and commits.
+cmd=foreground:seq=24:exec=ze-containerprobe adopt running.conf blocked.conf:timeout=90s:exit=0
+expect=stdout:contains=probe: the daemon reloaded its configuration
+reject=stdout:contains=probe: FAIL
+
+# A new connection from the outside namespace gets no answer.
+cmd=foreground:seq=25:exec=ip netns exec zerds$PORT ze-containerprobe blocked 172.31.251.1 6379:timeout=15s:exit=0
+expect=stdout:pattern=probe: the connection to 172\.31\.251\.1:6379 got no answer
+reject=stdout:contains=probe: FAIL
+
+# The control: the router itself still reads the value, through the output
+# hook, so the container serves and only the forward policy stops the client.
+cmd=foreground:seq=26:exec=ze-containerprobe resp 172.31.251.1 6379 kept:timeout=240s:exit=0
+expect=stdout:contains=probe: GET ze-key answered $8 "ze-value"
+expect=stdout:contains=probe: the service answered every exchange
+reject=stdout:contains=probe: FAIL
+
+# Doctor reports the blocked port, its chain, and the term to add.
+cmd=foreground:seq=27:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-container-port-blocked"
+expect=stdout:contains=container redis port redis is published and the firewall policy blocks it: chain forward of firewall table wan is at the forward hook with policy drop
+expect=stdout:contains=output-interface zcn-lan or destination-address 10.88.0.2,
+expect=stdout:contains=set firewall table wan chain forward term container_redis_redis from protocol tcp
+expect=stdout:contains=set firewall table wan chain forward term container_redis_redis from destination-port 6379
+expect=stdout:contains=set firewall table wan chain forward term container_redis_redis from output-interface zcn-lan
+expect=stdout:contains=set firewall table wan chain forward term container_redis_redis then accept
+
+# The daemon stops in order and the container ends; the store and the
+# namespace go, and the veth pair with it.
+cmd=stop:seq=28:name=daemon:signal=term
+cmd=foreground:seq=29:exec=ze-containerprobe reset /run/ze-container-test-redis-$PORT:timeout=60s:exit=0
+cmd=foreground:seq=30:exec=ip netns delete zerds$PORT:exit=0

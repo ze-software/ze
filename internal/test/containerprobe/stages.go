@@ -1,6 +1,6 @@
 // Design: docs/architecture/container/image-store.md -- the fetch, the image listing and the store totals these modes read
-// Related: main.go -- the dispatch of the fetch, running and diagnose modes
-// Related: resp.go -- the resp mode an exploratory test runs after these
+// Related: main.go -- the dispatch of the fetch, running, listed and diagnose modes
+// Related: resp.go -- the resp mode a test runs after these
 
 package main
 
@@ -32,12 +32,14 @@ const (
 	progressEvery = 10 * time.Second
 	runningStep   = 250 * time.Millisecond
 	runningSteps  = 240 // 60 s from the image's arrival to the service's process
+	listedSteps   = 30  // 60 s of listingStep, and each attempt's ze cli run, until the row reads running
 )
 
 // The commands the modes run, as an operator types them.
 const (
 	commandFetchPrefix = "create container image reference "
 	commandImageList   = "show container image list | json"
+	commandList        = "show container list | json"
 	commandStore       = "show container store | json"
 	commandDoctor      = "show doctor"
 )
@@ -48,6 +50,9 @@ const (
 const (
 	listingPresent = "present"
 	listingFailed  = "failed"
+	// listedRunning is the state of a running container in show container
+	// list (supervise.go StateRunning).
+	listedRunning = "running"
 )
 
 // listingRow is the part of one image listing row the fetch mode reads,
@@ -210,6 +215,96 @@ func running(name, command string) bool {
 		waited(start) + "; last seen: " + last)
 	diagnose(name)
 	return false
+}
+
+// containerRow is the part of one row of show container list the listed
+// mode judges (list_cmd.go ContainerRow): the probe links no ze package.
+type containerRow struct {
+	Name   string `json:"name"`
+	State  string `json:"state"`
+	Reason string `json:"reason"`
+	Digest string `json:"digest"`
+	Since  string `json:"since"`
+}
+
+// listed runs on the host beside the daemon: it waits a bounded time until
+// show container list holds container name as running, then requires the
+// digest of that row to be the digest the image listing gives reference, the
+// whole reference of the container's image. It prints the row's since time,
+// so a reader sees the start the row stands for.
+func listed(name, reference string) bool {
+	start := time.Now()
+	last := "no listing was read"
+	for range listedSteps {
+		row, err := readContainerRow(name)
+		if err != nil {
+			last = err.Error()
+			time.Sleep(listingStep)
+			continue
+		}
+		if row.State != listedRunning {
+			last = "state " + strconv.Quote(row.State) + ", reason " + strconv.Quote(row.Reason)
+			time.Sleep(listingStep)
+			continue
+		}
+		verdict, image, seen := readListing(reference)
+		if verdict != fetchPresent {
+			fmt.Println("probe: FAIL start: container " + name + " is listed running and image " + reference + " is not present: " + seen)
+			return false
+		}
+		if err := sameDigest(row, image); err != nil {
+			fmt.Println("probe: FAIL start: container " + name + " is listed running: " + err.Error())
+			return false
+		}
+		fmt.Println("probe: container " + name + " is listed running after " + waited(start) + " with digest " + row.Digest +
+			", the digest of image " + reference + ", since " + row.Since)
+		return true
+	}
+	fmt.Println("probe: FAIL start: container " + name + " was not listed running after " + waited(start) + "; last seen: " + last)
+	diagnose(name)
+	return false
+}
+
+// readContainerRow runs show container list once and answers the row of
+// name.
+func readContainerRow(name string) (containerRow, error) {
+	answer, err := zeCLI(commandList)
+	if err != nil {
+		return containerRow{}, errors.New("the container listing answered an error: " + err.Error())
+	}
+	return containerRowOf(answer, name)
+}
+
+// containerRowOf answers the row of name in one answer of show container
+// list: the JSON list the listing writes, one object a row. An answer that
+// holds no row of name, or two, is an error.
+func containerRowOf(answer []byte, name string) (containerRow, error) {
+	var all []containerRow
+	if err := json.Unmarshal(answer, &all); err != nil {
+		return containerRow{}, errors.New("the container listing could not be read: " + err.Error() + ": " + oneLine(answer))
+	}
+	var rows []containerRow
+	for _, row := range all {
+		if row.Name == name {
+			rows = append(rows, row)
+		}
+	}
+	if len(rows) != 1 {
+		return containerRow{}, errors.New("the container listing holds " + strconv.Itoa(len(rows)) + " rows of " + name + ": " + oneLine(answer))
+	}
+	return rows[0], nil
+}
+
+// sameDigest requires the running container's row to carry a digest, and
+// that digest to be the one of the image's listing row.
+func sameDigest(row containerRow, image listingRow) error {
+	if row.Digest == "" {
+		return errors.New("its row carries no digest")
+	}
+	if row.Digest != image.Digest {
+		return errors.New("its row carries digest " + row.Digest + ", and image " + image.Reference + " is listed with digest " + image.Digest)
+	}
+	return nil
 }
 
 // groupProcess is one process of a container's control group.

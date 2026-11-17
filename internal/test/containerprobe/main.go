@@ -225,9 +225,9 @@ const (
 const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | run-serving | run-talking | reset STORE | verify STORE NAME" +
 	" | stopped-finding NAME SECONDS" +
 	" | confined STORE NAME | networked STORE NAME ADDRESS GATEWAY MTU | host-end BRIDGE OWNER FILE" +
-	" | published ADDRESS PORT | refused ADDRESS PORT | blocked ADDRESS PORT | resp ADDRESS PORT" +
+	" | published ADDRESS PORT | refused ADDRESS PORT | blocked ADDRESS PORT | resp ADDRESS PORT [save|kept]" +
 	" | adopt CONFIG REPLACEMENT" +
-	" | fetch TYPED LISTED SECONDS | running NAME COMMAND | diagnose NAME" +
+	" | fetch TYPED LISTED SECONDS | running NAME COMMAND | listed NAME REFERENCE | diagnose NAME" +
 	" | unlinked FILE | gone STORE NAME [at-least|less-than SECONDS] | starts STORE NAME COUNT" +
 	" | drive STORE NAME CONFIG second-signal|remove [REMOVED-CONFIG]"
 
@@ -336,10 +336,27 @@ func main() {
 			os.Exit(1)
 		}
 	case "resp":
-		if len(os.Args) != 4 {
-			fail("usage: ze-containerprobe resp ADDRESS PORT")
+		script := respStores
+		switch len(os.Args) {
+		case 4:
+			// No word: the script that stores the value and reads it back.
+		case 5:
+			named, err := respScriptOf(os.Args[4])
+			if err != nil {
+				fail("probe resp: " + err.Error())
+			}
+			script = named
+		default:
+			fail("usage: ze-containerprobe resp ADDRESS PORT [save|kept]")
 		}
-		if !resp(os.Args[2], os.Args[3]) {
+		if !resp(os.Args[2], os.Args[3], script) {
+			os.Exit(1)
+		}
+	case "listed":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe listed NAME REFERENCE")
+		}
+		if !listed(os.Args[2], os.Args[3]) {
 			os.Exit(1)
 		}
 	case "fetch":

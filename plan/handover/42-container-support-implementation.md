@@ -190,8 +190,19 @@ worktree, and it leaves the worktree only when he asks. Last delivered
 (2026-11-17, evening): server `04ba8f1a7d` is laptop `c20567285d`;
 everything after it on the worktree branch is waiting for him. The real Redis
 image ran as a container in the guest that day (an exploratory draft against
-the public registry, never to be promoted); the specified closing test is the
-next target. He has uncommitted edits
+the public registry, never to be promoted). The specified closing test passed
+in the guest that evening and is `test/container/container-redis.ci`: the
+pinned Redis image is fetched by short name through a mirror the config names,
+runs with port 6379 published, serves a client beyond the router, keeps its
+data across `request container restart`, and is reported by doctor once the
+policy term is removed. It needs the seed on the machine (`./le test
+container-seed fetch`, once; no CI job runs it yet). It lives in the container
+suite and not in the appliance suite the operator surface spec names: no step
+of an appliance test runs inside its guest. Also against that spec: the fetch
+answer is asserted on the listing row (the command answers after 20 seconds
+that the fetch still runs), the listing has no restart count so the restart is
+proven by the server's run id, and the doctor check judges the committed
+firewall config, not the applied ruleset. He has uncommitted edits
 on the laptop in `feature-gates.txt`, the two plugin protocol pages and the
 fixture package, so a range that touches one of them needs the stash recipe
 with that file named. He updated the dependencies on the laptop's `main`:
