@@ -2235,10 +2235,21 @@ withdraws everything the caller holds. <code>FirewallTablesReplace</code> carrie
 tables as a firewall config section, <code>{"firewall":{"table":{...}}}</code>, the form
 the operator's firewall config takes. <code>OwnedLinkCreate</code> names the target
 network namespace by a process id and that namespace's inode number together,
-and is refused when they disagree. Today every accepted caller's request is
-refused as not implemented in this build, and nothing is created
-(<code>docs/architecture/api/process-protocol.md</code>, "Owned interface devices and
-firewall table contribution").</p>
+and is refused when they disagree.</p>
+<p>The three interface calls answer with the kernel's outcome: the bridge set is
+reconciled and the link is created before the call returns. <code>OwnedLinkCreate</code>
+answers the host end's name, built from the plugin's first granted prefix, the
+bridge's interface index and the slot. The peer end is created inside the
+namespace with its name, hardware address and MTU, then given its addresses,
+set up, and given one default route per gateway. A refused bridge set or link
+changes nothing: the previous bridge set stays in place, and a link that fails
+part way is deleted. When the plugin's process ends, the bridges and links it
+declared are withdrawn and their devices deleted. <code>FirewallTablesReplace</code> is
+still refused for every accepted caller as not implemented in this build, and
+no table is created (<code>docs/architecture/api/process-protocol.md</code>, "Owned
+interface devices and firewall table contribution").</p>
+<!-- source: internal/component/iface/owned_bridge_link.go -- ReplaceOwnedBridges, CreateOwnedLink, WithdrawOwnedDevices -->
+<!-- source: internal/component/firewall/register_contribution.go -- tablesContributionNotBuilt -->
 <h2 id="message-flow-example">Message Flow Example</h2>
 <pre><code>Plugin                                             Engine
    |                                                  |
@@ -2332,7 +2343,7 @@ config-verify, etc.) and bye.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
                 </div>
             </div>
         </footer>

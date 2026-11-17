@@ -147,6 +147,10 @@ the message (JSON carries it under <code>fix</code>):</p>
 <td>The last stop of ze was a plugin whose failure policy is <code>fatal</code>, or a boot ze refused: the plugin, what happened and when, read from the record the stop left <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- checkPluginFatalStop --></td>
 </tr>
 <tr>
+<td><code>doctor-plugin-schema-refused</code>, <code>doctor-plugin-schema-undeclared</code></td>
+<td>The last start of ze was refused for an external plugin's config schema: a YANG module ze refused, or a configuration section of a plugin that gave ze no schema. The row names the time, the plugin and the cause, read from the same record, and its fix is the one the refusal named <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- schemaRefusedRow --></td>
+</tr>
+<tr>
 <td><code>doctor-plugin-stop-cleanup-late</code></td>
 <td>A warning: the last stop went on before a plugin finished its cleanup, so state that plugin installs may remain. The fix searches the log up to that stop <!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- cleanupLateRow --></td>
 </tr>
@@ -564,6 +568,18 @@ show warnings source bgp
 <td>An external plugin was started again while ze ran (it ended, or the operator ran <code>request plugin restart</code>) and declared another config schema than the one ze read from it at start: another module text, name or namespace, a module where it declared none, or none where it declared one. ze refused the plugin at its first startup stage and does not run it; the running configuration, the schema ze holds and every other plugin are unchanged. The message says what differs. The fix is <code>restart ze</code>, which loads the new schema; a later start of the plugin with the schema ze started with clears the warning</td>
 </tr>
 <tr>
+<td><code>doctor-plugin-schema-undeclared</code></td>
+<td>plugin-server</td>
+<td>warning</td>
+<td>ze holds no config schema of an external plugin the configuration declares: its program could not be started, it sent no declaration within its bound, its connection ended first, or its declaration carries no YANG module. A configuration section only that plugin's schema defines is then an unknown keyword and ze refuses to start with it; the refusal on the terminal and in the log carries this code beside the unknown keyword, and <code>ze doctor</code> reports the plugin from the record that refusal leaves, until ze next starts cleanly. With no such section ze starts, the plugin that sent no declaration does not run, and the warning stays until ze restarts. The fix is the conformance check of the plugin's run line, <code>ze show plugin conformance run "&lt;command&gt;"</code>, which shows what the declaration lacks</td>
+</tr>
+<tr>
+<td><code>doctor-plugin-schema-refused</code></td>
+<td>plugin-server</td>
+<td>error</td>
+<td>At start ze refused the YANG module an external plugin declared: it does not compile, its name or namespace is held by another module, it defines a top-level node another module defines, it names a validator ze does not hold, or it adds nothing to the configuration schema. ze does not start with a refused module, so no daemon runs to answer <code>ze show doctor</code>. The refusal, on the terminal and in the log, names the plugin, the module, the cause and the fix; ze records it before it exits, and <code>ze doctor</code> reports it from that record until ze next starts cleanly</td>
+</tr>
+<tr>
 <td><code>iface-errors</code></td>
 <td>iface</td>
 <td>warning</td>
@@ -725,7 +741,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
                 </div>
             </div>
         </footer>

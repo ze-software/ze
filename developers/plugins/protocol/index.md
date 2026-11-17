@@ -1268,10 +1268,22 @@ withdraws everything the caller holds. `FirewallTablesReplace` carries its
 tables as a firewall config section, `{"firewall":{"table":{...}}}`, the form
 the operator's firewall config takes. `OwnedLinkCreate` names the target
 network namespace by a process id and that namespace's inode number together,
-and is refused when they disagree. Today every accepted caller's request is
-refused as not implemented in this build, and nothing is created
-(`docs/architecture/api/process-protocol.md`, "Owned interface devices and
-firewall table contribution").
+and is refused when they disagree.
+
+The three interface calls answer with the kernel's outcome: the bridge set is
+reconciled and the link is created before the call returns. `OwnedLinkCreate`
+answers the host end's name, built from the plugin's first granted prefix, the
+bridge's interface index and the slot. The peer end is created inside the
+namespace with its name, hardware address and MTU, then given its addresses,
+set up, and given one default route per gateway. A refused bridge set or link
+changes nothing: the previous bridge set stays in place, and a link that fails
+part way is deleted. When the plugin's process ends, the bridges and links it
+declared are withdrawn and their devices deleted. `FirewallTablesReplace` is
+still refused for every accepted caller as not implemented in this build, and
+no table is created (`docs/architecture/api/process-protocol.md`, "Owned
+interface devices and firewall table contribution").
+<!-- source: internal/component/iface/owned_bridge_link.go -- ReplaceOwnedBridges, CreateOwnedLink, WithdrawOwnedDevices -->
+<!-- source: internal/component/firewall/register_contribution.go -- tablesContributionNotBuilt -->
 
 ## Message Flow Example
 

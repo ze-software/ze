@@ -58,7 +58,7 @@ A frame from the published terminal recording. Explore the recordings in the dem
 **Planned release** Initial version
 Q4 2026
 
- [**1.76 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.12 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+ [**1.77 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.13 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.06 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
 
 ## Getting started with Ze.
 
@@ -174,7 +174,7 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 46.5%
 
-2,209 of 4,752 requirements for Ze or the OS.
+2,210 of 4,752 requirements for Ze or the OS.
 
 **196**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -235,7 +235,7 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 
 ### Go tests
 
-48,400+
+48,500+
 
 Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
 

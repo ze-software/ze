@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1 | of 32 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 32 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 32 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 22 | 22 of 24 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 24 | 24 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -468,9 +468,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L453) | unit/verify | revert, verified |
-| negative | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L182) | unit/verify | revert, verified |
 | positive | [`TestIPsecSAReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L448) | unit/verify | revert, verified |
-| positive | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestIPsecInstallerXFRMReplayWindow`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4302_ipsec_integration_linux_test.go#L180) | unit/verify | revert, verified |
 
 ### [`RFC4302-3.4.3-2`](#rfc4302-3.4.3-2)
 

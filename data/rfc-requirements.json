@@ -99847,7 +99847,7 @@
         "tags": 518,
         "units": 518,
         "audited": 103,
-        "discrimination-records": 330,
+        "discrimination-records": 333,
         "escapes": 0,
         "stale-records": 29
       },
@@ -100116,7 +100116,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_relay_partial_test.go` `TestRFC4271PartialClearedOnTheRelayedWire` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271PartialNotSetOnRecognizedOrNonTransitive` (unit/verify), `internal/core/bgp/attribute/rfc4271_test.go` `TestRFC4271PartialBitClearOnSend` (unit/verify)",
           "negative-test": "`internal/component/bgp/plugins/rib/storage/rfc4271_test.go` `TestRFC4271PartialBitClearedOnReadvertisedWellKnown` (unit/verify), `internal/component/bgp/rib/rfc4271_partial_test.go` `TestRFC4271PartialClearedWhenTheRailReadvertises` (unit/verify), `internal/core/bgp/attribute/rfc4271_test.go` `TestRFC4271PartialNotStampedOnExcludedClasses` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -100175,7 +100175,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1123,
+              "line": 1355,
               "carrier": "unit/verify",
               "claim": "-- the Partial bit stays 0 on a well-known attribute and on an optional non-transitive one after the receive path has run.",
               "tags": 1
@@ -100194,7 +100194,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "send side (attribute encoders), receive-path clear (enforceRFC7606), readvertise rails (rib CommitService, storage ToWireBytes) and the RS relay each fed 0x60/0xA0 and asserted 0x40/0x80 on the wire, COMMUNITIES 0xE0 kept",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive"
+            ]
           }
         },
         {
@@ -100646,7 +100649,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalHoldTimeNotUsedWhenPeerProposesSmaller",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 190,
+              "line": 193,
               "carrier": "unit/verify",
               "claim": "-- the locally configured hold time is discarded when it is not the smaller of the two, and an out-of-range result is floored rather than installed verbatim (internal/component/bgp/reactor/session_negotiate.go:50-62).",
               "tags": 1
@@ -100655,7 +100658,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NegotiatedHoldTimeDrivesTimers",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 169,
+              "line": 172,
               "carrier": "unit/verify",
               "claim": "-- negotiateWith stores the negotiated hold time and installs exactly that value into the session timers (internal/component/bgp/reactor/session_negotiate.go:47-62).",
               "tags": 1
@@ -100793,14 +100796,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271PartialSetOnUnrecognizedTransitiveOptional` (unit/verify), `internal/core/bgp/attribute/rfc4271_test.go` `TestRFC4271PartialStampedOnUnrecognizedTransitive` (unit/verify), `test/plugin/rfc4271-partial-unknown-transitive.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271PartialNotSetOnRecognizedOrNonTransitive` (unit/verify), `internal/core/bgp/attribute/rfc4271_test.go` `TestRFC4271PartialNotStampedOnExcludedClasses` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1120,
+              "line": 1352,
               "carrier": "unit/verify",
               "claim": "-- the stamp is conditioned on the attribute being unrecognized AND optional AND transitive: none of the three excluded classes is stamped (internal/core/bgp/attribute/partial.go, SetPartialOnUnrecognizedTransitive).",
               "tags": 1
@@ -100818,7 +100821,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialSetOnUnrecognizedTransitiveOptional",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1091,
+              "line": 1323,
               "carrier": "unit/verify",
               "claim": "-- enforceRFC7606 stamps the bit through publishBase before the UPDATE is published (internal/component/bgp/reactor/ session_validation.go, publishBase -\u003e attribute.SetPartialOnUnrecognizedTransitive).",
               "tags": 1
@@ -100854,7 +100857,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"If a path with an unrecognized transitive optional attribute is accepted and passed to other BGP peers, then the unrecognized transitive optional attribute of that path MUST be passed, along with the path, to other BGP peers with the Partial bit in the Attribute Flags octet set to 1.\" The only edit to test/plugin/rfc4271-partial-unknown-transitive.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialSetOnUnrecognizedTransitiveOptional"
+            ]
           }
         },
         {
@@ -100865,7 +100872,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/rib/storage/rfc4271_test.go` `TestRFC4271PartialBitPreservedOnUnknownTransitive` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271PartialFromPreviousASNeverCleared` (unit/verify)",
           "negative-test": "`internal/component/bgp/plugins/rib/storage/rfc4271_test.go` `TestRFC4271PartialBitSurvivesLengthReframing` (unit/verify), `internal/core/bgp/attribute/rfc4271_test.go` `TestRFC4271PartialFromPreviousASNotCleared` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -100899,7 +100906,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1159,
+              "line": 1391,
               "carrier": "unit/verify",
               "claim": "-- a Partial bit set to 1 by a previous AS survives the receive path on a recognized transitive optional attribute (internal/core/bgp/attribute/partial.go: the stamp only ORs the bit in, it never clears).",
               "tags": 1
@@ -100909,7 +100916,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "receive path, attribute walk and storage readvertise (including the extended-length reframing branch) each keep a Partial bit a previous AS set on recognized and unrecognized transitive attributes",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared"
+            ]
           }
         },
         {
@@ -100927,7 +100937,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271TheNonTransitiveDropSparesEveryOtherClass",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1258,
+              "line": 1490,
               "carrier": "unit/verify",
               "claim": "-- the drop is conditioned on the attribute being unrecognized AND optional AND non-transitive, so none of the three excluded classes is removed (internal/component/bgp/message/rfc4271_nontransitive.go, UnrecognizedNonTransitiveRanges).",
               "tags": 1
@@ -100936,7 +100946,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UnrecognizedNonTransitiveIsNotPassedAlong",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1217,
+              "line": 1449,
               "carrier": "unit/verify",
               "claim": "-- publishBase drops it before the UPDATE is published (internal/component/bgp/reactor/session_validation.go, publishBase -\u003e message.UnrecognizedNonTransitiveRanges).",
               "tags": 1
@@ -101572,14 +101582,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271ThirdPartyNextHopCanBeDisabled` (unit/verify), `internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go` `TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire` (unit/verify), `internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go` `TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271ThirdPartyNextHopDisableFailsClosed` (unit/verify), `internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go` `TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 373,
+              "line": 376,
               "carrier": "unit/verify",
               "claim": "-- a next-hop-self with no local address is refused rather than approximated: precomputeNextHop sets nhSelfWithheld with no rewrite armed, and resolveNextHop with no session returns ErrNextHopSelfNoLocal.",
               "tags": 1,
@@ -101613,7 +101623,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 339,
+              "line": 342,
               "carrier": "unit/verify",
               "claim": "-- NextHopSelf makes precomputeNextHop install a rewrite to the local address, which is what disables advertisement of a third-party NEXT_HOP (internal/component/bgp/reactor/peer_forward_facts.go:153-177), and the per-route resolver returns the same local address (internal/component/bgp/reactor/peer.go:670-679).",
               "tags": 1,
@@ -101665,7 +101675,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-01 (BGP c17 judge, residuals of the c16 verdict). Positive: TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint (next-hop self under `local ip auto`, session endpoint 10.0.0.77: on the general AND route-server forward rails the next-hop-self destination is sent NEXT_HOP 10.0.0.77, a default internal destination the third-party 192.0.2.254; resolveNextHop answers the same). HEAD TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire keeps the configured-address wire case. Negative: TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute and TestRFC4271ThirdPartyNextHopDisableFailsClosed (withhold with withdrawal still sent, nhSelfWithheld, ErrNextHopSelfNoLocal). Records on connectedLocalAddress (+), precomputeNextHop (- two units) observed red. c16 residuals closed in c17: (1) the WARN line is now asserted by untagged TestRFC4271NextHopSelfWithheldRouteIsLoggedAtWarn (Warn-level handler, both rails, exactly one line per withhold naming peer= and rfc=\"RFC 4271 Section 5.1.3\"); (2) TestRFC4271ThirdPartyNextHopCanBeDisabled now carries a record on precomputeNextHop; (3) a link-local connected endpoint is now gated on both forward rails by the same predicate as the announce rail (Peer.linkLocalOnlyNextHopRefused via egressNextHopLinkLocalOnlyRefused), proven by untagged TestNextHopSelfLinkLocalEndpointNeedsTheCapabilityOnTheForwardRails; the judge's overlay disabling only the route-server gate reddens its rs=true case (j17-ov-rs.log). Quote verbatim (RFC 4271 Section 5.1.3).",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed"
+            ]
           }
         },
         {
@@ -101960,7 +101974,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go` `TestRFC4271ForwardAddsLocalPrefTowardInternalPeer` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271LocalPrefIncludedForInternalPeers` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go` `TestForwardLocalPrefStrippedToExternalPeer` (unit/verify), `internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go` `TestRFC4271ForwardAddsLocalPrefTowardInternalPeer` (unit/verify), `internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go` `TestAnnounceStripsLocalPrefTowardExternalPeer` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271LocalPrefOmittedForExternalPeers` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -102010,7 +102024,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 107,
+              "line": 110,
               "carrier": "unit/verify",
               "claim": "-- the SHALL-include obligation is not applied blindly: the same producer omits the attribute when the peer is external, so its presence for internal peers is a real decision (reactor_wire.go:536).",
               "tags": 1
@@ -102036,7 +102050,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 81,
+              "line": 84,
               "carrier": "unit/verify",
               "claim": "-- writeAnnounceUpdate writes LOCAL_PREF into every announce built for an internal peer (internal/component/bgp/reactor/reactor_wire.go:536-542).",
               "tags": 1
@@ -102046,7 +102060,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-11-06 by an independent auditor who authored none of the change; no test or record ran for this judgement. RFC 4271 Section 5.1.5: \"LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers.\" The staleness is doc comments only: git diff from the verdict's commit to the working tree changes nine comment lines in rfc4271_test.go and no statement. The new citations are true: reactor_wire.go:536-542 is the if localPrefAllowedTo(isIBGP) block in writeAnnounceUpdate (line 356), and :536 its gate; the rename to the unexported writeAnnounceUpdate is correct. Positive asserts present and exactly 00000064 on the announce rail; negative asserts absent toward external with ORIGIN and NEXT_HOP present. TestRFC4271ForwardAddsLocalPrefTowardInternalPeer proves the add on both forward rails with an external control. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers"
+            ]
           }
         },
         {
@@ -102073,7 +102091,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 83,
+              "line": 86,
               "carrier": "unit/verify",
               "claim": "-- the same gate is what keeps LOCAL_PREF out of an external peer's UPDATE, so the attribute's presence is conditional on the session being internal rather than unconditional (reactor_wire.go:536).",
               "tags": 1
@@ -102143,7 +102161,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 104,
+              "line": 107,
               "carrier": "unit/verify",
               "claim": "-- an announce built for an external peer contains no LOCAL_PREF, because the write is gated on isIBGP (internal/component/bgp/reactor/reactor_wire.go:536-542).",
               "tags": 1
@@ -102181,6 +102199,8 @@
             "note": "Independent scoped rejudgment on 2026-11-11. Read RFC 4271 section 5.1.5, short and derived rows, prior verdict, every currently tagged unit including new TestLocalPrefExternalWireViolationRefused, egress producers, current checker and discrimination records. RFC: A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. Q1: assertions target emitted code 5, not the adjacent receiver-ignore obligation. TestRFC4271LocalPrefOmittedForExternalPeers checks absence while mandatory attributes survive. TestAnnounceStripsLocalPrefTowardExternalPeer covers packed and Builder inputs, queued/batch equality, and retained internal value. TestForwardLocalPrefStrippedToExternalPeer checks exact rebuilt bytes, while TestForwardLocalPrefStripBeatsAFilterSet covers filter-created zero. The functional file expects the complete external UPDATE. checkLocalPrefStrip reads the original external connection rather than normalized receiver RIB. Q2: removing suppression exposes an attribute these assertions reject; existing positive mutant record removes applyFactsLocalPref's Suppress and names assertion 13. The buildRIBRouteUpdate panic record only proves dependence on that function. New negative record targets requireLocalPrefInterval's final semantic-error return, replacing it with nil after complete structural validation; the native recorder first observed all three clean cases pass, then both leaked200/leaked0 cases fail under its per-run overlay while the stripped control still passed. The checkout source remained unchanged. The independent hand-written-break judge approved exactly that semantic break. Q3: source attributes and other output attributes remain controlled, all three arrivals and original session identity/fence/reverse KEEPALIVE are required. The new negative test holds normalized RIB answers and framing fixed, requires one release and both direction reads, and checks assertion 13 plus the exact wrapped localPrefWireSemanticError; setup or framing refusal cannot satisfy it. Q4: positive units cover originating and forwarding, source and filter supplied values including zero. localPrefAllowedTo gates batch, stored-RIB and wire builders; applyFactsLocalPref runs after filtering in both general and RS forwarding. Confederation configuration is absent, so the RFC exception has no reachable configured case. Polarity: internal-peer predicate/inclusion units and the functional source-arrival tag remain useful controls but are not relied on as violating inputs; the newly enrolled negative unit supplies forbidden external-wire LOCAL_PREF and requires its precise rejection, resolving the earlier independent polarity finding. checkLocalPrefStrip's later change 684b9f41f9 belongs to tooling-one-off-defects and adds assertion 16 to wait for Ze to hold both destinations Established before injector release, preserving prior checks. Carrier repair correctly labels the new Go test unit/verify rather than interop; its proof is checker-boundary evidence, not a new live daemon exchange. This auditor executed no tests, builds, lint, reports, stamp or replay; main owns the observed runs and native discrimination record. Verdict enforced on the reviewed population; no claim of additional live exchange.",
             "freshness": "shifted",
             "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers",
               "internal/le/interoplab/bgp/check_rfc.go::checkLocalPrefStrip"
             ]
           }
@@ -102790,14 +102810,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go` `TestRFC4271EstablishedUpdateErrorReleasesTheConnection` (unit/verify), `internal/component/bgp/reactor/rfc4271_session_core4271_test.go` `TestSessionRFC4271RetainedUpdateNotifications` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271UpdateErrorReportedAsUpdateMessageError` (unit/verify), `internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go` `TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271ConformantUpdateSendsNoUpdateError` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 702,
+              "line": 934,
               "carrier": "unit/verify",
               "claim": "-- the code-3 NOTIFICATION is driven by an actual UPDATE error: a conformant UPDATE takes the RFC7606ActionNone path and sends nothing (internal/component/bgp/reactor/session_validation.go:123-125).",
               "tags": 1
@@ -102840,7 +102860,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 639,
+              "line": 871,
               "carrier": "unit/verify",
               "claim": "-- an UPDATE error is signaled by a NOTIFICATION carrying Error Code UPDATE Message Error (internal/component/bgp/reactor/session_validation.go:198-211).",
               "tags": 1
@@ -102867,7 +102887,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "'All errors' that still produce a NOTIFICATION after RFC 7606 are now proven across the reset classes, each asserting Error Code 3 on the wire: duplicate MP_REACH_NLRI (TestRFC4271UpdateErrorReportedAsUpdateMessageError), duplicate MP_UNREACH_NLRI (TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire), unrecognized well-known attribute 3/2, impossible NLRI prefix length 3/10, truncated NLRI 3/10, truncated Withdrawn Routes 3/10 (TestSessionRFC4271RetainedUpdateNotifications), malformed MP_REACH_NLRI on a running Established Peer (TestRFC4271EstablishedUpdateErrorReleasesTheConnection). Producer check: every session-reset path funnels Session.rfc7606ResetNotification with NotifyUpdateMessage (rfc7606SessionReset, rfc7606NLRISyntaxAction, the 3(g) Notification in message/rfc7606.go), so the untagged 3(b) section-length and flag-conflict resets reach the same code. rfc7606ResetNotification break observed red for the three new units. Negative: a conformant UPDATE sends nothing (TestRFC4271ConformantUpdateSendsNoUpdateError). Errors RFC 7606 revises to treat-as-withdraw or attribute-discard send no NOTIFICATION by design. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError"
+            ]
           }
         },
         {
@@ -102878,7 +102902,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go` `TestRFC4271PrefixLimitTeardownSendsCease` (unit/verify), `internal/component/bgp/reactor/session_prefix_test.go` `TestPrefixExceedTeardown` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go` `TestRFC4271EstablishedUpdateErrorReleasesTheConnection` (unit/verify), `internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go` `TestRFC4271OpenSentUnexpectedMessageIsAnFSMError` (unit/verify), `internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go` `TestRFC4271OpenConfirmUpdateIsAnFSMError` (unit/verify), `internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List` (unit/verify), `internal/component/bgp/reactor/rfc4271_header_error_peer_test.go` `TestRFC4271MessageHeaderErrorIsReported` (unit/verify), `internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go` `TestRFC4271OpenSentErrorReleasesTheConnection` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271UpdateErrorReportedAsUpdateMessageError` (unit/verify), `internal/component/bgp/reactor/session_bfd_strict_test.go` `TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -102987,7 +103011,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 642,
+              "line": 874,
               "carrier": "unit/verify",
               "claim": "-- Cease is not used for this error: a fatal protocol error exists, so the NOTIFICATION carries Error Code 3 and not Error Code 6 (internal/component/bgp/reactor/session_validation.go:205-207).",
               "tags": 1
@@ -103040,7 +103064,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independently re-judged against RFC 4271 Sections 6, 6.6 and 6.7, RFC 6608 Section 4, all ten tagged units and the completed native renewal log job-rfc6608-record-renewals-09a8e39e.log. The prohibition concerns the fatal-error code, not an obligation to choose Cease for every discretionary closure. The running-peer tests distinguish all five Section 6 fatal classes: header code 1, OPEN code 2, UPDATE code 3, Hold Timer Expired code 4 and FSM code 5; each relevant exact-response assertion excludes Cease. The updated FSM expectations are 5/1 in OpenSent and 5/2 in OpenConfirm, as RFC 6608 requires; original error inputs, session release, timer and counter assertions remain. The BFD strict second-OPEN test independently asserts wire Error Code 5 without claiming its whole subcode or teardown outcome. The well-formed prefix-limit case provides the distinct Cease 6/1 control permitted by Section 6.7. TestRFC4271UpdateErrorReportedAsUpdateMessageError and TestPrefixExceedTeardown remain supplementary tagged checks; the refreshed records do not manufacture records for those older units. Whole-producer reverts prove dependence on their named producer, while the exact code assertions supply the semantic distinction. No one-octet RFC 6608 Data claim is credited here.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError"
+            ]
           }
         },
         {
@@ -103058,7 +103085,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerFSMDoesNotShareTimers",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 235,
+              "line": 238,
               "carrier": "unit/verify",
               "claim": "-- the FSMs are not backed by shared state: each session owns its own Timers, so one peer's hold time cannot be read as another's (internal/component/bgp/reactor/session.go:396-417).",
               "tags": 1
@@ -103067,7 +103094,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271SeparateFSMPerPeer",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 211,
+              "line": 214,
               "carrier": "unit/verify",
               "claim": "-- NewSession constructs a fresh fsm.FSM and a fresh timer set for each peer, so per-peer state is not shared (internal/component/bgp/reactor/session.go:377-413).",
               "tags": 1
@@ -103089,7 +103116,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ExplicitPortOverridesDefault",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 320,
+              "line": 323,
               "carrier": "unit/verify",
               "claim": "-- the port is read from the peer's settings, so an explicitly configured non-179 port is used; 179 is the default value of that setting, not an unconditional constant (internal/component/bgp/reactor/peer_settings.go:31-33,232).",
               "tags": 1
@@ -103098,7 +103125,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271DefaultBGPPortIs179",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 304,
+              "line": 307,
               "carrier": "unit/verify",
               "claim": "-- DefaultBGPPort is 179 and is what a peer with no configured port uses for its connect/listen key (internal/component/bgp/reactor/peer_settings.go:33).",
               "tags": 1
@@ -103183,14 +103210,14 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271HoldTimerExpirySendsNotification` (unit/verify), `test/plugin/deadpeer-holddown.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271HoldTimerNotYetExpiredSendsNoNotification` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerNotYetExpiredSendsNoNotification",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 842,
+              "line": 1074,
               "carrier": "unit/verify",
               "claim": "-- the code-4 NOTIFICATION belongs to the hold timer EXPIRING, not to a hold timer merely being armed. A session whose peer has been quiet for less than the negotiated hold time has not reached Event 10, so the peer must be told nothing: it is still inside the time the protocol gives it, and a Hold Timer Expired sent there would end a session the RFC action list never reached.",
               "tags": 1
@@ -103199,7 +103226,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerExpirySendsNotification",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 813,
+              "line": 1045,
               "carrier": "unit/verify",
               "claim": "-- Event 10 (HoldTimer_Expires) has the local system \"send the NOTIFICATION message with the error code Hold Timer Expired\" as the FIRST of its actions, before it \"drops the TCP connection\". The production hold-expiry callback writes it.",
               "tags": 1
@@ -103218,7 +103245,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Forbidden: hold expiry with no Hold Timer Expired NOTIFICATION. TestRFC4271HoldTimerExpirySendsNotification reads the production hold-expiry write and asserts 21 octets, type NOTIFICATION, code 4, subcode 0; it is red on a bare close or another code. Negative: at 1ms before expiry nothing is written, red on a NOTIFICATION sent early. deadpeer-holddown.ci is byte-exact.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerExpirySendsNotification",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerNotYetExpiredSendsNoNotification"
+            ]
           }
         },
         {
@@ -103229,7 +103260,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271HoldExpiryRunsTheEvent10ActionList` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271NoHoldExpiryLeavesTheSessionIntact` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -103253,7 +103284,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1007,
+              "line": 1239,
               "carrier": "unit/verify",
               "claim": "-- the ConnectRetryTimer is zeroed BY the expiry: an armed one survives while the session is up.",
               "tags": 1
@@ -103279,7 +103310,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 935,
+              "line": 1167,
               "carrier": "unit/verify",
               "claim": "-- Run's exit calls Timers.StopAll, whose stopConnectRetryTimerLocked zeroes the ConnectRetryTimer (internal/component/bgp/fsm/timer.go, StopAll).",
               "tags": 1
@@ -103289,7 +103320,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 4271 Section 8.2.2 Established Event 10 requires a Hold Timer Expired NOTIFICATION and ConnectRetryTimer zero. Re-read all four tagged units: HoldExpiryRunsTheEvent10ActionList and NoHoldExpiryLeavesTheSessionIntact drive real Session.Run, with event10Established explicitly arming ConnectRetryTimer before the expiry/no-expiry split; the positive now requires the exact ErrHoldTimerExpired sentinel, a stopped ConnectRetryTimer, and code 4 on the captured closing connection, while the negative retains the armed timer and Established session. EstablishedHoldTimerExpiryRunsTheEvent10List additionally drives a running Peer and requireReleased demands exactly one 4/0, EOF and stopped timers; EstablishedHoldTimerFedByKeepalivesNeverExpires supplies KEEPALIVEs for three hold times and demands no NOTIFICATION, no close and the same live session. The peer timer alone starts unarmed, but the explicitly armed Session pair makes deletion of timer stopping observable. Producers are the NewSession hold-expiry callback, Run/retireSessionTimers, and fsm.Timers.StopAll/Retire; the sentinel assertion strengthens causal isolation rather than replacing any action assertion. Source judgment only; no native execution in this audit.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact"
+            ]
           }
         },
         {
@@ -103300,7 +103335,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271HoldExpiryRunsTheEvent10ActionList` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271NoHoldExpiryLeavesTheSessionIntact` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -103324,7 +103359,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1009,
+              "line": 1241,
               "carrier": "unit/verify",
               "claim": "-- BGP resources are released BY the expiry: the KeepaliveTimer keeps running while the session is up, which is what keeps the peer's own hold timer fed.",
               "tags": 1
@@ -103350,7 +103385,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 938,
+              "line": 1170,
               "carrier": "unit/verify",
               "claim": "-- the same StopAll releases the BGP resources the session holds, of which the KeepaliveTimer is the externally visible one: it stops writing KEEPALIVEs.",
               "tags": 1
@@ -103360,7 +103395,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Read the complete Established Event 10 list in RFC 4271 Section 8.2.2 and all four tagged units. HoldExpiryRunsTheEvent10ActionList requires exact ErrHoldTimerExpired, the HoldTimer and KeepaliveTimer stopped, ConnectRetryTimer stopped and the closing connection's code-4 NOTIFICATION; its no-expiry counterpart retains all armed timers and Established state. EstablishedHoldTimerExpiryRunsTheEvent10List and its KEEPALIVE-fed counterpart exercise the running Peer: requireReleased checks exactly one 4/0, release of the session object and all three session timers, with the healthy control retaining the same session, timers and connection over three hold times. These cover release of the per-connection resources held by these sessions, not merely successful Run completion. The RFC separately names route deletion in neighboring Event 18/24/25 lists; no new claim about a populated RIB is inferred from these empty-route fixtures. Run retires timers and closeConn retires transport, while the FSM transition releases the Peer session. The exact-sentinel edit removes no resource assertion. Source judgment only; no native red or green claimed.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact"
+            ]
           }
         },
         {
@@ -103371,7 +103410,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271HoldExpiryRunsTheEvent10ActionList` (unit/verify), `internal/component/bgp/reactor/session_wedge_test.go` `TestHoldExpiryClosesBehindStuckWriter` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271NoHoldExpiryLeavesTheSessionIntact` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -103395,7 +103434,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1012,
+              "line": 1244,
               "carrier": "unit/verify",
               "claim": "-- the TCP connection is dropped BY the expiry, not by establishment.",
               "tags": 1
@@ -103421,7 +103460,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 941,
+              "line": 1173,
               "carrier": "unit/verify",
               "claim": "-- the cancel goroutine woken by the errChan signal closes the connection, backed by Run's own defer s.closeConn (internal/component/bgp/reactor/session.go, Run).",
               "tags": 1
@@ -103448,7 +103487,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-11-14 by an independent auditor who authored none of 178cffd97d, 1c6795e9e4, 43cfa9af6e, after session_wedge_test.go::TestHoldExpiryClosesBehindStuckWriter joined the row as a third positive. RFC 4271 Section 8.2.2 (Established) read at rfc/full/rfc4271.txt:3988-4006: \"If the HoldTimer_Expires event occurs (Event 10), the local system: - sends a NOTIFICATION message with the Error Code Hold Timer Expired, - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection,\". The new unit drives a real Session to Established over net.Pipe with Run executing (wedgeEstablished), stops the keepalive timer so the hold expiry is the only callback the fake-clock advance runs, takes writeMu as a writer blocked in a socket write holds it, fires the production hold expiry, and requires the peer end to read io.EOF (errors.Is, a timeout is t.Fatal) within holdExpiryNotifyDeadline (1s) plus 2s slack; after the release Run must return ErrHoldTimerExpired and the FSM be Idle. Q1: it asserts the RFC clause \"drops the TCP connection\" as the peer observes it, not an internal flag. Q2: a close that waits for the write path leaves the pipe open and the select times out; rfc/discrimination/rfc4271/RFC4271-8.2.2-4.json records the red under a disabled dropConn (session_connection.go). Q3: EOF can only come from ze closing its end (the fixture's own close yields io.ErrClosedPipe, which the assertion refuses), and ErrHoldTimerExpired pins the hold expiry as the cause. Q4: the unit proves the drop clause alone, in the one state where the NOTIFICATION cannot be written; its claim says exactly that (EOF within the bound, write path held) and claims neither the NOTIFICATION, the timer nor the release. Those clauses stay with the four earlier units, whose fingerprints did not move: HoldExpiryRunsTheEvent10ActionList and EstablishedHoldTimerExpiryRunsTheEvent10List pin code 4 read from the connection before closure, the timer stops, session release and EOF; NoHoldExpiryLeavesTheSessionIntact and EstablishedHoldTimerFedByKeepalivesNeverExpires are the negatives. Whole requirement enforced across the five. Observation, not a finding against the row: with the write path held no NOTIFICATION reaches the wire, which RFC 4271 cannot require of a socket that accepts no write; the connection drop is what remains owed and is what the unit proves. Native commands were not run by the auditor.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact"
+            ]
           }
         },
         {
@@ -103459,7 +103502,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271HoldExpiryRunsTheEvent10ActionList` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go` `TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271NoHoldExpiryLeavesTheSessionIntact` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -103483,7 +103526,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 1014,
+              "line": 1246,
               "carrier": "unit/verify",
               "claim": "-- the state changes to Idle BY the expiry; before it the session is Established.",
               "tags": 1
@@ -103509,7 +103552,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 944,
+              "line": 1176,
               "carrier": "unit/verify",
               "claim": "-- the callback's logFSMEvent(EventHoldTimerExpires) drives the FSM to Idle from every state that can hold an armed hold timer (internal/component/bgp/fsm/fsm.go).",
               "tags": 1
@@ -103519,7 +103562,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 4271 Section 8.2.2 Established Event 10 requires the complete NOTIFICATION/zero/release/drop/increment/Idle action list; peer-oscillation damping is optional. All four tagged units were re-read. The Session expiry unit now requires exact ErrHoldTimerExpired as well as stopped Hold/Keepalive/ConnectRetry timers, Idle, a closed connection and code-4 NOTIFICATION; its no-expiry unit retains the timers, connection and Established state. The running-Peer expiry unit's requireReleased observes exactly one 4/0 then EOF, release of the Peer session and all three timers, and ConnectRetryCounter exactly 0 to 1, followed by exact Idle. The KEEPALIVE-fed Peer control runs three hold times with no NOTIFICATION or close, the same session and Established state, and counter exactly zero. fsm's Established EventHoldTimerExpires branch increments once and changes to Idle; Run and connection teardown retire the resources. The older Session unit alone does not assert the counter, but the separately tagged Peer pair does. Damping is not claimed. The sentinel edit strengthens the expiry cause without dropping any clause. No native execution claimed.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact"
+            ]
           }
         },
         {
@@ -105187,7 +105234,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_hold_time_config_test.go` `TestRFC4271HoldTimeConfiguredPerPeerFromConfig` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271HoldTimeConfigurablePerPeer` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_hold_time_config_test.go` `TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271PerPeerHoldTimeSurvivesNegotiation` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -105211,7 +105258,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 283,
+              "line": 286,
               "carrier": "unit/verify",
               "claim": "-- the per-peer value is not decorative: a peer configured with a smaller hold time negotiates the smaller value while another peer with a larger configuration does not (internal/component/bgp/reactor/session_negotiate.go:47-54).",
               "tags": 1
@@ -105237,7 +105284,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 259,
+              "line": 262,
               "carrier": "unit/verify",
               "claim": "-- ReceiveHoldTime lives on PeerSettings and is installed into that peer's own timers, so each peer carries its own HoldTimer value (internal/component/bgp/reactor/peer_settings.go:251, session.go:416-417).",
               "tags": 1
@@ -105247,7 +105294,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-01 (c10 judge). The operator entry point is now exercised: TestRFC4271HoldTimeConfiguredPerPeerFromConfig parses two peer trees through parsePeerFromTree with `timer { receive-hold-time }` 30 and 240 and each NewSession's HoldTimer holds its own value; negative TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault: a third peer with no timer container keeps DefaultReceiveHoldTime (guarded against equalling a configured value) and `receive-hold-time 2` is refused. Both records observed red on parsePeerFromTree. HEAD PeerSettings-level units stay supplementary (timers + negotiation).",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation"
+            ]
           }
         },
         {
@@ -105903,7 +105954,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 146,
+              "line": 149,
               "carrier": "unit/verify",
               "claim": "-- the same producer does modify the AS_PATH when the peer is external, prepending the local AS, so the internal-peer no-modify rule is a deliberate branch (internal/component/bgp/reactor/reactor_wire.go:513-522).",
               "tags": 1
@@ -105975,7 +106026,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 129,
+              "line": 132,
               "carrier": "unit/verify",
               "claim": "-- writeAnnounceUpdate leaves the AS_PATH unmodified for an internal peer: the eBGP prepend branch is not taken and the AS number list stays empty (internal/component/bgp/reactor/reactor_wire.go:513-522).",
               "tags": 1
@@ -105990,7 +106041,9 @@
               "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict",
               "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportPrependNeverModifiesAnInternalPeersASPath",
               "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers",
-              "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer"
+              "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer"
             ],
             "upgrade-reason": "The previous weak verdict named the untested native route-server AS_PATH gates; new tagged tests now cover both the policy-role and protocol-edit gates at real Session writers with distinct internal and external assertions. Re-reading the owner's baseline-versus-explicit-extension rule also corrects the later over-broad demand for optional stale modifier coverage as a baseline prerequisite. No baseline requirement is excluded, no existing operator feature is removed, and formal current-unit discrimination records remain a precondition of stamping this upgrade."
           }
@@ -106193,20 +106246,27 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271MEDAlterationHappensAtIngress",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 455,
+              "line": 458,
               "carrier": "unit/verify",
               "claim": "-- the only place ze can alter a received MED is the ingress filter chain, whose modified payload replaces the WireUpdate before the UPDATE is dispatched to the RIB plugin that runs phases 1 and 2 (internal/component/bgp/reactor/reactor_notify.go:427-466).",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyOneMessage",
+                "break": "line 722: \"res.modifiedPayload != nil\" -\u003e \"res.modifiedPayload != nil \u0026\u0026 step.policyChain\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 4271 Section 5.1.4 read: \"If a BGP speaker is configured to alter the value of the MULTI_EXIT_DISC attribute received over EBGP, then altering the value MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2).\" The moved unit TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess replaced the text delta \"med 10\" answer with the typed set answerSet(\"med\",\"10\") from a filter that declares med read and set: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. It still feeds an EBGP UPDATE with MED 100 through notifyMessageReceiver with the import chain step and requires exactly one dispatch carrying MED 10 in both RawBytes and WireUpdate.Payload, so an alteration applied after dispatch, or not at all, goes red. Single-polarity scope unchanged. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced. Independent moved-producer source rejudgment: reread RFC 4271 Section 5.1.4, both complete tagged units and their assertion-producing helpers, and the current notification entry, continuation loop, one-message ingress pass, modified payload publication and cache/delivery boundaries. notifyMessageReceiver is now only a compatibility delegate; notifyMessageReceiverFrom owns the continuation/ownership boundary and calls notifyOneMessage, where the real ingress policy still runs before received-event publication. The exact MED carrier still configures the typed policy-chain answer from received MED 100 to MED 10, requires one dispatch and observes MED 10 in both RawBytes and WireUpdate.Payload; the separate safeIngressFilter carrier remains supplementary. Source receipt propagation preserves the modified payload and does not defer MED alteration. Retain the existing two-entry and single-positive scope and enforced verdict. The existing native body-panic revert must be renewed against Reactor.notifyMessageReceiverFrom after the final executable span freezes; disabling the thin wrapper alone is no evidence about its transitive implementation. This source judgment claims no new native observation or source-session authority proof. Final same-boundary receipt reconciliation: independently read complete job-closure-rfc-renewal-35-cd626132.log and the actual current owning functions. The named MED unit passed clean, then the intentional From body-panic produced its own named red and the native record accepted the original positive cover at Reactor.notifyMessageReceiverFrom. This supersedes the earlier pending-renewal wording; it remains producer reachability rather than normal-return semantic-mutant evidence. Both From and notifyOneMessage files are wholly byte-identical to the published source at HEAD 751524b526, with foundation d518d29e1c already landed; no prospective wrapper body or unready writer is being sealed. Both original test entries and the original bounded decision-input assertions remain in scope.",
+            "note": "Independent rejudgment of the complete RFC 4271 Section 5.1.4 conditional ordering requirement: a speaker choosing to alter received EBGP MED must do so before determining preference and performing Phase 2 selection. Read both complete tagged roots, their actual helpers and typed-policy/in-process ingress producers, message replacement and dispatch order. The single-positive annotation remains justified because the requirement specifies the order of a configured operation rather than a malformed input to reject. The typed-policy root feeds received MED100 from an established external source through its configured MED setter, requires exactly one dispatch, then exact MED10 in RawBytes and WireUpdate.Payload. Its retained accepted generic-handler fault has clean PASS and fails fatal raw equality87 with100 instead of10 after dispatch/presence controls; later wire assertions are clean-only. The strengthened second root preserves every original wrapper-return input and fatal oracle in its own child, then drives a valid route through the actual configured in-process ingress step. It requires exact received callback input, count1, dispatch1, MED10 in both views and the complete rewritten UPDATE including the other attributes and NLRI. Read accepted receipt1dd73529: clean root and both children PASS; under the in-process replacement omission wrapper-return remains PASS and received-route fails only fatal raw529, wanted10/actual100 after the preceding callback/count/dispatch/presence requirements. Later WireUpdate and full-payload checks530–535 are skipped under that fault and remain clean assertions. The actual producing boundary is notifyOneMessage, not its thin compatibility wrapper. The loop executes the step, installs its returned replacement in both message views, and only then publishes to the cache/receiver; a value changed after dispatch cannot satisfy these assertions. Independently read current native freshness: both covers have fresh accepted semantic records, with zero stale and zero unproven. This establishes the tested ordinary received-route decision-input ordering, without claiming actual preference computation, winner ranking, Session writing, TCP/foreign acceptance or kernel output. It preserves the conditional configuration scope and does not turn baseline RFC conformance into a prohibition on other explicit operator extensions. All old assertions and the distinct typed-policy path remain. Preserve the complete producer/helper bindings, including the global MED registration table. This pending judgment is for source=head after coherent publication of the strengthened test and matching records: the relevant MED generic handler, keepOrDrop, table and default-registration bodies were compared to HEAD, while unrelated uncommitted MP_REACH changes must not be fingerprinted as committed source.",
             "freshness": "stale-unit",
             "moved": [
-              "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiverFrom",
-              "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyOneMessage"
+              "internal/component/bgp/reactor/filter_delta_handlers.go"
             ]
           }
         },
@@ -106735,7 +106795,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go` `TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271LocalPrefIncludedForInternalPeers` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go` `TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -106776,7 +106836,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 86,
+              "line": 89,
               "carrier": "unit/verify",
               "claim": "-- the value carried to the internal peer is the computed degree of preference for the route (the stored LOCAL_PREF, defaulting to 100) (internal/component/bgp/reactor/reactor_wire.go:537-541).",
               "tags": 1
@@ -106786,7 +106846,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-11-06 by an independent auditor who authored none of the change; no test or record ran for this judgement. RFC 4271 Section 9.1.1: \"otherwise, the return value MUST be used as the LOCAL_PREF value in any IBGP readvertisement.\" The staleness is a doc comment: TestRFC4271LocalPrefIncludedForInternalPeers changed in its comment only, and reactor_wire.go:537-541 is the true citation (lpVal default, stored override, writeLocalPrefAttr). Its claim is wider than its body: it says the value is the stored LOCAL_PREF defaulting to 100, and the route it builds stores none, so it proves the default only; the claim should be narrowed or the tag dropped. The verdict rests on TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers, re-read: the source's real import chain computes 200, the internal destination is sent exactly 000000C8 and the external none, and with no policy the internal is sent 00000064, so no constant passes both; both polarities carry observed reach records. Bound: the unit drives the general forward rail. The route-server rail shares applyFactsLocalPref (forward_rs.go:553), and the rib plugin's readvertisement is not driven by it. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers"
+            ]
           }
         },
         {
@@ -108268,25 +108331,41 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 573,
+              "line": 720,
               "carrier": "unit/verify",
               "claim": "-- the prohibition carries the route reflector exception: with a route reflector client on one side the same forward is not skipped (internal/component/bgp/reactor/forward_rs.go:309-313).",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+                "break": "line 452: \"!srcIsRRClient \u0026\u0026 !facts.rrClient\" -\u003e \"(!srcIsRRClient || srcIsRRClient) \u0026\u0026 !facts.rrClient /* MUTATION-APPLIED: ignore source-client exception */\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 514,
+              "line": 573,
               "carrier": "unit/verify",
               "claim": "-- reactorForwardRS skips an internal destination for an internally learned route unless the source or the destination is a route reflector client (internal/component/bgp/reactor/forward_rs.go:309-313).",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+                "break": "line 452: \"!srcIsRRClient \u0026\u0026 !facts.rrClient\" -\u003e \"!srcIsRRClient \u0026\u0026 !facts.rrClient \u0026\u0026 false /* MUTATION-APPLIED: permit ordinary internal redistribution */\"",
+                "verified": true,
+                "proves": true
+              }
             }
           ],
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-01 (BGP c15 judge). Both c14 gaps on the general rail closed: TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers forwards one route from an internal non-client source on forwardUpdateCore -\u003e forwardUpdateSection to an internal non-client (sent nothing), an external peer (sent the route) and an internal route-reflector client DESTINATION (sent the route: the RR exception with a client destination). Absence is judged after the two controls of the same fan-out arrive plus a 500 ms window, not a bare sleep. Revert record on forwardUpdateSection; the author's overlay turning the !srcInfo.isRRClient \u0026\u0026 !facts.rrClient refusal into if false reddens the non-client assertion (c15-ov-sh). The route-server rail keeps TestRFC4271NoIBGPToIBGPRedistribution (absence after a fixed 50 ms sleep, no in-fan-out control; its partner TestRFC4271IBGPRedistributionAllowedForReflectorClient shows the same dispatch within 2 s) and TestRFC4271IBGPRedistributionAllowedForReflectorClient: a residual timing weakness on that rail only, and neither RS unit has a record.",
+            "note": "Independent rejudgment of RFC 4271 Section 9.2: information received from an internal peer must not be redistributed to other internal peers, with the explicit route-reflector exception retained. Read all three complete tagged roots, current general/RS source classification and reflection guards, actual peer/payload/dispatch observers, production Barrier and buffer lifetime contracts. The unchanged general-rail root sends a real NLRI from a resolved internal non-client source to an ordinary internal, an external and a destination-client peer in one fan-out. Exact useful external/client NLRI checks accompany ordinary refusal. Its retained accepted receipt dedac4ef passes clean, then only nonfatal forbidden .71 assertion51 fails under the refusal bypass; external .72 and client .73 checks execute without failure. Both strengthened RS roots preserve the entire old empty-UPDATE children and their timing limitations, while adding actual route-bearing subcases. The RS positive requires ordinary internal absence with useful external .3 and destination-client .4 exact NLRI and no withdrawals after a bounded production Barrier. Read the repaired accepted receipt00fbc4d1: clean root and both children PASS; the normal-return refusal bypass fails the old absence621 and, independently, route-bearing absence699; later useful external/client checks703–706 execute without failure. The earlier similarly named unused-local compile failure produced no record and supplies no semantic evidence. The RS negative drives a source-client route, checks exact useful external .3 first, then exact internal .2 reflection. Accepted receipt21880a82 passes clean with both children; its fault removes only source-client authorization, giving the old child timeout771 and also the distinct received-route missing-internal requirement854 after successful external checks. Later internal decoding/no-withdrawal/exact-NLRI checks are skipped under that fault. The timeout alone is not the witness. The corrected faults retain the local flag's syntactic use and preserve external and destination-client authorization. All snapshots copy raw bodies and the rebuilt fields actually decoded before safeBatchHandle invokes completion/release; the test inspects the mutex-protected map only after FIFO Barrier completion, excluding data-free sentinels. Useful route requirements prevent nil/no-worker/stopped-pool false absence. Independently read native freshness: all three tagged covers have current accepted semantic records, zero stale and zero unproven. These direct producer fixtures end at copied in-process forwarding-pool output; their missing receive-grant warnings do not become a claim of actual plugin ingress authorization, Session/TCP delivery, selected-advertiser completion, foreign acceptance or kernel behavior. Both source-client and destination-client reflection remain allowed standard exceptions. The judgment preserves the default no-reflection rule and explicit operator features rather than imposing a stricter universal policy. The complete prior bindings and new decoder/Barrier/worker/ownership closure are retained. Stamp against source=head only after coherent publication of the strengthened test and accepted records.",
             "freshness": "fresh"
           }
         },
@@ -108417,7 +108496,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_own_as_change_test.go` `TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271OwnASReachabilityChangeAdvertised` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_own_as_change_test.go` `TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers` (unit/verify), `internal/component/bgp/reactor/rfc4271_test.go` `TestRFC4271OwnASUnreachabilityChangeAdvertised` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -108441,7 +108520,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASUnreachabilityChangeAdvertised",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 429,
+              "line": 432,
               "carrier": "unit/verify",
               "claim": "-- the advertisement is a change notification, not an announce-only path: a destination that stops being reachable is encoded into the Withdrawn Routes field rather than announced (internal/component/bgp/reactor/reactor_wire.go:451-475).",
               "tags": 1
@@ -108468,7 +108547,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised",
               "file": "internal/component/bgp/reactor/rfc4271_test.go",
-              "line": 401,
+              "line": 404,
               "carrier": "unit/verify",
               "claim": "-- a reachable destination within the speaker's own AS is advertised by encoding an announce UPDATE whose NLRI field carries the prefix (internal/component/bgp/reactor/reactor_wire.go:230-390).",
               "tags": 1
@@ -108478,7 +108557,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-01 (BGP c18 judge). The old objection (units call the encoders only) is closed at the entry point: NEW TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers originates 10.20.0.0/24 through reactorAPIAdapter.AnnounceNLRIBatch (the API announce entry point) toward one internal and one external Established peer and parses each connection's bytes: exactly one UPDATE, Withdrawn Routes empty, attributes present, NLRI = the prefix. NEW TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers: after that announcement WithdrawNLRIBatch writes exactly one more UPDATE per peer with the prefix in Withdrawn Routes, no attributes, no NLRI, so a change that removes reachability is advertised, not left standing. Observed-red records: + on reactor_api_batch.go::AnnounceNLRIBatch, - on WithdrawNLRIBatch. The HEAD encoder units (writeAnnounceUpdate/writeWithdrawUpdate) stay as supplementary. Residual, not a clause gap: own-AS reachability changes are driven through the API rail; static-route reload and default-originate rails are not exercised by these units.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised",
+              "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASUnreachabilityChangeAdvertised"
+            ]
           }
         },
         {
@@ -110733,7 +110816,7 @@
         "audited": 52,
         "discrimination-records": 226,
         "escapes": 9,
-        "stale-records": 15
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -111105,11 +111188,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
                 "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -112461,11 +112543,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 149: \"if !ok {\" -\u003e \"if _ = ok; false {\"",
-                "verified": false,
+                "break": "line 173: \"if !ok {\" -\u003e \"if _ = ok; false {\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -112550,11 +112631,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 280: \"if err != nil {\" -\u003e \"if err != nil \u0026\u0026 false {\"",
-                "verified": false,
+                "break": "line 309: \"if err != nil {\" -\u003e \"if err != nil \u0026\u0026 false {\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -112568,11 +112648,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
                 "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -112916,11 +112995,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
                 "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -114513,11 +114591,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
-                "verified": false,
+                "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -114995,11 +115072,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -115049,11 +115125,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -115177,11 +115252,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -116094,11 +116168,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/child.go::appendChildPolicies",
                 "break": "body of appendChildPolicies replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -116451,11 +116524,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
-                "verified": false,
+                "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -116469,11 +116541,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
-                "verified": false,
+                "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -116487,11 +116558,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
-                "verified": false,
+                "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -116505,11 +116575,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
-                "verified": false,
+                "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -117154,7 +117223,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 60,
+        "mandatory-proven": 61,
         "mandatory-total": 101,
         "optional-proven": 0,
         "optional-total": 3,
@@ -117162,10 +117231,10 @@
           "must": {
             "total": 101,
             "kept": 101,
-            "ze-proven": 60,
+            "ze-proven": 61,
             "os-verified": 0,
             "os-gap": 3,
-            "proof-pending": 7,
+            "proof-pending": 6,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 31,
@@ -117186,7 +117255,7 @@
           }
         },
         "mandatory-by-kind": {
-          "unit": 60
+          "unit": 61
         },
         "unmet": [
           "RFC4301-4.1-5",
@@ -117260,7 +117329,7 @@
         "audited": 9,
         "discrimination-records": 24,
         "escapes": 0,
-        "stale-records": 2
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -118010,11 +118079,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -118045,11 +118113,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -118851,7 +118918,7 @@
         "audited": 11,
         "discrimination-records": 31,
         "escapes": 0,
-        "stale-records": 1
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -119361,11 +119428,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/child.go::installChildSA",
                 "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -352802,7 +352868,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 60,
+        "mandatory-proven": 61,
         "mandatory-total": 101,
         "optional-proven": 0,
         "optional-total": 3,
@@ -352810,10 +352876,10 @@
           "must": {
             "total": 101,
             "kept": 101,
-            "ze-proven": 60,
+            "ze-proven": 61,
             "os-verified": 0,
             "os-gap": 3,
-            "proof-pending": 7,
+            "proof-pending": 6,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 31,
@@ -352834,7 +352900,7 @@
           }
         },
         "mandatory-by-kind": {
-          "unit": 60
+          "unit": 61
         },
         "unmet": [
           "RFC4301-4.1-5",
@@ -385780,7 +385846,7 @@
       "rollup": {
         "rfcs": 17,
         "not-walked": 0,
-        "mandatory-proven": 378,
+        "mandatory-proven": 379,
         "mandatory-total": 720,
         "optional-proven": 13,
         "optional-total": 224,
@@ -385788,10 +385854,10 @@
           "must": {
             "total": 720,
             "kept": 720,
-            "ze-proven": 378,
+            "ze-proven": 379,
             "os-verified": 0,
             "os-gap": 58,
-            "proof-pending": 186,
+            "proof-pending": 185,
             "exclusion-unchecked": 0,
             "not-assessed": 3,
             "not-built": 95,
@@ -386226,7 +386292,7 @@
           "optional-profiles": [],
           "path": "vpn-concentrator: required by rfc/short/rfc4301.md",
           "walked": true,
-          "mandatory-proven": 60,
+          "mandatory-proven": 61,
           "mandatory-total": 101,
           "optional-proven": 0,
           "optional-total": 3,
@@ -386234,10 +386300,10 @@
             "must": {
               "total": 101,
               "kept": 101,
-              "ze-proven": 60,
+              "ze-proven": 61,
               "os-verified": 0,
               "os-gap": 3,
-              "proof-pending": 7,
+              "proof-pending": 6,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 31,
@@ -386258,7 +386324,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 60
+            "unit": 61
           },
           "unmet": [
             "RFC4301-4.1-5",
@@ -387543,7 +387609,7 @@
       "rollup": {
         "rfcs": 12,
         "not-walked": 0,
-        "mandatory-proven": 258,
+        "mandatory-proven": 259,
         "mandatory-total": 547,
         "optional-proven": 7,
         "optional-total": 169,
@@ -387551,10 +387617,10 @@
           "must": {
             "total": 547,
             "kept": 547,
-            "ze-proven": 258,
+            "ze-proven": 259,
             "os-verified": 0,
             "os-gap": 56,
-            "proof-pending": 156,
+            "proof-pending": 155,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 77,
@@ -387877,7 +387943,7 @@
           "optional-profiles": [],
           "path": "vpn-endpoint: required by rfc/short/rfc4301.md",
           "walked": true,
-          "mandatory-proven": 60,
+          "mandatory-proven": 61,
           "mandatory-total": 101,
           "optional-proven": 0,
           "optional-total": 3,
@@ -387885,10 +387951,10 @@
             "must": {
               "total": 101,
               "kept": 101,
-              "ze-proven": 60,
+              "ze-proven": 61,
               "os-verified": 0,
               "os-gap": 3,
-              "proof-pending": 7,
+              "proof-pending": 6,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 31,
@@ -387909,7 +387975,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 60
+            "unit": 61
           },
           "unmet": [
             "RFC4301-4.1-5",
@@ -398163,7 +398229,7 @@
       "rollup": {
         "rfcs": 21,
         "not-walked": 0,
-        "mandatory-proven": 273,
+        "mandatory-proven": 274,
         "mandatory-total": 704,
         "optional-proven": 9,
         "optional-total": 266,
@@ -398171,10 +398237,10 @@
           "must": {
             "total": 704,
             "kept": 704,
-            "ze-proven": 273,
+            "ze-proven": 274,
             "os-verified": 0,
             "os-gap": 76,
-            "proof-pending": 167,
+            "proof-pending": 166,
             "exclusion-unchecked": 0,
             "not-assessed": 25,
             "not-built": 163,
@@ -398624,7 +398690,7 @@
           "optional-profiles": [],
           "path": "ikev2-ipsec: aggregate named by rfc/short/rfc4301.md",
           "walked": true,
-          "mandatory-proven": 60,
+          "mandatory-proven": 61,
           "mandatory-total": 101,
           "optional-proven": 0,
           "optional-total": 3,
@@ -398632,10 +398698,10 @@
             "must": {
               "total": 101,
               "kept": 101,
-              "ze-proven": 60,
+              "ze-proven": 61,
               "os-verified": 0,
               "os-gap": 3,
-              "proof-pending": 7,
+              "proof-pending": 6,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 31,
@@ -398656,7 +398722,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 60
+            "unit": 61
           },
           "unmet": [
             "RFC4301-4.1-5",

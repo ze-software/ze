@@ -1,5 +1,12 @@
 /* Page-local RFC exploration. Shared site surfaces and text stay neutral. */
 #rfc-map {
+    --rfc-map-proof-ze-proven: var(--green);
+    --rfc-map-proof-os-verified: var(--green-soft);
+    --rfc-map-proof-proof-pending: var(--sky-base);
+    --rfc-map-proof-os-gap: var(--lavender);
+    --rfc-map-proof-exclusion-unchecked: var(--amber);
+    --rfc-map-proof-not-assessed: var(--neutral-base);
+    --rfc-map-proof-not-built: var(--coral);
     min-width: 0;
     width: 100%;
     color: var(--text);
@@ -109,6 +116,7 @@
     border: 1px solid var(--line-strong);
     border-radius: .55rem;
     background: var(--panel);
+    background-image: linear-gradient(color-mix(in srgb, var(--panel) 78%, transparent), color-mix(in srgb, var(--panel) 78%, transparent)), var(--rfc-map-node-gradient, none);
     color: var(--text);
     text-align: left;
     box-shadow: 0 2px 6px var(--shadow);
@@ -143,13 +151,13 @@
 #rfc-map .rfc-map-metric { display: flex; gap: .4rem; align-items: baseline; }
 #rfc-map .rfc-map-metric strong { font-size: 1rem; }
 #rfc-map .rfc-map-metric span { color: var(--muted); font-size: .72rem; }
-#rfc-map .rfc-map-proof-ze-proven { fill: var(--green); }
-#rfc-map .rfc-map-proof-os-verified { fill: var(--green-soft); }
-#rfc-map .rfc-map-proof-proof-pending { fill: var(--sky-base); }
-#rfc-map .rfc-map-proof-os-gap { fill: var(--lavender); }
-#rfc-map .rfc-map-proof-exclusion-unchecked { fill: var(--amber); }
-#rfc-map .rfc-map-proof-not-assessed { fill: var(--neutral-base); }
-#rfc-map .rfc-map-proof-not-built { fill: var(--coral); }
+#rfc-map .rfc-map-proof-ze-proven { fill: var(--rfc-map-proof-ze-proven); }
+#rfc-map .rfc-map-proof-os-verified { fill: var(--rfc-map-proof-os-verified); }
+#rfc-map .rfc-map-proof-proof-pending { fill: var(--rfc-map-proof-proof-pending); }
+#rfc-map .rfc-map-proof-os-gap { fill: var(--rfc-map-proof-os-gap); }
+#rfc-map .rfc-map-proof-exclusion-unchecked { fill: var(--rfc-map-proof-exclusion-unchecked); }
+#rfc-map .rfc-map-proof-not-assessed { fill: var(--rfc-map-proof-not-assessed); }
+#rfc-map .rfc-map-proof-not-built { fill: var(--rfc-map-proof-not-built); }
 #rfc-map .rfc-map-disclosure { min-width: 0; border-top: 1px solid var(--line); margin-top: 1rem; padding-top: .85rem; }
 #rfc-map .rfc-map-app > .rfc-map-disclosure { padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--panel); }
 #rfc-map .rfc-map-disclosure summary { font-size: .83rem; font-weight: 800; line-height: 1.55; color: var(--text); }

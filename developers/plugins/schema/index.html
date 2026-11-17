@@ -128,7 +128,52 @@ differs. To ship a new schema, install the new program and restart <code>ze</cod
 timeout, declares nothing: a config section only its module defines is then
 refused as <code>unknown top-level keyword: &lt;root&gt;</code>, and the refusal names the
 plugin, why it did not declare and the command that checks it
-(<code>ze show plugin conformance run "&lt;command&gt;"</code>).</p>
+(<code>ze show plugin conformance run "&lt;command&gt;"</code>). The same holds for a plugin
+that sends its declaration with no YANG module: it defines no config section,
+and a section written for it is refused with a message that says so.</p>
+<p>Each of these outcomes has a doctor code:</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>When</th>
+<th>Where you read it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>doctor-plugin-schema-undeclared</code></td>
+<td>Ze holds no config schema of your plugin: it could not be run, it sent no declaration in time, or it declared no module and the config holds a section no schema defines</td>
+<td>On the refusal and in the log when the start is refused, and then in <code>ze doctor</code>, from the record Ze wrote before it exited, until Ze next starts cleanly. In <code>ze show doctor</code> when the config holds no section of your plugin, so Ze starts</td>
+</tr>
+<tr>
+<td><code>doctor-plugin-schema-refused</code></td>
+<td>Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a validator Ze does not hold, or it adds nothing</td>
+<td>On the refusal and in the log. Ze does not start, and <code>ze doctor</code> reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly</td>
+</tr>
+<tr>
+<td><code>doctor-plugin-schema-changed</code></td>
+<td>Your plugin was started again with another schema</td>
+<td>In <code>ze show doctor</code></td>
+</tr>
+</tbody>
+</table>
+<p>In a running Ze your module is part of the schema every surface reads: the
+session editor parses and completes under your root, <code>show config running</code>
+answers your section, <code>show yang tree config</code> shows your nodes with their
+types and descriptions, and <code>show schema list</code> lists your module with the
+roots your plugin wants. Type them in a <code>ze cli</code> session or send them over
+SSH: both reach the running Ze, while <code>ze cli -c</code> answers these two in its own
+process, from the modules compiled into <code>ze</code>. A running Ze has no command that
+prints the YANG text of one module; <code>ze schema show &lt;module&gt;</code> prints it for a
+module compiled into <code>ze</code> only. The doctor check for config that reaches no plugin counts the roots
+your running plugin declared, so your section is not reported as having no
+effect.</p>
+<p>With no daemon, <code>ze schema</code> shows the modules compiled into <code>ze</code> only. A
+<code>--plugin</code> that names your program does not start it: the answer is followed
+by a warning that your module is not available with no running Ze, whose fix
+is <code>ze cli</code>: typed in that session, <code>show schema list</code> lists your module and
+<code>show yang tree config</code> shows its nodes.</p>
 <p>With no daemon running, Ze never starts an external plugin's program. Your
 module reaches Ze only when <code>ze start</code> runs your plugin, so a command that
 parses a config with no daemon holds the schemas compiled into the <code>ze</code> binary
@@ -585,7 +630,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
                 </div>
             </div>
         </footer>

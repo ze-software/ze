@@ -38,19 +38,19 @@ If you are evaluating Ze for one role, start with Coverage by profile. To check 
 
 Ze's automatic checks cover the mandatory requirements of the RFCs it implements. For RFCs whose requirement lists have been reviewed, the bars and Total row group those requirements by status: verified by Ze's tests, verified in the operating system, not applicable, or awaiting implementation or tests. The cards below show how many tests have been shown to detect a deliberate fault and whether the checks pass.
 
-Failed. 390 unresolved check findings. Check results below lists them, up to the 25 shown on this page. Contributors reproduce it with `./le rfc check`. The check's original output reads `rfc-requirements: 390 violation(s)`.
+Failed. 414 unresolved check findings. Check results below lists them, up to the 25 shown on this page. Contributors reproduce it with `./le rfc check`. The check's original output reads `rfc-requirements: 414 violation(s)`.
 
 ### Status of the RFC requirements included in automatic checks
 
-- **MUST bar**: Ze verified 2,228, Tests awaiting verification 783, OS testing gap 235, Exclusion unchecked 28, Not built 1,510
-- **Overview bar**: Ze MUST verified 2,228, SHOULD verified 115, Not owed 18, Tests awaiting verification 800, OS testing gap 236, Exclusion unchecked 30, Not assessed 1,827, Not built 1,544
+- **MUST bar**: Ze verified 2,229, Tests awaiting verification 782, OS testing gap 235, Exclusion unchecked 28, Not built 1,510
+- **Overview bar**: Ze MUST verified 2,229, SHOULD verified 115, Not owed 18, Tests awaiting verification 799, OS testing gap 236, Exclusion unchecked 30, Not assessed 1,827, Not built 1,544
 
 
 | Total | Ze verified | OS verified | Tests awaiting verification | OS testing gap | Exclusion unchecked | Not assessed | Not built | Not owed | MUST rows |
 |---|---|---|---|---|---|---|---|---|---|
-| Total | 2,228 | 0 | 783 | 235 | 28 | 0 | 1,510 | 18 | 4,802 |
+| Total | 2,229 | 0 | 782 | 235 | 28 | 0 | 1,510 | 18 | 4,802 |
 
-Check: 2,228 + 0 + 783 + 235 + 28 + 0 + 1,510 + 18 = 4,802 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
+Check: 2,229 + 0 + 782 + 235 + 28 + 0 + 1,510 + 18 = 4,802 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
 
 Of the 204 RFCs included in automatic checks, 0 have not had their requirement lists reviewed, so their requirements are excluded from the figures above. Ze implements 196 of these RFCs, each with a public support entry. The rfc/short/ directory holds 242 summary files, including RFCs excluded from automatic checks and summaries that list no requirements. They list 7,834 requirements across all levels. These totals describe the requirement inventory. Until 2026-10-31 this page led with a count of mandatory requirements, including requirements with explanatory annotations, and showed the percentage of that total verified by tests. The sections above replace those figures by classifying each mandatory requirement of a reviewed RFC included in automatic checks in exactly one section.
 
@@ -60,7 +60,7 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tests shown to detect a fault | 6,690 | 6,690 of 9,602 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 257 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 6,710 | 6,710 of 9,602 tests linked to requirements in RFCs included in automatic checks, 20 without a fault test and 240 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -68,7 +68,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Compliance check result | Failed | 390 unresolved check findings | whether ./le rfc check passes over this tree |
+| Compliance check result | Failed | 414 unresolved check findings | whether ./le rfc check passes over this tree |
 
 ### Neutral
 
@@ -76,7 +76,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Current test reviews | 2,147 | 118 shifted, 46 stale, 2,491 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Current test reviews | 2,132 | 133 shifted, 46 stale, 2,491 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 No card above is a part of a population, so there is nothing to add up.
 
@@ -90,12 +90,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 390 |
+| Gate issues | 414 |
 | Resolved test tags | 9,921 |
 | Declared gaps | 1,478 |
 | RFCs with declared gaps | 130 |
-| Fresh semantic audit verdicts | 2,147 |
-| Shifted semantic audit verdicts | 118 |
+| Fresh semantic audit verdicts | 2,132 |
+| Shifted semantic audit verdicts | 133 |
 | Stale semantic audit verdicts | 46 |
 | Mandatory requirements of reviewed RFCs included in automatic checks | 4,802 |
 | RFCs included in automatic checks | 204 |
@@ -214,7 +214,7 @@ This compliance check runs during verification: ./le rfc check is 1 stage of the
 | Automatic checks | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 204 RFCs included in automatic checks |
 | Test tags | `internal/`, `pkg/`, `test/` | 9,921 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 130 RFCs with gaps |
-| Semantic audits | `rfc/audit/*/*.json` | 2,147 fresh, 118 shifted, 46 stale, 2,491 missing |
+| Semantic audits | `rfc/audit/*/*.json` | 2,132 fresh, 133 shifted, 46 stale, 2,491 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 61 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -226,8 +226,8 @@ Compliance is checked in several groups. Each line below says what one group ver
 - **Test evidence:** Failed, 4 problems. Every gated MUST-level requirement has its tests, or an annotation that says why not, test evidence already recorded is not lost, and every test that claims a requirement compiles and is named for what it covers. What this means: The test evidence for a requirement is missing, lost, or not where it is claimed to be.
 - **Requirement annotations:** Passed. Every annotation that excuses a requirement from Ze's own tests still names code that exists, quotes the RFC sentence it relies on, or names a verified blocking kernel entry in the Linux limitations register with evidence for that exact requirement at the shipped kernel version.
 - **Published ledger rows:** Passed. Every enrolled RFC with an unmet requirement renders a public row that discloses it, a public row never disappears while its summary remains, and each summary's enrolment disposition gives a reason a reviewer can check.
-- **Reviewer verdicts:** Failed, 187 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.
-- **Recorded breaks:** Failed, 199 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
+- **Reviewer verdicts:** Failed, 202 problems. Each reviewer verdict recorded on a requirement is well formed and still describes the code and tests it judged. What this means: A reviewer verdict is malformed or out of date, and that requirement must be reviewed again before the verdict counts.
+- **Recorded breaks:** Failed, 208 problems. Each recorded break still matches the test, the claim and the code it was recorded against, and no recorded proof is lost. What this means: A test's proof is missing or no longer matches what it rests on, so it is not counted as proven by a recorded break.
 - **Reviews of RFC text:** Passed. Each sign-off of a sentence-by-sentence review of an RFC's text is valid and current.
 
 ### For contributors: the raw findings and the commands that fix them
@@ -260,7 +260,7 @@ Compliance is checked in several groups. Each line below says what one group ver
 | - | `-` | - | rfc/short/draft-ietf-idr-linklocal-capability.md:126: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn (func-scoped), internal/component/bgp/reactor/forward_next_hop.go::originatedNextHopIsPeerOwn (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/draft-ietf-sidrops-aspa-verification.md:356: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery, internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal stem draft-ietf-sidrops-aspa-verification | - |
 
-365 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+389 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## RFCs included in automatic checks
 
@@ -268,15 +268,15 @@ Every RFC included in Ze's automatic checks, with its own figures. Open an RFC t
 
 ### Every RFC listed
 
-- **MUST bar**: Ze verified 2,282, Tests awaiting verification 797, OS testing gap 235, Exclusion unchecked 28, Not assessed 191, Not built 1,620
-- **Overview bar**: Ze MUST verified 2,282, SHOULD verified 120, Not owed 18, Tests awaiting verification 814, OS testing gap 236, Exclusion unchecked 30, Not assessed 2,369, Not built 1,654
+- **MUST bar**: Ze verified 2,283, Tests awaiting verification 796, OS testing gap 235, Exclusion unchecked 28, Not assessed 191, Not built 1,620
+- **Overview bar**: Ze MUST verified 2,283, SHOULD verified 120, Not owed 18, Tests awaiting verification 813, OS testing gap 236, Exclusion unchecked 30, Not assessed 2,369, Not built 1,654
 
 
 | Total | Ze verified | OS verified | Tests awaiting verification | OS testing gap | Exclusion unchecked | Not assessed | Not built | Not owed | MUST rows |
 |---|---|---|---|---|---|---|---|---|---|
-| Total | 2,282 | 0 | 797 | 235 | 28 | 191 | 1,620 | 18 | 5,171 |
+| Total | 2,283 | 0 | 796 | 235 | 28 | 191 | 1,620 | 18 | 5,171 |
 
-Check: 2,282 + 0 + 797 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
+Check: 2,283 + 0 + 796 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requirements: the MUST bar's sections and the requirements that do not apply add up to all mandatory requirements in the RFCs whose requirement lists have been reviewed.
 
 242 RFCs, of which 13 have not had their requirement lists reviewed and are excluded from the figures.
 
@@ -349,7 +349,7 @@ Check: 2,282 + 0 + 797 + 235 + 28 + 191 + 1,620 + 18 = 5,171 mandatory requireme
 | [`RFC 4106`](rfc4106/index.md) The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | ESP | Ze verified 5, OS testing gap 3 | Ze MUST verified 5, OS testing gap 3, Not assessed 5 | 8 | 0 | 0 | 0 |
 | [`RFC 4213`](rfc4213/index.md) Basic Transition Mechanisms for IPv6 Hosts and Routers | IPv6 over IPv4 configured tunnels (6in4, sit) | Ze verified 1, OS testing gap 17, Not built 5 | Ze MUST verified 1, OS testing gap 17, Not assessed 24, Not built 5 | 23 | 5 | 0 | 0 |
 | [`RFC 4271`](rfc4271/index.md) A Border Gateway Protocol 4 (BGP-4) | BGP-4 base protocol | Ze verified 91, Tests awaiting verification 29, Not built 13 | Ze MUST verified 91, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 13 | 133 | 10 | 0 | 0 |
-| [`RFC 4301`](rfc4301/index.md) Security Architecture for the Internet Protocol | IPsec architecture | Ze verified 60, Tests awaiting verification 7, OS testing gap 3, Not built 31 | Ze MUST verified 60, Tests awaiting verification 7, OS testing gap 4, Not assessed 1, Not built 32 | 101 | 25 | 0 | 0 |
+| [`RFC 4301`](rfc4301/index.md) Security Architecture for the Internet Protocol | IPsec architecture | Ze verified 61, Tests awaiting verification 6, OS testing gap 3, Not built 31 | Ze MUST verified 61, Tests awaiting verification 6, OS testing gap 4, Not assessed 1, Not built 32 | 101 | 25 | 0 | 0 |
 | [`RFC 4302`](rfc4302/index.md) IP Authentication Header | Authentication Header | Ze verified 9, OS testing gap 19, Not built 4 | Ze MUST verified 9, OS testing gap 19, Not assessed 10, Not built 4 | 32 | 4 | 0 | 0 |
 | [`RFC 4303`](rfc4303/index.md) IP Encapsulating Security Payload (ESP) | ESP | Ze verified 7, Tests awaiting verification 2, Not built 14 | Ze MUST verified 7, Tests awaiting verification 3, Not assessed 2, Not built 15 | 23 | 15 | 0 | 0 |
 | [`RFC 4360`](rfc4360/index.md) BGP Extended Communities Attribute | Extended communities | Ze verified 2, Not built 3 | Ze MUST verified 2, Not assessed 4, Not built 3 | 5 | 3 | 0 | 0 |

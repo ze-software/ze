@@ -2558,6 +2558,18 @@ ze cli -c "show schema methods | match peer"
 ```
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
+`ze schema show <module>` is a local command only: a running Ze serves the
+other five as `show schema ...` and has no `show schema show`.
+
+`ze schema` starts no program. A `--plugin` that names an external program
+adds nothing to the answer: the command answers from the modules compiled into
+`ze`, exits 0, and writes a warning on stderr that the plugin's schema is not
+available with no running Ze. The running Ze holds the module that plugin
+declared when it started. Open a session with `ze cli` and type
+`show schema list` to see the module listed, or `show yang tree config` to see
+its nodes. An empty `--plugin` value is refused with exit 1.
+<!-- source: internal/component/config/schema/cli/main.go -- externalNotShown, emptyPluginSpecRefusal, buildSchemaRegistry -->
+
 ### ze yang
 
 YANG analysis.

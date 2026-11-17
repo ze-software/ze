@@ -15,7 +15,7 @@ This file collects information for AI tools in one place. It describes the produ
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 52 shipped or experimental feature cards, 534 CLI commands, 39 config sections, 98 plugin registrations, 64 direct Go dependencies, 46 update reports.
-- Test evidence counts: 48,400+ unit tests, 110+ fuzz targets, 3,000+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
+- Test evidence counts: 48,500+ unit tests, 110+ fuzz targets, 3,000+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
 - Generated date: 2026-11-17.
 
@@ -23,7 +23,7 @@ This file collects information for AI tools in one place. It describes the produ
 
 Ze tests behavior at several levels because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 48,400+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 48,500+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 110+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.

@@ -167,12 +167,12 @@
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 11380,
+      "value": 11427,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 11679,
+      "value": 11739,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
@@ -182,12 +182,12 @@
     },
     "repo.go_source_lines": {
       "category": "committed-data",
-      "value": 1764695,
+      "value": 1768348,
       "source": "activity Go inventory: tracked first-party non-test Go files, including tooling, comments and blank lines; excluding dependencies"
     },
     "repo.go_test_lines": {
       "category": "committed-data",
-      "value": 2122409,
+      "value": 2126125,
       "source": "activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies"
     },
     "repo.go_vendor_lines": {

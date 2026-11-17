@@ -256,13 +256,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "48414",
+        "denominator": "48475",
         "numerator": "111",
         "percent": "0.2"
       },
       "value": {
         "1": "111",
-        "2": "48414",
+        "2": "48475",
         "3": "108"
       }
     },
@@ -277,14 +277,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "9836",
+        "1": "9869",
         "2": "115",
         "3": "160",
-        "4": "3035",
+        "4": "3051",
         "5": "207"
       },
       "value": {
-        "1": "48457"
+        "1": "48518"
       }
     },
     "known-failures": {
@@ -297,13 +297,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "9836",
-        "numerator": "3930",
+        "denominator": "9869",
+        "numerator": "3947",
         "percent": "40.0"
       },
       "value": {
-        "1": "3930",
-        "2": "9836"
+        "1": "3947",
+        "2": "9869"
       },
       "worst": {
         "1": {
@@ -382,23 +382,23 @@
         "27": "235",
         "28": "0",
         "29": "0",
-        "3": "2209",
+        "3": "2210",
         "30": "0",
         "31": "14",
         "4": "0",
         "5": "235",
-        "6": "2308",
-        "7": "777",
+        "6": "2307",
+        "7": "776",
         "8": "21",
         "9": "0"
       },
       "proof_density": {
         "denominator": "4752",
-        "numerator": "2209",
+        "numerator": "2210",
         "percent": "46.5"
       },
       "value": {
-        "1": "2209",
+        "1": "2210",
         "2": "4752"
       },
       "worst": {
@@ -505,19 +505,19 @@
     "targets": 13
   },
   "plugin_registrations": 98,
-  "published_at": "2026-11-17T06:59:10Z",
+  "published_at": "2026-11-17T08:38:04Z",
   "release": null,
   "repo": {
-    "design_comments": 11380,
-    "design_comments_display": "11,300+",
-    "detail_comments": 11679,
-    "detail_comments_display": "11,600+",
+    "design_comments": 11427,
+    "design_comments_display": "11,400+",
+    "detail_comments": 11739,
+    "detail_comments_display": "11,700+",
     "go_packages": 1046,
     "go_packages_display": "1,000+",
-    "go_source_lines": 1764695,
-    "go_source_lines_display": "1.76 million",
-    "go_test_lines": 2122409,
-    "go_test_lines_display": "2.12 million",
+    "go_source_lines": 1768348,
+    "go_source_lines_display": "1.77 million",
+    "go_test_lines": 2126125,
+    "go_test_lines_display": "2.13 million",
     "go_vendor_lines": 2063007,
     "go_vendor_lines_display": "2.06 million"
   },
@@ -536,8 +536,8 @@
     "must_kept_display": "4,752",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2209,
-    "proven_display": "2,209",
+    "proven": 2210,
+    "proven_display": "2,210",
     "proven_percent": "46.5",
     "requirements": 7834,
     "requirements_display": "7,834",
@@ -545,13 +545,13 @@
     "summaries_display": "231"
   },
   "tests": {
-    "e2e": 3035,
+    "e2e": 3051,
     "e2e_display": "3,000+",
     "editor": 207,
     "editor_display": "200+",
     "fuzz": 115,
     "fuzz_display": "110+",
-    "unit": 48457,
-    "unit_display": "48,400+"
+    "unit": 48518,
+    "unit_display": "48,500+"
   }
 }

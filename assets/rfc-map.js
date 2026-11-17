@@ -13,6 +13,10 @@
     const site = new URL("../../", document.baseURI);
     const figures = new Map();
     const figureValues = new Map();
+    const proofSegments = [
+        ["ze-proven", "Ze verified"], ["os-verified", "OS verified"], ["proof-pending", "Tests awaiting verification"],
+        ["os-gap", "OS testing gap"], ["exclusion-unchecked", "Exclusion unchecked"], ["not-assessed", "Not assessed"], ["not-built", "Recorded unmet"]
+    ];
     const relationLabels = {
         "declared-requirement": "Declared requirement relation",
         "declared-rfc": "Declared RFC relation · requirement level unassigned",
@@ -102,7 +106,7 @@
             figures.set(stem, task.then(figure => {
                 figureValues.set(stem, figure);
                 root.querySelectorAll("[data-rfc-proof]").forEach(node => {
-                    if (node.dataset.rfcProof === stem) node.textContent = shortProof(figure);
+                    if (node.dataset.rfcProof === stem) paintNodeProof(node, figure);
                 });
                 return figure;
             }));
@@ -115,6 +119,20 @@
         if (figure.unknown) return "MUST unknown · " + figure.unknown.toLowerCase();
         if (figure.percent === null) return figure.must.total ? "No MUST obligations owed" : "No MUST rows";
         return "MUST verified " + figure.percent.toFixed(1).replace(/\.0$/, "") + "%";
+    }
+    function paintNodeProof(proof, figure) {
+        proof.textContent = shortProof(figure);
+        const card = proof.closest(".rfc-map-node");
+        card.style.removeProperty("--rfc-map-node-gradient");
+        if (!figure || figure.error || figure.unknown || figure.percent === null) return;
+        let offset = 0;
+        const stops = [];
+        proofSegments.forEach(([key]) => {
+            const width = 100 * figure.must[key] / figure.must.kept;
+            if (width) stops.push("var(--rfc-map-proof-" + key + ") " + offset + "% " + (offset + width) + "%");
+            offset += width;
+        });
+        card.style.setProperty("--rfc-map-node-gradient", "linear-gradient(to right, " + stops.join(", ") + ")");
     }
     function setURL() {
         const url = new URL(window.location.href);
@@ -375,6 +393,7 @@
             const title = el("span", "rfc-map-node-title", data.title || "No summary available");
             title.title = data.title || "";
             card.append(top, title, proof);
+            paintNodeProof(proof, figureValues.get(stem));
             if (Array.isArray(data.component) && data.component.length > 1) card.append(el("span", "rfc-map-cycle", "Cycle · " + data.component.length));
             holder.append(card);
             canvas.append(holder);
@@ -423,12 +442,8 @@
         if (figure.percent !== null) {
             host.append(note(figure.proven + " of " + must.kept + " owed mandatory requirements verified by tests. This card always covers the full mandatory register."));
             const bar = svg("svg", { viewBox: "0 0 100 4", width: "100%", height: 10, role: "img", "aria-label": figure.proven + " verified, " + must["proof-pending"] + " awaiting test verification, " + must["not-built"] + " recorded unmet" });
-            const segments = [
-                ["ze-proven", "Ze verified"], ["os-verified", "OS verified"], ["proof-pending", "Tests awaiting verification"],
-                ["os-gap", "OS testing gap"], ["exclusion-unchecked", "Exclusion unchecked"], ["not-assessed", "Not assessed"], ["not-built", "Recorded unmet"]
-            ];
             let offset = 0;
-            segments.forEach(([key, title]) => {
+            proofSegments.forEach(([key, title]) => {
                 const width = 100 * must[key] / must.kept;
                 if (width) {
                     const rectangle = svg("rect", { x: offset, y: 0, width, height: 4, class: "rfc-map-proof-" + key });

@@ -4,7 +4,7 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "3a52c9c74c4dd293bfb80e812c3387987b2499bffc4e88470b9b423d0c373247"
+      "sha256": "9c61683c31dffcf1c1fc09db1078d8111fb88b297235c0966e5478ecf890876c"
     },
     {
       "label": "Committed spec roadmap",

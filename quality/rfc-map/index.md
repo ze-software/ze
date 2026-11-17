@@ -8,7 +8,7 @@ The interactive graph is available on the [RFC map page](./).
 
 RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `4f1ed0223dec283018b995bc9a6bfca6c484df0f`. These inputs do not certify one release candidate.
 
-- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `3a52c9c74c4dd293bfb80e812c3387987b2499bffc4e88470b9b423d0c373247`
+- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `9c61683c31dffcf1c1fc09db1078d8111fb88b297235c0966e5478ecf890876c`
 - Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `efc8526d66e15d5b6c8511f9daeb8ca1e1422d87224a36377b58f2af295729ff`, revision `4f1ed0223dec283018b995bc9a6bfca6c484df0f`
 - Proposed release layers: `website/data/rfc-release-layers.json`, SHA-256 `4718bc1578afc15183efee2fcbadd9f52ed5434b4fb57eeb61b980dbd928ac68`
 

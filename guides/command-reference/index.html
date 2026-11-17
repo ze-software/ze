@@ -2985,6 +2985,16 @@ one payload:</p>
 ze cli -c "show schema methods | match peer"
 </code></pre>
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
+<p><code>ze schema show &lt;module&gt;</code> is a local command only: a running Ze serves the
+other five as <code>show schema ...</code> and has no <code>show schema show</code>.</p>
+<p><code>ze schema</code> starts no program. A <code>--plugin</code> that names an external program
+adds nothing to the answer: the command answers from the modules compiled into
+<code>ze</code>, exits 0, and writes a warning on stderr that the plugin's schema is not
+available with no running Ze. The running Ze holds the module that plugin
+declared when it started. Open a session with <code>ze cli</code> and type
+<code>show schema list</code> to see the module listed, or <code>show yang tree config</code> to see
+its nodes. An empty <code>--plugin</code> value is refused with exit 1.</p>
+<!-- source: internal/component/config/schema/cli/main.go -- externalNotShown, emptyPluginSpecRefusal, buildSchemaRegistry -->
 <h3 id="ze-yang">ze yang</h3>
 <p>YANG analysis.</p>
 <pre><code>ze yang completion               # Detect prefix collisions
@@ -5832,7 +5842,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 08:40 UTC</span>
                 </div>
             </div>
         </footer>

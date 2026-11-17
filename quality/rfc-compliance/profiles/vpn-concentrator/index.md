@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-concentrator.json
 
 ## Figures
 
-- **MUST bar**: Ze verified 378, Tests awaiting verification 186, OS testing gap 58, Not assessed 3, Not built 95
-- **Overview bar**: Ze MUST verified 378, SHOULD verified 13, Tests awaiting verification 189, OS testing gap 59, Not assessed 207, Not built 98
+- **MUST bar**: Ze verified 379, Tests awaiting verification 185, OS testing gap 58, Not assessed 3, Not built 95
+- **Overview bar**: Ze MUST verified 379, SHOULD verified 13, Tests awaiting verification 188, OS testing gap 59, Not assessed 207, Not built 98
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-concentrator.json
 | Mandatory requirements complete | not complete |
 | MUST rows | 720 |
 | MUST rows kept (the MUST bar) | 720 |
-| Ze verified | 378 |
+| Ze verified | 379 |
 | OS verified | 0 |
-| Tests awaiting verification | 186 |
+| Tests awaiting verification | 185 |
 | OS testing gap | 58 |
 | Exclusion unchecked | 0 |
 | Not assessed | 3 |
@@ -78,7 +78,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|---|
 | [RFC 3948](../../rfc3948/) (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | UDP Encapsulation of IPsec ESP Packets | Ze verified 6, Tests awaiting verification 4, Not built 1 | Ze MUST verified 6, SHOULD verified 2, Tests awaiting verification 4, Not assessed 3, Not built 1 | vpn-concentrator: required by rfc/short/rfc3948.md |
 | [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze verified 5, OS testing gap 3 | Ze MUST verified 5, OS testing gap 3, Not assessed 5 | vpn-concentrator: required by rfc/short/rfc4106.md |
-| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze verified 60, Tests awaiting verification 7, OS testing gap 3, Not built 31 | Ze MUST verified 60, Tests awaiting verification 7, OS testing gap 4, Not assessed 1, Not built 32 | vpn-concentrator: required by rfc/short/rfc4301.md |
+| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze verified 61, Tests awaiting verification 6, OS testing gap 3, Not built 31 | Ze MUST verified 61, Tests awaiting verification 6, OS testing gap 4, Not assessed 1, Not built 32 | vpn-concentrator: required by rfc/short/rfc4301.md |
 | [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze verified 7, Tests awaiting verification 2, Not built 14 | Ze MUST verified 7, Tests awaiting verification 3, Not assessed 2, Not built 15 | vpn-concentrator: required by rfc/short/rfc4303.md |
 | [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze verified 19 | Ze MUST verified 19, Not assessed 11 | vpn-concentrator: required by rfc/short/rfc5282.md |
 | [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze verified 91, Tests awaiting verification 143 | Ze MUST verified 91, SHOULD verified 4, Tests awaiting verification 145, Not assessed 3 | vpn-concentrator: required by rfc/short/rfc7296.md |

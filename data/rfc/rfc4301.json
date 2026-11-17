@@ -8,10 +8,10 @@
   "must": {
     "total": 101,
     "kept": 101,
-    "ze-proven": 60,
+    "ze-proven": 61,
     "os-verified": 0,
     "os-gap": 3,
-    "proof-pending": 7,
+    "proof-pending": 6,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 31,
@@ -31,7 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 60
+    "unit": 61
   },
   "unmet": [
     "RFC4301-4.1-5",
