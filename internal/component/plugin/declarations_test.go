@@ -41,12 +41,38 @@ import (
 // previous one back afterwards. It writes the field rather than calling
 // SetConfiguredPluginReader, because that setter refuses nil on purpose and a
 // test of the guard needs the absent reader back.
-func withConfiguredPluginReader(t *testing.T, read ConfiguredPluginReader) {
+//
+// The plugins read answers are handed on as a RUNNING DAEMON read them
+// (ConfigProcessDaemon), the one process that starts an external plugin's
+// program in query mode. A test of the command with no daemon installs its
+// reader with withPluginReaderInProcess (declarations_offline_test.go).
+func withConfiguredPluginReader(t *testing.T, read func(path string) ([]PluginConfig, error)) {
 	t.Helper()
+
+	if read == nil {
+		withPluginReaderInProcess(t, ConfigProcessUnspecified, nil)
+		return
+	}
+	withPluginReaderInProcess(t, ConfigProcessDaemon, read)
+}
+
+// withPluginReaderInProcess installs, for one test, a reader that answers the
+// plugins read gives as the named process read them, and puts the previous
+// reader back afterwards. A nil read installs no reader at all.
+func withPluginReaderInProcess(t *testing.T, process ConfigProcess, read func(path string) ([]PluginConfig, error)) {
+	t.Helper()
+
+	var reader ConfiguredPluginReader
+	if read != nil {
+		reader = func(path string) (ConfiguredPlugins, error) {
+			plugins, err := read(path)
+			return ConfiguredPlugins{Plugins: plugins, Process: process}, err
+		}
+	}
 
 	configuredPluginsMu.Lock()
 	previous := configuredPlugins
-	configuredPlugins = read
+	configuredPlugins = reader
 	configuredPluginsMu.Unlock()
 
 	t.Cleanup(func() {

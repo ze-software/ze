@@ -1,77 +1,108 @@
-# Test: a declaration the daemon refuses at Stage 1 is not listed as declared
-# VALIDATES: `show plugin declarations config <path>` judges the declaration an
-#   external plugin answers with the daemon's own Stage 1 checks, so a plugin
-#   whose declaration the daemon refuses has the state `unstartable` and the
-#   daemon's reason, and a plugin whose declaration the daemon accepts stays
-#   `declared` with its command.
-# PREVENTS: an operator reading `declared` for a plugin the daemon will refuse
-#   to start. The reader once judged the protocol version alone, so a
-#   declaration refused for any other reason was listed with its commands, as if
-#   configuring the plugin would add them.
+# Test: with no daemon, no Stage 1 verdict is given for a declaration nobody read
+# Spec: spec-plugin-external-yang-at-startup -- the owner ruling, applied to
+#   `show plugin declarations config <file>`.
 #
-# The one question: does the row an operator reads carry the Stage 1 verdict?
-# The unit tests judge a declaration held in a Go struct
-# (internal/component/plugin/server/stage1_checks_test.go). They cannot decide
-# whether the command that parses a config, starts each external plugin in
-# declare mode and renders the rows asks the judge at all: that wiring is
-# queriedDeclarationRow (internal/component/plugin/declarations.go), reached
-# only through the command.
+# Question: when `ze show plugin declarations config <file>` runs with no daemon
+# on a config whose external plugins would write one declaration the daemon
+# accepts and one it refuses at Stage 1, does it give NEITHER verdict (both
+# rows read `not-available`, neither is listed as `declared` or `unstartable`,
+# neither command is offered, neither program is started), and does the
+# command its reason names still give the Stage 1 verdict with no daemon?
+# Why not a unit test: the unit tests prove the row builder over a reader the
+# test installs. This proves the `ze` binary: that with no daemon the command
+# an operator types reaches neither the fork nor the Stage 1 judge, so a row
+# never carries a verdict about a declaration that was not read, and that the
+# operator is sent to a command that does carry it.
 #
-# No daemon runs here. The command is a local-data command, so `ze show ...`
-# serves it in its own process.
+# What this test used to prove, and where that proof is now: it proved that a
+# row read with no daemon carried the daemon's Stage 1 verdict, by running both
+# programs in declare mode. The owner ruled that out: with no daemon ze starts
+# no external plugin. The verdict is still given in a row where the program is
+# started, inside a running ze, and the unit tests hold it there
+# (TestQueriedDeclarationRowReportsAStage1RefusalAsUnstartable,
+# TestQueriedDeclarationRowKeepsAPluginTheDaemonKeeps,
+# TestDeclarationRowRefusesAnUnversionedAnswer). With no daemon the verdict
+# comes from `ze show plugin conformance run "<run>"`, which the last two steps
+# run over the same two programs: they are also the control that a start
+# leaves a marker where the test looks.
 #
-# Both plugins write a well-formed declaration line with a protocol version, so
-# the one difference between the two rows is what the declaration says. The
-# accepted plugin is the control: without it, a reader that refused every
-# external plugin would pass this test.
+# Source of the contract (Thomas): "plugin command requiring external plugins
+# which can not be started from the code when no daemon is running to pass it
+# to are not available, for command built-in then yes you should run them as
+# we can look them up in the yang hardcoded in the binary".
+#
+# VALIDATES: both rows are `external not-available`; neither program runs for
+#   the declarations command; the conformance checker passes the accepted
+#   declaration and fails the refused one with the daemon's own Stage 1 text.
+# PREVENTS: an operator reading `declared` for a plugin the daemon will refuse,
+#   or `unstartable` for one it will accept, from a command that asked neither;
+#   and the Stage 1 verdict becoming unreachable with no daemon.
+#
+# No daemon runs here. Both commands are local-data commands, so `ze show ...`
+# serves them in its own process.
 #
 # Each plugin is a script, because a declaration holds double quotes and the
-# config's run string is itself double-quoted. The plugin starts in the
-# directory the command runs in, which is the test's directory, where the
-# runner writes these files.
+# config's run string is itself double-quoted. Each leaves a marker named after
+# its first argument when it is started.
 
 # A doctor check whose diagnostic code lacks the doctor- prefix. The daemon
 # refuses it at Stage 1 (validateDoctorCheckDecls,
 # internal/component/plugin/server/startup.go), under the doctor-checks entry of
 # the Stage 1 table (internal/component/plugin/server/stage1_checks.go).
 tmpfs=refused-doctor-code.sh:terminator=EOF_REFUSED
+echo started > "started-refused-$1.marker"
 printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show refused answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["plugin-not-ready"]}]}'
 EOF_REFUSED
 
 # The same shape of declaration with nothing the daemon refuses.
 tmpfs=accepted.sh:terminator=EOF_ACCEPTED
+echo started > "started-accepted-$1.marker"
 printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show accepted answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["doctor-plugin-not-ready"]}]}'
 EOF_ACCEPTED
 
 tmpfs=plugin-declarations-stage1-refusal.conf:terminator=EOF_CONF
 plugin {
     external plugin-accepted {
-        run "sh accepted.sh"
+        run "sh accepted.sh by-ze"
         encoder json
     }
     external plugin-refused {
-        run "sh refused-doctor-code.sh"
+        run "sh refused-doctor-code.sh by-ze"
         encoder json
     }
 }
 EOF_CONF
 
-# The command itself succeeds: a plugin the daemon would refuse is a row, never
-# an error.
+# The command itself succeeds: a plugin whose declaration is not available is a
+# row, never an error.
 cmd=foreground:seq=1:exec=ze show plugin declarations config plugin-declarations-stage1-refusal.conf:exit=0
 
-# The control. The daemon accepts this declaration, so the row is declared and
-# carries the command.
-expect=stdout:pattern=plugin-accepted +external +declared
-expect=stdout:contains=show accepted answer
+# Both rows are kept and say the same thing: nobody read a declaration.
+expect=stdout:pattern=plugin-accepted +external +not-available
+expect=stdout:pattern=plugin-refused +external +not-available
 
-# The refused declaration is unstartable, and the reason is the daemon's own
-# Stage 1 text, wrap prefix included.
-expect=stdout:pattern=plugin-refused +external +unstartable
-expect=stdout:contains=invalid doctor check: invalid doctor check code
+# Neither verdict is given, and neither command is offered.
+reject=stdout:pattern=plugin-accepted +external +declared
+reject=stdout:pattern=plugin-refused +external +unstartable
+reject=stdout:pattern=plugin-refused +external +declared
+reject=stdout:contains=show accepted answer
+reject=stdout:contains=show refused answer
+reject=stdout:contains=invalid doctor check
+
+# The command the row's reason names gives the verdict with no daemon. The
+# daemon accepts this declaration, so no Stage 1 row fails.
+cmd=foreground:seq=2:exec=ze show plugin conformance run "sh accepted.sh by-checker" name plugin-accepted:exit=0
+expect=stdout:pattern=doctor-checks +1 +pass
+reject=stdout:pattern= (declare|1|5) +fail
+
+# The refused declaration fails the Stage 1 row, with the daemon's own text.
+cmd=foreground:seq=3:exec=ze show plugin conformance run "sh refused-doctor-code.sh by-checker" name plugin-refused:exit=1
+expect=stdout:pattern=doctor-checks +1 +fail +invalid doctor check: invalid doctor check code
 expect=stdout:contains=must start with
 
-# It is not listed as declared, and the command it named is not offered: an
-# unstartable row carries no command.
-reject=stdout:pattern=plugin-refused +external +declared
-reject=stdout:contains=show refused answer
+# Each start by the checker left a marker, and the declarations command left
+# none.
+expect=file:path=started-accepted-by-checker.marker:exists=true
+expect=file:path=started-refused-by-checker.marker:exists=true
+expect=file:path=started-accepted-by-ze.marker:absent=true
+expect=file:path=started-refused-by-ze.marker:absent=true

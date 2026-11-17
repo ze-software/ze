@@ -961,6 +961,12 @@ func runScenario(output io.Writer, work string) error {
 	// One external plugin whose run command names no binary. The row it
 	// produces is one no compiled-in registration can answer, so a command that
 	// ignored the path fails here instead of passing on the in-tree rows.
+	//
+	// `ze cli -c` answers this command in its own process, with no daemon, and
+	// ze starts no external plugin then: the row says the declaration is not
+	// available and why, and says nothing about whether the program could
+	// start, because nobody tried (unavailableDeclarationRow,
+	// internal/component/plugin/declarations.go).
 	pluginConfigPath := filepath.Join(work, "pipe-local-plugin.conf")
 	if err := writeFixture(pluginConfigPath, "plugin {\n    external pipe-local-absent {\n        run \"/no/such/ze-plugin\"\n        encoder json\n    }\n}\n"); err != nil {
 		return err
@@ -978,8 +984,8 @@ func runScenario(output io.Writer, work string) error {
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		reason, hasReason := row["reason"].(string)
 		return row["name"] == "pipe-local-absent" && row["kind"] == "external" &&
-			row["state"] == "unstartable" && hasReason && reason != ""
-	}, "show plugin declarations config lost the configured plugin that cannot start: %#v", values); err != nil {
+			row["state"] == "not-available" && hasReason && reason != ""
+	}, "show plugin declarations config lost the external plugin the file declares, or did not say its declaration is not available with no daemon: %#v", values); err != nil {
 		return err
 	}
 	// The config form answers the plugins this binary carries as well as the

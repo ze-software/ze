@@ -117,7 +117,7 @@ func TestNoPythonLeRemains(t *testing.T) {
 		if strings.HasPrefix(slash, "scripts/") && isScriptCode(slash) {
 			t.Errorf("tracked script code remains: %s", slash)
 		}
-		if firstPartySource(slash) {
+		if firstPartySource(slash) && !isExamplePluginSource(slash) {
 			switch filepath.Ext(slash) {
 			case ".py", ".pyc", ".sh", ".bash", ".mk":
 				t.Errorf("tracked interpreted or Make source remains: %s", slash)
@@ -224,6 +224,97 @@ func TestExaBGPCompatibilityProcessFixturesRemainExternalSubjects(t *testing.T) 
 		}
 		if firstPartySource(rel) {
 			t.Errorf("external ExaBGP fixture %s was classified as first-party tooling", rel)
+		}
+	}
+}
+
+// examplePluginPythonDir holds the example external plugin written in Python,
+// and the one-file library it is built on.
+const examplePluginPythonDir = "examples/plugin/python/"
+
+// examplePluginSources is the closed list of Python files
+// TestNoPythonLeRemains does not refuse: the one-file plugin library and the
+// example plugin built on it. A new example file is a deliberate edit of this
+// list, in a reviewed commit.
+var examplePluginSources = []string{
+	examplePluginPythonDir + "ze_plugin.py",
+	examplePluginPythonDir + "acme_monitor.py",
+}
+
+// isExamplePluginSource reports whether path is exactly one of the files in
+// examplePluginSources. It matches nothing else: no other file of that
+// directory, no file below it, and no file anywhere else.
+//
+// The two files are not development tooling: Ze serves the external plugin
+// contract to programs in any language, and an example of that contract in
+// another language is a subject Ze serves, the way the ExaBGP fixtures are a
+// subject Ze interoperates with.
+// TestPythonExamplePluginsRemainPluginContractSubjects pins the list and what
+// the directory may hold.
+func isExamplePluginSource(path string) bool {
+	return slices.Contains(examplePluginSources, path)
+}
+
+// TestPythonExamplePluginsRemainPluginContractSubjects pins the exemption
+// TestNoPythonLeRemains gives the Python example plugin. Method: a table over
+// isExamplePluginSource, then the tracked files of the example directory.
+//
+// VALIDATES: the exemption is exactly the two listed files (a sibling `.py`, a
+// nested `.py`, another kind of script and a `.py` elsewhere are each not
+// exempt); both listed files are tracked and carry no shebang, so neither is a
+// launcher; and the directory holds, at any depth, no other `.py`, `.pyc`,
+// `.sh`, `.bash` or `.mk` file and no Makefile.
+// PREVENTS: Python development tooling returning beside or below the example,
+// the exemption widening without an edit of the list, and a list that outlives
+// the files it names.
+func TestPythonExamplePluginsRemainPluginContractSubjects(t *testing.T) {
+	for path, want := range map[string]bool{
+		examplePluginPythonDir + "ze_plugin.py":            true,
+		examplePluginPythonDir + "acme_monitor.py":         true,
+		examplePluginPythonDir + "gen.py":                  false,
+		examplePluginPythonDir + "tools/gen.py":            false,
+		examplePluginPythonDir + "tools/acme_monitor.py":   false,
+		examplePluginPythonDir + "run.sh":                  false,
+		examplePluginPythonDir + "Makefile":                false,
+		examplePluginPythonDir + "acme_monitor.pyc":        false,
+		"examples/plugin/acme_monitor.py":                  false,
+		"examples/plugin/python-tools/acme_monitor.py":     false,
+		"internal/le/" + examplePluginPythonDir + "gen.py": false,
+		"internal/le/acme_monitor.py":                      false,
+		"scripts/acme_monitor.py":                          false,
+	} {
+		if got := isExamplePluginSource(path); got != want {
+			t.Errorf("isExamplePluginSource(%q) = %v, want %v", path, got, want)
+		}
+	}
+
+	root := checkoutRoot(t)
+	tracked := trackedExistingFiles(t, root)
+	for _, listed := range examplePluginSources {
+		if !slices.Contains(tracked, filepath.FromSlash(listed)) {
+			t.Errorf("%s is listed in examplePluginSources and is not a tracked file: remove it from the list", listed)
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(listed)))
+		if err != nil {
+			t.Fatalf("read example plugin source %s: %v", listed, err)
+		}
+		if bytes.HasPrefix(body, []byte("#!")) {
+			t.Errorf("%s carries a shebang: an example plugin is run by the program its config names, never as a launcher", listed)
+		}
+	}
+
+	for _, rel := range tracked {
+		slash := filepath.ToSlash(rel)
+		if !strings.HasPrefix(slash, examplePluginPythonDir) || isExamplePluginSource(slash) {
+			continue
+		}
+		switch filepath.Ext(slash) {
+		case ".py", ".pyc", ".sh", ".bash", ".mk":
+			t.Errorf("%s is interpreted or Make source in the example directory and is not in examplePluginSources", slash)
+		}
+		if filepath.Base(slash) == "Makefile" {
+			t.Errorf("%s is a Makefile in the example directory", slash)
 		}
 	}
 }

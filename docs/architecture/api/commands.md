@@ -365,8 +365,9 @@ Protocol").
 
 Authorization reads the verb (`IsReadOnlyPath`), unless the registration
 declares its daemon form does more than read with `registry.Meta.NotReadOnly`.
-`show plugin declarations config` declares it, because answering starts each
-external plugin's `run` line from the file, so it is judged in the edit
+`show plugin declarations config` declares it, because the daemon answers it
+by starting each external plugin's `run` line from the file (the local route,
+with no daemon, starts none), so it is judged in the edit
 section and the read-only profile, whose edit section denies by default,
 refuses it before any process starts. `show data cat` and `show config cat`
 declare it too: either reads any store key, the HTTPS private key

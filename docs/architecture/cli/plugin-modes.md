@@ -207,6 +207,14 @@ the shell, and `ze doctor` reports the same dependency under
 <!-- source: internal/component/plugin/shell.go -- Shell, ShellAvailable -->
 <!-- source: internal/component/plugin/declarations.go -- unstartableOutcome -->
 
+Two callers start an external plugin's program in this mode: the conformance
+check (`ze show plugin conformance run "<run string>"`), with no daemon, and
+`show plugin declarations config <file>` inside a running daemon. With no
+daemon, `show plugin declarations config <file>` starts no external plugin and
+its row reads `not-available`. A plugin the `ze` binary carries is answered
+from its registration in every case.
+<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, QueryDeclaration -->
+
 ### The answer
 
 The answer is the Stage 1 `declare-registration` message, in the protocol's own
@@ -261,7 +269,7 @@ and convention for everyone else.
 
 ### Query Mode Benefits
 
-- **No daemon**: the declarations are readable with nothing running
+- **No daemon**: the declarations of the plugins the binary carries are readable with nothing running, and the conformance check reads an external program's
 - **Inert**: no plugin code runs for a plugin the ze binary carries
 - **One format**: the answer is the Stage 1 message the engine already receives
 

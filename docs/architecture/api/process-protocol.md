@@ -1259,7 +1259,10 @@ daemon (`ze config validate` and the others) starts no plugin, in query mode or
 any other. It parses against the compiled-in schema and says that a section
 under an external plugin's root is not available with no daemon
 (`docs/architecture/config/yang-config-design.md`, "Who publishes"). Query mode
-is started only by `show plugin declarations` and the conformance check.
+is started only by the conformance check, which runs the program its own
+command line names, and by `show plugin declarations config <file>` inside a
+running daemon. With no daemon that command starts nothing, and the row of an
+external plugin reads `not-available`.
 <!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins -->
 <!-- source: pkg/plugin/rpc/declaration.go -- WriteDeclaration -->
 <!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->

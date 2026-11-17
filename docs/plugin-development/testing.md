@@ -9,6 +9,15 @@ program in declare mode (`ZE_PLUGIN_MODE=declare`, described in
 [protocol.md](protocol.md), "Query Mode: Answering Without Starting") and judges
 what the program wrote. It needs no daemon and no config file.
 
+With no daemon running, the checker is the only command that starts your
+program. `ze show plugin declarations config <file>` starts no external plugin
+then: it lists your plugin with the state `not-available`, and its reason names
+this checker and the form a running Ze answers. A running Ze starts your
+program in declare mode when you type `show plugin declarations config <file>`
+in the session `ze cli` opens, and the row then carries what your plugin
+declares.
+<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
+
 Two commands run the same checker and write the same rows:
 
 ```bash

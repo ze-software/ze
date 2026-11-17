@@ -96,11 +96,15 @@ func init() {
 		ShortHelp: "The same answer, plus a row for each plugin a config file names.",
 		Description: "The file is read with the daemon's own loader, so the answer covers the plugins " +
 			"the daemon would start from it, external ones included. A plugin the file names and " +
-			"this binary also carries keeps one row rather than two.",
+			"this binary also carries keeps one row rather than two. With no daemon running, ze " +
+			"starts no external plugin: such a plugin is listed in the state not-available, and " +
+			"its reason names the commands that read its declaration.",
 		Mode: modeOffline,
-		// Answering starts each external plugin's `run` line from the file
-		// (declarations.go QueryDeclaration), so on the daemon it is process execution
-		// under the daemon's identity: authorized as more than a read.
+		// A running daemon answers by starting each external plugin's `run` line
+		// from the file (declarations.go QueryDeclaration), so on the daemon it is
+		// process execution under the daemon's identity: authorized as more than a
+		// read. The local route, with no daemon, starts none
+		// (declarations.go unavailableDeclarationRow).
 		NotReadOnly: true,
 	}, command.RenderLocalAnswer)
 

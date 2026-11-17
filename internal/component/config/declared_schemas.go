@@ -62,6 +62,18 @@ func (d *DeclaredSchemas) WithoutSchema() []string {
 	return slices.Clone(d.plugins)
 }
 
+// Offline reports whether the step ran in a command with no daemon: a process
+// whose module set this file fixed to the compiled-in one. It is false in a
+// running daemon, whose set was fixed before this file read a config.
+//
+// It is the one answer to "is there a daemon in this process" for a caller
+// that reads a declared plugin from its program only inside one: with no
+// daemon ze starts no external plugin (`show plugin declarations config`,
+// through readConfiguredPlugins).
+func (d *DeclaredSchemas) Offline() bool {
+	return d.offline
+}
+
 // Unchecked answers the operator error a command adds beside the refusal of a
 // name the schema does not define, when it reports that refusal as an entry of
 // its own: which external plugins the config at path declares, why ze holds no

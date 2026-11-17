@@ -731,7 +731,7 @@ IP address.
 What each plugin declares: the commands it serves and the pipe aliases it puts
 on them. `show plugin list` answers which plugins the binary carries; this
 command answers what they declare. Answered in the operator's own process, so
-it needs no daemon.
+it needs no daemon for the plugins this binary carries.
 
 ```
 ze show plugin declarations                             # the plugins this binary carries
@@ -742,11 +742,24 @@ The bare form answers from the compiled-in registration and starts no process.
 The `config <path>` form adds one row for each plugin the file declares, and
 the config block decides where that row's declaration comes from. An `internal`
 block names code this binary carries, so the row is answered from the
-registration. An `external` block names another program, so the row is answered
-by starting that program with `ZE_PLUGIN_MODE=declare` in its environment, with
-every `ze.plugin.` variable removed, and reading the one framed declaration line
-it writes to stdout. Anything else the child writes is ignored, so a banner or a
-log line cannot corrupt the answer.
+registration. An `external` block names another program, and only that program
+can say what it declares.
+
+With no daemon running, Ze starts no external plugin. The `ze` command and
+`ze cli -c` answer in their own process, so there the row of an external plugin
+reads `not-available`: the plugin is declared in the config, and nobody asked
+its program. The reason names the two commands that read the declaration:
+
+| To read the declaration | Command |
+|-------------------------|---------|
+| From a running Ze | `ze cli`, then type `show plugin declarations config <path>` in that session. The file must be in the configuration directory of that Ze |
+| With no daemon, by starting the program yourself | `ze show plugin conformance run "<run string>"` |
+
+A running Ze answers the row by starting the program with
+`ZE_PLUGIN_MODE=declare` in its environment, with every `ze.plugin.` variable
+removed, and reading the one framed declaration line it writes to stdout.
+Anything else the child writes is ignored, so a banner or a log line cannot
+corrupt the answer. SSH, the web UI, MCP, REST and gRPC reach the same handler.
 
 Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 `| match <text>`, `| first <n>`. The rows carry these keys:
@@ -755,7 +768,7 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 |-----|-------|
 | `name` | The plugin name, as the registry or the config block spells it |
 | `kind` | `internal` for code this binary carries, `external` for another program |
-| `state` | One of the six below |
+| `state` | One of the seven below |
 | `commands` | The commands the plugin declares. Absent when it declares none |
 | `pipes` | The pipe aliases the plugin declares. Absent when it declares none |
 | `reason` | Why a row carries no declaration. Absent when one was read |
@@ -768,10 +781,13 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 | `unstartable` | the process could not be started, or it wrote a declaration the daemon refuses at Stage 1 |
 | `timeout` | the process started, wrote no declaration inside the budget, and was stopped |
 | `not-judged` | an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration |
+| `not-available` | the plugin is external and no daemon runs here, so its program was not started and nobody asked it |
 
 No plugin is ever omitted: a plugin that could not answer keeps its row and says
 why. `declared-none` and `no-answer` stay apart, because a plugin with nothing
-to declare and a plugin that answered nothing are different facts.
+to declare and a plugin that answered nothing are different facts. An external
+block that names no `run` command reads `unstartable` in both places: no
+process could start it.
 
 A declaration that was read is judged by the checks the daemon applies at
 Stage 1, so a row reads `declared` only when the daemon would start the plugin.
@@ -784,7 +800,9 @@ The budget is 5 seconds per plugin, the same wait a startup stage gets, and
 "wait no time". A plugin that runs out of it is stopped with everything it
 started.
 
-<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
+<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
+<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
+<!-- source: internal/component/config/declared_schemas.go -- DeclaredSchemas.Offline -->
 <!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
 <!-- source: internal/component/plugin/declaration_judge.go -- JudgeDeclaration, ErrNoDeclarationJudge -->
 

@@ -10,15 +10,20 @@
 // A plugin the binary carries declares into `registry.Registration`, which
 // this process already holds. A plugin only a config file names has its code
 // in another binary, so its declaration is reachable only by starting that
-// binary in query mode. Both populations answer here, one row each, and a row
-// is never dropped: the state field says why a row carries no declaration.
+// binary in query mode. A running daemon starts it. A command with no daemon
+// starts no external plugin (owner ruling: "plugin command requiring external
+// plugins which can not be started from the code when no daemon is running to
+// pass it to are not available"), so there the row says the declaration is not
+// available and names the two commands that read it. Both populations answer
+// here, one row each, and a row is never dropped: the state field says why a
+// row carries no declaration.
 //
 // A row is never dropped and never silently empty. The state says which of
-// six answers the row carries: the plugin declared something, it declared
+// seven answers the row carries: the plugin declared something, it declared
 // nothing, it ran and wrote no declaration, it could not be started (which
 // covers a declaration the daemon refuses at Stage 1), it started and said
-// nothing inside the budget, or it declared in a binary that cannot judge the
-// declaration.
+// nothing inside the budget, it declared in a binary that cannot judge the
+// declaration, or its program was not started because no daemon runs here.
 
 package plugin
 
@@ -62,7 +67,7 @@ const (
 	kindExternal = "external"
 )
 
-// The five states a row can carry. They are exhaustive: every plugin gets one,
+// The seven states a row can carry. They are exhaustive: every plugin gets one,
 // and none of them is the absence of an answer.
 //
 // The pair that must stay apart is stateDeclaredNone and stateNoAnswer. A
@@ -82,6 +87,26 @@ const (
 	// Stage 1 check table (declaration_judge.go). It is a state of its own so
 	// an unjudged declaration is never listed as declared.
 	stateUnjudged = "not-judged"
+	// stateNotAvailable is an external plugin a config file declares, read by
+	// a command with no daemon: ze starts no external plugin then, so nobody
+	// asked the program what it declares. It is a state of its own because
+	// every other state says something about the program (it answered, it
+	// stayed silent, it could not start), and nothing is known of a program
+	// that was never started.
+	stateNotAvailable = "not-available"
+)
+
+// The two commands the reason of a stateNotAvailable row names. A running ze
+// starts the program in query mode, so the same command typed in a session it
+// serves reads the declaration. `ze cli -c "<command>"` is not that session:
+// it answers a local-data command in its own process (command.ServeLocal),
+// which is the process that starts nothing. The conformance checker starts the
+// program the operator names on its own command line, with no daemon, because
+// running that program is its purpose.
+const (
+	daemonSession       = "ze cli"
+	daemonDeclarations  = "show plugin declarations config "
+	conformanceCheckRun = "ze show plugin conformance run "
 )
 
 // envQueryTimeout names the budget one queried plugin has to write its
@@ -150,13 +175,46 @@ type declarationRow struct {
 	Reason   string            `json:"reason,omitempty"`
 }
 
-// ConfiguredPluginReader answers the plugin blocks a config file declares.
+// ConfigProcess says which process read a config file for this command: a
+// command with no daemon, or a running daemon. The zero value is no answer,
+// and a reader that left it is refused (errNoConfigProcess).
+type ConfigProcess uint8
+
+const (
+	// ConfigProcessUnspecified is the zero value, which no reader answers.
+	ConfigProcessUnspecified ConfigProcess = iota
+	// ConfigProcessOffline is a command that runs with no daemon. It starts
+	// no external plugin, so the declaration of one is not available in it.
+	ConfigProcessOffline
+	// ConfigProcessDaemon is a running daemon, which starts each external
+	// plugin the file declares in query mode to read its declaration.
+	ConfigProcessDaemon
+)
+
+// ConfiguredPlugins is what a ConfiguredPluginReader answers: the plugin
+// blocks a config file declares, and the process that read the file.
+type ConfiguredPlugins struct {
+	// Plugins holds one entry for each plugin the file declares.
+	Plugins []PluginConfig
+	// Process says whether a daemon runs in the process that read the file.
+	// The reader MUST set it: it decides whether an external plugin's program
+	// is started.
+	Process ConfigProcess
+}
+
+// ConfiguredPluginReader answers the plugin blocks a config file declares, and
+// which process read it.
 //
 // It is a seam rather than a call because the dependency runs the other way:
 // `internal/component/config` parses the file and already imports this
 // package, for `PluginConfig`, so this package cannot import it back. The
 // config component registers its reader from an init().
-type ConfiguredPluginReader func(path string) ([]PluginConfig, error)
+//
+// The process comes through the same seam on purpose. The config component
+// already decides "this command runs with no daemon" for every command that
+// parses a config (config.DeclaredSchemas.Offline), so this command asks that
+// answer and keeps no second test of its own.
+type ConfiguredPluginReader func(path string) (ConfiguredPlugins, error)
 
 var (
 	configuredPluginsMu sync.RWMutex
@@ -170,6 +228,16 @@ var (
 // parser in it says that it cannot read the file, rather than reporting that
 // the file names no plugin (`ai/rules/principles.md`).
 var errNoConfigReader = errors.New("this binary links no config parser, so the plugins a config file names cannot be listed")
+
+// errNoConfigProcess is what `show plugin declarations config <path>` answers
+// when the reader named no process (ConfigProcessUnspecified).
+//
+// It is a refusal because both readings of the missing answer are wrong: one
+// starts an operator's program in a process that MUST NOT, and the other
+// reports every external plugin as not available inside a daemon. Only a
+// defect in the reader produces it.
+var errNoConfigProcess = errors.New("BUG: the config reader did not say whether a daemon runs in this process, " +
+	"so ze cannot tell whether it may start the external plugins the file declares: report this as a defect of ze")
 
 // SetConfiguredPluginReader registers the function that answers which plugins
 // a config file names. The config component calls it once, from an init().
@@ -271,9 +339,13 @@ func declarationConfigPath(args []string) (string, error) {
 // where that row's declaration comes from. An `internal` block names code this
 // binary carries, so the row is answered from the registration and no process
 // is started (AC-9). An `external` block names ANOTHER binary, whatever the
-// name it gives that binary, so the row is answered by starting it: a block
-// that reads `external mrt { run "/opt/vendor/my-mrt" }` is a vendor's program
-// and Ze's own mrt declaration would be a wrong answer with the right shape.
+// name it gives that binary, so Ze's own declaration under that name is never
+// its answer: a block that reads `external mrt { run "/opt/vendor/my-mrt" }`
+// is a vendor's program and Ze's own mrt declaration would be a wrong answer
+// with the right shape. Only that program can answer, and the process that
+// read the file decides whether it is asked: a running daemon starts it in
+// query mode, and a command with no daemon starts nothing and says the
+// declaration is not available (configuredDeclarationRow).
 func declarationRows(configPath string) ([]declarationRow, error) {
 	budget, err := declarationBudget()
 	if err != nil {
@@ -291,13 +363,17 @@ func declarationRows(configPath string) ([]declarationRow, error) {
 		if readErr != nil {
 			return nil, readErr
 		}
-		for _, configuredPlugin := range configured {
+		for _, configuredPlugin := range configured.Plugins {
 			// An internal block that names a plugin this binary carries is
 			// already answered, from the registration walk above.
 			if configuredPlugin.Internal && carried[configuredPlugin.Name] {
 				continue
 			}
-			byName[configuredPlugin.Name] = queriedDeclarationRow(configuredPlugin, budget)
+			row, rowErr := configuredDeclarationRow(configuredPlugin, configured.Process, configPath, budget)
+			if rowErr != nil {
+				return nil, rowErr
+			}
+			byName[configuredPlugin.Name] = row
 		}
 	}
 
@@ -409,26 +485,104 @@ func inTreeDeclarationRow(registration *registry.Registration) declarationRow {
 	return row
 }
 
-// queriedDeclarationRow answers for a plugin whose code is in another binary,
-// by starting that binary in query mode and reading its declaration.
+// configuredDeclarationRow answers for a plugin a config file declares and the
+// registration walk did not answer, in the process that read the file.
+//
+// The process decides one thing: whether the program an external block names
+// is started. A running daemon starts it in query mode. A command with no
+// daemon starts no external plugin, so the row says the declaration is not
+// available there. A reader that named no process is refused: neither reading
+// of the missing answer is safe (errNoConfigProcess).
+func configuredDeclarationRow(configured PluginConfig, process ConfigProcess, configPath string, budget time.Duration) (declarationRow, error) {
+	switch process {
+	case ConfigProcessOffline:
+		return unavailableDeclarationRow(configured, configPath), nil
+	case ConfigProcessDaemon:
+		return queriedDeclarationRow(configured, budget), nil
+	case ConfigProcessUnspecified:
+		return declarationRow{}, errNoConfigProcess
+	}
+	// A value outside the named set is the same defect as the zero value: a
+	// reader that did not answer.
+	return declarationRow{}, errNoConfigProcess
+}
+
+// blockWithNoProgramRow answers for a config block that names no program to
+// start, and reports whether the block is one. Such a row needs no process in
+// either mode, so a daemon and a command with no daemon answer it alike.
 //
 // A config block that declares the plugin internal, for a plugin this binary
 // does not carry, has nothing to start and nothing to read: it names code that
 // is in no binary here, which is a refusal rather than a plugin with nothing to
 // declare.
-func queriedDeclarationRow(configured PluginConfig, budget time.Duration) declarationRow {
-	row := declarationRow{Name: configured.Name, Kind: configuredKind(configured)}
-
+func blockWithNoProgramRow(configured PluginConfig) (row declarationRow, answered bool) {
+	row = declarationRow{Name: configured.Name, Kind: configuredKind(configured), State: stateUnstartable}
 	if configured.Internal {
-		row.State = stateUnstartable
 		row.Reason = "the config declares this plugin internal and this binary does not carry it"
-		return row
+		return row, true
 	}
 	if configured.Run == "" {
-		row.State = stateUnstartable
 		row.Reason = "the config block names no run command, so there is nothing to start"
+		return row, true
+	}
+	return declarationRow{}, false
+}
+
+// unavailableDeclarationRow answers for an external plugin a config file
+// declares, in a command with no daemon. The program is NOT started: with no
+// daemon running ze starts no external plugin, and inspecting a config someone
+// else wrote MUST NOT run the commands it names.
+//
+// The row keeps the plugin, says that its declaration was not read and why,
+// and names the two commands that read it: the same command in a session a
+// running ze serves, and the conformance checker for an author who wants the
+// program started now.
+func unavailableDeclarationRow(configured PluginConfig, configPath string) declarationRow {
+	if row, answered := blockWithNoProgramRow(configured); answered {
 		return row
 	}
+
+	// A config read from standard input has no name a daemon could be given.
+	file := "<config-file>"
+	if !cliio.IsStdin(configPath) {
+		file = configPath
+	}
+
+	var tb textbuf.Buffer
+	tb.Str("the declaration of this plugin is not available with no daemon running: its program is ").
+		Str("declared in the config and ze starts no external plugin here, so nobody asked it what it ").
+		Str("declares. A running ze reads it: type `").Str(daemonDeclarations).Str(file).
+		Str("` in the session `").Str(daemonSession).Str("` opens, with the file in the configuration ").
+		Str("directory of that ze. To start the program yourself, with no daemon: ").
+		Str(conformanceCheckRun).Str(quotedRunString(configured.Run))
+	return declarationRow{
+		Name:   configured.Name,
+		Kind:   kindExternal,
+		State:  stateNotAvailable,
+		Reason: tb.String(),
+	}
+}
+
+// quotedRunString writes a run string as the one quoted token the conformance
+// checker takes after `run`, for an operator to paste into a shell. A run
+// string that holds a double quote cannot sit inside double quotes unchanged,
+// so the row then names the value instead of spelling a command that would not
+// parse.
+func quotedRunString(run string) string {
+	if strings.Contains(run, `"`) {
+		return `"<the run string of this plugin's config block>"`
+	}
+	return `"` + run + `"`
+}
+
+// queriedDeclarationRow answers for a plugin whose code is in another binary,
+// by starting that binary in query mode and reading its declaration. Only a
+// running daemon calls it (configuredDeclarationRow).
+func queriedDeclarationRow(configured PluginConfig, budget time.Duration) declarationRow {
+	if row, answered := blockWithNoProgramRow(configured); answered {
+		return row
+	}
+	row := declarationRow{Name: configured.Name, Kind: configuredKind(configured)}
 
 	query := QueryDeclaration(configured, budget)
 	if !query.Declared {
@@ -807,13 +961,14 @@ func configuredKind(configuredPlugin PluginConfig) string {
 }
 
 // readConfiguredPlugins asks the registered reader which plugins a config file
-// names, and refuses when no component registered one.
-func readConfiguredPlugins(path string) ([]PluginConfig, error) {
+// names and which process read it, and refuses when no component registered
+// one.
+func readConfiguredPlugins(path string) (ConfiguredPlugins, error) {
 	configuredPluginsMu.RLock()
 	read := configuredPlugins
 	configuredPluginsMu.RUnlock()
 	if read == nil {
-		return nil, errNoConfigReader
+		return ConfiguredPlugins{}, errNoConfigReader
 	}
 	return read(path)
 }

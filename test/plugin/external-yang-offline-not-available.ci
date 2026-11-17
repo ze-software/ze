@@ -13,9 +13,10 @@
 # The declared program writes a marker file when it is started, in any mode,
 # and then answers a declaration query the way a conforming plugin does. Under
 # the behaviour the owner ruled out, validate ran it in declare mode, the
-# marker appeared and the section was accepted. Step 4 starts the same program
-# by hand: its marker is the control that the script writes one where the test
-# looks.
+# marker appeared and the section was accepted. Step 4 is the control: the
+# conformance checker, the one command that starts a named program with no
+# daemon, starts the same program from the same directory, and its marker
+# shows that a start leaves one where the test looks.
 #
 # Source of the contract (Thomas): "plugin command requiring external plugins
 # which can not be started from the code when no daemon is running to pass it
@@ -27,24 +28,24 @@
 # PREVENTS: inspecting a config someone else wrote running their command; a
 #   bare "unknown top-level keyword" with no word about why; validate refusing
 #   every config that declares an external plugin.
+#
+# The program is a script the run string hands to a shell by name, because a
+# declaration holds double quotes and the config's run string is itself
+# double-quoted. It carries no interpreter line and no command of this file
+# starts a shell directly: TestNoPythonLeRemains (internal/le/contract_test.go)
+# refuses a functional test that embeds either.
 
-tmpfs=marker.run:mode=755:terminator=EOF_RUN
-#!/bin/sh
 # Leaves a marker named after its first argument, then answers a declaration
-# query; refuses a live start.
+# query.
+tmpfs=marker.run:terminator=EOF_RUN
 echo started > "started-$1.marker"
-if [ "$ZE_PLUGIN_MODE" != "declare" ]; then
-	exit 1
-fi
-cat <<'EOF_DECLARATION'
-#1 ze-plugin-engine:declare-registration {"protocol-version":1,"wants-config":["acme-shell"],"schema":{"module":"acme-shell-conf","namespace":"urn:acme:shell:conf","yang-text":"module acme-shell-conf { namespace \"urn:acme:shell:conf\"; prefix shell; container acme-shell { presence \"The acme shell plugin is configured\"; leaf greeting { type string { length \"1..64\"; } } } }"}}
-EOF_DECLARATION
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"wants-config":["acme-shell"],"schema":{"module":"acme-shell-conf","namespace":"urn:acme:shell:conf","yang-text":"module acme-shell-conf { namespace \"urn:acme:shell:conf\"; prefix shell; container acme-shell { presence \"The acme shell plugin is configured\"; leaf greeting { type string { length \"1..64\"; } } } }"}}'
 EOF_RUN
 
 tmpfs=ze.conf:terminator=EOF_CONF
 plugin {
 	external acme-shell {
-		run "./marker.run by-ze"
+		run "sh marker.run by-ze"
 		encoder json
 	}
 }
@@ -57,7 +58,7 @@ EOF_CONF
 tmpfs=no-section.conf:terminator=EOF_NO_SECTION
 plugin {
 	external acme-shell {
-		run "./marker.run by-ze"
+		run "sh marker.run by-ze"
 		encoder json
 	}
 }
@@ -88,8 +89,10 @@ reject=stdout:contains=unknown top-level keyword
 # A compiled-in plugin is judged with the schema in the binary, as before.
 cmd=foreground:seq=3:exec=ze config validate built-in.conf:exit=0
 
-# Control: started by hand, the program leaves its marker in this directory.
-cmd=foreground:seq=4:exec=sh marker.run by-test:exit=1
+# Control: the conformance checker starts the program, with no daemon, and
+# that start leaves its marker in this directory.
+cmd=foreground:seq=4:exec=ze show plugin conformance run "sh marker.run by-checker" name acme-shell:exit=0
+expect=stdout:pattern=program-starts +declare +pass
 
-expect=file:path=started-by-test.marker:exists=true
+expect=file:path=started-by-checker.marker:exists=true
 expect=file:path=started-by-ze.marker:absent=true

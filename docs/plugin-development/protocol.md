@@ -480,9 +480,12 @@ Cross-plugin commands still belong in `OnAllPluginsReady`.
 
 ## Query Mode: Answering Without Starting
 
-Ze can start your plugin to ask what it declares, with no daemon running and no
-hub to connect to. It sets `ZE_PLUGIN_MODE=declare` in your process's
-environment. Your plugin writes its Stage 1 declaration to stdout, exits 0, and
+Ze can start your plugin to ask what it declares, with no hub to connect to.
+Two commands do it: `ze show plugin conformance run "<run string>"`, which
+needs no daemon, and `show plugin declarations config <file>` typed in a
+session a running Ze serves. With no daemon the second one starts nothing and
+lists your plugin as `not-available`. Either way Ze sets
+`ZE_PLUGIN_MODE=declare` in your process's environment. Your plugin writes its Stage 1 declaration to stdout, exits 0, and
 does none of a live start's work: no data initialization, no connection, no
 bind, no listener, no timer.
 

@@ -1,30 +1,68 @@
-# Test: every configured plugin has a row, whatever answering did to it
-# Spec: spec-plugin-query-mode -- story 2, AC-4, R-2, R-4
-# VALIDATES: `show plugin declarations config <path>` answers one row per
-#   configured plugin, and the row's state tells a working plugin from one that
-#   could not start, one that ran and said nothing, and one that ran out of time.
-# PREVENTS: a broken plugin vanishing from the answer, or a plugin that ignores
-#   query mode being reported as a plugin with nothing to declare. Both read as
-#   "this plugin adds no commands", which is the wrong operator conclusion.
+# Test: with no daemon, every external plugin has a row that says one thing, whatever its program would do
+# Spec: spec-plugin-external-yang-at-startup -- the owner ruling, applied to
+#   `show plugin declarations config <file>`; spec-plugin-query-mode story 2
+#   (no configured plugin is omitted).
+#
+# Question: when `ze show plugin declarations config <file>` runs with no daemon
+# on a config that declares four external plugins (one that would declare, one
+# whose run command names no binary, one that would stay silent, one that would
+# never answer), does each keep a row that reads `not-available`, with none of
+# the four started and no state invented for a program nobody ran?
+# Why not a unit test: TestDeclarationRowsStartNoExternalProgramWithNoDaemon
+# proves the row builder for one plugin. This proves the `ze` binary over the
+# four programs an operator's config can name: that no route from the command
+# line starts any of them, and that the answer does not depend on them.
+#
+# Each program that exists writes a marker file when it is started. Under the
+# behaviour the owner ruled out, this command ran all four in declare mode and
+# the rows read `declared`, `unstartable`, `no-answer` and `timeout`: three
+# markers appeared and the command waited out the budget on the slow one. Those
+# four states are still what a running ze answers
+# (TestDeclarationRowsCarryEveryState). The last step is the control: the
+# conformance checker starts one of the programs from the same directory, and
+# its marker shows that a start leaves one where the test looks.
+#
+# Source of the contract (Thomas): "plugin command requiring external plugins
+# which can not be started from the code when no daemon is running to pass it
+# to are not available, for command built-in then yes you should run them as
+# we can look them up in the yang hardcoded in the binary".
+#
+# VALIDATES: four configured external plugins, four rows, each `external
+#   not-available`; none reads a state that only running the program could
+#   establish; no program is started.
+# PREVENTS: a config read with no daemon running the commands it names; a
+#   broken or slow plugin vanishing from the answer; a row claiming
+#   `unstartable`, `no-answer` or `timeout` for a program nobody started.
 #
 # No daemon runs here. The command is a local-data command, so `ze show ...`
 # serves it in its own process.
 #
-# Every expectation in this file is FILE-level: the runner checks each one
-# against the accumulated stdout AND stderr of every command in the file
-# (checkOutputAssertions, internal/test/runner/runner_output_assert.go). A
-# per-command exit code therefore goes on the `cmd=` line as `exit=`, and the
-# state assertions are regexes that hold the plugin name and its state on ONE
-# line, because a bare `contains=` would pass with the two on different rows.
-#
-# The budget is cut to two seconds so the sleeping plugin costs the suite two
-# seconds instead of the five a default query waits.
+# The budget is cut to two seconds so that a regression that starts the slow
+# plugin costs the suite two seconds, not the five a default query waits.
 option=env:var=ze.plugin.query.timeout:value=2s
+
+# Leaves a marker named after its first argument, then writes the line the
+# protocol's own writer produces for a plugin with one command.
+tmpfs=declares.sh:terminator=EOF_DECLARES
+echo started > "started-declares-$1.marker"
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+EOF_DECLARES
+
+# Leaves a marker, writes no declaration and exits 0.
+tmpfs=silent.sh:terminator=EOF_SILENT
+echo started > "started-silent.marker"
+EOF_SILENT
+
+# Leaves a marker and never answers.
+tmpfs=slow.sh:terminator=EOF_SLOW
+echo started > "started-slow.marker"
+exec sleep 30
+EOF_SLOW
 
 tmpfs=plugin-declarations-states.conf:terminator=EOF_CONF
 plugin {
-    external mrt-out-of-process {
-        run "ze plugin mrt"
+    external plugin-declares {
+        run "sh declares.sh by-ze"
         encoder json
     }
     external plugin-absent {
@@ -32,33 +70,41 @@ plugin {
         encoder json
     }
     external plugin-silent {
-        run "exit 0"
+        run "sh silent.sh"
         encoder json
     }
     external plugin-slow {
-        run "sleep 30"
+        run "sh slow.sh"
         encoder json
     }
 }
 EOF_CONF
 
-# One command, four plugins, four different answers. The command itself succeeds:
-# a plugin that could not answer is a row, never an error.
+# One command, four plugins, four rows. The command itself succeeds: a plugin
+# whose declaration is not available is a row, never an error.
 cmd=foreground:seq=1:exec=ze show plugin declarations config plugin-declarations-states.conf:exit=0
 
-# A plugin that supports query mode declares, and the row carries what it
-# declared rather than the fact that it answered.
-expect=stdout:pattern=mrt-out-of-process +external +declared
-expect=stdout:contains=request mrt dump-rib
+# Every configured external plugin keeps its row, and each says the same thing:
+# nobody asked its program.
+expect=stdout:pattern=plugin-declares +external +not-available
+expect=stdout:pattern=plugin-absent +external +not-available
+expect=stdout:pattern=plugin-silent +external +not-available
+expect=stdout:pattern=plugin-slow +external +not-available
 
-# A run command that names no binary could not start. It is not silence: the
-# plugin never ran.
-expect=stdout:pattern=plugin-absent +external +unstartable
+# No row carries a state that only running the program could establish, and the
+# command the first program would declare is in no row.
+reject=stdout:pattern=plugin-declares +external +declared
+reject=stdout:pattern=plugin-absent +external +unstartable
+reject=stdout:pattern=plugin-silent +external +no-answer
+reject=stdout:pattern=plugin-slow +external +timeout
+reject=stdout:contains=show query answer
 
-# A plugin that ran and wrote no declaration answered nothing. That is what a
-# binary with no query mode in it looks like, and it is NOT `declared-none`.
-expect=stdout:pattern=plugin-silent +external +no-answer
+# Control: the conformance checker starts the first program, with no daemon,
+# and that start leaves its marker in this directory.
+cmd=foreground:seq=2:exec=ze show plugin conformance run "sh declares.sh by-checker":exit=0
+expect=stdout:pattern=program-starts +declare +pass
 
-# A plugin that started and said nothing inside the budget is stopped, and the
-# row says the budget ran out rather than reporting the plugin silent.
-expect=stdout:pattern=plugin-slow +external +timeout
+expect=file:path=started-declares-by-checker.marker:exists=true
+expect=file:path=started-declares-by-ze.marker:absent=true
+expect=file:path=started-silent.marker:absent=true
+expect=file:path=started-slow.marker:absent=true

@@ -59,10 +59,13 @@ section under your roots is checked against your module there, ranges
 included. A config that declares a plugin the daemon did not start with is
 refused there with the restart of `ze` as the fix.
 
-Declare mode (`ZE_PLUGIN_MODE=declare`) is still worth answering:
-`ze show plugin conformance run "<command>"` and `show plugin declarations`
-start the program that way, because running the program you name is what they
-are for. No other command with no daemon starts it.
+Declare mode (`ZE_PLUGIN_MODE=declare`) is still worth answering.
+`ze show plugin conformance run "<command>"` starts the program that way with
+no daemon, because running the program you name is what it is for. No other
+command with no daemon starts it: `ze show plugin declarations config <file>`
+lists your plugin with the state `not-available` and names that checker. A
+running Ze starts your program in declare mode when `show plugin declarations
+config <file>` is typed in a session it serves.
 <!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas.ParseRefusal -->
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
 <!-- source: internal/component/plugin/declarations.go -- QueryDeclaration -->

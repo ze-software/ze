@@ -573,14 +573,21 @@ are remembered. The callers are the `ze config` commands (`validate`, `fmt`,
 `ze doctor`, the support report, the crash-capture readiness read, the TACACS+
 probe, `show plugin declarations config` and `ze plugin test`.
 
-Two commands still run a program with no daemon, because running the program
-the operator names is their purpose: `ze show plugin conformance run
-"<command>"`, and `show plugin declarations`, which runs each plugin of the
-config it is given in declare mode (`plugin.QueryDeclaration`).
+One command still runs a program with no daemon, because running the program
+the operator names on its own command line is its purpose: `ze show plugin
+conformance run "<command>"`. `show plugin declarations config <file>` follows
+the rule of this section: with no daemon it starts no plugin, and the row of an
+external plugin reads `not-available` with the two commands that read its
+declaration. It asks this step which process it is in
+(`DeclaredSchemas.Offline`, through `readConfiguredPlugins`), so the parse and
+the command decide "no daemon" in one place. A running daemon answers the same
+command by running each external plugin of the file in declare mode
+(`plugin.QueryDeclaration`).
 <!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas, publishDeclaredSchemas -->
 <!-- source: internal/component/config/yang/publish.go -- ModuleSetFixed -->
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
-<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration -->
+<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration, configuredDeclarationRow, unavailableDeclarationRow -->
+<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
 <!-- source: internal/component/config/declared_schemas_test.go -- TestDeclaredSchemasStartsNoDeclaredProgram, TestParseRefusalSaysTheSectionIsNotAvailableOffline, TestDeclaredSchemasNoExternalPluginRunsNothing, TestDeclaredSchemasRunsNothingOnceTheSetIsFixed, TestDeclaredSchemasAnswersFromThePublishedSet, TestDeclaredSchemasTakesPluginsOfEverySource -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- readDiffSource, parseAndResolve -->

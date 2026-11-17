@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md -- where a command is served
 // Related: loader.go -- ReadConfig, the one parse this reader calls
+// Related: declared_schemas.go -- PublishDeclaredSchemas, which says whether this process has a daemon in it
 // Related: ../plugin/declarations.go -- `show plugin declarations`, the reader's one caller
 //
 // register_plugin_declarations.go closes the seam that lets `show plugin
@@ -22,7 +23,9 @@ func init() {
 	plugin.SetConfiguredPluginReader(readConfiguredPlugins)
 }
 
-// readConfiguredPlugins answers the plugins a config file declares.
+// readConfiguredPlugins answers the plugins a config file declares, and
+// whether the process that read it is a command with no daemon or a running
+// daemon.
 //
 // It goes through ReadConfig, the body of LoadConfig the daemon itself starts
 // from, so the command reports the plugin set the daemon would start rather
@@ -37,18 +40,26 @@ func init() {
 // the command that reaches a running ze. The first
 // pass alone would not answer this list: it leaves out the compiled-in
 // plugins, the plugins a section declares inline and their dependencies.
-func readConfiguredPlugins(path string) ([]plugin.PluginConfig, error) {
+//
+// The process is the answer of that same step (DeclaredSchemas.Offline), so
+// the command that starts no external plugin with no daemon and the parse that
+// refuses an external plugin's section with no daemon decide it in one place.
+func readConfiguredPlugins(path string) (plugin.ConfiguredPlugins, error) {
 	input, err := cliio.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return plugin.ConfiguredPlugins{}, err
 	}
 	declared, err := PublishDeclaredSchemas(ConfigSource{Text: string(input), Path: path})
 	if err != nil {
-		return nil, err
+		return plugin.ConfiguredPlugins{}, err
 	}
 	loaded, err := ReadConfig(string(input), path, nil)
 	if err != nil {
-		return nil, declared.Explain(err)
+		return plugin.ConfiguredPlugins{}, declared.Explain(err)
 	}
-	return loaded.Plugins, nil
+	process := plugin.ConfigProcessDaemon
+	if declared.Offline() {
+		process = plugin.ConfigProcessOffline
+	}
+	return plugin.ConfiguredPlugins{Plugins: loaded.Plugins, Process: process}, nil
 }

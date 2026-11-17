@@ -1,32 +1,59 @@
-# Test: an operator reads an external plugin's declarations with no daemon running
-# Spec: spec-plugin-query-mode -- Wiring Test row 1, story 1, AC-4 and AC-9
-# VALIDATES: `show plugin declarations` answers from the compiled-in registry with
-#   nothing running, and `config <path>` adds a row for the external plugin the
-#   file names, carrying the command that plugin declares.
-# PREVENTS: an operator having to start a router, and put a plugin in the path of
-#   live traffic, to find out which commands that plugin adds.
+# Test: with no daemon, an external plugin's declaration is not available and its program is not started
+# Spec: spec-plugin-external-yang-at-startup -- the owner ruling, applied to
+#   `show plugin declarations config <file>`; spec-plugin-query-mode AC-9 for the
+#   compiled-in rows.
+#
+# Question: when `ze show plugin declarations config <file>` runs with no daemon
+# on a config that declares an external plugin, does it keep that plugin's row,
+# say that its declaration is not available with no daemon, name the commands
+# that read it, and start nothing, while it still answers every compiled-in
+# plugin from the binary?
+# Why not a unit test: TestDeclarationRowsStartNoExternalProgramWithNoDaemon
+# proves the row builder over a reader the test installs, and
+# TestConfiguredPluginReaderNamesACommandWithNoDaemon proves the reader. This
+# proves the `ze` binary an operator runs: that the real reader names this
+# process as one with no daemon, so no route from the command line reaches a
+# fork of the declared program, and the row as it is printed.
+#
+# The declared program writes a marker file when it is started, in any mode,
+# and then answers a declaration query with one command, the way a conforming
+# plugin does. Under the behaviour the owner ruled out, this command ran it in
+# declare mode: the marker appeared and the row read `declared` with that
+# command. The last step is the control: the conformance checker, which the
+# row's reason names, starts the same program from the same directory, and its
+# marker shows that a start leaves one where the test looks.
+#
+# Source of the contract (Thomas): "plugin command requiring external plugins
+# which can not be started from the code when no daemon is running to pass it
+# to are not available, for command built-in then yes you should run them as
+# we can look them up in the yang hardcoded in the binary".
+#
+# VALIDATES: the external row is kept as `external not-available`, carries no
+#   command, and its reason names the daemon form, `ze cli` and the conformance
+#   checker; the compiled-in rows are still declared; the program is not started.
+# PREVENTS: inspecting a config someone else wrote running their command; an
+#   external plugin dropped from the answer; a row that reads as a plugin with
+#   nothing to declare.
 #
 # No daemon runs here. The command is a local-data command, so `ze show ...`
-# serves it in its own process before it asks for credentials
-# (internal/component/cli/client/main.go, runBGP).
+# and `ze cli -c` serve it in their own process.
 #
-# Every expectation in this file is FILE-level: the runner checks each one
-# against the accumulated stdout AND stderr of every command in the file
-# (checkOutputAssertions, internal/test/runner/runner_output_assert.go), and
-# expect=exit:code= reaches the LAST quick-exit ze command alone
-# (Record.ExpectExitCode is one value, internal/test/runner/record.go). A
-# per-command exit code therefore goes on the `cmd=` line as `exit=`, and each
-# pattern below is written so that only ONE command in the file can produce it.
-#
-# The external plugin is the in-tree mrt plugin started as its own process, the
-# shape AC-5 compares against a live start. mrt is used because it declares one
-# command with a stable name and needs no kernel privilege to be asked what it
-# declares.
+# The program is a script, because a declaration holds double quotes and the
+# config's run string is itself double-quoted. It starts in the directory the
+# command runs in, which is the test's directory, where the runner writes these
+# files.
+
+# Leaves a marker named after its first argument, then writes the line the
+# protocol's own writer produces for a plugin with one command.
+tmpfs=marker.sh:terminator=EOF_MARKER
+echo started > "started-$1.marker"
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+EOF_MARKER
 
 tmpfs=plugin-declarations.conf:terminator=EOF_CONF
 plugin {
-    external mrt-out-of-process {
-        run "ze plugin mrt"
+    external acme-out-of-process {
+        run "sh marker.sh by-ze"
         encoder json
     }
 }
@@ -37,18 +64,42 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze show plugin declarations:exit=0
 expect=stdout:pattern=mrt +internal +declared
 
-# Naming the config adds the external plugin, under the name its block gives it.
+# Naming the config adds the external plugin, under the name its block gives
+# it. Its declaration is not available: nobody started its program.
 cmd=foreground:seq=2:exec=ze show plugin declarations config plugin-declarations.conf:exit=0
-expect=stdout:pattern=mrt-out-of-process +external +declared
+expect=stdout:pattern=acme-out-of-process +external +not-available
+reject=stdout:pattern=acme-out-of-process +external +declared
+# The command the program would have declared is in no row.
+reject=stdout:contains=show query answer
+# What the binary carries is still answered, with its command.
+expect=stdout:pattern=mrt +internal +declared
+expect=stdout:contains=request mrt dump-rib
 
-# The declaration in that row came from the plugin the reader STARTED. `match`
-# selects the external row before the rendering, so this answer holds no in-tree
-# row at all, and the quoted JSON spelling below is in no other command's output
-# in this file: it can only come from the plugin that was started and queried.
-cmd=foreground:seq=3:exec=ze cli -c "show plugin declarations config plugin-declarations.conf | match mrt-out-of-process | json":exit=0
-expect=stdout:pattern="name": "request mrt dump-rib"
+# The row as a program reads it: the state is a field, and the reason says why
+# and names the daemon form, the session that reaches a running ze, and the
+# conformance checker with the block's own run string. `match` selects the
+# external row before the rendering, so this answer holds no in-tree row.
+cmd=foreground:seq=3:exec=ze cli -c "show plugin declarations config plugin-declarations.conf | match acme-out-of-process | json":exit=0
+expect=stdout:pattern="state": "not-available"
+expect=stdout:contains=not available with no daemon running
+expect=stdout:contains=starts no external plugin
+expect=stdout:contains=show plugin declarations config plugin-declarations.conf
+expect=stdout:contains=`ze cli`
+expect=stdout:contains=ze show plugin conformance run
+expect=stdout:contains=sh marker.sh by-ze
+reject=stdout:contains="commands"
+reject=stdout:contains=show query answer
 
 # A path that does not exist is refused by name, so a typo is never reported as
 # a config that declares no plugin.
 cmd=foreground:seq=4:exec=ze show plugin declarations config no-such-file.conf:exit=1
 expect=stderr:contains=no-such-file.conf
+
+# Control: the command the row's reason names starts the same program, with no
+# daemon, and that start leaves its marker in this directory.
+cmd=foreground:seq=5:exec=ze show plugin conformance run "sh marker.sh by-checker":exit=0
+expect=stdout:pattern=program-starts +declare +pass
+expect=stdout:pattern=declaration-line +declare +pass
+
+expect=file:path=started-by-checker.marker:exists=true
+expect=file:path=started-by-ze.marker:absent=true
