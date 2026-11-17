@@ -7,7 +7,7 @@
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set) |
-| Phase | 2b -- legacy renewal and scoped fingerprint debt complete; context proof and final gate remain |
+| Phase | 2b -- dual-form product fix closed; remaining architecture requirements, RFC proof and this spec's final review remain |
 | Handoff | - |
 | Updated | 2026-11-17 |
 
@@ -15,14 +15,57 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Current continuation checkpoint, 2026-11-17
 
-The dual-form product fix has normal Ze-kernel acceptance. Its final eight-test
-Claude batch passed without skips, including all sixteen context cases, whole
-controls and exact selector-negative counters. The historical
-`spec-ipsec-dual-form-receive-spd-bypass` record keeps those receipts in git.
+The dual-form product fix is closed. This architecture spec remains open for
+broader RFC proof and the forwarded/mapped ICMP-return work. Closing the product
+fix does not promote `RFC4301-5.2-2` from `{partial}` or complete this spec's
+other requirements and final review.
+
+Commit `6f59a38b3d` preserves the product implementation and acceptance record;
+`73a3e251e7` closes `spec-ipsec-dual-form-receive-spd-bypass`. Its AC-4 passed
+the required normal Ze-kernel tests under the owner's one-off product acceptance
+decision. This spec's AC-4 concerns forwarded ICMP and remains a separate
+obligation, including the mapped-return assertion recorded below.
+
+The explicitly authorized fixture correction is committed in `c6eda91b9f`.
+The final Claude batch passed all eight top-level tests without FAIL/SKIP,
+including sixteen context rows, their following authenticated whole-packet
+controls and exact selector-negative counters `(1,0,0)`. Production noninitial
+fragment permission remains false. The fixture permission and paired negative
+were independently approved with their assertions preserved. The earlier
+fixture hold and its owner question are settled.
+
+All 79 legacy renewals and their exact-key freshness checks are complete.
+The two existing Go-cut renewals affected by the fixture correction also passed
+clean and failed at their intended producer halt, with stopped VMs and native
+exit zero. Their four selected records are current, and the independently
+refreshed partial `RFC4301-5.2-2` audit has nine current covers. Both selected
+freshness reports have zero stale/unproven records. The two producer-halt
+renewals retain their bounded Go-dependency proof meaning. Final scoped engine
+lint reported zero issues in all three flavors, and the product's independent Review Gate was CLEAN
+over 100 code files.
+
+The last accepted normal Claude kernel was `d44390c8`, with matching image
+`3a6ccfb1c29c1b23`. These identify accepted test inputs and carry no cache
+reservation or claim that the cached files still exist. The full hashes,
+receipts and earlier B1 regressions remain in the committed product record.
 The durable contract is [the Child SA and XFRM architecture](../../../docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md).
-This removes that product-fix dependency. It does not complete this spec's
-general RFC discrimination or mapped ICMP-return obligations and does not
-promote RFC4301-5.2-2 from partial.
+
+General kernel-proof tooling remains separately owned by
+`plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md` and
+unapproved. The normal-fixture authorization grants no private fault-kernel
+preparation or use. This spec retains its existing lifetime-volume and
+extraction/sign-off dependencies, its broader RFC discrimination work and its
+mapped ICMP-return obligation. Its remaining ACs and final review need their
+own evidence reconciliation against the completed product work.
+
+## Historical continuation receipts, 2026-11-17
+
+The dated receipts and status tables below preserve what was known at each
+checkpoint. Their unrun populations, open product AC-4, fixture holds and
+requests for fixture approval are superseded by the current checkpoint above.
+They neither reopen the settled normal-fixture question nor authorize private
+fault work. Historical defect findings retain their evidence and ownership;
+this status update does not independently close them.
 
 The dual-form spec's **Current continuation checkpoint, 2026-11-17** is a
 historical receipt record in Git; its dated pending-work labels do not describe
@@ -76,7 +119,7 @@ limits. It also records report repair `3d6aa6c86f`, AC-30's existing lint
 limitation and four current VERIFIED historical records; those bounded
 conclusions and pending approvals apply here.
 
-## Local ICMP proof receipt, 2026-11-16
+## Historical local ICMP proof receipt, 2026-11-16
 
 The dual-form spec's AC-1 now has all seven native runs of
 `icmp-error-payload-check`, with independent final review CLEAR. Proof (c)
@@ -92,7 +135,7 @@ Their dated evidence remains historical. It does not settle forwarded ICMP,
 the other phase-3 defects, general per-SA or multiple-pair scope, protected
 inner-fragment isolation or AC-4's full requirement.
 
-## Full kernel route checkpoint, 2026-11-16
+## Historical full kernel route checkpoint, 2026-11-16
 
 The owner selected completion of all three points: exact per-SA permissions,
 fragment-context isolation and fragment port-rule enforcement. Current source
@@ -382,12 +425,14 @@ it did not approve a nonexistent diff. Do not retry that rejected task. This
 testing blocker does not give runtime credit to the new source or relax the
 full three-point goal. The 79 other renewals and unrelated owner decisions remain open.
 
-## Correction against the tree, 2026-11-14
+## Historical correction against the tree, 2026-11-14
 
 Owner instruction: "the code changed, so look at it again and update the spec
 to be correct." Every statement in this section was read at its producing
 function at `9af281ff33`. The dated sections below keep their history. Where
-one of them disagrees with this section, this section holds.
+one of them disagreed with this section, this section held at that checkpoint.
+The current continuation checkpoint above now governs product closure and
+fixture authorization.
 
 **Kernel statements are recorded claims, not re-read.** The Linux 7.3 tree the
 2026-11-12 verdicts cite (`tmp/session/2026-11-09-222726/scratch/kernelsrc73/`)
@@ -397,7 +442,7 @@ and the user cache for `xfrm_policy.c`). A kernel statement here comes from a
 2026-11-10), from the upstream context lines of a tracked kernel patch, or from
 a comment in Ze's code. Each one names the netns packet test that settles it.
 
-### Phase status, as the tree holds it
+### Historical phase status at the 2026-11-14 read
 
 "Code landed" means the producer and its unit tests exist. A phase is complete
 only with the functional and interop tests its plan names, and none below is.
@@ -495,7 +540,12 @@ The summary's Purpose line still says Ze delegates IKEv2 negotiation to
 strongSwan and charon (AC-11), and its Enrolment reason counts 81 rows where the
 file now holds 104 requirement ids.
 
-### Owner decisions open
+### Owner decisions recorded through 2026-11-16
+
+This table preserves the choices and evidence recorded at that time. Decision 1
+subsequently selected the full kernel route, whose product fix is now closed.
+Its old alternatives and product AC-4 status are historical. Other architecture
+questions retain their own scope and are not answered by the product closure.
 
 On 2026-11-16 the owner selected the full kernel implementation route for
 decision 1: "ok do that work" and "complete the three points", after the
@@ -530,7 +580,7 @@ else in this section is fixed without asking.
 | scenario `spd-discard-entry` | nothing |
 | SPD entry order 1 to 65535 | YANG `order`: 101 to 2147483647, default 1000 |
 
-## Checkpoint for continuation, 2026-11-13
+## Historical checkpoint for continuation, 2026-11-13
 
 The library repair landed in `352f231413`; its ordered series and upstream-style
 tests landed in `b43120b371` and `c9ce6ba81d`. The kernel K1/K2 patches and their
@@ -550,7 +600,7 @@ for an explicit closure review, outside this lifecycle checkpoint. See
 `plan/handover/2026-11-13-ipsec-checkpoint.md` for the next tests, exact artifact
 locations and machine-transfer requirements. This spec remains in progress.
 
-## Resumed phase 2b, kernel K1, 2026-11-13
+## Historical resumed phase 2b, kernel K1, 2026-11-13
 
 The reviewed state-scope and fragment design is being implemented in stages.
 K1 owns the exact per-state OR-set, immutable identity and migration lifetime,
@@ -568,7 +618,7 @@ this source. New ABI and packet tests, native build, lifetime stress and
 independent review remain owed; source authoring is not proof. Phase4's
 selector mutation/RFC record and regression work also remains owed.
 
-## Resumed phase 4, 2026-11-12
+## Historical resumed phase 4, 2026-11-12
 
 Wanted exact MH support remains owned by
 `plan/post-release/kernel/spec-xfrm-ipv6-mh-selector.md`. The 2026-11-12
@@ -599,7 +649,7 @@ remain owed. This does not close phase4 or another outstanding phase. The phase
 metadata was corrected at this resumption checkpoint; it had remained unset
 during the initial edits.
 
-## Session progress, 2026-09-06
+## Historical session progress, 2026-09-06
 
 Phase 2's DISCARD half landed. Phases 5 and 6 were found ALREADY LANDED by an
 earlier session and are not re-implemented here. Five blocks stay open and each
@@ -656,7 +706,7 @@ either, and that spec's own 2026-09-05 note records that whether `rfc4301`
 re-enters the support-claiming set is an owner call no session may settle by
 re-derivation. AC-12 is therefore blocked on both, not on this phase.
 
-## Session progress, 2026-11-10
+## Historical session progress, 2026-11-10
 
 Phases 3, 4, 7 and 8 are written and reviewed. Their units, functional tests
 and the PMTU QEMU unit have run green in the main checkout. Of the two interop
@@ -718,7 +768,7 @@ returning an operator error, range-over-int loops). An independent
 `ze-test-judge` re-judged the range-over-int rewrites and the earlier test
 changes.
 
-**Goal Validation.**
+**Historical goal validation, 2026-11-10.**
 
 | Goal | Evidence | State |
 |---|---|---|
@@ -778,7 +828,7 @@ errors on a Child SA (RFC 4301)"):
 | (c) | `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed | OBSERVED 2026-11-16: clean PASS 10s → flag-cut packet FAIL 8s with 336 ESP octets decrypted but no Time Exceeded → clean PASS 10s. Generation/carriage guards passed; exact generation count is not printed. Logs `job-ipsec-icmp-clean-current-98342191.log`, `job-ipsec-icmp-flag-cut-current-98342191.log`, `job-ipsec-icmp-clean-after-flag-cut-98342191.log`. Independently CLEAR for current IPv4 single-pair local delivery |
 | (d) | `icmp-error-payload-check` | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`; S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | clean PASS, P alone PASS, S alone PASS, S+P packet-delivery RED, then clean PASS; together the faults deliver the inconsistent error | OBSERVED 2026-11-16: recovery clean PASS 10s → P PASS 10s → S PASS 10s → S+P packet FAIL 8s, delivering three inconsistent Time Exceeded messages → final clean PASS 10s. Consistent control and generation/carriage guards passed. Logs `job-ipsec-icmp-policy-only-cut-98342191.log`, `job-ipsec-icmp-state-only-cut-98342191.log`, `job-ipsec-icmp-combined-selectors-cut-98342191.log`, `job-ipsec-icmp-clean-after-selector-cuts-98342191.log`. Independently CLEAR for current IPv4 single-pair local delivery; no general scope or protected inner-fragment credit |
 
-**Decisions.**
+**Decisions recorded on 2026-11-12.**
 
 | Decision | Who decided | Outcome |
 |---|---|---|
@@ -824,7 +874,8 @@ or authorize a full-RFC support claim. The separate lifetime-volume release
 fix and extraction/sign-off ownership remain; neither is silently waived by
 the phase-9 publication correction below.
 
-The dual-form repair also owns ordinary preservation regressions for the
+Historical preservation checkpoint, before the final product acceptance above:
+the dual-form repair also owns ordinary preservation regressions for the
 existing captured raw-sender authority contract, under its Task and AC-29.
 The new `engine/raw_socket_fragment_policy_integration_linux_test.go` covers
 IPv4/IPv6 socket-policy presence, selector misses and absence, marks and
@@ -864,6 +915,11 @@ under that spec's rules rather than replacing them.
 
 ## Required Reading
 
+The discovery notes below record the earlier source and documentation reads.
+Their old absence and summary-status claims are historical. The current
+checkpoint identifies the completed product work; remaining architecture work
+uses the current owning documents and source.
+
 ### Architecture Docs
 - [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - the Child SA to XFRM projection, declared by `dataplane.go`, `bypass.go`, `child.go`
   → Decision: [what the page states about how an SPD entry reaches the kernel]
@@ -889,6 +945,10 @@ under that spec's rules rather than replacing them.
 - Every obligation below was read in `rfc/full/rfc4301.txt` and every producer was read in the tree on 2026-08-30.
 
 ## Current Behavior (MANDATORY)
+
+This source inventory records the 2026-11-14 snapshot. The later product closure
+supersedes its missing scope-writer and fragment-guard status. It supplies no
+new verdict on this spec's other defect findings.
 
 **Source files read:** (first read on 2026-08-30; each line states what the file holds on 2026-11-14)
 - [ ] `internal/component/ike/dataplane/dataplane.go` - `SPAction` holds `SPActionProtect` (0), `SPActionBypass` (1) and `SPActionDiscard` (2), and `isTemplateFree` answers for the last two. `PortMatch` holds a port and a mask. The priorities are `PriorityIKEBypass` 100, `PriorityChildSA` 2000, `PriorityUnmatchedXFRMInterface` and `PriorityUnmatched` (the largest u32); a lower value is searched first, and the kernel resolves equal priorities by insertion order.
@@ -928,6 +988,10 @@ under that spec's rules rather than replacing them.
 
 ## Existing Mechanisms (MANDATORY)
 
+The table preserves the mechanisms and implementation status at the dated
+reads below. Its pending kernel-route decision and absent engine scope writer
+are historical; the current checkpoint records their completed product work.
+
 The first six rows were checked against the source on 2026-11-10, and the
 operator SPD row again on 2026-11-14. The rows after them were added on
 2026-11-14 from the producing functions and the design page
@@ -964,6 +1028,11 @@ operator SPD row again on 2026-11-14. The rows after them were added on
 4. The kernel or VPP classifies each packet against the installed SPD and SAD.
 
 ### Boundaries Crossed
+
+The verification column is the 2026-11-14 snapshot. Later product receipts
+supersede its missing scope writer, unobserved private attributes and local
+ICMP interop RED. Remaining architecture obligations retain their own proof.
+
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config to engine | YANG tree to ipsec config value types | Partly: the parse `.ci` files (`ipsec-icmp-type-selector-refused`, `ipsec-df-bit-treatment`, `ipsec-dscp-map`, `ipsec-icmp-error-check`) prove the leaves; no `.ci` commits a discard entry or two entries of equal order |
@@ -990,6 +1059,9 @@ operator SPD row again on 2026-11-14. The rows after them were added on
 | Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | a backend declares what it can hold through the optional interfaces above, and the engine asks the loaded backend, never its name (`verifyUnmatchedEnforceable`, `verifyPeerSAOptions`, `forwardDefaultInstaller`). The doctor check registers from `register_forward_default_linux.go`. Not checked: whether `show vpn ipsec dataplane` needs an edit for the forward projection of AC-16 |
 
 ### Changed-Wire Census
+
+This is the historical census from the source read below. Its unused scope
+writer and incomplete capability receipt descriptions predate the product fix.
 
 **Search evidence:** searched `internal/component/ike/` and `gokrazy/kernel/`
 for `XFRMA_STATE_SCOPE`, `XFRMA_ZE_CAPS`, `xfrmaStateScope`, `xfrmaZECaps`,
@@ -1067,6 +1139,11 @@ in the tree.
 
 ## Acceptance Criteria
 
+AC numbers in this table belong to this architecture spec. In particular,
+AC-4 covers forwarded ICMP and is separate from the closed product spec's
+fragment-acceptance AC-4. The product's CLEAN review does not close this spec's
+remaining requirements or its own final Review Gate.
+
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
 | AC-1 | An operator writes an SPD entry whose action is discard | traffic this node sends or receives that matches the entry is dropped by the installed policy (`block` on XFRM, `IPSEC_API_SPD_ACTION_DISCARD` on VPP), and a disposition a backend cannot express is refused, never substituted (`xfrmPolicyAction`). Forwarded traffic is AC-16, a failed install is AC-14, and the default-configuration refusal is AC-19 | Traffic the entry does not name keeps the disposition of the entry it does match, because a discard is one entry of an ordered database |
@@ -1115,6 +1192,11 @@ covers `clear` and `copy`, and `RFC4301-8.1-2` keeps its `{gap}` for `set`.
 | 6 | An operator pins the DF bit of a tunnel to clear so a legacy path stops dropping large packets | config to the installed SA to the emitted outer header | `TestDFBitTreatmentReachesTheBackend` plus the `tunnel-df-treatment` interop scenario |
 
 ## 🧪 TDD Test Plan
+
+The status columns preserve the earlier planning inventory. Where they call a
+product fragment or scope test unobserved, the final accepted receipts in the
+current checkpoint supersede that label. The remaining architecture proof and
+mapped-return work stay owed; this prose update adds no runtime test debt.
 
 ### Unit Tests
 | Test | File | Validates | Status |
@@ -1247,8 +1329,10 @@ fragment needs a raw sender and a capture, which the netns packet tests carry.
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `./le spec citation anchors spec plan/release/fixes/spec-rfc4301-architecture-gaps.md` at the start of each phase and name every doc it lists. `docs/features/rfc-status.md` already carries a `<!-- source: internal/component/ike/dataplane/dataplane.go -->` anchor over a file every phase edits |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/ipsec.md` shows the `vpn ipsec` grammar; verify every example against the YANG after each phase |
 
-Corrected 2026-11-14: the remaining-work authority is "Phase status, as the
-tree holds it" in the correction section. The steps below are the original
+Historical ordering note, corrected 2026-11-14: at that checkpoint the
+remaining-work authority was the phase-status table in the correction section.
+The current continuation checkpoint supersedes its completed product work.
+The steps below are the original
 plan and are kept as history: several name a test, a file or a scenario that
 was never written under that name, and "Names in this spec that the tree does
 not hold" gives what exists. The work the 2026-11-14 correction adds runs in
@@ -1406,6 +1490,11 @@ publication contract. No tooling behavior is changed by this reconciliation.
 | `address-family-inferred-from-address-bytes.md` | 2026-11-13 | netlink `selFromPolicy` loses mapped IPv6 prefix family and transport scope byte identity |
 
 ## Key Design Decisions
+
+These decisions preserve the original rationale. Their product-fragment
+priority describes the work before its closure; it does not reopen that work
+or change the remaining architecture requirements.
+
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Correct the public row first and implement second | Implement inside `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md`; leave the row at `Supported` | Owner decision, 2026-08-30. The row is a public promise that is false today, and correcting it costs one line. Leaving it was not on the table, and folding eight blocks of protocol work into a bookkeeping spec would have made that spec unclosable |
@@ -1424,7 +1513,10 @@ publication contract. No tooling behavior is changed by this reconciliation.
 
 ## Work Not Done
 
-As of 2026-11-10. Each row stays owed; none is dropped.
+Historical inventory from 2026-11-10, with the dated corrections in its rows.
+The current checkpoint supersedes completed product-fix status in this table.
+Each remaining architecture obligation keeps its named owner. This status-only
+update does not independently close an old defect or promote an RFC row.
 
 | Item | Why not done | Home |
 |------|--------------|------|
@@ -1497,7 +1589,7 @@ offsets, because each one parses a header an attacker controls.
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
-## Progress, 2026-09-06
+## Historical progress, 2026-09-06
 
 Committed in `0aa0f63d24`. `RFC4301-7.4-2` is under investigation, not a
 settled gap.
