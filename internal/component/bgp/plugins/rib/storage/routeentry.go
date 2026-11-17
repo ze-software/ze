@@ -15,8 +15,8 @@ import (
 // Use InvalidHandle for attributes not present in the route.
 // Use Release() to decrement refcounts when removing from RIB.
 //
-// Limitation: Attribute flags (especially Partial bit 0x20) are not preserved.
-// For exact wire reproduction, use msg-id cache forwarding instead.
+// Received Partial facts for the four dedicated optional-transitive pools are
+// retained separately from their shared values. OtherAttrs keeps full headers.
 // StaleLevelFresh is the default stale level: route is not stale.
 // Plugins define their own non-zero levels and pass them via RIB commands.
 // The RIB is level-agnostic: it stores, compares, and filters by level
@@ -49,6 +49,14 @@ func AdvertisedStaleLevel(retention uint8, receivedLLGRStale bool) uint8 {
 	return retention
 }
 
+// Each bit names one value-only pool whose received Partial fact is per route.
+const (
+	partialAggregator uint8 = 1 << iota
+	partialCommunity
+	partialExtCommunity
+	partialLargeCommunity
+)
+
 type RouteEntry struct {
 	// StaleLevel tracks route freshness. 0 = fresh (not stale).
 	// Per-route metadata, not pooled -- each route has independent stale state.
@@ -66,6 +74,10 @@ type RouteEntry struct {
 	// LLGR_STALE route stored there would be purged at the next TCP loss and at
 	// every EOR. extractCandidate combines the two for best path.
 	ReceivedLLGRStale bool
+	// partial keeps received Partial facts independently of shared values.
+	// Zero means no retained received Partial, not a rule for new attachment.
+	// It occupies padding before MsgID on the current 64-bit layout.
+	partial uint8
 	// MsgID identifies the received UPDATE for validation eligibility.
 	// Zero is an unversioned producer; it asks the gate about the current path.
 	MsgID uint64
@@ -135,8 +147,24 @@ func (e *RouteEntry) GetBundle() Bundle {
 	return Bundles.Get(e.Bundle)
 }
 
+// pooledTransitiveFlags restores one dedicated pool's received Partial fact.
+// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+// is accepted and passed along to other BGP peers and the Partial bit in the
+// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+// to 0 by the current AS." A zero fact retains the encoder's existing flags;
+// this does not decide how a new attribute must be attached to a path.
+func (e *RouteEntry) pooledTransitiveFlags(mask uint8) byte {
+	flags := byte(0xc0)
+	if e.partial&mask != 0 {
+		flags |= 0x20
+	}
+	return flags
+}
+
 // Release decrements refcount for Bundle (cascade-releases inner handles)
 // and ASPath. Safe to call multiple times.
+// An owner returned by parsing, Clone or retained lookup MUST call Release
+// after its final use; AddRef MUST acquire a reference for each new owner.
 func (e *RouteEntry) Release() {
 	e.source.Release()
 	e.source = nil
@@ -148,10 +176,12 @@ func (e *RouteEntry) Release() {
 		_ = pool.ASPath.Release(e.ASPath)
 		e.ASPath = attrpool.InvalidHandle
 	}
+	e.partial = 0
 }
 
 // AddRef increments refcount for Bundle and ASPath handles.
 // Use when sharing a RouteEntry between multiple owners.
+// The new owner MUST call Release after its final use.
 func (e *RouteEntry) AddRef() error {
 	if e.Bundle.IsValid() {
 		Bundles.AddRef(e.Bundle)
@@ -169,12 +199,18 @@ func (e *RouteEntry) AddRef() error {
 }
 
 // Clone creates a copy of the RouteEntry with AddRef called on both handles.
-// Caller must call Release() on the clone when done.
+// Caller MUST call Release() on the clone when done.
 // Returns nil if AddRef fails (e.g., pool shutdown).
+// The received Partial facts MUST follow this copy independently of pool sharing
+// to preserve RFC 4271 Section 5's rule: "If a path with a recognized, transitive
+// optional attribute is accepted and passed along to other BGP peers and the
+// Partial bit in the Attribute Flags octet is set to 1 by some previous AS, it
+// MUST NOT be set back to 0 by the current AS."
 func (e *RouteEntry) Clone() *RouteEntry {
 	clone := &RouteEntry{
 		StaleLevel:        e.StaleLevel,
 		ReceivedLLGRStale: e.ReceivedLLGRStale,
+		partial:           e.partial,
 		MsgID:             e.MsgID,
 		SourcePolicyEpoch: e.SourcePolicyEpoch,
 		SourceReceipt:     e.SourceReceipt,

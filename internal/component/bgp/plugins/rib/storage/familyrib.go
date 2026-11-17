@@ -867,10 +867,20 @@ func (r *FamilyRIB) StaleCount() int {
 	return count
 }
 
-// entriesEqual checks if two RouteEntries have the same attribute handles.
+// entriesEqual compares attribute values and independent received Partial facts.
 // Used for no-op detection (same NLRI + same attrs = skip).
+// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+// is accepted and passed along to other BGP peers and the Partial bit in the
+// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+// to 0 by the current AS." A flag-only replacement must not retain old metadata.
 func entriesEqual(a, b RouteEntry) bool {
-	return a.Bundle == b.Bundle && a.ASPath == b.ASPath
+	if a.Bundle != b.Bundle {
+		return false
+	}
+	if a.ASPath != b.ASPath {
+		return false
+	}
+	return a.partial == b.partial
 }
 
 // attrFingerprint computes an FNV-1a 64-bit hash of raw attribute bytes. Used
@@ -917,10 +927,12 @@ func (r *FamilyRIB) insertMultiNoOp(pfx netip.Prefix, pathID uint32, fp uint64, 
 // Attributes are written in type-code order per RFC 4271 Appendix F.3.
 // OtherAttrs are merged into the correct position by type code.
 //
-// Limitation: For individually pooled attributes, flags are normalized to standard
-// values (0x40 well-known, 0x80 optional, 0xC0 optional-transitive). The Partial
-// flag (0x20) is NOT preserved. OtherAttrs preserve original flags.
-// For exact wire reproduction, use msg-id cache forwarding instead.
+// Dedicated optional-transitive pools retain their per-route received Partial
+// facts. Other flags use the standard values; OtherAttrs keeps original flags.
+// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+// is accepted and passed along to other BGP peers and the Partial bit in the
+// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+// to 0 by the current AS."
 func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	var result []byte
 	b := e.GetBundle()
@@ -966,10 +978,10 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	if err := writeAttr(attribute.AttrAtomicAggregate, 0x40, pool.AtomicAggregate, b.AtomicAggregate); err != nil {
 		return nil, err
 	}
-	if err := writeAttr(attribute.AttrAggregator, 0xC0, pool.Aggregator, b.Aggregator); err != nil {
+	if err := writeAttr(attribute.AttrAggregator, e.pooledTransitiveFlags(partialAggregator), pool.Aggregator, b.Aggregator); err != nil {
 		return nil, err
 	}
-	if err := writeAttr(attribute.AttrCommunity, 0xC0, pool.Communities, b.Communities); err != nil {
+	if err := writeAttr(attribute.AttrCommunity, e.pooledTransitiveFlags(partialCommunity), pool.Communities, b.Communities); err != nil {
 		return nil, err
 	}
 	if err := writeAttr(attribute.AttrOriginatorID, 0x80, pool.OriginatorID, b.OriginatorID); err != nil {
@@ -981,7 +993,7 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	// RFC 8955 Section 7: "All Traffic Filtering Actions are specified as
 	// transitive BGP Extended Communities." Retained replay must not lose
 	// those actions merely because they have their own pooled field.
-	if err := writeAttr(attribute.AttrExtCommunity, 0xC0, pool.ExtCommunities, b.ExtCommunities); err != nil {
+	if err := writeAttr(attribute.AttrExtCommunity, e.pooledTransitiveFlags(partialExtCommunity), pool.ExtCommunities, b.ExtCommunities); err != nil {
 		return nil, err
 	}
 
@@ -996,7 +1008,7 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	large := b.hasLargeCommunities()
 	for _, code := range codes {
 		if large && code > byte(attribute.AttrLargeCommunity) {
-			if err := writeAttr(attribute.AttrLargeCommunity, 0xC0, pool.LargeCommunities, b.LargeCommunities); err != nil {
+			if err := writeAttr(attribute.AttrLargeCommunity, e.pooledTransitiveFlags(partialLargeCommunity), pool.LargeCommunities, b.LargeCommunities); err != nil {
 				return nil, err
 			}
 			large = false
@@ -1004,7 +1016,7 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 		result = append(result, otherByType[code]...)
 	}
 	if large {
-		if err := writeAttr(attribute.AttrLargeCommunity, 0xC0, pool.LargeCommunities, b.LargeCommunities); err != nil {
+		if err := writeAttr(attribute.AttrLargeCommunity, e.pooledTransitiveFlags(partialLargeCommunity), pool.LargeCommunities, b.LargeCommunities); err != nil {
 			return nil, err
 		}
 	}

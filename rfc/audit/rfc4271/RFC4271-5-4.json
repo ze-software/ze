@@ -1,10 +1,10 @@
 {
-  "note": "receive path, attribute walk and storage readvertise (including the extended-length reframing branch) each keep a Partial bit a previous AS set on recognized and unrecognized transitive attributes",
+  "note": "RFC4271 Section 5 requires a previous AS's Partial bit to survive on a recognized optional-transitive attribute that is accepted and passed along. The two tagged storage tests exercise only unrecognized attributes 250/251 through OtherAttrs, including length reframing; they preserve useful proof but do not demonstrate this recognized-attribute requirement. The reactor test demonstrates recognized COMMUNITY preservation at enforceRFC7606, and the core walk test demonstrates an already-E0 recognized COMMUNITY remaining unchanged with zero new stamps. The core negative tag is another conforming preservation case, not a violating input or a distinct normative negative. These scopes do not justify the legacy assurance of recognized storage and whole forwarding. The new untagged storage, selected-capture, AS4 and automatic-rewrite regressions and reviewed repairs supply additional bounded component evidence, but they do not expand the current tagged claim or establish recipient-visible preservation through real Session admission, authorized selected/recovery delivery and the final writer. C0 twins, ignored-companion cases, legal suppression and well-known/non-transitive Partial clearing remain useful controls; they are not normative negatives for this sentence. Whole-row assurance is therefore weak. The requirement remains applicable with its full ID, level and quote; no existing input, assertion, tag or recorded proof is removed by this audit correction. Tag/polarity correction and matching native proof integration remain separate, unapplied work.",
   "requirement_sha": "8a08ca30d7acebbe",
   "tests": {
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "ab16100811ce8d90",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "ab16100811ce8d90",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "678867473385a541",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "5c9f3b43098f4498",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "4d1e0cbb7558949b"
   },
   "units": {
@@ -13,5 +13,5 @@
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "9d462b3e22c88e46",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "c7918ba8a6ad860c"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

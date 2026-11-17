@@ -66,6 +66,39 @@ family, naming the fix, on both receive paths (`reportUnstorableFamily`).
 <!-- source: internal/component/bgp/plugins/rib/rib_unstorable.go -- reportUnstorableFamily -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore, checkRouteBestChange, purgeBestPrevForPeer -->
 
+### Received attribute flags
+
+The dedicated AGGREGATOR, COMMUNITIES, EXTENDED_COMMUNITIES and
+LARGE_COMMUNITIES pools share values, independently of their received flags.
+Each `RouteEntry` retains four Partial facts in a private byte beside its stale
+state. Equal values can share the same 48-byte bundle while one received path
+is partial and another is complete. `Clone` and retained value copies preserve
+these facts; attribute equality includes them, so a flag-only replacement does
+not keep the previous path's flag.
+
+`ParseAttributes` establishes the facts from each incoming attribute block.
+`ToWireBytes` restores the corresponding received Partial bit only for a present
+dedicated optional-transitive attribute. `OtherAttrs` retains its existing full
+header handling; well-known and non-transitive attributes keep their required
+Partial clearing. Selected and recovery snapshots therefore retain the flag
+without consulting the original message cache.
+
+RFC 4271 Section 5 forbids clearing a previous AS's Partial bit on a recognized
+optional-transitive attribute that is accepted and passed along. Appending a
+community to an existing stored attribute preserves that received fact; a fresh
+received replacement establishes its own flags. Zero metadata means no retained
+received Partial bit. It does not define the flags for attaching a new attribute:
+Section 5's attachment rule and the existing policy encoders still govern that
+operation. Source authorization and explicit attribute replacement or removal
+remain separate from this storage metadata.
+
+<!-- source: internal/component/bgp/plugins/rib/storage/attrparse.go -- ParseAttributes -->
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- RouteEntry, Clone -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- entriesEqual, RouteEntry.ToWireBytes -->
+<!-- test: internal/component/bgp/plugins/rib/storage/partial_storage_test.go TestKnownTransitivePartialSurvivesStorage -->
+<!-- test: internal/component/bgp/plugins/rib/storage/partial_storage_test.go TestPartialOnlyReplacementUpdatesStoredAttributes -->
+<!-- test: internal/component/bgp/plugins/rib/partial_selected_test.go TestReceivedPartialSurvivesSelectedCapture -->
+
 ### Received source-policy provenance
 
 Received routes retain `SourcePolicyEpoch`, the policy epoch captured when the
@@ -3027,10 +3060,13 @@ RouteEntry {
 }
 ```
 
-RouteEntry is 12 bytes (stale + Bundle handle + ASPath handle). The 12 non-AS_PATH
-attribute handles live in a `Bundle` struct (48 bytes) stored in `BundlePool`.
-97% of routes share identical non-AS_PATH attributes, so most routes point to
-the same few bundles. 5 routes fit per cache line instead of 1.
+`RouteEntry` is 64 bytes on the current 64-bit layout: it holds stale state,
+received Partial facts, message and source-policy provenance, an attribute
+fingerprint and length, the bundle and AS_PATH handles, and a local source-lease
+reference. The Partial byte occupies existing padding before the message ID.
+The 12 non-AS_PATH attribute handles live in a `Bundle` struct (48 bytes) stored
+in `BundlePool`. Routes with identical attribute values share that bundle even
+when their received Partial facts differ.
 
 `Bundle` is a comparable Go struct (12 Handle fields), used directly as a
 `map[Bundle]uint32` key for zero-serialization dedup. BundlePool manages

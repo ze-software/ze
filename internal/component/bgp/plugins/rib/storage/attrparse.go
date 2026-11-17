@@ -22,10 +22,17 @@ import (
 // AGGREGATOR are interned as they arrive, and RFC 6793 Section 4.1 leaves no
 // AS4_PATH or AS4_AGGREGATOR for this function to reconcile.
 //
-// Caller must call Release() on the returned RouteEntry when done.
+// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+// is accepted and passed along to other BGP peers and the Partial bit in the
+// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+// to 0 by the current AS." Dedicated value pools therefore keep that received
+// fact on the route; sharing values must not share another path's flags.
+//
+// Caller MUST call Release() on the returned RouteEntry when done.
 func ParseAttributes(raw []byte) (RouteEntry, error) {
 	bundle := NewBundle()
 	aspathHandle := attrpool.InvalidHandle
+	var partial uint8
 	cleanup := func() {
 		bundle.releaseInnerHandles()
 		if aspathHandle.IsValid() {
@@ -66,6 +73,9 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 				return RouteEntry{}, fmt.Errorf("intern aggregator: %w", err)
 			}
 			bundle.Aggregator = h
+			if flags&attribute.FlagPartial != 0 {
+				partial |= partialAggregator
+			}
 		case attribute.AttrOrigin:
 			h, err := pool.Origin.Intern(value)
 			if err != nil {
@@ -108,6 +118,9 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 				return RouteEntry{}, fmt.Errorf("intern communities: %w", err)
 			}
 			bundle.Communities = h
+			if flags&attribute.FlagPartial != 0 {
+				partial |= partialCommunity
+			}
 		case attribute.AttrLargeCommunity:
 			h, err := pool.LargeCommunities.Intern(value)
 			if err != nil {
@@ -115,6 +128,9 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 				return RouteEntry{}, fmt.Errorf("intern large-communities: %w", err)
 			}
 			bundle.LargeCommunities = h
+			if flags&attribute.FlagPartial != 0 {
+				partial |= partialLargeCommunity
+			}
 		case attribute.AttrExtCommunity:
 			h, err := pool.ExtCommunities.Intern(value)
 			if err != nil {
@@ -122,6 +138,9 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 				return RouteEntry{}, fmt.Errorf("intern ext-communities: %w", err)
 			}
 			bundle.ExtCommunities = h
+			if flags&attribute.FlagPartial != 0 {
+				partial |= partialExtCommunity
+			}
 		case attribute.AttrClusterList:
 			h, err := pool.ClusterList.Intern(value)
 			if err != nil {
@@ -155,7 +174,7 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 	}
 
 	bundleHandle := Bundles.Intern(bundle)
-	return RouteEntry{Bundle: bundleHandle, ASPath: aspathHandle}, nil
+	return RouteEntry{partial: partial, Bundle: bundleHandle, ASPath: aspathHandle}, nil
 }
 
 // ParseRouteEntry parses raw attribute wire bytes once and returns a RouteEntry
@@ -164,7 +183,7 @@ func ParseAttributes(raw []byte) (RouteEntry, error) {
 // prefix instead of FamilyRIB.Insert (which re-parses per call).
 //
 // The returned RouteEntry owns one reference. Each InsertEntry call takes its
-// own reference via AddRef. The caller must call Release on the returned entry
+// own reference via AddRef. The caller MUST call Release on the returned entry
 // after all inserts are done.
 func ParseRouteEntry(attrBytes []byte) (RouteEntry, uint64, uint32, error) {
 	fp := attrFingerprint(attrBytes)
