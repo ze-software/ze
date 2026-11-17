@@ -9,12 +9,14 @@ this page describes what the tree holds today.
 
 ## Where it is today
 
-The store lands in phases. Three are in the tree. The wiring: the seam, the
+The store lands in phases. Four are in the tree. The wiring: the seam, the
 commands, the doctor codes, the state keys and the data directory. The
 layout: the store root and its folders, staging emptied at start,
 publication of an image folder by one rename, and the image listing. The
 registry client: references, manifests, platform selection and blobs
-checked as they arrive, which nothing in the store calls yet. Every
+checked as they arrive. Layer application: the archives of an image
+applied into a staged root by the rules of its section below. Nothing in
+the store calls the client or the applier yet. Every
 other operation of the store answers that it is not implemented in this
 build. No image is fetched yet, so the listing answers an empty store, and
 no container starts on the real store: its resolve answers an error, which
@@ -216,6 +218,67 @@ writes no log line.
 <!-- test: internal/plugins/container/registry/mirror_test.go TestMirrorTriedFirstThenRegistry, TestMirrorGetsNoRegistryCredentials -->
 <!-- test: internal/plugins/container/registry/tls_test.go TestHTTPTransportFetchesOverPlainHTTP, TestHTTPSTransportRefusesPlainHTTP, TestTrustAnchorReplacesSystemRoots -->
 <!-- test: internal/plugins/container/registry/secret_test.go TestCredentialsNeverInErrorOrLog -->
+
+## Layer application
+
+An image is hostile input: its layers are archives a registry chose. The
+applier turns them, in order, into the root of one staged folder, and
+nothing it does can reach a name outside that root. Nothing in the store
+calls it yet: the fetch worker that will is the next phase.
+
+| Step | What the applier does |
+|------|-----------------------|
+| Open | `newLayerApplier` creates `staging/<staged>/` with an empty `rootfs/` and a `removed/` folder beside it. `close` removes `removed/` whole and MUST run before the staged folder is published |
+| Decompress | Uncompressed tar, gzip and zstd only. The zstd decoder runs in the caller's goroutine with a window of at most 32 MiB |
+| Count | Every decompressed byte counts against the largest image size, over all layers, and so does every byte written into a file, which a sparse entry can make larger |
+| Check the stream | The whole decompressed stream, the end of the archive included, MUST hash to the digest the image configuration declares for the layer |
+| Resolve | Every entry's folder is resolved under a descriptor for the root, through the path-safety library runc vendors (`pathrs-lite`, `MkdirAllHandle` and `OpenatInRoot`). A symbolic link on the way is resolved inside the root, as a process in the container resolves it: an absolute target starts again at the root and a parent step stops at it |
+| Change a name | A descriptor-relative system call on that folder (`openat`, `mkdirat`, `symlinkat`, `linkat`, `mknodat`, `renameat`), so no name of the image reaches a path-based call |
+| Replace | What a name held is renamed into `removed/` before the entry takes the name, so a new file is a new inode and nothing is written through a link or a shared inode |
+
+The rules, entry by entry:
+
+| Entry or case | What the store does |
+|---------------|---------------------|
+| Regular file | Created with `O_EXCL` and `O_NOFOLLOW` after the name is moved away, then the owner, the mode, the attributes and the times |
+| Folder | Created, or an existing folder is kept and its metadata updated. Its times are set when the layer ends, the last folder first, so they come after its children |
+| Symbolic link | Created with its target as written, 1 to 4096 bytes with no NUL |
+| Hard link | The target is resolved under the root and MUST be a regular file that exists, otherwise the image is refused. The link shares the target's owner, mode and attributes |
+| Whiteout `.wh.<name>` | The name and everything under it move to `removed/`. A whiteout of a name no layer applied changes nothing |
+| Opaque marker `.wh..wh..opq` | Each child the folder holds that this layer did not apply moves to `removed/`. A child the layer applied before the marker is held, and one after it is created after the removal, so the archive's order does not matter |
+| Other `.wh..wh.` markers | Not created |
+| Device node under `dev/` | Not created, and counted as `devices-skipped` in the completion mark |
+| Device node elsewhere, or as `dev` itself | The image is refused, naming the entry |
+| Named pipe | Created |
+| Owner | The numeric user and group, 0 to 4294967294. Names are ignored |
+| Mode | The twelve bits, set after the owner, because a change of owner clears the set-user and set-group bits |
+| Extended attribute | Kept on a file or a folder for `security.capability`, `user.*` and the two POSIX access-list names, set after the owner, which clears a file capability. `trusted.overlay.*` and `user.overlay.*`, any other name, the libarchive form, an attribute on a link or a pipe, and more than 64 KiB on one entry refuse the image |
+| Path | An absolute path, a `..` component, an empty component and a NUL byte refuse the image. A `.` component names the folder it is in and is passed over. A folder's name may end in one slash |
+| Lengths | A name over 255 bytes or a path over 4096 bytes refuses the image |
+| Entries | At most 500,000 per image. A folder on the way to an entry that its layer names for the first time counts as an entry, because the applier may create it |
+| Layers | At most 128 per image |
+| Archive | A global PAX header names no file and is passed over. Any other type, a malformed archive and a stream that does not hash to its digest refuse the image |
+
+A refusal is a `layerRefusal`, which names the entry, quoted in ASCII and
+cut at 256 bytes, and the rule; the fetch worker reports it under
+`doctor-container-image-refused`. A system call that fails, such as an
+owner the user Ze runs as cannot give, is an `entryFailure` that carries the
+system's error. Either way the staged folder holds part of the image, and
+the caller removes it and publishes nothing. The applier and its rules are
+built on Linux only; what another system answers is the fetch worker's to
+say, since it is the applier's first caller.
+
+<!-- source: internal/plugins/container/imagestore/apply_rules.go -- applyLimits, defaultApplyLimits, applyCounts, refusalRule, layerRefusal, entryFailure, parseEntryPath, entryAttributes, checkAttributeName, entryOwner, checkLinkTarget, openLayerStream, expandedStream -->
+<!-- source: internal/plugins/container/imagestore/apply_linux.go -- newLayerApplier, apply, applyEntry, applyFile, applyFolder, applyHardLink, applyWhiteout, applyOpaque, moveAway, parentFolder, existingFolder, setMetadata -->
+<!-- test: internal/plugins/container/imagestore/apply_test.go TestApplyRegularTreeKeepsOwnerModeTime, TestApplyCompressionsProduceSameTree, TestApplyDiffDigestMismatchRefused -->
+<!-- test: internal/plugins/container/imagestore/apply_whiteout_test.go TestApplyWhiteoutRemovesLowerEntry, TestApplyOpaqueDirectoryKeepsSameLayerEntries -->
+<!-- test: internal/plugins/container/imagestore/apply_link_test.go TestApplyHardLinkInsideRoot, TestApplyHardLinkOutsideRootRefused, TestApplySymlinkParentResolvedInsideRoot -->
+<!-- test: internal/plugins/container/imagestore/apply_refuse_test.go TestApplyParentDirectoryPathRefused, TestApplyReplacesEntryNeverWritesThrough, TestApplyDeviceNodeUnderDevCounted, TestApplyDeviceNodeElsewhereRefused -->
+<!-- test: internal/plugins/container/imagestore/apply_xattr_test.go TestApplyOverlayControlAttributeRefused -->
+<!-- test: internal/plugins/container/imagestore/apply_xattr_linux_test.go TestApplyXattrFileCapabilityKept -->
+<!-- test: internal/plugins/container/imagestore/apply_owner_linux_test.go TestApplyOtherOwnersKept -->
+<!-- test: internal/plugins/container/imagestore/apply_bound_test.go TestApplyExpandedSizeBound, TestApplyEntryCountBound, TestApplyLayerCountBound, TestApplyNameAndPathLengthBound -->
+<!-- test: internal/plugins/container/imagestore/apply_fuzz_test.go FuzzApplyLayerNeverEscapesRoot -->
 
 ## The commands
 
