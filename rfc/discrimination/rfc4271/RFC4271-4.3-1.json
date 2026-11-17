@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-4.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught",
+    "unit-sha": "342c2a3303e57002",
+    "claim-sha": "05581ed2fb654eb8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+    "producer-sha": "473336292a0cad0a",
+    "break": "line 172: \"if conflict == attribute.FlagsConflictNone {\" -\u003e \"if conflict == attribute.FlagsConflictNone || (code == attrCodeOrigin \u0026\u0026 flags == 0) {\""
+  },
+  {
+    "rid": "RFC4271-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271WellKnownAttributesAreTransitive",
+    "unit-sha": "ff92bd109586f352",
+    "claim-sha": "d6903130ecc5a56c",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/attribute.go::WriteHeaderTo",
+    "producer-sha": "5f7e2ca6f96181e9",
+    "break": "line 293: \"buf[off] = byte(flags)\" -\u003e \"buf[off] = byte(flags); if code == AttrOrigin { buf[off] \u0026^= byte(FlagTransitive) }\""
+  }
+]

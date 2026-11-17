@@ -1,0 +1,36 @@
+{
+  "code": {
+    "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606": "fa9d6174a6b8b2a1",
+    "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer": "59fb62c1fb8dced1",
+    "internal/component/bgp/message/rfc7606.go::validateAttributeFlags": "b3e466191290732d",
+    "internal/core/bgp/attribute/aspath.go::ASPath.Flags": "205397261d59a978",
+    "internal/core/bgp/attribute/aspath.go::ASPath.WriteTo": "4d8e43f342d1d436",
+    "internal/core/bgp/attribute/aspath.go::ASPath.WriteToWithASN4": "5210333f1a48af31",
+    "internal/core/bgp/attribute/aspath.go::writeSegmentWithSplit": "7973e26652f92260",
+    "internal/core/bgp/attribute/attribute.go": "46fd6c335985cf11",
+    "internal/core/bgp/attribute/attribute.go::WriteAttrTo": "1d9ea13c54537c59",
+    "internal/core/bgp/attribute/attribute.go::WriteHeaderTo": "2b4ee01c235b60e6",
+    "internal/core/bgp/attribute/flags_spec.go": "f1550ab0bf6daf57",
+    "internal/core/bgp/attribute/origin.go::Origin.Flags": "c9a3c6eae50c2b97",
+    "internal/core/bgp/attribute/origin.go::Origin.WriteTo": "56f5a6bfa93d51a7",
+    "internal/core/bgp/attribute/register.go": "0b71947a985d8aa1",
+    "internal/core/bgp/attribute/rfc4271_test.go::wellKnownAttrsForRFC4271": "d09cc82d876afa29",
+    "internal/core/bgp/attribute/simple.go::AtomicAggregate.Flags": "ae3aef23f76aa2bc",
+    "internal/core/bgp/attribute/simple.go::AtomicAggregate.WriteTo": "a1a1f2a93036fcf1",
+    "internal/core/bgp/attribute/simple.go::LocalPref.Flags": "8152e9ab306883bf",
+    "internal/core/bgp/attribute/simple.go::LocalPref.WriteTo": "a009a04936802946",
+    "internal/core/bgp/attribute/simple.go::NextHop.Flags": "fd64c257a2580ae1",
+    "internal/core/bgp/attribute/simple.go::NextHop.WriteTo": "bf20733c367fa495"
+  },
+  "note": "Independent first whole-row source judgment of RFC4271-4.3-1: enforced. Read RFC4271 Section4.3 in its attribute-format context and Section6.3 with RFC7606 Section3(c), both complete tagged roots, actual encoder/validator/helper paths, and both accepted selective receipts and canonical records. Well-known Transitive must be1; modern reception of a conflicting bit is exact TreatAsWithdraw, not historical notification/reset. Previously checked verified-inline-errata rendering leaves this bit obligation unchanged; that informative cross-check does not replace the RFC. Default behavior is assessed without banning explicit operator/capability extensions.\nThe positive checks all five RFC4271 core well-known attributes it constructs: ORIGIN, AS_PATH, NEXT_HOP, LOCAL_PREF and ATOMIC_AGGREGATE. Each getter reports Transitive and not Optional; real WriteAttrTo calls WriteHeaderTo and each value writer at the returned header offset. Positive length and actual encoded buf[0]&0x40 equality prevent getter-only or no-write false proof. All five current cases use short-form headers; long/context-specific encoding is not an invented runtime observation. Source reads show both generic header branches preserve flags, all five Flags methods return Transitive, and the actual value writers, including the AS_PATH writer/segment helper, respect the header offset. Bare attribute.go binds constants, registry plumbing and shared header/wrapper paths; bare flags_spec.go/register.go bind the per-code declarations and init registration used by reception.\nThe negative root builds a correctly framed ORIGIN0/empty-AS_PATH/valid-NEXT_HOP carrier and requires exact TAW for ORIGIN Transitive clear. Earlier six recognized-attribute malformed-length cases check non-None action and reported code, then Optional-ORIGIN requires exact TAW/code; later missing-ORIGIN is a separate clause/control. The flags0 cut bypasses only ORIGIN's transitive conflict, leaving every mandatory attribute physically present and valid so no later mandatory/length check masks None. No expectation is changed and no universal operator restriction is inferred.\nActual sender receipt76330/job-rfc4271-well-known-encoded-transitive-proof-ae62b8a5.log names clean TestRFC4271WellKnownAttributesAreTransitive PASS, then the ORIGIN-only short-header fault produces exactly the nonfatal encoded-bit assertion43: expected0x40 actual0x0. Getter assertions39/40 and positive-length42 precede that failure. The nonfatal assertion allows the remaining four iterations to execute; no other failure diagnostic appears, but no individually named iteration PASS is claimed. Actual receiver receipt94394/job-rfc4271-received-transitive-bit-proof-76ce8163.log names clean TestRFC4271WellKnownAttributeErrorsAreCaught PASS, then the ORIGIN/flags0 bypass produces fatal action546: expectedTAW2 actualNone0. Earlier six length/action/code and Optional-ORIGIN539/540 controls precede the fatal without failure; AttrCode547 and missingOrigin555/556 are skipped in the broken run. Both canonical discrimination records are present and identify the real WriteHeaderTo/validateAttributeFlags producers. Each observed break proves its exact semantic witness, not a separate fault for every attribute or branch.\nMain55634/job-rfc4271-repaired-witness-baselines-f884246b.log separately names all eight OPEN/negotiation/mixed/RIB roots PASS across three race packages; it does not itself name these flags roots. The two selective receipts supply their named clean baselines. Source scope remains direct core attribute bytes and message-validator classification, not Session/TCP delivery, downstream RIB/kernel behavior or an observed long-form/context-specific fault. This is the final independent source/assertion judgment with actual receipt limits; native freshness and fingerprint stamping remain main-owned, and are not asserted here. All critical code values remain empty; no fingerprints are authored.",
+  "requirement_sha": "b1c5bb6b4aacbdae",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "bf65f3adad329377",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271WellKnownAttributesAreTransitive": "4d1e0cbb7558949b"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "a110d33edb50a5d4",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271WellKnownAttributesAreTransitive": "64da1b93a6d5a99a"
+  },
+  "verdict": "enforced"
+}
