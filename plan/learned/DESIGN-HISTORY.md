@@ -625,6 +625,11 @@ subtree at Stage 2; they parse the JSON themselves.
 - **Generating a Go schema from YANG at build time** (166): rejected for
   YANG extensions read at load time. Extensions live in the model file and
   need no build step. This is why `ze:` extensions exist instead of codegen.
+  AMENDED 2026-11-17: the owner reversed this on 2026-10-16 ("compile [the
+  YANG] at build time, use go:generate script and import"). The design is
+  `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md`,
+  at `design` and not built: the tree still resolves YANG text at load time.
+  The `ze:` extensions stay; the spec compiles them with the module.
 - **Queuing concurrent reloads** (223): rejected for `TryLock` rejection.
   A queue turns rapid config changes into a reload storm.
 - **Junos-style ordered failover for the config archive** (380): rejected

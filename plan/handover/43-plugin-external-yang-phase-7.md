@@ -219,6 +219,49 @@ What is left:
 | 5 | `ze config fmt`, `dump`, `diff`, `graph` | The client route that sends these commands to a running ze, as `ze config validate` has since phase 10, is not built. Another session was working on `cmd_diff.go`, `cmd_dump.go`, `cmd_graph.go` and `config_supplied.go`; this phase did not touch them |
 | 6 | A page that disagrees with the code | `docs/guide/command-reference.md`, near "Command help at the prompt", says `ze cli` with no command runs the interactive model in the client process. `runInteractiveSession` opens the daemon's session in command mode (`sshclient.RunInteractive`). Not corrected here: it is about pipe aliases, outside this phase's files |
 
+## Added 2026-11-17: what phase 9 will find, seen on the server
+
+The owner asked to see the start-time difference on the server. The server is a
+VM on a host of unknown speed, so these are NOT figures to record or compare
+across machines (`ai/META-DECISIONS.md`, "Test systems and labs"); they compare
+two binaries side by side, runs interleaved, on a memory-backed directory. Time
+from launching `ze start` to "Ze running.", median of 12 to 15 runs:
+
+| Config | Before this work (`92cc99189b`) | After phase 7 | Added |
+|--------|---------------------------------|---------------|-------|
+| No external plugin | 429 ms | 431 ms | nothing |
+| Go fixture plugin declared | 524 ms | 839 ms | about 315 ms |
+| Python example declared | 500 ms | 799 ms | about 300 ms |
+
+The claim of the spec holds: a config with no external plugin pays nothing.
+With one, about 300 ms is added whatever the plugin is, so it is not the
+plugin's own start moving onto the critical path. Timestamps of the plugin's
+launch, its connection and the ready line show where: the plugin connects as
+fast as before (about 140 ms after its launch), and the time from its
+connection to ready went from about 10 ms to about 400 ms.
+
+Confirmed by a CPU profile later that day (13 starts merged for each case, the
+same host, so indicative too). With no plugin, `yang.resolveDefault` takes
+about 290 ms of a start. With the Go fixture plugin, the same plus
+`joinDeclaredPlugins` → `PublishExternalModules` → `Join` → `resolveJoined`,
+about 275 ms: the module set is built a second time.
+
+This paragraph first said the fix would be to read the `plugin` and
+`environment` blocks with a schema of those two modules alone and build the
+full schema once, after the plugins declared. Research showed that is not the
+fix, for two reasons. The first build is needed anyway: readers run before the
+publish in every start (the spec's A-5 names `cli.YANGCommandTree`, which
+builds the YANG state before the daemon's first pass). And the join needs the
+texts of every compiled-in module: `resolveJoined` parses each one again
+(`sourcedModules.reloaded`) and runs a full `Resolve`, checks included, because
+an external module imports and augments them. A smaller first schema would not
+remove the second build. The figure on a known host is owed by the build-time
+spec (closing section below).
+
+Trap met while measuring: a script that stops its daemon with a name-wide
+signal (every process named `ze`) would stop other sessions' daemons, and the
+permission system refuses it. Stop the child the script started, by its pid.
+
 ## Reds that predate this work
 
 In `./internal/le/`: `TestNoPythonLeRemains`, `TestCensusActionsDeclareHeavy`,
@@ -251,3 +294,51 @@ apply broke that session's build for a few minutes and had to be reversed.
 | `git status --short` prints the branch header on these machines | Use `--porcelain` in scripts |
 | An edit is refused until the main checkout's style guide and doors were read | Tell every agent to read the main-checkout copies first |
 | The test judge records its own approvals | `./le test weakened approve` runs from the judge agent; the main thread never records a row for it |
+
+## Added 2026-11-17, closing: phase 9 is closed, and where the optimization lives
+
+**Phase 9 is closed.** The owner's order, 2026-11-17: "Complete in that case,
+write a spec for that optimization and complete the work we have done there.
+We can start that optimization in a different tree closed phase nine." The
+spec's step 9 holds the indicative figures and where the cost is; its Q10 and
+R-19 are answered; its header says phase 9 of 10. No figure went into
+`docs/plugin-development/schema.md`, because none comes from a known host.
+
+**The optimization lives in an existing spec, amended, not a new one:**
+`plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md`
+(status `design`). It now owns the second schema build of a start with an
+external plugin, and it gained:
+
+| Added there | What |
+|-------------|------|
+| P0, AC-19 | A staged benchmark over every registered module, before any implementation |
+| P1, AC-15 | `checkStructure` walks each module once and stops reading struct tags per node |
+| P2, AC-16 | The join checks the external modules only, and names a failing module without a resolve per module |
+| P3, AC-17 | `loadLCPDefaults` reads the resolved set; whether a start without L2TP or PPPoE reaches it is to verify |
+| AC-18 | A start with one external plugin costs about one schema build, shown on the owner's Mac. This closes R-19 and Q10 |
+
+Start that work in a tree of its own, as he ordered. P0 to P3 wait on nothing.
+
+**One owner decision is open there (Q11) and blocks C1 to C3.** That spec
+records his decision of 2026-10-16: generated Go literals per module, no blob,
+no per-tag-set output, no fallback. On 2026-11-17, before the spec was found
+again, he answered "3" to three ways put to him: a generator before each
+build, an embedded file, a fingerprint check at start and a build from text on
+a mismatch. That is a departure from his recorded decision. Q11 holds the
+comparison and the supervising session's recommendation, which is to keep the
+recorded design. It is his to answer; the spec stays at `design` until he does.
+
+**What the external-plugin spec still owes** is its section "What this spec
+still owes before it can close": the client route for `ze config fmt`, `dump`,
+`diff` and `graph`; a functional test of save for AC-13; owner decision D-3;
+the test rows still marked not run; the superseded `.et` draft; the vacuous
+exit assertion in four tests; `CollectPluginYANG` and the old text road; R-15,
+R-18 and R-20; the `.ci` runs of A-2 and A-4; the Architectural Verification
+rows; the documentation checklist; and closure.
+
+**Also corrected in this round:** the Abandoned-approaches entry of
+`plan/learned/DESIGN-HISTORY.md` that called build-time generation rejected;
+the comment in `cmd/ze/hub/infra_setup.go` that said `YANGSchema()` re-parses
+on every call; and the section "Joining a module that no `init()` registered"
+of `docs/architecture/config/yang-config-design.md`, which said nothing in the
+start path calls the join.

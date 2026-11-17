@@ -173,11 +173,10 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, mutations *con
 	// hand-edited file (or a fleet push) bypasses validate -- the warning
 	// here ensures operators see the problem in daemon logs.
 	//
-	// Note: zeconfig.YANGSchema() re-parses the YANG modules on every call
-	// (no cache as of 2026-04-15). Cost is sub-millisecond and reload is
-	// rare, so the duplicate work is acceptable. If reload latency ever
-	// matters, thread a *config.Schema through infra.HookParams so the
-	// loader's already-parsed schema is reused here.
+	// zeconfig.YANGSchema() answers the schema the process builds once per
+	// module set and shares (yangSchemaCache), so this call on each reload
+	// does not rebuild it. A build resolves every YANG module and is the
+	// largest single cost of a start, which is why no caller builds its own.
 	if params.ConfigTree != nil {
 		if schema, schemaErr := zeconfig.YANGSchema(); schemaErr == nil {
 			for _, msg := range zeconfig.CheckBcryptLeaves(params.ConfigTree, schema) {

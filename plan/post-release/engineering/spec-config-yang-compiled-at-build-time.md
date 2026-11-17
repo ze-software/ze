@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-16 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -17,6 +17,30 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Owner decision (Thomas, 2026-10-16): "compile [the YANG] at build time, use
 go:generate script and import".
+
+Owner statements (Thomas, 2026-11-17), in order, made while he looked at the
+start-time comparison of the external-plugin work and before this spec was
+found again:
+
+1. On that comparison: "profile."
+2. "Obviously, the plugin we are compiling in the code could be pre-parsed. Is
+   that a way which makes things faster?"
+3. "What would be the compilation time difference if we had that feature to be
+   generated at each compilation?" He was given three ways and answered "3".
+   Way 3 is described under Open Owner Questions, Q11.
+4. "Complete in that case, write a spec for that optimization and complete the
+   work we have done there. We can start that optimization in a different tree
+   closed phase nine."
+
+His "3" is recorded as what he said, not as a design: it departs from his
+decision of 2026-10-16 and from alternatives this spec rejects, and he gave it
+before that was put to him. Q11 puts the two side by side. Until he answers,
+the design below (A5) stays the recorded one and this spec stays at `design`.
+
+This spec also owns the cost of the second schema build that a declared
+external plugin adds to a start. The external-plugin spec
+(`plan/post-release/features/spec-plugin-external-yang-at-startup.md`, R-19 and
+Q10) hands it over. What closes it is AC-18.
 
 Today every process that needs the schema parses the YANG text of every linked
 module and resolves it with goyang at runtime. A `go:generate` step MUST instead
@@ -33,8 +57,48 @@ Symptoms this removes:
 | The editor validator rebuilds the whole schema on every call | `config.ValidateCustomSections` (`internal/component/config/validate_sections.go`) calls `YANGValidatorWithPlugins(nil)`, which parses and resolves every module: 87 to 101 ms per call, about 525 ms under `-race` (scratch benchmark below) |
 | CLI editor tests time out under `-race` | Consequence of the row above, multiplied by every validation an editor test performs |
 | Thirty-four non-test call sites each build their own loader | `DefaultLoader()` / `NewLoader()` callers listed under Current Behavior |
-| Three process caches exist only to hide the cost | `yangSchemaOnce` (`config/yang_schema.go`), `modelLoader` (`config/yang/enum.go`), `modelArgDefs` with its mutex (`config/yang/command_argdefs.go`) |
+| Three process caches exist only to hide the cost | `yangSchemaCache` and `yangValidatorCache`, both a `resolvedCache` (`config/yang_schema.go`; this row named `yangSchemaOnce` until 2026-11-17, which no longer exists), `modelLoader` (`config/yang/enum.go`), `modelArgDefs` with its mutex (`config/yang/command_argdefs.go`) |
 | A broken module is found at daemon start, not at build | `DefaultLoader` returns the joined error at runtime; `exaBGPSchema` (`internal/exabgp/migration/schema.go`) answers nil on any load error |
+| The schema build is the largest single cost of every start | Evidence of 2026-11-17 below: about 290 of 430 ms |
+| A start that declares one external plugin builds the module set twice | Evidence of 2026-11-17 below: `yang.resolveDefault`, then `resolveJoined` over the same compiled-in texts plus the plugin's module |
+
+### Evidence of 2026-11-17 (indicative)
+
+Gathered by the session that supervises the external-plugin spec, on the
+server. The server is a VM on a host of unknown speed, so no figure below is a
+recorded figure or one to compare across machines (`ai/META-DECISIONS.md`,
+"Test systems and labs"). Each compares two binaries or two configs side by
+side on that one host. The figures that close an acceptance criterion come from
+the owner's Mac.
+
+Start to "Ze running.", old and new binaries interleaved, median of 12 to 15
+starts, memory-backed directory:
+
+| Config | Before the external-plugin work | After it | Added |
+|--------|---------------------------------|----------|-------|
+| No external plugin | 429 ms | 431 ms | nothing |
+| Go fixture plugin declared | 524 ms | 839 ms | about 315 ms |
+| Python example declared | 500 ms | 799 ms | about 300 ms |
+
+The added time does not depend on the plugin. The plugin connects as fast as
+before, about 140 ms after its launch. The time from its connection to ready
+went from about 10 ms to about 400 ms.
+
+CPU profile, 13 starts merged for each case:
+
+| Case | Where the time is | Per start |
+|------|-------------------|-----------|
+| No plugin | `yang.resolveDefault`, 3.80 s over 13 starts | about 290 ms |
+| Go fixture plugin | The same, plus `joinDeclaredPlugins` → `PublishExternalModules` → `Join` → `resolveJoined`, 3.57 s over 13 starts | about 275 ms more |
+
+One build splits roughly into 110 ms reading module text (`AddModuleFromText`)
+and 170 ms in `Resolve`, of which `checkStructure` takes about 100 ms.
+
+These figures and the table "Measured cost" under Current Behavior (87 to
+101 ms for one build, 2026-10-16, another host, 90 modules) do not agree, and
+the comment on `config.YANGSchema` says about 200 ms. Nothing here explains the
+difference: the hosts differ and the module count was not compared. Step P0
+measures it on one known host.
 
 ## Required Reading
 
@@ -125,7 +189,42 @@ Owner goal (Thomas, 2026-10-16): "I want people to be able to write their own
 plugins in Go or any other language and load them at startup". This spec keeps
 that goal reachable; `plan/post-release/features/spec-plugin-external-yang-at-startup.md` delivers it.
 
+**Corrected 2026-11-17: the table above is history.** The external-plugin spec
+is implemented through its phase 8 on the branch that carries this amendment.
+Read at the code on 2026-11-17:
+
+| Fact today | Evidence |
+|------------|----------|
+| An external plugin's module is joined to the schema at `ze start`, before the full parse | `cmd/ze/hub/main.go` `runYANGConfig` calls `joinDeclaredPlugins` (`cmd/ze/hub/declared_plugins.go`), which calls `config.PublishExternalModules`, which reaches `yang.PublishExternalModules` and `yang.Join` |
+| The join works from the TEXT of every compiled-in module | `resolveJoined` (`internal/component/config/yang/join.go`) calls `sourcedModules.reloaded`, which parses every compiled-in text again into a new loader, then runs a full `Loader.Resolve`: goyang's processing and `checkExtensions`, `checkPatterns` and `checkStructure` over modules that already passed |
+| A refused join that holds several external modules resolves each one alone again | `resolveJoined` calls itself once per declared module to name the one that fails |
+| The module set is published once per process and then fixed | `yang.PublishExternalModules`, `yang.ModuleSetFixed`; a value built once for the process records itself with `yang.KeepsModuleSet`, and a publish after it is refused |
+| The schema caches follow the publish | `resolvedCache` (`config/yang_schema.go`) keys on the `*yang.Resolved` that `DefaultLoader` answers |
+| Another full resolve exists outside every cache | `loadLCPDefaults` (`internal/component/l2tp/pppconfig/lcp.go`) builds its own loader over every registered module, once per process. Not verified whether a start with no L2TP and no PPPoE reaches it (AC-17) |
+
+What that changes for this spec:
+
+1. The join is in the start path, and it MUST keep working from texts: an
+   external module arrives as text and resolves against the compiled-in set. A
+   prepared compiled-in set does not by itself remove the join's cost. The
+   design below already keeps each module's `Source` text and adds an external
+   module through the non-mutating `Link`, so the join's successor compiles the
+   external module alone against that text and links it. AC-18 is the proof.
+2. The rows of this spec that say external YANG is "stored and printed, never
+   resolved" (Boundaries Crossed, Security Review, Known Limitations) describe
+   the tree of 2026-10-16. External YANG is parsed and resolved at start today.
+3. Q8, Q9 and Q10 of this spec are answered by the external-plugin spec's
+   design and by the evidence above. Q10's estimate of 5 to 30 ms per external
+   module was wrong for the join as built: it costs one more build of the whole
+   set.
+
 **Behavior to preserve:**
+- Added 2026-11-17, from the external-plugin work:
+  - The published external module set: `yang.PublishExternalModules` publishes once, `yang.ModuleSetFixed` answers whether the set can still change, each keeper (`yang.KeepsModuleSet`) refuses a later publish, and a restarted plugin's declaration is compared with `yang.PublishedModule`.
+  - Every refusal of the join, with its text (the Refusals table of the external-plugin spec).
+  - A test that registers modules in its own process keeps building from text. `RegisterModuleForTest` callers and the fixture loaders are today's form; AC-14 says where each goes.
+  - The config corpus sweep that publishes fixture modules before it parses.
+  - The build-tag gate tests (`TestBuildTag_Gate*` in `cmd/ze/hub`), which build `ze` under one tag set each: a generated input MUST compile under every one of them.
 - Every refusal text and error sentinel the loader produces today, now produced by the generator with the same file location.
 - `ze schema show <module>` prints the module's YANG source (`test/parse/cli-schema-show.ci`).
 - Child order: declared children in declaration order (inline-list positional syntax depends on it); grafted children as today (assumption A-4).
@@ -135,9 +234,24 @@ that goal reachable; `plan/post-release/features/spec-plugin-external-yang-at-st
 - Every binary links the import closure of every linked module (generated blank imports).
 
 **Behavior to change:**
-- No runtime parse or resolve of a compiled-in module. The compiler stays in `ze`, because external plugin YANG will be compiled at startup (owner goal of 2026-10-16, below), but a start with no external plugin calls it zero times.
+- No runtime parse or resolve of a compiled-in module. The compiler stays in `ze`, because external plugin YANG is compiled at startup (owner goal of 2026-10-16; built by the external-plugin spec), but a start with no external plugin calls it zero times.
 - Schema defects fail `go generate` / `./le yang glue update` and the verify stage, never a daemon start.
 - The three caches and every per-caller loader disappear; one linked schema value serves every reader.
+- A start that declares an external plugin compiles that plugin's module and links it. It does not parse or resolve a compiled-in module a second time (AC-18).
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| The loader and its checks | `internal/component/config/yang/loader.go` `Loader`, `Resolve`; `loader_structure.go` `checkStructure` | Parses every registered module text and resolves the set at run time, in each process | Replaces at run time for compiled-in modules: the same code becomes the compiler, run at generation and for an external module |
+| The checked set type | `loader.go` `Resolved` | The only type a reader of a checked module set takes | Extends: it becomes the linked compiled schema, same guarantee |
+| The generated YANG glue | `internal/le/yang/glue`, `./le yang glue update` and `check` | Generates `embed.go` and `register.go` of every `yang/` package, committed, with a freshness check | Extends: it also emits `compiled.go`; `embed.go` goes |
+| Freshness of generated Go inputs | `TestYANGGlueCurrent` and `TestGeneratedPluginImportsCurrent` (`internal/component/plugin/all`), the lists `generationActions` and `generationChecks` (`internal/le/repo/generate.go`) | Every generated Go build input is committed, and a test and a check refuse a stale one | Extends: the compiled output joins the same lists. Way 3 of Q11 would not apply it: its output is written per build and not committed |
+| Module registration from `init()` | `config/yang/register.go` `RegisterModule`; each `yang/` package's `register.go` | Registers module text; blank imports order a module after its imports | Extends: registers the compiled module and grafts its augments |
+| The schema caches | `config/yang_schema.go` `resolvedCache`, `yangSchemaCache`, `yangValidatorCache` | Build the schema and the validator once per module set | Replaces: one linked value needs no cache |
+| The join of an external module | `config/yang/join.go` `Join`, `resolveJoined` | Parses every compiled-in text again and resolves the whole set with the external modules | Replaces its body: compile the external module alone against the kept `Source` texts, then `Link`. Its callers and refusals stay |
+| The published external layer | `config/yang/publish.go` `PublishExternalModules`, `ModuleSetFixed`, `KeepsModuleSet`, `PublishedModule` | Publishes the joined set once per process and fixes it | Does not apply a change: it publishes what the join answers |
+| Design history entry | `plan/learned/DESIGN-HISTORY.md`, Configuration, Abandoned approaches, "Generating a Go schema from YANG at build time" (166) | Recorded the approach as rejected | Replaces: the owner's decision of 2026-10-16 reverses it; the entry is amended to say so |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -328,6 +442,25 @@ today; AC-6 measures it.
 | AC-13 | Every existing completion, `ze schema`, inline-list and command-tree test | Green with unchanged expected output (child order preserved) |
 | AC-14 | Every test file that today calls `DefaultLoader`/`NewLoader` (78) or registers or loads fixture text (46), about 100 distinct | Reads the init-linked schema when it tests the real modules, or compiles fixture text with `compiler.Compile` and passes the value; no test mutates the global registry; grep finds no `RegisterModuleForTest` |
 
+Added 2026-11-17. AC-15 to AC-17 and AC-19 depend on neither Q11 nor the
+compiled form: each is built on today's loader, before C1, and stays valid
+after it because the same code becomes the compiler.
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-15 | `checkStructure` over every registered module (`loader_structure.go`). Today `moduleLengthErrors` and `moduleEnumErrors` each call `moduleTypeNodes`, so each module's statement tree is walked twice, and `appendSubstatementNodes` reads the struct tags of every field of every node by reflection (`isSubstatementField`, `substatementKeyword`) | One walk per module serves both checks, and the substatement fields of a statement type are computed once per type, not once per node. Every refusal keeps its sentinel, text and location: the existing `loader_structure` tests pass unchanged. The benchmark of AC-19 reports fewer allocations for the `checkStructure` stage than before |
+| AC-16 | A join of one external module to the compiled-in set (`resolveJoined`), and a refused join that holds several external modules | The join runs Ze's checks (`checkExtensions`, `checkPatterns`, `checkStructure`) over the external modules only: a compiled-in module that passed them when `DefaultLoader` resolved the set is not checked again. A refused join names the failing module without one more whole-set resolve per declared module. Every `TestJoin*` test passes unchanged. This criterion is absorbed by AC-18 once the join's body is the compile-and-link of the design |
+| AC-17 | `loadLCPDefaults` (`internal/component/l2tp/pppconfig/lcp.go`) | Verified by a run whether a start with no L2TP and no PPPoE config reaches it. Whatever the answer, it reads the set `DefaultLoader` already resolved and builds no loader of its own, so no start resolves the module set a second time for it |
+| AC-18 | `ze start` with one external plugin declared, against the same binary with none | The start with the plugin costs about one schema build, not two: the profile shows no second parse or resolve of a compiled-in module under `joinDeclaredPlugins`, and the added start time is the plugin's own launch and the compile of its one module. Shown on the owner's Mac, both configs interleaved. This closes R-19 and Q10 of the external-plugin spec |
+| AC-19 | A benchmark in a package where every module is registered (`internal/component/plugin/all`), staging today's path: load of the module texts, goyang `Process`, Ze's checks one by one, the lowering to `config.Schema` | Reports time and allocations per stage. The allocation figures are valid on any host; a time figure is recorded only from the owner's Mac. Run before any implementation of C1 or of way 3 (Implementation Steps, P0), so the design is chosen on where the time is |
+
+Corrections of 2026-11-17 to the rows above, each left as written:
+
+| Row | Correction |
+|-----|------------|
+| AC-6 | "The development host" is the owner's Mac for every time figure (`ai/META-DECISIONS.md`, "Test systems and labs"). The 87 to 101 ms it cites is the figure of 2026-10-16 and is not confirmed by the evidence of 2026-11-17 |
+| AC-12 | `yangSchemaOnce` is `yangSchemaCache` and `yangValidatorCache` (`resolvedCache`) today. `AddModuleFromText` cannot leave the runtime tree: the join of an external module reads text. The row holds for compiled-in modules: no runtime call parses the text of one |
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
@@ -384,6 +517,9 @@ N-A: no wire-visible change.
 - every `yang/` package: `embed.go` deleted, `register.go` regenerated (generated, never hand-edited)
 - `docs/architecture/config/yang-config-design.md` sections 1 and 3 and the loader refusal prose; `docs/architecture/command-ownership.md` "YANG as Data, Not Code"; `ai/INDEX.md` `./le yang glue` row; `ai/patterns/registration.md` where it shows `embed.go`
 
+- Added 2026-11-17, for steps P0 to P3: `internal/component/config/yang/loader_structure.go` (`checkStructure`, `moduleTypeNodes`, `appendSubstatementNodes`), `internal/component/config/yang/join.go` (`resolveJoined`, `sourcedModules.reloaded`), `internal/component/l2tp/pppconfig/lcp.go` (`loadLCPDefaults`), and a benchmark file in `internal/component/plugin/all/`
+- Added 2026-11-17, for AC-18: `internal/component/config/yang/join.go` and `publish.go` (the join's body becomes compile and link; its callers, refusals and the published layer stay), `cmd/ze/hub/declared_plugins.go` only if the call changes
+
 ## Files to Create
 - `internal/component/config/yang/compiler/` - the moved Loader, Resolve and checks, plus emission and the link-equivalence test
 - `internal/component/config/yang/generate.go` - the `go:generate` directive
@@ -434,6 +570,22 @@ N-A: no wire-visible change.
 `ai/rules/no-layering.md`: "When replacing X with Y, X MUST be deleted first and
 Y MUST be implemented after. A hybrid, a gradual migration, a fallback to the
 old path and any other shape that keeps both MUST NOT be written."
+
+Added 2026-11-17: four steps come first. None waits on Q11, none replaces a
+form or a producer, and each lands as a commit of its own. The work starts in
+a tree of its own, by the owner's order of 2026-11-17 ("We can start that
+optimization in a different tree").
+
+| Step | Work | Criterion | Why before C1 |
+|------|------|-----------|---------------|
+| P0 | The staged benchmark over every registered module | AC-19 | The cheapest experiment: it says where the time of one build is (text load, goyang `Process`, each Ze check, the lowering), which decides what C1 to C3, or way 3, can save |
+| P1 | `checkStructure`: one walk per module, substatement fields computed once per type | AC-15 | About 100 of the 170 ms of `Resolve` in the indicative profile, and removable whatever Q11 decides |
+| P2 | The join checks the external modules only, and names a failing module without a whole-set resolve per module | AC-16 | Lowers the cost of a start with an external plugin before the compiled form exists |
+| P3 | `loadLCPDefaults` reads the resolved set | AC-17 | A full resolve outside every cache |
+
+What P1 to P3 do not do: the join still parses every compiled-in text and runs
+goyang's processing over the whole set. Only the compile-and-link of the
+design (C3, AC-18) removes that.
 
 Two things get replaced here, and each is replaced in exactly one commit:
 
@@ -529,8 +681,47 @@ uncommitted work in the shared checkout before they land (R-9, Q7).
 | Q6 | Order against `plan/release/fixes/spec-config-yang-loader-structural-checks.md` (design): land it first into the runtime loader, or into the compiler after C1? | After C1, into the compiler |
 | Q7 | `ai/rules/no-layering.md` is met by landing C2 (every reader) and C3 (the producer switch) as one commit each, so no commit has two forms or two producers. The cost is that each sits uncommitted in the shared checkout for about a week, built by several work packages (R-9). The alternative is a bounded coexistence: readers ported one commit at a time while `Resolved` serves both goyang entries and compiled nodes. The rule bans that. Which carrier for C2 and C3: the shared checkout, or a worktree branch you authorize (`AGENTS.md`: never a worktree unless you instruct it)? | A worktree branch per commit, rebased onto main when it lands |
 
+### Q11: OPEN OWNER DECISION (recorded 2026-11-17)
+
+On 2026-11-17, before the session found this spec again, the owner was given
+three ways to pre-parse the compiled-in YANG and answered "3". Way 3: a small
+generator run before each build, importing only the YANG packages of the
+compiled-in plugins, writing a file the build embeds, skipped when a
+fingerprint of the YANG module files matches the last output; with a
+fingerprint check at start and a build from text when the registered modules
+do not match.
+
+His recorded decision of 2026-10-16 is "compile [the YANG] at build time, use
+go:generate script and import". This spec designs it as A5. It rejects a
+per-tag-set output (A2) and a blob decoded at start (A4), and it allows no
+fallback ("No commit registers a module twice, ships `embed.go` beside
+`compiled.go`, or keeps a fallback"). Way 3 is close to A2 plus A4 with a
+fallback.
+
+The question: which design is built, A5 as recorded, or way 3? His "3" decides
+nothing here. A5 stays the recorded design until he answers, and nothing of
+C1 to C3 or of way 3 is built before that. Steps P0 to P3 do not wait.
+
+| | The recorded design (A5) | Way 3 |
+|---|--------------------------|-------|
+| What is stored | One generated Go file per module, committed beside its `.yang`: a literal of the Ze-owned compiled tree, with augments as graft records | One file per build, written by the generator and embedded, not committed: the pre-parsed set of the modules that build links |
+| The builders' differing tag sets (the `./ze` launcher, `bin/le`'s in-process builds, the Docker image, the appliance build with `ze_appliance` and no `ze_distro`, a plain `go build` or `go test`) | No builder does anything. A module's file compiles exactly when its package is linked, and its content does not depend on the tag set; the grafts are applied at init | Every builder runs the generator first, with its own tags. A builder that does not, a plain `go build` or `go test`, embeds a file that is absent or made for another set, and the start falls back to the text build |
+| Cost at build time | Nothing per build. Regeneration when a `.yang` file changes, and a freshness test and check, as for the glue today | The generator before each build, skipped when the fingerprint is unchanged. Unmeasured |
+| What a start needs | Init registration and at most 91 grafts. No decode, no fingerprint, no text build | A fingerprint check, then a decode of the embedded file, or a full build from text on a mismatch |
+| A stale or wrong input | Refused before any binary exists, by the freshness check | Found at start, by the fingerprint, and answered by the slow path, silently unless it is reported |
+| What a schema reader reads | The Ze-owned type: every goyang reader is ported (C2, 9 to 11 agent-days) | Not settled. Research of 2026-11-17: a stored goyang form cannot hold what Ze reads. `Entry.Parent`, `Entry.Node`, `Errors`, `Deviations`, `YangType.Base` and `Root` are tagged `json:"-"`; a statement's substatements and positions and the enum fields are unexported. Ze reads `Entry.Node` statements for child order, extensions and typedef chains, and the lowered `config.Schema` keeps goyang entries (`choiceMembers`). So way 3 stores either a Ze-owned form, which needs the same port as C2, or a form that still needs goyang's processing at start |
+| Rules it meets or departs from | `ai/rules/no-layering.md`: one producer per commit | The fallback keeps the text producer beside the stored one, which that rule bans; the output is a generated build input that is not committed, which no generated input is today |
+| What it does for a start with an external plugin | The join compiles one module and links it (AC-18) | Nothing by itself: the join still needs the compiled-in texts and a whole-set resolve |
+
+Recommendation of the supervising session, not a decision: keep the recorded
+design. It delivers what he asked for on 2026-11-17, the compiled-in YANG
+pre-parsed with no cost at each build, and it needs neither a fingerprint nor
+a fallback.
+
 ## Design Insights
 
+- Research of 2026-11-17: a prepared compiled-in set does not by itself make a start with an external plugin cheaper. The join needs the compiled-in texts, because an external module imports and augments them. The saving comes from compiling the external module alone and linking it (AC-18).
+- Research of 2026-11-17: every Go build input generated today is committed and has a freshness test (`TestGeneratedPluginImportsCurrent`, `TestYANGGlueCurrent`, `./le yang glue check`, the lists in `internal/le/repo/generate.go`). Each plugin's `yang/` package imports only `config/yang` and other `yang/` packages.
 - Found while measuring (2026-10-16): the working tree registers `ze-mtu-cmd`, `ze-ping-cmd` and `ze-traceroute-cmd` twice. The cause is the transient in-flight import fix of `spec-plugin-ownership-imports` (route A'): untracked `internal/component/{mtu,ping,traceroute}/yang/` beside the tracked `internal/plugins/*-cmd/yang/`. The loader refuses the duplicates (R-5).
 
 ## Key Design Decisions
@@ -546,11 +737,19 @@ uncommitted work in the shared checkout before they land (R-9, Q7).
 - External plugin YANG (`SchemaDecl.YANGText`) is not compiled by this spec; it is stored and printed, as today. Compiling it at startup is `plan/post-release/features/spec-plugin-external-yang-at-startup.md`. This spec enables it in three ways: the compiler stays in `ze`; each compiled module keeps its `Source` text, so an external module's `import` of `ze-types`, `ze-extensions` or an augment target compiles against it; and `Link` is non-mutating, so an external module is linked onto the compiled-in value without writing it.
 - Owner ruling (Thomas, 2026-10-16): "if a user use an external plugin the security is on him". There is no trust sandbox for external plugin YANG. Two refusals still apply, in the follow-on spec: invalid YANG is refused, naming the plugin and the module; and a module whose name or namespace clashes with a compiled-in module is refused, because the schema would be ambiguous. Trust design is out of scope.
 
+- Corrected 2026-11-17: the two bullets above describe the tree of 2026-10-16. External plugin YANG is joined at `ze start` today, by the external-plugin spec, from text and with a whole-set resolve. This spec replaces the body of that join (Existing Mechanisms) and owns its cost (AC-18).
+
 ## Work Not Done (homed elsewhere)
 
 | Item | Home |
 |------|------|
-| Compile and link external plugin YANG at startup, deliver config under the plugin's own root, correct `docs/plugin-development/schema.md` once it works | `plan/post-release/features/spec-plugin-external-yang-at-startup.md` (skeleton) |
+| Compile and link external plugin YANG at startup, deliver config under the plugin's own root, correct `docs/plugin-development/schema.md` once it works | `plan/post-release/features/spec-plugin-external-yang-at-startup.md` (in-progress on 2026-11-17, built through its phase 8; it was a skeleton when this row was written) |
+
+Taken from that spec on 2026-11-17: the cost of the second schema build a
+declared external plugin adds to a start (its R-19 and Q10). Owned here, closed
+by AC-18. The work that meets AC-18 also writes the start cost of an external
+plugin, measured on the owner's Mac, into `docs/plugin-development/schema.md`,
+which that spec's phase 9 left without a figure.
 
 ## Checklist
 

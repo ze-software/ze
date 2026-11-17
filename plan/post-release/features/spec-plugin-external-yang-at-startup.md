@@ -7,7 +7,7 @@
 | Release reason | Compile external plugins own YANG at startup: a new supported plugin-config surface, not a current compiled-in schema defect. |
 | Scope | plugin |
 | Depends | - |
-| Phase | 8/10 |
+| Phase | 9/10 |
 | Handoff | - |
 | Updated | 2026-11-17 |
 
@@ -293,7 +293,7 @@ Design approved by the owner on 2026-11-16, with the order to implement it now (
 |---|----------|----------------|
 | D-3 | Command argument model of an external plugin (journal row 2026-11-02, owned here): help, completion and checking of the arguments of a plugin's own commands, from a module the plugin brings | Keep it in this spec as its last phase: a plugin that wraps a program needs its config and its commands. It makes one declaration carry a config module and a command module, a wire change |
 | D-4 | Priority and bucket: the spec is post-release P3 | The owner's to set. The design waits on no other spec |
-| Q10 | Startup budget: the declared plugins reach Stage 1 before the full parse, plus one resolve of the module set | Measure at implementation on a known host |
+| Q10 | Startup budget: the declared plugins reach Stage 1 before the full parse, plus one resolve of the module set | Measure at implementation on a known host. Answered 2026-11-17 (phase 9, Implementation Steps): no external plugin, no added cost; one external plugin, one more build of the whole module set, about 300 ms on the server, an indicative figure only. No budget is set here: the owner ordered the fix as a spec of its own, and `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md` owns the cost and its figure on a known host (its AC-18) |
 
 ## Audit findings for the owner
 
@@ -345,7 +345,7 @@ The door `ai/doors/config-yang.md` says a second definition of a container repla
 | R-16 | The start path refuses or drops a config before the daemon's first pass (A-10) | A pushed config holding an external root is removed as invalid; a managed edge runs with no managed client | The entries in `cmd/ze` take the same first pass, and those that need only the `plugin` block take the first pass alone. Read again in phase 4 (2026-11-16), nothing changed there yet. `extractManagedClientConfig` reads `plugin/hub` alone: it takes `config.FirstPass` and its `Hub.Clients`, with no full parse and no publish. `checkPushedConfig` and the first-boot branch of `cmdStartManaged` judge a whole config before `hub.Run`, and the first removes a pushed config it judges invalid: each needs the modules of the declared plugins before its `LoadConfig`. They run in the process that then boots, where the set is published once, so the phase that wires boot decides between moving both verdicts inside the daemon's boot after its publish, or publishing here from declare mode and having boot compare each live declaration with the published set (R-10) |
 | R-17 | An external plugin's filter insertion names a condition path under its own module | Its Stage 1 is refused by `filter-insertion-paths` when the check runs before the publish | The check runs at the tier, after the publish (A-7) |
 | R-18 | An external module augments a root the first pass parses strictly (`plugin` or `environment`) | The first pass refuses the augmented child as an unknown field, before the plugin that declares it has run, so the config can never load | Not settled by phase 4. Either the join refuses an external augment whose target sits under a first-pass root, naming the rule, or the first pass skips unknown children of those roots too. The first keeps a mistyped leaf of a plugin declaration refused, which is why phase 4 skips roots only |
-| R-19 | With an external plugin declared, the config schema is built twice: once for the first pass over the compiled-in set, once after the publish | Start time grows by one schema build on top of the second resolve Q10 already counts | Inherent in the load order: the first pass needs the schema before the plugin's module exists. With no external plugin the first build is the one the full parse uses (`yangSchemaCache`), so AC-9 holds. Q10 measures both |
+| R-19 | With an external plugin declared, the config schema is built twice: once for the first pass over the compiled-in set, once after the publish | Start time grows by one schema build on top of the second resolve Q10 already counts | Inherent in the load order: the first pass needs the schema before the plugin's module exists. With no external plugin the first build is the one the full parse uses (`yangSchemaCache`), so AC-9 holds. Q10 measures both. Measured 2026-11-17 (phase 9): the risk is real and is the whole added cost. The profile shows the module set resolved twice, once by `yang.resolveDefault` and once by `resolveJoined` under `joinDeclaredPlugins`. Handed to `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md`, which owns it (AC-16 lowers it, AC-18 closes it). "Read the first-pass blocks with a schema of two modules alone" is not the fix: consumers that run before the publish need the first build anyway, and the join needs the texts of every compiled-in module |
 | R-22 | A value built once for the process is built before the publish, in a start that declares an external plugin | The publish is refused at boot with "it already built <value> without them", and the daemon does not start with that plugin | Intended: the refusal replaces a value that would answer without the plugin's module. The phase that wires boot orders the publish before `pluginserver.NewServer`, before any gNMI server, and before any full parse (a parsed interface name records the reserved names; A-10's three `cmd/ze` parses run before `hub.Run` today). `external-yang-own-root.ci` is the run that shows a wrong order |
 | R-23 | `config.JoinExternalModules` joins to the set `DefaultLoader` answers, which after a publish is the published set | A caller that joins the process's own declarations after the publish gets a name clash that says the module is "compiled into ze" | Callers that hold the process's declarations publish and do not join. The wording of `refuseNameClash` for a held external module is not corrected: `yang.Join` cannot read the published layer while the publish holds its lock |
 
@@ -642,10 +642,45 @@ Each phase edits the pages its row names as it codes. Tests are written first an
        - Still owed for AC-13: save. A commit typed in the daemon's session, the stored config holding the block, and a second start that parses it have no functional test.
        - `await=stderr` beside `expect=exit:code=` asserted nothing about the daemon's exit in `external-yang-own-root`, `-command-line`, `-augment-shared-root` and `-boot-accepts-what-offline-refuses` (journal row 2026-11-17, owned below). Drafts of the first three add `then=stop`; the fourth holds three commands in one file and is not converted.
 9. **Phase: Measure** -- Q10 on a known host, the figure written into `docs/plugin-development/schema.md`
+   - Done 2026-11-17, closed by the owner's order of that day ("write a spec for that optimization and complete the work we have done there. We can start that optimization in a different tree closed phase nine"). The phase asked what the new boot step costs. What was measured, on the server:
+     - Every figure here is indicative. The server is a VM on a host of unknown speed, so none is a recorded figure or one to compare across machines (`ai/META-DECISIONS.md`, "Test systems and labs"). Each compares two binaries side by side, runs interleaved, on a memory-backed directory.
+     - Start to "Ze running.", median of 12 to 15 starts: no external plugin, 429 ms before this work and 431 ms after; the Go fixture plugin declared, 524 ms and 839 ms; the Python example declared, 500 ms and 799 ms.
+     - The spec's claim holds (AC-9): a config with no external plugin pays nothing.
+     - With one external plugin about 300 ms is added, whatever the plugin. The plugin connects as fast as before, about 140 ms after its launch; the time from its connection to ready went from about 10 ms to about 400 ms.
+     - Where the cost is, from a CPU profile of 13 starts merged for each case: with no plugin, `yang.resolveDefault` takes about 290 ms of a start, the largest single cost of any start. With the plugin, the same plus `joinDeclaredPlugins` → `PublishExternalModules` → `Join` → `resolveJoined`, about 275 ms. The cost is a second build of the whole module set (R-19).
+     - The fix is not this spec's. `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md` owns it: its steps P1 and P2 lower it and its AC-18 closes it, with the figure on the owner's Mac.
+     - No figure is written into `docs/plugin-development/schema.md`: no figure from a known host exists, and an indicative one is not published. The page gets its figure with AC-18 of that spec (Work Not Done).
 10. **Phase: Validate asks the running Ze** -- `ze config validate` sends the config to the running daemon first, through `show config supplied validation`; design, criteria AC-17 to AC-25 and tests in "Phase 10" under Key Design Decisions
    - Tests: the `TestValidateRoute*` rows
    - Files: `cli/sshclient/reach.go`, `doctor/local_route.go`, `config/declared_schemas.go`, `config/cli/validate_route.go`, `cmd_validate.go`, `ssh/answer.go`, `core/diagnostic/types.go`
    - Verify: `external-yang-validate-asks-running-ze` green as a draft, then promoted
+
+### What this spec still owes before it can close (2026-11-17)
+
+Phases 1 to 9 are done and phase 10 is built for `ze config validate`. The
+status stays `in-progress`. Read from this spec's own rows and the tree on
+2026-11-17; "not confirmed here" means the row's text says the run is owed and
+this edit did not see a run.
+
+| # | Owed | Source row | Detail |
+|---|------|-----------|--------|
+| 1 | `ze config fmt`, `dump`, `diff` and `graph` ask a running Ze | Phase 10, "The other offline commands"; Known Limitations | The client route `ze config validate` has, through each command's own supplied form. Not built. Until then their refusal names `ze config validate <file>` |
+| 2 | AC-13, save | Step 8, "Still owed for AC-13: save" | No functional test: a commit typed in the daemon's session, the stored config holding the external block, and a second start that parses it |
+| 3 | Owner decision D-3 | Open Owner Questions; Work Not Done; journal row `unwired-feature.md` 2026-11-02 | A plugin's own command argument model: a last phase of this spec, or a spec of its own. The owner's to answer; the journal row stays owned here until then |
+| 4 | Test rows whose status says "written, not run" or "written as a draft" | TDD Test Plan, unit and functional tables | The drafts are tracked now under `test/plugin/`, `test/reload/` and `test/ui/` (`external-yang-session-editor`, `-daemon-schema`, `-augment-owner-keeps-section`, `-show-config`, `-changed-keeps-config`, `-undeclared-doctor`, `-refused-doctor`, `-validate-asks-running-ze`). Their rows still say draft and not run: each needs its run recorded and its row corrected. Not confirmed here |
+| 5 | The superseded editor draft | Step 8 | `test/draft/editor/external-yang-completion.et` is still in the tree; it is deleted now that the session test is tracked |
+| 6 | The vacuous exit assertion | Owned journal row `green-that-could-not-have-been-red.md` 2026-11-17 | `await=stderr` beside `expect=exit:code=` in `external-yang-own-root`, `-command-line`, `-augment-shared-root` (each needs `then=stop` and the test judge) and `-boot-accepts-what-offline-refuses` (three commands in one file, not converted) |
+| 7 | `CollectPluginYANG` and the old text road | Files to Modify, "Still owed" | Callers remain in `config/loader.go`, `bgp/config/loader.go`, `plugin/cli/test_cmd.go` and two test files; the function goes after them. `YANGSchemaWithPlugins` and `YANGValidatorWithPlugins` stay until their tests move to the join's entry. The Critical Review row on `no-layering` names this |
+| 8 | R-15 | Risks | Whether the early start of a declared plugin precedes a setting of the `environment` block the forked plugin needs: "not settled by reading" |
+| 9 | R-18 | Risks | An external module that augments `plugin` or `environment`: refuse it at the join, or skip unknown children in the first pass. Not settled |
+| 10 | R-20, AC-11 | Risks | `ze:decorate` and `ze:backend` names are not judged at the join. Pass their names to it, or the owner narrows AC-11 |
+| 11 | A-2 and A-4 | Assumptions | Each says "the `.ci` run is still owed" |
+| 12 | Architectural Verification | Data Flow | Every row still says "No" or "to prove at implementation" |
+| 13 | Documentation checklist | Documentation Update Checklist | Each "Yes" row checked against its page, and `./le spec citation anchors` run (row 16) |
+| 14 | Closure | Checklist | Every A-N confirmed or broken, the Review Gate, the closure template, commits A and B |
+
+Not owed here any more: the recorded start-time figure and the fix of the
+second schema build (Work Not Done).
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -803,6 +838,7 @@ Tests that asserted the phase 6 advice and were updated under the judge's approv
 | A plugin's command argument model from its own module (journal row 2026-11-02) | This spec, as a last phase with its own acceptance criteria, when D-3 is answered yes; a spec of its own when answered no |
 | Defaults in the section delivered to an external plugin | `plan/release/fixes/spec-yang-defaults-applied-once.md` (D-1, AC-6 there) |
 | Walking every schema section for custom validators | `plan/release/fixes/spec-validation-walks-every-schema-section.md` (AC-1 there) |
+| The second build of the module set that a declared external plugin adds to a start (R-19, Q10), and the start-time figure on a known host for `docs/plugin-development/schema.md` | `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md` (AC-15 to AC-19 there; AC-18 closes it, on the owner's Mac) |
 
 ## Effort
 

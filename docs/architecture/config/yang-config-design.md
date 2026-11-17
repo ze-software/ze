@@ -406,13 +406,25 @@ operator error that names the plugin and the module. `config.JoinExternalModules
 is its entry: it passes the set `DefaultLoader` shares and the registry
 `RegisterValidators` fills.
 
-The join and the publish below exist and are tested alone. Nothing in the
-daemon's start path, and no command, calls either with a plugin's declaration
-yet, so config under an external plugin's own root is still refused at load
-(`docs/plugin-development/schema.md`, "What works today"). The join's callers
-today are `YANGSchemaWithPlugins` and `YANGValidatorWithPlugins`, which pass
-module texts a Go caller holds (`loadYANGModules`, with
+The daemon's start path calls the join with each plugin's declaration:
+`runYANGConfig` (`cmd/ze/hub/main.go`) calls `joinDeclaredPlugins`
+(`cmd/ze/hub/declared_plugins.go`) between the first pass and the full parse,
+and that calls `config.PublishExternalModules`, which joins the declared
+modules and publishes the result ("Who publishes", below). Config under an
+external plugin's own root therefore loads at `ze start`
+(`docs/plugin-development/schema.md`, "What works today"). No command with no
+daemon calls the join with a declaration: it starts no plugin. The join's
+other callers are `YANGSchemaWithPlugins` and `YANGValidatorWithPlugins`,
+which pass module texts a Go caller holds (`loadYANGModules`, with
 `yang.ExternalModuleFromText` reading each text's name and namespace).
+
+The join parses the text of every compiled-in module again and resolves the
+whole set with the declared modules (`resolveJoined`), so a start that declares
+an external plugin builds the module set twice.
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
+<!-- source: internal/component/config/yang/join.go -- resolveJoined -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/component/config/yang/publish.go -- PublishExternalModules -->
 
 That text road has one rule of its own. A text whose module the compiled-in
 set already holds with the same content, byte for byte, is that module: it
