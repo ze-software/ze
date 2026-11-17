@@ -148,7 +148,8 @@ func staleRunnerJudge(output, sha string) error {
 
 // staleRunnerTree writes and commits a checkout the runner accepts: a module
 // whose cmd/ze links one internal/test package, a feature manifest, the
-// fakefilter main Runner.Build compiles, and one runner test that fails.
+// fakefilter and container-probe mains Runner.Build compiles, and one runner
+// test that fails.
 func staleRunnerTree(ctx context.Context, parent, checkout string) (string, []string, error) {
 	tree := filepath.Join(parent, "tree")
 	files := map[string]string{
@@ -156,10 +157,11 @@ func staleRunnerTree(ctx context.Context, parent, checkout string) (string, []st
 		fileFeatureGates:    "ze_probe\tinternal/p0\n",
 		".gitignore":        "/bin/\n/tmp/\n",
 		"internal/p0/p0.go": "package p0\n",
-		"cmd/ze/main.go":    "package main\n\nimport _ \"fixture.invalid/stale/internal/test/linked\"\n\nfunc main() {}\n",
+		fileZeMain:          "package main\n\nimport _ \"fixture.invalid/stale/internal/test/linked\"\n\nfunc main() {}\n",
 		staleProbeLinked:    staleRunnerPackage(staleProbeLinked),
 		staleProbeUnlinked:  staleRunnerPackage(staleProbeUnlinked),
-		strings.TrimPrefix(runner.FakeFilterPackage, "./") + "/main.go": contentEmptyMain,
+		strings.TrimPrefix(runner.FakeFilterPackage, "./") + "/main.go":     contentEmptyMain,
+		strings.TrimPrefix(runner.ContainerProbePackage, "./") + "/main.go": contentEmptyMain,
 		"test/runner/stale-probe.ci": "# Fails on purpose, so the run ends in a failing summary.\n" +
 			"option=timeout:value=20s\n\ncmd=foreground:seq=1:exec=false\nexpect=exit:code=0\n",
 	}
@@ -220,13 +222,17 @@ func staleRunnerRun(ctx context.Context, tree string, treeEnv []string, le strin
 // the same file system; a copy covers another one. os.Executable then answers
 // target, which is what the runner's stale check reads.
 func staleRunnerPlace(native, target string) error {
+	resolved, err := filepath.EvalSymlinks(native)
+	if err != nil {
+		return fmt.Errorf("resolve native le: %w", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 		return fmt.Errorf("create %s: %w", filepath.Dir(target), err)
 	}
-	if err := os.Link(native, target); err == nil {
+	if err := os.Link(resolved, target); err == nil {
 		return nil
 	}
-	source, err := os.Open(native) //nolint:gosec // the path is the native le, or the launcher build this fixture placed from it in its scratch tree
+	source, err := os.Open(resolved) //nolint:gosec // the path is the native le, or the launcher build this fixture placed from it in its scratch tree
 	if err != nil {
 		return fmt.Errorf("open native le: %w", err)
 	}
