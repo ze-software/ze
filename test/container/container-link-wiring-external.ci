@@ -1,0 +1,80 @@
+# Test: a forked plugin asks for a link from its owned bridge into a network
+#       namespace it holds, and the host end is a marked veth member of the
+#       bridge.
+# Spec: spec-container-3-network, Wiring Test row 3, phase 1
+# VALIDATES: ownedLinkCreateHandler
+#   (internal/component/iface/cmd/owned_devices.go), reached over RPC from the
+#   forked fakeowner plugin through sdk.Plugin.OwnedLinkCreate. The plugin
+#   holds the namespace with a child it cloned with CLONE_NEWNET
+#   (internal/test/plugins/fakeowner/namespace_linux.go) and sends its pid
+#   with the namespace inode number.
+# PREVENTS: a link request that works only on the direct path, and a host end
+#   made without the ze:owned mark.
+# Why not a unit test: only a forked process proves the request crosses RPC,
+#   and only the kernel shows the pair.
+#
+# The peer end is read inside the held namespace: the outcome serves the
+# holder's process id as link-pid once the link is accepted, and the fixture
+# iface/peer-end (internal/test/fixture/iface_peer_end_linux.go) opens that
+# process's namespace and prints the link's facts.
+#
+# caps: sys-admin is the plugin's, to clone the namespace holder, and the
+# fixture's, to open another process's network namespace.
+
+option=timeout:value=60s
+option=needs-linux:caps=net-admin,sys-admin
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+# The owned-device requests need a loaded interface backend, and the interface
+# component loads one only when the config holds an interface section.
+interface {
+	backend netlink
+}
+plugin {
+	external fakeowner {
+		run "ze plugin fakeowner"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: the link request was accepted. The bridge request precedes it.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer link-accepted "show fakeowner outcome":exit=0
+
+# The host end is a veth member of the owned bridge, marked as the plugin's.
+cmd=foreground:seq=3:exec=ip -d link show master zfo-wire:exit=0
+expect=stdout:contains=veth
+expect=stdout:contains=alias ze:owned:fakeowner
+# The peer end is in another namespace, never in the host's.
+expect=stdout:contains=link-netnsid
+
+# Inside the held namespace the peer end has its name, hardware address, MTU,
+# address and default route, and is up.
+cmd=foreground:seq=4:exec=le test fixture iface/peer-end link-pid "show fakeowner outcome" eth0:exit=0
+expect=stdout:contains=name eth0
+expect=stdout:contains=state up
+expect=stdout:contains=mtu 1500
+expect=stdout:contains=mac 02:00:5e:00:53:02
+expect=stdout:contains=address 192.0.2.2/24
+expect=stdout:contains=default via 192.0.2.1

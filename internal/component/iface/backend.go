@@ -130,6 +130,22 @@ type Backend interface {
 	// listing rides ListInterfaces (InterfaceInfo.Alias carries the marker).
 	// Non-netlink backends (VPP, non-Linux) reject under exact-or-reject.
 	CreateMacvlanDevice(spec MacvlanSpec) error
+	// CreateOwnedBridge creates a bridge named spec.Name with MTU spec.MTU,
+	// marks it with the owned-device alias spec.Alias and brings it admin-up.
+	// Its addresses are not set here: the reconcile pass adds them with
+	// AddAddress, as it does for a bridge it adopts. A completed call never
+	// leaves an unmarked device behind. Backends without a kernel bridge
+	// device (VPP, non-Linux) refuse under exact-or-reject.
+	CreateOwnedBridge(spec OwnedBridgeSpec) error
+	// CreateOwnedLink creates a veth pair whose host end spec.HostEnd is
+	// marked with spec.Alias, carries spec.MTU, is a member of spec.Bridge and
+	// is up, and whose peer end is created directly inside spec.Namespace,
+	// never in the host namespace, under spec.PeerName, then addressed (IPv6
+	// without duplicate address detection), set up and given one default
+	// route per gateway. On any failure the pair is deleted and no part of it
+	// stays. The backend MUST NOT close spec.Namespace. Backends without veth
+	// or network namespaces (VPP, non-Linux) refuse under exact-or-reject.
+	CreateOwnedLink(spec OwnedLinkSpec) error
 	// CreateXFRM creates an XFRM interface netdev with the given spec.
 	// The IfID binds the interface to XFRM security associations; the
 	// optional PhysicalDev constrains the underlay device. On kernels

@@ -41,6 +41,10 @@ func init() {
 		Description: "Test-only owner of an interface bridge, a link and a firewall table, through the engine operations",
 		RunEngine:   runPlugin,
 		Commands:    commandDecls(),
+		// The interface component loads its backend when it configures, and an
+		// owned-device request made before that is refused. The dependency
+		// starts it, and configures it first, even with no interface config.
+		Dependencies: []string{"interface"},
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

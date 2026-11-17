@@ -1,0 +1,60 @@
+# Test: the same plugin run internal declares its owned bridge through the
+#       direct path of the same engine operation, with the same kernel result.
+# Spec: spec-container-3-network, Wiring Test row 2, phase 1
+# VALIDATES: ownedBridgesReplaceHandler
+#   (internal/component/iface/cmd/owned_devices.go), reached through
+#   DirectBridge from the internal fakeowner plugin
+#   (internal/test/plugins/fakeowner): the direct path derives from the same
+#   engine-op entry as the RPC path (RegisterEngineOp).
+# PREVENTS: a request that works forked and not internal.
+# Why not a unit test: only the running daemon wires the bridge between an
+#   internal plugin and the engine, and only the kernel shows the bridge.
+#
+# Red before phase 2: the handler refused every request, so the barrier never
+# saw bridge-accepted. Phase 2 creates the bridge (iface.ReplaceOwnedBridges).
+
+option=timeout:value=60s
+option=needs-linux:caps=net-admin
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+# The owned-device requests need a loaded interface backend, and the interface
+# component loads one only when the config holds an interface section.
+interface {
+	backend netlink
+}
+plugin {
+	internal fakeowner {
+		use fakeowner
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: the plugin made its request and the engine accepted it.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer bridge-accepted "show fakeowner outcome":exit=0
+
+# The kernel holds the bridge, marked as the plugin's.
+cmd=foreground:seq=3:exec=ip -d link show dev zfo-wire:exit=0
+expect=stdout:contains=bridge
+expect=stdout:contains=mtu 1500
+expect=stdout:contains=alias ze:owned:fakeowner

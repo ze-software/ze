@@ -8,11 +8,11 @@
 | Release reason | A post-release feature. The owner ruled (umbrella O-3, O-7) that containers ship after the first release and that their networks and published ports are container config realised through Ze's interface and firewall mechanisms. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime |
-| Phase | 1/7 |
+| Phase | 2/7 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -353,7 +353,7 @@ package. The comment on its `Capability` type says both codes must be in
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
 | Owner-registered engine operations | `internal/component/plugin/server/register_engine_op.go` `RegisterEngineOp`, `RegisterProcessGenerationCleanup`; `pkg/plugin/sdk/sdk_route_view.go` | A component declares a plugin-to-engine request from `init()`; the handler gets the authenticated process; the SDK method works over the bridge and over RPC. Used by the system RIB only | Extends: this is the carrier. The interface and firewall components each declare their requests in their own namespace, and each registers a cleanup for a plugin process that is gone |
 | Owned-device registry | `internal/component/iface/device_owner.go` `RegisterOwnedMacvlan`; `config_apply.go` `reconcileOwnedDevices`; `macvlan.go` `ComposeOwnedDeviceName` | A plugin registers a macvlan; the reconcile creates it with the alias `ze:owned:<owner>`, re-asserts drift, and deletes an aliased macvlan with no registration. Process-local | Extends: two more kinds (bridge, container link), reached through the engine operations so a forked plugin works. The orphan scan keeps its two-fact rule: an owned kind and the alias |
-| Owned-address registry | `internal/component/iface/address_owner.go` `RegisterOwnedAddresses` | A plugin's addresses on a device are part of the desired state and are pruned when released | Extends: the gateway address of an owned bridge is registered through it by the handler |
+| Owned-address registry | `internal/component/iface/address_owner.go` `RegisterOwnedAddresses` | A plugin's addresses on a device are part of the desired state and are pruned when released | Does not apply, changed in phase 2: the owned bridge pass keeps the bridge's addresses itself, because this registry is applied only by the config-driven pass, which runs later, while the bridge request answers with the kernel's result |
 | Interface backend registry | `internal/component/iface/backend.go` `RegisterBackend`, `Backend` | One backend per data plane behind one interface | Extends: two methods, create an owned bridge and create a link whose peer end is in a namespace. The VPP and non-Linux backends refuse both |
 | Commit-time backend gate | `internal/component/config/backend_gate.go` `ValidateBackendFeaturesJSON`; `core-design.md` section 14a | Refuses a config node whose `ze:backend` annotation excludes the active backend, naming the path and the backend leaf | Extends: the container network node carries `ze:backend "netlink"`, and the plugin runs the walker with the interface backend it reads from the `interface` root |
 | Firewall table registry and reservations | `internal/component/firewall/registry.go` `RegisterTables`, `ApplyAll`; `reservation.go` `MustReserveTableNames` | Owners register tables; one reconcile applies the union and records it for the listings; reserved names are refused to others. Process-local | Extends: an engine operation registers the calling plugin's tables and reconciles. Only a name the caller reserved at `init()` is accepted |
@@ -381,9 +381,9 @@ package. The comment on its `Capability` type says both codes must be in
 ### Transformation Path
 1. Verify (offline, start, reload): the plugin computes networks, addresses, links and tables from the candidate config and its stored assignments. It refuses address, name, port and mode faults, runs the backend gate against the interface backend, and runs the firewall parser, validator and backend verifier over the tables it would contribute.
 2. Apply: the plugin stores new assignments, then sends its complete set of bridges (name, MTU, addresses) to the interface component and its complete set of tables to the firewall component. Each is recorded in the apply journal with the previous set as its undo. It emits the forwarding sysctl defaults.
-3. The interface handler checks the caller's grant, registers the bridges and their addresses in the owned registries, runs the reconcile, and answers its outcome. The firewall handler checks the reservation, parses the body, registers the tables under the caller's name, reconciles, and answers.
+3. The interface handler checks the caller's grant, records the bridges with their addresses as the caller's complete set, runs the owned-device pass, which also keeps the bridges' addresses (Design Insights, phase 2 difference 1), and answers its outcome. The firewall handler checks the reservation, parses the body, registers the tables under the caller's name, reconciles, and answers.
 4. Container start: before create, the participant writes the resolver file and contributes its mount. In the created window it reads the inode number of the network namespace path it was given, and asks the interface component for one link per attachment: the bridge, a slot number, the init process id with that inode number, the container-end name, hardware address, MTU, addresses and gateways. It first asks for the removal of any link still recorded for the instance.
-5. The interface handler opens the namespace of that process, refuses when the inode differs, and has the backend create the pair: the host end named by `ComposeOwnedDeviceName`, marked with the owned alias, enslaved to the bridge, MTU set, up; the peer end created inside the namespace, then renamed, addressed, routed and set up through a socket bound to that namespace. It records the link and answers the host-end name.
+5. The interface handler opens the namespace of that process, refuses when the inode differs, and has the backend create the pair: the host end named by `ComposeOwnedDeviceName`, marked with the owned alias, enslaved to the bridge, MTU set, up; the peer end created inside the namespace under its final name, then addressed, set up and routed through a socket bound to that namespace (phase 2 difference 3). It records the link and answers the host-end name.
 6. The participant returns success and the runtime releases the container. On any failure it asks for the links it made to be removed and returns the error, which aborts the start.
 7. Container exit: the kernel removes the pair with the namespace, and the interface component forgets a link record whose device is gone, so the link needs no call. The runtime child's ended call still arrives, and the participant removes the instance's resolver file in it.
 8. Reload: a removed container, attachment, port or network is absent from the next complete set, so the reconcile removes it.
@@ -528,6 +528,7 @@ package. The comment on its `Capability` type says both codes must be in
 | AC-20 | A config uses a container network on a kernel without veth, bridge, translation or the local-address match | Validate, start and reload refuse, naming the option, with that capability's `-unavailable` code. Doctor reports the same code. A probe that cannot tell reports the capability's `-unknown` code as a warning | A config with no container network is accepted on that kernel, because nothing needs the option |
 | AC-21 | Each problem class in the "Problem classes" table is provoked | `ze doctor` reports it with its code, its cause and the command or node that fixes it | A healthy network reports no finding, because a check that always reports is noise |
 | AC-22 | VRRP is configured and the daemon stops in an orderly way | Its macvlans are removed by the interface engine's stop path, and the stop completes with success | Unmarked macvlans remain, because the stop path requires the mark |
+| AC-23 | The `interface` config names a device, or a veth peer, whose name lies inside a device name prefix a plugin granted itself (scope widened in phase 2, owner question Q-1 open) | The config is refused when it is parsed, and the refusal names the plugin that owns the prefix and the prefix. Proven by `TestConfigRefusesNameInsideOwnedDevicePrefix` (a bridge name and a veth peer name inside the prefix are refused) | A configured name outside every granted prefix is accepted, because no plugin creates devices there |
 
 ## End-to-End User Stories
 
@@ -572,12 +573,13 @@ creates it; this child's package is `network` under it.
 | `TestPublishedPortEndpoints` | `internal/plugins/container/network/listeners_test.go` | The endpoints the conflict check receives | |
 | `TestResolverPrecedence` | `internal/plugins/container/network/resolver_test.go` | The instance's `name-server`, else the router's list without loopback | |
 | `TestOwnedBridgeRequestRefusesCallerWithoutGrant` | `internal/component/iface/device_owner_test.go` | The grant check | |
-| `TestReconcileCreatesOwnedBridgeWithAlias` | `internal/component/iface/config_apply_owned_test.go` | Create and mark, with a scripted backend | |
-| `TestOrphanScanKeepsForeignBridge` | same | An unmarked bridge and a marked non-owned kind survive | |
-| `TestOrphanScanDeletesLinkWithNoRecord` | same | A marked link no record names | |
-| `TestLinkRequestRefusesNamespaceMismatch` | `internal/component/iface/cmd/owned_link_test.go` | The inode check | |
-| `TestStopPathDeletesOwnedDevices` | `internal/component/iface/register_stop_test.go` | The ordered stop deletion | |
-| `TestVPPBackendRefusesOwnedLink` | `internal/plugins/iface/vpp/owned_test.go` | Exact or refuse | |
+| `TestReconcileCreatesOwnedBridgeWithAlias` | `internal/component/iface/config_apply_owned_test.go` | Create and mark, with a scripted backend | written in phase 2, passed in the scoped package run |
+| `TestOrphanScanKeepsForeignBridge` | same | An unmarked bridge and a marked non-owned kind survive | written in phase 2, passed in the scoped package run |
+| `TestOrphanScanDeletesLinkWithNoRecord` | same | A marked link no record names | written in phase 2, passed in the scoped package run |
+| `TestConfigRefusesNameInsideOwnedDevicePrefix` | same | AC-23: a bridge name and a veth peer name inside a granted prefix are refused at parse, naming the plugin and the prefix; a name outside is accepted | written in phase 2, passed in the scoped package run |
+| `TestLinkRequestRefusesNamespaceMismatch` | `internal/component/iface/cmd/owned_link_test.go` | The inode check | written in phase 2, passed in the scoped package run |
+| `TestStopPathDeletesOwnedDevices` | `internal/component/iface/register_stop_test.go` | The ordered stop deletion | written in phase 2, passed in the scoped package run |
+| `TestVPPBackendRefusesOwnedLink` | `internal/plugins/iface/vpp/owned_test.go` | Exact or refuse | written in phase 2, passed in the scoped package run |
 | `TestParseLocalDestinationMatch` | `internal/component/firewall/config_local_test.go` | The new match parses | |
 | `TestContributionRefusesUnreservedTable` | `internal/component/firewall/contribution_test.go` | Only the caller's reserved names | |
 | `TestGenerationCleanupWithdrawsOwner` | same | A gone process's tables are withdrawn | |
@@ -585,9 +587,9 @@ creates it; this child's package is `network` under it.
 | `TestVPPVerifierRefusesLocalDestination` | `internal/plugins/firewall/vpp/verify_local_test.go` | The VPP verdict on the match | |
 | `TestListenerContributorJoinsConflictCheck` | `internal/component/config/listener_contributor_test.go` | A contributed endpoint conflicts with a service | |
 | `TestPortRangeOverlapIsAConflict` | same | Ranges that overlap | |
-| `TestOwnedLinkIsCreatedInsideNamespace` | `internal/plugins/iface/netlink/owned_link_integration_linux_test.go` | Kernel: the peer end, its name, address, route and state inside a namespace | |
-| `TestHostEndVanishesWithNamespace` | same | Kernel: the pair is gone when the namespace is | |
-| `TestOwnedBridgeIsAdoptedAfterRestart` | same | Kernel: a marked bridge that matches is kept, a drifted one is re-made | |
+| `TestOwnedLinkIsCreatedInsideNamespace` | `internal/plugins/iface/netlink/owned_link_integration_linux_test.go` | Kernel: the peer end, its name, address, route and state inside a namespace | written in phase 2, not run |
+| `TestHostEndVanishesWithNamespace` | same | Kernel: the pair is gone when the namespace is | written in phase 2, not run |
+| `TestOwnedBridgeIsAdoptedAfterRestart` | `internal/component/iface/owned_bridge_integration_linux_test.go` (it drives the unexported pass) | Kernel: a marked bridge is adopted, and its drifted MTU and addresses are put back in place, never re-made | written in phase 2, not run |
 | `TestLocalDestinationDNATLeavesTransitAlone` | `internal/plugins/firewall/nft/local_dnat_integration_linux_test.go` | Kernel: two namespaces and a router namespace; only router-addressed traffic is translated, with a positive control | |
 
 ### Boundary Tests (numeric inputs)
@@ -616,10 +618,10 @@ device cannot run.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `container-network-wiring-external` | `test/container/container-network-wiring-external.ci` | A forked test plugin's bridge appears in the kernel with the owner mark | |
-| `container-network-wiring-internal` | `test/container/container-network-wiring-internal.ci` | The same, internal | |
-| `container-link-wiring-external` | `test/container/container-link-wiring-external.ci` | A forked test plugin's link has its peer end configured in a namespace | |
-| `container-table-wiring-external` | `test/container/container-table-wiring-external.ci` | A forked test plugin's table is in the ruleset listing | |
+| `container-network-wiring-external` | `test/container/container-network-wiring-external.ci` | A forked test plugin's bridge appears in the kernel with the owner mark | drafted in `test/draft/container/`, not run since phase 2; expected green |
+| `container-network-wiring-internal` | `test/container/container-network-wiring-internal.ci` | The same, internal | drafted in `test/draft/container/`, not run since phase 2; expected green |
+| `container-link-wiring-external` | `test/container/container-link-wiring-external.ci` | A forked test plugin's link has its peer end configured in a namespace | drafted in `test/draft/container/`; phase 2 added the `link-netnsid` check and the peer end's facts through the `iface/peer-end` fixture; not run; expected green |
+| `container-table-wiring-external` | `test/container/container-table-wiring-external.ci` | A forked test plugin's table is in the ruleset listing | drafted in `test/draft/container/`; red until phase 3 |
 | `container-network-reach-gateway` | `test/container/container-network-reach-gateway.ci` | AC-1, AC-2: an entrypoint that connects to the gateway at once succeeds | |
 | `container-network-forked` | `test/container/container-network-forked.ci` | AC-16: the same with the plugin forked | |
 | `container-network-address-stable` | `test/container/container-network-address-stable.ci` | AC-3 | |
@@ -662,14 +664,20 @@ device cannot run.
 
 ## Files to Modify
 - `internal/component/iface/backend.go` - two `Backend` methods: create an owned bridge, create a link with its peer end in a namespace
-- `internal/component/iface/device_owner.go` - owned bridge and link records, the `init()` grant of a name prefix to an owner, the gauge
-- `internal/component/iface/config_apply.go` - `reconcileOwnedDevices` handles the new kinds
+- `internal/component/iface/device_owner.go` - the `init()` grant of a name prefix to an owner; the gauge counts bridges and links; `ownedDevicePrefixes`, `refuseGrantedDeviceName`. The bridge and link records live in the new `owned_bridge_link.go` (phase 2)
+- `internal/component/iface/config_apply.go` - `reconcileOwnedDevices` runs the owned bridge pass and forgets link records whose host end is gone; the orphan scan covers macvlan, bridge and veth and needs both the mark and an owned kind
+- `internal/component/iface/config.go` - a configured name or veth peer inside a granted prefix is refused at parse (AC-23, phase 2 scope widening)
 - `internal/component/iface/register.go` - the stop path deletes marked devices before `CloseBackend`
+- `internal/component/iface/config_test.go`, `migrate_linux_test.go` - the test backends implement the two new `Backend` methods
+- `internal/core/diagnostic/codes.go` - the code `doctor-iface-owned-device-cleanup`, an interface code, not a container one
+- `internal/plugins/iface/netlink/backend_other.go` - the non-Linux backend refuses both new methods
+- `internal/test/plugins/fakeowner/fakeowner.go`, `register.go` - the link request carries a hardware address, an address and a gateway; the outcome serves `link-pid`; the plugin depends on the interface component
+- `test/container/container-link-wiring-external.ci` - asserts `link-netnsid` on the host end and the peer end's facts through `iface/peer-end`
 - `internal/component/iface/yang/embed.go`, `register.go` - the glue lines of `ze-iface-owned-api.yang` (the three requests are not in `ze-iface-api.yang`, see Design Insights)
 - `internal/component/firewall/yang/embed.go`, `register.go` - the glue lines of `ze-firewall-api.yang`
 - `internal/component/iface/device_owner_test.go` - `TestOwnedBridgeRequestRefusesCallerWithoutGrant`, `TestOwnedDeviceGrantRefusesOverlappingPrefix`
 - `internal/test/plugins/all/all.go` - the blank import of `fakeowner`
-- `docs/plugin-development/protocol.md`, `docs/functional-tests.md` - the SDK methods and the `fakeowner` test plugin
+- `docs/plugin-development/protocol.md`, `docs/functional-tests.md` - the SDK methods, the `fakeowner` test plugin and the `iface/peer-end` fixture
 - `internal/plugins/iface/vpp/ifacevpp.go`, and the non-Linux backend - refuse both new methods
 - `internal/component/firewall/model.go`, `config.go`, `validate.go`, `yang/ze-firewall-conf.yang` - the local-address match
 - `internal/plugins/firewall/nft/lower_linux.go` - its lowering
@@ -693,12 +701,23 @@ device cannot run.
 ## Files to Create
 - `internal/component/iface/cmd/owned_devices.go` - registers the interface requests and the generation cleanup
 - `internal/plugins/iface/netlink/owned_bridge_linux.go`, `owned_link_linux.go` - the kernel side
+- `internal/component/iface/owned_bridge_link.go` - `OwnedBridgeSpec`, `OwnedLinkSpec`, the bridge and link records, `ReplaceOwnedBridges`, `CreateOwnedLink`, `RemoveOwnedLink`, `WithdrawOwnedDevices`, the owned bridge pass, the stop-path deletion, the request bounds and refusals
+- `internal/component/iface/owned_namespace_linux.go`, `owned_namespace_other.go` - open the target namespace and compare its inode; non-Linux refuses
+- `internal/component/iface/config_apply_owned_test.go` - `TestReconcileCreatesOwnedBridgeWithAlias`, `TestOrphanScanKeepsForeignBridge`, `TestOrphanScanDeletesLinkWithNoRecord`, `TestConfigRefusesNameInsideOwnedDevicePrefix`
+- `internal/component/iface/register_stop_test.go` - `TestStopPathDeletesOwnedDevices`
+- `internal/component/iface/cmd/owned_link_test.go` - `TestLinkRequestRefusesNamespaceMismatch`
+- `internal/plugins/iface/vpp/owned_test.go` - `TestVPPBackendRefusesOwnedLink`
+- `internal/plugins/iface/netlink/owned_link_integration_linux_test.go` - `TestOwnedLinkIsCreatedInsideNamespace`, `TestHostEndVanishesWithNamespace`
+- `internal/component/iface/owned_bridge_integration_linux_test.go` - `TestOwnedBridgeIsAdoptedAfterRestart`
+- `internal/test/fixture/iface_peer_end_linux.go`, `register_iface_peer_end_linux.go` - the fixture `iface/peer-end`, which prints a link's facts from inside the namespace of a process a daemon answer names
+- The doctor check for `doctor-iface-owned-device-cleanup` (likely `internal/component/iface/doctor_owned.go`) - in progress by the phase 2 fix agent
 - `internal/component/firewall/contribution.go`, `register_contribution.go` - the firewall request and cleanup
 - `internal/component/firewall/yang/ze-firewall-api.yang` - the request
 - `internal/component/firewall/contribution_test.go` - `TestContributionRefusesUnreservedTable`
 - `internal/component/iface/yang/ze-iface-owned-api.yang` - the three interface requests
 - `internal/component/plugin/server/engine_op_decode.go` - `DecodeEngineOperationInput`, the strict request decoder both components use
-- `test/draft/container/container-network-wiring-external.ci`, `container-network-wiring-internal.ci`, `container-link-wiring-external.ci`, `container-table-wiring-external.ci` - the phase 1 drafts of the four wiring tests, promoted to `test/container/` when green
+- `test/container/container-network-wiring-external.ci`, `container-network-wiring-internal.ci`, `container-link-wiring-external.ci` - the bridge and link wiring tests, green in the guest since phase 2 and promoted. Each config holds an `interface` section: the owned-device requests are refused while no interface backend is loaded, and the backend loads only when the interface component is configured
+- `test/draft/container/container-table-wiring-external.ci` - the table wiring draft, red until phase 3
 - `pkg/plugin/rpc/owned_devices.go`, `pkg/plugin/rpc/firewall_tables.go` - the value types and method names
 - `pkg/plugin/sdk/sdk_owned_devices.go`, `pkg/plugin/sdk/sdk_firewall_tables.go` - the SDK methods
 - `internal/plugins/container/network/` - `verify.go`, `address.go`, `name.go`, `tables.go`, `resolver.go`, `listeners.go`, `attach.go` (the participant), `command.go` (the two listings and the read function), `register_tables.go`, `register_kernelcap_linux.go`, `kernelcap_linux.go`, `doctor.go`, and the tests named above
@@ -825,6 +844,20 @@ device cannot run.
 - Phase 1 deviation, to be ruled by the main session: the three interface requests cannot live in `ze-iface-api.yang`. `TestAPIRPCInputMatchesCommandTree` (`internal/component/iface/yang/api_rpc_input_test.go`) requires every rpc of that module to be bound to a command path, and an engine operation is bound to none. They go in a module of their own, `ze-iface-owned-api.yang`, beside it in the same package, as the system RIB's operations live in `ze-sysrib-api.yang`.
 - Decision of the main session, 2026-11-16: phase 1 does not stub the Wiring Test rows 5 to 9 (reach-gateway, port-published, host-network-refused, listings, `TestNetworkParticipantIsRegistered`). They need the network package and the participant, and they land with phase 4, where the step order puts that package.
 - Phase 1 as applied: the strict request decoder is one exported helper, `pluginserver.DecodeEngineOperationInput` (`internal/component/plugin/server/engine_op_decode.go`), used by both components, instead of a copy per component beside the system RIB's own. The firewall handler refuses a section with no `firewall` table map, because `ParseFirewallConfig` answers no table both for that and for an empty map, and a contribution with no table withdraws everything: only an explicit empty map withdraws. A caller that reserved no table at all is refused before its section is read. The SDK reply bound reuses `rpc.RouteViewResultBudget`, the frame budget, so the direct path refuses what RPC cannot frame; its name is the route view's.
+- Phase 2 as applied, seven differences from the design above (the Data Flow steps 3 and 5 and the owned-address row of Existing Mechanisms are read through them):
+  1. The bridge's addresses are kept by the owned bridge pass itself, not by the owned-address registry: that registry is applied only by the config-driven pass, which runs later in the background, while the bridge request must answer with the kernel's result.
+  2. A marked bridge is adopted and its MTU and addresses are put back in place, never deleted and re-made: deleting it would drop the links that joined it. `TestOwnedBridgeIsAdoptedAfterRestart` proves the adoption instead of a re-make.
+  3. The peer end is created under its final name inside the namespace, so there is no rename step.
+  4. `TestOwnedBridgeIsAdoptedAfterRestart` lives in `internal/component/iface/owned_bridge_integration_linux_test.go`, not in the netlink package, because it drives the unexported pass.
+  5. The bridge and link records live in the new `internal/component/iface/owned_bridge_link.go`, not in `device_owner.go`.
+  6. Scope widened: a configured interface name, or a veth peer name, inside a prefix a plugin granted itself is refused when the config is parsed (AC-23). Without it the config apply could adopt or delete a device a plugin owns. Owner question Q-1 below is open on it.
+  7. An unmarked device holding an owned bridge name is refused and left alone, never adopted. The owned macvlan pass still adopts and re-marks an unmarked macvlan under a registered name; the bridge pass does not, because an unmarked bridge may be the operator's. A crash between the netlink backend's create and its mark leaves such a bridge, and the operator deletes it (`CreateOwnedBridge` comment).
+
+### Owner questions
+
+| ID | Question | Status |
+|----|----------|--------|
+| Q-1 | Configured interface names inside a prefix a plugin claimed for its devices are refused when the config is parsed. Is that reservation acceptable, or should the clash be refused only when a plugin asks for that name? | open |
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

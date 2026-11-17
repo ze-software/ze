@@ -22,6 +22,12 @@ func (m *mockMigrateBackend) CreateBridge(_ string) error  { return fmt.Errorf("
 func (m *mockMigrateBackend) CreateMacvlanDevice(_ MacvlanSpec) error {
 	return fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) CreateOwnedBridge(_ OwnedBridgeSpec) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) CreateOwnedLink(_ OwnedLinkSpec) error {
+	return fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) CreateVLAN(_ VLANSpec) error {
 	return fmt.Errorf("mock: not supported")
 }

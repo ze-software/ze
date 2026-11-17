@@ -636,11 +636,18 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 // would mean two config entries target the same device and the second apply
 // would EEXIST. Refuse at parse time and name both entries so the operator
 // can rename one before the commit reaches apply.
+//
+// The same walk refuses a name inside a device name prefix a plugin granted
+// itself (refuseGrantedDeviceName): the plugin's owned devices live there, and
+// the config apply would otherwise adopt or delete one of them.
 func (c *ifaceConfig) refuseDuplicateInterfaceNames() error {
 	seen := make(map[string]string, len(c.Ethernet)+len(c.PPPoEClient))
 	record := func(name, kind string) error {
 		if prev, dup := seen[name]; dup {
 			return fmt.Errorf("iface: interface name %q appears as both %s and %s; rename one of the two entries", name, prev, kind)
+		}
+		if err := refuseGrantedDeviceName(kind, name); err != nil {
+			return err
 		}
 		seen[name] = kind
 		return nil
@@ -657,6 +664,9 @@ func (c *ifaceConfig) refuseDuplicateInterfaceNames() error {
 	}
 	for i := range c.Veth {
 		if err := record(c.Veth[i].Name, "veth"); err != nil {
+			return err
+		}
+		if err := refuseGrantedDeviceName("veth peer", c.Veth[i].Peer); err != nil {
 			return err
 		}
 	}

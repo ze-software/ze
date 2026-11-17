@@ -2464,6 +2464,34 @@ func (b *fakeBackend) CreateMacvlanDevice(spec MacvlanSpec) error {
 }
 func (b *fakeBackend) GetXFRMInfo(_ string) (XFRMInfo, error) { return XFRMInfo{}, nil }
 
+// CreateOwnedBridge is faithful to the netlink backend: the bridge carries its
+// own kernel index, the requested MTU and the ownership alias, and is up. Its
+// addresses arrive through AddAddress, as the reconcile adds them.
+func (b *fakeBackend) CreateOwnedBridge(spec OwnedBridgeSpec) error {
+	b.ensureMaps()
+	b.callOrder = append(b.callOrder, "create-owned-bridge:"+spec.Name)
+	b.created[spec.Name] = true
+	b.nextIndex++
+	b.ifaces[spec.Name] = fakeIface{name: spec.Name, linkType: TypeBridge, alias: spec.Alias, mtu: spec.MTU, index: 2000 + b.nextIndex, state: "up"}
+	return nil
+}
+
+// CreateOwnedLink models the host end only, the part the host namespace
+// shows: a marked veth that is a member of the bridge. The peer end lives in
+// another namespace, which a fake has none of.
+func (b *fakeBackend) CreateOwnedLink(spec OwnedLinkSpec) error {
+	b.ensureMaps()
+	br, ok := b.ifaces[spec.Bridge]
+	if !ok {
+		return fmt.Errorf("iface fake: bridge %q does not exist", spec.Bridge)
+	}
+	b.callOrder = append(b.callOrder, "create-owned-link:"+spec.HostEnd)
+	b.created[spec.HostEnd] = true
+	b.nextIndex++
+	b.ifaces[spec.HostEnd] = fakeIface{name: spec.HostEnd, linkType: TypeVeth, alias: spec.Alias, mtu: spec.MTU, index: 2000 + b.nextIndex, masterIndex: br.index, state: "up"}
+	return nil
+}
+
 // SetAdminUp, SetAdminDown, SetMTU and AddAddress all refuse a device that is
 // not present, which is what the netlink backend does: each starts with
 // netlink.LinkByName and answers "not found" when it fails (manage_linux.go).

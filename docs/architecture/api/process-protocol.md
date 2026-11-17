@@ -3467,11 +3467,49 @@ fields, within the frame bound on both transports
 (`pluginserver.DecodeEngineOperationInput`).
 <!-- source: internal/component/plugin/server/engine_op_decode.go -- DecodeEngineOperationInput -->
 
-What is built today: the four operations are declared, admitted and judged as
-above, and every request a permitted caller sends is then refused with an
-operator error saying the operation is not implemented in this build. No
-device or table is created yet.
-<!-- source: internal/component/iface/cmd/owned_devices.go -- ownedDevicesNotBuilt -->
+The three interface requests change the kernel before they answer, so a
+plugin's answer is the kernel's outcome, never a promise of a later pass:
+
+- `owned-bridges-replace` makes the request the caller's complete set of
+  bridges, then runs the owned-device pass of the interface reconcile. A bridge
+  left out of the set is deleted, and so is every link of the caller that
+  joined it. An empty set withdraws every bridge and link the caller holds.
+  When the kernel refuses a step, the steps the pass made are undone, the
+  previous set is restored and reconciled once more, and the request is
+  refused with an operator error.
+- `owned-link-create` names the target network namespace by a process id and
+  that namespace's inode number together. The handler opens
+  `/proc/<pid>/ns/net` once, reads the inode of the opened descriptor, refuses
+  the request when it differs, and creates the link through that same
+  descriptor, so a process id reused in between cannot redirect the link. The
+  bridge must be in the caller's bridge set and carry the caller's mark. The
+  host end is named from the caller's first granted prefix, the bridge's
+  interface index and the slot. The peer end is created inside the namespace
+  under its final name, then addressed, set up and given one default route per
+  gateway. When any step fails the pair is deleted and nothing is recorded.
+- `owned-link-remove` deletes every host end recorded under the key and
+  forgets the record. A host end that is already gone, because the kernel
+  removed the pair with its namespace, is forgotten without a call. A host end
+  the kernel refuses to delete keeps its record and fails the request.
+- A request refused before the kernel is reached changes nothing: an owner
+  with no grant, a device name outside the caller's prefixes, an MTU outside 68
+  to 16000, more than 64 bridges in a set, 16 addresses on a device or 1024
+  links held by one owner, or a record key over 64 bytes.
+<!-- source: internal/component/iface/owned_bridge_link.go -- ReplaceOwnedBridges, CreateOwnedLink, RemoveOwnedLink, ownedBridgeSpecs, refuseOwnedLinkInput -->
+<!-- source: internal/component/iface/owned_namespace_linux.go -- openOwnedLinkNamespace -->
+<!-- source: internal/plugins/iface/netlink/owned_link_linux.go -- CreateOwnedLink, configureOwnedPeer -->
+
+When a plugin process ends, a process-generation cleanup withdraws the bridges
+and links that process declared, and the reconcile deletes their devices. An
+older process of the same name that ends after its replacement declared
+withdraws nothing. A withdrawal that fails is logged with the code
+`doctor-iface-owned-device-cleanup`.
+<!-- source: internal/component/iface/cmd/owned_devices.go -- ownedDevicesCleanup, noteOwnedDeviceCaller -->
+<!-- source: internal/component/iface/owned_bridge_link.go -- WithdrawOwnedDevices -->
+
+The firewall request is declared, admitted and judged as above, and every
+request a permitted caller sends is then refused with an operator error saying
+the operation is not implemented in this build. No table is created yet.
 <!-- source: internal/component/firewall/register_contribution.go -- tablesContributionNotBuilt -->
 
 ### Direct bridge calls and shutdown

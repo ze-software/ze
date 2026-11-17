@@ -74,6 +74,9 @@ const (
 	CodeDoctorRuntimeNotChecked                    = "doctor-runtime-not-checked"
 	CodeDoctorIfaceSelectorAmbiguous               = "doctor-iface-selector-ambiguous"
 	CodeDoctorIfaceSelectorUnmatched               = "doctor-iface-selector-unmatched"
+	CodeDoctorIfaceOwnedDeviceCleanup              = "doctor-iface-owned-device-cleanup"
+	CodeDoctorIfaceOwnedDeviceReconcile            = "doctor-iface-owned-device-reconcile"
+	CodeDoctorIfaceBackendClose                    = "doctor-iface-backend-close"
 	CodeDoctorL2TPUnavailable                      = "doctor-l2tp-unavailable"
 	CodeDoctorL2TPUnknown                          = "doctor-l2tp-unknown"
 	CodeDoctorL2TPPPPUnavailable                   = "doctor-l2tp-ppp-unavailable"
@@ -888,6 +891,24 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "Kernel macvlan support unavailable",
 		Description: "The kernel cannot create a bridge-mode macvlan device (CONFIG_MACVLAN). ze's owned-device mechanism -- plugin-requested macvlan devices on a parent interface -- needs it; without CONFIG_MACVLAN those devices fail at apply. Enable CONFIG_MACVLAN or load the macvlan module. If the probe instead reports a permission failure, it lacked CAP_NET_ADMIN.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-iface-macvlan"},
+	},
+	{
+		Code:        CodeDoctorIfaceOwnedDeviceCleanup,
+		Title:       "Owned interface devices of an ended plugin were not all deleted",
+		Description: "A plugin that asked the interface component for owned bridges and links ended, or the interface component stopped, and the deletion of those devices failed for at least one of them. The devices carry the link alias ze:owned:<plugin>, so `ip -d link show` lists what remains. The next interface reconcile (any interface commit, or the plugin declaring its set again) deletes a marked device no registration names, and so does the next ze start; the finding clears when such a pass succeeds. The finding and the log line name the kernel's answer.",
+		Examples:    []string{exampleShowDoctor, "ip -d link show", "ze show diagnostic doctor-iface-owned-device-cleanup"},
+	},
+	{
+		Code:        CodeDoctorIfaceOwnedDeviceReconcile,
+		Title:       "Owned interface devices do not match what their plugins asked for",
+		Description: "A kernel step for a plugin-owned bridge or link failed and could not be undone. Either a bridge set a plugin declared was refused and the previous set could not be made again, so a bridge the plugin still counts on is missing or wrong, or a device created half-way could not be deleted, so it holds a name the plugin asked for. The finding names the plugin or the device and the kernel's answer. Restarting the plugin declares its set again, which reconciles it; a half-made device is deleted by name. The finding clears when an owned pass succeeds and the device is gone.",
+		Examples:    []string{exampleShowDoctor, "ip -d link show", "ze show diagnostic doctor-iface-owned-device-reconcile"},
+	},
+	{
+		Code:        CodeDoctorIfaceBackendClose,
+		Title:       "Interface backend did not close cleanly",
+		Description: "When the interface component stopped, closing its backend (the netlink sockets, or the connection to VPP) failed. The kernel or VPP keeps what was programmed; only the backend's own handles may not have been released. The next start opens a fresh backend. The event names the backend's answer; a repeat on every stop points at the backend itself, such as a VPP that no longer answers.",
+		Examples:    []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-iface-backend-close"},
 	},
 	{
 		Code:        "doctor-iface-ra-forwarding",

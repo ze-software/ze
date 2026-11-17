@@ -30,6 +30,7 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/observation"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -180,6 +181,17 @@ func init() {
 	// importing this component. The watch needs no interface config, so it runs
 	// where this component's monitor does not.
 	network.RegisterNeighborTable(readIPv6Neighbors, watchIPv6Neighbors)
+
+	// A refusal is a programmer error in the declaration beside it and stops
+	// the process rather than leaving `ze doctor` quietly short of a check.
+	if err := diagnostic.RegisterDoctorCheck(ownedDeviceDoctorCheck); err != nil {
+		panic("BUG: iface owned-device doctor check registration refused: " + err.Error())
+	}
+	// The backend close failure is an event of the stop, raised on the report
+	// bus, so the recent-events check answers for its code.
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: diagnostic.CodeDoctorIfaceBackendClose}); err != nil {
+		panic("BUG: iface backend-close event code registration refused: " + err.Error())
+	}
 
 	_ = events.RegisterNamespace(ifaceevents.Namespace,
 		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
@@ -1135,8 +1147,21 @@ func runEngine(conn net.Conn) int {
 	tracker.Stop()
 	globalTracker.Store(nil)
 
-	if err := CloseBackend(); err != nil {
-		log.Warn("interface backend close failed", "error", err)
+	// The owned devices (owned_bridge_link.go) are deleted here, by this one
+	// ordered actor that still holds a live backend: plugins stop together
+	// with no order, so an owner's own release would race the close below.
+	ownedErr, closeErr := closeBackendAfterOwnedDevices()
+	if ownedErr != nil {
+		log.Warn("interface stop: owned devices not all deleted", "error", ownedErr,
+			"code", diagnostic.CodeDoctorIfaceOwnedDeviceCleanup,
+			"fix", "ip -d link show lists what remains with alias ze:owned:<owner>; the next ze start deletes it")
+		raiseOwnedStopFailure(ownedErr)
+	}
+	if closeErr != nil {
+		log.Warn("interface backend close failed", "error", closeErr,
+			"code", diagnostic.CodeDoctorIfaceBackendClose, "fix", "ze start")
+		report.RaiseErrorFix("iface", diagnostic.CodeDoctorIfaceBackendClose, "backend",
+			report.FitMessage("interface backend close failed: "+closeErr.Error()), "ze start")
 	}
 	log.Info("interface backend closed")
 

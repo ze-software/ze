@@ -18,6 +18,7 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -39,9 +40,16 @@ const (
 	bridgeMTU  = 1500
 	linkKey    = "wire"
 	linkName   = "eth0"
+	linkMAC    = "02:00:5e:00:53:02"
 )
 
-var bridgeAddress = netip.MustParsePrefix("192.0.2.1/24")
+// bridgeAddress is the bridge's gateway address, and linkAddress the peer
+// end's address in the same prefix; the peer's default route goes through
+// the gateway.
+var (
+	bridgeAddress = netip.MustParsePrefix("192.0.2.1/24")
+	linkAddress   = netip.MustParsePrefix("192.0.2.2/24")
+)
 
 // tableSection is the contributed table, in the firewall config section form:
 // one filter base chain at the input hook that accepts.
@@ -130,16 +138,31 @@ func makeRequests(runCtx, startedCtx context.Context, p *sdk.Plugin) *namespaceH
 		return nil
 	}
 	_, err = p.OwnedLinkCreate(requestCtx, &rpc.OwnedLinkCreateInput{
-		Key:            linkKey,
-		Bridge:         bridgeName,
-		Slot:           1,
-		PID:            holder.pid,
-		NamespaceInode: holder.inode,
-		Name:           linkName,
-		MTU:            bridgeMTU,
+		Key:             linkKey,
+		Bridge:          bridgeName,
+		Slot:            1,
+		PID:             holder.pid,
+		NamespaceInode:  holder.inode,
+		Name:            linkName,
+		HardwareAddress: linkMAC,
+		MTU:             bridgeMTU,
+		Addresses:       []netip.Prefix{linkAddress},
+		Gateways:        []netip.Addr{bridgeAddress.Addr()},
 	})
 	recordOutcome("link", err)
+	if err == nil {
+		recordHolder(holder.pid)
+	}
 	return holder
+}
+
+// recordHolder serves the namespace holder's process id under link-pid, so a
+// .ci reads the peer end inside the namespace it names
+// (`le test fixture iface/peer-end`).
+func recordHolder(pid int) {
+	outcomes.mu.Lock()
+	outcomes.values["link-pid"] = strconv.Itoa(pid)
+	outcomes.mu.Unlock()
 }
 
 // dispatchCommand serves the outcome. The answer is an object, because the

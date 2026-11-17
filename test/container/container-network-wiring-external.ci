@@ -1,0 +1,70 @@
+# Test: a forked plugin that granted itself device names declares an owned
+#       bridge through the interface engine operation, and the bridge is in
+#       the kernel, up, with the owner mark.
+# Spec: spec-container-3-network, Wiring Test row 1, phase 1
+# VALIDATES: ownedBridgesReplaceHandler
+#   (internal/component/iface/cmd/owned_devices.go), reached over RPC from the
+#   forked fakeowner plugin (internal/test/plugins/fakeowner) through
+#   sdk.Plugin.OwnedBridgesReplace, with the owner taken from the
+#   authenticated process name (iface.RefuseUngrantedDeviceOwner).
+# PREVENTS: a request that works only on the direct path, and a bridge made
+#   without the ze:owned mark the orphan scan reads.
+# Why not a unit test: only a forked process proves the request crosses the
+#   RPC transport under its authenticated name, and only the kernel shows the
+#   bridge and its alias.
+#
+# Red before phase 2: the handler refused every request, so the barrier never
+# saw bridge-accepted. Phase 2 creates the bridge (iface.ReplaceOwnedBridges).
+
+option=timeout:value=60s
+option=needs-linux:caps=net-admin
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+# The owned-device requests need a loaded interface backend, and the interface
+# component loads one only when the config holds an interface section.
+interface {
+	backend netlink
+}
+plugin {
+	external fakeowner {
+		run "ze plugin fakeowner"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: the plugin made its request and the engine accepted it. The answer
+# is recorded before the command serves it, so a not-yet-registered command or
+# a pending request is "not yet", never a failure.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer bridge-accepted "show fakeowner outcome":exit=0
+
+# The kernel holds the bridge, marked as the plugin's.
+cmd=foreground:seq=3:exec=ip -d link show dev zfo-wire:exit=0
+expect=stdout:contains=bridge
+expect=stdout:contains=mtu 1500
+expect=stdout:contains=alias ze:owned:fakeowner
+
+# The gateway address of the declared set is on it.
+cmd=foreground:seq=4:exec=ip -4 address show dev zfo-wire:exit=0
+expect=stdout:contains=192.0.2.1/24

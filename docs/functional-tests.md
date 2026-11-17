@@ -601,6 +601,34 @@ its later steps assert the doctor row and the health row.
 <!-- source: internal/test/fixture/daemon_await_answer_fixture.go -- daemonAwaitAnswer, awaitAnswerFailure -->
 <!-- test: internal/test/fixture/daemon_await_answer_fixture_test.go TestDaemonAwaitAnswer -->
 
+### Reading a link inside another process's network namespace
+
+The host namespace cannot show the peer end of a link whose other end is in
+another network namespace. `le test fixture iface/peer-end <pid-key> <command>
+<link>` runs `ze cli -c <command>` once, with the client environment the
+runner gave the step, and takes the process id from the first run of digits
+after `<pid-key>` in the answer, which matches the JSON and the table
+renderings alike. It opens that process's network namespace, reads `<link>`
+through a netlink socket opened there, and prints one line per fact: `name`,
+`state` (`up` or `down`), `mtu`, `mac`, one `address` per address and one
+`default via` per default route. A command that exits nonzero, an answer
+without the key, a namespace that cannot be opened and a missing link are each
+an error, never an empty answer. The fixture is built on Linux only, and its
+step needs `sys-admin` to open another process's namespace.
+
+Run it after a `daemon/await-answer` barrier on the same command, so the
+answer already carries the process id:
+
+```
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer link-accepted "show fakeowner outcome":exit=0
+cmd=foreground:seq=4:exec=le test fixture iface/peer-end link-pid "show fakeowner outcome" eth0:exit=0
+expect=stdout:contains=address 192.0.2.2/24
+expect=stdout:contains=default via 192.0.2.1
+```
+
+<!-- source: internal/test/fixture/iface_peer_end_linux.go -- ifacePeerEnd, printPeerEnd -->
+<!-- source: internal/test/fixture/register_iface_peer_end_linux.go -- init -->
+
 Test-peer idle timeouts do not discard partially received BGP frames. The reader
 retains header and body bytes until a complete frame can reach the checker or
 echo consumer, including while a check peer lingers. Cancellation still runs

@@ -3,11 +3,14 @@
 // Related: address_owner.go -- the sibling plugin-owned ADDRESS registry
 // Related: config_apply.go -- reconcileOwnedDevices consumes ownedMacvlans()
 // Related: cmd/owned_devices.go -- the engine operations that check the grant
+// Related: owned_bridge_link.go -- the owned bridges and links the grant names
 
 package iface
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 
@@ -174,9 +177,21 @@ func updateOwnedDeviceGauge() {
 	}
 	deviceOwnerMu.Lock()
 	defer deviceOwnerMu.Unlock()
-	seen := make(map[string]bool, len(deviceOwners))
+	counts := make(map[string]int, len(deviceOwners)+len(ownedBridgeOwners))
 	for owner, devices := range deviceOwners {
-		m.ownedDevices.With(owner).Set(float64(len(devices)))
+		counts[owner] += len(devices)
+	}
+	for owner, bridges := range ownedBridgeOwners {
+		counts[owner] += len(bridges)
+	}
+	for owner, keys := range ownedLinkOwners {
+		for _, links := range keys {
+			counts[owner] += len(links)
+		}
+	}
+	seen := make(map[string]bool, len(counts))
+	for owner, count := range counts {
+		m.ownedDevices.With(owner).Set(float64(count))
 		seen[owner] = true
 	}
 	for owner := range gaugeOwners {
@@ -247,6 +262,33 @@ func refuseOverlappingGrant(owner, prefix string) {
 			}
 		}
 	}
+}
+
+// ownedDevicePrefixes answers a copy of the prefixes owner granted itself, in
+// grant order, and nil when it made no grant. The first one names the host
+// ends of owner's links. Safe for concurrent use.
+func ownedDevicePrefixes(owner string) []string {
+	deviceNameGrants.mu.RLock()
+	defer deviceNameGrants.mu.RUnlock()
+	return slices.Clone(deviceNameGrants.owners[owner])
+}
+
+// refuseGrantedDeviceName refuses a configured interface name of kind that
+// lies inside a prefix a plugin granted itself. Such a name belongs to that
+// plugin's owned devices, so a config entry under it would make, adopt or
+// delete a device the plugin owns. The grants are made from init(), so the
+// offline validator refuses exactly what the daemon does.
+func refuseGrantedDeviceName(kind, name string) error {
+	deviceNameGrants.mu.RLock()
+	defer deviceNameGrants.mu.RUnlock()
+	for _, owner := range slices.Sorted(maps.Keys(deviceNameGrants.owners)) {
+		for _, prefix := range deviceNameGrants.owners[owner] {
+			if strings.HasPrefix(name, prefix) {
+				return fmt.Errorf("iface: %s %q lies inside the device name prefix %q that plugin %s owns for the devices it creates; rename the %s entry to a name that does not start with %q", kind, name, prefix, owner, kind, prefix)
+			}
+		}
+	}
+	return nil
 }
 
 // RefuseUngrantedDeviceOwner answers an operator error when owner made no

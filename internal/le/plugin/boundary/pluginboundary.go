@@ -62,23 +62,27 @@ import (
 // scanned file whose path has any of these prefixes never contributes a finding
 // or a guard signal.
 //
-// It is EMPTY, and the accounting is why. An entry is owed only where it
-// SUPPRESSES something, and neither original entry did. trafficstat is an owning
-// package that is not a plugin search root, so the walk never reached it. iface
-// is a root, but no file under it calls a watched symbol or carries a guard, so
-// the exemption erased nothing there either.
+// The accounting decides what it holds. An entry is owed only where it
+// SUPPRESSES something, so it names the one file that makes the calls, never a
+// whole owning package. trafficstat is an owning package that is not a plugin
+// search root, so the walk never reaches it and it holds no entry. Under iface,
+// only the component's own engine-operation handlers call a watched symbol.
 //
-// The day a subpackage of an owning package makes one of these calls, the gate
-// reports it. The entry comes back then, with a reason somebody wrote then.
-var allowlist = map[string]string{}
+// The day another file of an owning package makes one of these calls, the gate
+// reports it, and its entry is written then, with its own reason.
+var allowlist = map[string]string{
+	"internal/component/iface/cmd/owned_devices.go": "the interface component's own engine-operation " +
+		"handlers: they run in the engine process for every caller, internal or forked, and are the " +
+		"request a plugin uses instead of these calls",
+}
 
 // The two owning packages whose exported functions only reach real, shared
 // engine state in the same OS process. They are constants because the watch
 // list and the fixture must name the same package.
 //
-// Neither is in the allowlist. An owning package earns an entry only when the
-// walk reaches it AND a file under it makes one of these calls. No file does
-// today.
+// An owning package earns an entry only for a file the walk reaches that makes
+// one of these calls. iface has one such file, its engine-operation handlers;
+// trafficstat has none.
 const (
 	ifacePackage       = "github.com/ze-software/ze/internal/component/iface"
 	trafficstatPackage = "github.com/ze-software/ze/internal/component/trafficstat"
@@ -104,6 +108,12 @@ var dangerousCalls = []dangerousCall{
 	{ifacePackage, "GetBackend"},
 	{ifacePackage, "SubscribeCollectNotify"},
 	{ifacePackage, "UnsubscribeCollectNotify"},
+	// The owned bridge and link registries: a plugin reaches them through the
+	// ze-iface engine operations, which work forked, never by these calls.
+	{ifacePackage, "ReplaceOwnedBridges"},
+	{ifacePackage, "CreateOwnedLink"},
+	{ifacePackage, "RemoveOwnedLink"},
+	{ifacePackage, "WithdrawOwnedDevices"},
 	{trafficstatPackage, "EnsureGlobal"},
 	{trafficstatPackage, "Global"},
 }

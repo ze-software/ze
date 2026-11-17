@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md -- owned interface devices
+// Related: ../owned_bridge_link.go -- the owned bridges and links each request changes
 // Related: ../device_owner.go -- the device name grant each request checks
 // Related: ../../../../pkg/plugin/rpc/owned_devices.go -- the request values
 //
@@ -12,11 +13,14 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -35,6 +39,26 @@ func init() {
 			panic("BUG: owned interface device registration failed: " + err.Error())
 		}
 	}
+	if err := pluginserver.RegisterProcessGenerationCleanup(ownedDevicesCleanup); err != nil {
+		panic("BUG: owned interface device cleanup registration failed: " + err.Error())
+	}
+}
+
+// ownedDeviceCallers maps an owner name to the process that last made an
+// owned-device request under it, so the generation cleanup withdraws an
+// owner's devices only for the process that declared them, never for an
+// older generation that ended after its replacement declared. Safe for
+// concurrent use.
+var ownedDeviceCallers = struct {
+	mu      sync.Mutex
+	byOwner map[string]*process.Process
+}{byOwner: map[string]*process.Process{}}
+
+// noteOwnedDeviceCaller records proc as the current declarer of its name.
+func noteOwnedDeviceCaller(proc *process.Process) {
+	ownedDeviceCallers.mu.Lock()
+	ownedDeviceCallers.byOwner[proc.Name()] = proc
+	ownedDeviceCallers.mu.Unlock()
 }
 
 func ownedBridgesReplaceHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
@@ -45,7 +69,12 @@ func ownedBridgesReplaceHandler(_ *pluginserver.Server, _ context.Context, proc 
 	if err := pluginserver.DecodeEngineOperationInput(params, &input, ownedDeviceSubject); err != nil {
 		return nil, err
 	}
-	return nil, ownedDevicesNotBuilt()
+	noteOwnedDeviceCaller(proc)
+	output, err := iface.ReplaceOwnedBridges(proc.Name(), &input)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
 func ownedLinkCreateHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
@@ -56,7 +85,12 @@ func ownedLinkCreateHandler(_ *pluginserver.Server, _ context.Context, proc *pro
 	if err := pluginserver.DecodeEngineOperationInput(params, &input, ownedDeviceSubject); err != nil {
 		return nil, err
 	}
-	return nil, ownedDevicesNotBuilt()
+	noteOwnedDeviceCaller(proc)
+	output, err := iface.CreateOwnedLink(proc.Name(), &input)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
 func ownedLinkRemoveHandler(_ *pluginserver.Server, _ context.Context, proc *process.Process, params json.RawMessage) (any, error) {
@@ -67,17 +101,35 @@ func ownedLinkRemoveHandler(_ *pluginserver.Server, _ context.Context, proc *pro
 	if err := pluginserver.DecodeEngineOperationInput(params, &input, ownedDeviceSubject); err != nil {
 		return nil, err
 	}
-	return nil, ownedDevicesNotBuilt()
+	noteOwnedDeviceCaller(proc)
+	output, err := iface.RemoveOwnedLink(proc.Name(), &input)
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
-// ownedDevicesNotBuilt is the refusal every owned-device request answers until
-// the interface component creates owned bridges and links. Nothing is
-// recorded while every request is refused, so a process that ends holds
-// nothing and no generation cleanup is registered yet.
-func ownedDevicesNotBuilt() error {
-	return opererr.New(
-		"Owned interface devices are not implemented in this build",
-		"The interface component declares the request and creates no bridge or link yet, so nothing was changed",
-		"Run a ze build that implements owned interface devices; ze show version names the running build",
-	)
+// ownedDevicesCleanup withdraws every bridge and link of a plugin process that
+// is gone, when that process is the one that declared them. It runs after the
+// process's admitted requests drained and before a replacement starts.
+func ownedDevicesCleanup(proc *process.Process) {
+	ownedDeviceCallers.mu.Lock()
+	declarer, known := ownedDeviceCallers.byOwner[proc.Name()]
+	if known && declarer == proc {
+		delete(ownedDeviceCallers.byOwner, proc.Name())
+	}
+	ownedDeviceCallers.mu.Unlock()
+	if !known {
+		return
+	}
+	if declarer != proc {
+		return
+	}
+	if err := iface.WithdrawOwnedDevices(proc.Name()); err != nil {
+		slogutil.Logger("iface").LogAttrs(context.Background(), slog.LevelError,
+			"owned interface devices of an ended plugin were not all deleted",
+			slog.String("plugin", proc.Name()), slog.String("error", err.Error()),
+			slog.String("code", diagnostic.CodeDoctorIfaceOwnedDeviceCleanup),
+			slog.String("fix", "ip -d link show lists what remains with alias ze:owned:"+proc.Name()+"; the next interface commit deletes it"))
+	}
 }

@@ -39,6 +39,8 @@ func (s *stubBackend) UpdateVLANQoSMap(_ string, _, _ map[uint32]uint32) error {
 func (s *stubBackend) CreateTunnel(_ iface.TunnelSpec) error                { return unsupported() }
 func (s *stubBackend) CreateWireguardDevice(_ string) error                 { return unsupported() }
 func (s *stubBackend) CreateMacvlanDevice(_ iface.MacvlanSpec) error        { return unsupported() }
+func (s *stubBackend) CreateOwnedBridge(_ iface.OwnedBridgeSpec) error      { return unsupported() }
+func (s *stubBackend) CreateOwnedLink(_ iface.OwnedLinkSpec) error          { return unsupported() }
 func (s *stubBackend) ConfigureWireguardDevice(_ iface.WireguardSpec) error { return unsupported() }
 func (s *stubBackend) GetWireguardDevice(_ string) (iface.WireguardSpec, error) {
 	return iface.WireguardSpec{}, unsupported()

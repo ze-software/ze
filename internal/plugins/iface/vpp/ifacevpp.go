@@ -330,6 +330,26 @@ func (b *vppBackendImpl) CreateMacvlanDevice(spec iface.MacvlanSpec) error {
 	return fmt.Errorf("ifacevpp: CreateMacvlanDevice(%q) not supported on VPP backend (owned macvlan devices require the netlink backend; VPP-native support is tracked separately)", spec.Name)
 }
 
+// CreateOwnedBridge is refused on the VPP backend: an owned bridge is a kernel
+// bridge device carrying the owner's mark in its link alias, and a VPP bridge
+// domain has neither the device nor the alias the orphan scan reads. Exact or
+// refuse (ai/rules/protocol.md): no bridge domain stands in for it.
+func (b *vppBackendImpl) CreateOwnedBridge(spec iface.OwnedBridgeSpec) error {
+	return errOwnedDeviceRefused("bridge", spec.Name, "a VPP bridge domain carries no owner mark the interface component can read back")
+}
+
+// CreateOwnedLink is refused on the VPP backend: VPP has no veth pair and no
+// network namespace to create a peer end in.
+func (b *vppBackendImpl) CreateOwnedLink(spec iface.OwnedLinkSpec) error {
+	return errOwnedDeviceRefused("link", spec.HostEnd, "VPP has no veth pair and cannot put a link's peer end in a network namespace")
+}
+
+// errOwnedDeviceRefused names the owned device the VPP backend cannot make,
+// why, and the backend leaf that makes it possible.
+func errOwnedDeviceRefused(kind, name, why string) error {
+	return fmt.Errorf("ifacevpp: owned %s %q not supported on VPP backend: %s; set interface backend netlink to use owned %ss", kind, name, why, kind)
+}
+
 func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 	if spec.VLANID < 1 || spec.VLANID > 4094 {
 		return fmt.Errorf("ifacevpp: VLAN ID %d out of range (1-4094)", spec.VLANID)

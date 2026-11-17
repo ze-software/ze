@@ -263,9 +263,10 @@ func TestTheAreaDispatchesItsActions(t *testing.T) {
 }
 
 // VALIDATES: a rule that suppresses nothing over this checkout is refused.
-// PREVENTS: the accounting being wired but inert. The allowlist is empty today,
-// so the checkout test below can pass without exercising anything; this one
-// injects a rule the tree cannot satisfy and requires the refusal.
+// PREVENTS: the accounting being wired but inert. The checkout test below passes
+// whenever every real entry suppresses something, so it never proves a dead
+// entry is refused; this one injects a rule the tree cannot satisfy and
+// requires the refusal.
 func TestADeadAllowlistEntryIsRefused(t *testing.T) {
 	original := allowlist
 	allowlist = map[string]string{"internal/plugins/gone/": "a path this tree does not hold"}

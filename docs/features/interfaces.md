@@ -1201,9 +1201,10 @@ interfaces because an address carries no owner).
 addresses, BEFORE the address loops: registered devices are created (or
 re-asserted on MAC/parent/MTU drift by delete + recreate) first, so a VIP
 registered on the device name via the address registry lands on an existing
-device in the same pass. Then the orphan scan deletes any macvlan carrying the
-`ze:owned:` alias that has no registration; deletion requires BOTH kind macvlan
-AND the alias, so an operator's own macvlan is never touched. Macvlans are not
+device in the same pass. Then the orphan scan deletes any macvlan, bridge or
+veth carrying the `ze:owned:` alias that no registration or link record names;
+deletion requires BOTH one of those owned kinds AND the alias, so an operator's
+own device, and a marked device of any other kind, is never touched. Macvlans are not
 in the Phase 4 prune set (`zeManageable`) -- they are alias-guarded, not
 YANG-managed. A registered device whose parent is absent is retried when the
 parent appears (monitor `interface/created` / `interface/up` re-triggers the
@@ -1219,6 +1220,89 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 <!-- source: internal/component/iface/config_apply.go -- reconcileOwnedDevices (device pass) -->
 <!-- source: internal/plugins/iface/netlink/macvlan_linux.go -- CreateMacvlanDevice -->
 <!-- source: internal/plugins/iface/netlink/doctor.go -- doctor-iface-macvlan capability check -->
+
+## Plugin-Owned Bridges and Links
+
+A plugin compiled into ze that granted itself device name prefixes
+(`iface.MustGrantOwnedDeviceNames`, from its `init()`) can also own bridges and
+links. It asks for them through engine operations, so the same calls work when
+the plugin runs internal and when it runs as a separate process, and the owner
+is the plugin's authenticated name (`docs/architecture/api/process-protocol.md`,
+"Owned interface devices and firewall table contribution").
+
+**Bridges.** A plugin sends its complete set of bridges: name, MTU and
+addresses. Each name lies inside one of its granted prefixes. iface records the
+set and runs the owned-device pass before it answers, so the answer is the
+kernel's outcome. The pass creates a missing bridge, sets its MTU, marks it
+with the alias `ze:owned:<owner>` and brings it up, then makes the bridge's
+addresses exactly the set's, leaving the kernel's IPv6 link-local in place. A
+marked bridge already present, after a restart for example, is adopted: its MTU
+and addresses are put back in place, and it is never deleted and re-made,
+because that would drop the links that joined it. A name held by a bridge
+without the owner's mark, or by a device of another kind, is refused and the
+device is left alone. A bridge left out of the next set is deleted with the
+plugin's links that joined it. When the kernel refuses a step, the pass's steps
+are undone, the previous set is restored and reconciled again, and the request
+is refused.
+
+The bridge's addresses are kept by this pass, not by the plugin-owned address
+registry: that registry is applied by the config-driven reconcile, which runs
+later in the background, while the bridge request answers with the kernel's
+result.
+
+**Links.** A link is a veth pair: the host end is a member of an owned bridge
+of the plugin, and the peer end is inside another process's network namespace.
+The request names that namespace by a process id and the namespace's inode
+number. iface opens `/proc/<pid>/ns/net` once, refuses the request when the
+opened descriptor's inode differs, and creates the link through that
+descriptor. The host end is named with `ComposeOwnedDeviceName` from the
+plugin's first granted prefix, the bridge's interface index and a slot. The
+netlink backend creates the pair in one message, with the peer end directly
+inside the namespace under its final name, hardware address and MTU, so the
+peer is never visible on the host. It then marks the host end, joins it to the
+bridge and sets it up, and configures the peer through a netlink socket opened
+in the namespace: its addresses (IPv6 without duplicate address detection),
+link up, and one default route per gateway. When any step fails the pair is
+deleted.
+
+A link is made once and never re-made by a reconcile. When the process that
+holds the namespace ends, the kernel removes the pair with the namespace, and
+the next owned-device pass forgets a link record whose host end is gone. A
+plugin may also remove the links recorded under a key it chose.
+
+**Cleanup.** When a plugin process ends, the bridges and links it declared are
+withdrawn and their devices deleted. The owned macvlans are not touched by
+that cleanup: they are registered in process, not through the engine
+operations. A withdrawal that fails is logged with the code
+`doctor-iface-owned-device-cleanup`.
+
+**Stop.** When the interface engine stops in an orderly way, it deletes every
+device that carries the `ze:owned:` alias and is a macvlan, bridge or veth,
+then closes its backend, both under one lock so no owned-device request lands
+in between. Plugins stop together with no order, so an owner releasing its own
+devices would race the backend close. The registrations stay, and an engine
+that starts again re-asserts them. A device without the mark is never deleted.
+
+**Configured names.** A configured interface name, or a veth peer name, that
+lies inside a prefix a plugin granted itself is refused when the config is
+parsed, naming the plugin and the prefix. The grants are made from `init()`,
+so every process of the ze binary holds the same prefixes.
+
+**Backends.** Only the netlink backend on Linux creates owned bridges and
+links. The VPP backend refuses both, naming `set interface backend netlink`,
+and the backend of a build for another system refuses both as unsupported. The gauge
+`ze_iface_owned_devices{owner}` counts an owner's bridges and links with its
+macvlans.
+
+<!-- source: internal/component/iface/owned_bridge_link.go -- ReplaceOwnedBridges, CreateOwnedLink, RemoveOwnedLink, WithdrawOwnedDevices, reconcileOwnedBridges, reassertOwnedBridge, reconcileOwnedBridgeAddresses, forgetGoneOwnedLinks, deleteOwnedDevicesOnStop, closeBackendAfterOwnedDevices -->
+<!-- source: internal/component/iface/owned_namespace_linux.go -- openOwnedLinkNamespace -->
+<!-- source: internal/component/iface/config_apply.go -- reconcileOwnedDevices (bridge pass, orphan scan) -->
+<!-- source: internal/component/iface/device_owner.go -- ownedDevicePrefixes, refuseGrantedDeviceName, updateOwnedDeviceGauge -->
+<!-- source: internal/component/iface/config.go -- refuseDuplicateInterfaceNames -->
+<!-- source: internal/component/iface/register.go -- the stop path -->
+<!-- source: internal/component/iface/cmd/owned_devices.go -- ownedDevicesCleanup -->
+<!-- source: internal/plugins/iface/netlink/owned_bridge_linux.go -- CreateOwnedBridge -->
+<!-- source: internal/plugins/iface/netlink/owned_link_linux.go -- CreateOwnedLink, configureOwnedPeer -->
 
 ## Bus Topics
 

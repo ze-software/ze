@@ -1960,8 +1960,12 @@ func applyBackendStep(journal *sdk.Journal, apply, undo func() error) error {
 	return journal.Record(apply, undo)
 }
 
-// reconcileOwnedDevices creates, re-asserts, and deletes plugin-owned macvlan
-// devices to match the owned-device registry (device_owner.go). It runs inside
+// reconcileOwnedDevices creates, re-asserts, and deletes plugin-owned devices
+// to match the owned-device registries: macvlans (device_owner.go), bridges
+// and link records (owned_bridge_link.go). A link is never created here: it is
+// made on its owner's request, and a record whose host end is gone is
+// forgotten. It also runs alone, under reconcileMu, for an owned-device
+// request that answers with the kernel's outcome. It runs inside
 // reconcileOnReadyWithJournal BEFORE the address loops so a VIP registered on
 // an owned device is applied to an existing device in the same pass.
 //
@@ -1973,10 +1977,12 @@ func applyBackendStep(journal *sdk.Journal, apply, undo func() error) error {
 // For each registered device: create if absent; if a foreign (non-owned)
 // device occupies the name, fail closed (never delete an operator device); if
 // an owned macvlan exists but drifted from spec, delete + recreate in this
-// same pass (VIPs are re-added by the address loop that follows). Then the
-// orphan scan deletes any aliased macvlan with no registration (owner release,
-// crash leftovers, drift remnants) -- requiring BOTH kind macvlan AND the
-// ownership alias so operator devices are never touched.
+// same pass (VIPs are re-added by the address loop that follows). An owned
+// bridge is re-asserted in place instead (reconcileOwnedBridges). Then the
+// orphan scan deletes any aliased macvlan, bridge or veth that no registration
+// or link record names (owner release, crash leftovers, drift remnants) --
+// requiring BOTH an owned kind AND the ownership alias so operator devices
+// are never touched.
 //
 // Returns true when every device step succeeded. On the first failure it
 // records via record (which logs + appends to the pass's errs) and returns
@@ -2042,26 +2048,44 @@ func reconcileOwnedDevices(b Backend, journal *sdk.Journal, currentInfos []Inter
 		}
 	}
 
-	// Orphan scan: delete aliased macvlans with no registration.
+	// Owned bridges (owned_bridge_link.go): create, re-assert and address
+	// every registered bridge, before the orphan scan reads the listing.
+	if !reconcileOwnedBridges(b, journal, currentByName, record) {
+		return false
+	}
+	// A link is never re-made: it died with its namespace, so its record is
+	// forgotten. The host ends still recorded are kept by the scan below.
+	hostEnds := forgetGoneOwnedLinks(currentByName)
+	bridges := ownedBridgeSnapshot()
+
+	// Orphan scan: delete marked devices of an owned kind (macvlan, bridge,
+	// veth) that no registration or link record names. Both facts are
+	// required, the kind and the mark, so an operator's device and a marked
+	// device of another kind are never touched.
 	for i := range currentInfos {
 		info := &currentInfos[i]
-		if info.Type != zeTypeMacvlan || !strings.HasPrefix(info.Alias, ownedDeviceAliasPrefix) {
+		if !strings.HasPrefix(info.Alias, ownedDeviceAliasPrefix) {
 			continue
 		}
-		if _, registered := specs[info.Name]; registered {
+		registered, ownedKind := ownedKindRegistered(info, specs, bridges, hostEnds)
+		if !ownedKind {
+			continue
+		}
+		if registered {
 			continue
 		}
 		name := info.Name
 		if err := applyBackendStep(journal, func() error {
 			return b.DeleteInterface(name)
 		}, nil); err != nil {
-			record("delete orphan owned macvlan", fmt.Errorf("%s: %w", name, err))
+			record("delete orphan owned "+info.Type, fmt.Errorf("%s: %w", name, err))
 			return false
 		}
-		log.Info("iface owned-device: deleted orphan macvlan", "name", name, "alias", info.Alias)
+		log.Info("iface owned-device: deleted orphan device", "name", name, "type", info.Type, "alias", info.Alias)
 	}
 
 	updateOwnedDeviceGauge()
+	clearOwnedDeviceWarnings(currentByName)
 	return true
 }
 
