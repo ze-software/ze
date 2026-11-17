@@ -71,9 +71,13 @@ func (s *Server) opRelayStoredRoute(ctx context.Context, proc *process.Process, 
 
 // relayStoredRouteForProcess is the authenticated boundary shared by typed and
 // JSON callers. A same-name replacement cannot inherit unreconciled grants.
+// An unnamed caller retains the legacy zero Sender: the reactor refuses that
+// sender without granting operator or process authority.
 func (s *Server) relayStoredRouteForProcess(proc *process.Process, destination string, routes []rpc.StoredRoute) error {
-	if err := proc.RequirePeerDeclarations(); err != nil {
-		return err
+	if proc != nil {
+		if err := proc.RequirePeerDeclarations(); err != nil {
+			return err
+		}
 	}
 	return s.relayStoredRoute(procSender(proc), destination, routes)
 }

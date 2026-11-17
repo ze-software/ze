@@ -273,61 +273,137 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
 	t.Parallel()
 
-	pluginSide, engineSide := net.Pipe()
-	t.Cleanup(func() { _ = pluginSide.Close() })
-	t.Cleanup(func() { _ = engineSide.Close() })
+	for _, test := range []struct {
+		name         string
+		cancelActive bool
+	}{
+		{name: "normal success"},
+		{name: "active cancellation", cancelActive: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-	proc := process.NewProcess(plugin.PluginConfig{Name: "identity-check"})
-	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+			// Each case owns one connection and one mux reader.
+			pluginSide, engineSide := net.Pipe()
+			t.Cleanup(func() { _ = pluginSide.Close() })
+			t.Cleanup(func() { _ = engineSide.Close() })
 
-	serverCtx, serverCancel := context.WithCancel(context.Background())
-	defer serverCancel()
+			proc := process.NewProcess(plugin.PluginConfig{Name: "identity-check"})
+			proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
-	var (
-		gotUsername string
-		gotContext  context.Context
-	)
+			type identityContextKey struct{}
+			serverValue := new(int)
+			serverCtx, serverCancel := context.WithTimeout(context.WithValue(context.Background(), identityContextKey{}, serverValue), 5*time.Second)
+			defer serverCancel()
 
-	d := NewDispatcher()
-	if err := d.Register("test command", func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-		gotUsername = ctx.Username
-		gotContext = ctx.Context()
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "test command"); err != nil {
-		t.Fatal(err)
-	}
+			var (
+				gotUsername string
+				gotContext  context.Context
+				gotSender   plugin.Sender
+				gotProcess  *process.Process
+				gotLiveErr  error
+			)
+			handlerEntered := make(chan struct{})
+			handlerCanceled := make(chan error, 1)
+			d := NewDispatcher()
+			if err := d.Register("test command", func(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
+				gotUsername = ctx.Username
+				gotContext = ctx.Context()
+				gotSender = ctx.Sender
+				gotProcess = ctx.Process
+				gotLiveErr = gotContext.Err()
+				close(handlerEntered)
+				if test.cancelActive {
+					<-gotContext.Done()
+					handlerCanceled <- gotContext.Err()
+					return nil, gotContext.Err()
+				}
+				return &plugin.Response{Status: plugin.StatusDone}, nil
+			}, "test command"); err != nil {
+				t.Fatal(err)
+			}
 
-	s := &Server{
-		subscriptions: newSubscriptionManager(),
-		dispatcher:    d,
-		ctx:           serverCtx,
-	}
-	s.cancel = serverCancel
+			s := &Server{
+				subscriptions: newSubscriptionManager(),
+				dispatcher:    d,
+				ctx:           serverCtx,
+			}
+			s.cancel = serverCancel
+			handlerDone := make(chan struct{})
+			go func() {
+				defer close(handlerDone)
+				s.handleSingleProcessCommandsRPC(proc)
+			}()
 
-	handlerDone := make(chan struct{})
-	go func() {
-		defer close(handlerDone)
-		s.handleSingleProcessCommandsRPC(proc)
-	}()
+			callCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			type dispatchResult struct {
+				status string
+				err    error
+			}
+			callDone := make(chan dispatchResult, 1)
+			go func() {
+				status, _, err := dispatchAnswerOverSocket(callCtx, pluginSide, &rpc.DispatchCommandInput{Command: "test command"})
+				callDone <- dispatchResult{status: status, err: err}
+			}()
+			select {
+			case <-handlerEntered:
+			case <-callCtx.Done():
+				t.Fatal("command handler did not start")
+			}
 
-	callCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+			// The request inherits server context and the authenticated identity;
+			// request enrollment may wrap the context without replacing either.
+			assert.Equal(t, internalPluginIdentity("identity-check"), gotUsername)
+			assert.Same(t, proc, gotProcess)
+			assert.Equal(t, plugin.ProcessSender("identity-check"), gotSender)
+			require.NotNil(t, gotContext)
+			assert.Same(t, serverValue, gotContext.Value(identityContextKey{}))
+			wantDeadline, wantHasDeadline := serverCtx.Deadline()
+			gotDeadline, gotHasDeadline := gotContext.Deadline()
+			assert.Equal(t, wantHasDeadline, gotHasDeadline)
+			assert.Equal(t, wantDeadline, gotDeadline)
+			assert.NoError(t, gotLiveErr, "the handler must enter with a live request context")
 
-	status, _, err := dispatchAnswerOverSocket(callCtx, pluginSide, &rpc.DispatchCommandInput{Command: "test command"})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, status)
-	// spec-fixit-authz-admin-fallthrough O-4: internal dispatch injects the
-	// reserved trusted identity (un-typeable), keeping the plugin name after the
-	// prefix for audit while authorizing as a trusted in-process caller.
-	assert.Equal(t, internalPluginIdentity("identity-check"), gotUsername)
-	assert.Same(t, serverCtx, gotContext)
+			if test.cancelActive {
+				assert.NoError(t, gotContext.Err(), "the handler must still be active before cancellation")
+			} else {
+				select {
+				case result := <-callDone:
+					require.NoError(t, result.err)
+					assert.Equal(t, plugin.StatusDone, result.status)
+				case <-callCtx.Done():
+					t.Fatal("uncancelled command did not complete")
+				}
+				require.NoError(t, serverCtx.Err(), "normal socket success must precede server cancellation")
+			}
 
-	serverCancel()
-
-	select {
-	case <-handlerDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("handler did not exit")
+			serverCancel()
+			if test.cancelActive {
+				select {
+				case err := <-handlerCanceled:
+					assert.ErrorIs(t, err, context.Canceled)
+				case <-callCtx.Done():
+					t.Fatal("server cancellation did not reach the active handler")
+				}
+			}
+			select {
+			case <-handlerDone:
+			case <-callCtx.Done():
+				t.Fatal("handler did not exit")
+			}
+			if test.cancelActive {
+				// The stop's cancellation is answered by connection close, after
+				// the admitted handler has joined, as in dispatch_session_end_test.
+				require.NoError(t, engineSide.Close())
+				select {
+				case result := <-callDone:
+					requireAnsweredByClose(t, result.err)
+				case <-callCtx.Done():
+					t.Fatal("canceled call did not end with its connection")
+				}
+			}
+		})
 	}
 }
 
