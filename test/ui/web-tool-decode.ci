@@ -1,12 +1,15 @@
 # Test: web BGP decode tool returns decoded output in web-only mode
+# QUESTION: Does the Workbench BGP tool decode UPDATE attributes through standalone web startup and HTTP?
+# WHY NOT UNIT: This joins UI selection, the HTTP route, in-process command dispatch and rendered output.
 # VALIDATES: AC-8 -- BGP Decode with valid UPDATE hex renders decoded attributes
 # PREVENTS: decode tool broken because of wrong dispatch key or missing in-process path
 
 option=env:var=ze.config.dir:value=.
+option=env:var=ze.web.ui-mode:value=workbench
 option=timeout:value=20s
 
 tmpfs=decode-hex.form:encoding=base64:terminator=EOF_HEX
-aGV4PUZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGMDAyRjAyMDAwMDAwMTg0MDAxMDEwMDQwMDIwMDQwMDMwNDY1MDE2NTAxNDAwNTA0MDAwMDAwNjQwMDE4YWMxMDAxMDA=
+aGV4PUZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGMDAzMjAyMDAwMDAwMTU0MDAxMDEwMDQwMDIwMDQwMDMwNDY1MDE2NTAxNDAwNTA0MDAwMDAwNjQwMDE4YWMxMDAxMDA=
 EOF_HEX
 
 # Web-only mode requires the store: the silent bare-`--web` web-only fallback
