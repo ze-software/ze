@@ -13,7 +13,7 @@ import (
 
 // webInstance publishes container port 80 of the instance web, which the
 // apply gives 10.88.0.2 on lan, the first address after the gateway.
-const webInstance = `"web":{"network":[{"name":"lan"}],"port":{"http":{"listen-port":"8080","container-port":"80"}}}`
+const webInstance = `"web":{"network":[{"name":"lan"}],"port":{"http":{"public-port":"8080","container-port":"80"}}}`
 
 // webPortNamed is how a finding names webInstance's port.
 const webPortNamed = "container web port http"
@@ -76,7 +76,7 @@ func portFindings(t *testing.T, container, firewall string) []rpc.DoctorCheckDia
 // and the first case is the control that shows the check does report.
 func TestPortBlockedFindings(t *testing.T) {
 	twoInstances := portInstances(webInstance +
-		`,"zdb":{"network":[{"name":"lan"}],"port":{"sql":{"listen-port":"5432","container-port":"5432"}}}`)
+		`,"zdb":{"network":[{"name":"lan"}],"port":{"sql":{"public-port":"5432","container-port":"5432"}}}`)
 	cases := []struct {
 		name      string
 		container string
@@ -198,11 +198,11 @@ func TestPortBlockedFixLinesParse(t *testing.T) {
 // blocked by a chain of a table that carries one of them, and the finding
 // names the address of that family only. A range is written as a range.
 //
-// Method: a dual-stack network, a port range with no listen address, and one
+// Method: a dual-stack network, a port range with no public address, and one
 // dropping forward chain in a table of family ip.
 func TestPortBlockedJudgesEachFamily(t *testing.T) {
 	container := `{"network":{"lan":{"prefix":["10.88.0.0/24","fd00:88::/64"]}},` +
-		`"instance":{"web":{"network":[{"name":"lan"}],"port":{"media":{"protocol":"udp","listen-port":"5300-5310","container-port":"5300-5310"}}}}}`
+		`"instance":{"web":{"network":[{"name":"lan"}],"port":{"media":{"protocol":"udp","public-port":"5300-5310","container-port":"5300-5310"}}}}}`
 	firewall := `{"table":{"wan4":{"family":"ip","chain":{"forward":{"type":"filter","hook":"forward","priority":"0","policy":"drop"}}}}}`
 	findings := portFindings(t, container, firewall)
 	if len(findings) != 1 {

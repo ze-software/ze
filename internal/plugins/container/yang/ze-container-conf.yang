@@ -142,7 +142,7 @@ module ze-container-conf {
             list port {
                 key "name";
                 description "One entry publishes a port of the container on the router: a
-                             connection to an address of the router on the listen port is
+                             connection to an address of the router on the public port is
                              translated to the container's address on its first network and
                              the container port. Only traffic addressed to the router is
                              translated, never traffic the router forwards. The operator's
@@ -169,7 +169,7 @@ module ze-container-conf {
                     ze:help "Transport protocol of the published port.";
                 }
 
-                leaf-list listen-address {
+                leaf-list public-address {
                     type zt:ip-address;
                     description "The addresses of the router the port is published on. When
                                  none is set, every address of the router is, in each family
@@ -177,7 +177,7 @@ module ze-container-conf {
                     ze:help "Address of the router the port is published on.";
                 }
 
-                leaf listen-port {
+                leaf public-port {
                     type string {
                         pattern "[0-9]{1,5}(-[0-9]{1,5})?";
                     }
@@ -192,7 +192,7 @@ module ze-container-conf {
                     }
                     mandatory true;
                     description "One port, or a first-last range, of the same length as the
-                                 listen port. A range is published onto the same range.";
+                                 public port. A range is published onto the same range.";
                     ze:help "Port of the container the connection reaches.";
                 }
             }

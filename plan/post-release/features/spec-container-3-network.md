@@ -55,7 +55,7 @@ rows below are that child's nodes that land with this child.
 | `masquerade` | `container network` | Outbound source translation. Default true, by owner ruling |
 | `host-namespace` holding `network` | `container instance` | The container shares the host network namespace. Rule V-1 of that child refuses a `network` entry, a `port` entry and a network `sysctl` beside it |
 | `network` list (key: a configured network), `address`, `mac-address` | `container instance` | An attachment. An absent `address` is assigned, an absent `mac-address` is derived, and neither is written to the config |
-| `port` list: `protocol`, `listen-address`, `listen-port`, `container-port` | `container instance` | A published port. See "Published ports" |
+| `port` list: `protocol`, `public-address`, `public-port`, `container-port` | `container instance` | A published port. See "Published ports" |
 | `name-server` | `container instance` | See "Name resolution" |
 
 A container network has no VRF node. The keyword is refused as unknown until
@@ -126,7 +126,7 @@ container is stopped, and a disabled container has none.
 
 | Chain | Hook | Terms |
 |-------|------|-------|
-| Destination translation | prerouting, and output for connections the router itself opens | One term per `port` entry: the `protocol`, the `listen-port` value or range, the destination is an address of this router (and is one of the `listen-address` values when any is set), then translate to the instance's address on its first network and the `container-port` |
+| Destination translation | prerouting, and output for connections the router itself opens | One term per `port` entry: the `protocol`, the `public-port` value or range, the destination is an address of this router (and is one of the `public-address` values when any is set), then translate to the instance's address on its first network and the `container-port` |
 | Source translation | postrouting | Per network whose `masquerade` is true: source in the network prefix, jump to that network's chain. The network's chain returns when the output interface is the network's bridge, then masquerades |
 
 The "destination is an address of this router" match does not exist in the
@@ -184,7 +184,7 @@ The operator-surface child owns the test. It rests on these rows of this spec.
 | The plugin forked gives the same result | AC-16 |
 
 What the test's config must hold: one `network` with a prefix, the instance's
-`network` entry, and one `port` entry with `protocol tcp`, a `listen-port` and
+`network` entry, and one `port` entry with `protocol tcp`, a `public-port` and
 the `container-port` 6379.
 
 The test's client runs beyond the router, as an outside host would: in a
@@ -458,7 +458,7 @@ package. The comment on its `Capability` type says both codes must be in
 | A-10 | The runtime child has a test route that starts a container with no registry | `spec-container-1-runtime.md`: a build with the `zetest` tag adds a store that resolves an image name to a folder, and `internal/test/containerprobe` is the fixture program | The functional tests that need a container wait for the image store child | That spec's text, read 2026-11-16 | confirmed by the sibling's design |
 | A-11 | The operator-surface child's design, which holds the one table of config and command words, is settled before this child's wiring phase | The umbrella: "its design is settled before any sibling's wiring phase". This spec keeps `Depends: spec-container-1-runtime`, because that child's implementation comes after this one's | Phase 1 waits | That spec reaching `ready` | confirmed: `spec-container-4-operator-surface.md` is `ready` (read 2026-11-17) |
 | A-14 | The operator-surface child's `network` name bound is 1 to 11 characters and its `masquerade` default is true | That spec's table S-2 states both, by the owner's rulings of 2026-11-16 | A name of 12 characters or more passes the schema and is refused by this child's verifier instead, with the same message | That spec's `TestNetworkNameBound` | confirmed by the sibling's design |
-| A-15 | For a connection the router itself opens to a published port: the plugin's output term translates it before the operator's filter chains at the output hook run, so those chains see the instance's address and the `container-port`; the output interface they see is the one chosen before the translation; and the replies arrive on the bridge and cross the input hook | Kernel netfilter behaviour, not read in source. The firewall model names the hooks (`internal/component/firewall/model.go` `HookOutput`, `HookInput`, `HookForward`) and bounds a base chain's priority, so an operator's chain placed before the translation sees the router's address and the `listen-port` instead | The output row of the policy table names other matches. No design change | `container-port-from-router.ci` in the QEMU guest | unvalidated |
+| A-15 | For a connection the router itself opens to a published port: the plugin's output term translates it before the operator's filter chains at the output hook run, so those chains see the instance's address and the `container-port`; the output interface they see is the one chosen before the translation; and the replies arrive on the bridge and cross the input hook | Kernel netfilter behaviour, not read in source. The firewall model names the hooks (`internal/component/firewall/model.go` `HookOutput`, `HookInput`, `HookForward`) and bounds a base chain's priority, so an operator's chain placed before the translation sees the router's address and the `public-port` instead | The output row of the policy table names other matches. No design change | `container-port-from-router.ci` in the QEMU guest | unvalidated |
 | A-12 | The interface engine's stop path can delete owned devices before it closes its backend | `internal/component/iface/register.go`: the stop path runs after `p.Run` returns and ends in `CloseBackend` | The deletion needs another ordered actor | `container-network-daemon-stop.ci`, and a VRRP stop test | unvalidated |
 
 ### Risks
@@ -889,8 +889,8 @@ device cannot run.
 - Phase 4 slice 4b as applied (published ports: the `port` node, V-6, V-18, the destination translation terms, the probe's serving mode, the draft `container-port-published`). Files: `ze-container-conf.yang` (`list port`), `network/port.go`, `network/verify.go`, `network/backend.go`, `network/tables.go`, `network/apply.go`, `network/port_test.go`, `network/tables_test.go`, `internal/test/containerprobe/serve.go`, `serve_test.go`, `main.go`, `storeseam_zetest.go`, `docs/architecture/container/network.md`. Eight differences from the design above:
   1. A port range is published only onto the same range. V-6 accepts two ranges of one length, but the nft lowering (`lowerNAT` in `internal/plugins/firewall/nft/lower_linux.go`) has no port offset, and the kernel keeps a connection's port when it lies in the target range, so a shifted range cannot be translated exactly and is refused at verify (`checkRanges`).
   2. A range's translation target is the instance's address alone, which keeps the port; one container port is written with the address. `parseNATSpec` has no bracketed IPv6 form with a port range, so this is also what lets an IPv6 range be published.
-  3. A port with no `listen-address` is published on every address of each family the instance's first network has a prefix of, and conflicts with any entry of the same protocol and an overlapping port range in that family.
-  4. A `listen-address` of a family the instance's first network has no prefix of is refused: the port has no address of that family to translate to. The spec states no rule for it.
+  3. A port with no `public-address` is published on every address of each family the instance's first network has a prefix of, and conflicts with any entry of the same protocol and an overlapping port range in that family.
+  4. A `public-address` of a family the instance's first network has no prefix of is refused: the port has no address of that family to translate to. The spec states no rule for it.
   5. Rule V-19 gains a half: a published port needs the `nft` firewall backend even when no network masquerades, because its terms match `destination-local`, which the VPP verifier refuses.
   6. New bounds: at most 256 ports in one config and 16 listen addresses per port, so the contributed tables stay inside the firewall request's bound.
   7. Term names are `port_INSTANCE_PORT`, with `_N` for the Nth listen address: an underscore is outside both name patterns, so two names never collide.

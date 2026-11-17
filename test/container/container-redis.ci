@@ -192,7 +192,7 @@ container {
 		network lan {
 		}
 		port redis {
-			listen-port 6379
+			public-port 6379
 			container-port 6379
 		}
 	}
@@ -255,7 +255,7 @@ container {
 		network lan {
 		}
 		port redis {
-			listen-port 6379
+			public-port 6379
 			container-port 6379
 		}
 	}

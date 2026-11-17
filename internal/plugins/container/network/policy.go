@@ -276,7 +276,7 @@ type publishedPort struct {
 	port     string
 	protocol string
 	// containerPorts is the destination port a forwarded packet carries:
-	// the translation rewrote the listen port before the forward hook.
+	// the translation rewrote the public port before the forward hook.
 	containerPorts portRange
 	bridge         string
 	// targets are the instance's addresses on its first network the port is
@@ -335,12 +335,12 @@ func portTargets(network Network, port Port, assigned []netip.Addr) []netip.Addr
 }
 
 // publishedIn answers whether the port is published in the asked family: in
-// every family when it has no listen address, else in the family of each.
+// every family when it has no public address, else in the family of each.
 func (p Port) publishedIn(ipv4 bool) bool {
-	if len(p.Listen) == 0 {
+	if len(p.PublicAddresses) == 0 {
 		return true
 	}
-	for _, address := range p.Listen {
+	for _, address := range p.PublicAddresses {
 		if address.Is4() == ipv4 {
 			return true
 		}

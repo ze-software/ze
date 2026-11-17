@@ -17,31 +17,31 @@ import (
 const (
 	listPort          = "port"
 	leafProtocol      = "protocol"
-	leafListenAddress = "listen-address"
-	leafListenPort    = "listen-port"
+	leafPublicAddress = "public-address"
+	leafPublicPort    = "public-port"
 	leafContainerPort = "container-port"
 	protocolTCP       = "tcp"
 	protocolUDP       = "udp"
 )
 
 // Bounds of the published ports. Each port is one destination translation
-// term per listen address at two hooks, so the bounds keep the contributed
+// term per public address at two hooks, so the bounds keep the contributed
 // tables inside the firewall component's request bound.
 const (
 	portsMax           = 256 // published ports in one config
-	listenAddressesMax = 16  // listen addresses of one port
+	publicAddressesMax = 16  // public addresses of one port
 )
 
 // Port is one entry of an instance's port list.
 type Port struct {
 	Name     string
 	Protocol string
-	// Listen are the router addresses the port is published on. An empty
+	// PublicAddresses are the router addresses the port is published on. An empty
 	// list publishes it on every address of the router, in each family the
 	// instance has an address of on its first network.
-	Listen         []netip.Addr
-	ListenPorts    portRange
-	ContainerPorts portRange
+	PublicAddresses []netip.Addr
+	PublicPorts     portRange
+	ContainerPorts  portRange
 }
 
 // portRange is a first-last range of ports; one port is a range of one.
@@ -69,7 +69,7 @@ func (r portRange) String() string {
 }
 
 // parsePorts reads an instance's port list and judges each entry alone:
-// its protocol, its listen addresses, and rule V-6 on its two ranges. The
+// its protocol, its public addresses, and rule V-6 on its two ranges. The
 // rules across entries and against the instance's network are checkPorts.
 func parsePorts(instance string, fields map[string]any) ([]Port, error) {
 	entries := configvalue.ListEntries(fields[listPort])
@@ -93,21 +93,21 @@ func parsePort(instance string, entry configvalue.ListEntry) (Port, error) {
 		}
 		port.Protocol = protocol
 	}
-	values := configvalue.LeafList(entry.Fields[leafListenAddress])
-	if len(values) > listenAddressesMax {
+	values := configvalue.LeafList(entry.Fields[leafPublicAddress])
+	if len(values) > publicAddressesMax {
 		return Port{}, refusePort(instance, entry.Key,
-			"it lists "+strconv.Itoa(len(values))+" listen addresses, more than "+strconv.Itoa(listenAddressesMax),
-			"delete container instance "+instance+" port "+entry.Key+" listen-address ADDRESS for the addresses no client uses")
+			"it lists "+strconv.Itoa(len(values))+" public addresses, more than "+strconv.Itoa(publicAddressesMax),
+			"delete container instance "+instance+" port "+entry.Key+" public-address ADDRESS for the addresses no client uses")
 	}
 	for _, value := range values {
 		address, err := netip.ParseAddr(value)
 		if err != nil {
-			return Port{}, refusePort(instance, entry.Key, "listen-address "+value+" is not an address",
-				"set container instance "+instance+" port "+entry.Key+" listen-address with an address of the router")
+			return Port{}, refusePort(instance, entry.Key, "public-address "+value+" is not an address",
+				"set container instance "+instance+" port "+entry.Key+" public-address with an address of the router")
 		}
-		port.Listen = append(port.Listen, address.Unmap())
+		port.PublicAddresses = append(port.PublicAddresses, address.Unmap())
 	}
-	listen, err := parsePortRange(instance, entry.Key, leafListenPort, entry.Fields)
+	listen, err := parsePortRange(instance, entry.Key, leafPublicPort, entry.Fields)
 	if err != nil {
 		return Port{}, err
 	}
@@ -118,7 +118,7 @@ func parsePort(instance string, entry configvalue.ListEntry) (Port, error) {
 	if err := checkRanges(instance, entry.Key, listen, target); err != nil {
 		return Port{}, err
 	}
-	port.ListenPorts = listen
+	port.PublicPorts = listen
 	port.ContainerPorts = target
 	return port, nil
 }
@@ -251,7 +251,7 @@ func (e endpoint) where() string {
 }
 
 // checkPorts judges the published ports against the instances' networks and
-// against each other: a listen address needs an address of its family on the
+// against each other: a public address needs an address of its family on the
 // instance's first network, and no two entries publish one protocol and port
 // on addresses that overlap (V-6). An instance with ports and no network was
 // refused by parseInstances (V-18).
@@ -289,13 +289,13 @@ func checkPorts(cfg Config) error {
 	return nil
 }
 
-// portEndpoints answers where one port is published. A port with no listen
+// portEndpoints answers where one port is published. A port with no public
 // address is published on every address of each family the instance's first
 // network has a prefix of.
 func portEndpoints(network Network, instance string, port Port) ([]endpoint, error) {
-	base := endpoint{instance: instance, port: port.Name, protocol: port.Protocol, ports: port.ListenPorts}
+	base := endpoint{instance: instance, port: port.Name, protocol: port.Protocol, ports: port.PublicPorts}
 	var endpoints []endpoint
-	if len(port.Listen) == 0 {
+	if len(port.PublicAddresses) == 0 {
 		for _, prefix := range network.Prefixes {
 			every := base
 			every.ipv4 = prefix.Addr().Is4()
@@ -304,12 +304,12 @@ func portEndpoints(network Network, instance string, port Port) ([]endpoint, err
 		}
 		return endpoints, nil
 	}
-	for _, address := range port.Listen {
+	for _, address := range port.PublicAddresses {
 		if _, found := prefixOfFamily(network.Prefixes, address.Is4()); !found {
 			return nil, opererr.New(
-				"container "+instance+" port "+port.Name+": listen-address "+address.String()+" has no address of its family to reach on network "+network.Name,
-				"a published port is translated to the container's address on its first network, in the family of the listen address",
-				"set container network "+network.Name+" prefix with a prefix of that family, or delete container instance "+instance+" port "+port.Name+" listen-address "+address.String(),
+				"container "+instance+" port "+port.Name+": public-address "+address.String()+" has no address of its family to reach on network "+network.Name,
+				"a published port is translated to the container's address on its first network, in the family of the public address",
+				"set container network "+network.Name+" prefix with a prefix of that family, or delete container instance "+instance+" port "+port.Name+" public-address "+address.String(),
 			)
 		}
 		listed := base
@@ -343,6 +343,6 @@ func refuseSharedEndpoint(held, candidate endpoint) error {
 		"container "+candidate.instance+" port "+candidate.port+" and container "+held.instance+" port "+held.port+
 			" both publish "+candidate.protocol+" port "+candidate.ports.String()+" on "+candidate.where(),
 		"one connection reaches one container",
-		"set container instance "+candidate.instance+" port "+candidate.port+" listen-port with a port no other container publishes",
+		"set container instance "+candidate.instance+" port "+candidate.port+" public-port with a port no other container publishes",
 	)
 }

@@ -110,7 +110,7 @@ container {
 		network lan {
 		}
 		port web {
-			listen-port $PORT2
+			public-port $PORT2
 			container-port 7070
 		}
 	}
@@ -176,7 +176,7 @@ container {
 		network lan {
 		}
 		port web {
-			listen-port $PORT2
+			public-port $PORT2
 			container-port 7070
 		}
 	}

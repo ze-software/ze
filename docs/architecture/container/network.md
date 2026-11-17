@@ -25,7 +25,7 @@ doctor checks are not built yet.
 | `masquerade` | `container network` | Default true: outbound traffic is source-translated |
 | `network NAME`, `address`, `mac-address` | `container instance` | An attachment, `ordered-by user`: the first entry is `eth0` inside the container |
 | `enabled` | `container instance` | Default true, read as the runtime reads it. A disabled instance keeps its attachments and its addresses, and its ports are judged at verify but not translated |
-| `port NAME`: `protocol`, `listen-address`, `listen-port`, `container-port` | `container instance` | A published port: `protocol` tcp (the default) or udp; `listen-address`, at most 16, the router addresses it is published on, none meaning every address in each family the instance's first network has a prefix of; `listen-port` and `container-port`, one port or a first-last range from 1 to 65535, mandatory. At most 256 ports in one config |
+| `port NAME`: `protocol`, `public-address`, `public-port`, `container-port` | `container instance` | A published port: `protocol` tcp (the default) or udp; `public-address`, at most 16, the router addresses it is published on, none meaning every address in each family the instance's first network has a prefix of; `public-port` and `container-port`, one port or a first-last range from 1 to 65535, mandatory. At most 256 ports in one config |
 
 The attachment's key is a string with the network name's constraints. The
 package's rules refuse a name the network list does not hold. It is neither a
@@ -53,10 +53,10 @@ verifier refuses. A published port needs it too, because its terms match
 The port rules are V-6 and V-18. A port on an instance with no `network` entry
 is refused (V-18). Two ranges of different lengths, a range that runs
 backward, and two entries that publish one protocol and an overlapping port
-range on the same router address, or where either has no listen address, are
-refused (V-6), across instances and within one. A listen address of a family
+range on the same router address, or where either has no public address, are
+refused (V-6), across instances and within one. A public address of a family
 the instance's first network has no prefix of is refused, because the port is
-translated to the instance's address on that network in the listen address's
+translated to the instance's address on that network in the public address's
 family. A range is accepted only onto the same range: a destination
 translation to a port range keeps a connection's port when it lies inside the
 range and has no form that shifts it, so `8000-8010` onto `5000-5010` would
@@ -91,10 +91,10 @@ masquerades otherwise. Per published port, in each family it is published
 in, one destination translation term sits in a nat chain at prerouting, for a
 client beyond the router, and the same term in a nat chain at output, for a
 connection the router itself opens, both at priority -100. A term matches the
-protocol, the listen port, `destination-local` and the listen address when one
+protocol, the public port, `destination-local` and the public address when one
 is set, and translates to the instance's assigned address on its first
 network and the container port (the address alone for a range, which keeps
-the port). Its name is `port_INSTANCE_PORT`, with `_N` for the Nth listen
+the port). Its name is `port_INSTANCE_PORT`, with `_N` for the Nth public
 address; no instance or port name holds an underscore, so two names never
 collide. Only the first packet of a connection crosses a nat chain, so the
 replies of a translated connection are never masqueraded. A family nothing

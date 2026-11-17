@@ -101,8 +101,8 @@ func TestTablesWithdrawnWhenNothingTranslates(t *testing.T) {
 // same range on one IPv4 router address.
 const publishedConfig = `{"network":{"lan":{"prefix":["10.88.0.0/24","fd00:88::/64"],"masquerade":"false"}},` +
 	`"instance":{"web":{"network":[{"name":"lan"}],"port":{` +
-	`"http":{"listen-port":"8080","container-port":"80"},` +
-	`"dns":{"protocol":"udp","listen-address":["192.0.2.1"],"listen-port":"5300-5310","container-port":"5300-5310"}}}}}`
+	`"http":{"public-port":"8080","container-port":"80"},` +
+	`"dns":{"protocol":"udp","public-address":["192.0.2.1"],"public-port":"5300-5310","container-port":"5300-5310"}}}}}`
 
 // publishedRecords assigns web its addresses on lan, as the apply would.
 func publishedRecords() map[string]addressRecord {
@@ -114,10 +114,10 @@ func publishedRecords() map[string]addressRecord {
 // TestTablesForPublishedPort: each published port gets, in each family it is
 // published in, the same destination translation term at prerouting and at
 // output, in nat chains at the destination translation priority. Every term
-// matches the protocol, the listen port and destination-local, so traffic the
+// matches the protocol, the public port and destination-local, so traffic the
 // router forwards is never captured, and translates to the instance's
 // assigned address on its first network and the container port. A port with
-// a listen address matches it and is published in its family only.
+// a public address matches it and is published in its family only.
 func TestTablesForPublishedPort(t *testing.T) {
 	raw, err := buildTables(mustParse(t, publishedConfig), publishedRecords())
 	if err != nil {
@@ -184,7 +184,7 @@ func checkPortTerm(t *testing.T, where string, term map[string]any, name, protoc
 	listen, matched := from["destination-address"]
 	if address == "" {
 		if matched {
-			t.Fatalf("%s %s: a port with no listen address matches destination-address %v", where, name, listen)
+			t.Fatalf("%s %s: a port with no public address matches destination-address %v", where, name, listen)
 		}
 	}
 	if address != "" {

@@ -55,9 +55,9 @@ const (
 // A published port gets, in each family it is published in, one destination
 // translation term at prerouting, for a client beyond the router, and the
 // same term at output, for a connection the router itself opens. Each matches
-// the protocol, the listen port, a destination that is an address of the
+// the protocol, the public port, a destination that is an address of the
 // router (destination-local, so traffic the router forwards to another host
-// is never captured) and the listen address when one is set, then translates
+// is never captured) and the public address when one is set, then translates
 // to the instance's address on its first network and the container port.
 //
 // A family nothing uses has no table, and a config with none answers an
@@ -176,15 +176,15 @@ func publishedTerms(cfg Config, records map[string]addressRecord, ipv4 bool) ([]
 }
 
 // portTerms answers one port's terms in one family: one with no address
-// match when the port has no listen address, else one per listen address of
+// match when the port has no public address, else one per public address of
 // the family.
 func portTerms(instance string, port Port, ipv4 bool, target netip.Addr) []any {
 	name := termPortPrefix + instance + termSeparator + port.Name
-	if len(port.Listen) == 0 {
+	if len(port.PublicAddresses) == 0 {
 		return []any{portTerm(name, port, portMatch(port), target)}
 	}
 	var terms []any
-	for position, address := range port.Listen {
+	for position, address := range port.PublicAddresses {
 		if address.Is4() != ipv4 {
 			continue
 		}
@@ -199,7 +199,7 @@ func portTerms(instance string, port Port, ipv4 bool, target netip.Addr) []any {
 func portMatch(port Port) map[string]any {
 	return map[string]any{
 		leafProtocol:        port.Protocol,
-		leafDestinationPort: port.ListenPorts.String(),
+		leafDestinationPort: port.PublicPorts.String(),
 		"destination-local": "", // an empty leaf: its presence is the whole value
 	}
 }
