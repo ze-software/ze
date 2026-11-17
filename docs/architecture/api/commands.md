@@ -341,6 +341,13 @@ Every other error keeps the surface's own rendering (`error: <text>`, MCP
 `Error: <text>`). A refusal with no diagnostic is a plain error naming the
 exit code. Nothing is written to the daemon's stdout or stderr.
 
+A required argument missing from an exact local-data command produces the same
+help hint on local and daemon routes. `command.ArgumentRefusal` preserves the
+typed validation cause; authorization and flag checks still run first on the
+daemon. A different child command beneath that path keeps its own refusal.
+<!-- source: internal/component/command/local_data.go -- ArgumentRefusal, localRefusal -->
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
+
 A diagnostic beside a zero code is a warning about an answer the command still
 gave, such as the parse warnings of `show config dump`. It travels in the
 response's `warnings` field, one line each, under the `warning` status, and

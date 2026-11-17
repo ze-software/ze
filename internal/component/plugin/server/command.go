@@ -1263,6 +1263,13 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// here, not where it was computed, so authorization and the flag check
 		// keep answering first.
 		if argErr != nil {
+			// Only an exact local-data registration shares the local route's
+			// help hint. Other handlers already own their complete model fix.
+			if handler, rest := command.LookupLocalData(strings.Fields(matchedCmd.Name)); handler != nil {
+				if len(rest) == 0 {
+					argErr = command.ArgumentRefusal(matchedCmd.Name, argErr)
+				}
+			}
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  argErr.Error(),

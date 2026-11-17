@@ -450,14 +450,20 @@ func writeLocalRefusal(invocation string, err error) {
 	os.Stderr.WriteString(localRefusal(invocation, err)) //nolint:errcheck // CLI diagnostic
 }
 
+// ArgumentRefusal adds the command's help request to a missing-argument
+// refusal. Every route uses the same operator text, while the wrapped cause
+// remains available to errors.As. invocation is the command as the operator
+// types it, without arguments; err MUST be non-nil.
+func ArgumentRefusal(invocation string, err error) error {
+	if _, missing := errors.AsType[*MissingArgumentError](err); missing {
+		return fmt.Errorf("%w\nhint: run '%s help' to see the arguments it takes", err, invocation)
+	}
+	return err
+}
+
 // localRefusal is the text writeLocalRefusal writes, one line per statement.
 func localRefusal(invocation string, err error) string {
-	var tb textbuf.Buffer
-	tb.Str("error: ").Str(err.Error()).Byte('\n')
-	if _, missing := errors.AsType[*MissingArgumentError](err); missing {
-		tb.Str("hint: run '").Str(invocation).Str(" help' to see the arguments it takes\n")
-	}
-	return tb.String()
+	return LocalErrorLine(ArgumentRefusal(invocation, err))
 }
 
 // HasLocalData reports whether a command is served in this process, which is
