@@ -384,8 +384,11 @@ claimed. It refuses `partial` and `refresh`, which are whole-site steps.
   `website/data/rfc-release-layers.json`. The page keeps declared scope separate
   from citation context and preserves exact requirement keywords, unclassified
   specifications and unknown evidence age. Its script reads proof figures from
-  the canonical per-RFC data files; the map never certifies a release. Render
-  only this page with `./le --name session site build producer rfc-map`.
+  the canonical per-RFC data files; the map never certifies a release.
+  Connected RFC cards use a left-to-right background gradient with the same
+  category colors, order and proportions as the recorded mandatory results
+  bar, tinted for readable text. Unknown or unavailable figures stay neutral.
+  Render only this page with `./le --name session site build producer rfc-map`.
 - **Verification commands.** `go test ./internal/le/site` exercises the
   build boundary, source digest, asset expansion and deck bundling.
   `go test ./internal/le/doc/yangcontract -run CommandSurface` exercises native command
@@ -656,6 +659,7 @@ website edit.
 
 | Ruling | Scope | Rule that applies it | Test that pins it |
 |--------|-------|----------------------|-------------------|
+| Connected RFC boxes use a left-to-right gradient matching the recorded mandatory test results bar's colors and proportions | RFC dependency map graph | Shared `proofSegments` in `website/assets/js/rfc-map.js` and proof color variables in `website/assets/rfc-map.css` | `TestRFCMapNodeGradientsMatchRecordedProof` |
 | The approved Lust-inspired design applies across the site: navy foundations, blue primary actions, restrained green accents, neutral rounded panels, floating pill navigation, larger homepage type and ambient blue/green light. Preserve all content and functionality. Open in dark mode unless the reader saved a light preference; keep the theme toggle | All regular website pages; frozen talk decks retain their own design | Shared tokens, base, component and responsive CSS in `website/assets/css/`; `themeBootstrap` in `internal/le/site/shell.go`; theme controls in `website/assets/js/site.js` | `TestApprovedStyleIsTheSharedStylesheet`, `TestApprovedStyleStartsDarkAndKeepsTheSavedChoice` |
 | Links are never underlined, in any state. A text link stands out from the text around it by color and turns white on hover. Keyboard focus keeps its outline | Homepage hero | `.site-home .hero a` and `.site-home .hero :where(p, figcaption) a` in `website/assets/css/30-components.css` | `TestHeroLinksAreNeverUnderlined` |
 | The README plays a short dashboard animation inside GitHub. Website regeneration updates its SVG from the site's verified terminal recording | README demo and website build | `internal/le/site/readme_demo.go` registered producer and `buildProducers` integration | `TestReadmeDemoRegisteredForEveryBuild`, `TestReadmeDemoRefreshesDuringOtherProducerBuild` |
