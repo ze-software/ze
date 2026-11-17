@@ -1,5 +1,6 @@
 // Design: docs/architecture/container/image-store.md -- how the store reaches the plugin
 // Related: store.go -- the store the factory builds
+// Related: registry_list.go -- the config sibling registered here
 //
 // Package imagestore is the container plugin's image store: it fetches OCI
 // images, keeps each in one folder named by its digest, and gives each
@@ -21,6 +22,10 @@ func init() {
 	// fetch writes the bindings through it and the resolve reads them and
 	// records the generations.
 	container.RegisterEngineClientReceiver(receivedEngine.receive)
+	// The registry list is the store's part of the container config: the
+	// parse judges it at every verify and the apply makes it the list each
+	// fetch reads.
+	container.RegisterConfigSibling(registrySiblingName, parseRegistrySections, appliedRegistries.apply)
 	// The plugin persists its bindings, generations and project-id counter
 	// through the SDK state calls, which the daemon answers only for keys its
 	// owner was granted.

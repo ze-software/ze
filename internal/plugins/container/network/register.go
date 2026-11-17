@@ -13,8 +13,10 @@ package network
 
 import (
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/plugins/container"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -37,4 +39,16 @@ func init() {
 	container.RegisterConfigSibling(participantName, parseSections, registered.apply)
 	container.RegisterEngineClientReceiver(registered.receive)
 	container.RegisterParticipant(&participant{manager: registered})
+	// The code is explained before the check that names it is declared.
+	for _, meta := range diagnosticCodes {
+		if err := diagnostic.Register(meta); err != nil {
+			panic("BUG: container network diagnostic code " + meta.Code + ": " + err.Error())
+		}
+	}
+	container.RegisterSiblingDoctorCheck(container.SiblingDoctorCheck{
+		Decl: rpc.DoctorCheckDecl{
+			Name: checkPortBlocked, Phase: rpc.DoctorPhaseRuntime, Order: orderPortBlocked, Codes: []string{codePortBlocked},
+		},
+		Answer: registered.answerPortBlocked,
+	})
 }

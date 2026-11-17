@@ -124,9 +124,14 @@ func refused(address, port string) bool {
 	return true
 }
 
-// dialOnce makes one bounded TCP connection attempt.
+// dialOnce makes one TCP connection attempt bounded by dialTimeout.
 func dialOnce(target string) (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	return dialWithin(target, dialTimeout)
+}
+
+// dialWithin makes one TCP connection attempt that ends after wait.
+func dialWithin(target string, wait time.Duration) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
 	defer cancel()
 	var dialer net.Dialer
 	return dialer.DialContext(ctx, "tcp", target)

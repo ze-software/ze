@@ -38,6 +38,9 @@ type manager struct {
 	// claimed, so a claim is made and withdrawn once and a config that never
 	// had a network emits nothing.
 	forwarding forwardingClaims
+	// policy is what the last apply recorded for the port-blocked doctor
+	// check: the ports it translated and the forward chains they cross.
+	policy portPolicy
 }
 
 // linkPlan is one link of an instance: the request the created call sends.
@@ -82,7 +85,8 @@ func (m *manager) apply(ctx context.Context, cfg Config) error {
 
 	requests := sendBridges || sendTables || wanted != claimed
 	if !requests {
-		m.install(map[string][]linkPlan{}, false, false)
+		// Nothing is translated, so no port is judged.
+		m.install(map[string][]linkPlan{}, false, false, portPolicy{})
 		return nil
 	}
 	if client == nil {
@@ -121,14 +125,17 @@ func (m *manager) apply(ctx context.Context, cfg Config) error {
 	if err := m.forward(ctx, client, wanted, claimed); err != nil {
 		return err
 	}
-	m.install(planLinks(cfg, records), len(cfg.Networks) > 0, hasTables(cfg))
+	policy := portPolicy{ports: publishedPorts(cfg, records), chains: cfg.Forward}
+	m.install(planLinks(cfg, records), len(cfg.Networks) > 0, hasTables(cfg), policy)
 	return nil
 }
 
-// install records what an apply made.
-func (m *manager) install(plans map[string][]linkPlan, bridgesSent, tablesSent bool) {
+// install records what an apply made, and what the port-blocked doctor
+// check judges from then on.
+func (m *manager) install(plans map[string][]linkPlan, bridgesSent, tablesSent bool, policy portPolicy) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	m.policy = policy
 	m.plans = plans
 	m.bridgesSent = bridgesSent
 	m.tablesSent = tablesSent

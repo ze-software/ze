@@ -13,8 +13,9 @@ module ze-container-conf {
          the names, types and help texts that table gives them.";
 
     revision 2026-11-17 {
-        description "The network list, and the image leaf and the network attachment and
-                     published port lists of an instance.";
+        description "The network list, the image leaf and the network attachment and
+                     published port lists of an instance, and the registry list with
+                     the transport, the mirror and the credentials of one registry.";
     }
 
     revision 2026-11-16 {
@@ -249,6 +250,114 @@ module ze-container-conf {
                              interface to the router's address on that interface. Traffic
                              between two containers of the network keeps its source.";
                 ze:help "Translate outbound traffic to the router's address.";
+            }
+        }
+
+        list registry {
+            key "name";
+            description "One entry holds the settings of one image registry. A registry with
+                         no entry is reached over HTTPS, verified through the system roots,
+                         with no credentials and no mirror. The public hub needs no entry;
+                         an entry named docker.io gives it a mirror or credentials like any
+                         other registry. A change applies to the next fetch.";
+            ze:help "Settings for one image registry.";
+
+            leaf name {
+                type string {
+                    length "1..255";
+                    pattern '[a-z0-9.:\[\]-]+';
+                }
+                description "The registry host, with its port when it has one, exactly as an
+                             image reference writes it: a host in lower case that holds a
+                             dot or a colon, or localhost. The public hub is docker.io, the
+                             registry a short image name completes to.";
+                ze:help "Registry host, as image references write it.";
+            }
+
+            leaf transport {
+                type enumeration {
+                    enum https;
+                    enum http;
+                }
+                default https;
+                description "The protocol applies to the registry and to its mirror. Over
+                             https the server's certificate is always verified: there is no
+                             unverified form.";
+                ze:help "Protocol Ze speaks to the registry and to its mirror.";
+            }
+
+            container mirror {
+                presence "Ask a mirror before the registry.";
+                description "One mirror for the registry. Every manifest and blob is asked of
+                             the mirror first, once and with no credentials, and of the
+                             registry when the mirror fails in any way. What the mirror
+                             serves passes the same digest and size checks.";
+                ze:help "Server Ze asks first; the registry is asked when it fails.";
+
+                leaf address {
+                    type string {
+                        length "1..253";
+                    }
+                    mandatory true;
+                    description "An IP address or a host name in lower case. A loopback
+                                 address is accepted.";
+                    ze:help "IP address or host name of the mirror.";
+                }
+
+                leaf port {
+                    type zt:port;
+                    default 443;
+                    description "The default is 443 whatever the transport, so a mirror
+                                 reached over http names its port.";
+                    ze:help "Port of the mirror.";
+                }
+
+                leaf path {
+                    type string {
+                        length "1..255";
+                        pattern '/[^?# ]*';
+                    }
+                    default "/";
+                    description "The path the mirror serves the registry protocol under. It
+                                 starts with a slash and is placed before the /v2/ path of
+                                 every request to the mirror.";
+                    ze:help "Path prefix of the mirror, starting with a slash.";
+                }
+            }
+
+            container authentication {
+                presence "Present credentials to the registry.";
+                description "The credentials are sent to the registry or to the token realm
+                             it names, and never to the mirror. Both leaves are mandatory.";
+                ze:help "Credentials Ze presents to the registry.";
+
+                leaf username {
+                    type string {
+                        length "1..255";
+                    }
+                    mandatory true;
+                    description "The user name of the account on the registry.";
+                    ze:help "User name on the registry.";
+                }
+
+                leaf password {
+                    type string {
+                        length "1..4096";
+                    }
+                    mandatory true;
+                    ze:sensitive;
+                    description "The password or access token of the account. Every display
+                                 of the configuration masks it.";
+                    ze:help "Password or access token on the registry.";
+                }
+            }
+
+            leaf description {
+                type string {
+                    length "1..255";
+                }
+                description "Free text for the operator. Ze does not interpret it.";
+                ze:help "Free text shown with the registry.";
             }
         }
     }

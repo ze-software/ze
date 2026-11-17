@@ -5084,6 +5084,45 @@ ports of a container are described in `docs/architecture/container/network.md`.
 <!-- source: internal/plugins/container/imagestore/resolve.go -- Resolve -->
 <!-- source: internal/plugins/container/supervise.go -- ImagePresent -->
 
+A registry needs no statement: Ze reaches it over HTTPS, checks its
+certificate against the system roots, and sends no credentials. One
+`registry` entry changes how one registry is reached:
+
+```
+container {
+    registry docker.io {
+        mirror {
+            address mirror.example.net
+            port 5000
+        }
+        authentication {
+            username operator
+            password hub-secret
+        }
+    }
+    registry registry.lab.example:5000 {
+        transport http
+    }
+}
+```
+
+| Statement | Meaning |
+|-----------|---------|
+| `registry <host>` | Settings for one image registry. The name is the registry host, with its port when it has one, exactly as the image references write it. Docker Hub is `docker.io`, the registry a short name such as `redis` completes to. A name no reference can name is refused at the commit |
+| `transport <protocol>` | Protocol Ze speaks to the registry and to its mirror: `https` or `http`. The default is `https`. Over `https` the certificate is always checked |
+| `mirror` | Server Ze asks first; the registry is asked when it fails. `address` is mandatory: an IP address or a host name in lower case, and a loopback address is accepted. `port` is 1 to 65535 and defaults to 443 whatever the transport. `path` starts with a slash, defaults to `/`, and is placed before the `/v2/` path of every request to the mirror. The mirror is asked with no credentials, and what it serves passes the same digest and size checks |
+| `authentication` | Credentials Ze presents to the registry: `username` (1 to 255 characters) and `password` (1 to 4096 characters), both mandatory. They are sent to the registry or to the token service it names, never to the mirror. `show config` masks the password |
+| `description <text>` | Free text shown with the registry, 1 to 255 characters |
+
+A change to a registry entry applies to the next fetch; nothing is restarted
+and a fetch in flight is not interrupted. A registry signed by a private
+authority cannot be reached yet: the schema has no statement that names its
+certificate authority.
+<!-- source: internal/plugins/container/yang/ze-container-conf.yang -- list registry -->
+<!-- source: internal/plugins/container/imagestore/registry_list.go -- parseRegistrySections, checkRegistryName, parseMirror, parseAuthentication, listedClientConfig -->
+<!-- source: internal/plugins/container/registry/client.go -- New, mirrorPrefix -->
+<!-- test: internal/plugins/container/imagestore/registry_list_test.go TestRegistryListIsParsed, TestRegistryListRefusals, TestSchemaAcceptsRegistryEntry -->
+
 When the daemon stops, it stops every container together: each gets its stop
 signal, and each still running after its `stop-timeout` is killed. A daemon
 that was killed leaves its containers running; the next start removes them

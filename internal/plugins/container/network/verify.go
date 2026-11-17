@@ -64,6 +64,12 @@ type Config struct {
 	// Instances are the instances with at least one attachment, sorted by
 	// name.
 	Instances []Instance
+	// Forward are the chains of the operator's firewall config at the forward
+	// hook whose policy is drop, sorted by table then chain. The port-blocked
+	// doctor check judges the published ports against them (policy.go), and
+	// holding them here makes a commit that changes only the firewall policy
+	// a new config, so the apply records it.
+	Forward []ForwardChain
 }
 
 // Network is one entry of the container network list.
@@ -162,6 +168,11 @@ func parseSections(sections []sdk.ConfigSection) (Config, error) {
 	if err := checkPorts(cfg); err != nil {
 		return Config{}, err
 	}
+	forward, err := parseForwardChains(read.firewall)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Forward = forward
 	return cfg, nil
 }
 

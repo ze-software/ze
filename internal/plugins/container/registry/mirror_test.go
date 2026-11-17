@@ -5,10 +5,107 @@ package registry
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/test/ociregistry"
 )
+
+// TestMirrorPathPrefixesEveryMirrorRequest proves a mirror's path is placed
+// before the /v2/ path of every request to the mirror, with or without a
+// trailing slash, and never before a request to the registry.
+//
+// Method: a server answers the test registry's content under /cache only,
+// and records the path of each request it receives. The registry itself
+// holds the image too, at its root. With the mirror path /cache/ the whole
+// fetch is served by the mirror, and every path it saw starts with
+// /cache/v2/. With no mirror path the mirror answers nothing, and the
+// registry serves the fetch at its unprefixed paths.
+func TestMirrorPathPrefixesEveryMirrorRequest(t *testing.T) {
+	layer := []byte("layer behind a path")
+	content := startRegistry(t, ociregistry.Options{Auth: ociregistry.AuthNone})
+	_, layerDescriptor := putImage(t, content, "app", "1", layer)
+	var mu sync.Mutex
+	var paths []string
+	under := http.StripPrefix("/cache", content)
+	mirror := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		mu.Lock()
+		paths = append(paths, request.URL.Path)
+		mu.Unlock()
+		under.ServeHTTP(w, request)
+	}))
+	t.Cleanup(mirror.Close)
+	mirrorHost := strings.TrimPrefix(mirror.URL, "http://")
+
+	r := startRegistry(t, ociregistry.Options{Auth: ociregistry.AuthNone})
+	putImage(t, r, "app", "1", layer)
+	ref := mustReference(t, r.Host()+"/app:1")
+
+	c := newClient(t, Config{Registry: r.Host(), Mirror: mirrorHost, MirrorPath: "/cache/"})
+	if _, err := c.Resolve(t.Context(), ref); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fetchToFile(t, t.Context(), c, ref, blobOf(t, layerDescriptor)); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(r.Requests()); n != 0 {
+		t.Errorf("the registry was asked %d times while the mirror held everything under its path", n)
+	}
+	mu.Lock()
+	seen := len(paths)
+	for _, path := range paths {
+		if !strings.HasPrefix(path, "/cache/v2/") {
+			t.Errorf("the mirror was asked for %q, want a path under /cache/v2/", path)
+		}
+	}
+	mu.Unlock()
+	if seen == 0 {
+		t.Fatal("the mirror was never asked")
+	}
+
+	unprefixed := newClient(t, Config{Registry: r.Host(), Mirror: mirrorHost})
+	if _, err := unprefixed.Resolve(t.Context(), ref); err != nil {
+		t.Fatalf("the registry was not asked after the mirror failed: %v", err)
+	}
+	for _, request := range r.Requests() {
+		if !strings.HasPrefix(request.Path, "/v2/") {
+			t.Errorf("the registry was asked for %q, want an unprefixed /v2/ path", request.Path)
+		}
+	}
+	if len(r.Requests()) == 0 {
+		t.Error("the registry was never asked when the mirror path was not set")
+	}
+}
+
+// TestMirrorPathRule covers what New refuses of a mirror path: one that does
+// not start with a slash, one that holds a query or a fragment, and one set
+// with no mirror. A path of one slash is the mirror's root.
+func TestMirrorPathRule(t *testing.T) {
+	const mirror = "mirror.example:5000"
+	refused := map[string]Config{
+		"no leading slash": {Mirror: mirror, MirrorPath: "cache"},
+		"a query":          {Mirror: mirror, MirrorPath: "/cache?x=1"},
+		"a fragment":       {Mirror: mirror, MirrorPath: "/cache#top"},
+		"no mirror":        {MirrorPath: "/cache"},
+	}
+	for name, config := range refused {
+		config.Registry = "registry.example"
+		config.Transport = TransportHTTPS
+		config.Architecture = ArchitectureAMD64
+		c, err := New(config)
+		if err == nil {
+			c.Close()
+			t.Errorf("%s: New accepted the mirror path %q", name, config.MirrorPath)
+		}
+	}
+	root := newClient(t, Config{Registry: "registry.example", Mirror: mirror, MirrorPath: "/"})
+	if root.mirror.prefix != "" {
+		t.Errorf("a mirror path of one slash gives the prefix %q, want none", root.mirror.prefix)
+	}
+}
 
 // TestMirrorTriedFirstThenRegistry proves the order: a mirror that holds the
 // image serves all of it and the registry is not asked; a mirror that lacks

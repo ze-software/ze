@@ -187,7 +187,7 @@ When a pick stops on a file he has uncommitted edits in: `git cherry-pick
 `git stash push <file>`, `git cherry-pick <remaining commits>`, `git stash
 pop`. The session cannot drive git on the laptop while it is confined to the
 worktree, and it leaves the worktree only when he asks. Last delivered
-(2026-11-17, afternoon): server `71a4db392f` is laptop `ce943f9195`;
+(2026-11-17, evening): server `04ba8f1a7d` is laptop `c20567285d`;
 everything after it on the worktree branch is waiting for him. The real Redis
 image ran as a container in the guest that day (an exploratory draft against
 the public registry, never to be promoted); the specified closing test is the

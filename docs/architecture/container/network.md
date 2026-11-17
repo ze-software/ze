@@ -107,6 +107,42 @@ disabled container keeps its address record, so enabling it again gives it
 the same address, and its ports still take part in the V-6 rules, so the
 config stays valid when it is enabled again.
 
+### The firewall policy and the port-blocked check
+
+Publishing a port never opens the operator's firewall policy. The translation
+tables are the plugin's own, and the plugin writes nothing into a table the
+operator owns. A connection from beyond the router to a published port is
+translated at prerouting and then forwarded to the container, so it crosses
+every base chain at the forward hook, and a drop in any of them is final. The
+policy must accept, at the forward hook, the protocol to the container port
+(the destination after translation) leaving by the network's bridge `zcn-NAME`
+or going to the instance's address, and the replies, by connection state
+`established,related` or by input interface the bridge. A connection the
+router itself opens is translated at the output hook and does not cross the
+forward hook.
+
+The doctor check `container-port-blocked` reports a published port the policy
+blocks, as a warning under `doctor-container-port-blocked`. It runs in the
+plugin's process, internal and forked alike, and makes no engine call: the
+parse reads the `firewall` root beside the container root and keeps, in the
+network config, each base chain at the forward hook whose policy is drop,
+with the output interface and the destination prefix of each of its accepting
+terms. The apply records those chains beside the ports it translated, with
+the address each port is translated to, and the check judges that record.
+
+| Fact | Behaviour |
+|------|-----------|
+| What it reads | The committed firewall config, which the firewall component applies at the same commit. It does not read the kernel's ruleset, so a rule written with another tool is not seen |
+| When a port is reported | A dropping forward chain whose table carries the family of the port's target (`inet` both, `ip` IPv4, `ip6` IPv6) holds no accepting term that names the bridge as `output-interface` (the name, or a prefix before a trailing asterisk) or a `destination-address` prefix that holds the target |
+| What it does not judge | The rest of a term. It reports a port a term accepts by another match, and a destination that names a set; it does not see a drop term ahead of the accepting one, or a chain at the input or output hook |
+| The finding | One per port entry and blocking chain: the container, the port entry, the chain and the table, the bridge and the address |
+| The fix | The accepting term as `set firewall table T chain C term container_INSTANCE_PORT ...` lines (protocol, destination port the container port, output interface the bridge, `then accept`) followed by `commit now`, to paste into `ze config edit` |
+| A policy commit | A commit that changes only the firewall section is delivered to the plugin with the container root, gives a network config that differs, and is applied, so the finding follows the policy |
+| A disabled container | Has no translation and no finding |
+
+<!-- source: internal/plugins/container/network/policy.go -- parseForwardChains, ForwardChain, ForwardAccept, portPolicy, publishedPorts, acceptingTerm, answerPortBlocked -->
+<!-- source: internal/test/containerprobe/policy.go -- blocked, adopt -->
+
 ### The forwarding defaults
 
 A connection from beyond the router to a published port, and a container's

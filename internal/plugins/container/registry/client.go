@@ -135,6 +135,11 @@ type Config struct {
 	Credentials Credentials
 	// Mirror is host[:port] of the one mirror, asked first, or empty.
 	Mirror string
+	// MirrorPath is the path the mirror serves the registry protocol under,
+	// placed before the /v2/ path of every request to it. It starts with a
+	// slash; empty and a single slash are both the mirror's root. New
+	// refuses one set with no Mirror.
+	MirrorPath string
 	// TrustAnchor replaces the system roots when it is not nil: a registry
 	// that names an anchor is trusted through that anchor only.
 	TrustAnchor *x509.CertPool
@@ -164,8 +169,11 @@ const (
 // with the authorization obtained for it. The authorization is sent to that
 // origin's exact host and port only.
 type origin struct {
-	host          string
-	scheme        string
+	host   string
+	scheme string
+	// prefix is the path before the /v2/ path of every request: empty for
+	// the registry and for a mirror served at its root.
+	prefix        string
 	credentials   Credentials
 	authorization string
 }
@@ -234,9 +242,34 @@ func New(config Config) (*Client, error) {
 		if err := checkHost(config.Mirror); err != nil {
 			return nil, fmt.Errorf("registry client: mirror: %w", err)
 		}
-		c.mirror = &origin{host: config.Mirror, scheme: scheme}
+		prefix, err := mirrorPrefix(config.MirrorPath)
+		if err != nil {
+			return nil, err
+		}
+		c.mirror = &origin{host: config.Mirror, scheme: scheme, prefix: prefix}
+		return c, nil
+	}
+	if config.MirrorPath != "" {
+		return nil, errors.New("registry client: a mirror path is set and no mirror")
 	}
 	return c, nil
+}
+
+// mirrorPrefix answers what a mirror's path puts before the /v2/ path of a
+// request: the path without its trailing slash, so the root is no prefix. A
+// path that does not start with a slash, or that holds a query, a fragment
+// or a space, is refused: it would change which resource is asked.
+func mirrorPrefix(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(path, "/") {
+		return "", fmt.Errorf("registry client: mirror path %q does not start with a slash", shown(path))
+	}
+	if strings.ContainsAny(path, "?# ") {
+		return "", fmt.Errorf("registry client: mirror path %q holds a query, a fragment or a space", shown(path))
+	}
+	return strings.TrimSuffix(path, "/"), nil
 }
 
 // Close releases the idle connections.
@@ -323,7 +356,7 @@ func (a *answer) close() {
 // get asks o for path. It answers one authentication challenge, follows the
 // redirects by the client's rule, and classifies an answer that is not 200.
 func (c *Client) get(ctx context.Context, o *origin, path, accept, scope string) (*answer, error) {
-	target := o.scheme + "://" + o.host + path
+	target := o.scheme + "://" + o.host + o.prefix + path
 	response, err := c.follow(ctx, target, accept, o.key(), o.authorization)
 	if err != nil {
 		return nil, err

@@ -38,7 +38,15 @@
 // `ze-containerprobe published ADDRESS PORT` runs on the client's side: it
 // dials ADDRESS:PORT within a bounded wait and requires the serving line.
 // `ze-containerprobe refused ADDRESS PORT` requires one attempt to be
-// refused: a packet there and a reset back.
+// refused: a packet there and a reset back. `ze-containerprobe blocked
+// ADDRESS PORT` requires one attempt to get no answer at all within a bounded
+// wait, which is what a packet the firewall policy drops looks like
+// (policy.go).
+//
+// `ze-containerprobe adopt CONFIG REPLACEMENT` runs on the host beside the
+// daemon: it writes the file REPLACEMENT over CONFIG, the file the daemon
+// started on, asks the daemon to reload it and requires the daemon's reloaded
+// answer (policy.go).
 //
 // `ze-containerprobe resp ADDRESS PORT` runs on the client's side of a
 // container that runs a published Redis image: it dials ADDRESS:PORT within
@@ -217,7 +225,8 @@ const (
 const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | run-serving | run-talking | reset STORE | verify STORE NAME" +
 	" | stopped-finding NAME SECONDS" +
 	" | confined STORE NAME | networked STORE NAME ADDRESS GATEWAY MTU | host-end BRIDGE OWNER FILE" +
-	" | published ADDRESS PORT | refused ADDRESS PORT | resp ADDRESS PORT" +
+	" | published ADDRESS PORT | refused ADDRESS PORT | blocked ADDRESS PORT | resp ADDRESS PORT" +
+	" | adopt CONFIG REPLACEMENT" +
 	" | fetch TYPED LISTED SECONDS | running NAME COMMAND | diagnose NAME" +
 	" | unlinked FILE | gone STORE NAME [at-least|less-than SECONDS] | starts STORE NAME COUNT" +
 	" | drive STORE NAME CONFIG second-signal|remove [REMOVED-CONFIG]"
@@ -310,6 +319,20 @@ func main() {
 			fail("usage: ze-containerprobe refused ADDRESS PORT")
 		}
 		if !refused(os.Args[2], os.Args[3]) {
+			os.Exit(1)
+		}
+	case "blocked":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe blocked ADDRESS PORT")
+		}
+		if !blocked(os.Args[2], os.Args[3]) {
+			os.Exit(1)
+		}
+	case "adopt":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe adopt CONFIG REPLACEMENT")
+		}
+		if !adopt(os.Args[2], os.Args[3]) {
 			os.Exit(1)
 		}
 	case "resp":

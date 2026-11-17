@@ -571,6 +571,56 @@ markers so the source peer cannot start before the intended observer releases it
 
 <!-- source: internal/test/fixture/plugin_fixture_02_events.go -- waitFileDriver02, dynamicGroupWait02, waitForMarker02 -->
 
+### The container registry fixture and the seeded Redis image
+
+`le test fixture container/registry <port>` starts the in-process test
+registry (`internal/test/ociregistry`) on `127.0.0.1:<port>`, with the hub's
+anonymous bearer challenge. A daemon under test reaches it as the mirror of
+every registry through `ze.test.container.registry.port`. It serves:
+
+| Image | Content | Needs |
+|-------|---------|-------|
+| `library/hello:latest` | One text file, built by the fixture | Nothing |
+| `library/probe:latest` | The container test probe as entrypoint, built by the fixture | `ze-containerprobe` on the step's `PATH` |
+| `library/redis:latest` | The published Redis image, for linux/amd64 and linux/arm64 | The seed (below) |
+
+The published image is pinned by the digest of its index in
+`test/interop-container/redis.pin`. The file holds one line and nothing else,
+`<registry>/<repository>@sha256:<hex>`, ended by a newline. A new release of
+the image changes nothing until that line moves.
+
+`./le test container-seed fetch` is the only step that needs the network. It
+reads the pin and copies the pinned index, the linux/amd64 and linux/arm64
+manifests, their configurations and their layers from the public registry into
+an OCI layout folder, `cache/container-seed/redis` in the checkout. `cache` is
+the checkout's link to the developer cache (`~/.cache/ze`), outside the tracked
+tree, and the QEMU guest reaches the same folder as `/workspace/cache`, through
+the cache export the guest harness already mounts. The action checks every
+object against its digest and size, does not fetch again an object the folder
+holds with the right digest, and writes `index.json` last, naming the pinned
+index under the `latest` tag. It prints the folder and each object, fetched or
+already there.
+
+The fixture serves `library/redis:latest` from that folder when the folder
+holds a seed, with `PutLayout`: the index and the manifests are checked and
+held in memory, and each layer is streamed from its file. A test that fetches
+the published image writes the word `redis` after the port:
+
+```
+cmd=background:seq=1:exec=le test fixture container/registry $PORT2 redis:name=registry:ready=REGISTRY: listening on
+```
+
+With that word and no seed the fixture refuses to start and names
+`./le test container-seed fetch`, so the test fails. It never skips: a skip
+would read as the test having passed.
+
+<!-- source: internal/test/fixture/register_container_registry.go -- containerRegistry, containerRegistryWords, containerRegistryRedisImage -->
+<!-- source: internal/test/ociregistry/layout.go -- PutLayout, SeedLayoutDir, SeedCommand, LayoutBlobPath -->
+<!-- source: internal/le/test/containerseed/seed.go -- run, seed, parsePin, seedPlatforms -->
+<!-- source: internal/le/test/qemu/run.go -- cacheShare -->
+<!-- test: internal/test/ociregistry/layout_test.go TestPutLayoutServesTagAndDigest, TestPutLayoutAnswersBearerChallenge, TestPutLayoutStreamsBlobFromDisk, TestPutLayoutRefusesBrokenLayout -->
+<!-- test: internal/le/test/containerseed/seed_test.go TestSeedCopiesPinnedPlatforms, TestSeedFetchesNothingAlreadyThere, TestSeedRefusesWrongBytes, TestParsePinReadsTheTrackedPin -->
+
 ### Waiting for a daemon state over SSH
 
 `ready=` holds one substring of one background process's output, so it cannot

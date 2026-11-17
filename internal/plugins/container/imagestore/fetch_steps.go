@@ -454,10 +454,10 @@ func (r *storeRoot) removeStaged(staged string) error {
 }
 
 // defaultClientConfig answers how the registry reference names is reached
-// while no registry configuration exists: over verified TLS through the
-// system roots, anonymously, with no mirror. The public hub needs no more. A
-// private registry, its credentials, its trust anchor and its mirror wait
-// for the registry list of the operator surface.
+// when the registry list holds no entry for it: over verified TLS through
+// the system roots, anonymously, with no mirror. The public hub needs no
+// more. An entry of the list changes the transport, the mirror and the
+// credentials (registry_list.go); the trust anchor waits for its node.
 func defaultClientConfig(reference registry.Reference) (registry.Config, error) {
 	architecture, err := registry.RunningArchitecture()
 	if err != nil {

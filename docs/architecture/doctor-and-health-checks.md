@@ -136,6 +136,20 @@ is not checked yet (`docs/architecture/container/image-store.md`).
 <!-- source: internal/plugins/container/doctor_store.go -- storeDoctorChecks, answerStoreUsable -->
 <!-- source: internal/plugins/container/imagestore/store.go -- CheckStore -->
 
+The plugin's network package declares one more runtime check through the
+plugin's sibling seam (`RegisterSiblingDoctorCheck`), answered in the plugin's
+process from what its last apply recorded:
+
+| Check | Reports | Code |
+|-------|---------|------|
+| `container-port-blocked` | a published port the operator's firewall policy blocks: a base chain at the forward hook has policy drop and no accepting term names the network's bridge as output interface or the container's address as destination, as a warning, with the accepting term as `set firewall` lines | `doctor-container-port-blocked` |
+
+The check judges the committed firewall config and those two matches only
+(`docs/architecture/container/network.md`, "The firewall policy and the
+port-blocked check").
+<!-- source: internal/plugins/container/network/policy.go -- portPolicy, answerPortBlocked -->
+<!-- source: internal/plugins/container/sibling.go -- RegisterSiblingDoctorCheck -->
+
 There is one phase set and one registry. A second registry of daemon-only
 checks would let a check pick the one the local route happens to run, so the
 phase is the only place that says when a check runs.

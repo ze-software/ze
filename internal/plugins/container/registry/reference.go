@@ -292,6 +292,14 @@ func checkSeparator(component, separator string, i int) error {
 	return fmt.Errorf("component %q holds the separator %q", component, separator)
 }
 
+// CheckHost refuses a host that is not host[:port] as a registry or its
+// mirror is written, by the rule ParseReference and New apply. The parse of
+// the registry list calls it, so a mirror the client would refuse is refused
+// at the commit.
+func CheckHost(host string) error {
+	return checkHost(host)
+}
+
 // checkHost refuses a registry that is not host[:port], where host is a DNS
 // name in lower case, localhost, or a bracketed IPv6 address.
 func checkHost(host string) error {

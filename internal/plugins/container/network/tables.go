@@ -99,7 +99,7 @@ func familyTable(cfg Config, records map[string]addressRecord, family string, ip
 	if len(chains) == 0 {
 		return nil, false, nil
 	}
-	return map[string]any{"family": family, "chain": chains}, true, nil
+	return map[string]any{leafFamily: family, listChain: chains}, true, nil
 }
 
 // natChain is a base chain of type nat at hook. The term list is ordered-by
@@ -107,10 +107,10 @@ func familyTable(cfg Config, records map[string]addressRecord, family string, ip
 func natChain(hook, priority string, terms []any) map[string]any {
 	return map[string]any{
 		"type":     chainTypeNAT,
-		"hook":     hook,
+		leafHook:   hook,
 		"priority": priority,
-		"policy":   chainPolicyAccept,
-		"term":     terms,
+		leafPolicy: chainPolicyAccept,
+		listTerm:   terms,
 	}
 }
 
@@ -132,10 +132,10 @@ func outboundTerms(cfg Config, ipv4 bool, chains map[string]any) []any {
 			leafFrom: map[string]any{"source-address": prefix.String()},
 			leafThen: map[string]any{"jump": outbound},
 		})
-		chains[outbound] = map[string]any{"term": []any{
+		chains[outbound] = map[string]any{listTerm: []any{
 			map[string]any{
 				leafName: termBridge,
-				leafFrom: map[string]any{"output-interface": network.Bridge},
+				leafFrom: map[string]any{leafOutputInterface: network.Bridge},
 				leafThen: map[string]any{"return": map[string]any{}},
 			},
 			map[string]any{
@@ -189,7 +189,7 @@ func portTerms(instance string, port Port, ipv4 bool, target netip.Addr) []any {
 			continue
 		}
 		match := portMatch(port)
-		match["destination-address"] = netip.PrefixFrom(address, address.BitLen()).String()
+		match[leafDestinationAddress] = netip.PrefixFrom(address, address.BitLen()).String()
 		terms = append(terms, portTerm(name+termSeparator+strconv.Itoa(position+1), port, match, target))
 	}
 	return terms
@@ -199,7 +199,7 @@ func portTerms(instance string, port Port, ipv4 bool, target netip.Addr) []any {
 func portMatch(port Port) map[string]any {
 	return map[string]any{
 		leafProtocol:        port.Protocol,
-		"destination-port":  port.ListenPorts.String(),
+		leafDestinationPort: port.ListenPorts.String(),
 		"destination-local": "", // an empty leaf: its presence is the whole value
 	}
 }

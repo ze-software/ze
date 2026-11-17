@@ -1,0 +1,66 @@
+# Question: does a container registry entry of the configuration, alone,
+# decide how the image store reaches a registry: does a fetch of the short
+# name hello succeed through the mirror the docker.io entry names, on a
+# loopback address and port over plain HTTP, with no test key set
+# (spec-container-4-operator-surface, table S-3: transport and mirror)?
+#
+# A unit test cannot decide it: the answer is what the config loader and its
+# schema, the delivery of the container root to the plugin, the image store's
+# part of the config transaction and the fetch worker do together, from the
+# config file and the CLI the operator types.
+#
+# Method: the compiled registry fixture serves one small image on the
+# loopback port $PORT2, under library/hello:latest, with the hub's anonymous
+# bearer challenge. The daemon runs with no fixture store named, so the image
+# store package answers, with its data directory under /run, never in the
+# test's work directory: in the QEMU guest that directory is on the 9p share
+# of the checkout. ze.test.container.registry.port is NOT set: without the
+# registry entry the fetch would dial the public hub over TLS and fail. The
+# config holds the entry for docker.io, the registry the short name hello
+# completes to, with transport http and a mirror at 127.0.0.1 port $PORT2,
+# and the SSH server ze cli reaches. The fetch must answer exit 0, and the
+# listing must hold the hub's whole reference, the state present and a
+# digest.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=60s
+option=env:var=ze.data.dir:value=/run/ze-container-registry-$PORT
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+container {
+	registry docker.io {
+		transport http
+		mirror {
+			address 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test fixture container/registry $PORT2:name=registry:timeout=58s:ready=REGISTRY: listening on
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=3:exec=ze cli -c "create container image reference hello":timeout=45s:exit=0
+cmd=foreground:seq=4:exec=ze cli -c "show container image list | json":exit=0
+expect=stdout:contains=docker.io/library/hello:latest
+expect=stdout:pattern="state":\s*"present"
+expect=stdout:pattern="digest":\s*"sha256:[0-9a-f]{64}"

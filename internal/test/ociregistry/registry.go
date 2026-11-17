@@ -5,12 +5,15 @@
 // registry client speaks: manifests by tag and by digest, blobs by digest, a
 // bearer or a basic challenge with its token realm, and scripted faults (a
 // wrong body, a stall, server errors, redirects). A unit test starts one
-// directly. It is written from the protocol, not from the client: it imports
+// directly. An image is built in memory (PutImage, PutIndex) or loaded from an
+// OCI layout folder, whose blobs are streamed from the disk (PutLayout,
+// layout.go). It is written from the protocol, not from the client: it imports
 // nothing of the client, so a constant the client gets wrong is not repeated
 // here and passes on both sides.
 package ociregistry
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -19,12 +22,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Auth is how the registry answers a request that carries no credentials.
@@ -83,6 +90,9 @@ type Descriptor struct {
 	Digest    string    `json:"digest"`
 	Size      int64     `json:"size"`
 	Platform  *Platform `json:"platform,omitempty"`
+	// Annotations are the descriptor's annotations: an entry of a layout's
+	// index.json names its tag in one (AnnotationRefName).
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // Platform is the platform of an index entry, in the wire form.
@@ -136,10 +146,27 @@ type Request struct {
 	Authorization string
 }
 
-// stored is one manifest or blob.
+// stored is one manifest or blob. Its bytes are body, held in memory, or the
+// file at path when path is not empty: a blob PutLayout loaded, which is
+// streamed from the disk on each request and never read into memory.
 type stored struct {
 	mediaType string
 	body      []byte
+	path      string
+	size      int64
+}
+
+// open answers the object's bytes as a stream and how many there are. The
+// caller MUST close the stream.
+func (s stored) open() (io.ReadCloser, int64, error) {
+	if s.path == "" {
+		return io.NopCloser(bytes.NewReader(s.body)), int64(len(s.body)), nil
+	}
+	file, err := os.Open(s.path) //nolint:gosec // G304: a file of the layout folder the test loaded
+	if err != nil {
+		return nil, 0, err
+	}
+	return file, s.size, nil
 }
 
 // Registry is one running test registry. Safe for concurrent use. Start
@@ -356,17 +383,26 @@ func (r *Registry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusNotFound, strings.ToUpper(kind)+"_UNKNOWN")
 		return
 	}
-	body := object.body
+	content, size, err := object.open()
+	if err != nil {
+		// The file of a loaded layout went away under the registry.
+		writeError(w, http.StatusInternalServerError, "UNAVAILABLE")
+		return
+	}
+	defer content.Close() //nolint:errcheck // read-only stream
+	var body io.Reader = content
 	if fault.Body != nil {
-		body = fault.Body
+		body = bytes.NewReader(fault.Body)
+		size = int64(len(fault.Body))
 	}
 	w.Header().Set("Content-Type", object.mediaType)
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("Content-Length", textbuf.StringInt(size))
 	if kind == "manifest" {
+		// A manifest is always held in memory: only blobs are loaded as files.
 		w.Header().Set("Docker-Content-Digest", digestOf(object.body))
 	}
-	if fault.StallAfter > 0 && fault.StallAfter < len(body) {
-		w.Write(body[:fault.StallAfter]) //nolint:errcheck // the client reports what arrived
+	if fault.StallAfter > 0 && int64(fault.StallAfter) < size {
+		io.CopyN(w, body, int64(fault.StallAfter)) //nolint:errcheck // the client reports what arrived
 		if flusher, ok := w.(http.Flusher); ok {
 			flusher.Flush()
 		}
@@ -376,8 +412,8 @@ func (r *Registry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	}
-	if fault.Hold != nil && fault.HoldAfter < len(body) {
-		w.Write(body[:fault.HoldAfter]) //nolint:errcheck // the client reports what arrived
+	if fault.Hold != nil && int64(fault.HoldAfter) < size {
+		io.CopyN(w, body, int64(fault.HoldAfter)) //nolint:errcheck // the client reports what arrived
 		if flusher, ok := w.(http.Flusher); ok {
 			flusher.Flush()
 		}
@@ -388,9 +424,8 @@ func (r *Registry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		case <-r.done:
 			return
 		}
-		body = body[fault.HoldAfter:]
 	}
-	w.Write(body) //nolint:errcheck // the client reports what arrived
+	io.Copy(w, body) //nolint:errcheck // the client reports what arrived
 }
 
 // takeFault answers a copy of the fault set for name, with one server error

@@ -1,0 +1,256 @@
+# Test: a published container port must also be allowed by the operator's
+#       firewall policy. With a base chain at the forward hook whose policy is
+#       drop and no term that accepts the forwarded connection, a client
+#       beyond the router gets no answer and `show doctor` reports
+#       doctor-container-port-blocked for the port entry, with the term to
+#       add. Once that term is committed, the same client gets the
+#       container's line and the finding is gone.
+# Spec: spec-container-3-network, "Published ports", Wiring Test row
+#       container-port-blocked; umbrella AC-14, the policy part
+# QUESTION: does the operator's forward policy decide whether a published
+#   port is reachable from beyond the router, and does doctor say so with the
+#   term that fixes it?
+# VALIDATES: the network plugin's port-blocked check
+#   (internal/plugins/container/network/policy.go parseForwardChains,
+#   ForwardChain.blocks, portPolicy.findings, acceptingTerm), the record the
+#   apply makes for it (apply.go install), its registration as a doctor check
+#   of the container plugin (register.go), and that a reload which changes
+#   only the firewall section reaches the plugin and clears the finding.
+# PREVENTS: a published port that opens the firewall by itself, a blocked port
+#   doctor is silent about, a fix line the policy does not obey, and a finding
+#   that stays after the term is committed.
+# Why not a unit test: the unit tests prove the judgment over a parsed config
+#   and the text of the fix. Only a real daemon, kernel and container show
+#   that the kernel drops the forwarded connection under that policy, that the
+#   term doctor names is the one that lets it through, and that the finding
+#   follows a firewall-only reload.
+#
+# Method: the test store gives a container whose name starts with "serving"
+# the probe's run-serving mode (storeseam_zetest.go): it listens on TCP port
+# 7070 inside the container and answers every connection with one fixed line.
+# The port is published as $PORT2 on the router. The client runs beyond the
+# router: in a network namespace of its own, joined to the router by a veth
+# pair with an address on each end, connecting to the router's address on
+# that link, so its connection is translated at prerouting and then crosses
+# the forward hook.
+#
+# The policy: one inet table with one base chain at the forward hook, policy
+# drop. From the start it holds the term that accepts the replies by
+# connection state, so the only thing missing is the term for the client's
+# packets. allowed.conf is running.conf plus that term, written as the fix
+# of the finding gives it: protocol tcp, destination port 7070 (the container
+# port, the destination after translation), output interface zcn-lan.
+#
+# The control inside the test: while the client beyond the router is blocked,
+# the router itself reaches the published port (step 12). That connection is
+# translated at the output hook and never crosses the forward hook, so it
+# shows the container serves and the port is translated, and that the forward
+# policy alone is what stops the client.
+#
+# The probe's adopt mode writes allowed.conf over running.conf and sends
+# `request reload`, which answers once every plugin applied the file.
+#
+# caps: sys-admin for the container and the namespace, net-admin for the
+# bridge, the links and the nft tables.
+
+option=needs-linux:caps=net-admin,sys-admin
+option=exclusive:group=container
+option=timeout:value=240s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+interface {
+	backend netlink
+}
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain forward {
+			type filter
+			hook forward
+			priority 0
+			policy drop
+			term replies {
+				from {
+					connection-state established,related
+				}
+				then {
+					accept
+				}
+			}
+		}
+	}
+}
+container {
+	network lan {
+		prefix 10.88.0.0/24
+	}
+	instance serving {
+		image probe
+		network lan {
+		}
+		port web {
+			listen-port $PORT2
+			container-port 7070
+		}
+	}
+}
+EOF_CONF
+tmpfs=allowed.conf:terminator=EOF_ALLOWED
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+interface {
+	backend netlink
+}
+firewall {
+	backend nft
+	table wan {
+		family inet
+		chain forward {
+			type filter
+			hook forward
+			priority 0
+			policy drop
+			term replies {
+				from {
+					connection-state established,related
+				}
+				then {
+					accept
+				}
+			}
+			term container_serving_web {
+				from {
+					protocol tcp
+					destination-port 7070
+					output-interface zcn-lan
+				}
+				then {
+					accept
+				}
+			}
+		}
+	}
+}
+container {
+	network lan {
+		prefix 10.88.0.0/24
+	}
+	instance serving {
+		image probe
+		network lan {
+		}
+		port web {
+			listen-port $PORT2
+			container-port 7070
+		}
+	}
+}
+EOF_ALLOWED
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+
+# The client's namespace, and the veth pair that joins it to the router.
+cmd=foreground:seq=2:exec=ip netns add zeblk$PORT:exit=0
+cmd=foreground:seq=3:exec=ip link add zbo$PORT type veth peer name zbi$PORT netns zeblk$PORT:exit=0
+cmd=foreground:seq=4:exec=ip address add 172.31.251.1/24 dev zbo$PORT:exit=0
+cmd=foreground:seq=5:exec=ip link set dev zbo$PORT up:exit=0
+cmd=foreground:seq=6:exec=ip -n zeblk$PORT address add 172.31.251.2/24 dev zbi$PORT:exit=0
+cmd=foreground:seq=7:exec=ip -n zeblk$PORT link set dev zbi$PORT up:exit=0
+
+cmd=background:seq=8:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: the container wrote its report, so it holds its link and its
+# listener is bound.
+cmd=foreground:seq=9:exec=ze-containerprobe networked /run/ze-container-test-$PORT serving 10.88.0.2/24 10.88.0.1 1500:timeout=45s:exit=0
+expect=stdout:contains=probe: eth0 holds 10.88.0.2/24
+reject=stdout:contains=probe: FAIL
+
+# The port is translated: the plugin's table holds its term.
+cmd=foreground:seq=10:exec=ze cli -c "show firewall ruleset container":exit=0
+expect=stdout:contains=port_serving_web
+
+# The policy blocks it: the client beyond the router gets no answer.
+cmd=foreground:seq=11:exec=ip netns exec zeblk$PORT ze-containerprobe blocked 172.31.251.1 $PORT2:timeout=15s:exit=0
+expect=stdout:pattern=probe: the connection to 172\.31\.251\.1:[0-9]+ got no answer
+reject=stdout:contains=probe: FAIL
+
+# The control: the router itself reaches the same port, through the output
+# hook, so the container serves and only the forward policy stops the client.
+cmd=foreground:seq=12:exec=ze-containerprobe published 172.31.251.1 $PORT2:timeout=60s:exit=0
+expect=stdout:contains=probe: the container answered
+reject=stdout:contains=probe: FAIL
+
+# Doctor reports the blocked port, its chain, and the term to add.
+cmd=foreground:seq=13:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-container-port-blocked"
+expect=stdout:contains=container serving port web is published and the firewall policy blocks it: chain forward of firewall table wan is at the forward hook with policy drop
+expect=stdout:contains=output-interface zcn-lan or destination-address 10.88.0.2,
+expect=stdout:contains=set firewall table wan chain forward term container_serving_web from protocol tcp
+expect=stdout:contains=set firewall table wan chain forward term container_serving_web from destination-port 7070
+expect=stdout:contains=set firewall table wan chain forward term container_serving_web from output-interface zcn-lan
+expect=stdout:contains=set firewall table wan chain forward term container_serving_web then accept
+
+# The operator adds the term and commits it.
+cmd=foreground:seq=14:exec=ze-containerprobe adopt running.conf allowed.conf:timeout=90s:exit=0
+expect=stdout:contains=probe: the daemon reloaded its configuration
+reject=stdout:contains=probe: FAIL
+
+# The same client now gets the container's line.
+cmd=foreground:seq=15:exec=ip netns exec zeblk$PORT ze-containerprobe published 172.31.251.1 $PORT2:timeout=60s:exit=0
+expect=stdout:contains=probe: connected to 172.31.251.1:
+expect=stdout:contains=probe: the container answered
+reject=stdout:contains=probe: FAIL
+
+# The finding is gone.
+cmd=foreground:seq=16:exec=ze cli -c "show doctor | json":exit=0
+reject=stdout:contains=doctor-container-port-blocked
+
+# A port no container publishes is not translated and not forwarded: the
+# router's own stack refuses it, from the same outside namespace.
+cmd=foreground:seq=17:exec=ip netns exec zeblk$PORT ze-containerprobe refused 172.31.251.1 $PORT3:timeout=15s:exit=0
+expect=stdout:pattern=probe: the connection to 172\.31\.251\.1:[0-9]+ was refused
+reject=stdout:contains=probe: FAIL
+
+# The daemon stops in order and the container ends; the namespace goes, and
+# the veth pair with it.
+cmd=stop:seq=18:name=daemon:signal=term
+cmd=foreground:seq=19:exec=ze-containerprobe gone /run/ze-container-test-$PORT serving:timeout=50s:exit=0
+expect=stdout:contains=probe: its control group is gone
+reject=stdout:contains=probe: FAIL
+cmd=foreground:seq=20:exec=ip netns delete zeblk$PORT:exit=0

@@ -8,15 +8,16 @@
 # do together, from the CLI the operator types.
 #
 # Method: the compiled registry fixture serves one small image on the
-# loopback port $PORT2, under library/redis:latest, with the hub's anonymous
-# bearer challenge. The daemon runs with no fixture store named, so the image
+# loopback port $PORT2, under library/hello:latest, with the hub's anonymous
+# bearer challenge. It is the fixture's own image of one text file, so the
+# test needs no seed of a published image. The daemon runs with no fixture store named, so the image
 # store package answers, with its data directory under /run, never in the
 # test's work directory: in the QEMU guest that directory is on the 9p share
 # of the checkout. ze.test.container.registry.port, a key of the test build
 # only, makes every registry reached through that port as its mirror over
 # plain HTTP, until the registry list of the operator surface exists. The
 # config holds the container root and no container, and the SSH server
-# ze cli reaches. The operator's short name redis must complete to the hub's
+# ze cli reaches. The operator's short name hello must complete to the hub's
 # whole reference; the fetch must answer exit 0, and the listing must hold
 # that reference and the state present.
 option=needs-linux:caps=sys-admin
@@ -51,8 +52,8 @@ EOF_CONF
 
 cmd=background:seq=1:exec=le test fixture container/registry $PORT2:name=registry:timeout=58s:ready=REGISTRY: listening on
 cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
-cmd=foreground:seq=3:exec=ze cli -c "create container image reference redis":timeout=45s:exit=0
+cmd=foreground:seq=3:exec=ze cli -c "create container image reference hello":timeout=45s:exit=0
 cmd=foreground:seq=4:exec=ze cli -c "show container image list | json":exit=0
-expect=stdout:contains=docker.io/library/redis:latest
+expect=stdout:contains=docker.io/library/hello:latest
 expect=stdout:pattern="state":\s*"present"
 expect=stdout:pattern="digest":\s*"sha256:[0-9a-f]{64}"

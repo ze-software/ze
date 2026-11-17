@@ -449,6 +449,7 @@ explains each one.
 | `doctor-container-cleanup-incomplete` | A container left processes, a control group or a mount behind | Runtime check `container-cleanup-incomplete` |
 | `doctor-container-failed` | A container the configuration enables does not run: its last start failed | Runtime check `container-failed`, as an error |
 | `doctor-container-stopped` | A container's entrypoint ended on its own with a status other than 0, and the container stays stopped | Runtime check `container-stopped`, with the status and the last output ("The output") |
+| `doctor-container-port-blocked` | A published port is blocked by the operator's firewall policy: a base chain at the forward hook has policy drop and no accepting term names the network's bridge or the container's address | The network package's check `container-port-blocked`, as a warning, with the accepting term as `set firewall` lines (`network.md`, "The firewall policy and the port-blocked check") |
 | `doctor-container-kernel-cpu-limit-unavailable`, `doctor-container-kernel-cpu-limit-unknown` | The kernel has no hard CPU limit, or Ze could not tell | The kernel enrolment `container-cpu-limit` |
 
 The first three codes are registered and explained. No doctor check reports

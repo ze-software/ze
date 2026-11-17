@@ -38,8 +38,9 @@ the storage cap.
 | The state keys | `pkg/zefs/keys.go` | Three patterns under `meta/container/`, granted to the plugin |
 | The data directory | `internal/core/paths/paths.go` | `ze.data.dir` wins. Without it the directory follows the binary's location, as the config directory does (the table below) |
 | The registry client | `internal/plugins/container/registry`, gated by `ze_container` | Resolves a reference and fetches checked blobs (the section below), for the fetch worker |
-| The test registry | `internal/test/ociregistry` | An in-process registry the client's and the store's tests fetch from, with scripted faults, a held transfer and a fixed address |
-| The registry fixture | `internal/test/fixture/register_container_registry.go` | `le test fixture container/registry <port>` serves one image under `library/redis:latest` to a functional test's daemon |
+| The test registry | `internal/test/ociregistry` | An in-process registry the client's and the store's tests fetch from, with scripted faults, a held transfer and a fixed address. `PutLayout` serves an image from an OCI layout folder, its layers streamed from the disk |
+| The registry fixture | `internal/test/fixture/register_container_registry.go` | `le test fixture container/registry <port>` serves `library/hello:latest` (one text file) and `library/probe:latest` (the test probe) to a functional test's daemon, and `library/redis:latest`, the published image, from the seed. With the word `redis` after the port it refuses to start without the seed (`docs/functional-tests.md`, "The container registry fixture and the seeded Redis image") |
+| The seed of the published image | `internal/le/test/containerseed`, `test/interop-container/redis.pin` | `./le test container-seed fetch` copies the pinned Redis index, for amd64 and arm64, into an OCI layout folder of the developer cache. The only step of the container tests that needs the network |
 
 <!-- source: internal/plugins/container/imagestore/store.go -- Store, newStore, openStore, storePath, withRoot, openRoot, ListImages, notImplemented -->
 <!-- source: internal/plugins/container/imagestore/register.go -- init -->
@@ -193,7 +194,10 @@ itself, and is refused when there are none.
 **The mirror** is asked first, once, with no credentials. When it fails in
 any way, a mismatch included, the registry is asked, with its retries, and
 the mirror's failure is kept (`LastMirrorFailure`) for the fetch worker to
-report.
+report. A mirror served under a path (`Config.MirrorPath`) has that path
+placed before the `/v2/` path of every request to it, and never before a
+request to the registry; a path with no leading slash, with a query or a
+fragment, or set with no mirror, is refused by `New`.
 
 **Trust.** The HTTPS transport verifies the certificate against the system
 roots, or against the trust anchor alone when the registry names one. There
@@ -209,7 +213,7 @@ userinfo, a registry's error body is reduced to its error code, and
 writes no log line.
 
 <!-- source: internal/plugins/container/registry/reference.go -- ParseReference, ParseDigest, Digest, Reference, splitRegistry, endpointHost -->
-<!-- source: internal/plugins/container/registry/client.go -- New, Config, Credentials, Transport, Architecture, RunningArchitecture, fromMirrorThenRegistry, withRetry, get, follow, canonicalHost, transportFailure, statusFailure -->
+<!-- source: internal/plugins/container/registry/client.go -- New, Config, Credentials, Transport, Architecture, RunningArchitecture, mirrorPrefix, fromMirrorThenRegistry, withRetry, get, follow, canonicalHost, transportFailure, statusFailure -->
 <!-- source: internal/plugins/container/registry/auth.go -- answerChallenge, token, tokenOnce, parseChallenge -->
 <!-- source: internal/plugins/container/registry/manifest.go -- Resolve, manifestOnce, parseManifest, selectPlatform, imageParts, checkLayer, checkConfigPlatform -->
 <!-- source: internal/plugins/container/registry/blob.go -- FetchBlob, BlobFile, copyVerified -->
@@ -221,7 +225,7 @@ writes no log line.
 <!-- test: internal/plugins/container/registry/redirect_test.go TestRedirectToOtherHostDropsAuthorization, TestRedirectSameHostKeepsAuthorization, TestRedirectDowngradeRefused, TestRedirectLimit -->
 <!-- test: internal/plugins/container/registry/verify_test.go TestManifestDigestMismatchRefused, TestBlobDigestMismatchRefused, TestBlobSizeMismatchRefused, TestDigestMismatchNotRetried, TestManifestSizeBound, TestNonSHA256DigestRefused -->
 <!-- test: internal/plugins/container/registry/platform_test.go TestIndexSelectsRunningPlatform, TestIndexWithoutPlatformNamesOffered, TestUnacceptedManifestTypesRefused -->
-<!-- test: internal/plugins/container/registry/mirror_test.go TestMirrorTriedFirstThenRegistry, TestMirrorGetsNoRegistryCredentials -->
+<!-- test: internal/plugins/container/registry/mirror_test.go TestMirrorTriedFirstThenRegistry, TestMirrorGetsNoRegistryCredentials, TestMirrorPathPrefixesEveryMirrorRequest, TestMirrorPathRule -->
 <!-- test: internal/plugins/container/registry/tls_test.go TestHTTPTransportFetchesOverPlainHTTP, TestHTTPSTransportRefusesPlainHTTP, TestTrustAnchorReplacesSystemRoots -->
 <!-- test: internal/plugins/container/registry/secret_test.go TestCredentialsNeverInErrorOrLog -->
 
@@ -332,7 +336,7 @@ at a time, and ends when none waits.
 
 | Step | What the worker does |
 |------|----------------------|
-| Client | `engineClientConfig`: the registry the reference names, verified TLS through the system roots, anonymous, no mirror, the running architecture. The registry list of the operator surface will replace it. A `zetest` daemon reaches every registry through the loopback mirror `ze.test.container.registry.port` names, over plain HTTP |
+| Client | `engineClientConfig`: how the registry list of the running config says the registry the reference names is reached (the section below), for the running architecture. A registry with no entry is reached over verified TLS through the system roots, anonymously, with no mirror. In a `zetest` daemon a registry with no entry is reached through the loopback mirror `ze.test.container.registry.port` names, over plain HTTP; an entry wins over the key |
 | Resolve | The client resolves the manifest and reads the image configuration. A digest already in the store downloads no layer: the answer says it was not new |
 | Leftover blobs | Every blob in `blobs/` that is no layer of this image is removed: the blobs of a stopped fetch of another image |
 | Free space | The bytes to download (manifest, configuration and each layer not kept) must leave the reserve free: the larger of 64 MiB and 5% of the filesystem. Otherwise the fetch is refused before any layer is asked for, naming the three numbers, under `doctor-container-fetch-no-space`. A filesystem whose space cannot be read refuses the fetch too |
@@ -380,8 +384,47 @@ failure is raised on the report bus yet.
 <!-- source: internal/plugins/container/imagestore/fetch.go -- FetchImage, enqueueFetch, runFetches, fetchQueue, fetchError, failedRow, fetchingRow -->
 <!-- source: internal/plugins/container/imagestore/fetch_steps.go -- fetchInto, download, checkSpace, storeReserve, downloadBlob, countedBlobFile, diffIDs, defaultClientConfig, registryFailed -->
 <!-- source: internal/plugins/container/imagestore/fetch_apply_linux.go -- applyLayers, applyFailed -->
+<!-- source: internal/plugins/container/imagestore/registry_config.go -- engineClientConfig -->
 <!-- source: internal/plugins/container/imagestore/registry_config_zetest.go -- engineClientConfig -->
 <!-- test: internal/plugins/container/imagestore/fetch_test.go TestFetchCommandAnswersResultAtEnd, TestFetchOfPresentDigestDownloadsNothing, TestFetchReusesCheckedBlob, TestFetchOfAnotherImageRemovesLeftoverBlobs, TestFreeSpaceRefusalBeforeAnyBlob, TestListingShowsFetchingWithBytesReceived, TestFetchQueueBound, TestFetchFailureClassesNameTheirCode, TestFetchShortNameRecordsResolvedDigest -->
+
+### The registry list
+
+`container registry HOST` holds the settings of one registry: `transport`
+(`https`, the default, or `http`), `mirror` (`address`, `port` with the
+default 443, `path` with the default `/`), `authentication` (`username` and
+`password`, both mandatory, the password a sensitive leaf) and
+`description`. The schema's `trust-anchor` leaf is not there yet: it names a
+`pki ca` entry, and lands with the read of the pki tree.
+
+The image store is a config sibling of the container plugin
+(`container.RegisterConfigSibling`, from `register.go`), so the list is
+judged by the plugin's one rule set: at `ze config validate`, at a reload's
+verify and at the boot configure. The parse is the second check of each
+bound the schema states, and it adds the rule the schema cannot state: the
+name must be a registry an image reference names. It is checked with the
+reference grammar itself, so `docker.io` is accepted and `index.docker.io`
+or a host with no dot and no colon is refused, naming the registry such a
+reference completes to. The mirror's address and port are joined into the
+`host:port` the registry client takes and checked by the client's own host
+rule. Whether a registry or its mirror answers is not judged: the fetch
+reports that.
+
+The apply only stores the list (`appliedRegistries`). `engineClientConfig`
+reads it at each fetch and looks up the registry host the reference
+completed to: an entry gives the client its transport, its mirror with the
+path, and its credentials, and states the whole of how its registry is
+reached, so an entry with no mirror has none. A change therefore reaches the
+next fetch with nothing restarted, and a fetch in flight keeps the client it
+built. The credentials go into the client's registry field alone, which the
+client never sends to the mirror.
+
+<!-- source: internal/plugins/container/yang/ze-container-conf.yang -- list registry -->
+<!-- source: internal/plugins/container/imagestore/registry_list.go -- registryList, registryEntry, parseRegistrySections, parseRegistryEntry, checkRegistryName, parseTransport, parseMirror, parseMirrorPath, parseAuthentication, listedClientConfig, appliedRegistryList -->
+<!-- source: internal/plugins/container/imagestore/register.go -- init -->
+<!-- source: internal/plugins/container/registry/reference.go -- CheckHost -->
+<!-- test: internal/plugins/container/imagestore/registry_list_test.go TestRegistryListIsParsed, TestConfigWithoutRegistryIsTheZeroList, TestRegistryListRefusals, TestRegistryListBoundsAreInclusive, TestRefusalNeverRepeatsThePassword, TestRegistryWithNoEntryIsReachedByTheDefault, TestRegistryEntryDecidesTheClientConfiguration, TestSchemaAcceptsRegistryEntry, TestSchemaRefusesMalformedRegistryEntry -->
+<!-- test: internal/plugins/container/imagestore/registry_list_fetch_test.go TestRegistryEntryMirrorIsAskedFirstOverHTTP, TestRegistryCredentialsReachTheRegistryNeverItsMirror -->
 
 <!-- source: internal/plugins/container/image_cmd.go -- imageCommandDecls, imageCommandRPCs, forwardToPlugin, imageCommandHandlers, runImageCommand, keywordValue, singleValue -->
 <!-- source: internal/plugins/container/container.go -- commandDecls, handleCommand -->
