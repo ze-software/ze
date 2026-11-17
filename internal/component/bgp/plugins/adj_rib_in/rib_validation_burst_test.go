@@ -26,7 +26,7 @@ func TestValidationEventBurstCrossesRealRPC(t *testing.T) {
 	changes := make([]ribevents.ValidationRoute, 170000)
 	for i := range changes {
 		changes[i] = ribevents.ValidationRoute{
-			Peer: netip.MustParseAddr("2001:db8::1"), Family: family.IPv6Unicast,
+			Peer: netip.MustParseAddr("2001:db8::1"), PeerOwner: 1, Family: family.IPv6Unicast,
 			Prefix: netip.MustParsePrefix("2001:db8:1234:5678::/64"), PathID: uint32(i),
 		}
 	}
@@ -129,7 +129,7 @@ func TestDisableValidationRefusesIncompleteNotification(t *testing.T) {
 	peer := netip.MustParseAddr("192.0.2.1")
 	key := compactRouteKey{Fam: family.IPv4Unicast, Prefix: netip.MustParsePrefix("203.0.113.0/24")}
 	r.pending[pendingKey(peer, key)] = &pendingRoute{peerAddr: peer, family: key.Fam,
-		routeKey: key, route: &RawRoute{Family: key.Fam, Ineligible: true}}
+		routeKey: key, route: &RawRoute{Family: key.Fam, Ineligible: true, SourceOwner: 1}}
 	status, _, err := r.handleCommand("request bgp adj-rib-in disable-validation", nil, "")
 	if !errors.Is(err, failure) || status != statusError {
 		t.Fatalf("incomplete command status=%q error=%v, want error %v", status, err, failure)
@@ -154,7 +154,7 @@ func TestDisableValidationRetriesOnlyUnacknowledgedChunks(t *testing.T) {
 	for index := range routes {
 		key := compactRouteKey{Fam: family.IPv6Unicast, Prefix: prefix, PathID: uint32(index)}
 		r.pending[pendingKey(peer, key)] = &pendingRoute{peerAddr: peer, family: key.Fam,
-			routeKey: key, route: &RawRoute{Family: key.Fam, PathID: key.PathID, HasPathID: true, Ineligible: true}}
+			routeKey: key, route: &RawRoute{Family: key.Fam, PathID: key.PathID, HasPathID: true, Ineligible: true, SourceOwner: 1}}
 	}
 	pluginEnd, engineEnd := net.Pipe()
 	plugin := sdk.NewWithConn("validation-retry-test", pluginEnd)

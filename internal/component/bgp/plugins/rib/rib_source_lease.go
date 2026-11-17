@@ -131,7 +131,7 @@ func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwne
 			delete(s.leases, receipt)
 			s.admission[peer] = err
 		} else {
-			lease.ref = storage.NewSourceReference(s.notify)
+			lease.ref = storage.NewSourceReference(lease.peerOwner, s.notify)
 			delete(s.admission, peer)
 		}
 		close(lease.busy)

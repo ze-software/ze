@@ -27,9 +27,9 @@ func retainedReceive(t *testing.T, r *AdjRIBInManager, msgID uint64, body []byte
 	attrs, err := wu.Attrs()
 	require.NoError(t, err)
 	r.handleReceivedStructured(&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1",
+		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerOwner: 1,
 		RawMessage: &bgptypes.RawMessage{
-			Type: msgtype.TypeUPDATE, MessageID: msgID, WireUpdate: wu, AttrsWire: attrs,
+			Type: msgtype.TypeUPDATE, MessageID: msgID, WireUpdate: wu, AttrsWire: attrs, SourceOwner: 1,
 		},
 	})
 }

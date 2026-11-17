@@ -70,6 +70,8 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 			payload = append(payload, attrs...)
 			update, id := newLeakTestUpdate(t, api.r.recentUpdates, payload, src.recvCtxID)
 			update.WireUpdate.SetSourceID(src.SourceID())
+			update.SourceOwner = src.sourceOwner
+			update.WireUpdate.SetSourceOwner(src.sourceOwner)
 			ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil)
 			t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
 			if skipped, delivered := reactorForwardRS(api.r, update, id, src.Settings().Address, src); len(skipped) != 0 || delivered != 0 {
@@ -91,7 +93,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 			if live := validationBodies(t, api, capture); len(live) != 0 {
 				t.Fatalf("missing authorization: live forward sent %x", live)
 			}
-			key := ribevents.ValidationRoute{Peer: src.Settings().Address, Family: fam, NLRI: string(raw)}
+			key := ribevents.ValidationRoute{Peer: src.Settings().Address, PeerOwner: src.sourceOwner, Family: fam, NLRI: string(raw)}
 			eligible, present := true, true
 			generation := id
 			ribevents.RegisterFlowSpecLookup(func(got ribevents.ValidationRoute, msgID uint64) bool {
@@ -116,7 +118,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 			if len(announced) != 0 || !bytes.Equal(withdrawn, raw) {
 				t.Fatalf("loss of authorization = add %x del %x", announced, withdrawn)
 			}
-			if !validationRetainsPath(key.Peer, fam, 0, raw) {
+			if !validationRetainsPath(key.Peer, key.PeerOwner, fam, 0, raw) {
 				t.Fatal("infeasible retained route lost ADD-PATH ownership")
 			}
 			eligible = true
@@ -129,7 +131,7 @@ func TestFlowSpecForwardingRequiresAuthorizationAcrossRails(t *testing.T) {
 				t.Fatalf("obsolete generation exported over replacement: %x", stale)
 			}
 			present = false
-			if validationRetainsPath(key.Peer, fam, 0, raw) {
+			if validationRetainsPath(key.Peer, key.PeerOwner, fam, 0, raw) {
 				t.Fatal("removed route retained ADD-PATH ownership")
 			}
 		})
@@ -252,7 +254,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 			key.PathID == 7 && key.NLRI == string(short)
 	}, nil, nil)
 	t.Cleanup(func() { ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil) })
-	if err := fwdReleaseSection(src.SourceID(), src.Settings().Address, fam, withdrawn, nil); err != nil {
+	if err := fwdReleaseSection(src.SourceID(), src.Settings().Address, src.sourceOwner, fam, withdrawn, nil); err != nil {
 		t.Fatal(err)
 	}
 	var path fwdPathKey
@@ -274,7 +276,7 @@ func TestFlowSpecAddPathNativeFraming(t *testing.T) {
 		t.Fatal("retained FlowSpec path lost identity on cache eviction")
 	}
 	present = false
-	if err := fwdReleaseSection(src.SourceID(), src.Settings().Address, fam, withdrawn, nil); err != nil {
+	if err := fwdReleaseSection(src.SourceID(), src.Settings().Address, src.sourceOwner, fam, withdrawn, nil); err != nil {
 		t.Fatal(err)
 	}
 	wire = bytes.Clone(withdrawn)

@@ -141,6 +141,9 @@ type RawRoute struct {
 	// SourcePolicyEpoch remains the epoch captured when these bytes arrived.
 	// Zero is unrecorded, not permission to load the source's current epoch.
 	SourcePolicyEpoch uint64
+	// SourceOwner is the original authenticated Peer, independent of its
+	// address and a replacement Session. Zero is unrecorded provenance.
+	SourceOwner uint64
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
@@ -625,7 +628,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		fam := family.IPv4Unicast
 		addPath := ctx != nil && ctx.AddPath(fam)
 		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
-		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch)
+		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner)
 	}
 
 	// MP_REACH_NLRI announces.
@@ -644,11 +647,11 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			// the link-local next hop it needs (RFC2545-3-1, RFC2545-3-2).
 			nhopHex := hex.EncodeToString(mpReach.NextHopBytes())
 			if isSimplePrefixFamily(fam) {
-				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch)
+				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner)
 			} else {
 				// Every other family: split and key each NLRI with the family's
 				// registered codec (rib_complex.go).
-				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch)
+				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex, msg.MessageID, msg.SourcePolicyEpoch, se.PeerOwner)
 			}
 		}
 	}
@@ -656,7 +659,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 // installStructuredNLRIs walks simple-prefix wire bytes and installs routes.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch uint64) {
+func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner uint64) {
 	if attrHex == "" || nhopHex == "" {
 		return
 	}
@@ -686,6 +689,7 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			HasPathID:         addPath,
 			MsgID:             msgID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
+			SourceOwner:       sourceOwner,
 		}
 
 		if r.validationEnabled && isSimplePrefixFamily(fam) {
@@ -943,6 +947,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							HasPathID:         addPath,
 							MsgID:             event.GetMsgID(),
 							SourcePolicyEpoch: event.SourcePolicyEpoch,
+							SourceOwner:       event.PeerOwner,
 						}
 
 						if r.validationEnabled && isSimplePrefixFamily(fam) {

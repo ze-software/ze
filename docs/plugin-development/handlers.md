@@ -139,6 +139,16 @@ p.OnEvent(func(event string) error {
 
 Return `nil` to acknowledge, or an error to signal failure.
 
+### OnEventSettlement
+
+Register this handler before `Run` when an event starts deferred work. The global
+quiesce barrier calls it after earlier events were applied. Return only after
+their downstream effects complete, and honor the supplied context. The handler
+runs on an independent bounded worker, so events and nested engine calls can
+continue while it waits. A synchronous observer needs no settlement handler.
+<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement, EventSettlementHandler -->
+<!-- source: internal/component/plugin/process/event_settlement.go -- SettleEventsApplied -->
+
 ### OnExecuteCommand
 
 Called at runtime when the engine routes a command to the plugin.

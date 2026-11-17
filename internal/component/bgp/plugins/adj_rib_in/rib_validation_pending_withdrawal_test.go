@@ -22,7 +22,7 @@ import (
 
 // pendingWithdrawalKey is the path the retained-receive helpers carry:
 // 203.0.113.0/24, ADD-PATH identifier 1, from 192.0.2.1.
-var pendingWithdrawalKey = ribevents.ValidationRoute{Peer: netip.MustParseAddr("192.0.2.1"),
+var pendingWithdrawalKey = ribevents.ValidationRoute{Peer: netip.MustParseAddr("192.0.2.1"), PeerOwner: 1,
 	Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("203.0.113.0/24"), PathID: 1}
 
 // pendingWithdrawalBody withdraws pendingWithdrawalKey in ADD-PATH framing.

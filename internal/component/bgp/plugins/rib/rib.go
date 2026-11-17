@@ -845,6 +845,7 @@ func runRIBPlugin(conn net.Conn) int {
 
 	r.sourceLeases = newRIBSourceLeases(r)
 	r.sourceLeases.start(ctx)
+	p.OnEventSettlement(r.settleEvents)
 	// Started before events flow; stopped after Run has drained delivery.
 	r.startRecoveryRemovals(ctx, r.sendRecoveryRemoval)
 	defer r.shutdownReceivedSources()
@@ -1381,6 +1382,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 		return
 	}
 	state := se.State
+	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == rpc.SessionStateUp, se.SelectedDestination, se.DestinationSession)
 	if state == rpc.SessionStateDown {
 		if se.Reason != rpc.ReasonPeerRemoved {
 			r.retainSourceOnDown(peerAddr)
@@ -1417,13 +1419,10 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 
 	if isUp && !wasUp {
 		delete(r.retainedPeers, peerAddr)
-		// An attached up (rpc.ReasonAttached) is a reload attaching this
-		// process to a session that was already up. It is no new session: it
-		// carries no initial-replay token to answer, the peer was already sent
-		// what Ze advertises, and a receive-only attach grants no send. A replay
-		// here would answer a ready for session 0, which the engine refuses.
-		// The peer is still recorded up, so its later down purges its routes.
-		if se.Reason != rpc.ReasonAttached {
+		// Ordinary destinations replay current selection through their captured
+		// worker, including on attach. Legacy attached observers have no replay
+		// receipt or send authority. Both are still recorded up for source state.
+		if !ordinaryDestination && se.Reason != rpc.ReasonAttached {
 			cameUp = true
 			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 		}
@@ -1471,6 +1470,7 @@ func (r *RIBManager) handleState(event *Event) {
 		return
 	}
 	state := event.GetPeerState()
+	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == "up", event.SelectedDestination, event.DestinationSession)
 	if state == "down" {
 		if event.Reason != rpc.ReasonPeerRemoved {
 			r.retainSourceOnDown(peerAddr)
@@ -1502,9 +1502,10 @@ func (r *RIBManager) handleState(event *Event) {
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
-		// An attached up replays nothing, for handleStructuredState's reason.
+		// Ordinary output and legacy attached observers use neither this
+		// SENT-history replay nor its readiness (see handleStructuredState).
 		delete(r.retainedPeers, peerAddr)
-		if event.Reason != rpc.ReasonAttached {
+		if !ordinaryDestination && event.Reason != rpc.ReasonAttached {
 			cameUp = true
 			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 		}

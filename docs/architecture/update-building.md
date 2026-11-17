@@ -631,6 +631,11 @@ snapshots and cache reconstruction. The stable identity is the same
 `peer-owner` that state, refresh and source-policy events carry; an inbound
 connection's remote port never supplies it. Sent events keep the destination
 Peer identity separate from the route's original `SourceOwner`.
+Receive-validation and path-identifier retention queries carry that same original
+owner. The selecting RIB reads it from the acquired source reference shared by
+the stored path and its owned clones. The typed and JSON validation keys preserve
+the owner alongside the native path identity; an address match alone cannot
+authorize a different owner's path.
 It also captures the destination's immutable dissemination snapshot and refuses
 work after that exact peer/session publication changes. Owner kind is resolved
 at the forwarding lifecycle boundary; final writes query the selecting owner's
@@ -675,10 +680,13 @@ ends that destination session before cleanup returns, so a replacement never
 inherits the predecessor's advertised frontier. Public selected requests
 continue to require a live owner and cannot acquire this removal authority.
 
-This writer path is under implementation. Ordinary best-route dissemination
-remains unavailable until the RIB destination dispatcher and source-lease
-protocol are connected and verified. Scoped local-origin admission is separate;
-an origin receipt without that admission is refused.
+The ordinary RIB destination dispatcher admits captured Sessions from the
+engine's authenticated per-recipient state facts. Its initial snapshot and live
+selection changes use this writer, and final receipts precede initial readiness.
+Ordinary Route Refresh still needs exact receiving-Session event capture and
+current-selection replay; legacy SENT-history replay does not satisfy it.
+Scoped local-origin admission is separate; an origin receipt without that
+admission is refused. The linked ordinary-advertiser release spec remains open.
 <!-- source: internal/component/bgp/reactor/reactor_api_selected.go -- SelectRoutes, selectRoute -->
 <!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected, retireSelected -->
 <!-- source: internal/component/bgp/reactor/selected_output.go -- selectedOutput, selectedSlots, setSelected -->

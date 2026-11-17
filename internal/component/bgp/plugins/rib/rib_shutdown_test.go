@@ -499,7 +499,7 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 			t.Fatal("seeded route did not become best")
 		}
 	}
-	idx, present := r.bestPathInterner.peerIdxOf(peer.String())
+	idx, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peer.String()})
 	if !present {
 		t.Fatal("seeded peer has no interner slot")
 	}
@@ -554,7 +554,7 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 	if !found || path.NextHop != netip.MustParseAddr("192.0.2.250") {
 		t.Fatal("old DOWN replaced or removed the replacement session's next hop")
 	}
-	other, ok := r.bestPathInterner.internPeer("192.0.2.249")
+	other, ok := r.bestPathInterner.internPeer(bestPeer{address: "192.0.2.249"})
 	if !ok {
 		t.Fatal("interner rejected an unrelated peer")
 	}
@@ -572,7 +572,7 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 		t.Fatal("unchanged replacement generated another best change")
 	}
 	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peer.String(), State: rpc.SessionStateDown})
-	if _, present := r.bestPathInterner.peerIdxOf(peer.String()); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peer.String()}); present {
 		t.Fatal("unchanged election leaked a reference after the final record left")
 	}
 }
@@ -595,17 +595,17 @@ func TestRIBPeerSlotReferencesFollowBestRecords(t *testing.T) {
 	r.bgpPeers[peerB].Insert(family.IPv4Unicast,
 		aigpSelectionAttrs([4]byte{192, 0, 2, 248}, nil, 200, 1), prefixes[0])
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[0], false, nil)
-	if _, present := r.bestPathInterner.peerIdxOf(peerA.String()); !present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerA.String()}); !present {
 		t.Fatal("replacing one best reclaimed the peer's other record")
 	}
 	r.bgpPeers[peerA].Remove(family.IPv4Unicast, prefixes[1])
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[1], false, nil)
-	if _, present := r.bestPathInterner.peerIdxOf(peerA.String()); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerA.String()}); present {
 		t.Fatal("ordinary withdrawal did not release the final best record")
 	}
 	r.bgpPeers[peerB].Remove(family.IPv4Unicast, prefixes[0])
 	r.checkBestPathChange(family.IPv4Unicast, prefixes[0], false, nil)
-	if _, present := r.bestPathInterner.peerIdxOf(peerB.String()); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerB.String()}); present {
 		t.Fatal("replacement winner retained the old winner's slot")
 	}
 	r.bgpPeers[peerA].Remove(family.IPv4Unicast, prefixes[0])
@@ -722,7 +722,7 @@ func TestRIBPeerDownFencesUnrecordedElection(t *testing.T) {
 	if _, changed := r.checkBestPathChange(family.IPv4Unicast, wire, false, nil); !changed {
 		t.Fatal("last winning record was not withdrawn")
 	}
-	if _, present := r.bestPathInterner.peerIdxOf(peerName); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerName}); present {
 		t.Fatal("last withdrawal retained the peer's slot")
 	}
 	routes.Insert(family.IPv4Unicast, attrs, wire)
@@ -782,7 +782,7 @@ purgeObserved:
 		default:
 		}
 		r.bestPathInterner.peersMu.RLock()
-		idx, present := r.bestPathInterner.peerIdx[peerName]
+		idx, present := r.bestPathInterner.peerIdx[bestPeer{address: peerName}]
 		pinned := present && r.bestPathInterner.peerRefs[idx] >= 2
 		r.bestPathInterner.peersMu.RUnlock()
 		if pinned {
@@ -804,7 +804,7 @@ purgeObserved:
 	if len(r.collectBestPaths()[family.IPv4Unicast]) != 0 {
 		t.Fatal("unrecorded election retained the departed peer as best")
 	}
-	if _, present := r.bestPathInterner.peerIdxOf(peerName); present {
+	if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peerName}); present {
 		t.Fatal("completed DOWN retained a publication peer-slot reference")
 	}
 }
@@ -838,7 +838,7 @@ func TestRIBFailedPublicationReleasesPeerAdmission(t *testing.T) {
 				if _, changed := r.checkBestPathChange(family.IPv4Unicast, wire, false, nil); changed {
 					t.Fatal("saturated interner allowed a publication")
 				}
-				if _, present := r.bestPathInterner.peerIdxOf(peer.String()); present {
+				if _, present := r.bestPathInterner.peerIdxOf(bestPeer{address: peer.String()}); present {
 					t.Fatal("failed publication retained its peer-slot admission")
 				}
 			}

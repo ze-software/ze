@@ -139,10 +139,11 @@ func TestSelfOwnedPeerUpReplaysFlowSpecBeforeReady(t *testing.T) {
 			t.Run(delivery+"/"+ownership, func(t *testing.T) {
 				const source, target = "192.0.2.1", "192.0.2.2"
 				fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-				key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), Family: fam,
+				key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(source), PeerOwner: 1, Family: fam,
 					PathID: 7, NLRI: string([]byte{5, 1, 24, 10, 0, 0})}
 				own := key
 				own.Peer = netip.MustParseAddr(target)
+				own.PeerOwner = 2
 				attrs := []byte{0x40, 1, 1, 0, 0x40, 2, 0, 0x80, 14, 11,
 					0, 1, 133, 0, 0, 5, 1, 24, 10, 0, 0}
 				ribevents.RegisterFlowSpecLookup(

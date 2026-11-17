@@ -92,14 +92,14 @@ func TestValidationPublisherFailureFencesDistinctReceiveChurn(t *testing.T) {
 		}
 		return bridge.DeliverStructured([]any{&rpc.StructuredEvent{
 			EventType: rpc.EventKindUpdate, PeerAddress: adjTransportSource,
-			SourcePolicyEpoch: 5,
+			SourcePolicyEpoch: 5, PeerOwner: 1,
 			RawMessage: &bgptypes.RawMessage{
 				Type: msgtype.TypeUPDATE, MessageID: id, WireUpdate: update,
-				AttrsWire: attrs, SourcePolicyEpoch: 5,
+				AttrsWire: attrs, SourcePolicyEpoch: 5, SourceOwner: 1,
 			},
 		}})
 	}
-	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(adjTransportSource),
+	key := ribevents.ValidationRoute{Peer: netip.MustParseAddr(adjTransportSource), PeerOwner: 1,
 		Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.1.0.0/24")}
 	require.NoError(t, deliver(100, 1, false))
 	require.Equal(t, int64(1), acknowledged.Load(), "the real engine callback acknowledged the initial route")

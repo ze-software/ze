@@ -49,7 +49,7 @@ func TestValidationChangeEmittedOverTransport(t *testing.T) {
 			require.NoError(t, err)
 			_, err = engine.Execute(ctx, "request bgp adj-rib-in disable-validation", nil)
 			require.NoError(t, err)
-			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 100, "10.1.0.0/24", "180a0100")))
+			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 1, 100, "10.1.0.0/24", "180a0100")))
 
 			var routes []ribevents.ValidationRoute
 			for _, call := range engine.RPCs() {
@@ -104,11 +104,12 @@ func TestValidationGateAnnouncedOverTransport(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, []bool{true}, applyGateAnnouncements(t, engine))
 
-			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 100, "10.1.0.0/24", "180a0100")))
+			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 1, 100, "10.1.0.0/24", "180a0100")))
 			route := ribevents.ValidationRoute{
-				Peer:   netip.MustParseAddr(adjTransportSource),
-				Family: family.IPv4Unicast,
-				Prefix: netip.MustParsePrefix("10.1.0.0/24"),
+				Peer:      netip.MustParseAddr(adjTransportSource),
+				PeerOwner: 1,
+				Family:    family.IPv4Unicast,
+				Prefix:    netip.MustParsePrefix("10.1.0.0/24"),
 			}
 			require.True(t, ribevents.ValidationEnabled(), "the enabled gate must count in this process")
 			require.False(t, ribevents.RouteEligible(route, 0), "a route awaiting validation must not be eligible")
@@ -190,14 +191,14 @@ func TestForkedGateServesValidatedVerdicts(t *testing.T) {
 			ribevents.RegisterValidationLookup(nil, nil)
 			require.Equal(t, []bool{true}, applyGateAnnouncements(t, engine))
 
-			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 100, "10.1.0.0/24", "180a0100")))
-			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 101, "10.2.0.0/24", "180a0200")))
+			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 1, 100, "10.1.0.0/24", "180a0100")))
+			require.NoError(t, engine.Deliver(ctx, adjTransportReceived(adjTransportSource, 1, 101, "10.2.0.0/24", "180a0200")))
 			_, err = engine.Execute(ctx, "request bgp adj-rib-in accept-routes", []string{adjTransportSource, "ipv4/unicast", "10.1.0.0/24", "0", "1"})
 			require.NoError(t, err)
 
 			peer := netip.MustParseAddr(adjTransportSource)
-			accepted := ribevents.ValidationRoute{Peer: peer, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.1.0.0/24")}
-			pending := ribevents.ValidationRoute{Peer: peer, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.2.0.0/24")}
+			accepted := ribevents.ValidationRoute{Peer: peer, PeerOwner: 1, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.1.0.0/24")}
+			pending := ribevents.ValidationRoute{Peer: peer, PeerOwner: 1, Family: family.IPv4Unicast, Prefix: netip.MustParsePrefix("10.2.0.0/24")}
 			require.True(t, ribevents.RouteEligible(accepted, 0), "an accepted route must be eligible through the command")
 			require.True(t, ribevents.RouteEligible(accepted, 100), "the accepted route's received generation must be eligible")
 			require.False(t, ribevents.RouteEligible(accepted, 99), "a generation the store does not hold must be refused")

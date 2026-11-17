@@ -28,8 +28,7 @@ import (
 // A QuiesceFunc MUST honor ctx cancellation. quiesceAll bounds each drain with a
 // per-quiescer deadline by canceling ctx, but it cannot force-return a drain that
 // ignores ctx — such a quiescer would hang the barrier (and the caller) despite
-// the timeout. The only current registrant, the reactor's FlushForwardPool,
-// selects on ctx.Done() (forward_pool_barrier.go).
+// the timeout. Both reactor drains and plugin event settlement honor it.
 type QuiesceFunc func(ctx context.Context) error
 
 // Quiescer is a named subsystem drain invoked by `request quiesce`.
@@ -155,6 +154,8 @@ func registerReactorQuiescer(s *Server, reactor plugin.ReactorLifecycle) {
 //
 // The manager is read at quiesce time rather than captured here: it is replaced
 // on a config reload, and a captured pointer would drain the previous one.
+// Its barrier joins event application and declared deferred effects, including
+// the RIB's selected-route output and final original-source releases.
 func registerPluginEventQuiescer(s *Server) {
 	s.registerQuiescer("plugin-event-delivery", func(ctx context.Context) error {
 		pm := s.procManager.Load()

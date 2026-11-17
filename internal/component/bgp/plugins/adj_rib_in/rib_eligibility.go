@@ -57,6 +57,9 @@ func validationRouteKey(route ribevents.ValidationRoute) (key compactRouteKey, o
 // That provider applies the source-policy denial to FlowSpec authorization
 // (rib-storage-design.md, "Source-policy lifecycle owners").
 func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uint64) bool {
+	if key.PeerOwner == 0 {
+		return false
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if r.terminal != nil {
@@ -70,8 +73,10 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 	if !named {
 		return false
 	}
-	if _, pending := r.pending[pendingKey(key.Peer, rk)]; pending {
-		return false
+	if pending := r.pending[pendingKey(key.Peer, rk)]; pending != nil {
+		if pending.route.SourceOwner == key.PeerOwner {
+			return false
+		}
 	}
 	routes := r.ribIn[key.Peer]
 	if routes == nil {
@@ -79,6 +84,9 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 	}
 	route, ok := routes.Get(rk)
 	if !ok {
+		return false
+	}
+	if route.SourceOwner != key.PeerOwner {
 		return false
 	}
 	// RFC 8212 Section 3: an applied import denial excludes the route.
@@ -101,18 +109,25 @@ func (r *AdjRIBInManager) routeEligible(key ribevents.ValidationRoute, msgID uin
 // suppresses advertisement. Cache eviction may query it; no cache operation or
 // external callback may run under this receive-store lock.
 func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
+	if key.PeerOwner == 0 {
+		return false
+	}
 	rk, named := validationRouteKey(key)
 	if !named {
 		return false
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	if _, pending := r.pending[pendingKey(key.Peer, rk)]; pending {
-		return true
+	if pending := r.pending[pendingKey(key.Peer, rk)]; pending != nil {
+		if pending.route.SourceOwner == key.PeerOwner {
+			return true
+		}
 	}
 	if routes := r.ribIn[key.Peer]; routes != nil {
-		_, present := routes.Get(rk)
-		return present
+		route, present := routes.Get(rk)
+		if present {
+			return route.SourceOwner == key.PeerOwner
+		}
 	}
 	return false
 }
@@ -140,7 +155,11 @@ func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRoute
 	if !r.validationGate {
 		return
 	}
-	change := ribevents.ValidationRoute{Peer: peer, Family: key.Fam, Prefix: key.Prefix, PathID: key.PathID}
+	route := r.validationStoredRouteLocked(peer, key)
+	if route == nil {
+		return
+	}
+	change := ribevents.ValidationRoute{Peer: peer, PeerOwner: route.SourceOwner, Family: key.Fam, Prefix: key.Prefix, PathID: key.PathID}
 	if key.keyedByNLRI() {
 		nlri, named := r.validationNLRILocked(peer, key)
 		if !named {
@@ -165,12 +184,7 @@ func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRoute
 // decode back to key: a ValidationRoute no subscriber could resolve is never
 // emitted. MUST hold mu.
 func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRouteKey) (nlri string, named bool) {
-	var route *RawRoute
-	if pending := r.pending[pendingKey(peer, key)]; pending != nil {
-		route = pending.route
-	} else if routes := r.ribIn[peer]; routes != nil {
-		route, _ = routes.Get(key)
-	}
+	route := r.validationStoredRouteLocked(peer, key)
 	if route == nil {
 		return "", false
 	}
@@ -180,7 +194,7 @@ func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRoute
 			"peer", peer, "family", key.Fam, "route", key.routeName(), "error", err)
 		return "", false
 	}
-	change := ribevents.ValidationRoute{Peer: peer, Family: key.Fam, PathID: key.PathID, NLRI: string(wire)}
+	change := ribevents.ValidationRoute{Peer: peer, PeerOwner: route.SourceOwner, Family: key.Fam, PathID: key.PathID, NLRI: string(wire)}
 	resolved, ok := validationRouteKey(change)
 	if !ok {
 		logger().Error("validation change not announced: the stored route's NLRI does not parse as a store key, so no subscriber could find the route; this is a bgp-adj-rib-in defect, report it with this line",
@@ -193,6 +207,20 @@ func (r *AdjRIBInManager) validationNLRILocked(peer netip.Addr, key compactRoute
 		return "", false
 	}
 	return change.NLRI, true
+}
+
+// validationStoredRouteLocked borrows the original pending or installed value.
+// A nil result means neither store holds that path. The caller MUST hold mu
+// through every read of the returned route.
+func (r *AdjRIBInManager) validationStoredRouteLocked(peer netip.Addr, key compactRouteKey) *RawRoute {
+	if pending := r.pending[pendingKey(peer, key)]; pending != nil {
+		return pending.route
+	}
+	if routes := r.ribIn[peer]; routes != nil {
+		route, _ := routes.Get(key)
+		return route
+	}
+	return nil
 }
 
 // unlockValidation follows ordinary receive mutations that note validation

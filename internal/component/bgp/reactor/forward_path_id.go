@@ -242,12 +242,12 @@ func (t *fwdPathIDTable) releaseLocked(id uint32) {
 // forced gap eviction may precede them. Recipient slots and staged proposals
 // retain their own reservations, and final admission resolves preserved ingress
 // identity against the recipient even after the source mapping is gone.
-func (t *fwdPathIDTable) releasePath(src source.SourceID, key *fwdPathKey, peer netip.Addr, raw []byte) {
+func (t *fwdPathIDTable) releasePath(src source.SourceID, key *fwdPathKey, peer netip.Addr, peerOwner uint64, raw []byte) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	// Query while holding the identifier lock: no concurrent forward can take
 	// the old identifier between this presence check and its removal.
-	if validationRetainsPath(peer, key.family, key.received, raw) {
+	if validationRetainsPath(peer, peerOwner, key.family, key.received, raw) {
 		return
 	}
 	perSource, ok := t.byPath[src]
@@ -541,16 +541,16 @@ func fwdReleaseWithdrawnPathIDs(update *ReceivedUpdate) {
 	}
 
 	src := peerWire.SourceID()
-	if err := fwdReleaseIPv4Withdrawn(peerWire, srcCtx, src, update.SourcePeerIP); err != nil {
+	if err := fwdReleaseIPv4Withdrawn(peerWire, srcCtx, src, update.SourcePeerIP, update.SourceOwner); err != nil {
 		fwdLogger().Warn("forward path identifier release failed", "src", src, "err", err)
 	}
-	if err := fwdReleaseMPWithdrawn(peerWire, srcCtx, src, update.SourcePeerIP); err != nil {
+	if err := fwdReleaseMPWithdrawn(peerWire, srcCtx, src, update.SourcePeerIP, update.SourceOwner); err != nil {
 		fwdLogger().Warn("forward path identifier release failed", "src", src, "err", err)
 	}
 }
 
 // fwdReleaseIPv4Withdrawn frees the identifiers of the Withdrawn Routes field.
-func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr) error {
+func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr, peerOwner uint64) error {
 	if !srcCtx.AddPath(family.IPv4Unicast) {
 		return nil
 	}
@@ -565,11 +565,11 @@ func fwdReleaseIPv4Withdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.Encoding
 	if err != nil {
 		return fmt.Errorf("nlri: %w", err)
 	}
-	return fwdReleaseSection(src, peer, family.IPv4Unicast, withdrawn, announced)
+	return fwdReleaseSection(src, peer, peerOwner, family.IPv4Unicast, withdrawn, announced)
 }
 
 // fwdReleaseMPWithdrawn frees the identifiers of the MP_UNREACH_NLRI attribute.
-func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr) error {
+func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingContext, src source.SourceID, peer netip.Addr, peerOwner uint64) error {
 	mpUnreach, err := peerWire.MPUnreach()
 	if err != nil {
 		return fmt.Errorf("mp_unreach: %w", err)
@@ -596,7 +596,7 @@ func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingCo
 	if mpReach != nil && mpReach.Family() == fam {
 		announced = mpReach.NLRIBytes()
 	}
-	return fwdReleaseSection(src, peer, fam, withdrawn, announced)
+	return fwdReleaseSection(src, peer, peerOwner, fam, withdrawn, announced)
 }
 
 // fwdReleaseSection frees ze's identifier for every path one withdrawn section
@@ -607,7 +607,7 @@ func fwdReleaseMPWithdrawn(peerWire *wireu.WireUpdate, srcCtx *bgpctx.EncodingCo
 // pair, so ze must keep the identifier that named it. RFC 7606 Section 5.1
 // forbids a conforming sender to put both fields in one UPDATE, so an ordinary
 // withdraw reaches an empty announced section and builds no set at all.
-func fwdReleaseSection(src source.SourceID, peer netip.Addr, fam family.Family, withdrawn, announced []byte) error {
+func fwdReleaseSection(src source.SourceID, peer netip.Addr, peerOwner uint64, fam family.Family, withdrawn, announced []byte) error {
 	alsoAnnounced, err := fwdAnnouncedPaths(fam, announced)
 	if err != nil {
 		return fmt.Errorf("announced section: %w", err)
@@ -629,7 +629,7 @@ func fwdReleaseSection(src source.SourceID, peer netip.Addr, fam family.Family, 
 			return true
 		}
 		if _, both := alsoAnnounced[key]; !both {
-			fwdPathIDs.releasePath(src, &key, peer, raw[4:])
+			fwdPathIDs.releasePath(src, &key, peer, peerOwner, raw[4:])
 		}
 		return true
 	})

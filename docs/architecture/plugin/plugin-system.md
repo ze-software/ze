@@ -200,6 +200,15 @@ by itself implement source invalidation.
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run -->
 <!-- source: internal/component/plugin/server/source_policy.go -- CaptureSourcePolicyOwners, SourcePolicyOwner.Call -->
 
+An observer with deferred work registers `OnEventSettlement`. This declares its
+callback at Stage 1. The global quiesce drain first joins applied events, then
+waits for that callback on the same process connection. An ordinary synchronous
+observer needs no callback. The RIB registers one that joins its existing selected
+output dispatcher and pending final source releases; it adds no completion table.
+<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement -->
+<!-- source: internal/component/plugin/process/manager.go -- DrainEventDelivery -->
+<!-- source: internal/component/bgp/plugins/rib/rib_event_settlement.go -- settleEvents -->
+
 
 `sdk.OnDecodeNLRI` uses the same four-argument callback contract. Both RPC
 directions carry the flags as `add-path` and `withdraw` in `DecodeNLRIInput`;

@@ -10,14 +10,33 @@ import "sync/atomic"
 // A newly constructed reference owns one count. Raw value copies borrow it;
 // RouteEntry.AddRef and Clone acquire independent ownership.
 type SourceReference struct {
-	refs atomic.Int64
-	wake func()
+	peerOwner uint64
+	refs      atomic.Int64
+	wake      func()
 }
 
-func NewSourceReference(wake func()) *SourceReference {
-	r := &SourceReference{wake: wake}
+// NewSourceReference captures the original Peer owner after successful lease
+// acquisition. The owner MUST supply that original fact, never a later lookup.
+func NewSourceReference(peerOwner uint64, wake func()) *SourceReference {
+	r := &SourceReference{peerOwner: peerOwner, wake: wake}
 	r.refs.Store(1)
 	return r
+}
+
+// PeerOwner is immutable provenance, not permission to send. A nil reference
+// has no acquired lease and returns the explicitly unrecorded owner zero.
+func (r *SourceReference) PeerOwner() uint64 {
+	if r == nil {
+		return 0
+	}
+	return r.peerOwner
+}
+
+// SourcePeerOwner reads the original Peer fact shared by owned route clones.
+// A route without a lease reference returns explicitly unrecorded zero.
+// The receiver MUST be non-nil.
+func (e *RouteEntry) SourcePeerOwner() uint64 {
+	return e.source.PeerOwner()
 }
 
 // AddRef also lets the owning lease registry re-use a pending zero reference

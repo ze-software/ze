@@ -17,10 +17,13 @@ import (
 
 // ValidationRoute identifies a received path without its attribute bytes.
 type ValidationRoute struct {
-	Peer   netip.Addr
-	Family family.Family
-	Prefix netip.Prefix
-	PathID uint32
+	Peer netip.Addr
+	// PeerOwner is the original stable engine Peer identity. Zero is
+	// unrecorded provenance; exact lookups MUST NOT infer it from Peer.
+	PeerOwner uint64
+	Family    family.Family
+	Prefix    netip.Prefix
+	PathID    uint32
 	// NLRI is the full native wire encoding for a non-CIDR route, without
 	// ADD-PATH. FlowSpec uses FlowSpecKey's shortest length encoding.
 	// A string keeps the key comparable and owns its bytes.
@@ -31,11 +34,12 @@ type ValidationRoute struct {
 // ValidationChange receives it: kebab-case keys, and the NLRI as hex, because
 // JSON replaces bytes that are not valid UTF-8 and a FlowSpec key is binary.
 type validationRouteJSON struct {
-	Peer   netip.Addr    `json:"peer-address"`
-	Family family.Family `json:"family"`
-	Prefix netip.Prefix  `json:"prefix"`
-	PathID uint32        `json:"path-id"`
-	NLRI   string        `json:"nlri,omitempty"`
+	Peer      netip.Addr    `json:"peer-address"`
+	PeerOwner uint64        `json:"peer-owner"`
+	Family    family.Family `json:"family"`
+	Prefix    netip.Prefix  `json:"prefix"`
+	PathID    uint32        `json:"path-id"`
+	NLRI      string        `json:"nlri,omitempty"`
 }
 
 var validationRouteJSONFixed = validationRouteJSONFixedSize()
@@ -43,7 +47,7 @@ var validationRouteJSONFixed = validationRouteJSONFixedSize()
 func validationRouteJSONFixedSize() int {
 	// Unkeyed and nonempty on purpose: a schema addition MUST update the byte
 	// bound before compilation succeeds. Keep the optional NLRI key present.
-	probe := validationRouteJSON{netip.Addr{}, family.IPv4Unicast, netip.Prefix{}, math.MaxUint32, "x"}
+	probe := validationRouteJSON{netip.Addr{}, math.MaxUint64, family.IPv4Unicast, netip.Prefix{}, math.MaxUint32, "x"}
 	encoded, err := json.Marshal(probe)
 	if err != nil {
 		panic("BUG: validation route size probe is not encodable")
@@ -55,7 +59,8 @@ func validationRouteJSONFixedSize() int {
 // at the RPC ceiling plus one. It is a fit proof, never a refusal. Peer and
 // prefix text need at most 46 and 49 ASCII bytes excluding a peer's zone;
 // arbitrary zone/family names may need six bytes per source byte. Native NLRI
-// is hex, exactly twice its source width. The probe includes maximum PathID.
+// is hex, exactly twice its source width. The probe includes maximum PathID
+// and PeerOwner.
 // The receiver MUST be non-nil.
 func (r *ValidationRoute) JSONSizeBound() int {
 	bound := validationRouteJSONFixed + 46 + 49
@@ -74,11 +79,12 @@ func (r *ValidationRoute) JSONSizeBound() int {
 // MarshalJSON writes the route in the form validationRouteJSON names.
 func (r ValidationRoute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(validationRouteJSON{
-		Peer:   r.Peer,
-		Family: r.Family,
-		Prefix: r.Prefix,
-		PathID: r.PathID,
-		NLRI:   hex.EncodeToString([]byte(r.NLRI)),
+		Peer:      r.Peer,
+		PeerOwner: r.PeerOwner,
+		Family:    r.Family,
+		Prefix:    r.Prefix,
+		PathID:    r.PathID,
+		NLRI:      hex.EncodeToString([]byte(r.NLRI)),
 	})
 }
 
@@ -94,7 +100,7 @@ func (r *ValidationRoute) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*r = ValidationRoute{Peer: wire.Peer, Family: wire.Family, Prefix: wire.Prefix, PathID: wire.PathID, NLRI: string(nlri)}
+	*r = ValidationRoute{Peer: wire.Peer, PeerOwner: wire.PeerOwner, Family: wire.Family, Prefix: wire.Prefix, PathID: wire.PathID, NLRI: string(nlri)}
 	return nil
 }
 

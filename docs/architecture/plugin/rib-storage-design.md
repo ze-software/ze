@@ -95,6 +95,11 @@ insertions clear it. Releasing the last reference only wakes the RIB's one lease
 worker. The worker performs the engine release and joins final writes outside
 peer, storage and attribute-pool locks. The lease registry retains current leases
 and pending releases only, with no withdrawn-route or source-session history.
+The same shared reference captures the original stable Peer owner after that
+successful acquire. Owned clones read it through `SourcePeerOwner`; there is no
+owner copied into every route or recovered from current address metadata. A nil
+reference yields explicitly unrecorded zero. This scalar is provenance, while
+the engine's receipt and grant checks remain the authorization to send.
 GR and LLGR retention explicitly retain the matching leases before permitting
 the candidates to survive physical DOWN. Passive storage can keep an untrusted
 receipt without a lease; that receipt alone never authorizes dissemination.
@@ -136,7 +141,9 @@ output removal.
 Route bytes are projected into the selected RPC value once per changed winner
 and shared by destination batches. Batches are split using the larger actual
 encoded request and widest complete response, including envelope and deadline,
-against the IPC frame limit. A single oversized route stays owed with its own
+against the IPC frame limit. `selectedDispatchSizedBatch` consumes cached item
+budgets while admitting the bounded batch, after the route's shared projection
+has been sized once. A single oversized route stays owed with its own
 failure; other keys and other destinations continue. DOWN cancels and joins
 the captured destination worker before releasing its output projection. Plugin
 stop joins all workers before releasing shared capture/source state.
@@ -155,11 +162,47 @@ cleared after successful reconciliation. One runtime doctor callback combines
 these findings; an unrelated healthy source or recipient remains usable.
 
 The dispatcher and its current-selection callback are initialized by `bgp-rib`.
-Admitting destinations requires the authenticated owner projection and the
-acknowledged applied-delivery settlement wiring; their implementation remains
-part of the ordinary-advertiser work tracked by the linked release spec.
+Its declared event-settlement callback joins queued and in-flight selected work,
+then pending final source releases, before global quiesce can succeed. Neither
+wait holds an election, peer or publication lock.
 
-<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- selectedDispatch, currentSelection, selectedDispatchBatch -->
+State admission reads the engine's per-recipient `selected-destination` and
+captured `destination-session` facts. Eligible UP, including an attached-UP
+delivered while that address is already marked up, starts the exact destination
+worker and seeds its current selection. It bypasses legacy SENT-history replay.
+An empty selection still reports readiness through that worker. A source-only
+observer or explicit-role recipient keeps the legacy state behavior and starts
+no ordinary worker. DOWN cancels and joins only the worker named by its captured
+connection token, even when delivery no longer marks that process eligible.
+The worker never discovers authority by trying a selected RPC; the engine's
+final writer independently checks permission on every operation.
+
+Ordinary Route Refresh still requires the receiving Session's captured facts
+on its public event and current-selection replay before its end marker. The
+legacy refresh handlers presently read SENT history; they do not establish
+ordinary refresh support. This remaining integration belongs to the linked
+release spec.
+<!-- source: internal/component/bgp/plugins/rib/rib_event_settlement.go -- settleEvents -->
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- runRIBPlugin -->
+<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
+
+A failed barrier names unresolved destination addresses and Session tokens.
+Its operator error fits the existing 4096-byte event-settlement failure field;
+the IPC limit is unchanged. When complete causes exceed that field, the reply
+keeps whole identities in address/Session order, explicitly counts omitted
+identities and cause details, and ends with `ze show bgp rib status` as its fix.
+The local error chain still retains the original deadline and every destination
+cause. `selected-output` in that existing status document lists every current
+unsettled destination, its pending and in-flight counts, readiness and any full
+failure cause. It is a fresh, neutral snapshot, not another completion ledger
+or a doctor failure during normal convergence. Settled or ended destinations
+leave that list; retrying quiesce must still join the actual writers.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_failure.go -- selectedBarrierError -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_status.go -- unsettledStatus -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status -->
+
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- selectedDispatch, currentSelection -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_batch.go -- selectedItemSize, selectedEnvelopeSize, selectedDispatchBatch, selectedDispatchSizedBatch -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_barrier.go -- barrier, barrierSource -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_diagnostic.go -- doctorFailures -->
 
@@ -586,8 +629,10 @@ notification channel. There is no per-UPDATE channel, polling loop, unjoined
 waiter goroutine, or hot RIB lookup. Completion is publication, not application.
 
 Recovery then drains the RIB command owner's existing FIFO event-delivery queue
-with `DrainEventsApplied`. Unlike the soft quiesce barrier,
-this receipt proves successful application and checks owner liveness for both
+with `DrainEventsApplied`. This pure application receipt does not invoke the
+deferred-work settlement used by global quiesce: recovery itself helps finish
+that work, so joining it here would wait on its own completion.
+The application receipt checks owner liveness for both
 DirectBridge and plugin IPC, including internal runners whose allocated bridge
 was never activated. A stopped or failed activated bridge cannot fall back to
 its startup IPC connection to authorize recovery. Earlier delivery failures remain sticky
@@ -1317,8 +1362,14 @@ The selecting RIB consults `ribevents.RouteEligible` against this receive store.
 After changing it, Adj-RIB-In releases its lock and emits `ValidationChange`;
 `RIBManager.validationChanged` reruns best-path selection and updates the shared
 Loc-RIB, including withdrawal or selection of another peer's path. Recovery
-therefore needs no new UPDATE. Each notified `ValidationRoute` names its path
-the way the selection query looks it up: by prefix for the families keyed on
+therefore needs no new UPDATE. Each notified `ValidationRoute` includes the
+original stable Peer owner as well as its display address, family and path ID.
+The receive store retains that owner in `RawRoute`, including pending routes;
+eligibility and presence queries refuse an unrecorded or different owner.
+The selecting RIB reads the original owner from its retained source reference,
+and the forwarding path carries the received UPDATE's captured source owner.
+These values do not come from a replacement peer's current metadata.
+Each key names its path the way the selection query looks it up: by prefix for the families keyed on
 it, and by the route's native NLRI, without ADD-PATH, for VPN and every other
 family keyed by its decoder (see "Adj-RIB-In route keys"). The store takes
 those bytes from the stored or pending route, so a removal notes its change
@@ -1759,7 +1810,9 @@ failed selection publication.
 Destination output and diagnostics have separate lifetimes. Ending a Session
 joins its worker and releases its route projections even when a warning clear
 fails. One dispatcher-owned reporter reconciles one aggregate warning under a
-fixed subject; doctor still lists every current destination and its cause.
+fixed subject; the runtime doctor check reads current failed destinations and
+their causes. Normal queued or in-flight output is visible through the neutral
+`selected-output` status projection rather than a fabricated doctor failure.
 The reporter retains only the current aggregate, its acknowledged value and
 one uncertain outcome, never an ended-Session ledger. A failed report may have
 applied without an answer, so a later healthy aggregate still clears that
@@ -1773,11 +1826,12 @@ consume the plugin's shared raise quota as destinations change, while doctor
 continues to show their current causes.
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_diagnostic.go -- run -->
 
-The private dispatcher does not yet admit destinations from public state or
-complete the ordinary routing workflow. Those state and settlement consumers
-remain required. Current peer metadata cannot authorize an older retained
-path. Existing route-server and reflector recovery continues to use its own
-candidate population.
+The dispatcher admits ordinary destinations from authenticated public state;
+its event-settlement callback joins their queued and in-flight output. The
+ordinary routing workflow still requires the release spec's remaining refresh
+and origin/source lifecycle integration. Current peer metadata cannot authorize
+an older retained path. Existing route-server and reflector recovery continues
+to use its own candidate population.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_advertise_capture.go -- advertiseState, advertiseSnapshot, prepareAdvertise, commitAdvertise, removeAdvertise, reelectAdvertiseStale -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, withdrawIfUnheld -->
@@ -1892,7 +1946,7 @@ backends; `FamilyRIB` retains its two build-tagged files
 PeerIdx, NextHopIdx, Flags bit 0 = isEBGP) packed into one scalar. The
 three index fields resolve through a shared `bestPrevInterner` on the
 RIBManager (one interner across every family's `bestPrevStore`), which
-dedupes peer addresses, next-hops, and received MED/AIGP tuples to dense uint16
+dedupes captured `(peer owner, peer address)` pairs, next-hops, and received MED/AIGP tuples to dense uint16
 indices. The hot-path same-best check compares that `uint64`, the path
 identifier, and the winner's attribute fingerprint
 (`storage.RouteEntry.AttrFingerprint`, an FNV-1a hash of the received
@@ -1907,6 +1961,15 @@ prefix. Emission resolves indices back to their original values via reverse
 tables. BART fringe nodes are opaque to GC because the stored value
 carries no pointers -- the motivation for the pack is cutting GC scan
 time at 1M-prefix scale.
+
+Two configured peers may share an address. Their winning records retain distinct
+owner slots, and the same-best check compares the captured owner as well as the
+address and route attributes. After all protocol criteria and the path identifier
+tie, the lower stable owner resolves the remaining tie. This final step is Ze's
+deterministic choice. An exact-owner purge removes only that owner's records;
+the deliberate address-wide purge used by a peer selector visits every matching
+owner. Each scan pins its slots until its last shard, so a removed winner's slot
+cannot be reused beneath another scan or a surviving sibling record.
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPathRecord uint64 + bestPrevInterner, bestPrevRecord, sameAttributeSet -->
 
 

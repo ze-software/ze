@@ -159,11 +159,12 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 	}
 	defer returnReadBuffer(scratch)
 	selection := validationSelection{
-		peer:    update.SourcePeerIP,
-		msgID:   update.sourceMessageID(),
-		ctx:     bgpctx.Registry.Get(wu.SourceCtxID()),
-		scratch: scratch.Buf,
-		replay:  update.validationReplay,
+		peer:      update.SourcePeerIP,
+		peerOwner: update.SourceOwner,
+		msgID:     update.sourceMessageID(),
+		ctx:       bgpctx.Registry.Get(wu.SourceCtxID()),
+		scratch:   scratch.Buf,
+		replay:    update.validationReplay,
 	}
 	v4Withdraw, _, err := selection.section(withdrawn, family.IPv4Unicast, false)
 	if err != nil {
@@ -225,11 +226,12 @@ func forwardValidationWire(update *ReceivedUpdate) (*wireu.WireUpdate, *wireu.Wi
 }
 
 type validationSelection struct {
-	peer    netip.Addr
-	msgID   uint64
-	ctx     *bgpctx.EncodingContext
-	scratch []byte
-	changed bool
+	peer      netip.Addr
+	peerOwner uint64
+	msgID     uint64
+	ctx       *bgpctx.EncodingContext
+	scratch   []byte
+	changed   bool
 	// replay is true for a stored-route relay (ReceivedUpdate.validationReplay)
 	// and false for the live forward of a received UPDATE. Only a replay
 	// carries FlowSpec rules (flowSpecSection).
@@ -298,7 +300,7 @@ func (s *validationSelection) section(data []byte, fam family.Family, announce b
 			ip = netip.AddrFrom4([4]byte(addr[:4]))
 		}
 		off += n
-		key := ribevents.ValidationRoute{Peer: s.peer, Family: fam, Prefix: netip.PrefixFrom(ip, bits).Masked(), PathID: pathID}
+		key := ribevents.ValidationRoute{Peer: s.peer, PeerOwner: s.peerOwner, Family: fam, Prefix: netip.PrefixFrom(ip, bits).Masked(), PathID: pathID}
 		if batch.add(key, s.msgID, data[start:off]) {
 			s.changed = batch.flush() || s.changed
 		}
@@ -438,7 +440,7 @@ func (s *validationSelection) flowSpecSection(data []byte, fam family.Family, an
 			return true
 		}
 		raw := wire
-		key := ribevents.ValidationRoute{Peer: s.peer, Family: fam}
+		key := ribevents.ValidationRoute{Peer: s.peer, PeerOwner: s.peerOwner, Family: fam}
 		if addPath {
 			key.PathID = binary.BigEndian.Uint32(raw[:4])
 			raw = raw[4:]
@@ -679,13 +681,13 @@ func validationBuildWire(update *ReceivedUpdate, spans []relayAttrSpan, attrs, w
 // validationRetainsPath keeps the ADD-PATH identity of a pending or retained
 // route until that route leaves the receive store. A stale cache withdrawal must
 // not free the identity used by its replacement.
-func validationRetainsPath(peer netip.Addr, fam family.Family, pathID uint32, raw []byte) bool {
+func validationRetainsPath(peer netip.Addr, peerOwner uint64, fam family.Family, pathID uint32, raw []byte) bool {
 	if ribevents.IsFlowSpec(fam) {
 		key := ribevents.FlowSpecKey(raw)
 		if key == "" {
 			return false
 		}
-		return ribevents.RoutePresent(ribevents.ValidationRoute{Peer: peer, Family: fam, PathID: pathID, NLRI: key})
+		return ribevents.RoutePresent(ribevents.ValidationRoute{Peer: peer, PeerOwner: peerOwner, Family: fam, PathID: pathID, NLRI: key})
 	}
 	if !ribevents.ValidationEnabled() {
 		return false
@@ -714,6 +716,6 @@ func validationRetainsPath(peer netip.Addr, fam family.Family, pathID uint32, ra
 		ip = netip.AddrFrom4([4]byte(addr[:4]))
 	}
 	return ribevents.RoutePresent(ribevents.ValidationRoute{
-		Peer: peer, Family: fam, Prefix: netip.PrefixFrom(ip, bits).Masked(), PathID: pathID,
+		Peer: peer, PeerOwner: peerOwner, Family: fam, Prefix: netip.PrefixFrom(ip, bits).Masked(), PathID: pathID,
 	})
 }

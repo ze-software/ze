@@ -54,17 +54,26 @@ func newAdjSourcePolicyFixture(t *testing.T) *adjSourcePolicyFixture {
 	for i, key := range f.keys {
 		r.ribIn[f.source].Put(key, uint64(i+1), &RawRoute{Family: key.Fam, AttrHex: "40010100",
 			NLRIHex: "180a0100", PathID: key.PathID, HasPathID: key.Fam == family.IPv4Unicast,
-			MsgID: uint64(100 + i), SourcePolicyEpoch: 5})
+			MsgID: uint64(100 + i), SourcePolicyEpoch: 5, SourceOwner: 1})
 	}
 	r.ribIn[f.other] = newSeqMap()
-	r.ribIn[f.other].Put(f.keys[0], 9, &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NLRIHex: "180a0100", MsgID: 200, SourcePolicyEpoch: 5})
+	r.ribIn[f.other].Put(f.keys[0], 9, &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NLRIHex: "180a0100", MsgID: 200, SourcePolicyEpoch: 5, SourceOwner: 2})
 	r.peerUp[f.source], r.peerUp[f.other] = true, true
 	return f
 }
 
 // eligible asks the selection query for the source's unicast path id.
 func (f *adjSourcePolicyFixture) eligible(peer netip.Addr, pathID uint32) bool {
-	return f.r.routeEligible(ribevents.ValidationRoute{Peer: peer, Family: family.IPv4Unicast,
+	// These are the two explicitly declared actors above, not identities
+	// derived from their addresses. An unknown actor stays unrecorded.
+	owner := uint64(0)
+	if peer == f.source {
+		owner = 1
+	}
+	if peer == f.other {
+		owner = 2
+	}
+	return f.r.routeEligible(ribevents.ValidationRoute{Peer: peer, PeerOwner: owner, Family: family.IPv4Unicast,
 		Prefix: netip.MustParsePrefix("10.1.0.0/24"), PathID: pathID}, 0)
 }
 

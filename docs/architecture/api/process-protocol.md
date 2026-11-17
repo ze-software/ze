@@ -306,7 +306,12 @@ per process, set by the first block.
 <!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- dispatchText -->
 
 A `bgp-rib/validation-change` payload is a JSON array of received paths, each
-`{"peer-address", "family", "prefix", "path-id", "nlri"}`. `nlri` is the hex of
+`{"peer-address", "peer-owner", "family", "prefix", "path-id", "nlri"}`.
+`peer-owner` is the original stable engine Peer identity, kept apart from its
+address and source Session receipt. Zero means unrecorded provenance; an exact
+lookup refuses it and never substitutes a current peer at that address. The
+receive store captures this value with the stored or pending route, and both
+typed queries and the JSON codec preserve it. `nlri` is the hex of
 the native NLRI of a non-CIDR route (FlowSpec), absent for a CIDR one, and a
 path whose `nlri` is not hex refuses the whole batch
 (`ribevents.DecodeValidationChange`). `bgp-adj-rib-in` emits it through
@@ -1752,8 +1757,12 @@ needed. Missing, null, expired or mismatched values cannot acknowledge work.
 The failure field remains bounded to 4096 bytes. A producer whose complete
 diagnostic exceeds that bound must provide an explicit bounded projection and
 an existing retrieval path for omitted live details; the SDK refuses an
-oversized failure instead of silently truncating it.
+oversized failure instead of silently truncating it. The RIB names whole
+destination identities, states omitted counts and points to the current
+`selected-output` list in `ze show bgp rib status`.
 <!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_failure.go -- selectedBarrierError -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_status.go -- unsettledStatus -->
 
 The SDK runs this callback on its own bounded FIFO worker, independently of
 ordinary event delivery and current-selection lookup. The handler MUST honor
@@ -1781,12 +1790,19 @@ recovery and command-read callers remain unchanged.
 <!-- source: internal/component/plugin/process/event_settlement.go -- SettleEventsApplied, eventSettlementOwnerError -->
 <!-- source: internal/component/plugin/ipc/event_settlement.go -- SendEventSettlement -->
 
+The global `request quiesce` plugin drain uses this composition for each live
+process captured from the current manager. A process already stopped at capture
+has no drain; one that ends after capture cannot acknowledge the old work. The
+processes settle concurrently and no manager lock is held across their callbacks.
+<!-- source: internal/component/plugin/process/manager.go -- DrainEventDelivery -->
+<!-- source: internal/component/plugin/server/quiesce.go -- registerPluginEventQuiescer -->
+
 Each process owns a FIFO event queue. A sent-event callback enqueues work without
 waiting for its handler; the delivery worker applies it through DirectBridge or
 the plugin's acknowledged `deliver-batch` RPC. Internal runners that never
 activate their allocated bridge retain the same JSON IPC delivery path.
 
-`DrainEvents` is soft quiesce: it waits for earlier delivery attempts, not for
+`DrainEvents` is a soft application drain: it waits for earlier delivery attempts, not for
 successful application, and a stopped process owes no drain. Recovery instead
 uses `DrainEventsApplied`. Its FIFO receipt includes the first delivery error
 in that `Process` lifetime, including an earlier fire-and-forget failure, timeout

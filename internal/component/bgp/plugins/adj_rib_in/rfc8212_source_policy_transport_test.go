@@ -34,13 +34,14 @@ func adjTransportStateUp(peer string) string {
 }
 
 // adjTransportReceived is the format=full JSON event of one received UPDATE
-// from peer, admitted under policy epoch 5, announcing prefix.
-func adjTransportReceived(peer string, id uint64, prefix, nlriHex string) string {
+// from the explicitly named peer owner, admitted under policy epoch 5,
+// announcing prefix.
+func adjTransportReceived(peer string, owner, id uint64, prefix, nlriHex string) string {
 	return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update","id":%d,"direction":"received"},`+
-		`"peer":{"address":%q,"remote":{"address":%q,"as":65001}},"source-policy-epoch":5,`+
+		`"peer":{"address":%q,"remote":{"address":%q,"as":65001}},"peer-owner":%d,"source-policy-epoch":5,`+
 		`"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":%q}},`+
 		`"update":{"attr":{"origin":"igp"},"ipv4/unicast":[{"next-hop":%q,"action":"add","nlri":[%q]}]}}}`,
-		id, peer, peer, nlriHex, peer, prefix)
+		id, peer, peer, owner, nlriHex, peer, prefix)
 }
 
 // startAdjRIBInOverTransport runs the real bgp-adj-rib-in entry point on
@@ -53,9 +54,9 @@ func startAdjRIBInOverTransport(t *testing.T, ctx context.Context, transport plu
 		adjTransportStateUp(adjTransportSource),
 		adjTransportStateUp(adjTransportOther),
 		adjTransportStateUp(adjTransportTarget),
-		adjTransportReceived(adjTransportSource, 100, "10.1.0.0/24", "180a0100"),
-		adjTransportReceived(adjTransportSource, 101, "10.2.0.0/24", "180a0200"),
-		adjTransportReceived(adjTransportOther, 102, "10.1.0.0/24", "180a0100"),
+		adjTransportReceived(adjTransportSource, 1, 100, "10.1.0.0/24", "180a0100"),
+		adjTransportReceived(adjTransportSource, 1, 101, "10.2.0.0/24", "180a0200"),
+		adjTransportReceived(adjTransportOther, 2, 102, "10.1.0.0/24", "180a0100"),
 	} {
 		require.NoError(t, engine.Deliver(ctx, event))
 	}

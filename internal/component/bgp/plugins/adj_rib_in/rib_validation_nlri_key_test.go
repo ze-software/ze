@@ -39,7 +39,7 @@ var nlriKeyVPNWithdrawal = []byte{0x70, 0x80, 0x00, 0x00, 0x00, 0x00, 0xfd, 0xe8
 func storeNLRIKeyVPN(t *testing.T, r *AdjRIBInManager, source netip.Addr) compactRouteKey {
 	t.Helper()
 	r.mu.Lock()
-	r.installComplexNLRIs(source, nlriKeyVPN, nlriKeyVPNWire, false, "40010100", "0a000001", 100, 5)
+	r.installComplexNLRIs(source, nlriKeyVPN, nlriKeyVPNWire, false, "40010100", "0a000001", 100, 5, 1)
 	key, err := r.routeKeyFromNLRI(nlriKeyVPN, nlriKeyVPNWire, 0, false)
 	r.mu.Unlock()
 	require.NoError(t, err)

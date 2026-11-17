@@ -25,7 +25,7 @@ func TestValidationPausedDebtPrecedesNextMutation(t *testing.T) {
 			second := compactRouteKey{Fam: family.IPv4Unicast, Prefix: netip.MustParsePrefix("203.0.114.0/24")}
 			r.ribIn[peer] = newSeqMap()
 			for index, key := range []compactRouteKey{first, second} {
-				r.ribIn[peer].Put(key, uint64(index+1), &RawRoute{Family: key.Fam})
+				r.ribIn[peer].Put(key, uint64(index+1), &RawRoute{Family: key.Fam, SourceOwner: 1})
 			}
 			r.peerUp[peer] = true
 			r.validationEnabled, r.validationGate = true, true
@@ -64,7 +64,7 @@ func TestValidationPausedDebtPrecedesNextMutation(t *testing.T) {
 				if err := r.validationFailure(); !errors.Is(err, failure) {
 					t.Errorf("ordinary refusal lost the terminal publication cause: %v", err)
 				}
-				if ribevents.RouteEligible(ribevents.ValidationRoute{Peer: peer, Family: second.Fam, Prefix: second.Prefix}, 0) {
+				if ribevents.RouteEligible(ribevents.ValidationRoute{Peer: peer, PeerOwner: 1, Family: second.Fam, Prefix: second.Prefix}, 0) {
 					t.Error("ordinary refusal left the validation lookup open")
 				}
 				return

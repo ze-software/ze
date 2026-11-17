@@ -31,15 +31,15 @@ func TestRFC8212SourcePolicyComplexFamilyEligibility(t *testing.T) {
 	r.mu.Unlock()
 	require.NoError(t, err)
 	r.ribIn[source] = newSeqMap()
-	r.ribIn[source].Put(key, 1, &RawRoute{Family: vpn, AttrHex: "40010100", MsgID: 100, SourcePolicyEpoch: 5})
+	r.ribIn[source].Put(key, 1, &RawRoute{Family: vpn, AttrHex: "40010100", MsgID: 100, SourcePolicyEpoch: 5, SourceOwner: 1})
 	r.peerUp[source] = true
-	query := ribevents.ValidationRoute{Peer: source, Family: vpn, NLRI: string(wire)}
+	query := ribevents.ValidationRoute{Peer: source, PeerOwner: 1, Family: vpn, NLRI: string(wire)}
 
 	require.True(t, r.routePresent(query), "the query finds the stored VPN route")
 	require.True(t, r.routeEligible(query, 0))
 	require.True(t, r.routeEligible(query, 100), "the stored generation matches")
 	require.False(t, r.routeEligible(query, 101), "another generation does not")
-	require.False(t, r.routeEligible(ribevents.ValidationRoute{Peer: source, Family: vpn}, 0),
+	require.False(t, r.routeEligible(ribevents.ValidationRoute{Peer: source, PeerOwner: 1, Family: vpn}, 0),
 		"a query that names no route is not eligible")
 
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx1", source, 5, 0))
@@ -64,7 +64,7 @@ func TestRFC8212SourcePolicyAbortRestoresPreviousBound(t *testing.T) {
 	require.Equal(t, uint64(5), r.policyDenied[f.source])
 
 	r.ribIn[f.source].Put(f.keys[0], 10, &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100",
-		NLRIHex: "180a0100", MsgID: 300, SourcePolicyEpoch: 6})
+		NLRIHex: "180a0100", MsgID: 300, SourcePolicyEpoch: 6, SourceOwner: 1})
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyPrepare, "tx2", f.source, 6, 0))
 	require.NoError(t, runSourcePolicy(t, r, rpc.SourcePolicyApply, "tx2", f.source, 6, 7))
 	require.Equal(t, uint64(6), r.policyDenied[f.source])

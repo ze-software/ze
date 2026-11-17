@@ -49,6 +49,7 @@ const (
 	BestStepClusterList                  // 8 -- shortest CLUSTER_LIST (RFC 4456 Section 9)
 	BestStepPeerAddr                     // 9 -- lowest peer address
 	BestStepPathID                       // 10 -- lowest path identifier (Ze tie-break, not RFC text)
+	BestStepPeerOwner                    // stable owner after all protocol and path criteria tie
 	BestStepEqual                        // no step resolved -- candidates are byte-for-byte identical
 )
 
@@ -79,6 +80,8 @@ func (s BestStep) String() string {
 		return "peer-address"
 	case BestStepPathID:
 		return "path-id"
+	case BestStepPeerOwner:
+		return "peer-owner"
 	case BestStepEqual:
 		return "equal"
 	default:
@@ -100,6 +103,7 @@ const (
 type Candidate struct {
 	PeerAddr           string           // peer IP address string (map keys, JSON, internPeer)
 	PeerIP             netip.Addr       // parsed peer address (zero-alloc comparison)
+	PeerOwner          uint64           // original stable Peer identity, zero when unrecorded
 	PeerASN            uint32           // peer's AS number
 	LocalASN           uint32           // local AS number (0 = unknown)
 	LocalPref          uint32           // LOCAL_PREF value (default 100 if absent)
@@ -442,6 +446,13 @@ func compareAfterMED(a, b *Candidate) (int, BestStep) {
 		return cmp.Compare(a.PathID, b.PathID), BestStepPathID
 	}
 
+	// Distinct configured peers may use the same address and path identifier.
+	// Once every protocol criterion ties, their immutable owner makes selection
+	// independent of map iteration and arrival order. This is a Ze tie-break.
+	if a.PeerOwner != b.PeerOwner {
+		return cmp.Compare(a.PeerOwner, b.PeerOwner), BestStepPeerOwner
+	}
+
 	return 0, BestStepEqual
 }
 
@@ -579,6 +590,11 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 		var tb textbuf.Buffer
 		return cmp.Compare(a.PathID, b.PathID), BestStepPathID,
 			tb.Str("path-id ").Uint32(a.PathID).Str(" vs ").Uint32(b.PathID).String()
+	}
+	if a.PeerOwner != b.PeerOwner {
+		var tb textbuf.Buffer
+		return cmp.Compare(a.PeerOwner, b.PeerOwner), BestStepPeerOwner,
+			tb.Str("peer-owner ").Uint(a.PeerOwner).Str(" vs ").Uint(b.PeerOwner).String()
 	}
 
 	return 0, BestStepEqual, "identical candidates"

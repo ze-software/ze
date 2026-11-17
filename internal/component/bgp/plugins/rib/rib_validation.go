@@ -19,9 +19,9 @@ import (
 
 // validationEligible reads the receive gate for this exact stored generation.
 // Only CIDR families have the prefix identity used by validation decisions.
-func (r *RIBManager) validationEligible(peer netip.Addr, routes *storage.PeerRIB, fam family.Family, wire []byte, msgID uint64) bool {
+func (r *RIBManager) validationEligible(peer netip.Addr, peerOwner uint64, routes *storage.PeerRIB, fam family.Family, wire []byte, msgID uint64) bool {
 	if ribevents.IsFlowSpec(fam) {
-		key, ok := flowSpecKey(peer, fam, wire, routes.IsAddPath(fam))
+		key, ok := flowSpecKey(peer, peerOwner, fam, wire, routes.IsAddPath(fam))
 		return ok && r.flowSpecEligible(key, msgID)
 	}
 	if !ribevents.ValidationEnabled() || !storage.IsCIDRFamily(fam) {
@@ -32,7 +32,7 @@ func (r *RIBManager) validationEligible(peer netip.Addr, routes *storage.PeerRIB
 		return false
 	}
 	return ribevents.RouteEligible(ribevents.ValidationRoute{
-		Peer: peer, Family: fam, Prefix: prefix, PathID: pathID,
+		Peer: peer, PeerOwner: peerOwner, Family: fam, Prefix: prefix, PathID: pathID,
 	}, msgID)
 }
 
@@ -232,7 +232,7 @@ func replaySourceRefused(fam family.Family, familyRoutes map[ribOutKey]ribOutEnt
 		}
 		keys = append(keys, key)
 		queries = append(queries, ribevents.EligibilityQuery{Route: ribevents.ValidationRoute{
-			Peer: peer, Family: fam, Prefix: key.Prefix, PathID: key.PathID,
+			Peer: peer, PeerOwner: entry.SourceOwner, Family: fam, Prefix: key.Prefix, PathID: key.PathID,
 		}})
 	}
 	answers := make([]bool, len(queries))

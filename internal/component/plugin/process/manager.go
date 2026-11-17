@@ -870,10 +870,11 @@ func (pm *ProcessManager) deletePluginStatusLabel(name string) {
 	pm.pmetrics.status.Delete(name)
 }
 
-// DrainEventDelivery returns when every process has delivered the events it
-// held when the call started. It is the inbound half of `request quiesce`: the
-// two reactor quiescers drain what ze owes the WIRE, and this drains what ze
-// owes its PLUGINS.
+// DrainEventDelivery joins application of prior events and each live process's
+// declared deferred work. It is the inbound half of `request quiesce`: the two
+// reactor quiescers drain what ze owes the WIRE, and this drains what ze owes
+// its PLUGINS. Processes already stopped when captured owe no work; a captured
+// live process that stops during settlement fails its receipt.
 //
 // Without it a barrier built on quiesce is unsound in one direction. A command
 // that reaches a plugin through the event rail, such as an RPKI validation
@@ -887,13 +888,15 @@ func (pm *ProcessManager) DrainEventDelivery(ctx context.Context) error {
 	pm.mu.RLock()
 	procs := make([]*Process, 0, len(pm.processes))
 	for _, proc := range pm.processes {
-		procs = append(procs, proc)
+		if proc.Running() {
+			procs = append(procs, proc)
+		}
 	}
 	pm.mu.RUnlock()
 
 	var group errgroup.Group
 	for _, proc := range procs {
-		group.Go(func() error { return proc.DrainEvents(ctx) })
+		group.Go(func() error { return proc.SettleEventsApplied(ctx) })
 	}
 	return group.Wait()
 }

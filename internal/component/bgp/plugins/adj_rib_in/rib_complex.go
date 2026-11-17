@@ -29,7 +29,7 @@ import (
 // nhopHex is the MP_REACH next-hop field as the source framed it. It used to be
 // an address STRING, which lost the link-local half of an RFC 2545 Section 3
 // pair before it ever reached storage.
-func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch uint64) {
+func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string, msgID, sourcePolicyEpoch, sourceOwner uint64) {
 	if attrHex == "" {
 		return
 	}
@@ -68,6 +68,7 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 			HasPathID:         addPath,
 			MsgID:             msgID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
+			SourceOwner:       sourceOwner,
 		})
 		return true
 	})

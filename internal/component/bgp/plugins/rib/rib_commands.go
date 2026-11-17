@@ -853,6 +853,9 @@ func (r *RIBManager) status(famFilter string) any {
 		"stale-routes": staleRoutes,
 		"route-counts": peerCounts,
 	}
+	if r.selectedDispatch != nil {
+		result["selected-output"] = r.selectedDispatch.unsettledStatus()
+	}
 
 	// Add per-peer GR state if any peers have stale routes.
 	if len(r.grState) > 0 {
@@ -1308,7 +1311,7 @@ func (r *RIBManager) gatherPrefixCandidatesForLocked(fam family.Family, pfx neti
 			candidates = append(candidates, c)
 			if gate != nil {
 				gate.queries = append(gate.queries, ribevents.EligibilityQuery{
-					Route: ribevents.ValidationRoute{Peer: peer, Family: fam, Prefix: pfx, PathID: path.PathID},
+					Route: ribevents.ValidationRoute{Peer: peer, PeerOwner: path.Entry.SourcePeerOwner(), Family: fam, Prefix: pfx, PathID: path.PathID},
 					MsgID: path.Entry.MsgID,
 				})
 			}
@@ -1354,7 +1357,7 @@ func (r *RIBManager) gatherKeyCandidatesForLocked(fam family.Family, routeKey []
 			path := &paths[i]
 			// Validation keys a route by the NLRI its own session sent.
 			nlri := framedRouteNLRI(nlriBuf[:0], path.Route, path.PathID, peerAddPath)
-			if !r.validationEligible(peer, peerRIB, fam, nlri, path.Entry.MsgID) {
+			if !r.validationEligible(peer, path.Entry.SourcePeerOwner(), peerRIB, fam, nlri, path.Entry.MsgID) {
 				path.Release()
 				continue
 			}
@@ -1446,6 +1449,7 @@ func (r *RIBManager) extractCandidate(fam family.Family, peerAddr netip.Addr, pe
 	c := &Candidate{
 		PeerAddr:  peerStr,
 		PeerIP:    peerAddr,
+		PeerOwner: entry.SourcePeerOwner(),
 		LocalPref: 100, // RFC 4271 default
 		IGPCost:   ^uint64(0),
 	}

@@ -2806,6 +2806,15 @@ the daemon.
 <!-- source: internal/component/plugin/server/quiesce.go -- registerReactorQuiescer, quiesceAll -->
 <!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
 
+The `plugin-event-delivery` quiescer joins prior event application and each
+observer's declared deferred work. In the RIB this includes queued and in-flight
+selected output and pending final source releases. A stopped observer is skipped;
+a live observer that cannot settle fails the barrier with its cause. Other
+observers continue on their own completion paths.
+<!-- source: internal/component/plugin/server/quiesce.go -- registerPluginEventQuiescer -->
+<!-- source: internal/component/plugin/process/manager.go -- DrainEventDelivery -->
+<!-- source: internal/component/bgp/plugins/rib/rib_event_settlement.go -- settleEvents -->
+
 Invocation note: `request quiesce` and `request peer <sel> flush` are api-yang
 RPCs reached through **dispatch-command**, not as direct wire methods. A plugin
 calls `api.dispatch("request quiesce")` (the test SDK's `ze_api.quiesce()` and

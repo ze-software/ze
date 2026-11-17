@@ -66,14 +66,16 @@ peers by default, as an ordinary BGP speaker does (RFC 4271 Section 9.1.3 and
 Section 9.2). The operator does not have to load or attach a route-server
 plugin to get it.
 
-This is not implemented yet. Its proposed design is under review. Today the
-engine caches the wire bytes, and a plugin decides forwarding. The `bgp-rib`
-plugin stores routes and elects the best one but sends nothing to another peer.
-A route reaches another peer only through a
-forwarding plugin such as `bgp-rs` or `bgp-rr`, attached to the peers. The work
-is owned by
+Implementation is in progress. The engine caches wire bytes, and a plugin
+decides forwarding. The `bgp-rib` plugin retains its selected learned routes;
+authenticated ordinary destination UP now connects a worker that sends the
+current selection and subsequent changes through the final engine writer.
+Initial readiness follows those final receipts, including for an empty table.
+Explicit route-server and reflector destinations retain their role writer.
+Ordinary refresh and the other release requirements remain owned by
 [spec-bgp-best-route-advertised-to-peers](../../plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md).
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
+<!-- source: internal/component/bgp/plugins/rib/rib_ordinary_destination.go -- updateSelectedDestination -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
 
 ### Owner ruling: a learned route needs the recipient's export policy

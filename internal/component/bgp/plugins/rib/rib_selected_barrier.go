@@ -5,7 +5,6 @@ package rib
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/netip"
 )
 
@@ -98,7 +97,7 @@ func (d *selectedDispatch) barrierDestinations(ctx context.Context, active []*se
 			d.mu.Unlock()
 			return err
 		}
-		var unresolved error
+		var unresolved []selectedUnsettled
 		for _, destination := range active {
 			id := selectedDestinationID{peer: destination.peer, session: destination.session}
 			if d.destinations[id] != destination {
@@ -111,17 +110,17 @@ func (d *selectedDispatch) barrierDestinations(ctx context.Context, active []*se
 			if cause == nil {
 				cause = errors.New("selected output is queued or in flight")
 			}
-			unresolved = errors.Join(unresolved, fmt.Errorf("destination %s Session %d: %w", destination.peer, destination.session, cause))
+			unresolved = append(unresolved, selectedUnsettled{id: id, cause: cause})
 		}
 		changed := d.changed
 		d.mu.Unlock()
-		if unresolved == nil {
+		if len(unresolved) == 0 {
 			return nil
 		}
 		select {
 		case <-changed:
 		case <-ctx.Done():
-			return fmt.Errorf("selected output did not settle: %w: %w; inspect the named destinations before retrying the change", ctx.Err(), unresolved)
+			return selectedBarrierError(ctx.Err(), unresolved)
 		}
 	}
 }

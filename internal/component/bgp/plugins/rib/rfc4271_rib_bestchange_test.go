@@ -1177,11 +1177,11 @@ func TestBestPathRecordEquality(t *testing.T) {
 func TestBestPrevInternerDedup(t *testing.T) {
 	ir := newBestPrevInterner()
 
-	p1, ok := ir.internPeer("192.0.2.1")
+	p1, ok := ir.internPeer(bestPeer{address: "192.0.2.1"})
 	require.True(t, ok)
-	p2, ok := ir.internPeer("192.0.2.2")
+	p2, ok := ir.internPeer(bestPeer{address: "192.0.2.2"})
 	require.True(t, ok)
-	p1dup, ok := ir.internPeer("192.0.2.1")
+	p1dup, ok := ir.internPeer(bestPeer{address: "192.0.2.1"})
 	require.True(t, ok)
 
 	assert.NotEqual(t, p1, p2, "distinct peers get distinct indices")
@@ -1215,7 +1215,7 @@ func TestBestPrevInternerReverse(t *testing.T) {
 	peers := []string{"192.0.2.1", "192.0.2.2", "198.51.100.7"}
 	peerIdxs := make([]uint16, len(peers))
 	for i, p := range peers {
-		idx, ok := ir.internPeer(p)
+		idx, ok := ir.internPeer(bestPeer{address: p})
 		require.True(t, ok)
 		peerIdxs[i] = idx
 	}
@@ -1286,7 +1286,7 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 
 		// Saturate the peer reverse table with distinct synthetic keys.
 		for i := range internerCap {
-			_, ok := r.bestPathInterner.internPeer(syntheticPeerKey(i))
+			_, ok := r.bestPathInterner.internPeer(bestPeer{address: syntheticPeerKey(i)})
 			require.True(t, ok)
 		}
 
@@ -1337,11 +1337,11 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 
 		// Overflow on a different table: MUST emit its own log line.
 		for i := range internerCap {
-			if _, ok := ir.internPeer(syntheticPeerKey(i)); !ok {
+			if _, ok := ir.internPeer(bestPeer{address: syntheticPeerKey(i)}); !ok {
 				t.Fatalf("fill %d: peer interner unexpectedly rejected within cap", i)
 			}
 		}
-		_, ok = ir.internPeer("203.0.113.99")
+		_, ok = ir.internPeer(bestPeer{address: "203.0.113.99"})
 		require.False(t, ok)
 		assert.Equal(t, 2, strings.Count(logBuf.String(), "best-path interner saturated"),
 			"each table logs its own first saturation")
@@ -1353,26 +1353,26 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 // record owns it, and is reused only after the final reference is released.
 func TestBestPrevInternerReleasePeer(t *testing.T) {
 	ir := newBestPrevInterner()
-	idxA, ok := ir.internPeer("192.0.2.1")
+	idxA, ok := ir.internPeer(bestPeer{address: "192.0.2.1"})
 	require.True(t, ok)
-	idxAgain, ok := ir.internPeer("192.0.2.1")
+	idxAgain, ok := ir.internPeer(bestPeer{address: "192.0.2.1"})
 	require.True(t, ok)
 	require.Equal(t, idxA, idxAgain)
 	ir.releasePeer(idxA)
 	assert.Equal(t, "192.0.2.1", ir.peerAt(idxAgain))
 	assert.Empty(t, ir.peersFree, "a remaining record still owns this slot")
 
-	idxB, ok := ir.internPeer("192.0.2.2")
+	idxB, ok := ir.internPeer(bestPeer{address: "192.0.2.2"})
 	require.True(t, ok)
 	assert.NotEqual(t, idxAgain, idxB, "live records must not alias another peer")
 	ir.releasePeer(idxAgain)
 	assert.Equal(t, []uint16{idxA}, ir.peersFree)
 	assert.Empty(t, ir.peers[idxA], "last release clears the borrowed address")
-	idxC, ok := ir.internPeer("192.0.2.3")
+	idxC, ok := ir.internPeer(bestPeer{address: "192.0.2.3"})
 	require.True(t, ok)
 	assert.Equal(t, idxA, idxC, "a newcomer reuses the unowned slot")
 	assert.Len(t, ir.peers, 2)
-	_, present := ir.retainPeer("198.51.100.99")
+	_, present := ir.retainPeer(bestPeer{address: "198.51.100.99"})
 	assert.False(t, present, "an absent peer cannot be pinned")
 	ir.releasePeer(idxB)
 	ir.releasePeer(idxC)
@@ -1398,7 +1398,7 @@ func TestBestPrevInternerChurnBounded(t *testing.T) {
 	// First wave: intern concurrent peers. peers[] grows to 8.
 	peers := make([]uint16, concurrent)
 	for i := range concurrent {
-		idx, ok := ir.internPeer(syntheticPeerKey(i))
+		idx, ok := ir.internPeer(bestPeer{address: syntheticPeerKey(i)})
 		require.True(t, ok)
 		peers[i] = idx
 	}
@@ -1412,7 +1412,7 @@ func TestBestPrevInternerChurnBounded(t *testing.T) {
 		}
 		assert.Len(t, ir.peersFree, concurrent, "cycle %d: release populates free-list", f)
 		for i := range concurrent {
-			idx, ok := ir.internPeer(syntheticPeerKey((f+1)*concurrent + i))
+			idx, ok := ir.internPeer(bestPeer{address: syntheticPeerKey((f+1)*concurrent + i)})
 			require.True(t, ok)
 			peers[i] = idx
 		}
@@ -1446,14 +1446,14 @@ func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok, "seed must intern peerA and store a bestPrev record")
 
-	idxA, ok := r.bestPathInterner.peerIdxOf(peerA.String())
+	idxA, ok := r.bestPathInterner.peerIdxOf(bestPeer{address: peerA.String()})
 	require.True(t, ok, "peerA must be in the interner forward map after seed")
 
 	// DOWN path: handleStructuredState removes ribInPool entry and calls
 	// purgeBestPrevForPeer, which releases the final record's peer slot.
 	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerA.String(), State: rpc.SessionStateDown})
 
-	_, stillThere := r.bestPathInterner.peerIdxOf(peerA.String())
+	_, stillThere := r.bestPathInterner.peerIdxOf(bestPeer{address: peerA.String()})
 	assert.False(t, stillThere, "purge must release peerA from the forward map")
 	assert.Contains(t, r.bestPathInterner.peersFree, idxA,
 		"peerA's slot must be on the free-list after DOWN")
@@ -1462,7 +1462,7 @@ func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 	// extending peers[].
 	peerB := netip.MustParseAddr("192.0.2.51")
 	sizeBefore := len(r.bestPathInterner.peers)
-	idxB, ok := r.bestPathInterner.internPeer(peerB.String())
+	idxB, ok := r.bestPathInterner.internPeer(bestPeer{address: peerB.String()})
 	require.True(t, ok)
 	assert.Equal(t, idxA, idxB, "newcomer reuses peerA's reclaimed slot")
 	assert.Equal(t, sizeBefore, len(r.bestPathInterner.peers),
@@ -1519,7 +1519,7 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 				}
 				indices := make([]uint16, len(peers))
 				for k, p := range peers {
-					idx, ok := ir.internPeer(p)
+					idx, ok := ir.internPeer(bestPeer{address: p})
 					if !ok {
 						t.Errorf("g=%d i=%d: internPeer(%q) rejected", g, i, p)
 						return
@@ -1528,7 +1528,7 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 				}
 				// Mixed reads that race with other goroutines' writes.
 				for _, p := range peers {
-					if idx, ok := ir.peerIdxOf(p); ok {
+					if idx, ok := ir.peerIdxOf(bestPeer{address: p}); ok {
 						_ = ir.peerAt(idx)
 					}
 				}
@@ -1565,14 +1565,14 @@ func TestBestPrevInternerChurnStress(t *testing.T) {
 func TestPurgeBestPrevForPeerRetainsIndependentOwner(t *testing.T) {
 	r := newTestRIBManagerWithBus(newTestEventBus())
 	peerAddr := netip.MustParseAddr("192.0.2.77")
-	idx, ok := r.bestPathInterner.internPeer(peerAddr.String())
+	idx, ok := r.bestPathInterner.internPeer(bestPeer{address: peerAddr.String()})
 	require.True(t, ok)
 	pending := r.purgeBestPrevForPeer(peerAddr.String())
 	r.emitPurgedWithdraws(pending)
 	assert.Equal(t, peerAddr.String(), r.bestPathInterner.peerAt(idx))
 	assert.Empty(t, r.bestPathInterner.peersFree)
 	r.bestPathInterner.releasePeer(idx)
-	assert.NotContains(t, r.bestPathInterner.peerIdx, peerAddr.String())
+	assert.NotContains(t, r.bestPathInterner.peerIdx, bestPeer{address: peerAddr.String()})
 	assert.Contains(t, r.bestPathInterner.peersFree, idx)
 }
 
@@ -1591,7 +1591,7 @@ func syntheticPeerKey(i int) string {
 // PREVENTS: Emission path regressions producing wrong priority / protocol-type.
 func TestBestPathResolve(t *testing.T) {
 	ir := newBestPrevInterner()
-	peerIdx, _ := ir.internPeer("192.0.2.1")
+	peerIdx, _ := ir.internPeer(bestPeer{address: "192.0.2.1"})
 	nhIdx, _ := ir.internNextHop(netip.MustParseAddr("10.0.0.1"))
 	metricIdx, _ := ir.internMetric(bestPathMetrics{MED: 500})
 

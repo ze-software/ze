@@ -144,11 +144,19 @@ func (r bestPathRecord) isBlackhole() bool { return r&flagBlackhole != 0 }
 // peerMu, then transfers that reference to its stored bestPrev record. Purge
 // scans also pin their peer slot. No slot can be reused while an admitted
 // publication, stored record or scan still names it.
+// bestPeer identifies the source of a winning path. Address remains display
+// metadata; equal addresses with different captured owners occupy distinct slots.
+type bestPeer struct {
+	owner   uint64
+	address string
+}
+
 type bestPrevInterner struct {
 	peersMu         sync.RWMutex
 	peers           []string
+	peerOwners      []uint64
 	peerRefs        []uint64
-	peerIdx         map[string]uint16
+	peerIdx         map[bestPeer]uint16
 	peersOverflowed bool
 	// peersFree holds indices whose last owner called releasePeer, so a later
 	// internPeer can reuse the slot without growing the reverse table.
@@ -171,7 +179,7 @@ type bestPrevInterner struct {
 // same growth cadence.
 func newBestPrevInterner() *bestPrevInterner {
 	return &bestPrevInterner{
-		peerIdx:    make(map[string]uint16),
+		peerIdx:    make(map[bestPeer]uint16),
 		nextHopIdx: make(map[netip.Addr]uint16),
 		metricIdx:  make(map[bestPathMetrics]uint16),
 	}
@@ -182,7 +190,7 @@ func newBestPrevInterner() *bestPrevInterner {
 // this never grows the table -- used by bestPrev purge paths that want to
 // look up a peer that is about to depart without polluting the interner
 // with a slot for a peer that will have no records.
-func (b *bestPrevInterner) peerIdxOf(v string) (uint16, bool) {
+func (b *bestPrevInterner) peerIdxOf(v bestPeer) (uint16, bool) {
 	b.peersMu.RLock()
 	idx, ok := b.peerIdx[v]
 	b.peersMu.RUnlock()
@@ -192,7 +200,7 @@ func (b *bestPrevInterner) peerIdxOf(v string) (uint16, bool) {
 // internPeer acquires one reference to v's peer slot. The caller MUST transfer
 // it to a stored bestPrev record or call releasePeer. Returns (0, false) when
 // the bounded table has no free slot; no reference is acquired in that case.
-func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
+func (b *bestPrevInterner) internPeer(v bestPeer) (uint16, bool) {
 	b.peersMu.Lock()
 	defer b.peersMu.Unlock()
 	if idx, ok := b.peerIdx[v]; ok {
@@ -207,7 +215,8 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 		// silently turn a reclaimed slot into an out-of-bounds write.
 		if int(idx) < len(b.peers) {
 			b.peersFree = b.peersFree[:n-1]
-			b.peers[idx] = v
+			b.peers[idx] = v.address
+			b.peerOwners[idx] = v.owner
 			b.peerRefs[idx] = 1
 			b.peerIdx[v] = idx
 			return idx, true
@@ -225,7 +234,8 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 		return 0, false
 	}
 	idx := uint16(len(b.peers))
-	b.peers = append(b.peers, v)
+	b.peers = append(b.peers, v.address)
+	b.peerOwners = append(b.peerOwners, v.owner)
 	b.peerRefs = append(b.peerRefs, 1)
 	b.peerIdx[v] = idx
 	return idx, true
@@ -233,7 +243,7 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 
 // retainPeer pins an existing peer slot without creating an absent one. A
 // successful caller MUST call releasePeer after its scan or borrowed use ends.
-func (b *bestPrevInterner) retainPeer(v string) (uint16, bool) {
+func (b *bestPrevInterner) retainPeer(v bestPeer) (uint16, bool) {
 	b.peersMu.Lock()
 	defer b.peersMu.Unlock()
 	idx, ok := b.peerIdx[v]
@@ -259,8 +269,9 @@ func (b *bestPrevInterner) releasePeer(idx uint16) {
 	if b.peerRefs[idx] != 0 {
 		return
 	}
-	delete(b.peerIdx, b.peers[idx])
+	delete(b.peerIdx, bestPeer{owner: b.peerOwners[idx], address: b.peers[idx]})
 	b.peers[idx] = ""
+	b.peerOwners[idx] = 0
 	b.peersFree = append(b.peersFree, idx)
 }
 
@@ -329,6 +340,17 @@ func (b *bestPrevInterner) peerAt(idx uint16) string {
 		return ""
 	}
 	return b.peers[idx]
+}
+
+// ownerAt reads the immutable source identity from the same referenced slot as
+// peerAt. A record or scan MUST hold its reference until both reads finish.
+func (b *bestPrevInterner) ownerAt(idx uint16) uint64 {
+	b.peersMu.RLock()
+	defer b.peersMu.RUnlock()
+	if int(idx) >= len(b.peerOwners) {
+		return 0
+	}
+	return b.peerOwners[idx]
 }
 
 // nextHopAt returns the original netip.Addr for idx, or the zero Addr if idx
@@ -547,13 +569,46 @@ func (s *bestPrevStore) delete(pfx netip.Prefix, nlriBytes []byte) {
 // serial reads across all shards -- call site expects a cold-path
 // peer-down event, not the hot UPDATE path.
 func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]bestChangeEntry {
-	peerIdx, ok := r.bestPathInterner.retainPeer(peerAddr)
+	// This deliberate address-wide operation is used by operator selectors.
+	// Snapshot and pin every matching owner before releasing the interner lock.
+	r.bestPathInterner.peersMu.Lock()
+	var peers []uint16
+	for peer, index := range r.bestPathInterner.peerIdx {
+		if peer.address == peerAddr {
+			r.bestPathInterner.peerRefs[index]++
+			peers = append(peers, index)
+		}
+	}
+	r.bestPathInterner.peersMu.Unlock()
+	var pending map[family.Family][]bestChangeEntry
+	for _, index := range peers {
+		for fam, changes := range r.purgeBestPrevSlot(index) {
+			if pending == nil {
+				pending = make(map[family.Family][]bestChangeEntry)
+			}
+			pending[fam] = append(pending[fam], changes...)
+		}
+		r.bestPathInterner.releasePeer(index)
+	}
+	return pending
+}
+
+// purgeBestPrevForOwner removes only the captured source's records. Lifecycle
+// callers MUST use this exact identity and MUST release peerMu before calling.
+func (r *RIBManager) purgeBestPrevForOwner(peer bestPeer) map[family.Family][]bestChangeEntry {
+	peerIdx, ok := r.bestPathInterner.retainPeer(peer)
 	if !ok {
 		// No stored record or admitted publication can reference this peer:
 		// changed elections reserve their slot before releasing peerMu.
 		return nil
 	}
 	defer r.bestPathInterner.releasePeer(peerIdx)
+	return r.purgeBestPrevSlot(peerIdx)
+}
+
+// purgeBestPrevSlot MUST run while its caller owns a scan reference to peerIdx.
+// Each removed record releases only its own independent slot reference.
+func (r *RIBManager) purgeBestPrevSlot(peerIdx uint16) map[family.Family][]bestChangeEntry {
 	if r.bestPrev == nil {
 		return nil
 	}
@@ -861,10 +916,12 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	defer sh.mu.Unlock()
 	prev, prevRoute, havePrev := sh.store.lookup(pfx, routeKey)
 	var prevPeer string
+	var prevOwner uint64
 	var prevNextHop netip.Addr
 	var prevMetrics bestPathMetrics
 	if havePrev {
 		prevPeer = r.bestPathInterner.peerAt(prev.rec.peerIdx())
+		prevOwner = r.bestPathInterner.ownerAt(prev.rec.peerIdx())
 		prevNextHop = r.bestPathInterner.nextHopAt(prev.rec.nextHopIdx())
 		prevMetrics = r.bestPathInterner.metricAt(prev.rec.metricIdx())
 	}
@@ -971,6 +1028,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	// route performs no interning, peer-slot reference changes or AS_PATH formatting.
 	sameBest := havePrev && slices.Equal(sh.store.labels[pfx], bestLabels) &&
 		prevPeer == newBest.PeerAddr &&
+		prevOwner == newBest.PeerOwner &&
 		prev.pathID == winnerPathID && prev.addPath == winnerAddPath &&
 		prevRoute == winnerRoute(newBest, cidr) &&
 		prevNextHop == nextHop &&
@@ -985,7 +1043,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		// releasing admission, so even a peer with no prior winning record
 		// forces DOWN to wait for this publication's shard.
 		var admitted bool
-		peerIdx, admitted = r.bestPathInterner.internPeer(newBest.PeerAddr)
+		peerIdx, admitted = r.bestPathInterner.internPeer(bestPeer{owner: newBest.PeerOwner, address: newBest.PeerAddr})
 		if !admitted {
 			releaseCandidates(candidates)
 			r.peerMu.RUnlock()
@@ -1219,16 +1277,16 @@ func storedASPath(handle attrpool.Handle) (asPath []uint32, ok bool) {
 //
 // Caller MUST hold the shard's lock and MUST NOT hold r.peerMu: this takes
 // peerMu for reading, in the shard-then-peer order the election uses.
-func (r *RIBManager) replayPath(fam family.Family, pfx netip.Prefix, routeKey []byte, peer string, pathID uint32) (asPath []uint32, attrs []byte, held bool) {
+func (r *RIBManager) replayPath(fam family.Family, pfx netip.Prefix, routeKey []byte, peer string, pathID uint32) (asPath []uint32, attrs []byte, peerOwner uint64, held bool) {
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
-		return nil, nil, false
+		return nil, nil, 0, false
 	}
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 	peerRIB := r.bgpPeers[addr]
 	if peerRIB == nil {
-		return nil, nil, false
+		return nil, nil, 0, false
 	}
 	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
 	var pathsArray [4]storage.PrefixPath
@@ -1246,11 +1304,12 @@ func (r *RIBManager) replayPath(fam family.Family, pfx netip.Prefix, routeKey []
 				var attrsErr error
 				attrs, attrsErr = storedAttributes(&path.Entry)
 				held = attrsErr == nil
+				peerOwner = path.Entry.SourcePeerOwner()
 			}
 		}
 		path.Release()
 	}
-	return asPath, attrs, held
+	return asPath, attrs, peerOwner, held
 }
 
 // bgpLocRIBInstance is the Loc-RIB Instance every BGP best path is mirrored
@@ -1777,7 +1836,7 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 				}
 				peer = parsed
 			}
-			asPath, attrs, held := r.replayPath(fam, pfx, nil, r.bestPathInterner.peerAt(rec.peerIdx()), pathID)
+			asPath, attrs, peerOwner, held := r.replayPath(fam, pfx, nil, r.bestPathInterner.peerAt(rec.peerIdx()), pathID)
 			if !held {
 				return
 			}
@@ -1786,7 +1845,7 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 			if validate {
 				asked = append(asked, len(changes))
 				queries = append(queries, ribevents.EligibilityQuery{Route: ribevents.ValidationRoute{
-					Peer: peer, Family: fam, Prefix: pfx, PathID: pathID,
+					Peer: peer, PeerOwner: peerOwner, Family: fam, Prefix: pfx, PathID: pathID,
 				}})
 			}
 			changes = append(changes, e)
@@ -1800,7 +1859,7 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 				// zero prefix, so replay builds these entries directly.
 				for _, best := range sh.store.opaque {
 					rec := best.prev
-					asPath, attrs, held := r.replayPath(fam, netip.Prefix{}, []byte(best.route), r.bestPathInterner.peerAt(rec.rec.peerIdx()), rec.pathID)
+					asPath, attrs, _, held := r.replayPath(fam, netip.Prefix{}, []byte(best.route), r.bestPathInterner.peerAt(rec.rec.peerIdx()), rec.pathID)
 					if !held {
 						continue
 					}
