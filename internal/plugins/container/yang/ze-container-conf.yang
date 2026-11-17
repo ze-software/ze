@@ -13,7 +13,8 @@ module ze-container-conf {
          the names, types and help texts that table gives them.";
 
     revision 2026-11-17 {
-        description "The network list, and the network attachment list of an instance.";
+        description "The network list, and the network attachment and published port lists
+                     of an instance.";
     }
 
     revision 2026-11-16 {
@@ -120,6 +121,64 @@ module ze-container-conf {
                     description "When absent, a locally administered address is derived from the
                                  network and container names, so it is the same at every start.";
                     ze:help "Hardware address of the container's end of the link.";
+                }
+            }
+
+            list port {
+                key "name";
+                description "One entry publishes a port of the container on the router: a
+                             connection to an address of the router on the listen port is
+                             translated to the container's address on its first network and
+                             the container port. Only traffic addressed to the router is
+                             translated, never traffic the router forwards. The operator's
+                             firewall policy must also allow the translated traffic.";
+                ze:help "Port of the router that reaches a port of the container.";
+
+                leaf name {
+                    type string {
+                        length "1..63";
+                        pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                    }
+                    description "The name of the published port, which names its translation
+                                 terms in the ruleset listing.";
+                    ze:help "Name of the published port.";
+                }
+
+                leaf protocol {
+                    type enumeration {
+                        enum tcp;
+                        enum udp;
+                    }
+                    default tcp;
+                    description "The transport protocol the port is published for.";
+                    ze:help "Transport protocol of the published port.";
+                }
+
+                leaf-list listen-address {
+                    type zt:ip-address;
+                    description "The addresses of the router the port is published on. When
+                                 none is set, every address of the router is, in each family
+                                 the container has an address of on its first network.";
+                    ze:help "Address of the router the port is published on.";
+                }
+
+                leaf listen-port {
+                    type string {
+                        pattern "[0-9]{1,5}(-[0-9]{1,5})?";
+                    }
+                    mandatory true;
+                    description "One port, or a first-last range, from 1 to 65535.";
+                    ze:help "Port of the router that is published.";
+                }
+
+                leaf container-port {
+                    type string {
+                        pattern "[0-9]{1,5}(-[0-9]{1,5})?";
+                    }
+                    mandatory true;
+                    description "One port, or a first-last range, of the same length as the
+                                 listen port. A range is published onto the same range.";
+                    ze:help "Port of the container the connection reaches.";
                 }
             }
         }

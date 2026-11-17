@@ -8,7 +8,7 @@
 | Release reason | A post-release feature. The owner ruled (umbrella O-3, O-7) that containers ship after the first release and that their networks and published ports are container config realised through Ze's interface and firewall mechanisms. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime |
-| Phase | 4/7, slice 4a (verify, addresses, bridges and outbound tables, the link participant) |
+| Phase | 4/7, slices 4a (verify, addresses, bridges and outbound tables, the link participant) and 4b (published ports) |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -561,7 +561,8 @@ creates it; this child's package is `network` under it.
 | `TestVerifyRefusesOverlappingNetworks` | same | Two prefixes that overlap | written in phase 4a, not run |
 | `TestVerifyRefusesExhaustedPrefix` | same | More attachments than addresses | written in phase 4a, not run |
 | `TestVerifyRefusesHostNetworkWithNetworkSettings` | same | Rule V-1: a `network` entry, a `port` entry or a network `sysctl` beside the shared host network | |
-| `TestVerifyRefusesPortWithNoNetwork` | same | A `port` entry on an instance with no `network` entry | |
+| `TestVerifyRefusesPortWithNoNetwork` | `internal/plugins/container/network/port_test.go` | Rule V-18: a `port` entry on an instance with no `network` entry, with networks configured and with none | written in phase 4b, not run |
+| `TestVerifyAcceptsPublishedPorts`, `TestVerifyRefusesUnequalPortRanges` (V-6, the operator surface spec's name), `TestVerifyRefusesDuplicateListenEndpoint` (V-6 across entries), `TestVerifyRefusesPortFamilyWithoutAddress`, `TestVerifyRefusesPortOnFirewallWithoutTranslation` (V-19) | same | The positive control; ranges of two lengths, backward, out of bounds, shifted; overlapping endpoints; a listen address of a family the first network lacks; a port on the vpp firewall backend | written in phase 4b, not run |
 | `TestVerifyRefusesGatewayOutsidePrefix` | same | Rule V-5: a set `gateway` outside its prefix | written in phase 4a, not run |
 | `TestNetworkParticipantIsRegistered` | `internal/plugins/container/network/attach_test.go` | The participant is in the runtime's registration and contributes the resolver mount | written in phase 4a for the participant and the config sibling, not run; the resolver mount is not built |
 | `TestParticipantSkipsHostAndUnattachedInstances` | same | No interface request for an instance that shares the host network or has no `network` entry | written in phase 4a as `TestParticipantSkipsUnattachedInstances`, not run; the host network case waits for `host-namespace` |
@@ -570,7 +571,8 @@ creates it; this child's package is `network` under it.
 | `TestVerifyRefusesBridgeNameInInterfaceConfig` | same (written in `verify_test.go`) | The derived name is declared in `interface` | written in phase 4a, not run |
 | `TestBridgeNameIsRefusedNotTruncated` | `internal/plugins/container/network/name_test.go` | A 12-character network name | written in phase 4a, not run |
 | `TestHardwareAddressIsStableAndUnicast` | same | The derived address | written in phase 4a, not run |
-| `TestTablesForPublishedPort` | `internal/plugins/container/network/tables_test.go` | The prerouting and output terms of one port | |
+| `TestTablesForPublishedPort` | `internal/plugins/container/network/tables_test.go` | The prerouting and output terms of one port | written in phase 4b, not run; with `TestTablesRefusePortWithoutAssignment` |
+| `TestPublishedReadsTheServedLine`, `TestPublishedFailsOnAnotherAnswer`, `TestRefusedJudgesTheAnswer` | `internal/test/containerprobe/serve_test.go` | The probe's serving entrypoint and its two client checks | written in phase 4b, not run |
 | `TestTablesForOutboundTranslation` | same | The jump, return and masquerade terms | written in phase 4a, not run |
 | `TestTablesFollowConfigNotRunState` | same | A stopped, enabled container has its term; a disabled one has none | |
 | `TestPublishedPortEndpoints` | `internal/plugins/container/network/listeners_test.go` | The endpoints the conflict check receives | |
@@ -632,7 +634,7 @@ device cannot run.
 | `container-network-ipv6` | `test/container/container-network-ipv6.ci` | AC-4 | |
 | `container-network-firewall-term` | `test/container/container-network-firewall-term.ci` | AC-5, with the term's counter as the positive control | |
 | `container-network-same-network-filter` | `test/container/container-network-same-network-filter.ci` | A-8: whether a forward term sees traffic between two containers of one network | |
-| `container-port-published` | `test/container/container-port-published.ci` | AC-6: a connection from a network namespace beyond the router reaches the container and the listing shows the term | |
+| `container-port-published` | `test/container/container-port-published.ci` | AC-6: a connection from a network namespace beyond the router reaches the container and the listing shows the term | drafted in `test/draft/container/` for phase 4b, not run. A client namespace made with `ip netns`, joined by a veth pair, reaches the probe's `run-serving` container (instance-name prefix `serving`) through the prerouting term; the router reaches it through the output term; an unpublished port is refused from the namespace. The config sets `net.ipv4.ip_forward` itself (phase 4b difference 8) |
 | `container-port-transit-untouched` | `test/container/container-port-transit-untouched.ci` | AC-6 survivor: transit to the same port is not translated | |
 | `container-port-from-router` | `test/container/container-port-from-router.ci` | AC-6 and A-15, this child's own coverage of the router-originated path, which the closing test does not take: a client on the router itself, with output and input chains whose policy is drop and the accepting terms of the policy row "The router itself", reaches the published port. Without the output term the connection fails. A port no container publishes is refused, not timed out | |
 | `container-network-outbound` | `test/container/container-network-outbound.ci` | AC-7 | |
@@ -883,6 +885,17 @@ device cannot run.
   6. An empty bridge or table set is sent only to withdraw a non-empty one the same process sent: the sibling's zero config is applied at every start, and a container config without a network must not need the two components.
   7. The device grant is the prefix `zc`: `ComposeOwnedDeviceName` adds the hyphen of a host end, and every bridge `zcn-NAME` lies inside it.
   8. A network that leaves the config keeps its state key: the engine client has no state removal. The next config that declares the network reads the record and drops every instance no longer attached.
+
+- Phase 4 slice 4b as applied (published ports: the `port` node, V-6, V-18, the destination translation terms, the probe's serving mode, the draft `container-port-published`). Files: `ze-container-conf.yang` (`list port`), `network/port.go`, `network/verify.go`, `network/backend.go`, `network/tables.go`, `network/apply.go`, `network/port_test.go`, `network/tables_test.go`, `internal/test/containerprobe/serve.go`, `serve_test.go`, `main.go`, `storeseam_zetest.go`, `docs/architecture/container/network.md`. Eight differences from the design above:
+  1. A port range is published only onto the same range. V-6 accepts two ranges of one length, but the nft lowering (`lowerNAT` in `internal/plugins/firewall/nft/lower_linux.go`) has no port offset, and the kernel keeps a connection's port when it lies in the target range, so a shifted range cannot be translated exactly and is refused at verify (`checkRanges`).
+  2. A range's translation target is the instance's address alone, which keeps the port; one container port is written with the address. `parseNATSpec` has no bracketed IPv6 form with a port range, so this is also what lets an IPv6 range be published.
+  3. A port with no `listen-address` is published on every address of each family the instance's first network has a prefix of, and conflicts with any entry of the same protocol and an overlapping port range in that family.
+  4. A `listen-address` of a family the instance's first network has no prefix of is refused: the port has no address of that family to translate to. The spec states no rule for it.
+  5. Rule V-19 gains a half: a published port needs the `nft` firewall backend even when no network masquerades, because its terms match `destination-local`, which the VPP verifier refuses.
+  6. New bounds: at most 256 ports in one config and 16 listen addresses per port, so the contributed tables stay inside the firewall request's bound.
+  7. Term names are `port_INSTANCE_PORT`, with `_N` for the Nth listen address: an underscore is outside both name patterns, so two names never collide.
+  8. The forwarding sysctl defaults (Data Flow step 2) are not emitted: the sibling seam's `EngineClient` (`internal/plugins/container/sibling_engine.go`) has no event call, so the network package cannot reach the sysctl plugin's default event. A connection from beyond the router is forwarded to the bridge, so it needs `net.ipv4.ip_forward`; the draft sets it in its config. Adding the event call to the seam is owed.
+  Not done in 4b: `TestTablesFollowConfigNotRunState`, because the package does not read `enabled`, so a disabled instance still gets its translation; V-9 and `TestPublishedPortEndpoints` (phase 5).
 
 ### Owner questions
 

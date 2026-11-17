@@ -60,6 +60,15 @@ func checkBackends(read delivery, cfg Config) error {
 			)
 		}
 	}
+	for _, instance := range cfg.Instances {
+		if len(instance.Ports) > 0 {
+			return opererr.New(
+				"container "+instance.Name+" publishes a port and firewall backend "+firewallBackend+" cannot carry its translation",
+				"a published port is a destination translation that matches destination-local, and only the nft backend carries that match",
+				"set firewall backend nft, or delete container instance "+instance.Name+" port "+instance.Ports[0].Name,
+			)
+		}
+	}
 	return nil
 }
 

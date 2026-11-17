@@ -95,7 +95,7 @@ func (m *manager) apply(ctx context.Context, cfg Config) error {
 		}
 	}
 	if sendTables {
-		section, err := buildTables(cfg)
+		section, err := buildTables(cfg, records)
 		if err != nil {
 			return opererr.Wrap(err,
 				"the container translation tables could not be written",
@@ -106,7 +106,7 @@ func (m *manager) apply(ctx context.Context, cfg Config) error {
 		if _, err := client.FirewallTablesReplace(ctx, &rpc.FirewallTablesReplaceInput{Section: section}); err != nil {
 			return opererr.Wrap(err,
 				"the firewall component refused the container translation tables",
-				"outbound translation of each network is a table the firewall component owns for the container plugin",
+				"the outbound translation of each network and the published ports are tables the firewall component owns for the container plugin",
 				"ze show firewall ruleset",
 			)
 		}

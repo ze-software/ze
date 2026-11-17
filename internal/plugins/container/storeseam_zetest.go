@@ -42,7 +42,12 @@ const (
 	// container network.
 	networkedPrefix        = "networked"
 	probeNetworkedArgument = "run-networked"
-	testDigest             = "sha256:7a65000000000000000000000000000000000000000000000000000000000001"
+	// A container whose name starts with servingPrefix records what a
+	// networked one does and also answers a fixed line on a TCP port inside
+	// the container, so a test can reach it through a published port.
+	servingPrefix        = "serving"
+	probeServingArgument = "run-serving"
+	testDigest           = "sha256:7a65000000000000000000000000000000000000000000000000000000000001"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -93,6 +98,8 @@ func (testStore) Resolve(_ context.Context, request ResolveRequest) (Resolution,
 		argument = probeStubbornArgument
 	case strings.HasPrefix(request.Instance, networkedPrefix):
 		argument = probeNetworkedArgument
+	case strings.HasPrefix(request.Instance, servingPrefix):
+		argument = probeServingArgument
 	}
 	return Ready{
 		Digest:           testDigest,

@@ -1,0 +1,144 @@
+# Test: a container that publishes a TCP port is reached through the router:
+#       a client beyond the router, in a network namespace of its own joined
+#       to the router by a veth pair, connects to the router's address on that
+#       link and the listen port, and gets the line the container answers;
+#       the router itself reaches the same port; a port no container
+#       publishes is refused from the same namespace; and the ruleset listing
+#       shows the translation terms in the plugin's table.
+# Spec: spec-container-3-network, AC-6, Wiring Test row 6, phase 4b
+# VALIDATES: the network plugin's port parse and rules
+#   (internal/plugins/container/network/port.go parsePorts, checkPorts), its
+#   table builder (tables.go publishedTerms: one destination translation term
+#   at prerouting and one at output, each with destination-local), and the
+#   firewall contribution that installs them (apply.go FirewallTablesReplace).
+# PREVENTS: a published port that is not translated, a translation that loses
+#   the container port, a translation only at one of the two hooks, and a
+#   port that opens without a container publishing it.
+# Why not a unit test: the unit tests prove the terms the builder writes; only
+#   a real daemon, kernel and container show that a connection from another
+#   namespace is translated at prerouting, forwarded to the container and
+#   answered back, and that the router's own connection is translated at
+#   output.
+#
+# Method: the test store gives a container whose name starts with "serving"
+# the probe's run-serving mode (storeseam_zetest.go): it records what a
+# networked container does, and before it writes its report it listens on TCP
+# port 7070 inside the container and answers every connection with one fixed
+# line. The port is published as $PORT2 on the router, so the connection
+# proves the container port is translated too. The client namespace is made
+# with ip before the daemon starts; its router end carries an address the
+# interface config does not name, so Ze leaves it alone.
+#
+# Forwarding: a connection from beyond the router is forwarded to the
+# container, so the config sets net.ipv4.ip_forward. The network package does
+# not claim it yet (the sibling engine client has no event call), so the test
+# sets it the way an operator would.
+#
+# The firewall section holds no filter chain, so nothing at the forward hook
+# drops the translated traffic (the policy rule is container-port-blocked's).
+#
+# caps: sys-admin for the container and the namespace, net-admin for the
+# bridge, the links and the nft table.
+
+option=needs-linux:caps=net-admin,sys-admin
+option=exclusive:group=container
+option=timeout:value=240s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+sysctl {
+	setting net.ipv4.ip_forward {
+		value 1
+	}
+}
+interface {
+	backend netlink
+}
+firewall {
+	backend nft
+}
+container {
+	network lan {
+		prefix 10.88.0.0/24
+	}
+	instance serving {
+		network lan {
+		}
+		port web {
+			listen-port $PORT2
+			container-port 7070
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+
+# The client's namespace, and the veth pair that joins it to the router.
+cmd=foreground:seq=2:exec=ip netns add zeport$PORT:exit=0
+cmd=foreground:seq=3:exec=ip link add zpo$PORT type veth peer name zpi$PORT netns zeport$PORT:exit=0
+cmd=foreground:seq=4:exec=ip address add 172.31.250.1/24 dev zpo$PORT:exit=0
+cmd=foreground:seq=5:exec=ip link set dev zpo$PORT up:exit=0
+cmd=foreground:seq=6:exec=ip -n zeport$PORT address add 172.31.250.2/24 dev zpi$PORT:exit=0
+cmd=foreground:seq=7:exec=ip -n zeport$PORT link set dev zpi$PORT up:exit=0
+
+cmd=background:seq=8:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier: the container wrote its report, so it holds its link and its
+# listener is bound.
+cmd=foreground:seq=9:exec=ze-containerprobe networked /run/ze-container-test-$PORT serving 10.88.0.2/24 10.88.0.1 1500:timeout=45s:exit=0
+expect=stdout:contains=probe: eth0 holds 10.88.0.2/24
+expect=stdout:contains=probe: the gateway answered the connection attempt
+reject=stdout:contains=probe: FAIL
+
+# The applied ruleset holds the port's term in the plugin's table, at both
+# hooks.
+cmd=foreground:seq=10:exec=ze cli -c "show firewall ruleset container":exit=0
+expect=stdout:contains=port_serving_web
+expect=stdout:contains=prerouting
+expect=stdout:contains=output
+
+# The prerouting path: a client beyond the router reaches the container.
+cmd=foreground:seq=11:exec=ip netns exec zeport$PORT ze-containerprobe published 172.31.250.1 $PORT2:timeout=60s:exit=0
+expect=stdout:contains=probe: connected to 172.31.250.1:
+expect=stdout:contains=probe: the container answered
+reject=stdout:contains=probe: FAIL
+
+# The output path: the router itself reaches the same published port.
+cmd=foreground:seq=12:exec=ze-containerprobe published 172.31.250.1 $PORT2:timeout=60s:exit=0
+expect=stdout:contains=probe: connected to 172.31.250.1:
+expect=stdout:contains=probe: the container answered
+reject=stdout:contains=probe: FAIL
+
+# A port no container publishes is not translated: the router's own stack
+# refuses it, from the same outside namespace.
+cmd=foreground:seq=13:exec=ip netns exec zeport$PORT ze-containerprobe refused 172.31.250.1 $PORT3:timeout=15s:exit=0
+expect=stdout:pattern=probe: the connection to 172\.31\.250\.1:[0-9]+ was refused
+reject=stdout:contains=probe: FAIL
+
+# The daemon stops in order and the container ends; the namespace goes, and
+# the veth pair with it.
+cmd=stop:seq=14:name=daemon:signal=term
+cmd=foreground:seq=15:exec=ze-containerprobe gone /run/ze-container-test-$PORT serving:timeout=50s:exit=0
+expect=stdout:contains=probe: its control group is gone
+reject=stdout:contains=probe: FAIL
+cmd=foreground:seq=16:exec=ip netns delete zeport$PORT:exit=0

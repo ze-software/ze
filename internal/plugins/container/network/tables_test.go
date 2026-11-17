@@ -2,6 +2,8 @@ package network
 
 import (
 	"encoding/json"
+	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -28,7 +30,7 @@ type tableSection struct {
 // with masquerade false gets nothing.
 func TestTablesForOutboundTranslation(t *testing.T) {
 	cfg := mustParse(t, `{"network":{"lan":{"prefix":["10.88.0.0/24","fd00:88::/64"]},"routed":{"prefix":["10.90.0.0/24"],"masquerade":"false"}}}`)
-	raw, err := buildTables(cfg)
+	raw, err := buildTables(cfg, nil)
 	if err != nil {
 		t.Fatalf("buildTables: %v", err)
 	}
@@ -81,12 +83,127 @@ func TestTablesForOutboundTranslation(t *testing.T) {
 // TestTablesWithdrawnWhenNothingTranslates: a config with no translating
 // network answers an explicit empty table map, which withdraws both tables.
 func TestTablesWithdrawnWhenNothingTranslates(t *testing.T) {
-	raw, err := buildTables(Config{})
+	raw, err := buildTables(Config{}, nil)
 	if err != nil {
 		t.Fatalf("buildTables: %v", err)
 	}
 	if string(raw) != `{"firewall":{"table":{}}}` {
 		t.Fatalf("the empty set is %s, want an explicit empty table map", raw)
+	}
+}
+
+// publishedConfig is a dual-stack network whose outbound translation is off,
+// so the tables hold the published ports alone, and one instance with two
+// ports: tcp 8080 to 80 on every router address, and udp 5300-5310 onto the
+// same range on one IPv4 router address.
+const publishedConfig = `{"network":{"lan":{"prefix":["10.88.0.0/24","fd00:88::/64"],"masquerade":"false"}},` +
+	`"instance":{"web":{"network":[{"name":"lan"}],"port":{` +
+	`"http":{"listen-port":"8080","container-port":"80"},` +
+	`"dns":{"protocol":"udp","listen-address":["192.0.2.1"],"listen-port":"5300-5310","container-port":"5300-5310"}}}}}`
+
+// publishedRecords assigns web its addresses on lan, as the apply would.
+func publishedRecords() map[string]addressRecord {
+	return map[string]addressRecord{"lan": {Instances: map[string]assignment{
+		"web": {Addresses: []netip.Addr{netip.MustParseAddr("10.88.0.2"), netip.MustParseAddr("fd00:88::2")}},
+	}}}
+}
+
+// TestTablesForPublishedPort: each published port gets, in each family it is
+// published in, the same destination translation term at prerouting and at
+// output, in nat chains at the destination translation priority. Every term
+// matches the protocol, the listen port and destination-local, so traffic the
+// router forwards is never captured, and translates to the instance's
+// assigned address on its first network and the container port. A port with
+// a listen address matches it and is published in its family only.
+func TestTablesForPublishedPort(t *testing.T) {
+	raw, err := buildTables(mustParse(t, publishedConfig), publishedRecords())
+	if err != nil {
+		t.Fatalf("buildTables: %v", err)
+	}
+	var section tableSection
+	if err := json.Unmarshal(raw, &section); err != nil {
+		t.Fatalf("the section does not read: %v (%s)", err, raw)
+	}
+	type wantTerm struct{ name, protocol, port, address, target string }
+	for table, want := range map[string][]wantTerm{
+		tableIPv4: {
+			{"port_web_dns_1", "udp", "5300-5310", "192.0.2.1/32", "10.88.0.2"},
+			{"port_web_http", "tcp", "8080", "", "10.88.0.2:80"},
+		},
+		tableIPv6: {
+			{"port_web_http", "tcp", "8080", "", "[fd00:88::2]:80"},
+		},
+	} {
+		got, found := section.Firewall.Table[table]
+		if !found {
+			t.Fatalf("table %s is missing: %s", table, raw)
+		}
+		if _, outbound := got.Chain[chainPostrouting]; outbound {
+			t.Fatalf("table %s has a postrouting chain with masquerade false: %s", table, raw)
+		}
+		for _, hook := range []string{"prerouting", "output"} {
+			chain, present := got.Chain[hook]
+			if !present {
+				t.Fatalf("table %s has no %s chain: %s", table, hook, raw)
+			}
+			shape := [4]string{chain.Type, chain.Hook, chain.Policy, chain.Priority}
+			if shape != [4]string{"nat", hook, "accept", "-100"} {
+				t.Fatalf("table %s %s chain %+v", table, hook, chain)
+			}
+			if len(chain.Term) != len(want) {
+				t.Fatalf("table %s %s holds %d terms, want %d: %v", table, hook, len(chain.Term), len(want), chain.Term)
+			}
+			for position, term := range chain.Term {
+				checkPortTerm(t, table+" "+hook, term, want[position].name, want[position].protocol,
+					want[position].port, want[position].address, want[position].target)
+			}
+		}
+	}
+}
+
+// checkPortTerm asserts one destination translation term. An empty address
+// asserts that the term matches no destination address.
+func checkPortTerm(t *testing.T, where string, term map[string]any, name, protocol, port, address, target string) {
+	t.Helper()
+	if term["name"] != name {
+		t.Fatalf("%s: term %v, want the name %s", where, term, name)
+	}
+	from := object(t, term["from"])
+	if from["protocol"] != protocol {
+		t.Fatalf("%s %s: protocol %v, want %s", where, name, from["protocol"], protocol)
+	}
+	if from["destination-port"] != port {
+		t.Fatalf("%s %s: destination-port %v, want %s", where, name, from["destination-port"], port)
+	}
+	if _, local := from["destination-local"]; !local {
+		t.Fatalf("%s %s: the term does not match destination-local, so it would capture forwarded traffic: %v", where, name, from)
+	}
+	listen, matched := from["destination-address"]
+	if address == "" {
+		if matched {
+			t.Fatalf("%s %s: a port with no listen address matches destination-address %v", where, name, listen)
+		}
+	}
+	if address != "" {
+		if listen != address {
+			t.Fatalf("%s %s: destination-address %v, want %s", where, name, listen, address)
+		}
+	}
+	dnat := object(t, object(t, term["then"])["dnat"])
+	if dnat["to"] != target {
+		t.Fatalf("%s %s: dnat to %v, want %s", where, name, dnat["to"], target)
+	}
+}
+
+// TestTablesRefusePortWithoutAssignment: a port whose instance has no
+// assigned address is an error, never a term that translates to nothing.
+func TestTablesRefusePortWithoutAssignment(t *testing.T) {
+	_, err := buildTables(mustParse(t, publishedConfig), map[string]addressRecord{})
+	if err == nil {
+		t.Fatal("the tables were built with no address to translate to")
+	}
+	if !strings.Contains(err.Error(), "no assigned address") {
+		t.Fatalf("the error %q does not name the missing address", err)
 	}
 }
 

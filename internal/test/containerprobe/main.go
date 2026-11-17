@@ -21,6 +21,17 @@
 // (network.go). The test store gives it to a container whose name starts with
 // "networked".
 //
+// `ze-containerprobe run-serving` is the entrypoint of a container that
+// publishes a port: it does what run-networked does, and before it writes its
+// report it listens on TCP port 7070 inside the container and answers every
+// connection with one fixed line (serve.go). The test store gives it to a
+// container whose name starts with "serving".
+//
+// `ze-containerprobe published ADDRESS PORT` runs on the client's side: it
+// dials ADDRESS:PORT within a bounded wait and requires the serving line.
+// `ze-containerprobe refused ADDRESS PORT` requires one attempt to be
+// refused: a packet there and a reset back.
+//
 // `ze-containerprobe networked STORE NAME ADDRESS GATEWAY MTU` runs on the
 // host: it waits a bounded time for the report of container NAME and judges
 // that eth0 held ADDRESS (a prefix) and MTU and was up, that the default route
@@ -175,8 +186,9 @@ const (
 )
 
 // usage names every mode.
-const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | reset STORE | verify STORE NAME" +
+const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | run-serving | reset STORE | verify STORE NAME" +
 	" | confined STORE NAME | networked STORE NAME ADDRESS GATEWAY MTU | host-end BRIDGE OWNER FILE" +
+	" | published ADDRESS PORT | refused ADDRESS PORT" +
 	" | unlinked FILE | gone STORE NAME [at-least|less-than SECONDS] | starts STORE NAME COUNT" +
 	" | drive STORE NAME CONFIG second-signal|remove [REMOVED-CONFIG]"
 
@@ -238,6 +250,24 @@ func main() {
 	case "run-networked":
 		if err := run(entrypoint{networked: true}); err != nil {
 			fail("probe run-networked: " + err.Error())
+		}
+	case "run-serving":
+		if err := run(entrypoint{networked: true, serving: true}); err != nil {
+			fail("probe run-serving: " + err.Error())
+		}
+	case "published":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe published ADDRESS PORT")
+		}
+		if !published(os.Args[2], os.Args[3]) {
+			os.Exit(1)
+		}
+	case "refused":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe refused ADDRESS PORT")
+		}
+		if !refused(os.Args[2], os.Args[3]) {
+			os.Exit(1)
 		}
 	case "networked":
 		if len(os.Args) != 7 {
@@ -346,6 +376,9 @@ type entrypoint struct {
 	ignoreStop bool
 	// networked observes the network first, before anything else runs.
 	networked bool
+	// serving listens on servePort and answers servedLine, from before the
+	// report is written, so a written report means the port is bound.
+	serving bool
 }
 
 // parseNetworkWant reads the expectations of the networked mode from its
@@ -386,6 +419,13 @@ func run(entry entrypoint) error {
 	var network string
 	if entry.networked {
 		network = observeNetwork()
+	}
+	if entry.serving {
+		listener, err := listenInside(context.Background())
+		if err != nil {
+			return err
+		}
+		go serve(listener)
 	}
 	if err := appendLine(startsPath, strconv.AppendInt(nil, time.Now().UnixNano(), 10)); err != nil {
 		return err

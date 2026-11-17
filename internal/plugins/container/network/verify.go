@@ -79,6 +79,9 @@ type Network struct {
 type Instance struct {
 	Name        string
 	Attachments []Attachment
+	// Ports are the instance's published ports, sorted by name. Each is
+	// translated to the instance's address on its first attachment's network.
+	Ports []Port
 }
 
 // Attachment is one entry of an instance's network list.
@@ -132,9 +135,6 @@ func parseSections(sections []sdk.ConfigSection) (Config, error) {
 	if err := checkComponents(read); err != nil {
 		return Config{}, err
 	}
-	if err := checkBackends(read, cfg); err != nil {
-		return Config{}, err
-	}
 	if err := checkInterfaceConfig(cfg, read.interfaces); err != nil {
 		return Config{}, err
 	}
@@ -143,7 +143,14 @@ func parseSections(sections []sdk.ConfigSection) (Config, error) {
 		return Config{}, err
 	}
 	cfg.Instances = instances
+	// After the instances: a published port needs the translation backend too.
+	if err := checkBackends(read, cfg); err != nil {
+		return Config{}, err
+	}
 	if err := checkAttachments(cfg); err != nil {
+		return Config{}, err
+	}
+	if err := checkPorts(cfg); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil
@@ -426,6 +433,10 @@ func refuseAttachmentsWithoutNetwork(container map[string]any) error {
 		if len(attachments) > 0 {
 			return refuseUnknownNetwork(entry.Key, attachments[0].Key)
 		}
+		// V-18: with no network configured, no instance has an attachment.
+		if ports := configvalue.ListEntries(entry.Fields[listPort]); len(ports) > 0 {
+			return refusePortWithoutNetwork(entry.Key, ports[0].Key)
+		}
 	}
 	return nil
 }
@@ -513,10 +524,18 @@ func parseInstances(cfg Config, container map[string]any) ([]Instance, error) {
 		if err != nil {
 			return nil, refuseUnreadable(entry.Key, err)
 		}
+		ports, err := parsePorts(entry.Key, entry.Fields)
+		if err != nil {
+			return nil, err
+		}
 		if len(attachments) == 0 {
+			// V-18: a published port needs an address to reach.
+			if len(ports) > 0 {
+				return nil, refusePortWithoutNetwork(entry.Key, ports[0].Name)
+			}
 			continue
 		}
-		instance := Instance{Name: entry.Key}
+		instance := Instance{Name: entry.Key, Ports: ports}
 		for _, attachment := range attachments {
 			parsed, err := parseAttachment(cfg, entry.Key, attachment)
 			if err != nil {
