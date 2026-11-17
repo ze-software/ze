@@ -68,7 +68,10 @@ func fragmentContextDelivered(t *testing.T, conn *net.UDPConn, expected []byte) 
 func TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate(t *testing.T) {
 	lab := newEspPolLab(t)
 	espPolSPD(t)
-	children := fragmentChildren(t,
+	// Queue isolation requires noninitial permission on these port-scoped fixture SAs.
+	// Production childStateScope keeps permission false because Ze does not negotiate
+	// NON_FIRST_FRAGMENTS_ALSO (RFC 7296 Section 1.3.1).
+	children := fragmentPermittedChildren(t,
 		fragmentPorts{local: ipsec.PortSelector{Form: ipsec.PortSingle, Port: sadSelPort}, remote: ipsec.AnyPort()},
 		fragmentPorts{local: ipsec.PortSelector{Form: ipsec.PortSingle, Port: fragmentDiscardPort}, remote: ipsec.AnyPort()},
 	)

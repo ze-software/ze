@@ -38,6 +38,13 @@ type fragmentPorts struct {
 // there after creating a peer socket, before making another kernel operation.
 func fragmentChildren(t *testing.T, selectors ...fragmentPorts) []*ChildSA {
 	t.Helper()
+	return fragmentChildrenWithDataplane(t, dataplane.Get(), selectors...)
+}
+
+// fragmentChildrenWithDataplane keeps the ordinary fixture while allowing an explicit
+// test-only backend wrapper. Existing fragmentChildren callers remain unchanged.
+func fragmentChildrenWithDataplane(t *testing.T, dp dataplane.Dataplane, selectors ...fragmentPorts) []*ChildSA {
+	t.Helper()
 	natt := mbTransport(t, net.JoinHostPort(espPolZeOuter, "4500"), true)
 	if err := transport.EnableESPInUDP(natt.Conn()); err != nil {
 		t.Fatalf("enable ESP-in-UDP for the private receiver: %v", err)
@@ -64,7 +71,7 @@ func fragmentChildren(t *testing.T, selectors ...fragmentPorts) []*ChildSA {
 		}}
 		// RFC 4301 Sections 4.4.2 and 5.2: install the negotiated SA and its policies.
 		child, err := createFirstChildSA(sa, group, espPolZeOuter, espPolPeerOuter,
-			0, dataplane.Get(), slogutil.DiscardLogger())
+			0, dp, slogutil.DiscardLogger())
 		if err != nil {
 			t.Fatalf("create Child SA %d: %v", index, err)
 		}

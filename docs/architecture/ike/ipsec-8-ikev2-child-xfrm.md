@@ -111,6 +111,14 @@ permission remains false because Ze does not negotiate `NON_FIRST_FRAGMENTS_ALSO
 <!-- source: internal/component/ike/engine/child_scope.go -- childStateScope -->
 <!-- source: internal/component/ike/engine/child.go -- installChildDataplane, childPolicies -->
 
+Tests that isolate permitted fragment delivery and queue separation use an
+explicit test-only SA fixture. It retains the complete directional selectors
+and sets only their noninitial-fragment permission before the real backend
+installs each state. Kernel readback must show that permission on both states
+with unchanged selectors. These packet tests do not claim that IKE negotiated
+`NON_FIRST_FRAGMENTS_ALSO`; production permission remains false.
+<!-- source: internal/component/ike/engine/fragment_scope_fixture_linux_test.go -- fragmentPermittedDataplane.InstallSA, fragmentWantPermittedScope -->
+
 The declaration states what the backend can represent. Every scoped XFRM SA
 installation still requires the fresh full capability receipt described below;
 a refusal never retries without scope. An undeclared backend, including VPP,

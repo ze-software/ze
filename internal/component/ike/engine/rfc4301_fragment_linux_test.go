@@ -53,6 +53,8 @@ func fragSplit(packet []byte) (initial, nonInitial []byte) {
 // 10.2.0.0/16; an inner packet inside the selectors is sent as two fragments, each in its
 // own ESP packet on the SA, non-initial first; the reassembled packet is delivered and
 // no policy drop is counted.
+// The fixture explicitly permits noninitial fragments; production IKE does not negotiate
+// NON_FIRST_FRAGMENTS_ALSO. This tests permitted fragmentation, not negotiation.
 func TestRFC4301FragmentsOfACompliantPacketAreDelivered(t *testing.T) {
 	// RFC requirement: RFC4301-7.3-5 positive -- the non-initial fragment of an inner
 	// packet that complies with the inbound policy Ze installs for the SA is accepted:
@@ -61,7 +63,7 @@ func TestRFC4301FragmentsOfACompliantPacketAreDelivered(t *testing.T) {
 		return
 	}
 	sadSelNetns(t)
-	child := sadSelChild(t, false, "10.2.0.0/16", "10.1.0.0/16")
+	child := fragmentPermittedChild(t, "10.2.0.0/16", "10.1.0.0/16")
 	sender := newSadSelSender(t, child)
 	inside := sadSelListen(t, sadSelInnerLocal, sadSelPort)
 
@@ -83,6 +85,8 @@ func TestRFC4301FragmentsOfACompliantPacketAreDelivered(t *testing.T) {
 // a selector names but the addresses; the reassembled packet is discarded by its SA
 // selector before SPD lookup (XfrmInStateMismatch +1, XfrmInNoPols and XfrmInPolBlock
 // unchanged), and nothing is delivered.
+// The fixture retains the same explicit fragment permission as the delivery test, so
+// refusal must still follow the packet's selector violation.
 func TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded(t *testing.T) {
 	// RFC requirement: RFC4301-7.3-5 negative -- the non-initial fragment of an inner
 	// packet that does not comply with the inbound policy for the SA (source outside
@@ -93,7 +97,7 @@ func TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded(t *testing.T) {
 		return
 	}
 	sadSelNetns(t)
-	child := sadSelChild(t, false, "10.2.0.0/16", "10.1.0.0/16")
+	child := fragmentPermittedChild(t, "10.2.0.0/16", "10.1.0.0/16")
 	sender := newSadSelSender(t, child)
 	inside := sadSelListen(t, sadSelInnerLocal, sadSelPort)
 

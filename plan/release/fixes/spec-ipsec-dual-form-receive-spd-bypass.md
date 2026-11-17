@@ -26,12 +26,14 @@ all positive, negative and control assertions without skips. Exact per-SA
 permissions, fragment-context isolation and fragment port-rule enforcement
 remain required. AC-4 and the final Review Gate stay open.
 
-The two held normal fixtures are
+The two normal fixtures awaiting correction and acceptance are
 `TestRFC4301FragmentsOfACompliantPacketAreDelivered` and
 `TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate`. The current
 port-constrained production Child sets noninitial permission false, while the
-positive fixture expects delivery. Their assertions are unchanged; correction
-and retry remain blocked by the prior automatic-review rejection.
+positive fixture expects delivery. Their assertions remain unchanged.
+Thomas's subsequent "go" explicitly authorizes these two fixture corrections
+and their normal Ze-kernel tests on Claude. Corrections, actual runs and review
+remain owed; AC-4 is not yet accepted.
 
 This decision supersedes historical statements below that make general C-proof
 tooling, a deliberately broken kernel or new C discrimination dependencies of
@@ -40,9 +42,11 @@ this closure. Outstanding RFC proof remains separate debt under
 `plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md`;
 the generic design remains unapproved, without implementation authorization.
 Existing RFC records retain their meanings and the `{partial}` annotation
-stays unless independent RFC judgment supports promotion. Both actual safety
-rejections remain in force: the fixture-correction rejection is still blocked,
-and no retry or private fault preparation/use is authorized by this decision.
+stays unless independent RFC judgment supports promotion. The specific "go"
+supersedes historical pending-owner and fixture-correction hold statements
+below; the previous automatic rejection remains part of the history. Separate
+private fault preparation/use and deliberately broken kernel work remain
+unauthorized and outside this closure.
 
 This checkpoint supersedes the progress statements below about unrun raw and packet
 populations, source-only SA lifetime, and 79 unexecuted renewals. Their dated receipts
@@ -331,13 +335,16 @@ longer prerequisites for this closure. This is a one-off acceptance decision,
 not a change to global RFC proof rules: discrimination debt and the existing
 partial annotation remain separate, and producer-halt records do not acquire
 kernel-enforcement credit. AC-4 stays open until the remaining normal fragment
-tests pass, including the held
+tests pass, including the two fixtures
 `TestRFC4301FragmentsOfACompliantPacketAreDelivered` and
 `TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate` fixtures. Their
 positive delivery expectation conflicts with the current port-constrained
-production Child's noninitial permission false. Assertions remain unchanged;
-the previous automatic-review rejection still blocks fixture correction and
-retry, and this ruling grants no permission to perform either.
+production Child's noninitial permission false. Thomas's subsequent "go"
+explicitly authorizes corrections of these two fixtures and normal Ze-kernel
+tests on Claude, superseding their prior pending-owner hold. Preserve their
+positive, negative and control assertions; actual correction, passing runs
+without skips and independent review remain owed. This authorization does not
+extend to private fault preparation/use or deliberately broken kernel work.
 
 Repair the existing id/stem discrimination report's closure blocker (AC-30):
 `discriminate.go` `discriminationStatusOf` must verify source and fingerprints

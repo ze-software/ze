@@ -195,6 +195,15 @@ func sadSelWantDropCounters(t *testing.T, row string, before, after, want sadSel
 // The negotiated pair is UDP, local port 5000, between tsLocal and tsRemote.
 func sadSelChild(t *testing.T, transportMode bool, tsLocal, tsRemote string) *ChildSA {
 	t.Helper()
+	return sadSelChildWithDataplane(t, transportMode, tsLocal, tsRemote, nil)
+}
+
+// sadSelChildWithDataplane retains the ordinary fixture and optionally wraps its loaded
+// backend. Existing sadSelChild callers keep the original install path.
+func sadSelChildWithDataplane(t *testing.T, transportMode bool, tsLocal, tsRemote string,
+	wrap func(dataplane.Dataplane) dataplane.Dataplane,
+) *ChildSA {
+	t.Helper()
 	if err := dataplane.Load("xfrm"); err != nil {
 		t.Fatalf("load xfrm backend: %v", err)
 	}
@@ -220,7 +229,11 @@ func sadSelChild(t *testing.T, transportMode bool, tsLocal, tsRemote string) *Ch
 		PFS:       ipsec.PFSDisable,
 		Proposals: []ipsec.ESPProposal{{Number: 1, Encryption: ipsec.EncryptionAES256GCM}},
 	}
-	child, err := createFirstChildSA(sa, group, sadSelLocalOuter, sadSelRemoteOuter, 0, dataplane.Get(), slogutil.DiscardLogger())
+	backend := dataplane.Get()
+	if wrap != nil {
+		backend = wrap(backend)
+	}
+	child, err := createFirstChildSA(sa, group, sadSelLocalOuter, sadSelRemoteOuter, 0, backend, slogutil.DiscardLogger())
 	if err != nil {
 		t.Fatalf("createFirstChildSA: %v", err)
 	}
