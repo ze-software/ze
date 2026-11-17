@@ -106,6 +106,11 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 
 // reconstructWireAttrs rebuilds full BGP path attribute bytes from pooled handles.
 // buf is a reusable buffer (caller passes buf[:0] to reuse capacity).
+// The shared flag accessors keep the snapshot faithful to RFC 4271 Section 5:
+// "If a path with a recognized, transitive optional attribute is accepted and
+// passed along to other BGP peers and the Partial bit in the Attribute Flags
+// octet is set to 1 by some previous AS, it MUST NOT be set back to 0 by the
+// current AS." Snapshot framing and buffer ownership remain this writer's.
 func reconstructWireAttrs(entry storage.RouteEntry, buf []byte) []byte {
 	b := entry.GetBundle()
 
@@ -135,12 +140,12 @@ func reconstructWireAttrs(entry storage.RouteEntry, buf []byte) []byte {
 	appendIfValid(4, 0x80, pool.MED, b.MED)
 	appendIfValid(5, 0x40, pool.LocalPref, b.LocalPref)
 	appendIfValid(6, 0x40, pool.AtomicAggregate, b.AtomicAggregate)
-	appendIfValid(7, 0xC0, pool.Aggregator, b.Aggregator)
-	appendIfValid(8, 0xC0, pool.Communities, b.Communities)
+	appendIfValid(7, entry.AggregatorFlags(), pool.Aggregator, b.Aggregator)
+	appendIfValid(8, entry.CommunityFlags(), pool.Communities, b.Communities)
 	appendIfValid(9, 0x80, pool.OriginatorID, b.OriginatorID)
 	appendIfValid(10, 0x80, pool.ClusterList, b.ClusterList)
-	appendIfValid(16, 0xC0, pool.ExtCommunities, b.ExtCommunities)
-	appendIfValid(32, 0xC0, pool.LargeCommunities, b.LargeCommunities)
+	appendIfValid(16, entry.ExtCommunityFlags(), pool.ExtCommunities, b.ExtCommunities)
+	appendIfValid(32, entry.LargeCommunityFlags(), pool.LargeCommunities, b.LargeCommunities)
 
 	for _, a := range attrs {
 		buf = appendWireAttr(buf, a.code, a.flags, a.data)

@@ -978,10 +978,10 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	if err := writeAttr(attribute.AttrAtomicAggregate, 0x40, pool.AtomicAggregate, b.AtomicAggregate); err != nil {
 		return nil, err
 	}
-	if err := writeAttr(attribute.AttrAggregator, e.pooledTransitiveFlags(partialAggregator), pool.Aggregator, b.Aggregator); err != nil {
+	if err := writeAttr(attribute.AttrAggregator, e.AggregatorFlags(), pool.Aggregator, b.Aggregator); err != nil {
 		return nil, err
 	}
-	if err := writeAttr(attribute.AttrCommunity, e.pooledTransitiveFlags(partialCommunity), pool.Communities, b.Communities); err != nil {
+	if err := writeAttr(attribute.AttrCommunity, e.CommunityFlags(), pool.Communities, b.Communities); err != nil {
 		return nil, err
 	}
 	if err := writeAttr(attribute.AttrOriginatorID, 0x80, pool.OriginatorID, b.OriginatorID); err != nil {
@@ -993,7 +993,7 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	// RFC 8955 Section 7: "All Traffic Filtering Actions are specified as
 	// transitive BGP Extended Communities." Retained replay must not lose
 	// those actions merely because they have their own pooled field.
-	if err := writeAttr(attribute.AttrExtCommunity, e.pooledTransitiveFlags(partialExtCommunity), pool.ExtCommunities, b.ExtCommunities); err != nil {
+	if err := writeAttr(attribute.AttrExtCommunity, e.ExtCommunityFlags(), pool.ExtCommunities, b.ExtCommunities); err != nil {
 		return nil, err
 	}
 
@@ -1008,7 +1008,7 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	large := b.hasLargeCommunities()
 	for _, code := range codes {
 		if large && code > byte(attribute.AttrLargeCommunity) {
-			if err := writeAttr(attribute.AttrLargeCommunity, e.pooledTransitiveFlags(partialLargeCommunity), pool.LargeCommunities, b.LargeCommunities); err != nil {
+			if err := writeAttr(attribute.AttrLargeCommunity, e.LargeCommunityFlags(), pool.LargeCommunities, b.LargeCommunities); err != nil {
 				return nil, err
 			}
 			large = false
@@ -1016,7 +1016,7 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 		result = append(result, otherByType[code]...)
 	}
 	if large {
-		if err := writeAttr(attribute.AttrLargeCommunity, e.pooledTransitiveFlags(partialLargeCommunity), pool.LargeCommunities, b.LargeCommunities); err != nil {
+		if err := writeAttr(attribute.AttrLargeCommunity, e.LargeCommunityFlags(), pool.LargeCommunities, b.LargeCommunities); err != nil {
 			return nil, err
 		}
 	}

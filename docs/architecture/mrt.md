@@ -168,11 +168,22 @@ Three independent streams (following FRR model):
 Each stream has its own file path (with strftime patterns), interval, and
 enable/disable state.
 
-The RIB snapshot bridge reconstructs path attributes from pooled values. It
-retains the Extended Length flag and emits the corresponding two-octet length
-even for a value shorter than 256 octets; otherwise a reader would consume the
-first value octet as part of the length and lose following attributes.
+The RIB snapshot bridge reconstructs path attributes from pooled values.
+AGGREGATOR, COMMUNITIES, EXTENDED_COMMUNITIES and LARGE_COMMUNITIES use the same
+read-only `RouteEntry` flag accessors as canonical stored-route reconstruction.
+Each accessor combines standard Optional/Transitive bits with that attribute's
+received Partial fact; it does not imply presence or choose a length header.
+The bridge keeps its own value, buffer and framing logic.
+
+For attributes in `OtherAttrs`, the bridge retains the Extended Length flag and
+emits the corresponding two-octet length even for a value shorter than 256
+octets; otherwise a reader would consume the first value octet as part of the
+length and lose following attributes. Sharing the dedicated attributes' Partial
+facts does not change this independent header-preservation contract.
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- AggregatorFlags, CommunityFlags, ExtCommunityFlags, LargeCommunityFlags -->
+<!-- source: internal/component/bgp/plugins/rib/rib_mrt.go -- reconstructWireAttrs -->
 <!-- source: internal/component/bgp/plugins/rib/rib_mrt.go -- appendWireAttr, appendOtherAttrsWire -->
+<!-- test: internal/component/bgp/plugins/rib/partial_mrt_test.go TestReceivedPartialSurvivesMRTSnapshot -->
 
 ### Features
 

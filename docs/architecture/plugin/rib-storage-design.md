@@ -83,6 +83,15 @@ header handling; well-known and non-transitive attributes keep their required
 Partial clearing. Selected and recovery snapshots therefore retain the flag
 without consulting the original message cache.
 
+Canonical reconstruction and the MRT snapshot bridge read these four facts
+through `AggregatorFlags`, `CommunityFlags`, `ExtCommunityFlags` and
+`LargeCommunityFlags`. The accessors share one private flag encoder and expose
+no mask layout. They report standard Optional/Transitive bits and the received
+Partial fact only: they do not report attribute presence, retain a pool
+reference, grant source authority or select Extended Length. Each writer keeps
+its existing presence and framing rules, including MRT's preservation of legal
+short Extended Length headers in `OtherAttrs`.
+
 RFC 4271 Section 5 forbids clearing a previous AS's Partial bit on a recognized
 optional-transitive attribute that is accepted and passed along. Appending a
 community to an existing stored attribute preserves that received fact; a fresh
@@ -94,10 +103,12 @@ remain separate from this storage metadata.
 
 <!-- source: internal/component/bgp/plugins/rib/storage/attrparse.go -- ParseAttributes -->
 <!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- RouteEntry, Clone -->
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- AggregatorFlags, CommunityFlags, ExtCommunityFlags, LargeCommunityFlags -->
 <!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- entriesEqual, RouteEntry.ToWireBytes -->
 <!-- test: internal/component/bgp/plugins/rib/storage/partial_storage_test.go TestKnownTransitivePartialSurvivesStorage -->
 <!-- test: internal/component/bgp/plugins/rib/storage/partial_storage_test.go TestPartialOnlyReplacementUpdatesStoredAttributes -->
 <!-- test: internal/component/bgp/plugins/rib/partial_selected_test.go TestReceivedPartialSurvivesSelectedCapture -->
+<!-- test: internal/component/bgp/reactor/partial_session_wire_test.go TestReceivedPartialSurvivesOrdinarySessionWire -->
 
 ### Received source-policy provenance
 

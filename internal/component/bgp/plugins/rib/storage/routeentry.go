@@ -147,6 +147,37 @@ func (e *RouteEntry) GetBundle() Bundle {
 	return Bundles.Get(e.Bundle)
 }
 
+// AggregatorFlags returns the dedicated AGGREGATOR's standard Optional/Transitive
+// bits and its retained received Partial fact. The receiver MUST be non-nil.
+// It does not report presence, retain a reference or choose Extended Length;
+// writers MUST keep their existing presence, ownership and header checks.
+// This stored-flag contract also applies to the three community accessors.
+// RFC 4271 Section 5 governs the retained Partial fact.
+func (e *RouteEntry) AggregatorFlags() byte {
+	return e.pooledTransitiveFlags(partialAggregator)
+}
+
+// CommunityFlags returns the dedicated COMMUNITIES flags under AggregatorFlags'
+// stored-flag contract. It does not report whether the attribute is present.
+// RFC 4271 Section 5 governs the retained Partial fact.
+func (e *RouteEntry) CommunityFlags() byte {
+	return e.pooledTransitiveFlags(partialCommunity)
+}
+
+// ExtCommunityFlags returns the dedicated EXTENDED_COMMUNITIES flags under
+// AggregatorFlags' stored-flag contract, without choosing a length header.
+// RFC 4271 Section 5 governs the retained Partial fact.
+func (e *RouteEntry) ExtCommunityFlags() byte {
+	return e.pooledTransitiveFlags(partialExtCommunity)
+}
+
+// LargeCommunityFlags returns the dedicated LARGE_COMMUNITIES flags under
+// AggregatorFlags' stored-flag contract, independently of shared attribute values.
+// RFC 4271 Section 5 governs the retained Partial fact.
+func (e *RouteEntry) LargeCommunityFlags() byte {
+	return e.pooledTransitiveFlags(partialLargeCommunity)
+}
+
 // pooledTransitiveFlags restores one dedicated pool's received Partial fact.
 // RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
 // is accepted and passed along to other BGP peers and the Partial bit in the
