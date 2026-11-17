@@ -40,14 +40,7 @@ func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
 	}
 	work := t.TempDir()
 	image := filepath.Join(work, "image")
-	data := make([]byte, 8192)
-	for i := range 16 {
-		data[1024+i] = 0xaa
-	}
-	data[1024+32], data[1024+40] = 8, 15
-	if err := os.WriteFile(image, data, 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeInjectTestImage(t, image)
 	database := filepath.Join(work, "database.zefs")
 	if err := os.WriteFile(database, []byte("injection-lifetime-database"), 0o600); err != nil {
 		t.Fatal(err)
@@ -117,14 +110,11 @@ func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
 			done <- errors.New("unexpected injection consumer contract")
 		}
 	}()
-	owned := acceptInjectionLifetime(t, listener)
-	defer owned.Close() //nolint:errcheck // Test socket; no assertion reads its close.
-	var ownedPID int
-	if err := json.NewDecoder(owned).Decode(&ownedPID); err != nil {
-		t.Fatal(err)
-	}
+	var owned net.Conn
 	defer func() {
-		owned.Close() //nolint:errcheck // Releases the fixture descendant; no assertion reads its close.
+		if owned != nil {
+			owned.Close() //nolint:errcheck // Releases the fixture descendant; no assertion reads its close.
+		}
 		cancel()
 		select {
 		case <-done:
@@ -132,6 +122,12 @@ func TestInjectionConsumerCancellationJoinsDescendants(t *testing.T) {
 			t.Error("injection did not join after releasing its fixture descendant")
 		}
 	}()
+	owned = acceptInjectionLifetime(t, listener)
+	defer owned.Close() //nolint:errcheck // Test socket; no assertion reads its close.
+	var ownedPID int
+	if err := json.NewDecoder(owned).Decode(&ownedPID); err != nil {
+		t.Fatal(err)
+	}
 	cancel()
 	select {
 	case err := <-done:
