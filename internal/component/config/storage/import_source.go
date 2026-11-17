@@ -14,9 +14,10 @@ import (
 // constructs it; its zero value is uninitialized. The owner MUST call close
 // after the import, and MUST NOT use it concurrently with close.
 type importSource struct {
-	path   string
-	folder *os.File
-	root   *os.Root
+	path     string
+	folder   *os.File
+	root     *os.Root
+	recovery *recoveryProof
 }
 
 func openImportSource(path string) (*importSource, error) {

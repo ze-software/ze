@@ -171,6 +171,13 @@ func RestoreConfig(target Storage, deviceName string, data []byte) (stamp string
 	}
 	defer func() { err = releaseGuard(guard, err) }()
 
+	return restoreConfigLocked(target, guard, deviceName, data)
+}
+
+// restoreConfigLocked is the versioned publication RestoreConfig and stored
+// rollback share. The caller MUST hold guard until publication or withdrawal
+// completes, and MUST run the daemon reload instead for its active source.
+func restoreConfigLocked(target Storage, guard WriteGuard, deviceName string, data []byte) (stamp string, err error) {
 	stamp, err = WriteCandidateVersionWithGuard(target, guard, deviceName, data, time.Now())
 	if err != nil {
 		return "", fmt.Errorf("restore config %s: %w", deviceName, err)

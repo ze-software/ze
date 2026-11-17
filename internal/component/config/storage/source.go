@@ -26,6 +26,9 @@ type configStore struct {
 	mode ConfigSource
 	// boot is the pending boot record (boot_record.go), nil when none is armed.
 	boot atomic.Pointer[BootRecord]
+	// recovery is installed by the outer launcher before any daemon borrower.
+	// The launcher seals and withdraws it before releasing store ownership.
+	recovery atomic.Pointer[RecoveryAdmission]
 }
 
 // AcquireLock waits for the boot record before it hands out the lock of the

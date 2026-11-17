@@ -102,6 +102,11 @@ func importOwnedSource(source *importSource, folder, owner *os.File, policy impo
 		return nil, err
 	}
 	defer sourceOwner.Close() //nolint:errcheck // releases the artifact ownership lock.
+	if source.recovery != nil {
+		if err := verifyRecoverySource(source, source.recovery); err != nil {
+			return nil, err
+		}
+	}
 	intentPath := filepath.Join(folder.Name(), importIntentName)
 	treePath := filepath.Join(folder.Name(), treeName)
 	intent, exists, err := readImportIntent(folder)

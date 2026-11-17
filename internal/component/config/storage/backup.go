@@ -145,6 +145,8 @@ func storeOwnedName(name string) string {
 		return "an init stage"
 	case strings.HasPrefix(name, importStagePrefix):
 		return "an import stage"
+	case strings.HasPrefix(name, recoveryStagePrefix):
+		return "a daemon recovery stage"
 	}
 	return ""
 }

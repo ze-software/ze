@@ -330,24 +330,7 @@ func (s *store) ListVersions(name string) ([]VersionInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	base := filepath.Base(name)
-	var result []VersionInfo
-	for _, key := range keys {
-		stamp, entryName, ok := historyEntry(key)
-		if !ok {
-			continue
-		}
-		if entryName != base {
-			continue
-		}
-		date, err := parseVersionStamp(stamp)
-		if err != nil {
-			return nil, fmt.Errorf("list versions: %s: %w", key, err)
-		}
-		result = append(result, VersionInfo{Stamp: stamp, Date: date, Path: key})
-	}
-	slices.SortFunc(result, func(a, b VersionInfo) int { return b.Date.Compare(a.Date) })
-	return result, nil
+	return versionsForName(keys, filepath.Base(name))
 }
 
 // ReadVersion resolves the history entry of name at stamp to its object and

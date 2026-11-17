@@ -320,6 +320,76 @@ differ only in the source policy the intent records: `retire-source` archives
 the artifact as `<source>.replaced-<stamp>`, and `keep-source` leaves it where it
 is. A restore always replaces; an import replaces only under `--force`.
 
+`DaemonRecovery` extends that same protocol across a daemon lifetime. The outer
+launcher owns the bound handle; command handlers borrow its `RecoveryAdmission`.
+Admission copies one source into a private `database.recovery-tmp-*` directory,
+checks the complete artifact and records its digest before accepting it. Its
+0700 directory and 0600 file belong to recovery rather than a browser workspace.
+The caller's source can change or disappear afterward without changing the
+accepted bytes. Cancellation before acceptance removes the stage; cancellation
+after acceptance does not withdraw it. A second accepted source is refused.
+Admission also refuses a retained recovery stage from an earlier lifetime or
+failed cleanup, naming it before it writes anything. This bounds retained full
+artifacts across retries rather than accumulating another copy each time.
+
+Before acceptance, the stage also durably writes `recovery-owner.json`. This
+versioned ownership record binds the target directory, stage directory,
+snapshot file and empty source-lock identities, together with the exact
+snapshot size and digest. Its source and target paths are labels, never
+permission to replace whatever later occupies a pathname. The bounded private
+record has one canonical JSON representation; missing, unknown or duplicate
+fields, an unsupported version, unsafe node types or modes, changed identities
+or bytes, and extra directory entries refuse recovery. It is ownership
+metadata, not another import journal or store decoder.
+
+Only a successful `DaemonRecovery.Close`, after every daemon borrower returns,
+produces `ClosedRecovery`. Its `Apply` verifies the accepted digest again and
+uses the existing keep-source import protocol under a newly acquired owner lock.
+The destination and snapshot directories remain open by identity, so moving a
+directory and replacing its pathname cannot redirect the restore. Another writer
+that acquires the store first refuses recovery. On an unclean daemon result the
+outer launcher uses `Discard` instead. A failed close or import retains its
+snapshot and names the recovery command; no source an import intent can reference
+is deleted. A completed restore removes the private source. Blob and memory
+handles keep their normal lifetime but admit no full live-tree replacement.
+<!-- source: internal/component/config/storage/daemon_recovery.go -- NewDaemonRecovery, RecoveryFor, RecoveryAdmission.StageWriter, DaemonRecovery.Close, ClosedRecovery.Apply, ClosedRecovery.Discard -->
+<!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore, daemonStoreFailure -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart -->
+<!-- source: internal/component/config/storage/daemon_recovery_snapshot.go -- buildRecoverySnapshot, applyRecovery, applyRecoveryStore -->
+
+A retained owned source is resolved explicitly with
+`ze data --path <actual-config-directory>/database restore <actual-private-stage>/snapshot.zefs full`
+after all store owners stop. The diagnostic quotes both exact paths. The native
+full-restore adapter recognizes the reserved private namespace and calls
+`ResumeRecovery`; invalid or absent ownership refuses rather than falling
+through to generic restore. Resume verifies the same ownership under the
+existing importer's source lock, runs that same keep-source import/replay,
+closes the returned writer, and only then removes its proven private entries.
+A failed import or imported-writer close preserves the source. `RestoreBlob`
+itself always keeps its caller's artifact, including a caller that deliberately
+uses that generic API on a private snapshot. No forwarding storage wrapper is
+needed: explicit resume owns the complete import-and-close operation.
+
+After a directory move, resume opens the actual current source and target
+directories and verifies their identities. Its retained source directory/root
+uses the immutable original source label recorded by ownership, allowing an
+existing immutable import intent to replay without rewriting it. A stale target
+pathname pointing to a replacement directory refuses. Doctor opened against
+the actual moved store produces a fresh command for its current paths.
+
+Cleanup never sweeps recovery-looking directory names. It checks the exact
+owned stage and its three known entries before unlinking them. An unknown,
+tampered or partially cleaned stage remains unresolved and blocks further
+admission. To resolve that inspection debt, stop all store owners, verify which
+live store is intended, and preserve the entire unresolved directory by moving
+it outside the configuration directory without overwriting any destination.
+Do not delete individual unknown files. Doctor explains this owner action;
+once the directory is preserved elsewhere, new recovery admission is available.
+<!-- source: internal/component/config/storage/daemon_recovery_ownership.go -- recoveryOwnership, writeRecoveryOwnership, readRecoveryOwnership, verifyRecoverySource, verifyRecoveryNames -->
+<!-- source: internal/component/config/storage/daemon_recovery_manual.go -- RecoverySource, ResumeRecovery, openRecoverySnapshot, PendingRecoveryCommand -->
+<!-- source: internal/component/config/storage/daemon_recovery_snapshot.go -- completeRecoveryImport, removeRecoverySnapshot, removeRecoveryNodes -->
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestoreFullThrough -->
+
 Each checks the source, copies every raw key into a private
 `database.import-tmp-*` stage, compares both key sets and every value, syncs the
 stage, and then writes one immutable `database.import-intent` before any
@@ -401,6 +471,30 @@ a same-user writer. Source locks, digest checks and replay rules still apply.
 <!-- source: internal/component/config/storage/blob.go -- blobRoot, populateBlob, OpenBlob -->
 <!-- source: internal/component/config/storage/import_source.go -- importSource, openImportSource -->
 
+### Registered inspection inputs
+
+`show data list prefix <prefix>` narrows the stored-key listing, and
+`show data registered pattern <pattern>` selects one exact declared key
+pattern. Both selectors are YANG leaves, so generated command forms describe
+the same inputs as the text command. An unknown registered pattern is a
+failure on both the standalone and daemon routes. The standalone
+`ze data registered` adapter and the daemon handler read one typed pattern
+producer and render its answer through the command layer.
+<!-- source: internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang -- show data list, show data registered -->
+<!-- source: internal/component/config/storage/cli/registered.go -- registeredAnswer -->
+<!-- source: internal/component/config/storage/cli/storage_data.go -- dataList, dataRegistered -->
+<!-- source: internal/component/config/storage/cli/main.go -- cmdRegistered -->
+
+`show data encode content <base64> part full|header|crc` produces the same
+bytes as `ze data encode` and its `--header` or `--crc` forms. Optional
+`capacity` reserves the requested frame size; it must hold the input and fit
+within one remote blob answer. The default adds ten percent of the input
+length. The command registers supplied-input metadata so file/paste controls
+discover it without a web-owned command list. It reads no store and returns
+a blob, preserving binary frame bytes through JSON base64 encoding.
+<!-- source: internal/component/config/storage/cli/encode.go -- dataEncode, encodeNetcap -->
+<!-- source: internal/component/config/storage/cli/register.go -- init -->
+
 ### Restoring a config from an artifact
 
 `ReadRestoreSource` runs the artifact check (`CheckArtifact`, the same
@@ -438,9 +532,25 @@ the output by the backup's store-owned names (`refuseStoreName`) and writes
 the new tree with `zefs.RepairPath`, which refuses an output that exists or
 lies inside the source. A long salvage holds every writer for its length, the
 price a backup already pays.
+The local and daemon repair routes grade one salvage verdict. Its history
+rows retain their severity and whether a key was dropped, and the daemon
+document lists each recovered key alongside its count. A dropped corrupt
+history entry is reported as a warning about a partial salvage. A pointer
+that still cannot resolve is a failed repair with the salvage document
+retained and the command that checks the written output; it is never a
+successful repair merely because the frame copy completed.
+
+A complete daemon repair response is limited to 8 MiB. If detailed rows exceed
+that limit, the command returns an explicit report failure with the saved path
+and counts. `salvage-written` confirms the completed write, and `details-omitted`
+states that the rows are absent. The response gives the local command that
+checks the saved salvage. It never reports a truncated list as complete.
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairAnswer, repairDetailsTooLarge, repairReportRefusal -->
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, ownedStore, CheckArtifactPath, refuseStoreName -->
 <!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
+<!-- source: internal/component/config/storage/cli/repair_verdict.go -- newRepairVerdict, printHistory, exitCode -->
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairAnswer -->
 
 ### Editing an uploaded backup
 
@@ -456,7 +566,7 @@ suffix declarations. A suffix-bearing name with no owning configuration remains
 selectable, as do ordinary alternate extensions and names with no extension.
 The existing restore reader keeps its complete pointer-and-mirror census,
 including an explicitly selected legacy mirror with an editor-like name.
-A browser workspace reads its selected committed bytes
+The shared private artifact owner reads its selected committed bytes
 through `ReadActiveConfig`; saved drafts and pending candidates are separate
 records and are not its starting configuration.
 <!-- source: internal/component/config/storage/import.go -- CheckArtifact -->
@@ -480,6 +590,93 @@ active-pointer commit boundary: an accepted version is not deleted because a
 later storage operation failed. Guard release is part of the reported result.
 <!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig, checkArtifactCandidate, withdrawArtifactVersion -->
 <!-- source: internal/component/config/storage/pointer.go -- writeNewVersionLocked, freeVersionTimeLocked, promoteVersionLocked -->
+
+## Renaming a stored configuration
+
+`RenameConfig` moves a configuration's complete named state under one
+configuration guard. It includes every `file/<namespace>/<name>` entry,
+`meta/config/<name>/` descendant, and the saved `.draft` and `.change.<account>`
+siblings the editor owns. An editor-like sibling with its own dated version or
+per-config identity metadata is a separate configuration and remains separate,
+including a staged identity that has no active pointer yet. Shared content objects
+are unchanged, and global audit and command-history records retain their
+historical identities. Process-local modification metadata follows each moved
+key. The low-level `Storage.Rename` remains a single-entry operation.
+
+The source may have an active mirror, an active pointer, or both. A destination
+with any owned mirror, pointer, version or editor record is refused before any
+write. An unfinished explicit-file commit or confirmed-commit record also
+refuses the rename, because its embedded identity cannot be moved safely.
+Every selected source byte is read before publication. The store writes the
+complete destination before removing any source key; source pointers are
+removed before source versions, and the active mirror is removed last.
+
+Publication uses the existing per-key durability contract, rather than claiming
+a multi-key crash-atomic operation. An interruption can retain both names.
+An ordinary publication failure compensates the operation while the guard is
+held. Destination keys are removed only while a complete source still exists
+or after every source key has been successfully restored. If source restoration
+fails, the complete destination and its saved work remain, and the error names
+that retained configuration and both failure causes.
+<!-- source: internal/component/config/storage/rename_config.go -- RenameConfig, prepareConfigRename, configRenamePlan.publish, restoreConfigRenameSource -->
+
+The daemon serves `request data config rename old <name> new <name>` through
+the same transaction. Its running configuration name and configured managed
+client fetch names are refused: the rename cannot safely change those launch
+or serving bindings. Other stored configurations are renamed without a reload.
+The response names `old` and `new`. Successful mutations record
+`data-config-rename` through the dispatcher with the original actor and surface;
+a refused operation records no successful mutation.
+<!-- source: internal/component/config/storage/cli/data_rpc_rename.go -- handleDataConfigRename -->
+<!-- source: internal/component/config/storage/cli/register_data_rpc.go -- init -->
+<!-- source: internal/core/audit/action_config_rename.go -- ActionDataConfigRename -->
+
+## Rolling back a stored configuration
+
+`RollbackConfig` selects a one-based revision and publishes its verified bytes
+as a new active version under one configuration guard. Its history order is the
+existing `ListVersions` order, which `Editor.ListBackups` already uses: newest
+dated entry first. Both readers use `versionsForName`, so an adapter keeps no
+second ordering rule. The selected entry resolves through its content object
+with the existing hash verification. A missing index or corrupt object refuses
+the operation without substituting another revision.
+
+The selected old version remains in history. Publication uses the same guarded
+body and active-pointer commit point as `RestoreConfig`, retaining the previous
+active as rollback, refreshing the active mirror and clearing only the candidate
+it accepted. Another staged candidate refuses publication. An unfinished file
+commit or recorded confirmed-commit window also refuses the operation before a
+write, because its recovery could replace the rollback's publication.
+<!-- source: internal/component/config/storage/rollback_config.go -- RollbackConfig, admitConfigRollbackLocked -->
+<!-- source: internal/component/config/storage/history_revision.go -- readRollbackRevisionLocked, versionsForName -->
+<!-- source: internal/component/config/storage/restore.go -- restoreConfigLocked -->
+
+The daemon serves `request data config rollback name <name> revision <N>`.
+For its own running source, the live confirmed-window worker admits selection
+and the existing candidate/reload transaction publishes the result. Its stored
+window record is checked inside that worker too. Other stored configurations
+use `RollbackConfig`; a managed client name must be one this hub serves. Both
+paths preserve existing staged work and report the selected revision and the
+new active version. Successful mutations record `data-config-rollback` with
+the original caller and surface.
+
+The result carries `name`, `revision`, `source-version`, `source-time` and
+`version`. `source-time` is the selected version's timestamp in JSON's RFC3339
+time representation, so a remote standalone adapter retains the existing human
+timestamp without guessing a timezone from a version stamp.
+<!-- source: internal/component/config/storage/cli/data_rpc_rollback.go -- handleDataConfigRollback, rollbackDaemonConfig, configRolledBack -->
+<!-- source: internal/core/audit/action_config_rollback.go -- ActionDataConfigRollback -->
+
+`ReadRollbackRevision` is the writable owner's guarded pre-publication selector
+for the active daemon path. It applies the same identity-intent admission and
+returns caller-owned verified bytes. General read-only history inspection,
+including artifact comparisons, retains `ListVersions` and `ReadVersion` and
+does not acquire a writable guard. Local loose-file rollback retains its real
+file writer. Stored rename and rollback share `StoredConfigName` admission;
+raw storage keys and names outside the selected store are refused before a
+request can be normalized to a basename.
+<!-- source: internal/component/config/storage/history_revision.go -- ReadRollbackRevision -->
+<!-- source: internal/component/config/storage/config_name.go -- StoredConfigName -->
 
 ## Version pointers and recovery
 
