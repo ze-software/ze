@@ -440,16 +440,21 @@ func dispatchEntryToConsumer(ctx context.Context, consumer configredist.RedistCo
 			route.Metric = entry.Metric
 		}
 		consumer.InjectRoute(ctx, fam, configredist.RouteEntry{
-			Prefix:    entry.Prefix.String(),
-			NextHop:   nhop,
-			Source:    source,
-			Peer:      peer,
-			OriginASN: effectiveOriginASN,
-			Community: community,
-			Tag:       entry.Tag,
-			Metric:    entry.Metric,
-			HasMetric: sets.HasMetric,
-			Route:     route,
+			Prefix:              entry.Prefix.String(),
+			NextHop:             nhop,
+			Source:              source,
+			Protocol:            route.Source,
+			SourceInstance:      entry.SourceInstance,
+			Table:               entry.Table,
+			DistanceOverride:    entry.DistanceOverride,
+			HasDistanceOverride: entry.HasDistanceOverride,
+			Peer:                peer,
+			OriginASN:           effectiveOriginASN,
+			Community:           community,
+			Tag:                 entry.Tag,
+			Metric:              entry.Metric,
+			HasMetric:           sets.HasMetric,
+			Route:               route,
 		})
 		return
 	}

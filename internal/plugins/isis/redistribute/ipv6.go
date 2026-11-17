@@ -168,8 +168,9 @@ func emitDeltaFamily(delta spf.RouteDelta, protocol redistevents.ProtocolID, afi
 	}
 	for _, pfx := range delta.Removed {
 		b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
-			Action: redistevents.ActionRemove,
-			Prefix: pfx,
+			SourceInstance: 0,
+			Action:         redistevents.ActionRemove,
+			Prefix:         pfx,
 		})
 	}
 	if len(b.Entries) == 0 {

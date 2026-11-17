@@ -36,6 +36,9 @@ var engineDoctorChecks = []engineDoctorCheck{{
 }, {
 	decl:   stateScopeCheckDecl,
 	answer: answerStateScope,
+}, {
+	decl:   redistributionSourceCheckDecl,
+	answer: answerRedistributionSource,
 }}
 
 // engineDoctorCheckDecls answers the declarations the engine sends at Stage 1.

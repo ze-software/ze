@@ -93,12 +93,14 @@ func convertBestChange(in *ribevents.BestChangeEntry) (redistevents.RouteChangeE
 	// withdraw (where the consumer ignores them); copying unconditionally keeps
 	// the bridge lossless without a per-action branch.
 	return redistevents.RouteChangeEntry{
-		Action:   action,
-		Prefix:   in.Prefix,
-		NextHop:  in.NextHop,
-		Metric:   in.Metric,
-		OriginAS: in.OriginAS,
-		BGPClass: bgpClassOf(in.ProtocolType),
+		// The selected BGP projection is one aggregate per prefix.
+		SourceInstance: 0,
+		Action:         action,
+		Prefix:         in.Prefix,
+		NextHop:        in.NextHop,
+		Metric:         in.Metric,
+		OriginAS:       in.OriginAS,
+		BGPClass:       bgpClassOf(in.ProtocolType),
 	}, true
 }
 

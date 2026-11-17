@@ -195,7 +195,7 @@ func emitDelta(delta spf.RouteDelta, protocol redistevents.ProtocolID, sink func
 		b.Entries = append(b.Entries, addEntry(&delta.Changed[i]))
 	}
 	for _, pfx := range delta.Removed {
-		b.Entries = append(b.Entries, redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: pfx})
+		b.Entries = append(b.Entries, redistevents.RouteChangeEntry{SourceInstance: 0, Action: redistevents.ActionRemove, Prefix: pfx})
 	}
 	if len(b.Entries) == 0 {
 		return
@@ -214,10 +214,11 @@ func addEntry(r *spf.RouteEntry) redistevents.RouteChangeEntry {
 		nh = r.NextHops[0].Addr
 	}
 	return redistevents.RouteChangeEntry{
-		Action:  redistevents.ActionAdd,
-		Prefix:  r.Prefix,
-		NextHop: nh,
-		Metric:  metricToUint32(r.Metric),
+		SourceInstance: 0,
+		Action:         redistevents.ActionAdd,
+		Prefix:         r.Prefix,
+		NextHop:        nh,
+		Metric:         metricToUint32(r.Metric),
 	}
 }
 

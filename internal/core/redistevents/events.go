@@ -3,8 +3,8 @@
 // Detail: registry.go -- protocol ID registration
 //
 // Package redistevents owns the shared, value-typed payload that protocol
-// route producers (L2TP, connected, future static/OSPF/ISIS) publish on the
-// EventBus and the bgp-redistribute consumer subscribes to.
+// route producers publish on the EventBus and the redistribution orchestrator
+// subscribes to before dispatching to destination consumers.
 //
 // The package is intentionally minimal: type definitions, a uint16 ProtocolID
 // registry, a "this protocol has a producer" presence bit, and a pooled
@@ -125,6 +125,16 @@ type RouteChangeEntry struct {
 	NextHop netip.Addr
 	Metric  uint32
 	Table   uint32
+
+	// SourceInstance identifies a producer-owned contribution to this native
+	// prefix. Zero is the explicit aggregate used by single-projection sources;
+	// independent contributions MUST use the same instance on add/replay/remove.
+	SourceInstance uint32 `json:"source-instance"`
+	// DistanceOverride carries only a route-specific producer preference.
+	// HasDistanceOverride distinguishes absent from the valid distance zero.
+	// Protocol-wide distance remains the registered protocol's preference.
+	DistanceOverride    uint8 `json:"distance-override"`
+	HasDistanceOverride bool  `json:"has-distance-override"`
 
 	// OriginAS is the per-entry origin AS the redistributed route carries into a
 	// consumer that models locally-originated routes with an AS_PATH (BGP emits

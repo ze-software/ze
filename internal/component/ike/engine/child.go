@@ -1,5 +1,6 @@
 // Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- Child SA creation and teardown
 // Detail: ts_narrow.go -- traffic-selector narrowing, policy, and port encoding
+// Related: redistribute.go -- independent source instance retained across rekey
 // RFC: rfc/short/rfc7296.md -- Child SA keying material (Section 2.17), Traffic Selectors (Section 2.9)
 
 package engine
@@ -82,12 +83,16 @@ type ChildSA struct {
 	LocalAddr   net.IP
 	RemoteAddr  net.IP
 	IfID        uint32
-	TSLocal     *net.IPNet
-	TSRemote    *net.IPNet
-	Keys        *crypto.ChildSAKeys
-	ESPGroup    ipsec.ESPGroup
-	ReqID       uint32
-	NATDetected bool
+	// redistributeInstance is the original logical route source, independent
+	// of SPI and interface reuse. childRouteSources.mu guards assignment and
+	// rekey inheritance; only the scalar value crosses the route-change bus.
+	redistributeInstance uint32
+	TSLocal              *net.IPNet
+	TSRemote             *net.IPNet
+	Keys                 *crypto.ChildSAKeys
+	ESPGroup             ipsec.ESPGroup
+	ReqID                uint32
+	NATDetected          bool
 
 	// PolicyPriority is where this Child SA's SPD entries sit in the operator's ordering
 	// of the Security Policy Database (ipsec.SiteToSitePeer.PolicyPriority). LOWER VALUE

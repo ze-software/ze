@@ -9,8 +9,11 @@ import (
 	"sync"
 
 	configredist "github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -64,9 +67,14 @@ func emitRouteAdd(bus ze.EventBus, child *ChildSA, log *slog.Logger) {
 		log.Warn("ipsec: emit route-change skipped: Child SA has no remote traffic selector")
 		return
 	}
+	instance, err := childRouteSources.instance(child)
+	if err != nil {
+		logChildRouteSourceRefusal(log, err)
+		return
+	}
 	for _, prefix := range prefixes {
 		log.Debug("ipsec: emitting route-change add", "prefix", prefix.String())
-		emitRouteChange(bus, redistevents.ActionAdd, prefix, log)
+		emitRouteChange(bus, redistevents.ActionAdd, prefix, instance, log)
 	}
 }
 
@@ -80,8 +88,13 @@ func emitRouteRemove(bus ze.EventBus, child *ChildSA, log *slog.Logger) {
 	if child == nil {
 		return
 	}
+	instance, err := childRouteSources.instance(child)
+	if err != nil {
+		logChildRouteSourceRefusal(log, err)
+		return
+	}
 	for _, prefix := range childRemotePrefixes(child) {
-		emitRouteChange(bus, redistevents.ActionRemove, prefix, log)
+		emitRouteChange(bus, redistevents.ActionRemove, prefix, instance, log)
 	}
 }
 
@@ -105,11 +118,16 @@ func rekeyTunnelRoutes(bus ze.EventBus, peer string, retired, successor *ChildSA
 	if bus == nil {
 		log.Warn("ipsec: rekey route-change skipped: no event bus", "peer", peer)
 	} else {
-		for _, prefix := range added {
-			emitRouteChange(bus, redistevents.ActionAdd, prefix, log)
-		}
-		for _, prefix := range dropped {
-			emitRouteChange(bus, redistevents.ActionRemove, prefix, log)
+		instance, err := childRouteSources.inherit(retired, successor)
+		if err != nil {
+			logChildRouteSourceRefusal(log, err)
+		} else {
+			for _, prefix := range added {
+				emitRouteChange(bus, redistevents.ActionAdd, prefix, instance, log)
+			}
+			for _, prefix := range dropped {
+				emitRouteChange(bus, redistevents.ActionRemove, prefix, instance, log)
+			}
 		}
 	}
 	// A guard entry is keyed by the interface too, so a successor on another interface
@@ -135,8 +153,109 @@ func prefixesAbsentFrom(set, other []netip.Prefix) []netip.Prefix {
 	return out
 }
 
+// childRouteSourceAllocator assigns one nonzero scalar to a logical Child SA
+// route lifetime and retains no history or per-event allocation. Rekey transfers
+// that lifetime explicitly; a new Child SA receives another instance even when
+// its selectors, owner, SPI or interface happen to equal a previous SA's.
+// Safe for concurrent use. Its lock also protects ChildSA.redistributeInstance.
+type childRouteSourceAllocator struct {
+	mu   sync.Mutex
+	next uint32
+	// failure is the first lost publication in this process. There is no
+	// producer replay to reconstruct it, so only restart clears the finding.
+	failure *opererr.Error
+}
+
+var childRouteSources childRouteSourceAllocator
+
+var errChildRouteSourceExhausted = opererr.New(
+	"IPsec redistribution source identities are exhausted",
+	"Ze refused a Child SA route publication instead of reusing another source's identity. Source publication cannot recover in this process",
+	"sudo systemctl restart ze")
+var errChildRouteSourceAssigned = opererr.New(
+	"An IPsec rekey successor already owns another redistribution source",
+	"Ze refused the route publication instead of replacing an independent Child SA's identity. Source publication cannot recover in this process",
+	"sudo systemctl restart ze")
+
+func (a *childRouteSourceAllocator) instance(child *ChildSA) (uint32, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.instanceLocked(child)
+}
+
+// instanceLocked assigns at most once. Caller MUST hold mu.
+func (a *childRouteSourceAllocator) instanceLocked(child *ChildSA) (uint32, error) {
+	if child.redistributeInstance != 0 {
+		return child.redistributeInstance, nil
+	}
+	if a.next == ^uint32(0) {
+		return a.refuseLocked(errChildRouteSourceExhausted)
+	}
+	a.next++
+	child.redistributeInstance = a.next
+	return child.redistributeInstance, nil
+}
+
+func (a *childRouteSourceAllocator) inherit(retired, successor *ChildSA) (uint32, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	instance, err := a.instanceLocked(retired)
+	if err != nil {
+		return 0, err
+	}
+	if successor.redistributeInstance != 0 {
+		if successor.redistributeInstance != instance {
+			return a.refuseLocked(errChildRouteSourceAssigned)
+		}
+	}
+	successor.redistributeInstance = instance
+	return instance, nil
+}
+
+// refuseLocked records one permanent source-output failure, without a route
+// history or an unbounded failure list. Caller MUST hold mu.
+func (a *childRouteSourceAllocator) refuseLocked(failure *opererr.Error) (uint32, error) {
+	if a.failure == nil {
+		a.failure = failure
+	}
+	return 0, failure
+}
+
+func logChildRouteSourceRefusal(log *slog.Logger, err error) {
+	log.Warn("IPsec redistribution lost a source publication and cannot reconstruct it in this process",
+		"error", err, "fix", "sudo systemctl restart ze",
+		"code", diagnostic.CodeDoctorIPsecRedistributionSource)
+}
+
+var redistributionSourceCheckDecl = rpc.DoctorCheckDecl{
+	Name:  "ipsec-redistribution-source",
+	Phase: rpc.DoctorPhaseRuntime,
+	Order: 744,
+	Codes: []string{diagnostic.CodeDoctorIPsecRedistributionSource},
+}
+
+// answerRedistributionSource reads the actual producer's first lost publication.
+// No source replay exists today, so a later successful emit cannot clear it.
+func answerRedistributionSource(_ *ikeEngineState) []rpc.DoctorCheckDiagnostic {
+	return childRouteSources.findings()
+}
+
+func (a *childRouteSourceAllocator) findings() []rpc.DoctorCheckDiagnostic {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.failure == nil {
+		return nil
+	}
+	return []rpc.DoctorCheckDiagnostic{{
+		Code:     diagnostic.CodeDoctorIPsecRedistributionSource,
+		Severity: severityError,
+		Message:  a.failure.Problem() + ". " + a.failure.Why(),
+		Fix:      a.failure.Fix(),
+	}}
+}
+
 // emitRouteChange publishes one route-change batch carrying prefix under action.
-func emitRouteChange(bus ze.EventBus, action redistevents.RouteAction, prefix netip.Prefix, log *slog.Logger) {
+func emitRouteChange(bus ze.EventBus, action redistevents.RouteAction, prefix netip.Prefix, instance uint32, log *slog.Logger) {
 	batch := redistevents.AcquireBatch()
 	batch.Protocol = ipsecProtocolID
 	if prefix.Addr().Is4() {
@@ -147,8 +266,9 @@ func emitRouteChange(bus ze.EventBus, action redistevents.RouteAction, prefix ne
 		batch.SAFI = 1
 	}
 	batch.Entries = append(batch.Entries, redistevents.RouteChangeEntry{
-		Action: action,
-		Prefix: prefix,
+		SourceInstance: instance,
+		Action:         action,
+		Prefix:         prefix,
 	})
 	n, err := ipsecRouteChange.Emit(bus, batch)
 	if err != nil {

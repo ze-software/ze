@@ -95,6 +95,7 @@ const (
 	CodeDoctorIPsecForwardDefault                  = "doctor-ipsec-forward-default"
 	CodeDoctorIPsecStateScope                      = "doctor-ipsec-state-scope"
 	CodeDoctorIPsecChildInstallRefused             = "doctor-ipsec-child-install-refused"
+	CodeDoctorIPsecRedistributionSource            = "doctor-ipsec-redistribution-source"
 	CodeDoctorDaemonCapabilityMissing              = "doctor-daemon-capability-missing"
 	CodeDoctorIPsecImplicitDiscard                 = "doctor-ipsec-implicit-discard"
 	CodeDoctorIPsecOverrideGuard                   = "doctor-ipsec-override-guard"
@@ -139,6 +140,7 @@ const (
 	CodeDoctorPKICert                              = "doctor-pki-cert"
 	CodeDoctorRandomSeed                           = "doctor-random-seed"
 	CodeDoctorStoreIntegrity                       = "doctor-store-integrity"
+	CodeDoctorStorageRecoveryPending               = "doctor-storage-recovery-pending"
 	CodeDoctorStorePermissions                     = "doctor-store-permissions"
 	CodeDoctorGNMITLSMaterial                      = "doctor-gnmi-tls-material"
 	CodeDoctorTLSExpired                           = "doctor-tls-expired"
@@ -363,6 +365,12 @@ var builtinCodes = append([]CodeMeta{
 			"ze data check and ze data repair --output <path> run while ze runs: the check lists every damaged entry, and the repair writes a salvage copy holding every entry that reads, without changing the source. " +
 			"A remote operator runs the same through the daemon with show data check and request data repair path <file>, which writes the copy on the daemon's host. " +
 			"Installing the repaired store in place of the damaged one needs ze stopped.",
+		Examples: []string{exampleDoctorJSON},
+	},
+	{
+		Code: CodeDoctorStorageRecoveryPending,
+		Title: "Full-store recovery source remains unresolved",
+		Description: "A private full-store recovery staging directory remains, or the store's retained directory authority could not be inspected. Another recovery source is refused until the retained source is resolved. The diagnostic names the source and its inspection command; no doctor check consumes it.",
 		Examples: []string{exampleDoctorJSON},
 	},
 	{
@@ -1365,6 +1373,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "IPsec complete state-scope support cannot be verified",
 		Description: "Configured IPsec peers need complete per-SA traffic selector, ICMP quote and fragment checks. The running kernel did not provide a complete, readable capability receipt. Child SA installation is refused until Ze's native runtime kernel is rebuilt and booted; the runtime doctor finding preserves the exact cause and native repair commands.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-ipsec-state-scope"},
+	},
+	{
+		Code:        CodeDoctorIPsecRedistributionSource,
+		Title:       "IPsec redistribution lost a source publication",
+		Description: "A Child SA source identity could not be allocated or safely inherited at rekey. Ze refused the publication instead of aliasing another Child SA. The forwarding installation remains independent, but redistribution may retain or miss a route. The runtime finding retains the first refusal until Ze restarts, because the IPsec producer has no replay that can reconstruct its complete live set.",
+		Examples:    []string{exampleShowDoctor, "ze show diagnostic doctor-ipsec-redistribution-source"},
 	},
 	{
 		Code:  CodeDoctorIPsecChildInstallRefused,

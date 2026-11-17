@@ -3401,6 +3401,53 @@ that destination -- so an import under `destination bgp` no longer satisfies
 The redistribute payload carries two generic, protocol-agnostic attribute fields so a source can originate routes as a virtual router with its own identity: `RouteChangeBatch.OriginASN` (when nonzero the consumer emits the `origin igp origin-as <asn>` directive) and `RouteChangeBatch.Community` (a standard-community list rendered as `community [ ... ]`). `origin-as` is distinct from a verbatim `as-path`: the reactor applies the normal export rule to it, synthesizing AS_PATH `[asn]` for iBGP peers and `[localAS, asn]` for eBGP peers (`buildBatchASPath`/`writeASPath`), so an eBGP peer sees ze's own AS first (enforce-first-as safe). A verbatim `as-path` stays untouched (route-server transparency). Both fields default to zero/nil, so every existing producer stays byte-for-byte unchanged. The `as112` plugin is the first user: it announces its covering prefixes under a configurable origin AS (default 112) and community list, while the pipeline itself stays protocol-agnostic.
 
 Origin AS also exists at per-entry granularity as `RouteChangeEntry.OriginAS`, because a source such as BGP carries a distinct origin AS on every best-path prefix that one batch-level `OriginASN` cannot express. The consumer prefers the per-entry `OriginAS` when nonzero and falls back to the batch `OriginASN` otherwise, so the as112 single-ASN case is unchanged. The BGP RIB-to-redistribute bridge (`EmitBestChange`/`convertBestChange`) populates it (plus the per-entry `Metric`) losslessly from the winning `BestChangeEntry`, and skips-with-a-warn (never silently drops) any best-change action it cannot map to add/remove.
+
+Each route-change entry also carries its producer's `SourceInstance` and
+optional `DistanceOverride`. `HasDistanceOverride` distinguishes an absent
+override from the valid distance zero. The serialized keys are
+`source-instance`, `distance-override` and `has-distance-override`, with zero
+and false retained. These are original producer facts: import-policy tag and
+metric transforms preserve them in `RouteEntry`. A producer metric remains
+separate from BGP MED, which is emitted only for an explicit metric set.
+
+Static and connected declare aggregate instance zero for a prefix. OSPF and
+IS-IS project one selected route per prefix with its first next hop.
+Their per-next-hop Loc-RIB slots do not identify that redistribution
+projection. Kernel, AS112 and selected BGP retain aggregate instance zero.
+
+IPsec assigns a nonzero instance to each original logical Child SA source.
+It transfers that instance to the rekey successor, then publishes changed
+selectors. Independent children retain different instances even with the same
+interface and remote prefix. An SPI, interface ID or peer label is not that identity.
+
+L2TP retains its actual `(tunnel ID, session ID)` tuple in one uint32.
+Address and framed-prefix add, replay and removal carry that same instance,
+even when two sessions contribute the same prefix. The live record map uses
+that full tuple. Equal session IDs on different tunnels stay independent
+through assignment, replay and removal.
+
+Static alone currently carries a configured per-route distance override on
+this feed. Its named-table routes remain excluded.
+
+The held comparison includes distance value and presence. Replay detects a
+changed source preference even when tag, metric and next hop are unchanged.
+This metadata does not certify a publisher or authorize BGP
+intake. Exact source removal, accepted-record lookup and process-bound
+admission remain part of the advertiser work in progress.
+<!-- source: internal/core/redistevents/events.go -- RouteChangeEntry source-instance and distance fields -->
+<!-- source: internal/core/redistevents/pool.go -- ReleaseBatch, poisonReleasedEntries -->
+<!-- source: internal/plugins/static/inject.go -- emitRouteChangeID -->
+<!-- source: internal/plugins/connected/connected.go -- emitID -->
+<!-- source: internal/plugins/ospf/redistribute/source.go -- addEntry, emitDelta -->
+<!-- source: internal/plugins/isis/redistribute/source.go -- addEntry -->
+<!-- source: internal/plugins/isis/redistribute/ipv6.go -- emitDeltaFamily -->
+<!-- source: internal/plugins/kernel/kernel.go -- emit -->
+<!-- source: internal/plugins/as112/redistribute.go -- emit -->
+<!-- source: internal/component/ike/engine/redistribute.go -- emitRouteChange -->
+<!-- source: internal/component/l2tp/route_observer.go -- routeInstance, emitAdd, emitRemove, reemitAll, emitFramedRoutes -->
+<!-- source: internal/component/config/redistribute/consumer.go -- RouteEntry -->
+<!-- source: internal/plugins/redistribute/redistribute.go -- dispatchEntryToConsumer -->
+<!-- source: internal/plugins/redistribute/held.go -- sentRoute, newSentRoute, matches -->
 <!-- source: internal/core/redistevents/events.go -- RouteChangeBatch.OriginASN/Community + RouteChangeEntry.OriginAS -->
 <!-- source: internal/component/bgp/redistribute/producer.go -- EmitBestChange/convertBestChange lossless bridge (Metric + OriginAS, log-and-count unknown action) -->
 <!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce -->

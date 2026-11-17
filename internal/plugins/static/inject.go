@@ -660,11 +660,14 @@ func (rm *routeManager) emitRouteChangeID(action redistevents.RouteAction, r sta
 		b.SAFI = 1
 	}
 	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
-		Action: action,
-		Prefix: r.Prefix,
-		Metric: r.Metric,
-		Table:  r.Table,
-		Tag:    r.Tag,
+		Action:              action,
+		Prefix:              r.Prefix,
+		Metric:              r.Metric,
+		Table:               r.Table,
+		Tag:                 r.Tag,
+		SourceInstance:      pathInstance,
+		DistanceOverride:    r.Distance,
+		HasDistanceOverride: r.HasDistance,
 	})
 	if _, err := staticevents.RouteChange.Emit(bus, b); err != nil {
 		logger().Warn("static: route-change emit failed", "error", err)

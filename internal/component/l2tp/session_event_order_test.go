@@ -442,7 +442,7 @@ func TestRouteObserverSeesIPUpBeforeTheDownThatFollowsIt(t *testing.T) {
 
 	require.NoError(t, teardownErr)
 	inner.mu.Lock()
-	_, kept := inner.records[7]
+	_, kept := inner.records[routeInstance(11, 7)]
 	inner.mu.Unlock()
 	require.False(t, kept,
 		"the route observer still holds session 7 after its teardown: the withdrawal reached it before the IP-up")

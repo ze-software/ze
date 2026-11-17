@@ -219,15 +219,16 @@ func addEntry(r *spf.RouteEntry) redistevents.RouteChangeEntry {
 	var nh netip.Addr
 	if len(r.NextHops) > 0 {
 		if r.NextHops[0].Unsupported {
-			return redistevents.RouteChangeEntry{Action: redistevents.ActionRemove, Prefix: r.Prefix}
+			return redistevents.RouteChangeEntry{SourceInstance: 0, Action: redistevents.ActionRemove, Prefix: r.Prefix}
 		}
 		nh = r.NextHops[0].Addr
 	}
 	return redistevents.RouteChangeEntry{
-		Action:  redistevents.ActionAdd,
-		Prefix:  r.Prefix,
-		NextHop: nh,
-		Metric:  metricToUint32(r.Metric),
+		SourceInstance: 0,
+		Action:         redistevents.ActionAdd,
+		Prefix:         r.Prefix,
+		NextHop:        nh,
+		Metric:         metricToUint32(r.Metric),
 	}
 }
 

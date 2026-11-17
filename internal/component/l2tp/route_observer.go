@@ -51,7 +51,7 @@ type routeRecord struct {
 }
 
 // subscriberRouteObserver is the concrete RouteObserver the Subsystem
-// installs into each reactor. It maintains a sessionID -> routeRecord
+// installs into each reactor. It maintains a (tunnelID, sessionID) -> routeRecord
 // map so the CLI and future RIB injection path can read the live set.
 //
 // Thread safety: the internal map is protected by mu; all public
@@ -67,7 +67,7 @@ type subscriberRouteObserver struct {
 	// record changed after the snapshot is then published after the replay's
 	// Add, never before it, so the replay cannot revive the route.
 	emitMu  sync.RWMutex
-	records map[uint16]*routeRecord
+	records map[uint32]*routeRecord
 
 	// injectedTotal and withdrawnTotal are monotonic counters the CLI
 	// `show l2tp statistics` handler reads to surface redistribute
@@ -88,7 +88,7 @@ func newSubscriberRouteObserver(logger *slog.Logger, bus ze.EventBus) *subscribe
 	return &subscriberRouteObserver{
 		logger:  logger.With("component", "l2tp-redistribute"),
 		bus:     bus,
-		records: make(map[uint16]*routeRecord),
+		records: make(map[uint32]*routeRecord),
 	}
 }
 
@@ -102,10 +102,10 @@ func (o *subscriberRouteObserver) OnSessionIPUp(tunnelID, sessionID uint16, user
 	}
 	var prev netip.Addr
 	o.mu.Lock()
-	r := o.records[sessionID]
+	r := o.records[routeInstance(tunnelID, sessionID)]
 	if r == nil {
 		r = &routeRecord{tunnelID: tunnelID, sessionID: sessionID, username: username}
-		o.records[sessionID] = r
+		o.records[routeInstance(tunnelID, sessionID)] = r
 		if meta := LoadSessionMetadata(l2tpSessionID(tunnelID, sessionID)); meta != nil && len(meta.FramedRoutes) > 0 {
 			r.framedRoutes = make([]FramedRoute, len(meta.FramedRoutes))
 			copy(r.framedRoutes, meta.FramedRoutes)
@@ -134,11 +134,11 @@ func (o *subscriberRouteObserver) OnSessionIPUp(tunnelID, sessionID uint16, user
 		"address", addr.String(),
 		"family", familyOf(addr))
 	if prev.IsValid() && prev != addr {
-		o.emitRemove(prev)
+		o.emitRemove(prev, routeInstance(tunnelID, sessionID))
 	}
-	o.emitAdd(addr)
+	o.emitAdd(addr, routeInstance(tunnelID, sessionID))
 	if len(emitFramed) > 0 {
-		o.emitFramedRoutes(redistevents.ActionAdd, emitFramed)
+		o.emitFramedRoutes(redistevents.ActionAdd, emitFramed, routeInstance(tunnelID, sessionID))
 	}
 }
 
@@ -147,12 +147,12 @@ func (o *subscriberRouteObserver) OnSessionIPUp(tunnelID, sessionID uint16, user
 // Also withdraws any RADIUS framed routes for this session.
 func (o *subscriberRouteObserver) OnSessionDown(tunnelID, sessionID uint16) {
 	o.mu.Lock()
-	r, ok := o.records[sessionID]
+	r, ok := o.records[routeInstance(tunnelID, sessionID)]
 	if !ok {
 		o.mu.Unlock()
 		return
 	}
-	delete(o.records, sessionID)
+	delete(o.records, routeInstance(tunnelID, sessionID))
 	withdrawn := 0
 	if r.v4.IsValid() {
 		withdrawn++
@@ -165,13 +165,13 @@ func (o *subscriberRouteObserver) OnSessionDown(tunnelID, sessionID uint16) {
 	framedRoutes := r.framedRoutes
 	o.mu.Unlock()
 	if r.v4.IsValid() {
-		o.emitRemove(r.v4)
+		o.emitRemove(r.v4, routeInstance(r.tunnelID, r.sessionID))
 	}
 	if r.v6.IsValid() {
-		o.emitRemove(r.v6)
+		o.emitRemove(r.v6, routeInstance(r.tunnelID, r.sessionID))
 	}
 	if len(framedRoutes) > 0 {
-		o.emitFramedRoutes(redistevents.ActionRemove, framedRoutes)
+		o.emitFramedRoutes(redistevents.ActionRemove, framedRoutes, routeInstance(r.tunnelID, r.sessionID))
 	}
 	o.logger.Info("l2tp: subscriber routes withdrawn",
 		"session-id", sessionID,
@@ -190,18 +190,20 @@ func (o *subscriberRouteObserver) Stats() (injected, withdrawn uint64, active in
 
 // emitAdd builds and emits a single-entry add batch for the given address.
 // Nil bus is tolerated (no emission, state still tracked).
-func (o *subscriberRouteObserver) emitAdd(addr netip.Addr) {
+func (o *subscriberRouteObserver) emitAdd(addr netip.Addr, instance uint32) {
 	o.emitEntries(0, familyForAddr(addr), redistevents.RouteChangeEntry{
-		Action: redistevents.ActionAdd,
-		Prefix: prefixForAddr(addr),
+		Action:         redistevents.ActionAdd,
+		Prefix:         prefixForAddr(addr),
+		SourceInstance: instance,
 	})
 }
 
 // emitRemove builds and emits a single-entry remove batch for the given address.
-func (o *subscriberRouteObserver) emitRemove(addr netip.Addr) {
+func (o *subscriberRouteObserver) emitRemove(addr netip.Addr, instance uint32) {
 	o.emitEntries(0, familyForAddr(addr), redistevents.RouteChangeEntry{
-		Action: redistevents.ActionRemove,
-		Prefix: prefixForAddr(addr),
+		Action:         redistevents.ActionRemove,
+		Prefix:         prefixForAddr(addr),
+		SourceInstance: instance,
 	})
 }
 
@@ -242,21 +244,25 @@ func (o *subscriberRouteObserver) reemitAll(replayID uint64) {
 	if o.bus == nil || replayID == 0 {
 		return
 	}
-	var v4addrs, v6addrs []netip.Addr
+	type sessionAddress struct {
+		address  netip.Addr
+		instance uint32
+	}
+	var v4addrs, v6addrs []sessionAddress
 	var v4framed, v6framed []redistevents.RouteChangeEntry
 	o.emitMu.Lock()
 	defer o.emitMu.Unlock()
 	o.mu.Lock()
 	for _, r := range o.records {
 		if r.v4.IsValid() {
-			v4addrs = append(v4addrs, r.v4)
+			v4addrs = append(v4addrs, sessionAddress{address: r.v4, instance: routeInstance(r.tunnelID, r.sessionID)})
 		}
 		if r.v6.IsValid() {
-			v6addrs = append(v6addrs, r.v6)
+			v6addrs = append(v6addrs, sessionAddress{address: r.v6, instance: routeInstance(r.tunnelID, r.sessionID)})
 		}
 		if r.framedEmitted {
 			for _, fr := range r.framedRoutes {
-				e := redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: fr.Prefix, Metric: fr.Metric}
+				e := redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: fr.Prefix, Metric: fr.Metric, SourceInstance: routeInstance(r.tunnelID, r.sessionID)}
 				if fr.Prefix.Addr().Is4() {
 					v4framed = append(v4framed, e)
 				} else {
@@ -268,10 +274,10 @@ func (o *subscriberRouteObserver) reemitAll(replayID uint64) {
 	o.mu.Unlock()
 
 	for _, a := range v4addrs {
-		o.emitEntries(replayID, family.IPv4Unicast, redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: prefixForAddr(a)})
+		o.emitEntries(replayID, family.IPv4Unicast, redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: prefixForAddr(a.address), SourceInstance: a.instance})
 	}
 	for _, a := range v6addrs {
-		o.emitEntries(replayID, family.IPv6Unicast, redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: prefixForAddr(a)})
+		o.emitEntries(replayID, family.IPv6Unicast, redistevents.RouteChangeEntry{Action: redistevents.ActionAdd, Prefix: prefixForAddr(a.address), SourceInstance: a.instance})
 	}
 	if len(v4framed) > 0 {
 		o.emitEntries(replayID, family.IPv4Unicast, v4framed...)
@@ -284,16 +290,17 @@ func (o *subscriberRouteObserver) reemitAll(replayID uint64) {
 // emitFramedRoutes emits a batch per address family for the given
 // framed routes. Groups routes by AFI so each batch has a consistent
 // family header.
-func (o *subscriberRouteObserver) emitFramedRoutes(action redistevents.RouteAction, routes []FramedRoute) {
+func (o *subscriberRouteObserver) emitFramedRoutes(action redistevents.RouteAction, routes []FramedRoute, instance uint32) {
 	if o.bus == nil || len(routes) == 0 {
 		return
 	}
 	var v4, v6 []redistevents.RouteChangeEntry
 	for _, fr := range routes {
 		entry := redistevents.RouteChangeEntry{
-			Action: action,
-			Prefix: fr.Prefix,
-			Metric: fr.Metric,
+			Action:         action,
+			Prefix:         fr.Prefix,
+			Metric:         fr.Metric,
+			SourceInstance: instance,
 		}
 		if fr.Prefix.Addr().Is4() {
 			v4 = append(v4, entry)
@@ -311,6 +318,12 @@ func (o *subscriberRouteObserver) emitFramedRoutes(action redistevents.RouteActi
 
 func (o *subscriberRouteObserver) emitBatch(fam family.Family, entries []redistevents.RouteChangeEntry) {
 	o.emitEntries(0, fam, entries...)
+}
+
+// routeInstance preserves the session that owns both address and framed routes.
+// The tuple occupies its two original 16-bit fields without hashing or aliasing.
+func routeInstance(tunnelID, sessionID uint16) uint32 {
+	return uint32(tunnelID)<<16 | uint32(sessionID)
 }
 
 // prefixForAddr returns /32 for IPv4, /128 for IPv6.

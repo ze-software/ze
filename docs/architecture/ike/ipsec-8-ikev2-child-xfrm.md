@@ -11,6 +11,38 @@ VPP.
 <!-- source: internal/component/ike/engine/child.go -- createFirstChildSA, installChildSA, removeChildSA -->
 <!-- source: internal/component/ike/engine/established.go -- maintainSA, cleanupChild -->
 
+## Redistribution source identity
+
+The IPsec producer publishes each Child SA's remote prefix set with its own
+nonzero uint32 source instance. It assigns the instance once on first source
+publication and keeps it for add and remove. A rekey transfers the original
+logical source to its successor, then publishes the added and removed
+selectors. A selector retained by the rekey produces no event.
+
+An independent
+Child SA receives another instance even when its remote prefix, interface,
+peer label or SPI equals another child's. This is source data on the route
+bus, not admission to BGP or evidence of a FIB install.
+
+The producer owns one checked process-local counter, with no retained source
+history or allocation for each event. Exhaustion refuses a new identity
+instead of wrapping. Rekey also refuses a successor already assigned to
+another source. The forwarding guard still applies its real selector change
+when source publication is refused.
+
+Both refusals leave a coded warning and
+a sticky runtime `ipsec-redistribution-source` doctor finding with the first
+failure. IPsec has no producer replay to reconstruct the lost output, so a
+later successful publication does not clear the finding. Its recovery is:
+
+```sh
+sudo systemctl restart ze
+```
+<!-- source: internal/component/ike/engine/child.go -- redistributeInstance -->
+<!-- source: internal/component/ike/engine/redistribute.go -- childRouteSourceAllocator, emitRouteAdd, emitRouteRemove, rekeyTunnelRoutes, answerRedistributionSource -->
+<!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks -->
+<!-- source: internal/core/diagnostic/codes.go -- CodeDoctorIPsecRedistributionSource -->
+
 ## Decisions
 
 **A `Dataplane` interface with Register, Load and Get, following the interface

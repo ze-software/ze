@@ -1593,6 +1593,12 @@ EventBus with the assigned peer IP as a /32 (IPv4) or /128 (IPv6)
 prefix. Session-down emits matching remove batches, one per address
 family that was up.
 
+The live record belongs to the full tunnel and session pair. Two tunnels can
+use the same session number and keep separate address and framed routes.
+Removing one pair leaves the other pair's
+routes available for replay. A Down for an unknown pair removes nothing.
+<!-- source: internal/component/l2tp/route_observer.go -- records, OnSessionIPUp, OnSessionDown, reemitAll -->
+
 The redistribute orchestrator discovers L2TP as a producer at startup,
 subscribes to its events, and dispatches the prefixes to registered consumers
 (BGP) when a matching import rule is configured:

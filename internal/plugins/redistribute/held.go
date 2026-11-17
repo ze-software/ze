@@ -78,12 +78,15 @@ type heldRoute struct {
 }
 
 // sentRoute is what dispatchEntryToConsumer hands a consumer besides the route
-// view: the values the accepting chain set, the origin AS and the communities.
+// view: the values the accepting chain set, the origin AS, the communities and
+// the original route-specific distance preference.
 // community is owned: the producer's batch is pooled and reused.
 type sentRoute struct {
-	sets      ribpolicy.Sets
-	originASN uint32
-	community []uint32
+	sets        ribpolicy.Sets
+	originASN   uint32
+	community   []uint32
+	distance    uint8
+	hasDistance bool
 }
 
 // newSentRoute answers what a dispatch of entry from a batch carrying originASN
@@ -93,7 +96,7 @@ func newSentRoute(sets ribpolicy.Sets, entry *redistevents.RouteChangeEntry, ori
 	if entry.OriginAS != 0 {
 		originASN = entry.OriginAS
 	}
-	return sentRoute{sets: sets, originASN: originASN, community: slices.Clone(community)}
+	return sentRoute{sets: sets, originASN: originASN, community: slices.Clone(community), distance: entry.DistanceOverride, hasDistance: entry.HasDistanceOverride}
 }
 
 // consumerHeld is the orchestrator's one held set.
@@ -164,6 +167,12 @@ func (r *heldRoute) matches(view *configredist.RedistRoute, sent *sentRoute) boo
 		return false
 	}
 	if r.sent.sets != sent.sets {
+		return false
+	}
+	if r.sent.distance != sent.distance {
+		return false
+	}
+	if r.sent.hasDistance != sent.hasDistance {
 		return false
 	}
 	if r.sent.originASN != sent.originASN {

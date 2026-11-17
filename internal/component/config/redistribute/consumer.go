@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	ribpolicy "github.com/ze-software/ze/internal/core/rib/policy"
 )
 
@@ -37,6 +38,15 @@ type RouteEntry struct {
 	// when the orchestrator could not resolve a name. Adding it is additive: it
 	// does not change the RedistConsumer interface signature.
 	Source string
+	// Producer facts survive import-policy transforms without becoming wire MED.
+	Protocol redistevents.ProtocolID `json:"protocol"`
+	// SourceInstance is the producer's contribution to this native prefix;
+	// zero is an explicit aggregate rather than a missing instance.
+	SourceInstance uint32 `json:"source-instance"`
+	Table          uint32 `json:"table"`
+	// HasDistanceOverride preserves a configured distance of zero.
+	DistanceOverride    uint8 `json:"distance-override"`
+	HasDistanceOverride bool  `json:"has-distance-override"`
 	// Peer is the single peer selector for a targeted inject, used by the BGP
 	// consumer's replay-on-peer-up path: the orchestrator sets it to the address
 	// of the newly-established peer so a replayed route reaches only that peer.

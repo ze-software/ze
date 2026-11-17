@@ -246,7 +246,7 @@ func (p *as112Producer) emit(action redistevents.RouteAction, fam family.Family,
 	b.Community = community
 	b.ReplayID = replayID
 	for _, pfx := range coveringPrefixesFor(fam) {
-		b.Entries = append(b.Entries, redistevents.RouteChangeEntry{Action: action, Prefix: pfx})
+		b.Entries = append(b.Entries, redistevents.RouteChangeEntry{Action: action, Prefix: pfx, SourceInstance: 0})
 	}
 	if _, err := as112events.RouteChange.Emit(bus, b); err != nil {
 		loggerPtr.Load().Warn("as112: route-change emit failed", "family", fam.String(), "action", action.String(), "error", err)

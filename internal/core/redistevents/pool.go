@@ -125,10 +125,12 @@ func poisonReleasedEntries(entries []RouteChangeEntry) {
 	const mark uint32 = 0xDEADBEEF
 	for i := range entries {
 		entries[i] = RouteChangeEntry{
-			Action:   actionPoison,
-			Metric:   mark,
-			Table:    mark,
-			OriginAS: mark,
+			Action:           actionPoison,
+			Metric:           mark,
+			Table:            mark,
+			OriginAS:         mark,
+			SourceInstance:   mark,
+			DistanceOverride: 0xEE,
 		}
 	}
 }

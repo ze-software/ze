@@ -76,10 +76,12 @@ func (o *routeObserver) emit(action redistevents.RouteAction, prefix netip.Prefi
 	b.AFI = uint16(fam.AFI)
 	b.SAFI = uint8(fam.SAFI)
 	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
-		Action:  action,
-		Prefix:  prefix,
-		NextHop: nextHop,
-		Metric:  metric,
+		// The routewatch projection owns one aggregate per prefix.
+		SourceInstance: 0,
+		Action:         action,
+		Prefix:         prefix,
+		NextHop:        nextHop,
+		Metric:         metric,
 	})
 	if _, err := kernelevents.RouteChange.Emit(o.bus, b); err != nil {
 		logger().Warn("kernel: route-change emit failed", "error", err)

@@ -265,8 +265,9 @@ func (o *routeObserver) emitID(action redistevents.RouteAction, prefix netip.Pre
 	b.SAFI = uint8(fam.SAFI)
 	b.ReplayID = replayID
 	b.Entries = append(b.Entries, redistevents.RouteChangeEntry{
-		Action: action,
-		Prefix: prefix,
+		Action:         action,
+		Prefix:         prefix,
+		SourceInstance: pathInstance,
 	})
 	_, err := o.publish(b)
 	return err
