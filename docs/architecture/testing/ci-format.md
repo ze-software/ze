@@ -1651,6 +1651,13 @@ with the parser that reads it. The decode suite does not read the words of its
 `exec=` line: it runs them, so `ze bgp decode` itself refuses a flag it does
 not know and the test fails on its exit status.
 
+Colons inside a simple value, including its final colon, are literal. Only a
+colon that begins a new `key=` token separates fields. For example,
+`reject=stdout:contains="wire-method": "ze-system:` keeps the final colon, so
+it permits `ze-system-dns:`. Extracting a complex field removes its preceding
+separator alone; a literal colon immediately before that separator stays in
+the preceding value.
+
 ```
 line 3: option=asn: a segment has no key: "65000" has no "="; write each field as key=value (accepts value)
 line 4: http=get: key "status" is given twice; keep one

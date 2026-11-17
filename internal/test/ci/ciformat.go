@@ -46,8 +46,10 @@ func ParseKVPairs(parts []string) (map[string]string, error) {
 		key := ck[:len(ck)-1] // Remove trailing =
 		value := joined[idx+len(ck):]
 		kv[key] = value
-		// Remove this from joined for further parsing
+		// Remove the extracted field and its separator. Only extraction leaves
+		// a separator to trim; a simple value's final colon is literal.
 		joined = joined[:idx]
+		joined = strings.TrimSuffix(joined, ":")
 		break
 	}
 
@@ -63,11 +65,6 @@ func ParseKVPairs(parts []string) (map[string]string, error) {
 	// splitOnKeyBoundary keeps the 33 legitimate uses working: a colon followed
 	// by `timeout=` IS a new key and still splits, so the engine-step
 	// `contains=aes-cbc:timeout=25` form is unaffected.
-	// A complex key extracted above leaves the separator that preceded it, so
-	// `conn=1:seq=1:text=...` becomes `conn=1:seq=1:`. The old split-on-every-colon
-	// dropped that as an empty part. A boundary-aware split would instead carry it
-	// into the final value as `seq=1:`. Trim it before the split.
-	joined = strings.TrimSuffix(joined, ":")
 
 	for _, part := range splitOnKeyBoundary(joined) {
 		if part == "" {
