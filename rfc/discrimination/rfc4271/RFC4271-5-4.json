@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_partial_session_wire_test.go::TestReceivedPartialSurvivesOrdinarySessionWire",
+    "unit-sha": "741571c5d8af438e",
+    "claim-sha": "1cebead2b0ac0626",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
+    "producer-sha": "80cbb48b079cea46",
+    "break": "line 80: \"attrs[pos] \u0026^= attrFlagsUnusedMask\" -\u003e \"attrs[pos] \u0026^= attrFlagsUnusedMask | byte(attribute.FlagPartial)\""
+  }
+]

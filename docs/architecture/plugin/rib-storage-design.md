@@ -108,7 +108,7 @@ remain separate from this storage metadata.
 <!-- test: internal/component/bgp/plugins/rib/storage/partial_storage_test.go TestKnownTransitivePartialSurvivesStorage -->
 <!-- test: internal/component/bgp/plugins/rib/storage/partial_storage_test.go TestPartialOnlyReplacementUpdatesStoredAttributes -->
 <!-- test: internal/component/bgp/plugins/rib/partial_selected_test.go TestReceivedPartialSurvivesSelectedCapture -->
-<!-- test: internal/component/bgp/reactor/partial_session_wire_test.go TestReceivedPartialSurvivesOrdinarySessionWire -->
+<!-- test: internal/component/bgp/reactor/rfc4271_partial_session_wire_test.go TestReceivedPartialSurvivesOrdinarySessionWire -->
 
 ### Received source-policy provenance
 
