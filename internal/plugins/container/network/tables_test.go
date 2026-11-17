@@ -1,10 +1,13 @@
 package network
 
 import (
+	"context"
 	"encoding/json"
 	"net/netip"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // tableSection is the shape of the section buildTables writes, as far as the
@@ -204,6 +207,63 @@ func TestTablesRefusePortWithoutAssignment(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no assigned address") {
 		t.Fatalf("the error %q does not name the missing address", err)
+	}
+}
+
+// TestTablesFollowConfigNotRunState: the translation follows the config, not
+// the run state. An enabled container's ports are translated whatever its
+// run state, which the tables never read, so a stopped one keeps its terms.
+// A disabled container's ports are not translated: a config whose only
+// translation is a disabled container's ports asks for no table, and the
+// apply withdraws the tables it sent. The disabled container keeps its
+// address, so enabling it again gives it the same one.
+//
+// Method: publishedConfig, whose network does not masquerade, is applied
+// with web enabled, then with web disabled, through one manager on the fake
+// engine; the table sections and the address record are compared.
+func TestTablesFollowConfigNotRunState(t *testing.T) {
+	enabled := mustParse(t, publishedConfig)
+	disabled := mustParse(t, strings.Replace(publishedConfig, `"web":{`, `"web":{"enabled":"false",`, 1))
+	if !hasTables(enabled) {
+		t.Fatalf("an enabled container's published ports ask for no table")
+	}
+	if hasTables(disabled) {
+		t.Fatalf("a disabled container's published ports ask for a table")
+	}
+	raw, err := buildTables(disabled, publishedRecords())
+	if err != nil {
+		t.Fatalf("buildTables: %v", err)
+	}
+	if string(raw) != `{"firewall":{"table":{}}}` {
+		t.Fatalf("a disabled container is translated: %s", raw)
+	}
+
+	engine := newFakeEngine()
+	m := newManager()
+	m.receive(engine)
+	ctx := context.Background()
+	if err := m.apply(ctx, enabled); err != nil {
+		t.Fatalf("apply of the enabled container: %v", err)
+	}
+	key := zefs.KeyContainerNetworkAddress.Key("lan")
+	assigned := string(engine.state[key])
+	if !strings.Contains(assigned, `"web"`) {
+		t.Fatalf("the enabled container has no address record: %s", assigned)
+	}
+	if err := m.apply(ctx, disabled); err != nil {
+		t.Fatalf("apply of the disabled container: %v", err)
+	}
+	if len(engine.sections) != 2 {
+		t.Fatalf("table sections %v, want the tables then their withdrawal", engine.sections)
+	}
+	if !strings.Contains(engine.sections[0], `"port_web_http"`) {
+		t.Fatalf("the enabled container's tables hold no port term: %s", engine.sections[0])
+	}
+	if engine.sections[1] != `{"firewall":{"table":{}}}` {
+		t.Fatalf("disabling the container did not withdraw its translation: %s", engine.sections[1])
+	}
+	if kept := string(engine.state[key]); kept != assigned {
+		t.Fatalf("disabling the container changed its address record from %s to %s", assigned, kept)
 	}
 }
 

@@ -137,3 +137,22 @@ func TestVerifyRefusesPortOnFirewallWithoutTranslation(t *testing.T) {
 		t.Fatalf("the refusal %q does not name the port and the backend", refusal.Error())
 	}
 }
+
+// TestVerifyJudgesDisabledInstancePorts: a disabled instance's ports are not
+// translated, but they are judged like any other, so the config stays valid
+// when the instance is enabled again: one that overlaps an enabled
+// instance's port is refused (V-6). An enabled leaf that is neither true nor
+// false is refused rather than read as either.
+//
+// Method: each case is a delivery the parse must refuse, with the phrase the
+// refusal names.
+func TestVerifyJudgesDisabledInstancePorts(t *testing.T) {
+	expectRefusals(t, []refusalCase{
+		{"a disabled instance's overlapping port", portInstances(
+			`"a":{"network":[{"name":"lan"}],"port":{"p":{"listen-port":"8080","container-port":"80"}}},` +
+				`"b":{"enabled":"false","network":[{"name":"lan"}],"port":{"q":{"listen-port":"8080","container-port":"81"}}}`),
+			"container b port q and container a port p both publish tcp port 8080"},
+		{"an unreadable enabled leaf", portInstances(`"a":{"enabled":"maybe","network":[{"name":"lan"}]}`),
+			"container a: enabled is neither true nor false"},
+	})
+}

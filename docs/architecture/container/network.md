@@ -9,9 +9,10 @@ plugin runs internal or forked. The container package never imports it: it
 fills the plugin's seams from its own `init()`.
 
 This page describes what exists after slices 4a and 4b of
-`plan/post-release/features/spec-container-3-network.md`. Name resolution, the
-listings, the forwarding defaults, the conflict check against Ze's own
-listeners, the kernel enrolments and the doctor checks are not built yet.
+`plan/post-release/features/spec-container-3-network.md`, with the forwarding
+defaults and the `enabled` rule of the tables. Name resolution, the listings,
+the conflict check against Ze's own listeners, the kernel enrolments and the
+doctor checks are not built yet.
 
 ## Config
 
@@ -23,6 +24,7 @@ listeners, the kernel enrolments and the doctor checks are not built yet.
 | `mtu` | `container network` | 68 to 16000, default 1500, at least 1280 with an IPv6 prefix. Set on the bridge and on both ends of every link |
 | `masquerade` | `container network` | Default true: outbound traffic is source-translated |
 | `network NAME`, `address`, `mac-address` | `container instance` | An attachment, `ordered-by user`: the first entry is `eth0` inside the container |
+| `enabled` | `container instance` | Default true, read as the runtime reads it. A disabled instance keeps its attachments and its addresses, and its ports are judged at verify but not translated |
 | `port NAME`: `protocol`, `listen-address`, `listen-port`, `container-port` | `container instance` | A published port: `protocol` tcp (the default) or udp; `listen-address`, at most 16, the router addresses it is published on, none meaning every address in each family the instance's first network has a prefix of; `listen-port` and `container-port`, one port or a first-last range from 1 to 65535, mandatory. At most 256 ports in one config |
 
 The attachment's key is a string with the network name's constraints. The
@@ -98,11 +100,32 @@ collide. Only the first packet of a connection crosses a nat chain, so the
 replies of a translated connection are never masqueraded. A family nothing
 uses has no table, and a config with none sends an explicit empty table map.
 
-A connection from beyond the router is forwarded to the container, so it
-needs IPv4 forwarding on (`net.ipv4.ip_forward`), and the operator's policy
-at the forward hook must accept it. The package does not yet claim the
-forwarding defaults: the engine client the container plugin hands its
-siblings has no event call.
+The tables follow the config, not the run state: an enabled container's
+terms exist while it is stopped, and a disabled container has none, so a
+connection to its port is never translated to an address nothing holds. A
+disabled container keeps its address record, so enabling it again gives it
+the same address, and its ports still take part in the V-6 rules, so the
+config stays valid when it is enabled again.
+
+### The forwarding defaults
+
+A connection from beyond the router to a published port, and a container's
+connection to a host beyond the router, are forwarded, and the operator's
+policy at the forward hook must accept them. The kernel forwards a family
+only while its forwarding setting is on, so the apply claims, through the
+engine client's `EmitEvent`, the sysctl plugin's default
+`net.ipv4.conf.all.forwarding=1` while a network has an IPv4 prefix and
+`net.ipv6.conf.all.forwarding=1` while one has an IPv6 prefix. The keys are
+the ones `fib-kernel` claims, so the sysctl plugin sees one key claimed by two
+sources and keeps it on until both withdrew.
+
+| Fact | Behaviour |
+|------|-----------|
+| Source | One per family, `container-network-ipv4` and `container-network-ipv6`. The sysctl plugin withdraws every key of a source at once (`clear-source-defaults`), so a family is withdrawn without touching the other, or the runtime's own claim under the source `container` |
+| Override | The operator's `sysctl setting` for the key outranks the default. The sysctl plugin writes the operator's value and logs that the default is overridden |
+| Shared claim | A default another source holds stays claimed under that source, and clearing one source hands the key to the next (`internal/component/sysctl/sysctl.go`, `dropDefaults`) |
+| Withdrawal | When no network uses a family any more, the apply clears its source, and the sysctl plugin restores the kernel's value once no source claims the key. The daemon's stop restores every original value |
+| Idempotence | A claim is emitted once when a family becomes used, and withdrawn once when it stops being used. A second apply of the same config emits nothing, and a config that never had a network emits nothing |
 
 ## The participant
 
@@ -119,7 +142,8 @@ siblings has no event call.
 <!-- source: internal/plugins/container/network/address.go -- assign, lowestFree, addressRecord, decodeRecord -->
 <!-- source: internal/plugins/container/network/name.go -- bridgeName, derivedHardwareAddress, containerLinkName -->
 <!-- source: internal/plugins/container/network/apply.go -- manager, apply, assignAll, bridgeSet, planLinks -->
-<!-- source: internal/plugins/container/network/tables.go -- buildTables, familyTable, publishedTerms, portTerms, translationTarget -->
+<!-- source: internal/plugins/container/network/tables.go -- buildTables, familyTable, publishedTerms, portTerms, translationTarget, publishes -->
+<!-- source: internal/plugins/container/network/forwarding.go -- forwardingWanted, forward, claimForwarding, withdrawForwarding -->
 <!-- source: internal/plugins/container/network/port.go -- parsePorts, checkRanges, checkPorts, portEndpoints -->
 <!-- source: internal/test/containerprobe/serve.go -- serve, published, refused -->
 <!-- source: internal/plugins/container/network/attach.go -- participant, created, ended -->

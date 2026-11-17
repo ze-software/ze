@@ -14,8 +14,9 @@ import (
 )
 
 // EngineClient is the part of the engine a sibling reaches: the owned
-// interface devices, the firewall tables, and the state of the keys the
-// sibling granted the plugin with statestore.RegisterPluginKeys. Each call is
+// interface devices, the firewall tables, the state of the keys the sibling
+// granted the plugin with statestore.RegisterPluginKeys, and the event bus,
+// which carries a sibling's sysctl defaults to the sysctl plugin. Each call is
 // a request over the plugin's one engine connection, the same for an internal
 // and a forked plugin, so a sibling never imports the interface or the
 // firewall component. A sibling's test fakes this interface.
@@ -38,6 +39,10 @@ type EngineClient interface {
 	StateGet(ctx context.Context, key string) ([]byte, bool, error)
 	// StatePut writes a granted key and waits for the durable acknowledgement.
 	StatePut(ctx context.Context, key string, data []byte) error
+	// EmitEvent publishes one event on the engine's event bus and answers how
+	// many subscribers it reached. The sysctl plugin's handler of a default or
+	// a clear runs before it returns, internal and forked alike.
+	EmitEvent(ctx context.Context, namespace, eventType, direction, peerAddress, event string) (int, error)
 }
 
 // The plugin's own connection answers every call of the client.
@@ -113,4 +118,11 @@ func (e *startedEngine) StatePut(ctx context.Context, key string, data []byte) e
 		return err
 	}
 	return e.engine.StatePut(ctx, key, data)
+}
+
+func (e *startedEngine) EmitEvent(ctx context.Context, namespace, eventType, direction, peerAddress, event string) (int, error) {
+	if err := e.refuseBeforeOpen("the " + namespace + " " + eventType + " event"); err != nil {
+		return 0, err
+	}
+	return e.engine.EmitEvent(ctx, namespace, eventType, direction, peerAddress, event)
 }

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -25,6 +26,8 @@ type fakeEngine struct {
 	created  []rpc.OwnedLinkCreateInput
 	removed  []string
 	failLink string
+	// events are the events emitted, as "TYPE PAYLOAD", in order.
+	events []string
 }
 
 func newFakeEngine() *fakeEngine {
@@ -74,6 +77,25 @@ func (f *fakeEngine) StatePut(_ context.Context, key string, data []byte) error 
 	defer f.mu.Unlock()
 	f.state[key] = append([]byte(nil), data...)
 	return nil
+}
+
+// EmitEvent records an event of the sysctl namespace and refuses any other,
+// which the network package never emits.
+func (f *fakeEngine) EmitEvent(_ context.Context, namespace, eventType, _, _, event string) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if namespace != sysctlevents.Namespace {
+		return 0, errors.New("the test expects no event of namespace " + namespace)
+	}
+	f.events = append(f.events, eventType+" "+event)
+	return 1, nil
+}
+
+// emitted answers the events emitted so far.
+func (f *fakeEngine) emitted() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.events...)
 }
 
 // sections wraps a container section body with an interface and a firewall

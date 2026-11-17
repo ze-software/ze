@@ -62,7 +62,8 @@ const (
 //
 // A family nothing uses has no table, and a config with none answers an
 // empty table map, which withdraws both tables. The tables follow the
-// config, not the run state: a stopped container keeps its translation.
+// config, not the run state: a stopped, enabled container keeps its
+// translation, and a disabled one has none.
 func buildTables(cfg Config, records map[string]addressRecord) (json.RawMessage, error) {
 	tables := map[string]any{}
 	for _, family := range []struct {
@@ -147,11 +148,14 @@ func outboundTerms(cfg Config, ipv4 bool, chains map[string]any) []any {
 }
 
 // publishedTerms answers the destination translation terms of one family,
-// in instance and port name order.
+// in instance and port name order. A disabled instance publishes nothing:
+// the tables follow the config, and a disabled container is one the config
+// says does not run, so a connection to its port is never translated to an
+// address nothing holds.
 func publishedTerms(cfg Config, records map[string]addressRecord, ipv4 bool) ([]any, error) {
 	var terms []any
 	for _, instance := range cfg.Instances {
-		if len(instance.Ports) == 0 {
+		if !instance.publishes() {
 			continue
 		}
 		network, _ := cfg.network(instance.Attachments[0].Network) // parseSections refused an attachment to an unknown network
@@ -246,9 +250,19 @@ func hasTables(cfg Config) bool {
 		}
 	}
 	for _, instance := range cfg.Instances {
-		if len(instance.Ports) > 0 {
+		if instance.publishes() {
 			return true
 		}
 	}
 	return false
+}
+
+// publishes answers whether the instance's ports are translated: it is
+// enabled and has at least one. A disabled instance's ports are still judged
+// at verify, so the config stays valid when it is enabled again.
+func (i Instance) publishes() bool {
+	if !i.Enabled {
+		return false
+	}
+	return len(i.Ports) > 0
 }

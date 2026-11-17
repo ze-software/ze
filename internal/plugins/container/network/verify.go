@@ -33,7 +33,12 @@ const (
 	leafAddress    = "address"
 	leafHardware   = "mac-address"
 	leafBackend    = "backend"
+	leafEnabled    = "enabled"
 )
+
+// enabledDefault is the YANG default of an instance's enabled leaf, which a
+// delivery omits when the operator did not set it.
+const enabledDefault = true
 
 // Bounds the schema states and the interface component enforces. Each is
 // checked again here, the second check of the pair.
@@ -77,7 +82,11 @@ type Network struct {
 // Instance is a container's list of attachments, in the order the operator
 // wrote them: the first is eth0 inside the container.
 type Instance struct {
-	Name        string
+	Name string
+	// Enabled is the instance's enabled leaf. A disabled instance keeps its
+	// attachments and its addresses, so enabling it again gives it the same
+	// address, and has no translation (publishedTerms).
+	Enabled     bool
 	Attachments []Attachment
 	// Ports are the instance's published ports, sorted by name. Each is
 	// translated to the instance's address on its first attachment's network.
@@ -535,7 +544,11 @@ func parseInstances(cfg Config, container map[string]any) ([]Instance, error) {
 			}
 			continue
 		}
-		instance := Instance{Name: entry.Key, Ports: ports}
+		enabled, err := parseEnabled(entry)
+		if err != nil {
+			return nil, err
+		}
+		instance := Instance{Name: entry.Key, Enabled: enabled, Ports: ports}
 		for _, attachment := range attachments {
 			parsed, err := parseAttachment(cfg, entry.Key, attachment)
 			if err != nil {
@@ -554,6 +567,26 @@ func parseInstances(cfg Config, container map[string]any) ([]Instance, error) {
 		instances = append(instances, instance)
 	}
 	return instances, nil
+}
+
+// parseEnabled reads an instance's enabled leaf, as the runtime reads it: an
+// absent leaf is the YANG default, and a value that is neither true nor false
+// is refused. The runtime refuses the same value first; this is the second
+// check of the pair, for the delivery this package parses itself.
+func parseEnabled(entry configvalue.ListEntry) (bool, error) {
+	raw, present := entry.Fields[leafEnabled]
+	if !present {
+		return enabledDefault, nil
+	}
+	value, ok := configvalue.Bool(raw)
+	if !ok {
+		return false, opererr.New(
+			"container "+entry.Key+": enabled is neither true nor false",
+			"the leaf states whether the container runs and whether its ports are published, so ze refuses a value it cannot read rather than pick one",
+			"set container instance "+entry.Key+" enabled true",
+		)
+	}
+	return value, nil
 }
 
 // parseAttachment reads one attachment and judges its addresses against its

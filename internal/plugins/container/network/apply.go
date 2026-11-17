@@ -34,6 +34,10 @@ type manager struct {
 	// component a config with no network may not load.
 	bridgesSent bool
 	tablesSent  bool
+	// forwarding says, per family, whether the forwarding default is
+	// claimed, so a claim is made and withdrawn once and a config that never
+	// had a network emits nothing.
+	forwarding forwardingClaims
 }
 
 // linkPlan is one link of an instance: the request the created call sends.
@@ -61,22 +65,25 @@ func (m *manager) receive(client container.EngineClient) {
 
 // apply is the network sibling's apply. It stores each network's address
 // assignments, then sends the complete set of bridges to the interface
-// component and the complete set of tables to the firewall component. It is
-// idempotent: every call sends complete sets. A config with no network sends
-// nothing unless a previous set must be withdrawn.
+// component and the complete set of tables to the firewall component, and
+// claims the forwarding default of each family a network uses. It is
+// idempotent: every call sends complete sets, and a forwarding claim changes
+// only when the families the networks use change. A config with no network
+// sends nothing unless a previous set or claim must be withdrawn.
 func (m *manager) apply(ctx context.Context, cfg Config) error {
 	m.mu.Lock()
 	client := m.client
 	sendBridges := len(cfg.Networks) > 0 || m.bridgesSent
 	sendTables := hasTables(cfg) || m.tablesSent
+	claimed := m.forwarding
 	live := copyLive(m.live)
 	m.mu.Unlock()
+	wanted := forwardingWanted(cfg)
 
-	if !sendBridges {
-		if !sendTables {
-			m.install(map[string][]linkPlan{}, false, false)
-			return nil
-		}
+	requests := sendBridges || sendTables || wanted != claimed
+	if !requests {
+		m.install(map[string][]linkPlan{}, false, false)
+		return nil
 	}
 	if client == nil {
 		return refuseNoEngine("the container networks were not applied")
@@ -110,6 +117,9 @@ func (m *manager) apply(ctx context.Context, cfg Config) error {
 				"ze show firewall ruleset",
 			)
 		}
+	}
+	if err := m.forward(ctx, client, wanted, claimed); err != nil {
+		return err
 	}
 	m.install(planLinks(cfg, records), len(cfg.Networks) > 0, hasTables(cfg))
 	return nil

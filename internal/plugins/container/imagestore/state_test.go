@@ -56,6 +56,10 @@ func (f *fakeEngine) FirewallTablesReplace(context.Context, *rpc.FirewallTablesR
 	return nil, errFakeEngine
 }
 
+func (f *fakeEngine) EmitEvent(context.Context, string, string, string, string, string) (int, error) {
+	return 0, errFakeEngine
+}
+
 func (f *fakeEngine) StateGet(_ context.Context, key string) ([]byte, bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

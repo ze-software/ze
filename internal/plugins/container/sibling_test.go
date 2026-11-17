@@ -395,13 +395,18 @@ func (f *fakeEngine) StatePut(_ context.Context, key string, _ []byte) error {
 	return nil
 }
 
+func (f *fakeEngine) EmitEvent(_ context.Context, namespace, eventType, _, _, _ string) (int, error) {
+	f.requests = append(f.requests, "emit "+namespace+" "+eventType)
+	return 1, nil
+}
+
 // TestEngineClientIsHandedAndRefusesUntilStarted proves a sibling receives
 // the engine client, that a request made before the engine started the
 // plugin (an ended call of the start-up sweep) is refused at once and never
 // sent, and that every request reaches the engine once it started.
 //
 // Method: a receiver stores the client handed over a recording engine; each
-// of the six requests is made before and after open.
+// of the seven requests is made before and after open.
 func TestEngineClientIsHandedAndRefusesUntilStarted(t *testing.T) {
 	set := &siblingRegistry{}
 	var received EngineClient
@@ -421,7 +426,8 @@ func TestEngineClientIsHandedAndRefusesUntilStarted(t *testing.T) {
 		_, tables := received.FirewallTablesReplace(ctx, &rpc.FirewallTablesReplaceInput{})
 		_, _, get := received.StateGet(ctx, "meta/container-network/lan")
 		put := received.StatePut(ctx, "meta/container-network/lan", []byte("x"))
-		return []error{bridges, create, remove, tables, get, put}
+		_, emit := received.EmitEvent(ctx, "sysctl", "default", "", "", `{"key":"k","value":"1","source":"s"}`)
+		return []error{bridges, create, remove, tables, get, put, emit}
 	}
 
 	for i, err := range requests() {
@@ -439,7 +445,7 @@ func TestEngineClientIsHandedAndRefusesUntilStarted(t *testing.T) {
 			t.Errorf("request %d after the start was refused: %v", i, err)
 		}
 	}
-	want := []string{"bridges", "link-create", "link-remove", "tables", "get meta/container-network/lan", "put meta/container-network/lan"}
+	want := []string{"bridges", "link-create", "link-remove", "tables", "get meta/container-network/lan", "put meta/container-network/lan", "emit sysctl default"}
 	if !slices.Equal(inner.requests, want) {
 		t.Fatalf("the engine received %v, want %v", inner.requests, want)
 	}
