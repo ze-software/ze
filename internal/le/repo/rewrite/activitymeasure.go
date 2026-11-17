@@ -214,6 +214,9 @@ type activityCellTotals struct {
 // a day carried, and a day that rewrote as much as it removed would read as
 // idle on a net scale. The third-party figures reach neither the level nor
 // the cell's label: the grid counts first-party work.
+// Accessible labels use raw counts; grouped display strings stay in the
+// tooltip data. A historical count must not look like an unrelated current
+// statistic's grouped display string to the site's plain-figure check.
 //
 // A day outside the measured window, and a day before the repository's first
 // commit, are marked rather than dropped: the grid is a rectangle of whole
@@ -252,13 +255,13 @@ func measureCells(weeks [][]time.Time, start, today time.Time, repoStart *time.T
 					Str(`" data-deleted-display="`).Str(removedText).
 					Str(`" data-third-party-added="`).Int(int64(published.thirdPartyAdded.daily[day])).
 					Str(`" data-third-party-deleted="`).Int(int64(published.thirdPartyDeleted.daily[day]))
-				deletedLabel = removedText + " lines deleted, "
+				deletedLabel = strconv.Itoa(removed) + " lines deleted, "
 			}
 			cells.Str(`" data-commits="`).Int(int64(committed)).
 				Str(`" data-commits-display="`).Str(committedText).
 				Str(`" data-commits-level="`).Int(int64(activityLevel(committed, commits.Thresholds))).
 				Str(`" data-level="`).Str(level).
-				Str(`" aria-label="`).Str(label).Str(`: `).Str(addedText).Str(` lines added, `).Str(deletedLabel).Str(committedText).
+				Str(`" aria-label="`).Str(label).Str(`: `).Int(int64(added)).Str(` lines added, `).Str(deletedLabel).Int(int64(committed)).
 				Str(` commits" tabindex="0"></div>` + "\n")
 		}
 	}
