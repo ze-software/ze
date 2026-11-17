@@ -1156,7 +1156,7 @@ github.com/opencontainers/selinux/pkg/pwalkdir
 # github.com/packetcap/go-pcap v0.0.0-20260731105150-c86974bbfbcd
 ## explicit; go 1.25.0
 github.com/packetcap/go-pcap/filter
-# github.com/pandatix/go-abnf v0.5.4
+# github.com/pandatix/go-abnf v0.5.5
 ## explicit; go 1.26.0
 github.com/pandatix/go-abnf
 # github.com/pelletier/go-toml/v2 v2.4.3
