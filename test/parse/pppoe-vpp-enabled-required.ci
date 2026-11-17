@@ -1,0 +1,18 @@
+# Test: does configured PPPoE access refuse a disabled VPP provider?
+# Why not a unit test: the shipped command must link the registered provider,
+# its original-tree verifier and the operator's exact repair instruction.
+
+option=needs-build-tag:value=ze_l2tp:state=present
+option=needs-build-tag:value=ze_vpp:state=present
+
+stdin=config:terminator=EOF_CONF
+interface { backend vpp; ethernet access0 {} }
+vpp { enabled false; }
+pppoe { interface access0 {} }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=PPPoE access /pppoe/interface/access0 requires VPP to be enabled
+expect=stdout:contains=The selected VPP provider cannot create subscriber forwarding interfaces while VPP is disabled.
+expect=stdout:contains=fix: set vpp enabled true

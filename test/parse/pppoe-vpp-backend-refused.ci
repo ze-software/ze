@@ -1,0 +1,20 @@
+# Test: does offline validation refuse an unsupported PPPoE access backend?
+# Why not a unit test: the shipped command must link the PPPoE validator and
+# report its path, active backend, supported backend and repair command.
+
+option=needs-build-tag:value=ze_l2tp:state=present
+option=needs-build-tag:value=ze_vpp:state=absent
+
+stdin=config:terminator=EOF_CONF
+interface { backend vpp }
+pppoe { interface access0 {} }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=/pppoe/interface/access0
+expect=stdout:contains=backend "vpp"
+expect=stdout:contains=supported: netlink
+expect=stdout:contains=no PPPoE session data plane
+expect=stdout:contains=fix: set interface backend netlink
+expect=stdout:contains=ze_vpp

@@ -1,0 +1,18 @@
+# Test: does configured PPPoE access refuse VPP without control-plane pairs?
+# Why not a unit test: the shipped command must reach the provider's registered
+# prerequisite verifier after the distinct VPP-enabled prerequisite succeeds.
+
+option=needs-build-tag:value=ze_l2tp:state=present
+option=needs-build-tag:value=ze_vpp:state=present
+
+stdin=config:terminator=EOF_CONF
+interface { backend vpp; ethernet access0 {} }
+vpp { enabled true; lcp { enabled false; } }
+pppoe { interface access0 {} }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=PPPoE access /pppoe/interface/access0 requires VPP Linux Control Plane pairs
+expect=stdout:contains=Discovery and PPP control frames need the Linux control device paired with each VPP access interface.
+expect=stdout:contains=fix: set vpp lcp enabled true
