@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/fsm/rfc4271_test.go::TestRFC4271KeepaliveNotFasterThanOnePerSecond",
+    "unit-sha": "d7fd4dca9f1c15bb",
+    "claim-sha": "dcf30aa829d993c6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/fsm/timer.go::StartKeepaliveTimer",
+    "producer-sha": "a58c0cf48deaf681",
+    "break": "line 444: \"t.keepaliveTimer = t.clock.AfterFunc(max(time.Second, jitter(keepaliveInterval, t.random)), timerFunc)\" -\u003e \"t.keepaliveTimer = t.clock.AfterFunc(jitter(keepaliveInterval, t.random), timerFunc)\""
+  }
+]

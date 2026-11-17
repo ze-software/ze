@@ -10,16 +10,21 @@ import (
 // TestRFC4271KeepaliveNotFasterThanOnePerSecond verifies the derived KEEPALIVE interval at
 // the RFC's smallest legal hold time is exactly one second, never faster.
 //
-// VALIDATES: With the minimum negotiated hold time of 3s, the keepalive callback has not
-// fired at 999ms and fires at 1s, and the next fire is a further second away.
+// VALIDATES: With the timer supplied the minimum negotiated hold time of 3s, the default
+// automatic keepalive interval and minimum jitter, the callback has not fired at 999ms,
+// fires at 1s, and the next fire is a further second away.
 //
 // PREVENTS: A sub-second keepalive stream from a short hold time.
 //
-// RFC requirement: RFC4271-4.4-1 positive -- StartKeepaliveTimer derives the interval as
-// holdTime/3, so the smallest hold time RFC 4271 allows (3s) yields exactly one KEEPALIVE
-// per second and no faster (internal/component/bgp/fsm/timer.go:367-403).
+// RFC requirement: RFC4271-4.4-1 positive -- StartKeepaliveTimer uses the default automatic
+// interval at HoldTime 3s; even minimum jitter cannot shorten either the initial arm or
+// periodic rearm below one second. This observes the callback, not OPEN negotiation or
+// wire delivery (internal/component/bgp/fsm/timer.go::StartKeepaliveTimer).
 func TestRFC4271KeepaliveNotFasterThanOnePerSecond(t *testing.T) {
 	timers, fc := newFakeTimers(3 * time.Second)
+	t.Cleanup(timers.StopAll)
+	// KeepaliveTime stays at its zero default; force the shortest jitter on every arm.
+	timers.random = func(int64) int64 { return 0 }
 
 	fires := 0
 	timers.OnKeepaliveTimerExpires(func() { fires++ })
