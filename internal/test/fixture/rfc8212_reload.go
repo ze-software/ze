@@ -10,6 +10,7 @@ import (
 	"reflect"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -40,6 +41,9 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 			if !waitPeersEOR03(ctx, p, 3) {
 				return errors.New("three original sessions never synchronized")
 			}
+			if err := rfc8212ReloadTopology(ctx, p); err != nil {
+				return err
+			}
 			if err := scenario(ctx, p, wire, tree, schema); err != nil {
 				return err
 			}
@@ -51,6 +55,33 @@ func rfc8212ReloadDriver(scenario func(context.Context, *sdk.Plugin, *rfc8212Rel
 			return wire.failure
 		})
 	}
+}
+
+// rfc8212ReloadTopology supplies the original wire next hops through real
+// terminal Loc-RIB paths. The observer connection owns their disconnect cleanup.
+func rfc8212ReloadTopology(ctx context.Context, p *sdk.Plugin) error {
+	if err := sysribInstall(ctx, p,
+		rpc.RouteInstallEntry{Protocol: protocolStatic, Instance: 8212, AFI: 1, SAFI: 1,
+			Prefix: "192.0.2.1/32", Interface: "rfc8212-fixture0", RouteType: 1},
+		rpc.RouteInstallEntry{Protocol: protocolStatic, Instance: 8212, AFI: 1, SAFI: 1,
+			Prefix: "192.0.2.3/32", Interface: "rfc8212-fixture0", RouteType: 1}); err != nil {
+		return err
+	}
+	addresses := []string{addrTestNet1First, "192.0.2.3"}
+	metrics, err := p.RouteMetrics(ctx, addresses)
+	if err != nil {
+		return err
+	}
+	if len(metrics.Distances) != len(addresses) {
+		return fmt.Errorf("reload topology returned %d metrics, want %d", len(metrics.Distances), len(addresses))
+	}
+	want := rpc.RouteMetric{Resolved: true}
+	for i, address := range addresses {
+		if metrics.Distances[i] != want {
+			return fmt.Errorf("reload topology next hop %s: got %+v, want %+v", address, metrics.Distances[i], want)
+		}
+	}
+	return nil
 }
 
 func rfc8212ReloadPolicy(tree *config.Tree, final string) error {
