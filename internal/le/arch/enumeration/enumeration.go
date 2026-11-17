@@ -355,9 +355,10 @@ func (s *scan) declaringSymbols(pkgDir string) map[string]bool {
 	return symbols
 }
 
-// registeredConstants answers every identifier a package hands to a registrar,
-// anywhere: inside a registration literal, as an argument of a Register call,
-// or inside a symbol this package declares a corpus at.
+// registeredConstants answers the package constants a declaration supplies to
+// a registrar, following named initializers and append operands across files.
+// Exact lexical identities keep shadows and unknown bindings from borrowing
+// another declaration's initializer.
 //
 // This is the const form of the declaration rule. `const
 // codeOSPFRouterIDMissing = "doctor-ospf-router-id-missing"` is where that
@@ -369,34 +370,50 @@ func (s *scan) declaringSymbols(pkgDir string) map[string]bool {
 // takes no registrar call, and the thirteen `VerbShow`-style constants it keys
 // on are the spellings it is built from, so the map that uses them is what says
 // the const block is their declaration.
-func registeredConstants(files []*ast.File, declaring map[string]bool) map[string]bool {
-	used := map[string]bool{}
+func registeredConstants(files []*ast.File, declaring map[string]bool) map[*ast.Ident]bool {
+	values := newRegistrationValues(files)
+	var roots []registrationExpression
 	for _, file := range files {
 		for _, decl := range file.Decls {
-			if declaring[declSymbol(decl)] {
-				collectIdents(decl, posRange{start: decl.Pos(), end: decl.End()}, used)
-				continue
-			}
-			for _, area := range declarationRanges(decl) {
-				collectIdents(decl, area, used)
+			roots = append(roots, registrationRoots(file, decl, declaring)...)
+		}
+	}
+	return values.constants(roots)
+}
+
+// registrationRoots seeds complete registrar arguments, explicitly declared
+// symbols, and separately recognized Registration-typed literals. That literal
+// convention remains valid even inside an otherwise opaque call expression.
+// Name-derived assignment/range exclusions do not establish constant credit.
+func registrationRoots(file *ast.File, decl ast.Decl, declaring map[string]bool) []registrationExpression {
+	var roots []registrationExpression
+	if group, grouped := decl.(*ast.GenDecl); grouped {
+		for _, spec := range group.Specs {
+			if value, named := spec.(*ast.ValueSpec); named {
+				for _, name := range value.Names {
+					if declaring[name.Name] {
+						roots = append(roots, registrationExpression{expression: name, file: file})
+					}
+				}
 			}
 		}
 	}
-	return used
-}
-
-// collectIdents records every identifier written inside one declaration range.
-func collectIdents(decl ast.Decl, area posRange, used map[string]bool) {
 	ast.Inspect(decl, func(node ast.Node) bool {
-		ident, ok := node.(*ast.Ident)
-		if !ok {
-			return true
-		}
-		if ident.Pos() >= area.start && ident.End() <= area.end {
-			used[ident.Name] = true
+		switch typed := node.(type) {
+		case *ast.CallExpr:
+			if strings.HasPrefix(calleeName(typed.Fun), registrarPrefix) {
+				for _, argument := range typed.Args {
+					roots = append(roots, registrationExpression{expression: argument, file: file})
+				}
+			}
+		case *ast.CompositeLit:
+			if strings.HasSuffix(calleeName(typed.Type), registrationSuffix) {
+				roots = append(roots, registrationExpression{expression: typed, file: file})
+			}
 		}
 		return true
 	})
+	return roots
 }
 
 // composedKeys answers the corpora whose keys a const block can never declare,
@@ -425,7 +442,7 @@ func composedKeys(corpora []Corpus) []Corpus {
 //
 // EVERY, not any: a block mixing registered names with a copy of somebody
 // else is still holding the copy, and the reader needs to be told about it.
-func isRegisteredConstBlock(registered map[string]bool, decl ast.Decl) bool {
+func isRegisteredConstBlock(registered map[*ast.Ident]bool, decl ast.Decl) bool {
 	block, ok := decl.(*ast.GenDecl)
 	if !ok || block.Tok != token.CONST {
 		return false
@@ -438,7 +455,7 @@ func isRegisteredConstBlock(registered map[string]bool, decl ast.Decl) bool {
 		}
 		for _, name := range value.Names {
 			named++
-			if !registered[name.Name] {
+			if !registered[name] {
 				return false
 			}
 		}
@@ -705,7 +722,7 @@ func declarationRanges(decl ast.Decl) []posRange {
 // local and registered two lines later is the shape of every doctor check and
 // of the plugin registrations; a value that travels further than the
 // declaration it is written in is left to the type rule above.
-func registeredNames(decl ast.Decl) map[string]bool {
+func registeredNames(decl ast.Node) map[string]bool {
 	registered := map[string]bool{}
 	ast.Inspect(decl, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)

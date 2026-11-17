@@ -6,16 +6,17 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"path"
 	"strconv"
-	"strings"
 )
 
 type lexicalWalker struct {
-	index *lexicalIndex
-	pkg   *sourcePackage
-	file  *ast.File
-	scope *lexicalScope
+	index                *lexicalIndex
+	pkg                  *sourcePackage
+	file                 *ast.File
+	scope                *lexicalScope
+	importName           func(string) (string, bool)
+	unresolvedImports    bool
+	unresolvedDotImports bool
 }
 
 func newLexicalScope(parent *lexicalScope) *lexicalScope {
@@ -49,6 +50,10 @@ func (w lexicalWalker) use(name *ast.Ident) {
 			w.index.identifiers[name] = lexicalOccurrence{file: w.file, declaration: declaration, lexical: true}
 			return
 		}
+	}
+	if w.unresolvedImports {
+		w.index.identifiers[name] = lexicalOccurrence{file: w.file, lexical: true}
+		return
 	}
 	declaration := w.index.universe[name.Name]
 	if declaration == nil {
@@ -91,9 +96,13 @@ func (w lexicalWalker) predeclare() {
 func (w lexicalWalker) fileDeclarations() {
 	for _, imported := range w.file.Imports {
 		if imported.Name != nil {
-			if imported.Name.Name != "." {
-				w.declare(imported.Name, imported, lexicalImport)
+			if imported.Name.Name == "." {
+				if w.unresolvedDotImports {
+					w.unresolvedImports = true
+				}
+				continue
 			}
+			w.declare(imported.Name, imported, lexicalImport)
 			continue
 		}
 		name, err := strconv.Unquote(imported.Path.Value)
@@ -102,13 +111,18 @@ func (w lexicalWalker) fileDeclarations() {
 			// unresolved. No alias is invented from an unreadable path.
 			continue
 		}
-		alias := path.Base(name)
-		target, internal := strings.CutPrefix(name, modulePrefix)
-		if !internal {
-			target = "vendor/" + name
+		if w.importName == nil {
+			w.unresolvedImports = true
+			continue
 		}
-		if selected, retained := w.pkg.snapshot.packages[target]; retained {
-			alias = selected.name
+		alias, known := w.importName(name)
+		if !known {
+			w.unresolvedImports = true
+			continue
+		}
+		if alias == "" {
+			w.unresolvedImports = true
+			continue
 		}
 		// An implicit import has no defining Ident in the AST. Its ImportSpec
 		// remains the identity; no fabricated identifier enters the index.

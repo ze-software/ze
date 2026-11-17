@@ -103,6 +103,18 @@ The index changes no retained syntax and does not load host package types.
 <!-- source: internal/le/repo/inventory/registrations.go -- Snapshot.DeclaredPlugins, Snapshot.walkRegistrations, registrations.metadata -->
 <!-- source: internal/le/repo/inventory/familyexpressions.go -- expression.familyName, expression.familyProjection -->
 
+Checks that already parsed one valid Go package can use `NewParsedBindings` to
+share these scope rules over their immutable ASTs. Queries accept only supplied
+AST identities and return stable declaration pointers, distinguishing unknown
+ownership from a proven nonbinding such as a struct field label.
+`ParsedBindingOptions` accepts known import names and proven composite-key roles;
+unresolved imports withhold predeclared-name ownership while package and local
+declarations remain available under Go's file/package namespace rules. The view
+loads no source or types and assigns no committed provenance. Committed source
+selection and the inventory's type-based composite classification remain
+Snapshot responsibilities.
+<!-- source: internal/le/repo/inventory/parsed_bindings.go -- NewParsedBindings, ParsedBindingOptions, ParsedBindings.Binding -->
+
 Executable calls use one bounded normalized callee for parentheses and immutable
 declaration aliases, then dispatch its retained function or closure in the
 defining file and package. Arguments keep their caller scope. A function value

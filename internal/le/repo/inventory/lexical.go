@@ -5,6 +5,8 @@ package repoinventory
 import (
 	"go/ast"
 	"go/types"
+	"path"
+	"strings"
 )
 
 // lexicalKind describes declarations, not values inferred from their spelling.
@@ -21,7 +23,7 @@ const (
 	lexicalUniverse
 )
 
-// lexicalDeclaration belongs to exactly one snapshot. Type-switch cases can
+// lexicalDeclaration belongs to exactly one syntax index. Type-switch cases can
 // share a defining identifier while retaining different declaration identities.
 // Only a universe declaration has no source file, package, node or scope.
 // The zero value is invalid; a successful binding never returns nil.
@@ -61,10 +63,14 @@ type lexicalIndex struct {
 // binding refuses foreign nodes even when their names and positions match.
 // False includes unresolved, ambiguous and non-lexical source occurrences.
 func (s *Snapshot) binding(file *ast.File, identifier *ast.Ident) (*lexicalDeclaration, bool) {
-	if s.lexical == nil {
+	return s.lexical.binding(file, identifier)
+}
+
+func (index *lexicalIndex) binding(file *ast.File, identifier *ast.Ident) (*lexicalDeclaration, bool) {
+	if index == nil {
 		return nil, false
 	}
-	occurrence, retained := s.lexical.identifiers[identifier]
+	occurrence, retained := index.identifiers[identifier]
 	if !retained {
 		return nil, false
 	}
@@ -138,32 +144,29 @@ func sameBinding(a, b *ast.Ident, source sourceExpr) bool {
 // the existing type readers can then follow cross-file aliases without seeing
 // an index under construction. Retained syntax is never changed.
 func (s *Snapshot) indexLexical() {
-	index := &lexicalIndex{
-		identifiers: make(map[*ast.Ident]lexicalOccurrence),
-		files:       make(map[*ast.File]SourceFile), packages: make(map[*sourcePackage]*lexicalScope),
-		universe: make(map[string]*lexicalDeclaration),
-	}
-	s.lexical = index
+	inputs := make([]lexicalPackageInput, 0, len(s.packages))
 	for _, pkg := range s.packages {
 		pkg.snapshot = s
-		scope := newLexicalScope(nil)
-		index.packages[pkg] = scope
+		input := lexicalPackageInput{owner: pkg}
 		for _, file := range pkg.files {
-			index.files[file.File] = file
-			ast.Inspect(file.File, func(node ast.Node) bool {
-				if identifier, named := node.(*ast.Ident); named {
-					index.identifiers[identifier] = lexicalOccurrence{file: file.File}
-				}
-				return true
-			})
-			walker := lexicalWalker{index: index, pkg: pkg, file: file.File, scope: scope}
-			walker.predeclare()
+			input.files = append(input.files, file.File)
 		}
+		inputs = append(inputs, input)
 	}
+	s.lexical = indexLexicalScopes(inputs, func(imported string) (string, bool) {
+		target, internal := strings.CutPrefix(imported, modulePrefix)
+		if !internal {
+			target = "vendor/" + imported
+		}
+		pkg, retained := s.packages[target]
+		if !retained {
+			return path.Base(imported), true
+		}
+		return pkg.name, true
+	})
 	for _, pkg := range s.packages {
 		for _, file := range pkg.files {
-			walker := lexicalWalker{index: index, pkg: pkg, file: file.File, scope: newLexicalScope(index.packages[pkg])}
-			walker.fileDeclarations()
+			s.lexical.files[file.File] = file
 		}
 	}
 	for _, pkg := range s.packages {
@@ -178,6 +181,47 @@ func (s *Snapshot) indexLexical() {
 			})
 		}
 	}
+}
+
+// lexicalPackageInput supplies caller-selected syntax without assigning it a
+// committed revision, a build context or an import graph.
+type lexicalPackageInput struct {
+	owner                *sourcePackage
+	files                []*ast.File
+	unresolvedDotImports bool
+}
+
+// indexLexicalScopes shares the declaration and source-order passes. Composite
+// key classification remains with the caller, after every binding is indexed.
+func indexLexicalScopes(inputs []lexicalPackageInput, importName func(string) (string, bool)) *lexicalIndex {
+	index := &lexicalIndex{
+		identifiers: make(map[*ast.Ident]lexicalOccurrence),
+		files:       make(map[*ast.File]SourceFile), packages: make(map[*sourcePackage]*lexicalScope),
+		universe: make(map[string]*lexicalDeclaration),
+	}
+	for _, input := range inputs {
+		pkg := input.owner
+		scope := newLexicalScope(nil)
+		index.packages[pkg] = scope
+		for _, file := range input.files {
+			ast.Inspect(file, func(node ast.Node) bool {
+				if identifier, named := node.(*ast.Ident); named {
+					index.identifiers[identifier] = lexicalOccurrence{file: file}
+				}
+				return true
+			})
+			walker := lexicalWalker{index: index, pkg: pkg, file: file, scope: scope, importName: importName}
+			walker.predeclare()
+		}
+	}
+	for _, input := range inputs {
+		pkg := input.owner
+		for _, file := range input.files {
+			walker := lexicalWalker{index: index, pkg: pkg, file: file, scope: newLexicalScope(index.packages[pkg]), importName: importName, unresolvedDotImports: input.unresolvedDotImports}
+			walker.fileDeclarations()
+		}
+	}
+	return index
 }
 
 // lexicalComposite uses the retained type reader, including alias targets, to
