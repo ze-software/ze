@@ -5,13 +5,13 @@ package reactor
 import (
 	"bufio"
 	"context"
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/events"

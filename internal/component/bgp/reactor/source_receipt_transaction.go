@@ -139,7 +139,8 @@ func (prepared *preparedSourceGrant) apply(ctx context.Context) (*appliedSourceG
 	}
 	grant.store.mu.Unlock()
 	applied := &appliedSourceGrant{grant: grant}
-	return applied, applied.join(ctx)
+	err := applied.join(ctx)
+	return applied, err
 }
 
 // abort releases prepare-only pins without changing lease eligibility. It MUST

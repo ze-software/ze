@@ -5,11 +5,11 @@ package reactor
 
 import (
 	"bytes"
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"net/netip"
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"

@@ -16,7 +16,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -24,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"

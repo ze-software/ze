@@ -23,7 +23,11 @@ func sourceLeaseRetryAdapter(server *pluginserver.Server, ctx context.Context, p
 		if err != nil {
 			return nil, err
 		}
-		return value.(*rpc.SourceLeaseOutput), nil
+		output, ok := value.(*rpc.SourceLeaseOutput)
+		if !ok {
+			panic("BUG: source lease native result is not *rpc.SourceLeaseOutput")
+		}
+		return output, nil
 	}
 	encoded, err := json.Marshal(input)
 	if err != nil {
@@ -36,7 +40,11 @@ func sourceLeaseRetryAdapter(server *pluginserver.Server, ctx context.Context, p
 	if err != nil {
 		return nil, err
 	}
-	return value.(*rpc.SourceLeaseOutput), nil
+	output, ok := value.(*rpc.SourceLeaseOutput)
+	if !ok {
+		panic("BUG: source lease JSON result is not *rpc.SourceLeaseOutput")
+	}
+	return output, nil
 }
 
 // TestSourceLeaseReleaseRetryAfterCanceledJoin holds a real final write until

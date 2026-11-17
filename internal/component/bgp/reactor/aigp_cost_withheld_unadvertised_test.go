@@ -2,10 +2,10 @@ package reactor
 
 import (
 	"bytes"
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
