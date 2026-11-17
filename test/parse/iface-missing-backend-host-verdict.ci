@@ -1,0 +1,17 @@
+# Test: does the offline JSON CLI retain a missing-backend host refusal?
+# Why not a unit test: the shipped binary must link the interface verifier,
+# local-data registry and JSON renderer, preserving both verdict and exit code.
+# Linux has a default netlink backend, so this question applies to other hosts.
+
+option=skip-os:value=linux
+
+stdin=config:terminator=EOF_CONF
+interface { ethernet access0 {} }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze cli -c "show config validation - | json":stdin=config
+expect=exit:code=1
+expect=stdout:pattern="valid":[[:space:]]*false
+expect=stdout:pattern="code":[[:space:]]*"config-host-backend"
+expect=stdout:contains=backend feature gate: no backend configured at /interface/backend
+reject=stdout:contains=config-plugin-verify
