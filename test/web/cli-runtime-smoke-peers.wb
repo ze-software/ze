@@ -1,0 +1,20 @@
+# Test: cli-runtime-smoke-peers reads live peers through the browser CLI
+# VALIDATES: an authenticated operational command reaches the running BGP
+# dispatcher and renders the daemon fixture's peer, name and remote ASN.
+# PREVENTS: an empty answer or an echo of the command satisfying the smoke test.
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-admin:role=admin
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/cli
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=html:contains=>operational<
+action=fill:id=terminal-input:value=show bgp peer list | json
+action=press:id=terminal-input:key=Enter
+expect=html:id=cli-output:contains="127.0.0.2":
+expect=html:id=cli-output:contains="name": "peer1"
+expect=html:id=cli-output:contains="remote-as": 65001
+expect=html:id=cli-output:not-contains=unknown command

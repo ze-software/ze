@@ -1,0 +1,17 @@
+# Test: cli-runtime-smoke-environment runs a local-data command in the daemon
+# VALIDATES: the authenticated browser CLI reaches show env list's daemon
+# bridge and renders registered variables through the shared JSON pipe.
+# PREVENTS: local CLI commands being offered but unavailable through the web.
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-admin:role=admin
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/cli
+action=fill:id=terminal-input:value=run show env list | json
+action=press:id=terminal-input:key=Enter
+expect=html:id=cli-output:contains=[
+expect=html:id=cli-output:contains="key": "ze.config.dir"
+expect=html:id=cli-output:contains="key": "ze.cli.format"
+expect=html:id=cli-output:not-contains=unknown command

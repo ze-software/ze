@@ -1,0 +1,17 @@
+# Test: cli-runtime-smoke-version runs show version through the browser CLI
+# VALIDATES: an authenticated config-mode run command reaches the daemon's
+# registered version producer and renders its structured answer.
+# PREVENTS: an echoed command or standalone web placeholder passing as output.
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-admin:role=admin
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=run show version | json
+action=press:id=terminal-input:key=Enter
+expect=html:id=cli-output:contains="version": "ze
+expect=html:id=cli-output:contains=(built
+expect=html:id=cli-output:not-contains=unknown command
