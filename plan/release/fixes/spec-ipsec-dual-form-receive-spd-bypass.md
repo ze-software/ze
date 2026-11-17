@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard and report repair landed; latest 17-claim state batch accepted; context proof and 25 guest renewals remain; AC-4 stays open |
+| Phase | Guard and report repair landed; seven PMTU renewals accepted; context proof and 12 guest renewals remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -193,7 +193,7 @@ normal command 0, fault command 2, no interruption and stopped VMs. The serial
 batch stopped before order 23 when fresh admission showed four occupied slots
 and none free; order 23 was neither queued nor run in that batch.
 
-The latest ended 17-claim batch covers orders 23–27, 50, 51, 55, 62–68, 81 and 83:
+The 17-claim state batch landed in `8297af83cb`, covering orders 23–27, 50, 51, 55, 62–68, 81 and 83:
 54 current renewals RECORDED and 25 UNEXECUTED, all guest. Independent reviews
 are CLEAR. Order 23 discriminates the replay-window field with the sole
 `replay window 32, want 64` error; other boundary and second-SPI checks continue.
@@ -208,8 +208,36 @@ then its own fault fails on B1/f826+d9, without skips or interruption, with
 check/lab 0 and both VMs stopped. Normal commands exit 0; order 23's fault exits
 1 and the other faults exit 2. Selected producer seal is `0c882b938c258e96`;
 membership, units, claims and unselected records are preserved. The serial
-fifteen-record run `g240:2123` completed with all native exits 0. These records
-await their separate commit; no later packet outcome is inferred.
+fifteen-record run `g240:2123` completed with all native exits 0.
+
+The packet/ICMP batch, orders 32–37, left a phase snapshot of 60 RECORDED and
+19 UNEXECUTED commands, all guest. Normal 32–34 deliver the
+matching ESP payload with zero NoStates/ProtoErrors deltas; their faults halt
+the state converter during real Child setup before packet assertions. Order 35
+discriminates the constructed ICMP flag with its sole nonfatal missing-flag
+error; the off control continues. Normal 36/37 pass every local-delivery control.
+Their faults lose the matching quote's delivery, then stop at the checked
+10.1.1.1/embedded 10.7.0.5 PolBlock delta 1 versus expected 2 Fatal; the final
+plain-state control is not reached by RED. These are local-delivery observations,
+with no transit, C or full-requirement credit. All native exits are 0; each
+normal/fault pair uses B1/f826+d9, check/lab 0, normal command 0, fault command 1,
+no skips/interruption and stopped VMs. Independent reviews 32–37 are CLEAR.
+
+The ended seven-PMTU batch, orders 28–30 and 39–42, brings the current
+79-command renewal population to 67 RECORDED and 12 UNEXECUTED, all guest.
+Every selected normal test passes. The ICV-length cut changes transform
+overhead: after outer PMTU 1400 is learned, the host learns inner MTU 1354
+instead of 1346 for IPv4 outer, or 1334 instead of 1326 for IPv6 outer. That
+Fatal stops RED before delivery and inner-IPv6 assertions. These remain
+transform-overhead dependency proofs, without direct PMTU, C or whole-clause
+credit. All native exits are 0; normal/fault pairs use B1/f826+d9, check/lab 0,
+normal command 0, fault command 1, no skips/interruption and stopped VMs.
+All seven independent reviews are CLEAR. Main also reports bounded normal
+implementation source review CLEAR; this is not the final Review Gate.
+
+The original 83-key roster is the current 79 plus historical renewal orders 1–4.
+The four separately excluded fresh cuts are disjoint from those 83; their
+current VERIFIED verdicts do not enlarge the 79-command renewal denominator.
 
 ## Task
 
