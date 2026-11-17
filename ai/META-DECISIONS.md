@@ -743,6 +743,17 @@ video about Ze.
 - Completing approved website changes includes regenerating and checking the
   canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
   Local regeneration does not authorize a push or deployment.
+- A request to rebuild the website for publication includes refreshing all
+  recorded statistics before the full build. Run `./le site facts update`
+  and `./le site history update`, refresh the other recorded statistics the
+  site uses, then build and check the canonical artifact. Confirm that the
+  generated pages and their JSON inputs use the refreshed data, including
+  Project activity through the latest committed work. A successful page build
+  alone does not complete this request. Review and testing builds reuse the
+  recorded statistics unless Thomas asks to refresh them. Determine the
+  purpose from his request and the session context; he does not need to name
+  the recorder commands. This preparation does not itself authorize a push
+  or deployment.
 - The website is always generated into the canonical `../gh-pages` checkout,
   while Thomas reviews as well as at completion. He serves that checkout
   through a local web interface and reviews the pages there. An agent never
@@ -777,8 +788,9 @@ video about Ze.
   and the pages are generated from that file. The site build does not run
   the RFC check to render a page. It regenerates the file only when the file
   is more than a week old; a command regenerates it on demand, so Thomas
-  can update it when he needs to. Producing the weekly update always
-  regenerates the file, whatever its age, and regenerates the site from it:
+  can update it when he needs to. Preparing the site for publication,
+  including producing the weekly update, always regenerates the file,
+  whatever its age, and regenerates the site from it:
   by timing the file can be slightly under a week old then, and the update
   must not publish RFC data that old. The week is measured from the time the
   file was saved. The file lives in a git-ignored folder of the website, so

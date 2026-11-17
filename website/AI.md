@@ -33,6 +33,11 @@ server to show one. To complete approved website changes, run
 preserve `.git` and generated media. Local regeneration does not authorize a
 push or deployment. Never push without owner instruction.
 
+For a rebuild requested for publication, follow `ai/META-DECISIONS.md`,
+"Website design": refresh the recorded statistics before the full build,
+then check that the artifact uses them. Review and testing builds reuse the
+recorded data unless Thomas asks to refresh it.
+
 ## Structure
 
 ```
