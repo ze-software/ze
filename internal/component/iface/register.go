@@ -136,7 +136,10 @@ func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) err
 		for _, e := range errs {
 			msgs = append(msgs, e.Error())
 		}
-		return fmt.Errorf("interface commit rejected:\n  %s", textbuf.Join(msgs, "\n  "))
+		return &backendGateRefusal{
+			text:   fmt.Sprintf("interface commit rejected:\n  %s", textbuf.Join(msgs, "\n  ")),
+			causes: errs,
+		}
 	}
 	return nil
 }
