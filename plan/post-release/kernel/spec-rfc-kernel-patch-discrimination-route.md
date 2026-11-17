@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-29 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -130,6 +130,11 @@ rows describe current mechanisms, not implementation of this proposal.
 | Consumer fixture ownership and package boundary | Engine `rfc4301_espform_policy_integration_linux_test.go` `newEspPolLab`, `espPolLab.enter`; `discriminate_guest.go` `guestBuildArgv`; dataplane `rfc4301_complete_scope_integration_linux_test.go` and `internal/test/userns/userns_linux.go` `Enter` | Lab locks its caller's thread and enters namespaces directly; selected guest binary compiles one package. The separate dataplane admission test re-executes privately and logs child output | Admit only instrumentation that leaves namespace work on the fixture owner and uses pure assertion leaves; engine prerequisites come from its own fixture, not another package/binary or embedded child logs |
 | Function-local fingerprints | `internal/le/rfc/goscope.go` `scopeIndex.keyTexts`, `funcTexts`; `tags.go` `behaviorBytes`; `discriminate.go` seal/verify | Hashes the named declaration's supplied text, not its transitive helper/global/fixture inputs | Preserve old Go-route semantics; new patched-kernel proof additionally binds compiler-derived observer/test input files and population |
 | Compiler-selected source and membership collection | `internal/le/build/compile/inputs.go` `DaemonInputs`, `selectedInputs`; `internal/le/go/lint/verifylint.go` `Runner.goList`; `planinputs.go` `queryInputs`, `lintPopulation`; `internal/le/job/inputsnapshot.go` | Compiler JSON supplies source/dependency/embed files; lint population tracks package directories/embed trees; content snapshots detect changed reached inputs | Extend the existing compiler collector with one selected-test-package mode and reuse the content/population mechanisms; retain a raw source/membership/context manifest for offline new-route freshness |
+| Event conversion and timing reader | Selected Go toolchain `cmd/test2json/main.go`, `testing.go` `chattyFlag.Set`; `internal/le/test/cost/golog.go` `goLog.readEvent` | Go provides native TestEvent conversion with test2json verbosity/framing; cost reader tolerates malformed lines and omits subtest receipts | Use the native converter on a dedicated guest test stream and add strict proof validation; preserve the cost reader's timing role |
+| Carrier result and teardown | `test/overlay/carrier.go` `Exec`; QEMU `DockerLabReport`, `dockerLabCommand`, `dockerLabBoot`, `stopVMWaiting` | Exec merges command stdout/stderr and returns bool/text; report exits default to zero and stop/removal are deferred | Add typed joined lifecycle receipts and isolated event transport; unset zero and progress messages never establish completed stages |
+| Record report and writer publication | `discriminate_action.go` `discriminationRecordReport.Text`, `mergeDiscrimination`; `write.go` `writeArtifact`; `rename.go` `applyRename`, `replaceFileAtomically` | Report assumes Go break/producer and one red; separate RMW paths publish atomically without shared same-RID serialization | Extend typed route-aware reporting and one shared publication contract across writers; observe outside the lock |
+| Bound record moves and aggregate readers | `rename.go` `planEvidence`, `discriminationPathField`; site ledger and `website/assets/js/rfc-map.js`, `rfc-figures.js` | Rename rewrites top-level unit/producer only; browser readers consume generated aggregate JSON | Preserve old-route moves and aggregate fields; new bound moves retain immutable observations and become typed stale until re-recorded |
+| Actual image packing inputs | Worker `copyRuntimeOutputs`; instance `assembleKernelPackage`, `copyKernelTree`; vendored `Pack.logicBuild`, `writeBoot`, `copyGlobsToBoot`, `hostLocaltime`; `SetGokGoEnv`, `ExecuteGok` | Kernel/module/symlink and boot assets are copied separately; Go/module/package and host localtime inputs also affect the image | Bind actual worker outputs, copied/packed members and non-kernel inputs end to end; full module-byte validation is new work |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -517,14 +522,79 @@ refinement below.
    the post-run tree alone. Merge only the matching cover, so another session's
    records survive; an existing escape is replaced only after verification.
 
+Atomic file replacement alone does not protect that merge. Current
+`mergeDiscrimination` reads the requirement array before `writeArtifact` calls
+`derived.WriteAtomic`, so two writers can each discard the other's new cover.
+Use one same-RID serialization or compare-and-swap contract across every writer
+of that array, including record, rename and split/migration publication. Observe
+outside the lock and capture the intended cover's prior revision or absence.
+At publication, reread and validate the latest array, compare that cover with
+its expected revision, replace only the intended cover and preserve every other
+cover; a conflicting same-cover change must refuse or restart validation rather
+than overwrite unseen evidence.
+Synthetic fixture writers use the same publication seam when applicable, while
+their existing restriction to the synthetic selftest stem remains intact.
+
+### Event production and joined lifecycle contract
+
+The existing guest script runs a compiled test with plain `-test.v`;
+`observationRunner.exec` receives `testoverlay.Exec`'s merged command output and
+boolean result. That output also includes host carrier progress. It cannot
+provide the exact leaf receipts required above. The cost reader
+`goLog.readEvent` also cannot supply them unchanged: it tolerates malformed
+events and collects top-level timing rather than complete subtest attribution.
+
+For this route, use the selected Go toolchain's native host `test2json` converter
+in its standard-input mode over the one precompiled guest binary's dedicated
+test-output stream, with that binary invoked using `-test.v=test2json`. Keep
+host boot/progress/teardown text outside the converter input and JSON channel.
+Bind the converter bytes and source/toolchain identity, the strict parser
+implementation/schema, invocation,
+selected package and run identity in both observations. The converter's package
+label must agree with the compiled selection; a caller-supplied label alone
+does not establish package identity. This is a new producer/transport contract,
+using Go's newline-separated TestEvent framing rather than another FAIL-line
+heuristic. Preserve existing old-route execution and explicit-image transport.
+
+Validate every event against the pinned toolchain's closed event schema and
+legal state transitions. Require the package's complete start/terminal chain
+and a run/terminal chain for the selected unit, exact assertion leaf and each
+prerequisite/control, with only the selected assertion and its ancestors failing
+on fault. Interpret
+`OutputType` frame, error and error-continue according to that converter's
+contract; continuation belongs to its preceding diagnostic and exact test path.
+Regular output that resembles a frame, error or JSON receipt grants no credit.
+Reject unknown actions/types, malformed/truncated streams, foreign packages or
+paths, missing/duplicate/contradictory terminals, unsupported pause/continue or
+parallel execution, skipped required paths, unmapped errors, build failure and
+process/terminal disagreement. Consumer mapping still decides whether a leaf's
+diagnostic represents the intended assertion. A syntactically valid failure
+event cannot turn a fixture/read failure into that assertion.
+
+Current `DockerLabReport` has zero-valued integer exits, and
+`dockerLabCommand` defers VM stop and run-directory removal. Neither an unset
+zero nor the printed VM-stopped line is a completion receipt. Add typed stage
+outcomes, distinguishing unstarted/unset from completed success, failure,
+interruption and not-applicable, with explicit dependencies between acquisition,
+image/boot checks, guest identity, command execution, stream completion, joined
+VM stop and owned cleanup. Emit the final run receipt only after deferred work
+has joined and its outcomes have been collected. Every required stage must
+complete successfully except the fault test process's expected assertion exit;
+check/lab/command fields that do not apply must say so. A stop/cleanup error or
+missing stage refuses sealing even after an otherwise valid assertion red.
+Record both guest process and host converter status, exact selected payload
+identities and bounded decisive events. Recheck the raw base image consumed by
+`dockerLabPrepare` and `dockerLabVM.argv`; `snapshot=on` isolates guest writes
+but does not attest to the base file's bytes.
+
 ### Proposed typed record and receipt contract
 
 Names below are proposed lowercase kebab-case JSON fields. Extend the existing
 array layout and strict decoder; do not reinterpret old fields or store opaque
 arbitrary maps. A `patched-kernel` record requires exactly one `kernel-proof`
-payload and refuses Go `producer`, `producer-sha`, `paired`, `solo`, `reason`,
-`kernel-functions`, `ze-state-excluded` and `later-route`. Old routes reject
-`kernel-proof` and all new route-only request operands. Existing old records
+payload and refuses Go `producer`, `producer-sha`, `break`, `paired`, `solo`,
+`reason`, `kernel-functions`, `ze-state-excluded` and `later-route`. Old routes
+reject `kernel-proof` and all new route-only request operands. Existing old records
 continue to load and verify without mass rewriting.
 
 | Payload / receipt field | Type | Authorship and verification |
@@ -534,14 +604,15 @@ continue to load and verify without mass rewriting.
 | Build input manifest | ordered path/digest entries plus typed dimensions | Bind source URL/SHA256/release, target/profile/architecture, production `series` and every ordered patch (currently 0001 through 0005), resolved fragment order/content, all `.require` inputs, full emitted config, firmware if used, builder recipe/worker inputs, immutable container/VM base and package inputs, actual compiler/binutils identity and build options/environment that affect output |
 | Build outputs | SHA256 artifact manifest | Bind `vmlinuz`, emitted config, module release, module files/indexes and other packed kernel outputs; no path or release-only identity |
 | Image selected input identity | closed `artifact-only` or `native-build` kind, full output-manifest SHA256, and native build-receipt SHA256 exactly for `native-build` | Every image binds the validated actual kernel/modules/config/DTB/overlay manifest. Ordinary legacy selection can be `artifact-only`; this attests only to selected bytes. Both proof-normal/fault require `native-build` with the full native receipt and matching output cross-links; artifact-only never satisfies proof |
-| Image outputs | typed manifest and SHA256 | Bind the exact selected input identity, actual packed kernel/module set, pinned non-kernel build inputs and raw image digest; validate all packed members needed by the existing boot guard. The image receipt does not turn an artifact-only input into native build attestation |
+| Image outputs | typed manifest and SHA256 | Bind the exact selected input identity, actual packed kernel/module/DTB/overlay set, actual non-kernel build inputs and raw image digest. Full packed-module content/symlink validation is a new requirement in addition to existing guards; the image receipt does not turn an artifact-only input into native build attestation |
 | `kernel-function` | source path and unique function name | Authored selection resolved by native build against composed baseline; reject ambiguity |
 | `baseline-function`, `fault-function`, `patch` | bounded source snapshots and SHA256, plus tracked patch path | Derived from actual composed source and applied diff. Retain the small baseline/fault function texts and confinement result so verification needs no source extraction/cache; current tracked source pin, production series and patch hashes must still match |
 | `state-producers` | ordered Go key/behavior-hash entries | Authored keys, derived pre-observation fingerprints and reached-coverage receipts. These bind setup/install behavior; they are not breaks and must not receive OS producer-break credit |
 | `test-inputs` | derived typed selection/build-context, package/fixture directory inventories and full-file SHA256 manifest | Derive from the actual selected binary's source population before compilation; bind helpers, globals/init, test helpers/dependencies, module/toolchain selection inputs and reached fixture/embed inputs. Hash every conservative candidate source file, including currently excluded candidates, as well as membership. Preserve rules and hashes for offline comparison without a compiler/source cache. These are observer dependencies, not state-producer breaks; artifact-only binary SHA does not replace them |
 | `binary-sha` | full SHA256 | Derived once after compile; identical in both host acquisition and guest execution receipts |
+| Observed selection and event identity | immutable unit/package/binary and exact path selections, run identity, converter/toolchain/parser identities | Bind the pre-observation selection and dedicated native test2json stream. Offline readers validate the same closed schema, complete path/terminal/error contract and receipt cross-links; they do not recover receipts from arbitrary logs |
 | `assertion`, `prerequisites`, `controls` | one exact full assertion test path plus exact prerequisite/control paths with terminal receipts | Authored selections resolve within the selected unit/package/binary. The one assertion leaf covers its entire intended matrix; pure leaves assert owner-collected immutable values. Normal all PASS; fault only intended assertion FAIL, controls/prerequisites PASS. Embedded private-child logs and another package's admission test are not receipts |
-| `observations` | two typed run receipts | Native commands, elapsed duration, exit/result, boot identity, image/kernel/module/binary digests and bounded decisive output; seal only after successful lifecycle/cleanup |
+| `observations` | two typed run receipts with explicit stage outcomes | Native commands, elapsed duration, process/converter status, boot identity, acquired image/kernel/module/binary digests and bounded decisive events; unset differs from completed zero. Final receipts follow joined VM stop and owned cleanup, and seal only when the lifecycle contract succeeds |
 
 Large source trees, images and binaries are execution inputs, not permanent
 offline dependencies. Keep only receipts, the confined tracked patch, bounded
@@ -555,37 +626,61 @@ does not stale a proof; a tracked input change does. A legacy normal artifact
 without the new build receipt cannot be attested retrospectively: rebuild it
 through the native receipt producer.
 
+Renames preserve old-route behavior. For the new route, moving a bound observer
+path or changing its population conservatively stales the proof, even where a
+Go behavior hash survives the move. `planEvidence` currently rewrites only
+array-level `unit` and `producer` through `discriminationPathField`. It may move
+the top-level unit to retain the live cover, but must preserve the immutable
+observed selection, manifests and receipts. Top-level unit versus observed-unit
+drift is a typed stale dependency, not a globally malformed record. Report it
+with zero proof credit and the existing HEAD/working-tree distinction; never
+rewrite nested observation paths or reseal them retrospectively. A newly
+recorded proof must have matching current and observed selections. Re-recording
+the moved cover replaces that same stale cover through the ordinary merge;
+split/render operations retain the payload without claiming freshness. This
+policy satisfies offline G-AC-7/16 without manufacturing source receipts for
+bytes that were never observed at the new path.
+
 ### Changed-wire census and consumer disposition
 
-Search scope: repository Go, shell, Python and workflow sources, including
+Search scope: repository Go, shell, Python, JavaScript and workflow sources, including
 hidden files, excluding git internals, vendor, module caches, temporary/build
 outputs and plan prose. Controls were the known `DiscriminationRecord` writer
 and `producer-sha` decoder. The search found no shell/Python discrimination
 reader/writer in that scope. Followed carriers are the requirement JSON array,
-record report, offline verdict, committed-baseline blobs, weekly endpoint JSON
-projection and public ledger projection. Re-run this census at implementation
+record report, offline verdict, committed-baseline blobs, weekly endpoint JSON,
+public ledger projection and the browser readers of generated RFC aggregates.
+Vendored image-packing producers and the selected local Go toolchain's
+test2json/testing framing sources were then followed explicitly. This bounded
+search is evidence for the listed dispositions, not a claim that a file list
+establishes completeness. Re-run this census at implementation
 admission because concurrent source changes can add speakers.
 
 | Producer / consumer | Source and observed carrier | Required change or preservation |
 |---------------------|-----------------------------|---------------------------------|
 | Action declaration / request | `actions.go`; `discriminate_action.go` `recordRequest`, `discriminateRecordAnswer` | Register typed keywords once; validate old/new route operands before builds/boots; help/completion/shared rendering derive from the action table |
-| Record mint/merge/write | `discriminate_action.go` `recordDiscrimination`, `sealAndStore`, `mergeDiscrimination`, `renderDiscriminationRecords` | One writer, pre-observation binding, route-specific seal and atomic cover replacement |
+| Record mint/merge/write | `discriminate_action.go` `recordDiscrimination`, `sealAndStore`, `mergeDiscrimination`, `renderDiscriminationRecords`; `write.go` `writeArtifact` | Pre-observation binding and route-specific seal; atomic replacement plus same-RID RMW serialization/CAS shared by all writers, with no observation under lock and no lost unrelated covers |
+| Record action text/JSON answer | `discriminate_action.go` `discriminationRecordReport.Text`, `ObservedRed`, `discriminateRecordAnswer` | Text currently prints Go Break/Producer and one red for any proving route. Add typed paired C/patch/event/lifecycle provenance to the answer and route-specific text; preserve old output contracts |
 | Record decode/shape/freshness | `discriminate.go` `readDiscriminationRecords`, `sealDiscrimination`, `verifyOneDiscrimination`; `discriminate_validate.go` | Strict typed nested shape and old stray-field refusals; offline manifest/snapshot validation |
-| Kernel source/recipe/output | `kernelbuilder/recipe.go` `Request`, `writeProvenance`; `driver.go` `Build`; `worker.go` `RunWorker`, `applyPatches` | Emit receipts at producers, add one extra patch operand through native request transports; preserve existing provenance consumers and complete-series behavior |
-| Native worker transports and fixture callers | `kernelbuilder/recipe.go` `containerCreateArgs`, `guestBuildCommand`; `tools/kernel-builder/main.go` worker argument parsing; `internal/test/fixture/install_fixture.go` direct `RunWorker` and container argv | Carry the optional extra patch and receipt inputs through both native transports; preserve normal no-extra-patch requests and fixture behavior |
+| Kernel source/recipe/output | `kernelbuilder/recipe.go` `Request`, `writeProvenance`; `driver.go` `Build`; `worker.go` `WorkerRequest`, `RunWorker`, `applyPatches`, `copyRuntimeOutputs` | Add a new worker-emitted structured receipt and strict host Build decoder/cross-checks; bind actual inputs/outputs. Preserve the existing plain kernel.version record and `instance.readProvenance`/`existingRuntimeProvenance` readers; they are not full receipts |
+| Native worker transports and fixture callers | `kernelbuilder/recipe.go` `containerCreateArgs`, `guestSetup`, `guestBuildCommand`; `tools/kernel-builder/main.go` worker flags; `internal/test/fixture/install_fixture.go` direct `RunWorker` and container argv | Carry optional extra patch and new receipt output through Docker/QEMU and direct callers. Bind Dockerfile/build context/actual image ID and QEMU base plus installed packages/compiler identities; tags and package names alone cannot attest a pair. Preserve ordinary no-extra-patch requests and fixture behavior |
+| Native event producer and parser | `discriminate_guest.go` `guestScript`, `runInGuest`, `guestBuildArgv`; `discriminate_observe.go` `observationRunner.exec`, `attribution`; `test/overlay/carrier.go` `Exec`; selected toolchain `cmd/test2json/main.go`, `testing.go` `chattyFlag.Set`; `test/cost/golog.go` `goLog.readEvent` | One binary and dedicated native test2json channel with `-test.v=test2json`, separate host progress, bound converter/parser/toolchain and strict complete path/package/run/terminal/error validation. Existing bool/merged log and tolerant timing reader are insufficient; preserve their old-route uses |
+| Guest acquisition/lifecycle and explicit image transport | `discriminate_action.go` `observeFor`; `discriminate_guest.go` image request, `selectGuestImage`, `guestRunArgv`, `guestCIArgv`; QEMU `runDockerLabCommand`, `dockerLabCommand`, `DockerLabReport`, `dockerLabBoot`, `stopVM`, `stopVMWaiting`, `dockerLabPrepare`, `dockerLabVM.argv` | Preserve existing explicit image support and every guard; add joined typed stage receipts, unset distinct from zero, command/converter agreement and owned cleanup results. Bind actual raw base bytes consumed with snapshot=on; progress text is not stage completion |
 | Consumer observation/receipt boundary | Engine `newEspPolLab`, `espPolLab.enter`, ANY-scope/IPv6-scope and transport-fragment matrix tests; `discriminate_guest.go` `guestBuildArgv`; dataplane complete-scope test and `userns.Enter` | Consumer owns exact old/new assertion/action/fatal-continuation mapping and immutable observation collection. Observer accepts same-binary pure leaf receipts only; engine binds its own fixture's capability/installed state. Dataplane admission remains a separate unit/record |
 | Observer source population | `build/compile/inputs.go` `DaemonInputs`, `selectedInputs`; `go/toolchain/gotoolchain.go` `GoTest`, `GoList`; `go/lint/verifylint.go` `Runner.goList`; `go/lint/planinputs.go` `queryInputs`, `lintPopulation.reaches`; `job/inputsnapshot.go` | Extend existing structured source collection for the exact test build context, preserving daemon/lint callers. Snapshot full bytes of selected files and every conservative candidate source, including excluded candidates, plus package/fixture membership and selection metadata; new proof verifier/ratchet consumes their raw typed identities offline |
 | Preparation registration and native publication | Existing `internal/le/rfc/extraction/register.go` pattern and `internal/le/register.go`; new `internal/le/rfc/kernel-proof/`; `internal/appliance/cmd_kernel.go` normal resolver and new native proof preparation seam; `cache.go` | Register `rfc kernel-proof prepare` once, link it in le, transport typed proof identity to a distinct cache publisher, validate receipts on hit, preserve ordinary normal caches |
-| Image key/pack/payload | setup `docker/host/build.go` `builder.build`, `runGokWith`; `build/gokrazy/gokrazy.go` `prepareArgs`; `instance/prepare.go` `Prepare`; QEMU `dockerlab_command.go` | Same explicit selection at hashing and packing; image receipt; retain selected-byte/module/image/guest checks |
+| Image key/pack/payload | setup `docker/host/build.go` `builder.build`, `runGokWith`; `build/gokrazy/gokrazy.go` `prepareArgs`; `instance.Prepare`, `assembleKernelPackage`, `copyKernelTree`; vendored `Pack.logicBuild`, `writeBoot`, `copyGlobsToBoot` | Same explicit selection through worker output, prepared package, module/symlink rootfs and DTB/overlay boot copies; new full packed-output manifest/image receipt. Preserve existing kernel-FAT hash, module-release/index/directory and guest checks without describing them as full module-byte validation |
+| Non-kernel image inputs | `appliance.SetGokGoEnv`, `ExecuteGok`; vendored `Pack.logicBuild`, `hostLocaltime`; instance package/module/config and extra-file producers | Bind actual patched Go/toolchain, module/package resolution, build flags/environment, rootfs inputs and localtime bytes or explicit absence, including /etc/localtime versus GOROOT zoneinfo fallback. Host state and mutable module/tag names cannot be omitted from pair equality |
 | Image key dimensions and warm-hit consumers | setup `docker/host/pins.go` `KeyInputs`, `ImageKey`; `actions.go` `lockedBuild`, `EnsureImage`; `build.go` `builder.build`; `colima.go` image key record | Key the full actual selected output manifest plus explicit artifact-only/native-build identity and native receipt digest when available; validate image receipt/raw SHA on hit. Ordinary warm legacy kernels remain usable without a native receipt; proof consumers reject artifact-only. Preserve existing callers' locking/lifecycle |
 | Selected proof cache reader and cleanup census | `runtimekernel_existing.go` `ExistingRuntimeKernelTree`; `cache.go` `KernelCacheNamespaces`, `evictKeepN`, `cacheEntryArch`; `internal/le/scratch` namespace consumers | Add one closed proof child grammar with receipt checks beside the existing grammar; keep both under protected runtime cache namespace and out of automatic pruning; preserve explicit eviction behavior and ownership requirements |
 | Committed-baseline freshness | `check_baseline.go` `baselineDiscrimination`, `baselineRecordBlobs` | Include every tracked kernel-proof manifest/patch/state-producer dependency when reading committed blobs; preserve working-tree versus HEAD drift treatment |
 | Stale verdict classification and report | `check_ratchets.go` `checkDiscriminationRatchet`, `driftedKey`, `driftIsCommitted`, `discriminationDrifted`, `discriminationStaleError`; `check.go` discrimination input/report assembly | Consume typed dependency identities at their recorded digest granularity; classify exact HEAD/current inputs without a fallback to the tagged Go unit; name the changed C function and tracked patch/recipe/config dependency. See the ratchet refinement below |
 | Audit / partial coverage | `check_audit.go` `partialProofClaims`, `partialCoverRefusals` | Verified `Proves` already admits a new valid route; update mutant/revert-only diagnostic/docs and bind new proof payload in audit freshness |
 | OS state-credit and counts | `profilecoverage.go` `DiscriminationVerdict.Proven`, `osProofsOf`, `osVerified`; `implemented.go`; `render_ledger.go` | Count a verified C claim as proof; do not pretend snapshot-only Go state producers were broken. Preserve lower-layer annotation's explicit producer-break requirement |
-| Historical/derived record writers | `rename.go`; `evidence_split.go`; `fixture.go`; `selftest_core.go` | Preserve old migrations/fixtures, carry new typed payload without dropping it, and test fresh verification after a supported rename; never manufacture observed run receipts |
+| Historical/derived record writers | `rename.go` `planEvidence`, `discriminationPathField`, `applyRename`, `replaceFileAtomically`; `evidence_split.go` `splitDiscrimination`; `fixture.go` `FixtureProof`, `fixtureRecords`; `selftest_core.go` | Old routes retain transparent rename. New bound moves retain immutable receipts/manifests and become typed stale, including top-level/observed-unit drift; re-record replaces the moved cover. Preserve payload during split/render, shared writer publication and synthetic-stem restriction; never mint real observations in fixtures or migrations |
 | Weekly projection | `weekly_source.go` `weeklyProving`, `weeklyRecordOf` | Preserve existing four-field projection and verified/non-escape predicate; prove new-route gained/lost covers are counted once |
 | Public ledger detail | `internal/le/site/rfcledger.go` `rfcProofsByCover`; `rfcevidence.go` | Present C function, patch and matched-observation provenance for this route instead of an empty Go producer; old routes render unchanged |
+| Browser aggregate readers | `website/assets/js/rfc-map.js` `ensureFigure`; `rfc-figures.js` `loadFile` | These read generated RFC aggregates, not raw discrimination records. Preserve their existing aggregate field/count contract; test new proof counted once and typed stale proof excluded through generated JSON. No new browser-side proof parser is proposed |
 | Health / discovery / prose | `internal/le/test/health/collect_rfc.go`; `sections.go`; `register.go`; `ai/INDEX.md`; record README and conformance guide | Update route vocabulary, proof-versus-debt wording and discovery; no independent proof counter or inventory |
 | Text-only matches | `internal/le/feature/runrecord.go`; `internal/le/doc/check/retired.go`; `internal/component/l2tp/plugins/authradius/coa_transaction.go` | References/comments, not discrimination format speakers; preserve their behavior |
 
@@ -604,14 +699,18 @@ implemented or demonstrated. AC-7 remains the later population obligation.
 | G-AC-6 | Unit/claim/state-producer/source recipe/production patch/proof patch or observer test-input file/population changes between snapshot, compile, observations or seal | Refuse before write; unchanged observations never seal against later source or a different observer population | Edits outside every bound file/population and declared dependency leave the proof current. Whole-file observer manifests are conservative: a comment-only or other edit inside a bound file may stale the new proof even when the named unit text is unchanged |
 | G-AC-7 | Delete execution caches after valid recording; then change one bound file, package/fixture membership or other tracked proof dependency | First proof verification succeeds offline using retained selection/context/inventory; second identifies the exact stale dependency or membership change with existing HEAD/working-tree distinctions | No compiler, go list, network/build/boot or large cache retention is required by the new proof verifier. Unrelated files outside its complete recorded population remain permitted; bound-file comments may conservatively stale it |
 | G-AC-8 | Old mutant/revert/escape arrays plus malformed mixed old/new records | Old valid records still verify; old stray-field, unknown-key, duplicate-cover and invalid new-schema cases refuse | Valid kernel-producer escapes remain debt until their own proof succeeds |
-| G-AC-9 | Reporting, partial audit, baseline and rename/migration paths consume a new proof | Cover counted once, C provenance retained, stale evidence excluded, state-producer snapshots never receive Go break credit | Existing OS-state proof credit continues to require its actual producer break |
+| G-AC-9 | Text/JSON reporting, partial audit, baseline, rename/split, weekly, ledger and browser aggregate paths consume a new proof | Cover counted once, paired C provenance retained and stale evidence excluded, with no Go break credit for state snapshots. A bound move retains immutable receipts, becomes typed stale and can be replaced by re-recording the same moved cover; top-level versus observed-unit drift remains loadable | Existing old-route transparent renames and OS-state producer-break credit retain their semantics. No migration manufactures observations or auto-reseals new-route inputs |
 | G-AC-10 | The same tracked recipe/config/production-patch/proof-patch change appears first only in the working tree over unchanged HEAD, then at HEAD with the original proof still present | First case reports exact uncommitted dependency drift without a stale-record violation; second refuses committed drift with the exact dependency and C proof context. Both exclude the stale cover from every proven figure | Unrelated working-tree edits do not change classification of the affected dependency; unchanged old records retain their current ratchet behavior |
 | G-AC-11 | Registered prepare action, a warm ordinary normal cache, and a new proof patch; repeat with a valid warm proof pair, then an altered/missing receipt or artifact | First prepares distinct proof-normal/fault entries and matching images; second reuses only fully validated proof artifacts without builds; invalid hit refuses before packing/boot. Ordinary normal cache and shared staging bytes stay unchanged throughout | Valid ordinary normal entries and explicit legacy pairs remain available on their existing routes; they are not retrospectively promoted to proof receipts |
 | G-AC-12 | Selected trees with identical vmlinuz but different valid actual module/output manifests, in artifact-only and native-build modes; then alter raw image bytes without changing its path | Module difference gives distinct image identity and packs each selected set in both modes; corrupted image hit refuses on actual SHA/image-receipt check rather than returning the old path | An unchanged complete actual output manifest and typed identity reuses its validated image. Artifact-only remains valid for ordinary images; both proof pairs still require native receipts and all guest guards |
 | G-AC-13 | Ordinary resolver returns a valid warm legacy tree with no full native receipt; the same artifact-only image is offered to patched-kernel proof | Ordinary image preparation validates the complete actual output manifest, emits an artifact-only image receipt and reuses the validated image on repeat without rebuilding/migrating the kernel. Proof preparation/record refuses artifact-only before observation | Existing ordinary normal cache/staging stay unchanged; no native receipt migration, overwrite or purge is required. Full-receipted proof-normal/fault entries remain eligible on their distinct path |
 | G-AC-14 | A selected consumer needs structured assertion/control/prerequisite receipts | Admit only after a source-backed old/new action and assertion mapping plus independent test judgment proves every matrix row/count/token/order/adjacent control survives, namespace I/O remains on the fixture owner, and original fatal versus continuing failure behavior is preserved. All matrix rows run in a qualifying proof; one pure assertion leaf covers the complete intended matrix | Existing fixture/state/control sequence remains shared; expected assertion violations do not stop later controls. Missing/read/setup/cleanup errors remain nonqualifying prerequisite/lifecycle failures; no implicit approval to change fail-fast behavior |
 | G-AC-15 | An engine proof names the dataplane complete-scope test, an embedded private-userns child log, or any second binary as its prerequisite | Refuse consumer admission/observation; engine proof must bind actual capability and installed-state observations from its own existing fixture in the same selected binary | Dataplane admission test keeps its separate unit and own record. A source-feasible same-binary engine prerequisite remains eligible after independent judgment |
-| G-AC-16 | Tagged unit text stays unchanged while a shared observer/helper, global/init input, conservative candidate source content, selected-package/dependency membership or reached fixture/embed input changes; specifically, only an existing excluded candidate's build constraint changes so it becomes selectable, with unchanged names and formerly selected bytes | New-route proof stales or pre-seal recording refuses for that exact raw input/population; both uncommitted and committed constraint-only drift receive zero proof credit and their normal report/refusal distinction. Offline comparison needs no compiler to discover the selection change because the excluded candidate's full raw bytes were already bound | Existing mutant/revert/escape records keep their byte layout and fingerprint semantics. Outside-population files do not stale this route; all bound candidate files, selected or excluded, may stale conservatively |
+| G-AC-16 | Tagged unit text stays unchanged while a helper/init, conservative source candidate, dependency membership or reached fixture/embed input changes, including an excluded candidate's constraint-only edit or a bound path move; repeat with an outside-checkout symlink target | New-route proof stales or recording refuses for the exact raw input/population, with zero proof credit and existing committed/uncommitted distinction. Immutable pre-move observations remain unchanged. Collector refuses a canonical target outside its admitted checkout/vendor population; lexical containment alone never admits it | Old routes retain their fingerprint/layout/rename semantics. Outside-population edits stay current; bound candidate comments may stale conservatively. Offline comparison requires no compiler or cache |
+| G-AC-17 | Native test2json stream for the pinned toolchain, then one malformed/truncated/forged/foreign-path or package/event-state mutation per attempt | Only a complete selected unit/assertion/prerequisite/control event chain and permitted fault assertion diagnostics qualify. Host progress or ordinary output resembling a receipt never grants credit; converter/parser/toolchain or process-terminal mismatch refuses | Valid ancestor aggregate failures and mapped multi-line assertion diagnostics remain eligible; old-route log attribution remains unchanged |
+| G-AC-18 | Otherwise qualifying events with each required carrier stage missing, unset-zero, failed or interrupted in turn, including VM stop and cleanup | No final qualifying receipt or record until acquisition, checks, execution, conversion and joined teardown have their required completed outcomes. Guest normal/fault exits agree with PASS/intended FAIL respectively, and the native stdin-mode converter completes successfully in both | Explicit not-applicable stages stay distinguishable from completed zero and do not conceal required work. All existing identity/boot guards survive |
+| G-AC-19 | Two same-RID writers publish different covers, then conflict on the same cover; include record versus rename/split writer interleavings | Latest-array RMW serialization/CAS preserves both unrelated covers and detects same-cover conflict without silently overwriting it. Observations occur outside the publication lock; an existing escape survives any failed replacement | Existing route wire formats and untouched record values survive; atomic rename by itself is insufficient |
+| G-AC-20 | Valid native worker/packing receipt, then a changed actual builder image/package/toolchain, copied module/symlink/DTB/overlay or non-kernel/localtime input | Strict worker receipt decode/cross-check and full output/packing manifest detect the exact mismatch before proof. Existing plain kernel.version consumers still work; actual selected/published/consumed image identities agree | Ordinary artifact-only image preparation remains available under G-AC-13. No legacy provenance, mutable tag or existing module-directory check is promoted to full native attestation |
 
 | Proposed test | Owning package / route | Decisive behavior |
 |---------------|-----------------------|-------------------|
@@ -619,9 +718,13 @@ implemented or demonstrated. AC-7 remains the later population obligation.
 | `TestKernelProofPairRefusesEachInputMismatchBeforeBoot` | `internal/le/rfc` | One mutation per manifest dimension in G-AC-2; boot call count remains zero |
 | `TestProofPatchResolvesOnlyInsideComposedFunction` | `internal/appliance/kernelbuilder` | Production-added function resolves; each G-AC-3 refusal independently exercised |
 | `TestNativeProofReceiptBindsActualBuildInputsAndOutputs` | `internal/appliance/kernelbuilder` | Ordered production series plus extra patch, resolved config, actual toolchain and output hashes bound at build producer; incomplete legacy provenance refused |
+| `TestNativeWorkerReceiptTraversesBothTransportsAndDirectCallers` | `internal/appliance/kernelbuilder`, worker flag parser and fixture boundary tests | New receipt output travels through WorkerRequest/RunWorker, Docker/QEMU argv and direct caller; Build strictly rejects missing/unknown/malformed/mismatched receipt values. Actual immutable Docker build context/image ID and QEMU installed package/compiler identity are bound; plain kernel.version readers and no-extra-patch requests retain their contract |
+| `TestKernelImageManifestFollowsActualPackingInputs` | `internal/appliance/instance`, setup docker-host and vendored packer seams | Trace copyRuntimeOutputs through assembleKernelPackage/copyKernelTree and Pack.logicBuild/writeBoot/copyGlobsToBoot. Change module bytes/link identity, DTB/overlay, actual Go/module/package/config input and each localtime source/absence independently; selected, packed and consumed manifests agree. Existing kernel-FAT/release/index guards remain active |
 | `TestSelectedKernelIsUsedForImageKeyAndPacking` | `internal/le/setup/docker/host`, `internal/le/build/gokrazy` | Change current runtime selection between steps; explicit pair remains the same at key/pack and receipt |
 | `TestKernelProofRejectsAlteredPayloads` | `internal/le/rfc`, `internal/le/test/qemu` | G-AC-4 for each artifact; existing runtime/image guards remain active |
 | `TestKernelProofRequiresExactAssertionAndControlReceipts` | `internal/le/rfc` | G-AC-5 table: each false-red category refuses; valid intended red succeeds |
+| `TestKernelProofNativeTest2JSONFramingIsStrictAndIsolated` | `internal/le/rfc`, QEMU command/event transport | Selected-toolchain native converter with test2json verbosity, dedicated guest stream and bound parser identity; G-AC-17 rejects every malformed, missing, duplicated, forged regular-output, foreign package/path, illegal-state, unmapped error/continuation and terminal/process mismatch independently. Real mapped assertion error/continuation and ancestor aggregates remain eligible |
+| `TestKernelProofRequiresJoinedLifecycleStages` | `internal/le/test/qemu`, `internal/le/rfc` | G-AC-18 mutates each required stage; unset zero never means completed success. Final receipt waits for joined stop/cleanup, rejects interruption/failure and binds actual snapshot base image, binary, converter and stage outcomes |
 | `TestKernelProofRequiresCompleteSingleAssertionMatrix` | `internal/le/rfc` observer tests plus the consuming spec's judged source mapping | One pure assertion leaf covers all mapped rows; omitted row/count/token/order/control or a receipt from only a filtered case refuses admission; intended assertion failure still permits the following controls |
 | `TestKernelProofRefusesCrossPackageOrEmbeddedChildPrerequisite` | `internal/le/rfc` observer/package-selection tests | Engine unit cannot borrow dataplane admission, another binary, or verbose private-child text as a structured prerequisite; same-binary fixture observations remain eligible |
 | Consumer ownership/order proof | Consuming IPsec spec, independent test judge before edits/recording | Exact old/new mapping proves all namespace create/enter/socket/netlink/proc/send/read/cleanup actions stay with the original fixture owner, action order and fatal/continue boundaries survive, and pure sequential children do no I/O or per-case fixture reset. If not demonstrated, consumer admission is REWORK |
@@ -629,6 +732,7 @@ implemented or demonstrated. AC-7 remains the later population obligation.
 | `TestKernelProofBindsHelperAndInitializerWithUnchangedUnit` | `internal/le/rfc` plus compiler-input collector fixtures | Helper-only and global/initializer-only changes independently stale/refuse a new proof while unit text and its old behavior hash stay unchanged; old-route behavior remains unchanged |
 | `TestKernelProofBindsSourceDependencyAndFixtureMembership` | `internal/le/rfc`, `internal/le/build/compile` | Added/removed package source, new import/dependency selection and fixture/embed additions/removals/content changes invalidate the inventory/context. Paired uncommitted/committed cases change only an existing excluded candidate's build constraint so it becomes selectable: names, tagged unit and formerly selected bytes stay unchanged, yet raw candidate hash stales proof and yields report/refusal respectively with zero proof credit and no compiler/list/cache access. An incomplete or unbounded population refuses admission |
 | `TestKernelProofObserverManifestStaysOfflineAndScoped` | `internal/le/rfc` | Without build/source caches or compiler/list/network access, retained selection/context inventories verify unchanged inputs; bound-file comment edits stale conservatively, outside-population file edits stay current |
+| `TestKernelProofObserverPopulationRejectsCanonicalPathEscape` | `internal/le/build/compile` and offline manifest fixtures | A lexically in-tree source/fixture link to outside the admitted checkout/vendor population refuses. Allowed links bind canonical target plus link identity and target bytes; link retargeting and target/membership drift stale offline, without changing existing daemon/lint behavior |
 | `TestKernelProofObserverDriftBeforeSealAndAgainstHead` | `internal/le/rfc` | Helper/init/membership/fixture drift before compile or seal writes nothing; paired uncommitted/committed raw observer-input cases report/refuse respectively and both exclude stale proof |
 | `TestKernelProofVerifiesOfflineWithoutBuildCaches` | `internal/le/rfc` | Remove only test-owned caches; verify then independently stale each tracked input |
 | `TestKernelProofRawDependencyDriftIsJudgedAgainstHead` | `internal/le/rfc/check_test.go` | Paired G-AC-10 cases for every raw dependency kind: unchanged HEAD plus working edit reports; identical edit committed refuses; both have zero proof credit and exact dependency diagnostics |
@@ -644,7 +748,9 @@ implemented or demonstrated. AC-7 remains the later population obligation.
 | `TestOrdinaryWarmLegacyKernelBuildsAndReusesArtifactOnlyImage` | `internal/le/setup/docker/host` | Warm valid legacy kernel without native receipt builds image from actual full output manifest once, then reuses it; no kernel rebuild/migration or normal cache/staging mutation |
 | `TestKernelProofRefusesArtifactOnlyImageIdentity` | `internal/le/rfc`, `internal/appliance` proof preparation boundary | Artifact-only input/image is refused for either proof role before boot, even with correct actual kernel/module/image hashes; full native receipt and exact selected-output cross-links remain mandatory |
 | `TestKernelProofPreservesOldRecordsAndStrayFieldRefusals` | `internal/le/rfc` | G-AC-8 on real old fixture shapes and mixed malformed shapes |
-| `TestKernelProofSurvivesEveryRecordConsumer` | `internal/le/rfc`, `internal/le/site` | Baseline, partial audit, rename/split/fixture, weekly and ledger projections; no snapshot-as-break credit |
+| `TestKernelProofSurvivesEveryRecordConsumer` | `internal/le/rfc`, `internal/le/site`, generated JSON/browser aggregate fixtures | Text and JSON show paired C provenance; baseline, audit, split/fixture, weekly/ledger and existing JavaScript aggregate projections retain payload/count semantics with no snapshot-as-break credit. A stale cover disappears from every proven figure |
+| `TestKernelProofBoundRenameStalesWithoutRewritingObservation` | `internal/le/rfc` rename/verifier/merge tests | Old-route rename remains transparent. New bound move changes live top-level cover only, retains manifest/observed selection exactly, loads as typed stale with proper HEAD/current treatment and zero credit; fresh native re-record replaces the same moved cover without duplicates or retrospective reseal |
+| `TestDiscriminationSameRIDPublicationPreservesConcurrentCovers` | `internal/le/rfc` all writer publication seams | Controlled G-AC-19 interleavings for old/new record, rename and split paths preserve unrelated covers, detect conflicting same-cover publication and prove observation occurs outside the publication lock |
 | One real authorized C discrimination | Main-thread own-system native proof through `rfc record` | G-AC-1 end to end, all lifecycle receipts, then offline check; selected IPsec consumer supplies its separately approved assertion/controls |
 
 Use the cheapest tests first. Fake build/boot boundaries prove validation;
@@ -656,11 +762,11 @@ protocol peer; the IPsec spec retains its existing interop obligations.
 | Phase | Files / surface | Outcome and documentation in that phase |
 |-------|-----------------|-----------------------------------------|
 | 0. Preparation wiring, completed with phases 1 and 2 | New `internal/le/rfc/kernel-proof/register.go`, action/prepare sources and tests, linked by `internal/le/register.go`; new `internal/appliance/runtimekernel_proof.go` and tests; `cache.go`, `runtimekernel_existing.go` | Wire the separate prepare action and typed native seam first; refuse until receipt/build/image dependencies are available. Complete distinct proof publication and validated cache hits with phases 1 and 2; preserve ordinary cache and shared staging. Update `docs/architecture/appliance/build-artifacts.md`, `docs/contributing/rfc-conformance-gates.md` and `ai/INDEX.md` |
-| 1. Native receipt and additive patch | `internal/appliance/kernelbuilder/recipe.go`, `driver.go`, `worker.go`; `tools/kernel-builder/main.go`; native Docker/QEMU request transports/tests and existing `internal/test/fixture/install_fixture.go` callers; receipt type in kernelbuilder | Complete derived build receipts and confined extra patch; extend `docs/architecture/appliance/kernel-profiles.md` at the same time; preserve existing instance provenance and normal fixture requests |
-| 2. Explicit selected-tree image | `internal/le/setup/docker/host/actions.go`, `build.go`, `pins.go` and warm-hit/key tests; `internal/le/build/gokrazy/gokrazy.go`; existing `internal/appliance/instance` seam/tests | Carry one tree end to end; key full actual selected output manifest and typed identity, adding native receipt identity when available. Ordinary legacy inputs use artifact-only; proof requires native-build. Verify cached image receipt/raw bytes before hit return; update `docs/architecture/appliance/docker-host.md`, `build-artifacts.md` and `kernel-profiles.md` |
+| 1. Native receipt and additive patch | `internal/appliance/kernelbuilder/recipe.go`, `driver.go`, `worker.go`; `tools/kernel-builder/main.go`; native Docker/QEMU request transports/tests and existing `internal/test/fixture/install_fixture.go` callers; new receipt output/type and strict Build decoder in kernelbuilder | Complete worker-derived build receipts, actual immutable builder/package/toolchain binding and confined extra patch; extend `docs/architecture/appliance/kernel-profiles.md` at the same time; preserve plain kernel.version readers and normal fixture requests |
+| 2. Explicit selected-tree image | `internal/le/setup/docker/host/actions.go`, `build.go`, `pins.go` and warm-hit/key tests; `internal/le/build/gokrazy/gokrazy.go`; `internal/appliance/instance` package/copy seams, SetGokGoEnv/ExecuteGok and vendored packing/localtime producers | Carry one tree through actual kernel/module/symlink/DTB/overlay packing and raw base-image acquisition. Bind non-kernel Go/module/package/localtime inputs and full output manifest plus typed native receipt identity where available. Ordinary legacy inputs use artifact-only; proof requires native-build. Verify cached image receipt/raw bytes before hit return; update `docs/architecture/appliance/docker-host.md`, `build-artifacts.md` and `kernel-profiles.md` |
 | 3. Record wiring and offline contract | `internal/le/rfc/actions.go`, `rfc.go`, `discriminate.go`, `discriminate_action.go`, `discriminate_validate.go`; new `discriminate_kernel_patch.go` and focused tests; existing `internal/le/build/compile/inputs.go` collector and shared toolchain/population seams where needed | Typed route, strict old-route compatibility, one binary, pre-compilation compiler-derived observer source/membership/context snapshot, pair and exact assertion/control selection. Preserve existing daemon/lint collectors; update `rfc/discrimination/README.md`, `docs/contributing/rfc-conformance-gates.md`, `ai/INDEX.md` and collector architecture anchors in `docs/contributing/preview-artifacts.md` only where the shared collector contract changes |
-| 4. Observe and preserve guards | `internal/le/rfc/discriminate_guest.go`, `discriminate_observe.go`; `internal/le/test/qemu/dockerlab_command.go` and tests only where needed | Exact event attribution, one-package/binary prerequisite binding and two guarded boots. Enforce complete single-assertion matrix admission; consumer owns independently judged fixture-safe instrumentation. Update `docs/architecture/testing/qemu-integration.md` and `docs/contributing/rfc-conformance-gates.md` with pure-leaf/owner-thread and private-child-log restrictions; consumer updates `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` for its retained fixture/control contract |
-| 5. Consumers and generic proof | Census-listed `check.go`, `check_baseline.go`, `check_ratchets.go`, audit/coverage/rename/split/fixture/weekly/site consumers and scoped tests | Every reader retains or presents typed provenance correctly; typed committed/uncommitted drift classification and diagnostics; one authorized native proof and offline freshness. Consumer instrumentation/records belong to the IPsec spec |
+| 4. Observe and preserve guards | `internal/le/rfc/discriminate_guest.go`, `discriminate_observe.go`, strict event parser; `internal/le/test/qemu/dockerlab_command.go`, `dockerlab.go`, joined stop/cleanup seams and tests | Dedicated native selected-toolchain test2json stream, exact event attribution, one-package/binary prerequisite binding and two guarded boots; joined typed lifecycle receipts distinguish unset from completed zero. Enforce complete single-assertion matrix admission; consumer owns independently judged fixture-safe instrumentation. Update `docs/architecture/testing/qemu-integration.md` and `docs/contributing/rfc-conformance-gates.md` with event/lifecycle, pure-leaf/owner-thread and private-child-log contracts; consumer updates `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` for its retained fixture/control contract |
+| 5. Consumers and generic proof | Census-listed Text/JSON action report, check/baseline/ratchet, all record writer publication, audit/coverage/rename/split/fixture/weekly/site consumers, generated aggregate/browser fixtures and scoped tests | Every reader retains or presents typed provenance correctly; shared same-RID RMW protection, conservative bound-move invalidation and typed committed/uncommitted drift diagnostics; one authorized native proof and offline freshness. Consumer instrumentation/records belong to the IPsec spec |
 | Later population | Original RFC792 patch/record files and AC-7 | Seven original rows remain post-release, with the same native validation and review requirements |
 
 The existing CLI/checklist rows above remain historical design. For this
@@ -724,8 +830,14 @@ existing `internal/le/build/compile/inputs.go` compiler-input collector with a
 selected-test-package mode; its current `DaemonInputs` is hardcoded to daemon
 targets/two architectures and must not be called unchanged for this purpose.
 Reuse `selectedInputs`' structured source/dependency/native/embed enumeration
-and incomplete/outside-checkout dependency refusals. Use the same activated
-toolchain environment, feature/integration/race tags, GOOS/GOARCH, module/vendor
+and incomplete-dependency refusal. Its current checkout containment is lexical
+(`filepath.Abs`/`Rel`), so it does not establish canonical symlink containment.
+The new collector must resolve source/fixture link targets, refuse targets
+outside the admitted checkout/vendor population and bind allowed links' paths,
+targets and actual content identities. Offline inventory checks use the same
+canonical containment policy and detect retargeting; a link cannot introduce
+unbound host inputs. Preserve existing daemon/lint caller behavior. Use the same
+activated toolchain environment, feature/integration/race tags, GOOS/GOARCH, module/vendor
 resolution and package selection as `guestBuildArgv`; the path-only current
 `Toolchain.GoList` answer alone is not a source inventory. Test-mode selection
 must include the tested package's applicable internal/external test files and
@@ -840,6 +952,28 @@ refinement: `cmd_kernel.go` `runKernel`, `resolveKernel`,
 `pins.go` `KeyInputs`, `ImageKey`; `actions.go` `lockedBuild`, `EnsureImage`;
 and the registration pattern in `internal/le/rfc/extraction/register.go`.
 
+The worker currently returns an error and writes kernel outputs; there is no
+structured worker receipt for `Build` to decode. Add a distinct bounded receipt
+output to `WorkerRequest`/`RunWorker` and the worker CLI, transported through
+both `containerCreateArgs` and `guestBuildCommand` and preserved for direct
+fixture callers. The worker derives actual source/config/patch/toolchain/output
+facts while it owns the build. `Build` strictly decodes that receipt, rejects
+unknown/missing/duplicate fields and cross-checks request, worker and output
+identities before native publication. Keep the existing plain `kernel.version`
+record from `writeProvenance` and its `instance.readProvenance` and
+`existingRuntimeProvenance` readers compatible; none becomes a full receipt by
+changing its name or filling fields after the build.
+
+Resolve Docker inputs to the Dockerfile, complete build context and immutable
+actual builder image ID. For QEMU, bind the build guest base and the actual
+installed package/compiler/binutils identities produced by `guestSetup`, which
+currently installs packages from Alpine repositories. That builder bootstrap
+is distinct from the own-system proof guest. A mutable image tag, repository
+URL or package-name list cannot establish equal actual toolchains. Bind the
+worker binary/source and output-affecting environment on both paths, and refuse
+a pair whose actual worker report disagrees with the immutable requested input
+identity. A-R3 remains unvalidated until the native pair demonstrates this.
+
 `resolveRuntimeKernel` currently returns a cached vmlinuz before calling the
 builder and publishes cold output to the normal variant from
 `kernelCacheVariantFor`. Supplying an extra low-level builder field does not
@@ -906,6 +1040,27 @@ cross-link that receipt to the exact actual output manifest; an invalid present
 native receipt refuses rather than silently downgrading to artifact-only.
 Update every key caller and fixture; ordinary image keying must also bind the
 complete module set. Keep the existing pins/source/architecture/size dimensions.
+
+The manifest must follow the actual copies: `copyRuntimeOutputs` emits kernel,
+module and architecture boot outputs; `instance.assembleKernelPackage` and
+`copyKernelTree` prepare modules with symlink identities and DTBs/overlays;
+vendored `Pack.logicBuild` includes the module rootfs tree and
+`writeBoot`/`copyGlobsToBoot` select boot members. Bind each emitted/copied set
+and its actual packed counterpart rather than infer packing from the input
+directory. Existing boot guards hash the FAT kernel, check one module release
+and regular modules.dep, and check the running module directory. Full module
+content/symlink and packed boot-member validation is new work required here.
+
+Pair equality also binds actual non-kernel image inputs under
+`SetGokGoEnv`/`ExecuteGok`: patched Go/toolchain identity, module resolution and
+package bytes, instance/configuration, build tags/flags/environment, extra
+files and other rootfs producers. Include `hostLocaltime`'s chosen bytes and
+source identity, whether /etc/localtime, the GOROOT zoneinfo Factory fallback
+or explicit absence. A host file or resolved module cache cannot remain an
+unrecorded input merely because the pins file or kernel outputs match. Bind
+the actual raw base path/digest at `dockerLabPrepare`/`dockerLabVM.argv`
+acquisition too; a snapshot overlay preserves base immutability during guest
+writes but does not validate a previously altered base.
 
 Ordinary image preparation may accept a valid warm legacy selected tree without
 a native build receipt. It validates and hashes the complete actual outputs and
@@ -1032,8 +1187,16 @@ reporting classifier nor an always refusing classifier can satisfy the design.
 | Performance | Tooling only. Stream artifact SHA256; store bounded manifests/decisive output and small function snapshots, not kernels/source trees in records. No product packet path changes |
 | Strongest concern | The minimum spans native build attestation, explicit image selection and exact assertion attribution. Implementing only the route vocabulary would publish apparent proof without the provenance that makes it meaningful |
 
-Admission remains **UNAPPROVED / REWORK** until the main session compares the
-generic ACs and changed-wire census with this Task, the preserved mechanisms,
-current source and owner rulings, then presents the complete dependency
-promotion decision. No design acceptance, native safety approval, implementation
-or test result is claimed by this refresh.
+The main harness completed its comparison of the amended Task, contracts,
+changed-wire census and G-AC-1 through G-AC-20 against the live keystone sources,
+preserved mechanisms and standing owner rules. The independent
+`kernel_design_admission_review` separately returned bounded source-admission
+CLEAR for proposal SHA256
+`58f6c420b8e59b4373846c78033ae7f194e7b07fa392a726633cb9bca4f13ddf`.
+This records the completed source-admission checks for owner review.
+
+The proposal remains **UNAPPROVED**, with status `design`, priority P3 and
+post-release placement. A-R2, A-R3 and A-R4 remain **Unvalidated**. The owner
+still decides the complete dependency promotion and design approval; all
+existing safety holds remain in force. These source comparisons imply no owner
+approval, implementation, runtime proof or automatic-review approval.
