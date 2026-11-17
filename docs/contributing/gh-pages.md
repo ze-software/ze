@@ -153,6 +153,15 @@ feature nor replace a failed proof.
 <!-- source: internal/le/site/terminaldemo/register_topics.go -- registerLiveTopic -->
 <!-- source: demos/terminal/showcase/demo.tape -- shared topic fragments -->
 
+Common lab preparation copies only the authored topic `.conf` sections into
+the lab's configuration directory under `topics/<topic>/`. SSH file loads
+name those relative paths, so they use the daemon's normal configuration-file
+boundary. The authored sections remain under `demos/terminal/topics/`, where
+the configuration corpus validates them in their tape order. These staged
+inputs belong to the lab's current state; the next preparation replaces that
+state and its copies together.
+<!-- source: internal/le/site/terminaldemo/showcase_topic_inputs.go -- stageShowcaseTopicInputs -->
+
 
 The topic recordings share one lab, the `showcase-lab` scenario. It starts the
 shown Ze in the container's root network namespace with

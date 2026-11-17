@@ -1,0 +1,81 @@
+# Test: an SSH editor imports files only from the daemon's configuration roots
+# QUESTION: does the actual SSH session refuse a valid file outside its configured
+#           root without changing the candidate, while still importing a valid
+#           file inside that root?
+# WHY FUNCTIONAL: a model unit cannot prove that the running daemon's session
+#                 factory grants confined file authority to the real SSH editor.
+# VALIDATES: the outside import is refused, leaves no pending change, and a
+#            subsequent inside import produces the expected candidate value.
+# PREVENTS: a remote editor reading arbitrary paths with the daemon's OS identity,
+#           or a fix that refuses every file import to close that boundary.
+option=storage:value=disk
+option=timeout:value=90s
+# The runner defaults this root to the test directory. State the narrower root
+# explicitly so outside.conf is genuinely outside the daemon's configured roots.
+option=env:var=ze.config.dir:value=allowed
+
+tmpfs=allowed/router.conf:terminator=EOF_CONF
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+
+environment {
+    ssh {
+        enabled true
+        server main {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=outside.conf:terminator=EOF_OUTSIDE
+bgp {
+    router-id 198.51.100.200
+}
+EOF_OUTSIDE
+
+tmpfs=allowed/inside.conf:terminator=EOF_INSIDE
+bgp {
+    router-id 192.0.2.99
+}
+EOF_INSIDE
+
+tmpfs=session-editor-file-input-boundary.script:terminator=EOF_SCRIPT
+send load file absolute replace ../outside.conf
+wait The selected configuration file cannot be loaded in this session.
+send show | changes
+wait No pending changes
+send top load file absolute merge inside.conf
+wait Configuration merged from
+send show | changes
+wait 1 pending change
+send show | compare
+wait 192.0.2.99
+send discard all
+wait Session changes discarded
+send show | changes
+wait No pending changes
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze start allowed/router.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture plugin/session-editor $PORT2 allowed/router.conf session-editor-file-input-boundary.script:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: session editor script completed
+expect=file:path=allowed/router.conf:contains=router-id 1.2.3.4
+expect=file:path=allowed/router.conf:not-contains=198.51.100.200
+expect=file:path=allowed/router.conf:not-contains=192.0.2.99

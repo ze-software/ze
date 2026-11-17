@@ -103,8 +103,8 @@ func showcaseCLI(command string) (string, error) {
 }
 
 // loadShowcaseSections commits all named snippets in one SSH candidate. Paths
-// are relative to demos/terminal. This uses the same editor as the recording,
-// never an offline import into the daemon's store.
+// name the staged topics inside the lab's configuration directory. This uses
+// the same editor as the recording, never an offline import into its store.
 // liveTopicKeyDelay is the recorder's pause, in seconds, after a command that
 // no wait follows, in the sessions that drive the shared showcase daemon.
 const liveTopicKeyDelay = "0.1"
@@ -122,7 +122,7 @@ func loadShowcaseSections(paths ...string) error {
 	args := []string{flagTimeout, "60", flagDelay, liveTopicKeyDelay}
 	for _, path := range paths {
 		args = append(args,
-			flagCommand, "load file absolute merge "+filepath.Join(demoTree(), path),
+			flagCommand, "load file absolute merge "+path,
 			flagCommand, ptyWait(`merged from \S*`+regexp.QuoteMeta(filepath.Base(path))))
 	}
 	args = append(args,

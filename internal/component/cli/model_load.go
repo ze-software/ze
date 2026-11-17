@@ -6,7 +6,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -249,6 +249,15 @@ func (m *Model) resolveConfigPath(path string) string {
 		return path
 	}
 	configDir := getDir(m.editor.OriginalPath())
+	if m.filesystemAuthority == FilesystemAuthorityDaemon {
+		if !m.editor.looseFile {
+			if configDir == "." {
+				// A stored name has no OS directory. Relative imports are
+				// beside the store, never beside the daemon's working directory.
+				configDir = resolve.StoreDir("")
+			}
+		}
+	}
 	return joinPath(configDir, path)
 }
 
@@ -319,10 +328,9 @@ func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
 	}
 
 	// File source - read and apply
-	loadPath := m.resolveConfigPath(path)
-	data, err := readFile(loadPath)
+	data, err := m.loadFile(path, location, action)
 	if err != nil {
-		return commandResult{}, fmt.Errorf("cannot read %s: %w", path, err)
+		return commandResult{}, err
 	}
 
 	return m.applyLoad(location, action, string(data), path)
@@ -512,22 +520,17 @@ func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 				n = parsed
 			}
 		}
-		ring := make([]string, n)
-		count := 0
-		for line := range strings.SplitSeq(content, "\n") {
-			ring[count%n] = line
-			count++
-		}
-		take := min(n, count)
-		start := count - take
-		var result textbuf.Buffer
-		for i := range take {
-			if i > 0 {
-				result.Byte('\n')
+		end := len(content)
+		// Each step consumes a newline, so the input bounds the work even
+		// when the requested count is larger than the available lines.
+		for range n {
+			last := strings.LastIndexByte(content[:end], '\n')
+			if last < 0 {
+				return content, nil
 			}
-			result.Str(ring[(start+i)%n])
+			end = last
 		}
-		return result.String(), nil
+		return content[end+1:], nil
 
 	case cmdCompare:
 		var result textbuf.Buffer
@@ -665,11 +668,7 @@ func ClassifyShowPipes(filters []PipeFilter) (ShowPipeOpts, error) {
 }
 
 // Helper functions wrapping standard library calls
-// These use os, filepath, strconv packages.
-
-func readFile(path string) ([]byte, error) {
-	return os.ReadFile(path) //nolint:gosec // Path comes from user input in editor context
-}
+// These use filepath and strconv.
 
 func isAbsPath(path string) bool {
 	return filepath.IsAbs(path)

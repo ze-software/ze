@@ -14,15 +14,15 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-irr server
-Type "load file absolute merge /src/demos/terminal/topics/irr/1-server.conf"
+Type "load file absolute merge topics/irr/1-server.conf"
 Enter
 Wait+Screen /merged from \S*1-server\.conf/
 Card topic-irr as-set
-Type "load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf"
+Type "load file absolute merge topics/irr/2-as-set.conf"
 Enter
 Wait+Screen /merged from \S*2-as-set\.conf/
 Card topic-irr import
-Type "load file absolute merge /src/demos/terminal/topics/irr/3-import.conf"
+Type "load file absolute merge topics/irr/3-import.conf"
 Enter
 Wait+Screen /merged from \S*3-import\.conf/
 Type "show | compare"

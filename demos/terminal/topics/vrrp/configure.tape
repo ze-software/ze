@@ -19,12 +19,12 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-vrrp group
-Type "load file absolute merge /src/demos/terminal/topics/vrrp/1-group.conf"
+Type "load file absolute merge topics/vrrp/1-group.conf"
 Enter
 Wait+Screen /merged from \S*1-group\.conf/
 Sleep 3s
 Card topic-vrrp tracking
-Type "load file absolute merge /src/demos/terminal/topics/vrrp/2-tracking.conf"
+Type "load file absolute merge topics/vrrp/2-tracking.conf"
 Enter
 Wait+Screen /merged from \S*2-tracking\.conf/
 Sleep 3s

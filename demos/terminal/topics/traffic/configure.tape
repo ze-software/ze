@@ -19,12 +19,12 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-traffic accounting
-Type "load file absolute merge /src/demos/terminal/topics/traffic/1-accounting.conf"
+Type "load file absolute merge topics/traffic/1-accounting.conf"
 Enter
 Wait+Screen /merged from \S*1-accounting\.conf/
 Sleep 3s
 Card topic-traffic interface
-Type "load file absolute merge /src/demos/terminal/topics/traffic/2-interface.conf"
+Type "load file absolute merge topics/traffic/2-interface.conf"
 Enter
 Wait+Screen /merged from \S*2-interface\.conf/
 Sleep 3s

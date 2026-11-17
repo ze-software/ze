@@ -25,15 +25,15 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-rpki cache
-Type "load file absolute merge /src/demos/terminal/topics/rpki/1-cache.conf"
+Type "load file absolute merge topics/rpki/1-cache.conf"
 Enter
 Wait+Screen /merged from \S*1-cache\.conf/
 Card topic-rpki policy
-Type "load file absolute merge /src/demos/terminal/topics/rpki/2-policy.conf"
+Type "load file absolute merge topics/rpki/2-policy.conf"
 Enter
 Wait+Screen /merged from \S*2-policy\.conf/
 Card topic-rpki attach
-Type "load file absolute merge /src/demos/terminal/topics/rpki/3-attach.conf"
+Type "load file absolute merge topics/rpki/3-attach.conf"
 Enter
 Wait+Screen /merged from \S*3-attach\.conf/
 Type "show | compare"

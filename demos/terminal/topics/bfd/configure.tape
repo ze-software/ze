@@ -22,12 +22,12 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-bfd profile
-Type "load file absolute merge /src/demos/terminal/topics/bfd/1-profile.conf"
+Type "load file absolute merge topics/bfd/1-profile.conf"
 Enter
 Wait+Screen /merged from \S*1-profile\.conf/
 Sleep 3s
 Card topic-bfd peer
-Type "load file absolute merge /src/demos/terminal/topics/bfd/2-peer.conf"
+Type "load file absolute merge topics/bfd/2-peer.conf"
 Enter
 Wait+Screen /merged from \S*2-peer\.conf/
 Sleep 3s

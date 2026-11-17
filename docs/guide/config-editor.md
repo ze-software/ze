@@ -97,6 +97,19 @@ configured entry count, and deduplicate consecutive displayed commands.
 
 ## Editor Commands
 
+In an SSH session, `load file` reads only a regular configuration file inside
+the daemon's configured configuration directories. Paths through symlinks are
+checked against the same directories; the configuration store's private files
+are excluded. The opened file must remain regular, and opening refuses any
+path component replaced by a symlink after validation. Remote file imports
+accept up to 4 MiB. To import a file held elsewhere, use
+`load terminal absolute merge` and paste its configuration, or choose the file
+in the browser. Local loose-file editors retain the local
+operator's filesystem permissions.
+Relative SSH import paths are resolved beside the active configuration; a
+stored configuration name uses the configured store directory as its base.
+<!-- source: internal/component/cli/model_load_path.go -- loadFile -->
+
 The graphical web editor's **Import into candidate** forms use the same load
 producer as these editor commands. A local file or pasted text can merge into
 or replace the root or selected subtree. Import stages changes for your account;
@@ -157,7 +170,7 @@ goes to `bgp`, as `edit bgp` typed at the root would. `top run <cmd>`,
 without `top`. `top load terminal relative merge` pastes at the root. History
 keeps the line as you typed it, and completion after `top ` offers what the
 root offers. This form runs in the SSH editor and `ze config edit`.
-<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 <!-- source: internal/component/cli/model_keys.go -- handleEnter, finishPasteMode -->
 
 In an editing session a bare `discard` is refused and names both forms above.
@@ -282,6 +295,10 @@ and select **Load candidate**. For a file, type a `load file` command and choose
 the file from your computer. Its path does not read the router's filesystem.
 Both forms accept up to 4 MiB, use the same atomic loader, and leave committing
 as a separate action. Commands run in their entered order, including navigation.
+
+Display limits use only the rows or lines already available. Asking `tail`,
+`first` or `last` for more results keeps the available results without
+reserving memory for the requested count.
 
 <!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
 <!-- source: internal/component/web/editor.go -- ConfigCommand -->
@@ -586,6 +603,27 @@ without `-f` to serve the web editor from the owning daemon.
 owning daemon gives each session an identity (`user@origin%timestamp`) and a
 per-user change file. Commit applies the session's changes with conflict
 detection. The same store holds draft recovery and history for every surface.
+
+The session CLI retains its shared saved-draft view, including other sessions'
+saved values and annotations. Commit still publishes only the committing
+session's changes. The browser instead keeps its candidate view isolated.
+<!-- source: internal/component/cli/editor.go -- NewEditorWithStorage, NewIsolatedEditorWithStorage -->
+<!-- source: internal/component/cli/editor_view.go -- workingViewMetadata -->
+
+The browser automatically resumes pending changes from your earlier web
+sessions. It keeps your SSH intent separate. Saving publishes your assignments
+into the shared draft while retaining your own live candidate; it does not
+import another session's draft values into your view or the candidate text
+used for validation.
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession, workingSessionMetadata -->
+<!-- source: internal/component/cli/editor_draft.go -- SaveDraft -->
+
+After a commit applies, cleanup can still fail. The warning names the cause.
+The configuration is already in use; do not repeat the commit. Keep the session
+files and use `show | changes all` to review the retained changes before repairing
+the reported failure. Avoid removing the shared change file: it can still hold
+another session's pending work.
+<!-- source: internal/component/cli/editor_session_cleanup.go -- sessionCleanupWarning -->
 
 **Backup mode** (`ze config edit --backup <artifact> [config-name]`): the
 editor opens a config inside a backup artifact (a `.zefs` file that `ze data

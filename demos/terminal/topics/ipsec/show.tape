@@ -37,7 +37,7 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-ipsec mismatch
-Type "load file absolute merge /src/demos/terminal/topics/ipsec/5-mismatch.conf"
+Type "load file absolute merge topics/ipsec/5-mismatch.conf"
 Enter
 Wait+Screen /merged from \S*5-mismatch\.conf/
 Type "show | compare"
@@ -84,7 +84,7 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-ipsec restore
-Type "load file absolute merge /src/demos/terminal/topics/ipsec/2-esp.conf"
+Type "load file absolute merge topics/ipsec/2-esp.conf"
 Enter
 Wait+Screen /merged from \S*2-esp\.conf/
 Type "show | compare"

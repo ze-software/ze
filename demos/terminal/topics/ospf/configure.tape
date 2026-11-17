@@ -19,12 +19,12 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-ospf area
-Type "load file absolute merge /src/demos/terminal/topics/ospf/1-area.conf"
+Type "load file absolute merge topics/ospf/1-area.conf"
 Enter
 Wait+Screen /merged from \S*1-area\.conf/
 Sleep 3s
 Card topic-ospf interface
-Type "load file absolute merge /src/demos/terminal/topics/ospf/2-interface.conf"
+Type "load file absolute merge topics/ospf/2-interface.conf"
 Enter
 Wait+Screen /merged from \S*2-interface\.conf/
 Sleep 3s

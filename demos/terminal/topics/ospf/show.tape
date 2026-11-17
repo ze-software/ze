@@ -27,7 +27,7 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-ospf mismatch
-Type "load file absolute merge /src/demos/terminal/topics/ospf/3-mismatch.conf"
+Type "load file absolute merge topics/ospf/3-mismatch.conf"
 Enter
 Wait+Screen /merged from \S*3-mismatch\.conf/
 Sleep 3s
@@ -70,7 +70,7 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-ospf recovery
-Type "load file absolute merge /src/demos/terminal/topics/ospf/4-recovery.conf"
+Type "load file absolute merge topics/ospf/4-recovery.conf"
 Enter
 Wait+Screen /merged from \S*4-recovery\.conf/
 Sleep 3s

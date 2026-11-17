@@ -123,7 +123,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 				}
 				log.Warn("session editor creation failed", "user", username, "error", err)
 			} else {
-				m, modelErr := cli.NewModel(ed, cli.FilesystemAuthorityUnknown)
+				m, modelErr := cli.NewModel(ed, cli.FilesystemAuthorityDaemon)
 				if modelErr == nil {
 					m.SetAuditRecorder(recorder, audit.SSH, username, remoteAddr)
 					m.SetCommandCompleter(cmdCompleter)
@@ -157,7 +157,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		}
 
 		// Fallback: command-only model.
-		m := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
+		m := cli.NewCommandModel(cli.FilesystemAuthorityDaemon)
 		m.SetCommandCompleter(cmdCompleter)
 		m.SetRegisteredOperational(registered)
 		if params.Store != nil {

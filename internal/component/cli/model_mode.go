@@ -17,17 +17,27 @@ import (
 
 var errNoDaemonConnectionOperationalModeRequires = errors.New("no daemon connection (operational mode requires a running daemon)")
 
-// FilesystemAuthority states whether filesystem effects execute as the operator
-// who constructed this model. Unknown is the zero value and MUST fail closed.
+// IsConfigureCommand recognizes the exact mode-entry control shared by Enter,
+// recall and browser adapters. The caller MUST retain its existing whitespace
+// handling; arguments and pipes belong to normal command dispatch.
+func IsConfigureCommand(input string) bool {
+	return input == cmdConfigure
+}
+
+// FilesystemAuthority states which filesystem access a model can request.
+// Unknown is the zero value and MUST fail closed.
 type FilesystemAuthority uint8
 
 const (
-	// FilesystemAuthorityUnknown denies filesystem effects. Daemon-hosted and
-	// otherwise unknown models MUST use this value.
+	// FilesystemAuthorityUnknown grants no file access. Browser adapters accept
+	// supplied content instead; daemon models declare their confined authority.
 	FilesystemAuthorityUnknown FilesystemAuthority = iota
 	// FilesystemAuthorityOperatorLocal allows effects in a process the operator
 	// owns, where normal operating-system permissions are authoritative.
 	FilesystemAuthorityOperatorLocal
+	// FilesystemAuthorityDaemon permits reads through the registered
+	// configuration-directory policy, never caller-local filesystem effects.
+	FilesystemAuthorityDaemon
 )
 
 // EditorMode represents the current editor mode.

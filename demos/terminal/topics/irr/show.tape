@@ -28,7 +28,7 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-irr wrong
-Type "load file absolute merge /src/demos/terminal/topics/irr/4-wrong-as-set.conf"
+Type "load file absolute merge topics/irr/4-wrong-as-set.conf"
 Enter
 Wait+Screen /merged from \S*4-wrong-as-set\.conf/
 Type "show | compare"
@@ -71,7 +71,7 @@ Type "sshpass -e ssh ze-demo"
 Enter
 Wait+Screen /ze#/
 Card topic-irr as-set
-Type "load file absolute merge /src/demos/terminal/topics/irr/2-as-set.conf"
+Type "load file absolute merge topics/irr/2-as-set.conf"
 Enter
 Wait+Screen /merged from \S*2-as-set\.conf/
 Type "show | compare"

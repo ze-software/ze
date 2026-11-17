@@ -11,7 +11,7 @@ Enter
 Wait+Screen /No pending changes/
 Sleep 4s
 Card topic-commit-confirmed confirmed
-Type "load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf"
+Type "load file absolute merge topics/commit-confirmed/2-confirmed-host.conf"
 Enter
 Wait+Screen /merged from \S*2-confirmed-host\.conf/
 Type "show | compare"

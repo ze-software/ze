@@ -14,7 +14,7 @@ Enter
 Wait+Screen /edge-original/
 Sleep 3s
 Card topic-commit-confirmed trial
-Type "load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf"
+Type "load file absolute merge topics/commit-confirmed/1-trial-host.conf"
 Enter
 Wait+Screen /merged from \S*1-trial-host\.conf/
 Type "show | compare"

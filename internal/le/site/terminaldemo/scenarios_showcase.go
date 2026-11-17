@@ -241,6 +241,9 @@ func runShowcaseLab(action string, args []string, output io.Writer) error {
 		if err := prepareScenario(id, showcasePIDs, true); err != nil {
 			return err
 		}
+		if err := stageShowcaseTopicInputs(); err != nil {
+			return err
+		}
 		if err := importScenarioConfig(id, filepath.Join(demoDir(id), "ze.conf")); err != nil {
 			return err
 		}

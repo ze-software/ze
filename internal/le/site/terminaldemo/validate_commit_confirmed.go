@@ -27,7 +27,7 @@ func checkTopicCommitConfirmed() error {
 	output, err := runPTYFixtureObserved(environ, awaitCommitConfirmedTrial,
 		flagDelay, "0.2", flagTimeout, "30",
 		flagCommand, "show system host",
-		flagCommand, "load file absolute merge /src/demos/terminal/topics/commit-confirmed/1-trial-host.conf",
+		flagCommand, "load file absolute merge topics/commit-confirmed/1-trial-host.conf",
 		flagCommand, ptyWait("merged from"),
 		flagCommand, "show | compare",
 		flagCommand, "commit confirmed 15",
@@ -59,7 +59,7 @@ func checkTopicCommitConfirmed() error {
 	}
 	output, err = runPTYFixture(environ,
 		flagDelay, "0.2", flagTimeout, "30",
-		flagCommand, "load file absolute merge /src/demos/terminal/topics/commit-confirmed/2-confirmed-host.conf",
+		flagCommand, "load file absolute merge topics/commit-confirmed/2-confirmed-host.conf",
 		flagCommand, ptyWait("merged from"),
 		flagCommand, "show | compare",
 		flagCommand, "commit confirmed 15",

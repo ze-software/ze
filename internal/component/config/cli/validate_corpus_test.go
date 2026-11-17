@@ -633,10 +633,20 @@ func (s *sweepContext) tapeSequences(tape string, loaded map[string]bool) []load
 			continue
 		}
 		match := loadCommand.FindStringSubmatch(line)
-		if len(match) < 3 || !strings.HasPrefix(match[2], demoSourceRoot) {
+		if len(match) < 3 {
 			continue
 		}
-		fragmentPath := filepath.Join(s.root, filepath.FromSlash(strings.TrimPrefix(match[2], demoSourceRoot)))
+		var relative string
+		switch {
+		case strings.HasPrefix(match[2], demoSourceRoot):
+			relative = strings.TrimPrefix(match[2], demoSourceRoot)
+		case strings.HasPrefix(match[2], "topics/"):
+			// The lab stages these authored sections under its config root.
+			relative = filepath.Join("demos", "terminal", filepath.FromSlash(match[2]))
+		default:
+			continue
+		}
+		fragmentPath := filepath.Join(s.root, filepath.FromSlash(relative))
 		loaded[filepath.Clean(fragmentPath)] = true
 		if current < 0 {
 			if unreadLab != "" {
