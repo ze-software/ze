@@ -1,0 +1,39 @@
+Ze-Reviewed-Against: github.com/OpenPeeDeeP/depguard/v2 v2.2.1
+
+The requested github.com/gobwas/glob v1.0.0 update requires compiled patterns
+to use *glob.Pattern. The old glob.Glob interface is no longer exported.
+Use the concrete pattern type for depguard's positive and negative file
+lists and their matching helper. The matching calls do not change.
+
+This backports only the pattern type changes in upstream's list and
+strInGlobList, read at:
+https://github.com/OpenPeeDeeP/depguard/blob/master/settings.go
+No upstream pull request is opened for this backport.
+Delete this patch when the required depguard release uses *glob.Pattern.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored
+module".
+
+diff --git a/vendor/github.com/OpenPeeDeeP/depguard/v2/settings.go b/vendor/github.com/OpenPeeDeeP/depguard/v2/settings.go
+--- a/vendor/github.com/OpenPeeDeeP/depguard/v2/settings.go
++++ b/vendor/github.com/OpenPeeDeeP/depguard/v2/settings.go
+@@ -28,8 +28,8 @@ const (
+ type list struct {
+ 	listMode    listMode
+ 	name        string
+-	files       []glob.Glob
+-	negFiles    []glob.Glob
++	files       []*glob.Pattern
++	negFiles    []*glob.Pattern
+ 	allow       []string
+ 	deny        []string
+ 	suggestions []string
+@@ -212,7 +212,7 @@ func (s linterSettings) whichLists(fileName string) []*list {
+ 	return matches
+ }
+ 
+-func strInGlobList(str string, globList []glob.Glob) bool {
++func strInGlobList(str string, globList []*glob.Pattern) bool {
+ 	for _, g := range globList {
+ 		if g.Match(str) {
+ 			return true
