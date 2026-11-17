@@ -244,6 +244,45 @@ func LookupIn(environ []string, key string) string {
 	return effectiveValues(environ)[normalize(key)]
 }
 
+// WithDefaults returns environ followed by each entry of defaults whose key
+// environ gives no value, read as Get reads it: any case and separator
+// spelling, and a key set to the empty string counts as not set. It is the
+// precedence a config's `environment` block has under the operator's own
+// environment (the process environment wins), applied to an environment that
+// is built and never to this process: Set followed by os.Environ answers the
+// same values for the process itself.
+//
+// defaults holds "key=value" entries under the canonical dotted key, in the
+// order they would be set; a key named twice keeps its first value. A default
+// is appended after every entry of environ and in its dotted spelling, so it
+// is the value ShellSafe and LookupIn then read for that key. environ and
+// defaults are left unchanged. Safe for concurrent use: it touches no package
+// state.
+func WithDefaults(environ, defaults []string) []string {
+	if len(defaults) == 0 {
+		return environ
+	}
+	values := effectiveValues(environ)
+	filled := make([]string, len(environ), len(environ)+len(defaults))
+	copy(filled, environ)
+	for _, entry := range defaults {
+		key, value, named := strings.Cut(entry, "=")
+		if !named {
+			panic("BUG: env.WithDefaults was given a default that is not key=value: " + entry)
+		}
+		norm := normalize(key)
+		if values[norm] != "" {
+			continue
+		}
+		if value == "" {
+			continue
+		}
+		values[norm] = value
+		filled = append(filled, entry)
+	}
+	return filled
+}
+
 // secretCleared tracks which Secret keys have already been cleared from OS env.
 // Prevents repeated os.Unsetenv calls on subsequent Get() invocations.
 // Protected by cacheMu.

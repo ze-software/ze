@@ -186,8 +186,31 @@ func startFixtureDaemon(ctx context.Context, args []string, config string) (*fix
 	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
 		return nil, nil, err
 	}
+	daemon, cliEnv, err := launchFixtureDaemon(ctx, workdir, bgpPort)
+	if err != nil {
+		return nil, nil, err
+	}
+	keepWorkdir = true
+	return daemon, cliEnv, nil
+}
+
+// launchFixtureDaemon starts ze on the ze.conf of workdir, with workdir as its
+// config directory, waits for it to be ready, and answers the daemon and the
+// environment a `ze` client reaches it with. It is the launch half of
+// startFixtureDaemon, apart so a fixture that proves a restart starts a second
+// daemon on the directory the first one left (fixtureDaemon.halt). A daemon
+// that fails to start is stopped, and its directory removed.
+func launchFixtureDaemon(ctx context.Context, workdir string, bgpPort int) (*fixtureDaemon, []string, error) {
+	configPath := filepath.Join(workdir, "ze.conf")
 	sshAddr := filepath.Join(workdir, "ssh.addr")
 	ready := filepath.Join(workdir, "ready")
+	// A second start in one directory must not read the address and the
+	// ready mark the first one left.
+	for _, stale := range []string{sshAddr, ready} {
+		if err := os.Remove(stale); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, err
+		}
+	}
 	env := append(daemonRootEnvironment(os.Environ(), workdir),
 		"ZE_SSH_EPHEMERAL="+sshAddr,
 		"ZE_READY_FILE="+ready,
@@ -240,12 +263,21 @@ func startFixtureDaemon(ctx context.Context, args []string, config string) (*fix
 		return nil, nil, fmt.Errorf("bad SSH address %q: %w", address, err)
 	}
 	cliEnv := append(daemonRootEnvironment(os.Environ(), workdir), "ZE_SSH_HOST="+host, "ZE_SSH_PORT="+port, "ZE_SSH_USERNAME=ci", "ZE_SSH_PASSWORD=secret")
-	keepWorkdir = true
 	return daemon, cliEnv, nil
 }
 
+// stop ends the daemon and removes its directory.
 func (daemon *fixtureDaemon) stop() error {
 	defer os.RemoveAll(daemon.workdir) //nolint:errcheck // isolated fixture state is best-effort cleanup
+	return daemon.halt()
+}
+
+// halt ends the daemon and keeps its directory, so its store and its saved
+// config are there for a second start (launchFixtureDaemon). Once it returns
+// the process has ended, and its stdout and stderr are complete. The caller
+// MUST still call stop, on this daemon or on the one started next in the same
+// directory, to remove the directory.
+func (daemon *fixtureDaemon) halt() error {
 	if daemon.command.Process == nil {
 		return nil
 	}

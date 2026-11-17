@@ -142,6 +142,7 @@ func fmtHelpPage() *helpfmt.Page {
 				{Name: "-w", Desc: "Write result to source file"},
 				{Name: "--check", Desc: "Check if formatting needed (exit 1 if changes)"},
 				{Name: "--diff", Desc: "Show unified diff of changes"},
+				accountOptionHelp(),
 			}},
 			{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
 				{Name: "0", Desc: "Success (or no changes needed with --check)"},
@@ -206,6 +207,7 @@ func fmtAnswer(route command.Route, args []string) command.LocalAnswer {
 	write := fs.Bool("w", false, "write result to source file")
 	check := fs.Bool("check", false, "check if formatting needed (exit 1 if changes)")
 	diff := fs.Bool("diff", false, "show unified diff of changes")
+	user := fs.String("user", "", "account that asks the running ze about a config that declares an external plugin")
 	fs.Usage = func() { writeFmtUsage(&diag) }
 
 	// The flag package wrote the help page, or the flag error and the page,
@@ -244,6 +246,12 @@ func fmtAnswer(route command.Route, args []string) command.LocalAnswer {
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
+	// The operator's own process asks the running ze to format a config that
+	// declares an external plugin (fmtAsking). The daemon is the process that
+	// answers on its own route, and asks nobody.
+	if route.CallerLocal() {
+		return fmtAsking(configPath, input, *check, *diff, *write, *user, routeAsk)
+	}
 	return fmtBytesAnswer(configPath, input, *check, *diff, *write)
 }
 
@@ -252,11 +260,21 @@ func fmtAnswer(route command.Route, args []string) command.LocalAnswer {
 // pass false and retain the same check/diff diagnostics and masked output.
 func fmtBytesAnswer(configPath string, input []byte, check, diff, write bool) command.LocalAnswer {
 	var diag textbuf.Buffer
-	formatted, hasChanges, weaknesses, err := formatConfigBytes(configPath, input)
+	formatted, _, weaknesses, err := formatConfigBytes(configPath, input)
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 	writePasswordWeaknesses(&diag, weaknesses)
+	return fmtFormattedAnswer(&diag, configPath, input, formatted, check, diff, write)
+}
+
+// fmtFormattedAnswer is the answer of fmt once input is formatted: the
+// --check verdict, the --diff hunks, the -w write, or the formatted text. It
+// is one step for a format made in this process (fmtBytesAnswer) and for one
+// the running ze made (fmtAsking), so the two cannot answer differently. diag
+// holds the lines already owed to the operator, the password warnings.
+func fmtFormattedAnswer(diag *textbuf.Buffer, configPath string, input []byte, formatted string, check, diff, write bool) command.LocalAnswer {
+	hasChanges := string(input) != formatted
 
 	if check {
 		if !hasChanges {
@@ -274,13 +292,13 @@ func fmtBytesAnswer(configPath string, input []byte, check, diff, write bool) co
 
 	if diff {
 		if hasChanges {
-			writeFmtDiff(&diag, configPath, string(input), formatted)
+			writeFmtDiff(diag, configPath, string(input), formatted)
 		}
 		return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
 	}
 
 	if write {
-		return fmtWriteAnswer(&diag, configPath, formatted, hasChanges)
+		return fmtWriteAnswer(diag, configPath, formatted, hasChanges)
 	}
 
 	return command.LocalAnswer{Payload: command.Blob(formatted), Code: exitOK, Diagnostic: diag.String()}

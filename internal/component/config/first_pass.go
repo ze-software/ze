@@ -9,13 +9,16 @@ package config
 import (
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // firstPassRoots names the roots Ze reads before any plugin runs: `plugin`,
 // read by ExtractPluginsFromTree and ExtractHubConfig, and `environment`, read
-// by ExtractEnvironment. PluginOnlySchema holds these and no other.
-var firstPassRoots = []string{"plugin", "environment"}
+// by ExtractEnvironment. PluginOnlySchema holds these and no other. The set is
+// declared once, in yang.FirstPassRoots, because the join of an external
+// module refuses a node added under one of them.
+var firstPassRoots = yang.FirstPassRoots()
 
 // FirstPassResult is what a config and the command line say about the plugins
 // to run, read before the full config can be parsed. FirstPass builds it.

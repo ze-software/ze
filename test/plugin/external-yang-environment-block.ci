@@ -1,0 +1,58 @@
+# Test: a declared external plugin reads the config's `environment` block
+#
+# Question: when a config sets a leaf of the `environment` block and declares
+# an external plugin, does the plugin's process start with that setting in its
+# environment?
+# Why not a unit test: the answer is an order of events in one daemon. The
+# declared plugins are forked before the full parse, and the full parse is what
+# applies the block to the daemon's own environment, so the setting reaches the
+# plugin only when the early start hands it over. The unit tests prove each
+# seam (config.EnvironmentEntries, env.WithDefaults, Process.SetConfigEnvironment);
+# only a daemon start through the real fork proves the seams are joined.
+#
+# The plugin is a REAL external process built on the public Go SDK
+# (internal/test/fixture/plugin_fixture_external_yang.go, variant
+# valid-environment). Before it connects it prints the value its own process
+# environment holds for exabgp.api.ack, between brackets, and the lines below
+# are that print. The leaf is the one an ExaBGP bridge reads: its default is
+# true, so `false` can only come from the config.
+#
+# VALIDATES: R-15 of spec-plugin-external-yang-at-startup -- the plugin reads
+#   exabgp.api.ack as false, the value the config's `environment` block sets.
+# PREVENTS: the regression phase 5 of that spec brought. The declared plugins
+#   moved ahead of the full parse and were forked on the daemon's environment
+#   as it stood, so the block never reached them: the plugin printed
+#   `exabgp.api.ack=[]` and an ExaBGP bridge ran on its defaults.
+#
+# The exit assertion is of the DAEMON'S own exit: `then=stop` on the await
+# makes the runner stop the daemon once the awaited line is seen and compare
+# the code it ended with (docs/architecture/testing/ci-format.md, "Await").
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid-environment"
+		encoder json
+	}
+}
+
+environment {
+	exabgp {
+		api {
+			ack false
+		}
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
+await=stderr:contains=FIXTURE: external-yang generation 1 ready:then=stop
+expect=exit:code=0
+expect=stderr:contains=FIXTURE: external-yang environment exabgp.api.ack=[false]
+reject=stderr:contains=FIXTURE: external-yang environment exabgp.api.ack=[]
+reject=stderr:pattern=ZE-OBSERVER-FAIL

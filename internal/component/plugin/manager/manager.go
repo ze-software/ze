@@ -192,11 +192,16 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 // A held plugin the caller gives up on goes through FailDeclared, and one the
 // parsed config no longer names through DropDeclaredExcept.
 //
+// environment holds the settings of the config's `environment` block, which
+// the daemon applies to itself only once the full parse accepted the config:
+// each plugin forked here is given them for its own environment
+// (ProcessManager.StartEach), and the daemon's environment is not written.
+//
 // MUST be called at most once, after SetHubConfig and SetHubAuthority and
 // before StartAll. The processes live until StopAll, under ctx. An error
 // (no listener for the plugins to connect back to) means nothing was forked
 // and nothing recorded, so the startup phase reports it as it always did.
-func (m *Manager) StartDeclared(ctx context.Context, configs []parent.PluginConfig) (map[string]error, error) {
+func (m *Manager) StartDeclared(ctx context.Context, configs []parent.PluginConfig, environment []string) (map[string]error, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -222,7 +227,7 @@ func (m *Manager) StartDeclared(ctx context.Context, configs []parent.PluginConf
 		m.procManager.SetAcceptor(m.acceptor)
 	}
 
-	failures := m.procManager.StartEach(ctx, configs)
+	failures := m.procManager.StartEach(ctx, configs, environment)
 	m.declared = make(map[string]error, len(configs))
 	for _, cfg := range configs {
 		failure := failures[cfg.Name]

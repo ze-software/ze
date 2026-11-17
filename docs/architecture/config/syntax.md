@@ -511,7 +511,7 @@ removal; a membership or order change in an existing list is a changed sequence.
 Firewall-only inputs need no BGP block. This order comparison does not add
 general value comparison for other non-BGP configuration.
 
-<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, diffListOrders -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, diffListOrders -->
 
 <!-- source: internal/component/config/tree.go -- (*Tree).ToMap, (*Tree).ToPluginMap -->
 <!-- source: internal/core/configvalue/configvalue.go -- Bool, Int, LeafList, ListEntries -->

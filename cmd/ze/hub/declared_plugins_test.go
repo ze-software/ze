@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 // no declared external plugin must never reach the plugin manager early.
 type untouchedSpawner struct{ t *testing.T }
 
-func (u untouchedSpawner) StartDeclared(context.Context, []zePlugin.PluginConfig) (map[string]error, error) {
+func (u untouchedSpawner) StartDeclared(context.Context, []zePlugin.PluginConfig, []string) (map[string]error, error) {
 	u.t.Fatal("a boot with no declared external plugin started plugins before the full parse")
 	return map[string]error{}, nil
 }
@@ -38,13 +39,114 @@ func (u untouchedSpawner) GetProcessManager() any {
 // a manager with no listener does.
 type refusingSpawner struct{ cause error }
 
-func (r refusingSpawner) StartDeclared(context.Context, []zePlugin.PluginConfig) (map[string]error, error) {
+func (r refusingSpawner) StartDeclared(context.Context, []zePlugin.PluginConfig, []string) (map[string]error, error) {
 	return nil, r.cause
 }
 
 func (refusingSpawner) FailDeclared(context.Context, string, error) {}
 
 func (refusingSpawner) GetProcessManager() any { return nil }
+
+// recordingSpawner forks nothing, as refusingSpawner, and keeps the
+// environment boot gave it for the plugins it was asked to start.
+type recordingSpawner struct {
+	cause       error
+	environment []string
+	starts      int
+}
+
+func (r *recordingSpawner) StartDeclared(_ context.Context, _ []zePlugin.PluginConfig, environment []string) (map[string]error, error) {
+	r.starts++
+	r.environment = environment
+	return nil, r.cause
+}
+
+func (*recordingSpawner) FailDeclared(context.Context, string, error) {}
+
+func (*recordingSpawner) GetProcessManager() any { return nil }
+
+// TestDeclaredPluginsAreGivenTheEnvironmentBlock: a declared external plugin
+// is started before the full parse, which is what applies the config's
+// `environment` block to the daemon, so the block has to reach the plugin
+// another way. Method: a real first pass over a config that declares an
+// external plugin and sets three leaves, then the early step with a
+// spawner that records what it was given.
+//
+// VALIDATES: the spawner is given the block's settings under their env keys
+// (a leaf of a nested container, a log level, a leaf of a section), and
+// the daemon's own environment holds none of them afterwards.
+// PREVENTS: a declared external plugin forked on the daemon's environment
+// alone, where an ExaBGP bridge reads its defaults whatever the config says;
+// and the block applied to the daemon before the config was judged, where a
+// refused config's values would win over the recovered config's.
+func TestDeclaredPluginsAreGivenTheEnvironmentBlock(t *testing.T) {
+	restore := yang.ResetPublishedModulesForTest()
+	defer restore()
+	for _, key := range []string{"exabgp.api.ack", "ze.log", "ze.user"} {
+		t.Setenv(key, "")
+		require.NoError(t, os.Unsetenv(key))
+	}
+
+	const config = `plugin {
+    external acme-monitor {
+        run "./acme-monitor-plugin";
+    }
+}
+environment {
+    exabgp {
+        api {
+            ack false;
+        }
+    }
+    log {
+        level info;
+    }
+    daemon {
+        user zeuser;
+    }
+}
+`
+	firstPass, err := zeconfig.FirstPass(config, "", nil)
+	require.NoError(t, err)
+	require.Len(t, firstPass.External, 1, "the config declares one external plugin")
+	spawner := &recordingSpawner{cause: errors.New("plugin TLS acceptor: no listener")}
+
+	_, err = joinDeclaredPlugins(context.Background(), firstPass, spawner, func() error { return nil })
+
+	require.NoError(t, err)
+	require.Equal(t, 1, spawner.starts)
+	// MUTATION: pass nil for the environment in joinDeclaredPlugins, and the
+	// spawner is given nothing.
+	assert.ElementsMatch(t, []string{
+		"exabgp.api.ack=false",
+		"ze.log=info",
+		"ze.user=zeuser",
+	}, spawner.environment)
+	for _, key := range []string{"exabgp.api.ack", "ze.log", "ze.user"} {
+		_, set := os.LookupEnv(key)
+		assert.False(t, set, "the early step wrote %s into the daemon's own environment", key)
+	}
+}
+
+// TestDeclaredPluginsWithNoEnvironmentBlockAreGivenNothing proves a config
+// with no `environment` block gives the early start no setting: each plugin
+// is forked on the daemon's environment alone, as it was before the block
+// traveled with the start.
+func TestDeclaredPluginsWithNoEnvironmentBlockAreGivenNothing(t *testing.T) {
+	restore := yang.ResetPublishedModulesForTest()
+	defer restore()
+
+	firstPass, err := zeconfig.FirstPass("plugin {\n    external acme-monitor {\n        run \"./acme-monitor-plugin\";\n    }\n}\n", "", nil)
+	require.NoError(t, err)
+	require.Len(t, firstPass.External, 1)
+	spawner := &recordingSpawner{cause: errors.New("plugin TLS acceptor: no listener")}
+
+	_, err = joinDeclaredPlugins(context.Background(), firstPass, spawner, func() error { return nil })
+
+	require.NoError(t, err)
+	require.Equal(t, 1, spawner.starts)
+	assert.Empty(t, spawner.environment)
+}
 
 // TestNoExternalPluginKeepsBootOrder proves AC-9: when neither the config nor
 // the command line declares an external plugin, the steps between the first

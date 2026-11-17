@@ -9,7 +9,9 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -32,6 +34,7 @@ func cmdDiff(args []string) int {
 func cmdDiffImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config diff", flag.ExitOnError)
 	backupPath := fs.String(flagBackup, "", "Compare configs inside a backup artifact")
+	user := fs.String("user", "", "account that asks the running ze about a config that declares an external plugin")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze config diff",
@@ -43,6 +46,9 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 				"ze config diff --backup <artifact> <N> <name>",
 			},
 			Sections: []helpfmt.HelpSection{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+					accountOptionHelp(),
+				}},
 				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
 					{Name: "0", Desc: "Success (differences shown, or no differences)"},
 					{Name: "2", Desc: "File not found or parse error"},
@@ -69,8 +75,16 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 		store = backup
 	}
 
+	// typed is the operator's words after `ze config diff`, for the command a
+	// failed ask of the running ze names (diffAsking).
+	var typed textbuf.Buffer
+	if *backupPath != "" {
+		typed.Str("--").Str(flagBackup).Byte(' ').Str(*backupPath).Byte(' ')
+	}
+	typed.Str(strings.Join(fs.Args(), " "))
+
 	var diag textbuf.Buffer
-	diff, code := resolveDiff(store, fs.Args(), &diag)
+	diff, code := diffAsking(store, fs.Args(), typed.String(), command.RouteLocal, *user, routeAsk, &diag)
 	diag.StdErr() //nolint:errcheck // CLI diagnostic, nothing to report a stderr failure to.
 	if code != exitOK {
 		if fs.NArg() < 2 {
@@ -81,18 +95,32 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 	return outputDiffText(diff)
 }
 
-// resolveDiff compares the two configurations named in args, with every secret
-// value masked, and answers the diff both spellings of this command render.
+// diffInputs is the two sides of one comparison, each read once.
+type diffInputs struct {
+	// first and second are the bytes of the two sides.
+	first, second []byte
+	// firstName and secondName name the sides in a refusal: the file as it
+	// was given, or the history entry of a revision.
+	firstName, secondName string
+	// fromRevision is true when the first side is a rollback revision.
+	fromRevision bool
+	// secondErr is why the second side could not be read. compareDiffInputs
+	// reports it after any refusal of the first side.
+	secondErr error
+}
+
+// readDiffInputs reads the two sides args name, each once: two files, or a
+// revision number and the file whose history holds it. It is the reading half
+// of a comparison, apart from compareDiffInputs so the caller that asks the
+// running ze about the two sides (diffAsking) reads them once and sends the
+// same bytes the local comparison would parse; standard input cannot be read
+// twice.
 //
-// It is the payload half of cmdDiffImpl, lifted so `show config diff` answers
-// with DATA (dataDiff, config_data.go) and the two spellings cannot drift.
-//
-// It writes nothing itself: a refusal goes into diag as whole lines, and each
-// caller prints diag where its route puts diagnostics.
-func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*config.ConfigDiff, int) {
+// A refusal goes into diag as whole lines, with a code that is not exitOK.
+func readDiffInputs(store storage.Storage, args []string, diag *textbuf.Buffer) (diffInputs, int) {
 	if len(args) != 2 {
 		diag.Str("error: requires exactly two config files, or revision number and config file\n")
-		return nil, exitError
+		return diffInputs{}, exitError
 	}
 
 	// Check if first arg is a revision number (diff against rollback)
@@ -108,7 +136,7 @@ func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*c
 			revisionStore, err = storage.OpenReadOnly(resolve.StoreDir(file2), resolve.StoreDir(file2))
 			if err != nil {
 				diag.Str("error: config diff history: ").Err(err).Byte('\n')
-				return nil, exitError
+				return diffInputs{}, exitError
 			}
 			defer revisionStore.Close() //nolint:errcheck // Read-only history.
 		} else {
@@ -117,7 +145,7 @@ func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*c
 		resolved, data, err := resolveRollbackVersion(revisionStore, file2, n)
 		if err != nil {
 			diag.Str("error: ").Err(err).Byte('\n')
-			return nil, exitError
+			return diffInputs{}, exitError
 		}
 		file1 = resolved
 		revisionData = data
@@ -134,13 +162,33 @@ func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*c
 		firstData, readErr = readDiffSource(firstStore, file1)
 		if readErr != nil {
 			diag.Str("error: ").Str(file1).Str(": ").Err(readErr).Byte('\n')
-			return nil, exitError
+			return diffInputs{}, exitError
 		}
 	}
 	// Read each source once before selecting the schema. A failed second read
-	// contributes no declaration; report it after any refusal of the first
-	// source, preserving the existing precedence over a later stdin error.
+	// contributes no declaration; compareDiffInputs reports it after any
+	// refusal of the first source, preserving the existing precedence over a
+	// later stdin error.
 	secondData, secondReadErr := readDiffSource(store, file2)
+	return diffInputs{
+		first:        firstData,
+		second:       secondData,
+		firstName:    file1,
+		secondName:   file2,
+		fromRevision: fromRevision,
+		secondErr:    secondReadErr,
+	}, exitOK
+}
+
+// compareDiffInputs compares the two sides readDiffInputs read, with every
+// secret value masked, and answers the diff both spellings of the command
+// render (`ze config diff` and `show config diff`, through diffAsking).
+//
+// It writes nothing itself: a refusal goes into diag as whole lines, with a
+// nil diff, and each caller prints diag where its route puts diagnostics.
+func compareDiffInputs(inputs diffInputs, diag *textbuf.Buffer) (*config.ConfigDiff, int) {
+	file1, file2 := inputs.firstName, inputs.secondName
+	firstData, secondData, secondReadErr := inputs.first, inputs.second, inputs.secondErr
 	sources := make([]config.ConfigSource, 0, 2)
 	sources = append(sources, config.ConfigSource{Text: string(firstData), Path: file1})
 	if secondReadErr == nil {

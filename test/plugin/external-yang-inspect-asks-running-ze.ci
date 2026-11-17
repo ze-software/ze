@@ -1,0 +1,248 @@
+# Test: ze config dump, fmt, graph and diff ask the running ze about an external plugin's section
+#
+# Question: with a ze running that started an external plugin, does each local
+# inspection command, on a file in the operator's working directory that holds
+# a section under the plugin's own root, answer what the running ze's schema
+# allows: the dump with its bgp block and plugin list and the section in its
+# document, the formatted text with the section, the graph with the section's
+# node, and the comparison of two such files?
+# Why not a unit test: TestInspectRouteAsksTheRunningZe and its siblings prove
+# the route over a stub ask. Only two processes show that the file's content
+# reaches the daemon over SSH, that the daemon answers with the schema it read
+# from the plugin at start, and that each answer shape (a document, a text)
+# comes back on the exec channel in a form the local renderer draws.
+#
+# What proves the daemon answered: this process holds no schema of acme-monitor
+# (ze starts no external plugin with no daemon), so alone each command refuses
+# the section as an unknown keyword and exits nonzero. An exit 0 with the
+# file's own values in the output can only come from the ze that ran the
+# plugin.
+#
+# Every file holds a bgp block: `ze config dump` and `ze config diff` resolve
+# it and refuse a config with none. The comparison is of that block, since
+# `ze config diff` compares the resolved bgp block and the order of ordered
+# lists: the two files differ in a peer's remote AS and in one added peer, and
+# both hold the plugin's section, so the comparison is printed only by a ze
+# whose schema parses that section in both.
+#
+# The last step is a refusal: a file with the plugin's section and no bgp
+# block. The running ze parses the section and refuses the dump for the
+# missing block, which this process alone never reaches (it stops at the
+# section). The daemon judged content with no file name, and the local command
+# names the operator's file in the fix.
+#
+# The files are in the test's working directory, which the daemon route never
+# reads by path (command.CallerPath admits its config directories only): the
+# content travels in the command.
+#
+# VALIDATES: the client route of fmt, dump, diff and graph of
+#   spec-plugin-external-yang-at-startup (phase 10, the other offline commands).
+# PREVENTS: "not available" from a local command while a ze that can answer
+#   runs; an answer the local renderer cannot draw; a fix line that tells an
+#   operator who gave a file to validate standard input.
+
+option=timeout:value=120s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=running.conf:terminator=EOF_RUNNING
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_RUNNING
+
+tmpfs=first.conf:terminator=EOF_FIRST
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-b
+	interval 7
+}
+
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.254
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+}
+EOF_FIRST
+
+tmpfs=second.conf:terminator=EOF_SECOND
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-b
+	interval 9
+}
+
+bgp {
+	filter {
+		import {
+			final accept
+		}
+		export {
+			final accept
+		}
+	}
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65533
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.254
+			}
+		}
+		session {
+			asn {
+				remote 65002
+			}
+		}
+	}
+	peer peer2 {
+		connection {
+			remote {
+				ip 10.0.0.2
+			}
+			local {
+				ip 10.0.0.254
+			}
+		}
+		session {
+			asn {
+				remote 65003
+			}
+		}
+	}
+}
+EOF_SECOND
+
+tmpfs=nobgp.conf:terminator=EOF_NOBGP
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-c
+	interval 3
+}
+EOF_NOBGP
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
+
+# The text dump prints the bgp block and the plugin list of the document the
+# running ze resolved.
+cmd=foreground:seq=2:exec=ze config dump first.conf:exit=0
+expect=stdout:contains=router-id: 10.0.0.1
+expect=stdout:contains=plugins:
+expect=stdout:contains=- name: acme-monitor
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:contains=none answered
+
+# The document holds the section the plugin's module defines.
+cmd=foreground:seq=3:exec=ze show config dump first.conf:exit=0
+expect=stdout:contains=probe-b
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:contains=none answered
+
+# The running ze formats the section, and the local command prints the text.
+cmd=foreground:seq=4:exec=ze config fmt first.conf:exit=0
+expect=stdout:contains=acme-monitor {
+expect=stdout:contains=interval 7
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:contains=none answered
+
+# The graph holds a node for the section.
+cmd=foreground:seq=5:exec=ze config graph first.conf:exit=0
+expect=stdout:contains=section/acme-monitor
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:contains=none answered
+
+# Both files travel in one command and the running ze compares their bgp
+# blocks: the changed remote AS and the added peer are printed.
+cmd=foreground:seq=6:exec=ze config diff first.conf second.conf:exit=0
+expect=stdout:contains=remote
+expect=stdout:contains=10.0.0.2
+reject=stdout:contains=No differences
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:contains=none answered
+
+# The running ze parses the section and refuses the dump for the missing bgp
+# block; the fix names the file the operator gave.
+cmd=foreground:seq=7:exec=ze config dump nobgp.conf:exit=1
+expect=stderr:contains=missing required bgp { } block
+expect=stderr:contains=fix: ze config validate nobgp.conf
+reject=stderr:contains=fix: ze config validate -
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:contains=none answered

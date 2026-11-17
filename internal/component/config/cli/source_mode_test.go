@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -61,7 +62,7 @@ func TestDiffDistinctExplicitPaths(t *testing.T) {
 	first := writeTestConfig(t, strings.Replace(testConfigBase, "router-id 1.1.1.1", "router-id 192.0.2.1", 1))
 	second := writeTestConfig(t, strings.Replace(testConfigBase, "router-id 1.1.1.1", "router-id 192.0.2.2", 1))
 	var diag textbuf.Buffer
-	diff, code := resolveDiff(nil, []string{first, second}, &diag)
+	diff, code := diffAsking(nil, []string{first, second}, first+" "+second, command.RouteLocal, "", routeAsk, &diag)
 	if code != exitOK {
 		t.Fatalf("diff exit %d: %s", code, diag.String())
 	}

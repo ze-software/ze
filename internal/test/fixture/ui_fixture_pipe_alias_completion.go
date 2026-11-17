@@ -243,19 +243,32 @@ func pipeAliasTabOffer(ctx context.Context, account login, text, echo string) (s
 // The model handles one key at a time in the order written, so keys sent in
 // one write need no wait between them.
 func sessionScreenAfterKeys(ctx context.Context, account login, mode, prompt, text, echo, keys string) (string, error) {
-	terminal, err := sessionTerminalStart(ctx, account, mode)
+	terminal, err := sessionLogin(ctx, account, mode, prompt)
 	if err != nil {
 		return "", err
 	}
 	defer terminal.close()
+	return terminal.typeAndPress(ctx, text, echo, keys)
+}
+
+// sessionLogin logs a pseudo-terminal into the daemon's session model in mode
+// and waits for prompt. The caller MUST call close on the terminal it answers;
+// a login that fails closes its own.
+func sessionLogin(ctx context.Context, account login, mode, prompt string) (*pipeAliasTerminal, error) {
+	terminal, err := sessionTerminalStart(ctx, account, mode)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := terminal.readUntil(ctx, func(seen string) bool {
 		return strings.Contains(strings.ToLower(seen), "password:")
 	}, "OpenSSH did not ask for a password"); err != nil {
-		return "", err
+		terminal.close()
+		return nil, err
 	}
 	if _, err := terminal.file.WriteString(account.password + "\r"); err != nil {
-		return "", fmt.Errorf("send the password: %w", err)
+		terminal.close()
+		return nil, fmt.Errorf("send the password: %w", err)
 	}
 	// The hub renders its greeting and the operational prompt in one frame, so
 	// there is nothing to leave and nothing else to wait for. Sending `exit`
@@ -263,11 +276,20 @@ func sessionScreenAfterKeys(ctx context.Context, account login, mode, prompt, te
 	if err := terminal.readUntil(ctx, func(seen string) bool {
 		return strings.Contains(seen, prompt)
 	}, "the session model did not reach its prompt "+prompt); err != nil {
-		return "", err
+		terminal.close()
+		return nil, err
 	}
+	return terminal, nil
+}
 
-	typed := len(terminal.transcript)
-	if _, err := terminal.file.WriteString(text); err != nil {
+// typeAndPress types text into a session that sits at its prompt, waits for
+// echo (the last word of text), presses keys in order, and answers what the
+// model drew afterwards, over the settling window. text is one line and holds
+// no "\r": the key that runs the line goes in keys, after the echo was seen.
+// A caller that runs several lines in one session calls it once per line.
+func (t *pipeAliasTerminal) typeAndPress(ctx context.Context, text, echo, keys string) (string, error) {
+	typed := len(t.transcript)
+	if _, err := t.file.WriteString(text); err != nil {
 		return "", fmt.Errorf("type the command: %w", err)
 	}
 	// The last word typed is what has to arrive. The whole line cannot be
@@ -276,15 +298,15 @@ func sessionScreenAfterKeys(ctx context.Context, account login, mode, prompt, te
 	// `show pipealias counters |` is never contiguous, and the inline
 	// suggestion puts a ghost character inside it. For the pipe alias the word
 	// is the ASCII pipe: the box the hub draws uses U+2502, so it cannot match.
-	if err := terminal.readUntil(ctx, func(seen string) bool {
+	if err := t.readUntil(ctx, func(seen string) bool {
 		return strings.Contains(displayFillANSI.ReplaceAllString(seen[typed:], ""), echo)
 	}, "the last typed word never reached the session model"); err != nil {
 		return "", err
 	}
 
-	offered := len(terminal.transcript)
-	if _, err := terminal.file.WriteString(keys); err != nil {
+	offered := len(t.transcript)
+	if _, err := t.file.WriteString(keys); err != nil {
 		return "", fmt.Errorf("press the keys after the typed text: %w", err)
 	}
-	return terminal.settle(ctx, offered)
+	return t.settle(ctx, offered)
 }

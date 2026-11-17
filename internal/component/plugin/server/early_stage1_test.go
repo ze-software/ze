@@ -25,7 +25,7 @@ type fakeDeclaredSpawner struct {
 	failed   map[string]error
 }
 
-func (f *fakeDeclaredSpawner) StartDeclared(context.Context, []plugin.PluginConfig) (map[string]error, error) {
+func (f *fakeDeclaredSpawner) StartDeclared(context.Context, []plugin.PluginConfig, []string) (map[string]error, error) {
 	f.starts++
 	return f.failures, f.startErr
 }
@@ -80,7 +80,7 @@ func TestEarlyStage1HoldsAtBarrier(t *testing.T) {
 		answered <- err
 	}()
 
-	declarations := HoldDeclaredPlugins(ctx, spawner, []plugin.PluginConfig{cfg})
+	declarations := HoldDeclaredPlugins(ctx, spawner, []plugin.PluginConfig{cfg}, nil)
 
 	require.Len(t, declarations, 1)
 	require.NoError(t, declarations[0].Err)
@@ -129,7 +129,7 @@ func TestEarlyStage1KeepsFailureOutcome(t *testing.T) {
 			failures: map[string]error{"absent-plugin": cause},
 		}
 
-		declarations := HoldDeclaredPlugins(context.Background(), spawner, []plugin.PluginConfig{cfg})
+		declarations := HoldDeclaredPlugins(context.Background(), spawner, []plugin.PluginConfig{cfg}, nil)
 
 		require.Len(t, declarations, 1)
 		require.ErrorIs(t, declarations[0].Err, cause)
@@ -146,7 +146,7 @@ func TestEarlyStage1KeepsFailureOutcome(t *testing.T) {
 		spawner := &fakeDeclaredSpawner{manager: manager}
 
 		begun := time.Now()
-		declarations := HoldDeclaredPlugins(context.Background(), spawner, []plugin.PluginConfig{cfg})
+		declarations := HoldDeclaredPlugins(context.Background(), spawner, []plugin.PluginConfig{cfg}, nil)
 
 		require.Len(t, declarations, 1)
 		require.Error(t, declarations[0].Err, "a silent plugin is bounded, not waited for")
@@ -163,7 +163,7 @@ func TestEarlyStage1KeepsFailureOutcome(t *testing.T) {
 		require.NoError(t, pluginSide.Close())
 		spawner := &fakeDeclaredSpawner{manager: manager}
 
-		declarations := HoldDeclaredPlugins(context.Background(), spawner, []plugin.PluginConfig{cfg})
+		declarations := HoldDeclaredPlugins(context.Background(), spawner, []plugin.PluginConfig{cfg}, nil)
 
 		require.Len(t, declarations, 1)
 		require.Error(t, declarations[0].Err)
@@ -185,7 +185,7 @@ func TestEarlyStage1KeepsFailureOutcome(t *testing.T) {
 			pluginConn.CallRPC(ctx, "ze-plugin-engine:ready", nil)
 		}()
 
-		declarations := HoldDeclaredPlugins(ctx, spawner, []plugin.PluginConfig{cfg})
+		declarations := HoldDeclaredPlugins(ctx, spawner, []plugin.PluginConfig{cfg}, nil)
 
 		require.Len(t, declarations, 1)
 		require.Error(t, declarations[0].Err)
@@ -220,7 +220,7 @@ func TestEarlyStage1SecondPluginKeepsItsDeclaration(t *testing.T) {
 		})
 	}()
 
-	declarations := HoldDeclaredPlugins(ctx, spawner, []plugin.PluginConfig{silent, prompt})
+	declarations := HoldDeclaredPlugins(ctx, spawner, []plugin.PluginConfig{silent, prompt}, nil)
 
 	require.Len(t, declarations, 2)
 	require.Error(t, declarations[0].Err)
@@ -234,7 +234,7 @@ func TestEarlyStage1SecondPluginKeepsItsDeclaration(t *testing.T) {
 func TestEarlyStage1NoPluginStartsNothing(t *testing.T) {
 	spawner := &fakeDeclaredSpawner{}
 
-	declarations := HoldDeclaredPlugins(context.Background(), spawner, nil)
+	declarations := HoldDeclaredPlugins(context.Background(), spawner, nil, nil)
 
 	assert.Nil(t, declarations)
 	assert.Zero(t, spawner.starts, "nothing is started when nothing is declared")
@@ -251,7 +251,7 @@ func TestEarlyStage1SpawnerRefusalIsEveryPluginsOutcome(t *testing.T) {
 		{Name: "two", Run: "two-plugin"},
 	}
 
-	declarations := HoldDeclaredPlugins(context.Background(), spawner, configs)
+	declarations := HoldDeclaredPlugins(context.Background(), spawner, configs, nil)
 
 	require.Len(t, declarations, 2)
 	for i, declaration := range declarations {

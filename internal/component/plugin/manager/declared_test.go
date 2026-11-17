@@ -84,7 +84,7 @@ func TestSpawnMoreRefusesAPluginThatDidNotDeclare(t *testing.T) {
 func TestStartDeclaredAfterStartAllIsRefused(t *testing.T) {
 	manager := startedManagerHolding(t, nil)
 
-	failures, err := manager.StartDeclared(context.Background(), []parent.PluginConfig{{Name: "acme-monitor", Run: "acme-monitor-plugin"}})
+	failures, err := manager.StartDeclared(context.Background(), []parent.PluginConfig{{Name: "acme-monitor", Run: "acme-monitor-plugin"}}, nil)
 
 	require.ErrorIs(t, err, errAlreadyStarted)
 	assert.Nil(t, failures)
@@ -96,7 +96,7 @@ func TestStartDeclaredAfterStartAllIsRefused(t *testing.T) {
 func TestStartDeclaredWithNoPluginRecordsNothing(t *testing.T) {
 	manager := NewManager()
 
-	failures, err := manager.StartDeclared(context.Background(), nil)
+	failures, err := manager.StartDeclared(context.Background(), nil, nil)
 
 	require.NoError(t, err)
 	assert.Empty(t, failures)
@@ -110,7 +110,7 @@ func TestStartDeclaredWithNoPluginRecordsNothing(t *testing.T) {
 func TestStartDeclaredWithoutAuthorityForksNothing(t *testing.T) {
 	manager := NewManager()
 
-	failures, err := manager.StartDeclared(context.Background(), []parent.PluginConfig{{Name: "acme-monitor", Run: "acme-monitor-plugin"}})
+	failures, err := manager.StartDeclared(context.Background(), []parent.PluginConfig{{Name: "acme-monitor", Run: "acme-monitor-plugin"}}, nil)
 
 	require.Error(t, err, "no certificate authority was set, so no listener can be built")
 	assert.Nil(t, failures)
@@ -175,7 +175,7 @@ func TestFailDeclaredRaisesAStopThatOutlivedItsBound(t *testing.T) {
 		CLIHandler: func([]string) int { return 0 },
 	}))
 	pm := process.NewProcessManager(nil)
-	failures := pm.StartEach(t.Context(), []parent.PluginConfig{{Name: name, Internal: true, Encoder: parent.EncodingJSON}})
+	failures := pm.StartEach(t.Context(), []parent.PluginConfig{{Name: name, Internal: true, Encoder: parent.EncodingJSON}}, nil)
 	require.Empty(t, failures)
 	proc := pm.GetProcess(name)
 	require.NotNil(t, proc)

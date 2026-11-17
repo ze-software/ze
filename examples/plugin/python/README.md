@@ -116,7 +116,9 @@ Against a Ze built from the branch that carries this example:
   that the config declares external plugin `acme-monitor`, that Ze reads its
   schema when `ze start` runs it, why no running Ze answered, and the fix
   (`ze start`, then the same command). A config with the `plugin` block and no
-  `acme-monitor` section validates either way.
+  `acme-monitor` section validates either way. `ze config fmt`, `dump`, `diff`
+  and `graph` behave the same way: the running Ze answers for a file that holds
+  the section, and with no Ze running each refuses it with that message.
 
 - `rollback` has not run against a live Ze: no test yet makes another plugin
   fail after this one applied.

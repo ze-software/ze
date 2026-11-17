@@ -533,7 +533,7 @@ and `rollback` require the folder's history and name `ze init` when it is absent
 An offline writer refuses while the daemon owns that store, except
 `ze config import`, which then sends its inputs to that daemon (below).
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
-<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs -->
 
 An offline `ze config set` refuses an invalid value or a new list key before
 it writes the file. It exits with code 2 and prints the

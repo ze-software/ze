@@ -461,16 +461,35 @@ func ApplyLogConfig(configValues map[string]map[string]string) {
 // applyLogConfigTo applies log configuration, writing warnings to the given writer.
 // Used by ApplyLogConfig (with os.Stderr) and tests (with a buffer).
 func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.Writer) {
-	if configValues == nil {
-		return
+	for _, entry := range logConfigEntries(configValues, warnWriter) {
+		envKey, value, _ := strings.Cut(entry, "=")
+		// Priority: OS env var > config file
+		// Only set if not already set by OS (any notation)
+		if env.Get(envKey) == "" {
+			_ = env.Set(envKey, value)
+		}
 	}
+}
 
-	logConfig, ok := configValues["log"]
-	if !ok || len(logConfig) == 0 {
-		return
-	}
+// LogConfigEntries answers the env settings the `log` section of configValues
+// asks for, as "key=value" entries under the dotted ze.log key, sorted by
+// config key. They are the settings ApplyLogConfig gives this process, for a
+// caller that builds the environment of another one (env.WithDefaults holds
+// the same priority: an OS env var wins). A value ApplyLogConfig refuses is
+// absent, and the warning for it is ApplyLogConfig's to write: this answers
+// none.
+func LogConfigEntries(configValues map[string]map[string]string) []string {
+	return logConfigEntries(configValues, io.Discard)
+}
 
-	for key, value := range logConfig {
+// logConfigEntries is LogConfigEntries with the warning for each refused value
+// written to warnWriter.
+func logConfigEntries(configValues map[string]map[string]string, warnWriter io.Writer) []string {
+	logConfig := configValues["log"]
+	entries := make([]string, 0, len(logConfig))
+
+	for _, key := range slices.Sorted(maps.Keys(logConfig)) {
+		value := logConfig[key]
 		var envKey string
 		isLevel := false
 		var tb textbuf.Buffer
@@ -507,12 +526,9 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 			}
 		}
 
-		// Priority: OS env var > config file
-		// Only set if not already set by OS (any notation)
-		if env.Get(envKey) == "" {
-			_ = env.Set(envKey, value)
-		}
+		entries = append(entries, envKey+"="+value)
 	}
+	return entries
 }
 
 // ListLevels returns a map of subsystem names to their current level strings.

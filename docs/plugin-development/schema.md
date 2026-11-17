@@ -61,6 +61,21 @@ module compiled into `ze` only. The doctor check for config that reaches no plug
 your running plugin declared, so your section is not reported as having no
 effect.
 
+A change to your section that an operator commits in the session editor
+reaches your plugin as verify then apply, and Ze saves it: the next `ze start`
+on the same config directory runs your plugin, reads your module again and
+configures your plugin with the committed value.
+<!-- source: test/ui/external-yang-session-save.ci -- a commit under an external root survives a restart -->
+
+Your plugin's process reads the settings of the config's `environment` block
+in its own environment, although Ze starts it before it has parsed the whole
+config and applied that block to itself. A variable set in the environment Ze
+was started from wins over the block, as it does for Ze. A plugin Ze starts
+again later inherits Ze's environment, which holds the block by then.
+<!-- source: internal/component/config/apply_env.go -- EnvironmentEntries -->
+<!-- source: internal/component/plugin/process/process.go -- SetConfigEnvironment -->
+<!-- source: internal/core/env/env.go -- WithDefaults -->
+
 With no daemon, `ze schema` shows the modules compiled into `ze` only. A
 `--plugin` that names your program does not start it: the answer is followed
 by a warning that your module is not available with no running Ze, whose fix
@@ -87,13 +102,22 @@ the config declares external plugin "acme-monitor"; the config schema of an exte
 fix: ze start
 ```
 
-The other commands ask no running Ze yet. Their message says so, and its fix
-is `ze config validate <file>`.
+`ze config fmt`, `dump`, `diff` and `graph`, and their `ze show config`
+spellings, ask the running Ze the same way: the answer is printed as a local
+answer is, `fmt -w` rewrites your file with the text the running Ze formatted,
+and with no Ze running the message above names the command you ran in place of
+`ze config validate`. `ze config diff` compares the resolved `bgp` block and
+the order of ordered lists, so a leaf that differs in your plugin's own section
+is not reported as a difference.
+
+The other commands ask no running Ze. Their message says so, and its fix is
+`ze config validate <file>`.
 
 | Command | A section under an external plugin's root |
 |---------|-------------------------------------------|
 | `ze config validate` | Judged by the running Ze; with none running, refused with the message above |
-| `ze config fmt`, `dump`, `diff`, `migrate`, `completion`, `show config graph`, with no daemon | Refused, naming `ze config validate <file>` as the fix |
+| `ze config fmt`, `dump`, `diff`, `graph` | Answered by the running Ze; with none running, refused with the message above, naming the command to run again |
+| `ze config migrate`, `completion`, with no daemon | Refused, naming `ze config validate <file>` as the fix |
 | `ze config edit` | The file under edit is refused when it is opened |
 | `ze doctor`, the support report, `show crashes` readiness, `ze tacacs` probe, `show plugin declarations config`, `ze plugin test`, with no daemon | The config they read is refused, naming `ze config validate <file>` as the fix |
 

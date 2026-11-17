@@ -269,6 +269,13 @@ ze config show --backup <artifact> <name> [path...]  # Read a config inside a ba
 ze config diff --backup <artifact> <N> <name>        # Diff inside a backup
 ```
 
+For a config that declares an external plugin, `validate`, `dump`, `diff`,
+`fmt` and `graph` ask the running Ze first, since only it holds that plugin's
+schema, and print its answer as a local one; `--user <name>` names the account
+that asks. With no Ze running they answer from the schema compiled into `ze`,
+and refuse a section of the plugin with the reason and one fix
+(`docs/plugin-development/schema.md`, "What works today").
+
 From a daemon surface (SSH, the web, MCP, REST, gRPC) the daemon runs
 `show config dump`, `validation`, `diff`, `history`, `graph` and `fmt` only on a
 file inside the configuration directories `show config list` searches, never

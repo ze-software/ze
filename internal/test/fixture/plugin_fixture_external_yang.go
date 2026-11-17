@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/externalyang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -68,22 +69,34 @@ type externalYANGVariant struct {
 	// learns that ze did not start: a transport that ends is the pass and a
 	// ready plugin is the failure.
 	configRefused bool
+	// environment names the env keys whose value the plugin prints when it
+	// starts, one line each, before it connects. A variant with none prints no
+	// such line.
+	environment []string
 }
+
+// externalYANGRoot is the config root the fixture plugin's module defines.
+const externalYANGRoot = "acme-monitor"
 
 // externalYANGVariants maps the run-line argument to its variant.
 var externalYANGVariants = map[string]externalYANGVariant{
 	"valid": {
 		schema: externalyang.Valid(),
-		wants:  []string{"acme-monitor"},
+		wants:  []string{externalYANGRoot},
 	},
 	"valid-config-refused": {
 		schema:        externalyang.Valid(),
-		wants:         []string{"acme-monitor"},
+		wants:         []string{externalYANGRoot},
 		configRefused: true,
+	},
+	"valid-environment": {
+		schema:      externalyang.Valid(),
+		wants:       []string{externalYANGRoot},
+		environment: []string{"exabgp.api.ack"},
 	},
 	"redeclare": {
 		schema:         externalyang.Valid(),
-		wants:          []string{"acme-monitor"},
+		wants:          []string{externalYANGRoot},
 		redeclaredText: externalyang.RedeclaredText,
 	},
 	"invalid": {
@@ -244,6 +257,19 @@ func externalYANGSayGeneration(generation int, what string) {
 	line.StdErr() //nolint:errcheck // fixture progress output
 }
 
+// externalYANGSayEnvironment prints, for each key, the value this process was
+// started with, read the way a Ze program reads it (env.LookupIn: any case and
+// separator spelling). A key the environment does not carry prints an empty
+// value, so a .ci tells a setting that reached the plugin from one that did not.
+func externalYANGSayEnvironment(keys []string) {
+	environ := os.Environ()
+	for _, key := range keys {
+		var line textbuf.Buffer
+		line.Str("FIXTURE: external-yang environment ").Str(key).Str("=[").Str(env.LookupIn(environ, key)).Str("]\n")
+		line.StdErr() //nolint:errcheck // fixture progress output
+	}
+}
+
 // externalYANGConfigure prints each section the plugin received at Stage 2.
 func externalYANGConfigure(sections []sdk.ConfigSection) error {
 	var count textbuf.Buffer
@@ -311,6 +337,7 @@ func externalYANGRun(ctx context.Context, plugin *sdk.Plugin, declaration *sdk.R
 // externalYANGServe is the live start: it connects, declares, prints what the
 // daemon sends, and returns when the daemon closes the connection.
 func externalYANGServe(ctx context.Context, variant externalYANGVariant, generation int) error {
+	externalYANGSayEnvironment(variant.environment)
 	plugin, err := newObserver(externalYANGName)
 	if err != nil {
 		return fmt.Errorf("connect %s: %w", externalYANGName, err)

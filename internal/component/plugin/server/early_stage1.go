@@ -38,8 +38,9 @@ type EarlyDeclaration struct {
 // server exists. The plugin manager implements it.
 type DeclaredSpawner interface {
 	// StartDeclared forks each config and answers the error of each one that
-	// did not start, by name.
-	StartDeclared(ctx context.Context, configs []plugin.PluginConfig) (map[string]error, error)
+	// did not start, by name. environment holds the settings of the config's
+	// `environment` block, for the environment of each fork alone.
+	StartDeclared(ctx context.Context, configs []plugin.PluginConfig, environment []string) (map[string]error, error)
 	// FailDeclared stops a held plugin and keeps cause as the reason.
 	FailDeclared(ctx context.Context, name string, cause error)
 	// GetProcessManager answers the *process.ProcessManager holding them.
@@ -67,16 +68,22 @@ type DeclaredSpawner interface {
 // from the moment every declared plugin was started; it is then stopped, and
 // the startup phase that names it is refused with the same reason.
 //
+// environment holds the settings of the config's `environment` block, as
+// "key=value" entries (config.EnvironmentEntries). The daemon applies the
+// block to itself only after the full parse, so the plugins started here are
+// given it for their own environment, under the daemon's: a plugin started
+// before the parse reads the settings one started after it reads.
+//
 // With no config it starts nothing, waits for nothing and never calls spawner.
 // ctx bounds every read: when it ends, the plugins not yet read answer its
 // error. Not safe for concurrent use; boot calls it once.
-func HoldDeclaredPlugins(ctx context.Context, spawner DeclaredSpawner, configs []plugin.PluginConfig) []EarlyDeclaration {
+func HoldDeclaredPlugins(ctx context.Context, spawner DeclaredSpawner, configs []plugin.PluginConfig, environment []string) []EarlyDeclaration {
 	if len(configs) == 0 {
 		return nil
 	}
 
 	declarations := make([]EarlyDeclaration, len(configs))
-	failures, err := spawner.StartDeclared(ctx, configs)
+	failures, err := spawner.StartDeclared(ctx, configs, environment)
 	if err != nil {
 		for i := range configs {
 			declarations[i] = EarlyDeclaration{Plugin: configs[i].Name, Err: notStartedRefusal(configs[i], err)}

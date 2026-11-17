@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/secret"
-	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -23,6 +22,7 @@ import (
 func cmdDump(args []string) int {
 	fs := flag.NewFlagSet("config dump", flag.ExitOnError)
 	stripPrivate := fs.Bool("strip-private", false, "replace sensitive values with /* SECRET-DATA */")
+	user := fs.String("user", "", "account that asks the running ze about a config that declares an external plugin")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze config dump",
@@ -31,6 +31,7 @@ func cmdDump(args []string) int {
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--strip-private", Desc: "Replace sensitive values with /* SECRET-DATA */"},
+					accountOptionHelp(),
 				}},
 			},
 		}
@@ -53,14 +54,24 @@ func cmdDump(args []string) int {
 	configPath := fs.Arg(0)
 
 	var diag textbuf.Buffer
-	res, code := resolveDump(configPath, *stripPrivate, &diag)
+	res, code := dumpAsking(configPath, configPath, *stripPrivate, command.RouteLocal, *user, routeAsk, &diag)
 	diag.StdErr() //nolint:errcheck // CLI diagnostic
 	if code != 0 {
 		return code
 	}
 
-	printConfig(res.bgpTree, res.tree, res.sensitiveKeys, res.mode)
+	printConfig(res.bgpTree, res.declaredPlugins(), res.sensitiveKeys, res.mode)
 	return 0
+}
+
+// dumpPlugin is one external plugin declaration as printConfig prints it. A
+// leaf the declaration does not hold is not printed.
+type dumpPlugin struct {
+	name       string
+	run        string
+	hasRun     bool
+	encoder    string
+	hasEncoder bool
 }
 
 // maskMapValues recursively replaces sensitive values in a map. A value already
@@ -101,7 +112,7 @@ func maskValue(v string, mode config.DisplayMode) string {
 	}
 }
 
-func printConfig(bgpTree map[string]any, tree *config.Tree, sensitiveKeys map[string]bool, mode config.DisplayMode) {
+func printConfig(bgpTree map[string]any, plugins []dumpPlugin, sensitiveKeys map[string]bool, mode config.DisplayMode) {
 	// Global BGP settings.
 	if v, ok := bgpTree["router-id"]; ok {
 		fmt.Printf("router-id: %s\n", v)
@@ -128,22 +139,22 @@ func printConfig(bgpTree map[string]any, tree *config.Tree, sensitiveKeys map[st
 		fmt.Println()
 	}
 
-	// Plugins from original tree.
-	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
-		plugins := pluginContainer.GetListOrdered("external")
-		if len(plugins) > 0 {
-			fmt.Printf("plugins:\n")
-			for _, entry := range plugins {
-				fmt.Printf("  - name: %s\n", entry.Key)
-				if run, ok := entry.Value.Get("run"); ok {
-					fmt.Printf("    run: %s\n", run)
-				}
-				if enc, ok := entry.Value.Get("encoder"); ok {
-					fmt.Printf("    encoder: %s\n", enc)
-				}
-			}
+	// The external plugin declarations (dumpResult.declaredPlugins).
+	if len(plugins) == 0 {
+		return
+	}
+	var list textbuf.Buffer
+	list.Str("plugins:\n")
+	for _, plugin := range plugins {
+		list.Str("  - name: ").Str(plugin.name).Byte('\n')
+		if plugin.hasRun {
+			list.Str("    run: ").Str(plugin.run).Byte('\n')
+		}
+		if plugin.hasEncoder {
+			list.Str("    encoder: ").Str(plugin.encoder).Byte('\n')
 		}
 	}
+	list.StdOut() //nolint:errcheck // CLI output, nothing to report a stdout failure to
 }
 
 // printTreeMap prints a map[string]any tree in a readable key-value format.
@@ -163,44 +174,54 @@ func printTreeMap(m map[string]any, indent string, sensitiveKeys map[string]bool
 	}
 }
 
-// dumpResult is everything the two callers of resolveDump need from one parse:
+// dumpResult is everything the two callers of dumpAsking need from one dump:
 // the resolved map `show config dump` answers with, and the pieces printConfig
 // renders for a reader.
+//
+// tree is the parsed config of a dump made in this process. A dump the running
+// ze made holds none, and holds the plugin declarations of its document in
+// plugins instead (dumpResult.declaredPlugins reads whichever is there).
 type dumpResult struct {
 	dumpMap       map[string]any
 	bgpTree       map[string]any
 	tree          *config.Tree
+	plugins       []dumpPlugin
 	sensitiveKeys map[string]bool
 	mode          config.DisplayMode
 }
 
-// resolveDump parses a config file and answers the fully resolved tree, with
-// sensitive values masked.
-//
-// It is the payload half of cmdDump, lifted so `show config dump` answers with
-// DATA and the two spellings cannot drift.
-//
-// It writes nothing itself. What the operator must read (a refusal, or the
-// parse warnings of a config it still resolved) goes into diag, whole lines,
-// and each caller prints diag where its route puts diagnostics: a data handler
-// runs on routes that are not the operator's terminal.
-func resolveDump(configPath string, stripPrivate bool, diag *textbuf.Buffer) (dumpResult, int) {
-
-	data, err := cliio.ReadFile(configPath)
-	if err != nil {
-		diag.Str("Error reading config: ").Err(err).Byte('\n')
-		return dumpResult{}, 1
+// declaredPlugins answers the external plugin declarations of a dump: from
+// the parsed tree of a dump made in this process, in the order the config
+// declares them, and the ones dumpAsking read from the daemon's document
+// otherwise.
+func (r dumpResult) declaredPlugins() []dumpPlugin {
+	if r.tree == nil {
+		return r.plugins
 	}
-	result, err := resolveDumpBytes(data, stripPrivate, diag)
-	if err != nil {
-		diag.Str(command.LocalErrorLine(err))
-		return dumpResult{}, 1
+	container := r.tree.GetContainer(keyPluginRoot)
+	if container == nil {
+		return nil
 	}
-	return result, 0
+	entries := container.GetListOrdered(keyPluginExternal)
+	plugins := make([]dumpPlugin, 0, len(entries))
+	for _, entry := range entries {
+		plugin := dumpPlugin{name: entry.Key}
+		plugin.run, plugin.hasRun = entry.Value.Get(keyPluginRun)
+		plugin.encoder, plugin.hasEncoder = entry.Value.Get(keyPluginEncoder)
+		plugins = append(plugins, plugin)
+	}
+	return plugins
 }
 
 // resolveDumpBytes is the file and supplied-content routes' shared producer.
 // It parses and masks bytes without reading or publishing configuration.
+//
+// It is the payload half of cmdDump, so `show config dump` answers with DATA
+// and the two spellings cannot drift (dumpAsking reads the file and calls it).
+// It writes nothing itself. The parse warnings of a config it still resolved
+// go into diag, whole lines, and each caller prints diag where its route puts
+// diagnostics: a data handler runs on routes that are not the operator's
+// terminal.
 func resolveDumpBytes(data []byte, stripPrivate bool, diag *textbuf.Buffer) (dumpResult, error) {
 	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data)})
 	if err != nil {

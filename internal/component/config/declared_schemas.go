@@ -49,6 +49,11 @@ type DaemonUnanswered struct {
 	// Rerun is true when Fix makes a ze answer and the operator then runs the
 	// command again, and false when Fix is that command itself.
 	Rerun bool
+	// Again is the command the operator runs again after Fix, as they typed
+	// it, for a command other than `ze config validate`. Empty means the
+	// validate command for the config's path. It is read only when Rerun is
+	// true.
+	Again string
 }
 
 // SchemaOutcome is what a daemon learned of the config schema of one external
@@ -248,7 +253,11 @@ func (d *DeclaredSchemas) why(path string) string {
 	if !d.unanswered.Rerun {
 		return asked
 	}
-	return asked + ". Run the command below, then `" + validateFile(path) + "` again"
+	again := d.unanswered.Again
+	if again == "" {
+		again = validateFile(path)
+	}
+	return asked + ". Run the command below, then `" + again + "` again"
 }
 
 // fix is the one command that reaches a ze holding the schema: inside a
@@ -309,6 +318,28 @@ var declaredStep struct {
 	// boot, with what each declared (RecordStartedPlugins). It is nil in a
 	// process that booted no daemon, and in a daemon that started none.
 	started []StartedPlugin
+	// unanswered is why no running ze answered the command this process is,
+	// for a command that asked one before it judged the config here
+	// (RecordDaemonUnanswered). It is nil in a process that asked none.
+	unanswered *DaemonUnanswered
+}
+
+// RecordDaemonUnanswered records that this process, a command with no daemon
+// in it, asked a running ze about the config it is about to judge and got no
+// answer. Every DeclaredSchemas the step builds afterwards carries it, so the
+// refusal of a name no compiled-in schema defines says a running ze was asked,
+// why none answered, and the one command that gets an answer, in place of
+// saying that none was asked.
+//
+// It exists for the commands whose producer builds its own DeclaredSchemas
+// (`ze config fmt`, `dump`, `diff`, `graph`): the route that asked cannot hand
+// the producer the failure, and the producer serves the daemon too, where
+// nothing is asked. A command that holds the DeclaredSchemas itself uses
+// DeclaredSchemas.Unanswered. Safe for concurrent use.
+func RecordDaemonUnanswered(asked DaemonUnanswered) {
+	declaredStep.mu.Lock()
+	defer declaredStep.mu.Unlock()
+	declaredStep.unanswered = &asked
 }
 
 // RecordStartedPlugins records the external plugins a daemon started at boot
@@ -420,6 +451,10 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 		declaredStep.fixedHere = true
 	}
 	declared.offline = declaredStep.fixedHere
+	if declaredStep.unanswered != nil {
+		asked := *declaredStep.unanswered
+		declared.unanswered = &asked
+	}
 
 	published, _ := yang.PublishedExternalModules()
 	for _, external := range externals {
@@ -470,13 +505,16 @@ func ResetDeclaredSchemasForTest() (restore func()) {
 	declaredStep.mu.Lock()
 	saved := declaredStep.fixedHere
 	savedStarted := declaredStep.started
+	savedUnanswered := declaredStep.unanswered
 	declaredStep.fixedHere = false
 	declaredStep.started = nil
+	declaredStep.unanswered = nil
 	declaredStep.mu.Unlock()
 	return func() {
 		declaredStep.mu.Lock()
 		declaredStep.fixedHere = saved
 		declaredStep.started = savedStarted
+		declaredStep.unanswered = savedUnanswered
 		declaredStep.mu.Unlock()
 		restorePublished()
 	}

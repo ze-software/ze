@@ -1,0 +1,33 @@
+# Test: an external plugin's section survives a commit and a restart
+#
+# Question: when an operator sets a leaf of an external plugin's section in the
+# editor the daemon hosts and commits, is the plugin handed the change, does
+# the running config hold it, and does a second ze started on the same
+# directory configure the plugin with the committed value?
+# Why not a unit test: the commit is typed in the daemon's session over SSH,
+# the plugin is another process, and the second start parses what the first
+# daemon saved with the module the plugin declares again at that start. No
+# seam holds those three together.
+#
+# The fixture (internal/test/fixture/ui_fixture_external_yang_save.go) starts
+# the daemon, types `set acme-monitor interval 7` and `commit now` in one
+# session, each line run by its own Enter once the screen showed it, waits
+# until `show config running` holds the value, stops the daemon, reads
+# the plugin's apply line, starts ze again on the same directory and reads the
+# plugin's configure line.
+#
+# The store is on disk: a store kept in the daemon's memory ends with it, and
+# the second start would then prove nothing about what the commit saved.
+#
+# VALIDATES: AC-13 of spec-plugin-external-yang-at-startup, save: a saved
+#   config holds the external block, and it parses again.
+# PREVENTS: a commit that reaches the plugin and is lost at the next start; a
+#   saved config the next start refuses because the section is written before
+#   the plugin's module is known.
+
+option=timeout:value=180s
+option=storage:value=disk
+
+cmd=foreground:seq=1:exec=le test fixture ui/external-yang-session-save $PORT
+expect=exit:code=0
+expect=stdout:contains=OK: interval 7 was committed in the daemon's editor, applied by the plugin, answered by show config running, and configured again after a restart

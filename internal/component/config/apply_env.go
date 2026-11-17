@@ -93,6 +93,29 @@ func ApplyEnvConfig(configValues map[string]map[string]string) {
 	}
 }
 
+// EnvironmentEntries answers the env settings an `environment` block asks
+// for, as "key=value" entries under the dotted env key: the log settings
+// slogutil.ApplyLogConfig applies, then each envPlumbingTable leaf the block
+// sets, in the order LoadConfig applies them to the daemon. configValues is
+// what ExtractEnvironment answers; nil answers no entry.
+//
+// It applies nothing. It is for the environment of a plugin forked before the
+// full parse, when the daemon has not applied the block to itself: the fork
+// merges the entries under the daemon's own environment for that child alone
+// (env.WithDefaults), with the priority ApplyEnvConfig keeps, so the child
+// reads what it reads when forked after the block was applied.
+func EnvironmentEntries(configValues map[string]map[string]string) []string {
+	entries := slogutil.LogConfigEntries(configValues)
+	for _, p := range envPlumbingTable {
+		value, ok := lookupPlumbValue(configValues, p)
+		if !ok {
+			continue
+		}
+		entries = append(entries, p.envKey+"="+value)
+	}
+	return entries
+}
+
 // lookupPlumbValue returns the value for a plumbing entry. Top-level leaves
 // (section == "") are stored in configValues[""]. Nested containers like
 // `exabgp.api` are stored as a dot-joined section key.

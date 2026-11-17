@@ -342,3 +342,63 @@ the comment in `cmd/ze/hub/infra_setup.go` that said `YANGSchema()` re-parses
 on every call; and the section "Joining a module that no `init()` registered"
 of `docs/architecture/config/yang-config-design.md`, which said nothing in the
 start path calls the join.
+
+## Added 2026-11-17, finishing: what was built last, what remains, and D-3
+
+This section replaces "What the external-plugin spec still owes" above. The
+owner, shown that list, answered: "Okay, do it all."
+
+**Where.** Worktree `.claude/worktrees/yang-finish`, branch
+`worktree-yang-finish`, from the laptop's `main` at `e7e5900786`. Everything
+in the table is uncommitted there; the main thread commits it once the pending
+runs are read.
+
+| Piece | State | Seen |
+|-------|-------|------|
+| `ze config fmt`, `dump`, `diff`, `graph` ask a running ze | Built: one route shared with `validate` (`config/cli` `daemon_route.go`, `inspect_route.go`, `validate_route.go`), each through `show config supplied <sub>`, `--user` on the four | `external-yang-inspect-asks-running-ze` and `external-yang-inspect-no-daemon`, 3 of 3 each; `external-yang-validate-asks-running-ze` and `external-yang-offline-not-available` still pass |
+| Save (spec AC-13) | `test/ui/external-yang-session-save.ci`: a leaf set and committed in a session reaches the plugin, and after a stop and a start on the same directory the plugin is configured with the new value | Passes |
+| The `environment` block (spec R-15, a regression of phase 5 that no test covered) | Fixed: an early-started external plugin gets the block's settings for its own process (`config.EnvironmentEntries`, `env.WithDefaults`, through `HoldDeclaredPlugins`, `StartDeclared`, `StartEach`, `Process.SetConfigEnvironment`) | `external-yang-environment-block`, 3 of 3 |
+| A module that adds under `plugin` or `environment` (spec R-18) | Fixed: the join refuses it (`refuseFirstPassAddition`, `yang.FirstPassRoots`). `TestJoinedAugmentReachesCompiledInContainer` now uses `system`, approved by the test judge before the edit | Unit tests of `config` and `config/yang` |
+| `ze:decorate` and `ze:backend` (spec R-20) | Not built. Recorded as a limit of AC-11: journal row `gate-excludes-part-of-its-population.md` 2026-11-17, owned by the spec | - |
+
+Unit packages green in that tree: `core/env`, `core/slogutil`, `config`,
+`config/yang`, `plugin/process`, `plugin/manager`; `plugin/server` but for six
+tests of other work (the five named above and
+`TestUsageRendersTheDeclaredValues`). Still running when this was written, so
+not known: `test/fixture`, `config/cli`, `cmd/ze/hub`, and lint.
+
+**The spec was brought up to date in the same round** (bookkeeping only): the
+test rows name tracked paths and the commit that records each run; an evidence
+table sits under the acceptance criteria, which gained AC-26 to AC-29 for the
+work above; the Architectural Verification table and a state table for the
+documentation checklist are filled; the still-owes section lists what is done
+and what is left. No external-yang draft is left under `test/draft/` in that
+tree. The `.et` draft `external-yang-completion.et` is superseded by
+`test/ui/external-yang-session-editor.ci`, was never promoted, is git-ignored
+and exists only in the server worktree `spec-external-yang`.
+
+**What remains before the spec can close**, in the spec's own order:
+
+| # | Item | Whose |
+|---|------|-------|
+| 1 | Read the pending runs and lint, then commit the work above | Main thread |
+| 2 | D-3, below | The owner |
+| 3 | AC-11: write the `ze:decorate` and `ze:backend` check, or narrow the criterion to `ze:validate` and `ze:reference` | Narrowing is the owner's |
+| 4 | Remove `CollectPluginYANG`, `YANGSchemaWithPlugins` and `YANGValidatorWithPlugins`. The spec's "Leftover code" table says what each caller does today and what its removal takes; the tests that pass a fixture module move to `JoinExternalModules` and `SchemaOf`, under the test judge | A code agent |
+| 5 | `external-yang-boot-accepts-what-offline-refuses.ci` still pairs `await=stderr` with an exit assertion that proves nothing | A code agent and the test judge |
+| 6 | Pages with no statement of this work found by search: `features/plugins.md`, `docs/guide/plugins.md`, `docs/functional-tests.md`, `docs/architecture/plugin/plugin-system.md`, `ai/digests/hub-engine.md`, `docs/plugin-development/README.md`; then `./le spec citation anchors` and `./le doc check all` | A prose agent; the main thread runs the checks |
+| 7 | Journal rows: `green-that-could-not-have-been-red.md` 2026-11-17 needs an owner that outlives the spec (the runner still accepts the pair, and five tests of other work hold it); `unwired-feature.md` 2026-08-13 is marked `fixed:` at closure | Closure |
+| 8 | Runs with no record: `cmd/ze/hub` `schemaless_plugins_test.go`; the publish and keeper tests of `cli/client`, `cli/testing`, `gnmi`, `iface`, `firewall`, `traffic` | Main thread |
+| 9 | `/ze-close` | A closing agent |
+
+One deliverable of the spec does not hold: `reg.PluginSchema` is written by
+`registrationFromRPC` and read by no non-test code. Its reader is the command
+argument model, so it follows D-3.
+
+**D-3, the one decision that blocks closure.** Is the argument model of a
+plugin's own commands part of this spec?
+
+| Answer | What it changes |
+|--------|-----------------|
+| No | No existing spec can take it (searched `plan/`; the nearest, `plan/release/fixes/spec-declared-commands-without-leaves.md`, is a release fix for commands compiled into `ze`). A new spec in `plan/post-release/features/` takes the item, the journal row `unwired-feature.md` 2026-11-02 and the missing reader of `reg.PluginSchema`. Closure proceeds once items 1 and 3 to 8 are done |
+| Yes | Phase 11, with a design to put to the owner first: one declaration carries a config module and a command module, a change to the published `SchemaDecl`. New acceptance criteria and functional tests. The spec stays in progress until it is built |

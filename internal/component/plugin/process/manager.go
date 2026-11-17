@@ -257,7 +257,14 @@ func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 // The first start of a manager captures ctx for every later StartMore; a
 // manager already started keeps its context and ctx is not read. Configs MUST
 // hold no name the manager already runs.
-func (pm *ProcessManager) StartEach(ctx context.Context, configs []plugin.PluginConfig) map[string]error {
+//
+// environment holds the settings of the config's `environment` block
+// (config.EnvironmentEntries), which the daemon has not applied to itself at
+// that point: each external plugin forked here is given them for its own
+// environment (Process.SetConfigEnvironment). They are kept nowhere else, so
+// a Respawn of the same plugin forks from the daemon's environment alone,
+// which by then holds the block.
+func (pm *ProcessManager) StartEach(ctx context.Context, configs []plugin.PluginConfig, environment []string) map[string]error {
 	if pm.ctx == nil {
 		pm.ctx, pm.cancel = context.WithCancel(ctx)
 	}
@@ -281,6 +288,7 @@ func (pm *ProcessManager) StartEach(ctx context.Context, configs []plugin.Plugin
 		if pm.acceptor != nil && !cfg.Internal {
 			proc.SetAcceptor(pm.acceptor)
 		}
+		proc.SetConfigEnvironment(environment)
 		if err := proc.StartWithContext(pm.ctx); err != nil {
 			failures[cfg.Name] = err
 			continue

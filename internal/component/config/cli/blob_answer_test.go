@@ -184,7 +184,7 @@ func TestShowConfigGraphAnswersIndentedJSON(t *testing.T) {
 	refusal := answerSilently(t, "graphAnswer", func() command.LocalAnswer { return graphAnswer(command.RouteLocal, nil) })
 	if refusal.Payload != nil || refusal.Code != exitError ||
 		!strings.HasPrefix(refusal.Diagnostic, "error: missing config file (use - for stdin)\n") ||
-		!strings.Contains(refusal.Diagnostic, "ze config graph <config-file>") {
+		!strings.Contains(refusal.Diagnostic, "ze config graph [--user <name>] <config-file>") {
 		t.Errorf("graph with no file = %+v; want the refusal and the help page", refusal)
 	}
 }

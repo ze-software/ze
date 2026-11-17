@@ -133,7 +133,9 @@ func dataDump(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 
 	var diag textbuf.Buffer
-	res, code := resolveDump(readPath, stripPrivate, &diag)
+	// The operator's own process asks the running ze about a config that
+	// declares an external plugin; the daemon route asks nobody (dumpAsking).
+	res, code := dumpAsking(configPath, readPath, stripPrivate, validated.Route(), "", routeAsk, &diag)
 	if code != 0 {
 		return command.LocalRefusal(code, diag.String())
 	}
@@ -309,7 +311,10 @@ func dataDiff(validated command.ValidatedArgs) command.LocalAnswer {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 	var diag textbuf.Buffer
-	diff, code := resolveDiff(nil, args, &diag)
+	// The operator's own process asks the running ze about two configs of
+	// which one declares an external plugin; the daemon route asks nobody
+	// (diffAsking). The words are the ones the operator typed.
+	diff, code := diffAsking(nil, args, strings.Join(validated.Tokens(), " "), validated.Route(), "", routeAsk, &diag)
 	if diff == nil {
 		return command.LocalRefusal(code, diag.String())
 	}
@@ -328,10 +333,10 @@ func diffAnswer(diff *config.ConfigDiff) command.LocalAnswer {
 
 // diffCallerPaths answers the words of `show config diff` with every file
 // path confined to where the route may read (command.CallerPath). A leading
-// revision number names no file, and resolveDiff reads it as one; the file
+// revision number names no file, and readDiffInputs reads it as one; the file
 // after it still names the store opened beside it, so it is confined too.
 //
-// A call with other than two words is answered unchanged: resolveDiff refuses
+// A call with other than two words is answered unchanged: readDiffInputs refuses
 // the count with its usage line, which says more than a path refusal would.
 func diffCallerPaths(validated command.ValidatedArgs) ([]string, error) {
 	tokens := validated.Tokens()
@@ -353,7 +358,7 @@ func diffCallerPaths(validated command.ValidatedArgs) ([]string, error) {
 	return words, nil
 }
 
-// isRevisionNumber reports whether word is the revision resolveDiff reads as a
+// isRevisionNumber reports whether word is the revision readDiffInputs reads as a
 // rollback point rather than a file: it uses strconv.Atoi, and so does this.
 func isRevisionNumber(word string) bool {
 	_, err := strconv.Atoi(word)

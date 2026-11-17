@@ -183,7 +183,7 @@ the sequence too; adding or removing the whole list uses `added` or `removed`.
 This does not add general non-BGP value comparison. Files, stored sources and
 rollback revisions use the same comparison, and changed secret values remain
 masked in both output shapes.
-<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, diffListOrders, maskDiffSecrets -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, diffListOrders, maskDiffSecrets -->
 
 Interactive `ze config edit` and `ze cli` run their models in the daemon over
 SSH. The daemon owns their drafts, commits, and command history. A named stored

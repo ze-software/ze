@@ -663,6 +663,45 @@ fix:
 
 A config over the bound that already lies inside the daemon's config
 directories is sent by path instead, as `show config validation file <path>`.
+
+### `ze config fmt`, `dump`, `diff` and `graph` take the same route
+
+The four commands that read a config and answer about it share the route
+(`suppliedQuestion` and `routedAnswer` in `internal/component/config/cli`
+`daemon_route.go` and `inspect_route.go`), on the operator's own route only:
+`ze config <sub>` and the local `ze show config <sub>`. The daemon serves the
+same handlers on its route and asks nobody.
+
+| Command | Line sent | How the answer is drawn |
+|---------|-----------|-------------------------|
+| `fmt` | `show config supplied fmt content <base64> name <label>`, with no `check` or `diff` leaf | The formatted text comes back. `--check`, `--diff` and `-w` are made from it by `fmtFormattedAnswer`, the step a local format takes, and `-w` writes the operator's file in this process |
+| `graph` | `show config supplied graph content <base64> name <label>` | The JSON text is printed |
+| `dump` | `show config supplied dump content <base64> name <label> [strip-private]` | The document is the answer of `ze show config dump`; `ze config dump` prints its `bgp` block and its plugin list (`daemonDump`) |
+| `diff` | `show config supplied diff content <base64>`, the content a JSON object with `before` and `after` | The three sets are drawn by the local printer (`daemonDiff`). Both sides are read here in every form the command has: two files, a revision and a file, a backup artifact, standard input |
+
+`fmt` sends no `check` or `diff` leaf because a check that found changes exits
+1 with a line of text, which the daemon route carries as a failed status, and
+a failed status must stay readable as the daemon's refusal.
+
+A refusal the daemon states is drawn, after `error: `, only when this process
+refuses the config too. The daemon holds every schema this binary compiles in,
+so its refusal of a config this process answers about is not about the config
+(a denied account, a daemon that does not serve the command), and the local
+answer stands. The table of failed asks above applies, with the command the
+operator ran in place of `ze config validate`; each of the four declares
+`--user <name>`. A producer of these commands builds its own
+`DeclaredSchemas`, so the route records the failed ask for the process
+(`config.RecordDaemonUnanswered`) before it answers locally.
+
+Content over the bound goes by path to `show config fmt`, `dump`, `graph` or
+`diff` when every file lies inside the daemon's config directories. A
+revision, a backup artifact and standard input name no file the daemon could
+open, so a comparison over the bound that uses one is not sent.
+
+An external module that adds a node under `plugin` or `environment` is refused
+at the join (`refuseFirstPassAddition`, `yang.FirstPassRoots`): Ze reads those
+two roots before it starts a plugin, strictly and from the compiled-in schema,
+so no config could hold the added name.
 `--user <name>` logs in as that account,
 with the password from `ze.ssh.password` or a prompt.
 
@@ -690,7 +729,7 @@ A comparison passes each successfully read input, including stored revision
 bytes, before either full parse, so the plugins of both sides are remembered.
 File and supplied-content dump and graph readers use the same step and retain
 its explanation when a plugin's schema is unavailable.
-<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff, readDiffSource -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- compareDiffInputs, readDiffSource -->
 <!-- source: internal/component/config/cli/config_supplied.go -- suppliedDiff -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- resolveDumpBytes -->
 <!-- source: internal/component/config/cli/cmd_graph.go -- graphBytesAnswer, declaredParseExplanation -->

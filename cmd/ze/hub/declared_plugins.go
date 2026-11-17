@@ -91,7 +91,13 @@ func joinDeclaredPlugins(ctx context.Context, firstPass *zeconfig.FirstPassResul
 	if err := prepare(); err != nil {
 		return nil, err
 	}
-	declarations := pluginserver.HoldDeclaredPlugins(ctx, spawner, pluginServerConfigs(firstPass.External, firstPass.ConfigDir))
+	// The `environment` block reaches each forked plugin here, in the child's
+	// environment alone. The daemon's own is written by the full parse and no
+	// earlier: a block applied now would outlive a config that parse refuses,
+	// and its values would then win over the recovered config's.
+	declarations := pluginserver.HoldDeclaredPlugins(ctx, spawner,
+		pluginServerConfigs(firstPass.External, firstPass.ConfigDir),
+		zeconfig.EnvironmentEntries(firstPass.Environment))
 	// Published even when no plugin declared a module: the set is then
 	// recorded as holding no external module, which is what a plugin
 	// restarted later is compared with.

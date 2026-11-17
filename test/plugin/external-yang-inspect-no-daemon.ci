@@ -1,0 +1,74 @@
+# Test: with no ze running, dump, fmt, graph and diff say an external plugin's section is not available
+#
+# Question: with no ze running, does each local inspection command, on a file
+# that holds a section under an external plugin's own root, refuse the section,
+# say a running ze was asked and none answered, and name one fix, without
+# starting the plugin's program?
+# Why not a unit test: TestInspectRouteFallsBackWhenNoZeAnswers proves the
+# fallback over a stub ask. Only the real command shows the walk to the
+# daemon's listener failing and its reason reaching the operator's refusal.
+#
+# The program the config declares writes a marker when it is started, so a
+# command that ran it leaves the marker behind.
+#
+# VALIDATES: owner ruling of 2026-11-16 for the four commands: with no daemon
+#   running, what needs an external plugin is not available, and the refusal
+#   says what is true and names one fix.
+# PREVENTS: a refusal that says no ze was asked after one was; a fix that names
+#   `ze config validate` for a command that is not validate; a program started
+#   with no daemon.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=marker.run:terminator=EOF_RUN
+#!/bin/sh
+echo started > started-by-ze.marker
+EOF_RUN
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external acme-shell {
+		run "sh marker.run"
+		encoder json
+	}
+}
+
+acme-shell {
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config dump ze.conf:exit=1
+expect=stderr:contains=unknown top-level keyword: acme-shell
+expect=stderr:contains=the config declares external plugin "acme-shell"
+expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
+expect=stderr:contains=then `ze config dump ze.conf` again
+expect=stderr:contains=fix: ze start
+reject=stderr:contains=fix: ze config validate
+
+cmd=foreground:seq=2:exec=ze config fmt ze.conf:exit=2
+expect=stderr:contains=unknown top-level keyword: acme-shell
+expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
+expect=stderr:contains=then `ze config fmt ze.conf` again
+expect=stderr:contains=fix: ze start
+reject=stderr:contains=fix: ze config validate
+
+cmd=foreground:seq=3:exec=ze config graph ze.conf:exit=2
+expect=stderr:contains=unknown top-level keyword: acme-shell
+expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
+expect=stderr:contains=then `ze config graph ze.conf` again
+expect=stderr:contains=fix: ze start
+reject=stderr:contains=fix: ze config validate
+
+cmd=foreground:seq=4:exec=ze config diff ze.conf ze.conf:exit=2
+expect=stderr:contains=unknown top-level keyword: acme-shell
+expect=stderr:contains=none answered: no ze listens at 127.0.0.1:
+expect=stderr:contains=then `ze config diff ze.conf ze.conf` again
+expect=stderr:contains=fix: ze start
+reject=stderr:contains=fix: ze config validate
+
+cmd=foreground:seq=5:exec=ze config dump ze.conf:exit=1
+expect=file:path=started-by-ze.marker:absent=true

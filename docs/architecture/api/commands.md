@@ -1213,7 +1213,10 @@ file's bytes, `name` carries the file's base name as a label for the daemon's
 messages, and nothing is read on the daemon's host. Its larger-value route is
 `show config validation file <path>`, for a file inside those directories
 (`docs/architecture/config/yang-config-design.md`,
-"`ze config validate` asks the running Ze first"). No surface has a
+"`ze config validate` asks the running Ze first"). The local `ze config fmt`,
+`dump`, `diff` and `graph` send their own supplied form the same way, and draw
+the answer with their local renderer (the same page, "`ze config fmt`, `dump`,
+`diff` and `graph` take the same route"). No surface has a
 second input channel, so the argument is the same on SSH, REST, gRPC, MCP and
 the web. Each leaf declares the bound, 261,120 base64 characters (195,840 bytes
 of content), which is what one SSH packet carries with the rest of the

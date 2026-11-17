@@ -75,6 +75,11 @@ type Process struct {
 	// TLS acceptor for external plugin connect-back (set by SetAcceptor).
 	acceptor *ipc.PluginAcceptor
 
+	// configEnvironment holds the `environment` block settings this fork is
+	// given, nil for a process forked after the daemon applied the block
+	// (set by SetConfigEnvironment).
+	configEnvironment []string
+
 	// RPC connection for YANG RPC protocol.
 	// Created by InitConns() from rawConn, or set directly by tests via SetConn.
 	conn *ipc.PluginConn
@@ -293,6 +298,40 @@ func (p *Process) SetAcceptor(a *ipc.PluginAcceptor) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.acceptor = a
+}
+
+// SetConfigEnvironment gives the fork of this process the settings of the
+// config's `environment` block, for a plugin forked before the daemon applied
+// the block to its own environment: the declared external plugins, which run
+// before the full parse (ProcessManager.StartEach). entries are "key=value"
+// under the dotted env key (config.EnvironmentEntries).
+//
+// The fork merges them under the daemon's environment for this child alone
+// (inheritedEnvironment); the daemon's own environment is never written. A
+// process forked after the full parse is given none: the daemon then holds
+// the block's settings itself, and the child inherits them. That includes the
+// process a respawn builds (ProcessManager.Respawn), which is a new Process.
+//
+// MUST be called before StartWithContext. It has no effect on an internal
+// plugin, which runs in the daemon's own environment.
+func (p *Process) SetConfigEnvironment(entries []string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.configEnvironment = entries
+}
+
+// inheritedEnvironment answers the part of a forked plugin's environment that
+// comes from the daemon's, given as daemon (os.Environ): every variable of
+// it, then each `environment` block setting the fork was given whose key
+// daemon gives no value (env.WithDefaults), each ze key under the name a
+// shell passes on (env.ShellSafe).
+//
+// The block's settings come second because the operator's own environment
+// wins over the config, which is the priority config.ApplyEnvConfig keeps
+// when it applies the block to the daemon. A plugin forked before that
+// therefore reads what one forked after it reads.
+func (p *Process) inheritedEnvironment(daemon []string) []string {
+	return env.ShellSafe(env.WithDefaults(daemon, p.configEnvironment))
 }
 
 // InitConns creates PluginConn connections from the raw engine-side connections.
@@ -751,7 +790,11 @@ func (p *Process) startExternal() error {
 	// connect-back variable the daemon inherited is renamed to the same
 	// ZE_PLUGIN_* name appended below, and exec keeps only the last value of a
 	// duplicated name, so the daemon's own value wins.
-	p.cmd.Env = env.ShellSafe(os.Environ())
+	//
+	// A plugin forked before the full parse also gets the settings of the
+	// config's `environment` block, which the daemon has not applied to itself
+	// yet (SetConfigEnvironment).
+	p.cmd.Env = p.inheritedEnvironment(os.Environ())
 	if pathEnv := plugin.ChildPathEnv(plugin.EngineBinDir(), os.Getenv("PATH")); pathEnv != "" {
 		p.cmd.Env = append(p.cmd.Env, pathEnv)
 	}

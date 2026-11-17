@@ -59,6 +59,14 @@ type declaredModule struct {
 //     -conf module of compiled or by an earlier external module
 //   - the module names a ze:validate function validators does not hold, or a
 //     ze:reference source no component registered
+//   - the module adds a node under a root ze reads before any plugin runs
+//     (FirstPassRoots), where no config could ever use it
+//
+// The join does not judge ze:decorate and ze:backend: their registries live
+// in packages that import this one, so a name ze does not hold is accepted
+// here. A decorator name the web registry does not hold decorates nothing
+// (web.DecoratorRegistry.Get answers none for it), and a backend name is read
+// when a config uses the node (config backend_gate.go).
 //
 // The redefinition refusal judges external modules only: the modules of
 // compiled may share a top-level container by a second definition, as six
@@ -394,12 +402,64 @@ func refuseUnheldRegistrations(joined *Resolved, declared []declaredModule, vali
 			if !external {
 				continue
 			}
+			if err := refuseFirstPassAddition(entry, owner); err != nil {
+				return err
+			}
 			if err := unheldRegistration(entry, owner, validators); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// firstPassRoots names the config roots ze reads before any plugin runs, over
+// the compiled-in modules alone, and strictly: `plugin`, which says which
+// plugins to run, and `environment`. It is the one declaration of that set:
+// the first pass of the config load derives its schema from it
+// (FirstPassRoots).
+var firstPassRoots = []string{"plugin", "environment"}
+
+// FirstPassRoots answers the config roots ze reads before any plugin runs.
+func FirstPassRoots() []string {
+	return slices.Clone(firstPassRoots)
+}
+
+// refuseFirstPassAddition refuses a node an external module adds under a root
+// of the first pass. Ze reads those roots before it starts a plugin, when the
+// module is not known yet, and reads them strictly, so a config that used the
+// added name would be refused as unknown before the plugin that declares it
+// ran: the name could never be configured. Refusing the module at the join
+// says so once, at start, in place of a refusal of the operator's config that
+// names no module.
+//
+// entry MUST be a node owner's module wrote. A root of that name the module
+// defines itself never reaches here: refuseRedefinedRoots refused it.
+func refuseFirstPassAddition(entry *gyang.Entry, owner declaredModule) error {
+	// The climb is bounded by the depth of entry, which the walk that found
+	// it already traversed.
+	top := entry
+	for top.Parent != nil {
+		if top.Parent.Parent == nil {
+			break
+		}
+		top = top.Parent
+	}
+	if top == entry {
+		return nil
+	}
+	if !slices.Contains(firstPassRoots, top.Name) {
+		return nil
+	}
+	plugin := quoted(owner.external.Plugin)
+	return opererr.New(
+		"Module "+quoted(owner.name)+" of plugin "+plugin+" adds "+entry.Path()+" under the config root "+quoted(top.Name)+
+			", which ze reads before it starts a plugin",
+		"ze reads the "+strings.Join(firstPassRoots, " and ")+" blocks before any external plugin runs, from the schema compiled into ze, "+
+			"so a config that used the added name would be refused before plugin "+plugin+" declared it",
+		"move "+quoted(entry.Name)+" out of "+quoted(top.Name)+" into a config root module "+quoted(owner.name)+
+			" defines, then restart ze",
+	)
 }
 
 // unheldRegistration answers the refusal for the first registration entry

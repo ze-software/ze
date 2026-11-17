@@ -30,7 +30,12 @@ func writeGraphUsage(diag *textbuf.Buffer) {
 	p := helpfmt.Page{
 		Command:   "ze config graph",
 		ShortHelp: "Show config dependency graph as JSON",
-		Usage:     []string{"ze config graph <config-file>"},
+		Usage:     []string{"ze config graph [" + accountOptionUsage + "] <config-file>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+				accountOptionHelp(),
+			}},
+		},
 		Examples: []string{
 			"ze config graph config.conf",
 		},
@@ -45,6 +50,7 @@ func graphAnswer(route command.Route, args []string) command.LocalAnswer {
 	var diag textbuf.Buffer
 	fs := flag.NewFlagSet("config graph", flag.ContinueOnError)
 	fs.SetOutput(&diag)
+	user := fs.String("user", "", "account that asks the running ze about a config that declares an external plugin")
 	fs.Usage = func() { writeGraphUsage(&diag) }
 
 	// The flag package wrote the help page, or the flag error and the page,
@@ -69,6 +75,12 @@ func graphAnswer(route command.Route, args []string) command.LocalAnswer {
 	data, err := cliio.ReadFile(readPath)
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+	}
+	// The operator's own process asks the running ze for the graph of a
+	// config that declares an external plugin (graphAsking). The daemon is the
+	// process that answers on its own route, and asks nobody.
+	if route.CallerLocal() {
+		return graphAsking(fs.Arg(0), data, *user, routeAsk)
 	}
 	return graphBytesAnswer(data)
 }

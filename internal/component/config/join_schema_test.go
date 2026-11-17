@@ -89,8 +89,8 @@ func TestJoinedAugmentReachesCompiledInContainer(t *testing.T) {
 		Text: `module acme-plugin-extra {
     namespace "urn:acme:plugin-extra";
     prefix extra;
-    import ze-plugin-conf { prefix plug; }
-    augment "/plug:plugin" {
+    import ze-system-conf { prefix sys; }
+    augment "/sys:system" {
         container acme-extra {
             leaf note { type string; }
         }
@@ -101,17 +101,17 @@ func TestJoinedAugmentReachesCompiledInContainer(t *testing.T) {
 	schema, err := schemaFromResolved(resolved)
 	require.NoError(t, err)
 
-	root, ok := schema.Get("plugin").(*ContainerNode)
-	require.True(t, ok, "the plugin root must be a container in the joined schema")
-	assert.True(t, root.Has("acme-extra"), "the plugin root lacks the augmented child")
-	assert.True(t, root.Has("external"), "the plugin root lost its compiled-in child")
+	root, ok := schema.Get("system").(*ContainerNode)
+	require.True(t, ok, "the system root must be a container in the joined schema")
+	assert.True(t, root.Has("acme-extra"), "the system root lacks the augmented child")
+	assert.True(t, root.Has("host"), "the system root lost its compiled-in child")
 
-	_, err = NewParser(schema).Parse(`plugin { acme-extra { note probe; } }`)
+	_, err = NewParser(schema).Parse(`system { acme-extra { note probe; } }`)
 	require.NoError(t, err)
 
 	shipped, err := YANGSchema()
 	require.NoError(t, err)
-	shippedRoot, ok := shipped.Get("plugin").(*ContainerNode)
+	shippedRoot, ok := shipped.Get("system").(*ContainerNode)
 	require.True(t, ok)
 	assert.False(t, shippedRoot.Has("acme-extra"), "the join changed the schema of the compiled-in set")
 }

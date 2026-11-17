@@ -590,6 +590,22 @@ plugins a config declares. The names below are the code.
 A config that declares no external plugin runs step 1 and nothing else of
 steps 2 to 4: nothing is forked, waited for or published.
 
+The `environment` block reaches a plugin forked in step 2 although the daemon
+applies the block to its own environment only in step 5, once the config is
+accepted. Step 2 hands each fork the block's settings
+(`config.EnvironmentEntries`), and the fork lays them under the daemon's
+environment for that child alone (`Process.SetConfigEnvironment`,
+`env.WithDefaults`): a variable the operator's environment sets wins, as it
+does when the block is applied. The daemon's environment is not written
+before step 5, because a block applied earlier would outlive a config the
+full parse refuses, and its values would win over the recovered config's. A
+plugin started again later (a respawn, `request plugin restart`) is forked
+from the daemon's environment, which holds the block by then.
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
+<!-- source: internal/component/config/apply_env.go -- EnvironmentEntries -->
+<!-- source: internal/component/plugin/process/process.go -- SetConfigEnvironment, inheritedEnvironment -->
+<!-- source: internal/core/env/env.go -- WithDefaults -->
+
 Everything that keeps the module set for the life of the process (the plugin
 server, a gNMI server, a parsed interface name) is built after step 4. The
 start path in `cmd/ze` therefore gives no full verdict on a config before boot

@@ -257,7 +257,7 @@ func cmdValidate(args []string) int {
 					{Name: "-q", Desc: "Quiet mode (exit code only)"},
 					{Name: "--pending", Desc: "Validate pending draft config"},
 					{Name: "--limit <section>", Desc: "Limit validation to section (environment)"},
-					{Name: "--user <name>", Desc: "Account that asks the running ze, for a config that declares an external plugin"},
+					accountOptionHelp(),
 				}},
 				{Title: "Limit values", Entries: []helpfmt.HelpEntry{
 					{Name: "environment", Desc: "Validate environment variables only (no config file needed)"},
@@ -320,7 +320,7 @@ func cmdValidate(args []string) int {
 	// The running ze judges a config that declares an external plugin, and
 	// this process judges every other config and any config no ze answered
 	// for (judgeConfig).
-	result := judgeConfig(string(data), configPath, *user, askValidationOverSSH)
+	result := judgeConfig(string(data), configPath, *user, askOverSSH)
 
 	return outputValidateText(result, *verbose, *quiet)
 }
@@ -348,7 +348,7 @@ func validatePending(configPath, user string, verbose, quiet bool) int {
 		return 2
 	}
 
-	result := judgeConfig(string(data), configPath, user, askValidationOverSSH)
+	result := judgeConfig(string(data), configPath, user, askOverSSH)
 	return outputValidateText(result, verbose, quiet)
 }
 

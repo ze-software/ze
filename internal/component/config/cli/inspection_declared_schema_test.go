@@ -45,7 +45,12 @@ func TestConfigInspectionExplainsUnavailableExternalSchema(t *testing.T) {
 				assert.Contains(t, answer.Diagnostic, `external plugin "acme"`)
 				assert.Contains(t, answer.Diagnostic, "starts no plugin")
 				assert.Equal(t, 1, strings.Count(answer.Diagnostic, "fix: "), "one recovery command: %s", answer.Diagnostic)
-				assert.True(t, strings.HasSuffix(answer.Diagnostic, "fix: ze config validate <config-file>\n"), "the content-validation recovery was lost: %s", answer.Diagnostic)
+				if path.asked {
+					assert.True(t, strings.HasSuffix(answer.Diagnostic, "fix: ze start\n"), "the fix of the failed ask was lost: %s", answer.Diagnostic)
+					assert.Contains(t, answer.Diagnostic, "none answered: no ze listens at ")
+				} else {
+					assert.True(t, strings.HasSuffix(answer.Diagnostic, "fix: ze config validate <config-file>\n"), "the content-validation recovery was lost: %s", answer.Diagnostic)
+				}
 				assert.NotContains(t, answer.Diagnostic, "fix: ze cli")
 				requireNotStarted(t, marker)
 			})
@@ -135,19 +140,23 @@ func TestConfigInspectionPreservesPublishedRangeRefusals(t *testing.T) {
 type declaredInspectionPath struct {
 	name       string
 	comparison bool
+	// asked is true for a route that asks the running ze about a config that
+	// declares an external plugin: the operator's own file and store forms.
+	// The supplied forms are the daemon's producers, which ask nobody.
+	asked bool
 }
 
 // declaredInspectionPaths names the concrete input routes that must preserve
 // the same declared-schema boundary, including both current and history bytes.
 func declaredInspectionPaths() []declaredInspectionPath {
 	return []declaredInspectionPath{
-		{name: "dump file"},
+		{name: "dump file", asked: true},
 		{name: "dump supplied"},
-		{name: "graph file"},
+		{name: "graph file", asked: true},
 		{name: "graph supplied"},
-		{name: "diff files", comparison: true},
-		{name: "diff stored", comparison: true},
-		{name: "diff history", comparison: true},
+		{name: "diff files", comparison: true, asked: true},
+		{name: "diff stored", comparison: true, asked: true},
+		{name: "diff history", comparison: true, asked: true},
 		{name: "diff supplied", comparison: true},
 	}
 }
@@ -179,7 +188,7 @@ func inspectDeclaredSchema(t *testing.T, path, before, after string) command.Loc
 			first = "1"
 		}
 		var diag textbuf.Buffer
-		diff, code := resolveDiff(store, []string{first, "after.conf"}, &diag)
+		diff, code := diffAsking(store, []string{first, "after.conf"}, first+" after.conf", command.RouteLocal, "", routeAsk, &diag)
 		if code != exitOK {
 			return command.LocalRefusal(code, diag.String())
 		}
