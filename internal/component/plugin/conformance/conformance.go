@@ -18,6 +18,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Verdict is what one row says about one check.
@@ -48,7 +48,8 @@ const (
 	ExitConforms = 0
 	// ExitViolation is a report with a failed row.
 	ExitViolation = 1
-	// ExitNoRun is a run that could not happen, so there is no report.
+	// ExitNoRun is a run that could not happen or was interrupted, so there is
+	// no completed report.
 	ExitNoRun = 2
 )
 
@@ -176,14 +177,15 @@ var (
 )
 
 // Run starts the target in declare mode, within budget, and answers the
-// report. An error means the run could not happen: the target names no
-// program, the caller's context is already done, or this host has no shell to
-// start a run string with. A program that fails to start is a failed row of
-// the report, never an error.
+// report. An error means no report completed: the target names no program,
+// the caller's context ended before or during the query, or this host has no
+// shell to start a run string with. A program that fails to start is a failed
+// row of the report, never an error.
 //
-// The context bounds the start: a deadline sooner than budget shortens the
-// budget. A cancellation after the program started is not seen before the
-// budget ends, because the declare-mode fork holds no caller context.
+// Caller cancellation or deadline stops the query's isolated process group
+// and joins it before returning the caller's error with no report. An active
+// caller whose independent query budget expires still receives a failed row.
+// The caller MUST provide a non-nil context.
 func Run(ctx context.Context, target Target, budget time.Duration) (Report, error) {
 	if strings.TrimSpace(target.Run) == "" {
 		return Report{}, errNoRunString
@@ -192,23 +194,20 @@ func Run(ctx context.Context, target Target, budget time.Duration) (Report, erro
 		return Report{}, errNoPluginName
 	}
 	if err := ctx.Err(); err != nil {
-		var tb textbuf.Buffer
-		return Report{}, errors.New(tb.Str("the conformance check was stopped before it started ").
-			Str(target.Run).Str(": ").Err(err).String())
+		return Report{}, fmt.Errorf("the conformance check was stopped before it started %s: %w", target.Run, err)
 	}
 	if err := plugin.ShellAvailable(); err != nil {
 		return Report{}, err
 	}
-	if deadline, bounded := ctx.Deadline(); bounded {
-		budget = min(budget, time.Until(deadline))
-	}
-
 	evidence := &Evidence{Target: target, Budget: budget}
-	evidence.Query = plugin.QueryDeclaration(plugin.PluginConfig{
+	evidence.Query = plugin.QueryDeclaration(ctx, plugin.PluginConfig{
 		Name:    target.Name,
 		Run:     target.Run,
 		WorkDir: target.WorkDir,
 	}, budget)
+	if err := ctx.Err(); err != nil {
+		return Report{}, fmt.Errorf("the conformance check was stopped while querying %s: %w", target.Name, err)
+	}
 	// The judge is called for a program that declared nothing too: its check
 	// names are what the rows of an unread declaration are listed under.
 	evidence.Judgement = server.JudgeDeclaration(target.Name, &evidence.Query.Declaration)

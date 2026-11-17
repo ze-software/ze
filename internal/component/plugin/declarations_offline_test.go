@@ -19,6 +19,7 @@ package plugin
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -87,7 +88,7 @@ func TestDeclarationRowsStartNoExternalProgramWithNoDaemon(t *testing.T) {
 	}
 
 	withPluginReaderInProcess(t, ConfigProcessOffline, configured)
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows with no daemon failed: %v", err)
 	}
@@ -126,7 +127,7 @@ func TestDeclarationRowsStartNoExternalProgramWithNoDaemon(t *testing.T) {
 	// Control: a running daemon starts the same run string, the marker shows
 	// it, and the row carries what the program declared.
 	withPluginReaderInProcess(t, ConfigProcessDaemon, configured)
-	rows, err = declarationRows("ze.conf")
+	rows, err = declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows inside a daemon failed: %v", err)
 	}
@@ -158,7 +159,7 @@ func TestDeclarationRowsWithNoDaemonKeepTheCompiledInDeclarations(t *testing.T) 
 	withPluginReaderInProcess(t, ConfigProcessOffline, func(string) ([]PluginConfig, error) {
 		return []PluginConfig{{Name: "acme-offline", Run: "/no/such/plugin/binary"}}, nil
 	})
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows with no daemon failed: %v", err)
 	}
@@ -194,7 +195,7 @@ func TestDeclarationRowsWithNoDaemonNeverAnswerAnExternalBlockFromTheBinary(t *t
 	withPluginReaderInProcess(t, ConfigProcessOffline, func(string) ([]PluginConfig, error) {
 		return []PluginConfig{{Name: declaring.Name, Run: markingRunString(t, marker)}}, nil
 	})
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows with no daemon failed: %v", err)
 	}
@@ -231,7 +232,7 @@ func TestDeclarationRowsWithNoDaemonKeepABlockWithNoProgram(t *testing.T) {
 			{Name: "external-with-no-run"},
 		}, nil
 	})
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows with no daemon failed: %v", err)
 	}
@@ -273,7 +274,7 @@ func TestDeclarationRowsRefuseAReaderThatNamesNoProcess(t *testing.T) {
 		return []PluginConfig{{Name: "acme-unnamed", Run: markingRunString(t, marker)}}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if !errors.Is(err, errNoConfigProcess) {
 		t.Fatalf("declarationRows answered %d rows and error %v, want errNoConfigProcess", len(rows), err)
 	}

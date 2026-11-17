@@ -18,12 +18,13 @@
 // here, one row each, and a row is never dropped: the state field says why a
 // row carries no declaration.
 //
-// A row is never dropped and never silently empty. The state says which of
-// seven answers the row carries: the plugin declared something, it declared
+// A row is never dropped and never silently empty. The state says which
+// answer the row carries: the plugin declared something, it declared
 // nothing, it ran and wrote no declaration, it could not be started (which
 // covers a declaration the daemon refuses at Stage 1), it started and said
 // nothing inside the budget, it declared in a binary that cannot judge the
-// declaration, or its program was not started because no daemon runs here.
+// declaration, its program was not started because no daemon runs here, or
+// its caller stopped the query before it completed.
 
 package plugin
 
@@ -67,7 +68,7 @@ const (
 	kindExternal = "external"
 )
 
-// The seven states a row can carry. They are exhaustive: every plugin gets one,
+// The states a row can carry. They are exhaustive: every plugin gets one,
 // and none of them is the absence of an answer.
 //
 // The pair that must stay apart is stateDeclaredNone and stateNoAnswer. A
@@ -83,6 +84,7 @@ const (
 	stateNoAnswer     = "no-answer"
 	stateUnstartable  = "unstartable"
 	stateTimeout      = "timeout"
+	stateCanceled     = "canceled"
 	// stateUnjudged is a declaration that was read in a binary that links no
 	// Stage 1 check table (declaration_judge.go). It is a state of its own so
 	// an unjudged declaration is never listed as declared.
@@ -265,7 +267,7 @@ func dataDeclarations(validated command.ValidatedArgs) command.LocalAnswer {
 			Str(args[0]).Str(" follows it: name a config file with ").Str(keywordConfig).
 			Str(" <path>").String()))
 	}
-	return answerDeclarations("")
+	return answerDeclarations(validated.Context(), "")
 }
 
 // dataDeclarationsConfig answers `show plugin declarations config <path>`: the
@@ -290,13 +292,13 @@ func dataDeclarationsConfig(validated command.ValidatedArgs) command.LocalAnswer
 	if err != nil {
 		return declarationRefusal(err)
 	}
-	return answerDeclarations(path)
+	return answerDeclarations(validated.Context(), path)
 }
 
 // answerDeclarations builds the payload both handlers answer with, so the two
 // commands are two entry points into one answer rather than two answers.
-func answerDeclarations(configPath string) command.LocalAnswer {
-	rows, err := declarationRows(configPath)
+func answerDeclarations(ctx context.Context, configPath string) command.LocalAnswer {
+	rows, err := declarationRows(ctx, configPath)
 	if err != nil {
 		return declarationRefusal(err)
 	}
@@ -346,7 +348,10 @@ func declarationConfigPath(args []string) (string, error) {
 // read the file decides whether it is asked: a running daemon starts it in
 // query mode, and a command with no daemon starts nothing and says the
 // declaration is not available (configuredDeclarationRow).
-func declarationRows(configPath string) ([]declarationRow, error) {
+func declarationRows(ctx context.Context, configPath string) ([]declarationRow, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	budget, err := declarationBudget()
 	if err != nil {
 		return nil, err
@@ -369,9 +374,12 @@ func declarationRows(configPath string) ([]declarationRow, error) {
 			if configuredPlugin.Internal && carried[configuredPlugin.Name] {
 				continue
 			}
-			row, rowErr := configuredDeclarationRow(configuredPlugin, configured.Process, configPath, budget)
+			row, rowErr := configuredDeclarationRow(ctx, configuredPlugin, configured.Process, configPath, budget)
 			if rowErr != nil {
 				return nil, rowErr
+			}
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
 			byName[configuredPlugin.Name] = row
 		}
@@ -493,12 +501,12 @@ func inTreeDeclarationRow(registration *registry.Registration) declarationRow {
 // daemon starts no external plugin, so the row says the declaration is not
 // available there. A reader that named no process is refused: neither reading
 // of the missing answer is safe (errNoConfigProcess).
-func configuredDeclarationRow(configured PluginConfig, process ConfigProcess, configPath string, budget time.Duration) (declarationRow, error) {
+func configuredDeclarationRow(ctx context.Context, configured PluginConfig, process ConfigProcess, configPath string, budget time.Duration) (declarationRow, error) {
 	switch process {
 	case ConfigProcessOffline:
 		return unavailableDeclarationRow(configured, configPath), nil
 	case ConfigProcessDaemon:
-		return queriedDeclarationRow(configured, budget), nil
+		return queriedDeclarationRow(ctx, configured, budget), nil
 	case ConfigProcessUnspecified:
 		return declarationRow{}, errNoConfigProcess
 	}
@@ -578,13 +586,18 @@ func quotedRunString(run string) string {
 // queriedDeclarationRow answers for a plugin whose code is in another binary,
 // by starting that binary in query mode and reading its declaration. Only a
 // running daemon calls it (configuredDeclarationRow).
-func queriedDeclarationRow(configured PluginConfig, budget time.Duration) declarationRow {
+func queriedDeclarationRow(ctx context.Context, configured PluginConfig, budget time.Duration) declarationRow {
 	if row, answered := blockWithNoProgramRow(configured); answered {
 		return row
 	}
 	row := declarationRow{Name: configured.Name, Kind: configuredKind(configured)}
 
-	query := QueryDeclaration(configured, budget)
+	query := QueryDeclaration(ctx, configured, budget)
+	if query.Exit == QueryExitCanceled {
+		row.State = query.silence.state
+		row.Reason = query.silence.reason
+		return row
+	}
 	if !query.Declared {
 		row.State = query.silence.state
 		row.Reason = query.silence.reason
@@ -643,6 +656,9 @@ const (
 	// QueryExitOutlived is a program that exited 0 while a process it started
 	// still held its standard output.
 	QueryExitOutlived
+	// QueryExitCanceled is a query stopped because its caller ended, including
+	// a caller deadline. It is distinct from the independent query budget.
+	QueryExitCanceled
 )
 
 // DeclarationQuery is everything one declare-mode run of a plugin produced:
@@ -656,9 +672,10 @@ type DeclarationQuery struct {
 	Exit QueryExit
 	// ExitCode is the status the program exited with. It is meaningful for
 	// QueryExitFailed and for a QueryExitNotStarted the shell reported, and
-	// -1 for a program a signal ended.
+	// -1 for a failed run a signal ended. It is not meaningful for a canceled
+	// query.
 	ExitCode int
-	// Cause is the text of the error the start or the wait returned, as
+	// Cause is the text of the start, wait or caller interruption error, as
 	// evidence. It is empty for QueryExitClean.
 	Cause string
 	// Declaration is the Stage 1 declaration read from Stdout. It is
@@ -669,13 +686,13 @@ type DeclarationQuery struct {
 	Declared bool
 
 	// silence is the row `show plugin declarations` writes when no
-	// declaration was read.
+	// declaration was read or the caller stopped the query before it completed.
 	silence queryOutcome
 }
 
 // queryOutcome is what running the child says about the child itself, as
-// opposed to what the child wrote. It is only read when no declaration arrived,
-// because a plugin that answered has answered whatever its exit status was.
+// opposed to what it wrote. A missing declaration or a caller-canceled query
+// reads this outcome; a completed answer is retained whatever its exit status.
 type queryOutcome struct {
 	state  string
 	reason string
@@ -685,6 +702,9 @@ type queryOutcome struct {
 // whatever it wrote to stdout, how the run ended, and the declaration read
 // from that output. It is the one declare-mode fork: `show plugin
 // declarations` and the conformance checker both read its answer.
+// The caller MUST provide a non-nil context. Caller cancellation stops the
+// isolated process group and joins the child before returning QueryExitCanceled;
+// only the query's own budget is QueryExitTimeout.
 //
 // The start mirrors (*Process).startExternal: the run string under a shell,
 // because it is shell-quoted and no argv can be appended to it, and the engine
@@ -694,22 +714,22 @@ type queryOutcome struct {
 // is an import cycle; and because that path discards the child's exit status,
 // which is the one fact separating a plugin that could not start from a plugin
 // that ran and said nothing.
-func QueryDeclaration(configured PluginConfig, budget time.Duration) DeclarationQuery {
-	ctx, cancel := context.WithTimeout(context.Background(), budget)
+func QueryDeclaration(ctx context.Context, configured PluginConfig, budget time.Duration) DeclarationQuery {
+	queryCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 
 	// #nosec G204 -- the run string comes from the operator's own config, the
 	// same string the daemon starts, or from the command line of an operator
 	// who runs the conformance checker in their own process and under their
 	// own identity (conformance/register.go refuses the daemon route).
-	child := exec.CommandContext(ctx, Shell, "-c", configured.Run)
+	child := exec.CommandContext(queryCtx, Shell, "-c", configured.Run)
 	if configured.WorkDir != "" {
 		child.Dir = configured.WorkDir
 	}
 	child.Env = queryChildEnv()
 
-	// The plugin is started in its own process group and the budget's stop is
-	// aimed at that group, so the stop reaches the plugin and not only the
+	// The plugin is started in its own process group and a caller or budget stop
+	// is aimed at that group, so the stop reaches the plugin and not only the
 	// shell that was given the run string. A shell keeps the plugin as its own
 	// child for every run string it does not exec-optimize, and a stop that
 	// reached the shell alone would leave the plugin running its LIVE start
@@ -730,6 +750,9 @@ func QueryDeclaration(configured PluginConfig, budget time.Duration) Declaration
 	child.WaitDelay = queryDrainDelay
 
 	if err := StartChild(child); err != nil {
+		if stopped := ctx.Err(); stopped != nil {
+			return canceledDeclarationQuery(&DeclarationQuery{}, stopped)
+		}
 		return DeclarationQuery{
 			Exit:    QueryExitNotStarted,
 			Cause:   err.Error(),
@@ -740,10 +763,13 @@ func QueryDeclaration(configured PluginConfig, budget time.Duration) Declaration
 	waitErr := child.Wait()
 	query := DeclarationQuery{Stdout: stdout.held}
 	query.Declaration, query.Declared = declarationFromStdout(stdout.held)
-	if ctx.Err() != nil {
+	if err := ctx.Err(); err != nil {
+		return canceledDeclarationQuery(&query, err)
+	}
+	if queryCtx.Err() != nil {
 		var tb textbuf.Buffer
 		query.Exit = QueryExitTimeout
-		query.Cause = ctx.Err().Error()
+		query.Cause = queryCtx.Err().Error()
 		query.silence = queryOutcome{
 			state: stateTimeout,
 			reason: tb.Str("the plugin wrote no declaration within ").Str(budget.String()).
@@ -757,6 +783,21 @@ func QueryDeclaration(configured PluginConfig, budget time.Duration) Declaration
 	}
 	query.silence = queryOutcomeOfExit(waitErr)
 	return query
+}
+
+// canceledDeclarationQuery retains any declaration already read, but records
+// the caller's interruption rather than a violation of the plugin's budget.
+// query MUST be non-nil.
+func canceledDeclarationQuery(query *DeclarationQuery, cause error) DeclarationQuery {
+	query.Exit = QueryExitCanceled
+	query.Cause = cause.Error()
+	var tb textbuf.Buffer
+	query.silence = queryOutcome{
+		state: stateCanceled,
+		reason: tb.Str("the caller stopped the declaration query before it completed: ").Err(cause).
+			Str("; retry the declaration query when its caller can wait for completion").String(),
+	}
+	return *query
 }
 
 // queryExitOf reads what Wait returned as the way the run ended.

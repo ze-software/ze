@@ -135,7 +135,7 @@ func TestDeclarationConfigPathReadsTheKeyword(t *testing.T) {
 // answered for two sets would tell an operator the binary disagrees with
 // itself about which plugins it has.
 func TestDeclarationRowsCoverEveryRegisteredPlugin(t *testing.T) {
-	rows, err := declarationRows("")
+	rows, err := declarationRows(context.Background(), "")
 	if err != nil {
 		t.Fatalf("declarationRows over the compiled-in registry failed: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestDeclarationRowsCoverAPluginThatNeverRegistered(t *testing.T) {
 	t.Cleanup(func() { registry.Restore(snapshot) })
 	registry.RecordSetup(name, registry.SetupFailedSoft, recordedReason)
 
-	rows, err := declarationRows("")
+	rows, err := declarationRows(context.Background(), "")
 	if err != nil {
 		t.Fatalf("declarationRows over a binary holding a failed setup failed: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestDeclarationRowsCoverAPluginThatNeverRegistered(t *testing.T) {
 func TestDeclarationRowsRefuseWithoutAConfigReader(t *testing.T) {
 	withConfiguredPluginReader(t, nil)
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if !errors.Is(err, errNoConfigReader) {
 		t.Fatalf("declarationRows with no reader answered %d rows and error %v, want errNoConfigReader",
 			len(rows), err)
@@ -243,7 +243,7 @@ func TestDeclarationRowsCarryTheConfiguredPlugins(t *testing.T) {
 		}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over a config failed: %v", err)
 	}
@@ -335,7 +335,7 @@ func TestDeclarationRowsCarryEveryState(t *testing.T) {
 		}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over the five states failed: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestDeclarationRowRefusesAnUnversionedAnswer(t *testing.T) {
 		return []PluginConfig{{Name: "query-text-era", Run: queryRunString(t, "", &unversioned)}}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over an unversioned answer failed: %v", err)
 	}
@@ -416,7 +416,7 @@ func TestDeclarationRowsAnswerInTreeFromTheRegistration(t *testing.T) {
 		return []PluginConfig{{Name: declaring.Name, Run: "/no/such/plugin/binary", Internal: true}}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over a configured in-tree plugin failed: %v", err)
 	}
@@ -456,7 +456,7 @@ func TestDeclarationRowsRefuseAnInternalBlockWithNoCodeHere(t *testing.T) {
 		return []PluginConfig{{Name: "internal-with-no-code-here", Run: "touch " + marker, Internal: true}}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over an internal block with no code here failed: %v", err)
 	}
@@ -493,7 +493,7 @@ func TestDeclarationIgnoresUnframedStdout(t *testing.T) {
 		return []PluginConfig{{Name: "query-noisy", Run: queryRunString(t, noise, &declared)}}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over a noisy child failed: %v", err)
 	}
@@ -515,7 +515,7 @@ func TestDeclarationBudgetRefusesNonPositive(t *testing.T) {
 		t.Run(budget, func(t *testing.T) {
 			withQueryBudget(t, budget)
 
-			rows, err := declarationRows("")
+			rows, err := declarationRows(context.Background(), "")
 			if err == nil {
 				t.Fatalf("a budget of %s answered %d rows, want a refusal", budget, len(rows))
 			}
@@ -857,7 +857,7 @@ func TestDeclarationRowsQueryTheBinaryAnExternalBlockNames(t *testing.T) {
 		return []PluginConfig{{Name: declaring.Name, Run: queryRunString(t, "", &vendor)}}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over an external block naming an in-tree plugin failed: %v", err)
 	}
@@ -894,13 +894,14 @@ func TestDeclarationQueryStopsThePluginTheShellStarted(t *testing.T) {
 	withQueryBudget(t, "1s")
 
 	pidPath := filepath.Join(t.TempDir(), "plugin.pid")
-	run := "sh -c 'echo $$ > " + pidPath + "; exec sleep 30' & wait"
+	groupPath := filepath.Join(filepath.Dir(pidPath), "query.pgid")
+	run := "echo $$ > " + groupPath + "; sh -c 'echo $$ > " + pidPath + "; exec sleep 30' & wait"
 
 	withConfiguredPluginReader(t, func(string) ([]PluginConfig, error) {
 		return []PluginConfig{{Name: "query-slow-plugin", Run: run}}, nil
 	})
 
-	rows, err := declarationRows("ze.conf")
+	rows, err := declarationRows(context.Background(), "ze.conf")
 	if err != nil {
 		t.Fatalf("declarationRows over a plugin that outlives the budget failed: %v", err)
 	}
@@ -910,14 +911,36 @@ func TestDeclarationQueryStopsThePluginTheShellStarted(t *testing.T) {
 	}
 
 	pid := pluginPid(t, pidPath)
+	group := pluginPid(t, groupPath)
+	if group == syscall.Getpgrp() {
+		t.Fatal("the query must not belong to the test's own process group")
+	}
 	t.Cleanup(func() {
-		// The test stops what the product failed to stop, so a failure here
-		// leaves no process sleeping for another 30 seconds. The signal fails
-		// when the product did stop it, which is the passing case.
-		_ = syscall.Kill(pid, syscall.SIGKILL) //nolint:errcheck // the process is already gone when the product stopped it
+		// The shell recorded its expected group, and only this observed
+		// plugin's current membership authorizes a group-only stop.
+		currentGroup, err := syscall.Getpgid(pid)
+		if errors.Is(err, syscall.ESRCH) {
+			return
+		}
+		if err != nil {
+			t.Errorf("cannot verify the query's process group before cleanup: %v", err)
+			return
+		}
+		if currentGroup != group {
+			return // A reused PID in another group is no longer test-owned.
+		}
+		if err := KillProcessGroup(group); err != nil {
+			if !errors.Is(err, syscall.ESRCH) {
+				t.Errorf("stop the query's verified process group: %v", err)
+			}
+		}
 	})
 
-	if processAlive(pid, processStopBudget) {
+	alive, err := processAlive(pid, group, processStopBudget)
+	if err != nil {
+		t.Fatalf("cannot observe the plugin at pid %d after the query: %v", pid, err)
+	}
+	if alive {
 		t.Fatalf("the plugin at pid %d is still running after the query: the stop reached the shell and not the plugin", pid)
 	}
 }
@@ -941,22 +964,36 @@ func pluginPid(t *testing.T, path string) int {
 	if err != nil {
 		t.Fatalf("the fake plugin wrote %q as its pid: %v", written, err)
 	}
+	if pid <= 1 {
+		t.Fatalf("the fake plugin wrote %d as its pid, want a process id greater than one", pid)
+	}
 	return pid
 }
 
-// processAlive answers whether pid is still in the process table, waiting up to
-// budget for it to go. Signal 0 asks the kernel about the process and delivers
-// nothing to it.
-func processAlive(pid int, budget time.Duration) bool {
-	deadline := time.Now().Add(budget)
+// processAlive checks whether pid still belongs to its recorded query group,
+// waiting up to budget for it to disappear. Unexpected kernel errors or changed
+// membership are unknown ownership, never proof that the query stopped.
+func processAlive(pid, expectedGroup int, budget time.Duration) (bool, error) {
+	deadline := time.NewTimer(budget)
+	defer deadline.Stop()
+	ticks := time.NewTicker(20 * time.Millisecond)
+	defer ticks.Stop()
 	for {
-		if err := syscall.Kill(pid, 0); err != nil {
-			return false
+		group, err := syscall.Getpgid(pid)
+		if errors.Is(err, syscall.ESRCH) {
+			return false, nil
 		}
-		if time.Now().After(deadline) {
-			return true
+		if err != nil {
+			return false, err
 		}
-		time.Sleep(20 * time.Millisecond)
+		if group != expectedGroup {
+			return false, errors.New("the recorded PID no longer belongs to the query's group, so ownership is unknown")
+		}
+		select {
+		case <-ticks.C:
+		case <-deadline.C:
+			return true, nil
+		}
 	}
 }
 
@@ -1056,7 +1093,7 @@ func TestQueryKeepsSchema(t *testing.T) {
 		Schema:          &rpc.SchemaDecl{Module: "acme-query-conf", Namespace: "urn:acme:query", YANGText: text},
 	}
 
-	query := QueryDeclaration(PluginConfig{Name: "acme-query", Run: queryRunString(t, "", &declaration)}, 5*time.Second)
+	query := QueryDeclaration(context.Background(), PluginConfig{Name: "acme-query", Run: queryRunString(t, "", &declaration)}, 5*time.Second)
 
 	if !query.Declared {
 		t.Fatalf("no declaration was read; exit %d, cause %q, stdout %q", query.Exit, query.Cause, query.Stdout)
@@ -1083,7 +1120,7 @@ func TestQueryKeepsSchema(t *testing.T) {
 // program that runs and writes nothing.
 // PREVENTS: a row that names a plugin and not why it gave no declaration.
 func TestQuerySilenceSaysWhatTheRunShowed(t *testing.T) {
-	absent := QueryDeclaration(PluginConfig{Name: "absent", Run: "/nonexistent/ze-no-such-plugin-program"}, 5*time.Second)
+	absent := QueryDeclaration(context.Background(), PluginConfig{Name: "absent", Run: "/nonexistent/ze-no-such-plugin-program"}, 5*time.Second)
 	if absent.Declared {
 		t.Fatalf("a program that does not exist declared")
 	}
@@ -1091,7 +1128,7 @@ func TestQuerySilenceSaysWhatTheRunShowed(t *testing.T) {
 		t.Fatalf("silence %q does not say the run command was not found", absent.silence.reason)
 	}
 
-	mute := QueryDeclaration(PluginConfig{Name: "mute", Run: "exit 0"}, 5*time.Second)
+	mute := QueryDeclaration(context.Background(), PluginConfig{Name: "mute", Run: "exit 0"}, 5*time.Second)
 	if mute.Declared {
 		t.Fatalf("a program that wrote nothing declared")
 	}

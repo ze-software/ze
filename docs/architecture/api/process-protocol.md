@@ -1270,6 +1270,17 @@ external plugin reads `not-available`.
 <!-- source: internal/component/plugin/declarations.go -- queriedDeclarationRow -->
 <!-- source: internal/component/plugin/cli/main.go -- Run, answerQuery -->
 
+A declaration query inherits its caller's context as well as the independent
+`ze.plugin.query.timeout` budget. Caller cancellation or deadline stops the
+query's isolated process group and joins its direct child before returning; the
+bounded output drain still applies. This records a caller-canceled query,
+including any declaration already read, rather than blaming the plugin for a
+query-budget timeout. The conformance checker returns the caller's error and no
+completed report. A query-budget expiry with its caller still active remains a
+plugin timeout and a failed conformance row.
+<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration, canceledDeclarationQuery -->
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run -->
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes

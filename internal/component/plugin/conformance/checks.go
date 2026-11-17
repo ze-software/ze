@@ -118,6 +118,10 @@ func exitsClean(evidence *Evidence) []Row {
 		row.Reason = tb.Str("the program was still running after ").Str(evidence.Budget.String()).
 			Str(" and was stopped, so it started for real or waits on something").String()
 		row.Fix = fixUseRunOrDeclare
+	case plugin.QueryExitCanceled:
+		row.Verdict = VerdictNotJudged
+		row.Reason = "the caller stopped the declaration query, so conformance was not judged"
+		row.Fix = "retry the conformance check with a caller that can wait for completion"
 	case plugin.QueryExitOutlived:
 		row.Reason = "the program exited 0 and a process it started still held its standard output"
 		row.Fix = "start no process in declare mode: move the work that starts it into the " +

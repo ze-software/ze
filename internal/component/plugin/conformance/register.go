@@ -102,8 +102,8 @@ func dataConformance(validated command.ValidatedArgs) command.LocalAnswer {
 	report, err := Run(validated.Context(), Target{Run: run, Name: name}, budget)
 	if err != nil {
 		return command.LocalRefusal(ExitNoRun, command.LocalErrorLine(opererr.Wrap(err,
-			"show plugin conformance run could not start the check",
-			"no program was started, so there is no report to read",
+			"show plugin conformance run could not complete the check",
+			"no complete conformance report was produced, so no verdict can be read",
 			"correct what the cause names, then run "+localCommand("", run)+" again")))
 	}
 	return command.LocalAnswer{Payload: plugin.Map{keyChecks: report.Rows}, Code: report.ExitCode()}

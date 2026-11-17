@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -141,7 +142,7 @@ func TestQueriedDeclarationRowReportsAStage1RefusalAsUnstartable(t *testing.T) {
 		ProtocolVersion: rpc.ProtocolVersion,
 		Commands:        []rpc.CommandDecl{{Name: "show stage1 refused"}},
 	}
-	row := queriedDeclarationRow(PluginConfig{
+	row := queriedDeclarationRow(context.Background(), PluginConfig{
 		Name: "stage1-refused",
 		Run:  queryRunString(t, "", &declaration),
 	}, 5*time.Second)
@@ -171,7 +172,7 @@ func TestQueriedDeclarationRowKeepsAPluginTheDaemonKeeps(t *testing.T) {
 		ProtocolVersion: rpc.ProtocolVersion,
 		Commands:        []rpc.CommandDecl{{Name: "show stage5 kept"}},
 	}
-	row := queriedDeclarationRow(PluginConfig{
+	row := queriedDeclarationRow(context.Background(), PluginConfig{
 		Name: "stage5-kept",
 		Run:  queryRunString(t, "", &declaration),
 	}, 5*time.Second)
@@ -192,7 +193,7 @@ func TestQueriedDeclarationRowNeverListsAnUnjudgedDeclarationAsDeclared(t *testi
 		ProtocolVersion: rpc.ProtocolVersion,
 		Commands:        []rpc.CommandDecl{{Name: "show never judged"}},
 	}
-	row := queriedDeclarationRow(PluginConfig{
+	row := queriedDeclarationRow(context.Background(), PluginConfig{
 		Name: "never-judged",
 		Run:  queryRunString(t, "", &declaration),
 	}, 5*time.Second)
@@ -235,7 +236,7 @@ func TestQueryDeclarationNamesHowTheRunEnded(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			query := QueryDeclaration(PluginConfig{Name: "query-" + tc.name, Run: tc.run}, tc.budget)
+			query := QueryDeclaration(context.Background(), PluginConfig{Name: "query-" + tc.name, Run: tc.run}, tc.budget)
 
 			if query.Exit != tc.exit {
 				t.Fatalf("exit = %d, want %d; cause %q", query.Exit, tc.exit, query.Cause)
