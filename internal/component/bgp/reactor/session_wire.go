@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -43,6 +44,9 @@ type observedBGPWriter struct {
 	transport *sessionTransport
 	invalid   bool
 	writeOpen bool
+	// Only completed EOR frames of this connection epoch are recorded here.
+	// Protected by Session.writeMu; replacement writers start with an empty set.
+	sentEOR map[family.Family]bool
 }
 
 // Write offers data to the socket, then to the observers. Called only under
@@ -50,8 +54,10 @@ type observedBGPWriter struct {
 func (w *observedBGPWriter) Write(data []byte) (int, error) {
 	w.writeOpen = true
 	n, err := w.writer.Write(data)
-	if n > 0 && w.session.onWireMessage != nil && !w.invalid {
-		w.observe(data[:n])
+	if n > 0 {
+		if !w.invalid {
+			w.observe(data[:n])
+		}
 	}
 	w.writeOpen = false
 	return n, err
@@ -82,7 +88,7 @@ func (w *observedBGPWriter) observe(data []byte) {
 			w.partial = append(w.partial, data[:take]...)
 			data = data[take:]
 			if len(w.partial) == length {
-				w.session.onWireMessage(w.partial, bgpctx.ContextID(w.context.Load()), true, w.transport)
+				w.complete(w.partial)
 				w.partial = w.partial[:0]
 			}
 			continue
@@ -95,7 +101,7 @@ func (w *observedBGPWriter) observe(data []byte) {
 				return
 			}
 			if length <= len(data) {
-				w.session.onWireMessage(data[:length], bgpctx.ContextID(w.context.Load()), true, w.transport)
+				w.complete(data[:length])
 				data = data[length:]
 				continue
 			}

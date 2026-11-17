@@ -185,9 +185,9 @@ type MuxConn struct {
 	// requestCh receives inbound requests from the remote side. The readLoop
 	// pushes requests here when the field after the id is neither an answer
 	// kind nor "ok" or "error".
-	requestCh chan *Request
+	requestCh     chan *Request
 	independentMu sync.RWMutex
-	independent map[string]IndependentRequestHandler
+	independent   map[string]IndependentRequestHandler
 
 	// done is closed when the background reader exits.
 	done chan struct{}

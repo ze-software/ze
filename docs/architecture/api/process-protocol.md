@@ -1965,6 +1965,7 @@ filter-update answer").
 | `release-cached` | `ReleaseCachedInput` | - | Release cached UPDATEs and do not forward them |
 | `relay-stored-route` | `RelayStoredRouteInput` | - | Relay stored wire routes to one established peer |
 | `select-routes` | `SelectRoutesInput` | `SelectRoutesOutput` | Settle selected output for one captured destination session |
+| `select-refresh` | `SelectRefreshInput` | `SelectRefreshOutput` | Settle an enhanced marker on the same captured selected-output destination |
 | `cancel-request` | `CancelRequestInput` | `CancelRequestOutput` | Cancel and join an opt-in request on the same authenticated connection |
 | `route-install` | `RouteInstallInput` | `RouteInstallOutput` | Insert a batch of computed routes into the engine Loc-RIB (forked route-installing plugin) |
 | `route-remove` | `RouteRemoveInput` | `RouteRemoveOutput` | Withdraw a batch of routes from the engine Loc-RIB (forked route-installing plugin) |
@@ -2210,6 +2211,39 @@ later scope cut of 500. An absent key keeps no historical revision: the scope
 cut and the serialized destination writer fence a stale reappearance.
 <!-- source: internal/component/plugin/server/selected_current.go -- CurrentSelection, selectedConnection -->
 <!-- source: internal/component/bgp/reactor/selected_current.go -- selectedCurrentRevision -->
+
+The selecting owner brackets its replay through `SelectRefresh(ctx, input)`
+(`ze-plugin-engine:select-refresh`). The input narrows the destination by
+address, original `peer-owner`, exact `destination-session`, one registered
+negotiated `family`, action `1` begin or `2` end, and bounded `deadline-ms`.
+The native owner adapter and public RPC use the same evaluator and
+authenticated process token. It uses the selecting owner's update grant and
+effective destination role, without acquiring normal refresh-request permission.
+A normal ROUTE-REFRESH request remains a separate operation.
+
+The complete receipt echoes destination, peer owner, Session, family and action.
+Outcome `1` means the full marker reached that exact connection; outcome `2`
+means enhanced markers were not negotiated. Zero, a missing receipt or a
+mismatched echo fails the request. A replacement Session or configured alias
+cannot satisfy an old request. Process stop cancels and joins a blocked final
+write. Marker and route calls share the destination's selected-stream lock.
+
+The selecting worker MUST await Begin, then all replay route receipts, then
+End. The marker operation does not enumerate routes or settle a queued replay.
+When our own connection OPEN advertised GR, Begin refuses until this connection has actually emitted that
+family's complete End-of-RIB. Initial-sync flags and before-send EOR claims
+cannot substitute for accepted EOR bytes; manual EOR therefore keeps its control.
+The completion set belongs to one observed connection epoch and contains only
+that Session's negotiated OPEN family intersection, including classic IPv4
+without MP negotiation. Shared encoding IDs do not grant family authority.
+MP EOR evidence requires a sole optional, non-transitive MP_UNREACH with no
+withdrawn routes, using either legal attribute-length encoding. Malformed
+raw diagnostic output remains sendable and cannot satisfy the EOR gate.
+The sender GR fact comes from local OPEN publication, independently of remote GR.
+<!-- source: internal/component/bgp/reactor/selected_refresh.go -- SelectRefresh -->
+<!-- source: internal/component/bgp/reactor/selected_refresh_eor.go -- complete, completeEOR, eorFamily -->
+<!-- source: pkg/plugin/rpc/selected_refresh.go -- SelectRefreshInput, SelectRefreshOutput -->
+<!-- source: internal/component/plugin/server/dispatch_selected_refresh.go -- selectRefresh -->
 
 The SDK derives `deadline-ms` from the caller's context, with a thirty-second
 ceiling for one batch. The socket reader validates and enrolls the request's

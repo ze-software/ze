@@ -63,8 +63,7 @@ func TestMuxCancellableRefusesInvalidSettlement(t *testing.T) {
 			cancel()
 			select {
 			case err := <-finished:
-				var unsettled *CancellationUnsettledError
-				if !errors.As(err, &unsettled) {
+				if _, unsettled := errors.AsType[*CancellationUnsettledError](err); !unsettled {
 					t.Fatalf("invalid receipt claimed settlement: %v", err)
 				}
 				if !errors.Is(err, context.Canceled) {
@@ -105,8 +104,7 @@ func TestMuxCancellablePartialWriteEndsStream(t *testing.T) {
 	serverDone := make(chan error, 1)
 	go func() { _, err := NewConn(engine, engine).ReadRequest(work); serverDone <- err }()
 	_, err := mux.CallRPCCancellable(work, MethodSelectRoutes, nil)
-	var unsettled *CancellationUnsettledError
-	if !errors.As(err, &unsettled) {
+	if _, unsettled := errors.AsType[*CancellationUnsettledError](err); !unsettled {
 		t.Fatalf("partial send claimed settlement: %v", err)
 	}
 	select {

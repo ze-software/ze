@@ -390,6 +390,11 @@ type Session struct {
 	// through filterapi.PeerFilterInfo.LLGRAdvertised.
 	localLLGR atomic.Bool
 
+	// localGR records the GR capability in this connection's own OPEN.
+	// publishNegotiation sets it from the retained local proposal under writeMu;
+	// selected refresh reads it under that same lock, never from PeerSettings.
+	localGR bool
+
 	// sourceReceipt captures this exact connection after negotiation. It stays
 	// immutable through its ordered DOWN and never reads a replacement Session.
 	sourceReceipt atomic.Pointer[liveSourceReceipt]

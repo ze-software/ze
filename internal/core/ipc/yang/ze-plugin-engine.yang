@@ -1405,6 +1405,32 @@ matching namespace and event-type.";
         }
     }
 
+    rpc select-refresh {
+        ze:method "ze-plugin-engine:select-refresh";
+        description "Settle one enhanced marker for the exact selected-output destination.
+            The authenticated selecting process needs its existing update grant and
+            destination role; this does not grant normal refresh-request permission.
+            Written means the complete marker reached the captured session's socket.
+            Begin precedes replay and End follows all final route receipts.";
+        ze:help "Settle a captured selected-output refresh marker.";
+        input {
+            leaf destination { type zt:ip-address; mandatory true; ze:help "Captured destination address"; }
+            leaf peer-owner { type uint64 { range "1..max"; } mandatory true; ze:help "Captured destination peer owner"; }
+            leaf destination-session { type uint64 { range "1..max"; } mandatory true; ze:help "Captured UP session token"; }
+            leaf family { type string { length "1..64"; } mandatory true; ze:help "Registered negotiated family"; }
+            leaf action { type uint8 { range "1..2"; } mandatory true; description "1 begins, 2 ends the refresh."; ze:help "Marker action"; }
+            leaf deadline-ms { type int64 { range "1..max"; } mandatory true; ze:help "Absolute bounded deadline"; }
+        }
+        output {
+            leaf destination { type zt:ip-address; mandatory true; ze:help "Settled destination address"; }
+            leaf peer-owner { type uint64 { range "1..max"; } mandatory true; ze:help "Settled destination peer owner"; }
+            leaf destination-session { type uint64 { range "1..max"; } mandatory true; ze:help "Settled destination session"; }
+            leaf family { type string { length "1..64"; } mandatory true; ze:help "Settled negotiated family"; }
+            leaf action { type uint8 { range "1..2"; } mandatory true; ze:help "Settled marker action"; }
+            leaf outcome { type uint8 { range "1..2"; } mandatory true; description "1 written, 2 enhanced markers were not negotiated."; ze:help "Final marker outcome"; }
+        }
+    }
+
     rpc select-routes {
         ze:method "ze-plugin-engine:select-routes";
         description

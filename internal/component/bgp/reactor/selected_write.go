@@ -73,15 +73,15 @@ func (write *selectedWrite) owns(output selectedOutput) bool {
 	return output.key == write.output.key
 }
 
-// selectedOwnerName requires the authenticated process before permission
+// validateSelectedOwner requires the authenticated process before permission
 // lookup. An operator and a zero sender never become an ordinary advertiser.
-func selectedOwnerName(owner plugin.SelectedOwner) (string, error) {
+func validateSelectedOwner(owner plugin.SelectedOwner) error {
 	if err := owner.Current(); err != nil {
-		return "", err
+		return err
 	}
-	name, named := owner.Sender().Process()
+	_, named := owner.Sender().Process()
 	if !named {
-		return "", errors.New("select-routes: caller is not a selecting process")
+		return errors.New("select-routes: caller is not a selecting process")
 	}
-	return name, nil
+	return nil
 }

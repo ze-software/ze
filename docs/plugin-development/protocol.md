@@ -1050,6 +1050,7 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:release-cached` | `ReleaseCached` | `ReleaseCachedInput` | None | Release cached UPDATEs |
 | `ze-plugin-engine:relay-stored-route` | `RelayStoredRoute` | `RelayStoredRouteInput` | None | Relay stored routes |
 | `ze-plugin-engine:select-routes` | `SelectRoutes` | `SelectRoutesInput` | `SelectRoutesOutput` | Join final selected-output writes for one captured destination session |
+| `ze-plugin-engine:select-refresh` | `SelectRefresh` | `SelectRefreshInput` | `SelectRefreshOutput` | Join one enhanced marker on the same captured selected-output destination |
 | `ze-plugin-engine:cancel-request` | Used by `SelectRoutes` cancellation | `CancelRequestInput` | `CancelRequestOutput` | Join an opt-in request on this connection |
 | `ze-plugin-engine:route-install` | `RouteInstall` | `RouteInstallInput` | `RouteInstallOutput` | Install routes in the Loc-RIB |
 | `ze-plugin-engine:route-remove` | `RouteRemove` | `RouteRemoveInput` | `RouteRemoveOutput` | Remove routes from the Loc-RIB |
@@ -1099,6 +1100,18 @@ previous selected output's retirement. Success must follow final writer
 completion. Never wait for a sent-event callback to finish the RPC: a lifecycle
 callback may already hold that plugin delivery loop. An unsupported reactor
 returns an error.
+
+Use `SelectRefresh` to bracket a selected replay on that same owner's stream.
+Preserve the captured address, `peer-owner` and `destination-session`, and name
+one negotiated family. Action `1` begins and action `2` ends the replay. Await
+Begin, every final route receipt, then End. Its complete receipt echoes those
+identities and action; outcome `1` means the marker was written, while `2`
+means enhanced markers were not negotiated. A zero or missing receipt fails.
+This uses the effective selecting role and its existing update send grant;
+it grants no right to send a normal refresh request. If our own OPEN advertised GR, Begin
+requires this connection's actual completed EOR for that family.
+<!-- source: pkg/plugin/sdk/sdk_selected_refresh.go -- SelectRefresh -->
+<!-- source: pkg/plugin/rpc/selected_refresh.go -- SelectRefreshInput, SelectRefreshOutput -->
 
 The SDK sets the absolute `deadline-ms` from the caller's context, capped at
 thirty seconds per batch. When that context ends, the socket form sends

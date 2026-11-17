@@ -4,8 +4,6 @@ package sdk
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -21,31 +19,8 @@ func (p *Plugin) SourceLease(ctx context.Context, input rpc.SourceLeaseInput) (*
 	if err := input.Validate(time.Now()); err != nil {
 		return nil, err
 	}
-	value, handled, err := p.TryEngineNative(ctx, rpc.MethodSourceLease, input)
+	output, err := cancellableEngineResult[rpc.SourceLeaseOutput](p, ctx, rpc.MethodSourceLease, input)
 	if err != nil {
-		return nil, err
-	}
-	if handled {
-		output, valid := value.(*rpc.SourceLeaseOutput)
-		if !valid {
-			return nil, errors.New("source-lease answer has the wrong type; restart the selecting plugin")
-		}
-		if err := output.Validate(input); err != nil {
-			return nil, err
-		}
-		return output, nil
-	}
-	var encoded json.RawMessage
-	if p.engineBridgeActive() {
-		encoded, err = p.callEngineWithResult(ctx, rpc.MethodSourceLease, input)
-	} else {
-		encoded, err = p.engineMux.CallRPCCancellable(ctx, rpc.MethodSourceLease, input)
-	}
-	if err != nil {
-		return nil, err
-	}
-	var output *rpc.SourceLeaseOutput
-	if err := json.Unmarshal(encoded, &output); err != nil {
 		return nil, err
 	}
 	if err := output.Validate(input); err != nil {

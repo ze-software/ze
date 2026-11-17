@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -82,7 +83,7 @@ func TestCurrentSelectionWorkerHonorsDeadline(t *testing.T) {
 	})
 	stop, err := p.startCurrentSelectionWorker(ctx)
 	require.NoError(t, err)
-	defer stop()
+	defer func() { require.NoError(t, stop()) }()
 	bridge.SetReady()
 	_, err = bridge.CurrentSelection(ctx, rpc.CurrentSelectionInput{Destination: "192.0.2.1", DestinationSession: 7,
 		DeadlineMS: time.Now().Add(100 * time.Millisecond).UnixMilli(),

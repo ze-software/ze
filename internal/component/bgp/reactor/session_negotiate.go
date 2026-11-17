@@ -121,6 +121,16 @@ func (s *Session) publishNegotiation(proposal *preparedOpen, open *message.Open,
 	// RFC 9494 Section 4.3
 	s.retainAdvertisedLLGR(localCaps)
 
+	// RFC 7313 Section 4 binds the BoRR sender to its own GR support, unlike
+	// the receiver rule, which binds receipt of the remote GR capability.
+	s.localGR = false
+	for _, cap := range localCaps {
+		if cap.Code() == capability.CodeGracefulRestart {
+			s.localGR = true
+			break
+		}
+	}
+
 	s.initPathsLimit(s.negotiated.Encoding)
 	s.initPathsLimitRecv(s.negotiated.Encoding)
 	// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a

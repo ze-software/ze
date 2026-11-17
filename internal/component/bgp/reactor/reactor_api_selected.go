@@ -33,7 +33,7 @@ func (a *reactorAPIAdapter) SelectRoutes(ctx context.Context, batch *plugin.Sele
 	input := batch.Input()
 	ctx, cancel := rpc.SelectedCallContext(ctx, &input)
 	defer cancel()
-	if _, err := selectedOwnerName(owner); err != nil {
+	if err := validateSelectedOwner(owner); err != nil {
 		return nil, err
 	}
 	peer, session, err := a.selectedDestination(batch.Destination(), input.DestinationSession, owner)

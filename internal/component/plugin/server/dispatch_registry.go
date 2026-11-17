@@ -173,6 +173,12 @@ var engineOps = []engineOp{
 	},
 	{method: rpc.MethodCancelRequest, handle: (*Server).opCancelRequest},
 	{
+		method:            rpc.MethodSelectRefresh,
+		handle:            (*Server).opSelectRefresh,
+		native:            (*Server).selectRefreshNative,
+		cancellationScope: selectedRefreshCancellationScope,
+	},
+	{
 		method: rpc.MethodRouteInstall,
 		handle: (*Server).opRouteInstall,
 		// No typed slot: forked-plugin batch path, socket/Direct only.

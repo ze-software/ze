@@ -1295,6 +1295,21 @@ was received with ADD-PATH, never because its path-id is non-zero.
 
 RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." That "shall" is why the refresh rail outranks Section 9.2 here. Until 2026-09-14 `sendRoutes` set no marker, so a refresh on an up session sent the RFC 7313 BoRR and EoRR with no UPDATE between them, and RFC 7313 Section 4 has the receiver purge on the EoRR every route the BoRR marked stale: the refresh withdrew the family instead of restoring it. `test/plugin/plugin-refresh.ci` is the recording.
 
+Selected output's marker operation uses the captured peer owner and Session,
+the same selecting process token and destination lock as its route writes.
+The socket completion observer records successful EOR per connection epoch,
+so the GR advertised by our own OPEN gates BoRR independently of remote GR.
+Its family boundary is the captured Session's negotiated OPEN intersection.
+Encoding IDs can be shared by sessions with different family sets and grant
+no EOR completion authority for a family absent from that Session.
+A cleared initial-sync flag is no EOR evidence. Only a canonical sole empty
+MP_UNREACH (normal or extended length) or classic empty UPDATE completes it;
+malformed raw diagnostic frames remain sendable without unlocking BoRR.
+The deciding worker brackets its own replay and awaits every final receipt;
+ordinary replay scheduling remains the selecting plugin's responsibility.
+<!-- source: internal/component/bgp/reactor/selected_refresh.go -- SelectRefresh -->
+<!-- source: internal/component/bgp/reactor/selected_refresh_eor.go -- complete -->
+
 Config-driven initial sync, transaction sends and API origination all establish
 local ownership at the same final boundary. The old API-only post-send record
 and pre-send forget bridges no longer exist.

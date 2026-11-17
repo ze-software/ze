@@ -239,8 +239,8 @@ func (w *currentSelectionWorker) refuse(job currentSelectionJob) {
 	// Wire callers observe connection closure; stop must not wait on I/O for
 	// queued requests that have never read the snapshot.
 	if job.wire != nil {
-		w.plugin.engineMux.Close()
-	} //nolint:errcheck // queued wire lookups must observe stop
+		w.plugin.engineMux.Close() //nolint:errcheck // queued wire lookups must observe stop
+	}
 }
 
 func (w *currentSelectionWorker) stopAdmission() {

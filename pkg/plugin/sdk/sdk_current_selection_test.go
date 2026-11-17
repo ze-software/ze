@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -38,7 +39,7 @@ func TestCurrentSelectionBypassesBlockedOrdinaryLoop(t *testing.T) {
 			})
 			stop, err := p.startCurrentSelectionWorker(ctx)
 			require.NoError(t, err)
-			defer stop()
+			defer func() { require.NoError(t, stop()) }()
 			entered, release := make(chan struct{}), make(chan struct{})
 			p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 				close(entered)
@@ -95,7 +96,9 @@ func TestCurrentSelectionDeclarationFollowsHandler(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
 			if registered {
-				p.OnCurrentSelection(func(context.Context, rpc.CurrentSelectionInput) (*rpc.CurrentSelectionOutput, error) { return nil, nil })
+				p.OnCurrentSelection(func(context.Context, rpc.CurrentSelectionInput) (*rpc.CurrentSelectionOutput, error) {
+					return nil, nil //nolint:nilnil // Declaration-only fixture; this handler must not be called.
+				})
 			}
 			started := make(chan struct{})
 			p.OnStarted(func(context.Context) error {
@@ -146,7 +149,7 @@ func TestCurrentSelectionWorkerStopJoinsHandler(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("snapshot handler never entered")
 	}
-	stop()
+	require.NoError(t, stop())
 	select {
 	case <-left:
 	default:
