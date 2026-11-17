@@ -400,7 +400,7 @@ option 1 "an overkill" and clarifying: "if the kernel can be used to run the
 test - it works !" For this fix, passing positive, negative and control packet
 tests on the normal Ze kernel governs runtime acceptance and closure. This
 generic C-proof route is no longer a closure dependency of
-`plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`; its promotion
+the historical `spec-ipsec-dual-form-receive-spd-bypass`; its promotion
 and implementation are not authorized.
 
 The IPsec spec retains ownership of the directional SA permissions, full

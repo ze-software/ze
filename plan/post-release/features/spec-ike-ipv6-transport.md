@@ -93,7 +93,7 @@ DNS-named remote work over IPv4 and recorded IPv6 as a known limitation.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | <input> | <expected> |
-| AC-2 | a Child SA over an IPv6 outer header on UDP 4500 with no NAT, whose inbound state carries the ESP-in-UDP template, receiving bare ESP whole and fragmented, inside and outside its selectors (moved from AC-8 of `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`) | the SA installs instead of being refused; inside the selectors the inner packet is delivered, outside it is dropped by the SPD catch-all; the ECN field of the outer traffic class reaches the inner header; `Udp6InCsumErrors` does not move |
+| AC-2 | a Child SA over an IPv6 outer header on UDP 4500 with no NAT, whose inbound state carries the ESP-in-UDP template, receiving bare ESP whole and fragmented, inside and outside its selectors (moved from AC-8 of the historical `spec-ipsec-dual-form-receive-spd-bypass`) | the SA installs instead of being refused; inside the selectors the inner packet is delivered, outside it is dropped by the SPD catch-all; the ECN field of the outer traffic class reaches the inner header; `Udp6InCsumErrors` does not move |
 
 ## End-to-End User Stories
 
@@ -154,7 +154,7 @@ DNS-named remote work over IPv4 and recorded IPv6 as a known limitation.
 
 ## Dual-form receipt over IPv6
 
-Moved here on 2026-11-12 from `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`
+Moved here on 2026-11-12 from the historical `spec-ipsec-dual-form-receive-spd-bypass`
 (its AC-8, now AC-2 here). Today `InstallSA` refuses an SA that asks for both ESP forms over
 IPv6, and `MigrateTunnel` refuses a MOBIKE move to IPv6 endpoints
 (`ike/dataplane/xfrm_linux.go` `InstallSA`, `xfrm_migrate_linux.go`

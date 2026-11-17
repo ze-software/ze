@@ -749,7 +749,7 @@ before any policy is read. Bare ESP on a templated SA is therefore delivered
 with no RFC 4301 Section 5.2 selector check. Measured by interop
 `icmp-error-payload-check` (red with strongSwan sending bare ESP, green with
 `encap = yes`). The defect and its fix are owned by
-`plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`.
+the historical `spec-ipsec-dual-form-receive-spd-bypass`.
 
 **After the fix**, same lab: 0% packet loss both ways, raw-socket drops 0,
 `XfrmInTmplMismatch` gone, and `XfrmInStateMismatch` still rising once per datagram,

@@ -35,7 +35,7 @@ The goal: `Info` reports every Child SA field from one consistent state, read
 while `ps.mu` is held, so a concurrent MOBIKE move is seen either whole or not at
 all.
 
-Found while bookkeeping `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`,
+Found while bookkeeping the historical `spec-ipsec-dual-form-receive-spd-bypass`,
 whose doctor check `espFormSharedSPIPeer` already reads the same fields inside
 `ps.mu` for this reason.
 

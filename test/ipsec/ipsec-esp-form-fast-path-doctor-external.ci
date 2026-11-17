@@ -1,5 +1,6 @@
 # Test: a forked IKE engine returns its runtime doctor finding over TLS.
-# Spec: plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md (AC-10)
+# Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md -- runtime doctor wiring.
+# Historical spec: spec-ipsec-dual-form-receive-spd-bypass (AC-10).
 #
 # QUESTION: does show doctor reach the real forked IKE engine's Stage 1
 # runtime check and return its unavailable-fast-path finding, with the

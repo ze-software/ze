@@ -5,7 +5,7 @@
 // tunnel-mode Child SA whose IKE SA runs on UDP port 4500 with no NAT detected is checked
 // against the SA's inbound selectors. That Child SA is installed with the ESP-in-UDP
 // template (newChildSA sets UDPEncap on port 4500) and AcceptBothESPForms, the shape of the
-// defect in plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md. Bare ESP inside
+// defect recorded as spec-ipsec-dual-form-receive-spd-bypass. Bare ESP inside
 // the selectors, whole and fragmented, is delivered; bare ESP whose inner source is outside
 // them is dropped by its own SA selector (XfrmInStateMismatch) and never delivered.
 // A temporary explicit DISCARD inside that selector separately proves the SPD is read

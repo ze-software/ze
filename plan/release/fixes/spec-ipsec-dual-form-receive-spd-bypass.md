@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Legacy renewal/fingerprints complete; normal Ze-kernel packet acceptance and final gate remain; historical C-framework/fault-kernel closure dependencies superseded; AC-4 open |
+| Phase | Product acceptance, scoped lint, RFC metadata freshness and independent CLEAN Review Gate complete; two closure commits remain |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -21,19 +21,39 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 All 79 current renewals are RECORDED and all 79 exact roster keys are VERIFIED,
 with zero pending or mismatched records. The bounded legacy renewal/fingerprint
 debt is complete. Under Thomas's one-off acceptance decision recorded in Task,
-AC-4 requires the remaining normal Ze-kernel packet tests to pass, including
+AC-4 requires the normal Ze-kernel packet tests to pass, including
 all positive, negative and control assertions without skips. Exact per-SA
 permissions, fragment-context isolation and fragment port-rule enforcement
-remain required. AC-4 and the final Review Gate stay open.
+remain required. Normal packet acceptance is complete as recorded below.
+The independent Review Gate is CLEAN, as recorded below.
 
-The two normal fixtures awaiting correction and acceptance are
+The two normal fixtures requiring explicit test permission were
 `TestRFC4301FragmentsOfACompliantPacketAreDelivered` and
 `TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate`. The current
 port-constrained production Child sets noninitial permission false, while the
 positive fixture expects delivery. Their assertions remain unchanged.
-Thomas's subsequent "go" explicitly authorizes these two fixture corrections
-and their normal Ze-kernel tests on Claude. Corrections, actual runs and review
-remain owed; AC-4 is not yet accepted.
+Thomas's subsequent "go" explicitly authorized their correction and normal
+Ze-kernel tests on Claude. Independent judgment approved the two fixtures,
+their necessary paired negative and both unchanged-default helper seams.
+Commit `c6eda91b9f` carries that correction. Eight top-level normal packet
+tests passed, with zero FAIL/SKIP. The context matrix observed all eight
+cases in both arrival orders and retained each following authenticated
+whole-packet control. The paired selector-negative case observed exact
+`(XfrmInStateMismatch, XfrmInNoPols, XfrmInPolBlock)` deltas `(1,0,0)`.
+Kernel SHA256 was `d44390c82af3d5d0b60476238cfaaf8336bf61080231dad31a08955862d88385`,
+matching image `3a6ccfb1c29c1b23`, and test ELF SHA256
+`7afef0418a0f01df1e17dc6729e75bed3fb1f87fe94b51e207b0f5625802cf86`.
+Check, command and lab exits were zero, interrupted was false, and the VM stopped.
+This completes AC-4's normal-kernel product acceptance. Both changed
+RFC4301-7.3-5 records observed clean PASS and their own producer-halt FAIL,
+with stopped VMs. Their independent audit is stamped and all four selected
+records are current, with no stale or unproven records. Final scoped engine
+lint reported zero issues for default, Linux/integration and Darwin analysis.
+RFC4301-5.2-2 retains its partial verdict after independent rejudgment and
+native stamping; all nine selected records are current. The citation-only
+RFC7296-2.24-2 audit reseal completed with one shifted record and zero refused.
+The independent Review Gate is CLEAN and its native hash check passed.
+No scoped execution or metadata check remains; the two closure commits remain.
 
 This decision supersedes historical statements below that make general C-proof
 tooling, a deliberately broken kernel or new C discrimination dependencies of
@@ -334,17 +354,17 @@ and no skips. General proof tooling and deliberately broken kernels are no
 longer prerequisites for this closure. This is a one-off acceptance decision,
 not a change to global RFC proof rules: discrimination debt and the existing
 partial annotation remain separate, and producer-halt records do not acquire
-kernel-enforcement credit. AC-4 stays open until the remaining normal fragment
-tests pass, including the two fixtures
+kernel-enforcement credit. AC-4's normal fragment acceptance includes the two fixtures
 `TestRFC4301FragmentsOfACompliantPacketAreDelivered` and
-`TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate` fixtures. Their
-positive delivery expectation conflicts with the current port-constrained
-production Child's noninitial permission false. Thomas's subsequent "go"
-explicitly authorizes corrections of these two fixtures and normal Ze-kernel
-tests on Claude, superseding their prior pending-owner hold. Preserve their
-positive, negative and control assertions; actual correction, passing runs
-without skips and independent review remain owed. This authorization does not
-extend to private fault preparation/use or deliberately broken kernel work.
+`TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate`. Their previous
+positive fixture setup conflicted with the port-constrained production Child's
+noninitial permission false. Thomas's subsequent "go" explicitly authorized
+corrections of these two fixtures and normal Ze-kernel tests on Claude,
+superseding their prior pending-owner hold. All positive, negative and control
+assertions were preserved. The approved correction landed in
+`c6eda91b9f`, and the final eight-test Claude batch passed without skips.
+This authorization does not extend to private fault preparation/use or
+deliberately broken kernel work.
 
 Repair the existing id/stem discrimination report's closure blocker (AC-30):
 `discriminate.go` `discriminationStatusOf` must verify source and fingerprints
@@ -978,9 +998,9 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A decapsulated packet re-enters on the device the outer packet arrived on | `xfrm_input` keeps `skb->dev` | the check could still be skipped | AC-3 kernel test | unvalidated |
-| A-2 | A TUN with `disable_policy=0` gets the inbound policy check | `ip_route_input` sets `IPSKB_NOPOLICY` only from the device's `disable_policy` | the complete path keeps the defect | AC-3 fragment rows | unvalidated |
-| A-3 | `BPF_PROG_TEST_RUN` runs `bpf_skb_adjust_room` on an Ethernet frame | `bpf_prog_test_run_skb` builds the skb through `eth_type_trans` | unit proof needs a link instead | AC-6 | unvalidated |
+| A-1 | A decapsulated packet re-enters on the device the outer packet arrived on | `xfrm_input` keeps `skb->dev` | the check could still be skipped | AC-3 kernel test distinguishes selector mismatch and explicit SPD DISCARD on the veth | confirmed |
+| A-2 | A TUN with `disable_policy=0` gets the inbound policy check | `ip_route_input` sets `IPSKB_NOPOLICY` only from the device's `disable_policy` | the complete path keeps the defect | AC-3 complete-path fragment rows observe explicit SPD DISCARD and restored delivery after removal | confirmed |
+| A-3 | `BPF_PROG_TEST_RUN` runs `bpf_skb_adjust_room` on an Ethernet frame | `bpf_prog_test_run_skb` builds the skb through `eth_type_trans` | unit proof needs a link instead | Accepted AC-6 `TestESPFormRewriteProgram` rewrites and validates Ethernet frames | confirmed |
 | A-4 | IPv6 UDP receive accepts a non-zero checksum on a `CHECKSUM_UNNECESSARY` skb | `udp6_csum_init` → `skb_checksum_init_zero_check` | IPv6 fast path hands everything to the complete path | moved with AC-8 to `plan/post-release/features/spec-ike-ipv6-transport.md`; the program side is `TestESPFormRewriteProgram` | moved |
 | A-5 | An address-less TUN passes loose `rp_filter` | first draft of `openESPFormTUN` | every re-presented datagram dropped | `__fib_validate_source` (`net/ipv4/fib_frontend.c`, v7.0): `no_addr = idev->ifa_list == NULL;`, then `if (no_addr) goto last_resort;`, where `if (rpf)` drops it | broken: the device now carries 192.0.0.8/32 scope host (`espFormTUNAddress`) |
 | A-6 | The re-presented UDP datagram reaches the port-4500 socket on a device with `disable_policy` 0 | the `lo` path never met the check | complete path drops everything | `udp_queue_rcv_one_skb` (`net/ipv4/udp.c`, v7.0) runs `xfrm4_policy_check` before `encap_rcv` | confirmed only with the inbound IKE bypass, which production installs (`engine/bypass.go`) and the kernel tests install too |
@@ -1027,7 +1047,7 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-1 | interop `icmp-error-payload-check`, strongSwan sending bare ESP (no `encap = yes`) | the scenario passes; its two red proofs in `plan/release/fixes/spec-rfc4301-architecture-gaps.md` are recorded. Proof (c) omits the state ICMP flag and fails consistent-error delivery with generation and SA carriage observed. Proof (d) runs clean PASS, inbound protect-policy source widened alone PASS, inbound state-selector source widened alone PASS, both widened packet-delivery RED, then clean PASS. The private IPv4 tunnel faults preserve negotiated selectors and all other state and policy fields | the in-selector error is still delivered, because the selector check passes it; each single-source fault still rejects the inconsistent error through the other selector |
 | AC-2 | interop `esp-form-change` | one Child SA delivers traffic in both forms, before and after the peer changes form, and keeps its SPI | both forms delivered, because RFC 7296 Section 2.23 requires it |
 | AC-3 | bare ESP on a veth between two network namespaces, on a 4500-without-NAT tunnel-mode SA installed by `createFirstChildSA`, under the production SPD (`unmatched discard` through `installUnmatched`, then the inbound IKE bypass through `installIKEBypass`, in `applyConfig`'s order): whole and fragmented datagrams inside and outside the SA selectors, then an explicit higher-priority host DISCARD inside that scope and its exact removal | inside: delivered; outside: refused by the actual SA selector before SPD lookup. Exact `(XfrmInStateMismatch, XfrmInNoPols, XfrmInPolBlock)` deltas: whole outside `(1,0,0)`, fragmented outside `(2,0,0)`, fragmented inside `(1,0,0)`. The original bare-form refusal contributes one mismatch on the complete path. The explicit DISCARD separately proves SPD consultation: whole `(0,0,1)`, fragmented `(1,0,1)`, neither delivered; after removal both valid forms deliver, whole `(0,0,0)` and fragmented `(1,0,0)`. Whole datagrams advance `Rewritten4` by exactly one; fragmented datagrams leave it unchanged, advance reassembly and are re-presented through `ze-espform`. Counter observations wait for exact terminal deltas within a fixed bound | in-selector traffic delivered in both forms because the SA carries it, and again after the temporary DISCARD is removed; the production catch-all, inbound IKE bypass and reader exemption remain present in SPD readback |
-| AC-4 | The selected exact per-SA permission, fragment-context isolation and fragment port-rule cases run on Ze's actual kernel | every required positive, negative and control packet case passes without skips, preserving its delivery/refusal, counter and control assertions. This satisfies this closure's implementation acceptance without general kernel-proof tooling, a deliberately broken kernel or new C discrimination. AC-4 remains open until the remaining normal fragment tests pass | RFC discrimination remains separate debt. Keep `RFC4301-5.2-2`'s `{partial}` annotation unless independent RFC judgment supports promotion under existing evidence rules; other annotations and record meanings remain unchanged |
+| AC-4 | The selected exact per-SA permission, fragment-context isolation and fragment port-rule cases run on Ze's actual kernel | every required positive, negative and control packet case passes without skips, preserving its delivery/refusal, counter and control assertions. This satisfies this closure's implementation acceptance without general kernel-proof tooling, a deliberately broken kernel or new C discrimination. Final normal acceptance is recorded in the current checkpoint and Implementation Audit | RFC discrimination remains separate debt. Keep `RFC4301-5.2-2`'s `{partial}` annotation unless independent RFC judgment supports promotion under existing evidence rules; other annotations and record meanings remain unchanged |
 | AC-5 | the KNOWN DEFECT notes | `docs/guide/ipsec.md`, `LL-XFRM-STATE-ONE-ESP-FORM` and the `espFormBypassInboundPolicy` comment describe the two policy-checked paths and the firewall cost | the one-form limitation entry stays, because the kernel limit stands |
 | AC-6 | `BPF_PROG_TEST_RUN` over crafted frames | a watched SPI from its peer to its local address comes out as ESP-in-UDP with the template ports, correct lengths and a valid IPv4 header checksum, and the program returns `TCX_NEXT` | unwatched SPI, other source, other destination, a fragment, IPv4 options, IPv6 extension headers and non-ESP come out byte-identical, because the complete path or the kernel owns them |
 | AC-7 | first `Watch`, a link created afterwards, last `Forget`, `Close` | the program is attached to every non-loopback link of a supported type, a new link is attached, and links, map, TUN and sockets are released at the end; an unsupported link is logged by name | `lo` and `ze-espform` stay unattached, because a packet there is local or already encapsulated |
@@ -1800,6 +1820,8 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 | `esp-form-firewall-drop` | `test/interop-ipsec/scenarios/esp-form-firewall-drop/` (`ze.conf`, `swanctl.conf`), checker `checkESPFormFirewallDrop` (`internal/le/interoplab/ipsec/espformfirewall.go`) | strongSwan | AC-13: strongSwan sends bare ESP on a 4500-without-NAT SA, Ze's `drop-esp` term drops it and counts it, the doctor names the blocking table and term; red when `writeGateLocked` writes the open value whatever it is given (`docs/architecture/testing/interop.md`) | clean PASS 17s → finding-preserving gate-open packet FAIL 14s → clean PASS 17s, independently CLEAR for current IPv4 single tunnel; no post-fault drop/mismatch delta claimed |
 
 ## Files to Modify
+- `internal/component/ike/engine/fragment_scope_fixture_linux_test.go` - explicit test-only noninitial permission and actual directional state readback, with unchanged production permission.
+- `internal/component/ike/engine/fragment_boundary_integration_linux_test.go`, `rfc4301_sad_selector_linux_test.go` - opt-in backend helper seams whose ordinary callers keep their original backend and inputs.
 - `internal/component/ike/dataplane/espform_firewall_kernel_linux.go`, `espform_fastpath_linux.go` - use the shared current-namespace socket helper for the real nft reader/watch and link follower, with pinned capture/creation and unchanged worker ownership (AC-24).
 - `internal/component/ike/engine/doctor_esp_form_fast_path.go` - preserve the unreadable-firewall cause and recovery guidance without inferring a missing capability from every permission error (AC-25).
 
@@ -1932,14 +1954,14 @@ Docs and records:
 | 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md` ("Both ESP wire forms": the two paths, ECN, IPv6 as a gap); `docs/guide/operations.md`, `docs/guide/ze-install.md`, `docs/guide/command-reference.md` (the unit's `CAP_BPF`); `docs/guide/traffic-usage.md` (the fix text); `docs/guide/ipsec.md` also carries the firewall gate and its four limits; `docs/guide/firewall.md` (a rule on `protocol esp` keeps the fast path off) |
 | 7 | Wire format changed? | No | nothing leaves the host |
 | 8 | Plugin SDK/protocol changed? | No | |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4301.md` `RFC4301-5.2-2` (`{partial}` reason names the remaining scope-installation producer; remove it only after the full obligation is implemented and proven, AC-4); `RFC7296-2.24-2` in `rfc/short/rfc7296.md` carries no annotation and needs no edit, and its new tag's native record is observed |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4301.md` `RFC4301-5.2-2` retains its independently judged `{partial}` reason, distinguishing accepted normal packet behavior from remaining general RFC discrimination. `RFC7296-2.24-2` in `rfc/short/rfc7296.md` carries no annotation and needs no edit. Its audit is mechanically resealed after the citation-only file-header change |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, `docs/architecture/testing/qemu-integration.md`: the runner's netns grant derives from `privilege.DaemonCapabilities`, and `/dev/net/tun` is widened beside `/dev/ppp`; `docs/architecture/testing/interop.md`: `esp-form-firewall-drop` and the IPsec ze peer's TUN and net-sysctl grants |
 | 11 | Affects daemon comparison? | No | |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/linux-limitations.md`, `docs/architecture/system-architecture.md` (the daemon's capability set), `docs/architecture/traffic/traffic-usage.md` (`TCX_NEXT`); `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` (the commit observers); `docs/architecture/doctor-and-health-checks.md` (the engine's runtime checks, the TUN record, `ipsec-child-install`, `daemon-capabilities`); `docs/architecture/core-design.md`, "Firewall reconcile concurrency" (the observers inside `reconcileMu`, owed: row 16) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/linux-limitations.md`, `docs/architecture/system-architecture.md` (the daemon's capability set), `docs/architecture/traffic/traffic-usage.md` (`TCX_NEXT`); `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` (the commit observers); `docs/architecture/doctor-and-health-checks.md` (the engine's runtime checks, the TUN record, `ipsec-child-install`, `daemon-capabilities`); `docs/architecture/core-design.md`, "Firewall reconcile concurrency", already documents the observers inside `reconcileMu` with `applyObserved` and `holdESPFormFastPathForCommit` anchors |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `doctor-ipsec-esp-form-reader-stopped` is registered as an event code in `ike/engine/register_esp_form_reader.go`; `docs/guide/ipsec.md` and `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` describe its report-bus route and recovery |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors spec plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` lists them (the main thread runs it). Declared by `// Design:` headers: `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` (`espform_state.go`, `espform_backend_linux.go`, `espform_program_linux.go`, `espform_fastpath_linux.go`, `doctor_esp_form_fast_path.go`, `override_guard_linux.go`), updated; `plan/release/validation/spec-ipsec-esp-dual-form-receive.md` (`espform_linux.go`, `espform.go`), a record of the earlier work, unaffected because a plan record is never repointed; `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (`espform_tun_linux.go`), this spec; `docs/architecture/system-architecture.md` (`internal/core/privilege/capabilities.go`), updated; `docs/architecture/cli/plugin-modes.md` (`internal/plugins/systemd/unit.go`), unaffected because the unit's shape is unchanged and only its capability list grew; `docs/architecture/traffic/traffic-usage.md` (`internal/plugins/trafficusage/attach_linux.go`, `doctor.go`), updated; `docs/architecture/ike/ipsec-7-ikev2-engine.md` (`internal/component/ike/engine/register.go`), unaffected because it lists no doctor check of the engine's registration; `docs/architecture/testing/ci-format.md` (`internal/test/runner/caps.go`, `record_parse_option.go`), unaffected because it documents the `caps=` tokens and their gate, not the netns grant's members, which `docs/functional-tests.md` and `docs/architecture/testing/qemu-integration.md` carry and which are updated; `docs/features/ai-first.md` (`internal/core/diagnostic/codes.go`), unaffected because it describes the code registry, and the registered codes describe themselves through `ze show diagnostic`; `docs/architecture/core-design.md` (`internal/component/firewall/registry.go`), section "Firewall reconcile concurrency", to update: it says `reconcileMu` is held for the kernel round trip, and the commit observers now run inside it before and after `Backend.Apply`, which extends that hold by the IKE hold's cost (`commit_observer.go` says an observer MUST return quickly); `docs/architecture/hub-architecture.md` (`cmd/ze/hub/main.go`), unaffected because it documents the plugin model and the hub CLI entry, not the start-time capability warning, which `docs/architecture/system-architecture.md` carries |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Scoped native citation-anchor check exited 0 without a missing owning design document. Current IKE, system-capability, trafficusage and test-runner pages carry their changes. `docs/architecture/core-design.md`, "Firewall reconcile concurrency", already documents commit observers inside `reconcileMu` before and after `Backend.Apply`; no update is owed. Unchanged CLI/plugin/registry contracts need no new prose. Closure-only Go and CI citations now name the durable IKE child-XFRM architecture page. |
 | 17 | Existing docs show config/CLI/API examples for this area? | No | |
 
 ## Implementation Steps
@@ -2211,8 +2233,264 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 ## Checklist
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Interop tests for protocol features
-- [ ] `./le test unit pkg path ./internal/component/ike/dataplane/`, the guest-root tests in a QEMU guest on Ze's kernel, `./le test functional ipsec` for the doctor `.ci`, then `./le test integration interop-ipsec` for `icmp-error-payload-check` and `esp-form-change`
+- [x] Tests written, with exact fixtures and controls preserved
+- [x] Intended RED receipts recorded in the implementation checkpoints
+- [x] Scoped host/Linux and normal packet PASS receipts recorded above, without skipped required cases
+- [x] strongSwan ICMP, form-switch and firewall interoperability and bounded discrimination observed
+- [x] Dataplane/engine Linux populations and promoted doctor cases accepted. Parser cases separately qualified and accepted. No whole-tree verification is owed for this closure
+
+## Implementation Summary
+
+### What Was Implemented
+
+Bare ESP now reaches XFRM through the original interface after a TCX rewrite,
+or through the policy-enabled `ze-espform` TUN. Each declared Child SA state
+carries its complete directional selector scope. The native kernel gathers
+fragments before port-sensitive classification and separates their protection
+and captured raw-sender authority. Installation requires the complete live
+capability receipt. Production noninitial-fragment permission remains false.
+
+The normal Claude packet batch accepted the final explicit-permission test
+fixtures in `c6eda91b9f`: eight top-level tests passed, with no failure or skip.
+The context matrix observed all eight cases in both arrival orders and retained
+the following authenticated whole-packet controls. The paired selector-negative
+case observed `(XfrmInStateMismatch, XfrmInNoPols, XfrmInPolBlock) = (1,0,0)`.
+Kernel SHA256 was `d44390c82af3d5d0b60476238cfaaf8336bf61080231dad31a08955862d88385`,
+image key `3a6ccfb1c29c1b23`, and test ELF SHA256
+`7afef0418a0f01df1e17dc6729e75bed3fb1f87fe94b51e207b0f5625802cf86`.
+Check, command and lab exits were zero, interrupted was false, and the VM stopped.
+This is normal-kernel implementation acceptance, not whole-RFC discrimination.
+
+Both changed RFC4301-7.3-5 record renewals completed with clean PASS and
+intended producer-halt FAIL, stopped VMs and native exit zero. Their four-cover
+independent audit was stamped and selected freshness reports four current,
+zero stale and zero unproven records. Final scoped engine lint completed with
+zero default, Linux/integration and Darwin issues. The independently refreshed
+RFC4301-5.2-2 audit retains its partial verdict and nine current records, with
+zero stale or unproven. The citation-only RFC7296-2.24-2 reseal completed with
+one shifted record and zero refused. The independent Review Gate is CLEAN,
+and its native check verified all 100 code-file hashes. No execution check
+remains before the two closure commits.
+
+### Bugs Found/Fixed
+
+The work also corrected token refill (`TestESPFormLimiterRefillRate`), reader
+failure publication (`TestESPFormReceiverConcurrentFailureAndRetirementReportsEveryRecordedFailure`),
+device-finding applicability (`ipsec-esp-form-doctor-peer-removal` and its external
+counterpart), external IKE startup (`TestIKECLIRegisteredFeatures`), and the
+childless reload handoff (`TestESPGroupReloadWaitsForChildlessOwnerHandoff`).
+Native namespace tests cover the exact daemon capability grant without an
+unnecessary `setns`. The raw-authority, SA-replacement and IPv6 queue-counter
+tests cover the reached kernel lifetime and observer corrections.
+
+### Documentation Updates
+
+The owning IKE architecture page and IPsec guide describe the policy-checked
+receive paths, firewall cost, recovery and scope dependency. Their anchors name
+`espFormReceiver.run`, `openESPFormTUN`, `installChildDataplane`,
+`childStateScope`, `checkXFRMStateScopeCapabilities` and the runtime doctor
+producers. The appliance, testing and capability pages carry their corresponding
+implementation changes. Citation reconciliation is complete: tracked citers
+outside this spec no longer name its closing path. The scoped source-anchor
+check passed without missing owning design documents.
+
+### Deviations from Plan
+
+Thomas accepted the required normal Ze-kernel positive, negative and control
+packet tests for product closure. General kernel-proof tooling and deliberately
+broken kernels are not dependencies of this closure. Existing partial RFC
+annotations and discrimination limits remain unchanged. The two permitted
+fragment fixtures now grant permission explicitly through a test-only backend
+wrapper and verify actual installed directional scopes. They do not claim IKE
+negotiation of `NON_FIRST_FRAGMENTS_ALSO`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Two port-constrained fragment fixtures expected delivery under production permission false | Permitted fragmentation needs an explicit fixture permission | Normal packet refusal and independent test judgment | Grant only test scope permission, preserve all assertions and read both installed scopes back |
+| approach | The IPv6 lifetime probe read a local reassembly counter for netfilter-owned queues | The guard queues need their own successful-incomplete-admission counter | Observed IPv6 witness failure and ordinary counter RED | Add `XfrmFrag6Queued`, preserve packet assertions and accept both-family lifetime controls on the normal kernel |
+| approach | A raw IPv4 ordinary-route stage invoked XFRM before captured-authority lookup | `ip_route_output_flow` already performs XFRM | Ordinary permitted whole-packet EPERM | Use the ordinary route producer before the final captured lookup and retain all raw authority controls |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Close IPv4 dual-form receive SPD bypass | Done | `espform_linux.go` `run`, `espform_tun_linux.go` `openESPFormTUN`, `espform_program_linux.go` | Selector refusal and explicit SPD DISCARD observed on both paths |
+| Preserve one Child SA across ESP form changes | Done | `espformchange.go` `checkESPFormSwitch`, peerform `runAction` | strongSwan bare/UDP/bare proof preserves SPI and advances traffic |
+| Exact directional scope and fragment controls | Done for product acceptance | `child.go` `installChildDataplane`, `child_scope.go` `childStateScope`, kernel patches 0003 through 0005 | Normal packet acceptance follows the owner's one-off decision, without RFC promotion |
+| Runtime diagnosis, lifecycle and bounded recovery | Done | runtime doctor callbacks, reader lifecycle, childless reload handoff | Internal/external daemon cases and exact-capability namespace probes are recorded above |
+| Bound selected discrimination reports | Done | `internal/le/rfc/discriminate.go` `discriminationStatusOf` | Selected freshness remains strict, global shape/tag discovery remains |
+| Preserve both parser behaviors on Linux | Done | the two committed `test/parse/` cases | 80 qualifications each, unchanged promotion, committed live 2/2 PASS |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | strongSwan `icmp-error-payload-check`, clean and proofs (c)/(d) | Bounded local IPv4 single-pair claim |
+| AC-2 | Done | `esp-form-change`, helper and checker tests, binding-cut recovery | One SPI across bare/UDP/bare |
+| AC-3 | Done | `TestRFC4301BareESPOnTemplatedSAIsPolicyChecked` | Own selector refusal and explicit SPD DISCARD are distinct |
+| AC-4 | Done for product acceptance | Normal kernel scope/port populations and final eight-test Claude batch | Every required positive, negative and control passes without skips, partial RFC remains |
+| AC-5 | Done | IPsec guide, Linux limitation and receiver comments | Two paths and firewall cost remain explicit |
+| AC-6 | Done | `TestESPFormRewriteProgram` | Rewrite and byte-identical survivors |
+| AC-7 | Done | Fast-path link lifecycle tests | Initial/new links and teardown |
+| AC-8 | Done | IPv6 InstallSA/MOBIKE refusal tests | Actual IPv6 dual-form service remains with its existing post-release owner |
+| AC-9 | Done | TUN/sysctl tests and limiter RED/GREEN | Policy enabled, loose RPF and 5000/s refill |
+| AC-10 | Done | Internal/external fast-path doctor CIs | Promoted daemon-entry proof |
+| AC-11 | Done | `TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE` | Whole and complete paths preserve CE |
+| AC-12 | Done | Exact-capability BPF load probes and unit/runner tests | No added CAP_SYS_ADMIN or CAP_PERFMON |
+| AC-13 | Done | Firewall packet test, strongSwan firewall discrimination, commit observers | Firewall delivery/refusal remains observed |
+| AC-14 | Done | Both peer-removal daemon CIs and retained-failure units | Positive callback witness prevents vacuous absence |
+| AC-15 | Done | First-Child refusal/backoff tests | IKE survives valid-key Child refusal |
+| AC-16 | Done | Child refusal doctor tests | Cause, time, fix and clearing on install |
+| AC-17 | Done | Daemon capability check tests | Runtime grant, not CLI process |
+| AC-18 | Done | Trafficusage TCX/clsact and exact-grant probes | TCX_NEXT and scalar-offset port reads |
+| AC-19 | Done | Reader event/publication and recovery tests | Retirement and publication share a life mutex |
+| AC-20 | Done | CLI metadata and external daemon doctor cases | Registered shared runner reaches engine |
+| AC-21 | Done | Childless owner-handoff race tests and functional case | Bounded rendezvous preserves both SPIs |
+| AC-22 | Done | Complete-scope capability receipt test | Correct fixed-header/attribute ordering |
+| AC-23 | Done | Missing-state and populated-state checker tests | Missing evidence refuses |
+| AC-24 | Done | Seven nft namespace cases and link-follow case | Exact unit grant and descriptor-zero controls |
+| AC-25 | Done | Permission-cause uncertainty RED/GREEN | Original cause and recovery remain |
+| AC-26 | Done | Scope doctor unit and empty-SAD actual daemon probes | Live full receipt before Child creation |
+| AC-27 | Done | Recorded bounded post-style checks | No packet or claim change |
+| AC-28 | Done | Thread-local XFRM observer and reached packet population | Parser and exact assertions preserved |
+| AC-29 | Done | Three raw authority/lifetime tests, both families/orders | Normal B1 kernel receipt, no new RFC claim |
+| AC-30 | Done | Eight selected-report tests and source review | No avoided-read RED claimed |
+| AC-31 | Done | Both qualified/promoted parser cases, live 2/2 | All inputs, exit assertions and adjacent controls preserved |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Receive policy, CE and firewall packet tests | Done | `rfc4301_espform_policy_integration_linux_test.go` | Accepted native normal and bounded fault receipts above |
+| Link, rewrite, receiver and exact capability populations | Done | `internal/component/ike/dataplane/` and trafficusage tests | Accepted scoped host/Linux populations above |
+| Daemon doctor and parser cases | Done | `test/ipsec/`, the two named `test/parse/` cases | Qualification, unchanged promotion and live acceptance recorded |
+| Fragment permission/context/port, raw authority and SA lifetime | Done | Engine Linux integration test files | Final normal packet batch plus earlier B1 acceptance |
+| Changed RFC4301-7.3-5 records | Done | `rfc/discrimination/rfc4301/RFC4301-7.3-5.json` | Both existing Go cuts passed clean and failed at their own producer halt, four selected records current, zero stale/unproven, no C credit |
+| Final scoped engine lint | Done | `internal/component/ike/engine/` | Final fixture/helper source, zero default, Linux/integration and Darwin issues |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| Feature code and tests listed under Files to Modify and Files to Create | Present | Source review covers the attributed Spec-work commits and the surviving actual paths |
+| Owning documentation and RFC records | Present | Citations reconciled, independent audits stamped, selected freshness current; partial meanings preserved |
+
+### Audit Summary
+
+All 31 acceptance criteria have product acceptance evidence. Both changed record
+renewals and final scoped lint passed. The independent three-lens Review Gate
+found zero BLOCKER and zero ISSUE. No scoped requirement is skipped.
+Normal-kernel acceptance is the owner-approved change described in Deviations
+from Plan. General RFC evidence keeps its existing partial classification.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Refuse authenticated inner traffic outside its receiving SA and consult SPD | packet and interop | Bare receive test distinguishes selector mismatch from explicit DISCARD, strongSwan ICMP clean/proofs (c)/(d) |
+| Receive both ESP forms on one IPv4 Child SA | interop | `esp-form-change` bare/UDP/bare, same SPI, useful replies and advancing direction counters |
+| Enforce permission, context and fragment port rules | packet | Normal Ze-kernel populations, final Claude context matrix 16/16 correct, paired negative counters `(1,0,0)`, no skips |
+| Preserve usable diagnosis and lifecycle through process/reload boundaries | functional | Four promoted internal/external doctor CIs, 80 qualifications each, affected 50-case Linux population PASS |
+| Keep selected report verification bounded and strict | unit and source | Eight selected-report race tests and prefilter before selected source verification |
+| Preserve parser acceptance/refusal behavior | functional | Two parser cases, 80 successful qualifications each and committed live 2/2 PASS |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Whole-requirement general RFC4301-5.2-2 discrimination | Product acceptance does not promote partial RFC evidence | `plan/release/fixes/spec-rfc4301-architecture-gaps.md` |
+| General carried-kernel discrimination tooling | Not authorized or required for this closure | `plan/post-release/kernel/spec-rfc-kernel-patch-discrimination-route.md` |
+| IPv6 outer dual-form receive service | Existing agreed post-release gap, explicit refusal remains | `plan/post-release/features/spec-ike-ipv6-transport.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Scope | All surviving reviewable paths of the 44 attributed Spec-work commits, plus closure citation changes |
+| Lenses | Wiring and behavior/spec alignment, security/lifetime/guards, test evidence and documentation |
+| State | CLEAN, zero BLOCKER and zero ISSUE. Source, guard/lifetime, wiring and evidence lenses complete |
+| Artifact | `tmp/review/ipsec-dual-form-receive-spd-bypass-01a1df4b-40c0-7350-819b-b5f74e6b5a86.md` |
+| Native check | Exit 0, `review_gate: OK (100 code files, clean, hashes match)` |
+| Round | 1 |
+| Kernel carrier | Active 0005 patch inspected in full, including scope/receipt ownership, bounded charges, raw lookup authority, fragment classification and feature admission |
+| Scope of checks | Main's bounded native tests, lint and RFC freshness reports are accepted. No whole-tree repo/doc/RFC/verify command was run or added as closure debt, under the owner's pre-release scope rule |
+
+### Findings fixed
+
+| Severity | Finding | Location | Fixed by |
+|----------|---------|----------|----------|
+| NOTE | Historical checklist text still called the implemented commit-observer documentation owed | Documentation Update Checklist rows 12 and 16 | Closure bookkeeping, source confirms core-design observer paragraph |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| Final fragment fixture helper and all four promoted doctor CIs | Yes | Read from the current checkout and attributed committed source |
+| All 100 reviewable paths of the attributed change set | Yes | Native Review Gate read each path and verified its current content hash and Git mode, exit 0 |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-4 | Accepted normal kernel packet behavior | Final Claude batch: eight top-level PASS, zero FAIL/SKIP, sixteen context cases correct, negative exact counters `(1,0,0)`, all exits zero and VM stopped |
+| AC-1 | Local ICMP selectors and configured checking | strongSwan `icmp-error-payload-check` clean and seven-run bounded proofs (c)/(d), independent CLEAR receipt |
+| AC-2 | One Child SA across both wire forms | `esp-form-change` clean, intended binding-cut failure, recovery clean, same directed SPIs and four advancing directions |
+| AC-3 | SA selector and independent SPD decision | `TestRFC4301BareESPOnTemplatedSAIsPolicyChecked`, normal and discriminating native receipts, exact terminal counters |
+| AC-5 | Operator explanation matches both paths | Current guide and Linux limitation read against `run`, `openESPFormTUN` and the fast-path program |
+| AC-6 | Exact rewrite and byte-identical survivors | Accepted `TestESPFormRewriteProgram` on the actual kernel |
+| AC-7 | Link following and teardown | Accepted dataplane lifecycle population and exact-capability link follower |
+| AC-8 | Refuse unserved IPv6 outer dual-form state | `TestXFRMInstallSARefusesIPv6DualFormSA` and migration refusal controls |
+| AC-9 | Policy-enabled bounded complete path | TUN/sysctl populations and limiter RED/GREEN, source `allow` saturates after two seconds |
+| AC-10 | Runtime fast-path doctor cause/fix | Two promoted internal/external doctor CIs with qualified meaningful cuts |
+| AC-11 | Preserve outer CE on both paths | Native CE packet test and its TOS mutation receipt |
+| AC-12 | Exact shared daemon capability grant | UID 65534 BPF load probes for rewrite, override and trafficusage programs |
+| AC-13 | Respect firewall ESP decision | Kernel drop-rule observation and strongSwan clean/finding-preserving gate-cut failure/clean sequence |
+| AC-14 | Device finding follows configured peers | Both promoted peer-removal CIs, same-answer counter-warning witness and complete 50-case Linux population |
+| AC-15 | Valid-key IKE SA survives Child refusal | First-Child install/build refusal and schedule/cap/reset tests |
+| AC-16 | Retain and clear Child refusal diagnostic | `recordChildRefused` and registered runtime Child-install doctor tests |
+| AC-17 | Diagnose the daemon's grant | `TestDaemonCapabilitiesCheck` and shared privilege declaration |
+| AC-18 | Preserve later TCX/clsact processing | Actual ingress/egress TCX_NEXT and clsact mirror probes under exact grant |
+| AC-19 | Every recorded reader failure is reported | Exact ordering and concurrent admission/retirement tests, scheduler RED and Linux GREEN |
+| AC-20 | External executable reaches engine | Registered CLI features regression and actual forked doctor cases |
+| AC-21 | Childless reload waits for owner | Race-enabled handoff regression and unchanged functional case acceptance |
+| AC-22 | Probe fixed header precedes attribute | Corrected raw netlink request and actual kernel EINVAL receipt |
+| AC-23 | Missing state cannot prove interop | Missing/whitespace state refusals plus populated and directed-template controls |
+| AC-24 | Namespace authority stays exact | Seven nft namespace cases plus link follow/delete/stop under exact unit grant, zero skips |
+| AC-25 | Permission cause remains uncertain | Own RED/GREEN and exact warning-code/cause/fix assertions |
+| AC-26 | Doctor reads full scope receipt before SA | Source callback registration, unit RED/GREEN and zero-SA actual daemon probes |
+| AC-27 | Mechanical style preserves behavior | Recorded bounded nine-path cleanup and post-style scoped package/Linux/lint evidence |
+| AC-28 | Counters follow the locked thread | Shared reader uses `/proc/thread-self/net/xfrm_stat`, reached packet populations accepted |
+| AC-29 | Captured raw authority/lifetime preserved | All three raw tests and both-family/both-order controls passed on B1/f826+d9 |
+| AC-30 | Selected report remains strict | Eight targeted race tests passed, selected ambiguous and changed records remain stale/unproven |
+| AC-31 | Parser behavior preserved | Committed live run 91393: two PASS, zero FAIL/SKIP, unchanged qualified contents |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Configured daemon doctor through internal and external IKE | Four `test/ipsec/ipsec-esp-form-*-doctor*.ci` cases | Actual runtime callback and apply/removal/re-add path, qualification and promoted acceptance recorded |
+| Operator parser inputs | Both named `test/parse/` cases | Original configuration inputs and exit assertions preserved, committed live cases passed |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | AC-3 whole receive uses the physical veth and explicit SPD DISCARD increments XfrmInPolBlock while preventing delivery |
+| A-2 | confirmed | AC-3 complete-path fragments use policy-enabled `ze-espform`, explicit DISCARD refuses delivery and its removal restores it |
+| A-3 | confirmed | Accepted `TestESPFormRewriteProgram` runs both variants through BPF_PROG_TEST_RUN, checking rewritten bytes, lengths and checksum |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Directional scope and explicit test permission | `installChildDataplane`, `childStateScope`, `fragmentPermittedDataplane.InstallSA`, `fragmentWantPermittedScope` | Scope selectors remain exact and production permission false |
+| Firewall commit observer lock | `firewall.applyObserved`, `holdESPFormFastPathForCommit` | Existing core-design paragraph documents observer calls inside reconcileMu |
+| No new configuration, command or public wire grammar | Final fixture changes and parser diffs | Tests preserve existing inputs, handlers and expected exits |
+| Closing-spec citations | Whole tracked-tree exact-path search and scoped native citation-anchor check | Only this spec still names its closing path; no missing owning design document |
+| RFC claim and freshness limits | Independently stamped RFC4301-5.2-2 and RFC4301-7.3-5 audits, scoped freshness reports and RFC7296-2.24-2 mechanical reseal | Nine and four current covers respectively, zero stale/unproven; existing partial verdict and Go-cut claim limits preserved |

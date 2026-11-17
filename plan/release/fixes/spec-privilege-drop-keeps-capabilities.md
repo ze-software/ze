@@ -40,7 +40,7 @@ switches the user itself and grants the set as ambient capabilities
 (`internal/plugins/systemd/unit.go`, from `privilege.DaemonCapabilities`). The
 gokrazy appliance sets no `ze.user` (`gokrazy/ze/config.json`) and runs as root.
 
-**Found by** `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`
+**Found by** the historical `spec-ipsec-dual-form-receive-spd-bypass`
 (appliance and unit check, 2026-11-12). Not implemented there.
 
 **Fix direction.** Before the setuid, set `PR_SET_KEEPCAPS` (or

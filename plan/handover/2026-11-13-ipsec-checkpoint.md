@@ -1,16 +1,24 @@
 # IPsec checkpoint for continuation, 2026-11-13
 
-Branch: `main`. Both specs remain `in-progress`:
+Branch: `main`. This page preserves the dated checkpoints at which both specs
+were `in-progress`:
 
-- `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md`
+- `spec-ipsec-dual-form-receive-spd-bypass` (historical record in git)
 - `plan/release/fixes/spec-rfc4301-architecture-gaps.md`
 
-The owner asked to commit as much existing work as possible and then report so
-he can decide whether to continue here or move machines. This is a checkpoint,
+Current status: the dual-form product acceptance and independent CLEAN closure
+review are complete. The architecture-gaps spec remains `in-progress` for its
+broader RFC discrimination and mapped-return obligations. The durable product
+contract is [the Child SA and XFRM architecture](../../docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md).
+The earlier progress and pending-work descriptions below are historical receipts.
+
+At the original checkpoint, the owner asked to commit as much existing work as
+possible and then report so he can decide whether to continue here or move
+machines. This is a checkpoint,
 not closure. No push was ordered. Dual-form AC-4 is unchanged: RFC4301-5.2-2
 must lose `{partial}` only when the broader obligation is actually proven.
 
-## Current continuation, 2026-11-17
+## Historical continuation checkpoint, 2026-11-17
 
 Continue from the dual-form spec's **Current continuation checkpoint, 2026-11-17**. It
 records landed guard commit `bde4a49a6347`, the separate eleven-test raw and packet PASS
@@ -55,7 +63,7 @@ separate owner design question (prepare pairs separately versus recorder builds)
 PENDING and does not approve either rejected safety action. No tooling implementation or
 C-proof credit is established.
 
-The [dual-form current checkpoint](../release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md#current-continuation-checkpoint-2026-11-17)
+The historical `spec-ipsec-dual-form-receive-spd-bypass` checkpoint
 owns the completed host and eight guest batches' native evidence and proof
 limits. It also records report repair `3d6aa6c86f`, AC-30's existing lint
 limitation and four current VERIFIED historical records; those bounded

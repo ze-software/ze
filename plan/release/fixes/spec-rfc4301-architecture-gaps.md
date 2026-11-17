@@ -6,7 +6,7 @@
 | Priority | P0 |
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
-| Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (owns dual-form receive; its local IPv4 single-pair ICMP clean and proofs (c)/(d) are observed on 2026-11-16, while full per-SA scope remains open) |
+| Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set) |
 | Phase | 2b -- legacy renewal and scoped fingerprint debt complete; context proof and final gate remain |
 | Handoff | - |
 | Updated | 2026-11-17 |
@@ -15,8 +15,20 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Current continuation checkpoint, 2026-11-17
 
-The dual-form spec's **Current continuation checkpoint, 2026-11-17** is the current
-detailed record. It supersedes the unrun populations, source-only lifetime and
+The dual-form product fix has normal Ze-kernel acceptance. Its final eight-test
+Claude batch passed without skips, including all sixteen context cases, whole
+controls and exact selector-negative counters. The historical
+`spec-ipsec-dual-form-receive-spd-bypass` record keeps those receipts in git.
+The durable contract is [the Child SA and XFRM architecture](../../../docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md).
+This removes that product-fix dependency. It does not complete this spec's
+general RFC discrimination or mapped ICMP-return obligations and does not
+promote RFC4301-5.2-2 from partial.
+
+The dual-form spec's **Current continuation checkpoint, 2026-11-17** is a
+historical receipt record in Git; its dated pending-work labels do not describe
+current product closure. The current durable contract is the architecture page
+linked above. Those receipts superseded the unrun populations, source-only
+lifetime and
 79-unexecuted progress statements in the dated checkpoints below. Normal guard
 implementation landed in `bde4a49a63473a875f99beb9754650fcd7521387`. The separate
 d87/d2eb kernel and matching 43a1 image run accepted all three raw tests in both
@@ -58,7 +70,7 @@ landed in `467baad97515`. Its separate owner design question about prepared pair
 recorder builds is PENDING. Seven later RFC792 rows stay post-release, with no tooling
 implementation or proof credit. No push was made by this session.
 
-The [dual-form current checkpoint](spec-ipsec-dual-form-receive-spd-bypass.md#current-continuation-checkpoint-2026-11-17)
+The historical `spec-ipsec-dual-form-receive-spd-bypass` checkpoint
 owns the completed host and eight guest batches' native evidence and proof
 limits. It also records report repair `3d6aa6c86f`, AC-30's existing lint
 limitation and four current VERIFIED historical records; those bounded
@@ -656,7 +668,7 @@ of 2026-09-06 above is superseded for these four rows.
 
 | Phase | Block | State |
 |---|---|---|
-| 3 | Section 6 ICMP | units and `.ci` green; interop `icmp-error-payload-check` RED as committed, from the dual-form SPD bypass (not a defect of this spec's code), and green with strongSwan `encap = yes`; BLOCKED on `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` |
+| 3 | Section 6 ICMP | Historical phase receipt: units and `.ci` green; interop `icmp-error-payload-check` RED as committed from the dual-form SPD bypass, and green with strongSwan `encap = yes`. Later clean and proofs (c)/(d) are recorded in the historical `spec-ipsec-dual-form-receive-spd-bypass` |
 | 4 | Section 4.4.1.1 ICMP type and code selectors | units and `.ci` green |
 | 7 | Section 8.1 DF copy and clear, Section 8.2 PMTU proof | units, `.ci` and QEMU IPv6 PMTU unit green; interop `tunnel-df-treatment` PASS, both red proofs red |
 | 8 | Section 5.1.2.1 outer DSCP | units and `.ci` green |
@@ -676,7 +688,7 @@ of 2026-09-06 above is superseded for these four rows.
 | Interop `tunnel-df-treatment`, le built at eec854d922 | PASS |
 | `tunnel-df-treatment` red proof (a): `xfrmDFFlag` answers false for `DFClear`, image rebuilt | RED at the first check, the `show` readback: "ze reports df-bit ... on its outbound SA, want ...". The wire-counter check was not reached. File restored |
 | `tunnel-df-treatment` red proof (b): `xfrmDFFlag` answers true for `DFCopy`, image rebuilt | RED at the same `show` readback check; the wire-counter check was not reached. File restored |
-| Interop `icmp-error-payload-check`, as committed (strongSwan sends bare ESP) | RED: "the error embedding 10.2.0.1 -> 10.7.0.5, outside the SA's selectors: ze delivered 3 Time Exceeded (Icmp.InTimeExcds), want the error dropped" (`tmp/session/2026-11-09-222726/scratch/ab-plain.log`). Cause: the dual-form receive path re-presents bare ESP over `lo`, where no inbound policy check runs; not a defect of this spec's code. Owned by `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` |
+| Interop `icmp-error-payload-check`, as committed (strongSwan sends bare ESP) | Historical RED: "the error embedding 10.2.0.1 -> 10.7.0.5, outside the SA's selectors: ze delivered 3 Time Exceeded (Icmp.InTimeExcds), want the error dropped" (`tmp/session/2026-11-09-222726/scratch/ab-plain.log`). Cause: loopback re-presentation skipped inbound policy. Later fixed in the historical `spec-ipsec-dual-form-receive-spd-bypass` |
 | Interop `icmp-error-payload-check` with strongSwan `encap = yes` | PASS (`tmp/session/2026-11-09-222726/scratch/ab-encap.log`) |
 | `icmp-error-payload-check` red proofs (c) and (d) | NOT RUN: they cannot discriminate until the scenario is green as committed, which waits on the bypass fix |
 | Re-run after the last fixes: `go test` with every feature tag of `ike/engine`, `ike/ipsec`, `ike/dataplane`, `ike/cmd`; parse `ipsec-icmp-type-selector-refused` | ok; PASS |
