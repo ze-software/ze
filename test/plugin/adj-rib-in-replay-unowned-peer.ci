@@ -1,3 +1,6 @@
+# QUESTION: Does adj-rib-in replay to a peer whose state the replay owner never receives?
+# A unit test cannot decide live peer reconnection, process event ownership and second-session bytes.
+#
 # Test: a peer the replay OWNER is not fed is replayed by adj-rib-in itself
 #
 # VALIDATES: spec-fixit-stored-route-relay-hardening AC-4 -- a peer whose config
@@ -176,6 +179,8 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

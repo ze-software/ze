@@ -1,3 +1,6 @@
+# QUESTION: Does a flagless destination receive the source's reactor-fast-path UPDATE?
+# A unit test cannot decide the two live sessions, source-side forwarding gate and peer wire bytes.
+#
 # bgp-rs-reactor-fastpath-fallback -- a destination without rs-fast-path still
 # receives forwarded UPDATEs (rs-gap-1).
 #
@@ -159,6 +162,8 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

@@ -1,3 +1,6 @@
+# QUESTION: Does explicit stored-route replay send the same wire UPDATE as the live forward?
+# A unit test cannot decide the daemon's replay command, live forwarding and actual peer wire bytes.
+#
 # Test: adj-rib-in stores a received route and RELAYS it to an established peer
 # VALIDATES: `request bgp adj-rib-in replay <peer> <index>` reconstructs the stored
 #            route and puts it on the destination's wire through the forward rail,
@@ -183,6 +186,8 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

@@ -1,3 +1,6 @@
+# QUESTION: Does Path Identifier zero remain present in storage and forwarded ADD-PATH framing?
+# A unit test cannot decide the live daemon's stored route and actual negotiated peer wire bytes.
+#
 # Test: a route an ADD-PATH peer announces under Path Identifier 0 is held as a
 #       route carrying identifier 0, and reaches the next ADD-PATH peer with the
 #       four identifier octets.
@@ -115,6 +118,8 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

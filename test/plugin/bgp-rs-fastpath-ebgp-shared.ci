@@ -1,3 +1,6 @@
+# QUESTION: Does plugin fast forwarding prepend AS 65000 and produce the exact expected UPDATE?
+# A unit test cannot decide the live daemon's forwarding composition and actual eBGP peer wire bytes.
+#
 # bgp-rs-fastpath-ebgp-shared -- eBGP prepend with byte-equality (rs-fastpath-3)
 #
 # VALIDATES: AC-6b -- eBGP source peer goes through bgp-rs forwarding via the
@@ -153,6 +156,8 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

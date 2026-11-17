@@ -1,3 +1,6 @@
+# QUESTION: Does an UPDATE take the reactor fast path with the expected eBGP wire transform?
+# A unit test cannot decide the configured daemon path, absence of fallback and actual peer bytes.
+#
 # bgp-rs-reactor-fastpath -- reactor-native RS forwarding (rs-gap-1)
 #
 # VALIDATES: AC-2 -- UPDATEs forwarded directly from notifyMessageReceiver
@@ -165,6 +168,8 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
