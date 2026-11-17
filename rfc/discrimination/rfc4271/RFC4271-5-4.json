@@ -2,6 +2,28 @@
   {
     "rid": "RFC4271-5-4",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_partial_aggregator_test.go::TestAggregatorPartialSurvivesASPathRebuild",
+    "unit-sha": "37a46376e016a1fc",
+    "claim-sha": "fce9641ef5761461",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::genericAttrSetHandler",
+    "producer-sha": "56db6b2df49e18b5",
+    "break": "line 75: \"outputFlags |= source[0] \u0026 byte(attribute.FlagPartial)\" -\u003e \"outputFlags |= byte(0) /* MUTATION-APPLIED: omit received Partial inheritance only */\""
+  },
+  {
+    "rid": "RFC4271-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_partial_protocol_rewrite_test.go::TestPrefixSIDPartialSurvivesNextHopCleanup",
+    "unit-sha": "a182c27efccc2d44",
+    "claim-sha": "04060b93b4bb5d5d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDNextHopHandler",
+    "producer-sha": "9129fdd3b0ad1eb1",
+    "break": "line 226: \"flags |= source[0] \u0026 byte(attribute.FlagPartial)\" -\u003e \"flags |= byte(0) /* MUTATION-APPLIED: omit received Partial inheritance only */\""
+  },
+  {
+    "rid": "RFC4271-5-4",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_partial_session_wire_test.go::TestReceivedPartialSurvivesOrdinarySessionWire",
     "unit-sha": "741571c5d8af438e",
     "claim-sha": "1cebead2b0ac0626",
