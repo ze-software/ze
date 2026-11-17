@@ -564,11 +564,23 @@ func applianceISOFixture(ctx context.Context, arch string, magicOffset int, magi
 	if err != nil {
 		return err
 	}
-	fakebin, err := os.MkdirTemp("", "install-iso-bin-")
+	fakeRoot, err := os.MkdirTemp("", "install-iso-bin-")
 	if err != nil {
 		return err
 	}
-	defer func() { _ = os.RemoveAll(fakebin) }()
+	defer func() { _ = os.RemoveAll(fakeRoot) }()
+	// Keep the selected EFI metadata beside the fake builder so admission
+	// reaches the fixture's GRUB installation on every host architecture.
+	fakebin := filepath.Join(fakeRoot, "bin")
+	modules := filepath.Join(fakeRoot, "lib", "grub", grubTarget)
+	for _, dir := range []string{fakebin, modules} {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			return err
+		}
+	}
+	if err := os.WriteFile(filepath.Join(modules, "modinfo.sh"), []byte("fixture modules\n"), 0o600); err != nil {
+		return err
+	}
 	for _, name := range []string{"grub-mkstandalone", "xorriso"} {
 		if err := os.Symlink(self, filepath.Join(fakebin, name)); err != nil {
 			return err
