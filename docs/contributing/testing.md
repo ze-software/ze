@@ -155,6 +155,13 @@ events without waiting on the caller of `Start`.
 <!-- source: internal/test/pluginengine/pluginengine.go -- Start -->
 <!-- test: internal/test/pluginengine/startup_ready_test.go TestStartJoinsRuntimeInitialization, TestStartFirstCommandUsesInitializedCallback -->
 
+Use `ExecutePeer` when a command needs an explicit peer address. It forwards
+that value to the actual SDK callback on both transports; `Execute` keeps its
+empty-peer default. The fixture supplies context, not authentication or native
+authority, which the feature's own tests must establish.
+<!-- source: internal/test/pluginengine/pluginengine.go -- Execute, ExecutePeer -->
+<!-- test: internal/test/pluginengine/execute_peer_test.go TestExecutePeerReachesActualSDKAndPreservesEmptyControl -->
+
 A received route that requires a source lease must carry a receipt the fixture
 engine issued with `IssueSource(peer)`. Reuse it for that source Session's
 UPDATEs; a successor Session receives a new one. The fake engine refuses
