@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"slices"
 )
 
 // barrier joins the currently owed output of the specified destination set.
@@ -30,12 +31,7 @@ func (d *selectedDispatch) barrier(ctx context.Context, peers ...netip.Addr) err
 }
 
 func selectedPeerIn(peer netip.Addr, peers []netip.Addr) bool {
-	for _, candidate := range peers {
-		if peer == candidate {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(peers, peer)
 }
 
 // barrierSource includes output from a source that has already been replaced
@@ -81,8 +77,8 @@ func (d *selectedDispatch) sourcePendingLocked(destination *selectedDestination,
 			return true
 		}
 	}
-	for _, item := range destination.inFlight {
-		if selectedReceiptIn(item.source, receipts) {
+	for i := range destination.inFlight {
+		if selectedReceiptIn(destination.inFlight[i].source, receipts) {
 			return true
 		}
 	}

@@ -8,11 +8,13 @@ import "github.com/ze-software/ze/pkg/plugin/rpc"
 // without importing each other's implementations.
 const disseminationRole = "bgp-selected-output"
 
+const stateEvent = "state"
+
 func disseminationDecls() []rpc.DisseminationDecl {
 	return []rpc.DisseminationDecl{{
 		Namespace: "bgp", Role: disseminationRole,
-		SourceReceive:      []string{"update-received", "state"},
-		DestinationReceive: []string{"state", "refresh", "update-sent"},
+		SourceReceive:      []string{"update-received", stateEvent},
+		DestinationReceive: []string{stateEvent, "refresh", "update-sent"},
 		DestinationSend:    []string{"update"},
 	}}
 }

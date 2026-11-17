@@ -10,6 +10,7 @@ import (
 	"iter"
 	"math"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
@@ -260,12 +261,7 @@ func (d *selectedDispatch) failLocked(err error) {
 }
 
 func selectedReceiptIn(receipt uint64, receipts []uint64) bool {
-	for _, candidate := range receipts {
-		if receipt == candidate {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(receipts, receipt)
 }
 
 func (d *selectedDispatch) signalLocked() {
@@ -412,7 +408,8 @@ func (d *selectedDispatch) run(destination *selectedDestination) {
 				break
 			}
 			destination.inFlight = items
-			for _, item := range items {
+			for i := range items {
+				item := &items[i]
 				if item.route.Kind == rpc.SelectedRouteAbsent {
 					continue
 				}
@@ -442,10 +439,10 @@ func (d *selectedDispatch) run(destination *selectedDestination) {
 				// A multi-key request may have written a prefix before its
 				// final answer failed. Retain one uncertainty bit, not a
 				// history of all attempted source receipts or route bodies.
-				for _, item := range items {
-					ack := destination.acknowledged[item.key]
+				for i := range items {
+					ack := destination.acknowledged[items[i].key]
 					ack.uncertain = true
-					destination.acknowledged[item.key] = ack
+					destination.acknowledged[items[i].key] = ack
 				}
 			}
 			destination.failure = err
@@ -505,7 +502,8 @@ func (d *selectedDispatch) completeReady(destination *selectedDestination) bool 
 
 func (d *selectedDispatch) completeLocked(destination *selectedDestination, items []selectedDispatchItem, output *rpc.SelectRoutesOutput) error {
 	var refused error
-	for i, item := range items {
+	for i := range items {
+		item := &items[i]
 		result := output.Results[i]
 		// These are open final wire outcomes; Validate has refused unknowns.
 		switch result.Outcome {

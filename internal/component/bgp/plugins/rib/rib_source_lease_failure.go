@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"time"
@@ -19,7 +20,7 @@ import (
 const sourceLeaseRetry = time.Second
 
 func (s *ribSourceLeases) operationError(cause error, peer netip.Addr, receipt uint64, action rpc.SourceLeaseAction) error {
-	operation := ""
+	var operation string
 	switch action {
 	case rpc.SourceLeaseAcquire:
 		operation = "acquire"
@@ -33,8 +34,7 @@ func (s *ribSourceLeases) operationError(cause error, peer netip.Addr, receipt u
 		panic("BUG: RIB issued an unknown source lease action")
 	}
 	problem := fmt.Sprintf("BGP routes received from %s could not %s source session %d", peer, operation, receipt)
-	var operator *opererr.Error
-	if errors.As(cause, &operator) {
+	if _, ok := errors.AsType[*opererr.Error](cause); ok {
 		return fmt.Errorf("%s: %w", problem, cause)
 	}
 	return opererr.Wrap(cause, problem,
@@ -78,9 +78,7 @@ func (s *ribSourceLeases) failures() map[netip.Addr]error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	failures := make(map[netip.Addr]error, len(s.admission))
-	for peer, err := range s.admission {
-		failures[peer] = err
-	}
+	maps.Copy(failures, s.admission)
 	var receipts []uint64
 	for receipt, lease := range s.leases {
 		if lease.failure != nil {
@@ -96,8 +94,12 @@ func (s *ribSourceLeases) failures() map[netip.Addr]error {
 }
 
 func (s *ribSourceLeases) doctorFailures() []rpc.DoctorCheckDiagnostic {
-	var findings []rpc.DoctorCheckDiagnostic
-	for _, failure := range s.failures() {
+	failures := s.failures()
+	if len(failures) == 0 {
+		return nil
+	}
+	findings := make([]rpc.DoctorCheckDiagnostic, 0, len(failures))
+	for _, failure := range failures {
 		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: diagnostic.CodeDoctorBGPSelectedOutput,
 			Severity: "warning", Message: failure.Error(), Fix: s.manager.advertiseRepair()})
 	}

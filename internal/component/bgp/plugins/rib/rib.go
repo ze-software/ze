@@ -795,7 +795,7 @@ func runRIBPlugin(conn net.Conn) int {
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rib sees every "sent" event from the very first route.
-	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", "state", "refresh"}, nil, "full")
+	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", stateEvent, "refresh"}, nil, "full")
 	// The receive store's eligibility change, through the SDK so a forked
 	// bgp-rib hears it too: the daemon's own bus never reaches a subprocess.
 	// Enveloped, so dispatchText tells it from the BGP events. The gate's

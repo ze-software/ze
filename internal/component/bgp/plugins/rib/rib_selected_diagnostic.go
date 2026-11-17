@@ -96,7 +96,7 @@ func (d *selectedDispatch) reportCauseLocked() error {
 	if first == nil {
 		return nil
 	}
-	return fmt.Errorf("Selected output remains owed at %d destinations; destination %s Session %d: %w", count, first.peer, first.session, first.failure)
+	return fmt.Errorf("selected output remains owed at %d destinations; destination %s Session %d: %w", count, first.peer, first.session, first.failure)
 }
 
 func (r *selectedReporter) run() {

@@ -78,8 +78,8 @@ func (r *RIBManager) advertiseSnapshot() ([]advertiseRoute, error) {
 		return nil, r.advertise.failure
 	}
 	current := make([]advertiseRoute, 0, len(r.advertise.current))
-	for _, route := range r.advertise.current {
-		current = append(current, route)
+	for key := range r.advertise.current {
+		current = append(current, r.advertise.current[key])
 	}
 	return current, nil
 }

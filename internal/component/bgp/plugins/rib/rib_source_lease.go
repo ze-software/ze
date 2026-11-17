@@ -56,7 +56,9 @@ func (s *ribSourceLeases) notify() {
 
 func (s *ribSourceLeases) acquire(ctx context.Context, peer netip.Addr, peerOwner, receipt uint64) (*storage.SourceReference, error) {
 	if s == nil {
-		return nil, nil
+		// Passive storage has no lease owner and intentionally grants no
+		// authority; its callers retain the route without a SourceReference.
+		return nil, nil //nolint:nilnil // Nil denotes passive storage, not a failed lease acquisition.
 	}
 	if receipt == 0 {
 		err := s.operationError(errors.New("the received UPDATE has no original source receipt or peer owner"), peer, receipt, rpc.SourceLeaseAcquire)
@@ -353,7 +355,7 @@ func (s *ribSourceLeases) stop() {
 	// A direct report admitted before stopping also finishes before local
 	// teardown; later callers observe stopped under this reporting fence.
 	s.reportMu.Lock()
-	s.reportMu.Unlock()
+	defer s.reportMu.Unlock()
 }
 
 // retainSourceOnDown runs while the ordered Session delivery reference is still
