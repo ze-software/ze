@@ -4,7 +4,12 @@
 // explanations for Ze's agent-facing tooling surface.
 package diagnostic
 
-import "github.com/ze-software/ze/internal/component/plugin"
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/ze-software/ze/internal/component/plugin"
+)
 
 // SchemaVersion is the current diagnostic JSON contract version.
 const SchemaVersion = 1
@@ -127,6 +132,27 @@ func NewValidateResult(path string, valid bool, diags []Diagnostic, cfg any) Val
 		Diagnostics:   diags,
 		Config:        cfg,
 	}
+}
+
+// DecodeValidateResult reads body as the record `show config validation`
+// answers with, for a caller that draws a verdict another process gave: the
+// local `ze config validate` reading the running daemon's answer. A body that
+// is not JSON of that shape, or that carries another schema version than this
+// binary reads, is refused, and the error says what the body was: drawing it
+// would print a verdict nobody gave. A nil diagnostics list is answered empty.
+func DecodeValidateResult(body []byte) (ValidateResult, error) {
+	var result ValidateResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		return ValidateResult{}, fmt.Errorf("something that is not a validation result (%w)", err)
+	}
+	if result.SchemaVersion != SchemaVersion {
+		return ValidateResult{}, fmt.Errorf("a validation result of schema version %d, and this ze reads version %d",
+			result.SchemaVersion, SchemaVersion)
+	}
+	if result.Diagnostics == nil {
+		result.Diagnostics = []Diagnostic{}
+	}
+	return result, nil
 }
 
 // DoctorResult is the JSON envelope for ze doctor --json.

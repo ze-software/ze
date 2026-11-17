@@ -1,15 +1,16 @@
-# Test: boot judges the section that validate, with no daemon, calls not available
+# Test: boot judges the section that validate, with no ze running, calls not available
 #
 # Question: for a config under an external plugin's own root, does `ze config
-# validate` with no daemon refuse the section as not available (it starts no
-# plugin, so it holds no schema of it), while `ze start` judges the same root
-# with the plugin's module: it accepts a valid section and delivers it, and it
-# refuses a section that lacks the leaf the module marks mandatory?
+# validate` with no ze listening refuse the section as not available (it
+# starts no plugin, so it holds no schema of it, and no running ze answered),
+# while `ze start` judges the same root with the plugin's module: it accepts a
+# valid section and delivers it, and it refuses a section that lacks the leaf
+# the module marks mandatory?
 # Why not a unit test: the verdicts come from two entries of the binary.
 # Validate parses against the compiled-in schema; boot runs the plugin, reads
 # its module at Stage 1 and loads against the joined schema. Only running both
-# shows that the offline refusal is about where the config is checked and not
-# about the config, which is what its message says.
+# shows that the refusal with no ze is about where the config is checked and
+# not about the config, which is what its message says.
 #
 # This file was external-yang-validate-agrees-with-boot. It asserted that
 # the two entries give one verdict, because validate ran the plugin in declare
@@ -18,16 +19,30 @@
 # to are not available". Validate now never accepts what boot refuses, and
 # boot accepts a section validate calls not available.
 #
+# It then asserted `show config validation ze.conf` and `fix: ze cli` for the
+# refusal. That advice fails: in a `ze cli` session the daemon reads ze.conf
+# through command.CallerPath, which admits its config directories only. The
+# command now passes the config to a running ze itself
+# (external-yang-validate-asks-running-ze.ci), and with none the fix is
+# `ze start`.
+#
+# ze.ssh.port points validate's ask at the runner's $PORT, where nothing
+# listens during step 1. The daemons of steps 2 and 3 configure no SSH
+# listener, so the option does not reach them.
+#
 # What this file does not assert: the range verdicts (interval 0 and 11) the
 # old file compared. TestJoinedModuleRangeRefusesOutOfRangeValue proves them
 # at the join, and TestValidateJudgesSectionWithThePublishedModule at the
 # validate entry of a process that holds the module.
 #
 # VALIDATES: AC-2 of spec-plugin-external-yang-at-startup, as the ruling
-#   restates it, beside AC-1, and AC-10 for a mandatory leaf at boot.
+#   restates it, beside AC-1, AC-10 for a mandatory leaf at boot, and AC-19 of
+#   phase 10.
 # PREVENTS: validate accepting a section it could not check; a refusal message
-#   whose claim (a running ze checks this) is false; boot starting a plugin
-#   without a value its module requires.
+#   whose advice the daemon then refuses; boot starting a plugin without a
+#   value its module requires.
+
+option=env:var=ze.ssh.port:value=$PORT
 
 tmpfs=ze.conf:terminator=EOF_CONF
 plugin {
@@ -64,14 +79,16 @@ acme-monitor {
 }
 EOF_MANDATORY
 
-# No daemon: the section is not available, and the message says how to reach
-# a ze that can check it.
+# No ze running: the section is not available, and the message says a running
+# ze was asked, why none answered, and how to get one.
 cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=1
 expect=stdout:contains=unknown top-level keyword: acme-monitor
 expect=stdout:contains=the config declares external plugin "acme-monitor"
 expect=stdout:contains=starts no plugin
-expect=stdout:contains=show config validation ze.conf
-expect=stdout:contains=fix: ze cli
+expect=stdout:contains=none answered: no ze listens at 127.0.0.1:
+expect=stdout:contains=fix: ze start
+reject=stdout:contains=show config validation
+reject=stdout:contains=fix: ze cli
 
 # Boot runs the plugin, joins its module and delivers the section.
 cmd=foreground:seq=2:exec=ze start ze.conf:timeout=30s

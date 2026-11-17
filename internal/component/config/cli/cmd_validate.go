@@ -244,6 +244,7 @@ func cmdValidate(args []string) int {
 	quiet := fs.Bool("q", false, "quiet mode (exit code only)")
 	pending := fs.Bool("pending", false, "validate pending draft config")
 	limit := fs.String("limit", "", "limit validation to section (environment)")
+	user := fs.String("user", "", "account that asks the running ze about a config that declares an external plugin")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -256,6 +257,7 @@ func cmdValidate(args []string) int {
 					{Name: "-q", Desc: "Quiet mode (exit code only)"},
 					{Name: "--pending", Desc: "Validate pending draft config"},
 					{Name: "--limit <section>", Desc: "Limit validation to section (environment)"},
+					{Name: "--user <name>", Desc: "Account that asks the running ze, for a config that declares an external plugin"},
 				}},
 				{Title: "Limit values", Entries: []helpfmt.HelpEntry{
 					{Name: "environment", Desc: "Validate environment variables only (no config file needed)"},
@@ -303,7 +305,7 @@ func cmdValidate(args []string) int {
 			fmt.Fprintf(os.Stderr, "error: --pending cannot read from stdin\n")
 			return 1
 		}
-		return validatePending(configPath, *verbose, *quiet)
+		return validatePending(configPath, *user, *verbose, *quiet)
 	}
 
 	// Read file (or stdin if "-").
@@ -315,8 +317,10 @@ func cmdValidate(args []string) int {
 		return 2
 	}
 
-	// Parse and validate.
-	result := runValidation(string(data), configPath)
+	// The running ze judges a config that declares an external plugin, and
+	// this process judges every other config and any config no ze answered
+	// for (judgeConfig).
+	result := judgeConfig(string(data), configPath, *user, askValidationOverSSH)
 
 	return outputValidateText(result, *verbose, *quiet)
 }
@@ -333,7 +337,7 @@ func validateEnvironment(quiet bool) int {
 	return 0
 }
 
-func validatePending(configPath string, verbose, quiet bool) int {
+func validatePending(configPath, user string, verbose, quiet bool) int {
 	var tb textbuf.Buffer
 	draftPath := tb.Str(configPath).Str(".draft").String()
 	data, err := os.ReadFile(draftPath) //nolint:gosec // Config path from CLI args
@@ -344,11 +348,22 @@ func validatePending(configPath string, verbose, quiet bool) int {
 		return 2
 	}
 
-	result := runValidation(string(data), configPath)
+	result := judgeConfig(string(data), configPath, user, askValidationOverSSH)
 	return outputValidateText(result, verbose, quiet)
 }
 
+// runValidation judges input, the config named path, in this process, for a
+// caller that asked no running ze about it.
 func runValidation(input, path string) *validationResult {
+	return runValidationUnanswered(input, path, nil)
+}
+
+// runValidationUnanswered judges input, the config named path, in this
+// process. unanswered is why no running ze judged it, for the one caller that
+// asked one first (judgeConfig), and nil for a caller that asked none: the
+// refusal of a name only an external plugin's schema could define says which
+// of the two happened.
+func runValidationUnanswered(input, path string, unanswered *config.DaemonUnanswered) *validationResult {
 	result := &validationResult{
 		Path:  path,
 		Valid: true,
@@ -358,12 +373,15 @@ func runValidation(input, path string) *validationResult {
 	// (config.SchemaWithDeclaredPlugins). With no daemon that is the
 	// compiled-in set: ze starts no external plugin here, so a section only
 	// such a plugin's schema defines is refused below, with the command that
-	// reaches a running ze. Served by a daemon, it is the set the daemon
-	// joined from its plugins when it started.
+	// gets a running ze to check it. Served by a daemon, it is the set the
+	// daemon joined from its plugins when it started.
 	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: input, Path: path})
 	if err != nil {
 		result.addError("config-parse", "YANG schema: "+err.Error())
 		return result
+	}
+	if unanswered != nil {
+		declared = declared.Unanswered(*unanswered)
 	}
 	// Match the loader's format detection (ParseTreeWithYANG): a config file may
 	// be hierarchical (block) or the flat set-command form the first-boot
@@ -413,7 +431,9 @@ func runValidation(input, path string) *validationResult {
 		// keyword when ze holds no schema of that plugin, and the parser's
 		// refusal cannot name the plugin. One more diagnostic says which
 		// external plugins the config declares, why ze holds no schema of
-		// them here, and the command that reaches a ze that does.
+		// them here, and the command that gets a running ze to check it: the
+		// fix of the failed ask when one was asked first (judgeConfig), and
+		// `ze config validate <file>` for a caller that asked none.
 		// Only beside the refusal of a name the schema does not define: no
 		// plugin's missing schema explains any other refusal.
 		unknownNode := false

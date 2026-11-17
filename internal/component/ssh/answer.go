@@ -233,14 +233,65 @@ func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(s
 // The frame writes are best-effort: the session is ending with exit code 1
 // whatever they do, and a client whose terminator never arrives reads the
 // answer as truncated, which is the right verdict for one that never finished.
-func writeExecFailure(sess ssh.Session, frame *answerFrame, err error) {
+//
+// documents is the count writeExecRefusedAnswer wrote on stdout before this
+// call: a command that refused and still answered a document (`show config
+// validation` on a config it rejects) states one record under its message, so
+// a client reads that the document it received is real.
+func writeExecFailure(sess ssh.Session, frame *answerFrame, documents uint64, err error) {
 	writeExecError(sess, err)
 	if errors.Is(err, pluginserver.ErrUnknownCommand) {
 		frame.notUnderstood(err.Error()) //nolint:errcheck // the session is ending; a lost line reads as truncated
 		return
 	}
-	frame.head(rpc.AnswerTypeDocument, "", nil) //nolint:errcheck // as above
-	frame.terminator(0, 0, false, err.Error())  //nolint:errcheck // as above
+	frame.head(rpc.AnswerTypeDocument, "", nil)        //nolint:errcheck // as above
+	frame.terminator(documents, 0, false, err.Error()) //nolint:errcheck // as above
+}
+
+// writeExecRefusedAnswer writes on stdout the document a command answered
+// beside its refusal, and answers how many documents it wrote: one or none.
+//
+// A local-data command states its verdict in the exit code and its evidence in
+// the payload, and the two are independent (command.LocalDataHandler): `show
+// config validation` answers the diagnostics of a config it rejects and
+// fails. The daemon route keeps that payload beside the refusal
+// (pluginserver.localAnswerResponse), and this is where the exec channel
+// writes it, on stdout as the local route does, before the refusal line on
+// stderr. Without it the refusal says the diagnostics in the answer explain
+// it, and the channel sent no answer.
+//
+// Only a refusal a command wrote whole (plugin.RefusalLine) carries such a
+// payload. Every other failure writes nothing here: its data, if any, is not
+// an answer the command chose to give beside an error.
+func writeExecRefusedAnswer(sess ssh.Session, formatOutput func(string) string, result *plugin.RenderedResponse, err error) uint64 {
+	if _, refused := plugin.RefusalLine(err); !refused {
+		return 0
+	}
+	if result == nil {
+		return 0
+	}
+	if result.Response == nil {
+		return 0
+	}
+	if result.Response.Data == nil {
+		return 0
+	}
+	if _, generated := plugin.RecordRows(result.Response); generated {
+		// A refused command wrote no rows, and a generator is walked once.
+		return 0
+	}
+	encoded, encodeErr := json.Marshal(result.Response.Data)
+	if encodeErr != nil {
+		return 0
+	}
+	rendered := strings.TrimRight(formatOutput(string(encoded)), "\n")
+	if rendered == "" {
+		return 0
+	}
+	if _, writeErr := fmt.Fprintln(sess, rendered); writeErr != nil {
+		return 0
+	}
+	return 1
 }
 
 // writeExecError writes the plain-text failure an operator reads, in the shape

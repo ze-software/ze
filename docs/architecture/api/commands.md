@@ -347,6 +347,13 @@ typed validation cause; authorization and flag checks still run first on the
 daemon. A different child command beneath that path keeps its own refusal.
 <!-- source: internal/component/command/local_data.go -- ArgumentRefusal, localRefusal -->
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch -->
+The SSH exec channel writes a payload that stands beside a refusal on the
+session's stdout, before the refusal line on stderr, as the local route does
+(`writeExecRefusedAnswer`). The frame's terminator then counts that one
+document under the refusal's message, so a client reads the document as real
+(`rpc.Verdict` answers `aborted`, not `error`). `ze config validate` reads the
+daemon's diagnostics of a config it rejects this way.
+<!-- source: internal/component/ssh/answer.go -- writeExecRefusedAnswer, writeExecFailure -->
 
 A diagnostic beside a zero code is a warning about an answer the command still
 gave, such as the parse warnings of `show config dump`. It travels in the
@@ -1177,8 +1184,20 @@ declaration: `pkg/plugin/sdk` carries none, so the audit log records no plugin
 command.
 
 A command that needs bytes held on the caller's side takes them base64-encoded
-in an argument named `content`, as `update data key <key> content <base64>`
-and `update data config name <name> content <base64>` do. No surface has a
+in an argument named `content`, as `update data key <key> content <base64>`,
+`update data config name <name> content <base64>` and the
+`show config supplied` commands below do. The two `update data` leaves
+declare `ze:keyword-only`, so the bytes are read after the word `content` and
+never from a stray word: `update data key <key> <word>` is told `content` is
+missing. `show config supplied validation content <base64> name <label>` is how
+the local `ze config validate <file>` has the running daemon judge a config
+that declares an external plugin: the daemon reads a named file only from its
+own config directories (`command.CallerPath`), so the local command sends the
+file's bytes, `name` carries the file's base name as a label for the daemon's
+messages, and nothing is read on the daemon's host. Its larger-value route is
+`show config validation file <path>`, for a file inside those directories
+(`docs/architecture/config/yang-config-design.md`,
+"`ze config validate` asks the running Ze first"). No surface has a
 second input channel, so the argument is the same on SSH, REST, gRPC, MCP and
 the web. Each leaf declares the bound, 261,120 base64 characters (195,840 bytes
 of content), which is what one SSH packet carries with the rest of the
@@ -1191,6 +1210,8 @@ config. The value after
 (`redact.Command`, `redact.IsCredentialKeyword`).
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, leaf content -->
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config, leaf content -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, leaf content -->
+<!-- source: internal/component/config/cli/validate_route.go -- validationLine, sentLabel -->
 <!-- source: internal/component/plugin/server/handler.go -- RPCRegistration.AuditAction -->
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
 
@@ -2523,6 +2544,29 @@ Usage renders it `[force]`, the completer offers the keyword, and help and the
 catalog name its kind `flag`.
 <!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
 <!-- source: internal/component/command/argbind.go -- ValidateArgs, unmatchedDefCount -->
+
+A leaf that carries `ze:keyword-only` is given by its keyword and never by
+position. Without it `ValidateArgs` offers every word no keyword introduced to
+each leaf still waiting for a value, so a payload leaf could take a word typed
+for something else: `update data key <key> <word>` wrote the word as the key's
+content when it happened to be base64, and a command with a file leaf and an
+optional `content` would judge the second file of `file a b` as the content.
+The keyword phase binds and judges the leaf as it does any other. No later step
+reads it: `positionalDef` skips it, the count of open definitions that decides
+whether a spare word is blamed on a leaf leaves it out (`awaitsPositional`),
+and the dispatcher's inline-selector guess never picks it
+(`implicitSelectorDef`). A spare word beside it therefore goes where it went
+before the leaf existed: to another open leaf, or to the handler. A mandatory
+one left out is reported missing with its keyword form (`required argument
+missing: content`, fix `content <content>`). Usage writes the keyword in front
+of the value whether the leaf is mandatory (`update data key <key> content
+<content>`) or not (`[content <content>]`), and the completer offers the
+keyword and never a bare value. Declare it on a leaf the command itself
+declares, whose name repeats no keyword of the command's path.
+<!-- source: internal/component/command/argbind.go -- positionalDef, awaitsPositional -->
+<!-- source: internal/component/command/usage.go -- appendLeafTokens -->
+<!-- source: internal/component/plugin/server/command.go -- implicitSelectorDef -->
+<!-- source: internal/component/config/yang/command.go -- hasKeywordOnlyExtension -->
 
 A string leaf that carries `ze:rest-of-line` takes every word left on the line,
 joined by one space, and no word it takes is read as a keyword. Without it the

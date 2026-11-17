@@ -90,6 +90,7 @@ placeholder in its place.";
                     description "The bytes to write, base64-encoded (RFC 4648 Section 4, with padding): 1 to
 195,840 bytes, at most 261,120 characters. The value is never recorded.";
                     ze:help "Key bytes in base64, at most 195,840 bytes";
+                    ze:keyword-only;
                 }
             }
 
@@ -134,6 +135,7 @@ path, . and .. are refused.";
                     description "The config's bytes, base64-encoded (RFC 4648 Section 4, with padding): 1 to
 195,840 bytes, at most 261,120 characters. The value is never recorded.";
                     ze:help "Config bytes in base64, at most 195,840 bytes";
+                    ze:keyword-only;
                 }
             }
         }

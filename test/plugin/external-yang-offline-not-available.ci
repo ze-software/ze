@@ -1,14 +1,15 @@
-# Test: with no daemon, validate starts no external plugin and says its section is not available
+# Test: with no ze running, validate starts no external plugin and says its section is not available
 #
-# Question: when `ze config validate` runs with no daemon on a config that
-# declares an external plugin and holds a section under that plugin's root,
-# does it refuse the section with the reason and the command that reaches a
-# running ze, without starting the program the config names? And does it still
-# accept a config that holds no such section, and a compiled-in plugin?
-# Why not a unit test: TestValidateRefusesSectionOfExternalPluginWithoutStartingIt
-# proves the validate function. This proves the `ze` binary an operator runs:
-# no route from the command line to a fork of the declared program, and the
-# message as it is printed.
+# Question: when `ze config validate` runs with no ze listening on a config
+# that declares an external plugin and holds a section under that plugin's
+# root, does it refuse the section, say that a running ze was asked and why
+# none answered, and name `ze start` as the one fix, without starting the
+# program the config names? And does it still accept a config that holds no
+# such section, and a compiled-in plugin?
+# Why not a unit test: TestValidateRouteFallsBackWhenNoDaemonListens proves the
+# route over a stub ask. This proves the `ze` binary an operator runs: no
+# route from the command line to a fork of the declared program, the real walk
+# to a listener that is not there, and the message as it is printed.
 #
 # The declared program writes a marker file when it is started, in any mode,
 # and then answers a declaration query the way a conforming plugin does. Under
@@ -23,17 +24,29 @@
 # to are not available, for command built-in then yes you should run them as
 # we can look them up in the yang hardcoded in the binary".
 #
+# This file asserted `show config validation ze.conf` and `fix: ze cli`. That
+# advice fails: typed in a `ze cli` session, the daemon reads ze.conf on its
+# own host through command.CallerPath, which admits its config directories
+# only, never the operator's working directory. The command now passes the
+# config to a running ze itself, and with none running the fix is to start one.
+#
+# ze.ssh.port points the ask at the runner's $PORT, where nothing listens, so
+# another session's daemon on the default port cannot answer it.
+#
 # VALIDATES: AC-2 and AC-15 of spec-plugin-external-yang-at-startup, as the
-#   ruling restates them.
+#   ruling restates them, and AC-19 and AC-21 of its phase 10.
 # PREVENTS: inspecting a config someone else wrote running their command; a
-#   bare "unknown top-level keyword" with no word about why; validate refusing
-#   every config that declares an external plugin.
+#   bare "unknown top-level keyword" with no word about why; advice the daemon
+#   then refuses; validate refusing every config that declares an external
+#   plugin.
 #
 # The program is a script the run string hands to a shell by name, because a
 # declaration holds double quotes and the config's run string is itself
 # double-quoted. It carries no interpreter line and no command of this file
 # starts a shell directly: TestNoPythonLeRemains (internal/le/contract_test.go)
 # refuses a functional test that embeds either.
+
+option=env:var=ze.ssh.port:value=$PORT
 
 # Leaves a marker named after its first argument, then answers a declaration
 # query.
@@ -72,16 +85,20 @@ plugin {
 }
 EOF_BUILT_IN
 
-# The section of the external plugin is refused, with why and the command that
-# reaches a running ze.
+# The section of the external plugin is refused: a running ze was asked, none
+# listens, and the one fix starts one.
 cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=1
 expect=stdout:contains=unknown top-level keyword: acme-shell
 expect=stdout:contains=the config declares external plugin "acme-shell"
 expect=stdout:contains=starts no plugin
-expect=stdout:contains=show config validation ze.conf
-expect=stdout:contains=fix: ze cli
+expect=stdout:contains=none answered: no ze listens at 127.0.0.1:
+expect=stdout:contains=then `ze config validate ze.conf` again
+expect=stdout:contains=fix: ze start
+reject=stdout:contains=show config validation
+reject=stdout:contains=fix: ze cli
 
-# A config that declares the plugin and holds no section of it is valid.
+# A config that declares the plugin and holds no section of it is valid, with
+# no ze running: nothing in it needs the plugin's schema.
 cmd=foreground:seq=2:exec=ze config validate no-section.conf:exit=0
 reject=stdout:contains=external plugin "acme-shell"
 reject=stdout:contains=unknown top-level keyword

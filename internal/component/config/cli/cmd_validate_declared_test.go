@@ -68,15 +68,16 @@ func messagesOf(result *validationResult, severity diagnostic.Severity) string {
 }
 
 // TestValidateRefusesSectionOfExternalPluginWithoutStartingIt: with no daemon,
-// `ze config validate` refuses a section only an external plugin's schema
-// defines, says why, names the command that reaches a running ze, and starts
-// no program. Method: a run string whose program leaves a marker.
+// the validation a command runs in its own process (runValidation, which asks
+// no daemon) refuses a section only an external plugin's schema defines, says
+// why, names the command that asks a running ze, and starts no program.
+// Method: a run string whose program leaves a marker.
 //
 // VALIDATES: the owner ruling that what needs an external plugin is not
 // available with no daemon: the config is not valid, the diagnostics hold the
 // unknown keyword, the declared plugin's name, that this command starts no
-// plugin, the daemon form `show config validation ze.conf`, and `fix: ze cli`
-// last; the marker is absent.
+// plugin and asked no running ze, and `fix: ze config validate ze.conf` last;
+// the marker is absent.
 // PREVENTS: validate running the command a config names, validate passing a
 // section it could not check, and a bare "unknown top-level keyword".
 func TestValidateRefusesSectionOfExternalPluginWithoutStartingIt(t *testing.T) {
@@ -90,8 +91,9 @@ func TestValidateRefusesSectionOfExternalPluginWithoutStartingIt(t *testing.T) {
 	assert.Contains(t, errs, "unknown top-level keyword: acme-monitor")
 	assert.Contains(t, errs, `the config declares external plugin "acme"`)
 	assert.Contains(t, errs, "starts no plugin")
-	assert.Contains(t, errs, "type `show config validation ze.conf`")
-	assert.True(t, strings.HasSuffix(errs, "fix: ze cli"), "the command that reaches a running ze is not the last line:\n%s", errs)
+	assert.Contains(t, errs, "asked no running ze", "runValidation asks no daemon and must say so")
+	assert.NotContains(t, errs, "show config validation", "the daemon refuses that form for a file outside its config directories")
+	assert.True(t, strings.HasSuffix(errs, "fix: ze config validate ze.conf"), "the command that asks a running ze is not the last line:\n%s", errs)
 	assert.Equal(t, 1, strings.Count(errs, "fix: "), "one fix line:\n%s", errs)
 	requireNotStarted(t, marker)
 }

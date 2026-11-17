@@ -16,7 +16,6 @@ package doctor
 import (
 	"encoding/json"
 	"errors"
-	"net"
 	"strconv"
 	"sync/atomic"
 
@@ -132,31 +131,46 @@ func askDaemonDoctor(tokens []string, configPath string, ask daemonAsk) (diagnos
 // account cannot log in" get different fixes, then asks over SSH for the
 // dispatcher's JSON (`| raw`), whatever display format the operator set.
 func askDaemonOverSSH(line string) (diagnostic.DoctorResult, error) {
-	host, port, err := sshclient.DaemonAddress()
+	// The walk is sshclient.ReachDaemon, which `ze config validate` takes too;
+	// the stored credential is read with no prompt.
+	reached, err := sshclient.ReachDaemon("")
+	if err != nil {
+		return diagnostic.DoctorResult{}, daemonUnreached(err)
+	}
+	output, err := sshclient.ExecCommandRaw(reached.Credentials, line)
 	if err != nil {
 		var why textbuf.Buffer
-		why.Str("the address of the daemon's SSH listener could not be read (").Err(err).Str(")")
-		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixDaemonStatus}
-	}
-	address := net.JoinHostPort(host, port)
-	if err := sshclient.ProbeDaemon(address); err != nil {
-		var why textbuf.Buffer
-		why.Str("no daemon listens at ").Str(address).Str(" (").Err(err).Str(")")
-		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixStartDaemon}
-	}
-	creds, err := sshclient.LoadCredentialsNoPrompt()
-	if err != nil {
-		var why textbuf.Buffer
-		why.Str("a daemon listens at ").Str(address).Str(", but this account has no credentials to log in to it (").Err(err).Str(")")
+		why.Str("the daemon at ").Str(reached.Address).Str(" did not answer ").Str(line).Str(" (").Err(err).Str(")")
 		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixAskAsAccount}
 	}
-	output, err := sshclient.ExecCommandRaw(creds, line)
-	if err != nil {
-		var why textbuf.Buffer
-		why.Str("the daemon at ").Str(address).Str(" did not answer ").Str(line).Str(" (").Err(err).Str(")")
-		return diagnostic.DoctorResult{}, &daemonUnanswered{why: why.String(), fix: fixAskAsAccount}
+	return decodeDaemonDoctor(output, reached.Address)
+}
+
+// daemonUnreached words the step at which the walk to the daemon stopped, and
+// gives each step its own fix. An error that is not an *sshclient.Unreached
+// keeps its text, with the login fix, as runtimeNotChecked treats a stub's.
+func daemonUnreached(err error) *daemonUnanswered {
+	unreached, ok := errors.AsType[*sshclient.Unreached](err)
+	if !ok {
+		return &daemonUnanswered{why: err.Error(), fix: fixAskAsAccount}
 	}
-	return decodeDaemonDoctor(output, address)
+	var why textbuf.Buffer
+	switch unreached.Step {
+	case sshclient.ReachStepAddress:
+		why.Str("the address of the daemon's SSH listener could not be read (").Err(unreached.Cause).Str(")")
+		return &daemonUnanswered{why: why.String(), fix: fixDaemonStatus}
+	case sshclient.ReachStepListener:
+		why.Str("no daemon listens at ").Str(unreached.Address).Str(" (").Err(unreached.Cause).Str(")")
+		return &daemonUnanswered{why: why.String(), fix: fixStartDaemon}
+	case sshclient.ReachStepCredentials:
+		why.Str("a daemon listens at ").Str(unreached.Address).
+			Str(", but this account has no credentials to log in to it (").Err(unreached.Cause).Str(")")
+		return &daemonUnanswered{why: why.String(), fix: fixAskAsAccount}
+	case sshclient.ReachStepUnspecified:
+		panic("BUG: sshclient.ReachDaemon answered a failure that names no step")
+	default:
+		panic("BUG: unknown sshclient.ReachStep")
+	}
 }
 
 // decodeDaemonDoctor reads the daemon's show doctor JSON. An answer that is

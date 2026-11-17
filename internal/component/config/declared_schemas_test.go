@@ -107,12 +107,15 @@ func TestDeclaredSchemasStartsNoDeclaredProgram(t *testing.T) {
 //
 // VALIDATES: the message holds the parser's refusal, the declared plugin's
 // name, that ze reads that schema when `ze start` runs the plugin, that this
-// command starts no plugin, and the daemon form `show config validation
-// <file>`; its fix is `ze cli`, alone on the last line, once. It claims no
-// plugin as the owner of the refused name.
-// PREVENTS: a bare "unknown top-level keyword", a fix that runs the plugin,
-// and a fix (`ze cli -c "show config validation ..."`) that is answered in the
-// caller's own process and gives the same refusal again.
+// command starts no plugin, that only a running ze checks such a section and
+// that this command asked none; its fix is `ze config validate <file>`, which
+// asks one, alone on the last line, once. It claims no plugin as the owner of
+// the refused name.
+// PREVENTS: a bare "unknown top-level keyword", a fix that runs the plugin, a
+// fix (`ze cli -c "show config validation ..."`) that is answered in the
+// caller's own process and gives the same refusal again, and the session form
+// `show config validation <file>`, which the daemon refuses for a file outside
+// its config directories (command.CallerPath).
 func TestParseRefusalSaysTheSectionIsNotAvailableOffline(t *testing.T) {
 	offlineProcess(t)
 	run, _, runs := markingPlugin(t)
@@ -124,17 +127,20 @@ func TestParseRefusalSaysTheSectionIsNotAvailableOffline(t *testing.T) {
 
 	refusal := declared.ParseRefusal("ze.conf", parseErr, "the command did nothing")
 	require.ErrorIs(t, refusal, parseErr, "the parser's refusal is lost")
-	assert.Equal(t, "ze cli", refusal.Fix())
+	assert.Equal(t, "ze config validate ze.conf", refusal.Fix())
 	message := refusal.Error()
 	lines := strings.Split(message, "\n")
 	assert.Contains(t, lines[0], "config ze.conf does not parse")
 	assert.Contains(t, lines[0], "no config schema compiled into ze defines")
-	assert.Equal(t, "fix: ze cli", lines[len(lines)-1], "the command is not alone on the last line")
+	assert.Equal(t, "fix: ze config validate ze.conf", lines[len(lines)-1], "the command is not alone on the last line")
 	assert.Equal(t, 1, strings.Count(message, "\nfix: "), "one fix line: %s", message)
 	assert.Contains(t, message, `the config declares external plugin "acme"`)
 	assert.Contains(t, message, "when `ze start` runs it")
 	assert.Contains(t, message, "starts no plugin")
-	assert.Contains(t, message, "type `show config validation ze.conf`")
+	assert.Contains(t, message, "only a running ze that started with these plugins checks a section")
+	assert.Contains(t, message, "asked no running ze", "a command that asked no daemon claims one was asked")
+	assert.NotContains(t, message, "none answered", "a command that asked no daemon claims one was asked")
+	assert.NotContains(t, message, "show config validation", "the daemon refuses that form for a file outside its config directories")
 	assert.Contains(t, message, "unknown top-level keyword: acme-monitor")
 	assert.NotContains(t, message, "ze cli -c", "that form is answered in the caller's own process")
 	assert.NotContains(t, message, "conformance", "the fix runs the plugin")
@@ -145,7 +151,7 @@ func TestParseRefusalSaysTheSectionIsNotAvailableOffline(t *testing.T) {
 
 	unchecked := declared.Unchecked("ze.conf")
 	require.NotNil(t, unchecked)
-	assert.Equal(t, "ze cli", unchecked.Fix())
+	assert.Equal(t, "ze config validate ze.conf", unchecked.Fix())
 	assert.Contains(t, unchecked.Error(), `external plugin "acme"`)
 	assert.NotContains(t, unchecked.Error(), "unknown top-level keyword", "the entry beside a refusal repeats the refusal")
 
@@ -172,7 +178,8 @@ func TestParseRefusalNamesEveryDeclaredPluginAndNoFile(t *testing.T) {
 	require.Error(t, parseErr)
 	message := declared.Explain(parseErr).Error()
 	assert.Contains(t, message, `the config declares external plugins "acme", "acme-shell"`)
-	assert.Contains(t, message, "type `show config validation <config-file>`")
+	assert.True(t, strings.HasSuffix(message, "\nfix: ze config validate <config-file>"), "the fix names the file `-`: %s", message)
+	assert.NotContains(t, message, "validate -", "the fix names the file `-`")
 	assert.True(t, strings.HasPrefix(message, "the config does not parse"), "a text with no file is named as a file: %s", message)
 }
 
@@ -339,7 +346,10 @@ func TestDeclaredSchemasSecondCallAnswersTheSame(t *testing.T) {
 	assert.Equal(t, []string{"acme"}, declared.WithoutSchema())
 	unchecked := declared.Unchecked("ze.conf")
 	require.NotNil(t, unchecked)
-	assert.Equal(t, "ze cli", unchecked.Fix(), "the second read answers as a daemon would")
+	// A read inside a daemon answers `restart ze`; the fix of a command with
+	// no daemon is the command that asks a running ze.
+	assert.Equal(t, "ze config validate ze.conf", unchecked.Fix(), "the second read answers as a daemon would")
+	assert.True(t, declared.Offline(), "the second read answers as a daemon would")
 	assert.Zero(t, runCount(t, runs))
 }
 
@@ -470,7 +480,7 @@ func TestParseRefusalNamesOneFix(t *testing.T) {
 	_, unknownRoot := NewParser(schema).Parse("acme-monitor {\n\tinterval 5\n}\n")
 	require.Error(t, unknownRoot)
 	explained := declared.ParseRefusal("ze.conf", unknownRoot, "the command did nothing")
-	assert.Equal(t, "ze cli", explained.Fix())
+	assert.Equal(t, "ze config validate ze.conf", explained.Fix())
 	assert.Contains(t, explained.Error(), "config ze.conf does not parse")
 	assert.Contains(t, explained.Error(), `external plugin "acme"`)
 	assert.Contains(t, explained.Error(), "acme-monitor")

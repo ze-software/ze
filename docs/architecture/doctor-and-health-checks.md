@@ -164,7 +164,10 @@ never prompts), and sends `show doctor | raw`. When the daemon answers, its
 answer, runtime and plugin rows included, is drawn by the local renderer with
 the local exit code, and `--json` stays a local drawing flag. A daemon
 "answers" only when that ask returns a doctor result of this schema: a
-process that exists but refuses the login has not answered.
+process that exists but refuses the login has not answered. The first three
+steps are one function, `sshclient.ReachDaemon`, which answers the step it
+stopped at; `ze config validate` takes the same walk before it sends a config
+to the daemon, and each command words its own fix per step.
 
 When no daemon answers, the local route runs its own checks and adds one
 `doctor-runtime-not-checked` warning. Its message says the runtime checks need
@@ -192,6 +195,7 @@ WARN  [doctor-runtime-not-checked] runtime checks did not run: they need the run
 ```
 <!-- source: internal/component/doctor/local_route.go -- answerLocalWith, askDaemonDoctor, askDaemonOverSSH, runtimeNotChecked -->
 <!-- source: internal/component/cli/sshclient/client.go -- DaemonAddress, ProbeDaemon -->
+<!-- source: internal/component/cli/sshclient/reach.go -- ReachDaemon -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorRuntimePhaseNotRunLocally -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteAsksReachableDaemon -->
 <!-- test: internal/component/doctor/answer_test.go TestDoctorLocalRouteNoCredentialsAnswersLocally -->
@@ -933,6 +937,14 @@ active warning until the producer clears it. `show errors` and `show warnings`
 print that store. The `recent-events` check, owned by `internal/component/doctor`
 because the bus is core and has no component, reads the same store
 (`report.Errors` and `report.Warnings`) and keeps no copy of its own.
+
+Captured-session L2TP teardown raises `doctor-l2tp-control-send` when its control
+message cannot be sent. The retained event names the actual peer and socket
+failure, with `ze show errors` as the next command. Local teardown still ends
+only the captured session; a stale capture performs no send and raises no event.
+Peer receipt and native PPP cleanup remain separate outcomes.
+<!-- source: internal/component/l2tp/diagnostic_control.go -- reportCapturedControlSendFailure -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownCapturedSession -->
 
 It runs in the `runtime` phase, so only `show doctor` runs it: in the local
 `ze doctor` process the bus is always empty. It answers one row per producer

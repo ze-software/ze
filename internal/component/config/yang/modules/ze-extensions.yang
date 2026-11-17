@@ -276,6 +276,25 @@ module ze-extensions {
                      a string leaf.";
     }
 
+    // Extension: keyword-only
+    // Marks a command's leaf as given by its keyword and never by position.
+    // Without it the validator offers a word no keyword introduced to every
+    // leaf still waiting for a value, so a stray word typed after `update data
+    // key <key>` was read as the content leaf: written to the key when it
+    // happened to be base64, and refused as a bad content when it was not. A
+    // leaf that carries a payload or a credential declares it, so a stray word
+    // is never taken for the payload. The leaf is still
+    // bound, and its value judged, when its keyword is typed
+    // (command.ValidateArgs), the usage line writes the keyword in front of
+    // the value whether or not the leaf is mandatory, and a mandatory one left
+    // out is reported missing by its keyword. Declare it on a leaf the command
+    // itself declares and whose name repeats no keyword of the command's path:
+    // a value typed after a path keyword is positional by construction.
+    extension keyword-only {
+        description "Marks a command's leaf as given only after its own keyword:
+                     a word no keyword introduced is never read as its value.";
+    }
+
     // Extension: inherit
     // Says whether a command takes the values the containers ABOVE it declare.
     //

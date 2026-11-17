@@ -955,6 +955,11 @@ func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[
 		if !def.Mandatory() {
 			continue
 		}
+		// A keyword-only leaf (ze:keyword-only) is never read from a bare
+		// token, between two key tokens included.
+		if def.KeywordOnly() {
+			continue
+		}
 		if keyTokenPresent(keyTokens, def.Name()) {
 			continue
 		}

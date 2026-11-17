@@ -172,7 +172,8 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 // Phase 1 (keyword extraction): scan args for tokens matching ArgDef leaf names;
 // when found, the next token is validated as that leaf's typed value.
 // Phase 2 (positional matching): remaining args are offered to the unmatched
-// ArgDefs. Unmatched args pass through to the handler.
+// ArgDefs, except a keyword-only one (ze:keyword-only), which phase 1 alone
+// binds. Unmatched args pass through to the handler.
 // Phase 3 (mandatory check): ArgDefs with Mandatory=true must have been matched.
 //
 // A rest-of-line definition (ze:rest-of-line) is settled before phase 1
@@ -433,7 +434,7 @@ func reattributeUnplaced(args []string, defs []ArgDef, matched map[string]bool, 
 	}
 	firstOpen := len(defs)
 	for i := range defs {
-		if !matched[defs[i].name] && defs[i].kind != ArgFlag && !defs[i].rest {
+		if !matched[defs[i].name] && awaitsPositional(&defs[i]) {
 			firstOpen = i
 			break
 		}
@@ -580,6 +581,11 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 			if def.rest {
 				continue
 			}
+			// A keyword-only leaf (ze:keyword-only) is bound by the keyword
+			// phase alone: a word no keyword introduced is never its value.
+			if def.keywordOnly {
+				continue
+			}
 			if def.mandatory != wantMandatory {
 				continue
 			}
@@ -606,17 +612,32 @@ func positionalDef(arg string, defs []ArgDef, matched map[string]bool) *ArgDef {
 	return nil
 }
 
-// unmatchedDefCount reports how many ArgDefs are still waiting for a value. A
-// flag never waits for one, and neither does a rest-of-line leaf, which
-// restStart has already placed or found absent.
+// unmatchedDefCount reports how many ArgDefs are still waiting for a value a
+// spare token could be (awaitsPositional).
 func unmatchedDefCount(defs []ArgDef, matched map[string]bool) int {
 	n := 0
 	for i := range defs {
-		if !matched[defs[i].name] && defs[i].kind != ArgFlag && !defs[i].rest {
+		if !matched[defs[i].name] && awaitsPositional(&defs[i]) {
 			n++
 		}
 	}
 	return n
+}
+
+// awaitsPositional reports whether def, while unfilled, is a definition a
+// spare token may have been typed for. A flag never waits for a value, a
+// rest-of-line leaf is placed by restStart or found absent, and a keyword-only
+// leaf takes its value after its keyword alone: none of the three is open to a
+// spare token, so none is counted when a token is attributed or blamed. A
+// mandatory keyword-only leaf left out is still reported missing (phase 3).
+func awaitsPositional(def *ArgDef) bool {
+	if def.kind == ArgFlag {
+		return false
+	}
+	if def.rest {
+		return false
+	}
+	return !def.keywordOnly
 }
 
 // positionalError builds an error for a token no OPEN definition accepts. Its
@@ -637,7 +658,7 @@ func unmatchedDefCount(defs []ArgDef, matched map[string]bool) int {
 func positionalError(arg string, defs []ArgDef, matched map[string]bool) error {
 	open := make([]*ArgDef, 0, len(defs))
 	for i := range defs {
-		if !matched[defs[i].name] && defs[i].kind != ArgFlag && !defs[i].rest {
+		if !matched[defs[i].name] && awaitsPositional(&defs[i]) {
 			open = append(open, &defs[i])
 		}
 	}

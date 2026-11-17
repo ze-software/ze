@@ -631,6 +631,7 @@ func (patterns compiledPatterns) argDefFor(leaf *gyang.Entry, name string) (comm
 		ShortHelp:   GetHelpExtension(leaf.Exts), // the ze:help summary
 		Description: leaf.Description,            // the YANG description explanation
 		Rest:        hasRestOfLineExtension(leaf),
+		KeywordOnly: hasKeywordOnlyExtension(leaf),
 	}
 	return patterns.yangTypeToArgDef(name, leaf, leaf.Type, entryTypeStatement(leaf), opts)
 }
@@ -640,6 +641,18 @@ func (patterns compiledPatterns) argDefFor(leaf *gyang.Entry, name string) (comm
 func hasRestOfLineExtension(leaf *gyang.Entry) bool {
 	for _, ext := range leaf.Exts {
 		if ext.Keyword == "ze:rest-of-line" || strings.HasSuffix(ext.Keyword, ":rest-of-line") {
+			return true
+		}
+	}
+	return false
+}
+
+// hasKeywordOnlyExtension reports whether leaf carries ze:keyword-only: its
+// value is read after its own keyword and never from a positional word
+// (command.ArgOptions.KeywordOnly).
+func hasKeywordOnlyExtension(leaf *gyang.Entry) bool {
+	for _, ext := range leaf.Exts {
+		if ext.Keyword == "ze:keyword-only" || strings.HasSuffix(ext.Keyword, ":keyword-only") {
 			return true
 		}
 	}

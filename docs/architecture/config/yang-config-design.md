@@ -85,6 +85,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:hidden` | Hides a node from the annotated and blame views and from the web editor. The file form (`Serialize`, written by `ze config fmt` and `ze config migrate`) and the set form still print a configured hidden node, so writing a config never deletes it | `true` or `false` |
 | `ze:inherit` | Says whether a command takes the leaves its ancestor containers declare | `none` |
 | `ze:key-type` | Key type for inline-list nodes | type name |
+| `ze:keyword-only` | Marks a command's leaf as given only after its own keyword: a word no keyword introduced is never read as its value, and the usage line writes the keyword in front of the value. The `content` payload leaves carry it (`docs/architecture/api/commands.md`, "Every route validates") | (none) |
 | `ze:listener` | Marks a list entry as a network listener endpoint, for port-conflict detection at parse time | (none) |
 | `ze:modifier` | Marks a `config false` container as a trailing argument group of its parent command. `one-of` declares no leaf: it wraps sibling groups, the operator types exactly one of them, and the usage line renders them as a required alternation `(a <value>\|b <value>)`. The wrapper's own name is never typed, completed or listed | `once`, `repeat`, `required`, `choice`, `one-of` |
 | `ze:ordered` | Leaf-list is an ordered sequence whose duplicates are meaningful (AS_PATH prepends, MPLS label stacks) | (none) |
@@ -556,16 +557,80 @@ starts no program in any process.
 |------|--------------------|
 | No config declares an external plugin | The schema is the compiled-in one, and the process's set is recorded as holding no external module |
 | A config declares an external plugin and holds no name only its schema could define | The config parses. Nothing is reported about the plugin |
-| A config declares an external plugin and the parse refuses a name the schema does not define (`config.RefusesUnknownNode`: an unknown top-level keyword or an unknown field) | `DeclaredSchemas.ParseRefusal`, `Explain` and `Unchecked` answer one operator error: the refusal, the external plugins the config declares, that Ze reads such a plugin's schema when `ze start` runs it and that this command starts no plugin, and the daemon form to type, `show config validation <file>`. The fix is `ze cli`, which opens a session the running Ze serves. The message never says a plugin owns the refused name: Ze holds no schema that could tell |
+| A config declares an external plugin and the parse refuses a name the schema does not define (`config.RefusesUnknownNode`: an unknown top-level keyword or an unknown field) | `DeclaredSchemas.ParseRefusal`, `Explain` and `Unchecked` answer one operator error: the refusal, the external plugins the config declares, that Ze reads such a plugin's schema when `ze start` runs it and that this command starts no plugin, so only a running Ze that started with these plugins checks such a section. A command that asked no running Ze says so, and its fix is `ze config validate <file>`, which asks one. `ze config validate` itself, which did ask (`DeclaredSchemas.Unanswered`), says why none answered, and its fix is the command for that reason. The message never says a plugin owns the refused name: Ze holds no schema that could tell |
 | Any other parse refusal | Unchanged: no plugin's schema explains a value out of range or a syntax mistake |
 | A second call in one process | Answers the same as the first |
 | The process's module set is already fixed (`yang.ModuleSetFixed`: it published, or it built a value that keeps the set, as a running daemon does) | Publishes nothing. A declared plugin whose module the process holds is not listed, and its section parses. A declared plugin the process holds no module of is named beside the refusal of an unknown name, with the restart of `ze` as the fix |
 | A config the first pass refuses | Declares nothing to the step. The caller's full parse refuses the same block |
 
-The fix is not `ze cli -c "show config validation <file>"`: `ze cli -c` answers
-a local-data command in its own process (`command.ServeLocal`), which starts no
-plugin either, so it gives the same refusal. An interactive `ze cli` session,
-SSH, the web, MCP, REST and gRPC reach the daemon's handler.
+### `ze config validate` asks the running Ze first
+
+A running Ze holds the schema of the external plugins it started with, so it
+can judge a section this process cannot. `ze config validate <file>` therefore
+asks it first, for a config that declares an external plugin this process
+holds no schema of (`judgeConfig`). It takes the walk the local `ze doctor`
+takes (`sshclient.ReachDaemon`: the daemon's address, a probe of its listener,
+the stored credential with no prompt) and sends
+`show config supplied validation content <base64> name <label>`: the file's
+bytes, not its path, and the file's base name as the label the daemon's own
+messages use. The label is left out when the daemon would refuse it (standard
+input, a name with a control character, a name that starts with a dash), and
+the daemon then uses `supplied.conf`. The daemon reads a file a caller names only from its own config
+directories (`command.CallerPath`), never from the operator's working
+directory, so a path would be refused for the usual case. The daemon's verdict
+is drawn by the local renderer, so the text and the exit codes (0 valid, 1
+invalid, 2 for a file that cannot be read) are those of a local verdict.
+
+| Config | Ze running | Ze not running |
+|--------|------------|----------------|
+| Declares an external plugin | Judged in full by the running Ze | Judged here; a section under the plugin's root is refused, and the message says why no Ze answered |
+| Declares no external plugin | Judged here; no Ze is asked | Judged here |
+
+A config that declares no external plugin is not sent: every schema it needs
+is compiled into the binary, so the local verdict is complete, and it does not
+depend on which binary the daemon runs or on whether it can be reached. A
+process that holds a daemon's module set never asks (`DeclaredSchemas.Offline`
+is false there), and the daemon serves the command through
+`suppliedValidation`, which judges the bytes with the producer of
+`show config validation` (`validationBytesAnswer`) and asks nobody.
+
+A failed ask is never read as a verdict. The answer counts only when it is a
+validation result this binary reads (`diagnostic.DecodeValidateResult`) and
+its verdict agrees with the status beside it. Otherwise the config is judged
+in this process, and the refusal of an unknown name carries the reason and one
+fix:
+
+| Why no running Ze answered | Fix |
+|----------------------------|-----|
+| Nothing listens at Ze's SSH address | `ze start`, then the same command |
+| A Ze listens, but this account has no stored credentials, or the login or the ask failed, or the answer is not a validation result | `ze config validate --user <name> <file>` |
+| Ze's SSH address could not be read | `ze status`, then the same command |
+| The config is larger than one command carries (195,840 bytes, the bound of the `content` leaf) and lies outside the daemon's config directories | `ze config validate <config-dir>/<name>`, after copying the file there |
+
+A config over the bound that already lies inside the daemon's config
+directories is sent by path instead, as `show config validation file <path>`.
+`--user <name>` logs in as that account,
+with the password from `ze.ssh.password` or a prompt.
+
+Through the daemon, as with no daemon, validation is the parser, the YANG
+checks and each registration's in-process verifier: a plugin's live
+`OnConfigVerify` is not run.
+
+`show config validation <file>` typed in a `ze cli` session, or sent over SSH,
+the web, MCP, REST or gRPC, reaches the daemon's handler too, and reads the
+file on the daemon's host from its config directories; those callers send a
+config held elsewhere with `show config supplied validation content <base64>`
+(`docs/architecture/api/commands.md`, "Caller-supplied configuration
+inspection"). `ze cli -c "show config validation <file>"` answers in its own
+process (`command.ServeLocal`) and asks no daemon.
+<!-- source: internal/component/config/cli/validate_route.go -- judgeConfig, asksRunningDaemon, validationLine, sentLabel, askValidationOverSSH, decodeDaemonValidation, unreachedOrAsked -->
+<!-- source: internal/component/cli/sshclient/reach.go -- ReachDaemon -->
+<!-- source: internal/component/config/declared_schemas.go -- DaemonUnanswered, Unanswered -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedValidation -->
+<!-- source: internal/component/config/cli/config_data.go -- dataValidate, validationBytesAnswer -->
+<!-- test: internal/component/config/cli/validate_route_test.go TestValidateRouteDrawsTheDaemonsAcceptance -->
+<!-- test: internal/component/config/cli/validate_route_test.go TestValidateRouteFallsBackWhenNoDaemonListens -->
+<!-- test: internal/component/config/cli/validate_route_test.go TestValidateRouteDoesNotAskForCompiledInConfig -->
 
 A command that compares two configs passes both, so the plugins of both sides
 are remembered. The callers are the `ze config` commands (`validate`, `fmt`,

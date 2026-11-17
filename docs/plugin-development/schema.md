@@ -30,27 +30,40 @@ parses a config with no daemon holds the schemas compiled into the `ze` binary
 and nothing else. It accepts a config that declares your plugin and holds no
 section under your roots. It refuses a section under your roots as
 `unknown top-level keyword: <root>`, and the message says why and how to check
-the section:
+the section.
+
+`ze config validate <file>` asks the running Ze first when the config declares
+an external plugin: it sends the file's content, so the file may be anywhere,
+and the running Ze, which read your module when it started your plugin, judges
+the section in full. The output and the exit codes are those of a local
+verdict. With no Ze running it answers:
 
 ```
 config ze.conf does not parse: it holds a name that no config schema compiled into ze defines
-the config declares external plugin "acme-monitor"; the config schema of an external plugin is not compiled into ze: ze reads it from the plugin when `ze start` runs it. This command does not ask a running ze and starts no plugin, so it cannot check a section that such a plugin defines. A running ze that started with these plugins can: type `show config validation ze.conf` in the session the command below opens. What the parser refused: line 8: unknown top-level keyword: acme-monitor
-fix: ze cli
+the config declares external plugin "acme-monitor"; the config schema of an external plugin is not compiled into ze: ze reads it from the plugin when `ze start` runs it. This command starts no plugin, so only a running ze that started with these plugins checks a section that such a plugin defines, and none answered: no ze listens at 127.0.0.1:2222 (...). Run the command below, then `ze config validate ze.conf` again. What the parser refused: line 8: unknown top-level keyword: acme-monitor
+fix: ze start
 ```
 
-| Command, with no daemon | A section under an external plugin's root |
-|-------------------------|-------------------------------------------|
-| `ze config validate`, `fmt`, `dump`, `diff`, `migrate`, `completion`, `show config graph` | Refused with the message above |
+The other commands ask no running Ze yet. Their message says so, and its fix
+is `ze config validate <file>`.
+
+| Command | A section under an external plugin's root |
+|---------|-------------------------------------------|
+| `ze config validate` | Judged by the running Ze; with none running, refused with the message above |
+| `ze config fmt`, `dump`, `diff`, `migrate`, `completion`, `show config graph`, with no daemon | Refused, naming `ze config validate <file>` as the fix |
 | `ze config edit` | The file under edit is refused when it is opened |
-| `ze doctor`, the support report, `show crashes` readiness, `ze tacacs` probe, `show plugin declarations config`, `ze plugin test` | The config they read is refused with the message above |
+| `ze doctor`, the support report, `show crashes` readiness, `ze tacacs` probe, `show plugin declarations config`, `ze plugin test`, with no daemon | The config they read is refused, naming `ze config validate <file>` as the fix |
 
 The message names the plugins the config declares. It does not say that one of
 them owns the refused name: Ze holds no schema that could tell a section of
 your plugin from a mistyped keyword.
 
-`ze cli -c "show config validation <file>"` is not the daemon form: `ze cli -c`
-answers that command in its own process, with the same refusal. An interactive
-`ze cli` session, SSH, the web, MCP, REST and gRPC reach the running Ze.
+`show config validation <file>` typed in a `ze cli` session, or sent over SSH,
+the web, MCP, REST or gRPC, reaches the running Ze too, but the daemon reads
+the file on its own host and only from its config directories. A caller that
+holds the config elsewhere sends its bytes: `show config supplied validation
+content <base64>`, which is what `ze config validate` does. `ze cli -c "show
+config validation <file>"` answers in its own process and asks no daemon.
 
 Inside a running daemon the same commands start no program either. The daemon
 joined the modules of its plugins when it started, and a command it serves (a

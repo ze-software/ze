@@ -555,6 +555,11 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 	for i := range node.ArgDefs {
 		def := &node.ArgDefs[i]
 		for _, v := range def.enumValues {
+			// A keyword-only leaf's value is refused without its keyword, so
+			// a bare value is never offered; the keyword is, below.
+			if def.keywordOnly {
+				break
+			}
 			if seen != nil && seen[v] {
 				continue
 			}
@@ -572,7 +577,7 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		// Without this the completer offered `open` for `send bgp <selector>
 		// raw`, where a bare `open` is refused and only `type open` is accepted.
 		enumNeedsItsKeyword := def.kind == ArgEnum && !def.mandatory
-		if def.kind == ArgUint || def.kind == ArgString || def.kind == ArgFlag || enumNeedsItsKeyword {
+		if def.kind == ArgUint || def.kind == ArgString || def.kind == ArgFlag || enumNeedsItsKeyword || def.keywordOnly {
 			if seen != nil && seen[def.name] {
 				continue
 			}

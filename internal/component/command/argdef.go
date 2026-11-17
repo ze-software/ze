@@ -69,6 +69,13 @@ type ArgDef struct {
 	// command declares at most one; ValidateArgs refuses any other shape.
 	rest bool
 
+	// keywordOnly marks a leaf given by its keyword and never by position,
+	// from its ze:keyword-only statement. ValidateArgs binds it in the keyword
+	// phase alone: no spare token is offered to it, and it is never counted as
+	// a definition a spare token could have been typed for. The usage line
+	// writes its keyword in front of the value, mandatory or not.
+	keywordOnly bool
+
 	// shortHelp is the leaf's one-line summary, from its ze:help statement, and
 	// description is the long explanation, from its description statement.
 	// Neither is derived from the other: a leaf that declares one text leaves
@@ -106,6 +113,7 @@ type ArgOptions struct {
 	Description string // the YANG description
 	Anchor      string // the keyword of the container above the command that declares the leaf
 	Rest        bool   // the leaf has ze:rest-of-line: it takes every remaining word
+	KeywordOnly bool   // the leaf has ze:keyword-only: no positional word fills it
 
 	// The RFC 7950 Section 7.5.4.1 error-message of each restriction, which a
 	// refusal of that restriction carries after its own text. "" declares none.
@@ -264,6 +272,7 @@ func newArgDef(name string, kind ArgKind, opts ArgOptions) ArgDef {
 		description:   opts.Description,
 		anchor:        opts.Anchor,
 		rest:          opts.Rest,
+		keywordOnly:   opts.KeywordOnly,
 		rangeMessage:  opts.RangeMessage,
 		lengthMessage: opts.LengthMessage,
 		constructed:   true,
@@ -336,6 +345,10 @@ func (d ArgDef) Anchor() string { return d.anchor }
 // Rest reports whether the leaf takes every word left on the line (see the
 // rest field).
 func (d ArgDef) Rest() bool { return d.rest }
+
+// KeywordOnly reports whether the leaf is given only after its own keyword
+// (see the keywordOnly field).
+func (d ArgDef) KeywordOnly() bool { return d.keywordOnly }
 
 // EnumValues yields the enum names, in declared order: an ArgEnum's own, or
 // the flattened names of an ArgUnion's enum members.

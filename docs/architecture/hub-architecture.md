@@ -169,10 +169,13 @@ shared step, `config.SchemaWithDeclaredPlugins`: the first pass, which gives
 the names of the declared external plugins, then the full parse against the
 compiled-in schema. A section only an external plugin's schema defines is
 refused there, and the refusal says that the config declares those plugins,
-that Ze reads their schema when `ze start` runs them, and how to ask a running
-Ze (`ze cli`, then `show config validation <file>`). So `ze start` accepts a
-config that the offline command calls not available; the offline command never
-accepts one that `ze start` refuses. In a process whose module set is already
+that Ze reads their schema when `ze start` runs them, and the command that
+gets a running Ze to check it. `ze config validate <file>` asks the running Ze
+first for such a config, sending the file's content, and falls to that refusal
+only when no Ze answers (`yang-config-design.md`, "`ze config validate` asks
+the running Ze first"). So `ze start` accepts a config that a command with no
+daemon calls not available; that command never accepts one that `ze start`
+refuses. In a process whose module set is already
 fixed, which a running daemon is, the step starts no program either: a command
 the daemon serves is answered from the set the daemon joined when it started.
 `docs/architecture/config/yang-config-design.md`, "Who publishes", holds the

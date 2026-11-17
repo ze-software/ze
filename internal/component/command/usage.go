@@ -259,6 +259,14 @@ func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool,
 		if def.mandatory != wantMandatory {
 			continue
 		}
+		// A mandatory keyword-only leaf (ze:keyword-only) is typed as its
+		// keyword and then its value, the shape a required group has: a bare
+		// `<content>` would state a position the validator never reads. An
+		// optional one needs nothing here, because UsageOption already writes
+		// the keyword.
+		if def.keywordOnly && wantMandatory && def.kind != ArgFlag {
+			tokens = append(tokens, UsageToken{Text: def.name, Kind: UsageKeyword})
+		}
 		tokens = append(tokens, usageToken(def, usageLeafKind(def, kind)))
 	}
 	return tokens

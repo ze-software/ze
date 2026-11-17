@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ConfigSource is one config a command is about to parse: its text, and the
@@ -22,21 +23,41 @@ type ConfigSource struct {
 	Path string
 }
 
-// daemonSession is the command that opens a session a running ze serves, and
-// daemonValidation the command typed there that checks a config file with the
-// schema that ze holds. `ze cli -c "show config validation <file>"` is not the
-// fix: `ze cli -c` answers that command in its own process
-// (command.ServeLocal), which is the process this file refuses in.
+// validateCommand is the command that asks a running ze to check a config
+// file: `ze config validate <file>` sends the file's content to the daemon,
+// which holds the schema of the external plugins it started with, and answers
+// in its own process only when no daemon answers. It is the fix a command that
+// asked no daemon names. A session command (`show config validation <file>`
+// typed in `ze cli`) is not: the daemon reads a file a caller names only from
+// its own config directories (command.CallerPath), never from the operator's
+// working directory.
 const (
-	daemonSession    = "ze cli"
-	daemonValidation = "show config validation "
-	restartDaemon    = "restart ze"
+	validateCommand = "ze config validate "
+	restartDaemon   = "restart ze"
 )
+
+// DaemonUnanswered is what a command that asked a running ze to check a config
+// learned when none answered. A command that asked no daemon holds none, and
+// its message says so (DeclaredSchemas.Unanswered).
+type DaemonUnanswered struct {
+	// Why says why no running ze answered, naming its address when one was
+	// resolved.
+	Why string
+	// Fix is the one command that gets a running ze to answer.
+	Fix string
+	// Rerun is true when Fix makes a ze answer and the operator then runs the
+	// command again, and false when Fix is that command itself.
+	Rerun bool
+}
 
 // DeclaredSchemas is what SchemaWithDeclaredPlugins learned about the external
 // plugins its configs declare. The zero value holds no plugin. Its fields are
 // never written after construction.
 type DeclaredSchemas struct {
+	// unanswered is why no running ze checked the config, for a command that
+	// asked one before it parsed here. It is nil for a command that asked
+	// none.
+	unanswered *DaemonUnanswered
 	// plugins holds the name of each declared external plugin this process
 	// holds no config schema of, each once, in source then config order.
 	plugins []string
@@ -74,6 +95,18 @@ func (d *DeclaredSchemas) Offline() bool {
 	return d.offline
 }
 
+// Unanswered answers a copy of d for a command that asked a running ze to
+// check the config before it parsed here, and got no answer: every message the
+// copy builds says a running ze was asked, why none answered, and the one
+// command that gets an answer. d itself is unchanged, and a command that asked
+// no daemon uses it as it is: its messages say it asked none and name the
+// command that does.
+func (d *DeclaredSchemas) Unanswered(asked DaemonUnanswered) *DeclaredSchemas {
+	answered := *d
+	answered.unanswered = &asked
+	return &answered
+}
+
 // Unchecked answers the operator error a command adds beside the refusal of a
 // name the schema does not define, when it reports that refusal as an entry of
 // its own: which external plugins the config at path declares, why ze holds no
@@ -85,7 +118,7 @@ func (d *DeclaredSchemas) Unchecked(path string) *opererr.Error {
 	if len(d.plugins) == 0 {
 		return nil
 	}
-	return opererr.New(d.problem(path), d.why(), d.fix())
+	return opererr.New(d.problem(path), d.why(path), d.fix(path))
 }
 
 // Explain answers refusal, the refusal of a parse over the schema this value
@@ -125,8 +158,7 @@ func (d *DeclaredSchemas) ParseRefusal(path string, refusal error, why string) *
 	if d.explains(refusal) {
 		return d.unchecked(path, refusal)
 	}
-	var held *opererr.Error
-	if errors.As(refusal, &held) {
+	if held, holds := errors.AsType[*opererr.Error](refusal); holds {
 		return held
 	}
 	return opererr.Wrap(refusal, "config "+path+" does not parse", why, "ze config validate "+path)
@@ -144,7 +176,7 @@ func (d *DeclaredSchemas) explains(refusal error) bool {
 
 // unchecked is Unchecked with the parser's refusal held as the cause.
 func (d *DeclaredSchemas) unchecked(path string, refusal error) *opererr.Error {
-	return opererr.Wrap(refusal, d.problem(path), d.why()+". What the parser refused", d.fix())
+	return opererr.Wrap(refusal, d.problem(path), d.why(path)+". What the parser refused", d.fix(path))
 }
 
 // problem says what was refused, in the terms of the process that refused it.
@@ -162,29 +194,47 @@ func (d *DeclaredSchemas) problem(path string) string {
 // why says which external plugins the config declares and why this process
 // holds no schema of them. It claims nothing about which plugin, if any,
 // defines the refused name.
-func (d *DeclaredSchemas) why() string {
+func (d *DeclaredSchemas) why(path string) string {
 	declares := "the config declares " + pluginNames(d.plugins)
 	if !d.offline {
 		return declares + ", of which this ze holds no config schema: ze reads the config schema of an " +
 			"external plugin once, when it starts, from the plugins declared then. A section that such a " +
 			"plugin defines is refused until ze starts with the plugin declared and the plugin declares its schema"
 	}
-	file := "<config-file>"
-	if namesFile(d.path) {
-		file = d.path
+	lead := declares + "; the config schema of an external plugin is not compiled into ze: ze reads it " +
+		"from the plugin when `ze start` runs it. This command starts no plugin, so only a running ze " +
+		"that started with these plugins checks a section that such a plugin defines"
+	if d.unanswered == nil {
+		return lead + ". This command checked the config in its own process and asked no running ze; " +
+			"the command below asks one"
 	}
-	return declares + "; the config schema of an external plugin is not compiled into ze: ze reads it " +
-		"from the plugin when `ze start` runs it. This command does not ask a running ze and starts no " +
-		"plugin, so it cannot check a section that such a plugin defines. A running ze that started with " +
-		"these plugins can: type `" + daemonValidation + file + "` in the session the command below opens"
+	asked := lead + ", and none answered: " + d.unanswered.Why
+	if !d.unanswered.Rerun {
+		return asked
+	}
+	return asked + ". Run the command below, then `" + validateFile(path) + "` again"
 }
 
-// fix is the one command that reaches a ze holding the schema.
-func (d *DeclaredSchemas) fix() string {
-	if d.offline {
-		return daemonSession
+// fix is the one command that reaches a ze holding the schema: inside a
+// daemon, its restart; with no daemon, the command that gets a running ze to
+// answer when one was asked, and the command that asks one when none was.
+func (d *DeclaredSchemas) fix(path string) string {
+	if !d.offline {
+		return restartDaemon
 	}
-	return restartDaemon
+	if d.unanswered == nil {
+		return validateFile(path)
+	}
+	return d.unanswered.Fix
+}
+
+// validateFile is the command that asks a running ze to check the config at
+// path, as the caller named it, with a placeholder for a text with no file.
+func validateFile(path string) string {
+	if namesFile(path) {
+		return validateCommand + path
+	}
+	return validateCommand + "<config-file>"
 }
 
 // namesFile reports whether path names a file, as opposed to a text with no
@@ -199,17 +249,18 @@ func namesFile(path string) bool {
 // pluginNames writes names as `external plugin "a"`, or `external plugins "a",
 // "b"` for several. names MUST hold at least one name.
 func pluginNames(names []string) string {
-	text := "external plugin"
+	var text textbuf.Buffer
+	text.Str("external plugin")
 	if len(names) > 1 {
-		text += "s"
+		text.Byte('s')
 	}
 	for index, name := range names {
 		if index > 0 {
-			text += ","
+			text.Byte(',')
 		}
-		text += " \"" + name + "\""
+		text.Str(` "`).Str(name).Byte('"')
 	}
-	return text
+	return text.String()
 }
 
 // declaredStep records what this file did to the process's module set.
@@ -238,7 +289,9 @@ var declaredStep struct {
 // A section only an external plugin's schema defines is therefore refused by
 // the full parse of a command with no daemon, as a name the schema does not
 // define, and DeclaredSchemas.ParseRefusal says why and names the command that
-// reaches a running ze. Inside a daemon the same section parses when the
+// gets a running ze to check it: `ze config validate <file>`, which asks the
+// daemon first, for a command that asked none, and the fix of the failed ask
+// for one that did (Unanswered). Inside a daemon the same section parses when the
 // daemon started with the plugin, and is refused naming the restart when it
 // did not.
 //

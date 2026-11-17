@@ -990,7 +990,10 @@ func (s *Server) execMiddleware() wish.Middleware {
 			executor := factory(sess.Context(), sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 			result, err := executor(dispatched)
 			if err != nil {
-				writeExecFailure(sess, frame, err)
+				// A command that refused and still answered a document has it
+				// written on stdout first, as the local route prints it.
+				documents := writeExecRefusedAnswer(sess, formatOutput, result, err)
+				writeExecFailure(sess, frame, documents, err)
 				sess.Exit(1) //nolint:errcheck // best-effort
 				result.TransportComplete()
 				return

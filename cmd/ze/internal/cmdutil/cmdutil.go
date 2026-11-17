@@ -566,6 +566,12 @@ func hasImplicitSelectorArg(node *cli.Command) bool {
 		if !def.Mandatory() {
 			continue
 		}
+		// The dispatcher never reads a keyword-only leaf from a bare token
+		// (implicitSelectorDef, internal/component/plugin/server), so it is
+		// no selector here either.
+		if def.KeywordOnly() {
+			continue
+		}
 		if !strings.EqualFold(def.Name(), node.Name) {
 			return true
 		}

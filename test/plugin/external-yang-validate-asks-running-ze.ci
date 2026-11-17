@@ -1,0 +1,111 @@
+# Test: ze config validate asks the running ze about an external plugin's section
+#
+# Question: with a ze running that started an external plugin, does the local
+# `ze config validate <file>`, on a file in the operator's working directory,
+# get that file judged by the running ze: a section under the plugin's own root
+# accepted with the output of a local acceptance, and a value outside the
+# range the plugin's module declares refused with exit 1?
+# Why not a unit test: TestValidateRouteDrawsTheDaemonsAcceptance and
+# TestValidateRouteDrawsTheDaemonsRefusal prove the route over a stub ask. Only
+# two processes show that the file's content reaches the daemon over SSH, that
+# the daemon judges it with the schema it read from the plugin at start, and
+# that a refused config still carries its diagnostics back on the exec channel.
+#
+# What proves the daemon answered: this process holds no schema of acme-monitor
+# (ze starts no external plugin with no daemon), so alone it refuses the
+# section as an unknown keyword. Acceptance, and a refusal that names the
+# range, can only come from the ze that ran the plugin.
+#
+# The files are in the test's working directory, which the daemon route never
+# reads by path (command.CallerPath admits its config directories only): the
+# content travels in the command.
+#
+# VALIDATES: the phase "ze config validate asks the running ze" of
+#   spec-plugin-external-yang-at-startup: acceptance, range refusal, exit codes.
+# PREVENTS: "not available" from the local command while a ze that can judge
+#   the section runs; a daemon refusal that arrives with no diagnostics.
+
+option=timeout:value=90s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=running.conf:terminator=EOF_RUNNING
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_RUNNING
+
+tmpfs=good.conf:terminator=EOF_GOOD
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-b
+	interval 7
+}
+EOF_GOOD
+
+# refused=config-yang-range declares the body a config Ze must refuse, for the
+# repository config sweep (TestRepositoryConfigsValidate).
+tmpfs=bad.conf:refused=config-yang-range:terminator=EOF_BAD
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-b
+	interval 11
+}
+EOF_BAD
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
+
+# The running ze judges the section and accepts it; the local command prints
+# the line a local acceptance prints.
+cmd=foreground:seq=2:exec=ze config validate good.conf:exit=0
+expect=stdout:contains=configuration valid: good.conf
+reject=stdout:contains=unknown top-level keyword
+reject=stdout:contains=none answered
+
+# The running ze refuses the value with the plugin's own range, and the local
+# command prints the refusal and exits 1.
+cmd=foreground:seq=3:exec=ze config validate bad.conf:exit=1
+expect=stdout:contains=configuration invalid: bad.conf
+expect=stdout:contains=is outside the accepted range
+expect=stdout:contains=interval accepts a value in
+reject=stdout:contains=unknown top-level keyword
+reject=stdout:contains=none answered
