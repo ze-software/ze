@@ -139,8 +139,8 @@ func TestCLIBarPromptSync(t *testing.T) {
 }
 
 // setupCLITest creates an EditorManager with a test config file for CLI handler tests.
-// Returns the manager, schema, renderer, and a cleanup function.
-func setupCLITest(t *testing.T) (*EditorManager, *Renderer) {
+// Returns the manager, its YANG schema and parsed fixture tree, and the renderer.
+func setupCLITest(t *testing.T) (*EditorManager, *config.Schema, *config.Tree, *Renderer) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -148,15 +148,34 @@ func setupCLITest(t *testing.T) (*EditorManager, *Renderer) {
 
 	configContent := `bgp {
     router-id 1.2.3.4;
-    as 65001;
-    peer 192.168.1.1 {
-        remote-as 65002;
+    session {
+        asn {
+            local 65001;
+        }
+    }
+    peer fixture-peer {
+        connection {
+            local {
+                ip auto;
+            }
+            remote {
+                ip 192.168.1.1;
+            }
+        }
+        session {
+            asn {
+                remote 65002;
+            }
+        }
     }
 }
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(configContent), 0o644))
 
-	schema, _ := buildTestSchemaAndTree()
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	tree, err := config.NewParser(schema).Parse(configContent)
+	require.NoError(t, err)
 	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
@@ -164,7 +183,7 @@ func setupCLITest(t *testing.T) (*EditorManager, *Renderer) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	return mgr, renderer
+	return mgr, schema, tree, renderer
 }
 
 func setupCLITerminalYANGTest(t *testing.T) (*EditorManager, *config.Schema, *config.Tree, string) {
@@ -278,8 +297,7 @@ func TestCLIBarEditUpdatesContext(t *testing.T) {
 // VALIDATES: AC-4 (set command updates value and returns notification).
 // PREVENTS: Set command fails silently.
 func TestCLIBarSetUpdatesNotification(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -299,8 +317,7 @@ func TestCLIBarSetUpdatesNotification(t *testing.T) {
 // VALIDATES: AC-5 (show command renders config output).
 // PREVENTS: Show command returns empty content.
 func TestCLIBarShowRendersOutput(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	// Create a session first so ContentAtPath works.
 	_, err := mgr.GetOrCreate("testuser")
@@ -323,8 +340,7 @@ func TestCLIBarShowRendersOutput(t *testing.T) {
 // VALIDATES: AC-6 (top command clears context to root).
 // PREVENTS: Top command returns non-root breadcrumb.
 func TestCLIBarTopClearsContext(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -402,8 +418,7 @@ func TestCLIBarAutocomplete(t *testing.T) {
 // VALIDATES: AC-10 (mode toggle switches to terminal mode).
 // PREVENTS: Toggle returns error or wrong content.
 func TestTerminalModeToggle(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLIModeToggle(mgr, schema, renderer)
 
@@ -424,12 +439,11 @@ func TestTerminalModeToggle(t *testing.T) {
 // VALIDATES: AC-12 (terminal endpoint returns JSON with output and feedback).
 // PREVENTS: Terminal command returns wrong format.
 func TestTerminalModeCommand(t *testing.T) {
-	mgr, _ := setupCLITest(t)
+	mgr, schema, tree, _ := setupCLITest(t)
 
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
 
-	schema, tree := buildTestSchemaAndTree()
 	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, nil, nil)
 
 	body := url.Values{
@@ -490,8 +504,7 @@ func TestTerminalModeOperationalSwitching(t *testing.T) {
 // VALIDATES: operational mode and config-mode run completions match SSH mode behavior.
 // PREVENTS: Tab completion staying config-only in the Web CLI.
 func TestCLICompleteOperationalMode(t *testing.T) {
-	mgr, _ := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, _ := setupCLITest(t)
 	cmdComp := &fakeCommandCompleter{
 		items: []contract.Completion{{Text: "show", ShortHelp: "show command", Type: "command"}},
 	}
@@ -520,8 +533,7 @@ func TestCLICompleteOperationalMode(t *testing.T) {
 // PREVENTS: plugin commands that dispatch but never surface in web completion
 // (the gap this spec closes: the tree was built YANG-only).
 func TestCLICompleteOperationalIncludesPluginCommand(t *testing.T) {
-	mgr, _ := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, _ := setupCLITest(t)
 
 	// A YANG-derived tree has a "show" grouping node; inject a plugin command
 	// under it exactly as the daemon does from CommandRegistry.VisibleCommandEntries.
@@ -555,8 +567,7 @@ func TestCLICompleteOperationalIncludesPluginCommand(t *testing.T) {
 // VALIDATES: integrated web CLI enforces profile RBAC before config mutations.
 // PREVENTS: read-only web users bypassing /config/* guards through POST /cli.
 func TestCLIBarRBACDeny(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 	store := authz.NewStore()
 	store.AddProfile(testReadOnlyProfile())
 	store.AssignProfiles("testuser", []string{"read-only"})
@@ -923,8 +934,7 @@ func TestTerminalCompareRollbackScopesToShowPath(t *testing.T) {
 // VALIDATES: AC-13 (toggle back from terminal restores integrated mode).
 // PREVENTS: Toggle back returns terminal content.
 func TestIntegratedModeRestore(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLIModeToggle(mgr, schema, renderer)
 
@@ -945,8 +955,7 @@ func TestIntegratedModeRestore(t *testing.T) {
 // VALIDATES: AC-15 (unauthenticated requests rejected).
 // PREVENTS: CLI endpoints accessible without auth.
 func TestCLIBarRequiresAuth(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -966,8 +975,7 @@ func TestCLIBarRequiresAuth(t *testing.T) {
 // VALIDATES: Input validation (command too long is rejected).
 // PREVENTS: Oversized commands cause resource exhaustion.
 func TestCLIBarCommandTooLong(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -986,8 +994,7 @@ func TestCLIBarCommandTooLong(t *testing.T) {
 // VALIDATES: Unknown command returns error notification.
 // PREVENTS: Unknown commands silently ignored.
 func TestCLIBarUnknownCommand(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -1006,8 +1013,7 @@ func TestCLIBarUnknownCommand(t *testing.T) {
 // VALIDATES: Method not allowed on wrong HTTP method.
 // PREVENTS: GET requests processed as POST.
 func TestCLIBarMethodNotAllowed(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -1021,8 +1027,7 @@ func TestCLIBarMethodNotAllowed(t *testing.T) {
 // VALIDATES: AC-14 (delete command removes value and redirects).
 // PREVENTS: Delete command fails silently or does not call DeleteValue.
 func TestCLIBarDelete(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
@@ -1085,14 +1090,14 @@ func TestTerminalModeCommitGrammar(t *testing.T) {
 }
 
 func TestCLIBarCommit(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 
 	handler := HandleCLICommand(mgr, schema, renderer)
 
 	// Set a value so there are pending changes to commit.
 	err := mgr.SetValue("testuser", []string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err, "precondition: set value before commit")
+	assert.Equal(t, 1, mgr.ChangeCount("testuser"), "precondition: the edit must be pending")
 
 	body := url.Values{
 		"command": {"commit now"},
@@ -1103,7 +1108,19 @@ func TestCLIBarCommit(t *testing.T) {
 	r := authedRequest(t, http.MethodPost, "/cli", body)
 	handler.ServeHTTP(w, r)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusSeeOther, w.Code)
+	assert.Equal(t, "/config/edit/", w.Header().Get("Location"))
+	assert.Zero(t, mgr.ChangeCount("testuser"), "the applied edit must no longer be pending")
+
+	committed, err := mgr.committedConfig()
+	require.NoError(t, err)
+	tree, err := config.ParseTreeForValidation(string(committed))
+	require.NoError(t, err, "the complete committed configuration must parse")
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	routerID, exists := bgp.Get("router-id")
+	require.True(t, exists)
+	assert.Equal(t, "5.6.7.8", routerID, "the requested edit must be published")
 }
 
 // TestCLIBarCommitRefusalIsAnError proves a commit the SSH editor's
@@ -1112,8 +1129,7 @@ func TestCLIBarCommit(t *testing.T) {
 // a password that is not a bcrypt hash is a validation warning, so a plain
 // `commit now` is refused and the change stays pending.
 func TestCLIBarCommitRefusalIsAnError(t *testing.T) {
-	mgr, renderer := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, renderer := setupCLITest(t)
 	handler := HandleCLICommand(mgr, schema, renderer)
 
 	require.NoError(t, mgr.SetValue("testuser", []string{"system", "authentication", "user", "bob"}, "password", "notahash"))
@@ -1195,8 +1211,7 @@ func TestBuildConfigEditURL(t *testing.T) {
 //
 // PREVENTS: a later edit routing Node.Description into the candidate line.
 func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
-	mgr, _ := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, _ := setupCLITest(t)
 
 	tree := &command.Node{Children: map[string]*command.Node{
 		"show": {Name: "show", Children: map[string]*command.Node{
@@ -1257,8 +1272,7 @@ func newCompleter(t testing.TB) *cli.Completer {
 //
 // PREVENTS: per-request state stored on the completer every user shares.
 func TestWebCompletionPerUserTree(t *testing.T) {
-	mgr, _ := setupCLITest(t)
-	schema, _ := buildTestSchemaAndTree()
+	mgr, schema, _, _ := setupCLITest(t)
 	handler := HandleCLICompleteWithCommandCompleter(newCompleter(t), nil, mgr, schema)
 
 	// Each user creates two peers of their own: a list holding a single entry
