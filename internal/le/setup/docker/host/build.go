@@ -227,8 +227,8 @@ func runGok(repo, arch string, args []string) error {
 // and `./le setup docker host start` go on to run commands that inherit
 // os.Environ(), and a GOOS=linux reaching the host le makes its launcher build
 // a linux binary. So the environment is restored to the snapshot taken here
-// before runGokWith returns, whether Run answered success or failure. A failed
-// image pack exits the process from inside gok (packer.Main), so that path never returns.
+// before runGokWith returns, whether Run answered success or failure. This
+// includes image-pack failures returned by ExecuteGok.
 func runGokWith(run func(string, []string) int, repo, arch string, args []string) (err error) {
 	saved := os.Environ()
 	defer func() {

@@ -971,11 +971,20 @@ file refuses before the boot. With `image`, `kernel` must name the matching
 pair without a lookup or build of the current source recipe. A `harness` call
 naming neither builds the guest le and
 ensures the image as above, so a standalone `docker-lab ... harness` run is
-unchanged. The caller is `le feature run` (`docs/contributing/feature-maturity.md`).
+unchanged.
 <!-- source: internal/le/test/qemu/dockerlab_command.go -- dockerLabMode, dockerLabImage, dockerLabGuestLe -->
 <!-- source: internal/appliance/runtimekernel_existing.go -- ExistingRuntimeKernelTree -->
 <!-- source: internal/le/test/qemu/guestle.go -- BuildGuestLeAt -->
 <!-- test: internal/le/test/qemu/dockerlab_harness_test.go TestDockerLabHarnessTakesTheCallersBuild, TestDockerLabHarnessActionPreparesTheGuest -->
+
+`le feature run` reuses its prepared guest le and kernel/image pair
+(`docs/contributing/feature-maturity.md`). `le rfc record` forwards the selected
+kernel and optional image for Go units and guest `.ci` tests
+(`docs/contributing/rfc-conformance-gates.md`). Both callers use the carrier's
+kernel/image and own-system checks.
+<!-- source: internal/le/feature/recordrun.go -- repoRunner.runInGuest -->
+<!-- source: internal/le/rfc/discriminate_guest.go -- observationRunner.guestRunArgv, observationRunner.guestCIArgv -->
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- runDockerLabCommand, Run.dockerLabCommand -->
 
 The `root` switch runs the command through the same `sudo -n env` wrapper and
 the same `sudo -n kill` interrupt, and does nothing else: no guest le is built,
@@ -1339,7 +1348,7 @@ boot, and the three refusals.
 The first two runs had trees that were not verified clean throughout; the
 third had no uncommitted product source.
 
-`./le test qemu appliance-config-push` builds one current native appliance image
+`./le test qemu appliance-config` builds one current native appliance image
 and drives its matching host driver's `appliance config-push` command. The
 proof supplies the named SSH key to `appliance init --config` before secrets
 are created. A private agent, child-only HOME and SSH_AUTH_SOCK, and a host pin
@@ -1799,11 +1808,13 @@ actions.
 |-----|---------------|-------------|-----------------|
 | L2TP (Ze LNS against xl2tpd) | `./le test deployment docker-l2tp-ppp` | `./le test deployment gokrazy-l2tp-ppp` | `internal/le/test/deployment` |
 | PPPoE (Ze client against accel-ppp) | `./le test deployment docker-pppoe-accel` | `./le test qemu pppoe-accel` | `internal/le/test/qemu/pppoe_accel_linux.go` |
+| PPPoE VPP mechanism (manual Phase 0 proof) | `./le test deployment vpp-pppoe run` | `./le test qemu docker-lab lab "test deployment vpp-pppoe run" timeout 3600s` | `internal/le/test/deployment/vpppppoe` |
 | VRRP (Ze against keepalived) | `./le test integration interop`, scenario `vrrp-mastership-keepalived` | `./le test qemu vrrp-keepalived` | `internal/le/test/qemu/vrrp_keepalived_linux.go` |
 | VRRPv2 owner discard (Ze owner against a conflicting keepalived) | `./le test integration interop`, scenario `vrrp-v2-owner-keepalived` | `./le test qemu vrrp-keepalived scenarios v2-owner-keeps-the-address` | `internal/le/test/qemu/vrrp_owner_linux.go` |
 | MOBIKE (Ze initiator and responder against strongSwan) | `./le test integration interop-ipsec`, scenarios `mobike-initiator` and `mobike-responder` | `./le test qemu ipsec-mobike kernel <vmlinuz>` | `internal/le/interoplab/ipsec/mobike_netns_linux.go` |
 
 <!-- source: internal/le/test/deployment/actions.go -- gokrazy-l2tp-ppp, docker-l2tp-ppp, docker-pppoe-accel -->
+<!-- source: internal/le/test/deployment/vpppppoe/register.go -- answerRun -->
 <!-- source: internal/le/test/qemu/actions.go -- pppoe-accel, vrrp-keepalived -->
 
 The L2TP appliance proof creates a private host bridge between the QEMU TAP
