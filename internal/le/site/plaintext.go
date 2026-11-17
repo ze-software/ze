@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	xhtml "golang.org/x/net/html"
 )
@@ -434,7 +435,10 @@ func isFigureDigit(character byte) bool {
 // number, a word of the unit's stem nearby for a round display string.
 func unitMatches(figure publishedFigure, rest string) bool {
 	if figure.Unit == "" {
-		return true
+		// An attached unit makes a different quantity: "2,209ms" is not
+		// a copy of a displayed count of "2,209" requirements.
+		next, _ := utf8.DecodeRuneInString(rest)
+		return !unicode.IsLetter(next)
 	}
 	if figure.Nearby {
 		return unitNear(rest, figure.Unit)
