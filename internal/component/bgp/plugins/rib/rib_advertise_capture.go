@@ -180,7 +180,7 @@ func (r *RIBManager) commitAdvertise(route *advertiseRoute) {
 		r.advertise.current = make(map[advertiseKey]advertiseRoute)
 	}
 	r.advertise.current[route.key] = *route
-	if err := r.selectedDispatch.publish(*route); err != nil {
+	if err := r.selectedDispatch.publish(route); err != nil {
 		r.failAdvertiseLocked(err)
 	}
 }

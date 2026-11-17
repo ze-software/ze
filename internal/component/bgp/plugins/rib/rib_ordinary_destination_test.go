@@ -50,7 +50,7 @@ func TestOrdinaryDestinationStateStartsSelectedOutput(t *testing.T) {
 			}
 			manager, r := startQuiesceRIB(t, ctx, native, peers, send)
 			route := selectedDispatchRoute(91, 0x9191)
-			require.NoError(t, r.selectedDispatch.publish(route))
+			require.NoError(t, r.selectedDispatch.publish(&route))
 
 			ordinaryDestinationState(t, r, native, peers[1], true, false, 192, rpc.ReasonAttached)
 			r.selectedDispatch.mu.Lock()
@@ -70,7 +70,7 @@ func TestOrdinaryDestinationStateStartsSelectedOutput(t *testing.T) {
 			require.True(t, initial.Routes[0].Route.InitialUpdate)
 
 			route.route.SourceReceipt++
-			require.NoError(t, r.selectedDispatch.publish(route))
+			require.NoError(t, r.selectedDispatch.publish(&route))
 			require.NoError(t, manager.DrainEventDelivery(ctx))
 			live := selectedDispatchAwait(t, ctx, written)
 			require.Equal(t, route.route.SourceReceipt, live.Routes[0].SourceReceipt)
@@ -89,7 +89,7 @@ func TestOrdinaryDestinationStateStartsSelectedOutput(t *testing.T) {
 			require.Nil(t, ended, "DOWN must join exactly the captured predecessor")
 			require.NotNil(t, replacement, "an old DOWN must not cancel its replacement")
 			route.route.SourceReceipt++
-			require.NoError(t, r.selectedDispatch.publish(route))
+			require.NoError(t, r.selectedDispatch.publish(&route))
 			require.NoError(t, manager.DrainEventDelivery(ctx))
 			afterDown := selectedDispatchAwait(t, ctx, written)
 			require.Equal(t, uint64(193), afterDown.DestinationSession)

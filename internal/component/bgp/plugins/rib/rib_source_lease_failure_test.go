@@ -162,7 +162,10 @@ func TestRIBSourceLeaseSettlementJoinsBusyRelease(t *testing.T) {
 	entered := make(chan struct{})
 	finish := make(chan struct{})
 	f.bridge.SetDispatchNative(func(ctx context.Context, method string, raw any) (any, bool, error) {
-		input := raw.(rpc.SourceLeaseInput)
+		input, ok := raw.(rpc.SourceLeaseInput)
+		if !ok {
+			return nil, true, errors.New("controlled lease handler received another input type")
+		}
 		if input.Action == rpc.SourceLeaseRelease {
 			if input.SourceReceipt == 74 {
 				close(entered)

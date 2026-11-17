@@ -226,7 +226,9 @@ func TestRIBForwardedProjectionAfterLifecycleRemovalRemoves(t *testing.T) {
 		{name: "release", removed: true, before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
 			t.Helper()
 			lifecycleReceive(t, r, rail, source, 81, false)
-			r.retainRoutes(source.String(), nil, false)
+			if _, err := r.retainRoutes(source.String(), nil, false); err != nil {
+				t.Fatal(err)
+			}
 			r.releaseRoutes(source.String())
 		}},
 		{name: "purge-stale", removed: true, before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
@@ -237,7 +239,9 @@ func TestRIBForwardedProjectionAfterLifecycleRemovalRemoves(t *testing.T) {
 		{name: "not-applied-before-removal", before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {
 			t.Helper()
 			lifecycleReceive(t, r, rail, source, 70, true)
-			r.retainRoutes(source.String(), nil, false)
+			if _, err := r.retainRoutes(source.String(), nil, false); err != nil {
+				t.Fatal(err)
+			}
 			r.releaseRoutes(source.String())
 		}},
 		{name: "withdrawn-no-lifecycle", before: func(t *testing.T, r *RIBManager, source netip.Addr, rail lifecycleRail) {

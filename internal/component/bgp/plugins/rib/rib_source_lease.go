@@ -355,7 +355,7 @@ func (s *ribSourceLeases) stop() {
 	// A direct report admitted before stopping also finishes before local
 	// teardown; later callers observe stopped under this reporting fence.
 	s.reportMu.Lock()
-	defer s.reportMu.Unlock()
+	s.reportMu.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: acquiring this fence joins reports admitted before stop.
 }
 
 // retainSourceOnDown runs while the ordered Session delivery reference is still

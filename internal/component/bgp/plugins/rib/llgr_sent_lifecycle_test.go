@@ -140,7 +140,9 @@ func TestLLGRSentLifecycleOwnership(t *testing.T) {
 				case "expiry":
 					r.autoExpireStale(source, r.grState[source])
 				case "release":
-					r.retainRoutes(source.String(), nil, false)
+					if _, err := r.retainRoutes(source.String(), nil, false); err != nil {
+						t.Fatal(err)
+					}
 					r.releaseRoutes(source.String())
 				}
 				// Pin the command's native bytes and explicit identifier zero
@@ -397,7 +399,9 @@ func TestLLGRLifecycleScopeKeepsFreshProjection(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "retain":
-				r.retainRoutes(source.String(), []family.Family{fam}, false)
+				if _, err := r.retainRoutes(source.String(), []family.Family{fam}, false); err != nil {
+					t.Fatal(err)
+				}
 			}
 			after, present := r.ribOut[dest][fam][freshKey]
 			if !present || after != before {

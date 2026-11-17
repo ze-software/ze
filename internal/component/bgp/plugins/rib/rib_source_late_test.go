@@ -51,7 +51,7 @@ func TestRIBShutdownRefusedMarkDoesNotReconcile(t *testing.T) {
 // independently of structured delivery and without an SDK cancellation guard.
 func TestRIBShutdownRefusedJSONDoesNotReconcile(t *testing.T) {
 	r, peer, revision := stoppedCaptureFixture(t)
-	event, err := parseEvent([]byte(transportReceived(peer.String(), 243, 5, 701, 0, "198.18.241.0/24", "18c612f1")))
+	event, err := parseEvent([]byte(transportReceived(peer.String(), 243, 701, 0, "198.18.241.0/24", "18c612f1")))
 	require.NoError(t, err)
 	r.handleReceived(event)
 	current, err := r.advertiseSnapshot()

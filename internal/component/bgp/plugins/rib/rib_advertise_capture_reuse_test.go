@@ -40,7 +40,7 @@ func TestAdvertiseCaptureLabelSlotReuseChangesRevision(t *testing.T) {
 	// Removing storage releases its label ref; the selected byte snapshot and
 	// bestPrev's copied label values do not own a pool reference.
 	routes.Remove(fam, cidr)
-	var replacement attrpool.Handle = attrpool.InvalidHandle
+	replacement := attrpool.InvalidHandle
 	var replacementLabel uint32
 	// Each candidate is released before the next. The finite label range
 	// crosses every shard while retaining at most one label-pool reference.

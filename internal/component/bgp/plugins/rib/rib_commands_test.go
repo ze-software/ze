@@ -89,22 +89,15 @@ func receivedRowsByPeer(t *testing.T, parsed map[string]any) map[string][]any {
 	return byPeer
 }
 
-// requirePeerRoutes answers every route a peer holds in one direction.
-//
-// `show bgp rib` answers FLAT ROWS now, so the rows are selected by their
-// `peer` and `direction` FIELDS rather than by walking two levels of envelope.
-// Callers still name the direction by its old top-level key, because that is
-// how each test says which half it means.
-func requirePeerRoutes(t *testing.T, jsonStr, topKey, peerAddr string) []any {
+// requirePeerRoutes answers every received route the named peer holds. The
+// current show result has flat rows, selected by peer and direction fields.
+func requirePeerRoutes(t *testing.T, jsonStr, peerAddr string) []any {
 	t.Helper()
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(jsonStr), &result))
 
-	wantDirection := map[string]string{
-		"adj-rib-in":  rpc.DirectionReceived.String(),
-		"adj-rib-out": rpc.DirectionSent.String(),
-	}[topKey]
-	require.NotEmpty(t, wantDirection, "unknown top key %s", topKey)
+	wantDirection := rpc.DirectionReceived.String()
+	require.NotEmpty(t, wantDirection, "received direction must have a nonempty string representation")
 
 	rows, ok := result["routes"].([]any)
 	require.True(t, ok, "expected a routes list, got %s", jsonStr)
@@ -443,11 +436,11 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Without filter: both families
-	allRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
+	allRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "192.0.2.1")
 	assert.Len(t, allRoutes, 2, "expected both routes without filter")
 
 	// With family filter: only IPv4
-	filteredRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "family", family.IPv4Unicast.String()})), "adj-rib-in", "192.0.2.1")
+	filteredRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "family", family.IPv4Unicast.String()})), "192.0.2.1")
 	require.Len(t, filteredRoutes, 1, "expected only IPv4 route")
 	first, ok := filteredRoutes[0].(map[string]any)
 	require.True(t, ok)
@@ -472,7 +465,7 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Filter by prefix (exact prefix string match)
-	routes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"})), "adj-rib-in", "192.0.2.1")
+	routes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"})), "192.0.2.1")
 	require.Len(t, routes, 1, "expected only matching prefix")
 	first, ok := routes[0].(map[string]any)
 	require.True(t, ok)

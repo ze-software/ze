@@ -23,7 +23,7 @@ func TestSelectedDispatchSameAddressSessionsRetireIndependently(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, d.stop(ctx)) })
 	route := selectedDispatchRoute(94, 77)
-	require.NoError(t, d.publish(route))
+	require.NoError(t, d.publish(&route))
 	require.NoError(t, d.destinationUp(peer, 1001))
 	require.NoError(t, d.destinationUp(peer, 1002))
 	require.NoError(t, d.barrier(ctx))
@@ -37,7 +37,7 @@ func TestSelectedDispatchSameAddressSessionsRetireIndependently(t *testing.T) {
 	d.mu.Unlock()
 	require.NoError(t, d.destinationDown(ctx, peer, 1001))
 	route.route.MessageID++
-	require.NoError(t, d.publish(route))
+	require.NoError(t, d.publish(&route))
 	require.NoError(t, d.barrier(ctx))
 	useful := selectedDispatchAwait(t, ctx, requests)
 	require.Equal(t, uint64(1002), useful.DestinationSession)

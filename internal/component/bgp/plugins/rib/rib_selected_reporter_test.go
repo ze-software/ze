@@ -40,7 +40,7 @@ func TestSelectedDispatchWarningClearRetriesWithoutEndedRoutes(t *testing.T) {
 			case raised <- struct{}{}:
 			default:
 			}
-			return nil
+			return nil //nolint:nilerr // A successful report acknowledges its input failure; it does not repeat that failure as a reporting error.
 		}
 		if clearCalls.Add(1) == 1 {
 			firstClear <- struct{}{}
@@ -54,7 +54,8 @@ func TestSelectedDispatchWarningClearRetriesWithoutEndedRoutes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, d.stop(ctx)) })
-	require.NoError(t, d.publish(selectedDispatchRoute(105, 77)))
+	route := selectedDispatchRoute(105, 77)
+	require.NoError(t, d.publish(&route))
 	require.NoError(t, d.destinationUp(peer, 1051))
 	require.NoError(t, d.destinationUp(peer, 1052))
 	selectedDispatchAwait(t, ctx, raised)
@@ -99,7 +100,8 @@ func TestSelectedDispatchLostRaiseStillClearsUncertainIssue(t *testing.T) {
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, d.stop(ctx)) })
-	require.NoError(t, d.publish(selectedDispatchRoute(106, 77)))
+	route := selectedDispatchRoute(106, 77)
+	require.NoError(t, d.publish(&route))
 	require.NoError(t, d.destinationUp(peer, 1061))
 	selectedDispatchAwait(t, ctx, raised)
 	require.NoError(t, d.destinationDown(ctx, peer, 1061))

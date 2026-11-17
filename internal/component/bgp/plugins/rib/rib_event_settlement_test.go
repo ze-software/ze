@@ -40,7 +40,7 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 	manager := process.NewProcessManager(nil)
 	manager.AddProcess(proc.Name(), proc)
 	runtimeCtx, stopRuntime := context.WithCancel(ctx)
-	pluginConnection := net.Conn(pluginEnd)
+	pluginConnection := pluginEnd
 	var bridge *rpc.DirectBridge
 	if native {
 		bridge = rpc.NewDirectBridge()
@@ -82,9 +82,7 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 	for _, peer := range peers {
 		queue := make(chan quiesceSelectedRequest, 1)
 		writers[peer.String()] = queue
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
+		workers.Go(func() {
 			for {
 				select {
 				case request := <-queue:
@@ -105,11 +103,9 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 					return
 				}
 			}
-		}()
+		})
 	}
-	workers.Add(1)
-	go func() {
-		defer workers.Done()
+	workers.Go(func() {
 		for {
 			request, err := connection.ReadRequest(runtimeCtx)
 			if err != nil {
@@ -150,7 +146,7 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 				return
 			}
 		}
-	}()
+	})
 	r := activeManager.Load()
 	require.NotNil(t, r)
 	return manager, r
@@ -223,7 +219,7 @@ func TestQuiesceWaitsForSelectedDispatcherReceipt(t *testing.T) {
 			manager, r := startQuiesceRIB(t, ctx, native, peers, send)
 			t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 			route := selectedDispatchRoute(88, 0x7788)
-			require.NoError(t, r.selectedDispatch.publish(route))
+			require.NoError(t, r.selectedDispatch.publish(&route))
 			require.NoError(t, r.selectedDispatch.destinationUp(peers[0], 181))
 			selectedDispatchAwait(t, ctx, entered)
 			require.NoError(t, r.selectedDispatch.destinationUp(peers[1], 182))

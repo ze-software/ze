@@ -38,7 +38,8 @@ func TestQuiesceFailureNamesSelectedDestination(t *testing.T) {
 			}
 			manager, r := startQuiesceRIB(t, ctx, native, peers, send)
 			t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-			require.NoError(t, r.selectedDispatch.publish(selectedDispatchRoute(89, 0x7789)))
+			route := selectedDispatchRoute(89, 0x7789)
+			require.NoError(t, r.selectedDispatch.publish(&route))
 			require.NoError(t, r.selectedDispatch.destinationUp(peers[0], 181))
 			selectedDispatchAwait(t, ctx, entered)
 			require.NoError(t, r.selectedDispatch.destinationUp(peers[1], 182))

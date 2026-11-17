@@ -28,9 +28,9 @@ func TestSelectedDispatchSDKTransportsPreserveOriginalReceipt(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := selectedDispatchContext(t)
 			clientEnd, engineEnd := net.Pipe()
-			connection := net.Conn(clientEnd)
+			connection := clientEnd
 			observed := make(chan rpc.SelectRoutesInput, 4)
-			handle := func(_ context.Context, input rpc.SelectRoutesInput) (*rpc.SelectRoutesOutput, error) {
+			var handle rpc.SelectRoutesHandler = func(_ context.Context, input rpc.SelectRoutesInput) (*rpc.SelectRoutesOutput, error) {
 				observed <- input
 				return selectedDispatchAnswer(input, rpc.SelectedWritten), nil
 			}
@@ -86,7 +86,7 @@ func TestSelectedDispatchSDKTransportsPreserveOriginalReceipt(t *testing.T) {
 			route.route.NLRI = append([]byte{0, 0, 0, 0}, route.keyNLRI...)
 			route.staleLevel = 1
 			destination := netip.MustParseAddr("192.0.2.88")
-			require.NoError(t, d.publish(route))
+			require.NoError(t, d.publish(&route))
 			require.NoError(t, d.destinationUp(destination, 888))
 			require.NoError(t, d.barrier(ctx, destination))
 			input := selectedDispatchAwait(t, ctx, observed)

@@ -36,7 +36,7 @@ func TestSelectedDispatchMetricsFollowCurrentObligations(t *testing.T) {
 	r.selectedDispatch = d
 	t.Cleanup(func() { require.NoError(t, d.stop(ctx)) })
 	route := selectedDispatchRoute(95, 77)
-	require.NoError(t, d.publish(route))
+	require.NoError(t, d.publish(&route))
 	require.NoError(t, d.destinationUp(peer, 1005))
 	selectedDispatchAwait(t, ctx, entered)
 	r.updateMetrics()

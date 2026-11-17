@@ -120,7 +120,10 @@ func newSelectedDispatch(parent context.Context, send rpc.SelectRoutesHandler, r
 
 // publish borrows a capture's owned immutable bytes. The hex wire projection
 // is made once for the changed winner and shared by all destination batches.
-func (d *selectedDispatch) publish(capture advertiseRoute) error {
+// The caller MUST supply a nonnil capture and keep its fields unchanged until
+// return. publish MUST NOT retain the pointer or change the capture; its shared
+// immutable byte slices retain their existing lifetime contract.
+func (d *selectedDispatch) publish(capture *advertiseRoute) error {
 	if d == nil {
 		return nil
 	}

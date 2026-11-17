@@ -50,7 +50,7 @@ func TestQuiesceFailureProjectsLargeDestinationSet(t *testing.T) {
 	manager, r := startQuiesceRIB(t, ctx, true, peers, send)
 	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 	route := selectedDispatchRoute(90, 0x7790)
-	require.NoError(t, r.selectedDispatch.publish(route))
+	require.NoError(t, r.selectedDispatch.publish(&route))
 	held := make([]netip.Addr, heldCount)
 	for i := range held {
 		held[i] = netip.MustParseAddr(fmt.Sprintf("2001:db8::%x", i+1))

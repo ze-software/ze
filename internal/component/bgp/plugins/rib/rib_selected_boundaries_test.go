@@ -48,14 +48,14 @@ func TestSelectedDispatchLostAnswerKeepsUncertainSourceBarrier(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, d.stop(ctx)) })
 	route := selectedDispatchRoute(96, 77)
-	require.NoError(t, d.publish(route))
+	require.NoError(t, d.publish(&route))
 	require.NoError(t, d.destinationUp(peer, 1006))
 	require.NoError(t, d.barrier(ctx, peer))
 	route.route.SourceReceipt = 88
-	require.NoError(t, d.publish(route))
+	require.NoError(t, d.publish(&route))
 	selectedDispatchAwait(t, ctx, second)
 	route.route.SourceReceipt = 99
-	require.NoError(t, d.publish(route))
+	require.NoError(t, d.publish(&route))
 	close(secondRelease)
 	selectedDispatchAwait(t, ctx, third)
 	bound, cancel := context.WithCancel(ctx)
@@ -84,13 +84,13 @@ func TestSelectedDispatchScopeExhaustionRefusesOldAuthority(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, d.stop(ctx)) })
 	route := selectedDispatchRoute(97, 77)
-	require.NoError(t, d.publish(route))
+	require.NoError(t, d.publish(&route))
 	require.NoError(t, d.destinationUp(peer, 1007))
 	require.NoError(t, d.barrier(ctx, peer))
 	d.mu.Lock()
 	d.cut = scopedRevision(math.MaxUint64)
 	d.mu.Unlock()
-	require.ErrorContains(t, d.publish(route), "revision exhausted")
+	require.ErrorContains(t, d.publish(&route), "revision exhausted")
 	query := rpc.CurrentSelectionInput{Destination: peer.String(), DestinationSession: 1007,
 		Keys: []rpc.CurrentSelectionKey{{Family: family.IPv4Unicast.String(), KeyNLRI: route.keyNLRI, Revision: 1}}}
 	_, err = d.currentSelection(ctx, query)
