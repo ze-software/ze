@@ -2164,6 +2164,43 @@ The numeric `kind` selects one payload:
 | `2` origin | `route`, nonzero engine-issued `origin-receipt`, and fresh `stale-level`; no received-source or retention authority |
 | `3` absent | No route or source/origin receipt; retire this selected stream's previous output |
 
+The engine has a separate private origin issuer domain. Its owned build value
+keeps native NLRI, explicit path-ID presence, original attribute framing,
+original attribute encoding context, late-bound next-hop choice and origin-AS intent. Its source value keeps the
+original protocol/instance and accepted metric/distance override without
+reading process-global preferences or classifying a route from BGP ORIGIN.
+An issuer ID is a value for the existing `origin-receipt` field, not a received
+source receipt or proof that the deciding plugin retained a candidate.
+
+The issuer checks the original producer's actual send grant and the current
+ordinary dissemination owner. Its current index is per producer/source/native
+identity and configured Peer owner. Replacements revoke earlier IDs; only
+records with actual in-flight writes remain beside current records. A write
+guard checks the exact deciding process incarnation, original Peer and current
+destination Session publication/token. Source-owned withdrawal and explicit
+producer, Peer and store-close barriers seal matching active intake before
+joining outstanding writes. Each issue enrolls before permission preflight and
+remains enrolled through commit/refusal. The commit and revocation use the
+same leaf mutex, so a preflighted issue cannot insert after a completed revoke,
+even if the grant is restored before that issue resumes. Enrollments exist only
+for actual active calls; no revoked-ID or historical scope deny map is retained.
+An interrupted join does not restore authority or erase its real obligation.
+A permanent lifecycle owner must publish the actual grant removal or original
+Peer/process stop before its matching revoke, then join before acknowledging it.
+Fresh calls under an explicit regrant or a new Session/Peer remain independent.
+
+This is an engine-domain foundation. No runtime issuer instance, public intake
+callback, Announce/Withdraw offer adapter, selected-origin writer or lifecycle
+hook uses it yet. The origin variant above still refuses unregistered origin
+receipts. Those continuations must preserve no-RIB direct origination,
+non-established-peer admission, explicit keep-on-exit behavior and RS/RR rails.
+They must use registered mutating request/response transport with acknowledged
+cancellation, rather than mutate the read-only `current-selection` callback.
+<!-- source: internal/component/bgp/reactor/origin_build.go -- newOriginBuildValue, newOriginIdentity -->
+<!-- source: internal/component/bgp/reactor/origin_producer.go -- newProcessOriginProducer, newOriginSource -->
+<!-- source: internal/component/bgp/reactor/origin_receipt.go -- originReceiptStore, issue -->
+<!-- source: internal/component/bgp/reactor/origin_write.go -- admit, current, withdraw, revokeOwner, close -->
+
 Received FlowSpec entries additionally carry `flowspec-redirect-refused` when
 the deciding owner authorizes that current revision without its redirect
 action. The engine refuses the flag on origins, absences and non-FlowSpec
