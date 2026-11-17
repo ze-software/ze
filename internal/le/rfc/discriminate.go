@@ -881,11 +881,19 @@ func discriminationStatusOf(tree, selector, report string,
 	if err != nil {
 		return discriminationStatus{}, err
 	}
+	// Validate every artifact's shape, but resolve and fingerprint only the
+	// selected records. Unrelated source verification cannot affect this report.
+	selectedRecords := records[:0]
+	for index := range records {
+		if selected(records[index].RID) {
+			selectedRecords = append(selectedRecords, records[index])
+		}
+	}
 	covers, err := tagCoversIn(tree)
 	if err != nil {
 		return discriminationStatus{}, err
 	}
-	verdicts, err := verifyDiscrimination(tree, records, covers)
+	verdicts, err := verifyDiscrimination(tree, selectedRecords, covers)
 	if err != nil {
 		return discriminationStatus{}, err
 	}
@@ -896,9 +904,6 @@ func discriminationStatusOf(tree, selector, report string,
 	covered := map[Cover]bool{}
 	for index := range verdicts {
 		verdict := &verdicts[index]
-		if !selected(verdict.Record.RID) {
-			continue
-		}
 		if !verdict.Verified() {
 			status.Stale = append(status.Stale, verdict.Record)
 			continue

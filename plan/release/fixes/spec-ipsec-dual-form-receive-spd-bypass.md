@@ -146,6 +146,23 @@ native C enforcement or AC-4 closure is credited. Next are the 55 guest renewals
 resolution of the four UNKNOWN freshness verdicts, the pending C-route and safety
 decisions, and the final audit and Review Gate.
 
+AC-30's direct id/stem prefilter is independently source-reviewed CLEAR.
+Main's gofmt 27933 and goimports 43050 exited 0; targeted verbose race run
+72909 passed all eight named tests without skips
+(`job-ipsec-rfc-report-scope-green-603abaca.log`). The independent judge approved
+correcting first test 52422's wrong ambiguity-error expectation to the actual
+Stale/Unproven contract; no avoided-read RED is claimed. Scoped lint 22596
+exited 1 only on existing `rename_source.go` G304 findings in `readRenameSource`
+and `renameSourceCurrent` on host/Linux, with no changed-file finding; lint is
+not clean. Main checked the documentation anchor's four symbols directly.
+
+After the ended-host snapshot above, native id reports 80036, 91983 and 9036
+verify all four historical records: the BareESP policy positive/negative,
+OuterCE positive and GTSM UnknownNotDropped positive. These are current source
+and fingerprint verdicts, with no new runtime observation or kernel proof.
+The CE ID still has six other unproven tags; no whole-ID or full-RFC credit,
+safety approval or C-design approval follows.
+
 ## Task
 
 Close the inbound SPD bypass of the dual-form receive path, keeping both ESP
@@ -153,6 +170,11 @@ forms on one Child SA, for IPv4 outer headers. Serving both forms over an IPv6
 outer header is a gap owed after the first release (AC-8): Ze has no IPv6 IKE
 socket, so no IPv6 dual-form SA can be negotiated, and
 `plan/post-release/features/spec-ike-ipv6-transport.md` owns that work.
+
+Repair the existing id/stem discrimination report's closure blocker (AC-30):
+`discriminate.go` `discriminationStatusOf` must verify source and fingerprints
+only for selected records, while retaining global artifact-shape validation,
+tag discovery and every selected-record freshness validator.
 
 The final-code audit also closes the full-second token-refill defect in AC-9,
 preserves a recorded reader-stop event across replacement (AC-19), and verifies
@@ -840,6 +862,12 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-27 | The approved scoped lint repairs cover two new probe style findings and twelve existing IPsec mechanical findings, including lowercase sentinel cause wording | the scoped style defects are corrected with identical assertions, packet bytes, tags, claims and valid/adversarial outcomes. Public refusal identity and wrapped cause remain verified, with the same problem, explanation, fix and severity. Post-style formatting, builds, host/Linux checks and lint run against the corrected source | unrelated shared diagnostic findings stay with their owner; earlier pre-style passes remain historical evidence and do not count as post-style verification |
 | AC-28 | A namespace-changing test caller stays on its locked OS thread and reads XFRM counters through the shared `sadSelStat` producer | the reader opens `/proc/thread-self/net/xfrm_stat`, with matching path diagnostics/comments and the same parser/error conditions; observed packet delivery and exact rejection-counter assertions remain unchanged. The independently approved correction is applied and its affected counter/packet population is rebuilt and rerun | every existing packet input, expected outcome, RFC tag and claim remains; the separate constrained-fragment contract, mapped ICMP return defect and unrelated changes keep their existing ownership and proof obligations |
 | AC-29 | Raw IPv4 and IPv6 sockets send whole and fragmented datagrams under captured OUT socket-policy and route authority | ordinary packet regressions distinguish matching policy, selector miss and explicit absence; marks, bound-device authority and distinct policy generations cannot borrow authority across a fragment queue. Equal absent authority may combine across sockets, and queued policy authority stays validly owned across replacement or socket close. Whole and same-authority controls pass in both arrival orders | the existing captured-authority architecture contract, packet deadlines and assertions stay intact; this preservation regression makes no new RFC claim and establishes no C defect before an attributable runtime failure |
+
+- [x] AC-30: Existing id/stem reports verify only selected records, with global
+  artifact-shape validation and tag discovery unchanged. Targeted output and
+  strictness tests retain selected freshness checks, including stale/ambiguous
+  selected records as Stale/Unproven; independent source review confirms the
+  direct prefilter precedes source verification. No avoided-read RED is claimed.
 
 ### Selected full-kernel route checkpoint, 2026-11-16
 

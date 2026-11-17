@@ -2093,9 +2093,11 @@ reds the tree over standing debt gets removed rather than obeyed.
 
 `./le rfc discriminate stem <stem>` and `./le rfc discriminate id <ID>` answer
 what one RFC or one requirement has proven, which of its records no longer
-verify, and which of its tags carry no record. The gate itself runs no test, no
-mutant and no scenario: it reads the recorded proof and compares its
-fingerprints, which is what `checkAuditFreshness` already does for a verdict.
+verify, and which of its tags carry no record. Source and fingerprint
+verification reads only the selected records. Artifact shape validation and
+tag scans still cover the corpus. The report runs no test, mutant or scenario:
+it compares recorded fingerprints with the working tree.
+<!-- source: internal/le/rfc/discriminate.go -- discriminationStatusOf, loadDiscrimination, tagCoversIn, verifyDiscrimination -->
 
 `./le weekly report from <rev> to <rev>` answers how a range moved: the MUST
 figure at each endpoint, the requirements proven at `to` and not at `from` and
