@@ -2,6 +2,61 @@
   {
     "rid": "RFC4271-5-3",
     "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive",
+    "unit-sha": "83a86c6da5d81b50",
+    "claim-sha": "98c4963695d40dd2",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::parseOtherAttrs",
+    "producer-sha": "fe2b22e51ef595c0",
+    "break": "line 1050: \"wire = append(wire, flags\u0026^0x10, typeCode, byte(length))\" -\u003e \"wire = append(wire, flags\u0026^0x30, typeCode, byte(length))\""
+  },
+  {
+    "rid": "RFC4271-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing",
+    "unit-sha": "91ad95efbac0399c",
+    "claim-sha": "835efbb8888a8eeb",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/storage/familyrib.go::parseOtherAttrs",
+    "producer-sha": "fe2b22e51ef595c0",
+    "break": "line 1048: \"wire = append(wire, flags|0x10, typeCode, byte(length\u003e\u003e8), byte(length))\" -\u003e \"wire = append(wire, flags\u0026^0x20|0x10, typeCode, byte(length\u003e\u003e8), byte(length))\""
+  },
+  {
+    "rid": "RFC4271-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_partial_unknown_session_wire_test.go::TestUnknownTransitivePartialSurvivesOrdinarySessionWire",
+    "unit-sha": "4381739417e007e3",
+    "claim-sha": "96a8366c7eb02a93",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() \u0026\u0026 code != 250 {\""
+  },
+  {
+    "rid": "RFC4271-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialSetOnUnrecognizedTransitiveOptional",
+    "unit-sha": "f6886fb7cd3c3546",
+    "claim-sha": "0d55b22a217efcee",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() \u0026\u0026 code != 250 {\""
+  },
+  {
+    "rid": "RFC4271-5-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialStampedOnUnrecognizedTransitive",
+    "unit-sha": "ea0249a316002d5d",
+    "claim-sha": "fa9428fef12dbbba",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() \u0026\u0026 code != 250 {\""
+  },
+  {
+    "rid": "RFC4271-5-3",
+    "polarity": "positive",
     "unit": "test/plugin/rfc4271-partial-unknown-transitive.ci",
     "unit-sha": "97f7d77c765620e6",
     "claim-sha": "99ba6264bbd2846f",

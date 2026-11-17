@@ -79,11 +79,10 @@ func TestRFC4271PartialBitClearedOnReadvertisedWellKnown(t *testing.T) {
 //
 // PREVENTS: Silently downgrading partial information to complete.
 //
-// RFC requirement: RFC4271-5-4 positive -- appendOtherAttr stores the received flags
-// octet verbatim, including the Partial bit
-// (internal/component/bgp/plugins/rib/storage/attrparse.go:254-260), and parseOtherAttrs
-// rebuilds the wire header from that stored octet
-// (internal/component/bgp/plugins/rib/storage/familyrib.go:845-869).
+// RFC requirement: RFC4271-5-3 positive -- an already-Partial unknown transitive
+// attribute 250 retains its Optional, Transitive and Partial bits through
+// ParseAttributes and ToWireBytes; this is a storage supplement to pass-along,
+// not a recognized-attribute or peer-wire claim.
 func TestRFC4271PartialBitPreservedOnUnknownTransitive(t *testing.T) {
 	const unknownCode = 0xFA
 	raw := []byte{
@@ -112,9 +111,10 @@ func TestRFC4271PartialBitPreservedOnUnknownTransitive(t *testing.T) {
 //
 // PREVENTS: A flags rewrite in the length-reframing branch resetting Partial to 0.
 //
-// RFC requirement: RFC4271-5-4 negative -- the reframing branch that recomputes the
-// Extended Length bit touches only 0x10 and never clears the Partial bit set by a previous
-// AS (internal/component/bgp/plugins/rib/storage/familyrib.go:860-867).
+// RFC requirement: RFC4271-5-3 positive -- an already-Partial unknown transitive
+// attribute 251 with a 300-octet value retains Partial and the required Extended
+// Length bit through storage re-emission; this is a length-reframing supplement
+// to pass-along, not a recognized-attribute or peer-wire claim.
 func TestRFC4271PartialBitSurvivesLengthReframing(t *testing.T) {
 	const unknownCode = 0xFB
 	value := make([]byte, 300)

@@ -16,7 +16,9 @@ import (
 
 // TestRFC9252EffectiveNextHopControlsServiceTLVs observes the recipient Session's
 // framed output after actual receive, cache publication, policy and forwarding.
-// The next hop is a valid third party, not this speaker or the recipient. Raw
+// The received next hop is a valid third party or the speaker itself; the
+// recipient is always distinct. Ordinary eBGP Auto selects the connected local
+// address after policy. Equal effective addresses retain the Service TLVs. Raw
 // export on an RS destination must take the production cached-forward fallback.
 // Native IPv6 and VPNv6 L3 are the RFC 9252 Sections 5.2/5.4 service carriers.
 // Legacy/mapped input and the extra L2 TLV are propagation robustness controls,
@@ -38,6 +40,8 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 		for _, carrier := range []string{"legacy", "ipv6", "mapped", "vpn6", "pair-trim"} {
 			for _, tc := range []rfc9252NextHopCase{
 				{name: "auto-received", mode: NextHopAuto},
+				{name: "auto-already-self", mode: NextHopAuto, receivedSelf: true},
+				{name: "auto-policy-change-restored-to-self", mode: NextHopAuto, receivedSelf: true, policy: true, policyChanged: true},
 				{name: "unchanged-received", mode: NextHopUnchanged},
 				{name: "explicit-equal", mode: NextHopExplicit},
 				{name: "explicit-changed", mode: NextHopExplicit, explicitChange: true, changed: true},
@@ -47,6 +51,16 @@ func TestRFC9252EffectiveNextHopControlsServiceTLVs(t *testing.T) {
 				{name: "unchanged-policy-changed", mode: NextHopUnchanged, policy: true, policyChanged: true, changed: true},
 				{name: "explicit-restores-original", mode: NextHopExplicit, policy: true, policyChanged: true},
 			} {
+				if tc.receivedSelf {
+					// The connected self is native IPv6; these equality controls
+					// exercise the service carriers and optional pair trimming.
+					if carrier == "legacy" {
+						continue
+					}
+					if carrier == "mapped" {
+						continue
+					}
+				}
 				// Configured explicit VPN next-hop encoding is not the subject:
 				// its policy operations below carry the complete valid zero-RD field.
 				if carrier == "vpn6" && tc.mode == NextHopExplicit {
@@ -122,6 +136,7 @@ type rfc9252NextHopCase struct {
 	policy         bool
 	policyChanged  bool
 	explicitChange bool
+	receivedSelf   bool
 	changed        bool
 	rawPolicy      bool
 	serviceOnly    bool
@@ -148,6 +163,9 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	f.destination.session.bufWriter = bufio.NewWriterSize(conn, 4096)
 	f.destination.session.transport.Store(connectedTransport(conn))
 	original := netip.MustParseAddr("2001:db8:1::9")
+	if tc.receivedSelf {
+		original = netip.MustParseAddr("2001:db8:1::1")
+	}
 	replacement := netip.MustParseAddr("2001:db8:1::10")
 	if tc.mode == NextHopSelf {
 		replacement = f.destination.settings.LocalAddress
@@ -201,6 +219,18 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	if tc.explicit.IsValid() {
 		f.destination.settings.NextHopAddress = tc.explicit
 	}
+	wantAddress := original
+	if tc.changed {
+		wantAddress = replacement
+	}
+	if tc.mode == NextHopAuto {
+		if carrier != "legacy" {
+			// The literal connected endpoint supersedes received and policy
+			// MP fields. IPv6 self has no usable replacement for legacy NLRI.
+			wantAddress = netip.MustParseAddr("2001:db8:1::1")
+		}
+	}
+	changed := wantAddress != original
 	// RFC 8669 Sections 3.1 and 6: these carriers are not labeled unicast, so
 	// the Label-Index TLV is unrecognized and, with its non-zero Reserved and
 	// Flags, propagated unmodified like the unknown TLV and the Originator SRGB.
@@ -212,7 +242,7 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	services := slices.Concat(l3, l2)
 	sid := slices.Concat(label, services, rfc8669UnknownTLV, rfc8669SRGBTLV)
 	wantSID := slices.Concat(label, services, rfc8669UnknownTLV, rfc8669SRGBTLV)
-	if tc.changed {
+	if changed {
 		wantSID = slices.Concat(label, rfc8669UnknownTLV, rfc8669SRGBTLV)
 	}
 	if tc.serviceOnly {
@@ -277,10 +307,7 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 		t.Fatalf("recipient UPDATEs=%d, want one", len(updates))
 	}
 	update := updates[0]
-	wantHop := field(original)
-	if tc.changed {
-		wantHop = field(replacement)
-	}
+	wantHop := field(wantAddress)
 	_, _, gotHop, found := attribute.AttrFind(update.PathAttributes, code)
 	wantReach := wantHop
 	if carrier != "legacy" {
@@ -299,7 +326,7 @@ func rfc9252EffectiveNextHopCase(t *testing.T, rail, carrier string, tc rfc9252N
 	}
 	_, _, gotSID, found := attribute.AttrFind(update.PathAttributes, attribute.AttrPrefixSID)
 	if found != (len(wantSID) != 0) || !bytes.Equal(gotSID, wantSID) {
-		t.Errorf("recipient Prefix-SID=%x present=%v, want %x (effective address changed=%v)", gotSID, found, wantSID, tc.changed)
+		t.Errorf("recipient Prefix-SID=%x present=%v, want %x (effective address changed=%v)", gotSID, found, wantSID, changed)
 	}
 }
 

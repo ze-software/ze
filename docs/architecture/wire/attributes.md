@@ -74,6 +74,16 @@ No other flag bit is touched.
 | Optional Transitive | 0xC0 (Optional + Transitive) |
 | Optional Non-transitive | 0x80 (Optional only) |
 
+These are the base flags. An accepted optional transitive attribute whose
+Partial bit arrived set must keep that bit when its value is rebuilt (RFC 4271
+Section 5). Generic Set handlers preserve it for surviving attributes such as
+AGGREGATOR, as do the community handlers.
+Well-known and optional non-transitive attributes do not inherit it. A new
+attribute has no received bit to preserve; the rules for attaching it still
+belong to its producer. Suppressing an attribute removes it altogether.
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- genericAttrSetHandler -->
+<!-- source: internal/component/bgp/plugins/filter_community/handler.go -- emitCommunity -->
+
 Which shape each attribute owes is declared once, per type code, and ze judges a received
 flags octet against that declaration: a conflicting Optional or Transitive bit is
 treat-as-withdraw (RFC 7606 Section 3.c), unless the attribute's own RFC mandates other
@@ -845,6 +855,8 @@ a change; it does not allocate or rebuild local Service SIDs.
 RFC 9252's service carriers use MP_REACH. When a legacy sibling is also present,
 its independent NEXT_HOP does not govern the MP service. Legacy-only input keeps
 the same propagation safeguard; that is not an SRv6 origination capability.
+When non-Service TLVs survive cleanup, the rebuilt Prefix-SID also keeps the
+received Partial bit. Service-only cleanup may remove the whole attribute.
 An MP carrier remains present when raw export policy temporarily leaves its
 next-hop field empty or undecodable. If a configured rewrite repairs that field
 before admission, the repaired address governs Service-TLV propagation; an

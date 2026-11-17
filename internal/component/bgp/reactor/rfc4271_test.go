@@ -1341,17 +1341,14 @@ func TestRFC4271PartialSetOnUnrecognizedTransitiveOptional(t *testing.T) {
 }
 
 // TestRFC4271PartialNotSetOnRecognizedOrNonTransitive drives the same producer with the
-// three classes the requirement excludes.
+// three classes outside the unknown-transitive condition.
 //
 // VALIDATES: a well-known attribute, an optional non-transitive attribute and a RECOGNIZED
 // optional transitive attribute all leave the receive path with the Partial bit still 0.
 //
-// PREVENTS: a stamp that fires on the Optional bit alone, or on every attribute, which
-// would break RFC 4271 Section 4.3 for three classes to satisfy Section 5 for one.
+// PREVENTS: setting Partial on well-known or non-transitive attributes while
+// stamping unknown attributes. Recognized COMMUNITY is a separate software control.
 //
-// RFC requirement: RFC4271-5-3 negative -- the stamp is conditioned on the attribute being
-// unrecognized AND optional AND transitive: none of the three excluded classes is stamped
-// (internal/core/bgp/attribute/partial.go, SetPartialOnUnrecognizedTransitive).
 // RFC requirement: RFC4271-4.3-2 positive -- the Partial bit stays 0 on a well-known
 // attribute and on an optional non-transitive one after the receive path has run.
 func TestRFC4271PartialNotSetOnRecognizedOrNonTransitive(t *testing.T) {

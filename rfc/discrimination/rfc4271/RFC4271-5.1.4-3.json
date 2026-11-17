@@ -7,7 +7,7 @@
     "claim-sha": "0ae35a67018f4c06",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::genericAttrSetHandler",
-    "producer-sha": "8412bbcfb16f03b3",
+    "producer-sha": "56db6b2df49e18b5",
     "break": "line 66: \"p.Op(setIdx)\" -\u003e \"if code == 4 { keepOrDrop(p); return }; p.Op(setIdx) /* MUTATION-APPLIED: preserve received MED */\""
   },
   {

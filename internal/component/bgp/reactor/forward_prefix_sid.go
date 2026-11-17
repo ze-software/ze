@@ -217,6 +217,14 @@ func prefixSIDNextHopHandler() filterapi.AttrModHandler {
 			p.Drop()
 			return
 		}
+		flags := prefixSIDFlags
+		// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+		// is accepted and passed along to other BGP peers and the Partial bit in the
+		// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+		// to 0 by the current AS."
+		if source := p.Source(); len(source) > 0 {
+			flags |= source[0] & byte(attribute.FlagPartial)
+		}
 		// A Remove recorded before the last Set was aimed at a value the Set
 		// replaced, so only the ones after it apply.
 		removeFrom := setIdx + 1
@@ -226,7 +234,7 @@ func prefixSIDNextHopHandler() filterapi.AttrModHandler {
 				return
 			}
 			p.Op(setIdx)
-			p.Emit(prefixSIDFlags, prefixSIDCodeByteWire)
+			p.Emit(flags, prefixSIDCodeByteWire)
 			return
 		}
 
@@ -272,12 +280,12 @@ func prefixSIDNextHopHandler() filterapi.AttrModHandler {
 			p.Drop()
 			return
 		}
-		p.Emit(prefixSIDFlags, prefixSIDCodeByteWire)
+		p.Emit(flags, prefixSIDCodeByteWire)
 	}
 }
 
-// prefixSIDFlags and prefixSIDCodeByteWire are the header the rewritten
-// attribute is emitted under: Optional, Transitive (RFC 8669 Section 3).
+// prefixSIDFlags and prefixSIDCodeByteWire supply the base header of a rewritten
+// attribute: Optional, Transitive (RFC 8669 Section 3). A source keeps its Partial bit.
 const (
 	prefixSIDFlags        = byte(attribute.FlagOptional | attribute.FlagTransitive)
 	prefixSIDCodeByteWire = byte(attribute.AttrPrefixSID)

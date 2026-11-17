@@ -10,8 +10,6 @@
 package reactor
 
 import (
-	"slices"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
@@ -66,7 +64,18 @@ func genericAttrSetHandler(flags, code byte) filterapi.AttrModHandler {
 		// The operation's bytes are named, not copied: they already exist in the
 		// accumulator and stay valid for the whole rebuild.
 		p.Op(setIdx)
-		p.Emit(flags, code)
+		outputFlags := flags
+		const optionalTransitive = byte(attribute.FlagOptional | attribute.FlagTransitive)
+		if flags&optionalTransitive == optionalTransitive {
+			// RFC 4271 Section 5: "If a path with a recognized, transitive optional attribute
+			// is accepted and passed along to other BGP peers and the Partial bit in the
+			// Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back
+			// to 0 by the current AS."
+			if source := p.Source(); len(source) > 0 {
+				outputFlags |= source[0] & byte(attribute.FlagPartial)
+			}
+		}
+		p.Emit(outputFlags, code)
 	}
 }
 
@@ -282,22 +291,11 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 			return
 		}
 
-		// The new next-hop must be exactly one of the allowed lengths:
-		//   - 4  bytes: IPv4 next-hop (used by labeled unicast / VPN families).
-		//   - 12 bytes: RD + IPv4 (RFC 4364 Section 4.3.2), the VPN-IPv4 form
-		//     applyFactsNextHop writes under an IPv4 next-hop self or explicit.
-		//   - 16 bytes: IPv6 global-only next-hop.
-		//   - 24 bytes: RD + IPv6 global (RFC 4659 Section 3.2.1.1), the
-		//     VPN-IPv6 form applyEgressNextHopScope cuts from the 48-octet pair.
-		//   - 32 bytes: IPv6 global + link-local per RFC 2545 Section 3.
-		//   - 48 bytes: RD + IPv6 global, RD + IPv6 link-local (RFC 4659
-		//     Section 3.2.1.1), the pair applyEgressNextHopScope raises a
-		//     24-octet field to for a destination on the common subnet.
-		// The length must also be one the family's own table admits, where it
-		// has one (attribute.ValidNextHopLens): a 16- or 32-octet field in SAFI
-		// 128 is none of RFC 4659 Section 3.2.1.1's 24 and 48.
-		// A mismatched op length is a caller bug; the route is left unchanged
-		// (the caller should have produced a valid op).
+		// The shared profile owns complete-field width admission, including
+		// the six generic fallback widths when no family table is declared.
+		// An unsupported final Set retains the received field; it does not
+		// revive a preceding replacement. RFC 4760 Section 3 identifies the
+		// encoding by the source AFI/SAFI, not by a replacement's contents.
 		nextHopKept := setIdx < 0
 		newNHLen := nhLen
 		if !nextHopKept {
@@ -318,8 +316,6 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 			nextHopKept = nhLen == 0
 		case noNextHop:
 			nextHopKept = nhLen == 0
-		case newNHLen != 4 && newNHLen != 12 && newNHLen != 16 && newNHLen != 24 && newNHLen != 32 && newNHLen != vpnNextHopPairOctets:
-			nextHopKept = true
 		case !familyAdmitsNextHopOctets(val, newNHLen):
 			nextHopKept = true
 		}
@@ -360,15 +356,12 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 }
 
 // familyAdmitsNextHopOctets reports whether the AFI and SAFI at the head of an
-// MP_REACH_NLRI value admit a Next Hop field of octets. A family with no length
-// table (attribute.ValidNextHopLens returns nil) admits every length the
-// caller's generic set already passed. val MUST hold at least three octets.
+// MP_REACH_NLRI value admit a Next Hop field of octets. The profile owns both
+// the generic six-width contract and the family's declared table. val MUST
+// hold at least three octets.
 func familyAdmitsNextHopOctets(val []byte, octets int) bool {
-	lengths := attribute.ValidNextHopLens(attribute.AFI(uint16(val[0])<<8|uint16(val[1])), attribute.SAFI(val[2]))
-	if lengths == nil {
-		return true
-	}
-	return slices.Contains(lengths, octets)
+	profile := attribute.MPNextHopProfile(attribute.AFI(uint16(val[0])<<8|uint16(val[1])), attribute.SAFI(val[2]))
+	return profile.AdmitsNextHopOctets(octets)
 }
 
 // lastReplaceNLRI returns the index of the last AttrModReplaceNLRI op, or -1.

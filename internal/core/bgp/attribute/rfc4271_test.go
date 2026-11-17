@@ -161,12 +161,9 @@ func TestRFC4271PartialStampedOnUnrecognizedTransitive(t *testing.T) {
 // VALIDATES: a well-known attribute, an optional non-transitive one and a RECOGNIZED
 // optional transitive one are all returned unchanged, and the walk reports zero stamps.
 //
-// PREVENTS: satisfying Section 5 for unrecognized attributes by breaking Section 4.3 for
-// every other attribute in the same UPDATE.
+// PREVENTS: stamping unknown attributes while setting Partial on well-known or
+// non-transitive attributes. Recognized COMMUNITY is a separate software control.
 //
-// RFC requirement: RFC4271-5-3 negative -- the stamp is conditioned on Optional AND
-// Transitive AND unrecognized, so none of the three excluded classes is touched
-// (internal/core/bgp/attribute/partial.go).
 // RFC requirement: RFC4271-4.3-2 negative -- the Partial bit is not merely left alone by
 // an encoder that never sets it: a walk whose whole purpose is to SET the bit still leaves
 // it 0 on a well-known attribute and on an optional non-transitive one.
@@ -184,8 +181,8 @@ func TestRFC4271PartialNotStampedOnExcludedClasses(t *testing.T) {
 	assert.Equal(t, original, section, "not one octet of an excluded attribute may change")
 }
 
-// TestRFC4271PartialFromPreviousASNotCleared verifies the walk is incapable of clearing the
-// bit, whichever class the attribute belongs to.
+// TestRFC4271PartialFromPreviousASNotCleared verifies the walk preserves an
+// already-set Partial bit on the two optional-transitive attributes supplied.
 //
 // VALIDATES: an unrecognized and a recognized optional transitive attribute, each received
 // with the Partial bit already set, keep it, and the already-set unrecognized one is not
@@ -194,9 +191,10 @@ func TestRFC4271PartialNotStampedOnExcludedClasses(t *testing.T) {
 // PREVENTS: a rewrite that normalizes flags from the attribute's type, which would reset a
 // previous AS's Partial bit to 0 as the route crosses ze.
 //
-// RFC requirement: RFC4271-5-4 negative -- the preservation is not an accident of copying
-// bytes: the one walk that WRITES this octet only ORs the bit in, so no input path clears
-// it (internal/core/bgp/attribute/partial.go).
+// RFC requirement: RFC4271-5-4 positive -- SetPartialOnUnrecognizedTransitive
+// leaves the already-E0 recognized COMMUNITY unchanged; the already-E0 unknown
+// attribute 250 also stays unchanged and neither attribute counts as a new stamp.
+// This is a component preservation check, not a separate peer-forwarding claim.
 func TestRFC4271PartialFromPreviousASNotCleared(t *testing.T) {
 	t.Parallel()
 	section := []byte{

@@ -1,21 +1,52 @@
 {
-  "note": "send side (attribute encoders), receive-path clear (enforceRFC7606), readvertise rails (rib CommitService, storage ToWireBytes) and the RS relay each fed 0x60/0xA0 and asserted 0x40/0x80 on the wire, COMMUNITIES 0xE0 kept",
+  "code": {
+    "internal/component/bgp/plugins/rib/storage/attrparse.go::ParseAttributes": "71009053831fdaa1",
+    "internal/component/bgp/plugins/rib/storage/familyrib.go::RouteEntry.ToWireBytes": "8cadd86f29d2c170",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::findAttrFlags": "e00058670d0388a9",
+    "internal/component/bgp/reactor/reactor_api_relay.go::reactorAPIAdapter.buildRelayUpdate": "adae456b6f5abf11",
+    "internal/component/bgp/reactor/relay_payload.go::writeRelayPayload": "1cf474653f15e1eb",
+    "internal/component/bgp/reactor/rfc4271_test.go::rfc4271PublishedFlags": "1f95126f3d618c95",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::makeRSPeer": "8b50a8f8ea5e2fd1",
+    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go": "310cca6526d28f6a",
+    "internal/component/bgp/reactor/session_validate_test.go::makeUpdateBody": "e0a3eef074bfede3",
+    "internal/component/bgp/reactor/session_validate_test.go::newValidateSession": "125fe2acfc7f4859",
+    "internal/component/bgp/reactor/session_validation.go::Session.enforceRFC7606": "78f38c0edcf5c87d",
+    "internal/component/bgp/reactor/session_validation.go::Session.publishBase": "f2185421f9099306",
+    "internal/component/bgp/rib/commit.go::CommitService.packAttributesWithASPath": "32e1465af50db228",
+    "internal/component/bgp/rib/commit_test.go::newIPv4NLRI": "764c31d14677cbc1",
+    "internal/component/bgp/rib/commit_test.go::testContext": "918e33fe9ff6fc40",
+    "internal/component/bgp/rib/rfc4271_partial_test.go::flagsOnTheWire": "d82823955ec75398",
+    "internal/component/bgp/rib/rfc4271_partial_test.go::receivedAttributes": "fb9d83e664ca34e8",
+    "internal/core/bgp/attribute/aspath.go::ASPath.Flags": "205397261d59a978",
+    "internal/core/bgp/attribute/attribute.go::WriteAttrTo": "1d9ea13c54537c59",
+    "internal/core/bgp/attribute/attribute.go::WriteAttrToWithContext": "a3ed2626945e4969",
+    "internal/core/bgp/attribute/attribute.go::WriteAttrToWithLen": "1fa8f65c431b6253",
+    "internal/core/bgp/attribute/attribute.go::WriteHeaderTo": "2b4ee01c235b60e6",
+    "internal/core/bgp/attribute/origin.go::Origin.Flags": "c9a3c6eae50c2b97",
+    "internal/core/bgp/attribute/partial.go::ClearPartialOnWellKnownAndNonTransitive": "1d0f22de52079466",
+    "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive": "d0ebd4bd8bf807b3",
+    "internal/core/bgp/attribute/rfc4271_test.go::wellKnownAttrsForRFC4271": "d09cc82d876afa29",
+    "internal/core/bgp/attribute/simple.go": "bfbd66252f937657",
+    "internal/core/bgp/attribute/wire.go::AttributesWire.All": "12b9d09061a99c23",
+    "internal/core/bgp/attribute/wire.go::NewAttributesWire": "09445c56b7084bad"
+  },
+  "note": "Independent source rejudgment preserves enforced over unchanged behavioral oracles after the applied neighboring5-3tag/comment corrections. RFC4271 Section4.3: \"For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0.\" Modern RFC7606 flags validation does not make a received Partial1 on these classes a fatal Optional/Transitive conflict; Ze's transmitting/reconstructing boundaries still owe zero. This rule does NOT prohibit Partial on recognized optional-transitive COMMUNITY; its C0/E0 checks below are separate software/preservation controls, not a new4.3ban. Default/extensions policy and every existing input/assertion remain intact.\n\nRead ALL SIX current tagged units, retaining both polarities and exact bare keys: core TestRFC4271PartialBitClearOnSend checks Flags()/encodedPartial0 for all RFC4271well-known attributes plus MED; core TestRFC4271PartialNotStampedOnExcludedClasses checks literalORIGIN40/MED80 remain unchanged with zero stamps and recognizedCOMMUNITYC0ascontrol; reactor TestRFC4271PartialNotSetOnRecognizedOrNonTransitive requires ActionNone and ORIGIN40/MED80 after publication, plus the separateCOMMUNITYC0control; storage TestRFC4271PartialBitClearedOnReadvertisedWellKnown feedsORIGIN60/LOCAL_PREF60/MEDA0 and requires40/40/80afterParseAttributes/ToWireBytes; RIB TestRFC4271PartialClearedWhenTheRailReadvertises parses received60/A0/60throughactualAttributesWire and requires40/80/40frompackAttributesWithASPathonbothcontextfree/contextualwriters; reactor relay TestRFC4271PartialClearedOnTheRelayedWire validates/publishesORIGIN60/MEDA0/COMMUNITYE0and relaysitsstoredbytes to anRS-clientdestination, requiring40/80/E0in the captured forward-pool UPDATE body. That relay fixture is a bounded actual producer/dispatch capture, NOT a real peerSession/socket/foreigndecode claim; its mockpool copies rawBodies before release.\n\nActual producers support these assertions: standardattributeFlags andWriteAttrTo/WithContext encode thetype's standardflags; ClearPartialOnWellKnownAndNonTransitive modifiesonly0x20whereOptional/Transitivearenotbothset; publishBaseinvokesitbeforestore/forward; storage dedicatedwell-known/nontransitivewritersuse40/80; RIBcommitreconstructsvia standardflags; relaywritecopiespublishedsurvivorswithoutrestoringoldPartial. Optional-transitiveE0survivesasdistinctcontrol. No production source changed in this THREE-test-file comment phase.\n\nBoth edited co-tags keep their existing4.3-2claim text, polarity and executable statements byte-identical. Only their docblocks lose the false neighboring5-3negative mapping and clarify PREVENTS; fullfile/noncomment comparison toHEAD supports unchanged inputs/oracles. Native tags are grouped perRID, so both co-tag keys remain bare functionkeys(no#2shift). Native audit MUST retain allSIX bindings, not only the two changedunits. A genuine rejudgment is owed for their changed enclosingdocblocks; unrelated unchangedunits get only mechanically shifted handling where applicable.\n\nCanonical discrimination currently contains only TWO existing records: relaypositiveboundtoClearPartialOnWellKnownAndNonTransitive andRIBreadvertisenegativeboundtopackAttributesWithASPath. Their units are NOTeithereditedco-tag; preserve both exacttuples. Those are retained broadproducerrevert observations, not claimednewselectivenormal-returnproofs. Neither changedco-tag has a canonicalrecord; don'tmanufactureone, erasevalidtags orclaimall6coversrecorded. No runtime or all-currentfreshness was performed by this sourcejudge; Main's scopednativecheck must establish actualrecordfingerprints/anyindependentdrift. The unchanged sufficient source/oracle judgment remains enforced; only native stamps fill hashes after finalpostimage. No owner ruling is needed to KEEPthese4.3-2tags; separate5-3/5-4classificationauthority remains unissued.",
   "requirement_sha": "156aea092a643db1",
   "tests": {
-    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "ab16100811ce8d90",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "d8b54efb525e6be8",
     "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "71651bbb29bf74fa",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "678867473385a541",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "e631109147b761b1",
     "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "f16e4cbdf16366d6",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "4d1e0cbb7558949b",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "4d1e0cbb7558949b"
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "50591a608ea00f22",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "50591a608ea00f22"
   },
   "units": {
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "d87e9f9a0b7f0c20",
     "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "4a5929435fc3c5cd",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "df046c55527de47b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "6afff8bfdbd8dccb",
     "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "70df500c12038a63",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "e0b76f97bbef5bfc",
-    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "52eaa9d2e7608dee"
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "0db19bec1b2a773f"
   },
   "verdict": "enforced"
 }

@@ -9,5 +9,27 @@
     "producer": "internal/component/bgp/reactor/session_egress_normalize.go::normalizeTransmittedUpdate",
     "producer-sha": "80cbb48b079cea46",
     "break": "line 80: \"attrs[pos] \u0026^= attrFlagsUnusedMask\" -\u003e \"attrs[pos] \u0026^= attrFlagsUnusedMask | byte(attribute.FlagPartial)\""
+  },
+  {
+    "rid": "RFC4271-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared",
+    "unit-sha": "1bf52bbcfd08e401",
+    "claim-sha": "b15673ab2f86b2e3",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if code == AttrCommunity { section[pos] \u0026^= byte(FlagPartial) } else if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\""
+  },
+  {
+    "rid": "RFC4271-5-4",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared",
+    "unit-sha": "397862399af71817",
+    "claim-sha": "f43d293277934665",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "line 131: \"if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\" -\u003e \"if code == AttrCommunity { section[pos] \u0026^= byte(FlagPartial) } else if flags\u0026(optionalTransitive|FlagPartial) == optionalTransitive \u0026\u0026 !code.Recognized() {\""
   }
 ]

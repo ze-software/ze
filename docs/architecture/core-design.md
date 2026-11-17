@@ -1600,6 +1600,16 @@ This replaces the source payload's attributes with handler-modified versions:
 Each handler knows its attribute's semantics (scalar set, list add/remove, sequence prepend).
 The build engine is generic -- attribute knowledge lives in handlers.
 
+When a generic Set or community handler rebuilds an existing optional transitive
+attribute, its output keeps the received Partial bit (RFC 4271 Section 5).
+The handlers read that bit from the current source plan;
+they do not retain flags between attributes or destinations. Whole-attribute
+suppression still removes the attribute, and a new attribute inherits no bit
+from a previous plan. `AttrPlan.Emit` and `EmitExtended` continue to write the
+flags the handler supplies.
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- genericAttrSetHandler -->
+<!-- source: internal/component/bgp/plugins/filter_community/handler.go -- emitCommunity -->
+
 When `mods.Len() == 0` (common case: no role config or no stamping needed), the progressive
 build is skipped entirely -- zero allocation, zero copy.
 

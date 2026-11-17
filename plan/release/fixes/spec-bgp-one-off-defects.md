@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Each row is incorrect shipped BGP behaviour (wire, RIB, FSM, plugin relay) or a test that cannot prove it; none is an absent feature |
 | Depends | - |
-| Phase | - |
+| Phase | AC-7 stored Partial-bit repair |
 | Handoff | verify |
-| Updated | 2026-10-23 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -35,6 +35,13 @@ one conversion from a plugin's command declarations to its answer shapes and lef
 BGP area untouched by owner constraint: `declareShapes`
 (`internal/component/bgp/plugins/adj_rib_in/rib_shape_test.go`) still carries its own
 copy of that loop (AC-63).
+
+The RFC 4271 continuation begins with AC-7's reached stored-route defect.
+Accepted optional transitive attributes lose their received Partial bit when
+individually pooled values are reconstructed for ordinary selected output and
+recovery. The AC-7 continuation below specifies this repair and its tests.
+The other acceptance criteria remain recorded and open; starting this phase
+does not assert that they have been implemented or independently re-audited.
 
 ## Required Reading
 
@@ -121,6 +128,9 @@ mechanism that already exists. The ones the owned rows reach so far:
 | Journal row ownership | `plan/journal/README.md`, "Owned rows"; `UnownedOpenRows` (`internal/le/spec/journal/owner.go`) | Every `open:` row is listed in one spec's `## Owned journal rows` table, and the commit gate refuses an unowned one | Extends: each AC closes its row with a `fixed:` marker naming the commit and test, or moves it to "Rows found already fixed" |
 | Operator warnings on the report bus | `report.RaiseWarning` and `report.ClearWarning`, called from the reactor (`Peer.raiseOpQueueFull`, `peer.go`; `clearPrefixHold` in `Peer.cleanup`, `peer_run.go`) | A lasting peer condition is raised under the peer's address and listed by `show warnings`; `Peer.cleanup` clears the prefix-hold warning unconditionally, a no-op on an unraised subject | Extends: the `op-queue-full` row adds the missing clear half (queue drained below its cap, and `Peer.cleanup`); no second warning store |
 | The plugin process boundary | `ai/doors/system.md`, "A plugin can run in another process"; `ai/doors/bgp-plugins.md`, "Boundaries" | The reactor reaches plugins, and plugins the reactor, through the EventBus, DirectBridge or a text command, never a plain Go call | Does not apply as a change: every fix in a plugin (rib, rr, bmp, filter_community, mrt) stays on those rails, so it works when the plugin runs external |
+| Individually pooled attributes | `storage/attrparse.go` `ParseAttributes`; `storage/bundle.go` `BundlePool.Intern` | Shares attribute values and the comparable 48-byte non-AS_PATH bundle; dedicated optional transitive fields currently discard received flags | Extends for AC-7: retain four per-route Partial facts without duplicating values or changing bundle identity |
+| Stored reconstruction and replacement | `storage/familyrib.go` `RouteEntry.ToWireBytes`, `entriesEqual`; `storage/routeentry.go` `Clone` | Rebuilds stored attributes, compares pooled handles and explicitly copies retained entries | Extends for AC-7: reconstruction, equality and cloning must preserve the independent received Partial facts |
+| Immutable selected capture | `rib_bestchange.go` `prepareAdvertise`; `rib_recovery.go` `recoveryCandidateWithLabels`; `rib_selected_dispatch.go` `selectedDispatch.publish` | Captures reconstructed attributes and projects them into the selected-route RPC value | Preserves: exercise this actual receive-to-selected boundary without replacing source authorization or bypassing the process protocol |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -418,3 +428,132 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 - [ ] Tests FAIL (red recorded per AC)
 - [ ] Tests PASS
 - [ ] Scoped runs: `./le job run go test ./internal/component/bgp/...`, `./le test functional plugin`
+
+## AC-7 continuation: stored Partial preservation
+
+### Disposition and diagnosis
+
+| Field | Finding |
+|-------|---------|
+| Date and checked tree | 2026-11-17, `7214efd7aa` |
+| Original AC-7 framing | REWORK for this reached path: repairing typed `Flags()` alone cannot repair value-only storage reconstruction |
+| Current source defect | `ParseAttributes` individually pools AGGREGATOR, COMMUNITIES, EXTENDED_COMMUNITIES and LARGE_COMMUNITIES without flags; `ToWireBytes` writes each with Partial clear |
+| Reached consequence | `handleReceivedStructured` stores the accepted attributes; `prepareAdvertise` and `recoveryCandidateWithLabels` reconstruct them; `selectedDispatch.publish` transports that reconstruction. Later forwarding and Session normalization do not recover the lost bit |
+| Source repair | Retain a private four-bit per-route mask, copy it in `Clone`, compare it in `entriesEqual`, and restore the corresponding bit only when reconstructing that present pooled attribute |
+| Rejected workaround | A final-writer blanket Partial bit would corrupt complete attributes; consulting the old cache would add a second attribute authority and fail independently retained reconstruction |
+| Alternatives | Adding flags to the comparable bundle would split same-value sharing and change its 48-byte contract. Per-route metadata fits the existing small-field padding on the current 64-bit layout; actual compiler size evidence is still owed |
+
+RFC 4271 Section 5 governs the baseline: "If a path with a recognized,
+transitive optional attribute is accepted and passed along to other BGP peers
+and the Partial bit in the Attribute Flags octet is set to 1 by some previous
+AS, it MUST NOT be set back to 0 by the current AS."
+
+The assessed path retains and readvertises the received attribute without an
+operator replacement or removal. Explicit policies remain available. The
+separate generic and community policy encoders require their own assessment
+before whole AC-7 or RFC4271-5-4 closure; this storage repair does not silently
+declare those paths correct or remove their features.
+
+### Current research constraints
+
+Follow-up source census found the same loss in automatic AS-width conversion,
+LLGR community addition and Prefix-SID companion cleanup. These are additional
+AC-7 implementation phases, not unrelated RFC features: each retains and
+passes a received optional transitive attribute but writes a complete header.
+The storage-only phase must not be presented as whole AC-7 completion.
+
+| Additional default producer | Reached operation and required survivor |
+|-----------------------------|----------------------------------------|
+| `wireu/aspath_collapse.go` `AS4FamilyPlan.WriteTo` | OLD-source canonicalization keeps the surviving AGGREGATOR's Partial information while widening its value; RFC 6793's selected AGGREGATOR/AS4_AGGREGATOR owner and required discards still decide which information survives |
+| `wireu/aspath_transcode.go` `TranscodeASPath` | Destination-width conversion retains the surviving AGGREGATOR's Partial bit, valid value, AS_TRANS/companion rules and unrelated NLRI/attributes |
+| `wireu/aspath_slot.go` `recordAggregator` and `reactor/filter_delta_handlers.go` `genericAttrSetHandler` | The automatic generated replacement reaches the real modification handler with the same preservation obligation; no synthetic test handler or mod-count-only oracle |
+| `plugins/gr/gr_egress.go` `LLGREgressFilter` and `plugins/filter_community/handler.go` `emitCommunity` | Automatic NO_EXPORT addition to an already received Partial COMMUNITY keeps that bit and the existing values; explicit community operations remain available |
+| `reactor/forward_prefix_sid.go` `applyEgressPrefixSIDNextHop` and `prefixSIDNextHopHandler` | Automatic next-hop companion cleanup keeps the received Partial bit when useful TLVs survive; a legitimately suppressed whole attribute remains suppressed |
+
+Zero-initialized storage metadata means no received Partial fact was retained;
+it is not a universal wire rule for locally attached attributes. RFC 4271
+Section 5 separately says that an optional transitive attribute attached by a
+speaker other than the originator has Partial set. That attachment obligation
+and existing explicit raw/header control are preserved. The source bytes of a
+fresh replacement, rather than a stale previous route, decide retained flags.
+
+- [ ] `docs/architecture/plugin/rib-storage-design.md`, received provenance and per-attribute storage sections
+  → Decision: attribute values remain shared; received Partial is per-route metadata, separate from `Bundle` identity and source authorization.
+- [ ] `storage/routeentry.go`, `storage/attrparse.go`, `storage/familyrib.go`
+  → Constraint: update both the parser's populated constructor and explicit `Clone` copy; all five CIDR/opaque and ADD-PATH equality branches share `entriesEqual`.
+- [ ] `rib_commands_community.go` `attachCommunity`
+  → Constraint: appending a value to an existing attribute preserves its received Partial fact. A newly created attribute retains the current complete default; incoming replacement bytes establish fresh metadata.
+- [ ] `rib_recovery.go`, `rib_bestchange.go`, `rib_selected_dispatch.go`
+  → Constraint: selected and recovery output consume the reconstructed owned bytes. Message IDs and source receipts do not substitute original cache attributes or grant authorization.
+
+### Phase acceptance and preservation
+
+| Criterion | Required observable result | Permitted survivor and reason |
+|-----------|----------------------------|------------------------------|
+| AC-7-S1 | Each of the four dedicated optional transitive attributes retains its literal received Partial bit and value through parse, clone, original release and reconstruction | An independently stored complete attribute with identical values remains complete; shared values do not imply shared flags |
+| AC-7-S2 | Mixed attributes retain their own independent Partial bits; flag-only replacements in CIDR and opaque storage, with and without ADD-PATH, change the reconstructed bytes | Repeating identical attributes remains a no-op; unknown attributes retain their existing full-header path and well-known/non-transitive Partial clearing remains correct |
+| AC-7-S3 | A valid structured received IPv4 route is stored, elected and captured with its COMMUNITY Partial bit; actual selected dispatch projects the same attribute bytes and NLRI | A complete COMMUNITY control remains useful and complete; the passive test fixture does not claim a live Session grant, socket write or foreign acceptance |
+| AC-7-S4 | Stored metadata survives supported in-place community attachment and retained ownership without a new attribute-value allocation scheme or larger bundle | Existing operator policies, source leases, provenance and process-boundary contracts remain supported |
+| AC-7-S5 | Actual AS-width conversion and the ordinary generated-attribute rebuild preserve a valid retained AGGREGATOR's Partial flag and exact converted value | Retained complete twins, same-width/NEW fast paths, legal RFC 6793 selection/discard behavior and useful unrelated attributes/NLRI survive |
+| AC-7-S6 | Conditional LLGR community addition and Prefix-SID companion cleanup preserve Partial on an existing surviving attribute | Useful retained values/TLVs survive; legitimate whole-attribute suppression and explicit operator operations remain supported |
+
+### Implementation phases and validation
+
+| Phase | Deliverable | Evidence owed by main |
+|-------|-------------|-----------------------|
+| AC-7 test-first | Two new regression files using existing storage and structured receive/selected-dispatch fixtures; no existing test expectation changes | Named semantic RED before production edits; the storage size diagnostic supplies the compiler's current layout |
+| AC-7 source repair | `storage/routeentry.go`, `storage/attrparse.go`, `storage/familyrib.go`, owning documentation and the same regressions | Same named roots PASS; both changed storage/RIB packages, scoped lint and independent implementation review |
+| AC-7 AS-width conversion | New wireu and reactor AGGREGATOR regressions, then the reached collapse/transcode/generated-header repairs and owning AS4/attribute documentation | Meaningful RED before each repair, exact flags/value GREEN, selected-owner and complete/same-width controls, scoped packages/lint and independent review |
+| AC-7 conditional rewrites | New LLGR community and Prefix-SID cleanup regressions, then the existing handler repairs and owning documentation | Automatic caller-to-handler RED/GREEN with useful surviving values, complete controls and explicit-operation preservation; no raw Emit API ceiling |
+| AC-7 proof integration | Independently judged requirement tags and matching native semantic records; rejudge every audit this change stales | Native current-cover results and accurate bounded audits in the coherent production commit; whole AC-7 wire proof remains owed until observed |
+
+The first regressions are `TestKnownTransitivePartialSurvivesStorage` in
+`storage/partial_storage_test.go` and
+`TestReceivedPartialSurvivesSelectedCapture` in `partial_selected_test.go`.
+The selected fixture uses a valid canonical four-octet AS_SEQUENCE containing
+the source AS 65001, rather than claiming that an empty external AS_PATH was
+accepted. It enters `handleReceivedStructured` through the existing fixture;
+it must not construct a `StoredRoute` directly from the original attributes.
+
+### Risks and assumptions for this phase
+
+| ID | Risk or assumption | Basis / early signal | Validation or mitigation |
+|----|--------------------|----------------------|--------------------------|
+| A-7-1 | One mask byte fits the current route's padding without growth | Source alignment places the next uint64 at offset eight; this is not compiler evidence | Read actual `TestRouteEntrySizes` output before and after; preserve the existing 48-byte bundle check |
+| R-7-1 | Shared handles hide a flag-only replacement | `entriesEqual` currently compares only handles | Exercise both replacement directions and all shared storage branches |
+| R-7-2 | Clone or attachment loses or leaks per-route flags | Clone lists fields explicitly; attachment replaces a bundle | Hold complete and partial same-value entries simultaneously, release originals, append to the retained community and compare literal bytes |
+| R-7-3 | A selected test bypasses the storage loss or invents source authority | A hand-built stored route can reuse the original attributes | Feed a real structured UPDATE and inspect owned capture plus dispatched RPC; keep passive provenance explicitly untrusted |
+
+### Integration and documentation for this phase
+
+| Surface | Disposition |
+|---------|-------------|
+| Attribute values and bundle pool | Existing pools and ownership, extended only with per-route flags |
+| CLI, YANG, config, environment and public RPC | No new field or grammar; existing selected RPC already carries complete attribute wire bytes |
+| Runtime dependency, refusal, diagnostic and metrics | No new resource, refusal or warning; no additional doctor check or counter is needed for retained wire metadata |
+| Functional and interop | Existing fixtures remain; actual peer-visible AC-7 proof is required before whole wire/requirement closure and is not replaced by the selected transport test |
+| Owning documentation | Update received-attribute reconstruction in `docs/architecture/plugin/rib-storage-design.md`, correct its obsolete 12-byte route statement, and replace the source limitation comments with the actual retained-bit contract |
+| Discovery | Existing storage design source anchors and the two adjacent regression files identify the behavior; no second registry or report family |
+
+## Critical Review Checklist
+
+The current implementation round covers the AC-7 storage continuation and
+its reached selected transport boundary. Other ACs remain open under their
+existing scope; this checklist supplies no closure verdict for them.
+
+| Lens | What to verify |
+|------|----------------|
+| Required useful output | Stored and selected output retain exact Partial/value bytes and the useful route, not merely an absence of an error |
+| Independence and ownership | All four mask facts are independent across sharing, cloning, replacement and community attachment; no stale bit survives fresh incoming replacement |
+| Baseline and extensions | Default complete controls, unknown/full-header attributes, forbidden Partial clearing, explicit policies and modern RFC behavior survive |
+| Reachability and authority | The test reaches structured receive, storage and selected projection; no original-cache shortcut, fabricated grant or new public field |
+| Bounds and layout | No new hot-path map, buffer or goroutine; bundle identity/size stays unchanged and actual route size evidence is recorded |
+| Evidence and claims | Actual RED/GREEN, scoped package/lint results, independent test judgment, current native proof records and affected audits support only their observed boundary |
+
+## Review Gate
+
+### AC-7 implementation review runs
+
+| Run | Scope | Independent reviewer | Result |
+|-----|-------|----------------------|--------|
+| Storage 1 | Three storage production files, owning storage documentation and the two new regression files; clone/release/equality, flag independence, useful selected projection and existing normalization | Independent `classic_daemon_publication_review` context | Source clean. Main observed semantic RED before repair, then all 13 storage leaves and both selected leaves PASS; actual layout stays 64/48 bytes. Complete changed-package, lint and proof integration remain owed |

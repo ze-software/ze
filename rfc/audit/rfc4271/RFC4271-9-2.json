@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "7cc7f52355e6418d",
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "7cc7f52355e6418d",
-    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "ab16100811ce8d90",
-    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "ab16100811ce8d90"
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "d8b54efb525e6be8",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "d8b54efb525e6be8"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "d890a6c7bdf27638",

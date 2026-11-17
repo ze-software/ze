@@ -50,8 +50,8 @@
     "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits": "de71ae3e556dd94f",
     "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits#2": "de71ae3e556dd94f",
     "internal/component/bgp/reactor/rfc4271_stale_aspath_export_test.go::TestRFC4271StaleReadvertiseASPathEditsSkipInternalPeers": "1eeaf74886edb437",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "5c9f3b43098f4498",
-    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "5c9f3b43098f4498"
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "e631109147b761b1",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "e631109147b761b1"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ExportASPathEditsFollowTheMigrationAwareInternalVerdict": "d95ae20500c90ef6",
