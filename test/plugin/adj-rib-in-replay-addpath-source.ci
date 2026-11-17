@@ -1,3 +1,8 @@
+# QUESTION: Does live and replayed forwarding preserve negotiated framing and
+# distinguish two sources that chose the same Path Identifier for one prefix?
+# A unit test cannot decide live negotiation, stored-route replay and the
+# identifiers and framing delivered on the running daemon's peer connections.
+#
 # Test: adj-rib-in replays a route learned from an ADD-PATH source to BOTH kinds
 #       of destination, and each one receives the framing it negotiated.
 # VALIDATES: RFC 7911 Section 3 -- "the NLRI encoding MUST be extended by prepending
@@ -20,10 +25,13 @@
 # ADD-PATH receives 180A0000, the same prefix with no Path Identifier, from the same
 # source UPDATE. One run asserts both framings, so the four octets are shown to
 # follow the negotiation rather than the code path (Section 3).
-# RFC requirement: RFC7911-2-2 positive -- the identifier the destination receives
-# (0) is ze's own and differs from the identifier the source announced (1), on both
-# the live forward and the replay, so a re-advertised route carries a Path
-# Identifier this speaker generated (Section 2).
+# RFC requirement: RFC7911-2-2 positive -- two sources announce 10.0.0.0/24
+# under the same received Path Identifier 1. The ADD-PATH destination receives
+# the first source under local identifier 0 on both live forwarding and replay,
+# then the second source under distinct local identifier 2, preserving two paths
+# instead of replacing the first with the second (Section 2). These exact local
+# values belong to this deterministic fixture; numerical inequality between a
+# local identifier and the source's identifier is not an RFC requirement.
 #
 # NON-VACUITY (ai/rules/interop-and-goal-validation.md). Each destination receives
 # the route TWICE and each arrival has its own owner:
@@ -35,6 +43,12 @@
 #            self-replay never fires for either destination. The observer's explicit
 #            `request bgp adj-rib-in replay` is the sole producer.
 # Killing the relay reddens seq=2 at both destinations while seq=1 stays green.
+# After both original copies have been sent, the observer releases the fourth
+# peer. Its first UPDATE is the same prefix and received identifier from a
+# different source. Both destinations must match this distinct-origin third
+# frame before their separate done files let the observer stop the daemon.
+# The first source lingers throughout, so its path remains advertised when the
+# ADD-PATH destination receives the second source's different local identifier.
 #
 # WHY BOTH DESTINATIONS. They exercise opposite halves of the fix and fail
 # differently. 127.0.0.2 shares the source's framing, so a reconstruction that
@@ -70,9 +84,9 @@ expect=bgp:conn=1:seq=2:contains=18C00002
 #   NEXT_HOP:   40030401010101      1.1.1.1
 #   NLRI:       00000001180A0000    path-id 1, then 10.0.0.0/24
 # attr len = 4+9+7 = 20 = 0x14; total = 19+2+2+20+8 = 51 = 0x33.
-# The identifier is 1 rather than 0 so the bytes the DESTINATION receives cannot be
-# satisfied by a build that relays the source's identifier instead of minting its
-# own (RFC 7911 Section 2).
+# The collision source below deliberately uses this SAME received identifier
+# for the SAME prefix. Distinct recipient identifiers, rather than numerical
+# difference from either source's value, establish the namespace property.
 action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040101010100000001180A0000
 EOF_SOURCE
 
@@ -85,10 +99,10 @@ EOF_SOURCE
 # peer; ORIGIN and NEXT_HOP are relayed verbatim.
 #   AS_PATH:    40020A02020000FDE80000FDE9   AS_SEQUENCE[65000, 65001]
 #   NLRI:       00000000180A0000             ze's OWN identifier, then 10.0.0.0/24
-# ze mints its identifiers from a counter that starts at 0 and it has re-advertised
-# no other path, so the first path it re-advertises leaves under 0. That the value
-# DIFFERS from the source's 1 is the point: RFC 7911 Section 2 requires a speaker
-# that re-advertises a route to generate its own.
+# The fixture starts the local allocator at 0. The observer's API barrier
+# retains identifier 1, so the later collision source receives local 2. Exact
+# 0/2 are deterministic fixture expectations; the RFC property is that the two
+# advertised source paths remain distinct for this recipient.
 # attr len = 4+13+7 = 24 = 0x18; total = 19+2+2+24+8 = 55 = 0x37.
 stdin=dest-addpath:terminator=EOF_DEST_AP
 option=tcp_connections:value=1
@@ -99,6 +113,10 @@ option=bind:value=127.0.0.2
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
 # seq=2 SUBJECT -- the REPLAY, reconstructed from the stored route.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
+# seq=3 COLLISION -- AS65004 announced the same prefix and received ID1.
+# Its distinct local ID2 keeps the first source's still-advertised ID0 separate.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDEC4003040101010100000002180A0000
+action=rewrite:conn=1:seq=3:source=addpath-collision-release:dest=addpath-collision-ap-done
 EOF_DEST_AP
 
 # ---------------------------------------------------------------------------
@@ -118,14 +136,35 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00330200000018400101
 # seq=2 SUBJECT -- the REPLAY. This is the arrival the blanket refusal removed while
 # nothing about this session had changed.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+# seq=3 COLLISION -- the same second source reaches the plain destination
+# without an identifier, preserving that destination's negotiated framing.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDEC40030401010101180A0000
+action=rewrite:conn=1:seq=3:source=addpath-collision-release:dest=addpath-collision-plain-done
 EOF_DEST_PLAIN
+
+# ---------------------------------------------------------------------------
+# Source D -- eBGP, AS65004, 127.0.0.4, ADD-PATH send/receive.
+# ---------------------------------------------------------------------------
+# The observer releases this source only after both original live/replay sends.
+# await-file holds sends after OPEN; the queued EOR below additionally proves
+# the daemon's source-D session and rs peer-up barrier have completed.
+stdin=source-collision:terminator=EOF_SOURCE_COLLISION
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=bind:value=127.0.0.4
+option=linger:value=true
+option=await-file:path=addpath-collision-release
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Same ID1/prefix/NEXT_HOP as source A, different AS_PATH origin AS65004.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDEC4003040101010100000001180A0000
+EOF_SOURCE_COLLISION
 
 # ---------------------------------------------------------------------------
 # Observer: sequences the run and drives both replays.
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# ze -- AS 65000, three external peers on separate loopbacks.
+# ze -- AS65000, four external peers on separate loopbacks, one leased port.
 # ---------------------------------------------------------------------------
 # No RIB plugin is loaded on purpose: bgp-rib would give each destination a second
 # delivery path for the same prefix out of a local table, and seq=2 would stop naming
@@ -137,11 +176,24 @@ plugin {
 		use bgp-rs
 	}
 	external replay-addpath {
-		run "le test fixture plugin/adj-rib-in-replay-addpath-source"
+		run "le test fixture plugin/adj-rib-in-replay-addpath-collision"
 		encoder json
 	}
 	internal adj-rib-in {
 		use bgp-adj-rib-in
+	}
+}
+
+# Source A must receive the existing API barrier but no returned source-D route.
+# Prefix-list/match export policy keeps that single marker exception explicit.
+# final accept is required for the accepted API marker at the final writer;
+# the match itself rejects every other prefix before that final disposition.
+policy {
+	prefix-list REPLAY-MARKER {
+		entry 192.0.2.0/24 { action accept; }
+	}
+	match REPLAY-MARKER-ONLY {
+		prefix-list REPLAY-MARKER
 	}
 }
 
@@ -152,6 +204,10 @@ bgp {
 		export { final accept; }
 	}
 	peer source-peer {
+		filter {
+			import { final accept; }
+			export { filters [ REPLAY-MARKER-ONLY ]; final accept; }
+		}
 		connection {
 			remote {
 				ip 127.0.0.1
@@ -196,6 +252,44 @@ bgp {
 		}
 	}
 
+	peer source-collision {
+		connection {
+			remote { ip 127.0.0.4; }
+			local { ip 127.0.0.4; accept false; }
+		}
+		session {
+			asn { local 65000; remote 65004; }
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+				add-path {
+					direction send/receive
+					family { ipv4/unicast; }
+				}
+			}
+		}
+		behavior { group-updates disable; }
+		filter {
+			import { final accept; }
+			export { final reject; }
+		}
+		# rs receives source D's route and participates in initial-sync EOR.
+		# Its send grant permits that EOR; export policy rejects returned routes.
+		# rs may ask adj-rib-in for peer-up replay to D. Grant send only, so
+		# that authorized replay meets D's rejecting export policy without
+		# adding D's announcements or state to the original receive store.
+		attach process adj-rib-in {
+			send [ update ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
 	peer dest-addpath {
 		connection {
 			remote {
@@ -212,6 +306,8 @@ bgp {
 				remote 65002
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -258,6 +354,8 @@ bgp {
 				remote 65003
 			}
 			router-id 1.2.3.4
+			# Preserve the received NEXT_HOP bytes asserted by this test.
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
@@ -282,7 +380,8 @@ EOF_CONF
 cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
 cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=dest-addpath
 cmd=background:seq=3:exec=le test peer --bind 127.0.0.3 --port $PORT:stdin=dest-plain
-cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=40s
+cmd=background:seq=4:exec=le test peer --bind 127.0.0.4 --port $PORT:stdin=source-collision
+cmd=foreground:seq=5:exec=ze -:stdin=ze-bgp:timeout=40s
 expect=exit:code=0
 reject=stderr:pattern=panic
 reject=stderr:pattern=fatal error

@@ -202,12 +202,12 @@
     "rid": "RFC7911-2-2",
     "polarity": "positive",
     "unit": "test/plugin/adj-rib-in-replay-addpath-source.ci",
-    "unit-sha": "1a3ccb33aa0e0b06",
-    "claim-sha": "00d7767c71441802",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/forward_path_id.go::generatePath",
-    "producer-sha": "356be613feb08fba",
-    "break": "body of generatePath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-    "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000"
+    "unit-sha": "240a9641f0133c98",
+    "claim-sha": "4f808956ebdc8b3d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateBody",
+    "producer-sha": "7e022ad1355ded25",
+    "break": "line 919: \"accepted, err := s.bufWriter.Write(buf[:totalLen])\" -\u003e \"writeFrame := buf[:totalLen]\\n\\tif s.settings.Address.String() == \\\"127.0.0.2\\\" {\\n\\t\\tif sections, parseErr := wire.ParseUpdateSections(body); parseErr == nil {\\n\\t\\t\\tif wireNLRI := sections.NLRI(body); len(wireNLRI) == 8 {\\n\\t\\t\\t\\twriteFrame = append([]byte(nil), writeFrame...)\\n\\t\\t\\t\\tframeAt := len(writeFrame) - len(wireNLRI)\\n\\t\\t\\t\\twriteFrame[frameAt], writeFrame[frameAt+1], writeFrame[frameAt+2], writeFrame[frameAt+3] = 0, 0, 0, writeFrame[frameAt+3]\u00261\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\ttotalLen = len(writeFrame)\\n\\taccepted, err := s.bufWriter.Write(writeFrame)\"",
+    "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDEC4003040101010100000002180A0000"
   }
 ]
