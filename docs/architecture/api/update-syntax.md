@@ -16,6 +16,15 @@ rest of the migration detail, that file's header gives the git-recovery route.
 
 Unified syntax for API commands and config files to send/receive BGP UPDATE messages.
 
+## Command results
+
+A command preserves earlier completed announcement and withdrawal counts if a
+later section fails. Its result carries that failure reason and any earlier
+warnings. A completed withheld withdrawal remains counted. Origin admission
+receipts, when produced, report retention and selection separately; an accepted
+loser does not count as an announcement. See [Update-route results](process-protocol.md#update-route-command-and-admission-results).
+<!-- source: internal/component/bgp/plugins/cmd/update/update_result.go -- updateRouteFailure -->
+
 ## Core Syntax
 
 ```

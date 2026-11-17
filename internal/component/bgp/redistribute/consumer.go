@@ -48,29 +48,38 @@ func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry 
 	logger().Debug("bgp consumer: injecting route", "command", cmd, "peer", sel)
 	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
 	defer cancel()
-	added, withdrawn, err := c.dispatcher.UpdateRoute(cctx, sel, cmd)
+	result, err := c.dispatcher.UpdateRouteResult(cctx, sel, cmd)
 	if err != nil {
-		logger().Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
+		c.reportFailure(ctx, "announce", sel, entry.Prefix, fam, cmd, err)
 		return
 	}
-	// The reactor answers an announce no peer accepted with a warning that
-	// reaches here as added=0 and no error. That is not an announce: say so,
-	// or the redistributed route is missing with nothing in the log.
-	if added == 0 {
-		logger().Warn("bgp consumer: redistributed route reached no BGP peer, so it is not "+
-			"announced; check the peer is established with `ze show bgp peer`",
-			"peer", sel, "prefix", entry.Prefix, "family", fam.String())
+	if err := result.Err(); err != nil {
+		c.reportFailure(ctx, "announce", sel, entry.Prefix, fam, cmd, err)
 		return
 	}
-	logger().Debug("bgp consumer: update-route ok", "added", added, "withdrawn", withdrawn)
+	// A retained loser is useful admission, although no NLRI was announced.
+	// Bare zero counts and warnings do not establish that retained candidate.
+	if result.Announced == 0 {
+		if !result.Retained() {
+			logger().Warn("bgp consumer: redistributed route reached no BGP peer, so it is not "+
+				"announced; check the peer is established with `ze show bgp peer`",
+				"peer", sel, "prefix", entry.Prefix, "family", fam.String(), "warnings", result.Warnings)
+			return
+		}
+	}
+	logger().Debug("bgp consumer: update-route ok", "added", result.Announced, "withdrawn", result.Withdrawn)
 }
 
 func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, prefix string) {
 	cmd := formatWithdraw(fam.String(), prefix)
 	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
 	defer cancel()
-	if _, _, err := c.dispatcher.UpdateRoute(cctx, "*", cmd); err != nil {
-		logger().Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
+	result, err := c.dispatcher.UpdateRouteResult(cctx, "*", cmd)
+	if err == nil {
+		err = result.Err()
+	}
+	if err != nil {
+		c.reportFailure(ctx, "withdraw", "*", prefix, fam, cmd, err)
 	}
 }
 

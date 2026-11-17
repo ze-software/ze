@@ -6,6 +6,7 @@ package redistribute
 
 import (
 	"github.com/ze-software/ze/internal/component/config/redistribute"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // bgpConfigRoot is the config root the BGP subsystem runs from. A rule naming
@@ -14,6 +15,16 @@ import (
 const bgpConfigRoot = "bgp"
 
 func init() {
+	if err := diagnostic.Register(diagnostic.CodeMeta{Code: codeBGPRedistributionFailure,
+		Title:       "BGP redistribution operation failed",
+		Description: "A configured redistribution route could not be announced or withdrawn through BGP. The recent error names the exact route, peer selector, operation and original update failure. Inspect ze show bgp peers, restore the named session, family or update send grant, then retry the source change or its replay. A retained losing origin is accepted admission and is not this failure.",
+		Examples:    []string{"ze show errors", bgpRedistributionFix, "ze show diagnostic doctor-bgp-redistribution"}}); err != nil {
+		panic("BUG: BGP redistribution diagnostic registration failed: " + err.Error())
+	}
+	if err := diagnostic.RegisterEventCode(diagnostic.EventCode{Code: codeBGPRedistributionFailure}); err != nil {
+		panic("BUG: BGP redistribution event registration failed: " + err.Error())
+	}
+
 	// The BGP destination is declared here, with BGP, so the protocol-neutral
 	// redistribute orchestrator names no destination: it builds this consumer
 	// over its own engine connection, and a build without BGP has no factory

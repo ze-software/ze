@@ -1360,21 +1360,21 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	replay := replayFromMeta(ctx.Meta)
 	recoverySource, recoveryGeneration, recoveryErr := recoveryFromMeta(ctx.Meta)
 	if recoveryErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: recoveryErr.Error()}, recoveryErr
+		return updateRouteFailure(announced, withdrawn, warnings, recoveryErr)
 	}
 	sentOwnerMessage, ownerErr := sentOwnerMessageFromMeta(ctx.Meta)
 	if ownerErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: ownerErr.Error()}, ownerErr
+		return updateRouteFailure(announced, withdrawn, warnings, ownerErr)
 	}
 	initial, initialErr := initialReplayFromMeta(ctx.Meta, sentOwnerMessage)
 	if initialErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: initialErr.Error()}, initialErr
+		return updateRouteFailure(announced, withdrawn, warnings, initialErr)
 	}
 	if initial.InitialReplay != 0 {
 		for _, group := range groups {
 			if len(group.Withdraw) > 0 {
 				err := errors.New("initial replay cannot withdraw routes")
-				return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+				return updateRouteFailure(announced, withdrawn, warnings, err)
 			}
 		}
 	}
@@ -1387,7 +1387,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			continue
 		}
 		if err := bgpReactor.SelectedPeersCarry(sel, uint16(group.Family.AFI), uint8(group.Family.SAFI), ctx.Sender); err != nil {
-			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+			return updateRouteFailure(announced, withdrawn, warnings, err)
 		}
 	}
 
@@ -1417,7 +1417,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
 				}
-				return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+				return updateRouteFailure(announced, withdrawn, warnings, err)
 			}
 			announced += len(group.Announce)
 		}
@@ -1457,7 +1457,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 				continue
 			default:
-				return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+				return updateRouteFailure(announced, withdrawn, warnings, err)
 			}
 			withdrawn += len(group.Withdraw)
 		}

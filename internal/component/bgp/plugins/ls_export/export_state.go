@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 type exportDomainKey struct {
@@ -37,7 +38,7 @@ type exportPeer struct {
 }
 
 type exportDispatcher interface {
-	UpdateRouteWithMeta(context.Context, string, string, map[string]any) (uint32, uint32, error)
+	UpdateRouteWithMetaResult(context.Context, string, string, map[string]any) (*rpc.UpdateRouteOutput, error)
 }
 
 // topologyExporter stores one encoded replacement per domain and one successful
@@ -356,18 +357,23 @@ func (e *topologyExporter) send(ctx context.Context, peer string, route exported
 		// A collector refresh must bypass the engine's Adj-RIB-Out deduplication.
 		meta = map[string]any{"replay": true}
 	}
-	announced, withdrawn, err := e.dispatch.UpdateRouteWithMeta(call, peer, command, meta)
+	result, err := e.dispatch.UpdateRouteWithMetaResult(call, peer, command, meta)
 	if err != nil {
 		return err
 	}
+	if err := result.Err(); err != nil {
+		return err
+	}
 	if withdraw {
-		if withdrawn != 1 {
+		if result.Withdrawn != 1 {
 			return errors.New("BGP-LS withdrawal was not accepted")
 		}
 		return nil
 	}
-	if announced != 1 {
-		return errors.New("BGP-LS announcement was not accepted")
+	if result.Announced != 1 {
+		if !result.Retained() {
+			return errors.New("BGP-LS announcement was not accepted")
+		}
 	}
 	return nil
 }

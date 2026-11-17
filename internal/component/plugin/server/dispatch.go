@@ -599,11 +599,11 @@ func (s *Server) dispatchPluginRPCDirect(ctx context.Context, proc *process.Proc
 	return nil, &rpc.RPCCallError{Message: tb.Str("unknown method: ").Str(method).String()}
 }
 
-// handleUpdateRouteSelDirect handles update-route with a typed *selector.Selector.
+// handleUpdateRouteSelResultDirect handles the complete typed-selector answer.
 // Reuses the existing Dispatch path by stringifying the selector for the peer field.
-func (s *Server) handleUpdateRouteSelDirect(ctx context.Context, proc *process.Process, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (uint32, uint32, error) {
+func (s *Server) handleUpdateRouteSelResultDirect(ctx context.Context, proc *process.Process, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (*rpc.UpdateRouteOutput, error) {
 	if err := proc.RequirePeerDeclarations(); err != nil {
-		return 0, 0, err
+		return nil, err
 	}
 	peer := sel.String()
 	cmdCtx := &CommandContext{
@@ -625,27 +625,51 @@ func (s *Server) handleUpdateRouteSelDirect(ctx context.Context, proc *process.P
 	dispatchCmd := tb.Str("send bgp ").Str(peer).Byte(' ').Str(command).String()
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
-	if err != nil {
-		if errors.Is(err, ErrSilent) {
-			return 0, 0, nil
-		}
-		return 0, 0, err
+	if err := ctx.Err(); err != nil {
+		return extractUpdateRouteOutput(resp, err), err
 	}
-
-	output := extractUpdateRouteOutput(resp)
-	return output.Announced, output.Withdrawn, nil
+	output := extractUpdateRouteOutput(resp, err)
+	if err := output.Validate(); err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
-// extractUpdateRouteOutput reads announced/withdrawn counts from a Dispatch response.
-// DispatchNLRIGroups returns *plugin.RouteResult as resp.Data.
-func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
+// extractUpdateRouteOutput preserves the command result even on partial failure.
+// A warning carries its reason, never an inferred successful admission.
+func extractUpdateRouteOutput(resp *plugin.Response, dispatchErr error) *rpc.UpdateRouteOutput {
 	output := &rpc.UpdateRouteOutput{}
-	if resp == nil || resp.Data == nil {
-		return output
+	if resp != nil {
+		if result, ok := resp.Data.(*plugin.RouteResult); ok {
+			if result != nil {
+				output.Announced, output.Withdrawn = result.Announced, result.Withdrawn
+				output.Warnings, output.Admissions = result.Warnings, result.Admissions
+				output.Failure = result.Failure
+			}
+		}
+		output.Warnings = append(output.Warnings, resp.Warnings...)
+		if resp.Status == plugin.StatusWarning {
+			if data, ok := resp.Data.(plugin.Map); ok {
+				if reason, ok := data["message"].(string); ok {
+					if reason != "" {
+						output.Warnings = append(output.Warnings, reason)
+					}
+				}
+			}
+		}
+		if resp.Error != "" {
+			output.Failure = resp.Error
+		}
+		if resp.Status == plugin.StatusError {
+			if output.Failure == "" {
+				output.Failure = "update-route command failed without a reason"
+			}
+		}
 	}
-	if r, ok := resp.Data.(*plugin.RouteResult); ok {
-		output.Announced = r.Announced
-		output.Withdrawn = r.Withdrawn
+	if dispatchErr != nil {
+		if !errors.Is(dispatchErr, ErrSilent) {
+			output.Failure = dispatchErr.Error()
+		}
 	}
 	return output
 }

@@ -1018,8 +1018,13 @@ type UpdateRouteInput struct {
 
 // UpdateRouteOutput is the output for ze-plugin-engine:update-route.
 type UpdateRouteOutput struct {
-	Announced uint32 `json:"announced"`
-	Withdrawn uint32 `json:"withdrawn"`
+	Announced  uint32           `json:"announced"`
+	Withdrawn  uint32           `json:"withdrawn"`
+	Warnings   []string         `json:"warnings,omitempty"`
+	Admissions []RouteAdmission `json:"admissions,omitempty"`
+	// Failure preserves the command's cause beside any earlier completed counts.
+	// Transport failures remain RPC errors and carry no invented receipt.
+	Failure string `json:"failure,omitempty"`
 }
 
 // ForwardCachedInput is the input for ze-plugin-engine:forward-cached.

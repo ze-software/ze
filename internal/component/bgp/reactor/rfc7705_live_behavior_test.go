@@ -75,8 +75,8 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 		}
 		// This fixture runs the route server's forward and replay rails. Its
 		// complete explicit role takes precedence over ordinary RIB output.
-		lowLiveAttachProcess(t, s, "bgp-rs", "update-received state open-received refresh", "update")
-		lowLiveAttachProcess(t, s, "bgp-adj-rib-in", "update-received state", "update")
+		lowLiveAttachProcess(t, s, "bgp-rs", "update-received state open-received refresh")
+		lowLiveAttachProcess(t, s, "bgp-adj-rib-in", "update-received state")
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)
 		}

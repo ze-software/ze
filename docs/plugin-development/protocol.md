@@ -1140,6 +1140,13 @@ on a route it already changed:
 
 ## Runtime RPCs (Plugin to Engine)
 
+Full update-route result methods preserve explicit retained/suppressed admission
+with zero announced routes, warning reasons and partial failure counts. The
+legacy count methods keep their count/error answer. A missing receipt cannot
+be inferred from zero counts; direct origination and control commands may
+return explicit count-only results. See [Update-route results](../architecture/api/process-protocol.md#update-route-command-and-admission-results)
+for the numeric result fields and the separation from selected-output authority.
+
 Plugins call the engine during runtime through these SDK methods:
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
 <!-- source: pkg/plugin/rpc/types.go -- plugin-to-engine runtime RPC input and output types -->

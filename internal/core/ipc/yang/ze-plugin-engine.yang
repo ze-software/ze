@@ -894,10 +894,9 @@ module ze-plugin-engine {
     rpc update-route {
         ze:method "ze-plugin-engine:update-route";
         description
-            "The answer carries the announced and withdrawn NLRI counts and nothing
-else. A plugin that needs the target handler's structured response calls
-dispatch-command instead, which preserves it. The peer selector defaults to
-every peer, so an omitted selector is not a no-op.";
+            "The answer preserves command counts, warnings, partial failure and explicit
+origin admission receipts where an admission owner produced them. A receipt
+is not forwarding authority. The peer selector defaults to every peer.";
         ze:help "Plugin injects a route update to matching peers.";
         input {
             leaf peer-selector {
@@ -939,6 +938,36 @@ every peer, so an omitted selector is not a no-op.";
                     "The count is read from the same route result as announced. A command the
                      dispatcher silenced answers zero.";
                 ze:help "Number of NLRIs withdrawn";
+            }
+            leaf-list warnings {
+                type string;
+                description "Reasons attached to completed command work; not admission receipts.";
+                ze:help "Route command warnings";
+            }
+            leaf failure {
+                type string;
+                description "Command failure cause; earlier completed counts remain valid.";
+                ze:help "Route command failure reason";
+            }
+            list admissions {
+                key "family key-nlri destination peer-owner";
+                description "One native key and concrete authorized Peer scope per admission result.";
+                leaf family { type string; ze:help "Native route family"; }
+                leaf key-nlri { type binary; ze:help "Native NLRI without source path identifier"; }
+                leaf destination { type string; ze:help "Authorized peer address"; }
+                leaf peer-owner { type uint64; ze:help "Original configured Peer identity"; }
+                leaf generation { type uint64; ze:help "Retained admission generation; zero for failure"; }
+                leaf outcome {
+                    type uint8 { range "1..3"; }
+                    description "1 retained, 2 refused, 3 failed. Zero is unspecified and refused.";
+                    ze:help "Explicit origin admission outcome";
+                }
+                leaf disposition {
+                    type uint8 { range "0..3"; }
+                    description "0 unsuccessful admission, 1 selected, 2 selection suppression, 3 export suppression.";
+                    ze:help "Election or export disposition";
+                }
+                leaf reason { type string; ze:help "Admission refusal, failure or suppression reason"; }
             }
         }
     }

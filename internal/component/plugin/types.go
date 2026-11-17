@@ -408,9 +408,11 @@ func (r *Response) TransportComplete() {
 // RouteResult is the typed payload for update-route command responses.
 type RouteResult struct {
 	DataMarker
-	Announced uint32   `json:"announced"`
-	Withdrawn uint32   `json:"withdrawn"`
-	Warnings  []string `json:"warnings,omitempty"`
+	Announced  uint32               `json:"announced"`
+	Withdrawn  uint32               `json:"withdrawn"`
+	Warnings   []string             `json:"warnings,omitempty"`
+	Admissions []rpc.RouteAdmission `json:"admissions,omitempty"`
+	Failure    string               `json:"failure,omitempty"`
 }
 
 // NewResponse creates a new Response with the given status and data.

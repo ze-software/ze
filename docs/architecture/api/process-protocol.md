@@ -2395,6 +2395,39 @@ turn a local injection into a received-source route.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRouteRequest -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- opUpdateRoute -->
 
+
+#### Update-route command and admission results
+
+`UpdateRouteResult`, `UpdateRouteWithMetaResult`, `UpdateRouteSelResult`,
+`UpdateRouteSelWithMetaResult` and `UpdateRouteRequestResult` return the full
+`UpdateRouteOutput` on the existing `update-route` operation. The typed and
+framed paths carry identical counts, warnings, admission facts and failure
+reason. The count-returning SDK and bridge methods wrap these methods and
+retain their count/error contract. A partial command failure returns its result
+beside the error; a transport failure creates no result. Nil or null whole
+results fail. An explicit count-only direct-origin or control result remains
+valid and establishes no retained candidate.
+
+Each optional `admissions` entry identifies `family`, native `key-nlri`, concrete
+`destination` and `peer-owner`, and the retained `generation`. Outcome is numeric:
+1 retained, 2 refused, 3 failed; zero and unknown values are refused. Retained
+admissions require a positive generation and disposition: 1 selected, 2 suppressed
+by selection, 3 suppressed by export. Refused and failed admissions require a
+reason, zero generation and disposition zero. These values report facts and
+grant no output authority. They are separate from `SelectedRoute.OriginReceipt`
+and the final selected-writer receipt. This transport change does not issue an
+origin receipt or implement scoped origin election.
+
+`Announced` keeps its command count and is zero for an accepted loser. Warnings
+and zero counts alone do not establish admission. `Withdrawn` still counts a
+completed withheld withdrawal: it is not a count of socket writes. Earlier
+completed counts and warning reasons survive a later failure. The BGP
+redistribution and BGP-LS result readers recognize explicit retention and keep
+real admission or transport failures visible.
+<!-- source: pkg/plugin/rpc/update_route_result.go -- RouteAdmission, Validate, Err, Retained -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRouteResult, UpdateRouteRequestResult -->
+<!-- source: internal/component/plugin/server/dispatch.go -- extractUpdateRouteOutput -->
+
 #### Plugin metrics
 
 A plugin that runs in its own process cannot reach the engine's metrics

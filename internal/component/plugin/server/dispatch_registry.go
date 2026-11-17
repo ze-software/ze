@@ -82,8 +82,8 @@ var engineOps = []engineOp{
 		method: rpc.MethodUpdateRoute,
 		handle: (*Server).opUpdateRoute,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
-			b.SetUpdateRouteSel(func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (uint32, uint32, error) {
-				return s.handleUpdateRouteSelDirect(ctx, proc, sel, command, meta, sourcePolicyEpoch)
+			b.SetUpdateRouteSelResult(func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (*rpc.UpdateRouteOutput, error) {
+				return s.handleUpdateRouteSelResultDirect(ctx, proc, sel, command, meta, sourcePolicyEpoch)
 			})
 		},
 	},
@@ -445,13 +445,16 @@ func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, param
 	// (e.g., "update text ...", "unicast ..."). Prepend unconditionally.
 	dispatchCmd := tb.Str("send bgp ").Str(peer).Byte(' ').Str(input.Command).String()
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
-	if err != nil {
-		if errors.Is(err, ErrSilent) {
-			return &rpc.UpdateRouteOutput{}, nil
-		}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return extractUpdateRouteOutput(resp), nil
+	// Command failure is part of the value so earlier completed counts survive
+	// the framed transport. The SDK exposes it as an error with that same value.
+	output := extractUpdateRouteOutput(resp, err)
+	if err := output.Validate(); err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
 // opDispatchCommand is the shared handler for dispatch-command (JSON + Direct).

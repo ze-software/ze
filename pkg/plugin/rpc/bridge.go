@@ -78,18 +78,18 @@ type DirectBridge struct {
 	hasSelectRoutes       atomic.Bool
 	currentSelection      CurrentSelectionHandler
 	hasCurrentSelection   atomic.Bool
-	injectWireRoute       InjectWireRouteHandler // Typed fast path (no JSON) -- bmp-6
-	hasInjectWireRoute    atomic.Bool            // set atomically when injectWireRoute is written
-	updateRouteSel        UpdateRouteSelHandler  // Typed fast path with *selector.Selector
-	hasUpdateRouteSel     atomic.Bool            // set atomically when updateRouteSel is written
-	batchValidate         BatchValidateHandler   // Typed fast path (no string serialization) -- rpki batching
-	hasBatchValidate      atomic.Bool            // set atomically when batchValidate is written
-	callbackCh            chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
-	callbacksStopped      chan struct{}          // Wakes queue and result waiters before channel closure.
-	closeOnce             sync.Once              // Guards callbackCh close (Stop may be called multiple times)
-	sendMu                sync.RWMutex           // Held for reading by senders, for writing by CloseCallbacks
-	sendClosed            bool                   // Guarded by sendMu: the callback channels are closed
-	dispatchMu            sync.Mutex             // Serializes dispatch admission with StopDispatch.
+	injectWireRoute       InjectWireRouteHandler      // Typed fast path (no JSON) -- bmp-6
+	hasInjectWireRoute    atomic.Bool                 // set atomically when injectWireRoute is written
+	updateRouteSel        UpdateRouteSelResultHandler // Typed fast path with *selector.Selector
+	hasUpdateRouteSel     atomic.Bool                 // set atomically when updateRouteSel is written
+	batchValidate         BatchValidateHandler        // Typed fast path (no string serialization) -- rpki batching
+	hasBatchValidate      atomic.Bool                 // set atomically when batchValidate is written
+	callbackCh            chan BridgeCallback         // Engine->plugin callbacks (replaces pipe after startup)
+	callbacksStopped      chan struct{}               // Wakes queue and result waiters before channel closure.
+	closeOnce             sync.Once                   // Guards callbackCh close (Stop may be called multiple times)
+	sendMu                sync.RWMutex                // Held for reading by senders, for writing by CloseCallbacks
+	sendClosed            bool                        // Guarded by sendMu: the callback channels are closed
+	dispatchMu            sync.Mutex                  // Serializes dispatch admission with StopDispatch.
 	dispatchClosed        bool
 	dispatchWG            sync.WaitGroup
 	deliveryMu            sync.Mutex // Serializes event admission with StopDelivery.
@@ -568,29 +568,66 @@ func (b *DirectBridge) releaseOnWalkEnd(records iter.Seq[Record]) iter.Seq[Recor
 // a *selector.Selector instead of a peer selector string.
 type UpdateRouteSelHandler func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (announced, withdrawn uint32, err error)
 
-// SetUpdateRouteSel registers the engine-side typed selector update-route handler.
+// UpdateRouteSelResultHandler returns the complete update-route value. A
+// nonnil output remains observable when err reports a partial failure.
+type UpdateRouteSelResultHandler func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (*UpdateRouteOutput, error)
+
+// SetUpdateRouteSel preserves the count-only registration contract.
 func (b *DirectBridge) SetUpdateRouteSel(fn UpdateRouteSelHandler) {
+	if fn == nil {
+		b.SetUpdateRouteSelResult(nil)
+		return
+	}
+	b.SetUpdateRouteSelResult(func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, epoch uint64) (*UpdateRouteOutput, error) {
+		announced, withdrawn, err := fn(ctx, sel, command, meta, epoch)
+		return &UpdateRouteOutput{Announced: announced, Withdrawn: withdrawn}, err
+	})
+}
+
+// SetUpdateRouteSelResult installs the full typed answer for the existing RPC.
+func (b *DirectBridge) SetUpdateRouteSelResult(fn UpdateRouteSelResultHandler) {
 	b.updateRouteSel = fn
 	b.hasUpdateRouteSel.Store(fn != nil)
 }
 
-// UpdateRouteSel calls the typed selector update-route handler directly.
-func (b *DirectBridge) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (announced, withdrawn uint32, err error) {
+// UpdateRouteSel returns the legacy counts without suppressing a real failure.
+func (b *DirectBridge) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, epoch uint64) (uint32, uint32, error) {
+	output, err := b.UpdateRouteSelResult(ctx, sel, command, meta, epoch)
+	if output == nil {
+		return 0, 0, err
+	}
+	return output.Announced, output.Withdrawn, err
+}
+
+// UpdateRouteSelResult preserves counts, warnings and admission facts. It
+// transfers the returned value to its caller; neither side may mutate aliases.
+func (b *DirectBridge) UpdateRouteSelResult(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, epoch uint64) (*UpdateRouteOutput, error) {
 	if !b.beginDispatch() {
-		return 0, 0, ErrBridgeClosed
+		return nil, ErrBridgeClosed
 	}
 	defer b.endDispatch()
 	if err := ctx.Err(); err != nil {
-		return 0, 0, err
+		return nil, err
 	}
 	if !b.hasUpdateRouteSel.Load() {
-		return 0, 0, errors.New("update-route-sel handler not set")
+		return nil, errors.New("update-route-sel handler not set")
 	}
-	return b.updateRouteSel(ctx, sel, command, meta, sourcePolicyEpoch)
+	output, err := b.updateRouteSel(ctx, sel, command, meta, epoch)
+	if err != nil {
+		return output, err
+	}
+	if err := ctx.Err(); err != nil {
+		return output, err
+	}
+	resultErr := output.Err()
+	return output, resultErr
 }
 
-// HasUpdateRouteSel reports whether the typed selector update-route handler is set.
-func (b *DirectBridge) HasUpdateRouteSel() bool {
+// HasUpdateRouteSel reports readiness of the shared full/count typed slot.
+func (b *DirectBridge) HasUpdateRouteSel() bool { return b.HasUpdateRouteSelResult() }
+
+// HasUpdateRouteSelResult reports the full typed adapter, not origin admission.
+func (b *DirectBridge) HasUpdateRouteSelResult() bool {
 	return b.ready.Load() && b.hasUpdateRouteSel.Load()
 }
 

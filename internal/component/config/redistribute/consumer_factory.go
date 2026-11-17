@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ErrConsumerFactoryConflict is returned when a destination name is registered
@@ -23,6 +25,7 @@ var ErrConsumerFactoryConflict = errors.New("redistribute: consumer factory alre
 // orchestrator. The SDK plugin satisfies it.
 type RouteUpdater interface {
 	UpdateRoute(ctx context.Context, peerSelector, command string) (uint32, uint32, error)
+	UpdateRouteResult(ctx context.Context, peerSelector, command string) (*rpc.UpdateRouteOutput, error)
 }
 
 // ConsumerFactory declares a destination whose consumer speaks to the engine

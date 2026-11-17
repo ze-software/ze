@@ -14,50 +14,82 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// UpdateRoute injects a route update to matching peers via the engine.
-// Returns the number of NLRIs announced and withdrawn.
-func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) (announced, withdrawn uint32, err error) {
-	return p.UpdateRouteWithMeta(ctx, peerSelector, command, nil)
+// UpdateRoute injects a route update and preserves the legacy count/error answer.
+func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) (uint32, uint32, error) {
+	return updateRouteCounts(p.UpdateRouteResult(ctx, peerSelector, command))
 }
 
-// UpdateRouteSel is the typed-selector variant of UpdateRoute.
-// In-process plugins use this to pass a *selector.Selector through DirectBridge
-// without stringifying. Falls back to the string path for external plugins.
-func (p *Plugin) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string) (announced, withdrawn uint32, err error) {
-	return p.UpdateRouteSelWithMeta(ctx, sel, command, nil)
+// UpdateRouteResult returns the complete command and admission result.
+func (p *Plugin) UpdateRouteResult(ctx context.Context, peerSelector, command string) (*rpc.UpdateRouteOutput, error) {
+	return p.UpdateRouteWithMetaResult(ctx, peerSelector, command, nil)
 }
 
-// UpdateRouteSelWithMeta is the typed-selector variant of UpdateRouteWithMeta.
-func (p *Plugin) UpdateRouteSelWithMeta(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
-	if p.bridge != nil && p.bridge.HasUpdateRouteSel() {
-		return p.bridge.UpdateRouteSel(ctx, sel, command, meta, 0)
+// UpdateRouteSel is the typed-selector count/error form of UpdateRouteResult.
+func (p *Plugin) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string) (uint32, uint32, error) {
+	return updateRouteCounts(p.UpdateRouteSelResult(ctx, sel, command))
+}
+
+// UpdateRouteSelResult returns the full answer over the typed slot or the same
+// update-route RPC when the plugin runs in another process.
+func (p *Plugin) UpdateRouteSelResult(ctx context.Context, sel *selector.Selector, command string) (*rpc.UpdateRouteOutput, error) {
+	return p.UpdateRouteSelWithMetaResult(ctx, sel, command, nil)
+}
+
+// UpdateRouteSelWithMeta preserves the typed-selector count/error answer.
+func (p *Plugin) UpdateRouteSelWithMeta(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+	return updateRouteCounts(p.UpdateRouteSelWithMetaResult(ctx, sel, command, meta))
+}
+
+// UpdateRouteSelWithMetaResult preserves the actual typed or framed result.
+func (p *Plugin) UpdateRouteSelWithMetaResult(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (*rpc.UpdateRouteOutput, error) {
+	if p.bridge != nil {
+		if p.bridge.HasUpdateRouteSelResult() {
+			return p.bridge.UpdateRouteSelResult(ctx, sel, command, meta, 0)
+		}
 	}
-	return p.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
+	return p.UpdateRouteWithMetaResult(ctx, sel.String(), command, meta)
 }
 
-// UpdateRouteWithMeta injects a route update with metadata to matching peers.
-// Meta is plumbed to CommandContext.Meta for the command dispatch path.
-// For forwarded cached routes (peer-to-peer), ingress filters set ReceivedUpdate.Meta
-// which egress filters read. Plugin-originated routes currently go through AnnounceNLRIBatch
-// (direct send) where CommandContext.Meta is not yet consumed by egress filters.
-// Pass nil meta for routes without metadata (equivalent to UpdateRoute).
-func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
-	return p.UpdateRouteRequest(ctx, rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta})
+// UpdateRouteWithMeta keeps the count/error contract; metadata is not authority.
+func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command string, meta map[string]any) (uint32, uint32, error) {
+	return updateRouteCounts(p.UpdateRouteWithMetaResult(ctx, peerSelector, command, meta))
 }
 
-// UpdateRouteRequest sends a typed route command with its original source
-// provenance. Received-origin replay MUST carry the stored SourcePolicyEpoch;
-// callers MUST NOT acquire a current epoch for retained route bytes.
-func (p *Plugin) UpdateRouteRequest(ctx context.Context, input rpc.UpdateRouteInput) (announced, withdrawn uint32, err error) {
+// UpdateRouteWithMetaResult returns warnings and explicit admission facts too.
+func (p *Plugin) UpdateRouteWithMetaResult(ctx context.Context, peerSelector, command string, meta map[string]any) (*rpc.UpdateRouteOutput, error) {
+	return p.UpdateRouteRequestResult(ctx, rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta})
+}
+
+// UpdateRouteRequest preserves received provenance and the legacy count answer.
+// A retained received route MUST carry its original SourcePolicyEpoch.
+func (p *Plugin) UpdateRouteRequest(ctx context.Context, input rpc.UpdateRouteInput) (uint32, uint32, error) {
+	return updateRouteCounts(p.UpdateRouteRequestResult(ctx, input))
+}
+
+// UpdateRouteRequestResult returns the full result without inventing admission
+// from zero counts. A partial command failure returns its result and an error;
+// a transport failure returns no fabricated result. Nil/null output is missing.
+func (p *Plugin) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
 	result, err := p.callEngineWithResult(ctx, rpc.MethodUpdateRoute, &input)
 	if err != nil {
+		return nil, err
+	}
+	var output *rpc.UpdateRouteOutput
+	if err := json.Unmarshal(result, &output); err != nil {
+		return nil, fmt.Errorf("unmarshal update-route result: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return output, err
+	}
+	resultErr := output.Err()
+	return output, resultErr
+}
+
+func updateRouteCounts(output *rpc.UpdateRouteOutput, err error) (uint32, uint32, error) {
+	if output == nil {
 		return 0, 0, err
 	}
-	var out rpc.UpdateRouteOutput
-	if err := json.Unmarshal(result, &out); err != nil {
-		return 0, 0, fmt.Errorf("unmarshal update-route result: %w", err)
-	}
-	return out.Announced, out.Withdrawn, nil
+	return output.Announced, output.Withdrawn, err
 }
 
 // ForwardCached forwards cached UPDATEs identified by updateIDs to the listed
