@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-6.3-12",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors",
+    "unit-sha": "ebaa4dda19f5212d",
+    "claim-sha": "c3be8e704e98e088",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::processValidatedMessage",
+    "producer-sha": "0980e8afca5af924",
+    "break": "line 490: \"bodies := message.SynthesizeWithdrawFamilies(wireUpdate.Payload(), s.mpFamilyDispatchable, s.mpAddPathReceiveWire)\" -\u003e \"bodies := message.SynthesizeWithdrawFamilies(wireUpdate.Payload(), s.mpFamilyDispatchable, s.mpAddPathReceiveWire); if validation.result.AttrCode == uint8(attribute.AttrASPath) { if _, _, _, present := attribute.AttrFind(body[validation.attrsOffset:validation.attrsOffset+validation.attrsLen], attribute.AttrASPath); present { bodies = [][]byte{{0, 0, 0, 0}} } } /* MUTATION-APPLIED: lose malformed-present AS_PATH withdrawal */\""
+  }
+]

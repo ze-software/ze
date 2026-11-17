@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-6.3-16",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications",
+    "unit-sha": "1378e88f502866aa",
+    "claim-sha": "09353015cc90da92",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606NLRISyntaxAction",
+    "producer-sha": "d0ac7043b74c512f",
+    "break": "line 770: \"message.NotifyUpdateInvalidNetwork\" -\u003e \"message.NotifyUpdateMalformedAttr /* MUTATION-APPLIED: wrong syntax-reset subcode */\""
+  }
+]

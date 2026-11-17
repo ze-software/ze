@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-6.3-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors",
+    "unit-sha": "ebaa4dda19f5212d",
+    "claim-sha": "5e785f5f29d2713e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::processValidatedMessage",
+    "producer-sha": "0980e8afca5af924",
+    "break": "line 490: \"bodies := message.SynthesizeWithdrawFamilies(wireUpdate.Payload(), s.mpFamilyDispatchable, s.mpAddPathReceiveWire)\" -\u003e \"bodies := message.SynthesizeWithdrawFamilies(wireUpdate.Payload(), s.mpFamilyDispatchable, s.mpAddPathReceiveWire); if validation.result.AttrCode == uint8(attribute.AttrNextHop) { if _, _, value, present := attribute.AttrFind(body[validation.attrsOffset:validation.attrsOffset+validation.attrsLen], attribute.AttrNextHop); present { if len(value) == 4 { if value[0] == 0 || value[0] == 127 || value[0] \u003e= 224 { bodies = [][]byte{{0, 0, 0, 0}} } } } } /* MUTATION-APPLIED: lose invalid-host NEXT_HOP withdrawal */\""
+  }
+]
