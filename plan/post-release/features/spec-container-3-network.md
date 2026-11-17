@@ -910,6 +910,18 @@ device cannot run.
 |----|----------|--------|
 | Q-1 | Configured interface names inside a prefix a plugin claimed for its devices are refused when the config is parsed. Is that reservation acceptable, or should the clash be refused only when a plugin asks for that name? | open |
 
+### Deviations recorded on 2026-11-17
+
+| Text of this spec | What was built | Why |
+|-------------------|----------------|-----|
+| "Published ports": `doctor-container-port-blocked` reads the applied ruleset listing | The check judges the committed firewall config, which the sibling reads through its declared read of the `firewall` root and records at each apply (`internal/plugins/container/network/policy.go`). A rule written with another tool is not seen | A sibling's doctor answer makes no engine call, and the engine client has no ruleset read. The read is item F-3 of `spec-container-7-followup.md` |
+| One finding for a `port` entry | One finding for each `port` entry and each blocking chain | Two forward chains with policy drop each need their own term |
+| The fix is the accepting term as a `set firewall` line | The fix is four `set firewall table T chain C term container_INSTANCE_PORT` lines and the commit | One term needs its protocol, its port, its output interface and its action |
+| The test `container-port-blocked` | Built as `test/container/container-port-blocked.ci`: a client in a namespace beyond the router is blocked, the finding is present, the term is added by a reload, the client is served and the finding is gone | As specified |
+| The words `listen-port` and `listen-address` | `public-port` and `public-address`, renamed throughout this spec | Owner ruling of 2026-11-17 |
+
+Also true of the check: a term whose `destination-address` names a set is not judged, so that port is reported, and an `output-interface` that ends with an asterisk is honoured as a prefix match.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|

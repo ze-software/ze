@@ -841,6 +841,15 @@ No existing feature file is modified: every feature file of this child is new wi
 
 - The reference model's commit-time rewrite and its "zero means unlimited" values share one cause: a slot that holds a keyword or a sentinel beside a real value. Removing the sentinel and letting absence mean "derived" resolves each case with no new node.
 - A gated plugin cannot use `ze:validate`, because the walk that runs it reads an always-on list of section names. Native types, references and the plugin's own verifier are the routes that need no central edit.
+- Deviations of the closing test as built on 2026-11-17 (`test/container/container-redis.ci`). The text of section X-1, AC-15, the test tables and phase 9 is not yet corrected and is wrong on these points:
+  - It runs in the container suite, in the QEMU guest of `./le test qemu ci test`, not in the appliance guest. An appliance test runs on the host and boots an image through one Go driver, so no step of it runs inside the guest: the client's namespace, the registry fixture and the probe have nowhere to run there.
+  - Step 1 asserts the whole reference and the digest on the row of `show container image list`, not on the answer of the fetch command, which answers after 20 seconds that the fetch still runs.
+  - Step 7 does not assert `restart-count`: the listing has no such column until the runtime child's restart policy exists. The restart is proven instead by the Redis server's run id, which the client stores before the restart and compares after it.
+  - The Redis protocol client is the probe `internal/test/containerprobe` (its `resp` mode, with the words `save` and `kept`, and its `listed` mode), not a package `internal/test/respclient`. `TestRespClientRoundTrip` does not exist; the probe's own unit tests cover the protocol.
+  - Two steps were added: before the daemon starts, the outside namespace is shown to reach the router by a refused connection; after the blocked attempt, the router itself reads the value back, which shows that the forward policy alone stops the client.
+  - The test needs the seed on the machine (`./le test container-seed fetch`), and its fixture line carries the word `redis`, so a missing seed fails the test and names that command.
+- The words of table S-1 for a published port are `public-port` and `public-address` since 2026-11-17 (owner ruling), renamed throughout this spec.
+- The `registry` list landed on 2026-11-17 with `transport`, `mirror`, `authentication` and `description`. `trust-anchor` is not in the schema yet. The list is parsed by the image store sibling, `mirror address` is a string checked in Go by the pull client's host rule, and an entry keyed `docker.io` is the one that applies to a short name.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

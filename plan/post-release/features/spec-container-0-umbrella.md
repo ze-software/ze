@@ -70,6 +70,10 @@ appliance has for its own system.
 | Stricter than the reference model | No `privileged` node. Volumes are stored by Ze and size-capped, with no host path. |
 | The list of containers | The list is named `instance`, because `name` is Ze's selector keyword. |
 | Accepted defaults | The fourteen capabilities published images expect; a bridge per network; outbound translation on, with a node to turn it off; a hard CPU limit, which adds one kernel option, and no I/O throttle; the reference model's words wherever a Ze rule does not forbid them, including the workload's `environment` and short image names resolved against a default registry with the resolved digest recorded; memory 512 MiB; restart on failure; rollback by command only; health checks as a later child. |
+| Storage cap (2026-11-17) | "Storage is uncapped: cap can be added post release." The cap on a writable layer and on a volume, and the refusal where the data directory cannot enforce one, no longer block anything. They are built after the release. This replaces the cap in "Where containers run" and "Stricter than the reference model" above until then. |
+| The container listing (2026-11-17) | "show container list: needed." Built that day. |
+| The published port's words (2026-11-17) | The router's side of a published port is `public-port` and `public-address`, beside `container-port`. The words `listen-port` and `listen-address` are gone, with no alias. |
+| Closing test (2026-11-17) | Passed in the guest on the runtime kernel as `test/container/container-redis.ci`, with the deviations the operator surface child records. |
 
 ### Open decisions (owner)
 
@@ -119,6 +123,7 @@ Seven specs carry the work, all in `plan/post-release/features/`. Each holds its
 | 5 | `spec-container-5-shell.md` | A command with an input stream on every surface, entering a running container, and the seventh patch file of the build-time diff | Runtime |
 | 6 | `spec-container-4-operator-surface.md` | The one table of config words and command words, the verify rules with their messages, the state view, the listings, the doctor checks that span the children, metrics, the guide page, and the closing Redis test (AC-14) as its last phase | Runtime, image store, network |
 | 7 | `spec-container-6-health-check.md` | A container health check, run through the shell child's bounded run. Ruled a later child on 2026-11-16; a skeleton today | Shell |
+| 8 | `spec-container-7-followup.md` | The items found while building the work that no child above owns: CI with the seeded image, a plugin command's time bound, a sibling's read of the applied ruleset, and the smaller ones its Task table lists. Added on 2026-11-17; a skeleton today | Image store, network |
 
 Dependency order:
 
@@ -494,6 +499,83 @@ Each child lists its own. The ones that bound the whole work:
 - A container health check is not built by the six specs above it in "Child specs". It is owed to `plan/post-release/features/spec-container-6-health-check.md`.
 - Ze answers no container names over DNS at first, has no I/O throttle, builds and signs no image, and shares no layer between images (owner rulings, and the image store child).
 - A live terminal in the browser and a live session over REST are not built: both surfaces run the bounded form (the shell child, O-4 and O-5).
+
+## Remaining work (2026-11-17)
+
+This is the one list of what the container work still owes, written after the closing test passed. Each row names the spec that owns the item and the place in it. An item is specified once, in its owner: this table points and never restates. The state is judged from the code and the tests at worktree commit `d3c799f3ec`, not from spec text.
+
+Abbreviations: S1 runtime, S2 image store, S3 network, S4 operator surface, S5 shell, S6 health check, S7 followup (`spec-container-7-followup.md`), SA `spec-appliance-perm-grows-at-install.md`.
+
+### What an operator would miss first
+
+| Item | Owner and place | State | Remains |
+|------|-----------------|-------|---------|
+| Reading a container's output: `show container log`, `monitor container log`, the `log` leaf | S4 table C-1 and C-2, AC-10, phase 5; the buffer and the leaf are S1 phase 7, AC-16 | The buffer exists with a sequence cursor. Output reaches an operator only through the stopped finding | Both commands, the stream, `lines` and `after`, the `log` leaf, the refusal for `log none` |
+| Restart policy, exit record, `restart-count` and `last-exit-status` in the listing | S1 phase 7, AC-10, AC-20; the columns are S4 table T-1, AC-1, AC-3, phase 4 | The listing has six columns and leaves these two out on purpose. Every exit ends as `stopped` | The `restart` leaf with its delay, the exit record, then the two columns |
+| `show container detail name` | S4 table C-1, phase 4 | Not started | The command and its test |
+| Volumes and `tmpfs` | Words: S4 table S-1, rules V-3 and V-7. Storage: S2 "Capped storage", phases 6 and 7, AC-14, AC-15, AC-24. Mounts: S1 phase 6, AC-9 | A request with volumes is refused. The two volume commands answer not-implemented | All of it |
+| Override words: `entrypoint`, `argument`, `environment`, `hostname`, `user`, `group` | S4 table S-1; S1 phase 6, AC-8, AC-21 | The image's own entrypoint and environment are used. A user named by name is refused | Every word, and the user by name |
+| Limits: `memory`, `shared-memory`, `cpu`, `process-limit` | S4 table S-1; S1 phase 5, AC-3, AC-4, AC-5 | Fixed defaults of 512 MiB and 256 processes. No CPU quota | The four leaves, the CPU quota, the three limit tests |
+| Grants: `capability`, `capability-drop`, `device`, `sysctl`, `host-namespace` | S4 table S-1, AC-6, AC-19; S1 phase 6 | Thirteen capabilities, the device-node one withheld until the device allowlist exists | Every word, the allowlist |
+| Image lifecycle: update, rollback, delete, delete all, clear, retention, a hold that refuses | S2 "Generations", phase 7, AC-11 to AC-14, AC-23; command rows in S4 table C-1 | The commands are declared and answer not-implemented. The binding and the first generation record exist | All of it |
+| Registry `trust-anchor` | S4 table S-3; S2 AC-18 | The pull client accepts an anchor. The schema has no leaf | The leaf, the read of the `pki` tree, the refusal test |
+| The shell into a container | S5, all phases | Nothing built | A probe gate in the guest, then phases 1 to 8 |
+| Health check | S6 | Skeleton: only the task is written | Design, then everything |
+
+### Network
+
+| Item | Owner and place | State | Remains |
+|------|-----------------|-------|---------|
+| Publishing a port a Ze listener holds | S3 phase 5, rule V-9; message in S4 table E-1 | Not started | The refusal at commit and `doctor-container-port-conflict` |
+| Conflicts between two instances' ports | S3 slice 4b, rule V-6 | Refused at verify | The doctor code is not registered |
+| Resolver file, `show container network list`, `show container interface list`, the host network mode | S3 phase 4, "Name resolution" (the handover calls it slice 4c) | Not started | All of it |
+| Kernel option enrolment and the network's doctor checks | S3 phase 6, "Problem classes" | Of sixteen codes only `doctor-container-port-blocked` is in the code | Four capability pairs and the other codes |
+| IPv6 | S3 Design Insights, phase 3; rules V-13 and V-14 | Forwarding is claimed per family. The local-destination match is refused in a dual-stack table, and the transit test covers IPv4 only | The dual-stack match, an IPv6 run of the transit test, router advertisements under forwarding |
+| `description` on a network and on an instance | S4 table S-2, phase 2 | Absent | The two leaves |
+
+### Storage, the appliance and proofs
+
+| Item | Owner and place | State | Remains |
+|------|-----------------|-------|---------|
+| The size cap, `show container store`, `store largest-image` | S2 "Capped storage", phase 6, AC-15, AC-16, AC-22; S4 table S-3 and rule V-12 | No cap is applied. After the release, by the ruling of 2026-11-17 | Carry the ruling into S2 and S4; decide what `show container store` answers with no cap; the `largest-image` leaf, which one doctor fix line already names |
+| The persistent partition grows at install | SA phases 4 to 8 | Phases 1 to 3 done. Growth is written and not wired. The storage command is a stub | Phases 4 to 8. One decision blocks it: the kernel's `gpt` boot option |
+| Runtime: doctor for privilege, the forked plugin, the appliance boot proof | S1 phases 8 and 9 | Six runtime checks exist. None of the four forked-plugin and privilege tests exists, nor the boot proof | Those tests and the proof |
+| Runtime: reload keeps unchanged containers, state across a daemon restart | S1 AC-18, AC-20, AC-22 | Not proven | The tests |
+| Image store: the remaining fetch tests, store doctor, the interop registry proof | S2 phase 8 and phase 9, functional table | Seven fetch tests absent. The four interop tests absent | As listed there |
+| Operator surface: schema audit, offline verification, the absent-gate proof, surface parity, metrics, the cross-sibling doctor checks | S4 phases 2, 3, 6 and 7, table M-1, table D-1 | Not started. No container metric exists | As listed there |
+| Pages: the guide, each child's part of `features/containers.md` | S4 phase 8; the last phase of S1, S2, S3, S5 and SA | The architecture pages exist. `docs/guide/containers.md` does not | The guide and each extension |
+
+### Owned by no child until now
+
+These are the rows of `spec-container-7-followup.md`: CI running the suite with the seeded image, a plugin command declaring its time bound, a sibling reading the applied firewall ruleset, a layer entry written through a link into an opaque folder, a guard that every doctor fix line parses, a seed with more than one pinned image, and two tooling defects.
+
+### Spec text the code now contradicts
+
+Each is recorded as a deviation in the child that holds the text. The text itself is corrected when that child is next edited for its own work.
+
+| Text | Where | What is true |
+|------|-------|--------------|
+| The closing test runs in the appliance guest, as `test/appliance/container-redis.ci` | This spec, AC-14 and its wiring rows; S4 section X-1, AC-15 and its test rows | It is `test/container/container-redis.ci`, in the container suite. No step of an appliance test runs inside its guest |
+| The closing test asserts `restart-count` | S4 section X-1 step 7; this spec AC-10 | The listing has no such column yet. The restart is proven by the server's run id |
+| The closing test asserts on the fetch command's answer | S4 section X-1 step 1; S2 "answers once" | The command answers after 20 seconds that the fetch still runs, so the test asserts on the listing row |
+| The closing test's client is a package `internal/test/respclient` | S4 Files to Create, phase 9 | The probe `internal/test/containerprobe` speaks the protocol |
+| `doctor-container-port-blocked` reads the applied ruleset | S3 "Published ports" | It judges the committed firewall config |
+| "The seed action", unnamed | S2 "The owner's closing test" | `./le test container-seed fetch` |
+
+### Decisions still open with the owner
+
+| Decision | Recorded in |
+|----------|-------------|
+| May CI reach the public registry for the seed | S7, F-1 |
+| The state of an enabled container before its first start ends | The handover, open item 1 |
+| A time bound a plugin command can declare, and whether a caller leaving cancels it | S2 Deviations; S7, F-2 |
+| Does a running container restart when its `image` changes | The handover, open item 3 |
+| The word `destination-local`, the dual-stack match, a shifted port range | S3 Design Insights; the handover, open item 4 |
+| Interface names that start with `zc` are refused; a network with translation off still needs a firewall section | S3 question Q-1, AC-23 |
+| A registry proxy setting; IPv6 forwarding and router advertisements; an unknown state for `show container store` | S2 Deviations; the handover, open item 6 |
+| The kernel's `gpt` boot option; the withheld device-node capability | SA assumption A-15; the handover, open item 7 |
+| A doctor code of its own for a refused binding write | S2 Deviations |
+| What an unhealthy result does | S6 |
 
 ## Checklist
 
