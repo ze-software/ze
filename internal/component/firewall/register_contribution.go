@@ -32,7 +32,9 @@ func init() {
 	if err := pluginserver.RegisterEngineOp(operation); err != nil {
 		panic("BUG: firewall table contribution registration failed: " + err.Error())
 	}
-	if err := pluginserver.RegisterProcessGenerationCleanup(withdrawContributedTables); err != nil {
+	if err := pluginserver.RegisterProcessGenerationCleanup(func(_ *pluginserver.Server, proc *process.Process) {
+		withdrawContributedTables(proc)
+	}); err != nil {
 		panic("BUG: firewall table contribution cleanup registration failed: " + err.Error())
 	}
 	if err := diagnostic.RegisterDoctorCheck(contributionDoctorCheck); err != nil {
