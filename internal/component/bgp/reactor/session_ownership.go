@@ -50,21 +50,22 @@ type adjOutWrite struct {
 	// announces and contested stage the announcement election (Data Flow
 	// 3a): the source-bound announcements owed or merged into a record, and
 	// the keys whose entry a candidate other than its owner reached.
-	owes        map[adjOutKey]adjOutOwe
-	oweNLRI     []byte
-	movers      map[adjOutKey]adjOutPath
-	refused     map[adjOutKey]struct{}
-	announces   map[adjOutKey]adjOutPath
-	contested   map[adjOutKey]struct{}
-	keyScratch  [nlrisplit.PrefixKeyScratchSize]byte
-	removed     int
-	suppressed  int
-	source      *Peer
-	policyEpoch uint64
-	sourceSet   bool
-	pathSources []wireu.SentPathSource
-	raw         bool
-	ordinals    map[family.Family]uint32
+	owes          map[adjOutKey]adjOutOwe
+	oweNLRI       []byte
+	movers        map[adjOutKey]adjOutPath
+	refused       map[adjOutKey]struct{}
+	announces     map[adjOutKey]adjOutPath
+	contested     map[adjOutKey]struct{}
+	keyScratch    [nlrisplit.PrefixKeyScratchSize]byte
+	removed       int
+	suppressed    int
+	source        *Peer
+	policyEpoch   uint64
+	sourceReceipt uint64
+	sourceSet     bool
+	pathSources   []wireu.SentPathSource
+	raw           bool
+	ordinals      map[family.Family]uint32
 	// recoveryAnswers is not staged: both filter passes share it (recoveryOwedFor).
 	recoveryAnswers []adjOutRecoveryAnswer
 	// Counts come from the existing final-body record walk, before acceptance.
@@ -142,6 +143,9 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 	}
 	work, _ := adjOutWritePool.Get().(*adjOutWrite)
 	work.session, work.table = s, s.adjOut
+	if item := s.sentForward; item != nil {
+		work.sourceReceipt = item.sourceReceipt
+	}
 	work.raw = raw
 	work.encoding = bgpctx.Registry.Get(s.sendCtxID)
 	return work, nil
@@ -166,6 +170,7 @@ func (w *adjOutWrite) release() {
 	w.source, w.pathSources = nil, nil
 	w.sourceSet = false
 	w.policyEpoch = 0
+	w.sourceReceipt = 0
 	w.announcedRoutes, w.withdrawnRoutes = 0, 0
 	adjOutWritePool.Put(w)
 }

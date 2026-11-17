@@ -964,6 +964,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 		}
 		s.sentOrigin = wireu.SentOrigin{Local: ownership.sourceSet && ownership.source == nil, Paths: ownership.pathSources}
 		s.sentOrigin.SourcePolicyEpoch = ownership.policyEpoch
+		s.sentOrigin.SourceReceipt = ownership.sourceReceipt
 		if ownership.source != nil {
 			s.sentOrigin.SourceOwner = ownership.source.sourceOwner
 		}
