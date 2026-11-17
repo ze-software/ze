@@ -19,7 +19,7 @@
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
     "producer-sha": "4865ab799033434e",
-    "break": "line 572: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
+    "break": "line 621: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
   },
   {
     "rid": "RFC7947-x-5",
@@ -30,7 +30,7 @@
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_ownership.go::oweAnnouncement",
     "producer-sha": "4865ab799033434e",
-    "break": "line 572: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
+    "break": "line 621: \"!adjOutContests(entry, owner, record != nil, w.table.tombstoned(key))\" -\u003e \"true\""
   },
   {
     "rid": "RFC7947-x-5",

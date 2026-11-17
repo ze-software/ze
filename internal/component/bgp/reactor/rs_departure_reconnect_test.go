@@ -25,7 +25,17 @@ import (
 // first; the old lowLivePeer's reader is already stopped then.
 func lowLiveReconnect(t *testing.T, departed *lowLivePeer, identifier uint32) *lowLivePeer {
 	t.Helper()
-	p := departed.peer
+	v := lowLiveHandshake(t, departed.peer, identifier)
+	lowEventually(t, func() bool { return departed.peer.State() == PeerStateEstablished && !departed.peer.pendingSync() }, "reconnect initial sync")
+	return v
+}
+
+// lowLiveHandshake exchanges OPEN and sends KEEPALIVE on the real session.
+// Its caller MUST observe the resulting establishment and any settlement it
+// needs. A fixture may observe End-of-RIB before releasing held replay work;
+// ordinary callers use lowLiveConnect or lowLiveReconnect for full settlement.
+func lowLiveHandshake(t *testing.T, p *Peer, identifier uint32) *lowLivePeer {
+	t.Helper()
 	lowEventually(t, func() bool { return p.currentSession() != nil && p.SessionState() == fsm.StateActive },
 		"the departed source is Active again")
 	server, remote := net.Pipe()
@@ -46,7 +56,6 @@ func lowLiveReconnect(t *testing.T, departed *lowLivePeer, identifier uint32) *l
 	v.send(t, message.PackTo(open, nil))
 	lowEventually(t, func() bool { return p.SessionState() == fsm.StateOpenConfirm }, "reconnect OPEN accepted")
 	v.send(t, message.PackTo(message.NewKeepalive(), nil))
-	lowEventually(t, func() bool { return p.State() == PeerStateEstablished && !p.pendingSync() }, "reconnect initial sync")
 	return v
 }
 

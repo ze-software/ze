@@ -7,8 +7,8 @@
     "claim-sha": "5c3870b14e928ea2",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_handlers.go::screenRouteRefresh",
-    "producer-sha": "fb25266be120b4e4",
-    "break": "line 477: \"if updateIsUnexpected(state) {\" -\u003e \"if updateIsUnexpected(state) || state == fsm.StateEstablished {\""
+    "producer-sha": "cc9c4ad61bf6c6d3",
+    "break": "line 513: \"case fsm.StateOpenSent, fsm.StateOpenConfirm:\" -\u003e \"case fsm.StateOpenSent, fsm.StateOpenConfirm, fsm.StateEstablished: // MUTATION-APPLIED: reject an expected Established ROUTE-REFRESH\""
   },
   {
     "rid": "RFC6608-4-3",

@@ -4,11 +4,11 @@
   "tests": {
     "internal/component/bgp/message/rfc4724_eor_test.go::TestBuildEOR_IPv4Unicast": "4a9dd7a5b4b0c878",
     "internal/component/bgp/message/rfc4724_eor_test.go::TestIsEndOfRIBAnyFamily": "4a9dd7a5b4b0c878",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "d24cff27e4057c1e",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "d24cff27e4057c1e",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "d24cff27e4057c1e",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "d24cff27e4057c1e",
-    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "d24cff27e4057c1e",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORReachesTheSilentFamilyToo": "5d178ca68e91ae0e",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily": "5d178ca68e91ae0e",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncMarkerWaitsForNoProcess": "5d178ca68e91ae0e",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker": "5d178ca68e91ae0e",
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestRoutePushingBindingsCountBothRails": "5d178ca68e91ae0e",
     "internal/component/bgp/reactor/rfc4724_rapid_reconnect_test.go::TestPredecessorSyncWritesNothingOnSuccessor": "27af858663b26f70",
     "internal/component/bgp/reactor/rfc4724_reactor_b_test.go::TestRFC4724EndOfRIBNotSentBeforeTheInitialUpdateCompletes": "41a16348663403ff",
     "internal/le/interoplab/bgp/check_rfc.go::checkNoFamilyEndOfRIB": "a19bf492823e14b9"

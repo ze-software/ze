@@ -364,12 +364,22 @@ func TestRSPeerUpReplayElectsBest(t *testing.T) {
 						return outcomes, err
 					})
 				}
-				run.connectClient(t)
+				// Recovery remains deliberately held until C's End-of-RIB is
+				// observed. Full settlement includes that debt, so await it below
+				// after release, rather than inside the ordinary connect helper.
+				run.c = lowLiveHandshake(t, run.client, 0x0a000004)
+				lowEventually(t, func() bool { return run.c.peer.State() == PeerStateEstablished }, "C established while recovery is held")
 				lowEventually(t, func() bool {
 					eor, _ := announcementFrames(t, run.c, prefix, attrsA)
 					return len(eor) != 0
 				}, "C receives End-of-RIB")
 				close(release)
+				lowEventually(t, func() bool {
+					if run.c.peer.State() != PeerStateEstablished {
+						return false
+					}
+					return !run.c.peer.pendingSync()
+				}, "C's initial sync settles after releasing recovery")
 				lowEventually(t, func() bool {
 					_, announced := announcementFrames(t, run.c, prefix, attrsA)
 					return len(announced) != 0 && adjOutOwedCount(run.c.peer) == 0

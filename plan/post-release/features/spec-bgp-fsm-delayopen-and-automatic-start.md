@@ -7,9 +7,9 @@
 | Release reason | Optional DelayOpen and automatic-start controls are owner-selected follow-up capabilities, not required behavior of the shipped FSM. |
 | Scope | protocol |
 | Depends | - |
-| Phase | 5/5 — implementation checks passed; independent closure next |
+| Phase | 5/5 — selected-scope closure review complete; native publication owed |
 | Handoff | `tmp/session/2026-11-15-193834/state/session-state-bgp-fsm-delayopen-and-automatic-start-01a1e0ac-0f28-7471-8c00-742a752c8144.md` |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -36,6 +36,33 @@ connection must not change the incumbent's learned plugin state. Selection
 publishes its retained OPEN pair once, after incumbent cleanup. The extracted
 frame reader must retain pooled storage without allocating a wrapper for each
 message.
+
+Reload also checks independently frozen incoming offers across construction,
+handoff and selected validation. It retires an offer whose changed capability
+is in use, while preserving unused or unchanged offers and the immutable OPEN
+already sent. The existing peer-change estimate continues to count peer
+changes, rather than private connection retirement.
+
+The shared-pool stress proof also repairs two ownership defects. An incoming
+connection waits for read storage before and after OPEN, then resumes on its
+original socket and reader. Its original deadline and cancellation still end
+the wait. Failed receive publication releases adopted receipts and queued
+buffers, while an existing retained consumer keeps its original receipt and
+forwarding buffers until its final release. Neither repair raises pool limits
+or resets shared pools to hide retained ownership.
+
+Passive startup also preserves an incoming connection that arrives before the
+selected Session can process TCP success. Initialization may delay its
+handshake within the existing lifecycle bounds; it must not lose the
+connection event, emit a duplicate OPEN or make the peer reconnect. The same
+connection and its owning Session complete the ordinary exchange once startup
+can proceed.
+
+The final review also covers received UPDATE admission before establishment.
+A connection waiting for OPEN or strict BFD must reject an UPDATE before it
+can publish routes through a selected peer's delivery path. An independent
+candidate's refusal preserves the incumbent and its useful routes; established
+connections still process valid UPDATEs.
 
 Verification also repairs the live-router test fixture's teardown: after its
 reactor, plugin engines, workers and server handlers join, it restores the
@@ -137,6 +164,45 @@ reader and socket through selection. Each OPEN has one immutable proposal.
 Capture retains the selected connection's original input and proposal identity,
 and removal excludes late capture registration by an old Peer.
 
+The later stress run exposed failed receive-publication ownership and incoming
+pool-pressure resets. The targeted RED in `job-unit-pkg-b9083d6e.log` retained
+one real standard read slot on nil receiver, one on receiver panic, three on
+queued receiver panic and one on pre-handoff panic. Retained-consumer controls
+also left lookup/retain admission open and failed to release their last cache
+entry. Both incoming read rails returned EOF under pressure before the same
+connection could resume. AC-1q/r own these corrections. Their four roots later
+passed twenty race repetitions in `job-incoming-pool-controls20-4b9a9784.log`:
+99 selected roots produced 1980 passes, no failure or race report, in 530.088
+seconds. That checkpoint precedes the continuation correction below.
+The follow-up `job-incoming-follow-panic-red-3c7a18c7.log` also confirmed that
+a later heap-backed policy continuation lost the original buffer's earlier
+transfer result: standard and coalesced readers held only 4096 of the required
+8192 retained bytes, then reported a double return. The earlier successful
+publication and its retained buffers remain permitted under AC-1r.
+The passes and native-currentness counts below are earlier checkpoints, not
+final verification of these corrections. Final producer proof renewal and
+independent closure remain owed.
+
+The role daemon stress also exposed an initial-destination EOF. Its observer
+had assumed `OnAllPluginsReady` followed peer startup; the documented contract
+permits the opposite order. A judged fixture precondition now waits for both
+configured passive peers to report ACTIVE before starting its role scenario.
+That precondition is not a product fix or proof of the EOF's exact cause.
+Separately, `Peer.runOnce` publishes a fresh Idle Session before its start;
+an early `Session.connectionEstablished` can send OPEN while TCP-confirmed
+is ignored, then the later start leaves remote OPEN unable to complete.
+`TestPassiveIncomingAcrossSessionStart` proved this race in
+`job-incoming-passive-start-red-09d2d0cd.log`: the gated startup received EOF
+while waiting for KEEPALIVE, while the ordinary passive-start control passed.
+The package failed in 3.389 seconds without a race report. Starting before
+publication repaired that handshake but left its public OpenSent transition
+unobserved while the initial Peer-state callback was paused. The strengthened
+actual-IPC observer isolated this in
+`job-incoming-start-complete-observer-red-09d2d0cd.log`: the gated case
+received connected, OpenConfirm and Established, but no OpenSent event;
+ordinary passive startup passed. The package failed in 10.084 seconds.
+AC-1s owns both behaviors; source verification remains pending.
+
 Targeted race runs passed for retry, ingress refusal, hold-deadline admission,
 selected identity and capture ownership. Twelve ownership boundaries also passed
 twenty repetitions each (240 named passes), and the retry-budget timer passed
@@ -199,6 +265,9 @@ diagnose an earlier TIME30. Independent closure remains a separate step.
 | Timer ownership | `fsm/timer.go`: `Timers.StartConnectRetryTimer`, `Timers.ConnectRetryBudget`, `Timers.StopAll` | Retains the actual retry deadline and its clock before timer cleanup | AC-1e uses that remaining interval after connection-resource release |
 | Real connection lifecycle | `reactor/session_read.go`: `Session.handleConnectionCloseLocked` | Delivers the TCP failure event, retains its retry budget, then retires timers | Uses the existing lifecycle for held Connect and every Active failure |
 | Peer reconnect loop | `reactor/peer_run.go`: `Peer.run` | Uses a transferred retry deadline when present and ordinary backoff otherwise | Preserves the required initial-value retry without changing ordinary OpenSent backoff |
+| Read-pool backpressure | `reactor/session.go`: `Session.Run`; `reactor/session_read.go`: `Session.awaitReadBuffer` | Selected reads wait for available storage and retry without consuming wire bytes | AC-1q extends the same pressure classification to both incoming read rails and keeps their deadline/cancellation owners |
+| Received UPDATE ownership | `reactor/recent_cache.go`: `RecentUpdateCache.Add`, `Activate`, `Retain`, `Release`; `reactor/peer_run.go`: delivery worker | Cache adoption holds pooled storage through consumer publication and explicit retains | AC-1r closes failed publication admission and releases abandoned ownership without returning buffers still borrowed by a consumer |
+| Passive connection startup | `reactor/peer_run.go`: `Peer.runOnce`; `reactor/peer_connection.go`: `Peer.acceptConnection`; `reactor/session_connection.go`: `Session.connectionEstablished` | The Peer owns the selected Session and accepted TCP connection across its start and handshake | AC-1s preserves a valid early exchange as well as ordinary passive acceptance; the implementation chooses how initialization and acceptance are ordered |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -288,6 +357,10 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 | AC-1n (capacity refusal diagnosis) | An excess TCP connection arrives while an admitted incoming exchange or its joined retirement owns capacity | Before receiving OPEN, the excess socket receives exact Cease / Connection Rejected (6/5), then EOF. The existing incumbent and admitted candidate remain owned. The same admitted candidate can complete its OPEN exchange and, when the incumbent is Established, receives true collision 6/7 and EOF. The incumbent retains its original connection and processes a subsequent KEEPALIVE. Reserved-handoff and shutdown silent closure remain separate existing outcomes. |
 | AC-1o (provisional plugin validation) | An incoming OPEN is validated beside an existing connection, or its candidate is selected after incumbent cleanup | Provisional validation checks the OPEN without changing peer-scoped plugin state. Rejected or losing candidates preserve the incumbent's learned role and useful OTC export. Promotion publishes the exact retained OPEN pair once on internal and JSON RPC transports. Selected-validation failure or expiry of the original HoldBudget refuses the candidate without peer-up or deadline renewal. Ordinary selected OPEN validation remains permitted. |
 | AC-1p (pooled frame transfer) | A complete BGP frame is read through the shared reader | A warmed standard or extended pooled frame read and return allocates no per-message wrapper. Both selected and incoming readers retain original-wire validation, capture and buffer-return ownership. Valid messages remain available for semantic dispatch. |
+| AC-1q (incoming read-pool pressure) | The standard read pool is exhausted before the candidate's remote OPEN, or its negotiated extended pool is exhausted before the following read | Pressure pauses that incoming read without EOF, replacing the candidate, consuming frame bytes or retiring the useful OpenSent incumbent. Returning storage lets the same candidate, TCP socket and buffered reader complete OPEN/KEEPALIVE and establish, with exactly two local OPENs across incumbent and candidate and one received OPEN. Waiting does not renew any timer or deadline. With storage still exhausted, the original first-OPEN deadline or peer cancellation retires the candidate and releases admission; a candidate-only deadline preserves the incumbent. The first-OPEN zero-value fallback stays 90 seconds. |
+| AC-1r (failed receive-publication ownership) | A real pooled UPDATE is adopted before a nil receiver, receiver panic, queued receiver panic or pre-handoff panic, with ordinary and coalesced reads | After failure and owner joins, abandoned current and queued receipts leave no cache entry or pool slot. Failed publication refuses new lookup and retain admission. An already-retained consumer remains permitted to read its byte-identical original receipt and forwarding buffer until it releases its retain; those buffers stay owned during that borrow and return exactly once after its last release. Earlier UPDATEs already handed to a live delivery worker still complete in order when only a later read-task handoff fails. Worker failure retires only work it cannot publish. Successful publication and its existing consumers remain permitted. Pool capacity, safety-valve timing and process isolation are not increased to mask a leak. |
+| AC-1s (incoming connection during passive startup) | A valid incoming TCP connection and remote OPEN reach a passive peer during selected-Session initialization, with ordinary acceptance after startup as the control | The early connection may wait for initialization within existing lifecycle/handshake bounds. Once startup proceeds, that same TCP connection and its owning Session complete OPEN/KEEPALIVE and reach Established without a reconnect, a lost connection event or a replayed handshake. The documented public `connected` event occurs once before the TCP-driven `fsm` transition into OpenSent, and that transition is delivered once even when the initial Peer-state callback is paused. With DelayOpen disabled, exactly one local OPEN and one remote OPEN produce one establishment; configured DelayOpen timing remains governed by AC-1a through AC-1c. Ordinary passive acceptance remains permitted. Stop/cancellation still ends pending ownership without late publication. No particular buffering or publication architecture is required. |
+| AC-1t (UPDATE admission before establishment) | A valid withdrawal arrives on an ordinary selected connection or independent incoming connection still waiting for OPEN or strict BFD, on either read path | The UPDATE cannot reach route or received-UPDATE publication before that connection is Established. Existing protocol rejection and cleanup remain appropriate to the receiving state; the candidate's failure preserves the incumbent connection and its useful routes. OpenSent/OpenConfirm rejection remains intact, and a valid Established withdrawal remains permitted. The shared admission rule must cover pre-OPEN and post-OPEN strict waits without changing unrelated ROUTE-REFRESH semantics. |
 | AC-1l (TCP connected event) | TCP succeeds through dial or accept, including an independent incoming candidate, with zero or configured DelayOpen | Exactly one connected event precedes OPEN processing and the connection's first published FSM handshake transition. It reports this Session's actual local endpoint and omits a dynamic remote AS before negotiation. A DelayOpen wait still emits it immediately. The same useful connection subsequently establishes; adoption does not repeat connected. |
 | AC-2 (row 7) | A peer session that reached Established ends, by a received NOTIFICATION, by HoldTimer expiry (both error returns from `Session.Run`), or by `ErrTeardown`, and the reconnect loop starts the next cycle, after the backoff timer or after `inboundNotify` cuts it short | The FSM receives Event 3 (AutomaticStart) and the ConnectRetryCounter is zero, for each of the three exits. Negative polarity: the cycle after a failed attempt (no Established), including the cycle `inboundNotify` restarts, fires Event 6 and keeps the counter (`TestRFC4271ConnectRetryCounterSurvivesDampedStart` stays green). The operator's first start stays Event 1. The predicate is the `cycleReachedEstablished` flag the FSM state callback sets on entering Established and `runOnce` clears before each session, consumed by the next `runOnce` whatever `safeRunOnce` returned (Data Flow step 2), never a second timer and never the loop's error arm. The prefix-limit arm of `run()` is one more exit after Established: `PrefixReconnectTimer` waits its own delay and continues, and the next cycle takes Event 3 like the others; `PrefixReconnectNever` returns from `run()`, so no next cycle starts and no event fires (round-3 N3) |
 | AC-2p (row 7, passive) | The same, on a peer with `connection passive` | Ze fires Event 3 and the FSM goes to Active, following the existing Event 1/Event 4 conflation in `fsm.go` (one arm, `passive` chooses Connect or Active), extended to Event 3 in the same arm; the arm's comment states the conflation. Event 5 is not added, because nothing in Ze fires it. The counter is zero |
@@ -300,7 +373,7 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 | AC-8 (row 6s, strict-mode path refusal) | `EnterBfdUpPending` or its Connect/Active sibling is called in a state the draft does not allow | It returns the error it returns today for an OpenSent sub-state outside OpenSent; the Connect/Active sub-states are accepted only in Connect and Active with the DelayOpenTimer just cleared by Event 20 |
 | AC-9 (row 6s, ledger and comments) | Row 6s landed | `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` lines 14 and 20 no longer call the sub-states unreachable and name the producing functions; no requirement row is added because §8 carries no RFC 2119 keyword (its Notes); every comment and page listed in Current Behavior and the Documentation checklist that calls the sub-states unreachable is rewritten in the same commit; `./le rfc check` exits clean for the draft stem |
 | AC-10 (connection diagnostics) | Either OPEN validation rail refuses an unacceptable AS or Identifier, or the BGP HoldTimer expires during a strict-mode BFD wait | The bounded report bus retains the connection's cause under a registered doctor code, including failed NOTIFICATION delivery. A refused unselected connection cannot overwrite the healthy incumbent's notification history or report that peer down. Valid OPEN and ordinary hold expiry are controls. |
-| AC-11 (OPEN preparation during reload) | A plugin declaration changes while an OPEN constructor has captured its previous declaration but has not published the proposal | Reload refuses to keep that session. A genuinely unprepared session can read the current declaration; a published proposal remains immutable. The probe invokes no OPEN-owner callbacks under the reload caller's locks. Failed construction releases its capture owner so the same Session can retry. |
+| AC-11 (OPEN preparation during reload) | A plugin declaration changes during selected OPEN preparation or an independent incoming constructor, handoff or selected validation | A busy selected constructor cannot prove its captured offer current and restarts. A genuinely unprepared session can read the current declaration; a published proposal remains immutable. Incoming offers are judged against their admitted remote OPEN: a changed capability in use is refused before takeover when publication preceded that decision; unused or unchanged offers remain permitted. Reload snapshots exact current, pending and typed inbound Session identities for all retained configured, dynamic and runtime-created peers, then checks and retires stale owners outside Peer locks. A hidden constructor must pass the later fresh check; selected validation checks freshness again after its blocking callback. A collision decision before declaration publication may legitimately retire its incumbent, while the later census or selected guard retires the newly stale epoch. No OPEN-owner callback runs under reload caller locks. Failed construction releases its capture owner so the same Session can retry. The peer-change estimate retains its existing peer-based meaning. |
 | AC-12 (live fixture isolation) | A `lowLiveRouter` fixture enables validation, then finishes | Validation remains enabled while its daemon is alive. After all reactor, plugin and server owners join, the fixture restores its initially absent provider. A failed join keeps the refusing gate. `TestLowLiveRouterReleasesValidationAfterCleanup` and the existing RFC 7705 live callers prove the lifecycle without changing production shutdown policy. |
 
 ## End-to-End User Stories
@@ -314,6 +387,12 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
+| `TestIncomingBeforeOpenUpdateCannotPublishIncumbentWithdrawal`, `TestActiveDelayOpenUpdateNeverPublishes`, `TestIncomingStrictPendingUpdateNeverPublishes` | `internal/component/bgp/reactor/rfc4271_incoming_preestablished_update_test.go` | AC-1t: actual candidate listener, ordinary read rails, no publication before establishment and useful incumbent/Established controls | All seven intended failing leaves were observed before the shared guard correction. The corrected twelve-root race selection completed twenty repetitions per root, 240 passes without FAIL or DATA RACE. The actual daemon discriminator also accepted clean PASS and broken FAIL at the original socket's withdrawal/FIFO assertion. Final13 unique live controls passed with zero skips; selected-source RFC currentness is complete. |
+| `TestPassiveIncomingAcrossSessionStart` | `internal/component/bgp/reactor/peer_passive_start_admission_test.go` | AC-1s: actual listener, controlled initial Active/start interval and ordinary passive control; original TCP/Session, exactly one local/remote OPEN and one establishment; actual IPC observes connected, OpenSent, OpenConfirm and Established once in order | Intended RED observed in `job-incoming-passive-start-red-09d2d0cd.log`: gated startup reached EOF while waiting for KEEPALIVE; ordinary passive startup passed. The strengthened `job-incoming-start-complete-observer-red-09d2d0cd.log` isolates missing OpenSent after the handshake correction, with ordinary control passing. Final callback/publication source ordering independently read; eight startup/raw roots passed under race, and fifteen startup/reload/retry/BFD controls each passed twenty repetitions (300 passes) in job-incoming-start-controls20-10155989.log. |
+| `TestIncomingCandidateReadPoolBackpressure`, `TestIncomingCandidateReadPoolWaitEnds` | `internal/component/bgp/reactor/incoming_read_buffer_wait_test.go` | AC-1q: actual listener, exhausted standard/extended pools, same-socket establishment after release, original deadline and cancellation while storage remains held | Main observed RED in `job-unit-pkg-b9083d6e.log`: both before/after-OPEN resumption paths and both bounded-wait controls received premature EOF. Each restored root passed twenty race repetitions in the 99-root/1980-pass pool-controls checkpoint. Selected-source behavior and currentness checks are complete; the main thread owns the two publication commits. |
+| `TestReceivePublicationAbortReleasesReadOwnership`, `TestReceivePublicationAbortProtectsRetainedReadOwnership` | `internal/component/bgp/reactor/receive_publication_abort_test.go` | AC-1r: real read-slot ownership at worker/read-task failures, three queued receipts, closed lookup/retain admission and byte-identical retained receipt/forwarding buffers through final release, in both read modes | Main observed RED in `job-unit-pkg-b9083d6e.log`: nil/panic/queued/pre-handoff paths retained 1/1/3/1 adopted entries; retained-consumer cases still accepted lookup/retain and kept their last entries. Each expanded ordinary/coalesced root passed twenty race repetitions in the 99-root/1980-pass checkpoint. The later continuation correction requires separate verification below. |
+| `TestReceivePublicationFollowPanicPreservesPrimaryOwnership` | `internal/component/bgp/reactor/receive_publication_follow_panic_test.go` | AC-1r: a real two-family policy withdrawal publishes its primary with retained pooled receipt/variant, then its heap-backed continuation panics; preserve the primary, both buffers and original panic cause through final release | Main observed intended RED in `job-incoming-follow-panic-red-3c7a18c7.log` on standard and coalesced readers: 4096 held bytes instead of 8192 and actual double-return reports. The additive fixture reaches the real continuation producer; corrected-carrier clean–broken–clean and the final ten-root race selection passed, each root twenty times (200 passes), in job-incoming-ownership-final20-daefe27c.log. |
+| `TestAbortedPublicationRetainSurvivesLateLifecycle` | `internal/component/bgp/reactor/recent_cache_abort_lifecycle_test.go` | AC-1r: late activation, explicit expiry and pressured gap scan cannot reopen admission or return the retained original/variant; final Release restores the pool baseline | Added guard coverage after the original retained-consumer RED; the final ten-root race selection passed each root twenty times (200 passes), including this guard, in job-incoming-ownership-final20-daefe27c.log. |
 | `TestOpenConnectionRefusalDiagnostic`, `TestOpenConnectionRefusalDiagnosticSurvivesUnsentNotification`, `TestBFDWaitHoldExpiryDiagnostic`, `TestSessionProblemDiagnosticRegistration` | `internal/component/bgp/reactor/session_problem_diagnostic_test.go` | AC-10, both OPEN rails and selection states, failed delivery, strict waits, ordinary control, registered metadata and exact command paths | Actual missing-history RED observed; valid controls and registration PASS. Reviewed production reporting is applied; all four roots PASS under race. |
 | `TestPluginCapabilitiesKeptBeforeOpen`, `TestPluginCapabilitiesKeptDuringPreparation`, `TestPrepareOpenFailureReleasesProposalCapture` | `internal/component/bgp/reactor/session_plugin_preparation_test.go` | AC-11, exact frozen capability bytes, actual input-getter boundary and failed-build retry | During-preparation regression RED observed. Independently reviewed capture ownership is applied; all three roots and collision/reload controls PASS under race. |
 | `TestRemovedPeerFactoryCannotCaptureReplacement` | `internal/component/bgp/reactor/capture_removal_test.go` | AC-1m: gate the real old factory before capture registration, finish Remove/Add, refuse its late input, then retain the replacement's real TCP OPEN in its terminated capture | Named race RED/GREEN observed; the capture-removal root passed twenty ownership race repetitions. |
@@ -350,11 +429,33 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 |-------|-------|------------|---------------|---------------|
 | `timer delay-open` (seconds) | 0 (off) or 1..240, FRR's range | 240 | N/A (0 is valid: off) | 241 |
 
+### Controlled lifecycle seams
+
+These cases use the controlled-Go exception in `ai/rules/testing.md`. The
+daemon role-isolation carriers remain required for observable learned-state
+and OTC/filter wiring. In-process JSON RPC is not a forked-process result.
+
+| Scenario | Controlled proof | Why the exact interleaving uses Go |
+|----------|------------------|-----------------------------------|
+| A constructor captured the previous declaration before publishing its OPEN proposal | `TestIncomingPluginReloadPreservesUsefulIncumbent` | The capture has no wire-visible receipt yet. A public reload cannot pause that private getter boundary. The actual TCP exchange then distinguishes refused in-use capability from permitted unused/unchanged offers and preserves the useful incumbent. |
+| Reload crosses a typed incoming handoff | `TestIncomingPluginReloadRetiresStaleHandoff` | The pending/inbound/current membership and joined-cleanup barrier are private. Operator state exposes the selected peer, not an API that holds this exact receipt transition. The test also establishes a fresh current offer on the same Peer after retirement. |
+| The plugin store changes during selected validation, before BGP reconciliation seals the Session | `TestIncomingPluginChangeDuringSelectedValidation` | Blocking a callback is public; pausing between atomic store publication and BGP reconciliation is not. A complete operator reload also runs the census and cannot isolate the post-RPC freshness check. The Go test drives actual TCP plus bridge and JSON RPC transports; neither mode claims a child-process run. |
+| Read storage is unavailable at the first or following incoming read | `TestIncomingCandidateReadPoolBackpressure`, `TestIncomingCandidateReadPoolWaitEnds` | The private pool probes fence the exact standard/extended Get while its handles remain owned. An operator cannot select that handle-acquisition boundary. Actual listener/TCP behavior still proves same-socket resumption and original deadline/cancellation, with fixture-owned pool balance checked after all owners join. |
+| Delivery fails after adoption or partway through a policy continuation | `TestReceivePublicationAbortReleasesReadOwnership`, `TestReceivePublicationAbortProtectsRetainedReadOwnership`, `TestReceivePublicationFollowPanicPreservesPrimaryOwnership` | A nil receiver or panic inside Ze's worker/read handoff is an internal fault, not a public daemon operation. Controlled hooks exercise those exact faults with real pooled receipts, ordinary/coalesced read owners and retained-buffer survivors. An external plugin exit would exercise a different failure boundary. |
+| Late activation, expiry or pressure scanning meets an aborted retained entry | `TestAbortedPublicationRetainSurvivesLateLifecycle` | The cache lifecycle and fake-clock scan are internal resource boundaries. This cheap guard test supplements the real receive-ownership paths; it does not replace their entry-driven proof. |
+| An incoming TCP exchange crosses selected-Session initialization | `TestPassiveIncomingAcrossSessionStart` | An external peer can connect early, but a daemon script cannot hold the exact internal start interval reliably. The controlled callback fences that interval while the actual listener exchanges bytes; the ordinary passive control proves useful acceptance without the gate. The role daemon carriers separately require public ACTIVE as their scenario precondition and do not substitute for this startup race proof. |
+
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `bgp-delay-open` | `test/plugin/bgp-delay-open.ci` | AC-1, AC-1a, AC-1b, AC-1c through the daemon listener and operational FSM state | Current-source clean–broken–clean passed; the premature-OPEN mutation failed at the observer. All 80 loaded draft invocations executed and passed without skips. Promoted live selection passed all five assertions. Historical TIME30 remains undiagnosed. |
 | `bgp-delay-open-bfd-strict` | `test/plugin/bgp-delay-open-bfd-strict.ci` | AC-4, AC-5: daemon OPEN exchange, public pending sub-state, withheld KEEPALIVE, real BFD Init datagram causes Up and establishment | Current-source clean–broken–clean passed on Ze's matching kernel/image; the bypass mutation failed at the pending-state assertion. All 80 loaded draft invocations executed and passed without skips. The promoted live Linux selection passed, with one test executed and zero skips. Historical bg_508 TIME30 remains undiagnosed. |
+| `role-incoming-open-isolation` | `test/plugin/role-incoming-open-isolation.ci` | AC-1o: actual daemon/internal bgp-role, original Customer socket, mismatched competing Provider refusal2/11, permitted roleless/Customer policy controls that lose collision6/7, and fresh OTC65000-stamped export after each outcome | Final rebuilt baseline passed; all eighty loaded invocations executed and passed. Promoted unchanged at 17:07 UTC. Native clean/broken qualification detected loss of the original Customer export after mismatched OPEN; promoted live selection passed in job-role-final-live-controls-b6a803dc.log. The surrounding ten-carrier run passed eight and failed the two separately diagnosed stamp fixtures; it is not an all-green suite claim. |
+| `role-incoming-open-isolation-forked` | `test/plugin/role-incoming-open-isolation-forked.ci` | The same AC-1o wire/export assertions with the actual bgp-role subprocess over TLS/RPC | Explicit external bgp-role configuration passed its final rebuilt baseline and all eighty loaded invocations. Promoted unchanged at 17:07 UTC. Native clean/broken qualification detected loss of the original Customer export after mismatched OPEN; promoted live selection passed in job-role-final-live-controls-b6a803dc.log. The surrounding ten-carrier run passed eight and failed the two separately diagnosed stamp fixtures; it is not an all-green suite claim. |
+| `incoming-preopen-update-isolation` | `test/plugin/incoming-preopen-update-isolation.ci` | AC-1t: a private pre-OPEN withdrawal cannot alter actual Adj-RIB-In or original-socket export; an Established source can still withdraw its route | Final-source baseline and all eighty loaded draft invocations passed, then the carrier was promoted. The native discriminator accepted clean PASS in 2.0 seconds and broken FAIL in 2.0 seconds: the old predicate exposed an unexpected withdrawal at the original-source FIFO fence. Final unique live selection passed13/13 with zero skips in7.6 seconds. |
+| `incoming-open-learned-isolation` | `test/plugin/incoming-open-learned-isolation.ci` | AC-1o: a losing IPv6-only OPEN cannot replace the internal route server's selected IPv4 family/ASN or interrupt fresh export to the original socket | Final-source baseline and all eighty loaded invocations passed, then the carrier was promoted. Native clean PASS in 2.7 seconds and broken FAIL in 16.4 seconds were accepted. After collision6/7, the broken build logged IPv4 family mismatch and failed fresh original-socket export; later operational-state checks were not reached on that broken run. Final unique live selection passed13/13 with zero skips in7.6 seconds. |
+| `incoming-open-learned-isolation-forked` | `test/plugin/incoming-open-learned-isolation-forked.ci` | The same learned-family and useful-forwarding boundary with actual external bgp-rs over TLS/RPC | Final-source baseline and all eighty loaded invocations passed, then the carrier was promoted. Native clean PASS in 1.5 seconds and broken FAIL in 16.5 seconds were accepted. After collision6/7 and EOF, forked bgp-rs logged IPv4 family mismatch and the original socket missed the fresh route. Later broken-state assertions are not credited. Final unique live selection passed13/13 with zero skips in7.6 seconds. |
+| `role-otc-egress-stamp`, `role-otc-egress-stamp-forked` | `test/plugin/role-otc-egress-stamp.ci`, `test/plugin/role-otc-egress-stamp-forked.ci` | Existing exact OTC65000, AS_PATH, next-hop and destination-NLRI wire assertions on both process transports | Fixture maintenance only: independently approved destination `next-hop unchanged` makes the existing 1.1.1.1 expectation explicit. Both corrected drafts passed their baseline and all eighty loaded invocations, then were promoted. Every original assertion remains. Both passed in the final unique13 live selection, zero skips; native approval bindings remain separately recorded. |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -380,12 +481,22 @@ paths below supersede the old pending-resolver details.
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - row 6: grouping `peer-fields`, container `timer`, new leaf `delay-open` (uint16 seconds, range `0 | 1..240`, default 0 = DelayOpen FALSE), so `bgp peer <address> timer delay-open <seconds>` and the group and bgp levels through the grouping
 - `docs/architecture/behavior/fsm.md` - rows 6, 7
 - `rfc/short/rfc4271.md` - AC-3
+- `internal/component/bgp/reactor/incoming_candidate.go`, `internal/component/bgp/reactor/session_read.go` - AC-1q: incoming pressure waits reuse selected-session backpressure while preserving the original first-OPEN deadline and later hold/cancellation owners
+- `internal/component/bgp/reactor/recent_cache.go`, `internal/component/bgp/reactor/peer_run.go`, `internal/component/bgp/reactor/reactor_notify.go` - AC-1r: failed publication releases abandoned adopted receipts and queued work, closes new lookup/retain admission, and preserves existing retained receipt and forwarding buffers
+- `internal/component/bgp/reactor/peer_run.go`, `internal/component/bgp/reactor/peer_connection.go`, `internal/component/bgp/reactor/session_connection.go` - AC-1s: preserve an admitted passive connection across selected-Session startup without constraining the internal ordering mechanism
 
 ## Files to Create
 - `test/plugin/bgp-delay-open.ci`
 - `test/interop/scenarios/bgp-delayopen-frr/`
 - `test/plugin/bgp-delay-open-bfd-strict.ci`
+- `test/plugin/role-incoming-open-isolation.ci`, `test/plugin/role-incoming-open-isolation-forked.ci` - AC-1o, after draft qualification and promotion
+- `internal/test/fixture/role_incoming_open.go` - actual daemon role/export scenario with competing incoming TCP exchanges and useful routes on the original socket
 - `internal/le/interoplab/bgp/check_delayopen.go` (and its `_test.go`) - the `bgp-delayopen-frr` checker: parses the capture and asserts Ze's OPEN follows FRR's OPEN, or follows the TCP handshake by at least DelayOpenTime when FRR holds too
+- `internal/component/bgp/reactor/incoming_read_buffer_wait_test.go` - AC-1q: pressure resumption and bounded cancellation on the actual listener
+- `internal/component/bgp/reactor/receive_publication_abort_test.go` - AC-1r: abandoned publication reclamation and retained-consumer survivors with real pool handles
+- `internal/component/bgp/reactor/receive_publication_follow_panic_test.go` - AC-1r: preserve an earlier successful publication and its original pooled receipt across a later policy continuation panic
+- `internal/component/bgp/reactor/recent_cache_abort_lifecycle_test.go` - AC-1r: retained ownership survives late activation, explicit expiry and pressured gap scanning
+- `internal/component/bgp/reactor/peer_passive_start_admission_test.go` - AC-1s: early and ordinary passive acceptance through the actual listener
 
 ### Current incoming-connection ownership files
 
@@ -418,13 +529,13 @@ paths below supersede the old pending-resolver details.
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/bgp-protocol.md` if its evidence names these rows (check `./le feature report`) |
 | 2 | Config syntax changed? | Yes | `docs/config-reference.md` and `docs/guide/configuration.md`, which list the `timer` leaves (`connect-retry`) |
 | 3 | CLI command added/changed? | No | none |
-| 4 | API/RPC added/changed? | No | none |
-| 5 | Plugin added/changed? | No | none |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md`, OPEN Validation: the provisional flag and selected replay match ValidateOpenInput and selectNegotiationEpoch |
+| 5 | Plugin added/changed? | Yes | `docs/architecture/meta/role.md`, Learned role lifecycle: provisional validation preserves incumbent learned state |
 | 6 | Has a user guide page? | Yes | `docs/guide/bgp-peering.md` if it describes session timers |
 | 7 | Wire format changed? | No | the OPEN is unchanged; only its timing |
-| 8 | Plugin SDK/protocol changed? | No | none |
+| 8 | Plugin SDK/protocol changed? | Yes | `docs/plugin-development/protocol.md`, validate-open callback: the same provisional semantics on both transports |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4271.md`, `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` (row 6s), and `docs/features/rfc-status.md` (generated by `./le rfc update`) |
-| 10 | Test infrastructure changed? | No | none |
+| 10 | Test infrastructure changed? | Yes | `internal/test/fixture/role_incoming_open.go` registers the daemon observer; the controlled lifecycle seams above explain internal-fault coverage |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` if it lists DelayOpen |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/behavior/fsm.md` (rows 6, 7 implemented; "The two BFD strict-mode sub-states" becomes all four, row 6s), `docs/architecture/behavior/fsm-active.md` (line 47 Event 18 row and the Event 12, 16/17, 20, 24 DelayOpen arms), `docs/architecture/behavior/fsm-connect.md` (the Connect DelayOpen arms), each edited in the phase whose code makes it wrong |
 | 13 | Route metadata keys added/changed? | No | none |
@@ -533,13 +644,30 @@ This does not clear either promoted TIME30 or certify the whole RFC ledger.
 | No `{gap}` left on rows 6, 7 | `grep -n` each id in `rfc/short/rfc4271.md` |
 | Both polarities tagged | `grep -rn "RFC requirement: <id>" internal/ test/` |
 | Ledger clean | `./le rfc check` exit status for `rfc4271` |
+| Incoming pressure preserves useful connections | Named AC-1q listener roots pass under race, including same-socket resumption and deadline/cancel controls; repeated scoped controls restore their pool baseline |
+| Failed publication ends only abandoned ownership | Named AC-1r roots pass under race in both read modes; no abandoned cache entries/slots remain after joins, retained buffers stay intact until last release |
+| Startup preserves a useful passive connection | Named AC-1s root passes under race: early and ordinary controls establish the same admitted socket/Session with one OPEN exchange and one establishment |
 
 ### Security Review Checklist
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | `delay-open` range enforced at commit |
-| Resource exhaustion | A held connection is bounded by the DelayOpenTimer and the hold timer |
+| Resource exhaustion | A held connection is bounded by its original timers and read deadline. Incoming read pressure waits without resetting TCP; failed publication returns abandoned buffers while preserving active retained borrows. No pool-limit increase or global reset substitutes for ownership cleanup. |
 | Error leakage | none: no peer-supplied bytes parsed differently |
+
+Closure source review found no additional security issue in the selected
+corrections. YANG and `parsePeerSettings` both bound DelayOpen to 0..240 seconds.
+`readFrame` validates the original header before body reads; OPEN observations
+own at most two bounded bodies and never retain a read-pool handle. Candidate
+admission stays bounded, original deadlines survive blocking callbacks, and
+expiry or cancellation retires the same owner. Replay invokes observers
+outside the epoch mutex, with the OPEN owner and joined private reader
+preserving its ordering. Failed UPDATE publication closes new cache admission
+while existing retains keep their bytes until release. The changes add no
+shell, SQL, filesystem-path parser, credential, cryptographic primitive or
+privilege grant. Selected-snapshot dependency review is complete. Scoped
+lint ran with no selected whole/hunk finding; its global failures remain
+disclosed below. The native artifact records the independent final verdict.
 
 ### Failure Routing
 
@@ -607,7 +735,7 @@ the quotes in the Task section.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1, AC-1a..AC-1m, AC-2, AC-2p, AC-3..AC-9 all demonstrated
+- [ ] All 34 AC rows, including AC-1a..AC-1t, AC-2p, AC-7h and AC-10..AC-12, demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Scoped package and relevant functional/interop tests pass; GitHub CI supplies whole-tree verification after an authorized push. Agents do not run any `./le verify` command or test a copy of the tree
@@ -725,3 +853,433 @@ same-session unexpected-message proofs remain separate evidence.
 | `callback-reenters-held-lock.md` | 2026-10-30 | strict BFD release holds `openMu` across the negotiated publication, so the read loop's close waits on it |
 | `claim-outlives-the-evidence-it-cites.md` | 2026-10-31 | RFC4271-8.2.2-15 WEAK: no tagged unit runs a DelayOpenTimer in Connect |
 | `lifetime-ends-before-its-last-reader.md` | 2026-11-04 | AC-1e / RFC4271-8.2.2-13: Session `StopAll` cancels Active Event 18's restarted initial-value retry; Peer uses independent backoff |
+
+
+## Implementation Summary
+
+### What Was Implemented
+- Configured DelayOpen and the strict-BFD pending paths, with the original
+  retry deadline preserved through cleanup. `Peer.runOnce` selects AutomaticStart
+  after an Established cycle and a damped restart after a failed one.
+- Independent incoming handshakes retain their original Session, socket,
+  proposal, reader and deadlines through collision selection and cleanup.
+  Capacity refusal uses Connection Rejected; genuine collision uses Connection
+  Collision Resolution. This is a bounded admission policy, not an object-count
+  conformance claim.
+- Provisional plugin validation preserves incumbent learned state; selection
+  publishes the retained OPEN pair once. Reload checks current, pending and
+  inbound owners, including constructors and blocking selected validation.
+- Frame reads transfer pooled handles by value. Incoming reads wait for
+  storage without reconnecting; publication failure ends abandoned ownership
+  while preserving active retained buffers and earlier successful publications.
+- A fresh selected Session is started and its publication callback installed
+  before TCP acceptance can see it. Live-router fixtures join all owners before
+  restoring their validation provider.
+- Shared UPDATE admission now withholds route publication until that
+  connection is Established. AC-1t has actual listener race and daemon
+  clean/broken evidence; final unique13 live controls passed; selected-source native RFC currentness is complete.
+
+### Bugs Found/Fixed
+- Candidate role publication: `TestProvisionalOpenPreservesSelectedRole`
+  and actual daemon role-isolation carriers preserve useful OTC export.
+- Per-frame wrapper allocation: `TestReadFrameUsesPooledStorage` measured one
+  allocation before the value transfer and zero afterward on both pools.
+- Stale incoming plugin offers: constructor, typed-handoff and selected-RPC
+  reload roots reject changed in-use offers while retaining useful controls.
+- Delivery-channel publication race: the existing Peer lock now owns its
+  installation, snapshots and clear; the selected validation race root passed.
+- Failed receive publication and later continuation panic: the real pooled
+  receipt/variant tests preserve active ownership and restore the pool baseline.
+- Pool pressure: `TestIncomingCandidateReadPoolBackpressure` resumes the same
+  incoming socket; `TestIncomingCandidateReadPoolWaitEnds` preserves its bounds.
+- Passive startup and observer loss: `TestPassiveIncomingAcrossSessionStart`
+  retains the handshake and exactly-once ordered public event delivery.
+- Pre-established UPDATE escape: seven intended failing leaves preceded the
+  shared admission correction; twelve related roots then passed twenty race
+  repetitions each. The real-daemon old-predicate break also failed at the
+  useful incumbent's original-socket route assertion.
+- Decoded private OPEN escape: the generic bounded publication epoch retains
+  both actual OPEN directions until selection. Both daemon transports have
+  accepted clean/broken useful-export discrimination. The exact borrowed-body
+  alias break failed at overwritten bytes, then all six canonical ownership,
+  decoded and SDK roots passed twenty race repetitions each. Final live
+  controls passed13/13 without skips. Lint completed with findings outside the
+  selected whole files/hunks; selected-source native RFC currentness is complete.
+
+### Risks and observations retained
+
+AutomaticStart intentionally resets pacing history after an Established cycle;
+failed-cycle controls preserve damped restart history. A strict BFD wait can
+remain in Connect/Active, but its original negotiated HoldTimer or zero-hold
+BfdHoldTimer bounds it. Concurrent collision captures still cannot identify a
+winning TCP connection from portless BGP4MP endpoint fields alone; retained
+original frames and explicit ambiguity remain the documented answer. No new
+full RFC or external strict-BFD interoperability claim follows from these tests.
+
+### Documentation Updates
+- FSM/configuration guides describe DelayOpen, automatic restart and all four
+  strict-BFD pending states; the implemented RFC rows name their actual proof.
+- `peer-lifecycle.md` anchors incoming ownership, reload census, provisional
+  validation, original retry budgets and complete startup publication to the
+  corresponding reactor producers. `process-protocol.md` and the SDK protocol
+  page describe the provisional RPC contract on both transports.
+- `buffer-architecture.md` and `memory/lifetime-contracts.md` anchor frame value
+  transfer, aborted cache admission and retained-buffer/continuation ownership.
+- `features/bgp-protocol.md` names the four daemon carriers and pinned FRR
+  scenario; its overall scope remains partial and its level experimental.
+- The two owned open journal Fix cells now name their implemented corrections;
+  sibling spec citations point to durable lifecycle prose or retain historical
+  provenance as a bare stem. A news fragment records operator-visible behavior.
+- Final light documentation check ran and reported catalog, command-mapping,
+  summary and source-anchor findings. No clean global documentation result is claimed.
+
+### Deviations from Plan
+- Real listener review replaced the old pending-OPEN resolver with one owned
+  incoming Session and typed transfer receipts. Compatibility buffered OPENs
+  remain a separately tested entry. The retained single admission slot is a
+  resource bound, not a scope reduction.
+- The owner's behavioral RFC interpretation is recorded in
+  `ai/META-DECISIONS.md`; review judges unmet behavior, not literal FSM structure.
+- Retry, capture/removal, plugin publication, reload, receive ownership and
+  startup defects encountered on the required paths were repaired in this
+  spec. AC-1t carries the received-UPDATE admission correction. Its final
+  closure checks remain in progress; no behavior is intentionally deferred.
+
+## Mistake Log
+
+<!-- One table, one place. Ship the `none` row and either replace it or leave it
+     deliberately: three separate empty tables produced three separate 67-82%
+     untouched rates, because an empty table asks nothing.
+     Kind: assumption (a broken A-N) | approach (a route abandoned) | escalation
+     (a mistake frequent enough to deserve a rule). -->
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Original pending handling read a remote OPEN without owning that connection's local handshake | The admitted TCP connection needs its own bounded handshake and transfer owner | Actual listener regressions and producing code | Retain one independent Session and its immutable inputs through selection |
+| approach | Original review rationale treated missing extra FSM objects as a conformance gap | The owner requires applicable externally visible behavior, with RFC updates and errata | Owner clarification and primary RFC review | Record the policy in META-DECISIONS and reassess actual incoming behavior |
+| approach | Provisional policy callbacks could overwrite the incumbent's learned role | Validation and selected publication have different ownership | Actual SDK/TCP and daemon OTC export regressions | Carry the generic provisional flag and replay the selected OPEN pair once |
+| approach | Receiver failure and a later policy continuation obscured transferred read-buffer ownership | Admission closure must preserve existing retains; a later failure cannot revoke a successful primary | Real-slot REDs and continuation double return | Abort only abandoned receipts; carry exact ownership through panic unwind |
+| approach | Starting a published Idle Session lost TCP success; starting earlier alone lost its public OpenSent observer | Readiness includes the publication callback before external acceptance | Actual listener and IPC observer REDs | Start with no callback, install it through its noninvoking setter, then publish under the existing admission lock |
+| approach | The shared unexpected-UPDATE guard covered only OpenSent/OpenConfirm | Connect/Active DelayOpen paths can receive UPDATE before route publication is permitted | Formal Round1 source trace, actual listener failures and real-daemon withdrawal | Repaired shared admission under AC-1t, preserving ROUTE-REFRESH semantics and useful Established traffic; final selected-source currentness is verified |
+| approach | Adding the decoded-OPEN tests overwrote an existing untracked test file without first reading it | The existing file already held three SDK validation roots and its selected-callback gate | Main compared the write with retained literal tool inputs | Reconstructed the exact original 301 lines, kept the two new roots in their own file with unique helper names, and reran all three original SDK roots successfully |
+
+## Implementation Audit
+
+<!-- BLOCKING before closure. See ai/rules/completion.md.
+     Status: Done (with file:line) | Partial | Skipped | Changed.
+     Partial and Skipped both require explicit user approval. -->
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Configured DelayOpen, including real retry timing | Done | `Session.connectionEstablished`, `delayOpenExpired`, `handleConnectionCloseLocked`; `Peer.run` | Base daemon and pinned FRR proof; real-Peer held/strict retry controls retain the original timer interval. |
+| Automatic start after an Established cycle | Done | `Peer.runOnce`, `FSM.handleIdle` | Real-Peer active/passive restart and failed-cycle controls; four current-source runtime records renewed in this closure batch. |
+| DelayOpen strict-BFD enter, release and bounded failure | Done | `Session.advanceAfterOpen`, `handleBFDEvent`; `FSM.EnterDelayOpenBfdUpPending` | Strict daemon, candidate BFD and ordinary/zero-hold/nonwaiting controls. |
+| Independent incoming ownership, collision and capture removal | Done | `incomingCandidate`, `Peer.resolveIncoming`, `Session.adoptIncoming`, `prepareSessionCapture`, `Reactor.removalLocked` | Actual listener, same-Session adoption, collision/refusal, capture and shutdown controls. |
+| Provisional validation, selected learned publication and reload freshness | Done | `Session.selectNegotiationEpoch`, `privateNegotiationEpoch.messageCallback`, `peerOpenSnapshot.reconcilePluginOffers` | SDK transports, exact-body ownership unit and both real RS process modes discriminate useful selected behavior. |
+| Pooled-frame value transfer, pressure and failed-publication ownership | Done | `receivedFrame`, `incomingCandidate.readFrame`, `RecentUpdateCache.abortPublication`, `finishReadBuffer` | Allocation and real-pool fault controls retain useful borrowers and reclaim abandoned ownership. |
+| Passive startup, diagnostics and fixture lifecycle | Done | `Peer.runOnce`, `Session.runOpenValidator`, `lowLiveRouter` cleanup | Startup observer ordering, coded refusal/hold diagnostics and joined provider cleanup controls. |
+| UPDATE admission before establishment | Done | `updateIsUnexpected`, both read rails | Intended listener and daemon failures, restored race controls, useful Established withdrawals and one bounded positive RFC record. |
+| Current RFC records, audit verdicts and final closure checks | Done | RFC discrimination/audit records; Review Gate below | All41 native identities, five published-Peer.runOnce retakes and16 independent audit rows/8stems are accepted. Final update/tree/citation passed with no generated diff. The full-WT RFC check exited1 with425 global findings; exact owned-ID/name readback found only RFC4724 SHIFTED from excluded surrounding edits. Native reseal against HEAD f1d64ff442 confirmed fresh/0shifted/0refused; the selected interop blob is74ea9188c288c2103510392e66c2aaf06b799ed7. Four-package lint exited1 (HOST16/LINUX16/CAP8 on13 paths), with no selected whole/hunk finding; the Session.go finding is absent from its pinned HEAD body. Doc/repo/weakening global findings remain disclosed, including38 weakening findings with no selected-path intersection. |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDelayOpenConfigBoundary`, `TestDelayOpenInheritanceToPeerSettings`; YANG `delay-open-timer` | Zero/off and upper-bound refusal; runtime parse range agrees with schema. |
+| AC-1a | Done | `TestRFC4271DelayOpenHeldConnectionWritesNoOpen`, Connect/Active event tests | Actual held socket sends no early OPEN. |
+| AC-1b | Done | `TestRFC4271DelayOpenTimerExpiry`, Connect/Active event tests | Timer expiry sends the one local OPEN and advances. |
+| AC-1c | Done | Connect/Active event tests, `bgp-delay-open` | Remote-first OPEN clears delay/retry and performs the permitted handshake. |
+| AC-1d | Done | `TestRFC4271DelayOpenConnectFailureClearsTimer`, `TestDelayOpenConnectFailureRetriesAtInitialValue` | Connect failure preserves listening and original retry ownership. |
+| AC-1e | Done | Three real-Peer held/strict/ordinary retry roots | Active Event18 retains its actual retry budget; OpenSent retains ordinary backoff. |
+| AC-1f | Done | `TestRFC4271DelayOpenVersionError` | Both held states preserve the version-error counter distinction. |
+| AC-1g | Done | Connect catch-all and duplicate-start control | Delay timer clears only for the rejecting event, not an ignored start. |
+| AC-1h | Done | `TestRFC4271DelayOpenPreBufferedOpen` | Both connection modes retain Event17-before-Event20 behavior. |
+| AC-1i | Done | `TestRFC4271DelayOpenBothSidesHold`, actual listener collision roots | Both identifier orders and OPEN-less incumbent policy remain useful. |
+| AC-1j | Done | Actual incoming-listener default/delayed OPEN roots | Independent wire exchange beside OpenSent; original remains useful on failure. |
+| AC-1k | Done | Adoption/collision panic, terminal selection, BFD, capture and identity roots | Original Session/reader/deadlines survive selection; joined retirement covers failure. |
+| AC-1l | Done | Connected-event ordering and candidate metadata roots | Exactly-once connection-specific public event precedes handshake publication. |
+| AC-1m | Done | `TestRemovedPeerFactoryCannotCaptureReplacement` | Registry membership cut prevents late old capture registration. |
+| AC-1n | Done | `TestIncomingCapacityRefusalPreservesConnections` | Exact capacity6/5 and true collision6/7 preserve the useful exchange. |
+| AC-1o | Done | Six final OPEN race roots; role and internal/forked RS daemon carriers | Both decoded directions, exact copied bodies, selected policy and useful export. |
+| AC-1p | Done | `TestReadFrameUsesPooledStorage` | Warmed standard/extended reads allocate no separate frame wrapper. |
+| AC-1q | Done | Read-pool backpressure and bounded-wait roots | Same socket resumes; original deadline/cancellation remain effective. |
+| AC-1r | Done | Abort/retained/follow-panic/lifecycle ownership roots | Abandoned receipts end; earlier publications and existing borrowed buffers survive. |
+| AC-1s | Done | `TestPassiveIncomingAcrossSessionStart` and real IPC observer | Same early TCP exchange establishes with complete ordered public transitions. |
+| AC-1t | Done | Twelve-root race selection, pre-OPEN daemon and bounded tagged listener proof | No route publication before Established; useful incumbent and valid withdrawal remain. |
+| AC-2 | Done | Active automatic-start and failed-cycle real-Peer roots | Established-cycle Event3 zeroes; failed-cycle damped start preserves counter. |
+| AC-2p | Done | `TestRFC4271PassiveAutomaticStartReconnectZeroesCounter` | Passive restart covers notification, hold expiry and teardown. |
+| AC-3 | Done | Rows13/20 have no gap and both polarities are tagged | All native identities/audits accepted; final exact owned RFC readback clear at the selected snapshot, with the RFC4724 surrounding-source exception confirmed fresh against HEAD. The425 global findings are not called green. |
+| AC-4 | Done | FSM and Session strict DelayOpen enter tests; strict daemon | Both states and negotiated zero/nonzero hold values. |
+| AC-5 | Done | All strict release/nonwaiting/actual-Peer roots | Up, AdminDown and Disabled release once; immediate peer KEEPALIVE is serialized. |
+| AC-6 | Done | Strict failure tests and Session bounded-wait root | Second OPEN refuses renegotiation and retires only its owner. |
+| AC-7 | Done | Strict failure tests and Session bounded-wait root | BFD hold expiry and configuration change retain their existing outcomes. |
+| AC-7h | Done | `TestSessionBFDStrictDelayOpenBoundedWait` | Original negotiated HoldTimer bounds the pending state. |
+| AC-8 | Done | `TestEnterDelayOpenBfdUpPendingRefusesInvalidEntry` | Invalid state entry is refused. |
+| AC-9 | Done | Draft notes and FSM guides describe all four sub-states | Strict-BFD draft has no final native finding; update/tree passed. No invented RFC2119 row or whole-RFC support claim. |
+| AC-10 | Done | Four coded diagnostic roots | Both OPEN rails, failed notification, strict expiry and valid controls. |
+| AC-11 | Done | Preparation and all incoming reload/selected-validation roots | Exact immutable offer and post-callback freshness; no callback under reload caller locks. |
+| AC-12 | Done | `TestLowLiveRouterReleasesValidationAfterCleanup` | Restore the absent provider only after all fixture owners join. |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| DelayOpen FSM events, wire timing, config bounds and buffered OPEN | Done | `fsm/delay_open_test.go`, `reactor/delay_open_test.go`, `delay_open_collision_test.go` | All named rows in the unit inventory above retain their original questions and controls. |
+| Active retry and automatic-start plan rows | Done | Real-Peer retry and automatic-start files above | Current positive behavior and failed-cycle controls are retained; all corresponding native records and published-source retakes are accepted. |
+| Strict-BFD FSM, Session and Peer rows | Done | Both `bfd_delay_open_test.go` files and immediate-reply race file | Hold-zero/nonzero, all releases, failures and invalid-entry coverage. |
+| Incoming listener, identity, capture, removal, terminal and panic rows | Done | Named incoming/candidate/capture files above | Typed ownership supersedes the original pending-resolver design; no planned behavior dropped. |
+| OPEN preparation, reload, diagnostics, startup and fixture cleanup rows | Done | Named preparation/reload/startup/diagnostic files above | Controlled internal seams retain actual TCP observations and useful controls. |
+| Pool pressure and publication ownership rows | Done | Named read-pool/cache/abort/follow/lifecycle files above | Restored real-slot ownership and retained-borrow assertions; later continuation correction included. |
+| Final decoded OPEN and pre-established UPDATE regressions | Done | Decoded/lifetime/pre-established files | Intended REDs, restored race proof and actual consumer daemon observations. |
+| Eight functional-table rows, including both stamp companion carriers | Done | `test/plugin/` paths in Functional Tests | Final unique live selection passed13 incoming/role/stamp controls, zero skips. Base and strict DelayOpen retain their separate qualified Linux evidence; every qualified draft had eighty actual invocations. |
+| Pinned FRR DelayOpen scenario and capture checker | Done | `test/interop/scenarios/bgp-delayopen-frr`, `check_delayopen.go` and its tests | Existing retained clean/broken/restored guest evidence; no new external interop run is inferred. |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| FSM state, event and timer source/tests | Done | Existing DelayOpen files carry the original event work; no extra literal FSM-object requirement. |
+| Session/Peer connection, startup, retry and strict-BFD source/tests | Done | Original named files and their extracted owners are present. |
+| Pending incoming collision implementation | Changed | `incoming_candidate.go`, typed admission and immutable proposal/capture owners replace the old resolver; behavior is covered by actual listener tests. |
+| YANG/config/settings and configuration guides | Done | Existing registered grouping reaches peer/global inheritance and runtime parsing. |
+| Two original daemon carriers and FRR scenario/checker | Done | All paths present; retained functional and interop evidence above. |
+| Incoming role/UPDATE/learned-OPEN fixture and live carriers | Done | New retained fixtures plus promoted internal/forked carriers are in the candidate population. |
+| Pool/ownership/passive-start test files | Done | All planned creation paths exist and have bounded evidence above. |
+| RFC rows, record files and draft notes | Done | All41 runtime identities, five final-source retakes and16 audit judgments accepted; exact selected-source freshness readback complete, including the native HEAD RFC4724 confirmation. |
+| Documentation, fragment, owned journal rows and live citers | Done | Selected-page patches omit unselected producer claims; documentation/source review, final update/tree/citation and global check attribution are complete. |
+
+### Audit Summary
+- **Total items:** 9 task groups,34 AC rows,36 current unit-plan rows,8 functional rows,1 interop scenario and9 source-file groups.
+- **Done:** All9 task groups,34 AC rows,36 current unit-plan rows,8 functional rows,1 interop scenario and9 source-file groups are complete on the selected scope, with bounded implementation/runtime evidence.
+- **Partial:** 0; no scope reduction requested or taken.
+- **Skipped:** 0.
+- **Changed:** The pending resolver became a typed same-Session incoming owner, as recorded in Deviations.
+- **Open:** The main thread's two closure commits; native review artifact/check are complete. Runtime records/audits and selected-source readback are complete; global check findings remain recorded.
+
+## Goal Validation (BLOCKING)
+
+<!-- Maps each goal from the Task section to proof it was achieved. "Tests pass"
+     is not evidence for a goal; a named test with its output is.
+     See ai/rules/interop-and-goal-validation.md for the required evidence per
+     goal type, and for the vacuity traps: a test that would still pass with the
+     behavior reverted proves nothing. -->
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Delay the local OPEN without stranding useful sessions | Functional and interop | `bgp-delay-open`, strict companion and pinned FRR10.7.1 guest capture qualification distinguish an early OPEN from the permitted exchange; timer expiry and remote-first cases both establish. |
+| Reset retry history only after an Established cycle | Actual Peer and native discrimination | Active/passive automatic-start and opposite failed-cycle roots exercise actual reconnects; current four automatic-start records accepted, with failed branches observed under native breaks. |
+| Preserve incoming connection ownership through selection and cleanup | Actual TCP and controlled lifecycle | Listener, typed-adoption, collision/refusal, capture-removal and BFD/terminal/panic controls retain the original socket/Session and useful incumbent. |
+| Keep provisional OPENs from changing selected learned state | Functional and negative discrimination | Actual internal/forked RS losing IPv6-only OPENs retain selected IPv4 useful export; the wrapper bypass fails that export after true collision. Role carriers separately prove policy on both transports. |
+| Keep pre-established UPDATEs out of useful route state | Functional and negative discrimination | Pre-OPEN withdrawal daemon retains actual Adj-RIB-In and original-socket output; old predicate fails its FIFO assertion. The original Established source still removes its own route. |
+| Preserve bounded pooled ownership under pressure and callback failure | Allocation and fault injection | Zero-wrapper frame test, actual depleted-pool TCP continuation, abort/retained/follow-panic controls and exact borrowed-body alias RED followed by120 restored race passes. |
+| Preserve useful passive startup and complete public event ordering | Actual listener and IPC | Startup gate/control retains one TCP/OPEN exchange; strengthened observer detects the missing OpenSent and restored startup controls pass300 repetitions. |
+| Maintain diagnostics, reload and test-fixture lifecycle | Controlled lifecycle and affected controls | Coded refusal/hold roots, constructor/handoff/selected-RPC reload controls, joined provider cleanup and18 affected positive RIB controls passed without race. |
+
+## Work Not Done
+
+<!-- Every in-scope item this spec did not do. Each one is a spec of its own by
+     now, in the bucket that item belongs to (plan/README.md), and this table
+     names it. There is no shard and no deferral row: a row nobody can count is a
+     row nobody schedules, which is why plan/deferrals/ was deleted on 2026-09-05
+     holding 103 live rows, 29 of which named no destination at all.
+     Scope reduction is the owner's decision, never the author's
+     (ai/rules/completion.md). -->
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| No in-scope behavior was dropped or transferred | All planned behavior and selected-scope verification are complete; the two native closure commits remain the main thread's final publication action | No destination spec or deferral |
+
+## Review Gate
+
+<!-- BLOCKING (ai/rules/planning.md). The review is INDEPENDENT: reviewer
+     subagents or a fresh session over the actual diff, never your own inline
+     reasoning about code you just wrote.
+
+     Record the machine-checked artifact with:
+     ./le spec review record spec <spec> verdict CLEAN rounds <N> file <path> ...
+     Then check the reviewed population with:
+     ./le spec review check spec <spec> file <path> ...
+     rounds is the pass count and is required; more than five needs
+     rounds-reason naming the PRODUCT defect a later round found, AND
+     owner-authorised carrying Thomas's word, because more than five passes
+     is his decision (owner ruling 2026-08-17). At the cap you stop and ask him;
+     you never set that keyword on your own initiative. A false statement in
+     this record is a NOTE, never a reason for another round (ai/rules/planning.md).
+     ./le commit create checks the closure commit for a fresh, hash-pinned,
+     CLEAN artifact. Closure is the spec removal in commit B; a journal row
+     never makes commit A a closure. This table preserves the findings and
+     fixes in the committed spec; it does not replace the artifact or require
+     a separate learned summary. -->
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/bgp-fsm-delayopen-and-automatic-start-01a1e0ac-0f28-7471-8c00-742a752c8144.md`; SHA256 `ca34f1da59d1b41d79bd8aa42261a4f720fed8be55b0de3a92d8c1d4ed0811c9`; native clean, rounds2,154 exact selections:35 whole code files, three patches and116 HEAD blobs/modes. |
+| `./le spec review check` | Exit0:35 selected whole code files clean and hashes match the artifact. The native commit gate checks the full prospective hunk/HEAD selection against the same artifact. |
+| Rounds | 2; final selected-scope review found0 BLOCKER/0 ISSUE; prose corrections add no round |
+| Reviewer lenses used | logic and wiring; security and edge cases; lifetime, allocation and validity/style |
+
+### Round 1 scope and open finding
+
+The review covers five exact Spec-work commits (216 touched paths, 104 source
+code paths) plus all current corrections and daemon carriers. The two approved
+partial-file selections are reviewed as HEAD plus their exact patches; excluded
+dirty listener producers are reviewed at their committed blobs. No CLEAN
+artifact exists while the final source correction and its evidence are owed.
+
+BLOCKER: `incoming_candidate.go::readOpen` dispatches a pre-OPEN UPDATE while
+DelayOpen holds Active. `session_handlers.go::updateIsUnexpected` omits
+Connect/Active, so `session_read.go::processMessage` reaches route validation
+and `deliverReceivedMessage` before Event27 performs the correct rejection.
+The factory callback resolves the incumbent Peer and can publish through its
+delivery queue. A valid withdrawal requires no OPEN-derived AS attributes.
+Post-OPEN strict DelayOpen waits have the same gap. AC-1t owns the shared
+admission repair, actual-listener and real-daemon proof, and useful controls.
+
+The private Established path was separately traced: after KEEPALIVE the private
+reader resolves or waits for progress instead of reading another frame. Transfer
+returns out of that reader; selection joins it and installs delivery/down and
+selected publication before Session.Run resumes. No additional product gap was
+found on that boundary.
+
+BLOCKER: decoded private OPEN events bypass the selected learned-state cut.
+`incoming_candidate.go::admitFrame` publishes the remote OPEN before semantic
+admission. The Peer-keyed event reaches `rs/server_handlers.go::handleOpen` and
+`rr/rr.go::handleStructuredOpen`, which replace an existing Up peer's learned
+ASN/capabilities/families. RS forwarding uses that family set. GR's received
+OPEN handlers replace or clear the maps its selected Down handler reads for
+retention; its sent OPEN observer also replaces the local LLGR exchange set.
+The provisional RPC protects role validation, but does not distinguish these
+decoded message events. AC-1o owns this remaining learned-publication gap.
+The source fix must preserve actual wire observation, ordinary selected OPENs,
+both transports and the selected exact-pair/event/counter contracts. Runtime
+proof and correction remain owed; no CLEAN artifact is recorded.
+
+### Findings fixed
+<!-- Only BLOCKER and ISSUE. NOTEs do not block: record them and proceed.
+     Every fix is new code that needs a fresh pass, so re-run until clean. -->
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | A pre-established UPDATE reached consumers before the FSM rejected it | `session_handlers.go::updateIsUnexpected` and both read rails | Shared Established-only admission. Seven intended failing leaves, 240 related race passes and accepted real-daemon withdrawal discrimination; the bounded RFC positive record is written. Final unique13 live controls passed; all owned native proof currentness is verified on the selected snapshot. |
+| 2 | BLOCKER | A private decoded OPEN could replace the incumbent's learned state | `session_open_publication.go::privateNegotiationEpoch.messageCallback`, `Session.selectNegotiationEpoch` | Bounded owned observations and selected replay. Internal and forked daemon discriminators accepted; deliberate borrowed-body alias failed, followed by 120 canonical race passes across six roots. Final unique13 live controls passed; selected-source ledger checks are complete. |
+
+### Round 2 scope
+
+This pass covers the two Round 1 corrections and their sibling paths: shared
+pre-established UPDATE admission and unchanged ROUTE-REFRESH handling; private
+decoded OPEN retention, selected replay and its factory/validation/adoption
+wiring; RS, RR and GR received/sent OPEN consumers; the affected fixture setup,
+daemon carriers, counters, capture and documentation. Logic and wiring,
+security and edge cases, and lifetime, allocation and validity/style are all
+included. Round 1's complete historical scope and findings remain recorded
+above. No CLEAN verdict is recorded before the final scoped runs, daemon
+qualification and RFC records are verified.
+
+Companion review covers the Established refresh-handler fixtures, the shared
+fresh-Session UPDATE/panic prerequisite and the borrowed OPEN-body ownership
+unit. The existing notification, teardown and panic assertions remain intact;
+the two handler tags now claim only their observed no-error result. The RIB
+fixture proposal supplies independently resolvable next hops through the real
+Loc-RIB and preserves the ordinary reconnect settlement wait. Only the test
+that deliberately holds replay waits for full settlement after it releases
+that hold. The reviewed proposal is applied with all three exact source
+hashes checked. Its formatter and affected controls completed, including18 affected RIB
+positive controls,13 unique live carriers and all41 native proof identities.
+The earlier advertiser compilation hole was repaired before those observations.
+Final owned RFC-check readback is complete:425 global findings, no selected-source owned defect, and exact HEAD RFC4724 confirmation fresh/0shifted/0refused.
+These are continuation checks within Round 2, not another review round.
+
+Current prospective scope reconciles all six Spec-work commits (221 touched
+paths) with152 code inputs:35 whole files, one code patch and116 explicit
+HEAD blob/mode baselines. Two additional documentation patches bring the
+commit to82 whole files and three patches. At HEAD
+`f1d64ff442a1125557c45517c4dfc3a11469bc75`, every baseline object/mode matches
+and all three patches match their HEAD contexts. The complete source review
+retains the style/security pass, including peer-reachable panic paths,
+bounded OPEN-body ownership and callback/lock ordering. No new product
+BLOCKER or ISSUE was found in the SourceSession foundation interaction:
+`sourceMessageCallback` stamps UPDATEs only, OPEN selection retains its private
+epoch, and `Peer.runOnce` captures source authority before UP and drains
+selected delivery before closing it. Native artifact binding below records
+the final selected-scope verdict; the425 global RFC findings and other global
+check failures remain disclosed.
+
+### Final Round 2 result
+
+0 BLOCKER,0 ISSUE on the exact selected scope. Logic, wiring, generic security,
+edge cases, lifetime, allocation and the complete changed-Go style pass were
+included; no peer-reachable new panic or unbounded input ownership was found.
+All34 AC rows and goal mappings are complete. Native record and freshness
+check both exited0; global checkout checks remain red as disclosed above.
+This is the second round, not an extra round for corrected bookkeeping.
+
+## Pre-Commit Verification
+
+<!-- BLOCKING. Do NOT trust the audit above: re-verify independently and paste
+     the evidence. For each row get the evidence now: a reader (ls, grep) is the
+     closing agent's own, and a test run (go test -run) is an owed command the
+     main thread runs.
+
+     EVERY sub-table needs at least one data row: pre_commit_verification_gaps
+     in internal/le/commit/prepare.go checks them one by one and names the empty
+     ones. A row in Files Exist is not evidence for AC Verified.
+     Not acceptable: "already checked", "should work", a pointer to the audit. -->
+
+### Files Exist (ls)
+<!-- Every file in "Files to Create", and every .ci named in Wiring Test and
+     Functional Tests. Paste the ls output. -->
+| File | Exists | Evidence |
+|------|--------|----------|
+| Original DelayOpen and strict-BFD live carriers | Yes | Direct `ls -d` read found `test/plugin/bgp-delay-open.ci` and `test/plugin/bgp-delay-open-bfd-strict.ci`; both were read for listener/BFD wiring. |
+| FRR scenario and native checker pair | Yes | Direct `ls -d` read found `test/interop/scenarios/bgp-delayopen-frr`, `internal/le/interoplab/bgp/check_delayopen.go` and `check_delayopen_test.go`. |
+| Role fixture and internal/forked role-isolation carriers | Yes | `internal/test/fixture/role_incoming_open.go` is present and read; both promoted carrier bodies were read. |
+| Pressure/abort/follow/lifecycle/passive-start creation paths | Yes | Direct `ls -d` read found all five named reactor test files, including both receive-publication files and the cache lifecycle file. |
+| Added UPDATE and learned-OPEN daemon fixtures/carriers | Yes | Retained fixture sources were read; direct path enumeration found all three promoted live `.ci` files. Final unique live selection executed each. |
+
+### AC Verified (grep/test)
+<!-- Every AC-N, re-checked. Acceptable: test name + pass output, grep showing
+     the call, ls showing the file. -->
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-1a, AC-1b, AC-1c, AC-1d, AC-1e, AC-1f, AC-1g | Configured delay and the receiving state's timer/wire/retry actions | YANG range/default and runtime parse guard read; current `connectionEstablished`, `delayOpenExpired` and timer-retirement producers read. Named FSM events, wire-delay, retry-budget and catch-all/control roots carry the retained scoped evidence in the unit inventory. Base/strict daemon and pinned FRR proofs retain their exact useful wire boundary. |
+| AC-1h, AC-1i, AC-1j, AC-1k, AC-1l, AC-1m, AC-1n | Same-Session incoming, buffered compatibility, collision, metadata and capture ownership | Actual listener/default/delayed OPEN, typed-adoption/terminal/panic, both identifier orders, original connected metadata and capture removal controls are mapped above. Current `adoptIncoming`, `resolveIncoming`, `prepareSessionCapture` and membership-cut code read; exact capacity6/5 and collision6/7 remain distinct. |
+| AC-1p, AC-1q, AC-1r, AC-1s | Value frames, pressure, failed publication and startup ownership | Allocation and real depleted-pool assertions; abort/retained/follow-panic/lifecycle final200-pass race selection; complete public startup observer/control final300-pass selection. Their source-bound inventories above retain scope and original intended failures. |
+| AC-2, AC-2p | Established-cycle automatic restart and opposite failed-cycle behavior | Actual active/passive Peer roots retain the counter and session observations. Four current automatic-start runtime records are accepted in the final queue; their exact current producer is `Peer.runOnce`. |
+| AC-4, AC-5, AC-6, AC-7, AC-7h, AC-8 | Strict DelayOpen pending states, permitted releases and bounded refusals | `advanceAfterOpen` and BFD release ordering read; both FSM state families and real Session/Peer wire controls cover zero/nonzero hold, all releases, second OPEN, configuration close, original hold expiry and invalid entry. Strict daemon qualification remains the retained Linux entry-point proof. |
+| AC-10, AC-11, AC-12 | Coded diagnostics, immutable/reconciled offers and joined fixture cleanup | Named four diagnostic roots and preparation/reload/handoff/selected-validation controls retain actual refusal/liveness observations. `reconcilePluginOffers` and refusal producer read; provider cleanup and affected18 positive RIB controls pass without race. |
+| AC-3, AC-9 | Complete current RFC records/audits and final draft notes check | Both row13/20 polarities and all41 native identities, five published-runOnce retakes and16 independent audit rows/8stems are accepted. Strong replacement retarget failed only after the useful B-then-better-A baselines at the intended post-withdrawal oracle. Final RFC update/tree/citation passed. Full-WT RFC check exited1 with425 findings; exact owned readback found only RFC4724 surrounding-file SHIFTED from excluded check_rfc.go edits. Native source HEAD confirmation at f1d64ff442 is fresh/0shifted/0refused and the74ea9188 interop blob matches the explicit review pin. No selected whole/hunk lint finding; global lint/doc/repo/weakening reds remain disclosed. |
+| AC-1t | Shared admission permits UPDATE publication only after Established | Seven intended failing leaves preceded the fix; twelve roots then passed twenty race repetitions each. Native daemon clean PASS 2.0 seconds/broken FAIL 2.0 seconds was accepted at the useful incumbent's withdrawal/FIFO fence. The new RFC4271-8.2.1-3 positive record passed both read modes and failed the old predicate at real callbacks/delivery with explicitly modeled route presence; it claims no actual-RIB observation. Final unique13 live controls passed; selected-source native RFC currentness is complete. |
+| AC-1o | A losing decoded OPEN preserves selected learned families and useful export | Internal daemon clean PASS 2.7 seconds/broken FAIL 16.4 seconds; actual forked bgp-rs clean PASS 1.5 seconds/broken FAIL 16.5 seconds. Each break retained collision6/7 and EOF, then exposed IPv4 family mismatch and missing fresh original-socket output. Both carriers passed eighty loaded invocations and were promoted. Final unique13 live controls passed with zero skips. |
+| AC-1o | Deferred decoded OPEN bodies survive reuse of both borrowed inputs | The native generic one-file alias overlay failed `TestPrivateOpenPublicationOwnsBorrowedBodies` at all-zero local bytes versus the exact original OPEN, with no compiler/setup failure. With overlay absent, all six canonical ownership/decoded/SDK roots ran twenty times: 120 RUN, 120 PASS, zero FAIL or DATA RACE, package 69.325 seconds. This is restored final GREEN after the intended alias RED. |
+| Companion fixture correction | Refresh handlers reach their declared Established conditions; UPDATE-triggered panic and policy callbacks remain reachable | Actual native `incoming-final-handler-and-owned-open` receipt: 13 top-level roots run, 13 pass, zero failures or DATA RACE; package PASS in 9.525 seconds. This includes all nine companion roots, peer panic isolation, both decoded OPEN roots and the borrowed-body unit. The later alias RED/restored race GREEN is recorded above; selected-source native RFC currentness is complete. |
+
+### Wiring Verified (end-to-end)
+<!-- Every Wiring Test row: does the .ci exist AND exercise the claimed path?
+     Read the file; do not infer it from its name. -->
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Registered DelayOpen configuration reaches actual daemon TCP/FSM | `test/plugin/bgp-delay-open.ci` | Read carrier and fixture wiring; retained qualified live observer proves held OPEN and eventual establishment. |
+| DelayOpen plus strict BFD reaches actual pending state and release | `test/plugin/bgp-delay-open-bfd-strict.ci` | Read carrier; real BFD datagram and useful handshake are required, not a synthetic state-only result. |
+| Established-session failure starts the next actual Peer cycle | Actual-Peer automatic-start roots | Event3 is internal counter behavior, so the spec's named controlled-Go entry exercises real session teardown/reconnect instead of claiming an unrelated `.ci` result. |
+| Competing OPEN/UPDATE cannot change useful selected behavior | Three new incoming carriers and internal/forked role carriers | Final unique live selection passed13/13, zero skips,7.6 seconds; each new carrier has its own accepted native clean/broken discriminator. |
+
+### Assumptions Resolved
+<!-- Every A-N. `unvalidated` is not a valid final status. A broken assumption
+     needs a Mistake Log row and a Deviations entry. -->
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Pinned FRR10.7.1 guest clean/broken/restored qualification loaded both DelayOpen configurations and retained complete captures; the eager-OPEN break was observed. This is retained interop evidence, not a new external run. |
+
+### Documentation Verified
+<!-- Every Yes in the Documentation checklist: verify the edited claim against
+     source. Every No: paste the grep that proves no update was needed. -->
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Feature declaration and real-path inventory | `features/bgp-protocol.md` names promoted carriers and the pinned scenario; overall level remains experimental and scope partial | Source/fixture paths and declared scope read; documentation check completed with separately disclosed global findings. |
+| Configuration, examples and user guide | `docs/config-reference.md`, `docs/guide/configuration.md`, `docs/guide/bgp-peering.md` agree with registered `delay-open-timer` and runtime parse bounds | Direct range/default/example text read; no new CLI grammar or standalone RPC command. |
+| FSM and lifecycle architecture | FSM Connect/Active pages and `peer-lifecycle.md` name actual delay, automatic-start, BFD, incoming, reload and startup producers | Producer and current claim reads; selected snapshot retains the qualified contract. |
+| API, plugin and SDK OPEN contract | Published process-protocol prose plus the conditional SDK page and selected role prose describe provisional checks and selected exact-pair/decoded publication | Generic internal/JSON boundary read; no claim that a private observation is selected learned state. |
+| Wire format, metadata, metrics and inventory categories that need no new surface | Actual OPEN-body tests preserve bytes; onOpenSent/onOpenRecv and capture stay at physical read/write sites; no new route metadata key, counter, plugin registration or event kind in this fix | Source/callback census and exact-body/counter controls; semantic publication timing is documented separately. |
+| Buffer and test-infrastructure claims | Published buffer prose describes value frames, bounded OPEN copies and retained-borrow ownership; controlled lifecycle seams justify their internal fault hooks | Current selected producers and real-pool tests read. Unselected advertiser/PPP/raw-originated/restart claims are omitted only from the prospective pages. |
+| RFC status and comparison | Original rows13/20 and draft notes reflect implemented behavior; comparison has no DelayOpen entry to change | Row/tag census read; RFC update/tree passed with no generated diff and16 native audit rows are stamped. All five foundation producer records are renewed. Final full-WT check has425 global findings; exact owned readback is clear on selected source. Native RFC4724 HEAD confirmation is fresh/0shifted/0refused; only excluded surrounding WT source produces its SHIFTED report. |
+| Runtime dependencies and doctor coverage | The correction reuses TCP, capture and pool owners; registered refusal/hold diagnostic codes are exercised by named roots | No new binary/socket/path/kernel/certificate dependency introduced; no extra doctor probe required. |
+| Final native documentation gate | `./le doc check all` | Ran exit1: wiki catalog drift,3 YANG mappings,3 command summary rules and3 source anchors remain recorded. No global clean result is claimed. |
+
+## Core Insight
+<!-- Optional: the single most important design revelation from this work.
+     Not every spec has one. Delete the section if nothing qualifies.
+     Route it to the governing surface under ai/rules/planning.md. -->

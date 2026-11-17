@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2918-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength",
+    "unit-sha": "ea5bef505fd2ed66",
+    "claim-sha": "2ae6fad41617697d",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::validateRouteRefreshLength",
+    "producer-sha": "e70f302491486b10",
+    "break": "line 620: \"if len(body) == routeRefreshBodyLen {\" -\u003e \"if true { // MUTATION-APPLIED: admit malformed ROUTE-REFRESH length\""
+  }
+]

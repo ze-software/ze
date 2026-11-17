@@ -175,19 +175,31 @@ reader's cleanup can reclaim the same peer owner before containment returns.
    and cancellation bridge, then retains its original Session. Otherwise,
    `Peer.newSession` constructs one with immutable callbacks,
    capability inputs and capture input before TCP starts.
-2. **Publish the Session under `Peer.mu`.** Recheck stop and administrative
-   admission in the same hold. A selected receipt publishes its validated remote
-   Identifier after incumbent cleanup. A refused Session retires without dialing.
+2. **Start before publishing the Session.** A strict peer first opens its
+   Peer-owned BFD client outside `Peer.mu`; the retained initial state is available
+   to the first OPEN. Under `Peer.mu`, recheck stop and administrative admission,
+   choose the ordinary start event and move a fresh Session out of Idle, then
+   install its publication callback before exposing the Session to direct TCP
+   acceptance. Installing the callback invokes no owner code. The first operator
+   cycle takes Event 1, a cycle after
+   Established takes Event 3, and other retries take Event 6. A retained candidate
+   keeps its existing state. No owner callback runs in this hold. A selected
+   receipt publishes its validated remote Identifier after incumbent cleanup.
+   Failed initialization or refused publication retires its timers and capture
+   input without dialing or consuming a refused cycle's start selection.
 3. **Install cleanup and negotiated-session finalizers.** Every published Session
    owns connection closure, timer retirement, capture join and its identifier
    claim. Selection permits its existing capture input to open a file.
-4. **Choose the ordinary start event.** The first cycle takes Event 1. A cycle
-   after Established takes Event 3. Other cycles take Event 6. A retained candidate
-   keeps its existing FSM. Strict BFD starts before an ordinary FSM start and
-   survives retries until Peer cleanup.
-5. **Install the ordinary FSM publication callback before TCP.** A private
-   candidate keeps its own callback until adoption. The callback publishes
-   negotiated state, Established and leave events for the selected Session.
+4. **Publish the Peer connection state.** The ordinary Session is already ready
+   for TCP when the Active or Connecting callback runs. An incoming socket
+   accepted earlier stays in the inbound slot until this cycle consumes it;
+   direct acceptance can no longer lose TCP-confirmed in a published Idle
+   Session. Strict BFD survives retries until Peer cleanup.
+5. **Retain the selected publication observer.** The ordinary callback is already
+   installed, so direct acceptance during the public connection-state callback
+   publishes its TCP transition exactly once. A private candidate keeps its own
+   callback until adoption. The callback publishes negotiated state, Established
+   and leave events for the selected Session.
 6. **Consume the inbound slot before dialing.** Ordinary sockets use `Accept`.
    Compatibility buffered input uses `acceptWithOpen`. A candidate receipt retains
    its Session, socket, reader, validated OPEN and timer deadlines.
@@ -247,6 +259,31 @@ independent store reads therefore cannot pair declarations from one generation
 with wire capabilities from another. Each published snapshot remains immutable.
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- negotiationOutcomeUnchanged, pluginCapabilitiesKept -->
 <!-- source: internal/component/bgp/reactor/session_plugin_capabilities.go -- pluginCapabilitySnapshot -->
+
+Reload captures the current Session, the pending incoming Session and either
+typed incoming handoff under one peer lock, deduplicating exact Session
+identities. It then checks their plugin offers with that lock released. This
+includes configured peers, dynamic members and runtime-created peers that the
+configuration keeps. A stale offer captured through an incoming receipt receives
+Connection Rejected (6/5);
+a stale current-only connection takes the ordinary configuration-change
+teardown. Retirement seals that exact connection, even if its receipt moved,
+and leaves the selected Run owner responsible for its resources.
+<!-- source: internal/component/bgp/reactor/incoming_plugin_capabilities.go -- snapshotOpenSessions, reconcilePluginOffers, discardStaleInbound -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- reconcilePeersJournaled -->
+
+Successful semantic admission retains the immutable remote OPEN under the
+Session lock before negotiation advances. Reload therefore judges a pending
+connection against its own accepted capabilities, including the rule that a
+changed declaration may remain when the peer did not advertise that code.
+A constructor still hidden behind the raw admission slot checks the current
+store before collision takeover. Selection checks again after its policy RPC
+and before selected resources or peer-up. No check rebuilds an OPEN already
+sent on the wire. A takeover completed against the previous store may retire
+its incumbent before a later reload closes that now-stale selected offer.
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- validateOpenLocked -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- resolve, finishIncomingHandoff -->
+<!-- source: internal/component/bgp/reactor/session_open_admission.go -- selectNegotiationEpoch -->
 
 ## FSM state callback
 
@@ -478,8 +515,12 @@ The down, on every exit from `runOnce`:
 1. When the FSM still reads Established, fire the leave event so the leave arm
    runs: Event 18, or the stop event of a teardown that began
    (`Session.endEvent`).
-2. Close the delivery channel and wait for the delivery worker, so every
-   UPDATE the session buffered is published before the down.
+2. Close the delivery channel and wait for the delivery worker, so earlier
+   buffered UPDATEs publish before the down. If the receiver itself failed,
+   its failed batch and remaining queued receipts instead abort cache
+   admission; existing forward retains keep their bytes until final release.
+   A read-task failure before handoff aborts only that receipt and still lets
+   the worker publish the earlier accepted queue.
 3. When the FSM ever entered Established, wait on the leave signal, then on
    the BFD subscriber goroutine.
 4. Derive the close once with `sessionCloseFor` (`peer_close.go`), from the
@@ -661,6 +702,29 @@ session is OpenConfirm, collision resolution compares identifiers under Section
 Cease / Connection Collision, and the established session remains in place.
 An incomplete or failed incoming OPEN cannot retire that established session.
 
+Plugin OPEN validation is provisional until that incoming connection is
+selected. Validators check policy without publishing peer-scoped learned state,
+so a refused connection cannot replace the incumbent's learned BGP role or
+change its export policy. Selection replays the exact retained OPEN pair once
+after old-epoch cleanup and before peer-up or route delivery. A refusal from
+that replay, an expired original HoldTimer budget, or a closed socket prevents
+adoption; waiting for a plugin cannot renew the connection's deadline.
+
+Decoded sent and received OPEN events follow the same selection boundary.
+A private connection retains at most its first actual OPEN in each direction,
+so its rejected or losing exchange cannot replace the incumbent's learned
+families, capabilities or restart state. Selection publishes those observed
+bodies once, in their original callback order, before peer-up. A prepared OPEN
+that has not yet been sent is not an observation: a remote-first DelayOpen
+handoff publishes only the received OPEN, then its ordinary advance sends and
+publishes the local OPEN. Wire capture and physical OPEN counters continue at
+the actual read and write sites, including rejected exchanges. Decoded replay
+adds no wire counter and performs no wire write.
+<!-- source: internal/component/bgp/reactor/session_open_publication.go -- privateNegotiationEpoch.messageCallback, observedOpen.publish -->
+<!-- source: internal/component/bgp/reactor/session_open_admission.go -- selectNegotiationEpoch -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- adoptIncoming -->
+<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen -->
+
 An OpenSent incumbent whose remote identifier is unknown outside the protocol
 is retained while the independent incoming handshake progresses. The incoming
 connection can reach Established without receiving an OPEN on the outgoing
@@ -677,12 +741,13 @@ Collision (6/7).
 <!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, resolveIncoming -->
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- rejectPendingConnection -->
 
-If the rejection's write deadline cannot be set or the rejection write fails,
-Ze still closes only the pending connection. One warning and a
+If TCP socket preparation, the rejection's write deadline or the rejection
+write fails, Ze still closes only the pending connection. A preparation failure
+does not prevent the subsequent rejection attempt. One warning and a
 `doctor-bgp-pending-refusal-undelivered` event name the endpoint, failed
 operation and cause. The daemon's `show doctor` and `show errors` retain the
-event; `ze show bgp peer list` is the next inspection step. A delivered rejection
-raises no delivery-failure event.
+event; `ze show bgp peer list` is the next inspection step. A rejection whose
+preparation and write both succeed raises no delivery-failure event.
 <!-- source: internal/component/bgp/reactor/pending_refusal_diagnostic.go -- reportPendingRefusalFailure -->
 <!-- source: internal/component/bgp/reactor/register_diagnostic.go -- init -->
 
@@ -691,8 +756,19 @@ incumbent. An incoming OPEN that wins there closes the held loser immediately,
 with Event 23 and no NOTIFICATION. The incoming candidate retains its own local
 OPEN state; it is not installed in a second fresh Session. The first-OPEN reader
 has a ReceiveHoldTime deadline (90 seconds if configured hold is zero). Expiry
-closes only that candidate. Its read deadline is cleared after a complete OPEN;
-the candidate's original protocol timers continue to bound the handshake.
+closes only that candidate, including while it waits for a shared read buffer.
+Shared-pool exhaustion is backpressure on both incoming read rails: the same
+connection resumes its unread frame when a buffer returns. The wait never
+renews the first-OPEN deadline or repeats the OPEN exchange. Its read deadline
+is cleared after a complete OPEN; the candidate's original protocol timers
+continue to bound the handshake.
+
+An UPDATE received before Established never enters the received-UPDATE callback
+or consumer queue, on either selected reader or either private candidate reader.
+Connect and Active reject it through their existing silent connection teardown;
+Idle ignores the event without publishing its body. A private handshake therefore
+cannot withdraw a useful incumbent's route by borrowing the Peer address. A
+legal UPDATE on the Established incumbent remains deliverable.
 
 Selection stores a typed inbound receipt and signals `inboundNotify` before
 closing the incumbent. The Peer loop first completes incumbent cleanup, then
@@ -774,6 +850,10 @@ goroutine that drains batches of `deliveryItem` and calls
 `reactor.messageReceiver.OnMessageBatchReceived`. The batching
 amortizes subscription lookup and format-mode computation across
 multiple UPDATEs.
+
+The peer mutex guards publication and clearing of the channel pointer.
+Message observers capture it with the selected Session pointer under the same
+read lock; delivery and shutdown use their captured channel.
 
 Key properties:
 

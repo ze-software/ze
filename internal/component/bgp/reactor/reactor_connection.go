@@ -304,7 +304,7 @@ func closeConnQuietly(conn net.Conn) {
 func (r *Reactor) rejectConnectionAdmissionWithSettings(conn net.Conn, settings *PeerSettings) {
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		if err := tuneTCPConnectionForSettings(tcp, settings); err != nil {
-			reactorLogger().Debug("admission refusal socket tuning failed", "peer", settings.Address, "err", err)
+			reportPendingRefusalFailure(conn, "tune TCP admission-refusal settings", err)
 		}
 	}
 	// RFC 4486 Section 4: "If a BGP speaker decides to disallow a BGP
@@ -312,28 +312,28 @@ func (r *Reactor) rejectConnectionAdmissionWithSettings(conn net.Conn, settings 
 	// accepts a transport protocol connection, then the BGP speaker SHOULD send
 	// a NOTIFICATION message with the Error Code Cease and the Error Subcode
 	// "Connection Rejected"."
-	rejectPendingConnection(conn, r.clock, message.NotifyCease, message.NotifyCeaseConnectionRejected)
+	rejectPendingConnection(conn, r.clock, message.NotifyCeaseConnectionRejected)
 }
 
 // rejectConnectionCollision sends NOTIFICATION Cease/Connection Collision (6/7)
 // and closes the connection, bounded by the normal control-write maximum.
 // RFC 4271 Section 6.8 requires Cease for this OPEN-bearing collision loser.
 func rejectConnectionCollision(conn net.Conn, clk clock.Clock) {
-	rejectPendingConnection(conn, clk, message.NotifyCease, message.NotifyCeaseConnectionCollision)
+	rejectPendingConnection(conn, clk, message.NotifyCeaseConnectionCollision)
 }
 
 // rejectPendingConnection bounds a refusal on a connection with no Session
 // writer. OPEN decode errors retain their own code before collision resolution.
 // It MUST close conn after every outcome; reportPendingRefusalFailure reports
 // write failures but leaves that ownership here.
-func rejectPendingConnection(conn net.Conn, clk clock.Clock, code message.NotifyErrorCode, subcode uint8) {
+func rejectPendingConnection(conn net.Conn, clk clock.Clock, subcode uint8) {
 	defer closeConnQuietly(conn)
 	if err := conn.SetWriteDeadline(clk.Now().Add(fwdWriteDeadlineDefault)); err != nil {
 		reportPendingRefusalFailure(conn, "set write deadline", err)
 		return
 	}
 	notif := &message.Notification{
-		ErrorCode:    code,
+		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: subcode,
 	}
 	data := message.PackTo(notif, nil)

@@ -8,7 +8,7 @@
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
     "producer-sha": "58b04127b9658cea",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8654-3-1",
@@ -19,7 +19,7 @@
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
     "producer-sha": "58b04127b9658cea",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8654-3-1",
@@ -30,7 +30,7 @@
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
     "producer-sha": "58b04127b9658cea",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8654-3-1",
@@ -41,7 +41,7 @@
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
     "producer-sha": "58b04127b9658cea",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8654-3-1",
@@ -128,7 +128,7 @@
     "claim-sha": "c666441c54ab1833",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_read.go::readFrame",
-    "producer-sha": "eac5e6e08f478752",
+    "producer-sha": "57f31e66473e5860",
     "break": "line 120: \"s.extendedMessage\" -\u003e \"false /* MUTATION-APPLIED: ignore advertised receive permission */\""
   }
 ]

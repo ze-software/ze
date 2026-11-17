@@ -13,8 +13,8 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 func init() {
 	if err := diagnostic.Register(diagnostic.CodeMeta{
 		Code:        codePendingRefusalUndelivered,
-		Title:       "BGP connection rejection was not delivered",
-		Description: "Ze could not set the control-write deadline or send a rejection on a pending BGP connection. It closes that connection without replacing another session. Inspect the reported transport error, then check peer states with ze show bgp peer list.",
+		Title:       "BGP rejection preparation or delivery failed",
+		Description: "Ze could not prepare the socket, set the control-write deadline or send a rejection on a pending BGP connection. It still attempts the rejection after a socket-preparation failure, then closes only that connection. Inspect the reported transport error, then check peer states with ze show bgp peer list.",
 		Examples:    []string{pendingRefusalFailureFix, "ze show diagnostic " + codePendingRefusalUndelivered},
 	}); err != nil {
 		panic("BUG: bgp reactor: pending refusal diagnostic registration failed: " + err.Error())

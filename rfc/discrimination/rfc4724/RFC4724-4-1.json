@@ -18,27 +18,27 @@
     "claim-sha": "0be6d8505611ae0e",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "88b9cecac62707a8",
-    "break": "line 383: \"session.endInitialSync()\" -\u003e \"_ = session // MUTATION-APPLIED: omit predecessor sync join\"",
+    "producer-sha": "c7b7d6896cf17d3d",
+    "break": "line 567: \"session.endInitialSync()\" -\u003e \"_ = session // MUTATION-APPLIED: omit predecessor sync join\"",
     "paired": [
       {
         "producer": "internal/component/bgp/reactor/peer.go::waitPeerUpBarrier",
         "producer-sha": "73047c1bea3b2b3a",
-        "break": "line 1258: \"session.Done()\" -\u003e \"make(chan struct{}) /* MUTATION-APPLIED: wait beyond session retirement */\""
+        "break": "line 1259: \"session.Done()\" -\u003e \"make(chan struct{}) /* MUTATION-APPLIED: wait beyond session retirement */\""
       }
     ],
     "solo": [
       {
         "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-        "break": "line 383: \"session.endInitialSync()\" -\u003e \"_ = session // MUTATION-APPLIED: omit predecessor sync join\"",
-        "seconds": 12,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.328s"
+        "break": "line 567: \"session.endInitialSync()\" -\u003e \"_ = session // MUTATION-APPLIED: omit predecessor sync join\"",
+        "seconds": 14,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.353s"
       },
       {
         "producer": "internal/component/bgp/reactor/peer.go::waitPeerUpBarrier",
-        "break": "line 1258: \"session.Done()\" -\u003e \"make(chan struct{}) /* MUTATION-APPLIED: wait beyond session retirement */\"",
-        "seconds": 16,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.844s"
+        "break": "line 1259: \"session.Done()\" -\u003e \"make(chan struct{}) /* MUTATION-APPLIED: wait beyond session retirement */\"",
+        "seconds": 13,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t1.861s"
       }
     ]
   },

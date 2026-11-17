@@ -72,9 +72,9 @@
     "unit-sha": "ee4046dac24ed74d",
     "claim-sha": "f7c5bc15d7cc62b3",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/incoming_candidate.go::adoptIncoming",
-    "producer-sha": "1b26d23f32c3eca3",
-    "break": "body of adoptIncoming replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/incoming_candidate.go::Session.adoptIncoming",
+    "producer-sha": "7d1ed525c037b340",
+    "break": "body of Session.adoptIncoming replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8050-x-4",

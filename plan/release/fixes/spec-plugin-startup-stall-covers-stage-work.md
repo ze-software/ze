@@ -19,7 +19,7 @@ stage work, not only while a plugin waits at a barrier. Preserve progress-based
 renewal, configuration precedence, startup rollback and normal completion.
 
 This is a separate lifecycle defect found while investigating the base DelayOpen
-TIME30 in `plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md`.
+TIME30 investigated under `spec-bgp-fsm-delayopen-and-automatic-start`.
 It is not established as that timeout's cause. Repairing it does not clear that
 failure without evidence from the failed path.
 

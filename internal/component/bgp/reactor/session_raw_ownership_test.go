@@ -66,6 +66,16 @@ func rawOwnershipPeer(t *testing.T) (*Peer, *rawOwnershipConn) {
 	return peer, conn
 }
 
+// rawOwnershipAnnounceBody matches rawOwnershipPeer's two-octet negotiation.
+// The route, real AS and next hop match the shared ASN4 fixture; only the
+// AS_PATH wire width differs. Each caller owns the returned body.
+func rawOwnershipAnnounceBody() []byte {
+	attrs := []byte{0x40, 1, 1, 0} // ORIGIN IGP.
+	attrs = append(attrs, collapseAttr(0x40, 2, rfc9774Segment(rfc9774SegSequence, 2, 65001))...)
+	attrs = append(attrs, 0x40, 3, 4, 10, 0, 0, 1) // NEXT_HOP 10.0.0.1.
+	return makeUpdateBody(nil, attrs, syncOrderPrefixWire)
+}
+
 // rawOwnershipPacket preserves arbitrary bodies while adding the standard header.
 // RFC 4271 Section 4.1: use the production header writer for the fixture framing.
 func rawOwnershipPacket(body []byte, kind msgtype.MessageType) []byte {
@@ -80,12 +90,13 @@ func rawOwnershipPacket(body []byte, kind msgtype.MessageType) []byte {
 // malformed bodies and framing. Accepted diagnostic bytes must leave before the
 // exact Session retires; they must not create sent ownership or AIGP receipts.
 func TestRawOpaqueInjectionFlushesBeforeRetirement(t *testing.T) {
+	announceBody := rawOwnershipAnnounceBody()
 	bad := []byte{0xde, 0xad, 0xbe, 0xef}
 	keepalive := rawOwnershipPacket(nil, msgtype.TypeKEEPALIVE)
-	trailing := append(bytes.Clone(keepalive), rawOwnershipPacket(syncOrderAnnounceBody, msgtype.TypeUPDATE)...)
+	trailing := append(bytes.Clone(keepalive), rawOwnershipPacket(announceBody, msgtype.TypeUPDATE)...)
 	badMarker := bytes.Clone(keepalive)
 	badMarker[0] = 0
-	mixedTail := append(bytes.Clone(syncOrderAnnounceBody), 33)
+	mixedTail := append(bytes.Clone(announceBody), 33)
 	for _, tc := range []struct {
 		name    string
 		kind    uint8
@@ -126,7 +137,7 @@ func TestRawOpaqueInjectionFlushesBeforeRetirement(t *testing.T) {
 				t.Fatal("opaque bytes manufactured ownership or AIGP receipts")
 			}
 			before := len(conn.written())
-			if err := s.SendUpdate(ownershipWriterUpdate(t, syncOrderAnnounceBody)); !errors.Is(err, errRawOwnership) {
+			if err := s.SendUpdate(ownershipWriterUpdate(t, announceBody)); !errors.Is(err, errRawOwnership) {
 				t.Fatalf("retired managed writer = %v", err)
 			}
 			if err := s.SendRawMessage(uint8(msgtype.TypeKEEPALIVE), nil); !errors.Is(err, errRawOwnership) {
@@ -143,6 +154,7 @@ func TestRawOpaqueInjectionFlushesBeforeRetirement(t *testing.T) {
 // requests twice and replace a real forwarded owner, without weakening the
 // remote-source withdrawal guard. Full UPDATE headers retain legacy rebuilding.
 func TestRawValidDuplicatesOwnTheLocalPath(t *testing.T) {
+	announceBody := rawOwnershipAnnounceBody()
 	for _, packet := range []bool{false, true} {
 		name := "body"
 		if packet {
@@ -151,7 +163,7 @@ func TestRawValidDuplicatesOwnTheLocalPath(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			peer, conn := rawOwnershipPeer(t)
 			source, _ := newAnnouncePeer(t, "192.0.2.3")
-			if err := ownershipWriterForward(t, peer, source, syncOrderAnnounceBody, false); err != nil {
+			if err := ownershipWriterForward(t, peer, source, announceBody, false); err != nil {
 				t.Fatal(err)
 			}
 			var localReceipts int
@@ -171,9 +183,9 @@ func TestRawValidDuplicatesOwnTheLocalPath(t *testing.T) {
 				}
 				return false
 			}
-			kind, payload := uint8(msgtype.TypeUPDATE), syncOrderAnnounceBody
+			kind, payload := uint8(msgtype.TypeUPDATE), announceBody
 			if packet {
-				kind, payload = 0, rawOwnershipPacket(syncOrderAnnounceBody, msgtype.TypeUPDATE)
+				kind, payload = 0, rawOwnershipPacket(announceBody, msgtype.TypeUPDATE)
 				payload[0] = 0
 				binary.BigEndian.PutUint16(payload[16:18], message.HeaderLen)
 			}
@@ -194,7 +206,7 @@ func TestRawValidDuplicatesOwnTheLocalPath(t *testing.T) {
 				t.Fatalf("raw duplicate suppressed or remote withdrawal escaped: %d UPDATEs", len(bodies))
 			}
 			for _, body := range bodies {
-				if !bytes.Equal(body, syncOrderAnnounceBody) {
+				if !bytes.Equal(body, announceBody) {
 					t.Fatalf("raw advertisement changed: %x", body)
 				}
 			}
@@ -209,10 +221,11 @@ func TestRawValidDuplicatesOwnTheLocalPath(t *testing.T) {
 // installs a new Session during the old flush. The old safety retirement must
 // not clear the replacement's frontier or prevent its legitimate withdrawal.
 func TestRawOpaqueRetirementKeepsReplacement(t *testing.T) {
+	announceBody := rawOwnershipAnnounceBody()
 	peer, oldConn := rawOwnershipPeer(t)
 	old := peer.session
 	old.writeMu.Lock()
-	err := old.writeRawUpdateBody(syncOrderAnnounceBody)
+	err := old.writeRawUpdateBody(announceBody)
 	old.writeMu.Unlock()
 	if err != nil {
 		t.Fatal(err)
@@ -227,7 +240,7 @@ func TestRawOpaqueRetirementKeepsReplacement(t *testing.T) {
 		peer.mu.Lock()
 		peer.session = next
 		peer.mu.Unlock()
-		if err := next.SendUpdate(ownershipWriterUpdate(t, syncOrderAnnounceBody)); err != nil {
+		if err := next.SendUpdate(ownershipWriterUpdate(t, announceBody)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -235,14 +248,14 @@ func TestRawOpaqueRetirementKeepsReplacement(t *testing.T) {
 	if err := old.SendRawMessage(uint8(msgtype.TypeUPDATE), bad); err != nil {
 		t.Fatal(err)
 	}
-	want := append(rawOwnershipPacket(syncOrderAnnounceBody, msgtype.TypeUPDATE), rawOwnershipPacket(bad, msgtype.TypeUPDATE)...)
+	want := append(rawOwnershipPacket(announceBody, msgtype.TypeUPDATE), rawOwnershipPacket(bad, msgtype.TypeUPDATE)...)
 	if !bytes.Equal(oldConn.closeBytes, want) {
 		t.Fatalf("pending output was lost or closed before flush: %x", oldConn.closeBytes)
 	}
 	if !oldConn.closed || nextConn.closed || next.tearingDown.Load() || peer.adjOut.session != next || len(peer.adjOut.routes) != 1 {
 		t.Fatal("old opaque retirement damaged the replacement")
 	}
-	if err := old.SendRawMessage(uint8(msgtype.TypeUPDATE), syncOrderAnnounceBody); !errors.Is(err, errRawOwnership) {
+	if err := old.SendRawMessage(uint8(msgtype.TypeUPDATE), announceBody); !errors.Is(err, errRawOwnership) {
 		t.Fatalf("old writer re-entered replacement frontier: %v", err)
 	}
 	if err := next.SendUpdate(ownershipWriterUpdate(t, syncOrderWithdrawBody)); err != nil {

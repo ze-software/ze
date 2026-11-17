@@ -40,7 +40,7 @@
     "claim-sha": "c3257e5e26e96064",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_run.go::Peer.runOnce",
-    "producer-sha": "88b9cecac62707a8",
+    "producer-sha": "c7b7d6896cf17d3d",
     "break": "body of Peer.runOnce replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -51,8 +51,8 @@
     "claim-sha": "7a8a0b892c0bd702",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "88b9cecac62707a8",
-    "break": "line 475: \"session.startDamped\" -\u003e \"session.startAutomatic // MUTATION-APPLIED: zero a failed cycle\""
+    "producer-sha": "c7b7d6896cf17d3d",
+    "break": "line 495: \"session.startDamped\" -\u003e \"session.startAutomatic // MUTATION-APPLIED: zero a failed cycle\""
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -73,8 +73,8 @@
     "claim-sha": "2db8de6abba0e809",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "88b9cecac62707a8",
-    "break": "line 478: \"session.startAutomatic\" -\u003e \"session.startDamped // MUTATION-APPLIED: retain counter after Established\""
+    "producer-sha": "c7b7d6896cf17d3d",
+    "break": "line 498: \"session.startAutomatic\" -\u003e \"session.startDamped // MUTATION-APPLIED: retain counter after Established\""
   },
   {
     "rid": "RFC4271-8.2.2-20",
@@ -84,7 +84,7 @@
     "claim-sha": "7166bb73daf1148a",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
-    "producer-sha": "88b9cecac62707a8",
-    "break": "line 478: \"session.startAutomatic\" -\u003e \"session.startDamped // MUTATION-APPLIED: retain counter after Established\""
+    "producer-sha": "c7b7d6896cf17d3d",
+    "break": "line 498: \"session.startAutomatic\" -\u003e \"session.startDamped // MUTATION-APPLIED: retain counter after Established\""
   }
 ]

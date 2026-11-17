@@ -97,7 +97,7 @@ func TestIncomingExpiredOpenCannotRetireIncumbent(t *testing.T) {
 			admitted := make(chan admissionResult, 1)
 			go func() {
 				defer close(candidate.readDone)
-				open, err := candidate.readOpen(candidateSession.bufReader)
+				open, err := candidate.readOpen(t.Context(), candidateSession.bufReader)
 				admitted <- admissionResult{open: open, err: err}
 			}()
 			delayOpenWrite(t, incoming, delayOpenRemote(0x03030303))

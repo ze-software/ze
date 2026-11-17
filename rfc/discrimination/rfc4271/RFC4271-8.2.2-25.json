@@ -7,8 +7,8 @@
     "claim-sha": "a98b4642001e6326",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::updateIsUnexpected",
-    "producer-sha": "1c988224469fd34e",
-    "break": "body of updateIsUnexpected replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "32bf8d77e1c86f91",
+    "break": "body of updateIsUnexpected replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-8.2.2-25",
@@ -18,7 +18,7 @@
     "claim-sha": "0bf04e359449cbb1",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_handlers.go::updateIsUnexpected",
-    "producer-sha": "1c988224469fd34e",
+    "producer-sha": "32bf8d77e1c86f91",
     "break": "body of updateIsUnexpected replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

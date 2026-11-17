@@ -22,6 +22,8 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
+	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
@@ -336,6 +338,7 @@ func TestRFC8654FatalLengthReelectsAlternateBest(t *testing.T) {
 // omit it unless extra MP families request an extended-message recovery recipient.
 func extendedRecoveryPeers(t *testing.T, extended, alternate bool, families ...capability.Family) []*lowLivePeer {
 	t.Helper()
+	t.Cleanup(redistevents.PreserveForTest())
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	settings := []*PeerSettings{
 		lowLiveSettings("192.0.2.1", 65000, 65002),
@@ -370,6 +373,33 @@ func extendedRecoveryPeers(t *testing.T, extended, alternate bool, families ...c
 	require.NoError(t, r.StartWithContext(context.Background()))
 	t.Cleanup(func() { stopAndWait(t, r) })
 	startBorrowedPeers(t, r, srv)
+	// RFC 4271 Section 9.1.2: forwarding selection requires a resolvable
+	// NEXT_HOP. Supply terminal interior routes independently of the received
+	// BGP subjects; source-owned wire recovery uses a separate admission.
+	loc := locrib.Default()
+	require.NotNil(t, loc)
+	protocol := redistevents.RegisterProtocol("extended-recovery-reachability-test")
+	hops := []netip.Addr{netip.MustParseAddr("192.0.2.1")}
+	if alternate {
+		hops = append(hops, netip.MustParseAddr("192.0.2.2"), netip.MustParseAddr("192.0.2.3"))
+	}
+	for _, fam := range families {
+		if fam.AFI == capability.AFIIPv6 {
+			hops = append(hops, netip.MustParseAddr("2001:db8::1"))
+			break
+		}
+	}
+	for _, hop := range hops {
+		fam := family.IPv4Unicast
+		if hop.Is6() {
+			fam = family.IPv6Unicast
+		}
+		host := netip.PrefixFrom(hop, hop.BitLen())
+		loc.Insert(fam, host, locrib.Path{Source: protocol, Metric: 1})
+		t.Cleanup(func() { loc.Remove(fam, host, protocol, 0) })
+		require.True(t, igpcost.Resolve(loc, hop).Resolved,
+			"fixture NEXT_HOP %s is reachable through the actual Loc-RIB", hop)
+	}
 	peers := make([]*lowLivePeer, 0, len(settings))
 	for _, s := range settings {
 		peer := r.peers[s.PeerKey()]

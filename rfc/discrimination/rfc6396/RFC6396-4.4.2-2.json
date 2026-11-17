@@ -19,7 +19,7 @@
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_wire.go::observeReceivedWire",
     "producer-sha": "d4c65db515532f20",
-    "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC6396-4.4.2-2",

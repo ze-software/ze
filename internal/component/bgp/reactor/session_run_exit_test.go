@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
@@ -52,6 +53,24 @@ func pipeSession(t *testing.T, session *Session) (client net.Conn, wire <-chan [
 
 	wireCh, drainCh := startDrain(t, client)
 	return client, wireCh, drainCh
+}
+
+// establishUpdateReadFixture supplies the FSM precondition for tests that wire
+// a socket directly and exercise post-UPDATE callbacks. Advancing real events
+// avoids handshake writes entering the notification-only capture or the blocked
+// write path. Call only on a fresh Idle session, before starting its reader.
+func establishUpdateReadFixture(t *testing.T, session *Session) {
+	t.Helper()
+
+	require.Equal(t, fsm.StateIdle, session.State())
+	t.Cleanup(session.timers.StopAll)
+	t.Cleanup(session.stopSendHoldTimer)
+	for _, event := range []fsm.Event{
+		fsm.EventManualStart, fsm.EventTCPConnectionConfirmed, fsm.EventBGPOpen, fsm.EventKeepaliveMsg,
+	} {
+		require.NoError(t, session.fsm.Event(event))
+	}
+	require.Equal(t, fsm.StateEstablished, session.State())
 }
 
 // startDrain reads the client end until the pipe dies, publishing every chunk
@@ -111,9 +130,9 @@ func requireConnClosed(t *testing.T, drainErr <-chan error) {
 }
 
 // eorUpdate is the smallest legal UPDATE: no withdrawn routes, no path
-// attributes, no NLRI (RFC 4724 End-of-RIB). It reaches the onMessageReceived
-// callback without needing a negotiated family, which is what lets these tests
-// exercise the post-callback teardown branch with no handshake.
+// attributes, no NLRI (RFC 4724 End-of-RIB). Once the fixture FSM is Established,
+// it reaches onMessageReceived without needing a negotiated family, letting
+// these tests exercise post-callback teardown without handshake wire traffic.
 func eorUpdate() []byte {
 	msg := make([]byte, 23)
 	for i := range 16 {
@@ -137,6 +156,7 @@ func eorUpdate() []byte {
 func TestPolicyTeardownExitsRun(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	session := NewSession(settings)
+	establishUpdateReadFixture(t, session)
 
 	client, wire, drainErr := pipeSession(t, session)
 	defer func() { _ = client.Close() }()
@@ -430,6 +450,7 @@ func TestTeardownReasonSurvivesBlockedNotification(t *testing.T) {
 				session.bufReader = bufio.NewReader(conn)
 				session.bufWriter = bufio.NewWriter(conn)
 				if tc.name == "policy" {
+					establishUpdateReadFixture(t, session)
 					session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 						_ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
 						_ BufHandle, _ map[string]any, _ string, _ uint64) bool {

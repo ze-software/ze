@@ -116,9 +116,9 @@
     "unit-sha": "d15a38a9be77d03d",
     "claim-sha": "cd8bc30b03aa18d0",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
-    "producer-sha": "e77b6eb3fba4d9d7",
-    "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiverFrom",
+    "producer-sha": "8bde3790af22b2ea",
+    "break": "body of Reactor.notifyMessageReceiverFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-1",
@@ -127,9 +127,9 @@
     "unit-sha": "dd44ddb8f3a52f5d",
     "claim-sha": "5d56b5993f6c9059",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
-    "producer-sha": "e77b6eb3fba4d9d7",
-    "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiverFrom",
+    "producer-sha": "8bde3790af22b2ea",
+    "break": "body of Reactor.notifyMessageReceiverFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-1",

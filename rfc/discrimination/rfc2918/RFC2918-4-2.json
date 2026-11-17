@@ -20,5 +20,16 @@
     "producer": "internal/component/bgp/reactor/session_handlers.go::routeRefreshFamilyUnadvertised",
     "producer-sha": "19a2b3eb01a959a1",
     "break": "body of routeRefreshFamilyUnadvertised replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2918-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily",
+    "unit-sha": "f463341f16abb2a2",
+    "claim-sha": "818236c655bd4338",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleRouteRefresh",
+    "producer-sha": "84c4d9aab5b518dc",
+    "break": "line 734: \"return nil\" -\u003e \"return ErrInvalidState // MUTATION-APPLIED: return an error for a message required to be ignored\""
   }
 ]

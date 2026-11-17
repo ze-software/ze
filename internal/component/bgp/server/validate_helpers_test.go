@@ -9,5 +9,5 @@ import pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 // generation: the tests that use it judge the answers, never how an OPEN is
 // ordered against state events.
 func broadcastValidateOpen(s *pluginserver.Server, peerAddr, group string, policyPlugins []string, local, remote any) error {
-	return broadcastStampedValidateOpen(s, peerAddr, group, 0, policyPlugins, local, remote)
+	return broadcastStampedValidateOpen(s, peerAddr, group, 0, false, policyPlugins, local, remote)
 }

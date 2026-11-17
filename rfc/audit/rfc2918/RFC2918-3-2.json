@@ -1,15 +1,15 @@
 {
-  "note": "Forbidden: a body other than one <AFI, SAFI> in 32 bits (AFI 16, Res 8, SAFI 8). TestRouteRefreshPack asserts Len(data) == HeaderLen+4 and each of the four body bytes, red on a wrong size or layout. TestHandleRouteRefresh_InvalidLength asserts ErrInvalidMessage for 3-, 5- and 0-byte bodies, and TestRouteRefreshUnpackShort asserts ErrShortRead for 3 bytes, red if a body of another length is accepted.",
+  "note": "Forbidden: a body other than one <AFI, SAFI> in 32 bits (AFI 16, Res 8, SAFI 8). TestRouteRefreshPack asserts Len(data) == HeaderLen+4 and each of the four body bytes, red on a wrong size or layout. TestHandleRouteRefresh_InvalidLength asserts ErrInvalidMessage for 3-, 5- and 0-byte bodies, and TestRouteRefreshUnpackShort asserts ErrShortRead for 3 bytes, red if a body of another length is accepted. Independent companion-fixture rejudgment against RFC 2918 Section 3's exact AFI(16), Reserved(8), SAFI(8) format, all three tagged units and current handler producer. The repaired handler fixture now establishes the session and confirms Enhanced Route Refresh negotiation before presenting the same independent 3-, 5- and zero-byte bodies. Each still must return ErrInvalidMessage with the exact invalid-length diagnostic; its assertions and malformed input isolation are unchanged. The independent pack carrier still asserts exactly four body bytes in the required layout, and the short decoder carrier still rejects three bytes. The state precondition avoids an earlier FSM rejection masking the length rule. All existing entries and the enforced verdict remain.",
   "requirement_sha": "7cab3f9d98e6e783",
   "tests": {
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "30b8b3abfb09b975",
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshUnpackShort": "30b8b3abfb09b975",
-    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "c387bdc6c423bd19"
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "31075046745d98d8"
   },
   "units": {
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "6b1979ee9a3bf3c5",
     "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshUnpackShort": "67bee8ebf99b5d94",
-    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "897e95aea222b076"
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "589157998dd1f6d7"
   },
   "verdict": "enforced"
 }

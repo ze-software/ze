@@ -185,8 +185,12 @@ By default Ze enforces AS-wide BGP Identifier uniqueness: the first peer of an A
 present a router-id holds it, and a second peer of the same AS presenting the same
 router-id is rejected with a Bad BGP Identifier NOTIFICATION (RFC 6286 Section 2.1
 makes this only a SHOULD). The identifier is claimed while the peer's OPEN is
-validated and released when its session ends, so which peer wins does not depend on
-which one establishes first. Set `bgp { session { allow-shared-router-id true; } }`
+validated and released when that connection ends, so which peer wins does not
+depend on which one establishes first. An incumbent and its one admitted incoming
+candidate hold separate claims; closing either cannot release the other's
+identifier. Removing the peer releases all its connection claims. A candidate's
+validated identifier becomes the peer's published identifier only when that
+same Session is selected. Set `bgp { session { allow-shared-router-id true; } }`
 to accept the duplication when it is intentional, for example one anycast speaker
 (AS112) peering over both IPv4 and IPv6 with the same router-id. When enabled, Ze
 performs no AS-wide router-id uniqueness check at all.
@@ -2683,7 +2687,7 @@ port's own selector ambiguous. `mac/match` **takes precedence over `os-name`** a
 error.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
-<!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
+<!-- source: internal/component/iface/resolve.go -- matchByMACFrom, deviceMatchMAC -->
 <!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces -->
 <!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->

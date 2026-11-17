@@ -47,6 +47,7 @@ func readPanicSession(t *testing.T, coalesce bool) {
 
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	session := NewSession(settings)
+	establishUpdateReadFixture(t, session)
 	session.coalesceEnabled = coalesce
 	client, wire, drainErr := pipeSession(t, session)
 	defer func() { _ = client.Close() }()
@@ -166,6 +167,7 @@ func TestSessionReadPanicWriteLockHeld(t *testing.T) {
 
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	session := NewSession(settings)
+	establishUpdateReadFixture(t, session)
 	client, wire, drainErr := pipeSession(t, session)
 	defer func() { _ = client.Close() }()
 

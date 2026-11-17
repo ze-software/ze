@@ -7,7 +7,7 @@
     "claim-sha": "102463e5427a435a",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
+    "producer-sha": "98606d42a55cac3f",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "6f5a3b4534472341",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
+    "producer-sha": "98606d42a55cac3f",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -39,8 +39,8 @@
     "unit-sha": "59502c8654532e84",
     "claim-sha": "603abba3fd4b331d",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
-    "producer-sha": "e77b6eb3fba4d9d7",
-    "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiverFrom",
+    "producer-sha": "8bde3790af22b2ea",
+    "break": "body of Reactor.notifyMessageReceiverFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

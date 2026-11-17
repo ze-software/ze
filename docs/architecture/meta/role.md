@@ -220,7 +220,7 @@ never reaches them: the template visit is keyed by the group and returns first.
 ## Learned role lifecycle
 
 For a peer whose role is observed, the learned value is re-established on
-every OPEN, including when the OPEN carries no Role capability or an
+every selected OPEN, including when the OPEN carries no Role capability or an
 unassigned value from the 5-255 range. Then the previous learned value is
 dropped and a real transition is logged. Without that, a peer that once
 advertised a role and reconnected without one kept the stale value
@@ -235,9 +235,18 @@ OPEN is driven by the same event that sets it, for the same session, so the
 last OPEN always decides. The one down that clears, the removal below, orders
 itself against the OPEN by generation.
 
-The clear is symmetric with the set on the reject path: the role is recorded
-even when `validateOpenRolePair` refuses the session, so it is dropped on
-refusal too.
+The clear is symmetric with the set on the selected connection's reject path:
+the role is recorded even when `validateOpenRolePair` refuses that session, so
+it is dropped on refusal too.
+
+An unselected incoming connection is different: `provisional: true` asks the
+plugin to validate its role pair without changing the learned relationship.
+Its rejection or collision cannot replace or clear the incumbent's role and
+therefore cannot change that connection's OTC or export-set decisions. When
+an incoming candidate is adopted after the old connection's cleanup, the same
+retained OPEN pair is delivered once with `provisional: false` before peer-up.
+<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen -->
+<!-- source: internal/component/bgp/reactor/session_open_admission.go -- selectNegotiationEpoch -->
 
 `recordLearnedRole` writes an empty role rather than deleting the entry. So
 "this peer's OPEN declared no role" stays distinct from "no OPEN was ever

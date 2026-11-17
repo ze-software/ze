@@ -40,7 +40,7 @@
     "claim-sha": "316dc4f3d73ba3e3",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/incoming_candidate.go::handlePendingCollision",
-    "producer-sha": "490a47acf35303ed",
-    "break": "line 284: \"session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision)\" -\u003e \"session.CloseWithNotification(message.NotifyOpenMessage, message.NotifyCeaseConnectionCollision)\""
+    "producer-sha": "6736d33bb0380d3b",
+    "break": "line 289: \"session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision)\" -\u003e \"session.CloseWithNotification(message.NotifyOpenMessage, message.NotifyCeaseConnectionCollision) // MUTATION-APPLIED: misclassify the collision refusal\""
   }
 ]

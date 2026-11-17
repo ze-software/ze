@@ -17,11 +17,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 The BGP child of the rfc-verdict pass (spec-rfc-verdict-fix-bgp; its
 "Gap accounting" section survives in git history) left requirement rows that no spec owned.
-One spec took them (`plan/release/fixes/spec-bgp-unowned-rfc-rows.md`). On 2026-10-11 the
+The historical `spec-bgp-unowned-rfc-rows` took them. On 2026-10-11 the
 owner put EPE PeerAdj/PeerSet IN, ruled that the RFC 9514 §7.2 rows are owned
 "Only if EPE is in" (it is), and split the work: "Split into three". This spec owns
-the EPE rows. The defects stay in the immediate spec; DelayOpen and Event 3 are
-`plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md`.
+the EPE rows. That original defect scope is retained in its git history; implemented DelayOpen and
+automatic-start behavior are documented in `docs/architecture/behavior/peer-lifecycle.md`.
 
 No existing spec could absorb these rows: the BGP-LS specs in the tree
 (`plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md`,
@@ -105,6 +105,24 @@ Neither can be the interop receiver; GoBGP decodes the TLVs (R-8).
 
 **Behavior to change:** rows 8, 11 and 12, as the ACs state.
 
+## Existing Mechanisms (MANDATORY)
+
+This inventory records the current producers and the mechanisms the design
+below already proposes to extend. It does not claim that the planned EPE
+features, End.X installation or interop qualification are implemented.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-----------------------------------------------------------------|
+| EPE configuration and validation | `internal/component/bgp/plugins/epe/epe_config.go`: `Config`, `PeerConfig`, `ParseConfig`; `internal/component/bgp/plugins/epe/yang/ze-bgp-epe-conf.yang`: `bgp-epe` | Parses one SRGB and per-peer SID index/weight; rejects invalid peers, duplicate indices and out-of-range values. | Extends this existing schema/parser with the already specified adjacency, peer-set, advertisement controls and optional SRv6 SID. Existing MPLS PeerNode configurations remain valid. |
+| Installed PeerNode state and native topology publication | `internal/component/bgp/plugins/epe/epe_source.go`: `Source.State`, `publishLocked`, `desiredLocked`, `emitLabel`, `ReplayLabels` | Tracks established configured peers, acknowledges label installation through `mplsfib.Apply`, and publishes TLV1101 only for successfully installed labels; failed retirement retains its cleanup obligation. | Extends the same source and install-before-advertise lifecycle for the planned PeerAdj, PeerSet and SRv6 state; no second EPE publisher or direct kernel writer is proposed. |
+| Label event contract and acknowledgement | `internal/core/mplsfib/events.go`: `Entry`, `EntryBatch`, `Apply`, `ApplyReplay`, `RemoveLabelSource` | Carries label-keyed add/remove operations, one `NextHop`, source ownership and synchronous writer results, including addressed replay. | Replaces the singular next-hop field with the already designed `NextHops` contract for PeerSet, preserving existing single-hop and no-hop operations. The planned SID-keyed End.X contract remains separate because this entry carries labels. |
+| Data-plane label consumers | `internal/plugins/fib/kernel/mplsentry.go`: `handleMPLSEntry`, `addMPLSEntryLocked`; `internal/plugins/fib/kernel/mplsentry_linux.go`: `addMPLSSwap`; `internal/plugins/fib/vpp/mplsentry.go`: `handleMPLSEntry`, `addLabelEntryLocked` | The selected kernel or VPP writer consumes `mplsfib.Entry`; the current entry exposes one next hop. | Extends kernel label programming with the planned PeerSet multipath route. The field replacement must account for both current consumers when implemented; this inventory adds no VPP PeerSet or End.X qualification claim. |
+| Native EPE attribute validation | `internal/component/bgp/plugins/ls_export/export_epe.go`: `validateNativeEPE` | Admits TLVs1101/1102/1103, validates label/index forms and SRGB membership, and requires a PeerNode SID on each native EPE link. | Extends the existing validator to admit the already specified PeerAdj-only Link NLRI while retaining the applicable identity, label and SRGB checks. |
+| SRv6 SID encoding and reserved-field handling | `internal/component/bgp/plugins/ls_export/export_encode.go`: `encodeTopology`, `originateAttributes`, `clearOriginatedReserved`; `internal/component/bgp/plugins/nlri/ls/attr_srv6.go`: `lsSRv6BGPPeerNodeSID.WriteTo`, `decodeSRv6BGPPeerNodeSID` | The exporter encodes supplied IPv6 SID snapshots with TLV1250 and clears TLV1251 reserved flag bits/word; the registered codec reads TLV1251 and omits its reserved word. These paths do not supply a live EPE End.X originator. | Extends the existing snapshot/encoding path with the planned EPE SID producer after acknowledged installation, preserving receipt behavior and the separate live-origination proof obligation. |
+| Per-recipient export and withdrawal | `internal/component/bgp/plugins/ls_export/export_state.go`: `topologyExporter.reconcilePeer`, `send` | Reconciles routes for each peer/session and dispatches announcements or withdrawals through `UpdateRouteWithMeta`. | Extends this existing peer loop with the already specified `advertise`/`advertise-to` decisions and withdrawals; no separate recipient transport or per-recipient SID identity is introduced. |
+| SRv6 headend forwarding | `internal/plugins/fib/kernel/nexthop_linux.go`: `buildSEG6Encap`; `internal/plugins/fib/vpp/srv6.go`: `addSRv6Steer`, `acquirePolicy`; `docs/architecture/fib/fib-depth-4-srv6.md`: Kernel/VPP backends | Installs encapsulation toward a received service SID; these headend paths do not install a local EPE End.X SID. | Does not apply as the planned local-SID writer: the approved design uses a separate `srv6localsid` event contract and kernel End.X consumer, and retains its stated backend refusal. |
+| Backend-gated kernel diagnostics | `internal/plugins/fib/kernel/kernelcap_linux.go`: `init`; `internal/component/kernelcap/predicate.go`: `MPLSInUse` | Registers the kernel MPLS requirement/probe with `kernelcap.MustRegister`; the in-use predicate excludes other FIB backends. | Extends this registration/probe pattern for the planned End.X dependency and doctor/commit refusal. No new capability result is claimed by this inventory. |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -168,7 +186,7 @@ R-7 and R-8 keep the ids they had in the parent spec.
 |----------|--------|
 | What breaks if this is wrong? | Rows 8, 11, 12: EPE labels and SIDs installed or advertised wrongly, or advertised to a peer `advertise-to` excludes; an SRv6 SID advertised with no End.X behind it |
 | How is it reverted? | Each phase lands as its own commit, revertible alone |
-| Who else touches this path? | `plan/release/fixes/spec-bgp-unowned-rfc-rows.md` row 10 changes the byte order of every MP UPDATE, BGP-LS included: whichever lands second writes its expectations against the other. `plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md` (BGP-LS node keys), `plan/release/validation/spec-rfc-verdict-test-fix-pass.md` (ledger rows, with its BGP child spec-rfc-verdict-fix-bgp) |
+| Who else touches this path? | `docs/architecture/wire/mp-nlri-ordering.md` defines the required MP attribute order for every UPDATE, including BGP-LS; EPE encoding must preserve it. `plan/post-release/features/spec-bgp-ls-origination-and-the-scheduled-marker.md` (BGP-LS node keys), historical `spec-rfc-verdict-test-fix-pass` (ledger rows, with its BGP child spec-rfc-verdict-fix-bgp) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -361,7 +379,7 @@ Every scenario owes the revert, rebuild, red, restore, green walk with the red r
 | RFC9514-7.2-5/-6: should this work own them? | "Only if EPE is in" | EPE is in, so they are owned here (AC-2, AC-3), with the End.X installation they need (R-7) |
 | SRv6-only EPE: may a peer carry only `srv6-sid`, with no `srgb` and no `sid-index`? (raised by the independent design review, I5) | "Yes, SRv6-only allowed" | AC-1c: `srgb` and `sid-index` optional when an SRv6 SID is configured; each entry needs at least one of `sid-index` or `srv6-sid`, refused at commit otherwise |
 | Approve the design after the round-5 design review (0 BLOCKER, 0 ISSUE, 2 NOTE, both folded)? (Thomas, 2026-10-11) | "Approve" | Status moves from `design` to `ready`, so `/ze-implement` may claim it |
-| One spec or several? | "Split into three" | This spec owns rows 8, 11, 12; the defects stay in `plan/release/fixes/spec-bgp-unowned-rfc-rows.md`, DelayOpen and Event 3 are `plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md` |
+| One spec or several? | "Split into three" | This spec owns rows 8, 11, 12; the original defect work is recorded in `spec-bgp-unowned-rfc-rows` history; implemented DelayOpen and automatic-start behavior are documented in `docs/architecture/behavior/peer-lifecycle.md` |
 
 ## Open Questions (owner)
 

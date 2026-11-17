@@ -37,6 +37,20 @@ func newOpenSentSession(t *testing.T) *Session {
 	return session
 }
 
+// newEstablishedRefreshHandlerSession supplies the established, enhanced-refresh
+// negotiation that the ROUTE-REFRESH handler cases exercise. The shared OpenSent
+// builder stays available for tests of OPEN validation and unexpected messages.
+func newEstablishedRefreshHandlerSession(t *testing.T) *Session {
+	t.Helper()
+
+	session, client, cleanup := setupEstablishedSession(t)
+	t.Cleanup(cleanup)
+	startDrain(t, client)
+	require.Equal(t, fsm.StateEstablished, session.State())
+	require.True(t, session.negotiated.PeerAdvertised(capability.CodeEnhancedRouteRefresh))
+	return session
+}
+
 func newOpenSentSessionWithClient(t *testing.T) (*Session, net.Conn) {
 	t.Helper()
 
@@ -472,7 +486,7 @@ func TestHandleRouteRefresh_InvalidLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newOpenSentSession(t)
+			s := newEstablishedRefreshHandlerSession(t)
 
 			err := s.handleRouteRefresh(tt.body)
 			require.Error(t, err)
@@ -482,14 +496,16 @@ func TestHandleRouteRefresh_InvalidLength(t *testing.T) {
 	}
 }
 
-// TestHandleRouteRefresh_UnknownSubtype verifies subtypes > 2 are silently ignored.
+// TestHandleRouteRefresh_UnknownSubtype checks the handler's no-error response
+// for unknown subtypes after Enhanced Route Refresh negotiation.
 // RFC 7313 Section 5: unknown subtypes MUST be ignored.
 //
-// RFC requirement: RFC7313-4-3 negative -- handleRouteRefresh examines the Message
-// Subtype field, and for a value other than 0/1/2 (here 3, 100, 255) it takes no
-// BoRR/EoRR/normal action, returning without error rather than processing the message.
+// RFC requirement: RFC7313-4-3 negative -- an Established session that negotiated
+// Enhanced Route Refresh returns no error for an unknown subtype (3, 100, 255).
+// This supplementary handler check does not assert consumer action suppression;
+// The row's separate subtype-action tests cover subtype 1/2 behavior.
 func TestHandleRouteRefresh_UnknownSubtype(t *testing.T) {
-	s := newOpenSentSession(t)
+	s := newEstablishedRefreshHandlerSession(t)
 
 	tests := []struct {
 		name    string
@@ -515,7 +531,7 @@ func TestHandleRouteRefresh_UnknownSubtype(t *testing.T) {
 // Route Refresh capability was not negotiated.
 // RFC 2918 Section 3: receiver SHOULD advertise capability.
 func TestHandleRouteRefresh_NoCapability(t *testing.T) {
-	s := newOpenSentSession(t)
+	s := newEstablishedRefreshHandlerSession(t)
 
 	// Set negotiated without RouteRefresh
 	s.negotiated = capability.Negotiate(
@@ -537,16 +553,16 @@ func TestHandleRouteRefresh_NoCapability(t *testing.T) {
 	assert.NoError(t, err) // Silently ignored, no error
 }
 
-// TestHandleRouteRefresh_NonNegotiatedFamily verifies ROUTE-REFRESH for a non-negotiated
-// address family is ignored.
-// RFC 2918 Section 4: SHOULD ignore for AFI/SAFI not advertised.
+// TestHandleRouteRefresh_NonNegotiatedFamily checks the handler's no-error
+// response for a non-negotiated family. Full ignore behavior has a wire test.
+// RFC 2918 Section 4 requires an unadvertised <AFI, SAFI> to be ignored.
 //
-// RFC requirement: RFC2918-4-2 positive -- a ROUTE-REFRESH for an <AFI, SAFI> the
-// speaker did not advertise (IPv6 unicast, with only IPv4 unicast negotiated) is
-// ignored: handleRouteRefresh takes the !SupportsFamily branch (session_handlers.go)
-// and returns without acting on the request.
+// RFC requirement: RFC2918-4-2 positive -- an Established session with IPv4-only
+// Route Refresh negotiation returns no error for an IPv6-unicast request.
+// This supplementary handler check does not assert consumer action suppression;
+// TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored covers that boundary.
 func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
-	s := newOpenSentSession(t)
+	s := newEstablishedRefreshHandlerSession(t)
 
 	// Negotiate with IPv4 unicast and RouteRefresh
 	s.negotiated = capability.Negotiate(

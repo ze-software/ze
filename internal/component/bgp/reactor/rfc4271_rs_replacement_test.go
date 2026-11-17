@@ -45,8 +45,10 @@ func rsReplacementSettled(t *testing.T, source, b, c *lowLivePeer, marker, fence
 // newly unfeasible routes for which there is no replacement route SHALL
 // be advertised to its peers by means of an UPDATE message."
 //
-// MUTATION: make owesWithdrawal (session_ownership.go) answer false: C
-// receives A's bare withdrawal of P and never B's route.
+// MUTATION: make Session.recoveryOwedFor (recovery_owed.go) return false after
+// finding its registered owner. This also bypasses announcement election;
+// the useful B-then-better-A baseline above the withdrawal must still pass.
+// After A withdraws, C receives its bare withdrawal instead of B's route.
 func TestRFC4271RouteServerOwnerWithdrawalSendsReplacement(t *testing.T) {
 	peers := extendedRecoveryPeers(t, false, true)
 	a, b, c := peers[0], peers[1], peers[2]

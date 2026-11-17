@@ -40,7 +40,7 @@ func TestIncomingCollisionPanicReleasesPeerOwner(t *testing.T) {
 	admitted := make(chan admissionResult, 1)
 	go func() {
 		defer close(candidate.readDone)
-		open, err := candidate.readOpen(session.bufReader)
+		open, err := candidate.readOpen(t.Context(), session.bufReader)
 		admitted <- admissionResult{open: open, err: err}
 	}()
 	t.Cleanup(func() {

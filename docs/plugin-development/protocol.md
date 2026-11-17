@@ -188,8 +188,10 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
 | `pipes` | `[]PipeDecl` | CLI pipe aliases the plugin names for its own commands |
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
+| `dissemination` | `[]DisseminationDecl` | Peer-output roles and the explicit source/destination grants each needs; declaring a role grants no permission |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
 | `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
+| `started-handler` | `bool` | You initialize local resources after ready; answer runtime-ready only after that initialization succeeds. The Go SDK derives it from OnStarted |
 
 **The failure policy is what your plugin asks ze to do when your plugin fails.**
 It is voluntary, and a plugin that omits it is carried on without. A value that
@@ -452,9 +454,11 @@ startup completion. This avoids a race where `SignalAPIReady` triggers route sen
 a separate `subscribe-events` RPC could be processed.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions -->
 
-When `transport` is `"bridge"`, the engine activates bridge callbacks on the `PluginConn`
-and the SDK closes the pipe after receiving the OK response. All subsequent engine-to-plugin
-callbacks flow through `bridge.CallbackCh()` instead of the MuxConn.
+When `transport` is `"bridge"`, the engine publishes bridge callbacks on the
+`PluginConn` before acknowledging ready. The SDK activates that bridge, runs
+`OnStarted`, then closes the startup pipe and begins its bridge event loop.
+Subsequent generic callbacks flow through `bridge.CallbackCh()` instead of the
+MuxConn, so bridge activation alone is not initialization completion.
 <!-- source: pkg/plugin/rpc/types.go -- ReadyInput.Transport -->
 
 **Wire example:**
@@ -464,8 +468,15 @@ callbacks flow through `bridge.CallbackCh()` instead of the MuxConn.
 #3 ok
 ```
 
-After Stage 5, the SDK activates the DirectBridge (for internal plugins) and enters
-the event loop.
+After the ready acknowledgement, the SDK activates the DirectBridge for internal
+plugins, initializes local resources through `OnStarted`, then enters its event
+loop. If Stage 1 declared `started-handler`, the engine sends the empty
+`ze-plugin-callback:runtime-ready` callback and waits for its answer before
+starting a dependent tier. The ordinary callback queue can answer only after
+initialization succeeds, including when the bridge already reports activated.
+An initializer may make ordinary engine calls during that wait; socket startup
+serves them through the same operation registry as the runtime connection.
+Cross-plugin commands still belong in `OnAllPluginsReady`.
 
 ## Query Mode: Answering Without Starting
 
@@ -586,7 +597,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit reversible operation state; retain undo through whole-reload acceptance |
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
-| `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
+| `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN pair. With `provisional: true`, check policy without changing peer-scoped learned state. Selection repeats the retained pair once with false before peer-up; ordinary selected validation uses false initially |
 | `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check. Each answered diagnostic carries `code`, `severity`, `message`, and `fix`: the command or config statement that clears the problem, alone and with no label (`show rpki cache`, not `fix: show rpki cache`). Set `fix` on every finding a command can clear; ze draws it on a line of its own under the message on every surface, and omits the key when you leave it empty |
 | `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |
@@ -1012,6 +1023,8 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:forward-cached` | `ForwardCached` | `ForwardCachedInput` | None | Forward cached UPDATEs |
 | `ze-plugin-engine:release-cached` | `ReleaseCached` | `ReleaseCachedInput` | None | Release cached UPDATEs |
 | `ze-plugin-engine:relay-stored-route` | `RelayStoredRoute` | `RelayStoredRouteInput` | None | Relay stored routes |
+| `ze-plugin-engine:select-routes` | `SelectRoutes` | `SelectRoutesInput` | `SelectRoutesOutput` | Join final selected-output writes for one captured destination session |
+| `ze-plugin-engine:cancel-request` | Used by `SelectRoutes` cancellation | `CancelRequestInput` | `CancelRequestOutput` | Join an opt-in request on this connection |
 | `ze-plugin-engine:route-install` | `RouteInstall` | `RouteInstallInput` | `RouteInstallOutput` | Install routes in the Loc-RIB |
 | `ze-plugin-engine:route-remove` | `RouteRemove` | `RouteRemoveInput` | `RouteRemoveOutput` | Remove routes from the Loc-RIB |
 | `ze-plugin-engine:inject-wire-route` | `InjectWireRoute` | `InjectWireRouteInput` | None | Inject a raw BGP UPDATE |
@@ -1028,6 +1041,49 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:decode-mp-reach` | `DecodeMPReach` | `DecodeMPReachInput` | `DecodeMPReachOutput` | Decode MP_REACH_NLRI |
 | `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
 | `ze-plugin-engine:decode-update` | `DecodeUpdate` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode a BGP UPDATE |
+
+### Selected output receipts
+
+<!-- source: pkg/plugin/sdk/sdk_selected.go -- SelectRoutes -->
+<!-- source: pkg/plugin/rpc/selected.go -- selected DTOs, outcomes and frame sizing -->
+
+`SelectRoutes` is the selected-owner operation; `RelayStoredRoute` keeps its
+existing source-owned behavior. Supply the destination's exact UP
+`initial-replay` token as `destination-session`, a monotonic nonzero revision,
+and native `key-nlri` advertisement bytes without the source ADD-PATH prefix.
+A supporting reactor derives semantic identity through the registered family codec.
+
+Use kind `1` with a received `StoredRoute` and engine-issued source receipt,
+kind `2` with an admitted origin and origin receipt, or kind `3` for selected
+absence. Sending a number does not create authority. Received paths preserve
+original message/policy provenance
+and the explicit ADD-PATH distinction, including path identifier zero. Stale
+levels are `1` fresh, `2` stale and `3` LLGR; absence has no stale level.
+The complete field and validation contract is in
+[`Selected-route output`](../architecture/api/process-protocol.md#selected-route-output).
+
+Keep the input unchanged until return and bound each exchange by
+`rpc.SelectRoutesExchangeSize(input) <= rpc.MaxMessageSize`. This reserves
+both request and worst-case final answer; absence receipts can be larger than
+their input. `SelectRoutesFrameSize` continues to measure the request alone.
+The SDK requires a
+complete ordered final receipt on both transports. Outcomes are written,
+suppressed, absent or stale revision. Success must follow final writer
+completion. Never wait for a sent-event callback to finish the RPC: a lifecycle
+callback may already hold that plugin delivery loop. The currently published
+reactor returns an unsupported-output error;
+final source/origin admission and destination retirement are not available
+in that snapshot.
+
+The SDK sets the absolute `deadline-ms` from the caller's context, capped at
+thirty seconds per batch. When that context ends, the socket form sends
+`cancel-request` for its original correlation ID and method, and joins the
+remote handler and final writer before returning cancellation. The separate
+cancellation receipt budget is five seconds. A broken transport or failed join
+returns `rpc.CancellationUnsettledError`; report the unresolved destination
+instead of treating it as settled. A cancellation during a partial request
+write ends that connection. Typed handlers receive the caller's bounded
+context and must also finish their writer before returning.
 
 ### System routing views
 

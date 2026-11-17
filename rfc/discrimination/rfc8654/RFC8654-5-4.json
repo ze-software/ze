@@ -40,7 +40,7 @@
     "claim-sha": "b4745def98d4faee",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_read.go::readFrame",
-    "producer-sha": "eac5e6e08f478752",
+    "producer-sha": "57f31e66473e5860",
     "break": "line 125: \"message.NotifyMessageHeader,\" -\u003e \"message.NotifyCease, // MUTATION-APPLIED: retain close but misclassify the fatal length\""
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "f39779fbf9133782",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
-    "producer-sha": "55207abcf9749888",
+    "producer-sha": "d42d5e766f778c99",
     "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -74,6 +74,6 @@
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::emitPurgedWithdraws",
     "producer-sha": "0f1d0603718a54be",
-    "break": "body of emitPurgedWithdraws replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of emitPurgedWithdraws replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

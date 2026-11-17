@@ -8,7 +8,7 @@
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/relay_recovery.go::queueRecoveryWithdrawal",
     "producer-sha": "1fe65ad1dd657405",
-    "break": "line 873: \"err != nil\" -\u003e \"true\""
+    "break": "line 981: \"err != nil\" -\u003e \"true\""
   },
   {
     "rid": "RFC4271-9.2-7",
@@ -17,8 +17,8 @@
     "unit-sha": "6683cc7ef993cc44",
     "claim-sha": "0b9127ab1e2e4351",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_ownership.go::owesWithdrawal",
-    "producer-sha": "9891b49aae851b6c",
-    "break": "line 535: \"entry == nil\" -\u003e \"true\""
+    "producer": "internal/component/bgp/reactor/recovery_owed.go::Session.recoveryOwedFor",
+    "producer-sha": "c169e652d5bbb842",
+    "break": "line 156: \"return worker.ownerReceives(command, source)\" -\u003e \"return false // MUTATION-APPLIED: bypass registered source election at the destination writer\""
   }
 ]

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/env"
@@ -68,6 +69,13 @@ func newCoalesceSession(t *testing.T) (*Session, *[][]byte) {
 		65001, 65002, 0x01020301,
 	)
 	session := NewSession(settings)
+	t.Cleanup(session.timers.StopAll)
+	for _, event := range []fsm.Event{
+		fsm.EventManualStart, fsm.EventTCPConnectionConfirmed, fsm.EventBGPOpen, fsm.EventKeepaliveMsg,
+	} {
+		require.NoError(t, session.fsm.Event(event))
+	}
+	require.Equal(t, fsm.StateEstablished, session.State())
 	session.coalesceEnabled = true
 
 	var mu sync.Mutex
