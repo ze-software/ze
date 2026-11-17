@@ -1332,7 +1332,7 @@ func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
 	if !ok {
 		return "", rowOperatorRefusal(operator, arg, data)
 	}
-	keep := make([]int, 0, n)
+	keep := make([]int, 0, len(rows))
 	for i := range rows {
 		keep = append(keep, i)
 	}

@@ -3173,6 +3173,11 @@ calls `tab` "rows read against a declared column order", and `operatorNeeds`
 reads the operator's own shape set. Calling both "rows" gave a refusal that
 contradicted itself, in front of an operator whose answer HAS rows.
 
+A finite JSON answer bounds `first` and `last` storage by the rows already
+present. A requested count above the result size keeps every row without
+reserving memory for that count.
+<!-- source: internal/component/command/pipe.go -- applyTake -->
+
 A declared address-field list is an ADMISSION gate AND a selector. It decides
 whether `| resolve` and `| origin` run at all, and it decides what they
 decorate. `bindAddressFields` copies the declaration onto each address operator
