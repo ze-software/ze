@@ -76,22 +76,33 @@ func TestRFC4271ForwardAddsLocalPrefTowardInternalPeer(t *testing.T) {
 	}
 }
 
-// TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer drives RFC 4271 Section
-// 5.1.2 a) on the general forward rail: "When a given BGP speaker advertises the
-// route to an internal peer, the advertising speaker SHALL NOT modify the
-// AS_PATH attribute associated with the route."
+// TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer drives the default
+// RFC 4271 Section 5.1.2 a) path on the general forward rail: "When a given BGP
+// speaker advertises the route to an internal peer, the advertising speaker
+// SHALL NOT modify the AS_PATH attribute associated with the route."
 //
-// Method: a route learned from an external peer is forwarded to two internal
-// destinations, one of them configured with as-override, which rewrites AS_PATH
-// toward an external peer. An external destination in the same fan-out is the
-// control that the rail modifies AS_PATH when it is allowed to.
+// Method: a route learned from an external peer is forwarded to an ordinary
+// internal destination (.41) with no AS-path modifier and an ordinary external
+// destination (.43). A second internal destination (.42) has as-override enabled
+// as a supplementary current configuration check. Its received path [65001]
+// contains no peer ASN 65000 to replace, so it activates no AS-override
+// transformation and cannot establish an override restriction.
 //
-// VALIDATES: both internal destinations are sent the received AS_PATH value
-// byte for byte; the external one is sent it with 65000 prepended.
-// PREVENTS: a prepend or an override reaching an internal peer's AS_PATH.
+// VALIDATES: the ordinary internal path keeps the received AS_PATH byte for
+// byte; the ordinary external path adds local AS 65000. The supplementary
+// as-override-configured internal path also retains the received bytes.
+// PREVENTS: a protocol prepend modifying the default internal path, or the
+// default external path missing its local-AS prepend. Explicit import edits
+// and validated raw-body replacement extensions remain outside this witness.
 //
-// RFC requirement: RFC4271-5.1.2-2 positive -- a route learned from an external peer and forwarded to an internal peer carries the received AS_PATH value byte for byte.
-// RFC requirement: RFC4271-5.1.2-2 negative -- an internal destination configured with as-override, the setting that rewrites AS_PATH, is still sent the received AS_PATH unmodified, while the external destination in the same fan-out is sent it with 65000 prepended.
+// RFC requirement: RFC4271-5.1.2-2 positive -- with no AS-path modifier configured,
+// a route learned from an external peer and forwarded to the ordinary internal
+// destination carries the received AS_PATH value byte for byte.
+// RFC requirement: RFC4271-5.1.2-2 negative -- the ordinary external destination
+// receives the default local-AS prepend while the ordinary internal path stays
+// unchanged. The additional internal as-override configuration is supplementary:
+// received [65001] has no peer ASN 65000 to replace, so this case does not
+// activate or establish the scope of an AS-override transformation.
 func TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer(t *testing.T) {
 	internal := a2Dest(t, "192.0.2.41", 65000, netip.Addr{}, false)
 	overridden := a2Dest(t, "192.0.2.42", 65000, netip.Addr{}, false)

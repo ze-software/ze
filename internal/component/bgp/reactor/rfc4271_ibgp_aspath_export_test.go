@@ -294,22 +294,34 @@ func forwardWithExportEdit(t *testing.T, delta string) map[netip.Addr][]byte {
 	return paths
 }
 
-// TestRFC4271ForwardExportASPathEditsSkipInternalPeers drives the operator
-// export edits of the AS_PATH, "as-path-prepend 2" and "remove-private strip",
-// through the general forward rail, the path a route learned from one peer
-// takes to the others. forwardUpdateSection hands the export chain the
-// destination's own internal verdict from its forwarding facts.
+// TestRFC4271ForwardExportASPathEditsSkipInternalPeers checks the current
+// documented typed export-policy/session contract for "as-path-prepend 2"
+// and "remove-private strip" on the general forward rail. These configured
+// scenarios supplement the default RFC 4271 Section 5.1.2 path; they do not
+// define a ceiling on explicit operator control.
+//
+// Method: forwardUpdateSection hands the typed export chain the destination's
+// internal verdict from its forwarding facts. The documented contract skips
+// these two export intents for internal and migration-internal sessions while
+// retaining their external behavior. Import-chain edits and validated raw-body
+// replacements are separate explicit controls, outside this test's scope.
 //
 // VALIDATES: the internal destination and the migration-internal destination
 // (RFC 7705 Section 4.2) are both sent the received AS_PATH [64512 64496] byte
 // for byte; the external destination in the same fan-out is sent it edited:
 // prepended to [65000 65000 65000 64512 64496] (the filter's two copies, then
-// the rail's own Section 5.1.2 b) prepend), and stripped of the private AS to
-// [65000 64496].
-// PREVENTS: the forward rail passing a wrong internal verdict to the export
-// chain, which would let an operator filter modify an internal peer's AS_PATH.
+// the rail's ordinary Section 5.1.2 b) prepend), or stripped of the private AS
+// and prepended to [65000 64496].
+// PREVENTS: losing the destination's session role when applying these typed
+// intents, or applying their external-session contract to migration iBGP.
 //
-// RFC requirement: RFC4271-5.1.2-2 negative -- on the general forward rail, an export as-path-prepend or remove-private toward an internal destination, or toward one internal by RFC 7705 Section 4.2, is not applied (the received AS_PATH is sent byte for byte), while the external destination in the same fan-out is sent it prepended and stripped.
+// RFC requirement: RFC4271-5.1.2-2 negative -- supplementary current typed-policy
+// and session-contract evidence: with export as-path-prepend or remove-private
+// configured, the general rail preserves the received AS_PATH toward ordinary
+// and RFC 7705 migration-internal destinations, while the external destination
+// receives the configured edit plus the ordinary local-AS prepend. This is not
+// the no-option default witness or a prohibition on other explicit AS_PATH
+// extensions.
 func TestRFC4271ForwardExportASPathEditsSkipInternalPeers(t *testing.T) {
 	received := asSequence4(64512, 64496)
 	for _, tc := range []struct {

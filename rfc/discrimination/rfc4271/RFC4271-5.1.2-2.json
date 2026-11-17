@@ -26,11 +26,11 @@
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271ForwardExportASPathEditsSkipInternalPeers",
     "unit-sha": "07c4619dbfe52360",
-    "claim-sha": "aad3b860673562c0",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
-    "producer-sha": "b60c04ffca61f78b",
-    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "claim-sha": "1b7dc6b0a09555d3",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+    "producer-sha": "8b0b0d30f493cd20",
+    "break": "line 850: \"!facts.isEBGP\" -\u003e \"false /* MUTATION-APPLIED: general export internal verdict */\""
   },
   {
     "rid": "RFC4271-5.1.2-2",
@@ -45,25 +45,25 @@
   },
   {
     "rid": "RFC4271-5.1.2-2",
-    "polarity": "negative",
-    "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
-    "unit-sha": "b6fa3fad17efe456",
-    "claim-sha": "dbeb1b27ab055f3a",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
-    "producer-sha": "b60c04ffca61f78b",
-    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC4271-5.1.2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
     "unit-sha": "b6fa3fad17efe456",
-    "claim-sha": "d4b1767cc7186788",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
-    "producer-sha": "b60c04ffca61f78b",
-    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "claim-sha": "1d8dbe21506c9312",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+    "producer-sha": "8b0b0d30f493cd20",
+    "break": "line 1124: \"facts.isEBGP \u0026\u0026 !mods.IsWithdraw()\" -\u003e \"!mods.IsWithdraw() /* MUTATION-APPLIED: general internal AS_PATH intent */\""
+  },
+  {
+    "rid": "RFC4271-5.1.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer",
+    "unit-sha": "b6fa3fad17efe456",
+    "claim-sha": "82af26d394f92b54",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+    "producer-sha": "8b0b0d30f493cd20",
+    "break": "line 1124: \"facts.isEBGP \u0026\u0026 !mods.IsWithdraw()\" -\u003e \"false /* MUTATION-APPLIED: general external AS_PATH intent omitted */\""
   },
   {
     "rid": "RFC4271-5.1.2-2",
