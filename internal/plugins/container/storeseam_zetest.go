@@ -36,7 +36,13 @@ const (
 	// container that must be killed after its stop timeout.
 	stubbornPrefix        = "stubborn"
 	probeStubbornArgument = "run-ignoring-stop"
-	testDigest            = "sha256:7a65000000000000000000000000000000000000000000000000000000000001"
+	// A container whose name starts with networkedPrefix runs the probe mode
+	// that first records its links, its default route and whether its
+	// gateway answered, so a test can judge a container attached to a
+	// container network.
+	networkedPrefix        = "networked"
+	probeNetworkedArgument = "run-networked"
+	testDigest             = "sha256:7a65000000000000000000000000000000000000000000000000000000000001"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -82,8 +88,11 @@ func (testStore) Resolve(_ context.Context, request ResolveRequest) (Resolution,
 		return nil, err
 	}
 	argument := probeArgument
-	if strings.HasPrefix(request.Instance, stubbornPrefix) {
+	switch {
+	case strings.HasPrefix(request.Instance, stubbornPrefix):
 		argument = probeStubbornArgument
+	case strings.HasPrefix(request.Instance, networkedPrefix):
+		argument = probeNetworkedArgument
 	}
 	return Ready{
 		Digest:           testDigest,

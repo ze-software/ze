@@ -1,0 +1,149 @@
+# Test: a committed config with a container network and an attached container
+#       gives the container, before its entrypoint runs, a link with its
+#       address, MTU and a default route through the gateway, and the
+#       container reaches the gateway; the host holds the marked bridge with
+#       the gateway address, the marked host end as its one member, and the
+#       network's outbound table; after the daemon stops, the host end is gone.
+# Spec: spec-container-3-network, AC-1 and AC-2, Wiring Test row 5, phase 4a
+# VALIDATES: the network plugin's verify and apply
+#   (internal/plugins/container/network/verify.go parseSections, apply.go
+#   manager: OwnedBridgesReplace, FirewallTablesReplace), and its participant
+#   (attach.go Created: OwnedLinkCreate into the container's namespace before
+#   the entrypoint runs), reached from a real config through the runtime seam.
+# PREVENTS: a link made after the entrypoint started, a link with no address
+#   or route, a bridge without the gateway address or the owner mark, a host
+#   end left outside the bridge, and a host end left behind after the stop.
+# Why not a unit test: the participant's unit tests use a fake engine; only a
+#   real daemon, kernel and container show that the link is in the
+#   container's namespace when its first instruction runs, and that a packet
+#   to the gateway gets an answer.
+#
+# Method: the test store gives a container whose name starts with
+# "networked" the probe's run-networked mode (storeseam_zetest.go). Its first
+# act, before it writes anything else, is to record its links (netlink, which
+# the default filter admits), its IPv4 default route (/proc/net/route) and one
+# TCP connection attempt to that route's gateway on port 9. Nothing needs to
+# listen: the gateway is a local address of the host, so a closed port
+# answers with a RST (ECONNREFUSED) and an open one with a SYN-ACK; either
+# needs a packet to the gateway and one back, and both mean reached. A
+# timeout, EHOSTUNREACH (no ARP answer) or ENETUNREACH (no route) means not
+# reached. The firewall section installs only the network's nat table, which
+# filters nothing at the input hook, so no filter can turn the RST into a
+# silent drop. The probe's networked mode, on the host, judges that report.
+#
+# The store lives under /run, not in the test's work directory: in the QEMU
+# guest that directory is on the 9p share of the checkout, and an overlay
+# cannot take a 9p directory as its upper layer. $PORT keeps two runs apart.
+#
+# caps: sys-admin for the container, net-admin for the bridge, the link and
+# the nft table.
+
+option=needs-linux:caps=net-admin,sys-admin
+option=exclusive:group=container
+option=timeout:value=150s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+# A container network needs an interface section, whose backend makes the
+# bridge and the link, and a firewall section, whose backend installs the
+# outbound table.
+interface {
+	backend netlink
+}
+firewall {
+	backend nft
+}
+container {
+	network lan {
+		prefix 10.88.0.0/24
+	}
+	instance networked {
+		network lan {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+
+# Barrier and the inside view: the probe waits for the container's report,
+# then judges what the container held at entrypoint start, and whether the
+# gateway answered.
+cmd=foreground:seq=3:exec=ze-containerprobe networked /run/ze-container-test-$PORT networked 10.88.0.2/24 10.88.0.1 1500:timeout=45s:exit=0
+expect=stdout:contains=probe: at entrypoint start the container holds eth0 and lo
+expect=stdout:contains=probe: eth0 holds 10.88.0.2/24
+expect=stdout:contains=probe: eth0 has MTU 1500
+expect=stdout:contains=probe: eth0 is up
+expect=stdout:contains=probe: the default route is via 10.88.0.1 dev eth0
+expect=stdout:contains=probe: the entrypoint dialed 10.88.0.1:9
+expect=stdout:contains=probe: the gateway answered the connection attempt
+reject=stdout:contains=probe: FAIL
+
+# The kernel holds the network's bridge, marked as the container plugin's.
+cmd=foreground:seq=4:exec=ip -d link show dev zcn-lan:exit=0
+expect=stdout:contains=bridge
+expect=stdout:contains=mtu 1500
+expect=stdout:contains=alias ze:owned:container
+
+# The gateway address is on it.
+cmd=foreground:seq=5:exec=ip -4 address show dev zcn-lan:exit=0
+expect=stdout:contains=10.88.0.1/24
+
+# The host end is a marked veth member of the bridge, its peer in another
+# namespace.
+cmd=foreground:seq=6:exec=ip -d link show master zcn-lan:exit=0
+expect=stdout:contains=veth
+expect=stdout:contains=alias ze:owned:container
+expect=stdout:contains=link-netnsid
+
+# The bridge has exactly that one member; its name is recorded for the
+# cleanup step, when the bridge may be gone too.
+cmd=foreground:seq=7:exec=ze-containerprobe host-end zcn-lan container host-ends:exit=0
+expect=stdout:contains=probe: the bridge zcn-lan has one member
+expect=stdout:contains=probe: the host end zc-
+expect=stdout:contains=carries the mark ze:owned:container
+reject=stdout:contains=probe: FAIL
+
+# The interface listing shows the bridge with the owner mark.
+cmd=foreground:seq=8:exec=ze cli -c "show interface":exit=0
+expect=stdout:contains=zcn-lan
+expect=stdout:contains=ze:owned:container
+
+# The applied ruleset holds the network's outbound table. The operator names
+# it without the ze_ prefix its kernel name carries.
+cmd=foreground:seq=9:exec=ze cli -c "show firewall ruleset container":exit=0
+expect=stdout:contains=network-lan
+expect=stdout:contains=outbound-lan
+expect=stdout:contains=masquerade
+
+# The daemon stops in order; the container ends, and its host end with it.
+cmd=stop:seq=10:name=daemon:signal=term
+cmd=foreground:seq=11:exec=ze-containerprobe gone /run/ze-container-test-$PORT networked:timeout=50s:exit=0
+expect=stdout:contains=probe: its control group is gone
+expect=stdout:contains=probe: the container received a stop signal
+reject=stdout:contains=probe: FAIL
+cmd=foreground:seq=12:exec=ze-containerprobe unlinked host-ends:timeout=50s:exit=0
+expect=stdout:contains=probe: the recorded host ends are read from host-ends
+expect=stdout:contains=is gone
+reject=stdout:contains=probe: FAIL

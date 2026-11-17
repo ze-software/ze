@@ -3,6 +3,7 @@ module ze-container-conf {
     prefix containerconf;
 
     import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
 
     description
         "Configuration of the containers Ze runs from OCI images. Owned by the
@@ -10,6 +11,10 @@ module ze-container-conf {
          keyword. The words are the one table of the container work: every
          package of the plugin adds the nodes it realizes to this module, with
          the names, types and help texts that table gives them.";
+
+    revision 2026-11-17 {
+        description "The network list, and the network attachment list of an instance.";
+    }
 
     revision 2026-11-16 {
         description "Initial revision: the instance list with its name, enabled, stop-timeout
@@ -77,6 +82,100 @@ module ze-container-conf {
                              leaf is absent, the signal the image declares is sent, or the
                              termination signal when the image declares none.";
                 ze:help "Signal that asks the container to stop.";
+            }
+
+            list network {
+                key "name";
+                ordered-by user;
+                description "One entry attaches the container to one container network. The
+                             container gets one link per entry, named eth0, eth1 and on in
+                             the order the entries are written. An absent address is assigned
+                             and an absent mac-address is derived; neither is written to the
+                             configuration.";
+                ze:help "Attachment to a container network.";
+
+                leaf name {
+                    type string {
+                        length "1..11";
+                        pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                    }
+                    description "The name of a network of the container network list. The
+                                 plugin refuses a name the list does not hold.";
+                    ze:help "Container network to attach to.";
+                }
+
+                leaf-list address {
+                    type zt:ip-address;
+                    description "At most one address per address family, inside the network's
+                                 prefix, and not its network, broadcast or gateway address. A
+                                 family with no address set is assigned the lowest free one, and
+                                 the assignment stays the same across restarts.";
+                    ze:help "Address of the container on the network.";
+                }
+
+                leaf mac-address {
+                    type string {
+                        pattern "[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}";
+                    }
+                    description "When absent, a locally administered address is derived from the
+                                 network and container names, so it is the same at every start.";
+                    ze:help "Hardware address of the container's end of the link.";
+                }
+            }
+        }
+
+        list network {
+            key "name";
+            ze:backend "netlink";
+            description "One entry is one container network: a bridge device named zcn- plus
+                         the name, holding the gateway address of each prefix. Each attached
+                         container has one link whose host end is a member of the bridge.";
+            ze:help "A network that containers attach to.";
+
+            leaf name {
+                type string {
+                    length "1..11";
+                    pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                }
+                description "The bridge device is named zcn- plus the name, and a kernel device
+                             name holds 15 characters, so the name holds at most 11. A longer
+                             name is refused, never shortened.";
+                ze:help "Name of the container network.";
+            }
+
+            leaf-list prefix {
+                type zt:ip-prefix;
+                min-elements 1;
+                description "At most one prefix per address family. An IPv4 prefix has a length
+                             of 1 to 30 and an IPv6 prefix 1 to 126, and two networks must not
+                             overlap.";
+                ze:help "Address range of the network, one per address family.";
+            }
+
+            leaf-list gateway {
+                type zt:ip-address;
+                description "At most one per prefix, a host address of it. When absent, the
+                             gateway of a prefix is its first host address.";
+                ze:help "Address of the router on the network.";
+            }
+
+            leaf mtu {
+                type uint16 {
+                    range "68..16000";
+                }
+                default 1500;
+                description "Set on the bridge and on both ends of every link. A network with an
+                             IPv6 prefix needs at least 1280.";
+                ze:help "Largest packet the network carries.";
+            }
+
+            leaf masquerade {
+                type boolean;
+                default true;
+                description "True translates traffic leaving the network through another
+                             interface to the router's address on that interface. Traffic
+                             between two containers of the network keeps its source.";
+                ze:help "Translate outbound traffic to the router's address.";
             }
         }
     }

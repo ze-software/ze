@@ -134,6 +134,7 @@ ze_copp    internal/plugins/copp
 # Each sibling package of the container work adds its own line under this tag.
 ze_container  internal/plugins/container
 ze_container  internal/plugins/container/imagestore
+ze_container  internal/plugins/container/network
 ze_container  internal/plugins/container/registry
 ze_container  internal/plugins/container/seccomp
 

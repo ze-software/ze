@@ -14,6 +14,25 @@
 // signal it gets in /signals and keeps running until it is killed. The test
 // store gives it to a container whose name starts with "stubborn".
 //
+// `ze-containerprobe run-networked` is the entrypoint of a container attached
+// to a container network: before what run does, and with no wait, it records
+// its links with their MTU, flags and addresses, its IPv4 default route, and
+// the outcome of one TCP connection attempt to that route's gateway
+// (network.go). The test store gives it to a container whose name starts with
+// "networked".
+//
+// `ze-containerprobe networked STORE NAME ADDRESS GATEWAY MTU` runs on the
+// host: it waits a bounded time for the report of container NAME and judges
+// that eth0 held ADDRESS (a prefix) and MTU and was up, that the default route
+// went via GATEWAY on eth0, and that the gateway answered: accepted or
+// refused, either of which needs a packet there and one back.
+//
+// `ze-containerprobe host-end BRIDGE OWNER FILE` runs on the host while the
+// container runs: BRIDGE must have exactly one member, marked
+// ze:owned:OWNER, whose name it writes to FILE. `ze-containerprobe unlinked
+// FILE` runs after the stop and waits a bounded time until no device FILE
+// names is left.
+//
 // `ze-containerprobe gone STORE NAME [at-least|less-than SECONDS]` runs on
 // the host after a stop: it waits a bounded time until container NAME has no
 // control group, root mount or runtime library state left, requires a
@@ -47,6 +66,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -155,8 +175,9 @@ const (
 )
 
 // usage names every mode.
-const usage = "usage: ze-containerprobe run | run-ignoring-stop | reset STORE | verify STORE NAME | confined STORE NAME" +
-	" | gone STORE NAME [at-least|less-than SECONDS] | starts STORE NAME COUNT" +
+const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | reset STORE | verify STORE NAME" +
+	" | confined STORE NAME | networked STORE NAME ADDRESS GATEWAY MTU | host-end BRIDGE OWNER FILE" +
+	" | unlinked FILE | gone STORE NAME [at-least|less-than SECONDS] | starts STORE NAME COUNT" +
 	" | drive STORE NAME CONFIG second-signal|remove [REMOVED-CONFIG]"
 
 // The records the entrypoint appends to its root, so they land in the
@@ -207,12 +228,37 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "run":
-		if err := run(false); err != nil {
+		if err := run(entrypoint{}); err != nil {
 			fail("probe run: " + err.Error())
 		}
 	case "run-ignoring-stop":
-		if err := run(true); err != nil {
+		if err := run(entrypoint{ignoreStop: true}); err != nil {
 			fail("probe run-ignoring-stop: " + err.Error())
+		}
+	case "run-networked":
+		if err := run(entrypoint{networked: true}); err != nil {
+			fail("probe run-networked: " + err.Error())
+		}
+	case "networked":
+		if len(os.Args) != 7 {
+			fail("usage: ze-containerprobe networked STORE NAME ADDRESS GATEWAY MTU")
+		}
+		if !networked(os.Args[2], os.Args[3], parseNetworkWant(os.Args[4], os.Args[5], os.Args[6])) {
+			os.Exit(1)
+		}
+	case "host-end":
+		if len(os.Args) != 5 {
+			fail("usage: ze-containerprobe host-end BRIDGE OWNER FILE")
+		}
+		if !hostEnd(os.Args[2], os.Args[3], os.Args[4]) {
+			os.Exit(1)
+		}
+	case "unlinked":
+		if len(os.Args) != 3 {
+			fail("usage: ze-containerprobe unlinked FILE")
+		}
+		if !unlinked(os.Args[2]) {
+			os.Exit(1)
 		}
 	case "gone":
 		switch len(os.Args) {
@@ -294,18 +340,52 @@ func reset(store string) error {
 	return os.RemoveAll(store)
 }
 
+// entrypoint is what the run modes differ in.
+type entrypoint struct {
+	// ignoreStop records every stop signal and keeps running until killed.
+	ignoreStop bool
+	// networked observes the network first, before anything else runs.
+	networked bool
+}
+
+// parseNetworkWant reads the expectations of the networked mode from its
+// arguments, and fails the probe on one it cannot read.
+func parseNetworkWant(address, gateway, mtu string) networkWant {
+	prefix, err := netip.ParsePrefix(address)
+	if err != nil {
+		fail("probe networked: ADDRESS " + strconv.Quote(address) + " is not a prefix: " + err.Error())
+	}
+	via, err := netip.ParseAddr(gateway)
+	if err != nil {
+		fail("probe networked: GATEWAY " + strconv.Quote(gateway) + " is not an address: " + err.Error())
+	}
+	size, err := strconv.Atoi(mtu)
+	if err != nil {
+		fail("probe networked: MTU " + strconv.Quote(mtu) + " is not a number")
+	}
+	return networkWant{address: prefix, gateway: via, mtu: size}
+}
+
 // run appends a line to /starts, writes the report, then waits for a stop
 // signal and appends "NUMBER UNIX-NANOSECONDS" to /signals for each one it
-// gets. It exits 0 at the first SIGTERM, unless ignoreStop is set: then it
-// records every signal a stop can send and keeps running until it is killed.
-// Init of a pid namespace gets no signal it set no handler for, so the
-// handler is what makes a stop signal reach it at all.
-func run(ignoreStop bool) error {
+// gets. It exits 0 at the first SIGTERM, unless entry.ignoreStop is set: then
+// it records every signal a stop can send and keeps running until it is
+// killed. With entry.networked the network facts are read first, so they are
+// what the container held when its entrypoint started. Init of a pid
+// namespace gets no signal it set no handler for, so the handler is what
+// makes a stop signal reach it at all.
+func run(entry entrypoint) error {
 	stops := make(chan os.Signal, len(stopSignals))
-	if ignoreStop {
+	if entry.ignoreStop {
 		signal.Notify(stops, stopSignals...)
 	} else {
 		signal.Notify(stops, syscall.SIGTERM)
+	}
+	// The handler is set first, so a stop that arrives during the bounded
+	// connection attempt waits in stops rather than being dropped.
+	var network string
+	if entry.networked {
+		network = observeNetwork()
 	}
 	if err := appendLine(startsPath, strconv.AppendInt(nil, time.Now().UnixNano(), 10)); err != nil {
 		return err
@@ -314,7 +394,7 @@ func run(ignoreStop bool) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(reportStaging, []byte(facts), 0o644); err != nil { //nolint:gosec // a report the host test reads
+	if err := os.WriteFile(reportStaging, []byte(network+facts), 0o644); err != nil { //nolint:gosec // a report the host test reads
 		return err
 	}
 	if err := os.Rename(reportStaging, reportPath); err != nil {
@@ -333,7 +413,7 @@ func run(ignoreStop bool) error {
 		if err := appendLine(signalsPath, line); err != nil {
 			return err
 		}
-		if !ignoreStop {
+		if !entry.ignoreStop {
 			return nil
 		}
 	}

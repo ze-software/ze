@@ -107,6 +107,12 @@ var (
 	KeyContainerProjectID  = MustRegister(KeyEntry{Pattern: "meta/container/project-id", Description: "The counter the next container storage project id comes from (4-byte counter)"})
 )
 
+// The container networks' address record (internal/plugins/container/network):
+// one value per network, the map from each attached container's name to its
+// addresses and its link slot, written whole and read tolerantly. The
+// container plugin is its only writer.
+var KeyContainerNetworkAddress = MustRegister(KeyEntry{Pattern: "meta/container/address/{network}", Description: "The addresses and link slots of the containers attached to one container network (JSON)"})
+
 // A support archive the daemon collected for a caller in another process,
 // which `show data cat <key>` reads back (internal/component/support
 // storeAnswer). The archive redacts secrets, as every archive does, so the

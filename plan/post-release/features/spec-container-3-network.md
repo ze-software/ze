@@ -8,7 +8,7 @@
 | Release reason | A post-release feature. The owner ruled (umbrella O-3, O-7) that containers ship after the first release and that their networks and published ports are container config realised through Ze's interface and firewall mechanisms. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime |
-| Phase | 3/7 |
+| Phase | 4/7, slice 4a (verify, addresses, bridges and outbound tables, the link participant) |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -456,7 +456,7 @@ package. The comment on its `Capability` type says both codes must be in
 | A-8 | Bridged traffic between two containers of one network crosses the forward hook, because bridge netfilter is built in | The kernel research report: `BRIDGE_NETFILTER=y`. The sysctl default was not read | The guide's sentence about same-network traffic changes. No design change | `container-network-same-network-filter.ci` records which it is | unvalidated |
 | A-9 | Two enrolments may name different subsystems for kernel options no one enrolled before, and the enrolled-symbol test accepts a line added to `runtime.require` | `kernelcap.go` `Capability`; `TestEnrolledKernelSymbolsAreInRuntimeRequire` (named in the kernel research, not read) | The options are enrolled by the interface and nft backends instead, with a registered in-use predicate | Reading `MustRegister` and running that test | unvalidated |
 | A-10 | The runtime child has a test route that starts a container with no registry | `spec-container-1-runtime.md`: a build with the `zetest` tag adds a store that resolves an image name to a folder, and `internal/test/containerprobe` is the fixture program | The functional tests that need a container wait for the image store child | That spec's text, read 2026-11-16 | confirmed by the sibling's design |
-| A-11 | The operator-surface child's design, which holds the one table of config and command words, is settled before this child's wiring phase | The umbrella: "its design is settled before any sibling's wiring phase". This spec keeps `Depends: spec-container-1-runtime`, because that child's implementation comes after this one's | Phase 1 waits | That spec reaching `ready` | unvalidated |
+| A-11 | The operator-surface child's design, which holds the one table of config and command words, is settled before this child's wiring phase | The umbrella: "its design is settled before any sibling's wiring phase". This spec keeps `Depends: spec-container-1-runtime`, because that child's implementation comes after this one's | Phase 1 waits | That spec reaching `ready` | confirmed: `spec-container-4-operator-surface.md` is `ready` (read 2026-11-17) |
 | A-14 | The operator-surface child's `network` name bound is 1 to 11 characters and its `masquerade` default is true | That spec's table S-2 states both, by the owner's rulings of 2026-11-16 | A name of 12 characters or more passes the schema and is refused by this child's verifier instead, with the same message | That spec's `TestNetworkNameBound` | confirmed by the sibling's design |
 | A-15 | For a connection the router itself opens to a published port: the plugin's output term translates it before the operator's filter chains at the output hook run, so those chains see the instance's address and the `container-port`; the output interface they see is the one chosen before the translation; and the replies arrive on the bridge and cross the input hook | Kernel netfilter behaviour, not read in source. The firewall model names the hooks (`internal/component/firewall/model.go` `HookOutput`, `HookInput`, `HookForward`) and bounds a base chain's priority, so an operator's chain placed before the translation sees the router's address and the `listen-port` instead | The output row of the policy table names other matches. No design change | `container-port-from-router.ci` in the QEMU guest | unvalidated |
 | A-12 | The interface engine's stop path can delete owned devices before it closes its backend | `internal/component/iface/register.go`: the stop path runs after `p.Run` returns and ends in `CloseBackend` | The deletion needs another ordered actor | `container-network-daemon-stop.ci`, and a VRRP stop test | unvalidated |
@@ -549,26 +549,29 @@ creates it; this child's package is `network` under it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestGatewayIsNetworkAddressPlusOne` | `internal/plugins/container/network/address_test.go` | The gateway in each family | |
-| `TestAssignLowestFreeAddress` | same | Assignment skips the gateway and held addresses | |
-| `TestAssignmentIsKeptAcrossRestart` | same | A stored assignment is reused | |
-| `TestAssignmentReleasedWhenAttachmentLeaves` | same | Release on removal | |
-| `TestVerifyRefusesDuplicateAddress` | `internal/plugins/container/network/verify_test.go` | Two attachments, one address | |
-| `TestVerifyRefusesAddressOutsidePrefix` | same | Outside, network, broadcast and gateway addresses | |
-| `TestVerifyRefusesOverlappingNetworks` | same | Two prefixes that overlap | |
-| `TestVerifyRefusesExhaustedPrefix` | same | More attachments than addresses | |
+| `TestGatewayIsNetworkAddressPlusOne` | `internal/plugins/container/network/address_test.go` | The gateway in each family | written in phase 4a, not run |
+| `TestAssignLowestFreeAddress` | same | Assignment skips the gateway and held addresses | written in phase 4a, not run |
+| `TestAssignmentIsKeptAcrossRestart` | same | A stored assignment is reused | written in phase 4a, not run |
+| `TestAssignmentReleasedWhenAttachmentLeaves` | same | Release on removal | written in phase 4a, not run |
+| `TestVerifyAcceptsValidNetwork`, `TestVerifyRefusesPrefixLength` (V-13), `TestVerifyRefusesDuplicateHardwareAddress` (V-17), `TestVerifyRefusesNetworkWithoutComponents`, `TestVerifyRefusesUnsupportedBackend` (V-19) | `internal/plugins/container/network/verify_test.go` | The positive control and the rules phase 4a added rows for | written in phase 4a, not run |
+| `TestTablesWithdrawnWhenNothingTranslates` | `internal/plugins/container/network/tables_test.go` | No translating network answers an explicit empty table map | written in phase 4a, not run |
+| `TestParticipantCreatesLinksInOrder`, `TestParticipantRemovesWhatItMadeOnFailure`, `TestApplySendsBridgesAndTables` | `internal/plugins/container/network/attach_test.go` | The link requests, the removal on failure, the bridge and table sets and their withdrawal | written in phase 4a, not run |
+| `TestVerifyRefusesDuplicateAddress` | `internal/plugins/container/network/verify_test.go` | Two attachments, one address | written in phase 4a, not run |
+| `TestVerifyRefusesAddressOutsidePrefix` | same | Outside, network, broadcast and gateway addresses | written in phase 4a, not run |
+| `TestVerifyRefusesOverlappingNetworks` | same | Two prefixes that overlap | written in phase 4a, not run |
+| `TestVerifyRefusesExhaustedPrefix` | same | More attachments than addresses | written in phase 4a, not run |
 | `TestVerifyRefusesHostNetworkWithNetworkSettings` | same | Rule V-1: a `network` entry, a `port` entry or a network `sysctl` beside the shared host network | |
 | `TestVerifyRefusesPortWithNoNetwork` | same | A `port` entry on an instance with no `network` entry | |
-| `TestVerifyRefusesGatewayOutsidePrefix` | same | Rule V-5: a set `gateway` outside its prefix | |
-| `TestNetworkParticipantIsRegistered` | `internal/plugins/container/network/attach_test.go` | The participant is in the runtime's registration and contributes the resolver mount | |
-| `TestParticipantSkipsHostAndUnattachedInstances` | same | No interface request for an instance that shares the host network or has no `network` entry | |
+| `TestVerifyRefusesGatewayOutsidePrefix` | same | Rule V-5: a set `gateway` outside its prefix | written in phase 4a, not run |
+| `TestNetworkParticipantIsRegistered` | `internal/plugins/container/network/attach_test.go` | The participant is in the runtime's registration and contributes the resolver mount | written in phase 4a for the participant and the config sibling, not run; the resolver mount is not built |
+| `TestParticipantSkipsHostAndUnattachedInstances` | same | No interface request for an instance that shares the host network or has no `network` entry | written in phase 4a as `TestParticipantSkipsUnattachedInstances`, not run; the host network case waits for `host-namespace` |
 | `TestListingsCarryTheDeclaredFields` | `internal/plugins/container/network/command_test.go` | The two listings answer the fields of the operator-surface child's table C-1 | |
-| `TestVerifyRefusesIPv6BelowMinimumMTU` | same | MTU under 1280 with an IPv6 prefix | |
-| `TestVerifyRefusesBridgeNameInInterfaceConfig` | same | The derived name is declared in `interface` | |
-| `TestBridgeNameIsRefusedNotTruncated` | `internal/plugins/container/network/name_test.go` | A 12-character network name | |
-| `TestHardwareAddressIsStableAndUnicast` | same | The derived address | |
+| `TestVerifyRefusesIPv6BelowMinimumMTU` | same (written in `verify_test.go`) | MTU under 1280 with an IPv6 prefix | written in phase 4a, not run |
+| `TestVerifyRefusesBridgeNameInInterfaceConfig` | same (written in `verify_test.go`) | The derived name is declared in `interface` | written in phase 4a, not run |
+| `TestBridgeNameIsRefusedNotTruncated` | `internal/plugins/container/network/name_test.go` | A 12-character network name | written in phase 4a, not run |
+| `TestHardwareAddressIsStableAndUnicast` | same | The derived address | written in phase 4a, not run |
 | `TestTablesForPublishedPort` | `internal/plugins/container/network/tables_test.go` | The prerouting and output terms of one port | |
-| `TestTablesForOutboundTranslation` | same | The jump, return and masquerade terms | |
+| `TestTablesForOutboundTranslation` | same | The jump, return and masquerade terms | written in phase 4a, not run |
 | `TestTablesFollowConfigNotRunState` | same | A stopped, enabled container has its term; a disabled one has none | |
 | `TestPublishedPortEndpoints` | `internal/plugins/container/network/listeners_test.go` | The endpoints the conflict check receives | |
 | `TestResolverPrecedence` | `internal/plugins/container/network/resolver_test.go` | The instance's `name-server`, else the router's list without loopback | |
@@ -623,7 +626,7 @@ device cannot run.
 | `container-network-wiring-internal` | `test/container/container-network-wiring-internal.ci` | The same, internal | drafted in `test/draft/container/`, not run since phase 2; expected green |
 | `container-link-wiring-external` | `test/container/container-link-wiring-external.ci` | A forked test plugin's link has its peer end configured in a namespace | drafted in `test/draft/container/`; phase 2 added the `link-netnsid` check and the peer end's facts through the `iface/peer-end` fixture; not run; expected green |
 | `container-table-wiring-external` | `test/container/container-table-wiring-external.ci` | A forked test plugin's table is in the ruleset listing | drafted in `test/draft/container/`; phase 3 added a `firewall { backend nft }` section; not run since phase 3; expected green |
-| `container-network-reach-gateway` | `test/container/container-network-reach-gateway.ci` | AC-1, AC-2: an entrypoint that connects to the gateway at once succeeds | |
+| `container-network-reach-gateway` | `test/container/container-network-reach-gateway.ci` | AC-1, AC-2: an entrypoint that connects to the gateway at once succeeds | drafted in `test/draft/container/` for phase 4a, not run. The probe's `run-networked` mode (instance-name prefix `networked`) records eth0, the default route and one TCP attempt to the gateway before anything else, judged by `ze-containerprobe networked`; the host steps read the bridge, the marked host end and `show firewall ruleset container`; after the daemon stop, `unlinked` requires the host end gone |
 | `container-network-forked` | `test/container/container-network-forked.ci` | AC-16: the same with the plugin forked | |
 | `container-network-address-stable` | `test/container/container-network-address-stable.ci` | AC-3 | |
 | `container-network-ipv6` | `test/container/container-network-ipv6.ci` | AC-4 | |
@@ -729,7 +732,7 @@ device cannot run.
 - `test/container/container-table-wiring-external.ci` - the table wiring test, green in the guest since phase 3 and promoted
 - `pkg/plugin/rpc/owned_devices.go`, `pkg/plugin/rpc/firewall_tables.go` - the value types and method names
 - `pkg/plugin/sdk/sdk_owned_devices.go`, `pkg/plugin/sdk/sdk_firewall_tables.go` - the SDK methods
-- `internal/plugins/container/network/` - `verify.go`, `address.go`, `name.go`, `tables.go`, `resolver.go`, `listeners.go`, `attach.go` (the participant), `command.go` (the two listings and the read function), `register_tables.go`, `register_kernelcap_linux.go`, `kernelcap_linux.go`, `doctor.go`, and the tests named above
+- `internal/plugins/container/network/` - `verify.go`, `address.go`, `name.go`, `tables.go`, `resolver.go`, `listeners.go`, `attach.go` (the participant), `command.go` (the two listings and the read function), `register_tables.go`, `register_kernelcap_linux.go`, `kernelcap_linux.go`, `doctor.go`, and the tests named above. Phase 4a also created `backend.go` (V-19), `apply.go` (the sibling's apply), `namespace_linux.go` and `namespace_other.go` (the namespace inode) and `register.go` (the grants and the seam registrations)
 - `internal/plugins/container/yang/ze-container-conf.yang`, `internal/plugins/container/yang/ze-container-cmd.yang`, `internal/plugins/container/register.go` - created by the first child to land (the runtime child). This child adds its nodes and its two command nodes with the operator-surface child's words, `ze:backend "netlink"` on the `network` list, the declared reads of the `interface` and `firewall` roots, the dependencies on both plugins, the two command declarations and the state key grant
 - `internal/test/plugins/fakeowner/` - a test plugin that declares a bridge, a link into a namespace it holds, and a table
 - The `.ci` files in the Functional Tests table
@@ -870,6 +873,16 @@ device cannot run.
   5. The stop path needed no change: with a `firewall` section the engine's orderly stop calls `FlushAllTables`, which clears every owner. Without one the firewall engine does not run, and contributed tables leave only through the generation cleanup when the plugin process ends. Whether that cleanup runs at an orderly daemon stop was not read, so A-6 stays open, and the table wiring draft carries a `firewall { backend nft }` section.
   6. `TestGenerationCleanupWithdrawsOwner` lives in `contribution_replace_test.go`, not `contribution_test.go`.
   7. Scope widened by one line: the web firewall page (`internal/component/web/page_firewall.go`) names the new match as `fib daddr type local` rather than its Go type through the default arm. The kernel enrolment of the fib expression (A-7) stays with phase 6.
+
+- Phase 4 slice 4a as applied (verify, addresses, bridges and outbound tables, the link participant; published ports, name resolution, listings, `host-namespace`, the sysctl defaults, kernel enrolment and doctor remain). Files: `internal/plugins/container/network/` `name.go`, `address.go`, `verify.go`, `backend.go`, `tables.go`, `apply.go`, `attach.go`, `namespace_linux.go`, `namespace_other.go`, `register.go`, `register_tables.go` and five test files; the network nodes of `ze-container-conf.yang`; `StartAfter: interface, firewall` in the plugin's `register.go`; `zefs.KeyContainerNetworkAddress`; the gate line and blank import; `docs/architecture/container/network.md`. Eight differences from the design above:
+  1. The attachment's key is a string with the network name's constraints, not a `leafref` and not a `ze:reference` (the operator surface spec's A-3): no list key in the tree is either, and a `ze:reference` source registered by this package would make `CheckAllReferenceSourcesRegistered` refuse any schema load that links the container YANG without it. The plugin's parse refuses an unknown network.
+  2. An assigned address is the lowest host address that is not the gateway, rather than one above the gateway: a set gateway at the top of the prefix would leave no address above it. With the default gateway the two read the same.
+  3. The ended call removes the instance's links (seam row 3 says none is needed). The kernel removes the pair anyway; the request also drops the interface component's record at once.
+  4. A container network needs both an `interface` and a `firewall` section, refused at verify naming the line to add, because the requests are refused while the component is not loaded.
+  5. V-19's firewall half is a direct check: a translating network needs the `nft` firewall backend, because its outbound chain is a regular chain the VPP verifier refuses. The walker takes one active backend, and the network list's annotation is the interface backend's.
+  6. An empty bridge or table set is sent only to withdraw a non-empty one the same process sent: the sibling's zero config is applied at every start, and a container config without a network must not need the two components.
+  7. The device grant is the prefix `zc`: `ComposeOwnedDeviceName` adds the hyphen of a host end, and every bridge `zcn-NAME` lies inside it.
+  8. A network that leaves the config keeps its state key: the engine client has no state removal. The next config that declares the network reads the record and drops every instance no longer attached.
 
 ### Owner questions
 

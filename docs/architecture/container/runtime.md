@@ -347,6 +347,7 @@ cannot pass the test. It refuses any path outside `/run/ze-container-test-*`.
 <!-- source: internal/plugins/container/storeseam_engine.go -- engineStoreFactory -->
 <!-- source: internal/test/containerprobe/main.go -- observe, verify, reset, storePrefix -->
 <!-- source: internal/test/containerprobe/confinement_linux.go -- observeConfinement, confined -->
+<!-- source: internal/test/containerprobe/network.go -- observeNetwork, reachFact, defaultRoute, judgeNetwork, hostEnd, unlinked -->
 
 ## Doctor codes, runtime checks and the kernel requirement
 

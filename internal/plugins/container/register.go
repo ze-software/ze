@@ -52,8 +52,13 @@ func registerContainer() {
 		// The sysctl plugin writes the kernel tunable a container's network
 		// namespace needs (tunables.go), so it is running before a start.
 		Dependencies: []string{"sysctl"},
-		RunEngine:    runContainerEngine,
-		Commands:     commandDecls(),
+		// The network package asks the interface and firewall components for
+		// bridges, links and tables when the plugin starts, so the plugin
+		// starts after them when they are loaded. StartAfter loads neither: a
+		// config with no container network needs neither component.
+		StartAfter: []string{"interface", "firewall"},
+		RunEngine:  runContainerEngine,
+		Commands:   commandDecls(),
 		// `ze config validate` never calls a live verify callback. The static
 		// verifier is the same rule set the reload's verify and the boot
 		// configure run, so what validate accepts is what starts.
