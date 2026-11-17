@@ -245,6 +245,17 @@ diff --git a/include/net/xfrm_scope.h b/include/net/xfrm_scope.h
  	u32 len;
  };
  
+diff --git a/include/uapi/linux/snmp.h b/include/uapi/linux/snmp.h
+--- a/include/uapi/linux/snmp.h
++++ b/include/uapi/linux/snmp.h
+@@ -345,6 +345,7 @@
+ 	LINUX_MIB_XFRMINSTATEDIRERROR,		/* XfrmInStateDirError */
+ 	LINUX_MIB_XFRMINIPTFSERROR,		/* XfrmInIptfsError */
+ 	LINUX_MIB_XFRMOUTNOQSPACE,		/* XfrmOutNoQueueSpace */
++	LINUX_MIB_XFRMFRAG6QUEUED,			/* XfrmFrag6Queued */
+ 	__LINUX_MIB_XFRMMAX
+ };
+ 
 diff --git a/net/core/skbuff.c b/net/core/skbuff.c
 --- a/net/core/skbuff.c
 +++ b/net/core/skbuff.c
@@ -672,6 +683,35 @@ diff --git a/net/ipv6/ip6_output.c b/net/ipv6/ip6_output.c
  
  /**
   *	ip6_dst_lookup - perform route lookup on flow
+diff --git a/net/ipv6/netfilter/nf_conntrack_reasm.c b/net/ipv6/netfilter/nf_conntrack_reasm.c
+--- a/net/ipv6/netfilter/nf_conntrack_reasm.c
++++ b/net/ipv6/netfilter/nf_conntrack_reasm.c
+@@ -21,6 +21,9 @@
+ #include <linux/slab.h>
+ 
+ #include <net/ipv6_frag.h>
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++#include <net/xfrm.h>
++#endif
+ 
+ #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
+ #include <linux/sysctl.h>
+@@ -305,6 +308,15 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
+ 	skb_dst_drop(skb);
+ 	skb_orphan(skb);
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++	/* Count only successful insertions that leave this queue incomplete.
++	 * Duplicates and failed completion also return -EINPROGRESS above.
++	 */
++	if (fq->q.key.v6.user >= IP6_DEFRAG_XFRM_IN &&
++	    fq->q.key.v6.user <= __IP6_DEFRAG_XFRM_BRIDGE_IN_END)
++		XFRM_INC_STATS(fq->q.fqdir->net,
++			       LINUX_MIB_XFRMFRAG6QUEUED);
++#endif
+ 	return -EINPROGRESS;
+ 
+ insert_error:
+ 	inet_frag_kill(&fq->q, refs);
 diff --git a/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c b/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c
 --- a/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c
 +++ b/net/ipv6/netfilter/nf_defrag_ipv6_hooks.c
@@ -1803,6 +1843,17 @@ diff --git a/net/xfrm/xfrm_policy.c b/net/xfrm/xfrm_policy.c
  
  /* Main function: finds/creates a bundle for given flow.
   *
+diff --git a/net/xfrm/xfrm_proc.c b/net/xfrm/xfrm_proc.c
+--- a/net/xfrm/xfrm_proc.c
++++ b/net/xfrm/xfrm_proc.c
+@@ -45,6 +45,7 @@ static const struct snmp_mib xfrm_mib_list[] = {
+ 	SNMP_MIB_ITEM("XfrmInStateDirError", LINUX_MIB_XFRMINSTATEDIRERROR),
+ 	SNMP_MIB_ITEM("XfrmInIptfsError", LINUX_MIB_XFRMINIPTFSERROR),
+ 	SNMP_MIB_ITEM("XfrmOutNoQueueSpace", LINUX_MIB_XFRMOUTNOQSPACE),
++	SNMP_MIB_ITEM("XfrmFrag6Queued", LINUX_MIB_XFRMFRAG6QUEUED),
+ };
+ 
+ static int xfrm_statistics_seq_show(struct seq_file *seq, void *v)
 diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
 --- a/net/xfrm/xfrm_state.c
 +++ b/net/xfrm/xfrm_state.c

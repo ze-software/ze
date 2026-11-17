@@ -114,6 +114,90 @@ func TestFragmentSAReplacementKeepsQueuedIdentity(t *testing.T) {
 	}
 }
 
+// TestIPv6XFRMFragmentQueueCounter distinguishes a successful pending admission
+// from authenticated duplicates and completing fragments. Both arrival orders
+// retain exact SAD counts and payload controls in the existing ANY-scope lab.
+//
+//ze:guest-root
+func TestIPv6XFRMFragmentQueueCounter(t *testing.T) {
+	const counter = "XfrmFrag6Queued"
+	lab := newEspPolLab(t)
+	queued := espPolStat(t, counter)
+	if queued != 0 {
+		t.Fatalf("new namespace %s=%d, want 0", counter, queued)
+	}
+	pairs, inside := fragmentSALifetimeReceiver(t, unix.AF_INET6)
+	espPolSPD(t)
+	children, _ := rfcScopeChildren(t, pairs)
+	child := children[0]
+	t.Cleanup(func() { removeChildSA(child, dataplane.Get(), slogutil.DiscardLogger()) })
+	rfcScopeWantState(t, child, pairs, true, false)
+	rfcScopeWantState(t, child, pairs, false, false)
+	sender := newEspPolSender(t, lab, child)
+	anyScopeFragmentWantPackets(t, sender)
+	whole, _, body := fragmentSALifetimePackets(unix.AF_INET6, 0x6b730000)
+	fragmentSALifetimeSend(t, unix.AF_INET6, sender, whole)
+	if !fragmentSALifetimeDelivered(t, unix.AF_INET6, inside, body) {
+		t.Fatal("the authenticated whole control was not delivered")
+	}
+	anyScopeFragmentWantPackets(t, sender)
+	if got := espPolStat(t, counter); got != queued {
+		t.Fatalf("whole control %s=%d, want %d", counter, got, queued)
+	}
+	for order, tailFirst := range []bool{false, true} {
+		identifier := uint32(0x6b730001 + order*16)
+		_, parts, body := fragmentSALifetimePackets(unix.AF_INET6, identifier)
+		first, last := 0, 1
+		if tailFirst {
+			first, last = 1, 0
+		}
+		fragmentSALifetimeSend(t, unix.AF_INET6, sender, parts[first])
+		if fragmentSALifetimeDelivered(t, unix.AF_INET6, inside, body) {
+			t.Fatalf("tail-first=%v: a single fragment delivered a datagram", tailFirst)
+		}
+		anyScopeFragmentWantPackets(t, sender)
+		queued++
+		if got := espPolStat(t, counter); got != queued {
+			t.Fatalf("tail-first=%v: pending admission %s=%d, want %d", tailFirst, counter, got, queued)
+		}
+		// A new ESP sequence authenticates the same inner fragment again;
+		// otherwise anti-replay rejection could hide a duplicate-counting bug.
+		fragmentSALifetimeSend(t, unix.AF_INET6, sender, parts[first])
+		if fragmentSALifetimeDelivered(t, unix.AF_INET6, inside, body) {
+			t.Fatalf("tail-first=%v: a duplicate fragment delivered a datagram", tailFirst)
+		}
+		anyScopeFragmentWantPackets(t, sender)
+		if got := espPolStat(t, counter); got != queued {
+			t.Fatalf("tail-first=%v: duplicate %s=%d, want %d", tailFirst, counter, got, queued)
+		}
+		fragmentSALifetimeSend(t, unix.AF_INET6, sender, parts[last])
+		if !fragmentSALifetimeDelivered(t, unix.AF_INET6, inside, body) {
+			t.Fatalf("tail-first=%v: completing fragment lost the exact datagram", tailFirst)
+		}
+		anyScopeFragmentWantPackets(t, sender)
+		if got := espPolStat(t, counter); got != queued {
+			t.Fatalf("tail-first=%v: completion %s=%d, want %d", tailFirst, counter, got, queued)
+		}
+		whole, _, body := fragmentSALifetimePackets(unix.AF_INET6, identifier+1)
+		fragmentSALifetimeSend(t, unix.AF_INET6, sender, whole)
+		if !fragmentSALifetimeDelivered(t, unix.AF_INET6, inside, body) {
+			t.Fatalf("tail-first=%v: lost the following whole control", tailFirst)
+		}
+		anyScopeFragmentWantPackets(t, sender)
+		if got := espPolStat(t, counter); got != queued {
+			t.Fatalf("tail-first=%v: following whole %s=%d, want %d", tailFirst, counter, got, queued)
+		}
+		t.Logf("tail-first=%v: only the pending unique fragment advanced %s to %d", tailFirst, counter, queued)
+	}
+	// The peer authenticated no inner fragment and owns a distinct statistics
+	// namespace. Return before cleanup removes the receiving Child's state.
+	lab.enter(t, lab.peer)
+	defer lab.enter(t, lab.ze)
+	if got := espPolStat(t, counter); got != 0 {
+		t.Fatalf("peer namespace %s=%d, want 0", counter, got)
+	}
+}
+
 func fragmentSALifetimeReceiver(t *testing.T, family int) ([]tsPair, *net.UDPConn) {
 	t.Helper()
 	if family == unix.AF_INET6 {
@@ -173,12 +257,17 @@ func fragmentSALifetimeDelivered(t *testing.T, family int, inside *net.UDPConn, 
 }
 
 // fragmentSALifetimeReassemblyRequests reads the creating thread's namespace.
+// IPv6 XFRM gathering uses the netfilter queue, not local Ip6ReasmReqds.
 // IPv4 snmp_seq_show_ipstats emits paired Ip: names and values, including
 // ReasmReqds. A missing field or a malformed pair cannot count as no requests.
 func fragmentSALifetimeReassemblyRequests(t *testing.T, family int) uint64 {
 	t.Helper()
 	if family == unix.AF_INET6 {
-		return transportFragmentReassembly(t, "Ip6ReasmReqds")
+		queued := espPolStat(t, "XfrmFrag6Queued")
+		if queued < 0 {
+			t.Fatalf("the private IPv6 XfrmFrag6Queued=%d is negative", queued)
+		}
+		return uint64(queued)
 	}
 	raw, err := os.ReadFile("/proc/thread-self/net/snmp")
 	if err != nil {

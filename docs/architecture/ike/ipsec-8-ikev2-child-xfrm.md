@@ -340,10 +340,43 @@ packet matrix: eleven top-level tests passed with no skips, accepting the
 two-call repair. A separate `TestFragmentSAReplacementKeepsQueuedIdentity` run
 passed both IPv4 arrival orders but stopped before IPv6 SA removal: its
 `Ip6ReasmReqds` assertion observes local IPv6 reassembly, while the carried guard
-uses the separate netfilter queue. An actual IPv6 queue observable and independent
-judgment of the test correction remain owed; this failure establishes no C defect.
+uses the separate netfilter queue. The preceding normal kernel also failed
+`TestIPv6XFRMFragmentQueueCounter` because `XfrmFrag6Queued` was absent.
+Normal kernel `f82654a4` with matching image `d9efda5bec4fd7f7` passed the
+complete capability check and `TestIPv6XFRMFragmentQueueCounter` in both arrival
+orders, without skips. The lifetime test now observes the guard's IPv6 queue
+through `XfrmFrag6Queued`. On the same kernel and image,
+`TestFragmentSAReplacementKeepsQueuedIdentity` passed both families and arrival
+orders without skips. Same-SPI/key replacement kept old and new queues separate,
+while whole and fresh-fragment controls delivered. The same three raw-socket
+tests and original eight-test packet matrix also passed on this kernel and
+image without skips. These regressions do not establish full queue isolation
+or RFC conformance.
+The earlier counter failures establish no packet-handling defect.
 The earlier 35-run population remains evidence for the earlier kernel.
 <!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- xfrm_fragment_route, xfrm_raw_route_capture -->
+<!-- source: internal/component/ike/engine/fragment_sa_lifetime_integration_linux_test.go -- fragmentSALifetimeReassemblyRequests -->
+<!-- test: internal/component/ike/engine/fragment_sa_lifetime_integration_linux_test.go TestFragmentSAReplacementKeepsQueuedIdentity -->
+<!-- test: internal/component/ike/engine/fragment_sa_lifetime_integration_linux_test.go TestIPv6XFRMFragmentQueueCounter -->
+
+With `CONFIG_XFRM_STATISTICS`, the carried patch exports `XfrmFrag6Queued` in
+each network namespace's `xfrm_stat`. It counts successful IPv6 fragment
+insertions that leave an XFRM guard queue incomplete. The retained queue's
+defrag-user range selects input, output and bridge traffic, including visible
+zones. The queue directory's network namespace owns the counter increment.
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- LINUX_MIB_XFRMFRAG6QUEUED, xfrm_mib_list, nf_ct_frag6_queue, IP6_DEFRAG_XFRM_IN, __IP6_DEFRAG_XFRM_BRIDGE_IN_END -->
+
+The counter excludes duplicates, completing fragments, failed insertions and
+failed reassembly. Whole packets, atomic fragments and ordinary conntrack
+queues do not increment it. It measures incomplete admissions, not current
+queue occupancy or authentication. Locked-thread readers use
+`/proc/thread-self/net/xfrm_stat` to observe their current network namespace.
+The native regression observed one increment per unique pending admission in
+both arrival orders. Authenticated duplicates, completion and whole controls
+left the count unchanged, and the peer namespace stayed zero.
+<!-- source: gokrazy/kernel/patches/0005-xfrm-fragment-guard.patch -- nf_ct_frag6_queue, xfrm6_fragment_gather -->
+<!-- source: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go -- espPolStat -->
+<!-- test: internal/component/ike/engine/fragment_sa_lifetime_integration_linux_test.go TestIPv6XFRMFragmentQueueCounter -->
 
 A private skb extension owns another
 reference and survives clone and first-fragment reassembly. Its presence also
