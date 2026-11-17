@@ -11,7 +11,7 @@ import (
 //
 // VALIDATES: an anchored value goes bare after its anchor keyword, a declared
 // value follows the command as keyword and value in declaration order, an
-// undeclared value trails in name order, an empty value is left out, and a
+// undeclared value trails in name order, an explicit empty value is quoted, and a
 // value holding a space is quoted.
 // PREVENTS: an anchored selector written in keyword form, which the dispatcher
 // validates and never binds.
@@ -30,7 +30,7 @@ func TestWriteInvocationPlacesEachValueWhereTheDispatcherBindsIt(t *testing.T) {
 		{name: "no value", values: nil, want: "peer announce unicast"},
 		{name: "anchored value bare after its keyword", values: map[string]string{"selector": "192.0.2.9"}, want: "peer 192.0.2.9 announce unicast"},
 		{name: "declaration order after the command", values: map[string]string{"label": "edge", "prefix": "198.51.100.0/24"}, want: "peer announce unicast prefix 198.51.100.0/24 label edge"},
-		{name: "empty value left out", values: map[string]string{"selector": "", "prefix": "198.51.100.0/24"}, want: "peer announce unicast prefix 198.51.100.0/24"},
+		{name: "explicit empty value quoted", values: map[string]string{"selector": "", "prefix": "198.51.100.0/24"}, want: `peer "" announce unicast prefix 198.51.100.0/24`},
 		{name: "a value with a space is quoted", values: map[string]string{"label": "edge router"}, want: `peer announce unicast label "edge router"`},
 		{name: "undeclared values trail in name order", values: map[string]string{"zeta": "1", "alpha": "2", "prefix": "p"}, want: "peer announce unicast prefix p alpha 2 zeta 1"},
 	}

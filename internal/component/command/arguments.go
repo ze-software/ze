@@ -34,8 +34,10 @@ import (
 // and dropping it here would make the daemon ignore a client's input in
 // silence.
 //
-// An empty value is left out rather than sent: the dispatcher's own mandatory
-// check then names the missing argument, and an optional one is simply absent.
+// A missing map entry is omitted. An explicitly supplied empty value is
+// written as a quoted empty token, so the model judges that value instead of
+// silently treating it as missing. An unset flag remains omitted; it takes
+// no value of its own. HTML adapters omit blank optional controls themselves.
 // Literal values use WriteInvocationValue's operational quoting, as read by
 // ScanInvocation. A quoted quote or pipe remains data rather than changing the
 // token or pipeline boundary.
@@ -51,32 +53,48 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 		tb.Str(segment)
 		for j := range defs {
 			def := &defs[j]
-			if placed[def.Name] || values[def.Name] == "" || def.Anchor != segment {
+			if placed[def.Name] {
+				continue
+			}
+			value, found := values[def.Name]
+			if !found {
+				continue
+			}
+			if def.Anchor != segment {
 				continue
 			}
 			placed[def.Name] = true
 			tb.Byte(' ')
-			WriteInvocationValue(tb, values[def.Name])
+			WriteInvocationValue(tb, value)
 		}
 	}
 	for j := range defs {
 		name := defs[j].Name
-		if placed[name] || values[name] == "" {
+		if placed[name] {
+			continue
+		}
+		value, found := values[name]
+		if !found {
 			continue
 		}
 		placed[name] = true
+		if defs[j].Flag {
+			if value == "" {
+				continue
+			}
+		}
 		tb.Byte(' ').Str(name)
 		if defs[j].Flag {
 			// Any non-empty form value sets the flag; the keyword is the whole argument.
 			continue
 		}
 		tb.Byte(' ')
-		WriteInvocationValue(tb, values[name])
+		WriteInvocationValue(tb, value)
 	}
 
 	undeclared := make([]string, 0, len(values))
-	for name, value := range values {
-		if placed[name] || value == "" {
+	for name := range values {
+		if placed[name] {
 			continue
 		}
 		undeclared = append(undeclared, name)
