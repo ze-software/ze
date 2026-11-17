@@ -64,6 +64,12 @@
 // test store directory STORE, compares each fact with what a container of
 // its own must see, prints one line per check, and exits 1 when one fails.
 //
+// `ze-containerprobe verify-stored DATA NAME` and `ze-containerprobe
+// gone-stored DATA NAME` are verify and gone for a container the image store
+// started from a fetched image whose entrypoint is this program: its writable
+// layer is the one folder under DATA/container/layers/NAME, named by the
+// image digest (stored.go), rather than the test store's.
+//
 // `ze-containerprobe confined STORE NAME` runs on the host the same way and
 // judges the default confinement of container NAME: only its own process,
 // its cgroup as the root, the default capability mask in its effective and
@@ -139,7 +145,7 @@ func drive(store, name, config, action, removed string) bool {
 		if !stopDaemon() {
 			return false
 		}
-		return gone(store, name, []string{"less-than", "20"})
+		return gone(testStoreUpper(store, name), name, []string{"less-than", "20"})
 	case "remove":
 		data, err := os.ReadFile(removed) //nolint:gosec // the test's own config file
 		if err != nil {
@@ -151,7 +157,7 @@ func drive(store, name, config, action, removed string) bool {
 			return judge("the config without the container is written", false, err.Error())
 		}
 		daemon.Process.Signal(syscall.SIGHUP) //nolint:errcheck,gosec // the daemon was just seen running
-		removedGone := gone(store, name, nil)
+		removedGone := gone(testStoreUpper(store, name), name, nil)
 		return stopDaemon() && removedGone
 	}
 	stopDaemon()
@@ -296,7 +302,7 @@ func main() {
 		default:
 			fail("usage: ze-containerprobe gone STORE NAME [at-least|less-than SECONDS]")
 		}
-		if !gone(os.Args[2], os.Args[3], os.Args[4:]) {
+		if !gone(testStoreUpper(os.Args[2], os.Args[3]), os.Args[3], os.Args[4:]) {
 			os.Exit(1)
 		}
 	case "drive":
@@ -334,7 +340,29 @@ func main() {
 		if len(os.Args) != 4 {
 			fail("usage: ze-containerprobe verify STORE NAME")
 		}
-		if !verify(os.Args[2], os.Args[3]) {
+		if !verify(testStoreUpper(os.Args[2], os.Args[3]), os.Args[3]) {
+			os.Exit(1)
+		}
+	case "verify-stored":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe verify-stored DATA NAME")
+		}
+		upper, found := storedUpper(os.Args[2], os.Args[3])
+		if !found {
+			os.Exit(1)
+		}
+		if !verify(upper, os.Args[3]) {
+			os.Exit(1)
+		}
+	case "gone-stored":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe gone-stored DATA NAME")
+		}
+		upper, found := storedUpper(os.Args[2], os.Args[3])
+		if !found {
+			os.Exit(1)
+		}
+		if !gone(upper, os.Args[3], nil) {
 			os.Exit(1)
 		}
 	case "confined":
@@ -517,9 +545,16 @@ func observe() (string, error) {
 	return report.String(), nil
 }
 
-// verify judges the report of container name in the store directory store.
-func verify(store, name string) bool {
-	facts, err := awaitReport(filepath.Join(store, "layer", name, "upper", "report"))
+// testStoreUpper answers the upper folder of container name's writable layer
+// in the test store directory store.
+func testStoreUpper(store, name string) string {
+	return filepath.Join(store, "layer", name, "upper")
+}
+
+// verify judges the report of container name whose writable layer's upper
+// folder is upper.
+func verify(upper, name string) bool {
+	facts, err := awaitReport(filepath.Join(upper, strings.TrimPrefix(reportPath, "/")))
 	if err != nil {
 		fmt.Println("probe: FAIL " + err.Error())
 		return false
@@ -590,12 +625,13 @@ func judge(what string, ok bool, seen string) bool {
 
 // gone waits, a bounded time, until container name has left nothing on the
 // host: no control group, no root mount point, no runtime library state.
-// Then it reads the stop signals the container recorded and requires one.
+// Then it reads the stop signals the container recorded in upper, its
+// writable layer's upper folder, and requires one.
 // With a bound, at-least or less-than SECONDS, it also requires the time from
 // that first signal to the moment the leftovers were seen gone to be at least,
 // or less than, SECONDS: a container killed at its stop timeout outlives its
 // signal by that timeout, one killed at once does not.
-func gone(store, name string, bound []string) bool {
+func gone(upper, name string, bound []string) bool {
 	places := []struct{ what, path string }{
 		{"its control group is gone", filepath.Join(pluginControlGroups, name)},
 		{"its root mount is gone", filepath.Join(pluginRootMounts, name)},
@@ -623,7 +659,7 @@ func gone(store, name string, bound []string) bool {
 	if !passed {
 		return false
 	}
-	lines, err := readLines(filepath.Join(store, "layer", name, "upper", strings.TrimPrefix(signalsPath, "/")))
+	lines, err := readLines(filepath.Join(upper, strings.TrimPrefix(signalsPath, "/")))
 	if !judge("the container received a stop signal", err == nil && len(lines) > 0, strings.Join(lines, ";")) {
 		return false
 	}

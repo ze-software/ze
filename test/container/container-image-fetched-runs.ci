@@ -1,0 +1,100 @@
+# Question: does a container whose config names an image run that image's
+# own entrypoint once create container image reference has fetched it into
+# the image store (spec-container-1-runtime, the runtime joined to the image
+# store: the image leaf, the resolve request and the store's present notice)?
+#
+# VALIDATES: the image leaf reaches the store's resolve as its reference; the
+# container waits for an image the store does not hold, and the fetch's
+# present notice starts it; the store's ready answer (its image folder, its
+# writable folder and the image's process configuration) is what the runtime
+# mounts and runs; the daemon's stop then removes the container.
+# PREVENTS: a runtime that resolves no reference, a fetch that leaves a
+# waiting container waiting, and a start from any root but the fetched image.
+#
+# A unit test cannot decide it: the answer is what the daemon's command
+# registry, the plugin's image store fetching over HTTP, the supervisor and
+# the patched runtime library on a real kernel do together, from the config
+# and the CLI an operator uses.
+#
+# Method: the compiled registry fixture serves library/probe:latest on the
+# loopback port $PORT2, an image whose one layer holds ze-containerprobe at
+# /ze-containerprobe with the entrypoint and command the test store hands
+# its own containers: run, which writes what the container sees to /report
+# in its root. The daemon runs with no fixture store named, so the real
+# image store answers, with its data directory under /run, never in the
+# test's work directory: in the QEMU guest that directory is on the 9p
+# share of the checkout, and an overlay cannot take a 9p directory as its
+# upper layer. ze.test.container.registry.port, a key of the test build only,
+# makes every registry reached through that port as its mirror over plain
+# HTTP, so the short name probe completes to docker.io/library/probe:latest
+# and reaches the fixture.
+#
+# The config holds container probe from the start, naming image probe,
+# which the store does not hold yet: the container waits for its image. The
+# fetch then writes the binding, and its present notice starts the container
+# that waited, which the fetch's answer names. The probe's verify-stored mode
+# finds the one writable layer the store made, named by the image digest,
+# under <data>/container/layers/probe, and judges the report there as the
+# test store's verify does. The daemon's stop must then leave no control
+# group, root mount or runtime library state, and the container must have
+# recorded its stop signal in the same layer.
+#
+# The writable layer is not capped yet: the store's storage cap is its own
+# phase, and nothing here asserts a size.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=120s
+option=env:var=ze.data.dir:value=/run/ze-container-test-fetched-$PORT
+option=env:var=ze.test.container.registry.port:value=$PORT2
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+container {
+	instance probe {
+		image probe
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-fetched-$PORT:exit=0
+cmd=background:seq=2:exec=le test fixture container/registry $PORT2:name=registry:timeout=110s:ready=REGISTRY: listening on
+cmd=background:seq=3:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=4:exec=ze cli -c "create container image reference probe | json":timeout=60s:exit=0
+expect=stdout:pattern="reference":\s*"docker.io/library/probe:latest"
+expect=stdout:pattern="started":\s*\[\s*"probe"\s*\]
+cmd=foreground:seq=5:exec=ze-containerprobe verify-stored /run/ze-container-test-fetched-$PORT probe:timeout=45s:exit=0
+expect=stdout:contains=probe: one writable layer under
+expect=stdout:contains=probe: the writable layer is named by a sha256 digest
+expect=stdout:contains=probe: pid 1 in its own pid namespace
+expect=stdout:contains=probe: its own cgroup reads as the root
+expect=stdout:contains=probe: host name is the instance name
+expect=stdout:contains=probe: the loopback device is the only device
+expect=stdout:contains=probe: the loopback device is up
+expect=stdout:contains=probe: a mnt namespace other than the host's
+reject=stdout:contains=probe: FAIL
+cmd=stop:seq=6:name=daemon:signal=term
+cmd=foreground:seq=7:exec=ze-containerprobe gone-stored /run/ze-container-test-fetched-$PORT probe:timeout=50s:exit=0
+expect=stdout:contains=probe: one writable layer under
+expect=stdout:contains=probe: its control group is gone
+expect=stdout:contains=probe: its root mount is gone
+expect=stdout:contains=probe: its runtime library state is gone
+expect=stdout:contains=probe: the container received a stop signal
+reject=stdout:contains=probe: FAIL

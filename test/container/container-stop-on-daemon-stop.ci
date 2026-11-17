@@ -28,8 +28,10 @@ option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
 stdin=config:terminator=EOF_CONFIG
 container {
 	instance probe {
+		image probe
 	}
 	instance stubborn {
+		image probe
 		stop-timeout 1;
 	}
 }

@@ -310,7 +310,18 @@ func (s *supervisor) install(cfg containerConfig) error {
 		}
 	}
 	for name := range s.waiting {
-		if instance, configured := desired[name]; !configured || !instance.enabled {
+		instance, configured := desired[name]
+		if !configured {
+			delete(s.waiting, name)
+			continue
+		}
+		if !instance.enabled {
+			delete(s.waiting, name)
+			continue
+		}
+		// A container whose config now names another image waits for the old
+		// one no longer: its worker's next converge resolves the new one.
+		if instance.image != s.desired[name].image {
 			delete(s.waiting, name)
 		}
 	}
@@ -649,7 +660,7 @@ func (s *supervisor) startLocked(ctx context.Context, name string) (State, error
 	if s.store == nil {
 		return StateUnspecified, noImageStore(name)
 	}
-	answer, err := s.store.Resolve(ctx, ResolveRequest{Instance: name})
+	answer, err := s.store.Resolve(ctx, ResolveRequest{Instance: name, Reference: instance.image})
 	if err != nil {
 		return StateUnspecified, opererr.Wrap(err,
 			"container "+name+": the image store could not answer",

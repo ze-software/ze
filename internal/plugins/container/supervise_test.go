@@ -40,6 +40,8 @@ type fakeStore struct {
 	mu       sync.Mutex
 	answer   Resolution
 	resolves int
+	// requests holds every request the store was asked to resolve, in order.
+	requests []ResolveRequest
 }
 
 func (f *fakeStore) setAnswer(answer Resolution) {
@@ -48,11 +50,19 @@ func (f *fakeStore) setAnswer(answer Resolution) {
 	f.answer = answer
 }
 
-func (f *fakeStore) Resolve(context.Context, ResolveRequest) (Resolution, error) {
+func (f *fakeStore) Resolve(_ context.Context, request ResolveRequest) (Resolution, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.resolves++
+	f.requests = append(f.requests, request)
 	return f.answer, nil
+}
+
+// requested answers the requests the store was asked to resolve.
+func (f *fakeStore) requested() []ResolveRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.requests)
 }
 
 func (f *fakeStore) Hold(string, Ready) func() {
@@ -220,6 +230,102 @@ func TestStoreAbsentThenPresentStartsTheContainer(t *testing.T) {
 	}
 	if held, known := sup.state("web"); !known || held != StateRunning {
 		t.Errorf("the container holds state %s (known=%v) after the present notice, want %s", held, known, StateRunning)
+	}
+}
+
+// TestStartResolvesTheConfiguredImage proves the supervisor asks the store
+// for the image the container's config names: the image leaf, parsed through
+// the one rule set, is the request's reference, beside the container's name.
+//
+// Method: a container parsed from a delivery, started over a store that
+// records each request and answers the image absent, so nothing is created.
+//
+// MUTATION: send ResolveRequest{Instance: name} from startLocked and the
+// request carries no reference, which the real store refuses as a container
+// whose configuration names no image.
+func TestStartResolvesTheConfiguredImage(t *testing.T) {
+	const reference = "ghcr.io/ze/probe:1.0"
+	cfg, _, err := parseContainerSections(containerSections(
+		`{"container":{"instance":{"web":{"image":"` + reference + `"}}}}`))
+	if err != nil {
+		t.Fatalf("the delivery was refused: %v", err)
+	}
+	store := &fakeStore{}
+	store.setAnswer(Absent{Reference: reference, Reason: AbsentNeverFetched})
+	library := &fakeLibrary{events: &eventLog{}}
+	sup := newSupervisor(slogutil.DiscardLogger(), library, storeFactoryOf(store), nil)
+	if err := sup.install(cfg); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	if _, err := sup.start(context.Background(), "web"); err != nil {
+		t.Fatalf("the start answered %v, want the waiting-image state and no error", err)
+	}
+
+	want := []ResolveRequest{{Instance: "web", Reference: reference}}
+	got := store.requested()
+	if len(got) != len(want) {
+		t.Fatalf("the store was asked %d resolves, want %d", len(got), len(want))
+	}
+	if got[0].Instance != want[0].Instance {
+		t.Errorf("the request names container %q, want %q", got[0].Instance, want[0].Instance)
+	}
+	if got[0].Reference != want[0].Reference {
+		t.Errorf("the request names image %q, want the configured %q", got[0].Reference, want[0].Reference)
+	}
+}
+
+// TestChangedImageEndsTheWaitForTheOldOne proves a container waiting for one
+// image stops waiting for it when its config names another: the wait is for
+// a reference, and the notice of the new image would match nothing while the
+// container still waited for the old one, so it would never start.
+//
+// Method: a container started over a store that answers its image absent,
+// which leaves it waiting; the same container installed again with another
+// image; then converge, which resolves only a container that does not wait.
+//
+// MUTATION: drop the image comparison from the waiting loop of install and
+// the container keeps waiting, so converge asks the store nothing more.
+func TestChangedImageEndsTheWaitForTheOldOne(t *testing.T) {
+	const first, second = "ghcr.io/ze/probe:1.0", "ghcr.io/ze/probe:2.0"
+	configOf := func(reference string) containerConfig {
+		t.Helper()
+		cfg, _, err := parseContainerSections(containerSections(
+			`{"container":{"instance":{"web":{"image":"` + reference + `"}}}}`))
+		if err != nil {
+			t.Fatalf("the delivery naming %s was refused: %v", reference, err)
+		}
+		return cfg
+	}
+	store := &fakeStore{}
+	store.setAnswer(Absent{Reference: first, Reason: AbsentNeverFetched})
+	library := &fakeLibrary{events: &eventLog{}}
+	sup := newSupervisor(slogutil.DiscardLogger(), library, storeFactoryOf(store), nil)
+	if err := sup.install(configOf(first)); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+	if _, err := sup.start(context.Background(), "web"); err != nil {
+		t.Fatalf("the start answered %v, want the waiting-image state and no error", err)
+	}
+	if !sup.isWaiting("web") {
+		t.Fatal("the container does not wait for its absent image, so the test proves nothing")
+	}
+
+	store.setAnswer(Absent{Reference: second, Reason: AbsentNeverFetched})
+	if err := sup.install(configOf(second)); err != nil {
+		t.Fatalf("the install naming the second image failed: %v", err)
+	}
+	if sup.isWaiting("web") {
+		t.Fatalf("the container still waits for %s after its config named %s", first, second)
+	}
+	sup.converge("web")
+
+	got := store.requested()
+	if len(got) != 2 {
+		t.Fatalf("the store was asked %d resolves, want one for each image", len(got))
+	}
+	if got[1].Reference != second {
+		t.Errorf("the second request names image %q, want the newly configured %q", got[1].Reference, second)
 	}
 }
 

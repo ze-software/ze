@@ -13,8 +13,8 @@ module ze-container-conf {
          the names, types and help texts that table gives them.";
 
     revision 2026-11-17 {
-        description "The network list, and the network attachment and published port lists
-                     of an instance.";
+        description "The network list, and the image leaf and the network attachment and
+                     published port lists of an instance.";
     }
 
     revision 2026-11-16 {
@@ -46,6 +46,20 @@ module ze-container-conf {
                              unless one is configured. It holds lowercase letters, digits and
                              hyphens, and it neither starts nor ends with a hyphen.";
                 ze:help "Name of the container.";
+            }
+
+            leaf image {
+                type string {
+                    length "1..255";
+                }
+                mandatory true;
+                description "The image the container runs: a short name, which completes on the
+                             public hub with the library prefix for a one-word name, a whole
+                             reference with its registry host, or a reference by sha256 digest.
+                             A reference with no tag and no digest takes the tag latest. The
+                             image store must hold the image: create container image reference
+                             fetches it, and a container whose image is absent waits for it.";
+                ze:help "Image name; a short name is looked up on Docker Hub, and no tag means latest.";
             }
 
             leaf enabled {

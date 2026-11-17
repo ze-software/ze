@@ -3,10 +3,14 @@
 package container
 
 import (
+	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -17,15 +21,24 @@ func containerSections(data string) []sdk.ConfigSection {
 	return []sdk.ConfigSection{{Root: configRoot, Data: data}}
 }
 
+// testImage is the image every container of the plugin's tests names. The
+// image leaf is mandatory, and no test here resolves it against a real store:
+// the fake stores and the test build's fixture store answer the same image
+// whatever the reference, so the functional tests under test/container/ name
+// the same one.
+const testImage = "probe"
+
 const (
 	sectionNoContainer  = `{"container":{}}`
 	sectionRemovedRoot  = `{}`
-	sectionDisabledWeb  = `{"container":{"instance":{"web":{"enabled":"false"}}}}`
-	sectionEnabledWeb   = `{"container":{"instance":{"web":{"enabled":"true"}}}}`
-	sectionDefaultWeb   = `{"container":{"instance":{"web":{}}}}`
+	sectionDisabledWeb  = `{"container":{"instance":{"web":{"image":"probe","enabled":"false"}}}}`
+	sectionEnabledWeb   = `{"container":{"instance":{"web":{"image":"probe","enabled":"true"}}}}`
+	sectionDefaultWeb   = `{"container":{"instance":{"web":{"image":"probe"}}}}`
 	sectionMalformed    = `{`
-	sectionBadName      = `{"container":{"instance":{"Bad_Name":{"enabled":"false"}}}}`
-	sectionEnabledMaybe = `{"container":{"instance":{"web":{"enabled":"maybe"}}}}`
+	sectionBadName      = `{"container":{"instance":{"Bad_Name":{"image":"probe","enabled":"false"}}}}`
+	sectionEnabledMaybe = `{"container":{"instance":{"web":{"image":"probe","enabled":"maybe"}}}}`
+	sectionNoImage      = `{"container":{"instance":{"web":{"enabled":"false"}}}}`
+	sectionImageUpper   = `{"container":{"instance":{"web":{"image":"Redis"}}}}`
 )
 
 // errorText answers the text of err, and the empty string for nil, so two
@@ -62,6 +75,8 @@ func TestOneRuleSetServesValidateVerifyAndConfigure(t *testing.T) {
 		{"malformed delivery", sectionMalformed, true},
 		{"name outside the rule", sectionBadName, true},
 		{"enabled neither true nor false", sectionEnabledMaybe, true},
+		{"no image", sectionNoImage, true},
+		{"image the store cannot complete", sectionImageUpper, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -204,6 +219,114 @@ func TestEnabledContainerIsAccepted(t *testing.T) {
 				t.Fatal("the installed container is not enabled")
 			}
 		})
+	}
+}
+
+// TestImageIsParsed proves the image leaf reaches the parsed container as the
+// operator wrote it: it is what the supervisor hands the store to resolve.
+func TestImageIsParsed(t *testing.T) {
+	cfg, _, err := parseContainerSections(containerSections(sectionEnabledWeb))
+	if err != nil {
+		t.Fatalf("a container with an image was refused: %v", err)
+	}
+	if len(cfg.instances) != 1 {
+		t.Fatalf("the config parsed to %d containers, want 1", len(cfg.instances))
+	}
+	if cfg.instances[0].image != testImage {
+		t.Fatalf("the parsed container names image %q, want %q", cfg.instances[0].image, testImage)
+	}
+}
+
+// sectionWithImage answers a delivery of container web whose image leaf
+// holds value, which may be of any JSON type.
+func sectionWithImage(t *testing.T, value any) string {
+	t.Helper()
+	data, err := json.Marshal(map[string]any{
+		configRoot: map[string]any{listInstance: map[string]any{"web": map[string]any{leafImage: value}}},
+	})
+	if err != nil {
+		t.Fatalf("the test delivery could not be built: %v", err)
+	}
+	return string(data)
+}
+
+// TestImageRule covers both sides of each bound of the image leaf: absent,
+// empty, one past the longest, not a string, and a value the store's
+// reference grammar refuses, each refused with the statement that sets the
+// leaf; and each accepted form, the longest included.
+//
+// MUTATION: drop the registry.ParseReference call of parseImage and the
+// upper-case reference is accepted; drop the length check and the 256
+// character reference is refused by the grammar with another problem, which
+// the problem assertion catches.
+func TestImageRule(t *testing.T) {
+	const hosted = "registry.example/"
+	longest := hosted + strings.Repeat("a", imageLengthMax-len(hosted))
+	for _, accepted := range []string{
+		"probe",
+		"redis:7",
+		"ghcr.io/ze/probe:1.0",
+		"ghcr.io/ze/probe@sha256:" + strings.Repeat("0", 64),
+		longest,
+	} {
+		cfg, _, err := parseContainerSections(containerSections(sectionWithImage(t, accepted)))
+		if err != nil {
+			t.Errorf("image %q was refused: %v", accepted, err)
+			continue
+		}
+		if cfg.instances[0].image != accepted {
+			t.Errorf("image %q parsed as %q", accepted, cfg.instances[0].image)
+		}
+	}
+	refused := []struct {
+		name    string
+		data    string
+		problem string
+	}{
+		{"absent", sectionNoImage, "names no image"},
+		{"empty", sectionWithImage(t, ""), "the image is empty"},
+		{"one past the longest", sectionWithImage(t, longest+"a"), "longer than 255 characters"},
+		{"not a string", sectionWithImage(t, 7), "not a string"},
+		{"upper case", sectionImageUpper, "not a reference the store can complete"},
+	}
+	for _, tc := range refused {
+		_, _, err := parseContainerSections(containerSections(tc.data))
+		refusal, isOperator := errors.AsType[*opererr.Error](err)
+		if !isOperator {
+			t.Errorf("%s: answered %v, want an operator error", tc.name, err)
+			continue
+		}
+		if !strings.Contains(refusal.Problem(), tc.problem) {
+			t.Errorf("%s: refused with problem %q, want it to hold %q", tc.name, refusal.Problem(), tc.problem)
+		}
+		if refusal.Fix() != "set container instance web image REFERENCE" {
+			t.Errorf("%s: refused with fix %q, want the image statement", tc.name, refusal.Fix())
+		}
+	}
+}
+
+// TestSchemaRefusesInstanceWithoutImage proves the first check of the pair:
+// the config loader refuses an instance with no image leaf by the schema's
+// mandatory statement, naming the leaf's path, before any delivery reaches
+// the plugin's parser; and loads the same instance once it names one.
+//
+// MUTATION: remove "mandatory true" from the image leaf and the config
+// without an image loads.
+func TestSchemaRefusesInstanceWithoutImage(t *testing.T) {
+	const withoutImage = "container {\n\tinstance web {\n\t\tenabled false\n\t}\n}\n"
+	_, err := config.LoadConfig(withoutImage, "test.conf", nil)
+	if err == nil {
+		t.Fatal("the loader accepted an instance with no image")
+	}
+	if !errors.Is(err, config.ErrCustomValidation) {
+		t.Fatalf("the refusal is not a validation refusal: %v", err)
+	}
+	if !strings.Contains(err.Error(), "container/instance[web]/image") {
+		t.Fatalf("the refusal %q does not name the image leaf's path", err)
+	}
+	const withImage = "container {\n\tinstance web {\n\t\timage " + testImage + "\n\t\tenabled false\n\t}\n}\n"
+	if _, err := config.LoadConfig(withImage, "test.conf", nil); err != nil {
+		t.Fatalf("the loader refused an instance that names its image: %v", err)
 	}
 }
 

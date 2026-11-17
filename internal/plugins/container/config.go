@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/plugins/container/registry"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -21,6 +22,7 @@ const (
 	configRoot   = "container"
 	listInstance = "instance"
 	leafEnabled  = "enabled"
+	leafImage    = "image"
 )
 
 // enabledDefault is the YANG default of the enabled leaf.
@@ -29,12 +31,20 @@ const enabledDefault = true
 // instanceNameLengthMax is the longest container name the schema accepts.
 const instanceNameLengthMax = 63
 
+// imageLengthMax is the longest image reference the schema accepts.
+const imageLengthMax = 255
+
 // instanceConfig is one container as the configuration states it. Only
 // parseContainerSections builds one, so a value of this type holds a name the
-// name rule accepted. The zero value is not a valid container.
+// name rule accepted and an image reference the reference grammar completes.
+// The zero value is not a valid container.
 type instanceConfig struct {
 	name    string
 	enabled bool
+	// image is the image leaf as the operator wrote it: a short name, a whole
+	// reference or a reference by digest. The store completes it again at
+	// each resolve, so the binding a fetch wrote decides which image runs.
+	image string
 	// stopTimeout is the time a stop waits, after the stop signal, before the
 	// kill: the stop-timeout leaf, or its default.
 	stopTimeout time.Duration
@@ -137,6 +147,10 @@ func parseInstance(entry configvalue.ListEntry) (instanceConfig, error) {
 		}
 		enabled = value
 	}
+	image, err := parseImage(entry)
+	if err != nil {
+		return instanceConfig{}, err
+	}
 	stopTimeout, err := parseStopTimeout(entry)
 	if err != nil {
 		return instanceConfig{}, err
@@ -153,7 +167,45 @@ func parseInstance(entry configvalue.ListEntry) (instanceConfig, error) {
 		}
 		signal = value
 	}
-	return instanceConfig{name: entry.Key, enabled: enabled, stopTimeout: stopTimeout, stopSignal: signal}, nil
+	return instanceConfig{name: entry.Key, enabled: enabled, image: image, stopTimeout: stopTimeout, stopSignal: signal}, nil
+}
+
+// parseImage reads the mandatory image leaf of one entry. The schema refuses
+// an entry without it and a value outside 1 to 255 characters; this is the
+// second check of the pair. The reference grammar is the store's own
+// (registry.ParseReference), so a reference the store could not complete is
+// refused at the commit rather than at the container's start.
+func parseImage(entry configvalue.ListEntry) (string, error) {
+	raw, present := entry.Fields[leafImage]
+	if !present {
+		return "", refuseImage(entry.Key, "the configuration names no image")
+	}
+	reference, isText := raw.(string)
+	if !isText {
+		return "", refuseImage(entry.Key, "the image is not a string")
+	}
+	if reference == "" {
+		return "", refuseImage(entry.Key, "the image is empty")
+	}
+	if len(reference) > imageLengthMax {
+		return "", refuseImage(entry.Key, "the image is longer than 255 characters")
+	}
+	if _, err := registry.ParseReference(reference); err != nil {
+		return "", opererr.Wrap(err,
+			"container "+entry.Key+": the image is not a reference the store can complete",
+			"a reference is an optional registry host, a repository in lower case, and a tag or a digest",
+			setInstanceStatement(entry.Key, leafImage, "REFERENCE"),
+		)
+	}
+	return reference, nil
+}
+
+func refuseImage(name, defect string) error {
+	return opererr.New(
+		"container "+name+": "+defect,
+		"the container's root is the image the image leaf names, so a container without one cannot start",
+		setInstanceStatement(name, leafImage, "REFERENCE"),
+	)
 }
 
 // parseStopTimeout reads the stop-timeout leaf of one entry, or its default

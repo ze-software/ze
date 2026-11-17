@@ -110,9 +110,9 @@ func TestStopLeavesParseWithTheirDefaults(t *testing.T) {
 		timeout time.Duration
 		signal  stopSignal
 	}{
-		{`{"container":{"instance":{"web":{}}}}`, 10 * time.Second, stopSignalFromImage},
-		{`{"container":{"instance":{"web":{"stop-timeout":"1"}}}}`, time.Second, stopSignalFromImage},
-		{`{"container":{"instance":{"web":{"stop-timeout":"30","stop-signal":"quit"}}}}`, 30 * time.Second, stopSignalQuit},
+		{`{"container":{"instance":{"web":{"image":"probe"}}}}`, 10 * time.Second, stopSignalFromImage},
+		{`{"container":{"instance":{"web":{"image":"probe","stop-timeout":"1"}}}}`, time.Second, stopSignalFromImage},
+		{`{"container":{"instance":{"web":{"image":"probe","stop-timeout":"30","stop-signal":"quit"}}}}`, 30 * time.Second, stopSignalQuit},
 	}
 	for _, c := range accepted {
 		cfg, _, err := parseContainerSections(containerSections(c.section))
@@ -129,9 +129,9 @@ func TestStopLeavesParseWithTheirDefaults(t *testing.T) {
 		}
 	}
 	refused := map[string]string{
-		`{"container":{"instance":{"web":{"stop-timeout":"0"}}}}`:   "set container instance web stop-timeout SECONDS",
-		`{"container":{"instance":{"web":{"stop-timeout":"31"}}}}`:  "set container instance web stop-timeout SECONDS",
-		`{"container":{"instance":{"web":{"stop-signal":"kill"}}}}`: "set container instance web stop-signal term",
+		`{"container":{"instance":{"web":{"image":"probe","stop-timeout":"0"}}}}`:   "set container instance web stop-timeout SECONDS",
+		`{"container":{"instance":{"web":{"image":"probe","stop-timeout":"31"}}}}`:  "set container instance web stop-timeout SECONDS",
+		`{"container":{"instance":{"web":{"image":"probe","stop-signal":"kill"}}}}`: "set container instance web stop-signal term",
 	}
 	for section, fix := range refused {
 		_, _, err := parseContainerSections(containerSections(section))

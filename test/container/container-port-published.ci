@@ -30,9 +30,9 @@
 # interface config does not name, so Ze leaves it alone.
 #
 # Forwarding: a connection from beyond the router is forwarded to the
-# container, so the config sets net.ipv4.ip_forward. The network package does
-# not claim it yet (the sibling engine client has no event call), so the test
-# sets it the way an operator would.
+# container. The config sets no sysctl: the plugin claims IPv4 forwarding
+# itself while a network holds an IPv4 prefix, so step 11 also proves that
+# claim reached the kernel.
 #
 # The firewall section holds no filter chain, so nothing at the forward hook
 # drops the translated traffic (the policy rule is container-port-blocked's).
@@ -65,11 +65,6 @@ environment {
 		}
 	}
 }
-sysctl {
-	setting net.ipv4.ip_forward {
-		value 1
-	}
-}
 interface {
 	backend netlink
 }
@@ -81,6 +76,7 @@ container {
 		prefix 10.88.0.0/24
 	}
 	instance serving {
+		image probe
 		network lan {
 		}
 		port web {
