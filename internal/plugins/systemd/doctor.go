@@ -195,7 +195,7 @@ func parseServiceUnit(data []byte) serviceUnitInfo {
 			if strings.TrimSpace(value) == "" {
 				unit.configDir = ""
 			}
-			for _, field := range strings.Fields(value) {
+			for field := range strings.FieldsSeq(value) {
 				setting := strings.Trim(field, `"`)
 				if dir, ok := strings.CutPrefix(setting, "ZE_CONFIG_DIR="); ok {
 					unit.configDir = dir

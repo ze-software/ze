@@ -443,7 +443,7 @@ func (m *Model) handleDashboardKey(keyStr string) bool {
 	// Detail view: Esc or Backspace returns to table.
 	if ds.detailAddr != "" {
 		switch keyStr {
-		case "esc", "backspace":
+		case keyEsc, "backspace":
 			ds.detailAddr = ""
 			ds.detailData = nil
 		case "q", "ctrl+c":

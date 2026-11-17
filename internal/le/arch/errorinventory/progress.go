@@ -18,8 +18,8 @@ var progressMessages = []struct {
 	message  string
 	reason   string
 }{
-	{"internal/appliance/cmd_push.go", "doPushUpdater", "Fprintln", "streaming boot image...", "The updater is about to stream the boot image; a stream failure is returned separately."},
-	{"internal/appliance/cmd_push.go", "doPushUpdater", "Fprintln", "streaming boot code...", "The updater is about to stream boot code; a stream failure is returned separately."},
+	{"internal/appliance/cmd_push.go", "doPushUpdater", fprintlnFunc, "streaming boot image...", "The updater is about to stream the boot image; a stream failure is returned separately."},
+	{"internal/appliance/cmd_push.go", "doPushUpdater", fprintlnFunc, "streaming boot code...", "The updater is about to stream boot code; a stream failure is returned separately."},
 }
 
 // declaredProgress recognizes only one reviewed fixed literal in its exact

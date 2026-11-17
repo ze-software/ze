@@ -63,20 +63,20 @@ func dashboardBrowserControls(m *Model) []browserViewControl {
 		return []browserViewControl{stop}
 	}
 	if ds.showHelp {
-		return []browserViewControl{{BrowserViewControl: BrowserViewControl{ID: "back", Label: "Back"}, key: "?"}, stop}
+		return []browserViewControl{{ID: "back", Label: "Back", key: "?"}, stop}
 	}
 	if ds.detailAddr != "" {
 		return []browserViewControl{
-			{BrowserViewControl: BrowserViewControl{ID: "back", Label: "Back to peers"}, key: "esc"},
-			{BrowserViewControl: BrowserViewControl{ID: "help", Label: "Help"}, key: "?"}, stop,
+			{ID: "back", Label: "Back to peers", key: keyEsc},
+			{ID: "help", Label: "Help", key: "?"}, stop,
 		}
 	}
 	return []browserViewControl{
-		{BrowserViewControl: BrowserViewControl{ID: "sort", Label: "Next sort column"}, key: "s"},
-		{BrowserViewControl: BrowserViewControl{ID: "reverse", Label: "Reverse order"}, key: "S"},
-		{BrowserViewControl: BrowserViewControl{ID: "previous", Label: "Previous peer"}, key: "up"},
-		{BrowserViewControl: BrowserViewControl{ID: "next", Label: "Next peer"}, key: "down"},
-		{BrowserViewControl: BrowserViewControl{ID: "detail", Label: "Peer detail"}, key: "enter"},
-		{BrowserViewControl: BrowserViewControl{ID: "help", Label: "Help"}, key: "?"}, stop,
+		{ID: "sort", Label: "Next sort column", key: "s"},
+		{ID: "reverse", Label: "Reverse order", key: "S"},
+		{ID: "previous", Label: "Previous peer", key: "up"},
+		{ID: "next", Label: "Next peer", key: "down"},
+		{ID: "detail", Label: "Peer detail", key: "enter"},
+		{ID: "help", Label: "Help", key: "?"}, stop,
 	}
 }

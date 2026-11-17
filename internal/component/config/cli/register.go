@@ -166,6 +166,8 @@ func init() {
 	}, command.ShapeBlob)
 }
 
+const suppliedContent = "content"
+
 // registerSuppliedCommands declares owned daemon forms for inputs held by the
 // caller. The model owns every argument and its constraints; this metadata
 // describes input composition for generic controls on any command surface.
@@ -174,23 +176,23 @@ func init() {
 func registerSuppliedCommands() {
 	command.MustRegisterLocalData("show config supplied dump", suppliedHandler("show config supplied dump", suppliedDump), registry.Meta{
 		ShortHelp: "Show the resolved configuration from supplied bytes.", Mode: modeOffline,
-		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: "name"},
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config supplied validation", suppliedHandler("show config supplied validation", suppliedValidation), registry.Meta{
 		ShortHelp: "Check supplied configuration bytes without applying them.", Mode: modeOffline,
-		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: "name"},
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config supplied fmt", suppliedHandler("show config supplied fmt", suppliedFmt), registry.Meta{
 		ShortHelp: "Format supplied configuration bytes without writing a file.", Mode: modeOffline,
-		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: "name"},
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config supplied graph", suppliedHandler("show config supplied graph", suppliedGraph), registry.Meta{
 		ShortHelp: "Show dependencies from supplied configuration bytes.", Mode: modeOffline,
-		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: "name"},
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config supplied diff", suppliedHandler("show config supplied diff", suppliedDiff), registry.Meta{
 		ShortHelp: "Compare two supplied configurations with secrets masked.", Mode: modeOffline,
-		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", Fields: []string{suppliedBefore, suppliedAfter}},
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, Fields: []string{suppliedBefore, suppliedAfter}},
 	}, command.RenderLocalAnswer)
 	command.RegisterShape([]string{
 		"show config supplied dump", "show config supplied validation", "show config supplied diff",

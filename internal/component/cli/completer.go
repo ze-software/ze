@@ -569,8 +569,9 @@ func (c *completion) completeShowPath(tokens, contextPath []string, endsWithSpac
 var optionSubcommands = editorOptionCompletions()
 
 func editorOptionCompletions() []Completion {
-	var choices []Completion
-	for _, option := range contract.EditorOptions() {
+	options := contract.EditorOptions()
+	choices := make([]Completion, 0, len(options))
+	for _, option := range options {
 		choices = append(choices, Completion{Text: option.Name, ShortHelp: option.Help, Type: completionKeyword})
 	}
 	return choices

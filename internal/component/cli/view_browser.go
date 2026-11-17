@@ -169,7 +169,7 @@ func RunBrowserView(ctx context.Context, input string, bind BrowserViewBinding, 
 			// Stop is the compulsory control for every browser view. Cancel at
 			// admission so it also interrupts a context-bound detail RPC that
 			// currently owns the Model loop. Publish only after that loop joins.
-			if action.ID == "stop" {
+			if action.ID == cmdStop {
 				requestedStop = true
 				cancel()
 				actions = nil
@@ -207,8 +207,8 @@ func newBrowserViewProgram(ctx context.Context, model tea.Model) *tea.Program {
 		tea.WithWindowSize(120, 40), tea.WithEnvironment([]string{"TERM=dumb", "NO_COLOR=1"}))
 }
 
-// A distinct owner token rejects results from any earlier runner generation.
-type browserViewGeneration struct{ marker byte }
+// A nonzero-sized owner token keeps pointer identities distinct across runners.
+type browserViewGeneration struct{ _ byte }
 type browserViewResult struct {
 	generation *browserViewGeneration
 	message    tea.Msg
@@ -253,7 +253,12 @@ func (b *browserViewModel) update(message tea.Msg) {
 		return
 	case viewMsg, TimerMsg, modelTickMsg:
 		updated, cmd := b.model.Update(message)
-		b.model = updated.(Model)
+		model, ok := updated.(Model)
+		if !ok {
+			b.fail(browserViewFailure("live view returned an unsupported model"))
+			return
+		}
+		b.model = model
 		b.submit(cmd)
 		b.publish(b.model.activeView == nil)
 	default:
@@ -318,7 +323,7 @@ func (b *browserViewModel) publish(done bool) {
 		stops := 0
 		for _, control := range controls {
 			if control.stop {
-				if control.ID == "stop" {
+				if control.ID == cmdStop {
 					stops++
 				}
 			}
@@ -401,5 +406,5 @@ func browserViewCommands(ctx context.Context, program *tea.Program, commands <-c
 }
 
 func browserViewStopControl() browserViewControl {
-	return browserViewControl{BrowserViewControl: BrowserViewControl{ID: "stop", Label: "Stop"}, stop: true}
+	return browserViewControl{ID: cmdStop, Label: "Stop", stop: true}
 }

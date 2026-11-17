@@ -38,6 +38,9 @@ const (
 // call Error.
 const errorFunc = "Error"
 
+// fprintlnFunc names the stderr writer shared with progress declarations.
+const fprintlnFunc = "Fprintln"
+
 // gnmiDir is the gNMI server's tree: a gRPC status error there is gNMI's,
 // and one anywhere else is the gRPC command API's.
 const gnmiDir = "internal/component/gnmi"
@@ -202,7 +205,7 @@ var writers = []writer{
 	{surface: SurfaceLocalCLI, shape: shapeCall, path: commandPath, ident: "LocalRefusal", message: span{1, 2}},
 	{surface: SurfaceLocalCLI, shape: shapeStderrPrint, path: fmtPath, ident: "Fprint", message: span{1, 0}},
 	{surface: SurfaceLocalCLI, shape: shapeStderrPrint, path: fmtPath, ident: "Fprintf", message: span{1, 0}},
-	{surface: SurfaceLocalCLI, shape: shapeStderrPrint, path: fmtPath, ident: "Fprintln", message: span{1, 0}},
+	{surface: SurfaceLocalCLI, shape: shapeStderrPrint, path: fmtPath, ident: fprintlnFunc, message: span{1, 0}},
 	{surface: SurfaceLocalCLI, shape: shapeStderrMethod, path: "os", ident: "WriteString", message: span{0, 1}},
 	{surface: SurfaceMCP, shape: shapeCall, path: mcpPath, ident: "refusalResult", message: span{0, 1}},
 	{surface: SurfaceMCP, shape: shapeCall, path: mcpPath, ident: "ErrResult", message: span{0, 1}},
