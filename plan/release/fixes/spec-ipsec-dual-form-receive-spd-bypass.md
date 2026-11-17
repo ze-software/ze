@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; context proof and 70 renewals remain; AC-4 stays open |
+| Phase | Guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; context proof and 64 renewals remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -91,8 +91,10 @@ selected producer seals changed to `17aa3b0ab62f6479`. Receipts are
 `job-ipsec-rfc4301-negotiated-selectors-proof-c580bfc1.log` and
 `job-ipsec-rfc4303-esp-protocol-proof-e05930b5.log`. These remain dependency proofs of
 partial tagged claims, including distinct claims on the same ESP unit. The current
-manifest marks orders 58, 9, 15, 44, 7, 13, 16, 31 and 38 RECORDED: 70 commands remain UNEXECUTED, 55 guest
-and 15 host. The original 83 rows remain unchanged, and current freshness of the four
+manifest at the end of the six-negative batch marks 15 current renewals RECORDED:
+orders 58, 9, 15, 44, 7, 13, 16, 31, 38, 57, 60, 61, 69, 75 and 76.
+There are 64 UNEXECUTED commands: 55 guest and nine host.
+The original 83 rows remain unchanged, and current freshness of the four
 historical receipts is still UNKNOWN. A fresh native RFC check remains owed after
 renewals.
 
@@ -116,6 +118,22 @@ in the owning state record; later AUTH assertions in order 7 were not reached by
 RED. These runs grant no extra negative claim or native C proof. Native records are RFC3748-7.10-5, RFC4301-4.4.1-3,
 RFC4301-4.4.2-2, RFC4301-5.1.2.1-1 and RFC4301-8.1-2 under
 `rfc/discrimination/`.
+
+Six negative host mutations, orders 57, 60, 61, 69, 75 and 76, also passed clean,
+then failed their intended assertions; all native runs exited 0 and independent reviews
+are CLEAR. Order 57's Fatal refusal assertions stop its RED before later bypass checks;
+those checks pass only in the normal run. Order 60's three nonfatal port-range errors
+let OPAQUE and exact-single-port controls continue without errors. Order 61's four
+TCP-to-ANY errors directly violate the tagged negative prohibition; the UDP mirror
+remains a passing control. Order 69
+proves only the degraded-backend counterpart: later degraded-object checks are not
+reached, with no option-refusal credit. Orders 75/76 fail forbidden zero TCP/ICMP
+selectors while four allowed controls pass, with narrowing checked under both policies.
+The selected negative units are retained in RFC4301-4.4.1-3, RFC4301-4.4.2-2,
+RFC4301-5.1.2.1-1, RFC4301-7.3-3 and RFC4301-7.3-4 under `rfc/discrimination/rfc4301/`.
+These renewals add no native C or AC-4 credit. Next are nine host REVERT renewals,
+then 55 guest renewals, four freshness checks, the pending C-route and safety decisions,
+and the final audit and Review Gate.
 
 ## Task
 

@@ -73,8 +73,8 @@
     "claim-sha": "3d3e0ba174229b3a",
     "route": "mutant",
     "producer": "internal/component/ike/engine/unmatched_xfrm_interface.go::installXFRMInterfaceEntries",
-    "producer-sha": "4a889d71e0b159fd",
-    "break": "line 381: \"noFinalEntry[entry.iface] = err\" -\u003e \"_, _ = noFinalEntry, err\""
+    "producer-sha": "b090dc141936d17d",
+    "break": "line 384: \"noFinalEntry[entry.iface] = err\" -\u003e \"_, _ = noFinalEntry, err\""
   },
   {
     "rid": "RFC4301-4.4.1-3",

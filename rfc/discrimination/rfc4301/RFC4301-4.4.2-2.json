@@ -51,19 +51,8 @@
     "claim-sha": "6edad218cb240964",
     "route": "mutant",
     "producer": "internal/component/ike/engine/ts_narrow.go::answerSelectors",
-    "producer-sha": "f05bd3544caa0cfb",
-    "break": "line 834: \"ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)\" -\u003e \"ipsec.PortSelectorFromWire(ts.StartPort, ts.StartPort)\""
-  },
-  {
-    "rid": "RFC4301-4.4.2-2",
-    "polarity": "negative",
-    "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
-    "unit-sha": "d1e0930c7c24a02f",
-    "claim-sha": "a8ff924318077737",
-    "route": "mutant",
-    "producer": "internal/component/ike/engine/child.go::childPolicyPair",
-    "producer-sha": "d946f6b170fe8cee",
-    "break": "line 891: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
+    "producer-sha": "76168362a0f36157",
+    "break": "line 1006: \"port, ok := ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)\" -\u003e \"if ts.StartPort != 0 \u0026\u0026 ts.StartPort \u003c ts.EndPort { ts.EndPort = ts.StartPort }; port, ok := ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)\""
   },
   {
     "rid": "RFC4301-4.4.2-2",
@@ -71,6 +60,17 @@
     "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
     "unit-sha": "d1e0930c7c24a02f",
     "claim-sha": "410bc88451cc8ce4",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::childPolicyPair",
+    "producer-sha": "803be5c1b1871596",
+    "break": "line 954: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
+    "unit-sha": "d1e0930c7c24a02f",
+    "claim-sha": "a8ff924318077737",
     "route": "mutant",
     "producer": "internal/component/ike/engine/child.go::childPolicyPair",
     "producer-sha": "803be5c1b1871596",

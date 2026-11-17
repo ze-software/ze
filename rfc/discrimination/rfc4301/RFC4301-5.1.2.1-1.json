@@ -84,8 +84,8 @@
     "claim-sha": "5b9295a40d44dec1",
     "route": "mutant",
     "producer": "internal/component/ike/engine/child.go::createFirstChildSA",
-    "producer-sha": "505e7d653500c0bc",
-    "break": "line 408: \"if !isXFRMUnsupported(err) {\" -\u003e \"if true {\""
+    "producer-sha": "2494b50d7e92ff78",
+    "break": "line 415: \"if !isXFRMUnsupported(err) {\" -\u003e \"if true {\""
   },
   {
     "rid": "RFC4301-5.1.2.1-1",
