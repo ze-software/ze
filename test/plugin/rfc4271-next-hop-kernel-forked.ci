@@ -1,3 +1,4 @@
+# RFC requirement: RFC4271-3.1-2 positive -- in the forked selecting-RIB placement, currently unresolved received input cannot be the Loc-RIB winner; loss of both resolving covers removes the former BGP contribution from the Loc-RIB and every kernel table while a directly reachable BGP control survives.
 # Test: does real BGP ingress through the forked selecting RIB exclude an unresolved
 # preferred path, reselect and withdraw on loss, and recover while a direct control survives?
 # A unit cannot prove the configured child uses its SDK boundary and publishes

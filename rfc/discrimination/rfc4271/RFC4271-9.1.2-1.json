@@ -123,5 +123,53 @@
     "producer-sha": "b84de229617e04b3",
     "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return func() bool { d := igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path); return d.Resolved \u0026\u0026 d.Cost != 0 }()\"",
     "citation": "expect=stderr:contains=OK: real internal BGP ingress excludes unresolved preference, replaces and removes the Loc-RIB and kernel winner on cover loss, restores retained input without UPDATEs, and preserves a directly reachable BGP control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci",
+    "unit-sha": "b3a012dd8f473ece",
+    "claim-sha": "3c922274ef42faa0",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 47: \"remote.prospectiveDistance(fam, prefix, path).Resolved\" -\u003e \"r.igpDistance(nextHop).Resolved\"",
+    "citation": "expect=stderr:contains=OK: real forked BGP replacements reject direct and indirect prospective self-capture after installed seeds, retain exact received attributes, remove best/Loc-RIB/all-table kernel subjects, and preserve interior covers, a longer host route and an independent direct control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci",
+    "unit-sha": "b3a012dd8f473ece",
+    "claim-sha": "0f1fac183ce7e19b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 47: \"remote.prospectiveDistance(fam, prefix, path).Resolved\" -\u003e \"!prefix.Contains(nextHop) \u0026\u0026 remote.prospectiveDistance(fam, prefix, path).Resolved\"",
+    "citation": "expect=stderr:contains=OK: real forked BGP replacements reject direct and indirect prospective self-capture after installed seeds, retain exact received attributes, remove best/Loc-RIB/all-table kernel subjects, and preserve interior covers, a longer host route and an independent direct control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-prospective-next-hop-kernel.ci",
+    "unit-sha": "8694a0c12e59ad90",
+    "claim-sha": "dea4228a24a22291",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"igpcost.Resolve(r.locRIB.Load(), nextHop).Resolved\"",
+    "citation": "expect=stderr:contains=OK: real internal BGP replacements reject direct and indirect prospective self-capture after installed seeds, retain exact received attributes, remove best/Loc-RIB/all-table kernel subjects, and preserve interior covers, a longer host route and an independent direct control"
+  },
+  {
+    "rid": "RFC4271-9.1.2-1",
+    "polarity": "negative",
+    "unit": "test/plugin/rfc4271-prospective-next-hop-kernel.ci",
+    "unit-sha": "8694a0c12e59ad90",
+    "claim-sha": "becadcf14c2ed68a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
+    "producer-sha": "b84de229617e04b3",
+    "break": "line 49: \"igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"!prefix.Contains(nextHop) \u0026\u0026 igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\"",
+    "citation": "expect=stderr:contains=OK: real internal BGP replacements reject direct and indirect prospective self-capture after installed seeds, retain exact received attributes, remove best/Loc-RIB/all-table kernel subjects, and preserve interior covers, a longer host route and an independent direct control"
   }
 ]

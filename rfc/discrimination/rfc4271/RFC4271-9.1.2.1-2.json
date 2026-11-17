@@ -7,8 +7,8 @@
     "claim-sha": "a0c8dc09b85d879b",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
-    "break": "line 948: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\""
+    "producer-sha": "34c1336294549f94",
+    "break": "line 1009: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\""
   },
   {
     "rid": "RFC4271-9.1.2.1-2",
@@ -18,8 +18,8 @@
     "claim-sha": "064d8e2a4167ac73",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
-    "break": "line 1030: \"if !cidr {\" -\u003e \"if !cidr || (havePrev \u0026\u0026 prevNextHop != nextHop) {\""
+    "producer-sha": "34c1336294549f94",
+    "break": "line 1101: \"if !cidr {\" -\u003e \"if !cidr || (havePrev \u0026\u0026 prevNextHop != nextHop) {\""
   },
   {
     "rid": "RFC4271-9.1.2.1-2",

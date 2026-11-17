@@ -77,6 +77,7 @@ func (remote *remoteRIB) prospectiveDistance(fam family.Family, prefix netip.Pre
 		Instance: path.Instance, NextHop: path.NextHop.String(), IsBGP: true, IsEBGP: path.IsEBGP,
 		Metric: path.Metric, AIGP: path.AIGP, AIGPPresent: path.AIGPPresent,
 	}})
+	// refuse-by-default: guards candidateNextHopResolved -- Resolved=false excludes the candidate; the failed lookup is recorded, reported and not cached.
 	if err != nil {
 		remote.noteMetricFailure(true)
 		logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "next-hop", path.NextHop, "prefix", prefix, "error", err)

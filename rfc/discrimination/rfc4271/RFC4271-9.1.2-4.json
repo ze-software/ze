@@ -40,8 +40,8 @@
     "claim-sha": "4e618c35bf5457da",
     "route": "mutant",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "3f5dec7a9b9128da",
-    "break": "line 1039: \"NextHop:  nextHop,\" -\u003e \"NextHop:  netip.Addr{},\""
+    "producer-sha": "34c1336294549f94",
+    "break": "line 1110: \"NextHop:  nextHop,\" -\u003e \"NextHop:  netip.Addr{},\""
   },
   {
     "rid": "RFC4271-9.1.2-4",

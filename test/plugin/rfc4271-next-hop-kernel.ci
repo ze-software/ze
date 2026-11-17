@@ -1,3 +1,4 @@
+# RFC requirement: RFC4271-3.1-2 positive -- in the internal selecting-RIB placement, currently unresolved received input cannot be the Loc-RIB winner; loss of both resolving covers removes the former BGP contribution from the Loc-RIB and every kernel table while a directly reachable BGP control survives.
 # Test: does real BGP ingress exclude an unresolved preferred path, reselect and
 # withdraw on next-hop loss, and recover without UPDATEs while a direct control survives?
 # A unit cannot prove the configured selecting RIB publishes through the daemon

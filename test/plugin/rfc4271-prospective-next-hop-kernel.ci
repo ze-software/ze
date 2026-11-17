@@ -1,0 +1,58 @@
+# RFC requirement: RFC4271-9.1.2-1 positive -- in the internal selecting-RIB placement, a currently resolvable replacement whose installation would create direct or indirect next-hop recursion is excluded before selecting a new best; withdrawal of its installed seed and absence from Loc-RIB and all kernel tables are required.
+# RFC requirement: RFC4271-9.1.2-1 negative -- in the internal selecting-RIB placement, a next hop inside its received NLRI remains feasible when a longer interior host route resolves it, and an independent direct BGP control remains installed.
+# RFC requirement: RFC4271-3.1-2 positive -- in the internal selecting-RIB placement, direct and indirect self-capturing received replacements cannot remain in the Loc-RIB; the installed seed is withdrawn and the exact subject disappears from all kernel tables while received attributes are retained.
+# RFC requirement: RFC4271-3.1-2 negative -- in the internal selecting-RIB placement, the protected longer-host-route input and independent direct BGP control remain selected in the Loc-RIB and installed through their independently resolving next hops.
+# Test: do installed BGP subjects become ineligible when their replacement
+# next hops would capture their own resolution chain, while valid controls survive?
+# A unit cannot prove real TCP ingress, configured internal/forked BGP placement,
+# system-RIB publication and removal from every actual Linux kernel table.
+# Direct and indirect prospective self-capture, retained exact
+# received attributes, longer-/32 protection and an independent direct control.
+option=needs-linux:caps=net-admin
+option=netns-link:name=zesrpros
+option=timeout:value=180s
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+ external rfc4271-prospective-test { run "le test fixture plugin/rfc4271-prospective-next-hop-kernel internal 127.0.0.1:$PORT"; encoder json; }
+ internal sysrib-owner { use rib; }
+ internal bgp-rib { use bgp-rib; }
+ internal fib-kernel { use fib-kernel; }
+}
+interface { backend netlink; }
+connected { }
+fib { kernel { flush-on-stop true; } }
+rib { distance { ospf 110; } }
+bgp {
+ filter { import { final accept; } export { final accept; } }
+ peer preferred {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65001; remote 65001; } router-id 1.1.1.1; family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+ peer alternate {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65001; remote 65001; } router-id 1.1.1.1; family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process bgp-rib { receive [ update state refresh ]; send [ update ]; }
+ }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/rfc4271-prospective-next-hop-kernel-empty:exit=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=180s
+expect=exit:code=0
+expect=stderr:contains=OK: sysrib placement internal, running owner and child count 0
+expect=stderr:contains=OK: bgp-rib placement internal, running owner and child count 0
+expect=stderr:contains=OK: real internal BGP replacements reject direct and indirect prospective self-capture after installed seeds, retain exact received attributes, remove best/Loc-RIB/all-table kernel subjects, and preserve interior covers, a longer host route and an independent direct control
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+cmd=foreground:seq=3:exec=le test fixture daemon/await-exit:exit=0
+expect=stderr:contains=OK: the first daemon exited
+cmd=foreground:seq=4:exec=le test fixture plugin/rfc4271-prospective-next-hop-link-cleanup:exit=0
+expect=stderr:contains=OK: joined daemon removed every prospective Ze route before owned link cleanup
+cmd=foreground:seq=5:exec=le test fixture plugin/rfc4271-prospective-next-hop-kernel-empty:exit=0
+expect=stderr:contains=OK: every prospective fixture prefix is absent from every kernel table
+cmd=foreground:seq=6:exec=ze config validate -:stdin=ze-conf:exit=0
