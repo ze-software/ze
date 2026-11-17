@@ -315,8 +315,11 @@ and transport-mode 46, with diagnostics derived from the current YANG range
 and `ValidateOuterHeader`. Both drafts have independent source APPROVE
 verdicts and native approvals recorded with exit 0 and replaced false; main
 confirmed the BGP ledger row was preserved and the drafts are unchanged.
-Main's draft runs, 80-run qualification, promotion and live reruns remain
-pending. No test repair is accepted yet.
+Both named drafts passed on Claude at `a3362aaad4` without skips. Each has
+80 successful named runs: DSCP on the earlier `9c08a2dbba` snapshot and VTI
+on `a3362aaad4`. Main promoted the exact approved contents unchanged and
+committed both cases in `6da35510e8`. The committed live cases passed 2/2 on
+Claude in native run 91393, with zero failures or skips; AC-31 is complete.
 
 The final-code audit also closes the full-second token-refill defect in AC-9,
 preserves a recorded reader-stop event across replacement (AC-19), and verifies
@@ -1011,13 +1014,20 @@ coordinator's addition to the owner's choice, not a choice the owner made.
   selected records as Stale/Unproven; independent source review confirms the
   direct prefilter precedes source verification. No avoided-read RED is claimed.
 
-- [ ] AC-31: The dual-family VTI parse case runs on Linux, accepts the original
+- [x] AC-31: The dual-family VTI parse case runs on Linux, accepts the original
   complete list with exit 0 and refuses the original incomplete list with exit
   1 and its selector-combination diagnostic. The DSCP parse case accepts the
   original tunnel copy/0/63 inputs with exit 0 and refuses 64 and transport 46
   with exit 1 and source-derived diagnostics. Preserve every old input, exit
   assertion and adjacent control; obtain independent judge approval and main's
   draft, 80-run qualification, promotion and live acceptance evidence.
+  Evidence: both independent native approvals were recorded; each named case
+  passed 80 qualification runs (DSCP at `9c08a2dbba`, VTI at `a3362aaad4`).
+  Exact qualified contents were promoted in `6da35510e8` with both native
+  weakening trailers. Claude's committed live run 91393 exited 0 with both
+  named cases PASS, 2/2 and zero FAIL/SKIP, retained in `live-final.log` under
+  the existing session's `scratch/claude-parser-evidence/`. This closes only
+  the parse repair; AC-4, the final gate and safety/design holds remain open.
 
 ### Selected full-kernel route checkpoint, 2026-11-16
 
