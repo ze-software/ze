@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | feature parity: scoped acceptance |
 | Handoff | verify |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -98,6 +98,15 @@ their complete assertions and name that missing capability explicitly. They
 were already skipped at HEAD and are not evidence of working functionality.
 Operational commands remain available through the dedicated browser CLI. This
 amendment does not promote the unfinished Workbench to the default interface.
+
+The parity checks also own a small declaration-producer correction in the
+synthetic L2TP fixture. Its six command declarations and runtime handlers must
+come from one literal table so the dispatch census can read the real command
+population. The checker and command behavior remain unchanged.
+The real browser download proofs also need an explicit host route in the
+integration coverage census. Their required native browser is unavailable in
+the default QEMU guest; the documented host route must execute all eleven
+tests and fail when that dependency is missing.
 
 Initial AC-38 source audit (2026-11-15): `extractPath` splits the decoded request path,
 and `ValidatePathSegments` applies identifier-shaped validation to every token.
@@ -192,6 +201,7 @@ baseline fields would remove the condition that the browser test proves.
 | AC-43 | Browser acceptance runs with distinct synthetic administrator and read-only identities against authenticated daemon fixtures. Existing permission and raw-download denial cases execute, with positive allowed-read controls and unchanged enforcement. | A backend capability unavailable on the host remains explicitly unavailable, not a passed authorization test or an empty observed result. |
 | AC-44 | Interactive monitoring capabilities available through CLI views have useful browser equivalents for sorting, selecting a peer, inspecting detail, returning to the live view and stopping updates. | Browser controls may differ from terminal keystrokes; the same data producers, identity and authorization remain authoritative. No protocol state is imported into the web adapter. |
 | AC-45 | A source-derived capability matrix accounts for editor commands, operational commands, completion, explanations, history, streams, monitoring, graphical equivalents and authorization. Executable parity probes cover the concrete gaps alongside registry-derived offered/dispatch coverage, including shared CLI preservation of removed flat statements in revision comparisons. | Unsupported behavior on both CLI and web is reported as such and is not invented as a web-only feature. Unfinished Workbench layouts remain experimental when the equivalent capability is available in the primary interfaces. |
+| AC-46 | Static dispatch validation reads all six synthetic L2TP command declarations from the same literal declaration/handler table used by offline registration, Stage 1 and runtime dispatch. Existing pool and emit commands retain their names, handlers and sorted help output. | This fixture maintenance does not claim completed L2TP web controls or a passing full dispatch check before other findings are resolved. |
 
 #### Implementation phases and wiring proof
 
@@ -204,6 +214,7 @@ baseline fields would remove the condition that the browser test proves.
 | P5 | Authenticated permission fixtures | Actual admin/read-only daemon setup; retained authorization/download browser cases and allowed-read controls |
 | P6 | Interactive monitoring and complete capability evidence | Existing monitor/view producers plus browser sorting/detail/back/stop journeys; registry-derived inventory and executable gap probes |
 | P6c | Caller-supplied configuration inspection through owned daemon commands | Registered supplied dump, validation, formatting, dependency graph and comparison commands; local-producer equivalence, bounded input, secret masking and shared dispatcher authorization/accounting probes |
+| P6e | Conformance of committed configured plugins through the daemon | Model `request plugin conformance name <configured-name>` as an executing action; resolve its target from the accepted daemon generation, reuse the existing conformance report, and prove allowed, denied, unconfigured, candidate-only, removed, canceled and stopped-generation cases before claiming this capability |
 
 P1 and the shared-history foundation P2a have independent source concerns.
 P3 backend routing/completion can proceed alongside P2a, with the history owner
@@ -258,18 +269,22 @@ Producer: `config/cli.parseAndResolve`, `diffSources` and `diffListOrders` in
 #### Continuation implementation and remaining acceptance (2026-11-16)
 
 The core continuation is committed in `b93ff713b34e0432525f26a8945c79905337e58c`.
+The browser replay correction is committed in `df3b4101b3`, and the graphical
+Review request boundary correction is committed in
+`f1d64ff442a1125557c45517c4dfc3a11469bc75`.
 This is implementation progress, not completed feature parity. The original
 AC-1 through AC-30 remain open; the earlier amendment history is retained.
 
 | AC | Committed implementation and scoped evidence | Remaining acceptance |
 |----|---------------------------------------------|----------------------|
-| AC-39 | Parsed browser file/paste composition uses the shared fixture and editor. Composition, invalid-load and supplied-reader controls have scoped passing runs. | The full Ze Linux corpus run failed with 30 findings: one browser-replay step, 28 BGP grant fixture preconditions and one PPPoE interface precondition. These require correction and targeted proof before corpus acceptance. |
-| AC-40 | Shared masked recall, per-user/per-mode owners, receipt bounds and strict cleanup are committed. Scoped history/error controls pass; selected doctor/error probes passed in run `f326753a`. | Current consuming-package and browser regressions; no universal durability claim. |
-| AC-41 | Shared operational routing, completion, explanations, controls and daemon restart are committed. Selected root/live completion and monitor-pipe probes pass. The normal `TestRegisteredWireMethods` comparison passed in `f326753a`. | Reached CLI functional acceptance and current browser regression coverage. |
-| AC-42 | Selected-node actions, inspection/session/preferences forms and candidate import are committed. Collection/import/selected-discard journeys pass in `96015`; configuration-actions and field-enter-blur pass 2/2 in `e4899ad7`. | Current broader browser acceptance and remaining consuming checks. |
+| AC-39 | Parsed browser file/paste composition uses the shared fixture and editor. After correcting error-dismissal replay, four focused units pass in `abefb5fb`, including three presentation branches, four unknown-control cases and seven refusal-declaration guards. | Full Ze Linux corpus acceptance after the remaining fixture corrections. No full corpus rerun or passing verdict is claimed. |
+| AC-40 | Shared masked recall, per-user/per-mode owners, receipt bounds and strict cleanup are committed. Focused hub and web history/lifetime tests pass in `9a07406e`. Editor recall cases pass within the 10/10 reached editor run `8217a4d4`; standalone shutdown controls pass within the 4/4 UI run `0eeec7fc`. | Broader browser/package acceptance; no universal durability claim. |
+| AC-41 | Shared operational routing, completion, explanations, controls and daemon restart are committed. Focused hub tests pass in `9a07406e` (66.122 seconds); shared CLI regressions pass in `562f980f`. Reached lifecycle, explanation and pipe functional cases pass in `8217a4d4` and `0eeec7fc`. The normal wire-method comparison passed in `f326753a`. Static dispatch validation passes over 585 registrations and 99 emitters. | Broader browser/package acceptance and current internal RPC contract reconciliation. |
+| AC-42 | Selected-node actions, inspection/session/preferences forms and candidate import are committed. Earlier focused journeys pass. Review now sends its independent GET outside the mutation form; both affected browser journeys pass in `20fd5c71`. | Current broader browser acceptance and remaining consuming checks. |
 | AC-43 | Distinct authenticated administrator/reader fixtures and permission/download cases are committed. Scoped import/auth recovery and allowed supplied-inspection controls pass. | Current broader authenticated browser acceptance. |
-| AC-44 | Registered browser monitor views and sort/detail/back/stop controls are committed. Shared raw/rich monitor-pipe probes pass in `844cf98a`. | Behavioral discrimination of the browser projection and reached functional acceptance. |
-| AC-45 | Registry-derived capability probes, supplied-inspection commands and descriptor-backed file/paste forms are committed. All normal golden comparisons passed in `ea8182f6`; supplied browser journeys passed 4/4. | Scoped structural/lint checks and the remaining executable acceptance below. This does not establish execution parity for every registered command. |
+| AC-44 | Registered browser monitor views and sort/detail/back/stop controls are committed. All selected browser-view and dashboard regressions pass in `562f980f`. Removing only the real dashboard browser registration makes the capability guard fail with `[dashboard]`; restoring the exact source makes that named test pass in `210ef863`. The monitor-control test's typed nil assertion is corrected under independent judgment and passes alone in `adc4c398`. | Broader browser/package acceptance. |
+| AC-45 | Registry-derived capability probes, supplied-inspection commands and file/paste forms are committed. All eleven real browser download tests pass in `8d598c23` (61.874 seconds); their truthful host route and passing integration coverage census are committed in `c1c8e306c0`. Both normal golden tests pass in `5bdc40ef`. HTMX checks pass over 787 files with 16 existing explained cases in `a81f3948`, without new exceptions. Fresh assets, generated-template and usage-contract checks pass. | Scoped lint, remaining command/YANG findings and broader executable acceptance. This does not establish execution parity for every registered command. |
+| AC-46 | The literal declaration/handler producer correction is committed in `305fecf62d`. Static dispatch validation passes. All four unchanged route-emission fixtures pass in native run `94609`, including announce, withdraw and import controls. The unchanged pool reload fixture also passes in `e43c96e4`, with all seven verification steps, after its owner corrects optional absent-BGP startup. | These scoped runs do not establish every later BGP source-policy or release-level integration change. No fixture expectation was weakened. |
 
 Every failure from the earlier 126/133 browser run now has a focused passing
 rerun. `./le --name web-corrections test web` passed
@@ -280,9 +295,97 @@ rerun. `./le --name web-corrections test web` passed
 the seven earlier scenario failures; a current broader browser run remains
 owed. Four explicitly unfinished experimental Workbench workflows remain skips.
 
-Acceptance still requires the current browser run, reached consuming-package
-regressions, scoped lint, assets/HTMX/template and command/YANG/documentation
-checks, shared-view discrimination and CLI functional checks. The complete
+After the Review correction, the component and handler golden comparisons
+both pass in `5bdc40ef` (10.082 seconds), with nine independently approved
+captures. The affected graphical community and configuration-actions browser
+journeys pass 2/2 in `20fd5c71` (15.2 seconds).
+
+The reached editor run `8217a4d4` passes all 10 selected cases, covering recall,
+lifecycle confirmation, explanations, comparison and ordered commit/rollback.
+The UI run `0eeec7fc` passes four selected cases in 4.9 seconds:
+`web-only-interrupt-graceful`, `web-only-interrupt-force`,
+`pipe-interactive-save` and `monitor-ping-pipe-resolve-log`. These are the
+runner's stable basenames.
+
+Shared-view discrimination produced the expected `[dashboard]` failure in
+`76c622c7`. The exact original source was restored before the named
+`TestBrowserViewRegistryCapability` passed in `210ef863`. No deliberate break
+or test change remains from that proof.
+
+Product correction `74da4cb516` checks a registered view's returned concrete
+model before continuing. A new synthetic registered view first reproduced the
+assertion panic, then proved explicit failure, cancellation, producer joining,
+an unchanged caller context and preservation of the actual `Model.Close`
+history-publication error. The existing browser-view regressions also pass.
+
+Verification maintenance `836fae83a1` preserves the existing test inputs and
+assertions while making response ownership and concrete result checks
+explicit. Its independently judged monitor-control assertion now checks the
+producer's nil refusal pointer directly; the old assertion boxed it into a
+non-nil error interface. The same malformed and anonymous controls, successful
+status and exact queued action remain. Host-route maintenance `c1c8e306c0`
+records where the eleven real browser download tests execute; it does not
+claim execution inside QEMU. Both changes retain their actual passing runs.
+
+Acceptance still requires broader browser/package coverage, scoped lint and
+the unresolved command/YANG findings. Fresh assets, generated-template and
+usage-contract checks pass. Static dispatch discovery now passes after the
+fixture declaration-producer correction. The grammar check still reports the
+two development-tool namespace collisions `arch error-inventory` and
+`arch error-wrap`; their registrations predate this amendment. Command-contract
+validation reports three internal transport RPCs without CLI declarations
+(`source-lease`, `cancel-request`, `select-routes`), which their owner is
+reconciling without exposing them as invented CLI commands. Help-shape checks
+found two missing full stops in those RPC summaries; this amendment's daemon
+restart summary is corrected.
+
+The 21-package scoped lint run `107d5015` completed with findings, including
+formatting, unchecked assertions and response-body ownership checks. Owned
+corrections retain their scoped regression evidence and independent test
+judgments. The ten-package follow-up stopped during planning because a
+concurrent peer-declaration test changed; it produced no analysis plan and is
+not a lint pass or a new diagnostic result. Two stable-source split runs then
+completed all feature rows with findings: `dabc8b99` covered web, CLI, its
+contract, error inventory and systemd; `cb0913b4` covered hub, config CLI,
+plugin server, faker and QEMU. Web, error inventory, faker and QEMU reported
+no diagnostics in these runs. The remaining owned corrections preserve the
+existing test assertions and inputs and have independent final source judgments.
+Their focused CLI history, option, browser-view and graphical per-user
+preference tests pass in `1638aec6`. Config CLI tests pass in `7d4351cf`, as
+do graphical import, bootstrap credential/certificate and SSH listener controls.
+That run's complete local/daemon command comparison fails: five supplied-input
+refusals omit the local help hint, and plugin conformance has no supported
+daemon form for its caller-supplied executable. These are open parity defects;
+the arbitrary remote program execution guard remains enforced. Systemd tests
+pass on the host in `d5cb506e` and in Ze's Linux guest in `bcc1fcd6`, including
+the original policy preservation and refusal cases. Plugin-server lint
+findings are with the BGP owner. These
+results do not establish a passing lint verdict for the complete scope.
+The final five-package follow-up completed all rows and reported three
+response-ownership findings in `web_monitor_pipe_test.go`. The independently
+judged corrections retain the original stream reads, controls and
+cancellation/join assertions. All four affected monitor units pass in
+`d642f003`; their final lint confirmation remains owed.
+
+The error-inventory classifier now recognizes operator errors extracted with
+`errors.AsType`. Its two positive regression cases failed before the correction,
+while seven negative controls passed; the complete classifier package and
+scoped lint then passed. This is committed as `ae90d0a680`. The source cleanup
+is committed as `a70b372de9`, with nine eligible independent test judgments.
+The daemon missing-argument fix shares the existing local refusal renderer and
+preserves the typed cause. Its new tests first failed to build before that
+producer existed; the earlier command comparison provides the executed
+behavioral failure. The exact-registration boundary and original selector
+controls now pass in `e2811165`. A configured-plugin conformance operation is
+under implementation, with daemon-owned executable selection. Eleven new hub
+cases executed and failed because that command is not registered yet. A real
+started-query test also failed because caller cancellation did not reach the
+query's independent budget. Its shared context fix must preserve the newer
+offline no-spawn declaration rule from `d4fb5888c7`. Successful reloads without
+an authoritative tree must withdraw executable authority; rejected reloads must
+retain the prior accepted snapshot. Neither that implementation nor full
+conformance execution parity is claimed complete.
+The complete
 web package is not claimed to pass: the separately owned
 `TestL2TPDisconnectRefusesAnUnguardedForm` currently receives HTTP 200 where its
 guard regression requires 400. Its producer must be fixed before that broader
@@ -299,8 +402,10 @@ Full `TestRepositoryConfigsValidate` then failed in 75.80 seconds. Its 30
 findings comprise one browser replay refusal at `error-toggle` in
 `test/web/graphical-import-paste.wb`, 28 BGP source/destination grant fixture
 preconditions and one undeclared PPPoE `access0` interface. The browser replay
-correction is in progress; the BGP and PPP owning work is coordinating its
-fixture corrections. Discovery counted 3,376 Ze inputs, 242 migrated inputs,
+correction now passes its four focused units in `abefb5fb` (3.739 seconds).
+The BGP grant fixture correction remains pending. The PPP owner has since
+reported its promoted interface fixture passing; this session's full corpus
+has not been rerun. Discovery counted 3,376 Ze inputs, 242 migrated inputs,
 55 declared refusals, 672 exit refusals, 32 browser load sequences, 74 browser
 steps and three staged draft loads; 80 legacy inputs were not validated and
 there was no host skip. These are population/disposition counts, not 3,376
