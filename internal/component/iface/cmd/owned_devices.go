@@ -112,7 +112,7 @@ func ownedLinkRemoveHandler(_ *pluginserver.Server, _ context.Context, proc *pro
 // ownedDevicesCleanup withdraws every bridge and link of a plugin process that
 // is gone, when that process is the one that declared them. It runs after the
 // process's admitted requests drained and before a replacement starts.
-func ownedDevicesCleanup(proc *process.Process) {
+func ownedDevicesCleanup(_ *pluginserver.Server, proc *process.Process) {
 	ownedDeviceCallers.mu.Lock()
 	declarer, known := ownedDeviceCallers.byOwner[proc.Name()]
 	if known && declarer == proc {
