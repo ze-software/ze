@@ -28,6 +28,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // announceFacts is every per-peer fact that decides the bytes ONE peer receives
@@ -481,7 +482,7 @@ func (target announceTarget) queueBatchBodyPreFiltered(ctx context.Context, upda
 // sender is who makes the announce: an attached process, or the operator. It
 // is gated on `send [ update ]`: this rail originates routes, which
 // is the permission an operator grants when they write that word.
-func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+func (a *reactorAPIAdapter) announceNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender, output *rpc.UpdateRouteOutput) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -569,6 +570,14 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		}
 	default: // no attributes provided — use defaults
 		attrs = append(attrs, attribute.OriginIGP)
+	}
+
+	peers, intakeErr := a.offerOriginBatch(ctx, batch, sender, peers, rpc.OriginIntakeAnnounce, output)
+	if intakeErr != nil {
+		return intakeErr
+	}
+	if len(peers) == 0 {
+		return nil
 	}
 
 	var lastErr error
@@ -767,6 +776,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector
 		}
 		return route.ErrNoPeersAcceptedFamily
 	}
+	if lastErr == nil {
+		output.Announced = uint32(len(batch.NLRIs))
+	} //nolint:gosec // bounded parsed native batch
 	return lastErr
 }
 
@@ -1079,7 +1091,7 @@ func (a *reactorAPIAdapter) queueAnnounceForPeer(ctx context.Context, peer *Peer
 // is gated on `send [ update ]`, the same permission the announce
 // takes: a withdrawal is an UPDATE, and a program allowed to put a route into a
 // peer must be allowed to take it out again.
-func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender, output *rpc.UpdateRouteOutput) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -1094,7 +1106,19 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 	}
 	if batch.RecoverySource.IsValid() {
 		// RFC 4271 Section 6: select a survivor before admitting a withdrawal.
-		return a.recoverNLRIBatch(ctx, batch, peers, sender)
+		err := a.recoverNLRIBatch(ctx, batch, peers, sender)
+		if err == nil || errors.Is(err, route.ErrWithdrawWithheld) {
+			output.Withdrawn = uint32(len(batch.NLRIs))
+		} //nolint:gosec // completed command count
+		return err
+	}
+
+	peers, intakeErr := a.offerOriginBatch(ctx, batch, sender, peers, rpc.OriginIntakeWithdraw, output)
+	if intakeErr != nil {
+		return intakeErr
+	}
+	if len(peers) == 0 {
+		return nil
 	}
 
 	var lastErr error
@@ -1244,6 +1268,9 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector
 	// into a warning on the command's answer and still answers `done`
 	// (ai/rules/principles.md). A real send failure outranks it, because that
 	// one condemns the routes rather than explaining why none were owed.
+	if lastErr == nil {
+		output.Withdrawn = uint32(len(batch.NLRIs))
+	} //nolint:gosec // completed command count includes withheld withdrawals
 	if lastErr == nil && len(withheld) > 0 {
 		return fmt.Errorf("%w: %s, peers %s", route.ErrWithdrawWithheld,
 			batch.Family, textbuf.Join(withheld, ", "))

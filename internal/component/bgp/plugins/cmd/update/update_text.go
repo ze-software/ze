@@ -73,6 +73,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var (
@@ -1347,6 +1348,8 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	sel := selector.ParseDefault(ctx.PeerSelector())
 	var announced, withdrawn int
 	var warnings []string
+	var admissions []rpc.RouteAdmission
+	originCtx := ctx.OriginContext()
 
 	// RFC 9494: the LLGR readvertise producer stamps meta["stale"] on the
 	// UpdateRoute RPC; carry it onto the announce batch so AnnounceNLRIBatch runs
@@ -1360,21 +1363,21 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	replay := replayFromMeta(ctx.Meta)
 	recoverySource, recoveryGeneration, recoveryErr := recoveryFromMeta(ctx.Meta)
 	if recoveryErr != nil {
-		return updateRouteFailure(announced, withdrawn, warnings, recoveryErr)
+		return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, recoveryErr)
 	}
 	sentOwnerMessage, ownerErr := sentOwnerMessageFromMeta(ctx.Meta)
 	if ownerErr != nil {
-		return updateRouteFailure(announced, withdrawn, warnings, ownerErr)
+		return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, ownerErr)
 	}
 	initial, initialErr := initialReplayFromMeta(ctx.Meta, sentOwnerMessage)
 	if initialErr != nil {
-		return updateRouteFailure(announced, withdrawn, warnings, initialErr)
+		return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, initialErr)
 	}
 	if initial.InitialReplay != 0 {
 		for _, group := range groups {
 			if len(group.Withdraw) > 0 {
 				err := errors.New("initial replay cannot withdraw routes")
-				return updateRouteFailure(announced, withdrawn, warnings, err)
+				return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, err)
 			}
 		}
 	}
@@ -1387,7 +1390,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 			continue
 		}
 		if err := bgpReactor.SelectedPeersCarry(sel, uint16(group.Family.AFI), uint8(group.Family.SAFI), ctx.Sender); err != nil {
-			return updateRouteFailure(announced, withdrawn, warnings, err)
+			return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, err)
 		}
 	}
 
@@ -1412,14 +1415,20 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				InitialSourceAddPath: initial.InitialSourceAddPath,
 				InitialSourceMessage: initial.InitialSourceMessage,
 			}
-			if err := bgpReactor.AnnounceNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); err != nil {
+			output, announceErr := announceBatchResult(originCtx, bgpReactor, sel, batch, ctx.Sender)
+			if output != nil {
+				announced += int(output.Announced)
+				withdrawn += int(output.Withdrawn)
+				warnings = append(warnings, output.Warnings...)
+				admissions = append(admissions, output.Admissions...)
+			}
+			if err := announceErr; err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
 				}
-				return updateRouteFailure(announced, withdrawn, warnings, err)
+				return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, err)
 			}
-			announced += len(group.Announce)
 		}
 		if len(group.Withdraw) > 0 {
 			// The withdrawal carries what the operator wrote in front of its section, the
@@ -1442,7 +1451,14 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 
 				RestoreConfigured: group.RestoreConfigured,
 			}
-			switch err := bgpReactor.WithdrawNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); {
+			output, withdrawErr := withdrawBatchResult(originCtx, bgpReactor, sel, batch, ctx.Sender)
+			if output != nil {
+				announced += int(output.Announced)
+				withdrawn += int(output.Withdrawn)
+				warnings = append(warnings, output.Warnings...)
+				admissions = append(admissions, output.Admissions...)
+			}
+			switch err := withdrawErr; {
 			case err == nil:
 			case errors.Is(err, route.ErrWithdrawWithheld):
 				// The named peers had been advertised nothing on this session,
@@ -1457,13 +1473,12 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 				continue
 			default:
-				return updateRouteFailure(announced, withdrawn, warnings, err)
+				return updateRouteAdmissionFailure(announced, withdrawn, warnings, admissions, err)
 			}
-			withdrawn += len(group.Withdraw)
 		}
 	}
 
-	if announced == 0 && withdrawn == 0 {
+	if announced == 0 && withdrawn == 0 && len(admissions) == 0 {
 		msg := "no routes to announce or withdraw"
 		if len(warnings) > 0 {
 			msg = textbuf.Join(warnings, "; ")
@@ -1475,9 +1490,10 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	}
 
 	result := &plugin.RouteResult{
-		Announced: uint32(announced), //nolint:gosec // bounded by NLRI count
-		Withdrawn: uint32(withdrawn), //nolint:gosec // bounded by NLRI count
-		Warnings:  warnings,
+		Announced:  uint32(announced), //nolint:gosec // bounded by NLRI count
+		Withdrawn:  uint32(withdrawn), //nolint:gosec // bounded by NLRI count
+		Warnings:   warnings,
+		Admissions: admissions,
 	}
 
 	return &plugin.Response{

@@ -294,6 +294,28 @@ func (c *CommandContext) Context() context.Context {
 	return context.Background()
 }
 
+// OriginContext captures original producer authority for local route commands.
+// Ordinary control/read commands keep Context without an extra process token.
+// An omitted/mismatched Process is an explicit failed capture, never operator.
+func (c *CommandContext) OriginContext() context.Context {
+	ctx := c.Context()
+	if c == nil {
+		return ctx
+	}
+	name, named := c.Sender.Process()
+	if !named {
+		return ctx
+	}
+	if c.Process == nil {
+		return plugin.WithOriginProducerContext(ctx, plugin.SelectedOwner{}, errors.New("origin producer process is missing"))
+	}
+	if c.Process.Name() != name {
+		return plugin.WithOriginProducerContext(ctx, plugin.SelectedOwner{}, errors.New("origin producer process does not match sender"))
+	}
+	owner, err := c.Process.SelectedOwner()
+	return plugin.WithOriginProducerContext(ctx, owner, err)
+}
+
 // RequireReactor returns the reactor or an error response if not available.
 func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Response, error) {
 	r := ctx.Reactor()

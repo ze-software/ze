@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -70,8 +71,29 @@ func (p *Plugin) UpdateRouteRequest(ctx context.Context, input rpc.UpdateRouteIn
 // from zero counts. A partial command failure returns its result and an error;
 // a transport failure returns no fabricated result. Nil/null output is missing.
 func (p *Plugin) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
-	result, err := p.callEngineWithResult(ctx, rpc.MethodUpdateRoute, &input)
+	work, cancel := context.WithTimeout(ctx, rpc.CancellableRequestTimeout)
+	defer cancel()
+	if input.DeadlineMS > 0 {
+		if deadline, _ := work.Deadline(); time.UnixMilli(input.DeadlineMS).Before(deadline) {
+			cancel()
+			work, cancel = context.WithDeadline(ctx, time.UnixMilli(input.DeadlineMS))
+			defer cancel()
+		}
+	}
+	deadline, _ := work.Deadline()
+	input.DeadlineMS = deadline.UnixMilli()
+	var result json.RawMessage
+	var err error
+	if p.engineBridgeActive() {
+		result, err = p.callEngineWithResult(work, rpc.MethodUpdateRoute, &input)
+	} else {
+		result, err = p.engineMux.CallRPCCancellable(work, rpc.MethodUpdateRoute, &input)
+	}
 	if err != nil {
+		var unsettled *rpc.CancellationUnsettledError
+		if work.Err() != nil && !errors.As(err, &unsettled) {
+			return nil, work.Err()
+		}
 		return nil, err
 	}
 	var output *rpc.UpdateRouteOutput

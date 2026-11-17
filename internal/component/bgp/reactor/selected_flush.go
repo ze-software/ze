@@ -99,7 +99,13 @@ func (s *Session) writeSelectedItem(item *fwdItem) error {
 		item.writeBody++
 	}
 	for _, update := range item.updates {
-		if err := s.writeUpdatePreFiltered(update); err != nil {
+		// Local selected bytes came from the shared local builder and have not
+		// passed export policy. Received items were materialized by forwarding.
+		write := (*Session).writeUpdatePreFiltered
+		if item.originated {
+			write = (*Session).writeUpdate
+		}
+		if err := write(s, update); err != nil {
 			return err
 		}
 		item.writeBody++

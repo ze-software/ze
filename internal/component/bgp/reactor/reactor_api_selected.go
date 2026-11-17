@@ -118,7 +118,7 @@ func (a *reactorAPIAdapter) selectRoute(ctx context.Context, peer *Peer, session
 		work.absent = true
 		return a.writeSelected(ctx, peer, &work, nil)
 	case rpc.SelectedRouteOrigin:
-		return rpc.SelectedRouteResult{}, errors.New("select-routes: origin receipt has no registered admission; admit the original scoped contribution before selecting it")
+		return a.selectOrigin(ctx, peer, &work, fam, key)
 	case rpc.SelectedRouteReceived:
 	case rpc.SelectedRouteUnspecified:
 		return rpc.SelectedRouteResult{}, errors.New("select-routes: selection kind is unspecified")

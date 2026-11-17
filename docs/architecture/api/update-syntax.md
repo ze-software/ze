@@ -23,7 +23,7 @@ later section fails. Its result carries that failure reason and any earlier
 warnings. A completed withheld withdrawal remains counted. Origin admission
 receipts, when produced, report retention and selection separately; an accepted
 loser does not count as an announcement. See [Update-route results](process-protocol.md#update-route-command-and-admission-results).
-<!-- source: internal/component/bgp/plugins/cmd/update/update_result.go -- updateRouteFailure -->
+<!-- source: internal/component/bgp/plugins/cmd/update/update_result.go -- updateRouteAdmissionFailure -->
 
 ## Core Syntax
 

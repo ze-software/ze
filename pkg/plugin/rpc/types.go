@@ -355,6 +355,7 @@ type DeclareRegistrationInput struct {
 	// SourcePolicy declares the acknowledged source-policy lifecycle handler.
 	SourcePolicy bool `json:"source-policy,omitempty"`
 	// CurrentSelection declares the independent desired-selection snapshot handler.
+	OriginIntake     bool `json:"origin-intake,omitempty"`
 	CurrentSelection bool `json:"current-selection,omitempty"`
 	// EventSettlement declares acknowledged completion of asynchronous event work.
 	EventSettlement bool `json:"event-settlement,omitempty"`
@@ -1009,6 +1010,9 @@ type ExecuteCommandOutput struct {
 
 // UpdateRouteInput is the input for ze-plugin-engine:update-route.
 type UpdateRouteInput struct {
+	// DeadlineMS opts the framed request into acknowledged cancellation. Zero
+	// retains the legacy caller contract; it never represents origin admission.
+	DeadlineMS   int64          `json:"deadline-ms,omitempty"`
 	PeerSelector string         `json:"peer-selector,omitempty"`
 	Command      string         `json:"command"`
 	Meta         map[string]any `json:"meta,omitempty"` // Optional route metadata; plumbed to CommandContext.Meta.

@@ -459,9 +459,15 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				break
 			}
 			if owner.source == nil {
-				return false, errAdjOutProvenance
+				// beginAdjOut checked this actual origin lease under writeMu.
+				// A caller's origin kind or a missing received source is not
+				// admission: an uninitialized lease fails current before here.
+				if item.selected.origin.record == nil {
+					return false, errAdjOutProvenance
+				}
+			} else {
+				owner.message = item.sourceMessageID
 			}
-			owner.message = item.sourceMessageID
 		}
 	}
 	if withdraw {

@@ -82,8 +82,11 @@ type originBuildValue struct {
 	attributes         []byte
 	attributesExplicit bool
 	attributeContext   bgpctx.ContextID // Original Wire.SourceContext; zero/unknown stays unknown.
-	nextHop            bgptypes.RouteNextHop
-	originAS           uint32
+	// wire indexes this value's owned immutable attributes once at admission.
+	// It borrows that same slice and never outlives its owning origin value.
+	wire     *attribute.AttributesWire
+	nextHop  bgptypes.RouteNextHop
+	originAS uint32
 }
 
 func newOriginBuildValue(input originBuildInput) (*originBuildValue, error) {
@@ -99,8 +102,16 @@ func newOriginBuildValue(input originBuildInput) (*originBuildValue, error) {
 			return nil, errors.New("implicit origin attributes carry an explicit block")
 		}
 	}
-	if _, err := attribute.BuildSpanIndex(input.attributes); err != nil {
-		return nil, err
+	attributes := slices.Clone(input.attributes)
+	var wire *attribute.AttributesWire
+	if input.attributesExplicit {
+		wire = attribute.NewAttributesWire(attributes, input.attributeContext)
+		// Has checks only framing, without decoding ORIGIN or inferring an
+		// unknown ASN width. The resulting immutable index is reused by every
+		// selected write instead of rebuilt on the per-destination hot path.
+		if _, err := wire.Has(attribute.AttrOrigin); err != nil {
+			return nil, err
+		}
 	}
 	// Raw build input is open until this constructor validates its policy.
 	switch input.nextHop.Policy {
@@ -115,6 +126,6 @@ func newOriginBuildValue(input originBuildInput) (*originBuildValue, error) {
 	default:
 		return nil, errors.New("origin next-hop policy is unknown")
 	}
-	return &originBuildValue{originIdentity: identity, attributes: slices.Clone(input.attributes),
-		attributesExplicit: input.attributesExplicit, attributeContext: input.attributeContext, nextHop: input.nextHop, originAS: input.originAS}, nil
+	return &originBuildValue{originIdentity: identity, attributes: attributes,
+		attributesExplicit: input.attributesExplicit, attributeContext: input.attributeContext, wire: wire, nextHop: input.nextHop, originAS: input.originAS}, nil
 }

@@ -2194,17 +2194,23 @@ A permanent lifecycle owner must publish the actual grant removal or original
 Peer/process stop before its matching revoke, then join before acknowledging it.
 Fresh calls under an explicit regrant or a new Session/Peer remain independent.
 
-This is an engine-domain foundation. No runtime issuer instance, public intake
-callback, Announce/Withdraw offer adapter, selected-origin writer or lifecycle
-hook uses it yet. The origin variant above still refuses unregistered origin
-receipts. Those continuations must preserve no-RIB direct origination,
-non-established-peer admission, explicit keep-on-exit behavior and RS/RR rails.
-They must use registered mutating request/response transport with acknowledged
-cancellation, rather than mutate the read-only `current-selection` callback.
+The registered intake callback and Announce/Withdraw adapter use this engine
+domain. An issued origin passes through the existing final writer. The writer
+reconstructs its owned build and applies local export once. The caller's
+`StoredRoute` echo cannot change attributes or next hop. Unissued and stale
+receipts refuse output.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
+
+Runtime issuer and candidate-provider instances do not yet activate this
+feature. Lifecycle adoption MUST preserve no-RIB direct origination,
+non-established-peer admission, explicit keep-on-exit behavior and RS/RR paths.
+Candidate mutation uses the registered intake and acknowledged cancellation.
+The `current-selection` callback remains read-only.
 <!-- source: internal/component/bgp/reactor/origin_build.go -- newOriginBuildValue, newOriginIdentity -->
 <!-- source: internal/component/bgp/reactor/origin_producer.go -- newProcessOriginProducer, newOriginSource -->
 <!-- source: internal/component/bgp/reactor/origin_receipt.go -- originReceiptStore, issue -->
 <!-- source: internal/component/bgp/reactor/origin_write.go -- admit, current, withdraw, revokeOwner, close -->
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
 
 Received FlowSpec entries additionally carry `flowspec-redirect-refused` when
 the deciding owner authorizes that current revision without its redirect
@@ -2400,6 +2406,143 @@ turn a local injection into a received-source route.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRouteRequest -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- opUpdateRoute -->
 
+
+#### Mutating local-origin intake
+
+A deciding plugin registers `OnOriginIntake` before `Run`. Stage 1 derives
+`origin-intake` from that handler. The declaration grants no peer permission.
+The callback `ze-plugin-callback:origin-intake` carries the same owned input and
+full `UpdateRouteOutput` on typed and framed transports.
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- OnOriginIntake -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
+
+Each offer contains one native contribution and its original producer/source
+metadata. It preserves original attributes and context, ADD-PATH presence
+independently of zero, and the late-bound next-hop policy. An engine-issued
+`OriginReceipt` identifies the contribution. No received-source reference
+accompanies the offer.
+<!-- source: pkg/plugin/rpc/origin_intake.go -- OriginIntakeInput, OriginBuild, ValidateOriginIntakeOutput -->
+
+The source-context handle belongs to the engine. A forked reader treats that
+handle as opaque. `as-path-known` and `as-path-asn4` identify the original
+AS-path encoding width. Unknown bytes stay opaque, while known two-octet
+encoding remains distinct from four-octet encoding.
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originIntakeValue -->
+
+Only the engine issuer binds a receipt to its live original producer, source
+identity and concrete Peer. It also binds the deciding process incarnation.
+A supplied receipt number alone grants no authority.
+<!-- source: internal/component/bgp/reactor/origin_receipt.go -- originReceiptStore, issue -->
+
+`getMatchingPeersSel` resolves the selector and sender grants. At the
+Announce/Withdraw batch entry points, an ordinary configured owner with intake
+receives the offer before direct output. The deciding plugin owns retention
+and candidate election. It serializes each exact source/key/scope and refuses
+an older issued generation after a replacement.
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- offerOriginBatch, offerOriginToPeer, withdrawOriginFromPeer -->
+
+The engine checks receipt freshness before and after the callback. An old
+acknowledgment cannot make a revoked or superseded receipt current. A retained
+receipt echoes the native key, destination, concrete peer owner and issued
+generation. A retained loser keeps `Announced` zero. A bare zero is not acceptance.
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- offerOriginBatch, offerOriginToPeer, withdrawOriginFromPeer -->
+
+Withdrawal keeps its completed command count, including a withheld withdrawal.
+Tagged and lifetime batches keep the original authenticated process token for
+later removal. A timer cannot substitute a same-name replacement. Command
+results preserve earlier receipts, warnings and completed counts if later work
+fails.
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- offerOriginBatch, offerOriginToPeer, withdrawOriginFromPeer -->
+
+A joined announce callback can retain a contribution despite a failed reply,
+freshness check or caller-completion check. In that case, the engine revokes
+that receipt and sends an exact original Withdraw before the offer call returns.
+<!-- source: internal/component/bgp/reactor/origin_intake_compensation.go -- compensateOriginIntake, withdrawOriginIntake -->
+
+Compensation uses a fresh bounded context. It preserves source, key, path-ID,
+scope and generation, so a newer candidate stays unchanged. It calls the
+captured original connection, including a still-live old process after manager
+replacement. The cleanup never resolves a same-name successor.
+<!-- source: internal/component/bgp/reactor/origin_intake_compensation.go -- compensateOriginIntake, withdrawOriginIntake -->
+
+Removal of an already-absent exact receipt confirms completed withdrawal and
+preserves its replacement. The provider re-elects admitted survivors and joins
+their output before it acknowledges removal. A cleanup failure remains in the
+returned error. A stopped token alone proves neither provider destruction nor
+a joined stop.
+<!-- source: internal/component/bgp/reactor/origin_intake_compensation.go -- compensateOriginIntake, withdrawOriginIntake -->
+
+Explicit RS/RR, received maintenance, source recovery and SENT replay keep
+their existing paths. A fully registered, running owner without the optional
+callback keeps direct origination. API-only/no-RIB peers without an ordinary
+deciding owner also keep direct origination.
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchEligible, offerOriginBatch -->
+
+An absent, stopped, pre-Stage1 or still-starting configured owner refuses the
+offer before direct output. An unknown capability never establishes legacy
+support.
+<!-- source: internal/component/plugin/server/origin_intake.go -- OriginIntakeOwner -->
+
+`ze-plugin-callback.yang` declares the callback RPC and its nested input. Its
+output uses `update-route-result` from `ze-plugin-engine.yang`. The engine module
+also declares Stage-1 `origin-intake` support and the update-route cancellation
+deadline.
+<!-- source: internal/core/ipc/yang/ze-plugin-callback.yang -- origin-intake -->
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- update-route-result, declare-registration, update-route -->
+
+Intake runs on its own bounded mutation worker. `CurrentSelection` remains
+read-only, and ordinary callbacks use separate workers. An intake handler can
+call the engine while those workers continue.
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- startOriginIntakeWorker, answer, runCancellations -->
+
+The single reader enrolls each request in the same `RequestReceiver` used by
+engine selected/source-lease operations. Enrollment precedes any later
+`cancel-request`. A separate bounded cancellation worker cancels and joins the
+mutation and its response attempt before it acknowledges settlement.
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- startOriginIntakeWorker, answer, runCancellations -->
+
+Origin intake cancellation uses the request correlation. It reserves no
+exclusive peer/receipt resource because the single mutation worker serializes
+announcements and withdrawals.
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- originIntakeRequestScope, run -->
+
+A caller can consume a reply before its response attempt returns and releases
+enrollment. An exact withdrawal can therefore queue under a different request
+ID. Completion still follows the response attempt, so cancellation joins
+remote work and the SDK can queue the valid followup.
+<!-- source: pkg/plugin/rpc/request_receiver.go -- NewRequestCancellationScope, RequestReceiver.CancelAndJoin -->
+
+Typed cancellation joins the same mutation completion. Stop refuses new
+requests, cancels active work and joins all workers. The SDK creates no
+goroutine or unbounded queue for an individual request. A captured old process
+connection cannot authorize a same-name replacement.
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- offer, stopAdmission, supervise -->
+
+New SDK framed update-route requests carry a deadline and use acknowledged
+cancellation. Requests without a deadline keep the existing transport contract.
+Parallel identical commands retain independent request correlations.
+Selected/source-lease operations keep their existing exclusive resource scopes.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRouteRequestResult -->
+
+The selected-origin writer reconstructs its issued immutable build and uses
+the existing export and socket writer.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
+<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected -->
+
+Runtime activation still requires a reactor-owned origin domain and joined
+producer, peer, grant, session and owner lifecycle barriers. A registered RIB
+candidate provider and shared cross-origin preference comparison remain required.
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.originReceipts -->
+<!-- source: internal/component/bgp/reactor/origin_receipt.go -- newOriginReceiptStore -->
+<!-- source: internal/component/bgp/reactor/origin_write.go -- revokeOwner, revokePeer, revokeProducerPeer, close -->
+
+No in-tree provider currently declares intake, so Ze does not advertise origin
+arbitration. Configured-route restoration, static/default/plugin origination and
+redistribution still require exact original source provenance. SENT state supplies
+no candidate authority.
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchProducer, offerOriginToPeer -->
+<!-- source: internal/component/bgp/reactor/origin_producer.go -- newOriginSource -->
 
 #### Update-route command and admission results
 

@@ -181,6 +181,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `config-completion` | `bool` | Whether the plugin answers `config-complete`, the acknowledged cleanup after a whole reload was published or restored. The Go SDK sets it from `OnConfigComplete` |
 | `source-policy-owner` | `bool` | Whether the plugin retains source state, declared apart from `source-policy` |
 | `source-policy` | `bool` | Whether the plugin answers the acknowledged source-policy lifecycle callbacks |
+| `origin-intake` | `bool` | Declares the scoped-origin mutation callback and joined cancellation. The SDK derives this flag from `OnOriginIntake`. |
 | `current-selection` | `bool` | Whether the plugin answers the desired-selection snapshot callback |
 | `event-settlement` | `bool` | Whether the plugin acknowledges when its asynchronous work on an event is complete |
 | `verify-budget` | `int` | Estimated verify time in seconds (`0` means trivial) |
@@ -702,6 +703,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit reversible operation state; retain undo through whole-reload acceptance |
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
+| `ze-plugin-callback:origin-intake` | `OnOriginIntake` | `rpc.OriginIntakeInput` | `rpc.UpdateRouteOutput` | Retain or remove one exact engine-authorized local contribution, joining cancellation and output barriers |
 | `ze-plugin-callback:event-settlement` | `OnEventSettlement` | `rpc.EventSettlementInput` | `rpc.EventSettlementOutput` | Await asynchronous work after prior events were applied |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN pair. With `provisional: true`, check policy without changing peer-scoped learned state. Selection repeats the retained pair once with false before peer-up; ordinary selected validation uses false initially |
 | `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
@@ -1509,3 +1511,51 @@ channel entirely: `bridge.DeliverEvents(events)` calls the `onEvent` handler dir
 (hot path). The callback channel is only used for non-event callbacks (execute-command,
 config-verify, etc.) and bye.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
+
+### Scoped origin intake
+
+`OnOriginIntake` registers an optional mutation handler for a deciding plugin
+before `Run`. Each call carries owned original local-build data and an
+engine-issued receipt for one concrete peer.
+<!-- source: pkg/plugin/rpc/origin_intake.go -- OriginIntakeInput and ValidateOriginIntakeOutput -->
+
+An accepted loser returns the full update-route result with an explicit
+retained receipt and zero `Announced`. A missing result or bare zero is not
+acceptance. A removal returns its completed command count.
+<!-- source: pkg/plugin/rpc/origin_intake.go -- OriginIntakeInput and ValidateOriginIntakeOutput -->
+
+The handler MUST serialize exact source/key/scope mutations and refuse older
+generations. It MUST honor cancellation and join every mutation and writer
+barrier before it returns. The SDK provides a separate bounded worker.
+`CurrentSelection` remains read-only and can run during engine calls from intake.
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- OnOriginIntake and joined worker -->
+
+The callback has both a typed slot and the same framed public RPC. Cancellation
+joins the handler and response attempt before settlement. The complete value,
+authority boundaries and activation dependencies are documented in
+[the process protocol](../architecture/api/process-protocol.md#mutating-local-origin-intake).
+<!-- source: internal/component/plugin/ipc/origin_intake.go -- SendOriginIntake -->
+<!-- source: pkg/plugin/sdk/sdk_origin_intake.go -- answer, runCancellations -->
+
+The original `source-context` belongs to the engine. A reader decodes original
+AS-path bytes only when `as-path-known` is true and uses `as-path-asn4` for their
+width. A reader keeps bytes with unknown encoding opaque.
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originIntakeValue -->
+
+If a configured owner has not completed registration and startup, the engine
+refuses origination. A known live legacy owner keeps direct origination, as
+does a peer without an ordinary deciding owner.
+<!-- source: internal/component/plugin/server/origin_intake.go -- OriginIntakeOwner -->
+
+The selected-origin writer reconstructs the issued build and uses the existing
+export and socket writer.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
+<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected -->
+
+No in-tree provider currently enables this optional callback. Runtime activation
+still requires the origin domain and its lifecycle barriers, plus a RIB candidate
+provider. Configured and redistributed producers must preserve their original
+source provenance before Ze can advertise origin arbitration.
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.originReceipts -->
+<!-- source: internal/component/bgp/reactor/origin_receipt.go -- newOriginReceiptStore -->
+<!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchProducer, offerOriginToPeer -->

@@ -161,7 +161,7 @@ func TestOriginIssuerRevocationFencesPreflightedIssue(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			work, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			t.Cleanup(cancel)
-			writer, store, _, source, value, _ := originReceiptFixture(t)
+			writer, store, _, source, value := originReceiptFixture(t)
 			t.Cleanup(func() {
 				cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
 				defer stop()

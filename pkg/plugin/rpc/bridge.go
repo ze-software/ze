@@ -76,6 +76,8 @@ type DirectBridge struct {
 	hasRelayStoredRoute   atomic.Bool                  // set atomically when relayStoredRoute is written
 	selectRoutes          SelectRoutesHandler
 	hasSelectRoutes       atomic.Bool
+	originIntake          OriginIntakeHandler
+	hasOriginIntake       atomic.Bool
 	currentSelection      CurrentSelectionHandler
 	hasCurrentSelection   atomic.Bool
 	injectWireRoute       InjectWireRouteHandler      // Typed fast path (no JSON) -- bmp-6

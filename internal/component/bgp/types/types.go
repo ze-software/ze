@@ -11,6 +11,7 @@ package types
 import (
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
@@ -303,8 +304,12 @@ const RecoveryWriteMeta = "recovery-write"
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI/MP_UNREACH_NLRI for non-IPv4-unicast families.
 type NLRIBatch struct {
-	Family family.Family // AFI/SAFI for all NLRIs
-	NLRIs  []nlri.NLRI   // NLRIs to announce or withdraw
+	// OriginOwner is an engine-captured original producer incarnation. It is
+	// internal authority, never decoded from API metadata or wire input. Stored
+	// tagged/lifetime batches retain it for exact later source withdrawal.
+	OriginOwner plugin.SelectedOwner `json:"-"`
+	Family      family.Family        // AFI/SAFI for all NLRIs
+	NLRIs       []nlri.NLRI          // NLRIs to announce or withdraw
 	// RecoverySource marks source-DOWN reconciliation; zero source means
 	// ordinary API withdrawal. The RIB supplies replacement selection, and the
 	// writer owes a key only where the source's ended session owns it.

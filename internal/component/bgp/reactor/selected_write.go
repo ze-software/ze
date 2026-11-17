@@ -19,6 +19,7 @@ type selectedWrite struct {
 	destinationSession uint64
 	snapshot           *disseminationSnapshot
 	source             sourceReceiptWrite
+	origin             originWrite // Its record is set only by exact origin admission.
 	cleanup            *selectedCleanupPermit
 	absent             bool
 	retirement         bool
@@ -62,6 +63,9 @@ func (write *selectedWrite) current(session *Session) error {
 	}
 	if write.absent {
 		return nil
+	}
+	if write.origin.record != nil {
+		return write.origin.current()
 	}
 	return write.source.current()
 }

@@ -271,7 +271,11 @@ type MessageObserver interface {
 //   - API server for external communication
 //   - RIB (Routing Information Base) for route storage
 type Reactor struct {
-	config *Config
+	// originReceipts is the owned current-origin domain. Its lifecycle owner
+	// constructs it before enabling origin intake and joins revocation at stop.
+	// Nil grants no origin receipt and refuses an opted-in provider.
+	originReceipts *originReceiptStore
+	config         *Config
 
 	// Injectable abstractions for simulation.
 	clock             clock.Clock

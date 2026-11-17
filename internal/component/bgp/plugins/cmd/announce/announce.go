@@ -16,6 +16,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/command"
@@ -242,8 +244,41 @@ func prefixToFamily(prefix netip.Prefix) family.Family {
 }
 
 func announceAndTrack(ctx context.Context, reg *Registry, bgpReactor bgptypes.BGPReactor, sel *selector.Selector, batch bgptypes.NLRIBatch, opts announceOpts, source string, sender plugin.Sender) (*plugin.Response, error) {
-	if err := bgpReactor.AnnounceNLRIBatch(ctx, sel, batch, sender); err != nil {
+	if _, named := sender.Process(); named {
+		if owner, err := plugin.OriginProducerFromContext(ctx); err == nil && owner.Sender() == sender {
+			batch.OriginOwner = owner
+		}
+	}
+
+	var output *rpc.UpdateRouteOutput
+	var announceErr error
+	if complete, ok := bgpReactor.(bgptypes.BatchResultReactor); ok {
+		output, announceErr = complete.AnnounceNLRIBatchResult(ctx, sel, batch, sender)
+	} else {
+		announceErr = bgpReactor.AnnounceNLRIBatch(ctx, sel, batch, sender)
+		if announceErr == nil {
+			output = &rpc.UpdateRouteOutput{Announced: 1}
+		}
+	}
+	if announceErr != nil {
+		var partial plugin.ResponseData
+		if output != nil {
+			partial = &plugin.RouteResult{Announced: output.Announced, Withdrawn: output.Withdrawn, Warnings: output.Warnings, Admissions: output.Admissions, Failure: output.Failure}
+		}
+		return &plugin.Response{Status: plugin.StatusError, Error: announceErr.Error(), Data: partial}, announceErr
+	}
+	if err := output.Validate(); err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+	}
+	result := plugin.Map{"announced": int(output.Announced)}
+	if output.Withdrawn != 0 {
+		result["withdrawn"] = int(output.Withdrawn)
+	}
+	if len(output.Admissions) != 0 {
+		result["admissions"] = output.Admissions
+	}
+	if len(output.Warnings) != 0 {
+		result["warnings"] = output.Warnings
 	}
 
 	// The registry is entered for a tag OR a lifetime, because reg.Announce is
@@ -260,7 +295,7 @@ func announceAndTrack(ctx context.Context, reg *Registry, bgpReactor bgptypes.BG
 	if opts.tagKey == "" && opts.duration <= 0 {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"announced": 1},
+			Data:   result,
 		}, nil
 	}
 
@@ -273,7 +308,8 @@ func announceAndTrack(ctx context.Context, reg *Registry, bgpReactor bgptypes.BG
 	// announcement the registry holds. The tag is answered only when there is
 	// one: an entry entered for its lifetime alone has no tag, and "=" is not a
 	// tag, it is two empty fields wearing the shape of one.
-	data := plugin.Map{"announced": 1, "id": id}
+	data := result
+	data["id"] = id
 	if opts.tagKey != "" {
 		var tb textbuf.Buffer
 		data["tag"] = tb.Str(opts.tagKey).Byte('=').Str(opts.tagValue).String()
@@ -370,7 +406,7 @@ parseOpts:
 		Attrs:   builder,
 	}
 
-	return announceAndTrack(ctx.Context(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
+	return announceAndTrack(ctx.OriginContext(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 func handleAnnounceBlackhole(ctx *pluginserver.CommandContext, bgpReactor bgptypes.BGPReactor, reg *Registry, args []string) (*plugin.Response, error) {
@@ -424,7 +460,7 @@ parseOpts:
 		Attrs:   builder,
 	}
 
-	return announceAndTrack(ctx.Context(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
+	return announceAndTrack(ctx.OriginContext(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 // handleAnnounceFlowspec originates a tracked FlowSpec rule on demand. Grammar:
@@ -488,7 +524,7 @@ func handleAnnounceFlowspec(ctx *pluginserver.CommandContext, bgpReactor bgptype
 		NextHop: bgptypes.NewNextHopSelf(),
 		Attrs:   builder,
 	}
-	return announceAndTrack(ctx.Context(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
+	return announceAndTrack(ctx.OriginContext(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 // splitFlowspecArgs separates the match components from the traffic action and

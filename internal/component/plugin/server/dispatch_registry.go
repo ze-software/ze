@@ -79,8 +79,9 @@ var engineOps = []engineOp{
 	{method: rpc.MethodMetricsPublish, handle: (*Server).opMetricsPublish},
 	{method: rpc.MethodReportIssue, handle: (*Server).opReportIssue},
 	{
-		method: rpc.MethodUpdateRoute,
-		handle: (*Server).opUpdateRoute,
+		method:            rpc.MethodUpdateRoute,
+		handle:            (*Server).opUpdateRoute,
+		cancellationScope: updateRouteCancellationScope,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetUpdateRouteSelResult(func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (*rpc.UpdateRouteOutput, error) {
 				return s.handleUpdateRouteSelResultDirect(ctx, proc, sel, command, meta, sourcePolicyEpoch)

@@ -1261,6 +1261,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		ConfigCompletion:    input.ConfigCompletion,
 		SourcePolicyOwner:   input.SourcePolicyOwner,
 		SourcePolicy:        input.SourcePolicy,
+		OriginIntake:        input.OriginIntake,
 		CurrentSelection:    input.CurrentSelection,
 		EventSettlement:     input.EventSettlement,
 		VerifyBudget:        input.VerifyBudget,

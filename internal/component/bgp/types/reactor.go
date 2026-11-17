@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // BGPReactor defines BGP-specific reactor operations.
@@ -158,4 +159,13 @@ type BGPReactor interface {
 
 	// ListUpdates returns all cached msg-ids.
 	ListUpdates() []uint64
+}
+
+// BatchResultReactor exposes complete origin admission results while the base
+// BGPReactor keeps its maintenance/error-only compatibility contract. Nil or
+// zero output never implies retained admission. Implementations preserve counts
+// completed before an error and the exact authorized per-peer receipts.
+type BatchResultReactor interface {
+	AnnounceNLRIBatchResult(context.Context, *selector.Selector, NLRIBatch, plugin.Sender) (*rpc.UpdateRouteOutput, error)
+	WithdrawNLRIBatchResult(context.Context, *selector.Selector, NLRIBatch, plugin.Sender) (*rpc.UpdateRouteOutput, error)
 }

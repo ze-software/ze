@@ -154,9 +154,8 @@ func TestRuntimeCancellationBeforeDispatch(t *testing.T) {
 	case <-work.Done():
 		t.Fatal(work.Err())
 	}
-	requests.mu.Lock()
-	held := len(requests.active) + len(requests.resources)
-	requests.mu.Unlock()
+	active, resources := requests.receiver.Counts()
+	held := active + resources
 	if held != 0 {
 		t.Fatalf("completed requests retained %d map entries", held)
 	}
@@ -177,7 +176,7 @@ func TestRuntimeCancellationBeforeDispatch(t *testing.T) {
 		t.Fatal("finished request lost its explicit not-active answer")
 	}
 	for _, raw := range []string{`{"request-id":0}`, `{"request-id":3}`, `{"request-id":4}`,
-		`{"request-id":1,"method":"unknown"}`, `{"request-id":1,"method":"ze-plugin-engine:update-route"}`} {
+		`{"request-id":1,"method":"unknown"}`, `{"request-id":1,"method":"ze-plugin-engine:release-cached"}`} {
 		if _, err := (&Server{}).opCancelRequest(completedControl.ctx, nil, json.RawMessage(raw)); err == nil {
 			t.Fatalf("invalid cancellation accepted: %s", raw)
 		}

@@ -4,6 +4,7 @@ module ze-plugin-callback {
 
     import ze-extensions { prefix ze; }
     import ze-types { prefix zt; }
+    import ze-plugin-engine { prefix engine; }
 
     description
         "RPCs served by the plugin for the engine to call (Socket B).
@@ -122,6 +123,102 @@ module ze-plugin-callback {
             mandatory true;
             ze:help "Requested selection revision";
             description "Echoed without substituting the current revision.";
+        }
+    }
+
+    rpc origin-intake {
+        ze:method "ze-plugin-callback:origin-intake";
+        ze:help "Admit or remove one exact engine-authorized local contribution.";
+        description "The exact registered deciding connection owns candidate mutation. One bounded independent worker may call the engine; CurrentSelection remains read-only. Cancellation joins mutation and reply completion. The engine validates original sender, native syntax and concrete scope before offering, and checks issued receipt freshness before and after the callback. The plugin serializes source/key/scope and refuses older generations. No received-source reference or forwarding authority is manufactured.";
+        input {
+            leaf operation {
+                type uint8 { range "1..2"; }
+                mandatory true;
+                ze:help "One announces; two removes the exact contribution";
+                description "Numeric rpc.OriginIntakeOperation: one announce, two withdraw; zero and unknown values are refused.";
+            }
+            leaf destination {
+                type string { length "1..max"; }
+                mandatory true;
+                ze:help "Concrete authorized destination peer address";
+                description "An IP address, including scoped IPv6, resolved by the engine's existing selector and send grants.";
+            }
+            leaf peer-owner {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Exact original configured Peer identity";
+                description "Distinguishes same-address siblings; it is engine-derived, not a selector supplied by a plugin.";
+            }
+            leaf origin-receipt {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Issued generation reused by SelectedRouteOrigin";
+                description "The existing SelectedRoute.OriginReceipt binds producer, original source, native key, concrete Peer and deciding process incarnation.";
+            }
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Absolute mutation deadline in Unix milliseconds";
+                description "No later than thirty seconds; queued and active mutation must honor cancellation and join before acknowledgment.";
+            }
+            container producer {
+                ze:help "Original authenticated local producer";
+                description "Descriptive engine provenance. Its name does not authorize a replacement process.";
+                leaf kind {
+                    type uint8 { range "1..2"; }
+                    mandatory true;
+                    ze:help "One process; two explicit operator";
+                    description "Numeric rpc.OriginProducerKind. Zero is unspecified and refused.";
+                }
+                leaf name {
+                    type string;
+                    ze:help "Original process name, absent for operator";
+                    description "Required for process kind and forbidden for operator. The receipt captures the process incarnation.";
+                }
+            }
+            container source {
+                ze:help "Accepted original source facts";
+                description "The engine preserves original protocol/instance, metric and explicit distance presence; it does not elect candidates or infer protocol from BGP ORIGIN.";
+                leaf kind {
+                    type uint8 { range "1..3"; }
+                    mandatory true;
+                    ze:help "Local BGP, configured BGP or redistributed source";
+                    description "Numeric rpc.OriginSourceKind: one local BGP, two configured BGP, three redistributed. Zero is refused.";
+                }
+                leaf protocol {
+                    type string;
+                    ze:help "Registered original redistribution protocol";
+                    description "Required for redistributed source and absent for local/configured BGP; not the process name or BGP ORIGIN.";
+                }
+                leaf instance { type uint64; mandatory true; ze:help "Original source instance, including explicit zero"; }
+                leaf metric { type uint32; mandatory true; ze:help "Accepted source metric"; }
+                leaf distance { type uint8; mandatory true; ze:help "Accepted override value, independent of presence"; }
+                leaf has-distance { type boolean; mandatory true; ze:help "Whether the accepted policy supplied a distance override"; }
+            }
+            container route {
+                ze:help "Owned original local build data";
+                description "Contains native advertisement bytes without ADD-PATH framing, original attribute bytes and portable ASN-width facts. SourceContext is only an engine-local handle; a forked reader must not look it up in its own registry or assume unknown means ASN4.";
+                leaf family { type string { length "1..max"; } mandatory true; ze:help "Registered native route family"; }
+                leaf key-nlri { type binary { length "1..max"; } mandatory true; ze:help "Native advertisement key without source path identifier"; }
+                leaf source-path-id { type uint32; mandatory true; ze:help "Original path identifier, including legal zero"; }
+                leaf source-add-path { type boolean; mandatory true; ze:help "Original path-ID presence independent of its value"; }
+                leaf attributes { type binary; mandatory true; ze:help "Owned original attribute block"; }
+                leaf attributes-explicit { type boolean; mandatory true; ze:help "Whether an explicit block was supplied, including empty"; }
+                leaf source-context { type uint16; mandatory true; ze:help "Opaque original engine encoding-context handle"; }
+                leaf as-path-known { type boolean; mandatory true; ze:help "Whether original AS-path encoding width is known"; }
+                leaf as-path-asn4 { type boolean; mandatory true; ze:help "Four-octet AS-path encoding only when known"; description "Unknown width must carry false; readers retain unknown bytes opaque rather than assuming ASN4."; }
+                leaf next-hop-policy {
+                    type uint8 { range "0..3"; }
+                    mandatory true;
+                    ze:help "Original late-bound next-hop policy";
+                    description "Zero unset for a family requiring no next hop, one explicit, two self, three default candidate. Engine family validation precedes intake.";
+                }
+                leaf next-hop { type string; ze:help "Explicit/default address; absent for self or unset"; }
+                leaf origin-as { type uint32; mandatory true; ze:help "Original local virtual-origin AS, zero for ordinary synthesis"; }
+            }
+        }
+        output {
+            uses engine:update-route-result;
         }
     }
 

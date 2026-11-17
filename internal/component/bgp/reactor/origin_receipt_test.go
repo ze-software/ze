@@ -23,7 +23,7 @@ func originOwnerFixture(t *testing.T, name string) (plugin.SelectedOwner, contex
 	return owner, cancel
 }
 
-func originReceiptFixture(t *testing.T) (*selectedWriterFixture, *originReceiptStore, originProducer, *originSource, *originBuildValue, plugin.SelectedOwner) {
+func originReceiptFixture(t *testing.T) (*selectedWriterFixture, *originReceiptStore, originProducer, *originSource, *originBuildValue) {
 	t.Helper()
 	writer := newSelectedWriterFixture(t, false)
 	owner, _ := originOwnerFixture(t, selectedWriterProcess)
@@ -35,71 +35,71 @@ func originReceiptFixture(t *testing.T) (*selectedWriterFixture, *originReceiptS
 	require.NoError(t, err)
 	store, err := newOriginReceiptStore(t.Context())
 	require.NoError(t, err)
-	return writer, store, producer, source, value, owner
+	return writer, store, producer, source, value
 }
 
 // The issuer and actual dissemination/sender checks authenticate one immutable
 // original contribution. Guessed IDs, peers and same-name successors cannot use it.
 func TestOriginReceiptChecksExactScopeAndIncarnation(t *testing.T) {
-	f, store, producer, source, value, owner := originReceiptFixture(t)
-	id, err := store.issue(t.Context(), producer, source, value, f.peer, owner)
+	f, store, producer, source, value := originReceiptFixture(t)
+	id, err := store.issue(t.Context(), producer, source, value, f.peer, producer.owner)
 	require.NoError(t, err)
 	require.NotZero(t, id)
-	write, err := store.admit(id, owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
+	write, err := store.admit(id, producer.owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.NoError(t, err)
 	require.NoError(t, write.current())
 	require.Same(t, value, write.build())
 	write.complete()
 	require.Error(t, write.current(), "a completed lease cannot write again")
-	_, err = store.admit(id+1, owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
+	_, err = store.admit(id+1, producer.owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.Error(t, err)
 	wrongIdentity, err := newOriginIdentity(value.family, []byte{24, 10, 9, 0}, 0, true)
 	require.NoError(t, err)
-	_, err = store.admit(id, owner, f.peer, f.peer.selectedOwnerSnapshot(), wrongIdentity.key)
+	_, err = store.admit(id, producer.owner, f.peer, f.peer.selectedOwnerSnapshot(), wrongIdentity.key)
 	require.Error(t, err)
 	other, _ := originOwnerFixture(t, selectedWriterProcess)
 	_, err = store.admit(id, other, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.Error(t, err)
-	_, err = store.admit(id, owner, &Peer{}, f.peer.selectedOwnerSnapshot(), value.key)
+	_, err = store.admit(id, producer.owner, &Peer{}, f.peer.selectedOwnerSnapshot(), value.key)
 	require.Error(t, err)
 	otherSettings := *f.peer.Settings()
 	otherPeer := NewPeer(&otherSettings)
 	require.Equal(t, f.peer.Settings().Address, otherPeer.Settings().Address)
 	require.NotEqual(t, f.peer.sourceOwner, otherPeer.sourceOwner)
-	_, err = store.admit(id, owner, otherPeer, f.peer.selectedOwnerSnapshot(), value.key)
+	_, err = store.admit(id, producer.owner, otherPeer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.Error(t, err)
-	_, err = store.admit(id, owner, f.peer, nil, value.key)
+	_, err = store.admit(id, producer.owner, f.peer, nil, value.key)
 	require.Error(t, err)
 	foreign, _ := originOwnerFixture(t, "unattached-origin-provider")
 	_, err = store.issue(t.Context(), producer, source, value, f.peer, foreign)
 	require.Error(t, err)
 	foreignProducer, err := newProcessOriginProducer(foreign)
 	require.NoError(t, err)
-	_, err = store.issue(t.Context(), foreignProducer, source, value, f.peer, owner)
+	_, err = store.issue(t.Context(), foreignProducer, source, value, f.peer, producer.owner)
 	require.Error(t, err, "sender grants must be checked at the actual engine domain boundary")
 }
 
 // Replacement and source-owned withdrawal remove only that current source;
 // independent source instances survive, and no withdrawn history stays indexed.
 func TestOriginReceiptReplacementAndRemovalStayBounded(t *testing.T) {
-	f, store, producer, source, value, owner := originReceiptFixture(t)
-	first, err := store.issue(t.Context(), producer, source, value, f.peer, owner)
+	f, store, producer, source, value := originReceiptFixture(t)
+	first, err := store.issue(t.Context(), producer, source, value, f.peer, producer.owner)
 	require.NoError(t, err)
 	siblingSource, err := newOriginSource(originSourceInput{kind: originSourceLocalBGP, instance: 1})
 	require.NoError(t, err)
-	sibling, err := store.issue(t.Context(), producer, siblingSource, value, f.peer, owner)
+	sibling, err := store.issue(t.Context(), producer, siblingSource, value, f.peer, producer.owner)
 	require.NoError(t, err)
-	replacement, err := store.issue(t.Context(), producer, source, value, f.peer, owner)
+	replacement, err := store.issue(t.Context(), producer, source, value, f.peer, producer.owner)
 	require.NoError(t, err)
 	require.NotEqual(t, first, replacement)
-	_, err = store.admit(first, owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
+	_, err = store.admit(first, producer.owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.Error(t, err)
 	require.Len(t, store.receipts, 2)
 	require.Len(t, store.current, 2)
 	require.NoError(t, store.withdraw(t.Context(), producer, source, value.originIdentity, f.peer))
-	_, err = store.admit(replacement, owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
+	_, err = store.admit(replacement, producer.owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.Error(t, err)
-	good, err := store.admit(sibling, owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
+	good, err := store.admit(sibling, producer.owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.NoError(t, err)
 	good.complete()
 	require.Len(t, store.current, 1)
@@ -110,7 +110,7 @@ func TestOriginReceiptReplacementAndRemovalStayBounded(t *testing.T) {
 	require.NoError(t, store.withdraw(t.Context(), producer, source, value.originIdentity, f.peer))
 	require.Equal(t, before, store.next, "never-issued withdrawal creates no ID or tombstone")
 	store.next = math.MaxUint64
-	_, err = store.issue(t.Context(), producer, source, value, f.peer, owner)
+	_, err = store.issue(t.Context(), producer, source, value, f.peer, producer.owner)
 	require.Error(t, err)
 	require.Empty(t, store.current)
 }
@@ -121,19 +121,19 @@ func nilOriginCurrentReader(context.Context, rpc.CurrentSelectionInput) (*rpc.Cu
 
 // Source path-ID presence is independent of identifier zero in issuer identity.
 func TestOriginReceiptPathZeroAndAbsentRemainIndependent(t *testing.T) {
-	f, store, producer, source, value, owner := originReceiptFixture(t)
-	withZero, err := store.issue(t.Context(), producer, source, value, f.peer, owner)
+	f, store, producer, source, value := originReceiptFixture(t)
+	withZero, err := store.issue(t.Context(), producer, source, value, f.peer, producer.owner)
 	require.NoError(t, err)
 	input := originBuildFixture()
 	input.hasPathID = false
 	withoutPath, err := newOriginBuildValue(input)
 	require.NoError(t, err)
-	without, err := store.issue(t.Context(), producer, source, withoutPath, f.peer, owner)
+	without, err := store.issue(t.Context(), producer, source, withoutPath, f.peer, producer.owner)
 	require.NoError(t, err)
 	require.NotEqual(t, withZero, without)
 	require.Len(t, store.current, 2)
 	require.NoError(t, store.withdraw(t.Context(), producer, source, value.originIdentity, f.peer))
-	write, err := store.admit(without, owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
+	write, err := store.admit(without, producer.owner, f.peer, f.peer.selectedOwnerSnapshot(), value.key)
 	require.NoError(t, err)
 	write.complete()
 	require.Len(t, store.current, 1)

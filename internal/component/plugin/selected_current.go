@@ -13,8 +13,9 @@ import (
 // selectedCurrentReader is immutable after binding. A private pointer keeps
 // SelectedOwner comparable while its exact connection reader remains captured.
 type selectedCurrentReader struct {
-	read     rpc.CurrentSelectionHandler
-	lifetime context.Context // Nil explicitly denotes a query-only primitive owner.
+	originIntake rpc.OriginIntakeHandler
+	read         rpc.CurrentSelectionHandler
+	lifetime     context.Context // Nil explicitly denotes a query-only primitive owner.
 }
 
 // WithCurrentSelection returns one bound owner before its Process publishes it.

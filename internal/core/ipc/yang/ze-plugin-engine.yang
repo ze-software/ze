@@ -384,6 +384,12 @@ module ze-plugin-engine {
                 ze:help "Declare acknowledged source-policy lifecycle support";
                 description "Implements prepare, apply, abort and finalize for retained source state. The SDK OnSourcePolicy registration declares both ownership and support.";
             }
+            leaf origin-intake {
+                type boolean;
+                default false;
+                ze:help "Declare joined scoped-origin mutation intake";
+                description "Derived from SDK OnOriginIntake before Run. Support grants no destination or source authority. An unavailable or undeclared configured owner is not a legacy provider.";
+            }
             leaf current-selection {
                 type boolean;
                 default false;
@@ -889,6 +895,54 @@ module ze-plugin-engine {
         ze:help "Plugin signals it is operational and ready to process events.";
     }
 
+    grouping update-route-result {
+        description "Complete rpc.UpdateRouteOutput shared by route commands and scoped origin intake. Counts are command completion facts, not forwarding authority.";
+        leaf announced {
+            type uint32;
+            description
+                "The count is read from the route result the dispatched command produced.
+                 A command the dispatcher silenced answers zero.";
+            ze:help "Number of NLRIs announced";
+        }
+        leaf withdrawn {
+            type uint32;
+            description
+                "The count is read from the same route result as announced. A command the
+                 dispatcher silenced answers zero.";
+            ze:help "Number of NLRIs withdrawn";
+        }
+        leaf-list warnings {
+            type string;
+            description "Reasons attached to completed command work; not admission receipts.";
+            ze:help "Route command warnings";
+        }
+        leaf failure {
+            type string;
+            description "Command failure cause; earlier completed counts remain valid.";
+            ze:help "Route command failure reason";
+        }
+        list admissions {
+            key "family key-nlri destination peer-owner";
+            description "One native key and concrete authorized Peer scope per admission result.";
+            leaf family { type string; ze:help "Native route family"; }
+            leaf key-nlri { type binary; ze:help "Native NLRI without source path identifier"; }
+            leaf destination { type string; ze:help "Authorized peer address"; }
+            leaf peer-owner { type uint64; ze:help "Original configured Peer identity"; }
+            leaf generation { type uint64; ze:help "Retained admission generation; zero for failure"; }
+            leaf outcome {
+                type uint8 { range "1..3"; }
+                description "1 retained, 2 refused, 3 failed. Zero is unspecified and refused.";
+                ze:help "Explicit origin admission outcome";
+            }
+            leaf disposition {
+                type uint8 { range "0..3"; }
+                description "0 unsuccessful admission, 1 selected, 2 selection suppression, 3 export suppression.";
+                ze:help "Election or export disposition";
+            }
+            leaf reason { type string; ze:help "Admission refusal, failure or suppression reason"; }
+        }
+    }
+
     // Runtime: Route injection.
 
     rpc update-route {
@@ -899,6 +953,12 @@ origin admission receipts where an admission owner produced them. A receipt
 is not forwarding authority. The peer selector defaults to every peer.";
         ze:help "Plugin injects a route update to matching peers.";
         input {
+            leaf deadline-ms {
+                type int64 { range "0..max"; }
+                default 0;
+                ze:help "Opt into acknowledged route-request cancellation";
+                description "Absolute Unix milliseconds for new SDK requests, bounded to thirty seconds by the enrolled receiver. Zero preserves the legacy ordinary request contract. Parallel identical commands remain independently correlated.";
+            }
             leaf peer-selector {
                 type string;
                 default "*";
@@ -925,50 +985,7 @@ is not forwarding authority. The peer selector defaults to every peer.";
             }
         }
         output {
-            leaf announced {
-                type uint32;
-                description
-                    "The count is read from the route result the dispatched command produced.
-                     A command the dispatcher silenced answers zero.";
-                ze:help "Number of NLRIs announced";
-            }
-            leaf withdrawn {
-                type uint32;
-                description
-                    "The count is read from the same route result as announced. A command the
-                     dispatcher silenced answers zero.";
-                ze:help "Number of NLRIs withdrawn";
-            }
-            leaf-list warnings {
-                type string;
-                description "Reasons attached to completed command work; not admission receipts.";
-                ze:help "Route command warnings";
-            }
-            leaf failure {
-                type string;
-                description "Command failure cause; earlier completed counts remain valid.";
-                ze:help "Route command failure reason";
-            }
-            list admissions {
-                key "family key-nlri destination peer-owner";
-                description "One native key and concrete authorized Peer scope per admission result.";
-                leaf family { type string; ze:help "Native route family"; }
-                leaf key-nlri { type binary; ze:help "Native NLRI without source path identifier"; }
-                leaf destination { type string; ze:help "Authorized peer address"; }
-                leaf peer-owner { type uint64; ze:help "Original configured Peer identity"; }
-                leaf generation { type uint64; ze:help "Retained admission generation; zero for failure"; }
-                leaf outcome {
-                    type uint8 { range "1..3"; }
-                    description "1 retained, 2 refused, 3 failed. Zero is unspecified and refused.";
-                    ze:help "Explicit origin admission outcome";
-                }
-                leaf disposition {
-                    type uint8 { range "0..3"; }
-                    description "0 unsuccessful admission, 1 selected, 2 selection suppression, 3 export suppression.";
-                    ze:help "Election or export disposition";
-                }
-                leaf reason { type string; ze:help "Admission refusal, failure or suppression reason"; }
-            }
+            uses update-route-result;
         }
     }
 

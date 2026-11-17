@@ -680,18 +680,53 @@ ends that destination session before cleanup returns, so a replacement never
 inherits the predecessor's advertised frontier. Public selected requests
 continue to require a live owner and cannot acquire this removal authority.
 
-The ordinary RIB destination dispatcher admits captured Sessions from the
-engine's authenticated per-recipient state facts. Its initial snapshot and live
-selection changes use this writer, and final receipts precede initial readiness.
+The selected writer admits captured Sessions from the engine's authenticated
+per-recipient state facts. A caller's initial snapshot and live selection changes
+share this writer, and final receipts precede that caller's readiness.
 Ordinary Route Refresh still needs exact receiving-Session event capture and
 current-selection replay; legacy SENT-history replay does not satisfy it.
-Scoped local-origin admission is separate; an origin receipt without that
-admission is refused. The linked ordinary-advertiser release spec remains open.
+
+Scoped local-origin admission refuses an unissued, revoked or wrong-scope
+receipt. An admitted local selection borrows the issuer's original native bytes
+and attribute encoding context. It also preserves the next-hop policy and
+origin-AS intent. The selected `StoredRoute` is a format echo and cannot replace
+the issuer's values. The engine refuses a native-key mismatch before it builds
+output.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin, writeContext -->
 <!-- source: internal/component/bgp/reactor/reactor_api_selected.go -- SelectRoutes, selectRoute -->
+
+Local selections use the existing destination-aware batch builder and the
+selected final writer. `Session.writeUpdate` applies the export gate once.
+Received-route forwarding would prepend the AS path again and invent a source
+Peer for this destination-specific output.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin, writeContext -->
+
+The originated output kind keeps an internal local route eligible without an
+export policy. A missing export policy still suppresses external output. An
+explicit rejecting policy also suppresses output. Both forms of suppression
+retire prior selected output. Received selections keep their source lease and
+forwarding path.
 <!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected, retireSelected -->
+<!-- source: internal/component/bgp/reactor/source_receipt_write.go -- admitWrite, writeContext -->
+
+The final writer checks the issued origin write under the socket lock.
+Revocation cancels its private writer context, and the final writer joins the
+actual flush. Completion releases that exact lease. Replacement, exclusion and
+absence use the existing selected-slot retirement.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin, writeContext -->
+<!-- source: internal/component/bgp/reactor/selected_write.go -- current -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- sendUpdateCounted -->
+<!-- source: internal/component/bgp/reactor/origin_write.go -- current, complete -->
+<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected -->
 <!-- source: internal/component/bgp/reactor/selected_output.go -- selectedOutput, selectedSlots, setSelected -->
 <!-- source: internal/component/bgp/reactor/selected_cleanup.go -- retireSelectedOwner, hasSelectedOwner -->
-<!-- source: internal/component/bgp/reactor/source_receipt_write.go -- admitWrite, writeContext -->
+
+Native ADD-PATH presence stays separate from its identifier, including legal
+identifier zero. Opaque identities stay native. Local sent receipts carry no
+received-source owner, policy epoch or lease. Runtime issuer construction,
+lifecycle adoption and provider election remain open under the
+ordinary-advertiser release spec.
+<!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin, writeContext -->
 
 #### Shared ownership admission
 

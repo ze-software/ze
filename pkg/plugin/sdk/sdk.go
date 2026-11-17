@@ -117,6 +117,7 @@ type Plugin struct {
 	// connection's source-policy worker (sdk_source_policy.go) and declared at
 	// Stage 1 as both source-policy owner and handler.
 	onSourcePolicy     SourcePolicyHandler
+	onOriginIntake     OriginIntakeHandler
 	onCurrentSelection CurrentSelectionHandler
 
 	// resolverCaches is the Stage 1 declaration OnResolverCacheClear records:
@@ -497,6 +498,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 	reg.StartedHandler = p.onStarted != nil
 	reg.ConfigCompletion = p.callbacks[callbackConfigComplete] != nil
 	reg.SourcePolicy = p.onSourcePolicy != nil
+	reg.OriginIntake = p.onOriginIntake != nil
 	reg.CurrentSelection = p.onCurrentSelection != nil
 	reg.EventSettlement = p.asyncCallbacks[rpc.MethodEventSettlement] != nil
 	if reg.SourcePolicy {
@@ -554,6 +556,17 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 	}
 
 	// Stage 5: ready (with optional startup subscriptions and transport negotiation)
+	stopOriginIntake, err := p.startOriginIntakeWorker(ctx)
+	if err != nil {
+		return startupFailure(5, "origin-intake", err)
+	}
+	defer func() {
+		if err := stopOriginIntake(); err != nil {
+			if runErr == nil {
+				runErr = err
+			}
+		}
+	}()
 	stopCurrentSelection, err := p.startCurrentSelectionWorker(ctx)
 	if err != nil {
 		return startupFailure(5, "current-selection", err)

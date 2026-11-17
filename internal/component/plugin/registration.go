@@ -85,6 +85,7 @@ type PluginRegistration struct {
 	ConfigCompletion  bool // Retains undo until acknowledged whole-reload completion.
 	SourcePolicyOwner bool // Retains state whose source eligibility can change.
 	SourcePolicy      bool // Implements the acknowledged source-policy lifecycle.
+	OriginIntake      bool // Implements the joined scoped-origin mutation callback.
 	CurrentSelection  bool // Answers current desired selection independently of ordinary callbacks.
 	EventSettlement   bool // Acknowledges asynchronous work after event application.
 	VerifyBudget      int  // Estimated verify time in seconds (0 = trivial)
