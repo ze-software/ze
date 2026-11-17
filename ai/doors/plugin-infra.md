@@ -59,6 +59,10 @@ declares another schema is refused at Stage 1 (`refuseChangedSchema`, the
 
 ## Boundaries
 
+- **A compiled-in and an external plugin differ only in how they reach the
+  bus.** A rule for external plugins alone needs a transport reason or an
+  arrival-order reason, and any other difference is a defect
+  (`plugin-system.md`, "One plugin, two ways to reach the bus").
 - **The engine never enumerates plugins.** Families, events, send types,
   commands and claims all arrive by declaration (`DESIGN-HISTORY.md`, Plugin
   system, the row `Plugin declares what it handles; engine never enumerates`).

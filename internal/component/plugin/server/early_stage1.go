@@ -8,7 +8,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -24,9 +23,10 @@ import (
 type EarlyDeclaration struct {
 	// Plugin is the plugin's name, as the config or the command line declares it.
 	Plugin string
-	// Schema is the YANG module the plugin's Stage 1 declaration carries. It
-	// is nil when the declaration carries none, and when Err is set.
-	Schema *rpc.SchemaDecl
+	// Schemas are the YANG modules the plugin's Stage 1 declaration carries,
+	// in the order it lists them. They are empty when the declaration carries
+	// none, and when Err is set.
+	Schemas []rpc.SchemaDecl
 	// Err says why the daemon holds no declaration from this plugin: it could
 	// not be started, it sent nothing within its bound, its connection ended,
 	// or what it sent is not a declaration. It names the plugin, the reason
@@ -114,7 +114,7 @@ func HoldDeclaredPlugins(ctx context.Context, spawner DeclaredSpawner, configs [
 		if proc == nil {
 			panic("BUG: declared plugin " + cfg.Name + " started and is not in the process manager")
 		}
-		schema, held, readErr := readEarlyDeclaration(ctx, proc, started.Add(earlyDeclarationBound(cfg)))
+		schemas, held, readErr := readEarlyDeclaration(ctx, proc, started.Add(earlyDeclarationBound(cfg)))
 		if readErr != nil {
 			declarations[i].Err = readErr
 			if !held {
@@ -122,7 +122,7 @@ func HoldDeclaredPlugins(ctx context.Context, spawner DeclaredSpawner, configs [
 			}
 			continue
 		}
-		declarations[i].Schema = schema
+		declarations[i].Schemas = schemas
 	}
 	return declarations
 }
@@ -143,11 +143,11 @@ func earlyDeclarationBound(cfg plugin.PluginConfig) time.Duration {
 const earlyDeclarationFloor = 100 * time.Millisecond
 
 // readEarlyDeclaration reads and keeps the Stage 1 request of one started
-// plugin and answers the module it declares. held says whether the plugin is
+// plugin and answers the modules it declares. held says whether the plugin is
 // still held with a request for its tier to answer: true for a request that is
 // not a readable declaration, which the tier refuses on the wire with its own
 // text, and false when nothing was read, where the caller stops the plugin.
-func readEarlyDeclaration(ctx context.Context, proc *process.Process, deadline time.Time) (schema *rpc.SchemaDecl, held bool, err error) {
+func readEarlyDeclaration(ctx context.Context, proc *process.Process, deadline time.Time) (schemas []rpc.SchemaDecl, held bool, err error) {
 	cfg := proc.Config()
 	if initErr := proc.InitConns(); initErr != nil {
 		return nil, false, notDeclaredRefusal(cfg, "its connection could not be set up: "+initErr.Error())
@@ -181,11 +181,17 @@ func readEarlyDeclaration(ctx context.Context, proc *process.Process, deadline t
 			"its first request was not "+rpc.MethodDeclareRegistration,
 			fmt.Errorf("first request %q", request.Method))
 	}
-	var input rpc.DeclareRegistrationInput
-	if jsonErr := json.Unmarshal(request.Params, &input); jsonErr != nil {
-		return nil, true, unreadableDeclarationRefusal(cfg, "its declaration is not valid JSON", jsonErr)
+	input, decodeErr := rpc.DecodeDeclaration(cfg.Name, request.Params)
+	if decodeErr != nil {
+		if _, refused := errors.AsType[*opererr.Error](decodeErr); refused {
+			// A declaration that carries a key ze does not know: the decoder
+			// names the plugin, the key and the fix, and the tier refuses it
+			// on the wire with the same text (runStartupHandshake).
+			return nil, true, decodeErr
+		}
+		return nil, true, unreadableDeclarationRefusal(cfg, "its declaration is not valid JSON", decodeErr)
 	}
-	return input.Schema, true, nil
+	return input.Schemas, true, nil
 }
 
 // unreadableDeclarationRefusal is the outcome of a plugin whose first request

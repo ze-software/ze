@@ -48,7 +48,7 @@ const (
 // sectionStage1 and sectionStage5 are the section titles of
 // docs/plugin-development/protocol.md the checks enforce.
 const (
-	sectionStage1 = "Stage 1: Registration (Plugin to Engine)"
+	sectionStage1 = rpc.DeclarationSection
 	sectionStage5 = "Stage 5: Ready (Plugin to Engine)"
 )
 
@@ -256,7 +256,7 @@ var stage1Checks = []stage1Check{
 		// declares no log line.
 		name: "schema-unchanged", section: sectionStage1, phase: stage1PhaseSink,
 		live: func(e *engineStartupSink, input *rpc.DeclareRegistrationInput) error {
-			return refuseChangedSchema(e.proc.Config(), input.Schema)
+			return refuseChangedSchema(e.proc.Config(), input.Schemas)
 		},
 		daemonState: "it compares the declared config schema with the one the daemon read from the plugin when it started",
 	},

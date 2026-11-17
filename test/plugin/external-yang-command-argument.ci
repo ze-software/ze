@@ -1,0 +1,114 @@
+# Test: an external plugin's command is judged by the YANG it brings, before the plugin is asked
+#
+# Question: when an external plugin brings a config module, a -cmd module and
+# an -api module at Stage 1, and declares the commands at Stage 1, does the
+# daemon refuse a value its argument's type refuses (a name longer than 16
+# characters) and a missing argument without asking the plugin, while a good
+# value reaches the plugin with the value the operator typed?
+# Why not a unit test: the answer is the whole path of a running daemon: the
+# modules joined at start, the argument definitions rebuilt from the joined
+# set, the command typed by an operator over `ze cli -c`, the dispatcher's
+# route to a forked process, and the plugin's own answer. Unit tests prove the
+# join and the definitions alone (internal/component/config/yang
+# join_command_test.go).
+#
+# The plugin is a REAL external process built on the public Go SDK
+# (internal/test/fixture/plugin_fixture_external_yang.go, variant `commands`).
+# It prints each command it receives with its arguments, so a value the daemon
+# refused is a line that never appears.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup, the command step: the
+#   module list on the wire, the -cmd module joined, and the argument check of
+#   route R9 (Dispatcher.routeToProcess) reading the external command's leaf.
+# PREVENTS: an external plugin's command reaching the plugin with a value its
+#   own YANG refuses, or with no value at all.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI
+# dials, as test/plugin/command-arg-enum-refusal.ci does.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=commands.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang commands"
+		encoder json
+	}
+}
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+#
+# Where each step is observed. A `ze cli -c` is a quick-exit command, so its
+# `exit=` is compared and its own output span is exact. The plugin answers
+# with the command and the arguments it received (externalYANGCommand), so a
+# good step proves the plugin was asked, with the value, in that step's own
+# stdout. A refused step proves the refusal came from the argument check by
+# its exit and its text, and the rejects under the daemon prove the plugin
+# never printed that command: the daemon's span holds every line the plugin's
+# stderr relayed, to the end of the run. The refusals run between the two good
+# steps, so the last good step's round trip follows them.
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start commands.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang command show acme-monitor status args=[]
+reject=stderr:contains=args=[this-name-is-far-too-long]
+reject=stderr:contains=FIXTURE: external-yang command show acme-monitor target args=[]
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+# The command with no argument reaches the plugin.
+cmd=foreground:seq=3:exec=ze cli -c "show acme-monitor status":exit=0
+expect=stdout:contains=show acme-monitor status
+expect=stdout:contains=[]
+
+# A value longer than the leaf's length bound (25 characters, the leaf takes
+# 1..16): refused by the daemon's argument check, with the whole command as
+# the fix, and never sent to the plugin.
+cmd=foreground:seq=4:exec=ze cli -c "show acme-monitor target this-name-is-far-too-long":exit=1
+expect=stderr:contains=is outside the accepted length (25 characters)
+expect=stderr:contains=name accepts 1..16 characters
+expect=stderr:contains=fix: show acme-monitor target
+
+# The argument is mandatory: a line without it is refused by the same check,
+# with the missing-argument refusal and not the length one. Today that refusal
+# is its problem line alone, with no why and no fix (journal
+# `error-names-no-fix-command.md`, 2026-11-17), so no fix line is asserted
+# here; the reject under the daemon proves the plugin was not asked.
+cmd=foreground:seq=5:exec=ze cli -c "show acme-monitor target":exit=1
+expect=stderr:contains=error: required argument missing: name
+reject=stderr:contains=is outside the accepted length
+
+# A good value reaches the plugin as typed: the plugin's answer names it.
+cmd=foreground:seq=6:exec=ze cli -c "show acme-monitor target probe-b":exit=0
+expect=stdout:contains=show acme-monitor target
+expect=stdout:contains=[probe-b]

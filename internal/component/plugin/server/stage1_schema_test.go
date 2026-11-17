@@ -114,7 +114,11 @@ func TestStage1RefusesChangedDeclaration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			published := publishSchemaSubject(t)
 
-			err := refuseChangedSchema(externalBlock(tc.plugin), tc.schema)
+			var schemas []rpc.SchemaDecl
+			if tc.schema != nil {
+				schemas = []rpc.SchemaDecl{*tc.schema}
+			}
+			err := refuseChangedSchema(externalBlock(tc.plugin), schemas)
 			require.Error(t, err, "a changed declaration was accepted")
 			refusal, operator := errors.AsType[*opererr.Error](err)
 			require.True(t, operator, "the refusal is no operator error: %v", err)
@@ -134,6 +138,106 @@ func TestStage1RefusesChangedDeclaration(t *testing.T) {
 	}
 }
 
+const schemaProbeText = `module acme-probe-conf {
+    namespace "urn:acme:probe";
+    prefix probe;
+    container acme-probe {
+        leaf depth { type uint8; }
+    }
+}`
+
+// schemaProbeDecl is the second module schemaSubject declares in the
+// multi-module tests.
+func schemaProbeDecl() rpc.SchemaDecl {
+	return rpc.SchemaDecl{Module: "acme-probe-conf", Namespace: "urn:acme:probe", YANGText: schemaProbeText}
+}
+
+// publishTwoModules makes the process one that booted with schemaSubject
+// declaring two modules, in the order schemaSubjectDecl then schemaProbeDecl.
+// It MUST run before the test builds a plugin server.
+func publishTwoModules(t *testing.T) []yang.ExternalModule {
+	t.Helper()
+	t.Cleanup(yang.ResetPublishedModulesForTest())
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	modules := DeclaredModules(schemaSubject, []rpc.SchemaDecl{*schemaSubjectDecl(), schemaProbeDecl()})
+	require.Len(t, modules, 2)
+	require.NoError(t, yang.PublishExternalModules(modules, yang.NewValidatorRegistry()))
+	return modules
+}
+
+// TestStage1RefusesChangedModuleSet: a plugin that brings several modules is
+// compared module by module. Method: publish two modules for one plugin, then
+// judge a restart that drops one and a restart that renames one, and read the
+// operator error each answers.
+//
+// VALIDATES: the two refusals schemaDifference holds only for a set of
+// modules: a published module the plugin no longer declares, and a module
+// declared now beside the published ones that it did not declare at start.
+// Each names the plugin, the module and the restart of ze, and leaves the
+// published set unwritten.
+// PREVENTS: a restart that silently loses one of a plugin's modules (its
+// config or its commands), or that brings a module no reader compiled.
+func TestStage1RefusesChangedModuleSet(t *testing.T) {
+	renamed := schemaProbeDecl()
+	renamed.Module = "acme-scan-conf"
+
+	cases := []struct {
+		name    string
+		schemas []rpc.SchemaDecl
+		says    string
+	}{
+		{"one module no longer declared", []rpc.SchemaDecl{*schemaSubjectDecl()},
+			`it does not declare YANG module "acme-probe-conf" now, and declared it when ze started`},
+		{"one module renamed", []rpc.SchemaDecl{*schemaSubjectDecl(), renamed},
+			`it declares YANG module "acme-scan-conf" now, which it did not declare when ze started`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			published := publishTwoModules(t)
+
+			err := refuseChangedSchema(externalBlock(schemaSubject), tc.schemas)
+			require.Error(t, err, "a changed module set was accepted")
+			refusal, operator := errors.AsType[*opererr.Error](err)
+			require.True(t, operator, "the refusal is no operator error: %v", err)
+			assert.Equal(t, `plugin "`+schemaSubject+`" was started again with another config schema, and ze refused it: `+tc.says,
+				refusal.Problem())
+			assert.Equal(t, "restart ze", refusal.Fix())
+
+			warning, raised := schemaChangedWarning(schemaSubject)
+			require.True(t, raised, "no doctor-plugin-schema-changed warning names the plugin")
+			assert.Contains(t, warning.Message, tc.says)
+
+			after, fixed := yang.PublishedExternalModules()
+			require.True(t, fixed)
+			assert.Equal(t, published, after, "the refusal wrote the published set")
+		})
+	}
+}
+
+// TestStage1ModuleSetOrderDoesNotMatter: the restart check compares the
+// modules by name, so a plugin that lists the same modules in another order
+// declares the same schema. Method: publish two modules, then judge the same
+// two modules in the order they were published and reversed.
+//
+// VALIDATES: what schemaDifference promises: each declared module is the
+// published one of its name, and each published module is declared, whatever
+// the order of the list.
+// PREVENTS: a plugin refused at restart because its runtime built the list in
+// another order, when its schema did not change.
+func TestStage1ModuleSetOrderDoesNotMatter(t *testing.T) {
+	publishTwoModules(t)
+
+	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject),
+		[]rpc.SchemaDecl{*schemaSubjectDecl(), schemaProbeDecl()}))
+	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject),
+		[]rpc.SchemaDecl{schemaProbeDecl(), *schemaSubjectDecl()}))
+
+	_, raised := schemaChangedWarning(schemaSubject)
+	assert.False(t, raised, "an unchanged module set raised the warning")
+}
+
 // TestStage1AcceptsUnchangedDeclaration: the declarations a restart may
 // bring. Method: publish one module, then judge the same module, no module
 // from the plugin that declared none, and any module from a plugin compiled
@@ -147,14 +251,14 @@ func TestStage1RefusesChangedDeclaration(t *testing.T) {
 func TestStage1AcceptsUnchangedDeclaration(t *testing.T) {
 	publishSchemaSubject(t)
 
-	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject), schemaSubjectDecl()))
+	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject), []rpc.SchemaDecl{*schemaSubjectDecl()}))
 	require.NoError(t, refuseChangedSchema(externalBlock(schemaSilent), nil))
-	require.NoError(t, refuseChangedSchema(externalBlock(schemaSilent), &rpc.SchemaDecl{Module: "beta-conf"}))
+	require.NoError(t, refuseChangedSchema(externalBlock(schemaSilent), []rpc.SchemaDecl{{Module: "beta-conf"}}))
 
 	compiledIn := plugin.PluginConfig{Name: schemaSubject, Internal: true, Run: schemaSubject}
 	changed := schemaSubjectDecl()
 	changed.YANGText += "\n"
-	require.NoError(t, refuseChangedSchema(compiledIn, changed))
+	require.NoError(t, refuseChangedSchema(compiledIn, []rpc.SchemaDecl{*changed}))
 
 	_, raised := schemaChangedWarning(schemaSubject)
 	assert.False(t, raised, "an accepted declaration raised the warning")
@@ -174,7 +278,7 @@ func TestStage1UnchangedDeclarationClearsTheWarning(t *testing.T) {
 	_, raised := schemaChangedWarning(schemaSubject)
 	require.True(t, raised)
 
-	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject), schemaSubjectDecl()))
+	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject), []rpc.SchemaDecl{*schemaSubjectDecl()}))
 	_, raised = schemaChangedWarning(schemaSubject)
 	assert.False(t, raised, "the warning outlived the declaration that ended it")
 }
@@ -192,7 +296,7 @@ func TestStage1SchemaCheckNeedsAPublishedSet(t *testing.T) {
 
 	_, fixed := yang.PublishedExternalModules()
 	require.False(t, fixed)
-	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject), schemaSubjectDecl()))
+	require.NoError(t, refuseChangedSchema(externalBlock(schemaSubject), []rpc.SchemaDecl{*schemaSubjectDecl()}))
 }
 
 // TestOnRegistrationRefusesChangedSchema: the comparison is reached by the
@@ -208,8 +312,8 @@ func TestOnRegistrationRefusesChangedSchema(t *testing.T) {
 	sink := &engineStartupSink{s: s, proc: process.NewProcess(externalBlock(schemaSubject))}
 
 	declaration := validStage1Declaration()
-	declaration.Schema = schemaSubjectDecl()
-	declaration.Schema.YANGText += "\n"
+	declaration.Schemas = []rpc.SchemaDecl{*schemaSubjectDecl()}
+	declaration.Schemas[0].YANGText += "\n"
 
 	err := sink.onRegistration(declaration)
 	require.Error(t, err)

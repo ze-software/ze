@@ -210,13 +210,14 @@ func declarationDecodes(evidence *Evidence) []Row {
 	}
 	row := Row{Check: check, Stage: stageDeclare, Verdict: VerdictFail}
 	row.Fix = "make the JSON one object with the fields of the Stage 1 declaration (" +
-		protocolPage + ", \"Stage 1: Registration (Plugin to Engine)\")"
+		protocolPage + ", \"" + rpc.DeclarationSection + "\")"
 
 	// The strict line names a decode error exactly. Output that is not the
 	// strict line may still hold a declaration the lenient reader found.
+	// The line is decoded as the daemon decodes it (rpc.DecodeDeclaration), so
+	// a key ze does not know fails here with the daemon's own refusal.
 	if payload, broken := strictLine(evidence.Query.Stdout); broken == "" {
-		var declaration rpc.DeclareRegistrationInput
-		if err := json.Unmarshal(payload, &declaration); err != nil {
+		if _, err := rpc.DecodeDeclaration(evidence.Target.Name, payload); err != nil {
 			var tb textbuf.Buffer
 			row.Reason = tb.Str("the JSON does not decode as a declaration: ").Err(err).String()
 			return []Row{row}
@@ -224,6 +225,11 @@ func declarationDecodes(evidence *Evidence) []Row {
 	}
 	if !evidence.Query.Declared {
 		row.Reason = "no " + rpc.MethodDeclareRegistration + " line that decodes was read from standard output"
+		return []Row{row}
+	}
+	if evidence.Query.Refusal != nil {
+		var tb textbuf.Buffer
+		row.Reason = tb.Str("the JSON does not decode as a declaration: ").Err(evidence.Query.Refusal).String()
 		return []Row{row}
 	}
 	return []Row{{Check: check, Stage: stageDeclare, Verdict: VerdictPass}}
@@ -251,6 +257,13 @@ func judgedRow(evidence *Evidence, verdict *plugin.DeclarationVerdict, row Row) 
 		row.Verdict = VerdictNotJudged
 		row.Reason = "no declaration was read, so there is nothing to judge"
 		row.Fix = "fix the declaration-line and declaration-decodes rows first"
+		return row
+	}
+	if evidence.Query.Refusal != nil {
+		// The decoder refused the line, so the checks never read a declaration.
+		row.Verdict = VerdictNotJudged
+		row.Reason = "the declaration was refused before any check read it"
+		row.Fix = "fix the declaration-decodes row first"
 		return row
 	}
 	if verdict.Err == nil {

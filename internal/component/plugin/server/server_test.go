@@ -340,12 +340,12 @@ func TestRegistrationFromRPC(t *testing.T) {
 		},
 		Commands:    []rpc.CommandDecl{{Name: "show-routes"}},
 		WantsConfig: []string{"bgp", "environment"},
-		Schema: &rpc.SchemaDecl{
+		Schemas: []rpc.SchemaDecl{{
 			Module:    "ze-test",
 			Namespace: "urn:ze:test",
 			YANGText:  "module ze-test { }",
 			Handlers:  []string{"test", "test/sub"},
-		},
+		}},
 	}
 
 	reg := registrationFromRPC(input)
@@ -364,11 +364,11 @@ func TestRegistrationFromRPC(t *testing.T) {
 	assert.Equal(t, []string{"show-routes"}, reg.Commands)
 	assert.Equal(t, []string{"bgp", "environment"}, reg.WantsConfigRoots)
 
-	require.NotNil(t, reg.PluginSchema)
-	assert.Equal(t, "ze-test", reg.PluginSchema.Module)
-	assert.Equal(t, "urn:ze:test", reg.PluginSchema.Namespace)
-	assert.Equal(t, "module ze-test { }", reg.PluginSchema.Yang)
-	assert.Equal(t, []string{"test", "test/sub"}, reg.PluginSchema.Handlers)
+	require.Len(t, reg.PluginSchemas, 1)
+	assert.Equal(t, "ze-test", reg.PluginSchemas[0].Module)
+	assert.Equal(t, "urn:ze:test", reg.PluginSchemas[0].Namespace)
+	assert.Equal(t, "module ze-test { }", reg.PluginSchemas[0].Yang)
+	assert.Equal(t, []string{"test", "test/sub"}, reg.PluginSchemas[0].Handlers)
 }
 
 // TestCapabilitiesFromRPC verifies conversion of capability declarations.
@@ -415,7 +415,7 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 			Commands:        []rpc.CommandDecl{{Name: "status"}},
 		}
 		reg := registrationFromRPC(input)
-		assert.Nil(t, reg.PluginSchema)
+		assert.Empty(t, reg.PluginSchemas)
 		assert.Equal(t, []string{"status"}, reg.Commands)
 		assert.True(t, reg.Done)
 	})
@@ -429,7 +429,7 @@ func TestRegistrationFromRPCEdgeCases(t *testing.T) {
 		assert.Empty(t, reg.DecodeFamilies)
 		assert.Empty(t, reg.Commands)
 		assert.Empty(t, reg.WantsConfigRoots)
-		assert.Nil(t, reg.PluginSchema)
+		assert.Empty(t, reg.PluginSchemas)
 	})
 
 	t.Run("unknown_mode_defaults_to_encode", func(t *testing.T) {

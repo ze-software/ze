@@ -402,3 +402,79 @@ plugin's own commands part of this spec?
 |--------|-----------------|
 | No | No existing spec can take it (searched `plan/`; the nearest, `plan/release/fixes/spec-declared-commands-without-leaves.md`, is a release fix for commands compiled into `ze`). A new spec in `plan/post-release/features/` takes the item, the journal row `unwired-feature.md` 2026-11-02 and the missing reader of `reg.PluginSchema`. Closure proceeds once items 1 and 3 to 8 are done |
 | Yes | Phase 11, with a design to put to the owner first: one declaration carries a config module and a command module, a change to the published `SchemaDecl`. New acceptance criteria and functional tests. The spec stays in progress until it is built |
+
+## Phase 11, approved 2026-11-17
+
+This section replaces the D-3 item of the list above: the owner answered it,
+and the answer was "Yes".
+
+**Where the code is.** The laptop's `main` holds `81567bab05` and
+`f98ca55702`. The server branch `worktree-yang-finish` (worktree
+`.claude/worktrees/yang-finish`) has its tip at `c40ca5fb09`. Implementation
+continues from this handover; the spec's phase 11 under Implementation Steps
+is the plan.
+
+**The owner's words, verbatim.**
+
+| When | What he said |
+|------|--------------|
+| On D-3 | "Yes make the plugin define its command. You can change the API and interface between the plugin and ze if it must or helps" |
+| Shown a five-point design | "The yang should already allow to define command ?? or I thought it did" |
+| Shown what lifting the two blockers needs, and two optional improvements to leave out | "lift these two then :-)" |
+
+**What reshaped the design.** His second sentence is correct. A compiled-in
+plugin defines its commands in a `-cmd` module, one `ze:command` node per
+command and one leaf per argument. Help, completion and argument checking
+come from there: `BuildCommandTree`, `rebuildCommandArgDefs` inside
+`yang.PublishExternalModules`, and `command.ValidateModelArgs` before
+`routeToProcess`. Nothing new is invented. Two things alone stop an external
+plugin from using it: the join refuses a module that is not `-conf` and
+augments nothing (`refuseIdleModules`), and the Stage 1 declaration carries
+one YANG text.
+
+**The approved scope, in order.**
+
+| Part | What | Why |
+|------|------|-----|
+| First | Settle R-24 and R-25 at the code: whether command nodes joined after the first tree build are checked (`BuildCommandTree`'s `validateOnce`), and which tree an SSH session completes from. Run the wire census again | The research could not verify either |
+| 11.1 | The Stage 1 `schema` becomes a list of modules: wire, SDK, engine YANG, the Python library, every in-tree plugin and fixture | A plugin brings a config module and a command module |
+| 11.2 | The join accepts a `-cmd` module, and refuses one whose command path the tree already holds | It reaches the existing command tree safely |
+| 11.3 | The restart check covers every module of the list; a command the plugin declares names a node of its command module | The owner's restart-only ruling |
+| 11.4 | `ze <verb> ...` from the shell asks a running Ze for a path the local tree does not hold; with none running, "not available", fix `ze start` | Today the local verb tree answers "unknown command" even when Ze runs; the owner's no-daemon ruling |
+| 11.5 | Pages and example: five departures the approval covers (the spec's Documentation Update Checklist), the Python example's command with an argument | The pages say a plugin brings one module, and that a handler checks its own arguments |
+
+Acceptance criteria AC-30 to AC-40, each with a planned functional test
+`test/plugin/external-yang-command-*.ci` through the fixture plugin or the
+Python example.
+
+**Left out by the same approval, wanted later and not declined** (the spec's
+Work Not Done): removing help text and arguments from the Stage 1 command
+declaration so the YANG is the only source (54 Go files; until then, where
+both exist, the YANG wins); passing arguments to the plugin's handler by name;
+API parameters derived from a command node's leaves when it has no `-api` rpc.
+No existing spec fits the first two; the third's nearest home is part D of
+`plan/release/fixes/spec-yang-single-source-of-truth.md`.
+
+**Open point for the main session to raise with the owner (spec P-1).** An
+external command declared in a `-cmd` module, with no `-api` rpc, shows no
+parameters on MCP, REST or gRPC: `buildParamMeta` (`cmd/ze/hub/command_meta.go`)
+reads rpc input only. The answers are (a) the plugin also brings an `-api`
+module, declaring each argument twice; (b) `buildParamMeta` reads the command
+node's leaves, which changes compiled-in commands with no rpc too; (c) leave
+it, and the pages say so. Each changes only AC-36's surfaces and the pages.
+It does not hold parts 11.1 to 11.4.
+
+**Two later rulings, same day (2026-11-17).** They supersede the open point
+above.
+
+| Ruling | His words | What follows |
+|--------|-----------|--------------|
+| P-1, API parameters | "yes, like current internal plugin, the exact same way." | An external plugin may bring an `-api` module in its list, its command nodes point at its rpcs with `ze:rpc`, and the pair is judged as a compiled-in pair is. `buildParamMeta` reads it unchanged. Nothing is derived from leaves. New AC-41, test `external-yang-command-api-parameters.ci` (planned). The Work Not Done item about deriving parameters from leaves is dropped for external plugins; the general question stays in part D of `spec-yang-single-source-of-truth.md` |
+| The governing rule | "The only differene should be how they reach the bus" | A compiled-in and an external plugin are the same thing to Ze and differ only in transport. A rule for external plugins alone needs a transport reason (Stage 1, fixed until restart, nothing to ask with no `ze` running) or an arrival reason (a name that already exists). Any other difference is a defect. Written into `docs/architecture/plugin/plugin-system.md`, "One plugin, two ways to reach the bus", with one line in `ai/doors/plugin-infra.md`. Every phase 11 step is tested against it |
+
+The spec's table "To re-examine under the transport-only rule" (under Key
+Design Decisions) lists six rows that have no transport reason: the
+top-level redefinition refusal, the idle-module refusal, the stricter
+`ze:validate` and `ze:reference` verdict, the AC-40 Stage 1 node check, the
+"YANG wins" help rule, and the command path clash. Each is settled by the
+rule or brought to the owner before closure.

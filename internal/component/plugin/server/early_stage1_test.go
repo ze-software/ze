@@ -75,7 +75,7 @@ func TestEarlyStage1HoldsAtBarrier(t *testing.T) {
 	go func() {
 		pluginConn := rpc.NewConn(pluginSide, pluginSide)
 		_, err := pluginConn.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
-			Schema: &rpc.SchemaDecl{Module: "acme-monitor-conf", Namespace: "urn:acme:monitor", YANGText: "module acme-monitor-conf {}"},
+			Schemas: []rpc.SchemaDecl{{Module: "acme-monitor-conf", Namespace: "urn:acme:monitor", YANGText: "module acme-monitor-conf {}"}},
 		})
 		answered <- err
 	}()
@@ -85,10 +85,10 @@ func TestEarlyStage1HoldsAtBarrier(t *testing.T) {
 	require.Len(t, declarations, 1)
 	require.NoError(t, declarations[0].Err)
 	assert.Equal(t, "acme-monitor", declarations[0].Plugin)
-	require.NotNil(t, declarations[0].Schema)
-	assert.Equal(t, "acme-monitor-conf", declarations[0].Schema.Module)
-	assert.Equal(t, "urn:acme:monitor", declarations[0].Schema.Namespace)
-	assert.Equal(t, "module acme-monitor-conf {}", declarations[0].Schema.YANGText)
+	require.Len(t, declarations[0].Schemas, 1)
+	assert.Equal(t, "acme-monitor-conf", declarations[0].Schemas[0].Module)
+	assert.Equal(t, "urn:acme:monitor", declarations[0].Schemas[0].Namespace)
+	assert.Equal(t, "module acme-monitor-conf {}", declarations[0].Schemas[0].YANGText)
 	assert.Empty(t, spawner.failed, "a plugin that declared is not failed")
 
 	// Held: the early step answered nothing, so the plugin's call is still
@@ -135,7 +135,7 @@ func TestEarlyStage1KeepsFailureOutcome(t *testing.T) {
 		require.ErrorIs(t, declarations[0].Err, cause)
 		assert.ErrorContains(t, declarations[0].Err, `external plugin "absent-plugin" could not be started`)
 		assert.ErrorContains(t, declarations[0].Err, `fix: ze show plugin conformance run "./no-such-program"`)
-		assert.Nil(t, declarations[0].Schema)
+		assert.Empty(t, declarations[0].Schemas)
 		assert.Empty(t, spawner.failed, "a plugin that never started holds nothing to stop")
 	})
 
@@ -216,7 +216,7 @@ func TestEarlyStage1SecondPluginKeepsItsDeclaration(t *testing.T) {
 		pluginConn := rpc.NewConn(pluginSide, pluginSide)
 		//nolint:errcheck // the test ends the call by canceling ctx
 		pluginConn.CallRPC(ctx, rpc.MethodDeclareRegistration, &rpc.DeclareRegistrationInput{
-			Schema: &rpc.SchemaDecl{Module: "prompt-conf", YANGText: "module prompt-conf {}"},
+			Schemas: []rpc.SchemaDecl{{Module: "prompt-conf", YANGText: "module prompt-conf {}"}},
 		})
 	}()
 
@@ -225,8 +225,8 @@ func TestEarlyStage1SecondPluginKeepsItsDeclaration(t *testing.T) {
 	require.Len(t, declarations, 2)
 	require.Error(t, declarations[0].Err)
 	require.NoError(t, declarations[1].Err, "the declaration waited in the connection while the silent plugin was read")
-	require.NotNil(t, declarations[1].Schema)
-	assert.Equal(t, "prompt-conf", declarations[1].Schema.Module)
+	require.Len(t, declarations[1].Schemas, 1)
+	assert.Equal(t, "prompt-conf", declarations[1].Schemas[0].Module)
 }
 
 // TestEarlyStage1NoPluginStartsNothing proves the common case pays nothing:

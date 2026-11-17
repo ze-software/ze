@@ -7,11 +7,11 @@ Plugins declare their configuration schema using YANG (RFC 7950). This guide cov
 | Plugin kind | Its own YANG module | Config it receives |
 |-------------|---------------------|--------------------|
 | Internal plugin, compiled into `ze` (package added to `internal/component/plugin/all`) | Registered at build, parsed and validated; the operator writes config under its roots | Its `WantsConfig` roots |
-| External plugin (a separate process, SDK or any language) | Joined to the schema at `ze start`, from the `YANGText` of its Stage 1 declaration; the operator writes config under its roots. With no daemon running Ze starts no plugin, so `ze config validate` and the other commands that parse a config then cannot check a section under those roots | The roots it declares, its own included |
+| External plugin (a separate process, SDK or any language) | Joined to the schema at `ze start`, from the modules its Stage 1 declaration lists under `schemas` (config, command and rpc modules); the operator writes config under its roots. With no daemon running Ze starts no plugin, so `ze config validate` and the other commands that parse a config then cannot check a section under those roots | The roots it declares, its own included |
 
 At `ze start` the daemon reads the plugin declarations first (the `plugin`
 block and the plugins named on the command line), runs each declared external
-plugin, reads its Stage 1 declaration, joins the module it carries and only
+plugin, reads its Stage 1 declaration, joins every module it lists and only
 then parses the full config. The plugin waits for its Stage 1 answer in the
 meantime, so a plugin MUST NOT time out between sending its declaration and
 receiving the answer. A module that does not compile, or that clashes with a
@@ -46,7 +46,7 @@ Each of these outcomes has a doctor code:
 | Code | When | Where you read it |
 |------|------|-------------------|
 | `doctor-plugin-schema-undeclared` | Ze holds no config schema of your plugin: it could not be run, it sent no declaration in time, or it declared no module and the config holds a section no schema defines | On the refusal and in the log when the start is refused, and then in `ze doctor`, from the record Ze wrote before it exited, until Ze next starts cleanly. In `ze show doctor` when the config holds no section of your plugin, so Ze starts |
-| `doctor-plugin-schema-refused` | Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a `ze:validate` validator or a `ze:reference` source Ze does not hold, or it adds nothing | On the refusal and in the log. Ze does not start, and `ze doctor` reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly |
+| `doctor-plugin-schema-refused` | Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a `ze:validate` validator or a `ze:reference` source Ze does not hold, it declares a command or a wire method another module declares, a `ze:rpc` names an rpc no module defines, or it adds nothing | On the refusal and in the log. Ze does not start, and `ze doctor` reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly |
 | `doctor-plugin-schema-changed` | Your plugin was started again with another schema | In `ze show doctor` |
 
 In a running Ze your module is part of the schema every surface reads: the
@@ -157,8 +157,17 @@ config <file>` is typed in a session it serves.
 
 ## Registering a Schema
 
-Schemas are declared via the `Schema` field of `sdk.Registration`, which is passed to
-`p.Run()`. The `Schema` field is a pointer to `sdk.SchemaDecl`.
+Schemas are declared via the `Schemas` field of `sdk.Registration`, which is passed to
+`p.Run()`. It lists one `sdk.SchemaDecl` for each module the plugin brings: a
+module whose name ends in `-conf` adds config roots, one that augments another
+module extends it, one whose name ends in `-cmd` adds the commands its
+`ze:command` nodes declare, and the rpc statements of a module (an `-api`
+module, as compiled-in plugins pair them) describe the parameters of the
+commands whose `ze:rpc` names them. Ze judges each module by the rules the
+modules compiled into `ze` obey; it also refuses a command path or a wire
+method that another module already declares, and a `ze:rpc` that names an rpc
+no module defines. A plugin that answers a command also declares it in
+`Commands`.
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, SchemaDecl -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl -->
 
@@ -166,12 +175,12 @@ Schemas are declared via the `Schema` field of `sdk.Registration`, which is pass
 p := sdk.NewWithConn("my-plugin", conn)
 
 p.Run(ctx, &sdk.Registration{
-    Schema: &sdk.SchemaDecl{
-        Module:    "ze-my-plugin",
+    Schemas: []sdk.SchemaDecl{{
+        Module:    "ze-my-plugin-conf",
         Namespace: "urn:ze:my-plugin",
         YANGText:  myPluginYANG,        // YANG module text (string)
         Handlers:  []string{"my-plugin"},
-    },
+    }},
     WantsConfig: []string{"my-plugin"},
 })
 ```
@@ -181,10 +190,10 @@ p.Run(ctx, &sdk.Registration{
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `Module` | `string` | YANG module name |
+| `Module` | `string` | YANG module name, as the text states it |
 | `Namespace` | `string` | YANG namespace URI |
 | `YANGText` | `string` | Full YANG module text |
-| `Handlers` | `[]string` | Config path prefixes this plugin handles |
+| `Handlers` | `[]string` | Config path prefixes; read only by the subsystem handler |
 
 <!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
 
@@ -493,12 +502,12 @@ func main() {
     defer cancel()
 
     if err := p.Run(ctx, &sdk.Registration{
-        Schema: &sdk.SchemaDecl{
-            Module:    "acme-monitor",
+        Schemas: []sdk.SchemaDecl{{
+            Module:    "acme-monitor-conf",
             Namespace: "urn:acme:monitor",
             YANGText:  acmeMonitorYANG,
             Handlers:  []string{"acme-monitor"},
-        },
+        }},
         WantsConfig: []string{"acme-monitor"},
     }); err != nil {
         log.Fatal(err)
@@ -513,7 +522,7 @@ func main() {
 ### Example YANG Schema
 
 ```yang
-module acme-monitor {
+module acme-monitor-conf {
     namespace "urn:acme:monitor";
     prefix acme;
     import ze-extensions { prefix ze; }

@@ -655,9 +655,12 @@ func queriedDeclaration(t *testing.T, reg *sdk.Registration) rpc.DeclareRegistra
 		}
 	})
 
-	declaration, answered := declarationFromStdout(stdout)
+	declaration, answered, refusal := declarationFromStdout("queried", stdout)
 	if !answered {
 		t.Fatalf("the query wrote no declaration line, only %q", stdout)
+	}
+	if refusal != nil {
+		t.Fatalf("the declaration line was refused: %v", refusal)
 	}
 	return declaration
 }
@@ -1090,7 +1093,7 @@ func TestQueryKeepsSchema(t *testing.T) {
 	const text = "module acme-query-conf { namespace \"urn:acme:query\"; prefix aq; container acme-query { leaf greeting { type string; } } }"
 	declaration := rpc.DeclareRegistrationInput{
 		ProtocolVersion: rpc.ProtocolVersion,
-		Schema:          &rpc.SchemaDecl{Module: "acme-query-conf", Namespace: "urn:acme:query", YANGText: text},
+		Schemas:         []rpc.SchemaDecl{{Module: "acme-query-conf", Namespace: "urn:acme:query", YANGText: text}},
 	}
 
 	query := QueryDeclaration(context.Background(), PluginConfig{Name: "acme-query", Run: queryRunString(t, "", &declaration)}, 5*time.Second)
@@ -1098,10 +1101,11 @@ func TestQueryKeepsSchema(t *testing.T) {
 	if !query.Declared {
 		t.Fatalf("no declaration was read; exit %d, cause %q, stdout %q", query.Exit, query.Cause, query.Stdout)
 	}
-	schema := query.Declaration.Schema
-	if schema == nil {
-		t.Fatalf("the declaration read back carries no schema")
+	if len(query.Declaration.Schemas) != 1 {
+		t.Fatalf("the declaration read back carries %d modules, want exactly one: %+v",
+			len(query.Declaration.Schemas), query.Declaration.Schemas)
 	}
+	schema := query.Declaration.Schemas[0]
 	if schema.Module != "acme-query-conf" {
 		t.Fatalf("module = %q, want acme-query-conf", schema.Module)
 	}

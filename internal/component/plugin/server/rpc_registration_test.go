@@ -146,12 +146,12 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 		ConfigOperations: []rpc.ConfigOperationDecl{
 			{Root: "bgp", Decompose: true, Operations: []rpc.ConfigOperationType{testOpAddPeer}},
 		},
-		Schema: &rpc.SchemaDecl{
+		Schemas: []rpc.SchemaDecl{{
 			Module:    "ze-rib-conf",
 			Namespace: "urn:ze:rib:conf",
 			YANGText:  "module ze-rib-conf { }",
 			Handlers:  []string{"rib"},
-		},
+		}},
 	}
 
 	reg := registrationFromRPC(input)

@@ -73,7 +73,7 @@ The first four rows judge the declare-mode run itself:
 | `program-starts` | The run string starts a program. A shell exit of 126 or 127 means that no program started |
 | `exits-clean` | The program exits 0 inside the budget and leaves no process holding its standard output |
 | `declaration-line` | Standard output holds exactly one line: `#1 ze-plugin-engine:declare-registration` and the declaration as compact JSON, ended by one line feed |
-| `declaration-decodes` | The JSON of that line decodes as a Stage 1 declaration |
+| `declaration-decodes` | The JSON of that line decodes as a Stage 1 declaration, read as the daemon reads it: a key ze does not know, the retired `schema` key among them, fails the row with the daemon's own refusal, and the Stage 1 rows after it are not judged |
 <!-- source: internal/component/plugin/conformance/checks.go -- programStarts, exitsClean, declarationLine, strictLine, declarationDecodes -->
 <!-- source: internal/component/plugin/declarations.go -- queryExitOf -->
 
@@ -114,7 +114,7 @@ start ze.
 | `config-callbacks` | `runtime` | The checker opens no config transaction, so it calls no verify, apply, rollback or committed callback |
 | `execute-command-framing` | `runtime` | The checker sends no execute-command, so it reads no answer line |
 | `bye-and-exit` | `shutdown` | The checker sends no bye |
-| `schema` | `schema` | The checker does not compile the YANG module in the `schema` field of the declaration |
+| `schema` | `schema` | The checker does not compile the YANG modules in the `schemas` list of the declaration |
 <!-- source: internal/component/plugin/conformance/register.go -- init, the notJudged registrations -->
 <!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, the entries with daemonState -->
 <!-- source: internal/component/plugin/conformance/checks.go -- daemonStateRows, notJudged -->

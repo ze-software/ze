@@ -57,7 +57,7 @@ type SubsystemHandler struct {
 	proc     *process.Process
 	acceptor *pluginipc.PluginAcceptor // TLS connect-back listener; MUST be set before Start
 	commands []string                  // Commands declared during Stage 1
-	schema   *plugin.PluginSchemaDecl  // YANG schema declared during Stage 1
+	schemas  []plugin.PluginSchemaDecl // YANG modules declared during Stage 1
 	mu       sync.RWMutex
 }
 
@@ -94,11 +94,12 @@ func (h *SubsystemHandler) Commands() []string {
 	return result
 }
 
-// Schema returns the YANG schema declared by this subsystem, or nil if none.
-func (h *SubsystemHandler) Schema() *plugin.PluginSchemaDecl {
+// Schemas returns the YANG modules declared by this subsystem, none when it
+// declared none. The slice is shared and MUST NOT be written.
+func (h *SubsystemHandler) Schemas() []plugin.PluginSchemaDecl {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return h.schema
+	return h.schemas
 }
 
 // Start spawns the subsystem process and completes the 5-stage protocol.
@@ -202,14 +203,14 @@ func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) er
 		cmd := &input.Commands[i]
 		h.commands = append(h.commands, cmd.Name)
 	}
-	if input.Schema != nil {
-		if h.schema == nil {
-			h.schema = &plugin.PluginSchemaDecl{}
-		}
-		h.schema.Yang = input.Schema.YANGText
-		h.schema.Module = input.Schema.Module
-		h.schema.Namespace = input.Schema.Namespace
-		h.schema.Handlers = input.Schema.Handlers
+	for i := range input.Schemas {
+		schema := &input.Schemas[i]
+		h.schemas = append(h.schemas, plugin.PluginSchemaDecl{
+			Yang:      schema.YANGText,
+			Module:    schema.Module,
+			Namespace: schema.Namespace,
+			Handlers:  schema.Handlers,
+		})
 	}
 	return nil
 }
@@ -601,7 +602,7 @@ func (m *SubsystemManager) AllSchemas() []*Schema {
 
 	var schemas []*Schema
 	for _, handler := range m.handlers {
-		if s := handler.Schema(); s != nil {
+		for _, s := range handler.Schemas() {
 			priority := s.Priority
 			if priority == 0 {
 				priority = 1000 // Default priority

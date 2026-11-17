@@ -7,7 +7,7 @@
 | Release reason | Compile external plugins own YANG at startup: a new supported plugin-config surface, not a current compiled-in schema defect. |
 | Scope | plugin |
 | Depends | - |
-| Phase | 10/10 |
+| Phase | 10/11 |
 | Handoff | - |
 | Updated | 2026-11-17 |
 
@@ -80,13 +80,26 @@ Trust design (signing, allow-lists, sandboxing) is out of scope.
 In scope: the schema an external plugin brings at daemon start, for config.
 By the ruling above, the set of plugins and their modules is fixed while the
 daemon runs: a reload that would change it is refused, naming the restart.
-A plugin's command argument model is decision D-3.
+
+Owner decision D-3 (Thomas, 2026-11-17): "Yes make the plugin define its
+command. You can change the API and interface between the plugin and ze if it
+must or helps". Shown a five-point design, he said: "The yang should already
+allow to define command ?? or I thought it did". That is correct: a compiled-in
+plugin defines its commands in a `-cmd` module, one `ze:command` node per
+command and one leaf per argument, and help, completion and argument checking
+come from there. Shown that two things alone stop an external plugin from
+using it (the join refuses a command module; the Stage 1 declaration carries
+one YANG text), with a table of what lifting them needs and two optional
+improvements to leave out, he approved: "lift these two then :-)". So the
+command half is in scope as phase 11 (AC-30 to AC-41), and closure waits for
+it. Nothing new is invented: the plugin brings a `-cmd` module and Ze's
+existing command mechanisms read it.
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `ai/doors/system.md`, `ai/doors/plugin-infra.md`, `ai/doors/config-yang.md`, `ai/doors/hub-engine.md`, `ai/doors/le-tooling.md`
-  → Constraint: `pkg/plugin/rpc` field names are wire. This spec changes no wire field: the declaration and its `schema` object stay as they are.
+  → Constraint: `pkg/plugin/rpc` field names are wire. Phases 1 to 10 change no wire field. Phase 11 changes one, by the owner's permission of 2026-11-17 ("You can change the API and interface between the plugin and ze if it must or helps"): the Stage 1 `schema` object becomes a list of modules. Ze is pre-release, so the change is made directly, every plugin in the tree and the Python library move with it, and no version gate or fallback is kept (`ai/META-DECISIONS.md`, "Ze is pre-release").
   → Constraint: what `ze config validate` accepts is what boots (`test/plugin/config-validate-agrees-with-boot.ci`, whose header forbids "a second config runtime with its own parser, in any form"). The first pass of this spec MUST be the same `Parser` over a sub-schema. Narrowed by the owner ruling of 2026-11-16: validate takes the first pass and the same parser, but starts no plugin, so it never accepts what boot refuses and it refuses, as not available, a section only an external plugin's schema defines.
   → Constraint: a declaration is a pure value; a plugin queried in declare mode starts nothing (`ai/rules/plugins.md`).
   → Constraint: a backend that cannot apply a config exactly refuses it. A reload that would need a schema the daemon does not hold is refused, never accepted and left unapplied.
@@ -159,7 +172,7 @@ Verified at the producer on 2026-10-16 and again on 2026-11-15:
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|-------------------------------------------|--------------------|--------------------------------------------------------------------|
-| Stage 1 declaration with a `schema` object | `pkg/plugin/rpc/types.go` `DeclareRegistrationInput`, `SchemaDecl` | Carries the module name, namespace and text | Extends: unchanged on the wire; it becomes the one source of an external module |
+| Stage 1 declaration with a `schema` object | `pkg/plugin/rpc/types.go` `DeclareRegistrationInput`, `SchemaDecl` | Carries the module name, namespace and text | Extends: unchanged on the wire in phases 1 to 10; it becomes the one source of an external module. Phase 11 makes it a list of such objects, so one declaration carries a config module and a command module |
 | Plugin declaration in the config and on the command line | `ze-plugin-conf.yang` `plugin { external <name> }`; `config/loader.go` `ExtractPluginsFromTree`, `MergeCliPlugins`; `plugin/resolve.go` `ResolvePlugin` | Names the plugins to load, as a block or as a command-line path or command; a compiled-in plugin needs no entry. Read only after the full parse | Extends: the same two sources are read in the first pass, before the full parse and before any protocol |
 | Five-stage startup and its barrier | `plugin/server/startup_driver.go` `runStartupHandshake`; `process-protocol.md` | Stage 1 declaration, a barrier, Stage 2 config, per tier, all after the full parse | Extends: the Stage 1 of a declared external plugin runs before the full parse; its Stage 2 and later stages stay in its tier |
 | Stored declared schema | `plugin/server/startup.go` `registrationFromRPC`, `reg.PluginSchema` | Stored, read by nothing | Extends: it becomes the source of the plugin's module at boot |
@@ -175,6 +188,22 @@ Verified at the producer on 2026-10-16 and again on 2026-11-15:
 | Doctor config-claims check | `checkConfigClaims`, `pluginregistry.ConfigSectionRootsMap` | Reports a configured root no internal plugin claims | Extends: the roots running external plugins declared join its population |
 | `ze schema` exec of a plugin with `--yang` | `config/schema/cli/main.go` `getExternalPluginYANG` | Runs a plugin binary with a flag only Ze's own plugin CLI handles | Replaces: the exec is deleted. The schema CLI is an offline command, so by the owner ruling of 2026-11-16 it starts no plugin and shows compiled-in modules only with no daemon (phase 8) |
 | `ConfigProvider.RegisterSchema` | `pkg/ze` `ConfigProvider`, `config.Provider.RegisterSchema` | Stores text, no caller | Does not apply: it is on the public interface and stores nothing a reader uses; left as is, recorded in Known Limitations |
+
+Phase 11 (approved 2026-11-17) uses the command mechanisms a compiled-in plugin already uses. It extends each and replaces none.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|-------------------------------------------|--------------------|--------------------------------------------------------------------|
+| A command declared in YANG | Each compiled-in plugin's `-cmd` module: one `ze:command` node per command, one leaf per argument, `ze:help` and `description` for the help (`docs/architecture/config/yang-config-design.md`, "YANG Module Architecture") | Help, completion and argument checking of every compiled-in command come from it | Extends: an external plugin brings a `-cmd` module of the same form. No new declaration format |
+| The command tree | `config/yang/command.go` `BuildCommandTree`, `inheritArgDefs`, `validateNode` under `validateOnce` | Merges every `-cmd` module of a `Resolved` into one tree; warns once per process about a node with no summary | Extends: the tree is built from the published set, so it holds the plugin's nodes. Whether a tree built after the publish is checked by `validateNode` is R-24 |
+| The argument definitions | `config/yang/publish.go` `rebuildCommandArgDefs`, called by `yang.PublishExternalModules`; `PathToArgDefs` | The publish rebuilds the definitions every dispatch route reads, when they were already built | Extends: the published set holds the command module, so its leaves reach the definitions with no new call |
+| Argument checking before dispatch | `command/local_data.go` `ValidateModelArgs`; the plugin route `plugin/server/command.go` `routeToProcess` | Judges a command line against the model's leaves before the handler runs | Extends: a plugin command's arguments are judged against the plugin's own leaves, so a bad or missing value is refused before the plugin is asked (AC-32, AC-33). This fixes journal row `unwired-feature.md` 2026-11-02 |
+| The join's idle-module refusal | `config/yang/join.go` `refuseIdleModules` | Refuses an external module that is not `-conf` and augments nothing, so a `-cmd` or `-api` module is refused | Extends: a `-cmd` module and an `-api` module are accepted; a command path that already exists in the tree is refused instead (AC-34). The refusal text "adds nothing to the config schema" is corrected with it |
+| The Stage 1 command declaration | `pkg/plugin/rpc/types.go` `CommandDecl` (`Name`, `ShortHelp`, `Description`, `Args`) | The plugin names each command and may give its help and argument names | Kept: it still names the commands the plugin serves. Where the plugin's YANG and the declaration both give help or arguments, the YANG wins. Removing help and arguments from the declaration is Work Not Done |
+| The restart rule | `plugin/server/stage1_schema.go` `refuseChangedSchema`, `yang.PublishedModule`; `plugin/server/reload_declarations.go` `RefuseChangedDeclarations` | A restarted plugin whose module differs from the published one is failed; a reload that changes a declaration is refused | Extends: the comparison covers every module of the list, the command module included (AC-35) |
+| The local verb tree of `ze` | `cmd/ze/ze_core_dispatch.go` `yangVerbs`, `cli.YANGCommandTree` | `ze <verb> ...` is resolved against the compiled-in command tree, so a plugin's command answers "unknown command" even when Ze runs | Extends: a path the local tree does not hold asks the running Ze (AC-36); with none running it is "not available", fix `ze start` (AC-37) |
+| Reaching a running Ze from a local command | `cli/sshclient` `ReachDaemon`; `config/cli` `daemon_route.go` (phase 10) | `ze config validate` and the four inspection commands ask the running Ze and say why none answered | Extends: the shell route of AC-36 and AC-37 reuses the walk and its refusal texts |
+| Pipes on an answer | `command` `ApplyPipes`, `pipe_catalog.go` | `\| json` and `\| count` apply to every command's answer | Does not apply a change: the plugin's answer takes them as any answer does (AC-38) |
+| API parameters of a command | `cmd/ze/hub/command_meta.go` `buildParamMeta` | Builds MCP, REST and gRPC parameters from the input of the `-api` rpc a command node points at (`ze:rpc`), and from nothing else: a node with no rpc gets no parameters | Extends, by the owner's answer to P-1 ("yes, like current internal plugin, the exact same way"): an external plugin may bring an `-api` module in its list, and its `-cmd` nodes point at its rpcs with `ze:rpc`, as a compiled-in pair does. The pair is judged by the code that judges a compiled-in pair (`yangloader.PublishedRPCs`, which refuses an rpc pointer it cannot publish), and `buildParamMeta` reads it unchanged (AC-41). Nothing is derived from leaves |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -195,6 +224,18 @@ The daemon, at start:
 A command that parses a config with no daemon (`ze config validate` and the other offline config commands) takes step 1, keeps the names of the declared external plugins, and parses the full config against the compiled-in schema. It takes none of steps 2 to 5 and starts no program (owner ruling, 2026-11-16). A name the compiled-in schema does not define is refused, and when the config declares an external plugin the refusal is one operator error: what was refused, the plugins the config declares, that Ze reads such a plugin's schema when `ze start` runs it and that this command starts no plugin, and the daemon form to type (`show config validation <file>`), with `ze cli` as the fix. It never says a plugin owns the refused name.
 
 While the daemon runs, the published set never changes (owner ruling). A reload whose plugin declarations differ from the ones the daemon started with is refused, naming the restart. A plugin that is restarted and declares a module different from the published one is failed, naming the restart.
+
+Phase 11 (approved 2026-11-17) adds a command module to the same path. Steps 1 to 7 are unchanged, and the differences are:
+
+| Step | Phase 11 |
+|------|----------|
+| 3, Stage 1 | The declaration's `schema` is a list. A plugin brings any of a `-conf` module, a `-cmd` module and an `-api` module, as a compiled-in plugin does |
+| 4, Join | A `-cmd` and an `-api` module are accepted, and a `ze:rpc` pointer between them is judged as in a compiled-in pair. A `ze:command` path the tree already holds, compiled in or from an earlier external module, is refused, naming both holders |
+| 5, Publish | Unchanged. The publish already rebuilds the argument definitions (`rebuildCommandArgDefs`), and the command tree is built from the published set |
+| Tier Stage 1 | Each command the plugin declares names a `ze:command` node of its module, when it brings one. The restart check compares every module of the list |
+| Dispatch | A session line, or any surface, is judged against the plugin's leaves (`ValidateModelArgs`) before `routeToProcess` asks the plugin |
+| Shell | `ze <verb> ...` whose path the local tree does not hold asks the running Ze. With none running the answer is "not available", fix `ze start` |
+| API surfaces | MCP, REST and gRPC take the command's parameters from the plugin's `-api` rpc input through `buildParamMeta`, unchanged (P-1) |
 
 ### What the audit showed about the order of `runYANGConfig`
 
@@ -236,7 +277,8 @@ What blocks the order as the code stands, with the smallest change that unblocks
 | The namespace equals a namespace already in the set | The plugin and both modules |
 | A top-level node of the module already exists and is not reached by `augment` | The plugin, the node, and the module that defines it, with the `augment` form to use |
 | The module names a `ze:validate` function or a `ze:reference` source the daemon does not hold (AC-11 as narrowed 2026-11-17; `ze:decorate` and `ze:backend` names are not judged, R-20) | The plugin, the module, the extension and the name it uses |
-| The module would contribute nothing: its name does not end in `-conf` and it augments nothing | The plugin, the module, and the naming rule |
+| The module would contribute nothing: its name does not end in `-conf` and it augments nothing (phase 11: or `-cmd` or `-api`, which are then accepted; the text "adds nothing to the config schema" is corrected with it) | The plugin, the module, and the naming rule |
+| Phase 11: a `ze:command` path of the module already exists in the command tree | The plugin, the path, and the module that holds it (AC-34) |
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -261,6 +303,16 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 | Stage 1 declaration, `schema` object | reader | `internal/component/plugin/server/subsystem.go` `SubsystemHandler` | Search hit; its `Register` and `NewHandler` have no production caller | Preserved, untouched |
 | `--yang` flag of a plugin binary | writer | `internal/component/plugin/cli/cli.go`, Ze's own plugin CLI | Search hit | Preserved: the flag stays for `ze plugin <name>` |
 | `--yang` flag of a plugin binary | reader | `internal/component/config/schema/cli/main.go` `getExternalPluginYANG` | Search hit; a third-party binary has no such flag and would run its live start | Changed: the reader is deleted; with no daemon the schema CLI starts no plugin (owner ruling, 2026-11-16) |
+
+Phase 11 changes one wire: the Stage 1 `schema` object becomes a list of modules (owner's permission, 2026-11-17). The rows below are the carriers known on 2026-11-17. Phase 11 runs the census again at its start, with the same scope and terms, because one carrier is known to have been missed above: the search evidence said no Python carrier of the schema exists, and the Python library written since writes one.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|---------------------------------------|
+| Stage 1 `schema`, as a list | writer | `pkg/plugin/rpc/types.go` `DeclareRegistrationInput.Schema`, `SchemaDecl`; `pkg/plugin/sdk` `sdk.Registration` and `RunOrDeclare` | Read at code 2026-11-17: `SchemaDecl` holds `module`, `namespace`, `yang-text`, `handlers` | Changed in phase 11, directly: no version gate (pre-release) |
+| Stage 1 `schema`, as a list | writer (model) | `internal/core/ipc/yang/ze-plugin-engine.yang` | Census row above | Changed in phase 11 with the Go type |
+| Stage 1 `schema`, as a list | writer | `examples/plugin/python/ze_plugin.py`, the plugin class's schema setter (`self._schema`, which writes `module`, `namespace`, `yang-text`) | Read at code 2026-11-17 | Changed in phase 11: the library takes a config module and a command module |
+| Stage 1 `schema`, as a list | writer | The fixture plugin `internal/test/fixture/plugin_fixture_external_yang.go` | Named by the functional tests of this spec | Changed in phase 11; it gains a command module for the `external-yang-command-*` tests |
+| Stage 1 `schema`, as a list | reader | `plugin/server/startup.go` `registrationFromRPC`; `plugin/declarations.go` `declarationFromStdout`; `plugin/server/stage1_schema.go` `refuseChangedSchema`; boot's module texts in `cmd/ze/hub/declared_plugins.go` | Census rows above, and the tests `TestStage1RefusesChangedDeclaration`, `TestDeclaredModulesTakesOnlyDeclaredModuleTexts` | Changed in phase 11: each reads every module of the list |
 
 ### Integration Points
 - `config.PluginOnlySchema` and `Parser`, for the first pass; `MergeCliPlugins` for the command line.
@@ -287,22 +339,27 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 |---|----------|----------------|
 Answered on 2026-11-15, recorded in the Task section: the load order (the design page's, plugin declarations read before any protocol, from the config or the command line), and that a plugin changes only when `ze` restarts.
 
-Design approved by the owner on 2026-11-16, with the order to implement it now ("Look is good to me, you can implement that"). That answers D-4 for the config half: it is built now. D-3 stays open and blocks no phase below.
+Design approved by the owner on 2026-11-16, with the order to implement it now ("Look is good to me, you can implement that"). That answers D-4 for the config half: it is built now. D-3 was answered on 2026-11-17 (row below): the command half is phase 11, and closure waits for it.
 
 | # | Question | Recommendation |
 |---|----------|----------------|
-| D-3 | Command argument model of an external plugin (journal row 2026-11-02, owned here): help, completion and checking of the arguments of a plugin's own commands, from a module the plugin brings | Keep it in this spec as its last phase: a plugin that wraps a program needs its config and its commands. It makes one declaration carry a config module and a command module, a wire change |
+| D-3 | Command argument model of an external plugin (journal row 2026-11-02, owned here): help, completion and checking of the arguments of a plugin's own commands, from a module the plugin brings | **Answered 2026-11-17: yes, in this spec.** "Yes make the plugin define its command. You can change the API and interface between the plugin and ze if it must or helps". The design he then approved ("lift these two then :-)") is phase 11. What it changed: closure waits for phase 11, the decision "The wire is unchanged for config" is superseded for the module count, and AC-30 to AC-40 are added |
+| P-1 | **Answered 2026-11-17: "yes, like current internal plugin, the exact same way."** An external plugin gives its command parameters as a compiled-in plugin does: an `-api` module in its list, whose rpc input `buildParamMeta` reads, pointed at by `ze:rpc` on the command node, under the rules a compiled-in `-cmd`/`-api` pair obeys. Nothing new is derived from leaves (AC-41). The question as it was put, kept for the record: an external command declared in a `-cmd` module with a leaf per argument, and no `-api` rpc, shows no parameters on MCP, REST or gRPC: `buildParamMeta` (`cmd/ze/hub/command_meta.go`) builds them from the input of the rpc a command node points at, read through `yangloader.PublishedRPCs`, and skips a path with no rpc input. The owner's rule is that every operator command reaches every surface with the same output; the command is reached there, but a caller is not told its arguments | (a) The plugin also brings an `-api` module whose rpc input carries the arguments: the join accepts a third module kind, the author declares each argument twice, which is the trap of journal `argument-leaf-declared-on-container-and-rpc-input.md`, and no producer changes. (b) `buildParamMeta` takes the leaves of a command node that has no rpc: an item the approval left out of this spec (Work Not Done), which changes the parameters of every compiled-in command with no rpc as well; the nearest existing home is `plan/release/fixes/spec-yang-single-source-of-truth.md`, part D, whose `buildParamMeta` row leaves the choice of producer to its design. (c) Leave it: an external command is listed on MCP, REST and gRPC with no parameters until (b) lands, and the pages say so. Each answer changes AC-36's surfaces and the documentation rows of phase 11; none changes AC-30 to AC-35 |
 | D-4 | Priority and bucket: the spec is post-release P3 | The owner's to set. The design waits on no other spec |
 | Q10 | Startup budget: the declared plugins reach Stage 1 before the full parse, plus one resolve of the module set | Measure at implementation on a known host. Answered 2026-11-17 (phase 9, Implementation Steps): no external plugin, no added cost; one external plugin, one more build of the whole module set, about 300 ms on the server, an indicative figure only. No budget is set here: the owner ordered the fix as a spec of its own, and `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md` owns the cost and its figure on a known host (its AC-18) |
 
-### D-3: what each answer changes for closure (2026-11-17)
+### D-3: how it was answered (2026-11-17, history)
 
-D-3 is the one decision that still blocks closure. It is the owner's, and it is not taken here. The question: is the argument model of a plugin's own commands (help, completion and checking of the arguments of a command an external plugin declares, from a module the plugin brings) part of this spec?
+Put to the owner on 2026-11-17 with two answers prepared. "No" would have moved the item to a new spec in `plan/post-release/features/`, since no existing spec could take it. He answered "Yes", and that branch was reshaped before it was built.
 
-| Answer | What happens | Closure |
-|--------|--------------|---------|
-| No, it is not part of this spec | No existing spec can take it. Searched in `plan/` on 2026-11-17 for `PluginSchema`, `YANGText`, `commandArgDefs` and `ValidateModelArgs`: besides this spec the hits are `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md` and `plan/post-release/engineering/spec-validated-construction-and-state-types.md`, and neither changes what the plugin route judges a command's arguments against. The nearest by subject, `plan/release/fixes/spec-declared-commands-without-leaves.md`, repairs the missing leaves of commands compiled into `ze` and is a release fix; this item is a post-release feature with a wire change, and `plan/README.md` keeps the two apart. So a new spec is needed, in `plan/post-release/features/`. It takes the Work Not Done row, the journal row `unwired-feature.md` 2026-11-02 (moved from this spec's owned rows table to its own), and the reader `reg.PluginSchema` still lacks (Deliverables row 2). The decision "The wire is unchanged for config" stands | Proceeds once the other still-owes rows are done. The new spec rides in closure commit A |
-| Yes, it is part of this spec | It adds phase 11, with its own design to put to the owner first, because it changes a published contract: one declaration carries a config module and a command module (`pkg/plugin/rpc` `SchemaDecl`, and the model `ze-plugin-engine.yang`). The join takes the command module, the publish builds the command argument definitions with it (`rebuildCommandArgDefs`), and the plugin route (`routeToProcess` through `command.ValidateModelArgs`) judges, completes and documents a plugin command's arguments from it. It owes new acceptance criteria, functional tests through a real external plugin, the Python library and the author pages. The restart rule of AC-7 and AC-12 covers the command module too. It fixes the journal row of 2026-11-02 | Waits for phase 11. The spec stays `in-progress` |
+| Step | What happened |
+|------|---------------|
+| The "Yes" branch as prepared | Phase 11, with its own design put to the owner first, because one declaration then carries a config module and a command module (`pkg/plugin/rpc` `SchemaDecl`, the model `ze-plugin-engine.yang`). The join takes the command module, the publish builds the argument definitions with it (`rebuildCommandArgDefs`), and the plugin route (`routeToProcess` through `command.ValidateModelArgs`) judges, completes and documents a plugin command's arguments from it. The restart rule of AC-7 and AC-12 covers the command module. It fixes journal row `unwired-feature.md` 2026-11-02 |
+| His answer | "Yes make the plugin define its command. You can change the API and interface between the plugin and ze if it must or helps" |
+| The design shown | Five points, which read as if a new way to declare a command were needed |
+| His correction | "The yang should already allow to define command ?? or I thought it did". It does: compiled-in plugins declare commands in `-cmd` modules, one `ze:command` node per command and one leaf per argument, and help, completion and argument checking come from there (`BuildCommandTree`, `rebuildCommandArgDefs` inside `yang.PublishExternalModules`, `command.ValidateModelArgs`) |
+| The reshaped design | Nothing new is invented. Two things alone stop an external plugin from using that path: the join refuses its command module (`refuseIdleModules`), and the Stage 1 declaration carries one YANG text. He was shown a table of what lifting each needs, and two optional improvements to leave out |
+| His approval | "lift these two then :-)". The four parts are phase 11 under Implementation Steps. What the approval left out is wanted later, not declined: Work Not Done. The API parameters were P-1, answered the same day: "yes, like current internal plugin, the exact same way" |
 
 ## Audit findings for the owner
 
@@ -357,6 +414,8 @@ The door `ai/doors/config-yang.md` says a second definition of a container repla
 | R-19 | With an external plugin declared, the config schema is built twice: once for the first pass over the compiled-in set, once after the publish | Start time grows by one schema build on top of the second resolve Q10 already counts | Inherent in the load order: the first pass needs the schema before the plugin's module exists. With no external plugin the first build is the one the full parse uses (`yangSchemaCache`), so AC-9 holds. Q10 measures both. Measured 2026-11-17 (phase 9): the risk is real and is the whole added cost. The profile shows the module set resolved twice, once by `yang.resolveDefault` and once by `resolveJoined` under `joinDeclaredPlugins`. Handed to `plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md`, which owns it (AC-16 lowers it, AC-18 closes it). "Read the first-pass blocks with a schema of two modules alone" is not the fix: consumers that run before the publish need the first build anyway, and the join needs the texts of every compiled-in module |
 | R-22 | A value built once for the process is built before the publish, in a start that declares an external plugin | The publish is refused at boot with "it already built <value> without them", and the daemon does not start with that plugin | Intended: the refusal replaces a value that would answer without the plugin's module. The phase that wires boot orders the publish before `pluginserver.NewServer`, before any gNMI server, and before any full parse (a parsed interface name records the reserved names; A-10's three `cmd/ze` parses run before `hub.Run` today). `external-yang-own-root.ci` is the run that shows a wrong order |
 | R-23 | `config.JoinExternalModules` joins to the set `DefaultLoader` answers, which after a publish is the published set | A caller that joins the process's own declarations after the publish gets a name clash that says the module is "compiled into ze" | Callers that hold the process's declarations publish and do not join. The wording of `refuseNameClash` for a held external module is not corrected: `yang.Join` cannot read the published layer while the publish holds its lock |
+| R-24 | Phase 11, to settle first. Command nodes joined after the first build of the command tree are not checked: `BuildCommandTree` runs `validateNode` under `validateOnce`, once per process, and `ze` builds a tree before the daemon's first pass (`cli.YANGCommandTree`, A-5) | An external command node with no `ze:help` summary draws no warning, where a compiled-in one does | Read the check's callers first. If the first tree is always built before the publish, the published tree's check is moved out of the once-guard or run by the join over the plugin's command nodes, so an external node is judged as a compiled-in one is |
+| R-25 | Phase 11, to settle first. Which tree an SSH session completes and helps from is not known: research did not trace whether the session's tree is built from `yang.DefaultLoader` after the publish, or from a value built once before it | AC-30 and AC-31 fail in the session while dispatch (AC-32) works | Trace the session's tree at the code before writing AC-30's test. A once-built tree is keyed on the `Resolved` or records itself with `yang.KeepsModuleSet`, as R-4 does for the other once-built values |
 
 ## Blast Radius
 
@@ -383,6 +442,8 @@ The door `ai/doors/config-yang.md` says a second definition of a container repla
 | `ze config fmt`, `dump`, `diff`, `graph` on such a file, Ze running with the plugin | → | the shared route (`daemon_route.go`, `inspect_route.go`), `show config supplied <sub>` | `test/plugin/external-yang-inspect-asks-running-ze.ci` |
 | The same four commands, no Ze running | → | the local answer and its refusal | `test/plugin/external-yang-inspect-no-daemon.ci` |
 | `ze start` with an `environment` block and a declared external plugin | → | `config.EnvironmentEntries`, the early fork, `Process.SetConfigEnvironment` | `test/plugin/external-yang-environment-block.ci` |
+| Phase 11, planned: a session line naming an external plugin's command with an argument | → | the list in Stage 1, the join of the `-cmd` module, the publish, `ValidateModelArgs`, `routeToProcess` | `test/plugin/external-yang-command-bad-value.ci` |
+| Phase 11, planned: `ze show <plugin command>` typed in the shell, Ze running | → | the local verb tree, `ReachDaemon`, the daemon's dispatch | `test/plugin/external-yang-command-shell-running.ci` |
 
 ## Acceptance Criteria
 
@@ -408,6 +469,23 @@ The door `ai/doors/config-yang.md` says a second definition of a container repla
 | AC-27 | The same four commands, no Ze running | The section is refused with the not-available message of AC-19, naming the command the operator ran as the one to run again | None: no program is started (AC-15) |
 | AC-28 | A config sets a leaf of the `environment` block and declares an external plugin (added 2026-11-17: the fix of R-15, a regression of phase 5) | The plugin's process starts with that setting in its environment, although the daemon applies the block to itself only after the full parse | A variable the operator's environment sets wins over the block, as it does for the daemon. A plugin started again later is forked from the daemon's environment, which holds the block by then |
 | AC-29 | An external module adds a node under a root the first pass parses strictly, `plugin` or `environment` (added 2026-11-17: R-18) | Startup refuses the module at the join, naming the plugin, the node and the rule | The same addition under any other root is accepted |
+
+Phase 11 (approved 2026-11-17). Each criterion runs through the real fixture plugin or the Python example. In each, the plugin declares a `-cmd` module with a `ze:command` node, for example `show acme-monitor probe`, and an argument leaf, for example `target`, with `ze:help`, a type and, where the row says so, `mandatory`.
+
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-30 | `?` or `help` on the plugin's command in a session of the running Ze | The help lists the argument leaf with its `ze:help` text, as for a compiled-in command | A plugin with no command module shows its commands as today, from its Stage 1 declaration. Where both give help, the YANG text is shown |
+| AC-31 | Tab after the plugin's command in a session | Completion offers the argument leaf, and the values its type enumerates | Same as AC-30 |
+| AC-32 | The command with a value its leaf's type refuses | Ze refuses the line, naming the leaf and its type, and the plugin's handler is not called | A value the type accepts reaches the handler unchanged |
+| AC-33 | The command with its `mandatory` leaf missing | Ze refuses the line, naming the missing leaf, and the plugin's handler is not called | A leaf that is not mandatory may be left out, and the handler is called |
+| AC-34 | The plugin's command module declares a command path that already exists in the tree, compiled in or from another external plugin | The start is refused at the join, naming the plugin, the path and the module that holds it, and `ze doctor` reports `doctor-plugin-schema-refused` from the last-stop record | A new path under an existing container (`show acme-monitor ...` under `show`) is accepted: only a whole command path that exists clashes |
+| AC-35 | `request plugin restart` of the plugin after its command module changed | That plugin is failed at Stage 1, naming the restart of `ze`, and doctor reports `doctor-plugin-schema-changed`, as AC-7 does for the config module | A restart with the same modules continues as today |
+| AC-36 | `ze show acme-monitor probe target <value>` typed in the shell, Ze running with the plugin | The running Ze answers, with the output and exit code a session gives for the same line | A compiled-in command is answered as today, with no change of route |
+| AC-37 | The same line, no Ze running | The answer says the command is not available because no Ze runs, and its fix is `ze start` | None: no program is started with no daemon (owner ruling, 2026-11-16) |
+| AC-38 | The command of AC-36 with `\| json`, and with `\| count` | Each gives the answer the same pipe gives on a compiled-in command's answer | A pipe the command does not take is refused as on any command |
+| AC-39 | The Python example `examples/plugin/python/acme_monitor.py`, run by `ze start` | It declares a command with an argument in its own command module, and AC-30, AC-32 and AC-36 hold for it | None: the example is the author's model |
+| AC-40 | A plugin that brings a command module declares at Stage 1 a command that names no `ze:command` node of that module | The plugin is refused at Stage 1, naming the command and the module | A plugin that brings no command module declares its commands at Stage 1 as today |
+| AC-41 | The plugin also brings an `-api` module whose rpc input carries the command's arguments, and the command node points at it with `ze:rpc` (P-1, answered 2026-11-17) | MCP, REST and gRPC list the command with those parameters, their help and which are required, read from the plugin's `-api` module exactly as for a compiled-in plugin; a call through each reaches the plugin | A command whose node points at no rpc is listed with no parameters, as a compiled-in one is. An `-api` module the compiled-in rules refuse is refused at the join, with the compiled-in message |
 
 Evidence for each criterion on 2026-11-17. A functional test named here was seen passing by the supervising session, and the commit named beside it records the run; "this tree" means the uncommitted work of 2026-11-17, whose functional runs are recorded in the handover and in no commit yet.
 
@@ -436,6 +514,18 @@ Evidence for each criterion on 2026-11-17. A functional test named here was seen
 | AC-26, AC-27 | `external-yang-inspect-asks-running-ze.ci`, `external-yang-inspect-no-daemon.ci`, three runs each (this tree); `inspect_route_test.go` (run pending) | Proven by the functional tests; the unit run is pending |
 | AC-28 | `external-yang-environment-block.ci`, three runs (this tree); `TestPluginForkedBeforeTheParseReadsTheEnvironmentBlock`, `TestEnvironmentEntriesNamesEverySettingOfTheBlock`, `TestWithDefaultsFillsOnlyWhatTheEnvironmentLeavesUnset` (green in this tree) | Proven |
 | AC-29 | `TestJoinRefusesAnAdditionUnderAFirstPassRoot`, `TestJoinAcceptsTheSameAdditionUnderAnotherRoot` (`config/yang`, green in this tree) | Unit level only: no functional test starts Ze with such a module |
+| AC-30 | `external-yang-command-help.ci` | Planned (phase 11) |
+| AC-31 | `external-yang-command-completion.ci` | Planned (phase 11) |
+| AC-32 | `external-yang-command-bad-value.ci` | Planned (phase 11) |
+| AC-33 | `external-yang-command-missing-value.ci` | Planned (phase 11) |
+| AC-34 | `external-yang-command-path-clash.ci` | Planned (phase 11) |
+| AC-35 | `external-yang-command-restart-changed.ci` | Planned (phase 11) |
+| AC-36 | `external-yang-command-shell-running.ci` | Planned (phase 11) |
+| AC-37 | `external-yang-command-shell-no-daemon.ci` | Planned (phase 11) |
+| AC-38 | `external-yang-command-pipes.ci` | Planned (phase 11) |
+| AC-39 | `external-yang-command-python-example.ci` | Planned (phase 11) |
+| AC-40 | `external-yang-command-undeclared-node.ci` | Planned (phase 11) |
+| AC-41 | `external-yang-command-api-parameters.ci` | Planned (phase 11) |
 
 ## End-to-End User Stories
 
@@ -445,6 +535,7 @@ Evidence for each criterion on 2026-11-17. A functional test named here was seen
 | 2 | Checks the config on the build machine before deploying | validate entry → first pass → parse against the compiled-in schema. Everything but a section of an external plugin is checked; that section is reported as not available with no daemon, with the daemon form that checks it | `external-yang-offline-not-available.ci`, `external-yang-boot-accepts-what-offline-refuses.ci` |
 | 3 | Edits the plugin's config in the SSH editor and commits | editor schema → commit → verify → apply | `test/ui/external-yang-session-editor.ci`, `test/ui/external-yang-session-save.ci`, `external-yang-commit.ci` |
 | 4 | Ships a broken module | join refusal with plugin, module, location | `external-yang-invalid-refused.ci` |
+| 5 | Phase 11: ships a command with an argument in a `-cmd` module; the operator asks help, completes, types a bad value, then runs it from a session and from the shell | Stage 1 list → join → publish → command tree and argument definitions → `ValidateModelArgs` → `routeToProcess` → the plugin; the shell line through `ReachDaemon` | `external-yang-command-help.ci`, `-bad-value.ci`, `-shell-running.ci` (planned) |
 
 ## 🧪 TDD Test Plan
 
@@ -557,6 +648,18 @@ Lint: not run on phases 6 to 8 (each commit says so), and the rerun over this tr
 | `external-yang-session-save` | `test/ui/external-yang-session-save.ci` (untracked, this tree) | AC-13, save: a leaf set and committed in the daemon's session reaches the plugin, and after a stop and a start on the same directory the plugin is configured with the committed value | run: passes in this tree, as above; the number of runs is not recorded |
 | `external-yang-environment-block` | `test/plugin/external-yang-environment-block.ci` (untracked, this tree) | AC-28 | run: 3 of 3 in this tree, as above |
 | `external-yang-unheld-registration-refused` | `test/plugin/external-yang-unheld-registration-refused.ci` (owed, not written) | AC-11 as narrowed: a module naming a `ze:validate` function and a `ze:reference` source Ze does not hold refuses the start, naming the plugin, the extension and the name | owed: still-owes row 10 |
+| `external-yang-command-help` | `test/plugin/external-yang-command-help.ci` | AC-30: help on the plugin's command in a session lists the argument leaf and its help | planned (phase 11) |
+| `external-yang-command-completion` | `test/plugin/external-yang-command-completion.ci` | AC-31: Tab offers the argument leaf | planned (phase 11) |
+| `external-yang-command-bad-value` | `test/plugin/external-yang-command-bad-value.ci` | AC-32: a value the leaf's type refuses is refused, and the plugin logs no call | planned (phase 11) |
+| `external-yang-command-missing-value` | `test/plugin/external-yang-command-missing-value.ci` | AC-33: a missing mandatory leaf is refused, and the plugin logs no call | planned (phase 11) |
+| `external-yang-command-path-clash` | `test/plugin/external-yang-command-path-clash.ci` | AC-34: a command path that exists refuses the start, and `ze doctor` reports it | planned (phase 11) |
+| `external-yang-command-restart-changed` | `test/plugin/external-yang-command-restart-changed.ci` | AC-35: `request plugin restart` with a changed command module fails the plugin, and doctor reports it | planned (phase 11) |
+| `external-yang-command-shell-running` | `test/plugin/external-yang-command-shell-running.ci` | AC-36: `ze show <plugin command>` from the shell is answered by the running Ze | planned (phase 11) |
+| `external-yang-command-shell-no-daemon` | `test/plugin/external-yang-command-shell-no-daemon.ci` | AC-37: the same with no Ze running is "not available", fix `ze start` | planned (phase 11) |
+| `external-yang-command-pipes` | `test/plugin/external-yang-command-pipes.ci` | AC-38: `\| json` and `\| count` on the plugin's answer | planned (phase 11) |
+| `external-yang-command-python-example` | `test/plugin/external-yang-command-python-example.ci` | AC-39: the Python example's command with an argument, help, refusal and shell answer | planned (phase 11) |
+| `external-yang-command-undeclared-node` | `test/plugin/external-yang-command-undeclared-node.ci` | AC-40: a declared command with no node in the plugin's command module is refused at Stage 1 | planned (phase 11) |
+| `external-yang-command-api-parameters` | `test/plugin/external-yang-command-api-parameters.ci` | AC-41: MCP, REST and gRPC list the command's parameters from the plugin's `-api` module, and a call reaches the plugin | planned (phase 11) |
 
 Run record of the functional rows above whose Status is empty: `external-yang-own-root`, `-command-line`, `-augment-shared-root`, `-commit` and `-doctor` were promoted at `c12ae908a5` ("each over repeated runs"); the first three were converted to `then=stop` under the test judge and passed three runs at `6c7cedd678`, and `-commit` passed again at `2210546edb`. `-invalid-refused`, `-clash-refused` and `-query-failed` passed three runs at `6c7cedd678`. `-declaration-changed` and `-reload-refused` passed three runs at `2210546edb`. `-offline-not-available` and `-boot-accepts-what-offline-refuses` passed three runs at `552c08a28a`. Every one of these is tracked under `test/plugin/` or `test/reload/`; no `external-yang` draft is left under `test/draft/` in this tree.
 
@@ -625,6 +728,17 @@ Readers inside the running daemon need no edit, because they run after the publi
 - the doctor config-claims check and `internal/core/diagnostic/codes.go` - external roots and the three new codes
 - `docs/plugin-development/schema.md`, `protocol.md`, `README.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/hub-architecture.md`, `docs/architecture/plugin/plugin-system.md`, `docs/architecture/config/yang-config-design.md`, `docs/guide/plugins.md`, `ai/doors/plugin-infra.md`, `ai/doors/config-yang.md`, `ai/doors/hub-engine.md`, `ai/digests/hub-engine.md`, `features/plugins.md`
 
+Phase 11 (approved 2026-11-17), by part. The census of its wire is re-run at its start, so this list is the known set, not the final one.
+
+| Part | Files |
+|------|-------|
+| Wire, SDK, engine YANG, Python library | `pkg/plugin/rpc/types.go` (`DeclareRegistrationInput.Schema` as a list), `pkg/plugin/sdk` (`sdk.Registration`, `RunOrDeclare`), `internal/core/ipc/yang/ze-plugin-engine.yang`, `examples/plugin/python/ze_plugin.py`, every reader of the census, the fixture plugin `internal/test/fixture/plugin_fixture_external_yang.go`, and every in-tree plugin that sets `Schema` |
+| Join | `internal/component/config/yang/join.go` (`refuseIdleModules` accepts a `-cmd` module; a refusal of a command path the tree holds) |
+| Restart check and the Stage 1 node check | `internal/component/plugin/server/stage1_schema.go` (every module of the list), `stage1_checks.go` (a declared command names a node of the plugin's command module), `reload_declarations.go` if the reload comparison reads the module texts |
+| Shell routing | `cmd/ze/ze_core_dispatch.go` (`yangVerbs` and the path it does not hold), `internal/component/cli/sshclient` (`ReachDaemon`, reused) |
+| R-24, R-25 | `internal/component/config/yang/command.go` (`validateOnce`), and the session's command tree, located when R-25 is settled |
+| Pages and example | The departures listed under the Documentation Update Checklist; `examples/plugin/python/acme_monitor.py` and its `README.md` |
+
 ## Files to Create
 - `internal/component/config/yang/join.go` and `join_test.go` - the join function and its fixtures
 - `internal/component/config/join_schema_test.go` - the join's entry: AC-10 (range, pattern), AC-6 and AC-9 at the schema, and the deleted duplicate drop. AC-10's mandatory leaf is not the parser's check but the YANG validator's, run by the full load: `TestPublishedExternalModuleOwesItsMandatoryLeaf` (`internal/component/config/declared_schemas_test.go`) proves it through `ReadConfig` over a published module, and the `ze start mandatory.conf` step of `external-yang-boot-accepts-what-offline-refuses.ci` proves it at boot
@@ -638,11 +752,11 @@ Readers inside the running daemon need no edit, because they run after the publi
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | No | No Ze module changes; the plugin brings its module |
+| YANG schema (new RPCs/config) | No, Yes for phase 11 | Phases 1 to 10: no Ze module changes; the plugin brings its module. Phase 11: `ze-plugin-engine.yang`, the Stage 1 `schema` as a list |
 | YANG validation constraints | Yes | The loader's checks apply to an external module unchanged (AC-10) |
 | YANG custom validators | Yes | An external module that names one the daemon lacks is refused (AC-11) |
-| CLI commands/flags | No | No command added |
-| CLI grammar (keyword before value) | N-A | No command added |
+| CLI commands/flags | No, Yes for phase 11 | No command added. Phase 11: `ze <verb> ...` routes a path the local tree does not hold to the running Ze (AC-36, AC-37) |
+| CLI grammar (keyword before value) | N-A, Yes for phase 11 | Phase 11: the fixture's and the Python example's command modules follow R1 to R9 (`ai/rules/cli.md`), as a compiled-in module does |
 | Editor autocomplete | Yes | Automatic once the module is in the published set (AC-13) |
 | Functional test for new RPC/API | Yes | `test/plugin/external-yang-*.ci` |
 | Pipe completeness | N-A | No new output |
@@ -657,8 +771,8 @@ Readers inside the running daemon need no edit, because they run after the publi
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/plugins.md`: an external plugin's own config root |
 | 2 | Config syntax changed? | No | The plugin's module defines its own syntax |
-| 3 | CLI command added/changed? | No | - |
-| 4 | API/RPC added/changed? | No | - |
+| 3 | CLI command added/changed? | No, Yes for phase 11 | Phase 11: `docs/guide/command-reference.md`, a plugin's command typed in the shell asks the running Ze |
+| 4 | API/RPC added/changed? | No, Yes for phase 11 | Phase 11: `docs/architecture/api/commands.md`, the surface table (departure 4 below) |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`: an external plugin with its own config, the restart rule |
 | 6 | Has a user guide page? | Yes | `docs/plugin-development/schema.md`: "What works today", the `-conf` rule, `augment` for a shared container, the refused extensions, corrected examples |
 | 7 | Wire format changed? | No | - |
@@ -686,6 +800,16 @@ State of each "Yes" row on 2026-11-17. The search was a grep of each page for th
 | 12 | `docs/architecture/plugin/plugin-system.md` ("Startup phases and callbacks"), `ai/digests/hub-engine.md` | Not found in either. Owed |
 | 17 | `docs/plugin-development/README.md` ("Extend configuration") | Not found; its example plugin is named `my-plugin`. To check against the `-conf` rule and correct |
 | 16 | Source anchors of the changed files | `./le spec citation anchors` and `./le doc check all` are owed commands: not run here, no result is claimed |
+
+Departures from design pages that the approval of 2026-11-17 covers. Phase 11 corrects each in the same work as its code; none is edited before then.
+
+| # | Page or text | What it says today | Corrected to |
+|---|--------------|--------------------|--------------|
+| 1 | `docs/plugin-development/schema.md` | A plugin brings one module: Ze "joins the module it carries" | A plugin brings a config module, a command module, or both, in the Stage 1 `schema` list |
+| 2 | `examples/plugin/python/README.md` and the library's docstrings | One module per plugin | The same, with the example's command module |
+| 3 | `docs/plugin-development/commands.md` | Arguments arrive as `Args []string` and the handler checks them itself (`len(args) < 1`) | A command and its arguments are declared in the plugin's `-cmd` module; Ze gives help, completion and refusal of a bad or missing value before the handler. Where the Stage 1 declaration also gives help or arguments, the YANG wins |
+| 4 | `docs/architecture/api/commands.md`, the surface table | Not quoted here: the table is read whole at the start of phase 11. Today `ze <verb> ...` resolves against the compiled-in tree (`yangVerbs`), so it answers "unknown command" for a plugin's path even with Ze running | `ze <verb> ...` asks the running Ze for a path the local tree does not hold; with none running it is "not available", fix `ze start`. An external plugin's command takes its MCP, REST and gRPC parameters from its `-api` module, as a compiled-in one does (P-1) |
+| 5 | The join's refusal text (`config/yang/join.go` `refuseIdleModules`) | "adds nothing to the config schema", with `-conf` the only rule | Names the `-cmd` and `-api` rules as well. This is code, listed here because an author reads it as a contract |
 
 Pages this work edited that the checklist did not list: `docs/guide/command-reference.md` (the five config commands ask a running Ze, `--user`) and `docs/architecture/api/commands.md`, both uncommitted in this tree; `examples/plugin/python/README.md`.
 
@@ -756,13 +880,24 @@ Each phase edits the pages its row names as it codes. Tests are written first an
    - Files: `cli/sshclient/reach.go`, `doctor/local_route.go`, `config/declared_schemas.go`, `config/cli/validate_route.go`, `cmd_validate.go`, `ssh/answer.go`, `core/diagnostic/types.go`
    - Verify: `external-yang-validate-asks-running-ze` green as a draft, then promoted
    - Done for `ze config validate` at `552c08a28a`. Done 2026-11-17 for `ze config fmt`, `dump`, `diff` and `graph`, uncommitted in this tree: the five commands share one route (`daemon_route.go`, `inspect_route.go`), each through its own `show config supplied <sub>` command, and the four gain `--user`. `fmt` asks for the formatted text and makes `--check`, `--diff` and `-w` from it here; `diff` reads both sides here and sends both. Criteria AC-26 and AC-27; `external-yang-inspect-asks-running-ze` and `external-yang-inspect-no-daemon` pass 3 of 3, and `external-yang-validate-asks-running-ze` and `external-yang-offline-not-available` still pass. The `config/cli` unit run and lint of this tree are pending
+11. **Phase: A plugin defines its commands in YANG** (owner decision D-3 and the design he approved, 2026-11-17) -- the plugin brings a `-cmd` module, and an `-api` module for its API parameters, and Ze's existing command mechanisms read them. Criteria AC-30 to AC-41. Each part writes its functional tests first, red for the reason its AC names, and is checked against the decision "The only differene should be how they reach the bus" (Key Design Decisions)
+   - First, before any code: settle R-24 (`validateOnce`) and R-25 (which tree an SSH session completes from) at the code, and run the census of the changed wire again
+   - 11.1 Wire, SDK, engine YANG and Python library: the Stage 1 `schema` becomes a list of modules (`DeclareRegistrationInput`, `SchemaDecl`, `ze-plugin-engine.yang`, `sdk.Registration`, `ze_plugin.py`), every reader of the census reads the list, and every in-tree plugin and fixture moves with it. No version gate (pre-release)
+   - 11.2 Join: `refuseIdleModules` accepts a `-cmd` and an `-api` module and its text names the rules; a `-cmd`/`-api` pair is judged by the code that judges a compiled-in pair (AC-41); a command path the tree already holds is refused, naming both holders (AC-34). The publish and `rebuildCommandArgDefs` need no change
+   - 11.3 Restart check and the Stage 1 check: `refuseChangedSchema` compares every module of the list (AC-35); a command the plugin declares names a `ze:command` node of its command module when it brings one (AC-40). The dispatch criteria AC-30 to AC-33 go green here, through `ValidateModelArgs` and `routeToProcess`
+   - 11.4 Shell routing: `ze <verb> ...` whose path the local tree does not hold asks the running Ze through `ReachDaemon` (AC-36, AC-38); with none running, "not available", fix `ze start` (AC-37)
+   - 11.5 Pages and example: the five departures under the Documentation Update Checklist, the Python example's command with an argument (AC-39), and the API parameters of an `-api` module through MCP, REST and gRPC (AC-41, P-1)
+   - Tests: the `external-yang-command-*` rows of the Functional Tests table, each drafted under `test/draft/plugin/` first; unit tests per part, named at the part
+   - Files: Files to Modify, the phase 11 table
+   - Verify: each `external-yang-command-*` test green; `TestStage1RefusesChangedDeclaration` and the `TestJoin*` rows still green; journal row `unwired-feature.md` 2026-11-02 marked `fixed:`
 
 ### What this spec still owes before it can close (2026-11-17)
 
 Phases 1 to 10 are built. Phases 1 to 9 and the `ze config validate` half of
 phase 10 are committed; the rest of phase 10 and the fixes of R-15 and R-18
 are uncommitted in the worktree `yang-finish`. The status stays `in-progress`:
-owner decision D-3 is open, and rows 6, 7, 10 and 13 hold open work. Brought
+the owner answered D-3 on 2026-11-17 and approved phase 11, which is not
+built (row 18), and rows 6, 7, 10 and 13 hold open work. Brought
 up to date on 2026-11-17 from the tree, `git log` and the commit messages;
 "not confirmed here" means this edit found no recorded run. The list of what
 remains, in order, follows the table.
@@ -771,7 +906,7 @@ remains, in order, follows the table.
 |---|------|-----------|--------|
 | 1 | `ze config fmt`, `dump`, `diff` and `graph` ask a running Ze | Phase 10, "The other offline commands"; Known Limitations | The client route `ze config validate` has, through each command's own supplied form. **Done 2026-11-17**, uncommitted in this tree (AC-26, AC-27): one shared route (`suppliedQuestion`, `routedAnswer` in `config/cli` `daemon_route.go` and `inspect_route.go`) with five users, and `--user` on the four. Functional `test/plugin/external-yang-inspect-asks-running-ze.ci` and `-inspect-no-daemon.ci` pass 3 of 3, and `external-yang-validate-asks-running-ze` and `-offline-not-available` still pass. The unit run of `config/cli` (`inspect_route_test.go`) is pending. `fmt` sends no `check` or `diff` leaf and makes those choices, and `-w`, from the text the daemon formatted. `diff` reads both sides here in every form. Not confirmed here: the tracked `TestConfigInspectionExplainsUnavailableExternalSchema` (`inspection_declared_schema_test.go`) is not edited in this tree, and when this row was first written it asserted the old fix on the three local file routes. Whether it is red is read from the pending `config/cli` run; a change to it needs the test judge |
 | 2 | AC-13, save | Step 8, "Still owed for AC-13: save" | **Done 2026-11-17**, uncommitted in this tree: `test/ui/external-yang-session-save.ci` passes, over the fixture `ui/external-yang-session-save` (set and commit typed in one session of the daemon's editor, `show config running` holding the value, the plugin's apply line, a second start on the same directory and the plugin's configure line with the committed value). `launchFixtureDaemon` and `fixtureDaemon.halt` are the restart the harness lacked. Settled by the run: the second start on the same directory, with the store on disk, configures the plugin with the committed value |
-| 3 | Owner decision D-3 | Open Owner Questions; Work Not Done; journal row `unwired-feature.md` 2026-11-02 | **Open, and the one item that waits on the owner.** A plugin's own command argument model: a last phase of this spec, or a spec of its own. "D-3: what each answer changes for closure", under Open Owner Questions, says what each answer does. The journal row stays owned here until then |
+| 3 | Owner decision D-3 | Open Owner Questions; journal row `unwired-feature.md` 2026-11-02 | **Answered 2026-11-17: yes, in this spec, as phase 11** ("Yes make the plugin define its command. You can change the API and interface between the plugin and ze if it must or helps"; the design approved with "lift these two then :-)"). The work is row 18. The journal row stays owned here, and phase 11 fixes it |
 | 4 | Test rows whose status says "written, not run" or "written as a draft" | TDD Test Plan, unit and functional tables | The drafts are tracked now under `test/plugin/`, `test/reload/` and `test/ui/` (`external-yang-session-editor`, `-daemon-schema`, `-augment-owner-keeps-section`, `-show-config`, `-changed-keeps-config`, `-undeclared-doctor`, `-refused-doctor`, `-validate-asks-running-ze`). **Done 2026-11-17**: each row now names the tracked path and the commit whose message records its run, and the two run records under the test tables say which runs are pending or not recorded |
 | 5 | The superseded editor draft | Step 8 | **Nothing owed in this tree.** `test/draft/editor/external-yang-completion.et` is superseded by `test/ui/external-yang-session-editor.ci` and was never promoted. It is git-ignored (`test/draft/*`) and this tree holds no copy; a copy left in the server worktree `spec-external-yang` is that worktree's to delete, with the owner's word. No row names it as a carrier |
 | 6 | The vacuous exit assertion | Owned journal row `green-that-could-not-have-been-red.md` 2026-11-17 | Three of four done at `6c7cedd678`: `external-yang-own-root`, `-command-line` and `-augment-shared-root` hold `then=stop`, approved by the test judge. **Open:** `external-yang-boot-accepts-what-offline-refuses.ci` still holds `await=stderr` with no `then=stop` (three commands in one file), so its exit assertion on the daemon proves nothing; it needs a conversion or a split, and the test judge. Read 2026-11-17 at the runner: the fence and the exit expectation are file-level (`Record.AwaitStderr`, `ExpectExitCode`), so the two `await` lines of steps 2 and 3 are one fence; without `then=stop` the arm compares `waitForPeers` with no peer, which is nil whatever the daemons did (`runOrchestrated`); and `selectForegroundProcess` picks the last daemon started, step 3's, which is meant to fail. A `then=stop` in place would stop and judge step 3's daemon, so the change is a split: step 2 keeps the file with `then=stop` on its await and `expect=exit:code=0`, and step 3 moves to a file of its own that asserts the refused start's own exit with no await, as `bgp-bfd-profile-undefined-boot.ci` does. The independent test judge approved this split, on condition of the draft run. **Drafted 2026-11-17**: `test/draft/plugin/external-yang-boot-accepts-what-offline-refuses.ci` (steps 1 and 2) and `test/draft/plugin/external-yang-boot-refuses-missing-mandatory.ci` (the refused start, `expect=exit:code=1`, AC-10). The tracked file is unchanged until the main thread runs both drafts and promotes them. The runner still accepts the pair, and five tests of other work hold it: that part of the journal row is not this spec's to fix, so the row needs an owner that outlives this spec before commit B |
@@ -784,8 +919,9 @@ remains, in order, follows the table.
 | 13 | Documentation checklist | Documentation Update Checklist | **Checked 2026-11-17**, state table under the checklist. Open: `features/plugins.md`, `docs/guide/plugins.md`, `docs/functional-tests.md`, `docs/architecture/plugin/plugin-system.md`, `ai/digests/hub-engine.md` and `docs/plugin-development/README.md` hold no statement the search found; `./le spec citation anchors` and `./le doc check all` are owed commands |
 | 14 | Closure | Checklist | Not started, by design: the closure template, the Review Gate and commits A and B are `/ze-close`'s, in a context that did not write the code |
 | 15 | The runs and lint still pending | Run records under the test tables | Unit runs of `test/fixture`, `config/cli` and `cmd/ze/hub` over this tree; lint over this tree. Runs with no record: `schemaless_plugins_test.go`, and the publish and keeper tests of `cli/client`, `cli/testing`, `gnmi`, `iface`, `firewall` and `traffic` |
-| 16 | `reg.PluginSchema` has no reader | Deliverables Checklist, row 2 | Read 2026-11-17 by grep: `registrationFromRPC` writes it and no non-test code reads it. Boot takes the module from the kept Stage 1 declaration, and the restart check reads the declaration too. The reader it was to gain is the command argument model, so this row follows D-3 |
+| 16 | `reg.PluginSchema` has no reader | Deliverables Checklist, row 2 | Read 2026-11-17 by grep: `registrationFromRPC` writes it and no non-test code reads it. Boot takes the module from the kept Stage 1 declaration, and the restart check reads the declaration too. The reader it was to gain is the command argument model, so this row is settled by phase 11 (row 18): either the field gains that reader, or phase 11 reads the list from the kept declaration as boot does and deletes the field |
 | 17 | Uncommitted work of 2026-11-17 | `git status` of this tree | The route for the four commands, the save test, the R-15 and R-18 fixes, their tests, fixtures and pages are in no commit. The main thread commits them once the pending runs are read |
+| 18 | Phase 11, approved 2026-11-17 | Implementation Steps, phase 11; AC-30 to AC-41 | **Open, not started.** R-24 and R-25 first, then the five parts in order. P-1 was answered on 2026-11-17 (an `-api` module, AC-41), and every part is checked against the decision "The only differene should be how they reach the bus" |
 
 Not owed here any more: the recorded start-time figure and the fix of the
 second schema build (Work Not Done).
@@ -793,7 +929,7 @@ second schema build (Work Not Done).
 #### What remains before closure, in order
 
 1. Read the pending runs (row 15) and commit the work of 2026-11-17 (row 17).
-2. The owner answers D-3 (row 3). Either answer is prepared.
+2. Phase 11 is built (row 18): the owner answered D-3, approved its design and answered P-1 on 2026-11-17. Each row of "To re-examine under the transport-only rule" (Key Design Decisions) is settled by that rule or brought to the owner.
 3. The functional test of the narrowed AC-11 is written, run and promoted (row 10). The owner narrowed AC-11 on 2026-11-17, and the `ze:decorate` and `ze:backend` check is `plan/post-release/features/spec-plugin-external-yang-judges-decorate-and-backend.md`.
 4. The schema and the validator of the shared set stop being built again, uncached, for a command-line selection of an in-tree plugin (row 7). This is one small code task, described below the text-road table. The three text-road functions stay.
 5. The two drafts of row 6 are run, then promoted over `external-yang-boot-accepts-what-offline-refuses.ci` and as the new `external-yang-boot-refuses-missing-mandatory.ci`. The test judge has approved the split.
@@ -828,6 +964,7 @@ The one thing still owed is a repeated build, not a repeated join. With any text
 | A plugin changes only when `ze` restarts | `test/reload/external-yang-reload-refused.ci`, `external-yang-declaration-changed.ci`, `external-yang-changed-keeps-config.ci` |
 | With no daemon, Ze starts no external plugin and says the section is not available | `external-yang-offline-not-available.ci` (the marker), `external-yang-inspect-no-daemon.ci`; with one running, `external-yang-validate-asks-running-ze.ci` and `external-yang-inspect-asks-running-ze.ci` |
 | Invalid YANG and a clashing module are refused, naming the plugin and the module | `external-yang-invalid-refused.ci`, `external-yang-clash-refused.ci`, and `ze doctor` after each in `external-yang-refused-doctor.ci` |
+| The plugin defines its own commands, with help, completion and checked arguments (D-3, 2026-11-17) | Planned: the `external-yang-command-*` tests of phase 11, `-python-example.ci` among them |
 
 #### Deliverables Checklist, read 2026-11-17
 
@@ -881,7 +1018,7 @@ The one thing still owed is a repeated build, not a repeated join. With any text
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `unwired-feature.md` | 2026-11-02 | A plugin's Stage 1 `Schema.YANGText` is stored in `reg.PluginSchema` and never read, so its command arguments are judged only against compiled-in YANG (D-3 decides whether its fix is this spec's last phase) |
+| `unwired-feature.md` | 2026-11-02 | A plugin's Stage 1 `Schema.YANGText` is stored in `reg.PluginSchema` and never read, so its command arguments are judged only against compiled-in YANG (fixed by phase 11, D-3 answered yes on 2026-11-17) |
 | `green-that-could-not-have-been-red.md` | 2026-11-17 | `await=stderr` beside `expect=exit:code=` with no peer asserts nothing about the daemon's exit; three of this spec's tests were converted to `then=stop` at `6c7cedd678`, `external-yang-boot-accepts-what-offline-refuses.ci` and five tests of other work still hold the pair |
 | `unwired-feature.md` | 2026-08-13 | external plugin YANG never reaches the daemon schema (moved 2026-11-14 from `plan/release/fixes/spec-yang-single-source-of-truth.md`; AC-1 here holds its old AC-11 schema half, and that spec's AC-3 holds the run-time unread-leaf report) |
 
@@ -893,7 +1030,27 @@ The one thing still owed is a repeated build, not a repeated join. With any text
 | With no daemon, a command starts no external plugin and reports a section of one as not available (owner ruling, 2026-11-16) | Read the declaration through declare mode (the design approved on 2026-11-16 and built in phase 6, reversed by the ruling: inspecting a config someone else wrote ran their command); an opt-in keyword on the command; a schema cache written at boot or by the conformance check; start a hub for validate | "plugin command requiring external plugins which can not be started from the code when no daemon is running to pass it to are not available, for command built-in then yes you should run them as we can look them up in the yang hardcoded in the binary" |
 | The set of plugins and modules is fixed while the daemon runs (owner ruling, 2026-11-15) | Start, stop or re-declare a plugin on reload | "the plugin can only be changed on restarting ze". A reload that would change it is refused, which is exact |
 | No dependency on the build-time compile spec | Wait for it | Nothing of it exists; today's loader joins text. One join function is the seam it later re-implements |
-| The wire is unchanged for config | A list of modules in `schema`; dropping the redundant `module` and `namespace` fields | One config module is all the config half needs. A second module kind comes only with command arguments (D-3) |
+| The wire is unchanged for config. **Superseded on 2026-11-17 for the module count**: phase 11 makes `schema` a list, by the owner's permission "You can change the API and interface between the plugin and ze if it must or helps" | A list of modules in `schema`; dropping the redundant `module` and `namespace` fields | One config module is all the config half needs. A second module kind came with command arguments (D-3), and with it the list. Dropping `module` and `namespace` is not part of that change |
+| A plugin defines its commands in a `-cmd` module, as a compiled-in plugin does (owner, 2026-11-17) | A new argument model in the Stage 1 declaration; the five-point design first shown | "The yang should already allow to define command ?? or I thought it did". The mechanism exists; only the join's refusal and the one-text declaration stand in the way, and the approval was "lift these two then :-)" |
+| Where the plugin's YANG and its Stage 1 declaration both give a command's help or arguments, the YANG wins | Refuse a declaration that carries both; merge them | Removing help and arguments from the Stage 1 declaration touches every in-tree plugin that declares commands and was left out by the approval (Work Not Done). Until it lands, one source has to win, and YANG is the one every compiled-in command reads |
+| A command path the tree holds is refused at the join | Let the later module override; merge the nodes | Two owners of one command is an ambiguous dispatch, the same reason a module name clash is refused (Task, the two refusals) |
+| An external plugin's API parameters come from an `-api` module it brings, as a compiled-in plugin's do (owner, P-1, 2026-11-17) | Derive the parameters from the `-cmd` leaves; list the command with no parameters | "yes, like current internal plugin, the exact same way" |
+| **An external plugin and a compiled-in plugin are the same thing to Ze and differ only in transport** (owner, 2026-11-17). Every phase 11 step is tested against it, and so is any later rule | Rules of their own for external plugins | "The only differene should be how they reach the bus". A compiled-in plugin registers at program start; an external one connects at startup and declares itself at Stage 1. A rule for external plugins alone exists only when it follows from that transport (the declaration travels at Stage 1; it is fixed until `ze` restarts; with no `ze` running there is no plugin to ask) or from arriving after the compiled-in set (a name that already exists). An external module is judged by the code that judges a compiled-in module. A behaviour that differs with no such reason is a defect. Written into `docs/architecture/plugin/plugin-system.md`, "One plugin, two ways to reach the bus" |
+
+#### To re-examine under the transport-only rule
+
+Rows of this spec that hold a rule for external plugins alone with no transport or arrival reason found for it. They are listed, not changed: each is settled by the rule (the external rule goes, or the compiled-in path takes the same check) or brought to the owner.
+
+| # | Rule as this spec states it | Where | Compiled-in today | Why it is listed |
+|---|-----------------------------|-------|-------------------|------------------|
+| 1 | An external module that redefines an existing top-level node is refused, with the `augment` form | Refusals at the join; AC-5 | Six compiled-in `-conf` modules each define `container service`, and `Schema.Define` merges them (F-1, A-9) | Same YANG, two verdicts. "A name that already exists" is an arrival reason, but the compiled-in set has the same clash among its own modules and is not judged |
+| 2 | An external module that is not `-conf` and augments nothing is refused (`refuseIdleModules`) | Refusals at the join; Key Design Decisions, the `-conf` row | No compiled-in module is judged by it: a compiled-in `-api` or `-cmd` module is neither `-conf` nor an augment | A check only external modules pass through. Phase 11 widens it to `-cmd` and `-api`; the rule asks whether it exists at all |
+| 3 | An external module that names a `ze:validate` function or a `ze:reference` source Ze does not hold refuses the start (AC-11) | AC-11; Key Design Decisions, "A daemon-side extension the daemon does not hold is refused" | `validatorFromResolved` logs the result of `CheckAllValidatorsRegistered` and the start goes on (Current Behavior) | The external verdict is stricter. `DESIGN-HISTORY.md` row 293 says startup fails for any module; the compiled-in path may be the one to correct |
+| 4 | A plugin that brings a command module is refused at Stage 1 when a command it declares names no node of that module (AC-40) | AC-40; phase 11.3 | Judged by tooling at build time (`./le plugin declarations check`, `./le doc yang-contract command-contract`), not when the plugin registers | The same fact is judged by other code, at another time. The Stage 1 timing is the transport; the check itself should be one |
+| 5 | Where the plugin's YANG and its Stage 1 declaration both give help or arguments, the YANG wins | Key Design Decisions; Existing Mechanisms, the `CommandDecl` row | Not read for this edit: which wins for a compiled-in plugin whose `Registration.Commands` and `-cmd` module both give help | Must be one rule for both; read the compiled-in behaviour before phase 11 builds it |
+| 6 | A command path the tree already holds is refused at the join (AC-34) | AC-34; Key Design Decisions | Not read for this edit: what happens when two compiled-in `-cmd` modules declare the same command path (`BuildCommandTree` merges same-named containers) | An arrival reason holds ("a name that already exists"), but the check must be the code compiled-in modules pass through too |
+
+Kept without listing, because each follows from the transport or from arriving after the compiled-in set: no external plugin is started with no daemon (owner ruling, 2026-11-16); the plugins and modules are fixed until `ze` restarts (AC-7, AC-12); a module name or namespace already in the set is refused (AC-5, R-6); a node under a first-pass root is refused, because the first pass reads those roots before any Stage 1 (AC-29); an inline BGP attachment cannot bring a schema, because it is declared after the publish (R-5).
 | An external module follows the `-conf` naming rule and uses `augment` for a shared container | Treat any declared module as config; allow a second definition | One rule for every module, compiled-in or not; a module that would add nothing is refused with the rule, never accepted in silence |
 | A daemon-side extension the daemon does not hold is refused | Skip it, as an unregistered `ze:validate` is skipped today | An accepted annotation that checks nothing is a silent wrong answer; the plugin validates in its own verify step |
 
@@ -991,7 +1148,11 @@ Tests that asserted the phase 6 advice and were updated under the judge's approv
 | Item | Home |
 |------|------|
 | Validating leafref values ("Ze validates that referenced values exist" was also removed from `docs/plugin-development/schema.md`) | `plan/post-release/features/spec-config-yang-type-leafref.md` |
-| A plugin's command argument model from its own module (journal row 2026-11-02) | This spec, as a last phase with its own acceptance criteria, when D-3 is answered yes; a spec of its own when answered no |
+| A plugin's command argument model from its own module (journal row 2026-11-02) | This spec, phase 11: D-3 answered yes on 2026-11-17 (AC-30 to AC-41) |
+| Removing help text and arguments from the Stage 1 command declaration, so the YANG is the only source of them. It touches the 54 Go files that declare commands. Until it lands, where both exist the YANG wins (Key Design Decisions). Left out by the approval of 2026-11-17: wanted later, not declined | No existing spec fits. Searched `plan/` on 2026-11-17 for `CommandDecl`, `ShortHelp`, `buildParamMeta` and arguments read by name: `plan/post-release/engineering/spec-plugin-declaration-fields-on-registration.md` is about what `show plugin declarations` answers, `plan/release/fixes/spec-plugin-declaration-names-a-path-it-serves.md` about which paths a plugin may declare on, and neither removes a field. Homed here until a spec is written; none is created by this edit |
+| Passing a command's arguments to the plugin's handler by name, in place of `args []string`. Left out by the approval of 2026-11-17: wanted later, not declined | No existing spec fits. `plan/release/fixes/spec-yang-single-source-of-truth.md`, part D, moves compiled-in handlers onto reading leaves by name through `ValidatedArgs`; it is a release fix for in-process handlers, and this is a post-release change to the plugin protocol, which `plan/README.md` keeps apart. Homed here until a spec is written; none is created by this edit |
+
+Dropped from this table on 2026-11-17: API parameters derived from a command node's leaves when the node has no `-api` rpc. For an external plugin it is not wanted, by the owner's answer to P-1: "yes, like current internal plugin, the exact same way", so an external plugin brings an `-api` module (AC-41). The general question of which producer builds API parameters stays where it is recorded, the `buildParamMeta` row of part D of `plan/release/fixes/spec-yang-single-source-of-truth.md`, which this edit leaves alone.
 | Defaults in the section delivered to an external plugin | `plan/release/fixes/spec-yang-defaults-applied-once.md` (D-1, AC-6 there) |
 | Walking every schema section for custom validators | `plan/release/fixes/spec-validation-walks-every-schema-section.md` (AC-1 there) |
 | The join judging the `ze:decorate` and `ze:backend` names of an external module (R-20; AC-11 narrowed by the owner on 2026-11-17, "make it a fix to do post-release") and its journal row `gate-excludes-part-of-its-population.md` 2026-11-17 | `plan/post-release/features/spec-plugin-external-yang-judges-decorate-and-backend.md` (AC-1 to AC-3 there, and its decision D-1) |

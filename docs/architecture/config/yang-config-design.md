@@ -467,7 +467,9 @@ The join refuses each case below, and nothing is dropped in silence:
 | The declared module name or namespace differs from the text | The plugin and both values |
 | The module name is held by a compiled-in module, at any revision, or by an earlier external module | The plugin, the module and the holder |
 | The namespace is held the same way | The plugin and both modules |
-| The module adds nothing: its name does not end in `-conf` and it augments nothing | The plugin, the module and the naming rule |
+| The module adds nothing: its name does not end in `-conf` it augments nothing, it is not a `-cmd` module with a `ze:command`, and it holds no rpc | The plugin, the module and the naming rule |
+| A `ze:command` on a path, or a wire method, another module already declares | The plugin, the module, the path or method, and the holder |
+| A `ze:rpc` or wire method `PublishedRPCs` refuses over the joined set and not over the compiled-in one, or a `ze:rpc` naming a module no module is | The plugin and the pointer |
 | A top-level node of an external `-conf` module is already defined by a `-conf` module | The plugin, the node, the module that defines it and the `augment` to write |
 | The module names a `ze:validate` function or a `ze:reference` source the daemon does not hold | The plugin, the module, the extension, the name and the schema path |
 

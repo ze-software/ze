@@ -90,14 +90,20 @@ func TestExternalYANGRedeclaringVariantChangesItsModuleOnTheSecondStart(t *testi
 	}
 	first := variant.declaration(1)
 	second := variant.declaration(2)
-	if first.Schema.YANGText != valid.declaration(1).Schema.YANGText {
+	validFirst := valid.declaration(1)
+	for start, declaration := range map[string]*sdk.Registration{"first": first, "second": second, "valid": validFirst} {
+		if len(declaration.Schemas) != 1 {
+			t.Fatalf("the %s declaration carries %d modules, want exactly one", start, len(declaration.Schemas))
+		}
+	}
+	if first.Schemas[0].YANGText != validFirst.Schemas[0].YANGText {
 		t.Fatal("the first start does not declare the valid module")
 	}
-	if second.Schema.YANGText == first.Schema.YANGText {
+	if second.Schemas[0].YANGText == first.Schemas[0].YANGText {
 		t.Fatal("the second start declares the same module text as the first")
 	}
-	if second.Schema.Module != first.Schema.Module {
-		t.Fatalf("module name changed: %q then %q", first.Schema.Module, second.Schema.Module)
+	if second.Schemas[0].Module != first.Schemas[0].Module {
+		t.Fatalf("module name changed: %q then %q", first.Schemas[0].Module, second.Schemas[0].Module)
 	}
 	if first.FailurePolicy != sdk.FailureRestart {
 		t.Fatalf("failure policy = %v, want restart", first.FailurePolicy)
@@ -110,11 +116,17 @@ func TestExternalYANGRedeclaringVariantChangesItsModuleOnTheSecondStart(t *testi
 func TestExternalYANGEveryVariantDeclaresAModuleAndARoot(t *testing.T) {
 	for name, variant := range externalYANGVariants {
 		declaration := variant.declaration(1)
-		if declaration.Schema == nil {
+		if len(declaration.Schemas) == 0 {
 			t.Fatalf("variant %s declares no schema", name)
 		}
-		if !strings.Contains(declaration.Schema.YANGText, "module "+declaration.Schema.Module+" {") {
-			t.Fatalf("variant %s: the text does not define module %s", name, declaration.Schema.Module)
+		for i := range declaration.Schemas {
+			schema := &declaration.Schemas[i]
+			if schema.YANGText == "" {
+				t.Fatalf("variant %s: module %s carries no text", name, schema.Module)
+			}
+			if !strings.Contains(schema.YANGText, "module "+schema.Module+" {") {
+				t.Fatalf("variant %s: the text does not define module %s", name, schema.Module)
+			}
 		}
 		if len(declaration.WantsConfig) == 0 {
 			t.Fatalf("variant %s wants no config root", name)

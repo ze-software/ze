@@ -529,30 +529,35 @@ module ze-plugin-engine {
                      nothing.";
                 ze:help "Plugins this plugin starts after when present";
             }
-            container schema {
+            list schemas {
+                key "module";
                 description
-                    "The engine registers the module in the schema registry at Stage 1. A module
-                     name or a handler path another plugin already registered is refused.";
-                ze:help "YANG schema declaration";
+                    "One entry for each YANG module the plugin brings, each text holding one
+                     module. An external plugin's modules are joined to the schema when ze
+                     starts, before the full config parse: a module whose name ends in -conf
+                     adds config roots, one that augments another module extends it, and one
+                     whose name ends in -cmd adds commands. A module the join refuses stops
+                     the start and names the plugin.";
+                ze:help "YANG modules the plugin brings";
                 leaf module {
                     type string;
                     description
-                        "The registry is keyed by this name, and an empty name is refused. A
-                         second plugin declaring the same module name is a duplicate.";
+                        "The join refuses an entry whose name differs from the module the text
+                         defines, and a name another module already holds.";
                     ze:help "YANG module name";
                 }
                 leaf namespace {
                     type string;
                     description
-                        "The namespace statement of the declared module. The engine stores it
-                         beside the module name and does not read it during registration.";
+                        "The join refuses an entry whose namespace differs from the one the text
+                         states, and a namespace another module already holds.";
                     ze:help "YANG namespace URI";
                 }
                 leaf yang-text {
                     type string;
                     description
-                        "The source text of the module, as the plugin ships it. The engine stores
-                         it with the declaration so the schema can be parsed later.";
+                        "The source text of the module, as the plugin ships it. An entry with
+                         no text brings no module.";
                     ze:help "Full YANG module text";
                 }
                 leaf-list handlers {

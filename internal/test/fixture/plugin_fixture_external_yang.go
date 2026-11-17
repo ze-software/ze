@@ -73,6 +73,14 @@ type externalYANGVariant struct {
 	// starts, one line each, before it connects. A variant with none prints no
 	// such line.
 	environment []string
+	// extra are the modules the plugin declares after schema, in order: a
+	// command module and its rpc module. A variant with none declares schema
+	// alone.
+	extra []externalyang.Module
+	// commands are the commands the plugin declares at Stage 1 and answers.
+	// Each answer is printed, so a .ci tells a command that reached the plugin
+	// from one the daemon refused before asking it.
+	commands []string
 }
 
 // externalYANGRoot is the config root the fixture plugin's module defines.
@@ -111,6 +119,12 @@ var externalYANGVariants = map[string]externalYANGVariant{
 		schema: externalyang.Augment(),
 		wants:  []string{"service/chrony"},
 	},
+	"commands": {
+		schema:   externalyang.Valid(),
+		wants:    []string{externalYANGRoot},
+		extra:    []externalyang.Module{externalyang.Commands(), externalyang.API()},
+		commands: []string{externalyang.CommandStatus, externalyang.CommandTarget},
+	},
 }
 
 // externalYANGVariantNamed answers the variant an argument names, or an error
@@ -143,11 +157,21 @@ func (variant externalYANGVariant) declaration(generation int) *sdk.Registration
 	}
 	declaration := &sdk.Registration{
 		WantsConfig: variant.wants,
-		Schema: &sdk.SchemaDecl{
+		Schemas: []sdk.SchemaDecl{{
 			Module:    variant.schema.Name,
 			Namespace: variant.schema.Namespace,
 			YANGText:  text,
-		},
+		}},
+	}
+	for _, module := range variant.extra {
+		declaration.Schemas = append(declaration.Schemas, sdk.SchemaDecl{
+			Module:    module.Name,
+			Namespace: module.Namespace,
+			YANGText:  module.Text,
+		})
+	}
+	for _, name := range variant.commands {
+		declaration.Commands = append(declaration.Commands, sdk.CommandDecl{Name: name})
 	}
 	if variant.redeclares() {
 		// The first start exits, and only a plugin that declared restart is
@@ -327,6 +351,24 @@ func externalYANGApply(sections []sdk.ConfigDiffSection) error {
 	return nil
 }
 
+// externalYANGCommand answers a command the plugin declared, and prints the
+// command and its arguments as the daemon sent them: a value the daemon
+// refused never reaches here, so it is never printed. The answer carries the
+// arguments too, so the command's own output shows what the plugin received,
+// with no wait on the relay of the plugin's stderr through the daemon.
+func externalYANGCommand(_, command string, args []string, _ string) (string, any, error) {
+	var line textbuf.Buffer
+	line.Str("FIXTURE: external-yang command ").Str(command).Str(" args=[").Join(args, " ").Str("]\n")
+	line.StdErr() //nolint:errcheck // fixture progress output
+	var received textbuf.Buffer
+	received.Str("[").Join(args, " ").Str("]")
+	return statusDone, map[string]any{fieldResult: command, fieldExternalYANGArgs: received.String()}, nil
+}
+
+// fieldExternalYANGArgs is the key of the arguments in the answer of
+// externalYANGCommand, written as the stderr line writes them.
+const fieldExternalYANGArgs = "args"
+
 // externalYANGRun runs the plugin transport and reports why it ended. One
 // goroutine for one plugin lifecycle, ended by the send; the channel is
 // buffered, so it never blocks.
@@ -347,6 +389,9 @@ func externalYANGServe(ctx context.Context, variant externalYANGVariant, generat
 	plugin.OnConfigure(externalYANGConfigure)
 	plugin.OnConfigVerify(externalYANGVerify)
 	plugin.OnConfigApply(externalYANGApply)
+	if len(variant.commands) > 0 {
+		plugin.OnExecuteCommand(externalYANGCommand)
+	}
 
 	// The daemon reports ready once in the life of a process, and the channel
 	// holds that one report, so the send never blocks.

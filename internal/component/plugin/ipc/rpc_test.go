@@ -54,11 +54,11 @@ func TestRPCDeclareRegistration(t *testing.T) {
 			{Name: "show-routes", ShortHelp: "Show routes"},
 		},
 		WantsConfig: []string{"bgp"},
-		Schema: &rpc.SchemaDecl{
+		Schemas: []rpc.SchemaDecl{{
 			Module:    "ze-test",
 			Namespace: "urn:ze:test",
 			Handlers:  []string{"test"},
-		},
+		}},
 	}
 
 	// Plugin sends declare-registration via plugin conn (write side)
@@ -81,7 +81,8 @@ func TestRPCDeclareRegistration(t *testing.T) {
 	assert.Equal(t, 1, len(received.Commands))
 	assert.Equal(t, "show-routes", received.Commands[0].Name)
 	assert.Equal(t, []string{"bgp"}, received.WantsConfig)
-	assert.Equal(t, "ze-test", received.Schema.Module)
+	require.Len(t, received.Schemas, 1)
+	assert.Equal(t, "ze-test", received.Schemas[0].Module)
 
 	// Engine sends response
 	require.NoError(t, engineConn.SendResult(context.Background(), req.ID, nil))

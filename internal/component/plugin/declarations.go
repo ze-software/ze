@@ -32,7 +32,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -45,6 +44,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -603,6 +603,13 @@ func queriedDeclarationRow(ctx context.Context, configured PluginConfig, budget 
 		row.Reason = query.silence.reason
 		return row
 	}
+	// A declaration the daemon's decoder refuses, for a key ze does not know,
+	// is refused here with the same text before any check reads it.
+	if query.Refusal != nil {
+		row.State = stateUnstartable
+		row.Reason = query.Refusal.Error()
+		return row
+	}
 
 	// The declaration is judged by the daemon's own Stage 1 checks, so a row is
 	// listed as declared only when the daemon would start the plugin. A binary
@@ -684,6 +691,11 @@ type DeclarationQuery struct {
 	// Declared says a declaration line was read. A program that answered has
 	// answered whatever its exit was.
 	Declared bool
+	// Refusal is the decoder's refusal of the declaration line read: one that
+	// carries a key ze does not know (rpc.DecodeDeclaration). Declared is true
+	// with it, and Declaration is then empty. The daemon refuses such a
+	// plugin at Stage 1 with the same text.
+	Refusal error
 
 	// silence is the row `show plugin declarations` writes when no
 	// declaration was read or the caller stopped the query before it completed.
@@ -762,7 +774,7 @@ func QueryDeclaration(ctx context.Context, configured PluginConfig, budget time.
 
 	waitErr := child.Wait()
 	query := DeclarationQuery{Stdout: stdout.held}
-	query.Declaration, query.Declared = declarationFromStdout(stdout.held)
+	query.Declaration, query.Declared, query.Refusal = declarationFromStdout(configured.Name, stdout.held)
 	if err := ctx.Err(); err != nil {
 		return canceledDeclarationQuery(&query, err)
 	}
@@ -941,9 +953,13 @@ func queryChildEnv() []string {
 // fields state, and refuses the whole stream when the arithmetic lands
 // somewhere other than a newline. A declaration line holds no raw newline,
 // because json.Marshal escapes one, so the newline frames it exactly.
-func declarationFromStdout(stdout []byte) (rpc.DeclareRegistrationInput, bool) {
-	var declaration rpc.DeclareRegistrationInput
-
+//
+// The line is decoded as the daemon decodes it (rpc.DecodeDeclaration), for
+// the plugin named name. A line that decodes and carries a key ze does not
+// know is a declaration the daemon refuses: it is read, with that refusal as
+// refusal and no declaration, so the plugin is never listed as declaring
+// what the daemon would not start.
+func declarationFromStdout(name string, stdout []byte) (declaration rpc.DeclareRegistrationInput, declared bool, refusal error) {
 	lines := bufio.NewScanner(bytes.NewReader(stdout))
 	lines.Buffer(make([]byte, 0, initialQueryLineSize), rpc.MaxMessageSize+1)
 	lines.Split(rpc.ScanLinesKeepingReturns)
@@ -955,12 +971,15 @@ func declarationFromStdout(stdout []byte) (rpc.DeclareRegistrationInput, bool) {
 		if method != rpc.MethodDeclareRegistration {
 			continue
 		}
-		if json.Unmarshal(payload, &declaration) != nil {
-			continue
+		decoded, decodeErr := rpc.DecodeDeclaration(name, payload)
+		if decodeErr == nil {
+			return decoded, true, nil
 		}
-		return declaration, true
+		if _, refused := errors.AsType[*opererr.Error](decodeErr); refused {
+			return rpc.DeclareRegistrationInput{}, true, decodeErr
+		}
 	}
-	return declaration, false
+	return rpc.DeclareRegistrationInput{}, false, nil
 }
 
 // initialQueryLineSize is the buffer a line starts at. A declaration of a

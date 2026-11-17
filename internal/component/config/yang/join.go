@@ -17,8 +17,9 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
-// ExternalModule is the YANG module one external plugin declares: the `schema`
-// object of its Stage 1 declaration, with the name of the plugin that sent it.
+// ExternalModule is one YANG module an external plugin declares: one entry of
+// the `schemas` list of its Stage 1 declaration, with the name of the plugin
+// that sent it. A plugin that brings several modules is several of them.
 // It is the raw declaration, and nothing in it is checked until Join reads it.
 type ExternalModule struct {
 	// Plugin is the name of the plugin that declared the module.
@@ -53,8 +54,11 @@ type declaredModule struct {
 //   - the module name is held by a module of compiled, at any revision, or by
 //     an earlier external module
 //   - the namespace is held the same way
-//   - the module adds nothing to the config schema: its name does not end in
-//     -conf and it augments nothing
+//   - the module adds nothing: its name does not end in -conf, it augments
+//     nothing, it is not a -cmd module that declares a command, and it holds
+//     no rpc
+//   - a command path or wire method another module holds, or a ze:rpc or wire
+//     method PublishedRPCs refuses (refuseCommandConflicts)
 //   - a top-level node of a -conf external module is already defined by a
 //     -conf module of compiled or by an earlier external module
 //   - the module names a ze:validate function validators does not hold, or a
@@ -102,6 +106,9 @@ func Join(compiled *Resolved, externals []ExternalModule, validators *ValidatorR
 		return nil, err
 	}
 	if err := refuseUnheldRegistrations(joined, declared, validators); err != nil {
+		return nil, err
+	}
+	if err := refuseCommandConflicts(compiled, joined, declared); err != nil {
 		return nil, err
 	}
 	return joined, nil
@@ -309,9 +316,12 @@ func resolveJoined(set *sourcedModules, declared []declaredModule) (*Resolved, e
 	return nil, invalidTogetherRefusal(declared, resolveErr)
 }
 
-// refuseIdleModules refuses an external module that would add nothing to the
-// config schema: the schema takes top-level nodes only from a config module
-// (Resolved.ConfModuleNames), and any other module reaches it by an augment.
+// refuseIdleModules refuses an external module that would add nothing to ze:
+// the config schema takes top-level nodes only from a config module
+// (Resolved.ConfModuleNames), any other module reaches it by an augment, the
+// command tree takes commands only from a -cmd module (BuildCommandTree), and
+// the rpcs that describe command parameters are read from every module
+// (PublishedRPCs).
 func refuseIdleModules(joined *Resolved, declared []declaredModule) error {
 	configModules := joined.ConfModuleNames()
 	for _, module := range declared {
@@ -321,14 +331,38 @@ func refuseIdleModules(joined *Resolved, declared []declaredModule) error {
 		if module.augments {
 			continue
 		}
-		return opererr.New(
-			"Module "+quoted(module.name)+" of plugin "+quoted(module.external.Plugin)+" adds nothing to the config schema",
-			"Ze reads top-level config nodes only from a module whose name ends in -conf, and this module augments no other module",
-			"rename the module to "+quoted(module.name+"-conf")+" in the schema that plugin "+
-				quoted(module.external.Plugin)+" declares, or augment an existing container, then restart ze",
-		)
+		commands := declaresTreeCommand(joined.GetEntry(module.name))
+		if commands && strings.HasSuffix(module.name, cmdModuleSuffix) {
+			continue
+		}
+		if len(joined.GetModule(module.name).RPC) > 0 {
+			continue
+		}
+		return idleModuleRefusal(module, commands)
 	}
 	return nil
+}
+
+// idleModuleRefusal is the refusal of a module that adds nothing, with the one
+// change that makes it add what it holds: commands is whether it declares a
+// command the tree would read under a -cmd name.
+func idleModuleRefusal(module declaredModule, commands bool) error {
+	plugin := quoted(module.external.Plugin)
+	problem := "Module " + quoted(module.name) + " of plugin " + plugin + " adds nothing to the config schema, the commands or the rpcs"
+	why := "Ze reads config nodes only from a module whose name ends in -conf or that augments another module, " +
+		"commands only from a module whose name ends in -cmd that declares a ze:command, and rpcs from rpc statements"
+	switch {
+	case commands:
+		return opererr.New(problem, why,
+			"rename the module to "+quoted(module.name+cmdModuleSuffix)+" in the schemas that plugin "+plugin+" declares, then restart ze")
+	case strings.HasSuffix(module.name, cmdModuleSuffix):
+		return opererr.New(problem, why,
+			"add `config false;` and a ze:command statement to each command container of module "+quoted(module.name)+
+				" in the schemas that plugin "+plugin+" declares, then restart ze")
+	default:
+		return opererr.New(problem, why,
+			"rename the module to "+quoted(module.name+"-conf")+" in the schemas that plugin "+plugin+" declares, then restart ze")
+	}
 }
 
 // rootHolder is the module that defines one top-level config node.
@@ -589,9 +623,9 @@ func invalidTogetherRefusal(declared []declaredModule, cause error) error {
 func moduleCountRefusal(external ExternalModule) error {
 	plugin := quoted(external.Plugin)
 	return opererr.New(
-		"The schema that plugin "+plugin+" declares does not hold exactly one YANG module",
-		"Ze joins one module for each plugin, and a submodule or a second module has no declared name",
-		"write one module statement in the YANG text that plugin "+plugin+" declares, then restart ze",
+		"A YANG text that plugin "+plugin+" declares does not hold exactly one YANG module",
+		"each entry of the schemas a plugin declares names one module, so a submodule or a second module in its text has no declared name",
+		"write one module statement in each YANG text that plugin "+plugin+" declares, one entry for each module, then restart ze",
 	)
 }
 

@@ -52,7 +52,8 @@ type FamilyDecl = rpc.FamilyDecl
 // CommandDecl declares a command the plugin provides.
 type CommandDecl = rpc.CommandDecl
 
-// SchemaDecl declares the YANG schema the plugin provides.
+// SchemaDecl declares one YANG module the plugin provides; Registration.Schemas
+// holds one for each module.
 type SchemaDecl = rpc.SchemaDecl
 
 // DeclareCapabilitiesInput is the input for declare-capabilities (Stage 3).

@@ -233,7 +233,7 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | `sdk.Registration` | Stage 1 declaration (= `rpc.DeclareRegistrationInput`), passed to `Run` and `RunOrDeclare` by pointer. `Run` copies it at entry and refuses `nil` |
 | `sdk.FamilyDecl` | Address family declaration (`Name` + `Mode`) |
 | `sdk.CommandDecl` | Command declaration (`Name` + `ShortHelp` + `Description` + `Args`). `ShortHelp` is the one-line summary every listing prints. `Description` is the explanation only the command's own help page prints |
-| `sdk.SchemaDecl` | YANG schema declaration (`Module` + `YANGText` + `Handlers`) |
+| `sdk.SchemaDecl` | One YANG module the plugin brings (`Module` + `Namespace` + `YANGText` + `Handlers`). `Registration.Schemas` holds one entry for each module |
 | `sdk.ConfigSection` | Config section (`Root` + `Data`) |
 | `sdk.ConfigDiffSection` | Config diff (`Root` + `Added` + `Removed` + `Changed`) |
 | `sdk.CapabilityDecl` | BGP capability for OPEN injection |
@@ -371,7 +371,7 @@ p.SetStartupSubscriptions([]string{"update"}, nil, "")
 err = p.Run(context.Background(), &sdk.Registration{
     Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
     Commands: []sdk.CommandDecl{{Name: "my-plugin status", ShortHelp: "Show status"}},
-    Schema:   &sdk.SchemaDecl{Module: "my-plugin", YANGText: myYANG, Handlers: []string{"my-prefix"}},
+    Schemas:  []sdk.SchemaDecl{{Module: "my-plugin-conf", Namespace: "urn:example:my-plugin:conf", YANGText: myYANG, Handlers: []string{"my-prefix"}}},
 })
 ```
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->

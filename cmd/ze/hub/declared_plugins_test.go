@@ -227,9 +227,9 @@ func TestPrepareFailureRefusesTheBoot(t *testing.T) {
 // the declarations that carry a module text and by nothing else.
 func TestDeclaredModulesTakesOnlyDeclaredModuleTexts(t *testing.T) {
 	declarations := []pluginserver.EarlyDeclaration{
-		{Plugin: "acme-monitor", Schema: &rpc.SchemaDecl{Module: "acme-monitor-conf", Namespace: "urn:acme:monitor", YANGText: "module acme-monitor-conf {}"}},
+		{Plugin: "acme-monitor", Schemas: []rpc.SchemaDecl{{Module: "acme-monitor-conf", Namespace: "urn:acme:monitor", YANGText: "module acme-monitor-conf {}"}}},
 		{Plugin: "no-schema"},
-		{Plugin: "handlers-only", Schema: &rpc.SchemaDecl{Module: "handlers-only-conf"}},
+		{Plugin: "handlers-only", Schemas: []rpc.SchemaDecl{{Module: "handlers-only-conf"}}},
 		{Plugin: "silent", Err: errors.New("sent no declaration")},
 	}
 
@@ -283,9 +283,9 @@ func TestStartedPluginsRecordsWhatEachDeclared(t *testing.T) {
 		{Name: "unanswered", Run: "./unanswered"},
 	}
 	declarations := []pluginserver.EarlyDeclaration{
-		{Plugin: "with-module", Schema: &rpc.SchemaDecl{Module: "m-conf", YANGText: "module m-conf {}"}},
+		{Plugin: "with-module", Schemas: []rpc.SchemaDecl{{Module: "m-conf", YANGText: "module m-conf {}"}}},
 		{Plugin: "no-schema"},
-		{Plugin: "no-text", Schema: &rpc.SchemaDecl{Module: "n-conf"}},
+		{Plugin: "no-text", Schemas: []rpc.SchemaDecl{{Module: "n-conf"}}},
 		{Plugin: "silent", Err: errors.New("sent nothing")},
 	}
 

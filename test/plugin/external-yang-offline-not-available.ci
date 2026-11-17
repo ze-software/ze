@@ -52,7 +52,7 @@ option=env:var=ze.ssh.port:value=$PORT
 # query.
 tmpfs=marker.run:terminator=EOF_RUN
 echo started > "started-$1.marker"
-printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"wants-config":["acme-shell"],"schema":{"module":"acme-shell-conf","namespace":"urn:acme:shell:conf","yang-text":"module acme-shell-conf { namespace \"urn:acme:shell:conf\"; prefix shell; container acme-shell { presence \"The acme shell plugin is configured\"; leaf greeting { type string { length \"1..64\"; } } } }"}}'
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"wants-config":["acme-shell"],"schemas":[{"module":"acme-shell-conf","namespace":"urn:acme:shell:conf","yang-text":"module acme-shell-conf { namespace \"urn:acme:shell:conf\"; prefix shell; container acme-shell { presence \"The acme shell plugin is configured\"; leaf greeting { type string { length \"1..64\"; } } } }"}]}'
 EOF_RUN
 
 tmpfs=ze.conf:terminator=EOF_CONF

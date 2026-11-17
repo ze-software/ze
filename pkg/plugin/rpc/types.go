@@ -357,10 +357,14 @@ type DeclareRegistrationInput struct {
 	// CurrentSelection declares the independent desired-selection snapshot handler.
 	CurrentSelection bool `json:"current-selection,omitempty"`
 	// EventSettlement declares acknowledged completion of asynchronous event work.
-	EventSettlement        bool         `json:"event-settlement,omitempty"`
-	VerifyBudget           int          `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
-	ApplyBudget            int          `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
-	Schema                 *SchemaDecl  `json:"schema,omitempty"`
+	EventSettlement bool `json:"event-settlement,omitempty"`
+	VerifyBudget    int  `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
+	ApplyBudget     int  `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
+	// Schemas are the YANG modules the plugin brings, one entry for each
+	// module text (SchemaDecl). An external plugin's modules are joined to the
+	// schema when ze starts, before the full config parse
+	// (docs/plugin-development/schema.md).
+	Schemas                []SchemaDecl `json:"schemas,omitempty"`
 	WantsValidateOpen      bool         `json:"wants-validate-open,omitempty"`
 	CacheConsumer          bool         `json:"cache-consumer,omitempty"`
 	CacheConsumerUnordered bool         `json:"cache-consumer-unordered,omitempty"`
@@ -571,7 +575,7 @@ type CommandDecl struct {
 	// command.CommandEntry.Description.
 	//
 	// It is optional, and its zero value is the refusal: a plugin that sends
-	// `description` and no `description` renders with its summary and an empty
+	// `short-help` and no `description` renders with its summary and an empty
 	// explanation. Empty here MUST NOT be read as an empty summary.
 	Description string `json:"description,omitempty"`
 	// RetiredHelp holds the `help` key when a declaration still carries it.
@@ -610,7 +614,11 @@ type CommandDecl struct {
 	AddressFields []string `json:"address-fields,omitempty"`
 }
 
-// SchemaDecl declares the YANG schema the plugin provides.
+// SchemaDecl declares one YANG module the plugin provides: its name and
+// namespace as the text states them, and the text, which holds that one module.
+// A plugin that brings several modules (a config module and a command module)
+// sends one SchemaDecl for each. Handlers is read only by the subsystem handler
+// (internal/component/plugin/server/subsystem.go).
 type SchemaDecl struct {
 	Module    string   `json:"module"`
 	Namespace string   `json:"namespace,omitempty"`

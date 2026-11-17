@@ -1334,13 +1334,14 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		}
 	}
 
-	if input.Schema != nil {
-		reg.PluginSchema = &plugin.PluginSchemaDecl{
-			Module:    input.Schema.Module,
-			Namespace: input.Schema.Namespace,
-			Handlers:  input.Schema.Handlers,
-			Yang:      input.Schema.YANGText,
-		}
+	for i := range input.Schemas {
+		schema := &input.Schemas[i]
+		reg.PluginSchemas = append(reg.PluginSchemas, plugin.PluginSchemaDecl{
+			Module:    schema.Module,
+			Namespace: schema.Namespace,
+			Handlers:  schema.Handlers,
+			Yang:      schema.YANGText,
+		})
 	}
 
 	// runStartupHandshake refused a declaration that does not compile

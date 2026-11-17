@@ -52,7 +52,7 @@ func init() {
 	Register(notJudged(170, "bye-and-exit", stageShutdown,
 		"the checker sends no bye, so whether the plugin stops and exits when the daemon asks is not seen"))
 	Register(notJudged(180, "schema", stageSchema,
-		"the YANG module in the declaration's schema field is not compiled, so a module the daemon would refuse is not found"))
+		"the YANG modules in the declaration's schemas list are not compiled, so a module the daemon would refuse is not found"))
 
 	command.MustRegisterLocalData("show plugin conformance run", dataConformance, cmdregistry.Meta{
 		ShortHelp: "Check that a program behaves as a Ze plugin.",

@@ -162,8 +162,11 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		_ = conn.SendError(ctx, req.ID, tb.Str("expected declare-registration, got ").Str(req.Method).String())
 		return fmt.Errorf("stage 1: expected declare-registration, got %s", req.Method)
 	}
-	var regInput rpc.DeclareRegistrationInput
-	if err := json.Unmarshal(req.Params, &regInput); err != nil {
+	// The one decoder every reader of a declaration uses: JSON that is no
+	// declaration, and a declaration carrying a key ze does not know, are both
+	// refused here, before any check reads it (rpc.DecodeDeclaration).
+	regInput, err := rpc.DecodeDeclaration(sink.pluginName(), req.Params)
+	if err != nil {
 		var tb textbuf.Buffer
 		_ = conn.SendError(ctx, req.ID, tb.Str("invalid registration: ").Err(err).String())
 		return fmt.Errorf("stage 1 parse: %w", err)

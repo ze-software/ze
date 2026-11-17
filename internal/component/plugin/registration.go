@@ -132,7 +132,7 @@ type PluginRegistration struct {
 	FailurePolicy rpc.FailurePolicy
 
 	// YANG schema declarations (Hub Architecture)
-	PluginSchema *PluginSchemaDecl // YANG schema declaration for this plugin
+	PluginSchemas []PluginSchemaDecl // The YANG modules this plugin declared, one for each module text
 
 	// Route filter declarations (filter chain protocol)
 	Filters []FilterRegistration // Named filters this plugin offers
@@ -182,8 +182,8 @@ type DoctorCheckRegistration struct {
 	Codes        []string             // Diagnostic codes (must have "doctor-" prefix)
 }
 
-// PluginSchemaDecl holds YANG schema declaration from a plugin.
-// Built incrementally from multiple `declare schema` lines.
+// PluginSchemaDecl holds one YANG module a plugin declared at Stage 1: one
+// entry of the declaration's schemas list.
 type PluginSchemaDecl struct {
 	Module    string   // YANG module name
 	Namespace string   // YANG namespace URI

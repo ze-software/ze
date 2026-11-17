@@ -192,10 +192,104 @@ func Augment() Module {
 	return Module{Name: "acme-chrony-conf", Namespace: "urn:acme:chrony:conf", Text: augmentText}
 }
 
-// Accepted answers the modules the daemon is expected to accept, sorted by
-// name: every module of this package that is not Refused. RedeclaredText is
-// not one of them: it is a second text of Valid's module, which a process
-// joins once.
+// commandsText is the command module the plugin brings beside Valid: one
+// command with no argument, and one whose argument is a string of 1 to 16
+// characters, so a test can watch the daemon judge a value before it asks
+// the plugin. Its verb container states no help text: the verb is shared,
+// and its help is the one ze holds.
+const commandsText = `module acme-monitor-cmd {
+    namespace "urn:acme:monitor:cmd";
+    prefix acmecmd;
+    import ze-extensions { prefix ze; }
+
+    description "Commands of the acme monitor, an external plugin.";
+
+    container show {
+        config false;
+
+        container acme-monitor {
+            config false;
+            ze:help "Inspect the acme monitor.";
+            description "What the acme monitor polls and whether it is polling.";
+
+            container status {
+                config false;
+                ze:command "acmecmd:show-status";
+                ze:help "Show whether the acme monitor is polling.";
+                description "Answers the state of the poller, from the plugin.";
+            }
+
+            container target {
+                config false;
+                ze:command "acmecmd:show-target";
+                ze:rpc "acme-monitor-api:show-target";
+                ze:help "Show one target the acme monitor polls.";
+                description "Answers what the plugin holds for the target it is given.";
+
+                leaf name {
+                    type string {
+                        length "1..16";
+                    }
+                    mandatory true;
+                    ze:help "Name of the target.";
+                    description "The target name, from 1 to 16 characters.";
+                }
+            }
+        }
+    }
+}
+`
+
+// apiText is the rpc module the plugin brings beside Commands, as a
+// compiled-in plugin pairs a -cmd module with an -api one: the target command
+// points at its rpc with ze:rpc, and the rpc input is the parameter list the
+// API surfaces publish for the command.
+const apiText = `module acme-monitor-api {
+    namespace "urn:acme:monitor:api";
+    prefix acmeapi;
+    import ze-extensions { prefix ze; }
+
+    description "The rpcs of the acme monitor commands, an external plugin.";
+
+    rpc show-target {
+        ze:help "Show one target the acme monitor polls.";
+        description "Answers what the plugin holds for the target it is given.";
+        input {
+            leaf name {
+                type string {
+                    length "1..16";
+                }
+                mandatory true;
+                ze:help "Name of the target.";
+                description "The target name, from 1 to 16 characters.";
+            }
+        }
+    }
+}
+`
+
+// API answers the rpc module the plugin brings beside Commands.
+func API() Module {
+	return Module{Name: "acme-monitor-api", Namespace: "urn:acme:monitor:api", Text: apiText}
+}
+
+// CommandStatus and CommandTarget are the commands Commands declares, as the
+// plugin declares them at Stage 1.
+const (
+	CommandStatus = "show acme-monitor status"
+	CommandTarget = "show acme-monitor target"
+)
+
+// Commands answers the command module the plugin brings beside Valid.
+func Commands() Module {
+	return Module{Name: "acme-monitor-cmd", Namespace: "urn:acme:monitor:cmd", Text: commandsText}
+}
+
+// Accepted answers the config modules the daemon is expected to accept,
+// sorted by name: every config module of this package that is not Refused.
+// Commands is not one of them: it adds no config, so the config sweep that
+// reads this list has no use for it. RedeclaredText is not one of them: it is
+// a second text of Valid's module, which a process joins once.
 func Accepted() []Module {
 	var accepted []Module
 	for _, module := range []Module{Valid(), Invalid(), Clash(), Augment()} {

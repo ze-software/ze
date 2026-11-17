@@ -30,9 +30,9 @@ func TestSchemalessPluginsAreNamedBesideAnUnknownSection(t *testing.T) {
 		{Name: "silent", Run: "./silent"},
 	}
 	declarations := []pluginserver.EarlyDeclaration{
-		{Plugin: "with-module", Schema: &rpc.SchemaDecl{Module: "m-conf", YANGText: "module m-conf {}"}},
+		{Plugin: "with-module", Schemas: []rpc.SchemaDecl{{Module: "m-conf", YANGText: "module m-conf {}"}}},
 		{Plugin: "no-schema"},
-		{Plugin: "no-text", Schema: &rpc.SchemaDecl{Module: "n-conf"}},
+		{Plugin: "no-text", Schemas: []rpc.SchemaDecl{{Module: "n-conf"}}},
 		{Plugin: "silent", Err: errors.New("sent nothing")},
 	}
 

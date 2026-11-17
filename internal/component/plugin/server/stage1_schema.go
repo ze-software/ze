@@ -34,14 +34,14 @@ const schemaFixedWhy = "ze reads the config schema of an external plugin once, w
 // restart of ze. It is logged and raised as doctor-plugin-schema-changed
 // here, and the published set is never written. A declaration that carries
 // the published schema clears that warning.
-func refuseChangedSchema(cfg plugin.PluginConfig, schema *rpc.SchemaDecl) error {
+func refuseChangedSchema(cfg plugin.PluginConfig, schemas []rpc.SchemaDecl) error {
 	if !cfg.RunsExternalProgram() {
 		// A plugin compiled into ze declares a module ze registered at
 		// init(): the published external layer never holds it, and it cannot
 		// change while the binary runs.
 		return nil
 	}
-	difference, differs := schemaDifference(cfg.Name, schema)
+	difference, differs := schemaDifference(cfg.Name, schemas)
 	if !differs {
 		report.ClearWarning(serverEventSource, diagnostic.CodeDoctorPluginSchemaChanged, fitSubject(cfg.Name))
 		return nil
@@ -60,62 +60,99 @@ func refuseChangedSchema(cfg plugin.PluginConfig, schema *rpc.SchemaDecl) error 
 	return refusal
 }
 
-// schemaDifference compares the schema the plugin named name declares now
-// with the module the process published for it, and says how they differ.
-// differs is false when they are the same: the same module, or none on both
-// sides.
-func schemaDifference(name string, schema *rpc.SchemaDecl) (difference string, differs bool) {
+// schemaDifference compares the modules the plugin named name declares now
+// with the modules the process published for it, and says how they differ.
+// differs is false when they are the same: the same modules, or none on both
+// sides. The first difference is named: a module declared now that differs
+// from the published one of its name or was not published, then a published
+// module the plugin no longer declares.
+func schemaDifference(name string, schemas []rpc.SchemaDecl) (difference string, differs bool) {
 	published, fixed := yang.PublishedExternalModules()
 	if !fixed {
 		// refuse-by-default: guards refuseChangedSchema -- a process that published no external layer started no external plugin before its full parse, so it holds no schema this declaration could differ from; boot publishes, with no module too, whenever it starts one (cmd/ze/hub joinDeclaredPlugins)
 		return "", false
 	}
-	held := slices.IndexFunc(published, func(module yang.ExternalModule) bool { return module.Plugin == name })
-	declared, declares := declaredModule(name, schema)
+	var held []yang.ExternalModule
+	for _, module := range published {
+		if module.Plugin == name {
+			held = append(held, module)
+		}
+	}
+	declared := DeclaredModules(name, schemas)
 
 	var text textbuf.Buffer
-	if !declares {
-		if held < 0 {
+	if len(declared) == 0 {
+		if len(held) == 0 {
 			return "", false
 		}
-		text.Str("it declares no YANG module now, and declared module ").Quoted(published[held].Module).
+		text.Str("it declares no YANG module now, and declared module ").Quoted(held[0].Module).
 			Str(" when ze started")
 		return text.String(), true
 	}
-
-	switch yang.PublishedModule(declared) {
-	case yang.ModulePublished:
-		return "", false
-	case yang.ModuleUndeclared:
-		text.Str("it declares YANG module ").Quoted(declared.Module).
-			Str(" now, and declared no module when ze started")
-		return text.String(), true
-	case yang.ModuleChanged:
-		return moduleDifference(published[held], declared), true
-	case yang.ModuleSetUnpublished:
-		panic("BUG: the published module set went back to unpublished")
-	case yang.ModulePublicationUnspecified:
-		panic("BUG: yang.PublishedModule answered the unspecified publication")
+	for _, module := range declared {
+		switch yang.PublishedModule(module) {
+		case yang.ModulePublished:
+			continue
+		case yang.ModuleUndeclared:
+			text.Str("it declares YANG module ").Quoted(module.Module).
+				Str(" now, and declared no module when ze started")
+			return text.String(), true
+		case yang.ModuleChanged:
+			return changedModuleDifference(held, declared, module), true
+		case yang.ModuleSetUnpublished:
+			panic("BUG: the published module set went back to unpublished")
+		case yang.ModulePublicationUnspecified:
+			panic("BUG: yang.PublishedModule answered the unspecified publication")
+		}
+		panic("BUG: unknown module publication")
 	}
-	panic("BUG: unknown module publication")
+	for _, module := range held {
+		if slices.ContainsFunc(declared, func(now yang.ExternalModule) bool { return now.Module == module.Module }) {
+			continue
+		}
+		text.Str("it does not declare YANG module ").Quoted(module.Module).
+			Str(" now, and declared it when ze started")
+		return text.String(), true
+	}
+	return "", false
 }
 
-// declaredModule answers the module a Stage 1 schema declares, as boot builds
-// the one it publishes (cmd/ze/hub declaredModules): declares is false for a
-// declaration with no schema or with no module text.
-func declaredModule(name string, schema *rpc.SchemaDecl) (module yang.ExternalModule, declares bool) {
-	if schema == nil {
-		return yang.ExternalModule{}, false
+// changedModuleDifference says how module, declared now, differs from what
+// the plugin published: from the published module of the same name, or, when
+// the plugin brings one module on each side, from that one module. held MUST
+// hold at least one module (yang.ModuleChanged).
+func changedModuleDifference(held, declared []yang.ExternalModule, module yang.ExternalModule) string {
+	same := slices.IndexFunc(held, func(published yang.ExternalModule) bool { return published.Module == module.Module })
+	if same >= 0 {
+		return moduleDifference(held[same], module)
 	}
-	if schema.YANGText == "" {
-		return yang.ExternalModule{}, false
+	if len(held) == 1 && len(declared) == 1 {
+		return moduleDifference(held[0], module)
 	}
-	return yang.ExternalModule{
-		Plugin:    name,
-		Module:    schema.Module,
-		Namespace: schema.Namespace,
-		Text:      schema.YANGText,
-	}, true
+	var text textbuf.Buffer
+	text.Str("it declares YANG module ").Quoted(module.Module).Str(" now, which it did not declare when ze started")
+	return text.String()
+}
+
+// DeclaredModules answers the modules a Stage 1 declaration of the plugin
+// named name carries, in the order it lists them: one for each entry with a
+// module text. Boot publishes what it answers (cmd/ze/hub declaredModules), and
+// a later Stage 1 of the plugin is compared with it, so both read one rule. An
+// entry with no text brings no module.
+func DeclaredModules(name string, schemas []rpc.SchemaDecl) []yang.ExternalModule {
+	var modules []yang.ExternalModule
+	for i := range schemas {
+		if schemas[i].YANGText == "" {
+			continue
+		}
+		modules = append(modules, yang.ExternalModule{
+			Plugin:    name,
+			Module:    schemas[i].Module,
+			Namespace: schemas[i].Namespace,
+			Text:      schemas[i].YANGText,
+		})
+	}
+	return modules
 }
 
 // moduleDifference says in which field declared differs from published, the

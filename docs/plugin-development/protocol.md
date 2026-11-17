@@ -174,15 +174,23 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
+| `optional-dependencies` | `[]string` | Plugins this one starts after when both run. It loads nothing |
+| `start-after` | `[]string` | Plugins this one starts after when both run, as an ordering edge alone. It loads nothing |
 | `wants-config` | `[]string` | Config roots the plugin wants to receive |
 | `config-operations` | `[]ConfigOperationDecl` | Config operation callbacks the plugin supports, and the operation labels it emits for each root. The labels are the plugin's own: the engine keeps no list of them |
+| `config-completion` | `bool` | Whether the plugin answers `config-complete`, the acknowledged cleanup after a whole reload was published or restored. The Go SDK sets it from `OnConfigComplete` |
+| `source-policy-owner` | `bool` | Whether the plugin retains source state, declared apart from `source-policy` |
+| `source-policy` | `bool` | Whether the plugin answers the acknowledged source-policy lifecycle callbacks |
+| `current-selection` | `bool` | Whether the plugin answers the desired-selection snapshot callback |
+| `event-settlement` | `bool` | Whether the plugin acknowledges when its asynchronous work on an event is complete |
 | `verify-budget` | `int` | Estimated verify time in seconds (`0` means trivial) |
 | `apply-budget` | `int` | Estimated apply time in seconds (`0` means trivial) |
-| `schema` | `*SchemaDecl` | YANG schema (module, namespace, yang-text, handlers) |
+| `schemas` | `[]SchemaDecl` | The YANG modules the plugin brings, one entry for each module: a config module, a `-cmd` command module, an `-api` rpc module. Ze joins an external plugin's modules when it starts (`schema.md`) |
 | `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
 | `filters` | `[]FilterDecl` | Named route filters the plugin provides: each a `name` or a `name-pattern`, and the route fields it `reads` (`raw` for the UPDATE body) and `sets`, and whether an export filter also runs on two extra occasions, `readvertise` and `judges-final` ("Filter Run Occasions"); Stage 1 and config load judge them (`docs/architecture/api/process-protocol.md`, "Filter Declaration") |
+| `filter-insertions` | `[]FilterInsertion` | Members the plugin asks the config loader to insert into a peer's filter list where the peer's config needs them (`docs/architecture/api/process-protocol.md`, "Filter Insertion") |
 | `doctor-checks` | `[]DoctorCheckDecl` | Doctor checks the plugin provides, each with a `phase`: `pre-config`, `missing-config`, `parsed-config`, `post-config`, or `runtime`. Declare `runtime` (`sdk.DoctorPhaseRuntime`) for a check that reads your plugin's live state: only `show doctor` on the running daemon runs it, never a local `ze doctor` process, which holds no live state. A `runtime` check only reads; it changes nothing |
 | `resolver-caches` | `[]string` | Resolver caches the plugin holds clients for: `peeringdb`, `irr`, `cymru`. Set by `OnResolverCacheClear`; any other name is refused |
 | `enrichers` | `[]EnricherDecl` | Show enrichers the plugin provides |
@@ -190,8 +198,27 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 | `dissemination` | `[]DisseminationDecl` | Peer-output roles and the explicit source/destination grants each needs; declaring a role grants no permission |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
-| `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
+| `drain-budget` | `int` | The longest time, in seconds, the plugin's drain handler takes to answer the stop drain. Declared only with `drain-handler`; a budget above the ceiling `rpc.DrainCeilingSeconds`, or one with no handler, fails Stage 1 |
+| `drain-handler` | `bool` | Whether the plugin answers the stop drain. The Go SDK sets it from `OnDrain` |
 | `started-handler` | `bool` | You initialize local resources after ready; answer runtime-ready only after that initialization succeeds. The Go SDK derives it from OnStarted |
+| `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
+
+**Ze reads every key of a declaration, and refuses one it does not know.** A
+key ze skipped would start your plugin without what the key declares, so a key
+outside the tables of this section, at the top of the declaration or inside
+any entry the tables define, fails Stage 1 with an error that names your
+plugin and this section. The daemon, `show plugin declarations` and the
+conformance check read a declaration the same way. A declaration that carries
+no `protocol-version` gets the version refusal instead, the one that names its
+real problem ("The protocol version", below).
+
+The modules were once one object under `schema`. Ze reads no value under that
+key, and a declaration that carries it is refused with the fix: send
+`"schemas":[{"module":...,"namespace":...,"yang-text":...}]` in place of
+`"schema":{...}`.
+<!-- source: pkg/plugin/rpc/declaration.go -- DecodeDeclaration, retiredSchemaRefusal -->
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+<!-- source: internal/component/plugin/server/early_stage1.go -- readEarlyDeclaration -->
 
 **The failure policy is what your plugin asks ze to do when your plugin fails.**
 It is voluntary, and a plugin that omits it is carried on without. A value that
@@ -261,7 +288,7 @@ Each `CommandDecl` has these fields:
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | `string` | Command path the plugin serves |
-| `description` | `string` | The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character |
+| `short-help` | `string` | The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character |
 | `description` | `string` | The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused |
 | `args` | `[]string` | Expected argument names, for help and completion |
 | `completable` | `bool` | Whether the command supports tab completion |
@@ -277,8 +304,10 @@ fails Stage 1 and does not start.
 
 `short-help` and `description` are two texts and neither is derived from the
 other. The key is `description` and not `help`, because `help` already names the
-SUMMARY in a completion row on this same protocol. A plugin that sends
-`description` and no `description` renders with its summary and an empty
+SUMMARY in a completion row on this same protocol. A command entry that
+still carries `help`, the summary's spelling before `short-help`, fails Stage
+1 with an error that names `short-help`. A plugin that sends
+`short-help` and no `description` renders with its summary and an empty
 explanation. That is what every plugin written before `description` existed
 sends. An empty `description` NEVER renders as an empty summary.
 
@@ -319,6 +348,79 @@ Each `FamilyDecl` has these fields:
 | `safi` | `uint8` | RFC 4760 Subsequent Address Family Identifier |
 
 Set `afi` and `safi` for a custom family. A built-in family can omit both numeric fields.
+
+Each `SchemaDecl` is one YANG module. A plugin that brings several modules
+sends one entry for each (`schema.md`):
+<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `module` | `string` | The module's name, as its text states it |
+| `namespace` | `string` | The module's namespace, as its text states it |
+| `yang-text` | `string` | The text of the module, which holds that one module |
+| `handlers` | `[]string` | Handler prefixes, read only by the subsystem handler |
+
+Each `ConfigOperationDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- ConfigOperationDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `root` | `string` | The config root the entry is about |
+| `decompose` | `bool` | Whether the plugin answers `config-operation-decompose` for the root (`OnConfigOperationDecompose` in the Go SDK) |
+| `operations` | `[]string` | The operation labels the plugin emits for the root |
+
+Each `FilterDecl` has these fields (`docs/architecture/api/process-protocol.md`,
+"Filter Declaration"):
+<!-- source: pkg/plugin/rpc/types.go -- FilterDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | The filter's name; config refers to it as `<plugin>:<name>` |
+| `name-pattern` | `string` | An RE2 expression a whole filter name matches, in place of `name` |
+| `direction` | `string` | `import`, `export` or `both` |
+| `reads` | `[]string` | The route fields the filter reads; `raw` for the UPDATE body |
+| `sets` | `[]string` | The route fields the filter may set |
+| `on-error` | `string` | `reject` (fail closed) or `accept` (fail open) |
+| `overrides` | `[]string` | The default filters this filter replaces |
+| `readvertise` | `bool` | An export filter also runs when a graceful-restart retention re-advertises its stale routes ("Filter Run Occasions") |
+| `judges-final` | `bool` | An export filter runs again over the body the export chain rewrote, so a member behind it cannot undo what it owes the route ("Filter Run Occasions") |
+
+Each `FilterInsertion` has these fields (`docs/architecture/api/process-protocol.md`,
+"Filter Insertion"):
+<!-- source: pkg/plugin/rpc/types.go -- FilterInsertion, FilterSessionFact -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filter` | `string` | The chain reference the plugin serves: `<plugin>:<filter>` or `<type>:<instance>` |
+| `direction` | `string` | `import` or `export`, exactly one |
+| `priority` | `int` | 0 to 9999: a lower one runs first among inserted members |
+| `config` | `[]string` | The path words under the peer's entry whose leaf places the member |
+| `values` | `[]string` | The leaf equals one of these; empty means present |
+| `session` | `[]FilterSessionFact` | Session facts that all hold, in place of `config`. Each has a `fact` and `values`, which the fact equals one of; empty means present |
+| `scope` | `string` | Whose condition places the member: empty for the peer itself, `any-peer` for any peer |
+| `required` | `bool` | The operator cannot name, move or deactivate the member |
+| `reason` | `string` | Why the member is required; owed with `required` |
+
+Each `DoctorCheckDecl` has these fields:
+<!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | The check's name, in kebab-case |
+| `phase` | `string` | When it runs: `pre-config`, `missing-config`, `parsed-config`, `post-config` or `runtime` |
+| `order` | `int` | Its order within the phase, 0 to 9999 |
+| `dependencies` | `[]string` | The checks that run before it |
+| `platforms` | `[]string` | The platforms it runs on; empty means any |
+| `codes` | `[]string` | The diagnostic codes it reports, each starting `doctor-` |
+
+Each `EnricherDecl` has a `command`, the show command path it enriches, and a
+`key`, its kebab-case key, unique within that command.
+<!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
+
+Each `DisseminationDecl` has a `namespace` and a `role`, and the grants the
+role needs: `source-receive`, `destination-receive` and `destination-send`,
+each a `[]string`.
+<!-- source: pkg/plugin/rpc/dissemination.go -- DisseminationDecl -->
 
 **Wire example:**
 

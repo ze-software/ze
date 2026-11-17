@@ -923,6 +923,35 @@ Structured event delivery, the event payload of each event type, and the
 subscription namespace rules are in
 `docs/architecture/api/process-protocol.md`.
 
+## One plugin, two ways to reach the bus
+
+A plugin compiled into `ze` and an external plugin are the same thing to Ze.
+They differ only in how they reach the bus. A compiled-in plugin registers from
+its `init()` when the program starts (`registry.Register`). An external plugin
+connects when Ze starts and declares itself in its Stage 1 declaration. What
+either one declares is judged by the same code: an external YANG module passes
+through the loader checks a compiled-in module passes through, and its config,
+commands and parameters reach the same schema, command tree and dispatch.
+
+A rule that applies to external plugins alone exists only when it follows from
+that transport, or from arriving after the compiled-in set:
+
+| Rule for an external plugin | Reason |
+|-----------------------------|--------|
+| Its declaration and modules are read at Stage 1, before the full parse of the config | It reaches the bus by connecting, so its declaration travels at Stage 1 |
+| Its declaration and modules change only when `ze` restarts | The set is published once at start (owner ruling) |
+| With no daemon running, no command starts it, and a config section only its module defines is not available | With no `ze` running there is no plugin to ask (owner ruling) |
+| A module name or namespace already in the set is refused | It arrives after the compiled-in set, so the name already exists |
+
+A behaviour that differs between the two kinds with no reason of this kind is a
+defect. It is fixed, not documented as a limit. A design for a plugin feature
+states which of the reasons above, if any, makes an external plugin behave
+differently.
+
+<!-- source: internal/component/plugin/registry/registry.go -- Register -->
+<!-- source: internal/component/config/yang/join.go -- Join -->
+<!-- source: internal/component/config/yang/publish.go -- PublishExternalModules -->
+
 ## The process boundary
 
 A plugin runs internal, as a goroutine sharing the daemon's process through

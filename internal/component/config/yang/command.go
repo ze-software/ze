@@ -201,7 +201,7 @@ func BuildCommandTree(schema *Resolved) *command.Node {
 
 	inheritArgDefs(root, nil)
 
-	validateOnce.Do(func() { validateNode(root, "") })
+	validateTreeOf(schema, root)
 
 	return root
 }
@@ -302,12 +302,31 @@ func argDefNamed(defs []command.ArgDef, name string) bool {
 	return false
 }
 
-var validateOnce sync.Once
+// validatedTree is the module set whose command tree validateTreeOf judged
+// last. A process judges its compiled-in set, then, when it publishes the
+// modules of external plugins, the joined set, so a command an external
+// plugin brings is judged as a compiled-in one is. nil until the first build.
+var validatedTree struct {
+	mu  sync.Mutex
+	set *Resolved
+}
+
+// validateTreeOf runs validateNode over root, the tree of schema, unless the
+// tree of that same set was the last one judged. Safe for concurrent use.
+func validateTreeOf(schema *Resolved, root *command.Node) {
+	validatedTree.mu.Lock()
+	defer validatedTree.mu.Unlock()
+	if validatedTree.set == schema {
+		return
+	}
+	validatedTree.set = schema
+	validateNode(root, "")
+}
 
 // validateCommandTree walks the merged command tree and warns about nodes
 // that have no summary after all modules have been merged. A node is expected
 // to take a ze:help summary from at least one contributing module.
-// Called automatically by BuildCommandTree (once per process).
+// BuildCommandTree calls it through validateTreeOf, once for each module set.
 func validateCommandTree(root *command.Node) {
 	validateNode(root, "")
 }

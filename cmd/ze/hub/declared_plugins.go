@@ -107,27 +107,19 @@ func joinDeclaredPlugins(ctx context.Context, firstPass *zeconfig.FirstPassResul
 	return declarations, nil
 }
 
-// declaredModules answers the YANG modules the declarations carry, one for
-// each plugin that declared a module text. A plugin that did not declare, and
-// a declaration with no module text, contribute none.
+// declaredModules answers the YANG modules the declarations carry, in config
+// order and, within one plugin, in the order its declaration lists them: one
+// for each entry with a module text, so a plugin that brings a config module
+// and a command module contributes both. A plugin that did not declare, and an
+// entry with no module text, contribute none. A later Stage 1 of the plugin is
+// compared with what this answers (pluginserver.DeclaredModules).
 func declaredModules(declarations []pluginserver.EarlyDeclaration) []yang.ExternalModule {
 	var modules []yang.ExternalModule
 	for _, declaration := range declarations {
 		if declaration.Err != nil {
 			continue
 		}
-		if declaration.Schema == nil {
-			continue
-		}
-		if declaration.Schema.YANGText == "" {
-			continue
-		}
-		modules = append(modules, yang.ExternalModule{
-			Plugin:    declaration.Plugin,
-			Module:    declaration.Schema.Module,
-			Namespace: declaration.Schema.Namespace,
-			Text:      declaration.Schema.YANGText,
-		})
+		modules = append(modules, pluginserver.DeclaredModules(declaration.Plugin, declaration.Schemas)...)
 	}
 	return modules
 }
@@ -160,10 +152,7 @@ func schemaOutcome(name string, declarations []pluginserver.EarlyDeclaration) ze
 		if declaration.Err != nil {
 			return zeconfig.SchemaUnread
 		}
-		if declaration.Schema == nil {
-			return zeconfig.SchemaNone
-		}
-		if declaration.Schema.YANGText == "" {
+		if len(pluginserver.DeclaredModules(declaration.Plugin, declaration.Schemas)) == 0 {
 			return zeconfig.SchemaNone
 		}
 		return zeconfig.SchemaDeclared

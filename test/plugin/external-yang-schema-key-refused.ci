@@ -1,0 +1,97 @@
+# Test: ze start refuses an external plugin that sends its module under the retired "schema" key
+#
+# Question: when an external plugin's Stage 1 declaration carries its YANG
+# module under "schema", the key the declaration used before it carried a list
+# under "schemas", and the config holds a section under that module's root,
+# does `ze start` refuse the start, naming the plugin, the key and the
+# "schemas" form to send, and exit with a failure?
+# Why not a unit test: TestStage1HandshakeRefusesUndecodableDeclaration and
+# TestEarlyStage1RefusesUndecodableDeclaration
+# (internal/component/plugin/server/stage1_decode_test.go) prove both decoder
+# entries. This proves the `ze` binary an operator runs: a plugin process in
+# another language over TLS connect-back, the early read at `ze start`, and the
+# refusal as the terminal prints it. Before the strict decoder, the plugin
+# started with no module and the section was refused as an unknown keyword,
+# with no word about the key.
+#
+# The plugin is Python 3 speaking the documented protocol with no SDK, as
+# test/plugin/filter-wire-text-contract-refused.ci does: a Go plugin cannot
+# send the retired key, because the SDK's declaration has no field for it. It
+# prints only that it sent its declaration, so every assertion on the refusal
+# reads ze's own output.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup, the Stage 1 module list:
+#   the retired key is refused with its fix, and never read as no module.
+# PREVENTS: a plugin written to the old protocol starting without its module,
+#   its config section then refused for a reason nobody can find.
+
+tmpfs=oldkey.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env -S python3 -I
+# TLS connect-back, #0 auth, then a Stage 1 declaration that carries its
+# module under "schema" (docs/plugin-development/protocol.md).
+import json, os, socket, ssl, sys
+
+def log(msg):
+    print("OLDKEY " + msg, file=sys.stderr, flush=True)
+
+MODULE = ('module acme-shell-conf { namespace "urn:acme:shell:conf"; prefix shell; '
+          'container acme-shell { presence "The acme shell plugin is configured"; '
+          'leaf greeting { type string { length "1..64"; } } } }')
+DECLARATION = {"protocol-version": 1, "wants-config": ["acme-shell"],
+               "schema": {"module": "acme-shell-conf", "namespace": "urn:acme:shell:conf", "yang-text": MODULE}}
+
+host = os.environ["ZE_PLUGIN_HUB_HOST"]
+ctx = ssl.create_default_context(cadata=os.environ["ZE_PLUGIN_CA_PEM"])
+ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+raw = socket.create_connection((host, int(os.environ["ZE_PLUGIN_HUB_PORT"])), timeout=30)
+conn = ctx.wrap_socket(raw, server_hostname=host)
+conn.settimeout(None)
+reader = conn.makefile("rb")
+
+def call(n, method, params):
+    # The answer verb to request n, or None when ze closed the connection.
+    conn.sendall(("#%d %s %s\n" % (n, method, json.dumps(params, separators=(",", ":")))).encode())
+    while True:
+        line = reader.readline()
+        if not line:
+            return None
+        ident, _, rest = line.decode().rstrip("\n").partition(" ")
+        verb = rest.partition(" ")[0]
+        if ident == "#%d" % n and verb in ("ok", "error"):
+            return verb
+
+if call(0, "auth", {"token": os.environ["ZE_PLUGIN_HUB_TOKEN"], "name": os.environ["ZE_PLUGIN_NAME"]}) != "ok":
+    log("auth refused")
+    sys.exit(1)
+log("stage1 sent")
+log("stage1 answer " + str(call(1, "ze-plugin-engine:declare-registration", DECLARATION)))
+sys.exit(1)
+EOF_RUN
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external acme-shell {
+		run "./oldkey.run"
+		encoder json
+	}
+}
+
+acme-shell {
+	greeting hello
+}
+EOF_CONF
+
+# The daemon is the only command, so the exit check reads its own exit, as
+# test/plugin/external-yang-boot-refuses-missing-mandatory.ci does. Boot reads
+# the declaration, refuses its key, and refuses the section only the module
+# would define, naming the plugin's refusal beside it.
+cmd=foreground:seq=1:exec=ze start ze.conf:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=OLDKEY stage1 sent
+expect=stderr:contains=a config section that only plugin "acme-shell" defines is an unknown keyword to ze
+expect=stderr:contains=plugin "acme-shell" sent its YANG module under "schema", a key ze no longer reads
+expect=stderr:contains=send "schemas":[{"module":...,"namespace":...,"yang-text":...}] in place of "schema":{...}
+expect=stderr:contains=Stage 1: Registration (Plugin to Engine)
+reject=stderr:contains=OLDKEY stage1 answer ok
+reject=stderr:contains=Ze running.
+reject=stderr:pattern=ZE-OBSERVER-FAIL

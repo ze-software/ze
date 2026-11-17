@@ -343,7 +343,7 @@ class Plugin:
         self.name = name
         # The name the operator configured, known once Stage 1 is answered.
         self.instance_name = ""
-        self._schema = None
+        self._schemas = []
         self._configs = {}
         self._commands = {}
         # Standard output carries the declaration line and nothing else, so it
@@ -386,13 +386,13 @@ class Plugin:
         sys.stderr.flush()
 
     def schema(self, yang_text):
-        """Declare the YANG module this plugin brings.
+        """Declare one YANG module this plugin brings. Call it once for each module.
 
         The module name and the namespace are read out of the text. A module
-        whose name ends in `-conf` adds its top-level containers to the config.
+        whose name ends in `-conf` adds its top-level containers to the config,
+        one whose name ends in `-cmd` adds the commands it declares, and the
+        rpc statements of a module describe the parameters of those commands.
         """
-        if self._schema is not None:
-            raise ValueError("plugin %s already declared a YANG module: a plugin brings one module" % self.name)
         module = re.search(r"^\s*module\s+([A-Za-z_][A-Za-z0-9_.-]*)\s*\{", yang_text, re.MULTILINE)
         if not module:
             raise ValueError(
@@ -403,11 +403,13 @@ class Plugin:
             raise ValueError(
                 "YANG module %s states no namespace: add `namespace \"urn:...\";` inside the module" % module.group(1)
             )
-        self._schema = {
+        if any(declared["module"] == module.group(1) for declared in self._schemas):
+            raise ValueError("plugin %s already declared YANG module %s" % (self.name, module.group(1)))
+        self._schemas.append({
             "module": module.group(1),
             "namespace": next(group for group in namespace.groups() if group),
             "yang-text": yang_text,
-        }
+        })
 
     def config(self, root):
         """Class decorator: the class handles the config section named `root`.
@@ -480,8 +482,8 @@ class Plugin:
             declaration["commands"] = commands
         if self._configs:
             declaration["wants-config"] = list(self._configs)
-        if self._schema:
-            declaration["schema"] = dict(self._schema)
+        if self._schemas:
+            declaration["schemas"] = [dict(schema) for schema in self._schemas]
         return declaration
 
     def run(self):

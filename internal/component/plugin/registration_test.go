@@ -133,22 +133,22 @@ func TestPluginRegistrationStructConstruction(t *testing.T) {
 func TestPluginSchemaDecl(t *testing.T) {
 	reg := &PluginRegistration{
 		Name: "bgp-plugin",
-		PluginSchema: &PluginSchemaDecl{
+		PluginSchemas: []PluginSchemaDecl{{
 			Module:    "ze-bgp",
 			Namespace: "urn:ze:bgp",
 			Handlers:  []string{"bgp", "bgp/peer"},
 			Yang:      "module ze-bgp { namespace \"urn:ze:bgp\"; }",
 			Priority:  500,
-		},
+		}},
 	}
 
-	require.NotNil(t, reg.PluginSchema)
-	assert.Equal(t, "ze-bgp", reg.PluginSchema.Module)
-	assert.Equal(t, "urn:ze:bgp", reg.PluginSchema.Namespace)
-	assert.Len(t, reg.PluginSchema.Handlers, 2)
-	assert.Contains(t, reg.PluginSchema.Handlers, "bgp")
-	assert.Contains(t, reg.PluginSchema.Handlers, "bgp/peer")
-	assert.Equal(t, 500, reg.PluginSchema.Priority)
+	require.Len(t, reg.PluginSchemas, 1)
+	assert.Equal(t, "ze-bgp", reg.PluginSchemas[0].Module)
+	assert.Equal(t, "urn:ze:bgp", reg.PluginSchemas[0].Namespace)
+	assert.Len(t, reg.PluginSchemas[0].Handlers, 2)
+	assert.Contains(t, reg.PluginSchemas[0].Handlers, "bgp")
+	assert.Contains(t, reg.PluginSchemas[0].Handlers, "bgp/peer")
+	assert.Equal(t, 500, reg.PluginSchemas[0].Priority)
 }
 
 // TestFilterDeclarationParse verifies filter declarations are stored on PluginRegistration.
