@@ -1,0 +1,83 @@
+module ze-exabgp-migration-cmd {
+    namespace "urn:ze:exabgp:migration:cmd";
+    prefix exabgp-migration-cmd;
+    import ze-extensions { prefix ze; }
+
+    description "Caller-supplied ExaBGP conversion, owned by the ExaBGP migration tools.";
+    revision 2026-11-17 { description "Expose configuration and INI environment conversion through the shared local-data command bridge."; }
+
+    grouping migration-source {
+        description "One bounded caller input and an optional diagnostic label.";
+        leaf content {
+            type string {
+                length "4..261120" {
+                    error-message "content is 4 to 261,120 padded base64 characters, at most 195,840 input bytes. Use a smaller input or the local ze exabgp migrate command.";
+                }
+                pattern "([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?" {
+                    error-message "content must be padded base64. Encode the ExaBGP input bytes as base64 and give the result after content.";
+                }
+            }
+            mandatory true;
+            description "ExaBGP source bytes in padded base64, bounded to 195,840 decoded bytes.
+Content is withheld from command history and accounting. No file is opened or written.";
+            ze:help "ExaBGP input bytes in padded base64, at most 195,840 bytes.";
+        }
+        leaf name {
+            type string {
+                length "1..255";
+                pattern '[^/\\]+' {
+                    error-message "name is a filename label without a directory. Give the filename alone.";
+                }
+            }
+            description "Optional filename label without a directory or control characters. Used
+only in diagnostics; it never selects a daemon file.";
+            ze:help "Filename label for diagnostics; no file is opened.";
+        }
+    }
+
+    container show {
+        config false;
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
+        container exabgp {
+            config false;
+            description "Read-only ExaBGP compatibility tools.";
+            ze:help "Inspect ExaBGP input without changing the router.";
+            container migration {
+                config false;
+                description "Convert caller-supplied ExaBGP input through the same producers as
+ze exabgp migrate. Answers are configuration bytes, with warnings and process
+information carried as diagnostics. No candidate or running state is changed.";
+                ze:help "Convert ExaBGP input to Ze configuration.";
+                container config {
+                    config false;
+                    ze:command "ze-exabgp:show-exabgp-migration-config";
+                    description "Convert an ExaBGP configuration with the existing ExaBGP parser,
+migration and serializer. The default diagnostic name is supplied.conf.";
+                    ze:help "Convert supplied ExaBGP configuration to Ze configuration.";
+                    uses migration-source;
+                    leaf dry-run {
+                        type empty;
+                        description "Run the conversion and retain its warnings and process
+information, but answer no converted bytes, as ze exabgp migrate --dry-run does.";
+                        ze:help "Preview conversion diagnostics without returning converted bytes.";
+                    }
+                }
+                container environment {
+                    config false;
+                    ze:command "ze-exabgp:show-exabgp-migration-environment";
+                    description "Parse, validate and map an ExaBGP INI environment file to Ze
+configuration. Values are returned, never installed in the daemon environment.
+The default diagnostic name is supplied.env.";
+                    ze:help "Convert supplied ExaBGP INI environment to Ze configuration.";
+                    uses migration-source;
+                    leaf dry-run {
+                        type empty;
+                        description "Retain the standalone --env behavior: report that dry-run
+is not supported for environment conversion and still return the converted bytes.";
+                        ze:help "Report the unsupported dry-run choice and return the conversion.";
+                    }
+                }
+            }
+        }
+    }
+}

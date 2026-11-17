@@ -134,6 +134,34 @@ ze exabgp migrate --env exabgp.env
 ```
 <!-- source: internal/plugins/exabgp/main.go -- the migrate command's flags and examples -->
 
+The same conversions accept supplied bytes through the daemon on every command
+surface, including the browser's file/paste inspection form:
+
+```
+show exabgp migration config content <base64> [name <filename>] [dry-run]
+show exabgp migration environment content <base64> [name <filename>] [dry-run]
+```
+
+Both use the local command's byte producers and return configuration text as a
+blob, with warnings, RIB information and process information beside the answer.
+Config `dry-run` retains those diagnostics and returns no converted text.
+Environment `dry-run` preserves `--env` behavior: it warns that the option is
+unsupported, names `ze exabgp migrate --env <file>` as the remedy, and still
+returns the conversion. The local warning precedes reading the file, including
+when that file cannot be read. The input is bounded to 195,840
+decoded bytes in padded base64. An optional filename is a diagnostic label,
+never a path on the daemon. The remote converted answer has the shared 8 MiB
+blob limit; a larger result is refused with a local-command hint.
+
+The browser discovers these operations from their registered supplied-input
+metadata and YANG arguments. Conversion opens no candidate, rewrites no input
+file, installs no environment values and starts no migrated process. The local
+file/stdin forms remain available without a running daemon.
+<!-- source: internal/plugins/exabgp/register_migration.go -- init -->
+<!-- source: internal/plugins/exabgp/migration_supplied.go -- migrationSupplied -->
+<!-- source: internal/plugins/exabgp/migration_bytes.go -- migrationConfigBytes, migrationEnvironmentBytes -->
+<!-- source: internal/plugins/exabgp/yang/ze-exabgp-migration-cmd.yang -- migration-source, show exabgp migration -->
+
 A capability the migration does not translate (`multi-session`, `operational`,
 or any other keyword) is dropped with one warning per peer naming each one, and
 the rest of the config is converted. Ze supports neither BGP multi-session nor

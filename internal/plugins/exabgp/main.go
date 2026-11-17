@@ -13,12 +13,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
-	"github.com/ze-software/ze/internal/exabgp/migration"
 )
 
 const (
@@ -233,7 +231,7 @@ func cmdMigrate(args []string) int {
 	// Handle --env flag: migrate ExaBGP INI environment file.
 	if *envFile != "" {
 		if *dryRun {
-			fmt.Fprintf(os.Stderr, "warning: --dry-run is not supported with --env\n")
+			fmt.Fprintln(os.Stderr, "warning:", migrationEnvironmentDryRunWarning())
 		}
 		return cmdMigrateEnv(*envFile)
 	}
@@ -244,76 +242,10 @@ func cmdMigrate(args []string) int {
 		return exitError
 	}
 
-	configFile := fs.Arg(0)
-
-	// Read config file (or stdin when "-"). Output already goes to stdout.
-	data, err := cliio.ReadFile(configFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading config: %v\n", err)
-		return exitError
-	}
-
-	// Parse with ExaBGP schema.
-	tree, err := migration.ParseExaBGPConfig(string(data))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing config: %v\n", err)
-		return exitError
-	}
-
-	// Migrate.
-	result, err := migration.MigrateFromExaBGP(tree)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error migrating config: %v\n", err)
-		return exitError
-	}
-
-	// Print warnings.
-	for _, w := range result.Warnings {
-		fmt.Fprintf(os.Stderr, "warning: %s\n", w)
-	}
-
-	if result.RIBInjected {
-		fmt.Fprintf(os.Stderr, "info: RIB plugin injected (required for GR, route-refresh, and a process's routes kept across sessions)\n")
-	}
-
-	// Output external process info for the wrapper to handle.
-	for _, proc := range result.Processes {
-		fmt.Fprintf(os.Stderr, "process:%s:%s\n", proc.Name, proc.RunCmd)
-	}
-
-	if *dryRun {
-		fmt.Fprintf(os.Stderr, "dry-run: would migrate %s\n", configFile)
-		return exitOK
-	}
-
-	// Serialize and output.
-	output := migration.SerializeTree(result.Tree)
-	fmt.Print(output)
-
-	return exitOK
+	return printMigrationFile("show exabgp migration config", fs.Arg(0), *dryRun, migrationConfigBytes)
 }
 
 // cmdMigrateEnv migrates an ExaBGP INI environment file to Ze config output.
 func cmdMigrateEnv(envPath string) int {
-	data, err := cliio.ReadFile(envPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading env file: %v\n", err)
-		return exitError
-	}
-
-	entries, err := migration.ParseExaBGPEnv(string(data))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error parsing env file: %v\n", err)
-		return exitError
-	}
-
-	if err := migration.ValidateEnvEntries(entries); err != nil {
-		fmt.Fprintf(os.Stderr, "error validating env file: %v\n", err)
-		return exitError
-	}
-
-	output := migration.MapEnvToZe(entries)
-	fmt.Print(output)
-
-	return exitOK
+	return printMigrationFile("show exabgp migration environment", envPath, false, migrationEnvironmentBytes)
 }

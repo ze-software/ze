@@ -26,7 +26,7 @@ func init() {
 		{Name: "--add-path", Description: "advertise the add-path capability", ValueHint: registry.FlagValueNone},
 	})
 	registry.RegisterCommandFlags("exabgp migrate", []registry.FlagSpec{
-		{Name: "--dry-run", Description: "print the converted config without writing", ValueHint: registry.FlagValueNone},
+		{Name: "--dry-run", Description: "preview conversion diagnostics without printing converted config", ValueHint: registry.FlagValueNone},
 		{Name: "--env", Description: "migrate an ExaBGP INI environment file instead", ValueHint: registry.FlagValueFile},
 	})
 }
