@@ -174,6 +174,42 @@ module ze-plugin-callback {
         }
     }
 
+    rpc event-settlement {
+        ze:method "ze-plugin-callback:event-settlement";
+        ze:help "Await asynchronous work after event application.";
+        description "The engine first awaits its applied event FIFO. The callback then acknowledges downstream work on an independent worker, while ordinary callbacks remain live.";
+        input {
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Absolute settlement deadline in Unix milliseconds";
+                description "The handler and queue waiting honor this bound. Expired requests do not invoke the handler.";
+            }
+        }
+        output {
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Exact request deadline";
+                description "Echoes the request deadline so the caller can verify the completed receipt.";
+            }
+            leaf status {
+                type enumeration {
+                    enum ok { ze:help "Downstream work completed"; }
+                    enum error { ze:help "Settlement failed"; }
+                }
+                mandatory true;
+                ze:help "Actual settlement outcome";
+                description "Only ok with no error acknowledges completed work. A failed outcome carries its cause.";
+            }
+            leaf error {
+                type string { length "0..4096"; }
+                ze:help "Settlement failure cause";
+                description "Names failed downstream work. Absent on success and required for a failed receipt.";
+            }
+        }
+    }
+
     rpc source-policy {
         ze:method "ze-plugin-callback:source-policy";
         ze:help "Settle a captured source-policy lifecycle operation.";

@@ -30,6 +30,32 @@ func (p *Plugin) OnDrain(fn DrainHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onDrain = fn
+	if fn == nil {
+		p.setAsyncCallback(rpc.MethodDrain, nil)
+		return
+	}
+	p.setAsyncCallback(rpc.MethodDrain, p.drainCallbackWorker)
+}
+
+// drainCallbackWorker adapts the existing one-shot stop worker to the generic
+// callback registration. It preserves the drain's distinct input and receipt.
+func (p *Plugin) drainCallbackWorker(ctx context.Context, _ func(error)) asyncCallbackWorker {
+	worker, stop := p.startDrainWorker(ctx)
+	return asyncCallbackWorker{stop: stop, failure: func() error { return nil },
+		admit: func(params json.RawMessage, answer asyncCallbackAnswer) error {
+			var input rpc.DrainInput
+			if err := json.Unmarshal(params, &input); err != nil {
+				return fmt.Errorf("plugin %s: unmarshal drain: %w", p.name, err)
+			}
+			return worker.admit(params, func(handlerErr error) {
+				if handlerErr != nil {
+					answer(input.Deadline, nil, handlerErr)
+					return
+				}
+				receipt, err := json.Marshal(rpc.DrainOutput{})
+				answer(input.Deadline, receipt, err)
+			})
+		}}
 }
 
 // drainQueueDepth is the drain worker's request channel capacity. One is

@@ -679,7 +679,8 @@ filter lists did not change is left as it is. A refusal there (an operator
 naming a required member, say) starts no peer and logs the reason. A later
 reload reads the same insertions, so it keeps the members in place.
 <!-- source: internal/component/plugin/server/server.go -- thirdPartyFilterInsertions, loadedPluginNames -->
-<!-- source: internal/component/bgp/plugin/register.go -- runningPluginsInsert -->
+<!-- source: internal/component/bgp/plugin/register.go -- runBGPEngine -->
+<!-- source: internal/component/bgp/plugin/initial_peers.go -- initialPeerConfig, resolve -->
 <!-- source: internal/component/bgp/config/filter_insertion.go -- declaredInsertions -->
 <!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
 
@@ -1714,7 +1715,8 @@ drain. Engine-side subscribers run inside the emit and need no drain.
 <!-- source: internal/component/plugin/server/source_policy.go -- DrainEventSubscribers -->
 <!-- source: internal/component/bgp/reactor/source_policy_reload.go -- sourceInvalidation.settleDownstream -->
 <!-- source: pkg/plugin/sdk/sdk_source_policy.go -- sourcePolicyWorker, sourcePolicyQueueDepth, admit, run, serve, call, refuseQueued -->
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- workerAnswerContext, answerDrain -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- workerAnswerContext -->
+<!-- source: pkg/plugin/sdk/sdk_async_callback.go -- answerAsyncCallback -->
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
 
 `StoredRoute.source-policy-epoch` carries original ingress provenance independently
@@ -1729,6 +1731,25 @@ with the source's current policy epoch.
 All methods are prefixed with `ze-plugin-callback:`.
 
 **Event delivery receipts:**
+
+An asynchronous observer registers `OnEventSettlement` before `Run`, which
+declares `event-settlement` at Stage 1. Its `ze-plugin-callback:event-settlement`
+callback follows the applied FIFO receipt and acknowledges downstream work,
+not callback admission. The request carries an absolute `deadline-ms`; the
+receipt echoes it with `status` (`ok` or `error`) and the failure cause when
+needed. Missing, null, expired or mismatched values cannot acknowledge work.
+The failure field remains bounded to 4096 bytes. A producer whose complete
+diagnostic exceeds that bound must provide an explicit bounded projection and
+an existing retrieval path for omitted live details; the SDK refuses an
+oversized failure instead of silently truncating it.
+<!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
+
+The SDK runs this callback on its own bounded FIFO worker, independently of
+ordinary event delivery and current-selection lookup. The handler MUST honor
+its context and synchronize shared state. It can wait for a nested engine RPC
+or a later event without blocking either SDK callback loop. Each request has
+its own completion; overload is refused and a handler panic fails the connection.
+<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement, eventSettlementWorker -->
 
 Each process owns a FIFO event queue. A sent-event callback enqueues work without
 waiting for its handler; the delivery worker applies it through DirectBridge or
@@ -3437,9 +3458,11 @@ not just a goroutine waiting for an uncancelled writer.
 callback registry (`map[string]callbackHandler`). Each `On*` method registers a typed
 wrapper in the map. Adding a new callback requires only one `On*` method -- zero changes
 to the dispatch or event loop code. See `rules/plugin-design.md` "SDK Is Generic".
-Two lifecycle callbacks are admitted by both loops to their own workers instead:
-the stop `drain` and `source-policy`, whose handlers must wait while the loop
-keeps delivering (see their sections above).
+Callbacks that wait for later events register an asynchronous worker factory.
+Both loops use the same factory map for stop `drain`, `source-policy` and
+`event-settlement`; adding a worker changes no method list in either loop.
+Each worker owns its queue, execution and stop/join obligations.
+<!-- source: pkg/plugin/sdk/sdk_async_callback.go -- setAsyncCallback, startAsyncCallbacks -->
 Current-selection lookup uses a registered ingress lane before that loop and
 its queue, with the same independent worker on the typed bridge. Its snapshot
 read must complete even when an ordinary handler is waiting for selected

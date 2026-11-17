@@ -72,6 +72,9 @@ type Plugin struct {
 	// through this map -- no switch statements, no transport-specific handlers.
 	// Adding a new callback = adding one On* method. Zero dispatch changes.
 	callbacks map[string]callbackHandler
+	// asyncCallbacks register connection-owned workers for callbacks that must
+	// wait while ordinary events continue. Registration finishes before Run.
+	asyncCallbacks map[string]asyncCallbackFactory
 
 	// configTx decides whether a section config-rollback reaches the
 	// rollback handler: only when an apply this plugin accepted is neither
@@ -113,7 +116,7 @@ type Plugin struct {
 	// onSourcePolicy is the source-policy lifecycle handler, run on the
 	// connection's source-policy worker (sdk_source_policy.go) and declared at
 	// Stage 1 as both source-policy owner and handler.
-	onSourcePolicy SourcePolicyHandler
+	onSourcePolicy     SourcePolicyHandler
 	onCurrentSelection CurrentSelectionHandler
 
 	// resolverCaches is the Stage 1 declaration OnResolverCacheClear records:
@@ -495,6 +498,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 	reg.ConfigCompletion = p.callbacks[callbackConfigComplete] != nil
 	reg.SourcePolicy = p.onSourcePolicy != nil
 	reg.CurrentSelection = p.onCurrentSelection != nil
+	reg.EventSettlement = p.asyncCallbacks[rpc.MethodEventSettlement] != nil
 	if reg.SourcePolicy {
 		reg.SourcePolicyOwner = true
 	}
@@ -551,10 +555,14 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr err
 
 	// Stage 5: ready (with optional startup subscriptions and transport negotiation)
 	stopCurrentSelection, err := p.startCurrentSelectionWorker(ctx)
-	if err != nil { return startupFailure(5, "current-selection", err) }
+	if err != nil {
+		return startupFailure(5, "current-selection", err)
+	}
 	defer func() {
 		if err := stopCurrentSelection(); err != nil {
-			if runErr == nil { runErr = err }
+			if runErr == nil {
+				runErr = err
+			}
 		}
 	}()
 	p.mu.Lock()

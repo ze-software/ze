@@ -390,6 +390,12 @@ module ze-plugin-engine {
                 ze:help "Declare independent current selection lookup";
                 description "Derived from SDK OnCurrentSelection registration. Answers current desired native-key state on a separate bounded worker; this declaration grants no send permission.";
             }
+            leaf event-settlement {
+                type boolean;
+                default false;
+                ze:help "Declare acknowledged event settlement";
+                description "Derived from SDK OnEventSettlement registration. After event application, the engine can await asynchronous downstream work on a separate bounded worker.";
+            }
             list dissemination {
                 key "namespace role";
                 ze:help "Declare peer output roles and required grants";

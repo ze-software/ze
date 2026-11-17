@@ -709,6 +709,11 @@ func (p *Plugin) OnSourcePolicy(fn SourcePolicyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onSourcePolicy = fn
+	if fn == nil {
+		p.setAsyncCallback(callbackSourcePolicy, nil)
+		return
+	}
+	p.setAsyncCallback(callbackSourcePolicy, p.sourcePolicyCallbackWorker)
 }
 
 // OnConfigRollback sets the handler for config rollback requests (transaction protocol).

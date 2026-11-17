@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"time"
 
@@ -47,7 +46,7 @@ var errSourcePolicyStopped = errors.New("plugin connection stopped before the re
 // the send (workerAnswerContext): the answer may be written after the loop's context has ended. It
 // MUST NOT wait on the worker, because admission calls it from the callback
 // loop for a queue-full refusal.
-type sourcePolicyAnswer func(deadline time.Time, receipt json.RawMessage, err error)
+type sourcePolicyAnswer = asyncCallbackAnswer
 
 // sourcePolicyRequest is one admitted request: its validated input and the
 // answer the worker sends once the handler has returned.
@@ -260,22 +259,9 @@ func (p *Plugin) startSourcePolicyWorker(ctx context.Context, abort func(error))
 	}
 }
 
-// answerSourcePolicy sends the worker's answer for one wire request. The send
-// outlives the loop's context, because a receipt at stop is written after the
-// loop has ended, and is bounded by the request's own deadline instead
-// (workerAnswerContext). A send
-// that fails means the connection is closing or the engine stopped waiting, so
-// the failure is logged and not returned.
-func (p *Plugin) answerSourcePolicy(ctx context.Context, id uint64, deadline time.Time, receipt json.RawMessage, answerErr error) {
-	ctx, cancel := workerAnswerContext(ctx, deadline)
-	defer cancel()
-	var err error
-	if answerErr != nil {
-		err = p.sendCallbackError(ctx, id, answerErr.Error())
-	} else {
-		err = p.sendCallbackResult(ctx, id, receipt)
-	}
-	if err != nil {
-		slog.Debug("source-policy answer not sent", "plugin", p.name, "error", err)
-	}
+// sourcePolicyCallbackWorker preserves the existing source-policy worker and
+// receipts behind the same registered dispatch path on both transports.
+func (p *Plugin) sourcePolicyCallbackWorker(ctx context.Context, abort func(error)) asyncCallbackWorker {
+	worker, stop := p.startSourcePolicyWorker(ctx, abort)
+	return asyncCallbackWorker{admit: worker.admit, failure: worker.failure, stop: stop}
 }

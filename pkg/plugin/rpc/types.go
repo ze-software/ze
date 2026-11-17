@@ -353,9 +353,11 @@ type DeclareRegistrationInput struct {
 	// SourcePolicyOwner declares retained source state, independently of support.
 	SourcePolicyOwner bool `json:"source-policy-owner,omitempty"`
 	// SourcePolicy declares the acknowledged source-policy lifecycle handler.
-	SourcePolicy           bool         `json:"source-policy,omitempty"`
+	SourcePolicy bool `json:"source-policy,omitempty"`
 	// CurrentSelection declares the independent desired-selection snapshot handler.
-	CurrentSelection       bool         `json:"current-selection,omitempty"`
+	CurrentSelection bool `json:"current-selection,omitempty"`
+	// EventSettlement declares acknowledged completion of asynchronous event work.
+	EventSettlement        bool         `json:"event-settlement,omitempty"`
 	VerifyBudget           int          `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
 	ApplyBudget            int          `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
 	Schema                 *SchemaDecl  `json:"schema,omitempty"`

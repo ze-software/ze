@@ -600,6 +600,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit reversible operation state; retain undo through whole-reload acceptance |
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
+| `ze-plugin-callback:event-settlement` | `OnEventSettlement` | `rpc.EventSettlementInput` | `rpc.EventSettlementOutput` | Await asynchronous work after prior events were applied |
 | `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN pair. With `provisional: true`, check policy without changing peer-scoped learned state. Selection repeats the retained pair once with false before peer-up; ordinary selected validation uses false initially |
 | `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check. Each answered diagnostic carries `code`, `severity`, `message`, and `fix`: the command or config statement that clears the problem, alone and with no label (`show rpki cache`, not `fix: show rpki cache`). Set `fix` on every finding a command can clear; ze draws it on a line of its own under the message on every surface, and omits the key when you leave it empty |
@@ -631,6 +632,19 @@ refuses policy changes before publication; pure observers are not owners.
 In Go, a plugin with no handler sets `SourcePolicyOwner: true` in the
 `sdk.Registration` it passes to `Run`; the engine then refuses the change and
 tells the operator to take the peer down around it.
+
+Plugins that defer work after returning from an event handler register
+`OnEventSettlement(func(context.Context) error)` before `Run`. The SDK derives
+the `event-settlement` declaration and starts one independent worker with at
+most 16 waiting requests. The handler MUST finish downstream work before it
+returns, honor its request deadline and synchronize shared state. Ordinary
+callbacks and current-selection lookups remain live during this wait. The
+engine first awaits event application; settlement never replaces that FIFO
+receipt. A plugin written in another language declares the same support and
+answers `event-settlement` with the echoed `deadline-ms`, explicit `status`
+and a cause for failure. An error or missing outcome never confirms completion.
+<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement, eventSettlementWorker -->
+<!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
 `OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)` automatically
 declares both ownership and `source-policy` handler support. All four operations
 use one registered callback on both transports, not the shutdown `OnDrain` path.
