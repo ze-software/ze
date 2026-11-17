@@ -305,6 +305,19 @@ Repair the existing id/stem discrimination report's closure blocker (AC-30):
 only for selected records, while retaining global artifact-shape validation,
 tag discovery and every selected-record freshness validator.
 
+Repair two existing parse regressions without changing their configuration
+inputs, exit assertions or adjacent controls (AC-31). Run
+`test/parse/ipsec-dual-family-selectors-validate.ci` on Linux so its VTI config
+can reach `validateSelectorCombinations`: accept the dual-family list and
+refuse the incomplete combination list. Keep
+`test/parse/ipsec-dscp-map.ci` accepting tunnel-mode copy/0/63 and refusing 64
+and transport-mode 46, with diagnostics derived from the current YANG range
+and `ValidateOuterHeader`. Both drafts have independent source APPROVE
+verdicts and native approvals recorded with exit 0 and replaced false; main
+confirmed the BGP ledger row was preserved and the drafts are unchanged.
+Main's draft runs, 80-run qualification, promotion and live reruns remain
+pending. No test repair is accepted yet.
+
 The final-code audit also closes the full-second token-refill defect in AC-9,
 preserves a recorded reader-stop event across replacement (AC-19), and verifies
 that AC-14's TUN diagnosis becomes silent when no IPsec peer remains configured.
@@ -997,6 +1010,14 @@ coordinator's addition to the owner's choice, not a choice the owner made.
   strictness tests retain selected freshness checks, including stale/ambiguous
   selected records as Stale/Unproven; independent source review confirms the
   direct prefilter precedes source verification. No avoided-read RED is claimed.
+
+- [ ] AC-31: The dual-family VTI parse case runs on Linux, accepts the original
+  complete list with exit 0 and refuses the original incomplete list with exit
+  1 and its selector-combination diagnostic. The DSCP parse case accepts the
+  original tunnel copy/0/63 inputs with exit 0 and refuses 64 and transport 46
+  with exit 1 and source-derived diagnostics. Preserve every old input, exit
+  assertion and adjacent control; obtain independent judge approval and main's
+  draft, 80-run qualification, promotion and live acceptance evidence.
 
 ### Selected full-kernel route checkpoint, 2026-11-16
 
