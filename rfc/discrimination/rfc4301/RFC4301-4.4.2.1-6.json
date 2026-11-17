@@ -7,8 +7,8 @@
     "claim-sha": "ac8561d8c9d4f430",
     "route": "mutant",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "aaab64b6d39ec088",
-    "break": "line 176: \"state.ReplayWindow = int(p.ReplayWin)\" -\u003e \"state.ReplayWindow = 32\""
+    "producer-sha": "0c882b938c258e96",
+    "break": "line 200: \"state.ReplayWindow = int(p.ReplayWin)\" -\u003e \"state.ReplayWindow = 32\""
   },
   {
     "rid": "RFC4301-4.4.2.1-6",
@@ -18,7 +18,7 @@
     "claim-sha": "982f6829b718f82d",
     "route": "revert",
     "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-    "producer-sha": "aaab64b6d39ec088",
+    "producer-sha": "0c882b938c258e96",
     "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

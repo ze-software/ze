@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard and report repair landed; second six-SAD guest batch accepted; context proof and 42 guest renewals remain; AC-4 stays open |
+| Phase | Guard and report repair landed; latest 17-claim state batch accepted; context proof and 25 guest renewals remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -179,7 +179,7 @@ skips, check/lab exits 0, no interruption and stopped VMs. No full-requirement,
 C-enforcement or AC-4 credit follows. The pending C-route and safety decisions,
 final audit and Review Gate remain open.
 
-The ended second six-SAD batch, orders 17–22, brings the current snapshot to
+The second six-SAD batch, orders 17–22, landed in `8b3b97916f`, with a phase snapshot of
 37 RECORDED and 42 UNEXECUTED commands, all guest. Clean tests check negotiated
 SPI in both directions, AEAD fields without separate transforms, tunnel and
 transport mode, IPv4/IPv6 tunnel addresses, ESN false with no preset Replay,
@@ -191,7 +191,25 @@ and add no C, whole-clause or AC-4 credit. Native selected seal is
 All normal/fault observations use B1/f826+d9, with no skips, check/lab 0,
 normal command 0, fault command 2, no interruption and stopped VMs. The serial
 batch stopped before order 23 when fresh admission showed four occupied slots
-and none free; order 23 was neither queued nor run and remains UNEXECUTED.
+and none free; order 23 was neither queued nor run in that batch.
+
+The latest ended 17-claim batch covers orders 23–27, 50, 51, 55, 62–68, 81 and 83:
+54 current renewals RECORDED and 25 UNEXECUTED, all guest. Independent reviews
+are CLEAR. Order 23 discriminates the replay-window field with the sole
+`replay window 32, want 64` error; other boundary and second-SPI checks continue.
+The other sixteen records are xfrmStateFromParams halt dependency proofs.
+Order 24 passes requested windows 32/64 clean, then halts on the first conversion.
+Order 55 halts at empty integrity before `none`; 67/68 halt at unknown cipher
+before unknown integrity. Orders 51/83 halt on the first CBC positive control,
+whose map iteration order is unspecified, before later controls and refusals.
+All seventeen check constructed state without installing it; they add no kernel
+enforcement, C or full-requirement credit. Each selected normal test passes,
+then its own fault fails on B1/f826+d9, without skips or interruption, with
+check/lab 0 and both VMs stopped. Normal commands exit 0; order 23's fault exits
+1 and the other faults exit 2. Selected producer seal is `0c882b938c258e96`;
+membership, units, claims and unselected records are preserved. The serial
+fifteen-record run `g240:2123` completed with all native exits 0. These records
+await their separate commit; no later packet outcome is inferred.
 
 ## Task
 
