@@ -32,13 +32,8 @@ import (
 // VALIDATES: an UPDATE carrying the same prefix in both the WITHDRAWN ROUTES and the
 // NLRI fields is processed without error, and the prefix ends up INSTALLED, exactly as
 // if the WITHDRAWN field had never named it.
-// PREVENTS: the announce-then-withdraw ordering that left such a prefix removed, turning
-// a reachable prefix into an unreachable one on a message the RFC says must leave it
-// reachable.
-//
-// RFC requirement: RFC4271-4.3-5 positive -- an UPDATE with the same prefix in WITHDRAWN
-// and NLRI is processed: it neither errors nor leaves the RIB in a state the message did
-// not ask for.
+// PREVENTS: the announce-then-withdraw ordering that removed the prefix instead of
+// following the default announce-wins treatment recommended by Section 4.3's SHOULD.
 // RFC requirement: RFC4271-4.3-7 positive -- that UPDATE is treated as though WITHDRAWN
 // ROUTES does not contain the prefix, so the announce wins and the route is installed.
 func TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
@@ -83,10 +78,8 @@ func TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 // path applied every insert before every remove, so an external plugin feeding the same
 // prefix in both fields lost the route while a DirectBridge plugin kept it.
 //
-// RFC requirement: RFC4271-4.3-5 positive -- the pool path processes an UPDATE with the
-// same prefix in WITHDRAWN and NLRI.
-// RFC requirement: RFC4271-4.3-7 positive -- and treats it as though WITHDRAWN did not
-// contain the prefix.
+// RFC requirement: RFC4271-4.3-7 positive -- the pool path's default treats the UPDATE
+// as though WITHDRAWN did not contain the prefix.
 func TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 	r := newTestRIBManager(t)
 	peer := netip.MustParseAddr("10.0.0.1")
@@ -117,10 +110,8 @@ func TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 // PREVENTS: a BMP feed carrying the shape losing the route, so the injected view
 // disagrees with what the monitored router actually holds.
 //
-// RFC requirement: RFC4271-4.3-5 positive -- the injection path processes an UPDATE with
-// the same prefix in WITHDRAWN and NLRI.
-// RFC requirement: RFC4271-4.3-7 positive -- and treats it as though WITHDRAWN did not
-// contain the prefix.
+// RFC requirement: RFC4271-4.3-7 positive -- the injection path's default treats the
+// UPDATE as though WITHDRAWN did not contain the prefix.
 func TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 	r := newTestRIBManager(t)
 

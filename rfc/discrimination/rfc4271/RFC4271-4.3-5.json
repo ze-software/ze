@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-4.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_mixed_update_test.go::TestSessionRFC4271SamePrefixWithdrawAndAnnounceIsProcessed",
+    "unit-sha": "787ca1d4b7e95d6e",
+    "claim-sha": "a3cfa0e494f02e3b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::processValidatedMessage",
+    "producer-sha": "0980e8afca5af924",
+    "break": "line 641: \"err, kept := s.deliverReceivedMessage(hdr.Type, body, wireUpdate, ctxID, buf)\" -\u003e \"if hdr.Type == msgtype.TypeUPDATE \u0026\u0026 wireUpdate != nil { mixedWithdrawn, withdrawnErr := wireUpdate.Withdrawn(); mixedNLRI, nlriErr := wireUpdate.NLRI(); if withdrawnErr == nil \u0026\u0026 nlriErr == nil \u0026\u0026 len(mixedWithdrawn) \u003e 0 \u0026\u0026 string(mixedWithdrawn) == string(mixedNLRI) { return nil, false } }; err, kept := s.deliverReceivedMessage(hdr.Type, body, wireUpdate, ctxID, buf) /* MUTATION-APPLIED: silently drop only equal nonempty legacy sections before semantic delivery */\""
+  }
+]

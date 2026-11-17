@@ -9,5 +9,38 @@
     "producer": "internal/component/bgp/plugins/rib/storage/peerrib.go::Remove",
     "producer-sha": "beaee774aa5ba054",
     "break": "body of Remove replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-4.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute",
+    "unit-sha": "db61312780977291",
+    "claim-sha": "f18fc4d46759ddbb",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_inject.go::handleInjectWireRoute",
+    "producer-sha": "99a9726dbb7cbe9c",
+    "break": "line 124: \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 \u0026\u0026 nlrisplit.Supported(ipv4Family) {\" -\u003e \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 \u0026\u0026 nlrisplit.Supported(ipv4Family) \u0026\u0026 string(wdData) != string(nlriData) {\""
+  },
+  {
+    "rid": "RFC4271-4.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute",
+    "unit-sha": "aecd8436a9057386",
+    "claim-sha": "030a4761f11b89e5",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib.go::handleReceivedPool",
+    "producer-sha": "cefe489a47664538",
+    "break": "line 1267: \"if len(nlriBytes) \u003e 0 {\" -\u003e \"if len(nlriBytes) \u003e 0 \u0026\u0026 string(event.GetRawWithdrawnBytes(fam)) != string(nlriBytes) {\""
+  },
+  {
+    "rid": "RFC4271-4.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute",
+    "unit-sha": "6f487ec109341e7f",
+    "claim-sha": "aa2f5852cd7f7005",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_structured.go::handleReceivedStructured",
+    "producer-sha": "a25767ebf126fc4e",
+    "break": "line 300: \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 {\" -\u003e \"if err == nil \u0026\u0026 len(nlriData) \u003e 0 \u0026\u0026 string(wdData) != string(nlriData) {\""
   }
 ]
