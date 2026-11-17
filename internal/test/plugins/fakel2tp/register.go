@@ -1,6 +1,7 @@
 package fakel2tp
 
 import (
+	"cmp"
 	"net"
 	"slices"
 
@@ -81,14 +82,12 @@ func runPlugin(conn net.Conn) int {
 // without starting an engine, and the runner sends it in the Stage 1
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
-	names := make([]string, 0, len(commandHandlers))
-	for name := range commandHandlers {
-		names = append(names, name)
+	declarations := make([]sdk.CommandDecl, len(commandRegistrations))
+	for index := range commandRegistrations {
+		declarations[index] = commandRegistrations[index].declaration
 	}
-	slices.Sort(names)
-	declarations := make([]sdk.CommandDecl, 0, len(names))
-	for _, name := range names {
-		declarations = append(declarations, sdk.CommandDecl{Name: name})
-	}
+	slices.SortFunc(declarations, func(left, right sdk.CommandDecl) int {
+		return cmp.Compare(left.Name, right.Name)
+	})
 	return declarations
 }

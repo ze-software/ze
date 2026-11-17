@@ -32,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -134,25 +135,40 @@ func runEmit(args []string) (map[string]any, error) {
 	return map[string]any{"delivered": delivered}, nil
 }
 
-// commandHandlers owns the test-only command registrations and their declarations.
-// It is immutable after package initialization and safe for concurrent reads.
+// commandRegistration keeps the offline declaration beside its runtime handler.
+// Names are literal so the dispatch checker can read the same population.
+type commandRegistration struct {
+	declaration sdk.CommandDecl
+	handler     func([]string) (any, error)
+}
+
+// commandRegistrations is immutable after package initialization. Both the
+// published declarations and the dispatch lookup derive from these rows.
+var commandRegistrations = []commandRegistration{
+	{declaration: sdk.CommandDecl{Name: "request fakel2tp emit"}, handler: func(args []string) (any, error) { return runEmit(args) }},
+	{declaration: sdk.CommandDecl{Name: "request fakel2tp pool address"}, handler: poolAddress},
+	{declaration: sdk.CommandDecl{Name: "request fakel2tp pool pppoe-address"}, handler: poolPPPoEAddress},
+	{declaration: sdk.CommandDecl{Name: "request fakel2tp pool release"}, handler: poolRelease},
+	{declaration: sdk.CommandDecl{Name: "request fakel2tp pool prefix"}, handler: poolPrefix},
+	{declaration: sdk.CommandDecl{Name: "show fakel2tp help"}, handler: func([]string) (any, error) {
+		names := make([]string, 0, len(commandHandlers))
+		for name := range commandHandlers {
+			names = append(names, name)
+		}
+		slices.Sort(names)
+		return map[string]any{"commands": names, "usage": "fakel2tp emit add|remove <family> <prefix>"}, nil
+	}},
+}
+
+// commandHandlers is the derived runtime lookup. It is immutable after package
+// initialization and safe for concurrent reads.
 var commandHandlers map[string]func([]string) (any, error)
 
 func init() {
-	commandHandlers = map[string]func([]string) (any, error){
-		"request fakel2tp emit":               func(args []string) (any, error) { return runEmit(args) },
-		"request fakel2tp pool address":       poolAddress,
-		"request fakel2tp pool pppoe-address": poolPPPoEAddress,
-		"request fakel2tp pool release":       poolRelease,
-		"request fakel2tp pool prefix":        poolPrefix,
-		"show fakel2tp help": func([]string) (any, error) {
-			names := make([]string, 0, len(commandHandlers))
-			for name := range commandHandlers {
-				names = append(names, name)
-			}
-			slices.Sort(names)
-			return map[string]any{"commands": names, "usage": "fakel2tp emit add|remove <family> <prefix>"}, nil
-		},
+	commandHandlers = make(map[string]func([]string) (any, error), len(commandRegistrations))
+	for index := range commandRegistrations {
+		row := &commandRegistrations[index]
+		commandHandlers[row.declaration.Name] = row.handler
 	}
 }
 
