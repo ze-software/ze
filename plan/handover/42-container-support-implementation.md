@@ -186,9 +186,14 @@ When a pick stops on a file he has uncommitted edits in: `git cherry-pick
 --quit` (never `--abort`, which would rewind the commits that landed), then
 `git stash push <file>`, `git cherry-pick <remaining commits>`, `git stash
 pop`. The session cannot drive git on the laptop while it is confined to the
-worktree, and it leaves the worktree only when he asks. Last delivered:
-server `734dbb9552` is laptop `760619471e`. He pushes from the laptop; the
-server never pushes.
+worktree, and it leaves the worktree only when he asks. Last delivered
+(2026-11-17, midday): server `97e15015ab` is laptop `20f563fbc2`; everything
+after it on the worktree branch is waiting for him. He has uncommitted edits
+on the laptop in `feature-gates.txt`, the two plugin protocol pages and the
+fixture package, so a range that touches one of them needs the stash recipe
+with that file named. He updated the dependencies on the laptop's `main`:
+never touch `go.mod`, `go.sum` or `vendor/` here. He pushes from the laptop;
+the server never pushes.
 
 **How edits pass the gate in the worktree.** The session started in the
 shared checkout, so its edit hook reads state there. What makes it work, with
@@ -219,23 +224,48 @@ the owner's authorisation of 2026-11-17 to work in the worktree:
   `ze-test-judge` skill) before the commit; `./le --name session test weakened
   check` lists what needs it.
 
-**State of each track on 2026-11-17** (all committed, worktree tip `734dbb9552`):
+**State of each track on 2026-11-17, afternoon** (all committed, worktree tip
+`16a74e8571`; fourteen guest tests pass under `test/container/`):
 
 | Track | Done | Next |
 |-------|------|------|
-| Runtime | Phases 1 to 4: start, stop and sweep, the syscall filter. Eight guest tests pass under `test/container/` | Phase 5 onward. Phase 6 is the device allowlist, which returns the fourteenth capability and needs a patch on the cgroups module |
-| Image store | Phase 1: ten commands and the store seam reaching a stub | Phase 2 onward: the data directory, fetch from a registry, unpack by digest, the writable layer and its cap. `tmp/handoff-image-store-2.md` in the worktree |
-| Network | Phase 1: four engine requests reaching a stub, test plugin `fakeowner`; four guest drafts red on the stub | Phase 2 onward: the bridge, the link, published ports. `tmp/handoff-network-2.md` |
-| Appliance | Phases 1 to 3 | Phase 4 onward; growth stays unwired until the `gpt` decision |
-| Shell, operator surface, health check | Not started | The operator surface's config words are needed before the Redis test |
-| Redis closing test | Not written, not yet possible | Last. Order: image store, network, operator surface, then the test |
+| Runtime | Phases 1 to 4, the sibling seam (a sibling package takes part in config, apply, engine calls, commands and doctor checks; `sibling*.go`), contributed file mounts, the `image` word passed to the store. A waiting container starts when its image is fetched | Phase 5 onward. Phase 6: the device allowlist (returns the fourteenth capability, needs a patch on the cgroups module), the words that replace what the image declares, user by name. No real-kernel test reads a contributed file from inside a container yet |
+| Image store | Phases 1 to 5 and the part of 7 one start needs: layout, publication, registry client, layer application (fuzzed), fetch with its queue and listing, binding, resolve, the current generation | Capped storage (phase 6: no cap is applied to a writable layer, volumes are refused), the rest of generations (update, rollback, retention, delete, clear, a real `Hold`), doctor, registry config nodes, interop. Known gap: an opaque folder loses a child written through a link to it |
+| Network | Phases 1 to 3 and slices 4a and 4b: owned bridges and links, firewall table contribution, the `destination-local` match, networks and attachments, addresses, outbound translation, published ports, forwarding claimed by the plugin | Slice 4c (resolver file, listings, host-namespace mode), port conflicts (phase 5), kernel enrolment and doctor (phase 6). A sibling cannot yet add its commands to the registry's published list |
+| Appliance | Phases 1 to 3 | Phase 4 onward (the build format capped storage waits on); growth stays unwired until the `gpt` decision |
+| Shell, operator surface, health check | Not started as such; the config words `image`, `network`, `port` landed with their children | `show container list`, the registry config list, the remaining words |
+| Redis closing test | Every piece is proven separately in the guest: fetch, run from the real store, network, a published port reached from a client namespace. An exploratory draft against the public registry is being run (`test/draft/container/container-redis-exploratory.ci`, never to be promoted) | The specified test: a pinned Redis image seeded into the test registry, a registry mirror in the config, a protocol client, `test/appliance/container-redis.ci` |
 
-Open with the owner: a time bound a plugin command can declare (a public
-plugin protocol change; image fetch needs an hour, every plugin command gets
-30 seconds; `TestFetchCommandDeclaresItsBound` is red until then); the
-kernel's `gpt` boot option; the capability to create device nodes withheld
-until the allowlist. He allowed the container specs above the
-work-in-progress cap ("Ignore the caps for that work.").
+Proven only by a guest run on the Ze kernel, never on this server's: the
+`destination-local` match and anything that needs nftables NAT (`./le
+--name session test qemu run kernel <runtime vmlinuz> command "cd /workspace
+&& CGO_ENABLED=0 ./le job run label unit-pkg quiet command go test ..."`).
+
+Open with the owner, none blocking the next step:
+
+1. Storage caps before or after the first Redis run. His ruling refuses a
+   container where the kernel cannot cap its storage; capped storage waits on
+   the appliance format. The session proceeds uncapped for now and records
+   the cap as owed.
+2. A time bound a plugin command can declare. Every plugin command is cut at
+   30 seconds, so the fetch command waits 20, answers "still running" and
+   finishes on the worker; `TestFetchCommandDeclaresItsBound` stays red.
+3. Whether a running container restarts when its `image` changes (today no
+   field change restarts one).
+4. The config word `destination-local`; the match in dual-stack tables
+   (needs `NFT_FIB_INET` in the kernel); a shifted port range (refused today).
+5. Interface names starting with `zc` are refused in the config (the plugin's
+   reserved prefix); a network without translation still requires a firewall
+   section.
+6. A registry proxy setting; IPv6 forwarding making the kernel ignore router
+   advertisements; `show container store` gaining an unknown state.
+7. The kernel's `gpt` boot option; the capability to create device nodes
+   withheld until the allowlist.
+
+He allowed the container specs above the work-in-progress cap ("Ignore the
+caps for that work."). Dependencies imported directly but marked indirect in
+`go.mod` (the path library, the zstd decoder, two container modules) are left
+for a tidy on his side.
 
 Owed housekeeping: file two tooling defects with an owning spec (the edit hook
 ignoring the claims of a worktree entered after the session started; the
