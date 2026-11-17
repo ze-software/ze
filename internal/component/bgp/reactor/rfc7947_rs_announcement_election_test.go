@@ -710,6 +710,23 @@ type lowLiveOptions struct {
 	withoutRS bool
 }
 
+// lowLiveAttachProcess parses the fixture's intended explicit attachment.
+// A scenario's existing block MUST remain untouched, including a partial or
+// derived one; this helper MUST NOT complete or authorize that block.
+func lowLiveAttachProcess(t *testing.T, settings *PeerSettings, process, receive, send string) {
+	t.Helper()
+	for _, binding := range settings.ProcessBindings {
+		if binding.PluginName == process {
+			return
+		}
+	}
+	require.NoError(t, parseProcessBindingsFromTree(map[string]any{
+		"attach": map[string]any{"process": map[string]any{
+			process: map[string]any{"receive": receive, "send": send},
+		}},
+	}, settings))
+}
+
 // lowLiveStart starts lowLiveRouter's reactor and plugins and returns its
 // peers, each Active and none connected: the caller brings each one up with
 // lowLiveConnect, when the scenario wants it up.
@@ -717,17 +734,11 @@ func lowLiveStart(t *testing.T, options lowLiveOptions, settings ...*PeerSetting
 	t.Helper()
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	for _, s := range settings {
-		if err := EnsureProcessBinding(s, "bgp-rib", "update state refresh", "update"); err != nil {
-			t.Fatal(err)
-		}
+		lowLiveAttachProcess(t, s, "bgp-rib", "update state refresh", "update")
 		if !options.withoutRS {
-			if err := EnsureProcessBinding(s, "bgp-rs", "update-received state open-received refresh", "update"); err != nil {
-				t.Fatal(err)
-			}
+			lowLiveAttachProcess(t, s, "bgp-rs", "update-received state open-received refresh", "update")
 		}
-		if err := EnsureProcessBinding(s, "bgp-adj-rib-in", "update-received state", "update"); err != nil {
-			t.Fatal(err)
-		}
+		lowLiveAttachProcess(t, s, "bgp-adj-rib-in", "update-received state", "update")
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)
 		}

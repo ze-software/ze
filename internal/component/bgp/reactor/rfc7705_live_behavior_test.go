@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -63,15 +64,19 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 	}
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	for _, s := range settings {
-		if err := EnsureProcessBinding(s, "bgp-rib", "update state refresh", "update"); err != nil {
-			t.Fatal(err)
+		// This fixture declares the selecting RIB's attachment explicitly.
+		// Preserve any attachment the individual scenario already supplied.
+		if !slices.ContainsFunc(s.ProcessBindings, func(binding ProcessBinding) bool { return binding.PluginName == "bgp-rib" }) {
+			if err := parseProcessBindingsFromTree(map[string]any{"attach": map[string]any{"process": map[string]any{
+				"bgp-rib": map[string]any{"receive": "update state refresh", "send": "update"},
+			}}}, s); err != nil {
+				t.Fatal(err)
+			}
 		}
-		if err := EnsureProcessBinding(s, "bgp-rs", "update-received state open-received refresh", "update"); err != nil {
-			t.Fatal(err)
-		}
-		if err := EnsureProcessBinding(s, "bgp-adj-rib-in", "update-received state", "update"); err != nil {
-			t.Fatal(err)
-		}
+		// This fixture runs the route server's forward and replay rails. Its
+		// complete explicit role takes precedence over ordinary RIB output.
+		lowLiveAttachProcess(t, s, "bgp-rs", "update-received state open-received refresh", "update")
+		lowLiveAttachProcess(t, s, "bgp-adj-rib-in", "update-received state", "update")
 		if err := r.AddPeer(s); err != nil {
 			t.Fatal(err)
 		}
