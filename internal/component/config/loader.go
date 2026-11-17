@@ -443,12 +443,18 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 // Extracts explicit plugins from plugin { internal <name> { ... } } and
 // plugin { external <name> { ... } }, plus inline plugins from registered
 // plugin extractors (e.g., BGP peer process bindings).
+//
+// The declared plugins are answered in config order, internal then external:
+// a refusal that names the plugins a config declares (DeclaredSchemas) names
+// them in the order the operator wrote them, and the same config always gives
+// the same list. GetList is a map, whose order Go randomizes.
 func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 	var plugins []plugin.PluginConfig
 	seen := make(map[string]bool)
 
 	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
-		for name, proc := range pluginContainer.GetList("internal") {
+		for _, entry := range pluginContainer.GetListOrdered("internal") {
+			name, proc := entry.Key, entry.Value
 			if strings.HasPrefix(name, "_") {
 				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
 			}
@@ -470,7 +476,8 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 			})
 		}
 
-		for name, proc := range pluginContainer.GetList("external") {
+		for _, entry := range pluginContainer.GetListOrdered("external") {
+			name, proc := entry.Key, entry.Value
 			if strings.HasPrefix(name, "_") {
 				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
 			}

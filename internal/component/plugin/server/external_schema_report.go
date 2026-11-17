@@ -10,6 +10,7 @@ package server
 import (
 	"errors"
 
+	"github.com/ze-software/ze/internal/component/config/yang"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -34,11 +35,41 @@ const schemalessWhy = "an external plugin brings its config section to ze as a Y
 //
 // The caller MUST add it only beside a refusal config.RefusesUnknownNode holds
 // for: a plugin that declares no module is no problem by itself.
+//
+// A plugin whose modules the process published, and that is named here, brought
+// modules that add only commands and rpcs (DeclaresConfig): the problem then
+// names those modules, so it never says that the plugin declared none.
 func SchemalessRefusal(cfg plugin.PluginConfig) *opererr.Error {
 	var problem textbuf.Buffer
-	problem.Str("external plugin ").Quoted(cfg.Name).Str(" declared no YANG module, so it defines no config section")
-	return opererr.New(problem.String(), schemalessWhy, conformanceFix(cfg))
+	problem.Str("external plugin ").Quoted(cfg.Name)
+	var modules []string
+	published, _ := yang.PublishedExternalModules()
+	for _, module := range published {
+		if module.Plugin == cfg.Name {
+			modules = append(modules, module.Module)
+		}
+	}
+	if len(modules) == 0 {
+		problem.Str(" declared no YANG module, so it defines no config section")
+		return opererr.New(problem.String(), schemalessWhy, conformanceFix(cfg))
+	}
+	problem.Str(" declared YANG modules that define commands and no config (")
+	for index, module := range modules {
+		if index > 0 {
+			problem.Str(", ")
+		}
+		problem.Quoted(module)
+	}
+	problem.Str("), so it defines no config section")
+	return opererr.New(problem.String(), commandsOnlyWhy, conformanceFix(cfg))
 }
+
+// commandsOnlyWhy says what follows from a declaration whose modules add only
+// commands and rpcs, for the operator who wrote a config section meant for
+// that plugin.
+const commandsOnlyWhy = "an external plugin brings its config section to ze as a YANG module whose name ends in -conf, " +
+	"or that augments a config node, in its declaration; with none such declared, ze holds no section of this plugin, " +
+	"and a section written for it is refused as an unknown keyword"
 
 // ReportUndeclaredSchema logs and raises doctor-plugin-schema-undeclared about
 // the declared external plugin named name: ze holds no config schema of it,
@@ -61,7 +92,7 @@ func ReportUndeclaredSchema(name string, refusal error) {
 // end the start after it: ze does not run with a module it refused.
 func ReportRefusedSchema(refusal error) {
 	message, fix := refusalParts(refusal, fixShowErrors)
-	logger().Error("external plugin config schema refused, ze does not start", "error", refusal,
+	logger().Error("external plugin YANG module refused, ze does not start", "error", refusal,
 		"fix", fix, "code", diagnostic.CodeDoctorPluginSchemaRefused)
 	report.RaiseErrorFix(serverEventSource, diagnostic.CodeDoctorPluginSchemaRefused, schemaJoinSubject,
 		report.FitMessage(message), busFix(fix, fixShowErrors))

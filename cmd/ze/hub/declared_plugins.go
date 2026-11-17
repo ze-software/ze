@@ -143,7 +143,11 @@ func startedPlugins(external []zePlugin.PluginConfig, declarations []pluginserve
 }
 
 // schemaOutcome answers what the declaration boot read from the plugin named
-// name says of its config schema.
+// name says of its config schema. A plugin whose modules add only commands and
+// rpcs defines no config section, so it is SchemaNone, as one that declared no
+// module is. A module text that does not parse alone leaves boot not knowing
+// whether the plugin defines config, so it is SchemaUnread; the join refuses
+// such a text before any caller asks.
 func schemaOutcome(name string, declarations []pluginserver.EarlyDeclaration) zeconfig.SchemaOutcome {
 	for _, declaration := range declarations {
 		if declaration.Plugin != name {
@@ -152,7 +156,11 @@ func schemaOutcome(name string, declarations []pluginserver.EarlyDeclaration) ze
 		if declaration.Err != nil {
 			return zeconfig.SchemaUnread
 		}
-		if len(pluginserver.DeclaredModules(declaration.Plugin, declaration.Schemas)) == 0 {
+		config, err := pluginserver.DeclaresConfig(declaration.Plugin, declaration.Schemas)
+		if err != nil {
+			return zeconfig.SchemaUnread
+		}
+		if !config {
 			return zeconfig.SchemaNone
 		}
 		return zeconfig.SchemaDeclared

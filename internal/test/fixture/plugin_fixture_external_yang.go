@@ -81,6 +81,14 @@ type externalYANGVariant struct {
 	// Each answer is printed, so a .ci tells a command that reached the plugin
 	// from one the daemon refused before asking it.
 	commands []string
+	// redeclaredExtra, when not empty, are the modules declared after schema
+	// on every start after the first, in place of extra; the first start then
+	// exits once the daemon is ready, so the daemon starts the plugin again.
+	redeclaredExtra []externalyang.Module
+	// revertsAt, when not zero, is the start from which the variant declares
+	// the modules of its first start again, so the daemon accepts it and the
+	// plugin serves its commands after the starts it refused.
+	revertsAt int
 }
 
 // externalYANGRoot is the config root the fixture plugin's module defines.
@@ -125,6 +133,25 @@ var externalYANGVariants = map[string]externalYANGVariant{
 		extra:    []externalyang.Module{externalyang.Commands(), externalyang.API()},
 		commands: []string{externalyang.CommandStatus, externalyang.CommandTarget},
 	},
+	// The second start brings the command module with the target bound cut to
+	// 1..8, which the daemon refuses. A refused restart leaves the plugin down
+	// and is not retried (pluginserver restartPluginWithin), so the daemon makes
+	// no third start of its own; one an operator orders brings the first
+	// modules again.
+	"commands-redeclare": {
+		schema:          externalyang.Valid(),
+		wants:           []string{externalYANGRoot},
+		extra:           []externalyang.Module{externalyang.Commands(), externalyang.API()},
+		commands:        []string{externalyang.CommandStatus, externalyang.CommandTarget},
+		redeclaredExtra: []externalyang.Module{externalyang.CommandsNarrowed(), externalyang.API()},
+		revertsAt:       3,
+	},
+	"command-clash": {
+		schema:   externalyang.Valid(),
+		wants:    []string{externalYANGRoot},
+		extra:    []externalyang.Module{externalyang.CommandClash()},
+		commands: []string{externalyang.CommandClashPath},
+	},
 }
 
 // externalYANGVariantNamed answers the variant an argument names, or an error
@@ -145,15 +172,37 @@ func externalYANGVariantNamed(name string) (externalYANGVariant, error) {
 // redeclares reports whether the variant brings another module after its
 // first start.
 func (variant externalYANGVariant) redeclares() bool {
-	return variant.redeclaredText != ""
+	return variant.redeclaredText != "" || len(variant.redeclaredExtra) > 0
+}
+
+// redeclaring reports whether the start generation brings the other modules:
+// a start after the first, before the one the variant reverts at.
+func (variant externalYANGVariant) redeclaring(generation int) bool {
+	if !variant.redeclares() || generation < 2 {
+		return false
+	}
+	return variant.revertsAt == 0 || generation < variant.revertsAt
+}
+
+// refused reports whether the daemon is expected to refuse a module the
+// variant brings, so a transport that ends is the pass.
+func (variant externalYANGVariant) refused() bool {
+	if variant.schema.Refused {
+		return true
+	}
+	return slices.ContainsFunc(variant.extra, func(module externalyang.Module) bool { return module.Refused })
 }
 
 // declaration answers the Stage 1 registration of one start. generation is
 // one for the first start, and for a declaration query.
 func (variant externalYANGVariant) declaration(generation int) *sdk.Registration {
 	text := variant.schema.Text
-	if variant.redeclares() && generation > 1 {
+	extra := variant.extra
+	if variant.redeclaring(generation) && variant.redeclaredText != "" {
 		text = variant.redeclaredText
+	}
+	if variant.redeclaring(generation) && len(variant.redeclaredExtra) > 0 {
+		extra = variant.redeclaredExtra
 	}
 	declaration := &sdk.Registration{
 		WantsConfig: variant.wants,
@@ -163,7 +212,7 @@ func (variant externalYANGVariant) declaration(generation int) *sdk.Registration
 			YANGText:  text,
 		}},
 	}
-	for _, module := range variant.extra {
+	for _, module := range extra {
 		declaration.Schemas = append(declaration.Schemas, sdk.SchemaDecl{
 			Module:    module.Name,
 			Namespace: module.Namespace,
@@ -410,7 +459,7 @@ func externalYANGServe(ctx context.Context, variant externalYANGVariant, generat
 	for {
 		select {
 		case <-ready:
-			if variant.schema.Refused {
+			if variant.refused() {
 				return errors.New("the daemon accepted a module it must refuse: " + variant.schema.Name)
 			}
 			if variant.configRefused {
@@ -444,7 +493,11 @@ func externalYANGEnded(variant externalYANGVariant, generation int, runErr error
 		line.StdErr() //nolint:errcheck // fixture progress output
 		return nil
 	}
-	if variant.schema.Refused {
+	// refused judges every module the variant brings, its config module and
+	// its extra ones (a command module that clashes), as the ready branch of
+	// externalYANGPlugin does: a transport the daemon closed after refusing
+	// any of them is this plugin's normal end.
+	if variant.refused() {
 		var line textbuf.Buffer
 		line.Str("FIXTURE: external-yang was refused: ").Err(runErr).Byte('\n')
 		line.StdErr() //nolint:errcheck // fixture progress output

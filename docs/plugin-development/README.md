@@ -161,7 +161,7 @@ negotiated, and the octets do not announce it. `docs/plugin-development/handlers
 ```
 Ze Engine                          Plugin
     |                                |
-    |<-- Stage 1: declare-registration ---|  Plugin declares families, commands, schema
+    |<-- Stage 1: declare-registration ---|  Plugin declares families, commands, YANG modules
     |--- ok ---------------------------->|
     |                                |
     |--- Stage 2: configure ------------>|  Engine sends config sections
@@ -214,10 +214,11 @@ For internal plugins (running as goroutines inside the engine), startup uses a `
 
 ## Example Plugins
 
-- [Go Example](../../examples/plugin/go/) -- Complete Go plugin
-- [Python Example](../../examples/plugin/python/) -- A plugin with no Go SDK: a
-  one-file library over the wire protocol, and a plugin that declares its own
-  YANG config module and one command
+- [Go Example](../../examples/plugin/go/) -- The example plugin on the Go SDK:
+  its config, command and rpc modules, and the two commands they define
+- [Python Example](../../examples/plugin/python/) -- The same plugin with no Go
+  SDK: a one-file library over the wire protocol, and a plugin that brings the
+  same three YANG modules and answers the same two commands
 
 ## SDK Reference
 
@@ -370,7 +371,7 @@ p.SetStartupSubscriptions([]string{"update"}, nil, "")
 // Run the plugin.
 err = p.Run(context.Background(), &sdk.Registration{
     Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
-    Commands: []sdk.CommandDecl{{Name: "my-plugin status", ShortHelp: "Show status"}},
+    Commands: []sdk.CommandDecl{{Name: "show my-plugin status", ShortHelp: "Show status"}},
     Schemas:  []sdk.SchemaDecl{{Module: "my-plugin-conf", Namespace: "urn:example:my-plugin:conf", YANGText: myYANG, Handlers: []string{"my-prefix"}}},
 })
 ```

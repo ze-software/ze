@@ -266,11 +266,11 @@ var pluginInfraCodes = []CodeMeta{
 	},
 	{
 		Code:  CodeDoctorPluginSchemaChanged,
-		Title: "Restarted plugin declared another config schema",
-		Description: "ze reads the config schema (the YANG module) of an external plugin once, when ze starts, joins it to the schema of the whole configuration, and every reader of the configuration keeps that schema. " +
-			"This plugin was started again while ze ran, after it ended or by `request plugin restart`, and its new declaration carries another schema: another module text, name or namespace, a module where it declared none, or none where it declared one. " +
-			"ze refused the plugin at its first startup stage and does not run it. The running configuration, the schema ze holds and every other plugin are unchanged. " +
-			"The warning says what differs. Restart ze to load the new schema, or put back the program that declares the schema ze started with and restart the plugin.",
+		Title: "Restarted plugin declared other YANG modules",
+		Description: "ze reads the YANG modules of an external plugin (its config, command and rpc modules) once, when ze starts, joins them to the schema of the whole configuration and to the command tree, and every reader of the configuration and of the commands keeps them. " +
+			"This plugin was started again while ze ran, after it ended or by `request plugin restart`, and its new declaration carries other modules: another module text, name or namespace, a module where it declared none, or none where it declared one. " +
+			"ze refused the plugin at its first startup stage and does not run it. The running configuration, the modules ze holds and every other plugin are unchanged. " +
+			"The warning says what differs. Restart ze to load the new modules, or put back the program that declares the modules ze started with and restart the plugin.",
 		Examples: []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-plugin-schema-changed"},
 	},
 	{
@@ -286,10 +286,12 @@ var pluginInfraCodes = []CodeMeta{
 	},
 	{
 		Code:  CodeDoctorPluginSchemaRefused,
-		Title: "External plugin's config schema refused at start",
-		Description: "At start ze joins the config schema (the YANG module) each external plugin declares to the schema compiled into ze, before it parses the configuration. " +
+		Title: "External plugin's YANG module refused at start",
+		Description: "At start ze joins the YANG modules each external plugin declares (its config, command and rpc modules) to the modules compiled into ze, before it parses the configuration. " +
 			"ze refused a module: it does not compile, its name or namespace is held by another module, it defines a top-level node another module already defines, " +
-			"it names a validator or a reference source ze does not hold, the name or namespace the plugin declared is not the one in the text, or it adds nothing to the configuration schema. " +
+			"it names a validator or a reference source ze does not hold, the name or namespace the plugin declared is not the one in the text, " +
+			"it declares a command path or a wire method another module declares, a ze:rpc names an rpc no module defines, " +
+			"or it declares definitions ze reads nowhere (config outside a -conf module, commands outside a -cmd module, a typedef no module imports). " +
 			"ze does not start with a module it refused: the refusal ends the start, on the terminal and in the log, and names the plugin, the module, the cause and the command that shows it. " +
 			"No daemon runs afterwards. ze records the refusal before it exits, and `ze doctor` reports it from that record, with the time, until ze next starts cleanly. Correct the plugin's module, then start ze again.",
 		Examples:     []string{"ze doctor", "ze show diagnostic doctor-plugin-schema-refused", "ze show plugin conformance run \"./my-plugin\""},

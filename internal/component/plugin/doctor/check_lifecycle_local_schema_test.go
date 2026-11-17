@@ -12,7 +12,7 @@ import (
 )
 
 // TestSchemaStopRowsNameTheCodeTheCauseAndTheFix proves the last-stop check
-// reports a start refused for an external plugin's config schema under the
+// reports a start refused for a YANG module an external plugin declared under the
 // schema codes: the refused module under doctor-plugin-schema-refused and the
 // plugin that gave no schema under doctor-plugin-schema-undeclared, each with
 // the time, the refusal's own text and the command the refusal named. An entry
@@ -45,7 +45,7 @@ func TestSchemaStopRowsNameTheCodeTheCauseAndTheFix(t *testing.T) {
 	refused := rows[0]
 	assert.Equal(t, diagnostic.CodeDoctorPluginSchemaRefused, refused.Code)
 	assert.Equal(t, diagnostic.SeverityError, refused.Severity)
-	assert.Equal(t, "ze refused to start at 2026-11-17T09:30:00Z because it refused the config schema an external plugin declared: "+
+	assert.Equal(t, "ze refused to start at 2026-11-17T09:30:00Z because it refused a YANG module an external plugin declared: "+
 		`plugin "broken-module" declared YANG module "acme-broken-conf", which does not compile. ze cannot parse a config against it`,
 		refused.Message)
 	assert.Equal(t, `ze show plugin conformance run "./broken"`, refused.Fix)

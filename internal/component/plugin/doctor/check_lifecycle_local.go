@@ -29,7 +29,7 @@ import (
 // doctor-plugin-stop-cleanup-late warning (AC-32), written by the server when
 // the config transaction or a plugin engine ran late (stop_cleanup_late.go).
 //
-// A start refused for an external plugin's config schema is reported from the
+// A start refused for a YANG module an external plugin declared is reported from the
 // same record under its own code: doctor-plugin-schema-refused for a module
 // the join refused, doctor-plugin-schema-undeclared for a config name no
 // schema defines while ze held no schema of a declared plugin
@@ -142,13 +142,14 @@ func cleanupLateRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 
 // schemaRefusedRow writes one start that ended because ze refused the YANG
 // module an external plugin declared: when, and the refusal's own problem and
-// why, which name the plugin, the module and the cause. The fix is the one the
-// refusal named.
+// why, which name the plugin, the module and the cause. The module may be a
+// config, command or rpc module, so the message names a YANG module and not
+// the config schema. The fix is the one the refusal named.
 func schemaRefusedRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 	at := entry.Time.UTC().Format(time.RFC3339)
 	var message textbuf.Buffer
 	message.Str("ze refused to start at ").Str(at).
-		Str(" because it refused the config schema an external plugin declared: ").Str(entry.Detail)
+		Str(" because it refused a YANG module an external plugin declared: ").Str(entry.Detail)
 	return diagnostic.Diagnostic{
 		Code:     diagnostic.CodeDoctorPluginSchemaRefused,
 		Severity: diagnostic.SeverityError,

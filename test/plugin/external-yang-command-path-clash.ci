@@ -1,0 +1,62 @@
+# Test: an external command module that declares a command ze holds refuses the start
+#
+# Question: when an external plugin brings a command module that declares
+# `show version`, a command the compiled-in module ze-cli-show-cmd declares,
+# does `ze start` exit with an error by itself, naming the plugin, the module,
+# the path and the module that holds it, and does the next `ze doctor` report
+# doctor-plugin-schema-refused from the last-stop record?
+# Why not a unit test: TestJoinRefusesCommandPathAlreadyDeclared proves the
+# join's refusal over a fixture set. This proves the shipped compiled-in
+# command tree is what the join compares with, that the start ends with no
+# operator action, and that the record reaches the next doctor run.
+#
+# The fixture's command-clash variant
+# (internal/test/fixture/plugin_fixture_external_yang.go) brings the valid
+# config module and externalyang.CommandClash, which is marked Refused; the
+# plugin treats a transport that ends as the pass, and a ready daemon as the
+# failure, which the ZE-OBSERVER-FAIL rejection below catches (externalYANGEnded judges every module the
+# variant brings, as test/plugin/external-yang-clash-refused.ci relies on for
+# its config module).
+#
+# Steps:
+#   1. the fatal-stop fixture runs `ze start` on a disk store: stderr names
+#      the refused schema, the plugin, acme-clash-cmd, "show version" and
+#      ze-cli-show-cmd, the plugin reports no failure of its own, and the
+#      daemon never runs.
+#   2. ze doctor --json reports doctor-plugin-schema-refused with the plugin
+#      and the module, from the last-stop record, saying a YANG module was
+#      refused rather than a config schema.
+#
+# VALIDATES: AC-34 of spec-plugin-external-yang-at-startup.
+# PREVENTS: a second owner of a compiled-in command started in silence, where
+#   ze keeps the first ze:command and the plugin's command never runs.
+
+option=storage:value=disk
+option=timeout:value=60s
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+plugin {
+	external clash-command {
+		run "le test fixture plugin/external-yang command-clash"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture plugin/doctor-fatal-stop:exit=0
+expect=stderr:contains=error: external plugin schema:
+expect=stderr:contains=doctor-plugin-schema-refused
+expect=stderr:contains=clash-command
+expect=stderr:contains=acme-clash-cmd
+expect=stderr:contains=declares command "show version"
+expect=stderr:contains=ze-cli-show-cmd
+reject=stderr:contains=Ze running.
+reject=stderr:contains=FIXTURE: external-yang generation 1 ready
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+cmd=foreground:seq=2:exec=ze doctor --json config running.conf
+expect=stdout:contains="code": "doctor-plugin-schema-refused"
+expect=stdout:contains=because it refused a YANG module an external plugin declared
+expect=stdout:contains=clash-command
+expect=stdout:contains=acme-clash-cmd
+reject=stdout:contains="code": "doctor-plugin-fatal-stop"

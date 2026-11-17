@@ -51,7 +51,7 @@ reject=stderr:contains=Ze running.
 # row, which is what an unknown reason reads as.
 cmd=foreground:seq=2:exec=ze doctor --json config running.conf
 expect=stdout:contains="code": "doctor-plugin-schema-refused"
-expect=stdout:pattern=ze refused to start at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z because it refused the config schema an external plugin declared
+expect=stdout:pattern=ze refused to start at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z because it refused a YANG module an external plugin declared
 expect=stdout:contains=broken-module
 expect=stdout:contains=acme-broken-conf
 reject=stdout:contains="code": "doctor-plugin-fatal-stop"

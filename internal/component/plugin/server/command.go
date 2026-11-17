@@ -1569,27 +1569,51 @@ func (d *Dispatcher) ForwardToPluginAfterEvents(cmdCtx *CommandContext, command 
 // that exists nowhere.
 // lowerInput must already be lowercased by the caller.
 func (d *Dispatcher) matchPluginCommand(lowerInput string) (*RegisteredCommand, int) {
-	var matchedPlugin *RegisteredCommand
-	var matchedLen int
+	all := d.registry.All()
+	if i := longestReach(lowerInput, len(all), func(i int) string { return all[i].LowerName }); i >= 0 {
+		return all[i], len(all[i].LowerName)
+	}
+	// Fall back to deprecated aliases if no primary match found.
+	return d.registry.lookupDeprecatedPrefix(lowerInput)
+}
 
-	for _, cmd := range d.registry.All() {
-		key := cmd.LowerName
-		if strings.HasPrefix(lowerInput, key) {
-			// Check it's a word boundary
-			if len(lowerInput) == len(key) || lowerInput[len(key)] == ' ' {
-				if len(key) > matchedLen {
-					matchedPlugin = cmd
-					matchedLen = len(key)
-				}
-			}
+// longestReach answers the index of the longest of count command keys that
+// reaches lowerInput (commandReaches), or -1 when none does; of two keys of
+// one length the first is answered. key answers the lower-case key at an
+// index.
+//
+// It is the one rule a plugin command is routed by: the dispatcher sends a
+// line to the plugin it answers (matchPluginCommand), and the Stage 1 check
+// command-nodes-served calls a command node served when it answers a name of
+// the plugin that brought the node (commandServed), so the two cannot
+// disagree.
+func longestReach(lowerInput string, count int, key func(int) string) int {
+	matched := -1
+	matchedLen := 0
+	for i := range count {
+		candidate := key(i)
+		if !commandReaches(candidate, lowerInput) {
+			continue
+		}
+		if len(candidate) > matchedLen {
+			matched = i
+			matchedLen = len(candidate)
 		}
 	}
+	return matched
+}
 
-	// Fall back to deprecated aliases if no primary match found.
-	if matchedPlugin == nil {
-		matchedPlugin, matchedLen = d.registry.lookupDeprecatedPrefix(lowerInput)
+// commandReaches reports whether the command key reaches lowerInput on a word
+// boundary: the line is key, or starts with key followed by a space. An empty
+// key reaches nothing, as no registered command has one.
+func commandReaches(key, lowerInput string) bool {
+	if key == "" {
+		return false
 	}
-	return matchedPlugin, matchedLen
+	if !strings.HasPrefix(lowerInput, key) {
+		return false
+	}
+	return len(lowerInput) == len(key) || lowerInput[len(key)] == ' '
 }
 
 // dispatchPlugin routes a command to a plugin process.

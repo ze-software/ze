@@ -1,0 +1,74 @@
+# Test: with no ze running, an external plugin's command typed in the shell is not available
+#
+# Question: with no ze running and a stored config that declares an external
+# plugin, does `ze show <the plugin's command>`, a path the ze binary's
+# compiled-in command tree does not hold, refuse with exit 1, say the command
+# is not available and may belong to an external plugin that only a running ze
+# holds, say why no ze answered, and name the one fix `ze start`, without
+# starting the plugin's program?
+# Why not a unit test: TestUnheldPathNoZeExternalPluginDeclared
+# (cmd/ze/internal/cmdutil/unheld_test.go) proves the wording over a stubbed
+# walk and a stubbed config. Only the real command shows the walk to the
+# daemon's listener failing, the stored config being read for its plugin
+# declarations, and no program being started.
+#
+# The program the config declares writes a marker when it is started, then
+# runs the `commands` variant of the fixture plugin, so a command that ran it
+# leaves the marker behind.
+#
+# The config is put in the store (`ze config import`): with no argument, the
+# stored config is the one a bare `ze start` boots, so it is the config whose
+# plugins could answer the command. It declares the plugin and no section of
+# it, so nothing in this test depends on parsing an external plugin's schema.
+# The store lives on disk (option=storage:value=disk): the store the fixture
+# seeds, the one `ze config import` writes and the one each `ze show` reads
+# are then the same store under the work directory, where the default
+# in-memory store would die with each process.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup AC-37, under the owner ruling
+#   of 2026-11-16: with no daemon running, what needs an external plugin is
+#   not available, and the refusal says what is true and names one fix.
+# PREVENTS: "unknown command" for a command the plugin serves once ze runs; a
+#   program started with no daemon.
+
+option=timeout:value=60s
+option=storage:value=disk
+option=env:var=ze.config.dir:value=.
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+
+tmpfs=marker.run:terminator=EOF_RUN
+#!/bin/sh
+echo started > started-by-ze.marker
+exec le test fixture plugin/external-yang commands
+EOF_RUN
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external acme-monitor {
+		run "sh marker.run"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture storage/empty-tree:exit=0
+cmd=foreground:seq=2:exec=ze config import ze.conf:exit=0
+
+cmd=foreground:seq=3:exec=ze show acme-monitor status:exit=1
+expect=stderr:contains=error: show acme-monitor status is not available
+expect=stderr:contains=it may belong to an external plugin, which only a running ze holds
+expect=stderr:contains=the config declares external plugin "acme-monitor"
+expect=stderr:contains=No running ze answered: no ze listens at 127.0.0.1:
+expect=stderr:contains=then `ze show acme-monitor status` again
+expect=stderr:contains=fix: ze start
+reject=stderr:contains=unknown command
+
+cmd=foreground:seq=4:exec=ze show acme-monitor target probe-b:exit=1
+expect=stderr:contains=error: show acme-monitor target probe-b is not available
+expect=stderr:contains=fix: ze start
+reject=stderr:contains=unknown command
+
+cmd=foreground:seq=5:exec=ze show acme-monitor status:exit=1
+expect=file:path=started-by-ze.marker:absent=true

@@ -230,31 +230,14 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 	results := make([]RegisterResult, len(defs))
 	now := time.Now()
 
-	var tb textbuf.Buffer
 	for i, def := range defs {
 		key := strings.ToLower(def.Name)
 		results[i].Name = def.Name
 
-		// Validate command name format
-		if err := validateCommandName(def.Name); err != nil {
+		if refusal, owner, refused := commandNameRefusal(def.Name, r.builtins, r.commands); refused {
 			results[i].OK = false
-			results[i].Error = err.Error()
-			continue
-		}
-
-		// Check builtin conflict
-		if r.builtins[key] {
-			results[i].OK = false
-			results[i].Error = tb.Reset().Str("conflicts with builtin: ").Str(def.Name).String()
-			results[i].Owner = CommandOwnerBuiltin
-			continue
-		}
-
-		// Check existing registration
-		if existing, ok := r.commands[key]; ok {
-			results[i].OK = false
-			results[i].Error = tb.Reset().Str("already registered by process: ").Str(existing.Process.Config().Name).String()
-			results[i].Owner = existing.Process.Config().Name
+			results[i].Error = refusal
+			results[i].Owner = owner
 			continue
 		}
 
@@ -281,6 +264,67 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 	}
 
 	return results
+}
+
+// commandNameRefusal answers why Register refuses the command name, given the
+// builtin names no plugin may take and the commands registered so far, both
+// keyed by lower-case name, and who holds the name when the refusal is a
+// conflict (another plugin's process name, or CommandOwnerBuiltin). refused is
+// false when Register accepts the name.
+//
+// It is the one rule that decides which declared names reach the dispatcher:
+// Register applies it at Stage 5, and the Stage 1 check command-nodes-served
+// counts only a name it accepts (commandServed), so the check never calls a
+// node served by a name the dispatcher would never route.
+func commandNameRefusal(name string, builtins map[string]bool, commands map[string]*RegisteredCommand) (refusal, owner string, refused bool) {
+	if err := validateCommandName(name); err != nil {
+		return err.Error(), "", true
+	}
+	key := strings.ToLower(name)
+	var text textbuf.Buffer
+	if builtins[key] {
+		return text.Str("conflicts with builtin: ").Str(name).String(), CommandOwnerBuiltin, true
+	}
+	if existing, held := commands[key]; held {
+		holder := existing.Process.Config().Name
+		return text.Str("already registered by process: ").Str(holder).String(), holder, true
+	}
+	return "", "", false
+}
+
+// commandRouting is what decides, beside one plugin's own declaration, which
+// plugin a command line reaches: the builtin names no plugin may take, and the
+// commands other plugins registered, both keyed by lower-case name. The daemon
+// reads it from its registry (CommandRegistry.routingBeside); a checker that
+// runs one program in isolation holds no daemon, and judges with none of either
+// (programAlone).
+type commandRouting struct {
+	builtins map[string]bool
+	commands map[string]*RegisteredCommand
+}
+
+// routingBeside answers what the registry holds now beside the plugin named
+// name: every builtin name, and the commands of every other plugin. At Stage 1
+// that is the commands of the plugins that reached Stage 5 before this one, in
+// an earlier tier or before this plugin was started again; a plugin of the same
+// tier that has not reached Stage 5 registered nothing yet, so a command it
+// declares is not seen here. The plugin's own commands are left out: a plugin
+// started again registers them again at its own Stage 5. Safe for concurrent
+// use: the answer is a copy.
+func (r *CommandRegistry) routingBeside(name string) commandRouting {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	routing := commandRouting{
+		builtins: maps.Clone(r.builtins),
+		commands: make(map[string]*RegisteredCommand, len(r.commands)),
+	}
+	for key, cmd := range r.commands {
+		if cmd.Process.Config().Name == name {
+			continue
+		}
+		routing.commands[key] = cmd
+	}
+	return routing
 }
 
 // Unregister removes commands owned by the process.

@@ -467,7 +467,7 @@ The join refuses each case below, and nothing is dropped in silence:
 | The declared module name or namespace differs from the text | The plugin and both values |
 | The module name is held by a compiled-in module, at any revision, or by an earlier external module | The plugin, the module and the holder |
 | The namespace is held the same way | The plugin and both modules |
-| The module adds nothing: its name does not end in `-conf` it augments nothing, it is not a `-cmd` module with a `ze:command`, and it holds no rpc | The plugin, the module and the naming rule |
+| The module declares definitions no reader of ze takes: its name does not end in `-conf`, it augments nothing, it is not a `-cmd` module whose `config false` nodes carry a `ze:command` or a `ze:help`, it holds no rpc, and no other module of the set imports it. The compiled-in set is held to the same rule (`TestNoShippedModuleAddsNothing`). A module that declares no statement at all (a header, imports and revisions only) loses nothing and is joined, because the compiled-in set ships such modules (`EmptyModuleNames`) | The plugin, the module and the naming rule |
 | A `ze:command` on a path, or a wire method, another module already declares | The plugin, the module, the path or method, and the holder |
 | A `ze:rpc` or wire method `PublishedRPCs` refuses over the joined set and not over the compiled-in one, or a `ze:rpc` naming a module no module is | The plugin and the pointer |
 | A top-level node of an external `-conf` module is already defined by a `-conf` module | The plugin, the node, the module that defines it and the `augment` to write |
@@ -553,10 +553,13 @@ is read in a `ze cli` session or over SSH.
 A plugin the daemon starts again, after it ended or by `request plugin
 restart`, sends its Stage 1 declaration again, and the `schema-unchanged`
 entry of the Stage 1 table compares it with that set (`refuseChangedSchema`).
-The same module, or none where the plugin declared none, lets the restart
-proceed. Another text, name or namespace, a module where there was none, or
-none where there was one refuses the plugin at Stage 1 with an operator error
-that says what differs and whose fix is the restart of `ze`. The refusal is
+The same list of modules (config, command and rpc modules alike), or none
+where the plugin declared none, lets the restart proceed. A module whose text,
+name or namespace differs from the one published under its name, a module the
+plugin did not declare when ze started, a published module it no longer
+declares, or no module where it declared some refuses the plugin at Stage 1
+with an operator error that names the first difference and whose fix is the
+restart of `ze`. The refusal is
 logged and raised as the warning `doctor-plugin-schema-changed`, the published
 set is not written, and the config under the plugin's root stays loaded. The
 first Stage 1 of a plugin takes the same check, with the declaration boot

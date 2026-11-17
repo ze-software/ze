@@ -75,6 +75,18 @@ Run directly from the terminal. No daemon required (except `ze signal`, `ze stat
 Some `ze show` subcommands run locally: `version`, `bgp decode`, `bgp encode`,
 `env`, `schema`, `yang`, `completion`.
 
+An external plugin's command is typed in the shell as any other command:
+`ze show acme-monitor status`. The `ze` binary does not hold it, because the
+plugin brings it in its own YANG, so `ze` asks the running ze, whose answer,
+exit code and format keyword (`ze show acme-monitor status json`) are those of
+`ze cli -c "show acme-monitor status"`. A path the running ze does not know
+either is refused as an unknown command. With no ze running, `ze` starts no
+plugin: when the stored config declares an external plugin, the command is
+reported as not available, naming the plugin, why no ze answered, and the fix
+(`ze start` when none runs); otherwise it is an unknown command. Help and shell
+completion of such a command need the running ze: use `ze cli`.
+<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheldRoute.answer -->
+
 ### ze
 
 Start the daemon or access subcommands. When invoked with no arguments in an

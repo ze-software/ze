@@ -395,19 +395,25 @@ func runBGP(args []string) int {
 
 	// If -c specified, execute single command and exit.
 	if *runCmd != "" {
-		// Streaming commands (bgp monitor) use StreamCommand for line-by-line output.
-		if isMonitorCommand(*runCmd) {
-			return client.StreamMonitor(*runCmd)
-		}
-		if tf := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
-			tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), creds.Host+":"+creds.Port)
-			defer tw.Close() //nolint:errcheck // best-effort transcript
-			return client.executeWithTranscript(*runCmd, *format, tw)
-		}
-		return client.Execute(*runCmd, *format)
+		return client.runOne(*runCmd, *format)
 	}
 
 	return runInteractiveSession(client)
+}
+
+// RunReached runs one command on the daemon creds log in to, as `ze cli -c`
+// runs it once the daemon is known to listen: the same streaming, transcript,
+// rendering and exit code. It is the route of `ze <verb> <path>` for a path
+// this binary's command tree does not hold (an external plugin's command),
+// whose caller already walked to the daemon (sshclient.ReachDaemon).
+//
+// notUnderstood answers when the daemon says the command text names no
+// command it holds either, with the daemon's own text, before anything is
+// printed: the caller then gives the refusal the path earns with no daemon.
+func RunReached(creds sshclient.Credentials, command, format string, notUnderstood func(message string) int) int {
+	client := newCLIClient(creds)
+	client.notUnderstood = notUnderstood
+	return client.runOne(command, format)
 }
 
 // cliClient handles communication with the daemon via SSH exec.
@@ -429,6 +435,11 @@ type cliClient struct {
 	// monitorStream owns a monitor's callback lifecycle. A test substitutes it
 	// to drive event and transport failures without a daemon.
 	monitorStream func(sshclient.Credentials, string, func(string) error) error
+	// notUnderstood, when set, answers a one-shot command the daemon says
+	// names no command it holds (sshclient.Answer.NotUnderstood), in place of
+	// printing the daemon's text. Only RunReached sets it; nil keeps the
+	// daemon's text as the answer.
+	notUnderstood func(message string) int
 }
 
 func newCLIClient(creds sshclient.Credentials) *cliClient {
@@ -436,6 +447,22 @@ func newCLIClient(creds sshclient.Credentials) *cliClient {
 		creds: creds, send: sshclient.ExecCommand, stream: sshclient.ExecCommandStream,
 		monitorStream: sshclient.StreamCommand,
 	}
+}
+
+// runOne runs one command and exits: a monitor streams line by line, and
+// every other command is executed once, recorded in the transcript when one
+// is open.
+func (c *cliClient) runOne(command, format string) int {
+	// Streaming commands (bgp monitor) use StreamCommand for line-by-line output.
+	if isMonitorCommand(command) {
+		return c.StreamMonitor(command)
+	}
+	if tf := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
+		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), c.creds.Host+":"+c.creds.Port)
+		defer tw.Close() //nolint:errcheck // best-effort transcript
+		return c.executeWithTranscript(command, format, tw)
+	}
+	return c.Execute(command, format)
 }
 
 // Execute sends a command to the daemon and prints the answer.
@@ -488,7 +515,13 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 	// le-ci-dispatch: dynamic -- command is the operator's own typed input
 	answer, err := c.stream(c.creds, commandWithFormat(command, format), out)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		// A not-understood answer is the whole answer and writes nothing on
+		// stdout, so nothing has reached the operator yet.
+		if answer.NotUnderstood && c.notUnderstood != nil {
+			return c.notUnderstood(answer.Message)
+		}
+		var failure textbuf.Buffer
+		failure.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
 		return 1
 	}
 	// A warning about the answer goes to stderr, where `ze <command>` prints

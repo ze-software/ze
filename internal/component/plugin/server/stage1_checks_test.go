@@ -148,6 +148,18 @@ func stage1Cases() map[string]stage1Case {
 				return "invalid help text: " + stage1Subject + ": " + mustFail(t, validateHelpDecls(in.Commands))
 			},
 		},
+		"command-nodes-served": {
+			// The declaration brings a -cmd module with two command nodes and
+			// declares a command for one: a checker joins the module itself.
+			failing: &rpc.DeclareRegistrationInput{
+				ProtocolVersion: rpc.ProtocolVersion,
+				Schemas:         []rpc.SchemaDecl{probeCommandsDecl()},
+				Commands:        []rpc.CommandDecl{{Name: probeStatus}},
+			},
+			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {
+				return mustFail(t, refuseUnservedCommandNodes(stage1Subject, in, programAlone()))
+			},
+		},
 		"command-names": {
 			failing: &rpc.DeclareRegistrationInput{
 				ProtocolVersion: rpc.ProtocolVersion,

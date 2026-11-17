@@ -285,6 +285,47 @@ func Commands() Module {
 	return Module{Name: "acme-monitor-cmd", Namespace: "urn:acme:monitor:cmd", Text: commandsText}
 }
 
+// CommandsNarrowed answers Commands with the bound of the target name cut
+// from 1..16 to 1..8 characters: the module a restarted plugin brings in
+// place of Commands, so a test can watch the daemon keep the bound it started
+// with.
+func CommandsNarrowed() Module {
+	text := strings.ReplaceAll(commandsText, `length "1..16";`, `length "1..8";`)
+	text = strings.ReplaceAll(text, "from 1 to 16 characters", "from 1 to 8 characters")
+	return Module{Name: "acme-monitor-cmd", Namespace: "urn:acme:monitor:cmd", Text: text}
+}
+
+// CommandClashPath is the command the clashing command module declares: a
+// path the compiled-in module ze-cli-show-cmd already declares.
+const CommandClashPath = "show version"
+
+// commandClashText is a command module that declares `show version`, a
+// command compiled into ze, so the join refuses it.
+const commandClashText = `module acme-clash-cmd {
+    namespace "urn:acme:clash:cmd";
+    prefix acmeclash;
+    import ze-extensions { prefix ze; }
+
+    description "A command module that declares a command ze already holds.";
+
+    container show {
+        config false;
+
+        container version {
+            config false;
+            ze:command "acmeclash:show-version";
+            ze:help "Show the version of the acme plugin.";
+            description "Answers the version of the plugin, under a path ze already holds.";
+        }
+    }
+}
+`
+
+// CommandClash answers the command module that declares CommandClashPath.
+func CommandClash() Module {
+	return Module{Name: "acme-clash-cmd", Namespace: "urn:acme:clash:cmd", Text: commandClashText, Refused: true}
+}
+
 // Accepted answers the config modules the daemon is expected to accept,
 // sorted by name: every config module of this package that is not Refused.
 // Commands is not one of them: it adds no config, so the config sweep that

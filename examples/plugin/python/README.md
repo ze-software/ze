@@ -1,27 +1,44 @@
 # A Ze plugin in Python
 
 This directory holds an external Ze plugin written in Python, and the small
-library it is built on. It shows that a plugin in any language can bring its
-own YANG config module to Ze, be told its config, and serve a command.
+library it is built on. It shows that a plugin in any language brings its own
+YANG modules to Ze: a config section, commands with checked arguments, and the
+parameters the API surfaces publish for those commands. Ze treats them as it
+treats the modules compiled into `ze`.
 
 | File | What it is |
 |------|------------|
 | `ze_plugin.py` | The library. One file, standard library only, Python 3.9 or later |
-| `acme_monitor.py` | The example plugin, about 80 lines |
+| `acme_monitor.py` | The example plugin, its three YANG modules written inline |
 
-The wire contract is `docs/plugin-development/protocol.md`. The library speaks
+The wire contract is `docs/plugin-development/protocol.md`, and defining a
+command in YANG is `docs/plugin-development/commands.md`. The library speaks
 plugin protocol version 1.
 
-## What the example does
+## What the example declares
 
-- It declares the YANG module `acme-monitor-conf`. The module adds the config
-  section `acme-monitor`, with a mandatory `endpoint` and an `interval` from 1
-  to 10 seconds that defaults to 5.
-- `verify` refuses an `http://` endpoint, and the refusal names the fix.
-- `apply` stores the values and logs them with the changed config paths.
-- `rollback` puts the previous values back.
-- The command `show acme-monitor status` answers one row with the stored
-  values.
+| Module | What it adds |
+|--------|--------------|
+| `acme-monitor-conf` | The config section `acme-monitor`: a mandatory `target`, the host the monitor probes, of 1 to 64 characters, and an `interval` from 1 to 10 seconds with no default. The leaves are those of the module Ze's tests declare under the same name (`internal/test/externalyang/externalyang.go`), so a config for this example is valid in Ze's repository config sweep too |
+| `acme-monitor-cmd` | The commands `show acme-monitor status` and `show acme-monitor target <name>`, with their help, and the argument `name`, a string of 1 to 16 characters |
+| `acme-monitor-api` | The rpc `show-target`, whose input is the parameter list MCP, REST and gRPC publish for `show acme-monitor target` |
+
+`plugin.schema()` is called once for each module. Each `@plugin.command`
+lists its command in the Stage 1 declaration, which is what makes Ze ask the
+plugin for it, and serves it when Ze asks.
+
+What the plugin does with them:
+
+- `verify` refuses a target written as a URL (`https://web.example.net/`),
+  and the refusal names the `set` line that fixes it.
+- `apply` stores the target and the interval, and logs them with the changed
+  config paths. `rollback` puts the previous values back.
+- `show acme-monitor status` answers the target and the interval, or `not set`
+  for an interval the config does not state. With no `acme-monitor` section it
+  answers an error whose fix sets the target.
+- `show acme-monitor target <name>` answers the target when `<name>` is the
+  configured one. Any other name is answered with an error whose fix is
+  `show acme-monitor status`.
 
 ## Check it without a daemon
 
@@ -43,7 +60,8 @@ ZE_PLUGIN_MODE=declare python3 examples/plugin/python/acme_monitor.py
 ```
 
 It prints one line that starts with `#1 ze-plugin-engine:declare-registration`
-and exits 0.
+and exits 0. The line lists the three modules under `schemas` and the two
+commands under `commands`.
 
 ## Run it under Ze
 
@@ -63,65 +81,60 @@ Then write the plugin's own section:
 
 ```
 acme-monitor {
-    endpoint https://probe.example.net/health
+    target web.example.net
     interval 3
 }
 ```
 
-Start Ze with that config, then ask the plugin for its state:
+Start Ze with that config. Ze runs the plugin first, joins its three modules,
+and only then parses the config, so the `acme-monitor` section loads and the
+two commands exist. Ze relays what the plugin writes to stderr into its own
+log: each accepted config writes a line there that starts with
+`acme-monitor: applied`.
+
+## What an operator types
+
+`ze cli -c` sends the line to the running Ze:
 
 ```
 ze cli -c "show acme-monitor status"
+ze cli -c "show acme-monitor target web.example.net"
 ```
 
-Ze relays what the plugin writes to stderr into its own log. Each accepted
-config writes a line there that starts with `acme-monitor: applied`.
+Both answer the target `web.example.net` and the interval `3`.
 
-## What works today
+Ze judges the argument against the leaf `name` of `acme-monitor-cmd` before it
+asks the plugin. A name of 25 characters is refused, the plugin is never asked,
+and the command exits 1:
 
-Against a Ze built from the branch that carries this example:
+```
+$ ze cli -c "show acme-monitor target this-name-is-far-too-long"
+error: show acme-monitor target name: "this-name-is-far-too-long" is outside the accepted length (25 characters)
+name accepts 1..16 characters
+fix: show acme-monitor target <1..16 characters>
+```
 
-- Declare mode and the conformance checker.
-- Registration: Ze starts the plugin, the plugin connects back over TLS,
-  authenticates, and completes the five startup stages.
-- The command `show acme-monitor status`.
-- The plugin's own config section at start. Ze starts the plugin, takes its
-  YANG module from the Stage 1 declaration, and only then parses the config,
-  so the `acme-monitor` section loads. The plugin's `verify` and `apply` run,
-  and the command answers the configured endpoint and interval.
-- Ze enforces the module: an `interval` of 11 is refused when the config
-  loads, with the accepted range.
-- A config change in a running Ze. `verify` then `apply` run with the changed
-  paths, and a `verify` refusal fails the reload with the plugin's message and
-  fix while the plugin keeps its previous state.
-- A `verify` refusal at start. Ze stays up, reports the plugin as stopped with
-  the plugin's own message and fix, and the plugin's command is not there.
-- In a running Ze, the schema surfaces hold the plugin's module: `show config
-  running` answers the `acme-monitor` section, and typed in a `ze cli`
-  session `show schema list` lists `acme-monitor-conf` with the root the
-  plugin wants and `show yang tree config` shows the `acme-monitor` nodes.
-  `ze show doctor` does not report the section as delivered to no plugin.
-- Doctor codes for a schema Ze did not get: `doctor-plugin-schema-undeclared`
-  when the plugin cannot be run or declares no module, and
-  `doctor-plugin-schema-refused` when Ze refuses the module at start. Both are
-  on the refusal Ze prints; `ze show plugin conformance run "<command>"` shows
-  what the program declares.
+A line with no name is refused the same way, as
+`error: required argument missing: name`. A name within the bound reaches the
+plugin as the operator typed it: the handler gets it as `args[0]`.
 
-## What does not work yet
+## What is not built
 
+- `ze show acme-monitor ...` typed in the shell, with no `cli -c`, is not
+  built: send the line to the running Ze with `ze cli -c`, or type it in a
+  `ze cli` session.
+- Ze asks a plugin only for the commands its Stage 1 declaration lists. It does
+  not compare that list with the commands the plugin's `-cmd` module defines,
+  so a command the module defines and the declaration leaves out is not routed
+  to the plugin, and nothing says so at start.
 - `ze config validate <file>` checks the `acme-monitor` section only while Ze
   runs with this plugin: it sends the file to the running Ze, which holds the
-  plugin's module. With no Ze running, Ze starts no plugin, so the section is
+  plugin's modules. With no Ze running, Ze starts no plugin, so the section is
   refused as `unknown top-level keyword: acme-monitor`, and the message says
-  that the config declares external plugin `acme-monitor`, that Ze reads its
-  schema when `ze start` runs it, why no running Ze answered, and the fix
-  (`ze start`, then the same command). A config with the `plugin` block and no
-  `acme-monitor` section validates either way. `ze config fmt`, `dump`, `diff`
-  and `graph` behave the same way: the running Ze answers for a file that holds
-  the section, and with no Ze running each refuses it with that message.
-
-- `rollback` has not run against a live Ze: no test yet makes another plugin
-  fail after this one applied.
+  why and gives the fix (`ze start`, then the same command). `ze config fmt`,
+  `dump`, `diff` and `graph` behave the same way.
+- `rollback` has not run against a live Ze: no test makes another plugin fail
+  after this one applied.
 
 ## What the library leaves out
 
@@ -139,11 +152,20 @@ Copy `ze_plugin.py` beside your program and start from `acme_monitor.py`.
 - Write nothing to stdout. In declare mode stdout carries the declaration
   line only. The library sends `print()` to stderr once the
   `Plugin` exists, and `plugin.log(text)` writes there too.
-- A command name starts with a verb such as `show`, `request` or `clear`, and
-  holds lowercase words. The library refuses another name when the program
-  loads.
+- Name each module after your plugin, with the suffix that says what it adds:
+  `-conf` for config, `-cmd` for commands. A module whose definitions Ze reads
+  nowhere refuses the start, and so does a command path or a module name Ze already holds.
+- The name you give `@plugin.command` is the path of the container that holds
+  the command's `ze:command`. It starts with a verb such as `show`, `request`
+  or `clear`, and holds lowercase words. The library refuses another name when
+  the program loads.
+- Raise `CommandError(message, fix=...)` when a command cannot answer, with the
+  command that clears it.
 - A class that handles a config section must define `apply`. Ze refuses every
   commit for a plugin that cannot apply it.
 - Every config value arrives as a string. Use `new.int(key, default=...)` and
-  `new.bool(key, default=...)` to convert one.
+  `new.bool(key, default=...)` to convert one. A list arrives as one object
+  keyed by its entry names.
 - An empty `new` in `apply` means the operator removed the section.
+- Your modules change only when Ze restarts. A plugin Ze starts again must
+  declare the same modules, or Ze refuses it.

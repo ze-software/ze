@@ -1,4 +1,4 @@
-// Design: docs/architecture/hub-architecture.md -- an external plugin's config schema changes only when ze restarts
+// Design: docs/architecture/hub-architecture.md -- an external plugin's YANG modules change only when ze restarts
 // Related: stage1_checks.go -- the Stage 1 table, whose schema-unchanged entry calls refuseChangedSchema
 // Related: reload_declarations.go -- the same rule for the plugin declarations of a reload
 // Related: ../../config/yang/publish.go -- PublishedModule, the set a declaration is compared with
@@ -18,22 +18,24 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// schemaFixedWhy says why a plugin cannot bring another config schema while
-// ze runs, and what the refusal left as it was.
-const schemaFixedWhy = "ze reads the config schema of an external plugin once, when ze starts, and every reader of the config " +
-	"keeps that schema. ze does not run the plugin with another one; the running config, the schema ze holds and every " +
-	"other plugin are unchanged"
+// schemaFixedWhy says why a plugin cannot bring other YANG modules while ze
+// runs, whether they add config, commands or rpcs, and what the refusal left
+// as it was.
+const schemaFixedWhy = "ze reads the YANG modules of an external plugin once, when ze starts, and every reader of the config " +
+	"and of the commands keeps them. ze does not run the plugin with other ones; the running config, the modules ze holds " +
+	"and every other plugin are unchanged"
 
 // refuseChangedSchema refuses the Stage 1 declaration of an external plugin
-// whose config schema is not the one the process published for it when ze
-// started (yang.PublishExternalModules). It runs for every Stage 1 of the
+// whose YANG modules (config, command or rpc modules) are not the ones the
+// process published for it when ze started (yang.PublishExternalModules). It
+// runs for every Stage 1 of the
 // plugin: the first, which declares what boot read and published, and each
 // later one, after a respawn or `request plugin restart`.
 //
 // The refusal is an operator error that says what differs and names the
 // restart of ze. It is logged and raised as doctor-plugin-schema-changed
 // here, and the published set is never written. A declaration that carries
-// the published schema clears that warning.
+// the published modules clears that warning.
 func refuseChangedSchema(cfg plugin.PluginConfig, schemas []rpc.SchemaDecl) error {
 	if !cfg.RunsExternalProgram() {
 		// A plugin compiled into ze declares a module ze registered at
@@ -48,10 +50,10 @@ func refuseChangedSchema(cfg plugin.PluginConfig, schemas []rpc.SchemaDecl) erro
 	}
 	var problem textbuf.Buffer
 	problem.Str("plugin ").Quoted(cfg.Name).
-		Str(" was started again with another config schema, and ze refused it: ").Str(difference)
+		Str(" was started again with other YANG modules, and ze refused it: ").Str(difference)
 	refusal := opererr.New(problem.String(), schemaFixedWhy, restartDaemonFix)
 
-	logger().Warn("plugin restarted with another config schema", "plugin", cfg.Name, "error", refusal,
+	logger().Warn("plugin restarted with other YANG modules", "plugin", cfg.Name, "error", refusal,
 		"fix", restartDaemonFix, "code", diagnostic.CodeDoctorPluginSchemaChanged)
 	var message textbuf.Buffer
 	message.Str(refusal.Problem()).Str(". ").Str(refusal.Why())

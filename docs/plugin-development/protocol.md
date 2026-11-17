@@ -290,7 +290,7 @@ Each `CommandDecl` has these fields:
 | `name` | `string` | Command path the plugin serves |
 | `short-help` | `string` | The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character |
 | `description` | `string` | The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused |
-| `args` | `[]string` | Expected argument names, for help and completion |
+| `args` | `[]string` | Argument names, for the help and completion of a command no module defines. A command a `-cmd` module defines takes its arguments from the module's leaves ([commands.md](commands.md)) |
 | `completable` | `bool` | Whether the command supports tab completion |
 | `hidden` | `bool` | Whether the command is left out of help and completion |
 | `deprecated-names` | `[]string` | Older spellings that still reach this command |
@@ -601,7 +601,7 @@ arguments and returns the exit code:
 // socket, no goroutine.
 func declaration() *sdk.Registration {
     return &sdk.Registration{
-        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", ShortHelp: "Show monitor status"}},
+        Commands: []sdk.CommandDecl{{Name: "show acme-monitor status", ShortHelp: "Show monitor status"}},
     }
 }
 

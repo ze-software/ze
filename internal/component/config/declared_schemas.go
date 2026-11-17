@@ -63,11 +63,12 @@ type SchemaOutcome uint8
 
 const (
 	SchemaOutcomeUnspecified SchemaOutcome = iota
-	// SchemaDeclared: the plugin declared a YANG module, and the module set
-	// the daemon published holds it.
+	// SchemaDeclared: the plugin declared a YANG module that adds config
+	// (yang.DefinesConfig), and the module set the daemon published holds it.
 	SchemaDeclared
 	// SchemaNone: the plugin sent its declaration, and the declaration
-	// carries no YANG module. The plugin defines no config section, so no
+	// carries no YANG module that adds config: none at all, or only modules
+	// that add commands and rpcs. The plugin defines no config section, so no
 	// name a parse refuses is explained by it.
 	SchemaNone
 	// SchemaUnread: the plugin gave the daemon no declaration before the
@@ -236,7 +237,7 @@ func (d *DeclaredSchemas) problem(path string) string {
 // holds no schema of them. It claims nothing about which plugin, if any,
 // defines the refused name.
 func (d *DeclaredSchemas) why(path string) string {
-	declares := "the config declares " + pluginNames(d.plugins)
+	declares := "the config declares " + ExternalPluginNames(d.plugins)
 	if !d.offline {
 		return declares + ", of which this ze holds no config schema: ze reads the config schema of an " +
 			"external plugin once, when it starts, from the plugins declared then. A section that such a " +
@@ -291,9 +292,10 @@ func namesFile(path string) bool {
 	return path != "-"
 }
 
-// pluginNames writes names as `external plugin "a"`, or `external plugins "a",
-// "b"` for several. names MUST hold at least one name.
-func pluginNames(names []string) string {
+// ExternalPluginNames writes names as `external plugin "a"`, or `external
+// plugins "a", "b"` for several, as every refusal that says which external
+// plugins a config declares names them. names MUST hold at least one name.
+func ExternalPluginNames(names []string) string {
 	var text textbuf.Buffer
 	text.Str("external plugin")
 	if len(names) > 1 {
@@ -458,6 +460,10 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 
 	published, _ := yang.PublishedExternalModules()
 	for _, external := range externals {
+		// A plugin the process published a module of is not named: either
+		// that module defines its section, or its modules add only commands
+		// and rpcs and it defines no section (SchemaNone). Neither explains a
+		// refused name.
 		ofPlugin := func(module yang.ExternalModule) bool { return module.Plugin == external.Name }
 		if slices.ContainsFunc(published, ofPlugin) {
 			continue

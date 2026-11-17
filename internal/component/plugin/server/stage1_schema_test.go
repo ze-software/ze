@@ -122,7 +122,7 @@ func TestStage1RefusesChangedDeclaration(t *testing.T) {
 			require.Error(t, err, "a changed declaration was accepted")
 			refusal, operator := errors.AsType[*opererr.Error](err)
 			require.True(t, operator, "the refusal is no operator error: %v", err)
-			assert.Equal(t, `plugin "`+tc.plugin+`" was started again with another config schema, and ze refused it: `+tc.says,
+			assert.Equal(t, `plugin "`+tc.plugin+`" was started again with other YANG modules, and ze refused it: `+tc.says,
 				refusal.Problem())
 			assert.Equal(t, "restart ze", refusal.Fix())
 
@@ -201,7 +201,7 @@ func TestStage1RefusesChangedModuleSet(t *testing.T) {
 			require.Error(t, err, "a changed module set was accepted")
 			refusal, operator := errors.AsType[*opererr.Error](err)
 			require.True(t, operator, "the refusal is no operator error: %v", err)
-			assert.Equal(t, `plugin "`+schemaSubject+`" was started again with another config schema, and ze refused it: `+tc.says,
+			assert.Equal(t, `plugin "`+schemaSubject+`" was started again with other YANG modules, and ze refused it: `+tc.says,
 				refusal.Problem())
 			assert.Equal(t, "restart ze", refusal.Fix())
 
@@ -319,6 +319,6 @@ func TestOnRegistrationRefusesChangedSchema(t *testing.T) {
 	require.Error(t, err)
 	refusal, operator := errors.AsType[*opererr.Error](err)
 	require.True(t, operator, "onRegistration answered another refusal: %v", err)
-	assert.Contains(t, refusal.Problem(), `plugin "acme" was started again with another config schema`)
+	assert.Contains(t, refusal.Problem(), `plugin "acme" was started again with other YANG modules`)
 	assert.Equal(t, "restart ze", refusal.Fix())
 }

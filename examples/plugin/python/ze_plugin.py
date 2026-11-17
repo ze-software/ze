@@ -1,14 +1,16 @@
 """ze_plugin: a small library for writing an external Ze plugin in Python.
 
 An external plugin is a program Ze starts from a `plugin { external <name> {
-run ...; } }` block. This library lets that program bring its own YANG config
-module, be told its config at start and on each commit, and serve operational
-commands:
+run ...; } }` block. This library lets that program bring its own YANG
+modules, be told its config at start and on each commit, and serve the
+commands its modules define:
 
-    from ze_plugin import Plugin, ConfigError
+    from ze_plugin import Plugin, ConfigError, CommandError
 
     plugin = Plugin("acme-monitor")
-    plugin.schema(YANG_TEXT)
+    plugin.schema(CONF_YANG)    # acme-monitor-conf: the config section
+    plugin.schema(CMD_YANG)     # acme-monitor-cmd: the commands and their arguments
+    plugin.schema(API_YANG)     # acme-monitor-api: the rpcs MCP, REST and gRPC read
 
     @plugin.config("acme-monitor")
     class Monitor:
@@ -16,9 +18,9 @@ commands:
         def apply(self, new, changed): ...    # at start and on each commit
         def rollback(self, old): ...
 
-    @plugin.command("show acme-monitor status", help="Show the monitor")
-    def status(args):
-        return [{"endpoint": "..."}]
+    @plugin.command("show acme-monitor target")
+    def target(args):                         # args: the values Ze checked
+        raise CommandError("no such target", fix="show acme-monitor status")
 
     plugin.run()
 
@@ -51,7 +53,7 @@ import ssl
 import sys
 import traceback
 
-__all__ = ["Plugin", "Config", "ConfigError"]
+__all__ = ["Plugin", "Config", "ConfigError", "CommandError"]
 
 # pkg/plugin/rpc/types.go ProtocolVersion: the one version this library speaks.
 PROTOCOL_VERSION = 1
@@ -91,8 +93,8 @@ _REQUIRED = object()
 _SENT = object()
 
 
-class ConfigError(Exception):
-    """A config the plugin refuses, or a config value that does not convert.
+class _Refusal(Exception):
+    """A refusal the plugin sends to Ze: what is wrong, and what clears it.
 
     `message` says what is wrong and why. `fix` is the command or config
     statement that clears it. The text sent to Ze carries the fix on its last
@@ -109,6 +111,14 @@ class ConfigError(Exception):
         if self.fix:
             return self.message + "\nfix: " + self.fix
         return self.message
+
+
+class ConfigError(_Refusal):
+    """A config the plugin refuses, or a config value that does not convert."""
+
+
+class CommandError(_Refusal):
+    """A command the plugin cannot answer, such as one that names no known item."""
 
 
 class Config:
@@ -391,7 +401,11 @@ class Plugin:
         The module name and the namespace are read out of the text. A module
         whose name ends in `-conf` adds its top-level containers to the config,
         one whose name ends in `-cmd` adds the commands it declares, and the
-        rpc statements of a module describe the parameters of those commands.
+        rpc statements of a module (an `-api` module) describe the parameters
+        of the commands whose ze:rpc names them. Ze joins every module when
+        `ze start` runs the plugin, and refuses the start when one does not
+        compile or clashes with a module Ze holds
+        (docs/plugin-development/commands.md).
         """
         module = re.search(r"^\s*module\s+([A-Za-z_][A-Za-z0-9_.-]*)\s*\{", yang_text, re.MULTILINE)
         if not module:
@@ -454,10 +468,25 @@ class Plugin:
     def command(self, name, help=""):
         """Function decorator: the function serves the command `name`.
 
+        The decorator lists the command in the Stage 1 `commands`, which is
+        what makes Ze ask this plugin for it, and serves it when Ze asks.
+
         The name starts with a verb (show, request, clear, ...) and holds
-        lowercase words. The function takes the list of argument words and
-        returns a list of dict rows, one dict, a string, or None. Raising
-        answers an error with the exception's text.
+        lowercase words. When a -cmd module of this plugin defines the
+        command, the name is the path of the container that holds its
+        ze:command, and the module carries its help (ze:help) and its
+        arguments (leaves). Ze checks each value against its leaf's type
+        before it asks the plugin, so the function gets only values the type
+        accepts.
+
+        `help` is the one-line `short-help` of the Stage 1 entry, at most 256
+        bytes. It is optional, and is the only help of a command that no
+        module of this plugin defines.
+
+        The function takes the list of argument values and returns a list of
+        dict rows, one dict, a string, or None. Raise CommandError(message,
+        fix=...) to answer an error with the command that clears it. Any
+        other exception answers an error with its text.
         """
         _check_command_name(name)
         _check_help(name, help)
@@ -671,7 +700,7 @@ class Plugin:
             result = handler(request_id, json.loads(payload) if payload else {})
         except _Closed:
             raise
-        except ConfigError as refusal:
+        except _Refusal as refusal:
             self._send_error(request_id, str(refusal))
             return
         except Exception as failure:  # A handler's own defect: answer it, keep the connection.

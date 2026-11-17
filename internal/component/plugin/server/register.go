@@ -18,7 +18,7 @@ import "github.com/ze-software/ze/internal/core/diagnostic"
 // queue that never reached its plugin, a config parent left behind, a
 // deprecated command name, a managed client never told of a change, a
 // configuration reload the server refused, a restarted external plugin whose
-// config schema is not the one ze started with (stage1_schema.go), an external
+// YANG modules are not the ones ze started with (stage1_schema.go), an external
 // plugin that gave boot no config schema and a module boot refused at the join
 // (external_schema_report.go), and an external plugin's connect-back refused by
 // the acceptor the server starts (plugin/ipc tls.go; ipc cannot import

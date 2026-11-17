@@ -219,7 +219,8 @@ func (r Resolution) dispatchString() string {
 
 // RunCommand resolves argv against the verb's command tree and delegates
 // execution. Local handlers run in-process; daemon commands go through cli.Run
-// via SSH. The cmdName is used in error/hint messages.
+// via SSH. A path the tree does not hold is put to the running ze before it is
+// refused (unheldRoute.answer). The cmdName is used in error/hint messages.
 //
 // Read-only filtering does NOT happen here. It is structural: verbContextPath
 // (internal/component/cli/client/verb_tree.go) admits a command into the `show`
@@ -265,14 +266,13 @@ func RunCommand(args []string, cmdName string) int {
 	// host). Route those to the daemon path below: cli.Run serves them from the
 	// daemon when reachable and from the in-process fallback when not, so they
 	// are never rejected as unknown and the fallback never shadows the daemon.
+	//
+	// Any other path the tree does not hold may be a command an external
+	// plugin brought in its own YANG, which only a running ze holds. It is put
+	// to the running ze before it is refused (unheld.go).
 	dispatchable := res.dispatchable()
 	if !res.Valid && !dispatchable {
-		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", textbuf.Join(args, " "))
-		if suggestion := SuggestFromTree(res.Relative[0], res.Tree); suggestion != "" {
-			fmt.Fprintf(os.Stderr, "hint: did you mean 'ze %s %s'?\n", cmdName, suggestion)
-		}
-		fmt.Fprintf(os.Stderr, "hint: run 'ze %s help' for available commands\n", cmdName)
-		return 1
+		return unheldPaths.answer(res, args, cmdName)
 	}
 
 	// Grouping container (`show bgp`): nothing declares this exact path and no

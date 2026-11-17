@@ -39,13 +39,16 @@ import (
 // command carries. Warnings is the text a command that completed with a
 // warning wrote for the operator before its frame (the parse warnings of
 // `show config dump`), which the caller prints on stderr as the local route
-// does.
+// does. NotUnderstood is true when the daemon answered that the command text
+// names no command it holds (the nay answer); Verdict is then
+// rpc.VerdictError, and Message is the daemon's text.
 type Answer struct {
-	Verdict  string
-	Count    uint64
-	Faults   uint64
-	Message  string
-	Warnings string
+	Verdict       string
+	Count         uint64
+	Faults        uint64
+	Message       string
+	Warnings      string
+	NotUnderstood bool
 }
 
 // ErrAnswerTruncated is returned when the answer ended without its terminator.
@@ -148,6 +151,7 @@ func readAnswerFrame(stderr io.Reader) (Answer, string) {
 			// is no terminator to wait for and none to miss.
 			answer.Verdict = rpc.VerdictError
 			answer.Message = tail.Message
+			answer.NotUnderstood = true
 			continue
 		}
 		// The parsed kind, never the token: a warning terminator is spelled

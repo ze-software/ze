@@ -16,7 +16,7 @@ then parses the full config. The plugin waits for its Stage 1 answer in the
 meantime, so a plugin MUST NOT time out between sending its declaration and
 receiving the answer. A module that does not compile, or that clashes with a
 module Ze holds, refuses the start and names the plugin. A plugin and its
-module change only when `ze` restarts.
+modules change only when `ze` restarts.
 
 Ze enforces that rule while it runs:
 
@@ -27,11 +27,14 @@ Ze enforces that rule while it runs:
   included.
 - When Ze starts your plugin again (it ended and declared `failure-policy
   restart`, or the operator ran `request plugin restart <name>`), the plugin
-  MUST declare the same module: the same name, namespace and text, or none if
-  it declared none. Another schema refuses the plugin at Stage 1. Ze does not
-  run it, keeps the config under its root, and raises the warning
-  `doctor-plugin-schema-changed`, which `ze show doctor` reports with what
-  differs. To ship a new schema, install the new program and restart `ze`.
+  MUST declare the same modules: each with the same name, namespace and text,
+  none missing and none added, or none if it declared none. This holds for a
+  command or rpc module as for a config module. Another schema refuses the
+  plugin at Stage 1. Ze does not run it, keeps the config under its root, and
+  raises the warning `doctor-plugin-schema-changed`, which `ze show doctor`
+  reports with the first module that differs. To ship a new schema, install
+  the new program and restart `ze`.
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema, schemaDifference -->
 
 A plugin that cannot be run, or that sends no declaration within its stage
 timeout, declares nothing: a config section only its module defines is then
@@ -47,9 +50,9 @@ Each of these outcomes has a doctor code:
 |------|------|-------------------|
 | `doctor-plugin-schema-undeclared` | Ze holds no config schema of your plugin: it could not be run, it sent no declaration in time, or it declared no module and the config holds a section no schema defines | On the refusal and in the log when the start is refused, and then in `ze doctor`, from the record Ze wrote before it exited, until Ze next starts cleanly. In `ze show doctor` when the config holds no section of your plugin, so Ze starts |
 | `doctor-plugin-schema-refused` | Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a `ze:validate` validator or a `ze:reference` source Ze does not hold, it declares a command or a wire method another module declares, a `ze:rpc` names an rpc no module defines, or it adds nothing | On the refusal and in the log. Ze does not start, and `ze doctor` reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly |
-| `doctor-plugin-schema-changed` | Your plugin was started again with another schema | In `ze show doctor` |
+| `doctor-plugin-schema-changed` | Your plugin was started again with other YANG modules (a config, command or rpc module) | In `ze show doctor` |
 
-In a running Ze your module is part of the schema every surface reads: the
+In a running Ze your config module is part of the schema every surface reads: the
 session editor parses and completes under your root, `show config running`
 answers your section, `show yang tree config` shows your nodes with their
 types and descriptions, and `show schema list` lists your module with the
@@ -63,7 +66,7 @@ effect.
 
 A change to your section that an operator commits in the session editor
 reaches your plugin as verify then apply, and Ze saves it: the next `ze start`
-on the same config directory runs your plugin, reads your module again and
+on the same config directory runs your plugin, reads your modules again and
 configures your plugin with the committed value.
 <!-- source: test/ui/external-yang-session-save.ci -- a commit under an external root survives a restart -->
 
@@ -167,7 +170,9 @@ commands whose `ze:rpc` names them. Ze judges each module by the rules the
 modules compiled into `ze` obey; it also refuses a command path or a wire
 method that another module already declares, and a `ze:rpc` that names an rpc
 no module defines. A plugin that answers a command also declares it in
-`Commands`.
+`Commands`, and Ze refuses the start when a `ze:command` node of its modules
+is reached by no command it declares there. Defining a command in a `-cmd` module, with a worked example and
+the refusals, is [commands.md](commands.md), "Defining a Command in YANG".
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, SchemaDecl -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl -->
 

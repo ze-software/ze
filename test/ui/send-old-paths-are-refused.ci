@@ -9,9 +9,9 @@
 #           reachable and unreached, and the model would say a send names its
 #           destination in two places, which is the thing the move removes.
 #
-# This runs without a daemon on purpose. The refusal happens in the offline
-# binary, at command resolution, before any dispatch, which is where an
-# operator's typo meets the tree. Nine wire methods sat at fifteen paths because
+# This runs without a daemon on purpose. No ze runs, so the walk to a running
+# ze stops at its listener, and the binary refuses the path as an unknown
+# command, which is where an operator's typo meets the tree. Nine wire methods sat at fifteen paths because
 # six were reachable twice, bare and peer-scoped, so both rows per form are here
 # and the bare row is what proves `*` replaced the implicit every-peer scope.
 #

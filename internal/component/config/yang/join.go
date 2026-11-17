@@ -39,8 +39,6 @@ type declaredModule struct {
 	name      string
 	namespace string
 	prefix    string
-	// augments is whether the module carries a top-level augment statement.
-	augments bool
 }
 
 // Join answers the module set that holds every module of compiled and every
@@ -54,9 +52,13 @@ type declaredModule struct {
 //   - the module name is held by a module of compiled, at any revision, or by
 //     an earlier external module
 //   - the namespace is held the same way
-//   - the module adds nothing: its name does not end in -conf, it augments
-//     nothing, it is not a -cmd module that declares a command, and it holds
-//     no rpc
+//   - the module declares definitions no reader of ze takes: its name does not
+//     end in -conf, it augments nothing, it is not a -cmd module that writes a
+//     ze:command or a ze:help into the command tree, it holds no rpc, and no
+//     other module of the set imports it (refuseIdleModules, the rule the
+//     compiled-in modules are held to as well). A module that declares no
+//     statement at all loses nothing and is joined, as the compiled-in set
+//     holds such modules (EmptyModuleNames)
 //   - a command path or wire method another module holds, or a ze:rpc or wire
 //     method PublishedRPCs refuses (refuseCommandConflicts)
 //   - a top-level node of a -conf external module is already defined by a
@@ -130,6 +132,31 @@ func ExternalModuleFromText(origin, text string) (ExternalModule, error) {
 	return external, nil
 }
 
+// DefinesConfig reports whether external, an external module, adds config to
+// the schema: its name ends in -conf, so the config schema takes its top-level
+// nodes (Resolved.ConfModuleNames), or it is neither a -cmd nor an -api module
+// and carries an augment, which reaches a config node. A -cmd module and an
+// -api module add commands and rpcs, never config. The name is the declared
+// one, which Join refuses when it differs from the text, so only a module of
+// another name is parsed. The error is a text that does not parse alone, as
+// Join refuses it.
+func DefinesConfig(external ExternalModule) (bool, error) {
+	if strings.HasSuffix(external.Module, "-conf") {
+		return true, nil
+	}
+	if strings.HasSuffix(external.Module, cmdModuleSuffix) {
+		return false, nil
+	}
+	if strings.HasSuffix(external.Module, "-api") {
+		return false, nil
+	}
+	module, err := parseExternal(external)
+	if err != nil {
+		return false, err
+	}
+	return len(module.Augment) > 0, nil
+}
+
 // declaredModules parses each external module alone and refuses the ones the
 // module set cannot take before any of them is added to it: a declaration that
 // differs from its text, a module name already held, a namespace already held.
@@ -146,7 +173,6 @@ func declaredModules(set *sourcedModules, externals []ExternalModule) ([]declare
 			name:      module.Name,
 			namespace: module.Namespace.Name,
 			prefix:    modulePrefix(module),
-			augments:  len(module.Augment) > 0,
 		}
 		if err := refuseDeclarationMismatch(next); err != nil {
 			return nil, err
@@ -316,31 +342,154 @@ func resolveJoined(set *sourcedModules, declared []declaredModule) (*Resolved, e
 	return nil, invalidTogetherRefusal(declared, resolveErr)
 }
 
-// refuseIdleModules refuses an external module that would add nothing to ze:
-// the config schema takes top-level nodes only from a config module
-// (Resolved.ConfModuleNames), any other module reaches it by an augment, the
-// command tree takes commands only from a -cmd module (BuildCommandTree), and
-// the rpcs that describe command parameters are read from every module
-// (PublishedRPCs).
+// moduleUse is what one module of a set gives ze, by the one rule every
+// module obeys, compiled-in or external. The zero value is uninitialized:
+// moduleUseOf never answers it, and every reader compares with a named value,
+// so a zero matches no use and refuses or names no module.
+type moduleUse uint8
+
+const (
+	// The zero value is no use, so an unclassified module is never taken for
+	// one that adds, is empty or is idle.
+	_ moduleUse = iota
+	// moduleUseAdds: a reader of ze takes something the module declares.
+	moduleUseAdds
+	// moduleUseEmpty: the module declares no statement at all, only its
+	// header, imports and revisions, so nothing of it is lost.
+	moduleUseEmpty
+	// moduleUseIdle: the module declares definitions no reader of ze takes,
+	// so ze would drop them in silence.
+	moduleUseIdle
+)
+
+// refuseIdleModules refuses an external module whose definitions ze would
+// drop in silence (moduleUseIdle). The config schema takes top-level nodes
+// only from a config module (Resolved.ConfModuleNames), any other module
+// reaches it by an augment, the command tree takes nodes only from a -cmd
+// module (BuildCommandTree), which reads a ze:command and, on a navigation
+// node, a ze:help summary, and the rpcs that describe command parameters are
+// read from every module (PublishedRPCs). A module another module of the set
+// imports adds what its importers take from it (a typedef, a grouping, an
+// extension), as the compiled-in ze-types and ze-ppp-lcp do.
+//
+// A module that declares no statement at all (moduleUseEmpty) is joined: it
+// loses nothing, and the compiled-in set ships such modules, so refusing it
+// from an external plugin alone would judge the two sets differently.
+//
+// It is the rule every module obeys: IdleModuleNames and EmptyModuleNames
+// apply it to a whole set, and the test of the shipped modules holds the
+// compiled-in set to it (TestNoShippedModuleAddsNothing). Only the time
+// differs, which is the transport: a compiled-in module is judged when ze is
+// built, an external one when ze joins it at start.
 func refuseIdleModules(joined *Resolved, declared []declaredModule) error {
-	configModules := joined.ConfModuleNames()
+	imported := importedModules(joined)
 	for _, module := range declared {
-		if slices.Contains(configModules, module.name) {
-			continue
-		}
-		if module.augments {
-			continue
-		}
-		commands := declaresTreeCommand(joined.GetEntry(module.name))
-		if commands && strings.HasSuffix(module.name, cmdModuleSuffix) {
-			continue
-		}
-		if len(joined.GetModule(module.name).RPC) > 0 {
+		use, commands := moduleUseOf(joined, module.name, imported)
+		if use != moduleUseIdle {
 			continue
 		}
 		return idleModuleRefusal(module, commands)
 	}
 	return nil
+}
+
+// IdleModuleNames answers, sorted, the modules of schema whose definitions no
+// reader of ze takes, by the rule refuseIdleModules refuses an external module
+// by: not a config module, no augment, no ze:command or ze:help the command
+// tree reads under a -cmd name, no rpc, imported by no other module of schema,
+// and at least one statement declared.
+func IdleModuleNames(schema *Resolved) []string {
+	return moduleNamesOfUse(schema, moduleUseIdle)
+}
+
+// EmptyModuleNames answers, sorted, the modules of schema that declare no
+// statement at all: a header, imports and revisions only. The join accepts
+// one from an external plugin, since nothing of it is lost; in the compiled-in
+// set each is a leftover nothing reads (TestNoShippedModuleAddsNothing).
+func EmptyModuleNames(schema *Resolved) []string {
+	return moduleNamesOfUse(schema, moduleUseEmpty)
+}
+
+// moduleNamesOfUse answers, sorted, the modules of schema whose use is want.
+func moduleNamesOfUse(schema *Resolved, want moduleUse) []string {
+	imported := importedModules(schema)
+	var names []string
+	for _, name := range schema.ModuleNames() {
+		if use, _ := moduleUseOf(schema, name, imported); use == want {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
+}
+
+// moduleUseOf answers what the module name of schema gives ze, and whether it
+// declares a ze:command the tree would read under a -cmd name. imported holds
+// the modules another module of schema imports.
+func moduleUseOf(schema *Resolved, name string, imported map[string]bool) (use moduleUse, commands bool) {
+	if slices.Contains(schema.ConfModuleNames(), name) {
+		return moduleUseAdds, false
+	}
+	if imported[name] {
+		return moduleUseAdds, false
+	}
+	module := schema.GetModule(name)
+	if module == nil {
+		panic("BUG: yang.moduleUseOf was asked about module " + name + ", which the set does not hold; callers pass a name of the set")
+	}
+	if len(module.Augment) > 0 {
+		return moduleUseAdds, false
+	}
+	entry := schema.GetEntry(name)
+	commands = declaresTreeCommand(entry)
+	if strings.HasSuffix(name, cmdModuleSuffix) && writesTreeNode(entry) {
+		return moduleUseAdds, commands
+	}
+	if len(module.RPC) > 0 {
+		return moduleUseAdds, commands
+	}
+	if declaresNothing(module) {
+		return moduleUseEmpty, commands
+	}
+	return moduleUseIdle, commands
+}
+
+// declaresNothing reports whether module holds no statement any reader could
+// take: no data node, augment, uses, rpc, notification, typedef, grouping,
+// identity, extension, feature, deviation, include or extension statement.
+// What remains is its header, its imports and its revisions.
+func declaresNothing(module *gyang.Module) bool {
+	counts := []int{
+		len(module.Anydata), len(module.Anyxml), len(module.Augment), len(module.Choice),
+		len(module.Container), len(module.Deviation), len(module.Extension), len(module.Extensions),
+		len(module.Feature), len(module.Grouping), len(module.Identity), len(module.Include),
+		len(module.Leaf), len(module.LeafList), len(module.List), len(module.Notification),
+		len(module.RPC), len(module.Typedef), len(module.Uses),
+	}
+	for _, count := range counts {
+		if count > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// importedModules answers the name of each module that another module of
+// schema imports.
+func importedModules(schema *Resolved) map[string]bool {
+	imported := map[string]bool{}
+	for _, name := range schema.ModuleNames() {
+		module := schema.GetModule(name)
+		if module == nil {
+			continue
+		}
+		for _, imp := range module.Import {
+			if imp.Name != name {
+				imported[imp.Name] = true
+			}
+		}
+	}
+	return imported
 }
 
 // idleModuleRefusal is the refusal of a module that adds nothing, with the one
@@ -350,7 +499,8 @@ func idleModuleRefusal(module declaredModule, commands bool) error {
 	plugin := quoted(module.external.Plugin)
 	problem := "Module " + quoted(module.name) + " of plugin " + plugin + " adds nothing to the config schema, the commands or the rpcs"
 	why := "Ze reads config nodes only from a module whose name ends in -conf or that augments another module, " +
-		"commands only from a module whose name ends in -cmd that declares a ze:command, and rpcs from rpc statements"
+		"commands only from a module whose name ends in -cmd that declares a ze:command or a ze:help, rpcs from rpc statements, " +
+		"and typedefs and groupings only through a module that imports them"
 	switch {
 	case commands:
 		return opererr.New(problem, why,

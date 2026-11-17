@@ -155,10 +155,10 @@ Some read-only `show` commands are useful when the daemon is unreachable:
 hardware inventory before startup. Their owner registers an in-process handler with
 `command.MustRegisterOfflineFallback(path, handler)` from its `init()`. The CLI serves the command from the
 daemon when it is reachable and calls the fallback **only after a connection failure**,
-so the fallback never shadows the daemon. Because `cmdutil.RunCommand` rejects commands
-absent from the CLI binary's tree before reaching the daemon path, it makes an exception
-for paths that have a registered fallback, routing them through so the fallback is
-reachable. Output is identical to the daemon RPC (both read the same detection library
+so the fallback never shadows the daemon. `cmdutil.RunCommand` sends a path that has a
+registered fallback down the daemon path even when the CLI binary's tree does not hold it,
+so the fallback is reachable with no daemon; any other path the tree does not hold takes
+the route of the next section. Output is identical to the daemon RPC (both read the same detection library
 / crash files), so online and offline results match. `show crashes` holds that
 identity to one call on each side: both build their rows from
 `crashlog.CrashListFields` and their readiness block from `crashes.Readiness`, so
@@ -168,6 +168,39 @@ the answer cannot vary with the health of the box being diagnosed.
 <!-- source: internal/component/command/local.go -- RegisterOfflineFallback, MustRegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
+
+### A path the `ze` binary does not hold (an external plugin's command)
+
+`ze <verb> <path>` resolves the path against the command tree compiled into the
+binary. An external plugin brings its commands in its own YANG, which the
+daemon joins when `ze start` runs the plugin, so `ze show acme-monitor status`
+names a path that tree does not hold even while the running ze serves it.
+Before such a path is refused, `cmdutil.RunCommand` asks the running ze:
+
+| What answers | What the operator gets |
+|--------------|------------------------|
+| A running ze that holds the command | Its answer, as for a compiled-in command: the line goes through the same one-shot route as `ze cli -c` (`cli.RunReached`), so the output, the exit code, a refusal of a value, and the format keyword (`ze show acme-monitor status json`) are the daemon's |
+| A running ze that holds no such command either | `error: unknown command: <path>`, the nearest compiled-in command, and `ze <verb> help`, as with no daemon; the daemon's own text follows as a hint when it says more than "unknown command" |
+| No running ze, and the stored config (the one a bare `ze start` boots) declares an external plugin | An operator error: the path is not available, may belong to an external plugin, which only a running ze holds, why no ze answered, and one fix: `ze start` when nothing listens, `ze status` when the address cannot be read, `ze cli --user <name> -c "<path>"` when a ze listens and this account cannot log in |
+| No running ze, and the stored config declares no external plugin | `error: unknown command: <path>` with its hints, unchanged |
+
+The walk to the daemon is `sshclient.ReachDaemon`, and the wording of each step
+it stops at is `sshclient.Unreached.Explain`, shared with the daemon route of
+`ze config validate`, `fmt`, `dump`, `diff` and `graph`. Which plugins the
+stored config declares is the step every command that parses a config with no
+daemon takes (`config.PublishDeclaredSchemas`): no plugin program is started
+(owner ruling of 2026-11-16). A stored config that cannot be read leaves the
+unknown-command refusal in place, with a hint that says the config was not
+checked.
+
+`ze <verb> <path> help` still renders from the compiled-in tree, so for an
+external plugin's path it prints only the navigation usage line, and shell
+completion of `ze <verb>` offers no external plugin's command: both need the
+running ze's tree, and `ze cli` (`?`, Tab) has it.
+<!-- source: cmd/ze/internal/cmdutil/unheld.go -- unheldRoute.answer, refuseUnknown, refuseNotAvailable, storedConfigExternalPlugins -->
+<!-- source: internal/component/cli/client/main.go -- RunReached, runOne -->
+<!-- source: internal/component/cli/sshclient/reach.go -- ReachDaemon, Unreached.Explain -->
+<!-- source: internal/component/cli/sshclient/answer.go -- Answer.NotUnderstood -->
 
 ### Local-data commands (answered in the caller's own process, and by the daemon)
 

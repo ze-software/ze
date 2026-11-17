@@ -1,0 +1,120 @@
+# Test: the Python example plugin defines its commands in YANG, and ze checks an argument before it asks the plugin
+#
+# Question: when `ze start` runs examples/plugin/python/acme_monitor.py, the
+# real example an author copies (no Go SDK), do its config, -cmd and -api
+# modules join, does `show acme-monitor status` answer the configured target,
+# is a target name longer than the 16 characters its leaf accepts refused by
+# the daemon without the plugin being asked, and does a configured name reach
+# the plugin and answer that target, while a name the config does not hold is
+# answered with the plugin's own error and fix?
+# Why not a unit test: the answer is the whole path of a running daemon and a
+# forked Python process: the library's TLS connect-back and Stage 1 with three
+# modules, the join of those modules, the argument definitions rebuilt from
+# the joined set, the line an operator types over `ze cli -c`, the route to
+# the process, and the plugin's own answer. Unit tests prove the join alone
+# (internal/component/config/yang join_command_test.go), and
+# test/plugin/external-yang-command-argument.ci proves the same path for a
+# plugin built on the Go SDK.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup AC-39, the AC-32 part: the
+#   Python example's command with an argument, its refusal before the plugin
+#   is asked, and the answer of a good value. AC-30 (help) and AC-36 (the
+#   shell form) are not asserted here.
+# PREVENTS: the author's example drifting from what ze accepts: a module ze
+#   refuses, a command the library does not list at Stage 1, or a handler
+#   that never gets the value the operator typed.
+#
+# The plugin logs each target it is asked for (acme_monitor.py `target`), so a
+# value the daemon refused is a line that never appears in the daemon's span,
+# which holds every line the plugin's stderr relayed, to the end of the run.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI
+# dials, as test/plugin/external-yang-command-argument.ci does. The plugin is
+# started through a shim that runs the example from the checkout, which the
+# runner names in ZE_REPO_ROOT.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=acme-monitor.run:mode=755:terminator=EOF_RUN
+#!/bin/sh
+# The example as an author has it, from the checkout under test.
+if [ -z "$ZE_REPO_ROOT" ]; then
+	echo "acme-monitor.run: ZE_REPO_ROOT is not set, so the example cannot be found" >&2
+	exit 1
+fi
+exec python3 "$ZE_REPO_ROOT/examples/plugin/python/acme_monitor.py"
+EOF_RUN
+
+tmpfs=python.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "./acme-monitor.run"
+		encoder json
+	}
+}
+acme-monitor {
+	target web.example.net
+	interval 3
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start python.conf:name=daemon:ready=Ze running.
+# The section loaded through the example's own module, and its apply ran.
+expect=stderr:contains=acme-monitor: applied target=web.example.net interval=3
+# The good value of step 6 reached the plugin.
+expect=stderr:contains=acme-monitor: asked for target web.example.net
+# The value of step 4 never reached the plugin.
+reject=stderr:contains=asked for target this-name-is-far-too-long
+# No handler of the example failed.
+reject=stderr:contains=Traceback
+reject=stderr:contains=unexpected error while serving
+
+# The command with no argument answers the configured target.
+cmd=foreground:seq=3:exec=ze cli -c "show acme-monitor status":exit=0
+expect=stdout:contains=web.example.net
+
+# A name longer than the leaf's length bound (25 characters, the leaf takes
+# 1..16): refused by the daemon's argument check, with the whole command as
+# the fix, and never sent to the plugin.
+cmd=foreground:seq=4:exec=ze cli -c "show acme-monitor target this-name-is-far-too-long":exit=1
+expect=stderr:contains=is outside the accepted length (25 characters)
+expect=stderr:contains=name accepts 1..16 characters
+expect=stderr:contains=fix: show acme-monitor target <1..16 characters>
+
+# A name the type accepts and the config does not hold reaches the plugin,
+# which answers its own error and fix.
+cmd=foreground:seq=5:exec=ze cli -c "show acme-monitor target nosuch":exit=1
+expect=stderr:contains=acme-monitor has no target nosuch
+expect=stderr:contains=fix: show acme-monitor status
+
+# The configured name reaches the plugin as typed, and answers that target.
+cmd=foreground:seq=6:exec=ze cli -c "show acme-monitor target web.example.net":exit=0
+expect=stdout:contains=web.example.net

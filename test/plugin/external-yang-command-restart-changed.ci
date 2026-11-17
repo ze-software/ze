@@ -1,0 +1,103 @@
+# Test: a plugin restarted with a changed command module is refused, and its changed commands never reach the daemon
+#
+# Question: when an external plugin that brought a command module is started
+# again and declares that module with another argument bound, does the daemon
+# refuse that start under doctor-plugin-schema-changed, naming the command
+# module, and does no command of the changed module ever serve a line?
+# Why not a unit test: TestStage1RefusesChangedModuleSet proves the comparison
+# and that the published set is not written. This proves, on a real daemon
+# with a real second process, that the refusal is the operator's warning and
+# that the changed bound never judges a typed line.
+#
+# The fixture's commands-redeclare variant
+# (internal/test/fixture/plugin_fixture_external_yang.go) brings the config,
+# command and rpc modules on its first start and exits once the daemon is
+# ready; its second start brings the command module with the target name cut
+# from 1..16 to 1..8 characters (externalyang.CommandsNarrowed). It declares
+# failure policy restart, so the daemon starts it again with no operator
+# action.
+#
+# What the daemon does after the refusal, read at the producer: a failed
+# restart leaves the plugin down and is not retried (Server.restartPluginWithin
+# records StopRestartFailed, internal/component/plugin/server/reload_tx.go).
+# The first generation's commands were released before the second one's
+# handshake (releasePluginRegistrations, called from restartPluginProcess),
+# and the refused second generation registered none, so the dispatcher holds
+# no command under `show acme-monitor` and answers "unknown command" for any
+# argument (Dispatcher.dispatchPlugin): the argument check of
+# Dispatcher.routeToProcessWithEvents is reached only through a registered
+# command. Had the changed module been taken, a 12-character name would be
+# refused naming 1..8, which the last step rejects.
+#
+# Steps:
+#   1. ze start; the daemon's stderr shows the first start exiting and the
+#      second refused, naming acme-monitor-cmd; no second start is ready.
+#   2. await the warning doctor-plugin-schema-changed through the daemon's own
+#      answer (the barrier, as external-yang-changed-keeps-config.ci does).
+#   3. the warning names the command module and says its text is not the one
+#      the plugin declared when ze started.
+#   4. a 12-character name, which the 1..8 bound would refuse, answers
+#      "unknown command" and never names 1..8.
+#
+# VALIDATES: AC-35 of spec-plugin-external-yang-at-startup.
+# PREVENTS: a restarted plugin changing the command model of a running ze, or
+#   its refusal naming no module.
+
+option=timeout:value=90s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang commands-redeclare"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang generation 1 is exiting
+expect=stderr:contains=FIXTURE: external-yang generation 2 was refused
+expect=stderr:contains=doctor-plugin-schema-changed
+expect=stderr:contains=acme-monitor-cmd
+reject=stderr:contains=FIXTURE: external-yang generation 2 ready
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+# The barrier: the daemon's own answer carries the warning the refused second
+# start raises. It retries a refused connection, so it also holds the SSH
+# listener.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer doctor-plugin-schema-changed "show warnings | json":exit=0
+
+# The warning names the command module and the reason.
+cmd=foreground:seq=3:exec=ze cli -c "show warnings | json":exit=0
+expect=stdout:contains=acme-monitor-cmd
+expect=stdout:contains=is not the text the plugin declared when ze started
+
+# The changed bound never judges a line: no command of the refused module is
+# registered, so the daemon answers as for a path nothing serves.
+cmd=foreground:seq=4:exec=ze cli -c "show acme-monitor target twelve-chars":exit=1
+expect=stderr:contains=unknown command
+reject=stderr:contains=1..8

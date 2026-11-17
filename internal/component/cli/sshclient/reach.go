@@ -5,13 +5,29 @@
 // it sends it a command of its own: the daemon's address, a probe of its
 // listener, then a login credential. `ze doctor` and `ze config validate` both
 // ask the daemon first and answer alone when none answers, and each gives the
-// operator one fix per step that failed, so the step is a typed fact here and
-// the wording stays with the command that prints it.
+// operator one fix per step that failed, so the step is a typed fact here.
+// `ze doctor` words each step itself. The commands that ask a running ze for
+// what this process does not hold (`ze config validate`, `fmt`, `dump`, `diff`
+// and `graph` for an external plugin's section, and `ze <verb> <path>` for a
+// path this binary's tree does not hold) say the same thing about the same
+// step, so they share one wording: Unreached.Explain.
 
 package sshclient
 
 import (
 	"net"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+)
+
+// The fix lines Unreached.Explain answers, one per step that a command other
+// than the asking one fixes.
+const (
+	// FixStartDaemon starts ze, the answer when nothing listens.
+	FixStartDaemon = "ze start"
+	// FixDaemonStatus says whether a ze runs, which one, and where it listens:
+	// the answer when the address could not be read.
+	FixDaemonStatus = "ze status"
 )
 
 // ReachStep names the step at which the walk to the running daemon stopped.
@@ -42,6 +58,32 @@ func (e *Unreached) Error() string { return e.Cause.Error() }
 
 // Unwrap answers the failure underneath.
 func (e *Unreached) Unwrap() error { return e.Cause }
+
+// Explain words the failure for an operator: why no running ze answered, as a
+// clause with no capital and no full stop, and the one command that makes one
+// answer, after which the operator runs the asking command again. fix is ""
+// at ReachStepCredentials: a ze listens there, and the fix is the asking
+// command run from an account that can log in, which only the caller can
+// spell.
+func (e *Unreached) Explain() (why, fix string) {
+	var text textbuf.Buffer
+	switch e.Step {
+	case ReachStepAddress:
+		text.Str("the address of ze's SSH listener could not be read (").Err(e.Cause).Str(")")
+		return text.String(), FixDaemonStatus
+	case ReachStepListener:
+		text.Str("no ze listens at ").Str(e.Address).Str(" (").Err(e.Cause).Str(")")
+		return text.String(), FixStartDaemon
+	case ReachStepCredentials:
+		text.Str("a ze listens at ").Str(e.Address).
+			Str(", but this account has no credentials to log in to it (").Err(e.Cause).Str(")")
+		return text.String(), ""
+	case ReachStepUnspecified:
+		panic("BUG: sshclient.ReachDaemon answered a failure that names no step")
+	default:
+		panic("BUG: unknown sshclient.ReachStep")
+	}
+}
 
 // Reached is a daemon that listens and a credential to log in to it with.
 type Reached struct {

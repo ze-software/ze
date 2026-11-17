@@ -1,0 +1,110 @@
+# Test: an external plugin's command typed in the shell is answered by the running ze
+#
+# Question: with a ze running that started an external plugin bringing its own
+# command YANG, does `ze show <the plugin's command>` typed in a shell, a path
+# the ze binary's compiled-in command tree does not hold, get the running ze's
+# answer: the plugin's output and exit 0 for a good line, the daemon's argument
+# refusal and exit 1 for a value the plugin's YANG refuses, the JSON rendering
+# for the format keyword, while a path neither holds is still refused as an
+# unknown command?
+# Why not a unit test: TestUnheldPathIsAnsweredByTheRunningZe and its siblings
+# (cmd/ze/internal/cmdutil/unheld_test.go) prove the routing decision over a
+# stubbed ask. Only two processes show the shell process walking to the
+# daemon's listener, the line reaching the plugin over the daemon's dispatch,
+# and the daemon's answer, refusal and not-understood frame coming back.
+#
+# The plugin is a REAL external process built on the public Go SDK
+# (internal/test/fixture/plugin_fixture_external_yang.go, variant `commands`).
+# It prints each command it receives with its arguments, so a value the daemon
+# refused is a line that never appears.
+#
+# VALIDATES: spec-plugin-external-yang-at-startup AC-36 and the `| json` half
+#   of AC-38: the shell route of a path this binary does not hold.
+# PREVENTS: `ze show acme-monitor status` answering "unknown command" while
+#   the running ze serves it; a refusal of the daemon replaced by "unknown
+#   command"; a typo answered with the daemon's bare text.
+#
+# Method: test/plugin/external-yang-command-argument.ci's daemon, with each
+# step typed as the shell form instead of `ze cli -c`. Each shell command is a
+# quick-exit command, so its `exit=` is compared and its output span is exact.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+
+tmpfs=commands.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang commands"
+		encoder json
+	}
+}
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start commands.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang command show acme-monitor status args=[]
+expect=stderr:contains=FIXTURE: external-yang command show acme-monitor target args=[probe-b]
+reject=stderr:contains=args=[this-name-is-far-too-long]
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+
+# The command with no argument, typed in the shell, is the plugin's answer.
+cmd=foreground:seq=3:exec=ze show acme-monitor status:exit=0
+expect=stdout:contains=show acme-monitor status
+expect=stdout:contains=[]
+reject=stderr:contains=unknown command
+
+# A value longer than the leaf's bound is refused by the daemon's argument
+# check, and that refusal is the shell's answer, never "unknown command".
+cmd=foreground:seq=4:exec=ze show acme-monitor target this-name-is-far-too-long:exit=1
+expect=stderr:contains=is outside the accepted length (25 characters)
+expect=stderr:contains=name accepts 1..16 characters
+reject=stderr:contains=unknown command
+
+# The format keyword renders the plugin's answer as JSON: a quoted key exists
+# only in the JSON rendering.
+cmd=foreground:seq=5:exec=ze show acme-monitor status json:exit=0
+expect=stdout:contains="result"
+expect=stdout:contains=show acme-monitor status
+
+# A path neither this binary nor the running ze holds is still an unknown
+# command, with the help line, and the plugin is not asked.
+cmd=foreground:seq=6:exec=ze show acme-monitr status:exit=1
+expect=stderr:contains=error: unknown command: show acme-monitr status
+expect=stderr:contains=hint: run 'ze show help' for available commands
+reject=stderr:contains=is not available
+
+# A good value reaches the plugin as typed, after the refusals: the round trip
+# of this last step follows them.
+cmd=foreground:seq=7:exec=ze show acme-monitor target probe-b:exit=0
+expect=stdout:contains=show acme-monitor target
+expect=stdout:contains=[probe-b]

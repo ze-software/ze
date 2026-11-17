@@ -41,12 +41,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// The fix line of a failed ask, one per reason no running ze answered.
+// The account option of this route. The fix line of each step of the walk to
+// the daemon is sshclient's (Unreached.Explain), shared with the shell route of
+// a path this binary does not hold.
 const (
-	// fixStartDaemon starts ze, which reads each declared plugin's schema.
-	fixStartDaemon = "ze start"
-	// fixDaemonStatus says whether a ze runs, which one, and where it listens.
-	fixDaemonStatus = "ze status"
 	// accountOptionUsage is the option that names the account a command asks
 	// the running ze from, as a help page and a fix line write it. Every
 	// command of this route declares it.
@@ -291,7 +289,7 @@ func (q suppliedQuestion) notSent(modelErr error) error {
 	if len(dirs) == 0 {
 		why.Str(", and no config directory a running ze reads a file from is set on this host")
 		return &askFailure{unanswered: config.DaemonUnanswered{
-			Why: why.String(), Fix: fixDaemonStatus, Rerun: true, Again: q.typed(),
+			Why: why.String(), Fix: sshclient.FixDaemonStatus, Rerun: true, Again: q.typed(),
 		}}
 	}
 	names := q.placeholders
@@ -448,21 +446,11 @@ func unreachedOrAsked(err error) (unanswered config.DaemonUnanswered, account bo
 	if !ok {
 		return config.DaemonUnanswered{Why: err.Error()}, true
 	}
-	var why textbuf.Buffer
-	switch unreached.Step {
-	case sshclient.ReachStepAddress:
-		why.Str("the address of ze's SSH listener could not be read (").Err(unreached.Cause).Str(")")
-		return config.DaemonUnanswered{Why: why.String(), Fix: fixDaemonStatus, Rerun: true}, false
-	case sshclient.ReachStepListener:
-		why.Str("no ze listens at ").Str(unreached.Address).Str(" (").Err(unreached.Cause).Str(")")
-		return config.DaemonUnanswered{Why: why.String(), Fix: fixStartDaemon, Rerun: true}, false
-	case sshclient.ReachStepCredentials:
-		why.Str("a ze listens at ").Str(unreached.Address).
-			Str(", but this account has no credentials to log in to it (").Err(unreached.Cause).Str(")")
-		return config.DaemonUnanswered{Why: why.String()}, true
-	case sshclient.ReachStepUnspecified:
-		panic("BUG: sshclient.ReachDaemon answered a failure that names no step")
-	default:
-		panic("BUG: unknown sshclient.ReachStep")
+	why, fix := unreached.Explain()
+	if fix == "" {
+		// A ze listens and this account cannot log in to it: the fix is the
+		// asking command from another account, which the caller writes.
+		return config.DaemonUnanswered{Why: why}, true
 	}
+	return config.DaemonUnanswered{Why: why, Fix: fix, Rerun: true}, false
 }

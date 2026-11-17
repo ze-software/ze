@@ -1423,11 +1423,21 @@ hub without it. The Go SDK in `pkg/plugin/sdk` is the reference implementation. 
 plugin written in another language implements the same documented wire
 protocol; no first-party Python launcher or helper is required.
 
+An external plugin brings its own YANG modules in its Stage 1 declaration, as
+a compiled-in plugin registers its own: a `-conf` module for its config
+section, a `-cmd` module for its commands and their arguments, and an `-api`
+module for the parameters MCP, REST and gRPC publish. Ze joins them when
+`ze start` runs the plugin, and checks a command's arguments against the
+module before it asks the plugin.
+
 See [plugin-development/protocol.md](../plugin-development/protocol.md) for the
-protocol and [`examples/plugin/go`](../../examples/plugin/go/) for a complete
-plugin.
+protocol, [plugin-development/commands.md](../plugin-development/commands.md)
+for defining a command in YANG, and [`examples/plugin/go`](../../examples/plugin/go/)
+(Go SDK) or [`examples/plugin/python`](../../examples/plugin/python/) (no SDK)
+for a complete plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
-<!-- source: examples/plugin/go/main.go -- main -->
+<!-- source: examples/plugin/go/main.go -- declaration, main -->
+<!-- source: internal/component/config/yang/join_command.go -- refuseCommandConflicts -->
 
 ### Answering a command with rows
 

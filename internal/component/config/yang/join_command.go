@@ -6,6 +6,7 @@
 package yang
 
 import (
+	"errors"
 	"maps"
 	"slices"
 	"strings"
@@ -133,12 +134,17 @@ func claimCommand(owner declaredModule, entry *gyang.Entry, method string, paths
 // wire method the schema publishes, over the joined set. A refusal it answers
 // for the joined set and not for the compiled-in one comes from an external
 // module; so does a pointer whose module no module of the joined set is.
+//
+// A compiled-in set that already fails PublishedRPCs does not hide what the
+// join adds: the joined set is refused for each failure the compiled-in set
+// does not have, and a failure both have is the compiled-in set's own, which
+// no plugin is blamed for.
 func refuseRPCLinks(compiled, joined *Resolved, declared []declaredModule) error {
 	before, compiledErr := PublishedRPCs(compiled)
 	after, joinedErr := PublishedRPCs(joined)
 	plugins := commandPlugins(declared)
-	if joinedErr != nil && compiledErr == nil {
-		return opererr.Wrap(joinedErr,
+	if added := addedFailures(compiledErr, joinedErr); added != nil {
+		return opererr.Wrap(added,
 			"The commands that the YANG modules of plugin "+plugins+" declare do not match their rpcs",
 			"ze publishes each command with the parameters of the rpc its ze:rpc names, under its ze:command "+
 				"wire method, and it cannot publish a command whose pointer or wire method is wrong",
@@ -157,6 +163,86 @@ func refuseRPCLinks(compiled, joined *Resolved, declared []declaredModule) error
 		)
 	}
 	return nil
+}
+
+// addedFailures answers the failures of joined, the PublishedRPCs error of the
+// joined set, that compiled, the error of the compiled-in set, does not hold,
+// joined as one error, or nil when joined adds none. PublishedRPCs joins one
+// error per failure (errors.Join), and a failure is the same when its text is:
+// each text names the node, the method or the rpc it is about.
+func addedFailures(compiled, joined error) error {
+	if joined == nil {
+		return nil
+	}
+	held := map[string]bool{}
+	for _, failure := range failuresOf(compiled) {
+		held[failure.Error()] = true
+	}
+	var added []error
+	for _, failure := range failuresOf(joined) {
+		if !held[failure.Error()] {
+			added = append(added, failure)
+		}
+	}
+	return errors.Join(added...)
+}
+
+// failuresOf answers the failures err joins, err itself when it joins none,
+// and none for nil.
+func failuresOf(err error) []error {
+	if err == nil {
+		return nil
+	}
+	if joined, ok := errors.AsType[interface {
+		error
+		Unwrap() []error
+	}](err); ok {
+		return joined.Unwrap()
+	}
+	return []error{err}
+}
+
+// ModuleCommand is one ze:command node of a module: the command it stands
+// for, as an operator types it, and the module that wrote the node.
+type ModuleCommand struct {
+	Path   string
+	Module string
+}
+
+// ModuleCommands answers each ze:command node that one of modules wrote in
+// schema, sorted by path: the nodes BuildCommandTree reads, reached from a
+// -cmd module through `config false` containers, a node a module adds by
+// augment included. A module of modules that schema does not hold writes no
+// node. The walk is an explicit stack, because an external module chooses the
+// depth.
+func ModuleCommands(schema *Resolved, modules []string) []ModuleCommand {
+	var commands []ModuleCommand
+	for _, name := range schema.moduleNamesBySuffix(cmdModuleSuffix) {
+		root := schema.GetEntry(name)
+		if root == nil {
+			continue
+		}
+		pending := []*gyang.Entry{root}
+		for len(pending) > 0 {
+			entry := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			for _, child := range entry.Dir {
+				if child.Config != gyang.TSFalse {
+					continue
+				}
+				pending = append(pending, child)
+				if GetCommandExtension(child) == "" {
+					continue
+				}
+				writer := definingModule(child)
+				if slices.Contains(modules, writer) {
+					commands = append(commands, ModuleCommand{Path: commandWords(child), Module: writer})
+				}
+			}
+		}
+	}
+	slices.SortFunc(commands, func(a, b ModuleCommand) int { return strings.Compare(a.Path, b.Path) })
+	return commands
 }
 
 // commandPlugins names the plugins whose modules can carry a command or an
@@ -189,6 +275,37 @@ func declaresTreeCommand(module *gyang.Entry) bool {
 				continue
 			}
 			if GetCommandExtension(child) != "" {
+				return true
+			}
+			pending = append(pending, child)
+		}
+	}
+	return false
+}
+
+// writesTreeNode reports whether a module entry writes a node the command tree
+// takes something from, reached as declaresTreeCommand reaches one: a
+// ze:command, or a ze:help summary, which BuildCommandTree gives a navigation
+// node with no command. The second is how a verb-root anchor such as the
+// compiled-in ze-cli-monitor-cmd gives the help of a branch other modules fill
+// with commands. The walk is an explicit stack, because an external module
+// chooses the depth.
+func writesTreeNode(module *gyang.Entry) bool {
+	if module == nil {
+		return false
+	}
+	pending := []*gyang.Entry{module}
+	for len(pending) > 0 {
+		entry := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		for _, child := range entry.Dir {
+			if child.Config != gyang.TSFalse {
+				continue
+			}
+			if GetCommandExtension(child) != "" {
+				return true
+			}
+			if GetHelpExtension(child.Exts) != "" {
 				return true
 			}
 			pending = append(pending, child)
