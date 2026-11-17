@@ -163,12 +163,12 @@ The plugin is `container`, in `internal/plugins/container`, gated by
 | Piece | What it does today |
 |-------|--------------------|
 | Config root | `container instance NAME` with `enabled`, `stop-timeout` (1 to 30 seconds, default 10) and `stop-signal` (`term`, `int`, `quit`, `hup`, `usr1`, `usr2`; absent, the image's signal, else `term`). Every other node of the container work lands with the package that realizes it |
-| One rule set | `parseContainerSections` parses and judges a delivery. The registration's static verifier, the reload's verify and the boot configure all call it, so `ze config validate` accepts exactly what starts |
+| One rule set | `parseContainerSections` parses and judges a delivery: the runtime's own nodes, then the parse of each config sibling, which judges the sibling's nodes ("The seams inside the plugin", below). The registration's static verifier, the reload's verify and the boot configure all call it, so `ze config validate` accepts exactly what starts |
 | A removed root | Arrives as an empty body and parses to a config with no container. Installing that config stops every container. Only a delivery with no container section means "unchanged" |
-| Apply | The supervisor records the desired set, wakes the worker of each container concerned and returns. It never waits for a start. The boot configure arrives before the startup handshake ends, when the engine refuses a worker's calls, so it only records: the plugin's `OnStarted` callback (`supervisor.begin`) wakes the workers |
+| Apply | Each config sibling applies its part first, then the supervisor records the desired set, wakes the worker of each container concerned and returns. It never waits for a start. The boot configure arrives before the startup handshake ends, when the engine refuses a worker's calls, so it only records: the plugin's `OnStarted` callback applies the siblings' part, then wakes the workers (`configInstaller.begin`, `supervisor.begin`) |
 | Dependency | The `sysctl` plugin, which writes the kernel tunable a container's network namespace needs (below) |
 | `request container restart name NAME` | A YANG command node bound to a wire method the plugin's package proxies to the plugin's process. A disabled container is refused with the statement that enables it |
-| The image commands | Ten more command nodes of the same module, proxied the same way. `handleCommand` looks each up in the image store's table (`image_cmd.go`) before the restart ([image-store.md](image-store.md)) |
+| The image commands | Ten more command nodes of the same module, proxied the same way. `handleCommand` looks each up in the image store's table (`image_cmd.go`) before the restart ([image-store.md](image-store.md)), then a sibling's command in the siblings' table |
 | Daemon stop | The plugin declares a drain budget of 37 seconds and stops every running container together in its drain handler, the one call of a daemon stop that waits for a plugin (below, "The stop") |
 | Plugin start and exit | Before the engine is asked to start the plugin, the sweep removes what a previous run left. Once the engine connection closed, whatever still runs is killed at once |
 | Failure policy | `restart` |
@@ -177,7 +177,7 @@ A disabled container is accepted and held in the `disabled` state; an enabled
 one is started by its worker.
 
 <!-- source: internal/plugins/container/register.go -- registerContainer, verifyContainerSections, forwardRestart -->
-<!-- source: internal/plugins/container/config.go -- parseContainerSections, checkConfigRules -->
+<!-- source: internal/plugins/container/config.go -- parseContainerSections, parseSectionsWith -->
 <!-- source: internal/plugins/container/container.go -- runContainerEngine, handleCommand -->
 <!-- source: internal/plugins/container/supervise.go -- supervisor.install, supervisor.apply, supervisor.restart, supervisor.drain -->
 
@@ -452,12 +452,50 @@ the runtime package imports none of them.
 |------|-------------|-----------|
 | Image store | `storeseam.go`: `Store`, `StoreNotices`, `SetStoreFactory`; `storeseam_operations.go`: `ImageOperations` | The runtime asks the store to resolve and hold a container (`Ready` or `Absent`, never an empty answer). The store tells the runtime that an image is present, or to restart a container. The image commands ask a store that is also an `ImageOperations`, and refuse when it is not ([image-store.md](image-store.md)) |
 | Participants | `participant.go`: `Participant`, `RegisterParticipant` | Before create, a participant contributes read-only file mounts. After create and before the entrypoint runs it gets the created call, with the container's name, its init process id and its network namespace path. After the container's processes are gone it gets the ended call |
+| Contributed mounts | `filemount.go`: `checkFileMount`; `describe_linux.go`: `contributedMounts` | The supervisor admits a contribution only when it is a regular host file (a symbolic link is refused), both paths are absolute and clean, the container path is not the root, lies under none of `/dev`, `/proc` and `/sys`, where the runtime mounts its own filesystems, and no other contribution names it. Anything else fails the start before the create, naming the participant. The description binds each admitted file at its container path, read-only, with no execution, no set-user program and no device |
+| Config siblings | `sibling.go`: `RegisterConfigSibling`; `sibling_install.go`: `configInstaller` | A sibling's parse runs inside the plugin's one rule set, after the runtime's own nodes, over every section the plugin receives; its refusal is the config's, as the sibling's own operator error. Its apply runs before the supervisor's (below) |
+| Config reads | `sibling.go`: `RegisterSiblingConfigRead` | A sibling adds a root the plugin receives without owning it, through the registry's `AddConfigRead`. A read root never loads the plugin |
+| Engine client | `sibling_engine.go`: `EngineClient`; `sibling.go`: `RegisterEngineClientReceiver` | The owned bridges and links, the firewall tables, and the state of the keys a sibling granted, over the plugin's one engine connection. It is handed before the start-up sweep, and refuses every request at once until the engine started the plugin |
+| Sibling commands | `sibling.go`: `RegisterSiblingCommand` | A sibling's command is declared at Stage 1 with the plugin's own, its proxy is registered on its wire method, and `handleCommand` answers it with the sibling's handler. The YANG node that binds the wire method is the sibling's to add to `yang/ze-container-cmd.yang` |
+| Sibling doctor checks | `sibling.go`: `RegisterSiblingDoctorCheck` | A sibling's check is declared at Stage 1 with the runtime's, and the doctor callback answers it with the sibling's answer. The sibling registers the explanation of each of its codes itself |
 | Runtime library | `supervise.go`: `runtimeLibrary`, `createdContainer` | The supervisor orders create, release, wait, kill and destroy through an interface, so the order of a start is proven with a library that creates nothing. `library_linux.go` implements it over the patched library; off Linux there is none and a start is refused |
 | Filter | `seccomp/register_linux.go`: `initFilter` | The library's `InitSeccomp` calls the function the filter package registered, which builds and loads the filter of the profile ("The system-call filter", above) |
 
 <!-- source: internal/plugins/container/storeseam.go -- Store, StoreNotices, SetStoreFactory -->
 <!-- source: internal/plugins/container/storeseam_operations.go -- ImageOperations -->
+A sibling's apply runs before the supervisor's, in registration order, so
+what the network makes (its bridges and tables) exists before a container of
+the new config starts. The supervisor's apply returns before any container of
+the old config stops, so a sibling keeps what a running container uses until
+that container's ended call, and removes it then. A sibling's apply is called
+at every install and is idempotent. The boot configure arrives before the
+engine answers the plugin's requests, so the siblings' part of the boot config
+is applied when the engine reports the plugin started, before the supervisor
+starts any container; a refusal then fails the plugin's startup, as a boot
+config the plugin cannot install does. A refusal at a reload refuses the
+commit: the siblings that applied before it get their previous config back,
+the supervisor's apply is not made, and when a put-back fails too the error
+carries the SDK's running-config-lost mark, so the rollback installs the
+running config again.
+
+Go runs the runtime package's `init()` before any sibling's, because a
+sibling imports the runtime. The registration the plugin hands the plugin
+registry is built in that `init()`, so its command list holds no sibling
+command: a sibling's command reaches a running daemon through the Stage 1
+declaration only, and the registry's copy (read by the command catalog)
+lacks it. The same order keeps a sibling from adding a start-order edge: the
+registry has a late call for a config read (`AddConfigRead`) and none for
+`Dependencies`, `OptionalDependencies` or `StartAfter`.
+
 <!-- source: internal/plugins/container/participant.go -- Participant, RegisterParticipant -->
+<!-- source: internal/plugins/container/filemount.go -- checkFileMount, runtimeMountPoints -->
+<!-- source: internal/plugins/container/describe_linux.go -- contributedMounts -->
+<!-- source: internal/plugins/container/sibling.go -- RegisterConfigSibling, RegisterSiblingConfigRead, RegisterSiblingCommand, RegisterSiblingDoctorCheck, RegisterEngineClientReceiver -->
+<!-- source: internal/plugins/container/sibling_engine.go -- EngineClient, startedEngine -->
+<!-- source: internal/plugins/container/sibling_install.go -- configInstaller -->
+<!-- test: internal/plugins/container/sibling_test.go TestSiblingParseRefusalRefusesTheConfig, TestSiblingApplyRunsBeforeTheSupervisorsApply, TestSiblingApplyFailureRefusesTheCommit, TestSiblingCommandIsDeclaredAndDispatched, TestSiblingDoctorCheckIsDeclaredAndAnswered, TestEngineClientIsHandedAndRefusesUntilStarted -->
+<!-- test: internal/plugins/container/filemount_test.go TestCheckFileMountAdmitsOnlyAReadOnlyRegularFile, TestAdmittedContributionReachesTheCreate, TestInadmissibleContributionFailsTheStart -->
+<!-- test: internal/plugins/container/describe_linux_test.go TestDescriptionMountsContributedFilesReadOnly, TestRuntimeMountPointsCoverTheDefaultMounts -->
 <!-- source: internal/plugins/container/supervise.go -- runtimeLibrary, createdContainer -->
 <!-- source: internal/plugins/container/seccomp/register_linux.go -- initFilter, installFilter -->
 

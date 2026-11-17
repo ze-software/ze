@@ -106,7 +106,9 @@ func defaultDevice(path string, major, minor int64) *devices.Device {
 // namespaces, the default mounts, masked and read-only paths and devices, the
 // thirteen capabilities, no-new-privileges, the default system-call profile
 // selected by those capabilities, its host name, its loopback device and its
-// control group with the default limits.
+// control group with the default limits. After the default mounts it mounts
+// each file the participants contributed, read-only, at its path in the
+// container; the supervisor admitted each one (checkFileMount).
 //
 // It never sets a parent death signal, which the patched library refuses,
 // and never fills the library's network-device list: a container's link is
@@ -116,7 +118,7 @@ func defaultDevice(path string, major, minor int64) *devices.Device {
 // filter package links the systemd driver, and it lands with the devices
 // work. Until then the device nodes are made, no device access is denied, and
 // the container holds no CAP_MKNOD to make a node of its own.
-func describeContainer(instance instanceConfig, rootfs string) *configs.Config {
+func describeContainer(instance instanceConfig, rootfs string, contributed []FileMount) *configs.Config {
 	memory := int64(memoryDefaultBytes)
 	processLimit := int64(processLimitDefault)
 	return &configs.Config{
@@ -139,7 +141,7 @@ func describeContainer(instance instanceConfig, rootfs string) *configs.Config {
 		// so it is built from the set the container holds.
 		Seccomp:  seccomp.DefaultProfile(defaultCapabilities),
 		Hostname: instance.name,
-		Mounts:   defaultMounts(),
+		Mounts:   append(defaultMounts(), contributedMounts(contributed)...),
 		Devices: []*devices.Device{
 			defaultDevice("/dev/null", 1, 3),
 			defaultDevice("/dev/zero", 1, 5),
@@ -182,6 +184,31 @@ func defaultMounts() []*configs.Mount {
 		{Source: "sysfs", Destination: "/sys", Device: "sysfs", Flags: defaultMountFlags | unix.MS_RDONLY},
 		{Source: "cgroup", Destination: "/sys/fs/cgroup", Device: "cgroup", Flags: defaultMountFlags | unix.MS_RELATIME | unix.MS_RDONLY},
 	}
+}
+
+// contributedMountFlags are the flags of a contributed file mount: a bind of
+// the host file, read-only, from which nothing executes, no set-user program
+// gains a privilege and no device opens. The library binds, then remounts the
+// bind with these flags, which is how a bind becomes read-only.
+const contributedMountFlags = unix.MS_BIND | unix.MS_RDONLY | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC
+
+// deviceBind is the library's device word of a bind mount.
+const deviceBind = "bind"
+
+// contributedMounts are the library's mounts of the files the participants
+// contributed, in their order. The library makes the file at the target when
+// the image holds none.
+func contributedMounts(contributed []FileMount) []*configs.Mount {
+	mounts := make([]*configs.Mount, 0, len(contributed))
+	for _, mount := range contributed {
+		mounts = append(mounts, &configs.Mount{
+			Source:      mount.HostPath,
+			Destination: mount.ContainerPath,
+			Device:      deviceBind,
+			Flags:       contributedMountFlags,
+		})
+	}
+	return mounts
 }
 
 // defaultPath is the search path of an entrypoint whose image declares none.

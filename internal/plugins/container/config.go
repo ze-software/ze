@@ -43,17 +43,22 @@ type instanceConfig struct {
 	stopSignal stopSignal
 }
 
-// containerConfig is the whole container root: its instances, sorted by name.
-// The zero value is the config with no container, which is also what a
-// removed root parses to.
+// containerConfig is the whole container root: its instances, sorted by name,
+// and each config sibling's parsed part, in registration order
+// (sibling.go). The zero value is the config with no container and every
+// sibling unconfigured; a removed root parses to no container and each
+// sibling's parse of the empty root.
 type containerConfig struct {
 	instances []instanceConfig
+	siblings  []siblingValue
 }
 
 // parseContainerSections reads and judges the container root of one delivery.
 // It is the one rule set of the plugin: the static verifier that `ze config
 // validate` runs, the reload's verify and the boot configure all call it, so
-// what validate accepts is what starts.
+// what validate accepts is what starts. After the runtime's own nodes it runs
+// the parse of each registered config sibling, which judges the sibling's
+// nodes: the runtime never reads them.
 //
 // The second result, present, is false only when the delivery carries no
 // container section. A section with an empty body is a removed root: it is
@@ -63,6 +68,13 @@ type containerConfig struct {
 //
 // It changes no state.
 func parseContainerSections(sections []sdk.ConfigSection) (containerConfig, bool, error) {
+	return parseSectionsWith(sections, registeredSiblings.configs)
+}
+
+// parseSectionsWith is parseContainerSections over the config siblings
+// siblings. A sibling's refusal is answered as it is: it is the sibling's
+// operator error.
+func parseSectionsWith(sections []sdk.ConfigSection, siblings []configSibling) (containerConfig, bool, error) {
 	for _, section := range sections {
 		if section.Root != configRoot {
 			continue
@@ -71,8 +83,12 @@ func parseContainerSections(sections []sdk.ConfigSection) (containerConfig, bool
 		if err != nil {
 			return containerConfig{}, true, err
 		}
-		if err := checkConfigRules(parsed); err != nil {
-			return containerConfig{}, true, err
+		for index := range siblings {
+			value, refusal := siblings[index].parse(sections)
+			if refusal != nil {
+				return containerConfig{}, true, refusal
+			}
+			parsed.siblings = append(parsed.siblings, siblingValue{name: siblings[index].name, value: value})
 		}
 		return parsed, true, nil
 	}
@@ -221,13 +237,4 @@ func refuseInstanceName(name, defect string) error {
 		"the name becomes the container's control group, its mount point and its host name, which hold lowercase letters, digits and hyphens only",
 		"set container instance NAME with a name of 1 to 63 lowercase letters, digits and interior hyphens",
 	)
-}
-
-// checkConfigRules judges a parsed config against every rule that needs code.
-// Each package of the plugin adds the rules of its own nodes here, so one
-// call judges the whole root. The nodes the schema holds today (the name,
-// enabled, stop-timeout and stop-signal) need no rule beyond what parsing
-// checks.
-func checkConfigRules(containerConfig) error {
-	return nil
 }

@@ -178,6 +178,10 @@ type supervisor struct {
 	library      runtimeLibrary
 	store        Store
 	participants []Participant
+	// siblings holds the siblings' commands and doctor checks the plugin
+	// answers. newSupervisor sets an empty set; the engine entry sets the
+	// siblings this build registered.
+	siblings *siblingRegistry
 	// tunables is nil for a supervisor that makes no kernel claim: the guard
 	// of a test supervisor, whose library creates no namespace. The engine
 	// entry always sets it.
@@ -247,6 +251,7 @@ func newSupervisor(log *slog.Logger, library runtimeLibrary, buildStore StoreFac
 		log:          log,
 		library:      library,
 		participants: participants,
+		siblings:     &siblingRegistry{},
 		desired:      map[string]instanceConfig{},
 		states:       map[string]State{},
 		waiting:      map[string]string{},
@@ -678,15 +683,12 @@ func (s *supervisor) run(ctx context.Context, instance instanceConfig, ready Rea
 		return StateUnspecified, err
 	}
 	releaseHold := s.store.Hold(name, ready)
-	request := &startRequest{instance: instance, ready: ready}
-	for _, participant := range s.participants {
-		mounts, err := s.contribute(ctx, participant, name)
-		if err != nil {
-			releaseHold()
-			return StateUnspecified, participantFailed(name, participant.Name(), "its description contribution", err)
-		}
-		request.mounts = append(request.mounts, mounts...)
+	mounts, err := s.contributions(ctx, name)
+	if err != nil {
+		releaseHold()
+		return StateUnspecified, err
 	}
+	request := &startRequest{instance: instance, ready: ready, mounts: mounts}
 	created, err := s.createWithTunables(ctx, request)
 	if err != nil {
 		releaseHold()
@@ -776,6 +778,27 @@ func (s *supervisor) anyEnabled() bool {
 		}
 	}
 	return false
+}
+
+// contributions asks each participant for its file mounts and judges each one
+// (checkFileMount). A participant that fails, or contributes a mount the
+// runtime does not admit, fails the start with its name: a mount the
+// description cannot hold is never dropped in silence.
+func (s *supervisor) contributions(ctx context.Context, name string) ([]FileMount, error) {
+	var admitted []FileMount
+	for _, participant := range s.participants {
+		mounts, err := s.contribute(ctx, participant, name)
+		if err != nil {
+			return nil, participantFailed(name, participant.Name(), "its description contribution", err)
+		}
+		for _, mount := range mounts {
+			if refusal := checkFileMount(mount, admitted); refusal != nil {
+				return nil, participantFailed(name, participant.Name(), "its description contribution", refusal)
+			}
+			admitted = append(admitted, mount)
+		}
+	}
+	return admitted, nil
 }
 
 func (s *supervisor) contribute(ctx context.Context, participant Participant, name string) ([]FileMount, error) {

@@ -154,7 +154,7 @@ func setInstanceStatement(name, leaf, value string) string {
 
 // runtimeDoctorCheckDecls answers the declarations the plugin sends at Stage
 // 1: the checks over the supervisor's records, then the checks over the
-// image store (storeDoctorChecks).
+// image store (storeDoctorChecks), then each sibling's (sibling.go).
 func runtimeDoctorCheckDecls() []rpc.DoctorCheckDecl {
 	decls := make([]rpc.DoctorCheckDecl, 0, len(runtimeDoctorChecks)+len(storeDoctorChecks))
 	for i := range runtimeDoctorChecks {
@@ -163,15 +163,17 @@ func runtimeDoctorCheckDecls() []rpc.DoctorCheckDecl {
 	for i := range storeDoctorChecks {
 		decls = append(decls, storeDoctorChecks[i].decl)
 	}
-	return decls
+	// The siblings' checks are read here, at the engine entry, after every
+	// sibling registered (sibling.go).
+	return append(decls, registeredSiblings.doctorCheckDecls()...)
 }
 
 // answerDoctorCheck answers show doctor's request for the check named name:
 // one finding, with its fix, for each container that holds a recorded problem
 // of the check's kind. A record that carries a cause adds it to the message,
 // and one that carries a fix answers it in place of the check's. A check over
-// the image store (storeDoctorChecks) is answered by the store. It only
-// reads. A name the plugin did not declare is refused: the daemon asks only
+// the image store (storeDoctorChecks) is answered by the store, and a
+// sibling's check (sibling.go) by the sibling. It only reads. A name the plugin did not declare is refused: the daemon asks only
 // for declared checks, so only a Ze defect reaches that branch, and an empty
 // answer would read as a healthy box.
 func (s *supervisor) answerDoctorCheck(name string) ([]rpc.DoctorCheckDiagnostic, error) {
@@ -202,6 +204,9 @@ func (s *supervisor) answerDoctorCheck(name string) ([]rpc.DoctorCheckDiagnostic
 	}
 	if check := storeDoctorCheckNamed(name); check != nil {
 		return check.answer(s.store)
+	}
+	if check, ok := s.siblings.doctorCheck(name); ok {
+		return check.Answer()
 	}
 	return nil, errors.New("container: the plugin declares no doctor check named " + strconv.Quote(name) +
 		", so it cannot answer it; this is a Ze defect")

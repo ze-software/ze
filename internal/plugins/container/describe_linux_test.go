@@ -24,7 +24,7 @@ import (
 // Method: describe one container and compare each field with the expected
 // value, written out here rather than read back from the tables the code uses.
 func TestDescriptionHasTheDefaultConfinement(t *testing.T) {
-	config := describeContainer(instanceConfig{name: "web", enabled: true}, "/run/ze-container/root/web")
+	config := describeContainer(instanceConfig{name: "web", enabled: true}, "/run/ze-container/root/web", nil)
 
 	if config.Rootfs != "/run/ze-container/root/web" {
 		t.Errorf("rootfs is %q, want the mount point", config.Rootfs)
@@ -143,7 +143,7 @@ func TestDescriptionHasTheDefaultConfinement(t *testing.T) {
 // library would make init kill itself inside its new pid namespace.
 func TestDescriptionNeverSetsAParentDeathSignal(t *testing.T) {
 	for _, instance := range []instanceConfig{{name: "web", enabled: true}, {name: "db", enabled: false}} {
-		if signal := describeContainer(instance, "/run/ze-container/root/"+instance.name).ParentDeathSignal; signal != 0 {
+		if signal := describeContainer(instance, "/run/ze-container/root/"+instance.name, nil).ParentDeathSignal; signal != 0 {
 			t.Errorf("container %s is described with parent death signal %d, want none", instance.name, signal)
 		}
 	}
@@ -153,8 +153,52 @@ func TestDescriptionNeverSetsAParentDeathSignal(t *testing.T) {
 // network-device list stays empty: a container's link is made by a
 // participant at the created call, never moved in by the library.
 func TestDescriptionNeverFillsTheLibraryNetworkDevices(t *testing.T) {
-	if devices := describeContainer(instanceConfig{name: "web", enabled: true}, "/run/ze-container/root/web").NetDevices; len(devices) != 0 {
+	if devices := describeContainer(instanceConfig{name: "web", enabled: true}, "/run/ze-container/root/web", nil).NetDevices; len(devices) != 0 {
 		t.Errorf("the description moves network devices into the container: %v", devices)
+	}
+}
+
+// TestDescriptionMountsContributedFilesReadOnly proves a file a participant
+// contributed is in the description, after the default mounts: a bind of the
+// host file at its container path, read-only, with no execution, no set-user
+// program and no device. Before this, the description never read the
+// contributions, and a contributed file was dropped in silence.
+//
+// Method: describe one container with two contributions and compare the
+// mounts after the defaults with the expected entries, written out here.
+func TestDescriptionMountsContributedFilesReadOnly(t *testing.T) {
+	contributed := []FileMount{
+		{HostPath: "/run/ze-container/network/web/resolv.conf", ContainerPath: "/etc/resolv.conf"},
+		{HostPath: "/run/ze-container/network/web/hosts", ContainerPath: "/etc/hosts"},
+	}
+	config := describeContainer(instanceConfig{name: "web", enabled: true}, "/run/ze-container/root/web", contributed)
+
+	defaults := len(defaultMounts())
+	if len(config.Mounts) != defaults+len(contributed) {
+		t.Fatalf("the description holds %d mounts, want the %d defaults and the %d contributions", len(config.Mounts), defaults, len(contributed))
+	}
+	flags := unix.MS_BIND | unix.MS_RDONLY | unix.MS_NOSUID | unix.MS_NODEV | unix.MS_NOEXEC
+	for i, mount := range contributed {
+		got := config.Mounts[defaults+i]
+		want := configs.Mount{Source: mount.HostPath, Destination: mount.ContainerPath, Device: "bind", Flags: flags}
+		if !reflect.DeepEqual(*got, want) {
+			t.Errorf("contribution %d is described as %+v, want %+v", i, *got, want)
+		}
+	}
+}
+
+// TestRuntimeMountPointsCoverTheDefaultMounts holds the copy in
+// runtimeMountPoints to the description: every default mount lies at or
+// under one of its paths, so no contribution can land on a mount the runtime
+// makes.
+//
+// Method: each default mount's destination against the list.
+func TestRuntimeMountPointsCoverTheDefaultMounts(t *testing.T) {
+	for _, mount := range defaultMounts() {
+		covered := slices.ContainsFunc(runtimeMountPoints, func(point string) bool { return isAtOrUnder(mount.Destination, point) })
+		if !covered {
+			t.Errorf("the default mount at %s lies under no path of runtimeMountPoints %v", mount.Destination, runtimeMountPoints)
+		}
 	}
 }
 

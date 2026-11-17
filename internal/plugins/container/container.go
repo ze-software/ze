@@ -93,31 +93,39 @@ func runContainerEngine(conn net.Conn) int {
 	// every start with the reason.
 	sup := newSupervisor(log, newRuntimeLibrary(log), engineStoreFactory(), participants)
 	sup.tunables = newSysctlClaim(p)
+	sup.siblings = &registeredSiblings
 	defer sup.close()
 	// Deferred after close, so it runs first: once the engine connection
 	// closed, whatever still runs is killed. After a drain nothing does; when
 	// the daemon's stop skipped the drain, this is the stop.
 	defer sup.killRunning()
 
+	// The siblings hold the engine client before the sweep makes their ended
+	// calls. It refuses every request until the engine started the plugin.
+	engine := &startedEngine{engine: p}
+	registeredSiblings.handEngine(engine)
+
 	// What a previous run left, a killed daemon's containers among them, is
 	// removed before the engine is even asked to start this run: containers
 	// are started again, never adopted.
 	sup.sweep()
 
-	// A worker's tunable claim is a call to the engine, which the engine
-	// answers only once the startup handshake ended, so the containers of the
-	// boot configure start from here.
-	p.OnStarted(func(context.Context) error {
-		sup.begin()
-		return nil
-	})
-
 	// One parser serves the boot configure, the reload's verify and the
 	// static verifier of the registration, so the three give one verdict.
-	// Apply installs the desired set and wakes each container's worker; it
-	// never waits for a start.
-	tx := sdk.NewConfigTx(containerConfig{}, parseContainerSections, sup.apply)
+	// The install applies the siblings' part, then installs the desired set
+	// and wakes each container's worker; it never waits for a start.
+	installer := newConfigInstaller(ctx, sup, registeredSiblings.configs)
+	tx := sdk.NewConfigTx(containerConfig{}, parseContainerSections, installer.install)
 	tx.Register(p)
+
+	// A worker's tunable claim and a sibling's apply are calls to the engine,
+	// which the engine answers only once the startup handshake ended, so the
+	// siblings' part of the boot configure is applied, and its containers
+	// start, from here.
+	p.OnStarted(func(context.Context) error {
+		engine.open()
+		return installer.begin()
+	})
 
 	// A whole-daemon stop closes the connection with no notice, so the drain
 	// is the one call that waits for the containers to stop.
@@ -154,10 +162,13 @@ func engineRegistration() *sdk.Registration {
 }
 
 // commandDecls are the commands this plugin answers (SDK Stage 1): the
-// restart, then the image commands (image_cmd.go). The registration and the
-// engine entry declare the same list.
+// restart, then the image commands (image_cmd.go), then each sibling's
+// (sibling.go). The registration and the engine entry declare the same list
+// from this function. The registration calls it from this package's init,
+// before any sibling registered, so the registry's copy holds no sibling
+// command: a sibling command reaches the daemon at Stage 1 only.
 func commandDecls() []sdk.CommandDecl {
-	return append([]sdk.CommandDecl{
+	decls := append([]sdk.CommandDecl{
 		{
 			Name:      cmdRequestRestart,
 			ShortHelp: "Stop the named container, then start it again.",
@@ -166,13 +177,22 @@ func commandDecls() []sdk.CommandDecl {
 			Args: []string{selectorKeyword, containerPlaceholder},
 		},
 	}, imageCommandDecls()...)
+	return append(decls, registeredSiblings.commandDecls()...)
 }
 
 // handleCommand answers one command from the engine side. An image command
-// is looked up in its table; the restart is the one command left.
+// is looked up in its table, then a sibling's command in the siblings'; the
+// restart is the one command left.
 func handleCommand(ctx context.Context, sup *supervisor, command string, args []string) (string, any, error) {
 	if handler, ok := imageCommandHandlers[command]; ok {
 		return runImageCommand(ctx, sup, command, handler, args)
+	}
+	if handler, ok := sup.siblings.commandHandler(command); ok {
+		answer, err := handler(ctx, args)
+		if err != nil {
+			return rpc.StatusError, nil, err
+		}
+		return rpc.StatusDone, answer, nil
 	}
 	if command != cmdRequestRestart {
 		// The declared list and this handler drifted apart: a Ze defect the

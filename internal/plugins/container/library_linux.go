@@ -55,7 +55,7 @@ func (patchedLibrary) create(_ context.Context, request *startRequest) (createdC
 	if err != nil {
 		return nil, err
 	}
-	container, err := libcontainer.Create(libraryStateRoot, name, describeContainer(request.instance, rootfs))
+	container, err := libcontainer.Create(libraryStateRoot, name, describeContainer(request.instance, rootfs, request.mounts))
 	if err != nil {
 		return nil, errors.Join(createFailed(name, "the runtime library refused its description", err), unmountRoot(rootfs))
 	}
