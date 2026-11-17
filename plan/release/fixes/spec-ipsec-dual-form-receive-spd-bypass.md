@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard and report repair landed; seven PMTU renewals accepted; context proof and 12 guest renewals remain; AC-4 stays open |
+| Phase | Legacy renewal and scoped fingerprint debt complete; context proof and final gate remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -17,6 +17,11 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Current continuation checkpoint, 2026-11-17
+
+All 79 current renewals are RECORDED and all 79 exact roster keys are VERIFIED,
+with zero pending or mismatched records. The bounded legacy renewal/fingerprint
+debt is complete. Safety-action approvals and the generic C-proof design remain
+pending; full AC-4/context proof and the final Review Gate stay open.
 
 This checkpoint supersedes the progress statements below about unrun raw and packet
 populations, source-only SA lifetime, and 79 unexecuted renewals. Their dated receipts
@@ -95,7 +100,9 @@ at the end of the nine-host REVERT batch marked 24 current renewals RECORDED.
 There were 55 UNEXECUTED commands, all guest; no host renewal remained.
 At that phase boundary the four historical receipts' current freshness was UNKNOWN.
 The original 83 rows remain unchanged; subsequent guest and freshness results are
-recorded below. A fresh native RFC check remains owed after renewals.
+recorded below. That phase planned a fresh native RFC check after renewals;
+the eight completed bounded fingerprint reports supersede that plan. The final
+validation owed and ran no whole-tree check.
 
 Both automatic safety holds and the pending owner question remain unchanged: no
 constrained-fixture retry or rejected private fault preparation/use is approved. The
@@ -223,8 +230,8 @@ with no transit, C or full-requirement credit. All native exits are 0; each
 normal/fault pair uses B1/f826+d9, check/lab 0, normal command 0, fault command 1,
 no skips/interruption and stopped VMs. Independent reviews 32–37 are CLEAR.
 
-The ended seven-PMTU batch, orders 28–30 and 39–42, brings the current
-79-command renewal population to 67 RECORDED and 12 UNEXECUTED, all guest.
+The seven-PMTU batch, orders 28–30 and 39–42, left the 79-command renewal
+population at 67 RECORDED and 12 UNEXECUTED, all guest.
 Every selected normal test passes. The ICV-length cut changes transform
 overhead: after outer PMTU 1400 is learned, the host learns inner MTU 1354
 instead of 1346 for IPv4 outer, or 1334 instead of 1326 for IPv6 outer. That
@@ -234,6 +241,52 @@ credit. All native exits are 0; normal/fault pairs use B1/f826+d9, check/lab 0,
 normal command 0, fault command 1, no skips/interruption and stopped VMs.
 All seven independent reviews are CLEAR. Main also reports bounded normal
 implementation source review CLEAR; this is not the final Review Gate.
+
+The thirteen receive/ICMP/PMTU renewals and their 67/12 checkpoint landed in
+`a7b747deea`. The ended OSPF pair, orders 43/78, left a phase snapshot
+of 69 RECORDED and 10 UNEXECUTED, all guest. Both independent reviews are CLEAR.
+Normal enabled/disabled/default AH replay-window readbacks pass; the fault
+halts the converter in the first enabled installation, before readback and
+the disabled/default cases. This is installer dependency proof, without replay
+packet enforcement, C or full-requirement credit. Both native exits are 0;
+normal/fault pairs use B1/f826+d9, check/lab 0, normal command 0, fault command 1,
+no skips/interruption and stopped VMs.
+
+The refusal pair, orders 52/53, left the current renewal population at
+71 RECORDED and 8 UNEXECUTED, all guest. Each selected normal test passes; its
+fault fails at the intended unknown-mode or unknown-integrity Fatalf. The
+diagnostic's `%!v(PANIC=String method...)` comes from fmt catching the vendored
+state String method's nil Pcpunum dereference inside that assertion, not an
+early producer panic. These are state-construction refusal discriminators,
+without installation, C or full-requirement credit. Native exits are 0;
+normal/fault pairs use B1/f826+d9, check/lab 0, normal command 0, fault command 1,
+no skips/interruption and stopped VMs. Both independent reviews are CLEAR.
+
+The final eight reverts, orders 54, 56, 59, 70–72, 77 and 79, are accepted and
+independently CLEAR: all 79 current renewal commands are RECORDED, with zero
+pending. Normal 54/56 reject outside selectors on each parallel SA with
+StateMismatch/NoPols/PolBlock deltas 1/0/0. Normal 59 passes its valid control,
+then source/port/protocol rejection at 1/0/0; ICMP is counter-only. Normal 70
+rejects the wrong key with ProtoError +1; 71/72 reject an unknown SPI with
+NoStates +1. Normal 77 rejects noninitial-first outside fragments at 1/0/0.
+Normal 79 delivers its valid-address control with zero misses, then counts
+another local address as NoStates +1. Each fault halts its own producer during
+setup before packet assertions, so these remain dependency proofs without C
+or whole-clause credit. All native exits are 0; each pair uses B1/f826+d9,
+normal command 0, fault command 1, check/lab 0, no skips/interruption and stopped
+VMs. Renewed unit/claim seals for 54/56/59/77 reflect the approved correction
+in `466ab09fd8`; no new test edit was made. The callback fix landed separately
+in `28d3db6139`.
+
+All eight final scoped fingerprint reports exited 0. Intersecting their verified
+record rows with the exact 79 `(RID, polarity, unit)` keys gives 79 VERIFIED:
+46 positive and 33 negative, with zero missing, stale, wrong-seal or no-break
+matches. Counts by stem are rfc3748 1, rfc4106 1, rfc4301 62, rfc4302 2,
+rfc4303 4, rfc5216 2, rfc7296 5 and rfc8221 2. Unit, claim and producer seals
+match the canonical records. Unrelated stale/unproven rows in those reports
+are outside this count. This completes the legacy renewal and scoped
+fingerprint debt; it adds no runtime, C or whole-RFC credit. Safety/design
+decisions, full AC-4 and the final Review Gate stay open.
 
 The original 83-key roster is the current 79 plus historical renewal orders 1–4.
 The four separately excluded fresh cuts are disjoint from those 83; their
