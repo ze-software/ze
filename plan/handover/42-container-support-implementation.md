@@ -165,6 +165,84 @@ and twice on 2026-11-16; one `le` build was damaged by them and set aside. A
 file that reads as corrupt on that disk is checked against the kernel log
 before it is treated as a code defect.
 
+## Working instructions (2026-11-17): read this first after a compaction
+
+This supersedes the section below wherever they differ.
+
+**Where the work is done.** On the server (`claude`, Linux x86_64), in the
+worktree `/home/thomas/Code/github.com/ze-software/ze/main/.claude/worktrees/container-support`,
+branch `worktree-container-support`. Never on the server's `main`: the owner
+wants it identical to origin. Commits go on the worktree branch through
+`./le --name session commit create ...`, then the printed script.
+
+**How the work reaches the owner.** After committing, the commits go to the
+`main` branch of his laptop. He does it himself with cherry-pick; give him
+the exact commands and the range, as worked on 2026-11-17:
+
+    git fetch claude:Code/github.com/ze-software/ze/main worktree-container-support
+    git cherry-pick <last delivered commit>..FETCH_HEAD
+
+When a pick stops on a file he has uncommitted edits in: `git cherry-pick
+--quit` (never `--abort`, which would rewind the commits that landed), then
+`git stash push <file>`, `git cherry-pick <remaining commits>`, `git stash
+pop`. The session cannot drive git on the laptop while it is confined to the
+worktree, and it leaves the worktree only when he asks. Last delivered:
+server `734dbb9552` is laptop `760619471e`. He pushes from the laptop; the
+server never pushes.
+
+**How edits pass the gate in the worktree.** The session started in the
+shared checkout, so its edit hook reads state there. What makes it work, with
+the owner's authorisation of 2026-11-17 to work in the worktree:
+
+- The session's claim, in the shared checkout's state, is the runtime spec,
+  which is in progress. It was set once with `./le spec claim
+  plan/post-release/features/spec-container-1-runtime.md` run from the shared
+  checkout; it changes no tracked file there.
+- Agents do NOT run `./le spec claim`. They read the doors and
+  `docs/contributing/ze-go-style.md` from the SHARED checkout's absolute paths
+  (reads of the worktree's copies do not count), and edit only under the
+  worktree path. Tell each agent to make its first source edit within fifteen
+  tool calls and to report the exact refusal if the hook refuses.
+- Agents run nothing. The main thread runs tests with `./le --name session`,
+  one heavy job at a time, as plain commands chained with `;` (no shell
+  functions, loops or git in the same command: the harness refuses them in a
+  worktree session). Package paths need a leading `./`. Ad-hoc scratch goes
+  under `tmp/session/<stamp>/scratch/`, never at the root of `tmp/`.
+- A fresh checkout needs `./le setup appliance-modules` once before a guest
+  run (done in this worktree).
+- Guest tests: `./le --name session test qemu guest-binaries`, then
+  `./le --name session test qemu ci test <path>`. A draft lives under
+  `test/draft/container/` and is promoted by moving it to `test/container/`.
+- Implementation agents run on the development tier: the strongest tier's
+  allowance is exhausted until 2026-11-22.
+- A changed existing test goes to an independent judge agent (the
+  `ze-test-judge` skill) before the commit; `./le --name session test weakened
+  check` lists what needs it.
+
+**State of each track on 2026-11-17** (all committed, worktree tip `734dbb9552`):
+
+| Track | Done | Next |
+|-------|------|------|
+| Runtime | Phases 1 to 4: start, stop and sweep, the syscall filter. Eight guest tests pass under `test/container/` | Phase 5 onward. Phase 6 is the device allowlist, which returns the fourteenth capability and needs a patch on the cgroups module |
+| Image store | Phase 1: ten commands and the store seam reaching a stub | Phase 2 onward: the data directory, fetch from a registry, unpack by digest, the writable layer and its cap. `tmp/handoff-image-store-2.md` in the worktree |
+| Network | Phase 1: four engine requests reaching a stub, test plugin `fakeowner`; four guest drafts red on the stub | Phase 2 onward: the bridge, the link, published ports. `tmp/handoff-network-2.md` |
+| Appliance | Phases 1 to 3 | Phase 4 onward; growth stays unwired until the `gpt` decision |
+| Shell, operator surface, health check | Not started | The operator surface's config words are needed before the Redis test |
+| Redis closing test | Not written, not yet possible | Last. Order: image store, network, operator surface, then the test |
+
+Open with the owner: a time bound a plugin command can declare (a public
+plugin protocol change; image fetch needs an hour, every plugin command gets
+30 seconds; `TestFetchCommandDeclaresItsBound` is red until then); the
+kernel's `gpt` boot option; the capability to create device nodes withheld
+until the allowlist. He allowed the container specs above the
+work-in-progress cap ("Ignore the caps for that work.").
+
+Owed housekeeping: file two tooling defects with an owning spec (the edit hook
+ignoring the claims of a worktree entered after the session started; the
+kernel build measuring the default Docker path when `docker info` answers
+slowly); `plan/handover/44-container-designs-ready-to-apply.md` describes
+three phases as unwritten that are now committed.
+
 ## Where and how the work continues (written late on 2026-11-16)
 
 The owner moved the work off `main`. Everything from here is done in the
