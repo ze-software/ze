@@ -535,6 +535,11 @@ an added validation) therefore touches one place.
 <!-- source: internal/component/plugin/server/startup.go -- engineStartupSink -->
 <!-- source: internal/component/plugin/server/subsystem.go -- hubStartupSink -->
 
+A hub subsystem may carry configured command names for pre-registration. Its
+Stage-1 declaration replaces that provisional list, including an empty
+declaration, so a command the child no longer declares is no longer routed to it.
+<!-- source: internal/component/plugin/server/subsystem.go -- NewSubsystemHandler, hubStartupSink.onRegistration, findHandlerByCommand, SubsystemHandler.matchCommand -->
+
 The driver retains the connection it captured at handshake entry through the
 final ready acknowledgement, including bridge publication. A concurrent
 `Process.Stop` closes that transport and clears the process's connection field;

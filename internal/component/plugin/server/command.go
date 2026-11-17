@@ -797,16 +797,18 @@ func (d *Dispatcher) isCommandPath(lowerPath []byte) bool {
 // and do not affect command recognition. Safe alongside registry publications;
 // builtin registration follows Dispatch's existing startup/freeze contract.
 func (d *Dispatcher) RecognizesCommand(input string) bool {
-	tokens, pipeAt, err := scanCommand(input)
+	tokens, pipeAt, quoteOpen, err := command.ScanInvocation(input)
+	if pipeAt != noPipe {
+		// Rendering has its own grammar. A recorded pipe remains authoritative
+		// when scanning its suffix reports an invocation-only escape error.
+		input = strings.TrimSpace(input[:pipeAt])
+		tokens, _, quoteOpen, err = command.ScanInvocation(input)
+	}
 	if err != nil {
 		return false
 	}
-	if pipeAt != noPipe {
-		input = strings.TrimSpace(input[:pipeAt])
-		tokens, _, err = scanCommand(input)
-		if err != nil {
-			return false
-		}
+	if quoteOpen {
+		return false
 	}
 	if len(tokens) == 0 {
 		return false

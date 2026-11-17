@@ -96,6 +96,14 @@ or granting authorization. `ShouldEnterConfigMode` retains automatic config
 entry for editor inputs that do not resolve operationally. Enter, completion,
 web mutation authorization and stream selection use that same decision.
 
+Recognition requires closed quotes in the command portion. The shared scanner
+still retains an open quote for completion while the operator is typing; an
+unquoted pipe separates rendering input before this recognition check. A
+subsystem's configured command list is copied for pre-registration, then
+replaced by its actual Stage-1 declaration. Subsystem dispatch and recognition
+match complete command words, so an argument separator cannot be confused with
+a longer final word.
+
 The local `set cli format` preference is offered only in the session's current
 operational mode. Browser completion preserves that distinction even when an
 operational prefix selects schema completion. An explicit config-mode `set`

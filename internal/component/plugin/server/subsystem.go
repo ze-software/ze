@@ -56,7 +56,7 @@ type SubsystemHandler struct {
 	config   SubsystemConfig
 	proc     *process.Process
 	acceptor *pluginipc.PluginAcceptor // TLS connect-back listener; MUST be set before Start
-	commands []string                  // Commands declared during Stage 1
+	commands []string                  // Owned pre-registration list, replaced by the Stage-1 declaration.
 	schemas  []plugin.PluginSchemaDecl // YANG modules declared during Stage 1
 	mu       sync.RWMutex
 }
@@ -68,7 +68,8 @@ type SubsystemHandler struct {
 // which injects the manager's acceptor.
 func NewSubsystemHandler(config SubsystemConfig) *SubsystemHandler {
 	return &SubsystemHandler{
-		config: config,
+		config:   config,
+		commands: append([]string(nil), config.Commands...),
 	}
 }
 
@@ -199,6 +200,9 @@ func (hs *hubStartupSink) registrationName() string { return hs.h.config.Name }
 // handler-local fields that FindHandler and RegisterSchemas read.
 func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
 	h := hs.h
+	// Stage 1 replaces the provisional command list with what this child
+	// actually declares, including an empty declaration. Start holds h.mu.
+	h.commands = h.commands[:0]
 	for i := range input.Commands {
 		cmd := &input.Commands[i]
 		h.commands = append(h.commands, cmd.Name)
@@ -540,12 +544,10 @@ func (h *SubsystemHandler) declaresCommand(command string) bool {
 
 // findHandlerByCommand performs command prefix match on a handler map.
 func findHandlerByCommand(handlers map[string]*SubsystemHandler, command string) *SubsystemHandler {
-	lowerCmd := strings.ToLower(command)
 	for _, handler := range handlers {
-		for _, cmd := range handler.Commands() {
-			if strings.HasPrefix(lowerCmd, strings.ToLower(cmd)) {
-				return handler
-			}
+		path, _ := handler.matchCommand(command)
+		if path != "" {
+			return handler
 		}
 	}
 	return nil
@@ -568,6 +570,9 @@ func (h *SubsystemHandler) matchCommand(input string) (path, rest string) {
 			continue
 		}
 		if strings.HasPrefix(lower, key+" ") {
+			path, rest = key, trimmed[len(key)+1:]
+		}
+		if strings.HasPrefix(lower, key+"\t") {
 			path, rest = key, trimmed[len(key)+1:]
 		}
 	}

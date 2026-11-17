@@ -104,7 +104,7 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		// `filter` and `update` each declare a leaf of their own name, so the
 		// line reads the leaf rather than the container, and `update` states
 		// its value with no brackets because the group is required.
-		{"show policy test peer", "show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>]"},
+		{"show policy test peer", "show policy test peer <selector> <import|export> [filter <name>] update <hex> [route-kind <learned|local>] [source-asn4 <true|false>]"},
 		{"show metrics name", "show metrics name <name> [label <key> <value> ...]"},
 
 		// The four rendering rules this phase added, on the commands that
