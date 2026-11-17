@@ -461,8 +461,8 @@ func (pc *PluginConn) SendExecuteCommand(ctx context.Context, input *rpc.Execute
 }
 
 // ExecuteCommandValue walks answer to its end and rebuilds the value the command
-// produced: the status its head declared and the one document its records
-// collapse to. answer MUST NOT be nil; SendExecuteCommandAnswer returns one for
+// produced: the actual verdict and original terminator beside the document
+// its records collapse to. answer MUST NOT be nil; SendExecuteCommandAnswer returns one for
 // every transport.
 //
 // A walk that ended within rpc.AnswerBufferThreshold records arrives as one
@@ -480,18 +480,19 @@ func ExecuteCommandValue(answer *rpc.Answer) (*rpc.ExecuteCommandOutput, error) 
 	if collapseErr != nil {
 		return nil, fmt.Errorf("execute-command answer: %w", collapseErr)
 	}
-	// The terminator's message is the command's own failure text. A caller reads
-	// it as a Go error, which is how the same failure reaches it when the call
-	// itself fails.
-	if message := answer.Message(); message != "" {
-		return &rpc.ExecuteCommandOutput{Status: rpc.StatusError, Data: json.RawMessage(message)}, nil
+	metadata, metadataErr := answer.RecordAnswerMetadata()
+	if metadataErr != nil {
+		return nil, metadataErr
 	}
-	// A warning terminator is the plugin's handler reporting a warning, and the
-	// engine reads that status rather than done (rpc.AnswerKindWarning).
-	if answer.Verdict() == rpc.VerdictWarning {
-		return &rpc.ExecuteCommandOutput{Status: rpc.StatusWarning, Data: document}, nil
+	// A completed no-data answer keeps its absent document and exact tail,
+	// including zero counts, failure text and warning lines.
+	metadata.DocumentAbsent = len(document) == 0
+	if metadata.DocumentAbsent {
+		if message := answer.Message(); message != "" {
+			return &rpc.ExecuteCommandOutput{Status: answer.Verdict(), Data: json.RawMessage(message), RecordAnswer: metadata}, nil
+		}
 	}
-	return &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: document}, nil
+	return &rpc.ExecuteCommandOutput{Status: answer.Verdict(), Data: document, RecordAnswer: metadata}, nil
 }
 
 // executeCommandValue sends one execute-command over the bridge's generic
@@ -513,8 +514,9 @@ func executeCommandValue(ctx context.Context, bridge *rpc.DirectBridge, input *r
 }
 
 // valueAnswer is the answer a transport carrying one marshaled value gives its
-// caller: the head that value would have opened with, the value itself as the
-// one record, and a terminator counting it.
+// caller. Original-record metadata retains its exact tail and document
+// absence. A built value without that metadata supplies one document or none,
+// with the status-derived failure or warning on its terminator.
 //
 // A value the plugin built is one row, and a plugin that answered with no data
 // at all is none, which is what the wire producer states for the same answer
@@ -532,13 +534,38 @@ func valueAnswer(out *rpc.ExecuteCommandOutput) *rpc.Answer {
 	if out == nil {
 		return rpc.NewAnswer(head, rpc.AnswerTail{}, nil)
 	}
+	if metadata := out.RecordAnswer; metadata != nil {
+		if err := metadata.Validate(out.Status); err != nil {
+			return rpc.NewAnswer(head, rpc.AnswerTail{Message: err.Error()}, nil)
+		}
+		if metadata.DocumentAbsent {
+			// A no-record failure retains its pre-existing raw Data reason. This
+			// equality checks that representation only after explicit provenance;
+			// it never infers absence from a document's bytes or JSON keys.
+			if string(out.Data) != metadata.Message {
+				return rpc.NewAnswer(head, rpc.AnswerTail{Message: "execute-command absent document has inconsistent failure data"}, nil)
+			}
+			return rpc.NewAnswer(head, metadata.Tail(), nil)
+		}
+		if len(out.Data) == 0 {
+			return rpc.NewAnswer(head, rpc.AnswerTail{Message: "execute-command record document is absent without absence provenance"}, nil)
+		}
+		if !json.Valid(out.Data) {
+			return rpc.NewAnswer(head, rpc.AnswerTail{Message: "execute-command record document is invalid JSON"}, nil)
+		}
+		return rpc.NewAnswer(head, metadata.Tail(), slices.Values([]rpc.Record{{Item: out.Data}}))
+	}
 	if out.Status == rpc.StatusError {
 		return rpc.NewAnswer(head, rpc.AnswerTail{Message: failureReason(out.Data)}, nil)
 	}
+	// A built value's declared warning survives the same zero-or-one
+	// document projection as its successful payload.
+	tail := rpc.AnswerTail{Warning: out.Status == rpc.StatusWarning}
 	if len(out.Data) == 0 {
-		return rpc.NewAnswer(head, rpc.AnswerTail{}, nil)
+		return rpc.NewAnswer(head, tail, nil)
 	}
-	return rpc.NewAnswer(head, rpc.AnswerTail{Count: 1}, slices.Values([]rpc.Record{{Item: out.Data}}))
+	tail.Count = 1
+	return rpc.NewAnswer(head, tail, slices.Values([]rpc.Record{{Item: out.Data}}))
 }
 
 // SendConfigVerify sends a config verification request to the plugin.

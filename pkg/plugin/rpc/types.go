@@ -1002,8 +1002,9 @@ type ExecuteCommandInput struct {
 
 // ExecuteCommandOutput is the output for ze-plugin-callback:execute-command.
 type ExecuteCommandOutput struct {
-	Status string          `json:"status"` // "done" or "error"
-	Data   json.RawMessage `json:"data,omitempty"`
+	Status       string                      `json:"status"` // The actual answer verdict.
+	Data         json.RawMessage             `json:"data,omitempty"`
+	RecordAnswer *ExecuteCommandRecordAnswer `json:"record-answer,omitempty"` // Original record terminator on a value call.
 }
 
 // UpdateRouteInput is the input for ze-plugin-engine:update-route.

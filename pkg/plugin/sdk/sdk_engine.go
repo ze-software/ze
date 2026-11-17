@@ -418,9 +418,8 @@ func (p *Plugin) bridgeReady() bool {
 }
 
 // answerValue walks answer to its end and rebuilds the value its command
-// produced: the status its terminator derives (done, or warning when the
-// terminator is spelled rpc.AnswerKindWarning, with the warning lines it
-// carries), the document its records carry, and the command's own failure as
+// produced: the actual verdict its terminator derives, the original warning
+// lines, the document its records carry, and the command's own failure as
 // a Go error. label names the RPC in that error.
 //
 // It is the buffered reading of an answer, so it holds what the walk produced.
@@ -430,24 +429,15 @@ func answerValue(answer *rpc.Answer, label string) (DispatchResult, error) {
 
 	// Read after the range, never before: the range is what fills them.
 	if err := answer.Err(); err != nil {
-		return DispatchResult{}, fmt.Errorf("%s answer: %w", label, err)
+		return DispatchResult{Status: answer.Verdict(), Data: document, Warnings: answer.Warnings()}, fmt.Errorf("%s answer: %w", label, err)
 	}
 	if collapseErr != nil {
 		return DispatchResult{}, fmt.Errorf("%s answer: %w", label, collapseErr)
 	}
-	// The terminator's message is the command's own failure text, and the ONLY
-	// place it is stated: the head declares no outcome, so an engine command
-	// that failed says so here. A caller reads it as a Go error, so the answer
-	// and the single-line frame it replaced fail a caller the same way.
-	if message := answer.Message(); message != "" {
-		return DispatchResult{Status: rpc.StatusError}, errors.New(message)
-	}
-	// A warning terminator is a command that completed and states a warning,
-	// which is the status the in-process bridge hands the same caller.
-	if answer.Verdict() == rpc.VerdictWarning {
-		return DispatchResult{Status: rpc.StatusWarning, Data: document, Warnings: answer.Warnings()}, nil
-	}
-	return DispatchResult{Status: rpc.StatusDone, Data: document}, nil
+	// The completed record data survives failure. The terminator's actual
+	// verdict, including rejected rows, decides success on both transports.
+	result := DispatchResult{Status: answer.Verdict(), Data: document, Warnings: answer.Warnings()}
+	return result, answer.Failure()
 }
 
 // dispatchDirectCommandResult projects an in-process result before it completes
@@ -467,7 +457,7 @@ func dispatchCommandResult(out *rpc.DispatchCommandOutput, err error) (DispatchR
 		return DispatchResult{}, err
 	}
 	if out.Error != "" {
-		return DispatchResult{Status: out.Status}, errors.New(out.Error)
+		return DispatchResult{Status: out.Status, Data: out.Data, Warnings: out.Warnings}, errors.New(out.Error)
 	}
 	return DispatchResult{Status: out.Status, Data: out.Data, Warnings: out.Warnings}, nil
 }

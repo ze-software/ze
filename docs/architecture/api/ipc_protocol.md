@@ -757,6 +757,15 @@ key rather than dropping them.
 <!-- source: pkg/plugin/records.go -- Records.MarshalJSON -->
 <!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey, AnswerDefaultKey, ErrReservedEnvelopeKey -->
 
+Collapsing a record walk into one document changes its representation, not its
+produced or refused counts. The value form of execute-command carries those
+original counts and its tail metadata explicitly. Reconstructing an Answer
+from that value retains the original terminator, including a walk containing
+only refused rows and a completed walk containing zero rows.
+
+<!-- source: pkg/plugin/rpc/execute_record_answer.go -- ExecuteCommandOutput.UnmarshalJSON, executeCommandRecordField.UnmarshalJSON -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue, valueAnswer -->
+
 `errors` appears only when a row faulted, so an ordinary answer keeps the shape
 it had. `data` is where the rows go when the handler names no envelope and a row
 faulted: a bare array has nowhere to carry a sibling.

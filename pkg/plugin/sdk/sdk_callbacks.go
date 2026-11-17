@@ -343,7 +343,8 @@ func (p *Plugin) OnDecodeCapability(fn DecodeCapabilityHandler) {
 // A handler MAY answer with a Records instead, which is a walk rather than a
 // built value. The callback registered here is the transport whose result is
 // one marshaled value: the direct bridge, where a walk collapses to the
-// document the record path would have carried (Records.MarshalJSON). The socket
+// document the record path would have carried, with its original terminator
+// retained beside it (executeCommandRecordOutput). The socket
 // event loop reaches the same code with an answer writer, and every answer it
 // writes there is a head, its records and a terminator
 // (Plugin.answerExecuteCommand, sdk_dispatch.go).
@@ -372,11 +373,10 @@ func (p *Plugin) OnExecuteCommand(fn ExecuteCommandHandler) {
 // line's tail for its result (R-1 of spec-record-answers-1-sdk-path).
 //
 // answer is nil for a transport whose result is one marshaled value, which is
-// the direct bridge, and id is then unread. That result is the answer this
-// callback has always carried, byte for byte, and so is the document the
-// sequence's one record line carries (AC-5). A walk reaching the value transport
-// collapses through the one collapse rather than through a second rendering
-// (Records.MarshalJSON).
+// the direct bridge, and id is then unread. A built value keeps its original
+// bytes. A walk keeps the same collapsed document and carries its original
+// terminator beside it, so the document's one row cannot change its counts.
+// Both paths use the existing collapse (executeCommandRecordOutput).
 //
 // The walk runs to its end before this returns, which is what lets a handler
 // hold the state its rows read for exactly the length of its own call (Records,
@@ -444,6 +444,9 @@ func executeCommandAnswer(
 // happens, so the bridge and the socket carry the same bytes for the same
 // value.
 func executeCommandOutput(status string, data any) (*rpc.ExecuteCommandOutput, error) {
+	if records, walk := data.(Records); walk {
+		return executeCommandRecordOutput(status, records)
+	}
 	var raw json.RawMessage
 	if data != nil {
 		var err error

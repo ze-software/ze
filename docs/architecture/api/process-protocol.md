@@ -4039,6 +4039,51 @@ rejected, and no message.
 <!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, ExecuteCommandValue -->
 <!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
 
+A command that returns a record walk keeps its original produced and refused
+counts when an in-process call holds that walk as one document. The existing
+execute-command value DTO carries optional `record-answer` metadata beside
+`data`: `count`, `faults`, `message`, `warning`, `warnings` and
+`document-absent`. The SDK walks
+the producer once, keeps every row in the buffered document, and derives
+`status` from that exact terminator. The existing collapse validates the
+envelope and column schema before it enters that producer. A built-value
+producer may omit this metadata. Projecting a completed Answer retains its
+terminator even when its document is absent: zero produced and refused counts
+then describe no data, while an empty record collection still carries its
+real empty JSON document. Absence never becomes a public null document.
+The absence bit comes from the actual producer's document presence. A
+no-record failure retains its existing raw `data` reason and tail message;
+the explicit bit distinguishes that reason from a real collection containing
+the same bytes, even when the failure text itself is valid JSON.
+
+The receiving boundary refuses missing or null counts, unknown or repeated
+metadata fields, count overflow and a status that contradicts the terminator.
+Every supplied `record-answer` field is decoded, including repeated outer
+fields; explicit null is refused before it can take the built-value path.
+Omitting the optional field preserves ordinary built-value decoding. A
+metadata-bearing answer without a document must have zero produced and refused
+counts; its message and warning kind and lines survive the reconstruction.
+An explicit absence bit additionally refuses any nonzero count or a `data`
+reason that differs from its original message. Payload bytes never select
+the absence variant.
+The built-value route also retains a declared warning when the SDK has not
+supplied original-record metadata. It counts the actual document once, or
+counts zero when the plugin supplied no data.
+It never infers original row counts from the document's keys. This metadata
+travels in the existing value DTO; it adds no transport or negotiation.
+
+Buffered SDK dispatch retains `data` and warning lines when an answer is
+partial or failed. It returns the actual verdict and a Go error for refused
+records or incomplete evaluation. The command's own failure text is preserved.
+A failure carried only by refused records gets a bounded explanation; all
+individual causes stay in the structured data. An interrupted record reader
+retains the progress it already read and cannot report completed evaluation.
+
+<!-- source: pkg/plugin/rpc/execute_record_answer.go -- ExecuteCommandRecordAnswer, RecordAnswerMetadata, Failure -->
+<!-- source: pkg/plugin/sdk/execute_record_answer.go -- executeCommandRecordOutput -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- answerValue, dispatchCommandResult -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue, valueAnswer -->
+
 ### Inter-Plugin Communication
 
 Plugins can dispatch commands to other plugins via the external-compatible string API:
