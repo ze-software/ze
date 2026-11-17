@@ -1768,31 +1768,40 @@ validation.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `committed-tree-does-not-build.md` | 2026-11-13 | IKE recording/netlink constructors: cleared false source-only finding under Go 1.27 semantics, not a code fix |
-| `escape-hatch-scoped-wider-than-its-justification.md` | 2026-11-10 | `espFormReceiver` re-presents bare ESP through lo, so no inbound SPD check runs |
-| `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | `esp4_offload` GRO consumes bare ESP before tc ingress on a distro kernel |
-| `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | the systemd unit granted no `CAP_BPF`, so the kernel refused every BPF load Ze makes under it |
+| `escape-hatch-scoped-wider-than-its-justification.md` | 2026-11-10 | fixed original loopback SPD bypass through TCX rewrite and policy-enabled TUN delivery, with general AC-4 isolation still open |
+| `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | fixed the `esp4_offload` occurrence through the registered loaded-module diagnostic and documented remedy |
+| `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | fixed missing `CAP_BPF` in both unit grants, with guest probes loading all three BPF programs under exactly the declared set |
 | `two-owners-share-one-name.md` | 2026-11-13 | concurrent kernel workers remove the same live extracted source tree on a shared volume |
 
 ### State of the owned occurrences before closure
 
-- The loopback SPD bypass has its replacement paths written; the final
-  guest-root selector tests, RFC records and interop proofs still decide
-  whether its occurrence can be closed.
-- The missing-`CAP_BPF` producer is changed: `DaemonCapabilities` includes the
-  bit, `writeCapabilities` writes the unit's set from that declaration, and
-  `checkDaemonCapabilities` reports the daemon's missing grant. The final
-  guest-root tests must still prove the ESP rewrite, override guard and
-  traffic-usage programs load under exactly that set. A written grant is not
-  that proof.
-- The `esp4_offload` GRO occurrence remains owned here. Its diagnostic and
-  documentation repair landed in `bd8e21b487`: `answerESPFormOffload` reads the
-  active receiver and `kernelcap.LoadedModules`, warns for loaded IPv4 ESP
-  offload, and distinguishes an unreadable snapshot from module absence. Its
-  fix stops Ze, unloads `esp4_offload`, then starts Ze; the finding also names
-  the GRO-disable alternative and the built-in-feature detection limit.
-  The named offload doctor units passed in
-  `job-ipsec-binding-doctor-units-419db7fc.log`. Final functional stress and
-  guest proof still remain owed; this is not a closure verdict.
+- The original loopback SPD bypass is fixed. `openESPFormPaths` opens the
+  policy-enabled `ze-espform` TUN, and `espFormReceiver.run` delivers through
+  `espFormTUN.inject` with `disable_policy=0`. The accepted native selector/SPD
+  receipts in `job-ipsec-rfc4301-positive-record-6923ef2c.log` and
+  `job-ipsec-rfc4301-negative-record-651671a3.log` discriminate delivery from
+  selector refusal and explicit discard, including the corresponding faults.
+  The accepted strongSwan ICMP receipts retain their bounded IPv4 single-pair
+  scope. General per-SA context isolation, AC-4's C proof and the outstanding
+  proof renewals remain open. This bookkeeping adds no runtime observation.
+- The missing-`CAP_BPF` occurrence is fixed. `DaemonCapabilities` declares the
+  four-capability set, and `buildUnitFile` uses `writeCapabilities` for both
+  `AmbientCapabilities` and `CapabilityBoundingSet`. The accepted guest probes
+  in `job-ipsec-dataplane-final-guest-b9e9af5d.log` and
+  `job-ipsec-trafficusage-final-guest-d5538fec.log` loaded the ESP rewrite,
+  override guard and traffic-usage programs as UID 65534 under exactly that
+  grant. `checkDaemonCapabilities` reports missing grants. The BPF load proof
+  comes from those guest probes.
+- The original `esp4_offload` occurrence is fixed by the naming diagnostic
+  allowed in its journal remedy. `bd8e21b487` registers `answerESPFormOffload`,
+  which reads the active receiver and `kernelcap.LoadedModules`, warns for
+  loaded IPv4 ESP offload, and distinguishes an unreadable snapshot from
+  module absence. The finding names stop/unload/start when no other owner
+  needs the module, or disabling GRO on the receiving link. The named doctor
+  units passed in `job-ipsec-binding-doctor-units-419db7fc.log`, and the commit
+  records the six offload fixtures passing with race detection. This evidence
+  covers the diagnostic. Built-in GRO detection, an actual module unload and
+  an XDP-stage rewrite have no proof credit here.
 - The concurrent kernel-worker source-tree collision was fixed in
   `14bec40b17`. The named concurrent-worker regression and scoped race package
   passed (`job-ipsec-kernel-workspace-green-9df4b9bb.log` and
