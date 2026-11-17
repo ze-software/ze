@@ -27,6 +27,17 @@ type disseminationSnapshot struct {
 	err     error
 }
 
+// reloadSettingsSnapshot compares runtime candidates with the same live owner
+// authority, rather than the unresolved owner the pure builder started with.
+// An actual owner or owner-class change remains a restart-scoped difference.
+func (p *Peer) reloadSettingsSnapshot() *PeerSettings {
+	settings := p.settingsSnapshot()
+	if owner := p.selectedOwnerSnapshot(); owner != nil {
+		settings.DisseminationOwner = owner.owner
+	}
+	return settings
+}
+
 func (p *Peer) selectedOwnerSnapshot() *disseminationSnapshot {
 	facts := p.forwardFacts()
 	if facts == nil {

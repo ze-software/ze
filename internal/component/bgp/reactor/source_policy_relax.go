@@ -92,7 +92,7 @@ func (a *reactorAPIAdapter) verifyImportRelaxation(next *PeerSettings, resolved 
 	if peer == nil {
 		return nil
 	}
-	current := peer.settingsSnapshot()
+	current := peer.reloadSettingsSnapshot()
 	// refuse-by-default: guards verifyRelaxationSwap -- a peer with no published settings has no rejecting policy to lift
 	if current == nil {
 		return nil

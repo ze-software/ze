@@ -176,7 +176,16 @@ template has its own graph node before a remote endpoint exists.
 Cold role resolution keeps each original peer node, including peers with the
 same address and different TCP ports. A changed effective owner joins the
 existing session-restart decision even when the raw grant lists stay equal.
+Per-peer config operations cache the pure candidate population, including dynamic
+group sources, once per transaction. Each verify or apply resolves an isolated
+copy against the current runtime declarations before classification. Running
+settings are compared using the owner captured in their live forwarding snapshot;
+a final-only edit therefore compares the same ownership authority on both sides.
+Residual reconciliation operations run that same candidate ownership check before
+import-relaxation preflight, matching whole-section verify and apply.
 <!-- source: internal/component/bgp/reactor/dissemination_snapshot.go -- disseminationSnapshot, buildDisseminationSnapshot, resolveDisseminationSettings -->
+<!-- source: internal/component/bgp/reactor/operation_candidate.go -- operationCandidateSlot, copyOperationCandidate -->
+<!-- source: internal/component/bgp/reactor/operation.go -- reloadCandidatePeer, swapPeerForOperation, verifyConfigOperation -->
 
 State delivery projects that cached ordinary owner separately for each actual
 recipient. `selected-destination` is true only for the complete ordinary owner,

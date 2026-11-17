@@ -63,6 +63,9 @@ func (a *reactorAPIAdapter) verifyConfigOperation(txID string, op *rpc.ConfigOpe
 		if err != nil {
 			return err
 		}
+		if err := a.r.resolveDisseminationSettings(loaded.peers, loaded.groups); err != nil {
+			return err
+		}
 		// RFC 8212 Section 3
 		return a.verifyImportRelaxations(loaded)
 	default:
@@ -300,11 +303,15 @@ func (a *reactorAPIAdapter) reloadCandidatePeer(txID string, op *rpc.ConfigOpera
 	if peerName == "" {
 		return nil, fmt.Errorf("bgp operation %s requires peer name", op.Type)
 	}
-	peers, err := a.r.operationCandidate.peers(txID, configPath, reloadFn)
+	loaded, err := a.r.operationCandidate.load(txID, configPath, reloadFn)
 	if err != nil {
 		return nil, fmt.Errorf("bgp operation %s load candidate peer config: %w", op.Type, err)
 	}
-	return operationCandidatePeer(peers, peerName, txID != "")
+	candidate := copyOperationCandidate(loaded)
+	if err := a.r.resolveDisseminationSettings(candidate.peers, candidate.groups); err != nil {
+		return nil, fmt.Errorf("bgp operation %s resolve candidate output ownership: %w", op.Type, err)
+	}
+	return operationCandidatePeer(candidate.peers, peerName)
 }
 
 // peerSettingsFromOperationConfig builds a peer from the candidate config the
@@ -421,7 +428,7 @@ func (a *reactorAPIAdapter) swapPeerForOperation(next *PeerSettings, policyResol
 		return false, nil
 	}
 
-	current := peer.settingsSnapshot()
+	current := peer.reloadSettingsSnapshot()
 	if current == nil || current.IsDynamic {
 		return false, nil
 	}

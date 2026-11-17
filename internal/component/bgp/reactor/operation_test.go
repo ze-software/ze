@@ -132,7 +132,11 @@ func TestCandidatePeerSettingsFromOperationConfigUsesReloadFunc(t *testing.T) {
 
 	got, err := adapter.candidatePeerSettingsFromOperationConfig(&op)
 	require.NoError(t, err)
-	assert.Same(t, want, got)
+	// Runtime ownership is resolved on an isolated copy, even without a
+	// transaction. Preserve the full loader result without handing out the
+	// raw settings that a shared reload function can return again.
+	assert.Equal(t, want, got)
+	assert.NotSame(t, want, got)
 	assert.Equal(t, uint16(1802), got.Port)
 	assert.Equal(t, mustParseAddr("198.51.100.1"), got.Address)
 }

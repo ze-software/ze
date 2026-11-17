@@ -1163,10 +1163,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 	currentSessions := make(map[netip.AddrPort]*Session)
 	openSnapshots := make(map[netip.AddrPort]peerOpenSnapshot)
 	for key, peer := range r.peers {
-		currentPeers[key] = peer.settingsSnapshot()
-		if owner := peer.selectedOwnerSnapshot(); owner != nil {
-			currentPeers[key].DisseminationOwner = owner.owner
-		}
+		currentPeers[key] = peer.reloadSettingsSnapshot()
 		snapshot := peer.snapshotOpenSessions()
 		currentSessions[key] = snapshot.current
 		openSnapshots[key] = snapshot

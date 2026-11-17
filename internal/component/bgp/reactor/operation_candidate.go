@@ -15,9 +15,9 @@ import (
 // a full read and parse of the config, so it is resolved once per transaction
 // and shared (operationCandidateSlot). Immutable once stored.
 type operationCandidate struct {
-	txID  string
-	path  string
-	peers []*PeerSettings
+	txID   string
+	path   string
+	loaded loadedConfig
 }
 
 // operationCandidateSlot holds the candidate of at most one transaction. Its
@@ -32,27 +32,26 @@ type operationCandidateSlot struct {
 	current *operationCandidate
 }
 
-// peers answers the candidate peers of txID loaded from path, resolving them
-// with load only when the slot holds no candidate of that transaction and
-// path. An empty txID (an operation outside a transaction) is resolved every
-// time and never stored. A failed load is not stored, so a retry loads again.
-// The answer is shared: the caller MUST copy a peer before handing it on.
-func (s *operationCandidateSlot) peers(txID, path string, load ReloadFunc) ([]*PeerSettings, error) {
+// load answers the whole pure candidate population, including dynamic groups.
+// Parsing is shared within a transaction; runtime ownership is resolved later
+// on a copied graph, so verify cannot cache authority for the apply phase.
+func (s *operationCandidateSlot) load(txID, path string, load ReloadFunc) (loadedConfig, error) {
 	if txID == "" {
-		peers, _, _, err := load(path)
-		return peers, err
+		peers, globals, groups, err := load(path)
+		return loadedConfig{peers: peers, globals: globals, groups: dynamicGroupsReadAs(groups)}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if held := s.current; held != nil && held.txID == txID && held.path == path {
-		return held.peers, nil
+		return held.loaded, nil
 	}
-	peers, _, _, err := load(path)
+	peers, globals, groups, err := load(path)
 	if err != nil {
-		return nil, err
+		return loadedConfig{}, err
 	}
-	s.current = &operationCandidate{txID: txID, path: path, peers: peers}
-	return peers, nil
+	loaded := loadedConfig{peers: peers, globals: globals, groups: dynamicGroupsReadAs(groups)}
+	s.current = &operationCandidate{txID: txID, path: path, loaded: loaded}
+	return loaded, nil
 }
 
 // drop forgets txID's candidate, and no other transaction's.
@@ -64,26 +63,37 @@ func (s *operationCandidateSlot) drop(txID string) {
 	}
 }
 
-// operationCandidatePeer answers the candidate peer named name. When the
-// candidate is shared by a transaction's operations, it answers a copy, so
-// the operation that adopts it (AddPeer keeps the pointer) never shares a
-// struct with another operation; a candidate loaded for this operation alone
-// is answered as loaded. The copy is shallow, which is enough for the reason
-// settingsSnapshot (peer.go) gives: every writer of a PeerSettings slice or
-// map replaces the header, never the backing array.
-func operationCandidatePeer(peers []*PeerSettings, name string, shared bool) (*PeerSettings, error) {
+// copyOperationCandidate isolates the structs ownership resolution writes.
+// Slices, maps and compiled policies remain immutable borrowed values, as in
+// settingsSnapshot. Dynamic group runtime atomics are not copied.
+func copyOperationCandidate(loaded loadedConfig) loadedConfig {
+	copySettings := func(settings *PeerSettings) *PeerSettings {
+		if settings == nil {
+			return nil
+		}
+		copy := *settings
+		return &copy
+	}
+	copy := loaded
+	copy.peers = make([]*PeerSettings, len(loaded.peers))
+	for i, peer := range loaded.peers {
+		copy.peers[i] = copySettings(peer)
+	}
+	copy.groups.groups = make([]*DynamicGroupConfig, len(loaded.groups.groups))
+	for i, group := range loaded.groups.groups {
+		copy.groups.groups[i] = &DynamicGroupConfig{GroupName: group.GroupName,
+			Ranges: group.Ranges, MaxPeers: group.MaxPeers, Template: group.Template,
+			Settings: copySettings(group.Settings)}
+	}
+	return copy
+}
+
+// operationCandidatePeer answers one peer from an already isolated population.
+func operationCandidatePeer(peers []*PeerSettings, name string) (*PeerSettings, error) {
 	for _, peer := range peers {
-		if peer == nil {
-			continue
-		}
-		if peer.Name != name {
-			continue
-		}
-		if !shared {
+		if peer != nil && peer.Name == name {
 			return peer, nil
 		}
-		copied := *peer
-		return &copied, nil
 	}
 	return nil, fmt.Errorf("%w: %s", errPeerNotInReloadConfig, name)
 }
