@@ -169,9 +169,17 @@ editor or changes committed configuration.
 <!-- source: internal/component/cli/editor_resume.go -- ResumeSession, resumeSessionMetadata -->
 
 Explicit discard-all also removes this user's persisted intent from an older
-browser session. Its audit detail selects the exact metadata owner and uses the
+browser session. Browser discard preserves separate SSH edits under the same
+account: the shared session discard producer consumes only the resumed browser
+session's assignments and structural operations, and retains other owners in
+the per-account change file. Saved leaf cleanup removes ownership and restores the shared
+draft's affected values from committed configuration plus the surviving saved
+owners. Another account's saved value at the same leaf remains pending; reopening
+the discarding account starts from its committed value. Cleanup writes the draft
+before consuming change-file records, so a storage failure remains retryable.
+Its audit detail selects the exact account and `web` origin from metadata and uses the
 same masked change renderer as the review; it does not infer ownership from a
-formatted session identifier or claim another user's changes were dropped.
+formatted session identifier or claim SSH or another user's changes were dropped.
 The discard snapshot reads through a private editor even when the user's cache
 entry was evicted. It never assigns a session identity, resumes custody or
 caches that reader: inspecting the audit detail leaves the stored bytes intact.
@@ -192,7 +200,7 @@ Authenticated Finder and Workbench requests open the user's current editor and
 read a tree snapshot under its session lock, including the first request and
 the first request after discard. They refuse a configuration-read failure rather
 than displaying the older startup tree. Explicit discard removes the user's
-persisted changes through the shared session discard producer before ending the
+persisted browser changes through the shared session discard producer before ending the
 cached editor. Idle eviction preserves those persisted changes.
 <!-- source: internal/component/web/editor.go -- viewTree, Discard, evictInactive -->
 <!-- source: internal/component/web/fragment.go -- HandleFragment -->

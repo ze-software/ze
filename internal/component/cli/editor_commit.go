@@ -444,7 +444,8 @@ func (e *Editor) cleanupCommittedSession() error {
 }
 
 // DiscardSessionPath discards this session's changes at the given path.
-// If path is nil, discards all changes (deletes change file, reloads from base).
+// A nil path drops this session's saved and unsaved intent. Other sessions
+// retain their ownership in the shared draft and per-account change file.
 func (e *Editor) DiscardSessionPath(path []string) error {
 	if e.session == nil {
 		return errNoSessionSet
@@ -470,20 +471,35 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		if !errors.Is(err, errChangeFileUnparsable) {
 			return err
 		}
-		// A discard of everything is how the operator leaves a change file
-		// that does not parse (docs/guide/web-interface.md, "Corrupt change
-		// files"), so it removes the file. The entries it created cannot be
-		// read back, so nothing is pruned from the draft for them.
-		beforeOps = nil
-	}
-
-	if pathPrefix == "" {
-		// Prune while ownership still exists, so a failed write is retryable.
-		if err := e.pruneDiscardedCreations(guard, changePath, beforeOps, nil, config.NewMetaTree()); err != nil {
-			return fmt.Errorf("discard created entries: %w", err)
+		// The CLI retains its explicit escape from a corrupt change file.
+		// Browser callers refuse the unreadable audit snapshot before this
+		// point. Unknown ownership cannot be selectively retained here.
+		if err := e.discardSavedSessionPath(guard, pathPrefix); err != nil {
+			return fmt.Errorf("discard saved changes: %w", err)
 		}
 		if err := guard.Remove(changePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("discard remove change: %w", err)
+		}
+		return e.reloadSessionView(guard)
+	}
+
+	if err := e.discardSavedSessionPath(guard, pathPrefix); err != nil {
+		return fmt.Errorf("discard saved changes: %w", err)
+	}
+
+	if pathPrefix == "" {
+		if err := e.consumeSessionChangeEntries(changeTree, changeMeta); err != nil {
+			return fmt.Errorf("discard session entries: %w", err)
+		}
+		kept := slices.DeleteFunc(slices.Clone(beforeOps), func(op config.StructuralOp) bool {
+			return op.SessionKey() == e.session.ID
+		})
+		// Prune while ownership still exists, so a failed write is retryable.
+		if err := e.pruneDiscardedCreations(guard, changePath, beforeOps, kept, changeMeta); err != nil {
+			return fmt.Errorf("discard created entries: %w", err)
+		}
+		if err := e.writeChangeFileRemainder(guard, changePath, changeTree, changeMeta, kept); err != nil {
+			return fmt.Errorf("discard remaining changes: %w", err)
 		}
 	} else {
 		// Partial discard: remove matching entries from change file.

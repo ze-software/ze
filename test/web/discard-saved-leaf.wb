@@ -1,0 +1,48 @@
+# Test: discarding a saved leaf stays discarded after reopening the editor
+# VALIDATES: graphical Save draft and Discard all remove saved candidate intent
+# PREVENTS: a discarded saved value returning while running config is unchanged
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=env:var=ze.web.ui-mode:value=finder
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp router-id 10.0.0.9
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp session asn local 65000
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/show/bgp/
+action=fill:id=input-bgp-srouter--id:value=10.0.0.99
+action=press:id=input-bgp-srouter--id:key=Enter
+action=wait
+expect=html:contains=value="10.0.0.99"
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
+action=click:id=graphical-save-draft
+action=wait
+expect=element:id=graphical-action-result
+action=open:path=/config/diff
+expect=element:text=Review changes (1)
+expect=html:contains=10.0.0.99
+action=open:path=/show/bgp/
+action=click:id=commit-discard-btn
+action=wait
+action=open:path=/show/bgp/
+expect=html:contains=value="10.0.0.9"
+expect=html:not-contains=value="10.0.0.99"
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=show confirmed bgp router-id
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=10.0.0.9

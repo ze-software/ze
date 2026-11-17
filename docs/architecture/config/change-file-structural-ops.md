@@ -188,6 +188,17 @@ ops for commit. Other sessions' entries and ops remain owned by those sessions.
 Accepted publication consumes only the committing session, on both the direct
 and staged-candidate paths. A failed cleanup is reported beside the commit that
 applied; it does not turn that publication into a refusal.
+Explicit discard also removes matching saved leaf metadata. Each affected leaf
+is restored from committed configuration, then its surviving saved owners are
+replayed in their stored order, so discarded values cannot remain unowned in the
+shared materialization or override another owner's saved value. The saved draft
+is written before the change-file records are consumed. Both full and path
+discard select the current session; another origin under the same account keeps
+its ownership.
+A failed saved cleanup preserves its cause in a typed operator error, tells the
+operator to keep pending files and retry after repairing the reported problem,
+and names `run show doctor` as the next check in either configuration editor.
+<!-- source: internal/component/cli/editor_discard_saved.go -- discardSavedSessionPath, discardSavedFailure -->
 The cleanup warning keeps the cause and tells the operator to keep the session
 files, review retained changes with `show | changes all`, and repair the reported
 failure. Repeating the commit or discarding shared files is not a recovery step:
