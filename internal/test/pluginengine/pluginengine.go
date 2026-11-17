@@ -225,6 +225,19 @@ func Start(t testing.TB, transport Transport, run func(net.Conn) int) *Engine {
 	if transport == TransportWire {
 		go e.serveWire(serveCtx)
 	}
+	// The Stage 5 acknowledgement lets the SDK activate its bridge and run
+	// OnStarted; it does not mean its command callbacks are installed yet.
+	// Join the existing generic receipt on the actual callback loop before
+	// returning the engine. The wire reader above serves initializer calls.
+	var readyErr error
+	if e.bridge != nil {
+		_, readyErr = e.bridge.SendCallback(ctx, rpc.MethodRuntimeReady, nil)
+	} else {
+		_, readyErr = e.mux.CallRPC(ctx, rpc.MethodRuntimeReady, nil)
+	}
+	if readyErr != nil {
+		t.Fatal("pluginengine: runtime readiness: " + readyErr.Error())
+	}
 	return e
 }
 

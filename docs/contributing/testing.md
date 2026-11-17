@@ -141,6 +141,30 @@ For example, the redirect tests pass plugin JSON through the RIB parser before
 querying the session's effective setting.
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
 
+#### Plugin transport fixtures
+
+Plugin transport fixtures use `internal/test/pluginengine` to run a plugin's
+actual entry point and SDK callbacks over the framed connection and bridge.
+`Start` returns only after the SDK's ordinary runtime-ready callback answers.
+That receipt joins `OnStarted` and entry into the callback loop on both
+transports. Stage 5 acknowledgement and bridge activation happen earlier and
+do not by themselves prove initialization finished. A fixture can run its first
+command immediately after `Start` returns. The wire fixture keeps serving
+ordinary engine requests while it waits, so an initializer can emit its startup
+events without waiting on the caller of `Start`.
+<!-- source: internal/test/pluginengine/pluginengine.go -- Start -->
+<!-- test: internal/test/pluginengine/startup_ready_test.go TestStartJoinsRuntimeInitialization, TestStartFirstCommandUsesInitializedCallback -->
+
+A received route that requires a source lease must carry a receipt the fixture
+engine issued with `IssueSource(peer)`. Reuse it for that source Session's
+UPDATEs; a successor Session receives a new one. The fake engine refuses
+acquisition or retention of an unissued receipt and retention before
+acquisition. Release settles absent authority without issuing or retaining
+a source grant. These checks exercise transport and ownership lifecycle;
+the real engine's grant and
+original-Session authorization are proved by its own tests.
+<!-- source: internal/test/pluginengine/pluginengine.go -- IssueSource, sourceLeaseAnswer -->
+
 #### Kernel tests in a user namespace
 
 A unit test that needs kernel privilege (links, routes, XFRM, nftables,
