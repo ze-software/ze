@@ -1,3 +1,8 @@
+# Question: Does the CLI accept tunnel DSCP copy, 0 and 63, and refuse 64
+# and a fixed DSCP on a transport-mode peer?
+# CLI integration: These commands combine registered YANG union diagnostics
+# and section validators at the executable boundary.
+#
 # Test: ze config validate accepts dscp-map copy, 0 and 63 on tunnel-mode peers,
 # and refuses 64 and a value on a transport-mode peer.
 # Spec: plan/release/fixes/spec-rfc4301-architecture-gaps.md (RFC 4301 Section
@@ -207,7 +212,7 @@ expect=stdout:contains=configuration valid
 
 cmd=foreground:seq=2:exec=ze config validate -:stdin=above:exit=1
 expect=stdout:contains=dscp-map
-expect=stdout:contains=invalid value "64"
+expect=stdout:contains="64" is not an accepted value
 
 cmd=foreground:seq=3:exec=ze config validate -:stdin=transport:exit=1
 expect=stdout:contains=dscp-map 46 needs a tunnel-mode Child SA

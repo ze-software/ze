@@ -1,3 +1,8 @@
+# Question: Does the CLI accept the dual-family VTI selectors and refuse an
+# incomplete same-family selector combination?
+# CLI integration: The executable combines OS-specific YANG and registered
+# section validators, which the selector unit test does not exercise together.
+#
 # Test: ze config validate ACCEPTS the home CPE's management peer: one Child SA
 # on the xfrm interface vti0 whose traffic-selector list holds one IPv4 entry
 # (0.0.0.0/0 both sides) and one IPv6 entry (::/0 both sides), IPv4 first, with
@@ -22,6 +27,10 @@
 # (validation half). Unit proof: TestDualFamilySelectorListValidates
 # (internal/component/ike/engine/config_test.go).
 # Design: docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md.
+# XFRM interfaces are Linux-only YANG nodes. Offline validation needs no
+# kernel capability, so the guest runs both commands without a caps requirement.
+option=needs-linux
+
 stdin=dual:terminator=EOF_DUAL
 interface {
 	xfrm vti0 {
