@@ -152,11 +152,16 @@ func setInstanceStatement(name, leaf, value string) string {
 	return "set " + configRoot + " " + listInstance + " " + name + " " + leaf + " " + value
 }
 
-// runtimeDoctorCheckDecls answers the declarations the plugin sends at Stage 1.
+// runtimeDoctorCheckDecls answers the declarations the plugin sends at Stage
+// 1: the checks over the supervisor's records, then the checks over the
+// image store (storeDoctorChecks).
 func runtimeDoctorCheckDecls() []rpc.DoctorCheckDecl {
-	decls := make([]rpc.DoctorCheckDecl, 0, len(runtimeDoctorChecks))
+	decls := make([]rpc.DoctorCheckDecl, 0, len(runtimeDoctorChecks)+len(storeDoctorChecks))
 	for i := range runtimeDoctorChecks {
 		decls = append(decls, runtimeDoctorChecks[i].decl)
+	}
+	for i := range storeDoctorChecks {
+		decls = append(decls, storeDoctorChecks[i].decl)
 	}
 	return decls
 }
@@ -164,7 +169,8 @@ func runtimeDoctorCheckDecls() []rpc.DoctorCheckDecl {
 // answerDoctorCheck answers show doctor's request for the check named name:
 // one finding, with its fix, for each container that holds a recorded problem
 // of the check's kind. A record that carries a cause adds it to the message,
-// and one that carries a fix answers it in place of the check's. It only
+// and one that carries a fix answers it in place of the check's. A check over
+// the image store (storeDoctorChecks) is answered by the store. It only
 // reads. A name the plugin did not declare is refused: the daemon asks only
 // for declared checks, so only a Ze defect reaches that branch, and an empty
 // answer would read as a healthy box.
@@ -193,6 +199,9 @@ func (s *supervisor) answerDoctorCheck(name string) ([]rpc.DoctorCheckDiagnostic
 			})
 		}
 		return findings, nil
+	}
+	if check := storeDoctorCheckNamed(name); check != nil {
+		return check.answer(s.store)
 	}
 	return nil, errors.New("container: the plugin declares no doctor check named " + strconv.Quote(name) +
 		", so it cannot answer it; this is a Ze defect")

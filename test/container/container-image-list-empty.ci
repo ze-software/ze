@@ -1,0 +1,51 @@
+# Question: does show container image list, typed by an operator, reach the
+# container plugin's image store and answer an empty store with an empty
+# list of images, rather than a refusal or a null (spec-container-2-image-store,
+# phase 2, "The listing command answers an empty store")?
+#
+# A unit test cannot decide it: TestListIgnoresFolderWithoutMark calls the
+# store's operation directly, and only the daemon puts together the command
+# registry, the proxy to the plugin, the store the engine entry builds over
+# ze.data.dir, and the renderer.
+#
+# Method: the daemon runs with no fixture store named, so the image store
+# package answers, with its data directory under /run, never in the test's
+# work directory: in the QEMU guest that directory is on the 9p share of the
+# checkout. The config holds the container root and no container, and the
+# SSH server ze cli reaches. The listing must answer exit 0 with an empty
+# images list.
+#
+# Red before phase 2: the store answered that the listing is not implemented
+# in this build, and the command exited non-zero.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=60s
+option=env:var=ze.data.dir:value=/run/ze-container-list-$PORT
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+container {
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=ze cli -c "show container image list | json":exit=0
+expect=stdout:pattern=^\[\s*\]\s*$

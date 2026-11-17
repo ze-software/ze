@@ -10,12 +10,14 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // The test store exists only in a zetest build, the functional-test daemon
@@ -133,5 +135,21 @@ func installProbe(image string) error {
 	if err := staging.Close(); err != nil {
 		return errors.Join(err, os.Remove(staging.Name()))
 	}
-	return os.Rename(staging.Name(), target)
+	return publishProbe(image, filepath.Base(staging.Name()))
+}
+
+// publishProbe moves the staged copy to the probe's name, beneath the image
+// folder, by the rename the image store publishes with: it refuses an
+// existing target. A copy another container's install published first is
+// the same program, so this one is removed and the install succeeds.
+func publishProbe(image, staged string) error {
+	folder, err := os.Open(image) //nolint:gosec // the fixture image folder the test store owns
+	if err != nil {
+		return errors.Join(err, os.Remove(filepath.Join(image, staged)))
+	}
+	err = zefs.RenameNoReplace(folder, staged, probeBinary)
+	if errors.Is(err, fs.ErrExist) {
+		err = os.Remove(filepath.Join(image, staged))
+	}
+	return errors.Join(err, folder.Close())
 }

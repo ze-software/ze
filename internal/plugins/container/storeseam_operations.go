@@ -54,6 +54,17 @@ type ImageOperations interface {
 	ClearLayer(ctx context.Context, instance string) (ClearAnswer, error)
 }
 
+// StoreChecker is what the doctor check container-store asks of the store. A
+// Store the factory built MAY also be one: a store with no folder of its own
+// has nothing for the check to find.
+type StoreChecker interface {
+	// CheckStore answers nil when the store root can be used now, and an
+	// operator error that names the folder, why it matters and the command
+	// that fixes it when it cannot. It MUST change nothing, because doctor
+	// only reads. Safe for concurrent use.
+	CheckStore() error
+}
+
 // ImageState is the state of one row of the image listing. Zero is
 // ImageStateUnspecified, which no row carries.
 type ImageState uint8

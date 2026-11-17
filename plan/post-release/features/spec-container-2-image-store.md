@@ -8,11 +8,11 @@
 | Release reason | A post-release feature by owner ruling (umbrella O-3): Ze fetches and stores OCI images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime, spec-appliance-perm-grows-at-install |
-| Phase | 1/9 wiring, applied and not yet run: its tests and gates are owed to the main thread (handoff) |
-| Handoff | `tmp/handoff-image-store-2.md`, after `tmp/handoff-image-store.md` |
+| Phase | 2/9 store layout and publication, applied and not yet run: its tests and gates are owed to the main thread (handoff). Phase 1 committed |
+| Handoff | `tmp/handoff-image-store-phase2.md`, after `tmp/handoff-image-store-2.md` and `tmp/handoff-image-store.md` |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -686,14 +686,14 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | `TestApplyEntryCountBound` | `internal/plugins/container/imagestore/apply_bound_test.go` | An image at the bound is applied and one entry more is refused | |
 | `TestApplyDiffDigestMismatchRefused` | `internal/plugins/container/imagestore/apply_test.go` | A decompressed stream with another digest refuses the image | |
 | `FuzzApplyLayerNeverEscapesRoot` | `internal/plugins/container/imagestore/apply_fuzz_test.go` | No archive changes a marker file beside the root | |
-| `TestPublishIsOneRenameAndRefusesExisting` | `internal/plugins/container/imagestore/publish_test.go` | A second publication of one digest does not replace the first | |
-| `TestListIgnoresFolderWithoutMark` | `internal/plugins/container/imagestore/publish_test.go` | A folder with no completion mark is not an image | |
-| `TestStartEmptiesStagingAndKeepsCheckedBlobs` | `internal/plugins/container/imagestore/publish_test.go` | Staging is empty after the store opens, and a blob named by its digest is still there | |
+| `TestPublishIsOneRenameAndRefusesExisting` | `internal/plugins/container/imagestore/publish_test.go` | A second publication of one digest does not replace the first | Written in phase 2: the published root is the staged inode, and the refusal leaves the first image and the second staging |
+| `TestListIgnoresFolderWithoutMark` | `internal/plugins/container/imagestore/publish_test.go` | A folder with no completion mark is not an image | Written in phase 2, with the empty store's listing answering an empty list |
+| `TestStartEmptiesStagingAndKeepsCheckedBlobs` | `internal/plugins/container/imagestore/publish_test.go` | Staging is empty after the store opens, and a blob named by its digest is still there | Written in phase 2, with a later operation of the same run leaving staging alone |
 | `TestFetchOfPresentDigestDownloadsNothing` | `internal/plugins/container/imagestore/fetch_test.go` | No blob request is made for a digest in the store | |
 | `TestFetchReusesCheckedBlob` | `internal/plugins/container/imagestore/fetch_test.go` | A second attempt requests only the blobs that were not checked before | |
 | `TestFetchOfAnotherImageRemovesLeftoverBlobs` | `internal/plugins/container/imagestore/fetch_test.go` | Blobs of a stopped fetch are gone when a fetch of another image starts | |
 | `TestFreeSpaceRefusalBeforeAnyBlob` | `internal/plugins/container/imagestore/space_test.go` | A fetch that would cross the reserve makes no blob request | |
-| `TestStoreRootOpenToOthersRefused` | `internal/plugins/container/imagestore/layout_test.go` | A root folder readable by others is not used | |
+| `TestStoreRootOpenToOthersRefused` | `internal/plugins/container/imagestore/layout_test.go` | A root folder readable by others is not used | Written in phase 2: five modes open to group or others are refused and leave the folder unused, and the same folder at 0700 is used |
 | `TestDeleteRefusedWhileHeld` | `internal/plugins/container/imagestore/delete_test.go` | A held image is not deleted and the holder is named | |
 | `TestDeleteUnusedRemovesFolder` | `internal/plugins/container/imagestore/delete_test.go` | The folder and its bindings are gone | |
 | `TestGenerationUpdateKeepsOnePrevious` | `internal/plugins/container/imagestore/generation_test.go` | Three updates leave the last two generations | |
@@ -715,7 +715,7 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | `TestQuotaRefusesWritePastCap` | `internal/plugins/container/imagestore/quota_linux_test.go` | A write past the cap fails with the quota error on the runtime kernel (integration tag) | |
 | `TestQuotaAbsentWithoutProjectFeature` | `internal/plugins/container/imagestore/quota_linux_test.go` | A filesystem without the feature reads absent (integration tag) | |
 | `TestProjectIDSkipsUsedID` | `internal/plugins/container/imagestore/quota_test.go` | An id with usage is not handed out | |
-| `TestDataDirFromBinary` | `internal/core/paths/paths_test.go` | Each row of the data directory table | |
+| `TestDataDirFromBinary` | `internal/core/paths/paths_test.go` | Each row of the data directory table | Written in phase 1, the mapping filled in phase 2 |
 | `TestDefaultDataDirHonorsOverride` | `internal/core/paths/paths_test.go` | The override wins | |
 | `TestFetchCommandAnswersResultAtEnd` | `internal/plugins/container/image_cmd_test.go` | The answer holds the reference, the digest, the size, whether it was new and the containers started | |
 | `TestFetchCommandDeclaresItsBound` | `internal/plugins/container/image_cmd_test.go` | The fetch and update commands register with a one-hour bound | Written in phase 1, red until the Stage 1 bound field lands (Deviations from Plan) |
@@ -725,7 +725,7 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | `TestStoreDiagnosticCodesRegisterFromThePlugin` | `internal/plugins/container/doctor_store_test.go` | The eleven store codes resolve, and the six fetch codes are event codes | Written in phase 1 |
 | `TestListingShowsFetchingWithBytesReceived` | `internal/plugins/container/image_cmd_test.go` | A held fetch reads fetching, with the bytes received | |
 | `TestFetchQueueBound` | `internal/plugins/container/image_cmd_test.go` | Eight fetches wait and the ninth is refused | |
-| `TestStoreUnwritableCheck` | `internal/plugins/container/doctor_store_test.go` | The check reports the folder and the fix for the platform | |
+| `TestStoreUnwritableCheck` | `internal/plugins/container/doctor_store_test.go` | The check reports the folder and the fix for the platform | In part since phase 2: `TestStoreDoctorCheckAnswersTheStoresRefusal` (`doctor_store_check_test.go`) and the store check's assertions in `TestStoreRootOpenToOthersRefused`. The platform fix and the read-only probe stay with phase 8 |
 | `TestStoreBelowReserveCheck` | `internal/plugins/container/doctor_store_test.go` | The check fires below the reserve and not at it | |
 | `TestStorageFullCheck` | `internal/plugins/container/doctor_store_test.go` | A layer and a volume at their cap are each reported with their fix | |
 | `TestEveryStoreCodeIsDescribed` | `internal/plugins/container/doctor_store_test.go` | Each code this child owns in the doctor table is registered with a description | |
@@ -756,6 +756,7 @@ The tests below that start a container or need a size cap run in Ze's own-system
 |------|----------|-------------------|--------|
 | `image-fetch-lists-digest` | `test/container/container-image-fetch-lists-digest.ci` | The operator fetches an image from the local registry and the listing shows its digest | |
 | `image-fetch-external-plugin` | `test/container/container-image-fetch-external-plugin.ci` | The same fetch with the plugin run as a separate process | |
+| `image-list-empty` | `test/container/container-image-list-empty.ci` | The operator lists the images of an empty store through the daemon and reads an empty list | Phase 2: drafted at `test/draft/container/container-image-list-empty.ci`, to be run as a draft and promoted by the main thread |
 | `image-fetch-digest-mismatch` | `test/container/container-image-fetch-digest-mismatch.ci` | The registry serves a wrong layer, the command fails with the code, and the listing is empty | |
 | `image-fetch-caller-leaves` | `test/container/container-image-fetch-caller-leaves.ci` | A second session sees the fetch in flight. The first caller leaves, the row goes, and a new fetch succeeds | |
 | `image-fetch-interrupted-then-clean` | `test/container/container-image-fetch-interrupted-then-clean.ci` | The daemon is stopped during a fetch, started again, and a new fetch succeeds | |
@@ -794,6 +795,7 @@ The tests below that start a container or need a size cap run in Ze's own-system
 - `docs/architecture/testing/qemu-integration.md` - the `container-store` action beside the other appliance proofs, and the store package in "Existing Integration Test Packages"
 - The image seam file the runtime child creates in the plugin folder - the store fills the seam, and the record gains the fields this spec adds once that spec holds them
 - The container plugin's registration and its Stage 1 declaration, created by the runtime child - commands with their bounds, doctor check declarations, event codes, the declared read of `pki`, the state key grant
+- Phase 2 touched: `internal/core/paths/paths.go` (`classifyBinary`, the data directory mapping), `internal/plugins/container/doctor_store.go` (`CodeStoreUnwritable` for the store's log line), `docs/architecture/config/environment.md` (the `ze.data.dir` row), `docs/architecture/container/image-store.md` (the layout and publication)
 - Phase 1 touched, of the runtime child's files: `internal/plugins/container/container.go` (the store chosen at the engine entry, the image commands declared and looked up), `register.go` (the proxies, the store's codes), `storeseam_zetest.go` (the test store chosen by its key, no `init()`), `yang/ze-container-cmd.yang` (the ten command nodes), `internal/component/plugin/all/all_ze_container.go` (the store's blank import), `docs/architecture/container/runtime.md` (the seam rows and the test store), `docs/architecture/config/environment.md` (`ze.data.dir`)
 
 ## Files to Create
@@ -998,6 +1000,16 @@ The tests below that start a container or need a size cap run in Ze's own-system
 - No config node lands in the wiring phase. `image` is mandatory and would refuse the runtime's six test configs before resolve reads it, so `image`, `storage`, `volume`, `registry` and `store largest-image` each land with the phase that implements them. The resolve request therefore carries the instance name alone until then.
 - `feature-gates.txt` gains the `imagestore` line only. The `registry` package's line lands with that package in phase 3: the file must not name a package that does not exist.
 - `DataDirFromBinary` is a stub in the wiring phase that answers no directory for every binary, so `TestDataDirFromBinary` is red until phase 2 fills the table. `ze.data.dir` is registered and honored now.
+- Phase 2: the raw-write allowlist gains no entry. `internal/le/arch/fspersistence/fspersistence.go` `ScanFile` flags package-level `os` and `ioutil` write calls only, and every write of the store goes through an `os.Root` method (`root.OpenFile`, `root.Mkdir`, `root.RemoveAll`) or creates a folder (`os.Mkdir`, `os.MkdirAll`), which the scan does not flag. `CheckCheckout` refuses an entry that suppresses nothing, so an entry now would fail the gate. The scan does not see a write through an `os.Root`, which is a limit of the gate, reported to the main thread.
+- Phase 2: the store root is checked to be owned by the user Ze runs as, rather than by root. Containers run under a root daemon, where the two are the same, and the unit tests can then exercise the check as an ordinary user.
+- Phase 2: the completion mark also records `reference`, the whole reference the publishing fetch named, beside the fields of the Store layout table. A present image then names a reference in the listing before the bindings exist and after a lost state store. The binding stays the authority for which references name a digest.
+- Phase 2: publication syncs the filesystem that holds the store (one `syncfs` on Linux) before it writes the mark, so the applied root is on the disk before the mark vouches for it. The spec says only that the store syncs.
+- Phase 2: `show container store` stays "not implemented" until phase 6. Its `caps-enforced` field is a bool and needs the quota probe of phase 6, and a false written before the probe exists would read as a fact about the filesystem. The spec allows no unknown state for it. The listing command answers the empty store. Open for the owner: should `caps-enforced` become three states (enforced, not enforced, unknown), so the command answers path, total, free and reserve before phase 6?
+- Phase 2: the store keeps no handle open between operations. Each opens the store root, checks it and closes it; the first open of a run that succeeds prepares the root (creates the folders, empties staging), and the plugin's start tries it once and logs a refusal at WARN under `doctor-container-store-unwritable`. The `StoreFactory` has no error answer and the seam no close, so a root opened for the whole run could neither report its failure nor be closed.
+- Phase 2, phase 8 work pulled forward for the doctor-coverage gate: the runtime check `container-store` is declared now (Order 796, code `doctor-container-store-unwritable`), because the store's start-time WARN line names that code and `./le arch doctor-coverage check` refuses a Warn line whose code no registered check declares. It lives in `storeDoctorChecks` (`internal/plugins/container/doctor_store.go`), beside `runtimeDoctorChecks`, and is answered by the store through a new seam interface, `StoreChecker.CheckStore`, which opens and checks the root and changes nothing. It answers what this phase knows: no data directory, an absent root, a symbolic link, not a folder, another owner, access for group or others. The read-only filesystem probe and the free-space half (`doctor-container-store-full`) stay with phase 8. A store with no folder of its own (the fixture store) answers no finding, named as a guard. `TestContainerDoctorChecksAnswerThroughTheCallback` now counts the runtime checks and the store checks; `TestStoreDoctorCheckAnswersTheStoresRefusal` is new.
+- Phase 2: a failed filesystem sync refuses the publication on purpose. Linux reports through `syncfs`, once, a write the filesystem lost since the last sync, whichever file it belonged to, so the store cannot vouch for the root. The refusal (`syncLostWrite`) says the filesystem reported a write it could not complete and points at the kernel log. Observed once on the development host, whose disk had recorded write errors.
+- Phase 2: `fspersistence` flagged `os.Rename` in `internal/plugins/container/storeseam_zetest.go` `installProbe` (from the runtime child, unchanged by phase 1). The fixture probe is now published by `zefs.RenameNoReplace` beneath the image folder, the route the store uses, and a copy another install published first is kept. No allowlist entry was added: `internal/le/` belongs to another session's work.
+- Phase 2: `ConfigDirFromBinary` and `DataDirFromBinary` both answer from one classifier, `classifyBinary` in `internal/core/paths/paths.go`, so the two directories of one binary cannot disagree. `ConfigDirFromBinary` answers what it answered before.
 
 ## Checklist
 

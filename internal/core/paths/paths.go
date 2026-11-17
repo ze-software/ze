@@ -22,6 +22,54 @@ func isBinDir(name string) bool {
 	return name == "bin" || name == "sbin"
 }
 
+// binaryLayout is where a binary sits, which decides both where its config
+// lives and where its data lives. Zero is layoutUnknown: a binary in no known
+// layout, for which the caller must name the directory.
+type binaryLayout uint8
+
+const (
+	layoutUnknown binaryLayout = iota
+	// layoutGokrazy is the appliance: gokrazy places binaries in /user/, and
+	// its persistent storage is /perm/.
+	layoutGokrazy
+	// layoutSystem is a bin or sbin folder under /, /usr or /usr/local.
+	layoutSystem
+	// layoutRelative is a relative bin or sbin folder, such as ./bin/ze.
+	layoutRelative
+	// layoutPrefix is a bin or sbin folder under any other absolute prefix.
+	layoutPrefix
+)
+
+// classifyBinary answers the layout binaryPath sits in, and for layoutPrefix
+// the prefix itself. It is the one place the layouts are recognized, so the
+// config directory and the data directory of one binary cannot disagree
+// about where it sits.
+func classifyBinary(binaryPath string) (binaryLayout, string) {
+	dir := filepath.Dir(binaryPath)
+	base := filepath.Base(dir)
+
+	if base == "user" && filepath.Dir(dir) == "/" {
+		return layoutGokrazy, ""
+	}
+
+	if !isBinDir(base) {
+		return layoutUnknown, ""
+	}
+
+	prefix := filepath.Dir(dir)
+
+	switch prefix {
+	case "/", "/usr", "/usr/local":
+		return layoutSystem, ""
+	}
+
+	if !filepath.IsAbs(binaryPath) {
+		return layoutRelative, ""
+	}
+
+	return layoutPrefix, prefix
+}
+
 // ConfigDirFromBinary returns the config directory for ze based on the binary path.
 // The resolution follows GNU prefix conventions:
 //
@@ -36,33 +84,20 @@ func isBinDir(name string) bool {
 // about a binary they are placing, not about the running process. To resolve the
 // running process's config dir, call DefaultConfigDir, which applies the override.
 func ConfigDirFromBinary(binaryPath string) string {
-	dir := filepath.Dir(binaryPath)
-	base := filepath.Base(dir)
-
-	// Gokrazy places binaries in /user/; persistent storage is /perm/.
-	if base == "user" && filepath.Dir(dir) == "/" {
+	layout, prefix := classifyBinary(binaryPath)
+	switch layout {
+	case layoutGokrazy:
 		return "/perm/ze"
-	}
-
-	if !isBinDir(base) {
+	case layoutSystem:
+		return "/etc/ze"
+	case layoutRelative:
+		return "etc/ze"
+	case layoutPrefix:
+		return filepath.Join(prefix, "etc", "ze")
+	case layoutUnknown:
 		return ""
 	}
-
-	prefix := filepath.Dir(dir)
-
-	// System prefixes: /, /usr, /usr/local → config in /etc/ze.
-	switch prefix {
-	case "/", "/usr", "/usr/local":
-		return "/etc/ze"
-	}
-
-	// Relative path (e.g., ./bin/ze or bin/ze) → etc/ze relative.
-	if !filepath.IsAbs(binaryPath) {
-		return "etc/ze"
-	}
-
-	// Arbitrary prefix (e.g., /opt/myapp/bin/ze → /opt/myapp/etc/ze).
-	return filepath.Join(prefix, "etc", "ze")
+	panic("BUG: classifyBinary answered a layout ConfigDirFromBinary does not know")
 }
 
 // DefaultConfigDir resolves the config directory, preferring the ze.config.dir
@@ -101,13 +136,24 @@ func DefaultConfigDir() string {
 //   - ./bin/ze → var/lib/ze (relative)
 //   - unknown layout → "" (caller must provide ze.data.dir)
 //
-// Wiring stub of the container image store's first phase: it answers the
-// unknown-layout answer for every binary, and TestDataDirFromBinary is red
-// until the store's layout phase fills the mapping above. Nothing reads the
-// data directory before that phase.
+// The data directory is a folder of its own rather than one under the config
+// directory: the config directory holds the live store and its credentials,
+// and an image tree holds arbitrary owners, modes and set-user files.
 func DataDirFromBinary(binaryPath string) string {
-	_ = binaryPath
-	return ""
+	layout, prefix := classifyBinary(binaryPath)
+	switch layout {
+	case layoutGokrazy:
+		return "/perm/var/lib/ze"
+	case layoutSystem:
+		return "/var/lib/ze"
+	case layoutRelative:
+		return "var/lib/ze"
+	case layoutPrefix:
+		return filepath.Join(prefix, "var", "lib", "ze")
+	case layoutUnknown:
+		return ""
+	}
+	panic("BUG: classifyBinary answered a layout DataDirFromBinary does not know")
 }
 
 // DefaultDataDir resolves the data directory, preferring the ze.data.dir

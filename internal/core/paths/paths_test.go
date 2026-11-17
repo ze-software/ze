@@ -100,9 +100,6 @@ func TestDefaultConfigDir_EnvUnsetFallsBackToBinary(t *testing.T) {
 // var/lib/ze, and an unknown layout answers "" so the caller must name one.
 //
 // Method: the table's binary locations, against the directory each answers.
-//
-// Red on the wiring stub, which answers "" for every binary, until the image
-// store's layout phase fills the mapping.
 func TestDataDirFromBinary(t *testing.T) {
 	rows := []struct {
 		binary string

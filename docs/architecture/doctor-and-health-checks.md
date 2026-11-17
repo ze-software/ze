@@ -122,6 +122,20 @@ No code writes such a record yet, so the four answer no finding today
 (`docs/architecture/container/runtime.md`, "Runtime checks").
 <!-- source: internal/plugins/container/doctor.go -- runtimeDoctorChecks, supervisor.answerDoctorCheck -->
 
+A sixth runtime check reads the image store rather than the supervisor's
+records, through the store's side of the seam (`StoreChecker`):
+
+| Check | Reports | Code |
+|-------|---------|------|
+| `container-store` | a store root under the data directory that cannot be used: no data directory, absent, a symbolic link, not a folder, owned by another user, or open to group or others, as an error, with the store's own fix | `doctor-container-store-unwritable` |
+
+The check opens and checks the root and changes nothing. A store with no
+folder of its own, such as the runtime's fixture store in a functional-test
+build, answers no finding. The free-space reserve, `doctor-container-store-full`,
+is not checked yet (`docs/architecture/container/image-store.md`).
+<!-- source: internal/plugins/container/doctor_store.go -- storeDoctorChecks, answerStoreUsable -->
+<!-- source: internal/plugins/container/imagestore/store.go -- CheckStore -->
+
 There is one phase set and one registry. A second registry of daemon-only
 checks would let a check pick the one the local route happens to run, so the
 phase is the only place that says when a check runs.

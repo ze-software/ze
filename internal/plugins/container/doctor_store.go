@@ -8,6 +8,8 @@ import (
 	"errors"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The doctor codes of the image store, one per problem class of its doctor
@@ -33,6 +35,80 @@ const (
 	codeImageRefused        = "doctor-container-image-refused"
 	codeFetchNoSpace        = "doctor-container-fetch-no-space"
 )
+
+// CodeStoreUnwritable is the code of a store root that cannot be used, for
+// the image store package: it names the code in the log line it writes when
+// the root could not be prepared at start.
+const CodeStoreUnwritable = codeStoreUnwritable
+
+// storeDoctorCheck is a runtime doctor check over the image store's own
+// state. The store answers it, not the supervisor's records: the store root
+// is the store's, and the plugin reaches it only through the seam.
+type storeDoctorCheck struct {
+	// decl is what the Stage 1 registration declares.
+	decl rpc.DoctorCheckDecl
+	// answer answers the check for the store of this run.
+	answer func(store Store) ([]rpc.DoctorCheckDiagnostic, error)
+}
+
+// storeDoctorChecks holds every runtime check over the image store. The
+// registration's DoctorChecks and the doctor callback both read it, beside
+// runtimeDoctorChecks, so a declared check is an answered check.
+//
+// container-store answers today whether the store root can be used. Its
+// second code, the free-space reserve (codeStoreFull), joins it with the
+// store's free-space rule.
+var storeDoctorChecks = []storeDoctorCheck{
+	{
+		decl:   rpc.DoctorCheckDecl{Name: "container-store", Phase: rpc.DoctorPhaseRuntime, Order: 796, Codes: []string{codeStoreUnwritable}},
+		answer: answerStoreUsable,
+	},
+}
+
+// storeDoctorCheckNamed answers the store check named name, or nil when no
+// store check has that name.
+func storeDoctorCheckNamed(name string) *storeDoctorCheck {
+	for i := range storeDoctorChecks {
+		if storeDoctorChecks[i].decl.Name == name {
+			return &storeDoctorChecks[i]
+		}
+	}
+	return nil
+}
+
+// answerStoreUsable answers container-store: no finding when the store root
+// can be used, and one error finding, with the store's own problem, cause
+// and fix, when it cannot.
+//
+// A store that is no StoreChecker answers no finding. That is a guard, not a
+// default: such a store keeps no folder of its own (the runtime's fixture
+// store of a functional-test build), so there is no store root to be
+// unusable, and with no store at all the supervisor refuses every start with
+// its own reason.
+func answerStoreUsable(store Store) ([]rpc.DoctorCheckDiagnostic, error) {
+	checker, ok := store.(StoreChecker)
+	if !ok {
+		return []rpc.DoctorCheckDiagnostic{}, nil
+	}
+	err := checker.CheckStore()
+	if err == nil {
+		return []rpc.DoctorCheckDiagnostic{}, nil
+	}
+	var refusal *opererr.Error
+	if !errors.As(err, &refusal) {
+		return nil, errors.New("container: the image store answered its check with no fix, which is a Ze defect: " + err.Error())
+	}
+	message := refusal.Problem() + ": " + refusal.Why()
+	if cause := refusal.Unwrap(); cause != nil {
+		message += ": " + cause.Error()
+	}
+	return []rpc.DoctorCheckDiagnostic{{
+		Code:     codeStoreUnwritable,
+		Severity: severityError,
+		Message:  message,
+		Fix:      refusal.Fix(),
+	}}, nil
+}
 
 // The commands the explanations name.
 const (

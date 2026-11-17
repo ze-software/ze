@@ -79,8 +79,11 @@ func TestContainerDoctorChecksAnswerThroughTheCallback(t *testing.T) {
 	for _, decl := range engineRegistration().DoctorChecks {
 		declared[decl.Name] = decl
 	}
-	if len(declared) != len(runtimeDoctorChecks) {
-		t.Fatalf("the Stage 1 registration declares %d doctor checks, want the %d runtime checks", len(declared), len(runtimeDoctorChecks))
+	// The image store's checks are declared beside these, and proven by
+	// TestStoreDoctorCheckAnswersTheStoresRefusal.
+	if len(declared) != len(runtimeDoctorChecks)+len(storeDoctorChecks) {
+		t.Fatalf("the Stage 1 registration declares %d doctor checks, want the %d runtime checks and the %d store checks",
+			len(declared), len(runtimeDoctorChecks), len(storeDoctorChecks))
 	}
 
 	sup := newSupervisor(slogutil.DiscardLogger(), nil, nil, nil)
