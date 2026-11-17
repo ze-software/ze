@@ -9,9 +9,12 @@
 #            `disable;` and the round-trip `disable true;` are accepted.
 # PREVENTS: a word after a presence flag being ignored again, so a config that
 #           reads as "not disabled" silently disables the interface.
+# The explicit backend keeps the flag question independent of a host default.
+# Offline validation opens no VPP socket and programs no interface.
 
 stdin=dfalse:terminator=EOF_DFALSE
 interface {
+	backend vpp;
 	ethernet eth0 {
 		disable false;
 	}
@@ -20,6 +23,7 @@ EOF_DFALSE
 
 stdin=dno:terminator=EOF_DNO
 interface {
+	backend vpp;
 	ethernet eth0 {
 		disable no;
 	}
@@ -28,6 +32,7 @@ EOF_DNO
 
 stdin=dbare:terminator=EOF_DBARE
 interface {
+	backend vpp;
 	ethernet eth0 {
 		disable;
 	}
@@ -36,6 +41,7 @@ EOF_DBARE
 
 stdin=dtrue:terminator=EOF_DTRUE
 interface {
+	backend vpp;
 	ethernet eth0 {
 		disable true;
 	}
