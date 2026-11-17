@@ -5,9 +5,9 @@
     "unit": "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers",
     "unit-sha": "b6e08ccbd4a9f9c5",
     "claim-sha": "fece4d1c3bab23bf",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
-    "producer-sha": "b60c04ffca61f78b",
-    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+    "producer-sha": "8b0b0d30f493cd20",
+    "break": "line 804: \"!srcInfo.isRRClient \u0026\u0026 !facts.rrClient\" -\u003e \"false /* MUTATION-APPLIED: allow iBGP non-client redistribution */\""
   }
 ]

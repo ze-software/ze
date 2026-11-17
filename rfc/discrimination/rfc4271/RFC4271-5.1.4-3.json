@@ -5,9 +5,9 @@
     "unit": "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess",
     "unit-sha": "1ce4399ce693147e",
     "claim-sha": "0ae35a67018f4c06",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiverFrom",
-    "producer-sha": "8bde3790af22b2ea",
-    "break": "body of Reactor.notifyMessageReceiverFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::genericAttrSetHandler",
+    "producer-sha": "8412bbcfb16f03b3",
+    "break": "line 66: \"p.Op(setIdx)\" -\u003e \"if code == 4 { keepOrDrop(p); return }; p.Op(setIdx) /* MUTATION-APPLIED: preserve received MED */\""
   }
 ]
