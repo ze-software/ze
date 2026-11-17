@@ -22,8 +22,9 @@ type removalRecoveryContextKey struct{}
 // configureConfig belongs to an actual Configure lifetime, not a process name.
 // A selected candidate does not acquire recovery's fatal-policy exemption.
 type configureConfig struct {
-	tree       map[string]any
-	recovering bool
+	tree          map[string]any
+	recovering    bool
+	dissemination []*DeliveryGraph
 }
 
 func (s *Server) currentConfigureConfig() configureConfig {
@@ -37,6 +38,13 @@ func (s *Server) currentConfigureConfig() configureConfig {
 // bindConfigureConfig owns one Configure scope for each process. After success,
 // the caller MUST clear that exact set after Configure and failure-policy readers finish.
 func (s *Server) bindConfigureConfig(procs []*process.Process, selected configureConfig) error {
+	if selected.tree != nil {
+		graphs, err := candidateDisseminationGraphs(selected.tree)
+		if err != nil {
+			return err
+		}
+		selected.dissemination = graphs
+	}
 	s.removalMu.Lock()
 	defer s.removalMu.Unlock()
 	for _, proc := range procs {

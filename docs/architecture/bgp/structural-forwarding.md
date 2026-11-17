@@ -17,9 +17,12 @@ replaced and the ordering constraint that keeps them correct.
 | One `Retain(id)` per destination peer, so N destinations meant N entry points | one `retainN(id, peerCount)` per update id, fed by a pending dispatch buffer |
 | Identical path attributes written as separate TCP writes | `fwdBucketMerge` at the batch-handler level merges NLRIs into fewer outbound bodies, inside the negotiated message size limit |
 
-The forwarding builders issue one cache retain per UPDATE. The final writer
-retains one compact native ownership key per advertised recipient path; it does
-not retain forwarded attributes or query the selecting RIB on each UPDATE.
+The cached forwarding builders issue one cache retain per UPDATE. Their final
+writer retains one compact native ownership key per advertised recipient path;
+it does not retain forwarded attributes or query the selecting RIB on each
+cached UPDATE. The separate selected operation checks the selecting connection's
+published desired revision through the independent current-selection callback.
+<!-- source: internal/component/bgp/reactor/reactor_api_selected.go -- selectedCurrent -->
 
 Both forwarding rails key body reuse on effective opaque-attribute treatment,
 not on a plugin or peer role. Ordinary RFC 4271 Section 5 treatment
@@ -708,19 +711,21 @@ against the Global address the rewrite chose, so under `local ip auto` the
 connected endpoint qualifies exactly as a configured local address does.
 
 The second address of the 32-octet form is the Link-Local of the next hop
-(RFC 2545 Section 3), and the only Link-Local Ze holds is its own. So it is
-appended only after a Global that is this speaker's own address: the session's
-connected endpoint, the configured local address, or an address on any local
-interface. The draft's Section 4 also names the internal peer's own address,
-but no rail sends that route: RFC 4271 Section 5.1.3 withholds an originated
-route whose NEXT_HOP is the peer's address, and the relayed rail withholds it
-too. So the predicate classifies the peer's address as a third party, and the
-draft's second condition is a `{not-applicable}` row,
-`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`. An
-explicit next hop naming another router, even one on the shared link, is sent
-as its Global alone, length 16. RFC 2545 would want that router's own
-Link-Local there, which Ze never learns: a recorded gap in the whole
-`RFC2545-3-3` condition as well as `RFC2545-3-6`.
+(RFC 2545 Section 3). A speaker-owned Global receives the configured speaker
+Link-Local when the common-subnet condition holds. Another router's Global
+receives that router's Link-Local from the captured neighbor table under the
+same condition. If the table cannot identify a usable Link-Local, Ze sends
+the Global alone and warns. The speaker's own Link-Local never substitutes
+for another router's.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressLinkLocal -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- linkScope.linkLocalNextHop, linkScope.thirdPartyLinkLocal -->
+
+The draft's Section 4 also names the internal peer's own address, but no rail
+sends that route. RFC 4271 Section 5.1.3 withholds an originated route whose
+NEXT_HOP is the peer's address, and the relayed rail withholds it too.
+The draft's second condition is therefore a `{not-applicable}` row,
+`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15`.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn -->
 
 A relayed route under `next-hop auto` uses the same self address as explicit
 `next-hop self` toward an ordinary eBGP peer, on single-hop and multihop
@@ -832,9 +837,18 @@ It records IPv6 wire identity before unmapping addresses for comparison.
 For forwarding families, the last nonempty MP Set is selected before width
 admission. If that Set has an unsupported width, the materializer and final
 gate retain the received field, rather than an earlier decodable replacement.
-An empty Set leaves the preceding selection intact.
+An empty Set leaves the preceding selection intact. Scope normalization makes
+the same selection before it applies the family's common-subnet condition.
+It decodes the complete field through that profile and trims a pair by borrowing
+its raw first address unit, preserving received RDs and generic fallback framing.
+When a single gains a link-local address, the first unit stays byte-identical;
+the profile writes only the added address and its RD. Ordinary session writes
+share this decision through `normalizeOrdinaryNextHop`.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- nextHopAddr, modsNextHop, effectiveNextHop -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- normalizeOrdinaryNextHop -->
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- NextHopProfile.DecodeNextHopField, NextHopProfile.NextHopLen, NextHopProfile.WriteNextHops, NextHopProfile.AdmitsNextHopOctets -->
 <!-- test: internal/component/bgp/reactor/next_hop_last_set_materializer_test.go TestEffectiveNextHopLastSetMatchesMaterializer -->
 
 Classic NLRI presence is retained separately from the received NEXT_HOP
@@ -844,7 +858,7 @@ that replacement even when the same result carries a zero-next-hop FlowSpec
 sibling. An MP-only result still has no classic forwarding address when the
 materializer inserts an unused NEXT_HOP attribute.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- payloadNextHop, effectiveNextHop -->
-<!-- test: internal/component/bgp/reactor/next_hop_classic_presence_test.go TestEffectiveNextHopClassicPresence -->
+<!-- test: internal/component/bgp/reactor/next_hop_classic_presence_test.go TestEffectiveNextHopClassicPresence, TestNextHopClassicPolicyRepairRecovery, TestNextHopClassicPolicyUsefulRepair -->
 
 For a configured IPv4 self or explicit rewrite, `applyFactsNextHop` obtains the
 native candidate's width from the family's profile: four octets for a plain
@@ -867,6 +881,7 @@ the RFC 2545 joint-subnet decision selected the second address. VPN-IPv6 keeps
 its separate RFC 4659 peer-only decision. Both reuse the shared profile writer
 at snapshot construction; the forwarding path only selects an existing view.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, rdIPv6NextHop, precomputeVPNNextHop -->
+<!-- test: internal/component/bgp/reactor/ls72_forward_framing_test.go TestNextHopAutoLSVPNFraming -->
 
 The mixed AIGP socket regression uses a genuine IPv6 self address for MP and an
 export rewrite to a local IPv4 interface for legacy NLRI. Both remain local
@@ -920,6 +935,8 @@ native and mapped IPv4 forms and qualified unspecified-Global pair.
 <!-- source: internal/component/bgp/message/update_build.go -- ValidateMPNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- nextHopValue.linkLocalOnly, egressNextHopWithheld -->
 <!-- test: internal/component/bgp/plugins/nlri/ls/next_hop_standalone_admission_test.go TestLSStandaloneLinkLocalFieldAdmission, TestLSStandaloneLinkLocalPluginBuilder -->
+<!-- test: internal/component/bgp/reactor/ls_standalone_ordinary_test.go TestLSStandaloneLinkLocalOrdinaryWriter -->
+<!-- test: internal/component/bgp/reactor/vpn_standalone_ordinary_test.go TestVPNStandaloneLinkLocalOrdinaryWriter, TestVPNStandaloneLinkLocalFieldAdmission -->
 
 ## Withheld routes are withdrawn
 

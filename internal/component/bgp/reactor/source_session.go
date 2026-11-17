@@ -83,6 +83,9 @@ func (s *Session) sourceMessageCallback(next MessageCallback) MessageCallback {
 			if kind == msgtype.TypeUPDATE {
 				if update != nil {
 					update.SetSourceReceipt(s.sourceReceiptID())
+					if live := s.sourceReceipt.Load(); live != nil {
+						update.SetSourceOwner(live.record.facts.peerOwner)
+					}
 				}
 			}
 		}

@@ -63,7 +63,7 @@ func heldPlugin(t *testing.T, manager *process.ProcessManager, cfg plugin.Plugin
 // Method: a real PluginConn over a pipe, the plugin end sending a real
 // declare-registration call that blocks until it is answered.
 func TestEarlyStage1HoldsAtBarrier(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	cfg := plugin.PluginConfig{Name: "acme-monitor", Run: "acme-monitor-plugin", StageTimeout: 2 * time.Second}
@@ -172,7 +172,7 @@ func TestEarlyStage1KeepsFailureOutcome(t *testing.T) {
 	})
 
 	t.Run("first request is not a declaration", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
 		cfg := plugin.PluginConfig{Name: "confused", Run: "confused-plugin", StageTimeout: 2 * time.Second}
@@ -203,7 +203,7 @@ func TestEarlyStage1KeepsFailureOutcome(t *testing.T) {
 // with its own bound already spent, still answers the declaration that was
 // waiting in its connection.
 func TestEarlyStage1SecondPluginKeepsItsDeclaration(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	silent := plugin.PluginConfig{Name: "silent", Run: "silent-plugin", StageTimeout: 300 * time.Millisecond}

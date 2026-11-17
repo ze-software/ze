@@ -216,7 +216,7 @@ func TestLibraryRemovePrivateRunsBeforePrepend(t *testing.T) {
 		policy := libraryPolicy(t, libraryIntentExport, libraryTypeIntents, routepolicy.FinalAccept)
 
 		out := r.runEgressPolicyChainASN4(policy, "10.0.0.5", 65002, 131072, false,
-			policyview.Session{EBGP: true}, testWireUpdate(received), false)
+			explicitExportTestSession(true), testWireUpdate(received), false)
 
 		if !out.accept || out.wireOverride == nil {
 			t.Fatalf("export = %+v, want accept with the AS-path edits", out)

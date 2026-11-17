@@ -226,7 +226,7 @@ func importSession(src *filterapi.PeerFilterInfo, external bool, peerAS uint32) 
 func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session policyview.Session, wireUpdate *wireu.WireUpdate) egressStepResult {
 	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3: classify the destination, not the source encoding.
-		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
+		return egressStepResult{accept: exportPolicy.AcceptsExportAtEnd(!destInternal, session.ExportKind())}
 	}
 	// A forwarded wire is still in the SOURCE peer's encoding, so the AS_PATH
 	// raw bytes are 2- or 4-octet per the source's negotiated ASN4.
@@ -261,9 +261,12 @@ func (r *Reactor) runEgressPolicyChain(exportPolicy filterapi.Policy, destAddrSt
 // source's (policyview.ExportSession), which the chain's session fact fields
 // read.
 func (r *Reactor) runEgressPolicyChainASN4(exportPolicy filterapi.Policy, destAddrStr string, destPeerAS, destLocalAS uint32, destInternal bool, session policyview.Session, wireUpdate *wireu.WireUpdate, asn4 bool) egressStepResult {
+	if !session.ExportKind().Known() {
+		return egressStepResult{}
+	}
 	if !hasActiveFilter(exportPolicy, directionExport) {
 		// RFC 8212 Section 3.
-		return egressStepResult{accept: exportPolicy.AcceptsAtEnd(!destInternal)}
+		return egressStepResult{accept: exportPolicy.AcceptsExportAtEnd(!destInternal, session.ExportKind())}
 	}
 	if library := exportPolicy.Library(); library != nil {
 		// A ref only the ingress pass can run fails the export chain: no

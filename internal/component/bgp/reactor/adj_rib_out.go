@@ -37,6 +37,9 @@ type adjRIBOut struct {
 	// before outgoing identifier generation. It has the same lifetime as
 	// routes, not the recent-update cache or its allocator mappings.
 	sourcePaths map[adjOutSourceKey]uint32
+	// selectedPaths is a derived index over current routes, not a selection
+	// history. It retires exact output slots after a selected source changes.
+	selectedPaths map[fwdPathKey]selectedSlots
 	// owed holds the keys whose owner withdrawal this destination did not
 	// emit, because the RIB elects what replaces the route
 	// (adjOutWrite.allow). Every reset of routes clears it: a record is framed
@@ -86,6 +89,7 @@ const (
 	adjOutExpected
 	adjOutRecovery
 	adjOutInitial
+	adjOutSelected
 )
 
 // adjOutPath is borrowed producer provenance for one final native path.
@@ -113,7 +117,8 @@ type adjOutPath struct {
 	// route the destination holds. revision is the SENT receipt's ID and
 	// cannot say which received revision that was, so an elected candidate is
 	// compared with this field (recoveryAdmission.admit). Equality ignores it.
-	message uint64
+	message       uint64
+	sourceReceipt uint64
 }
 
 // adjOutAnnouncer is one source session that announced an owed key: the
@@ -403,10 +408,12 @@ func (a *adjRIBOut) releasePath(key *adjOutKey, entry *adjRIBOutRoute) {
 }
 
 // adjRIBOutRoute retains no forwarded attributes. Local advertisements share
-// one signature per body and keep exact NLRI only when the semantic key loses
-// wire information (labels, framing, or noncanonical prefix bits).
+// one signature per body. Local and selected advertisements keep exact NLRI
+// only when the semantic key loses wire information (labels, framing, or
+// noncanonical prefix bits), allowing exact retirement without source lookup.
 type adjRIBOutRoute struct {
 	owner     adjOutPath
+	selection selectedOutput
 	revision  uint64
 	signature []byte
 	exactNLRI []byte
@@ -460,6 +467,7 @@ func (a *adjRIBOut) clearRoutes() {
 		fwdPathIDs.mu.Unlock()
 	}
 	a.sourcePaths = nil
+	a.selectedPaths = nil
 	a.routes = nil
 	a.entries.clear()
 	a.tombstones = nil

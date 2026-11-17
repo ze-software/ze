@@ -25,7 +25,8 @@ func (p *Peer) emitConnected(session *Session) {
 	}
 	settings := session.openSettingsSnapshot()
 	info := plugin.PeerInfo{
-		Address: settings.Address, AddressStr: p.addrString,
+		PeerOwner: p.sourceOwner,
+		Address:   settings.Address, AddressStr: p.addrString,
 		LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
 		Name: settings.Name, GroupName: settings.GroupName,
 		LocalAS: settings.LocalAS, RouterID: settings.RouterID,
@@ -68,6 +69,7 @@ func fsmEventPeerInfo(peer *Peer) plugin.PeerInfo {
 	s := peer.Settings()
 	local, localString := connectedLocalEndpoint(peer, s.LocalAddress, peer.localAddrString)
 	return plugin.PeerInfo{
+		PeerOwner:       peer.sourceOwner,
 		Address:         s.Address,
 		LocalAddress:    local,
 		AddressStr:      peer.addrString,

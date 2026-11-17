@@ -312,7 +312,7 @@ func dryRunSession(direction string, peer filterapi.PeerFilterInfo) policyview.S
 	if direction == directionImport {
 		return policyview.ImportSession(peer).WithImportMetadata(make(map[string]any, 2))
 	}
-	return policyview.ExportSession(peer, filterapi.PeerFilterInfo{}, false)
+	return policyview.ExportSession(peer, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 }
 
 // describeWireOps renders each attribute operation as "<ATTRIBUTE> <verb>"

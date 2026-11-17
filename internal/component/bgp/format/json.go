@@ -94,6 +94,9 @@ func (e *JSONEncoder) message(peer *plugin.PeerInfo, msgType string) (outer, inn
 		jsonKeyPeer: peerMap(peer),
 		msgType:     inner,
 	}
+	if peer.PeerOwner != 0 {
+		outer["peer-owner"] = peer.PeerOwner
+	}
 	return outer, inner
 }
 

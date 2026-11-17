@@ -8,7 +8,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -104,7 +103,7 @@ func TestRFC6996ExportRemovesPrivateUseASNsFromASPath(t *testing.T) {
 		&capability.EncodingCaps{ASN4: true}, bgpctx.DirectionRecv))
 	require.NoError(t, err)
 	r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
-	out := r.runEgressPolicyChainASN4(rfc6996ExportPolicy(t), "10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, wireu.NewWireUpdate(received, ctxID), true)
+	out := r.runEgressPolicyChainASN4(rfc6996ExportPolicy(t), "10.0.0.5", 65002, 65000, false, explicitExportTestSession(true), wireu.NewWireUpdate(received, ctxID), true)
 	require.True(t, out.accept, "export refused the route")
 	require.NotNil(t, out.wireOverride, "export left the AS_PATH unchanged")
 	assert.Equal(t, want, out.wireOverride.Payload())

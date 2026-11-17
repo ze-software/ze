@@ -199,7 +199,7 @@ func TestAtomicPolicyAdmissionExplicitWithdrawalRemainsUseful(t *testing.T) {
 			}, f.destination)
 			input := rfc4271ProofRelayBody(prefix, true, 20)
 			step := f.r.runEgressPolicyChain(f.destination.settings.ExportPolicy,
-				f.destination.Settings().Address.String(), 65002, 65000, false, policyview.Session{EBGP: true}, wireu.NewWireUpdate(input, f.ctxID))
+				f.destination.Settings().Address.String(), 65002, 65000, false, explicitExportTestSession(true), wireu.NewWireUpdate(input, f.ctxID))
 			require.True(t, step.accept, "withdrawal is useful policy output, not a refusal")
 			require.NotNil(t, step.wireOverride)
 			require.Equal(t, withdrawal, step.wireOverride.Payload())
@@ -225,7 +225,7 @@ func TestAtomicPolicyAdmissionEORRemainsUseful(t *testing.T) {
 	}, f.destination)
 	input := rfc4271ProofRelayBody([]byte{24, 10, 42, 0}, true, 10)
 	step := f.r.runEgressPolicyChain(f.destination.settings.ExportPolicy,
-		f.destination.Settings().Address.String(), 65002, 65000, false, policyview.Session{EBGP: true}, wireu.NewWireUpdate(input, f.ctxID))
+		f.destination.Settings().Address.String(), 65002, 65000, false, explicitExportTestSession(true), wireu.NewWireUpdate(input, f.ctxID))
 	require.True(t, step.accept)
 	require.NotNil(t, step.wireOverride)
 	require.Equal(t, eor, step.wireOverride.Payload())
@@ -633,7 +633,7 @@ func TestAtomicPolicyAdmissionFinalJudgeUsesOriginalInput(t *testing.T) {
 			f.r.filterTransportSeam = transport
 			policy := answerPolicy(t, routepolicy.FinalAccept, "judge")
 			seed := libraryResult{outcome: policychain.Outcome{Action: policychain.OutcomeAccept}, modifiedPayload: intermediate}
-			result := f.r.runFinalJudges(policy.Library(), seed, original, f.ctxID, policyview.Session{EBGP: true},
+			result := f.r.runFinalJudges(policy.Library(), seed, original, f.ctxID, explicitExportTestSession(true),
 				libraryIntentContext{asn4: true, asPathEditable: true}, "atomic-final-test", "198.18.232.2", nil)
 			require.Equal(t, 1, transport.calls())
 			require.False(t, result.failed)

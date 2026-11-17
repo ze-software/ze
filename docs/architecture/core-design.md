@@ -1741,8 +1741,8 @@ detection already follows. A required one named in any form is refused with
 the plugin's reason, naming the peer and the list. An inserted member never
 configures the operator's policy: a peer whose list holds only inserted
 members keeps the RFC 8212 Section 3 default, because its library chain is
-compiled with no final and the session decides the end
-(`policychain.CompileUnconfigured`, `filterapi.UnconfiguredAccepts`).
+compiled with no final and the current run's session and export kind decide
+the end (`policychain.CompileUnconfigured`, `Session.UnconfiguredAccepts`).
 This inactive intent stays in the internal running-map projection through
 boot, reload and compensation. Every later Stage 1 declaration rebuild uses
 that current map; it neither treats a missing active reference as permission
@@ -1846,7 +1846,9 @@ advertisements through the normal serialized writer; its last admission check
 also rejects announcements evaluated before the swap. Returning to acceptance
 regenerates configured static, default and plugin routes and replays retained
 received routes under the configured replay owner's send permission. Removing
-the last explicit export policy rejects on EBGP, but accepts on IBGP.
+the last explicit export policy rejects on EBGP. On internal sessions, the
+final writer rejects ordinary learned announcements while explicit local and
+role output keep their default.
 Dynamic variable resolution retains the final.
 
 This does not add desired-state storage for one-shot API announcements. Those
@@ -1948,8 +1950,8 @@ an in-process BGP evaluator (`policychain/register.go`).
   on each export rail. A fact the session does not hold answers absent, never
   a zero, and a forked filter receives the facts it declared in `fields`, so
   both transports read one value.
-- **Export authority belongs to one run.** `Session.WithExportKind` supplies
-  engine-derived authority independently of `SourceKnown`; missing source
+- **Export authority belongs to one run.** The mandatory final argument of
+  `ExportSession` supplies engine-derived authority independently of `SourceKnown`; missing source
   facts cannot stand for a local origin. `Session.UnconfiguredAccepts` reads
   this context for export and keeps import's session-only default. The kind
   is operational context rather than a filter field or writable metadata.
@@ -1976,7 +1978,7 @@ an in-process BGP evaluator (`policychain/register.go`).
   `originator-id` and `cluster-list` are carried as well.
 
 <!-- source: internal/component/bgp/policyview/view.go -- View, Reset, Clear, Read, Value -->
-<!-- source: internal/component/bgp/policyview/session.go -- ImportSession, ExportSession, Session.WithExportKind, Session.ExportKind, Session.UnconfiguredAccepts -->
+<!-- source: internal/component/bgp/policyview/session.go -- ImportSession, ExportSession, Session.IsExport, Session.ExportKind, Session.UnconfiguredAccepts -->
 <!-- source: internal/component/bgp/policyview/readers.go -- readPrefix, readOriginAS, requireFourOctet, reconstructedPath -->
 <!-- source: internal/component/bgp/policyview/register.go -- init -->
 <!-- source: internal/component/bgp/config/register.go -- init, the attachment carries and the reader check -->

@@ -160,6 +160,10 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 		buf = append(buf, '"')
 	}
 	buf = append(buf, `}}`...)
+	if peer.PeerOwner != 0 {
+		buf = append(buf, `,"peer-owner":`...)
+		buf = strconv.AppendUint(buf, peer.PeerOwner, 10)
+	}
 	return buf
 }
 
@@ -178,6 +182,7 @@ func AppendOpen(buf []byte, peer *plugin.PeerInfo, open DecodedOpen, direction r
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " open "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	buf = append(buf, " asn "...)
 	buf = strconv.AppendUint(buf, uint64(open.ASN), 10)
 	buf = append(buf, " router-id "...)
@@ -210,6 +215,7 @@ func AppendNotification(buf []byte, peer *plugin.PeerInfo, notify DecodedNotific
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " notification "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	buf = append(buf, " code "...)
 	buf = strconv.AppendUint(buf, uint64(notify.ErrorCode), 10)
 	buf = append(buf, " subcode "...)
@@ -237,6 +243,7 @@ func AppendKeepalive(buf []byte, peer *plugin.PeerInfo, direction rpc.MessageDir
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " keepalive "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	buf = append(buf, '\n')
 	return buf
 }
@@ -255,6 +262,7 @@ func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteR
 	buf = append(buf, decoded.SubtypeName...)
 	buf = append(buf, ' ')
 	buf = strconv.AppendUint(buf, msgID, 10)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	buf = append(buf, " family "...)
 	buf = decoded.Family.AppendTo(buf)
 	buf = append(buf, '\n')
@@ -297,6 +305,7 @@ func AppendEOR(buf []byte, peer *plugin.PeerInfo, family, encoding string) []byt
 	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, " eor "...)
 	buf = append(buf, family...)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	buf = append(buf, '\n')
 	return buf
 }
@@ -319,6 +328,7 @@ func AppendCongestion(buf []byte, peer *plugin.PeerInfo, eventType, encoding str
 	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, ' ')
 	buf = append(buf, eventType...)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	buf = append(buf, '\n')
 	return buf
 }

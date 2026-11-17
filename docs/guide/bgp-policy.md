@@ -52,10 +52,15 @@ even if it has no references. Use `insert` in the editor when order matters.
 For example, `filter { import { filters [ name ]; final accept; } export {
 final reject; } }` runs `name` on import and rejects every export that reaches
 the policy final. With no explicit policy at any level, EBGP rejects routes
-in that direction (RFC 8212 Section 3). IBGP keeps its accepting default,
-including sessions using the migration AS. Automatic and inactive references
-do not count as an explicit policy.
+in that direction (RFC 8212 Section 3). On IBGP, ordinary selected output needs
+an export policy for a learned route. Explicit local announcements and routes
+sent through an attached route-server or reflector role keep their accepting
+default, including sessions using the migration AS. Automatic and inactive
+references do not count as an explicit policy. The engine records the output
+kind independently of source-peer facts or route metadata.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
+<!-- source: internal/component/bgp/reactor/export_kind.go -- forwardSourceInfo.exportKind, fwdItem.exportKind -->
 
 A non-required automatic reference you deactivate stays disabled after a plugin
 restart or an unrelated declaration rebuild. A reload uses its current
@@ -103,9 +108,10 @@ owner's existing send permission. FlowSpec instead restores the selecting RIB's
 currently authorized paths through the same owner. A destination negotiating only
 FlowSpec does not require the optional receive store; negotiated ordinary families
 still require their retained source.
-Removing the last explicit export policy rejects on EBGP. On IBGP, removing an
-accepting direction needs no replay or static-route reset. Routes removed in the
-same reload are still withdrawn.
+Removing the last explicit export policy rejects on EBGP. On IBGP, explicit
+local and role output keep their default; removing an accepting policy does
+not reset their static-route state. Routes removed in the same reload are still
+withdrawn.
 If required restoration fails, reload returns the error and rolls back the policy
 instead of committing an accepting configuration with stale rejected state.
 

@@ -62,7 +62,7 @@ func TestSourceReceiptUpdateTransport(t *testing.T) {
 	}
 	parsed := string(AppendMessage(nil, &peer, message,
 		bgptypes.ContentConfig{Encoding: plugin.EncodingText, Format: plugin.FormatParsed}))
-	epoch, source, err := textparse.SourceProvenance(parsed)
+	epoch, source, _, err := textparse.SourceProvenance(parsed)
 	if err != nil || epoch != 9 || source != receipt {
 		t.Fatalf("parsed text lost original provenance: epoch=%d receipt=%d error=%v line=%s", epoch, source, err, parsed)
 	}

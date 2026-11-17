@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -91,7 +90,7 @@ func runFieldsExport(t *testing.T, reads map[string][]string, refs ...string) []
 	for _, ref := range refs {
 		chain = append(chain, routepolicy.Ref{Name: "fields-plugin:" + ref})
 	}
-	got := r.runEgressPolicyChainASN4(compiledPolicy(t, chain...), "10.0.0.2", 65002, 65000, false, policyview.Session{EBGP: true}, fieldsTestWire(t), true)
+	got := r.runEgressPolicyChainASN4(compiledPolicy(t, chain...), "10.0.0.2", 65002, 65000, false, explicitExportTestSession(true), fieldsTestWire(t), true)
 	if !got.accept {
 		t.Fatalf("export = %+v, want accept", got)
 	}

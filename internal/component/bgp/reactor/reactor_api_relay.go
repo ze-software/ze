@@ -101,6 +101,10 @@ type relaySource struct {
 	strAdr     string
 	ok         bool
 	generation uint64
+	// receipt and metadata belong to one authenticated reconstruction, never
+	// to the reusable source-session facts captured by newSourceReceiptFacts.
+	receipt  uint64
+	metadata map[string]any
 }
 
 // resolveRelaySource resolves the source peer's forwarding facts and receive
@@ -411,10 +415,9 @@ func relayRunLen(routes []rpc.StoredRoute) int {
 	return n
 }
 
-// relayRebuiltMeta is the route metadata of every route buildRelayUpdate
-// rebuilds: filterapi.MetaKeyRebuilt, true. It is shared by every relayed route
-// and MUST NOT be written: egress filters and sent-event consumers only read
-// the map.
+// relayRebuiltMeta is the ordinary stored-relay metadata. Selected operations
+// provide their validated stale projection before reconstruction instead.
+// These maps MUST NOT be written: egress and sent-event consumers only read.
 var relayRebuiltMeta = map[string]any{filterapi.MetaKeyRebuilt: true}
 
 func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relaySource, spans *[]relayAttrSpan) (*ReceivedUpdate, uint64, int, error) {
@@ -597,19 +600,31 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	}
 	n := writeRelayPayload(out.Buf, 0, scanned, attrs, nextHop, nlri, fam, needNextHop)
 
+	metadata := src.metadata
+	if metadata == nil {
+		metadata = relayRebuiltMeta
+	}
+	var sourceOwner uint64
+	if src.info.peer != nil {
+		sourceOwner = src.info.peer.sourceOwner
+	}
 	ru := &ReceivedUpdate{
+		SourceOwner:        sourceOwner,
 		poolBuf:            out,
 		SourcePeerIP:       src.addr,
 		receivedPeer:       src.info.peer,
 		receivedGeneration: src.generation,
 		SourcePolicyEpoch:  route.SourcePolicyEpoch,
+		SourceReceipt:      src.receipt,
 		// The forward path threads this into fwdItem.sourcePeerStr for the sent
 		// event callback; the peer's cached string avoids a per-route allocation.
 		SourcePeerStr:    src.strAdr,
 		validationReplay: true,
 		validationMsgID:  route.MsgID,
 		ReceivedAt:       a.r.clock.Now(),
-		// Meta is the shared read-only relayRebuiltMeta: the ingress
+		// Ordinary relay Meta is the shared read-only relayRebuiltMeta; a
+		// selected reconstruction supplies its validated stale projection
+		// before publication. Other ingress
 		// annotations a live UPDATE carries (meta["src-role"], meta["stale"]) are
 		// not stored alongside the route, so no ingress step's answer is here,
 		// and the filterapi.MetaKeyRebuilt key says so. An egress filter that
@@ -631,7 +646,7 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 		// it out of the same config field. So a Meta without src-role does not
 		// weaken the leak guard. Proven by
 		// TestOTCEgressSuppressProviderLearnedWithoutMeta.
-		Meta: relayRebuiltMeta,
+		Meta: metadata,
 	}
 	// The stored bytes carry the four-octet AS path the ingest reconciliation
 	// produced, so the wire must carry the relabeled context resolveRelaySource
@@ -641,6 +656,8 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	updateID := nextMsgID()
 	ru.wireUpdateInline.SetMessageID(updateID)
 	ru.wireUpdateInline.SetSourceID(src.srcID)
+	ru.wireUpdateInline.SetSourceReceipt(src.receipt)
+	ru.wireUpdateInline.SetSourceOwner(sourceOwner)
 	ru.WireUpdate = &ru.wireUpdateInline
 
 	// Add -> retainN -> Activate mirrors the received-UPDATE lifecycle with no

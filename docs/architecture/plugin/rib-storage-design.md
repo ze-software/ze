@@ -87,6 +87,18 @@ revises when that receipt changes, even if the selected path's attributes and
 monitoring identity remain equal. Capturing a receipt transports identity; it
 does not itself acquire engine authorization to send the route.
 
+The ordinary RIB acquires a source lease before admitting an authorized received
+candidate. Every current candidate, including an unelected alternate, and every
+owned `RouteEntry` clone holds a local reference to that lease. Equal-attribute
+refreshes replace the reference along with the original receipt; byte-only
+insertions clear it. Releasing the last reference only wakes the RIB's one lease
+worker. The worker performs the engine release and joins final writes outside
+peer, storage and attribute-pool locks. The lease registry retains current leases
+and pending releases only, with no withdrawn-route or source-session history.
+GR and LLGR retention explicitly retain the matching leases before permitting
+the candidates to survive physical DOWN. Passive storage can keep an untrusted
+receipt without a lease; that receipt alone never authorizes dissemination.
+
 The sent inventory retains the epoch beside its received-owner receipt.
 Attribute grouping keeps different epochs separate. Initial and refresh replay
 commands carry it in the typed update-route request, not in user route metadata.
@@ -101,6 +113,55 @@ read them to invalidate and restore a source in place.
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- flowSpecPath -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- RawRoute, replayStoredRoute -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- groupKey, replayRoutesWithCursor, resendRoutesWithCursor -->
+
+### Bounded selected output
+
+The ordinary selected dispatcher separates its scope revision from the received
+message ID, source-policy epoch and retained capture revision. It publishes
+current desired native keys under one mutex. The independent current-selection
+callback reads only that publication, without engine calls or peer/election
+locks. Removing a never-admitted key removes it completely: the scope cut
+answers absence without a global per-key tombstone.
+
+Each explicitly admitted destination Session has one long-lived worker and at
+most one final-writer batch in flight. Its pending key set is limited to current
+desired keys, possible acknowledged output and that one batch. A completion
+projection holds native identity, revision and source receipt, never another
+copy of route attributes. Suppression confirms retirement; once its current key
+also disappears, no absence remains owed. A withdrawal following an in-flight
+announcement remains owed until the final announcement receipt determines
+whether a removal is needed. An uncertain failed call never counts as completed
+output removal.
+
+Route bytes are projected into the selected RPC value once per changed winner
+and shared by destination batches. Batches are split using the larger actual
+encoded request and widest complete response, including envelope and deadline,
+against the IPC frame limit. A single oversized route stays owed with its own
+failure; other keys and other destinations continue. DOWN cancels and joins
+the captured destination worker before releasing its output projection. Plugin
+stop joins all workers before releasing shared capture/source state.
+
+Initial readiness follows final writer receipts, including the empty initial
+table. Transaction callers use the same scheduler settlement barrier, restricted
+to affected destinations. A source barrier includes old acknowledged and
+in-flight source identities after desired selection has changed. Abort restores
+fresh source authority and renews its scope revisions even when route bytes and
+the original source receipt are unchanged. Old queued work therefore cannot
+regain admission through a restored lease.
+
+Capture failures remain latched. Destination and source-lease operational
+failures are scoped to the current affected owner, reported through the SDK and
+cleared after successful reconciliation. One runtime doctor callback combines
+these findings; an unrelated healthy source or recipient remains usable.
+
+The dispatcher and its current-selection callback are initialized by `bgp-rib`.
+Admitting destinations requires the authenticated owner projection and the
+acknowledged applied-delivery settlement wiring; their implementation remains
+part of the ordinary-advertiser work tracked by the linked release spec.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_dispatch.go -- selectedDispatch, currentSelection, selectedDispatchBatch -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_barrier.go -- barrier, barrierSource -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_diagnostic.go -- doctorFailures -->
 
 ### Source-policy lifecycle owners
 
@@ -1634,6 +1695,44 @@ instance. Before an instance name is acknowledged, the repair is
 `ze request restart`. Capture cannot resume from an incomplete snapshot, so
 the failure remains visible until the deciding process restarts.
 
+Source-lease failures are scoped to the affected source. They appear beside
+capture failures in the same runtime doctor check and under the same declared
+code, with a separate report-bus subject for each source. They do not invalidate
+healthy captured selections or other sources. Failed releases remain pending;
+the RIB's one lease worker retries them and clears the source warning only after
+settlement. A later successful acquisition or retention clears its admission
+failure. Permanent source removal discards its admission failure after purge;
+an unsettled release still remains owed. Only acknowledged warnings awaiting
+their clear survive after the underlying source state has gone.
+
+A synchronous source-policy phase and stale purge settle only their source's
+explicit receipt list, including its pending final releases. They do not retry
+or join another source's failed release. The background lease worker retains
+the global retry scan. The current RIB source selector is still the received
+peer address; this scoping does not establish distinct ownership for two
+configured sources sharing an address. A stable source identity must reach
+those selectors before that distinction can be claimed. Release authority
+itself remains the authenticated process incarnation and exact receipt ID.
+
+The deciding process owns its received stores and their pooled references even
+when it runs inside the daemon. SDK event delivery drains before shutdown;
+shutdown then closes new timer and intake admission, cancels and joins its
+AIGP, metric and compaction workers and every scheduled GR callback, and joins
+selected and recovery writers. It releases received stores, sent inventory and
+source-policy undo references only after those readers finish. A replaced GR
+timer remains counted until its callback finishes, even though the current GR
+map no longer names it. The source-lease worker stops before local references
+are released: a closed plugin connection cannot issue a new release RPC.
+Engine generation cleanup revokes that ended owner's authority and clears its
+report-bus warnings; local shutdown releases only the plugin's own references.
+Refused late intake and mark-stale commands return before registering any
+reconciliation, so they cannot repopulate the selected capture. Source warning
+admission also closes before teardown, and shutdown joins reports already
+admitted before releasing local state. Another RIB manager's pooled route and
+source references survive this owner's shutdown.
+<!-- source: internal/component/bgp/plugins/rib/rib_source_shutdown.go -- shutdownReceivedSources, startRIBWorkers, stopGRExpiryLocked -->
+<!-- source: internal/component/plugin/server/dispatch.go -- cleanupProcess -->
+
 The selection, purge and FlowSpec return paths report only after releasing
 their locks. A healthy election reads one atomic reporting flag. A failed
 capture has at most one report request in flight, bounded to five seconds;
@@ -1641,13 +1740,44 @@ an unacknowledged request stays owed and retries at most once per report-bus
 window. An acknowledged raise is sent once. Doctor reads the failure without
 mutating or re-reporting it.
 
-This capture does not yet send routes or complete destination replay. Its
-source receipt is explicitly unrecorded until the source-authority event and
-storage contract supplies the original receipt. Current peer metadata cannot
-authorize an older retained path. Destination dispatch, final-writer authority,
-retention revocation and completion barriers remain required before ordinary
-output can use this snapshot. Existing route-server and reflector recovery
-continues to use its own candidate population.
+The private ordinary-output dispatcher holds the current desired selections
+and each admitted destination Session's acknowledged output and single bounded
+batch. A chosen batch owns arrays sized to that batch, rather than views into
+the remaining pending population. Request and widest-response sizes come from
+the RPC envelope definitions; immutable capture values cache the steady,
+initial and absence item budgets before publication. Choosing a batch does not
+marshal the remaining table while holding the publication mutex.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_batch.go -- newSelectedScopedRoute, selectedDispatchSizedBatch -->
+<!-- source: pkg/plugin/rpc/selected.go -- SelectRoutesExchangeSizes, SelectRoutesItemSizes -->
+
+Capture failure is published into the dispatcher's current-selection answer
+and completion barriers in the same transition. A previously acknowledged
+route cannot remain an authorized answer after its newer capture failed.
+An empty source-receipt set has no affected destination, but does not hide a
+failed selection publication.
+
+Destination output and diagnostics have separate lifetimes. Ending a Session
+joins its worker and releases its route projections even when a warning clear
+fails. One dispatcher-owned reporter reconciles one aggregate warning under a
+fixed subject; doctor still lists every current destination and its cause.
+The reporter retains only the current aggregate, its acknowledged value and
+one uncertain outcome, never an ended-Session ledger. A failed report may have
+applied without an answer, so a later healthy aggregate still clears that
+possible warning. Process generation cleanup owns the final report clear.
+Every attempted raise starts a `rpc.ReportRaiseWindow` interval, including a
+successful refresh of the aggregate warning. Changes during that interval
+coalesce to the latest current cause; an unchanged acknowledged cause needs no
+refresh. Clearing a recovered warning is immediate and does not renew the raise
+allowance. A failed clear retries after one second. Thus this one finding cannot
+consume the plugin's shared raise quota as destinations change, while doctor
+continues to show their current causes.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_diagnostic.go -- run -->
+
+The private dispatcher does not yet admit destinations from public state or
+complete the ordinary routing workflow. Those state and settlement consumers
+remain required. Current peer metadata cannot authorize an older retained
+path. Existing route-server and reflector recovery continues to use its own
+candidate population.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_advertise_capture.go -- advertiseState, advertiseSnapshot, prepareAdvertise, commitAdvertise, removeAdvertise, reelectAdvertiseStale -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, withdrawIfUnheld -->

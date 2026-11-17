@@ -17,7 +17,7 @@ func TestExportSessionKindRequiresExplicitContext(t *testing.T) {
 	peer := sessionPeer()
 	peer.IsIBGP = true
 	for _, sourceKnown := range []bool{false, true} {
-		base := ExportSession(peer, peer, sourceKnown)
+		base := ExportSession(peer, peer, sourceKnown, filterapi.ExportUnknown)
 		if got := base.ExportKind(); got != filterapi.ExportUnknown {
 			t.Fatalf("sourceKnown=%v inferred kind=%d", sourceKnown, got)
 		}
@@ -25,7 +25,7 @@ func TestExportSessionKindRequiresExplicitContext(t *testing.T) {
 			t.Fatalf("sourceKnown=%v granted unknown export provenance", sourceKnown)
 		}
 		for _, kind := range []filterapi.ExportKind{filterapi.ExportOrdinaryLearned, filterapi.ExportExplicit} {
-			derived := base.WithExportKind(kind)
+			derived := ExportSession(peer, peer, sourceKnown, kind)
 			if got := derived.ExportKind(); got != kind {
 				t.Fatalf("supplied kind=%d, got %d", kind, got)
 			}
@@ -45,16 +45,15 @@ func TestExportSessionKindRequiresExplicitContext(t *testing.T) {
 func TestExportKindPerRunDoesNotLeak(t *testing.T) {
 	var view View
 	update := wireu.NewWireUpdate(fullUpdate(), fourOctet(t))
-	base := ExportSession(sessionPeer(), filterapi.PeerFilterInfo{}, false)
 	for _, kind := range []filterapi.ExportKind{
 		filterapi.ExportOrdinaryLearned, filterapi.ExportExplicit, filterapi.ExportUnknown,
 	} {
-		view.Reset(update, base.WithExportKind(kind))
+		view.Reset(update, ExportSession(sessionPeer(), filterapi.PeerFilterInfo{}, false, kind))
 		if got := view.Session().ExportKind(); got != kind {
 			t.Fatalf("reset kind=%d, got %d", kind, got)
 		}
 	}
-	view.Reset(update, base.WithExportKind(filterapi.ExportExplicit))
+	view.Reset(update, ExportSession(sessionPeer(), filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit))
 	view.Clear()
 	if got := view.Session().ExportKind(); got != filterapi.ExportUnknown {
 		t.Fatalf("clear retained export authority kind=%d", got)
@@ -62,8 +61,8 @@ func TestExportKindPerRunDoesNotLeak(t *testing.T) {
 }
 
 // TestImportSessionDefaultIgnoresExportKind proves import keeps its existing
-// session-type disposition. Method: attach both kinds to an import context;
-// neither may make external import accept or internal import reject.
+// session-type disposition. Method: place each export kind directly on an
+// isolated import session and check both internal and external defaults.
 func TestImportSessionDefaultIgnoresExportKind(t *testing.T) {
 	for _, internal := range []bool{false, true} {
 		peer := sessionPeer()
@@ -71,7 +70,8 @@ func TestImportSessionDefaultIgnoresExportKind(t *testing.T) {
 		for _, kind := range []filterapi.ExportKind{
 			filterapi.ExportUnknown, filterapi.ExportOrdinaryLearned, filterapi.ExportExplicit,
 		} {
-			session := ImportSession(peer).WithExportKind(kind)
+			session := ImportSession(peer)
+			session.exportKind = kind // Deliberately vary the field import must ignore.
 			if got := session.UnconfiguredAccepts(); got != internal {
 				t.Errorf("internal=%v kind=%d: import accept=%v", internal, kind, got)
 			}

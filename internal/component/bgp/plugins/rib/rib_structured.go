@@ -9,6 +9,7 @@
 package rib
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 	"sync"
@@ -106,6 +107,12 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	wu := msg.WireUpdate
+	source, err := r.sourceLeases.acquire(context.Background(), peerAddr, se.PeerOwner, msg.SourceReceipt)
+	if err != nil {
+		r.sourceLeases.reportFailures(context.Background())
+		return
+	}
+	defer source.Release()
 
 	// Get raw attribute bytes directly (no hex encode/decode).
 	var attrBytes []byte
@@ -156,6 +163,10 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// peer (newBest == nil, havePrev == true). The orphan writes are
 	// wasted work, not lost state.
 	r.peerMu.Lock()
+	if r.stopping {
+		r.peerMu.Unlock()
+		return
+	}
 	// Compare against the cached peerMetadata on a stack-local candidate so
 	// rapid-flap sessions with unchanging (PeerASN, LocalASN, ContextID)
 	// skip both the heap alloc AND the map write. Only when the struct
@@ -190,6 +201,16 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// lifecycle removal that fences in between leaves this fresh path alone.
 	r.noteReceivedLocked(peerAddr, msg.MessageID)
 	r.peerMu.Unlock()
+	defer func() {
+		r.peerMu.RLock()
+		current := r.bgpPeers[peerAddr] == peerRIB
+		r.peerMu.RUnlock()
+		if !current {
+			// A concurrent DOWN may have purged this store before our inserts.
+			// Release those orphan inserts too; no candidate owns their lease.
+			peerRIB.Release()
+		}
+	}()
 
 	// WITHDRAWALS RUN FIRST, AND THE ORDER IS LOAD-BEARING.
 	//
@@ -268,6 +289,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			parsed.MsgID = msg.MessageID
 			parsed.SourcePolicyEpoch = msg.SourcePolicyEpoch
 			parsed.SourceReceipt = msg.SourceReceipt
+			parsed.SetSourceReference(source)
 			parsed.ReceivedLLGRStale = receivedStale
 			defer parsed.Release()
 		}
@@ -296,6 +318,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 					entry.MsgID = msg.MessageID
 					entry.SourcePolicyEpoch = msg.SourcePolicyEpoch
 					entry.SourceReceipt = msg.SourceReceipt
+					entry.SetSourceReference(source)
 					entry.ReceivedLLGRStale = receivedStale
 				})
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
@@ -326,7 +349,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 						if haveParsed {
 							r.insertLabeledEntry(peerRIB, fam, parsed, fp, attrLen, wirePrefix, addPath, receivedStale, &affected)
 						} else {
-							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msg.MessageID, msg.SourcePolicyEpoch, msg.SourceReceipt, &affected)
+							r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msg.MessageID, msg.SourcePolicyEpoch, msg.SourceReceipt, &affected, source)
 						}
 					} else {
 						if haveParsed {
@@ -338,6 +361,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 							entry.MsgID = msg.MessageID
 							entry.SourcePolicyEpoch = msg.SourcePolicyEpoch
 							entry.SourceReceipt = msg.SourceReceipt
+							entry.SetSourceReference(source)
 							entry.ReceivedLLGRStale = receivedStale
 						})
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
@@ -668,7 +692,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 // message ID, written as the unlabeled branch writes it: a stale ID would make
 // R-12 judge a live path gone (sourcePathGone). Source provenance is copied
 // from the admitted event, never from the source peer's current metadata.
-func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, receivedStale bool, message, sourcePolicyEpoch, sourceReceipt uint64, affected *[]affectedPrefix) {
+func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, attrBytes, wireEntry []byte, addPath, receivedStale bool, message, sourcePolicyEpoch, sourceReceipt uint64, affected *[]affectedPrefix, source *storage.SourceReference) {
 	labels, cidrBytes, err := nlrisplit.ExtractLabels(wireEntry, addPath)
 	if err != nil || len(cidrBytes) == 0 {
 		return
@@ -678,6 +702,7 @@ func (r *RIBManager) insertLabeled(peerRIB *storage.PeerRIB, fam family.Family, 
 		stored.MsgID = message
 		stored.SourcePolicyEpoch = sourcePolicyEpoch
 		stored.SourceReceipt = sourceReceipt
+		stored.SetSourceReference(source)
 		stored.ReceivedLLGRStale = receivedStale
 	})
 	labelHandle := pool.InternLabels(labels)

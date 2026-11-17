@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -48,17 +49,17 @@ func (p *Peer) newSessionWithEpoch(epoch negotiationEpoch) *Session {
 	}
 	session.aigpReactor = p.reactor
 	session.aigpPeer = p
-	session.egressFinalAccepts = func() bool {
+	session.egressFinalAccepts = func(kind filterapi.ExportKind) bool {
 		if facts := p.forwardFacts(); facts != nil {
 			// RFC 8212 Section 3.
-			return facts.exportPolicy.AcceptsAtEnd(facts.isEBGP)
+			return facts.exportPolicy.AcceptsExportAtEnd(facts.isEBGP, kind)
 		}
 		p.mu.RLock()
 		defer p.mu.RUnlock()
 		if p.settings.PeerAS == 0 {
 			return false
 		}
-		return p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+		return p.settings.ExportPolicy.AcceptsExportAtEnd(p.settings.IsEBGP(), kind)
 	}
 	if p.reactor != nil {
 		session.egressRouteFilter = p.egressGate(session)
@@ -72,7 +73,8 @@ func (p *Peer) newSessionWithEpoch(epoch negotiationEpoch) *Session {
 	if p.reactor != nil {
 		settings := p.settingsSnapshot()
 		wirePeer := plugin.PeerInfo{
-			Address: settings.Address, AddressStr: p.addrString,
+			PeerOwner: p.sourceOwner,
+			Address:   settings.Address, AddressStr: p.addrString,
 			LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
 			LocalAS: settings.LocalAS, PeerAS: rpc.RemoteASOf(settings.PeerAS), RouterID: settings.RouterID,
 		}

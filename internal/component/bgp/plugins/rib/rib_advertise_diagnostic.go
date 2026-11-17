@@ -37,11 +37,13 @@ func (r *RIBManager) advertiseDoctorCheck(name string) ([]rpc.DoctorCheckDiagnos
 	r.advertise.mu.Lock()
 	failure := r.advertise.failure
 	r.advertise.mu.Unlock()
-	if failure == nil {
-		return nil, nil
+	findings := r.sourceLeases.doctorFailures()
+	findings = append(findings, r.selectedDispatch.doctorFailures()...)
+	if failure != nil {
+		findings = append(findings, rpc.DoctorCheckDiagnostic{Code: diagnostic.CodeDoctorBGPSelectedOutput,
+			Severity: "error", Message: advertiseFailureMessage(failure), Fix: r.advertiseRepair()})
 	}
-	return []rpc.DoctorCheckDiagnostic{{Code: diagnostic.CodeDoctorBGPSelectedOutput,
-		Severity: "error", Message: advertiseFailureMessage(failure), Fix: r.advertiseRepair()}}, nil
+	return findings, nil
 }
 
 func advertiseFailureMessage(failure error) string {

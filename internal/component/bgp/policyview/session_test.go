@@ -56,7 +56,7 @@ func TestSessionFactsReadAndWritten(t *testing.T) {
 		},
 		{
 			name:    "export facts of the destination and of the route's source",
-			session: ExportSession(sessionPeer(), source, true),
+			session: ExportSession(sessionPeer(), source, true, filterapi.ExportExplicit),
 			fields: []string{"peer-name", "llgr-advertised", "source-peer-name", "source-peer-group",
 				"source-peer-address", "source-peer-as", "source-ibgp", "source-rs-client"},
 			want: `{"peer-name":"edge","source-peer-name":"upstream","source-peer-group":"transit",` +
@@ -64,7 +64,7 @@ func TestSessionFactsReadAndWritten(t *testing.T) {
 		},
 		{
 			name:    "export of an originated route has no source",
-			session: ExportSession(sessionPeer(), filterapi.PeerFilterInfo{}, false),
+			session: ExportSession(sessionPeer(), filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit),
 			fields:  []string{"source-peer-name", "source-ibgp", "rs-client"},
 			want:    `{"rs-client":true}`,
 		},
@@ -151,14 +151,14 @@ func TestSourceLLGRAdvertisedOnRebuiltRoute(t *testing.T) {
 		session Session
 		want    string
 	}{
-		{"rebuilt route, source advertised LLGR", ExportSession(sessionPeer(), source, true).WithExportMetadata(rebuilt),
+		{"rebuilt route, source advertised LLGR", ExportSession(sessionPeer(), source, true, filterapi.ExportExplicit).WithExportMetadata(rebuilt),
 			`{"source-llgr-advertised":true}`},
-		{"rebuilt route, source did not", ExportSession(sessionPeer(), silent, true).WithExportMetadata(rebuilt),
+		{"rebuilt route, source did not", ExportSession(sessionPeer(), silent, true, filterapi.ExportExplicit).WithExportMetadata(rebuilt),
 			`{"source-llgr-advertised":false}`},
-		{"live export", ExportSession(sessionPeer(), source, true), `{}`},
-		{"metadata says not rebuilt", ExportSession(sessionPeer(), source, true).
+		{"live export", ExportSession(sessionPeer(), source, true, filterapi.ExportExplicit), `{}`},
+		{"metadata says not rebuilt", ExportSession(sessionPeer(), source, true, filterapi.ExportExplicit).
 			WithExportMetadata(map[string]any{filterapi.MetaKeyRebuilt: false}), `{}`},
-		{"no known source", ExportSession(sessionPeer(), source, false).WithExportMetadata(rebuilt), `{}`},
+		{"no known source", ExportSession(sessionPeer(), source, false, filterapi.ExportExplicit).WithExportMetadata(rebuilt), `{}`},
 		{"received route", ImportSession(sessionPeer()).WithImportMetadata(rebuilt), `{}`},
 	}
 	for _, tt := range tests {

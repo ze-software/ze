@@ -15,6 +15,16 @@ Each column sorts by the value it holds, not by the text it prints. Addresses so
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand, dashboardPollInterval -->
 <!-- source: internal/component/cli/model_dashboard_sort.go -- comparePeers -->
 
+In the browser CLI, enter `run monitor bgp` in configuration mode, or
+`monitor bgp` in operational mode. The live view offers buttons for sorting,
+selection, detail, returning to peers and help. **Stop** or Ctrl+C ends updates
+and leaves the input ready for another command. A new command also ends the
+active view. These controls drive the same dashboard state and use your signed-in
+account for its reads and detail requests.
+<!-- source: internal/component/cli/register_view_dashboard.go -- dashboardBrowserControls -->
+<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
+
+
 ## Event Streaming
 
 ```
@@ -448,6 +458,25 @@ hidden path is and which chain hid it: `show rib candidates prefix <prefix>`
 | `ze_uptime_seconds` | gauge | Seconds since reactor started |
 | `ze_peers_configured` | gauge | Number of configured peers |
 | `ze_cache_entries` | gauge | UPDATE cache entry count |
+
+#### Selected output
+
+The deciding BGP RIB exposes its current output obligations without creating a
+time series per route or Session. These gauges use the RIB's existing ten-second
+refresh. A failed batch remains owed until final reconciliation; completed
+suppression counts as a completed batch because its old output was retired.
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_rib_selected_current_keys` | gauge | Current selected native keys |
+| `ze_rib_selected_destinations` | gauge | Admitted destination Sessions |
+| `ze_rib_selected_pending_keys` | gauge | Pending reconciliation keys across current destinations |
+| `ze_rib_selected_inflight_keys` | gauge | Keys in final-writer batches currently in flight |
+| `ze_rib_selected_failed_destinations` | gauge | Current destinations with an unresolved output failure |
+| `ze_rib_selected_batches_total` | counter | Batches by `outcome`: `completed` or `failed` |
+
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_metrics.go -- updateSelectedMetrics, recordSelectedBatch -->
 
 #### Per-Peer
 

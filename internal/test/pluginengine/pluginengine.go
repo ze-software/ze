@@ -93,8 +93,85 @@ type Engine struct {
 	mux    *rpc.MuxConn
 	bridge *rpc.DirectBridge // nil on TransportWire
 
-	mu   sync.Mutex
-	rpcs []EngineRPC
+	mu         sync.Mutex
+	rpcs       []EngineRPC
+	nextSource uint64
+	sources    map[uint64]*sourceLease
+}
+
+// sourceLease is one fixture-issued source Session and this connection's lease.
+// It contains no route payload and confers no production engine authority.
+type sourceLease struct {
+	peer      string
+	peerOwner uint64
+	acquired  bool
+	retained  bool
+}
+
+// IssueSource issues one source-session identity before a received event is
+// delivered. Reuse its result for that Session's UPDATEs, not a successor's.
+func (e *Engine) IssueSource(peer string, peerOwner uint64) uint64 {
+	if peer == "" {
+		panic("BUG: pluginengine source session has no peer or stable owner")
+	}
+	if peerOwner == 0 {
+		panic("BUG: pluginengine source session has no peer or stable owner")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.sources == nil {
+		e.sources = make(map[uint64]*sourceLease)
+	}
+	e.nextSource++
+	e.sources[e.nextSource] = &sourceLease{peer: peer, peerOwner: peerOwner}
+	return e.nextSource
+}
+
+// sourceLeaseAnswer validates the real action/receipt/deadline envelope.
+// Acquire and Retain require an issued Session; Release settles absent authority
+// without issuing a receipt or retaining completed lease history.
+func (e *Engine) sourceLeaseAnswer(params json.RawMessage) (*rpc.SourceLeaseOutput, error) {
+	var input rpc.SourceLeaseInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return nil, err
+	}
+	if err := input.Validate(time.Now()); err != nil {
+		return nil, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	source := e.sources[input.SourceReceipt]
+	if source == nil {
+		if input.Action == rpc.SourceLeaseRelease {
+			return &rpc.SourceLeaseOutput{Action: input.Action, SourceReceipt: input.SourceReceipt, PeerOwner: input.PeerOwner}, nil
+		}
+		return nil, errors.New("pluginengine: source receipt was not issued; call IssueSource before delivering its UPDATE")
+	}
+	if input.PeerOwner != source.peerOwner {
+		if input.Action != rpc.SourceLeaseRelease {
+			return nil, errors.New("pluginengine: peer owner does not match the issued source receipt")
+		}
+		if input.PeerOwner != 0 {
+			return nil, errors.New("pluginengine: peer owner does not match the issued source receipt")
+		}
+	}
+	switch input.Action {
+	case rpc.SourceLeaseAcquire:
+		source.acquired = true
+	case rpc.SourceLeaseRetain:
+		if !source.acquired {
+			return nil, errors.New("pluginengine: source lease for " + source.peer + " was not acquired before retention")
+		}
+		source.retained = true
+	case rpc.SourceLeaseRelease:
+		source.acquired = false
+		source.retained = false
+	case rpc.SourceLeaseUnspecified:
+		return nil, errors.New("pluginengine: source lease action was not validated")
+	default:
+		return nil, errors.New("pluginengine: source lease action was not validated")
+	}
+	return &rpc.SourceLeaseOutput{Action: input.Action, SourceReceipt: input.SourceReceipt, PeerOwner: input.PeerOwner}, nil
 }
 
 // Start runs the plugin entry point run on transport, completes its startup,
@@ -224,9 +301,9 @@ func (e *Engine) dispatchBridged(_ context.Context, method string, params json.R
 	return json.Marshal(result)
 }
 
-// answer records one engine RPC and builds its answer. Only update-route and
-// emit-event have a fake answer (an emit reaches no subscriber here): every
-// other method is refused, and stays visible in RPCs.
+// answer records one engine RPC and builds its answer. UPDATE and event calls
+// have empty fake answers. Source leases require fixture-issued identities.
+// Every other method is refused, and stays visible in RPCs.
 func (e *Engine) answer(method string, params json.RawMessage) (any, error) {
 	e.mu.Lock()
 	e.rpcs = append(e.rpcs, EngineRPC{Method: method, Params: append(json.RawMessage(nil), params...)})
@@ -236,6 +313,9 @@ func (e *Engine) answer(method string, params json.RawMessage) (any, error) {
 	}
 	if method == rpc.MethodEmitEvent {
 		return &rpc.EmitEventOutput{}, nil
+	}
+	if method == rpc.MethodSourceLease {
+		return e.sourceLeaseAnswer(params)
 	}
 	return nil, errors.New("pluginengine: no fake engine answer for " + method)
 }

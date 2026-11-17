@@ -231,6 +231,7 @@ func (p *Peer) sessionDown(session *Session, publication *receivePublication, de
 	// after the leave arm ran, or after the session ended for another
 	// reason, names this close too.
 	closed := leave.close(publication.failed.Load())
+	closed.destinationSession = session.initialReplay.Load()
 	reason := closed.reason
 	leave.transition.Reason = reason
 	// Raise session-dropped on the report bus only when nothing else
@@ -309,7 +310,8 @@ func (p *Peer) endNegotiatedSession(session *Session) {
 	if reactor.eventDispatcher == nil {
 		return
 	}
-	closed := sessionClose{reason: rpc.ReasonTCPFailure, generation: p.forwardGeneration.Load()}
+	closed := sessionClose{reason: rpc.ReasonTCPFailure, generation: p.forwardGeneration.Load(),
+		destinationSession: session.initialReplay.Load()}
 	if closeCause(session) != nil {
 		closed.reason = rpc.ReasonLocalClose
 	}

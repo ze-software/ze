@@ -268,10 +268,15 @@ define RPC signatures. The `-cmd.yang` modules define the CLI navigation hierarc
 `ze:rpc` statement names the rpc that documents its input and output, and the
 rpc is published under that node's wire method: the rpc names no method of its
 own, and no method is built from a module's file name. An rpc no node reaches
-(the plugin IPC protocol in `internal/core/ipc/yang/`) and a notification
-declare their wire method with `ze:method`. An rpc that has neither is
-published under no name, and the command contract gate refuses it.
+and a notification declare their wire method with `ze:method`. This includes
+the plugin IPC protocol in `internal/core/ipc/yang/` and operations registered
+by a subsystem, such as BGP source leases. The declaration publishes the exact
+method a plugin sends without adding an operator command. An rpc that has
+neither declaration is published under no name, and the command contract gate
+refuses it.
 <!-- source: internal/component/config/yang/rpc_publish.go -- PublishedRPCs -->
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- select-routes, cancel-request -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- source-lease -->
 
 | Schema | Purpose | Location |
 |--------|---------|----------|

@@ -69,11 +69,11 @@ type txLock struct {
 	configTransactions  map[string]string
 	configOwner         *reloadAcceptance
 	pendingCompensation *reloadAcceptance
-	// insertionChangePending records that the declared filter insertions
-	// changed while a holder had the lock (deferInsertionChange). release
-	// announces it before it frees the lock, so the rebuild runs from the
-	// running tree the holder left and no other transaction interleaves.
-	insertionChangePending bool
+	// peerDeclarationChangePending coalesces metadata changes until release,
+	// before another transaction can replace the running config. Replacements
+	// are bounded by configured names and retain exact process identities.
+	peerDeclarationChangePending bool
+	peerDeclarationReplacements  map[string]peerDeclarationReplacement
 }
 
 // tryAcquire attempts to acquire the transaction lock. Returns false if already held.
@@ -136,23 +136,39 @@ func (l *txLock) inFlight() (context.CancelCauseFunc, <-chan struct{}) {
 	return l.cancel, l.done
 }
 
-// deferInsertionChange hands an insertion change to the current holder: it
-// answers true when a transaction holds the lock, which then announces the
-// change at release, and false when none does, so the caller may take the
-// lock itself (announceInsertionsChanged).
-func (l *txLock) deferInsertionChange() bool {
+// deferPeerDeclarationChange transfers reconciliation to the current holder.
+func (l *txLock) deferPeerDeclarationChange(s *Server, proc *process.Process) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if !l.locked {
 		return false
 	}
-	l.insertionChangePending = true
+	l.peerDeclarationChangePending = true
+	if proc != nil {
+		if l.peerDeclarationReplacements == nil {
+			l.peerDeclarationReplacements = make(map[string]peerDeclarationReplacement)
+		}
+		l.peerDeclarationReplacements[proc.Name()] = peerDeclarationReplacement{server: s, proc: proc}
+	}
 	return true
+}
+
+// refreshPeerDeclarationReplacement preserves the current lifetime when an
+// unchanged respawn follows a changed one before the transaction releases.
+func (l *txLock) refreshPeerDeclarationReplacement(s *Server, proc *process.Process) {
+	if proc == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if _, pending := l.peerDeclarationReplacements[proc.Name()]; pending {
+		l.peerDeclarationReplacements[proc.Name()] = peerDeclarationReplacement{server: s, proc: proc}
+	}
 }
 
 // release releases the transaction lock and wakes anyone waiting on done.
 //
-// A filter insertion change deferred to this holder is announced first, with
+// A peer declaration change deferred to this holder is announced first, with
 // the lock still held and l.mu not held: the listener rebuilds the BGP peers,
 // which takes the reactor's lock and publishes the delivery graph back into
 // this server, so holding l.mu across it would order l.mu before the
@@ -161,12 +177,34 @@ func (l *txLock) deferInsertionChange() bool {
 func (l *txLock) release() {
 	for {
 		l.mu.Lock()
-		if !l.insertionChangePending {
+		if !l.peerDeclarationChangePending {
+			l.peerDeclarationReplacements = nil
 			break
 		}
-		l.insertionChangePending = false
+		l.peerDeclarationChangePending = false
 		l.mu.Unlock()
-		notifyInsertionsChanged()
+		err := notifyPeerDeclarationsChanged()
+		l.mu.Lock()
+		replacements := make([]peerDeclarationReplacement, 0, len(l.peerDeclarationReplacements))
+		for _, replacement := range l.peerDeclarationReplacements {
+			replacements = append(replacements, replacement)
+		}
+		// Keep entries reachable while failed reconciliation reserves each name;
+		// an unchanged concurrent respawn refreshes the exact disposal target.
+		settled := err == nil && !l.peerDeclarationChangePending
+		if settled {
+			l.peerDeclarationReplacements = nil
+		}
+		l.mu.Unlock()
+		if err != nil {
+			for _, replacement := range replacements {
+				replacement.refuse(err)
+			}
+		} else if settled {
+			for _, replacement := range replacements {
+				replacement.admit()
+			}
+		}
 	}
 	defer l.mu.Unlock()
 	if l.done != nil {

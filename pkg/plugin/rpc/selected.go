@@ -166,23 +166,51 @@ func SelectRoutesFrameSize(input SelectRoutesInput) (int, error) {
 // the widest current revision, even when a stale request has a smaller one;
 // the request reserves the absolute deadline the SDK adds before sending.
 func SelectRoutesExchangeSize(input SelectRoutesInput) (int, error) {
+	request, response, err := SelectRoutesExchangeSizes(input)
+	if err != nil {
+		return 0, err
+	}
+	return max(request, response), nil
+}
+
+// SelectRoutesExchangeSizes measures both complete frames under the same
+// widest deadline, correlation identity and response rules as final admission.
+// An empty nonnil Routes slice supplies a batch producer's array-envelope base.
+func SelectRoutesExchangeSizes(input SelectRoutesInput) (int, int, error) {
 	input.DeadlineMS = math.MaxInt64
 	request, err := SelectRoutesFrameSize(input)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	output := SelectRoutesOutput{Results: make([]SelectedRouteResult, len(input.Routes))}
 	for i, route := range input.Routes {
-		output.Results[i] = SelectedRouteResult{Family: route.Family, KeyNLRI: route.KeyNLRI,
-			Revision: route.Revision, CurrentRevision: math.MaxUint64, Outcome: SelectedStaleRevision}
+		output.Results[i] = selectedRouteWidestResult(route)
 	}
 	encoded, err := json.Marshal(output)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	response := idPrefixMax + len("ok ") + len(encoded)
-	if response > request {
-		return response, nil
+	return request, response, nil
+}
+
+// SelectRoutesItemSizes measures one array member without its comma or frame.
+// Producers can cache immutable item sizes and add the exact empty envelope;
+// they MUST reserve the widest requested revision before caching a size that
+// will be reused for later revisions.
+func SelectRoutesItemSizes(route SelectedRoute) (int, int, error) {
+	request, err := json.Marshal(route)
+	if err != nil {
+		return 0, 0, err
 	}
-	return request, nil
+	response, err := json.Marshal(selectedRouteWidestResult(route))
+	if err != nil {
+		return 0, 0, err
+	}
+	return len(request), len(response), nil
+}
+
+func selectedRouteWidestResult(route SelectedRoute) SelectedRouteResult {
+	return SelectedRouteResult{Family: route.Family, KeyNLRI: route.KeyNLRI,
+		Revision: route.Revision, CurrentRevision: math.MaxUint64, Outcome: SelectedStaleRevision}
 }

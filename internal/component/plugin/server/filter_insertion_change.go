@@ -1,80 +1,130 @@
-// Design: docs/architecture/api/process-protocol.md -- Filter Insertion
-// Related: reload_tx.go -- restartPlugin, the respawn that can change a declaration
-// Related: startup_autoload.go -- stopCollectedProcesses, the stop that withdraws one
-// Related: reload.go -- txLock.release, where a deferred change is announced
-// Related: server.go -- thirdPartyFilterInsertions, the set config load reads
-
+// Design: docs/architecture/api/process-protocol.md -- runtime peer declarations.
+// Related: reload_tx.go -- exact replacement lifetime and restart ownership.
+// Related: reload.go -- transaction exclusion and deferred reconciliation.
 package server
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// declaredInsertions answers the filter insertions proc declared at Stage 1,
-// or nil for no process or no declaration.
-func declaredInsertions(proc *process.Process) []rpc.FilterInsertion {
+// peerDeclarations borrows immutable Stage 1 metadata from one Process.
+// It carries no configured authority; the listener resolves the actual graph.
+type peerDeclarations struct {
+	insertions    []rpc.FilterInsertion
+	claims        []string
+	dissemination []rpc.DisseminationDecl
+}
+
+func declaredPeerMetadata(proc *process.Process) peerDeclarations {
 	if proc == nil {
-		return nil
+		return peerDeclarations{}
 	}
 	reg := proc.Registration()
 	if reg == nil {
+		return peerDeclarations{}
+	}
+	return peerDeclarations{insertions: reg.FilterInsertions, claims: reg.Claims, dissemination: reg.Dissemination}
+}
+
+func (d peerDeclarations) empty() bool {
+	return len(d.insertions) == 0 && len(d.claims) == 0 && len(d.dissemination) == 0
+}
+
+// peerDeclarationReplacement owns refusal of an exact runtime lifetime. The
+// transaction keeps at most one current replacement per configured name.
+type peerDeclarationReplacement struct {
+	server *Server
+	proc   *process.Process
+}
+
+func (replacement peerDeclarationReplacement) refuse(err error) {
+	s, proc := replacement.server, replacement.proc
+	// A deferred transaction no longer owns the restart controller that created
+	// this process. Reserve the name before checking or releasing registrations.
+	controller, acquireErr := s.restartControllers.wait(s.Context(), proc.Name())
+	if acquireErr != nil {
+		return
+	}
+	defer controller.release()
+	// An unchanged successor may have refreshed this entry while the listener
+	// ran or while this callback waited for the preceding restart controller.
+	s.txLock.mu.Lock()
+	current, pending := s.txLock.peerDeclarationReplacements[proc.Name()]
+	s.txLock.mu.Unlock()
+	if !pending {
+		return
+	}
+	proc = current.proc
+	pm := s.procManager.Load()
+	if pm == nil || pm.GetProcess(proc.Name()) != proc {
+		return
+	}
+	s.rollbackReplacement(proc)
+	pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopRestartFailed, Detail: err.Error()})
+	s.txLock.mu.Lock()
+	if s.txLock.peerDeclarationReplacements[proc.Name()].proc == proc {
+		delete(s.txLock.peerDeclarationReplacements, proc.Name())
+	}
+	s.txLock.mu.Unlock()
+}
+
+// admit reserves the same per-name controller as a restart before releasing
+// its captured exact process. No transaction mutex is held while waiting.
+func (replacement peerDeclarationReplacement) admit() {
+	s, proc := replacement.server, replacement.proc
+	controller, err := s.restartControllers.wait(s.Context(), proc.Name())
+	if err != nil {
+		return
+	}
+	defer controller.release()
+	s.admitPeerDeclarationReplacement(proc)
+}
+
+// announcePeerDeclarationChange leaves identical declarations alone, while
+// refreshing an already-deferred refusal to the latest exact replacement.
+func (s *Server) announcePeerDeclarationChange(before, after peerDeclarations, replacement *process.Process) error {
+	if reflect.DeepEqual(before, after) {
+		s.txLock.refreshPeerDeclarationReplacement(s, replacement)
 		return nil
 	}
-	return reg.FilterInsertions
+	return s.announcePeerDeclarationsChanged(replacement)
 }
 
-// announceInsertionChange tells the subsystem that places filter insertions
-// that a running process's declaration changed across a respawn, so the
-// peers' lists follow it without a reload (spec-filter-wire-6-stage-filters,
-// re-insertion on a runtime declaration change). A respawn whose declaration
-// is unchanged says nothing, because a rebuild would then replace no peer.
-func (s *Server) announceInsertionChange(before, after []rpc.FilterInsertion) {
-	if reflect.DeepEqual(before, after) {
-		return
-	}
-	s.announceInsertionsChanged()
-}
-
-// announceInsertionsChanged runs the rebuild a change of the running
-// declared insertions owes, serialized with config transactions.
-//
-// A change during startup says nothing: the BGP plugin rebuilds the peers
-// once after Stage 1, before they start. Otherwise the rebuild MUST NOT
-// interleave with a transaction, because it re-parses the running tree and a
-// reload swapping that tree under it would have one apply undo the other. So
-// a change met while a transaction holds txLock (a broken plugin restarted
-// inside a reload, a plugin a reload stops) is deferred to that holder, which
-// announces it at release from the tree it leaves running; with no holder,
-// this takes the lock for the rebuild itself.
-//
-// Lock order: the caller holds no Server mutex and not txLock.mu. The
-// listener takes the reactor's lock and stores the delivery graph through
-// UpdateDeliveryGraph, which takes no Server mutex either.
-func (s *Server) announceInsertionsChanged() {
+// announcePeerDeclarationsChanged serializes the cold rebuild with reloads.
+// A change during a transaction is reconciled against the running tree that
+// transaction leaves. The listener takes reactor locks, so callers hold no
+// Server mutex, process-manager lock, peer lock or txLock.mu.
+func (s *Server) announcePeerDeclarationsChanged(replacement *process.Process) error {
 	if !s.startupComplete() {
-		return
+		return nil
 	}
 	for {
-		if s.txLock.deferInsertionChange() {
-			return
+		if s.txLock.deferPeerDeclarationChange(s, replacement) {
+			return nil
 		}
 		if s.txLock.tryAcquire() {
 			break
 		}
 	}
-	// release announces it: the change is recorded as the holder's own.
-	s.txLock.deferInsertionChange()
-	s.txLock.release()
+	defer s.txLock.release()
+	return notifyPeerDeclarationsChanged()
 }
 
-// notifyInsertionsChanged runs the installed listener, saying so when this
-// daemon holds none.
-func notifyInsertionsChanged() {
-	if !registry.NotifyFilterInsertionsChanged() {
-		logger().Info("filter insertions changed and no subsystem in this daemon places them, so nothing is rebuilt")
+func notifyPeerDeclarationsChanged() error {
+	installed, err := registry.NotifyPeerDeclarationsChanged()
+	if err != nil {
+		logger().Error("runtime peer declarations could not be reconciled; fix the cause and reload the configuration",
+			"error", err, "code", diagnostic.CodeConfigPluginVerify)
+		return fmt.Errorf("reconcile runtime peer declarations: %w", err)
 	}
+	if !installed {
+		logger().Info("peer declarations changed and no subsystem in this daemon places them, so nothing is rebuilt")
+	}
+	return nil
 }

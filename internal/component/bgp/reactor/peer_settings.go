@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
@@ -259,6 +260,10 @@ type BFDSettings struct {
 
 // PeerSettings contains configuration for a BGP peer.
 type PeerSettings struct {
+	// DisseminationOwner is the resolved configured output role. It is restart
+	// scoped: equal raw grants cannot preserve a session across an owner change.
+	DisseminationOwner pluginserver.DisseminationOwner
+
 	// Name is an optional human-readable peer name for CLI selector.
 	Name string
 

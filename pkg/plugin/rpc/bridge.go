@@ -1052,13 +1052,15 @@ type StructuredEvent struct {
 	LocalAddress   string // Local address string
 	// LocalPort and RemotePort are the established TCP socket endpoints.
 	// Zero means no established transport; callers MUST NOT infer a port.
-	LocalPort     uint16
-	RemotePort    uint16
-	EventType     EventKind        // EventKindUpdate, EventKindOpen, etc.
-	Direction     MessageDirection // DirectionSent / DirectionReceived
-	MessageID     uint64           // Unique message ID (0 for non-message events)
-	State         SessionState     // For state events: SessionStateUp, SessionStateDown
-	InitialReplay uint64           // Exact peer-up replay session receipt; zero when absent.
+	LocalPort           uint16
+	RemotePort          uint16
+	EventType           EventKind        // EventKindUpdate, EventKindOpen, etc.
+	Direction           MessageDirection // DirectionSent / DirectionReceived
+	MessageID           uint64           // Unique message ID (0 for non-message events)
+	State               SessionState     // For state events: SessionStateUp, SessionStateDown
+	InitialReplay       uint64           // Exact peer-up replay session receipt; zero when absent.
+	DestinationSession  uint64           // Captured connection identity on every state event.
+	SelectedDestination bool             // This recipient is the complete ordinary output owner.
 	// SessionGeneration is, for a down state event, the forward generation of
 	// the session the down ended. A forwarding plugin's departure for that
 	// down names it as recovery-generation meta, so the engine owes only
@@ -1067,6 +1069,7 @@ type StructuredEvent struct {
 	SourceID          uint32 // Registry identity for body-common forwarded source.
 	SourcePolicyEpoch uint64 // Original received policy admission, independent of session generation.
 	SourceReceipt     uint64 // Original engine-issued source session; zero is unrecorded.
+	PeerOwner         uint64 // Event Peer incarnation; sent original-source identity stays in RawMessage.
 	Reason            string // For state events: close reason
 	// FSMEvent is, for a down state event, the RFC 4271 Section 8.1 number
 	// of the FSM event that closed the session; zero means no relevant event,
@@ -1111,10 +1114,13 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.MessageID = 0
 	se.State = SessionStateUnspecified
 	se.InitialReplay = 0
+	se.DestinationSession = 0
+	se.SelectedDestination = false
 	se.SessionGeneration = 0
 	se.SourceID = 0
 	se.SourcePolicyEpoch = 0
 	se.SourceReceipt = 0
+	se.PeerOwner = 0
 	se.Reason = ""
 	se.FSMEvent = 0
 	se.RawMessage = nil

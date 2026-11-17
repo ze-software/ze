@@ -97,6 +97,10 @@ func nativeOwnerProcess(t *testing.T, s *Server) *process.Process {
 			t.Errorf("join native owner: %v", err)
 		}
 	})
+	if err := proc.InitConns(); err != nil {
+		t.Fatal(err)
+	}
+	proc.Conn().SetBridge(proc.Bridge())
 	s.wireBridgeDispatch(proc)
 	return proc
 }

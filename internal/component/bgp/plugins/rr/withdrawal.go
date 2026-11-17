@@ -372,7 +372,7 @@ func parseTextNLRIOps(text string) map[family.Family][]familyOperation {
 		tok := textparse.ResolveAlias(raw)
 
 		switch tok {
-		case textparse.KWSourcePolicyEpoch, textparse.KWSourceReceipt:
+		case textparse.KWSourcePolicyEpoch, textparse.KWSourceReceipt, textparse.KWPeerOwner:
 			s.Next() // Provenance was parsed before updating the inventory.
 		case textparse.KWNextHop:
 			s.Next() // consume the address

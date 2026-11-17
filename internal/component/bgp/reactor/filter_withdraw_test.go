@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -57,7 +56,7 @@ func TestWithdrawVerdictReactorRails(t *testing.T) {
 		}
 	})
 	t.Run("forwarded export", func(t *testing.T) {
-		res := r.runEgressPolicyChain(policy, addr.String(), 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received))
+		res := r.runEgressPolicyChain(policy, addr.String(), 65001, 65000, false, explicitExportTestSession(true), testWireUpdate(received))
 		if res.accept || res.failed || !res.withdraw {
 			t.Fatalf("export step = %+v, want a withdraw that is neither an accept nor a failure", res)
 		}

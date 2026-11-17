@@ -567,6 +567,7 @@ type forwardSourceInfo struct {
 	peer           *Peer
 	sender         plugin.Sender
 	recovery       *recoveryAdmission
+	selected       *selectedForwardStage
 	// initialUpdate is true when the forward carries part of the destination's
 	// initial routing update, a peer-up replay, so it passes the destination's
 	// replay fence (Peer.forwardOrderHold). Only the relay rail sets it, from
@@ -847,7 +848,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			withdrawn := false
 			for range a.r.orderedEgressSteps {
 				res := a.r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
-					policyview.ExportSession(destFilter, srcFilter, srcInfo.resolved).WithExportMetadata(update.Meta), sourceWire)
+					policyview.ExportSession(destFilter, srcFilter, srcInfo.resolved, srcInfo.exportKind()).WithExportMetadata(update.Meta), sourceWire)
 				if !res.accept {
 					suppressed = true
 					stepFailed = res.failed
@@ -1390,6 +1391,17 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 		a.r.recentUpdates.retainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { a.r.recentUpdates.Release(updateID) }
+			if srcInfo.selected != nil {
+				pending[i].item.authority = adjOutSelected
+				pending[i].item.selected = srcInfo.selected.write
+				pending[i].item.supersedeKey = 0
+				srcInfo.selected.items = append(srcInfo.selected.items, pending[i].item)
+				if !pending[i].cleanup {
+					dispatchedCount++
+					result.sentTo(pending[i].item.session)
+				}
+				continue
+			}
 			if srcInfo.recovery != nil {
 				srcInfo.recovery.items = append(srcInfo.recovery.items, pending[i].item)
 				if !pending[i].cleanup {

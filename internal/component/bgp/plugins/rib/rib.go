@@ -44,6 +44,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/redistevents"
@@ -145,8 +146,14 @@ type ribMetrics struct {
 	routesOutVec metrics.GaugeVec // per-peer
 
 	// Route churn counters
-	routeInserts     metrics.CounterVec // labels: peer, family
-	routeWithdrawals metrics.CounterVec // labels: peer, family
+	routeInserts         metrics.CounterVec // labels: peer, family
+	routeWithdrawals     metrics.CounterVec // labels: peer, family
+	selectedCurrent      metrics.Gauge
+	selectedDestinations metrics.Gauge
+	selectedPending      metrics.Gauge
+	selectedInFlight     metrics.Gauge
+	selectedFailures     metrics.Gauge
+	selectedBatches      metrics.CounterVec // labels: outcome
 
 	// Attribute pool metrics (polled from pool.AllPools())
 	poolInternTotal metrics.GaugeVec // labels: pool -- monotonic, use rate()
@@ -177,8 +184,14 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		routesInVec:  reg.GaugeVec("ze_rib_routes_in", "Adj-RIB-In route count per peer.", []string{metricLabelPeer}),
 		routesOutVec: reg.GaugeVec("ze_rib_routes_out", "Adj-RIB-Out route count per peer.", []string{metricLabelPeer}),
 
-		routeInserts:     reg.CounterVec("ze_rib_route_inserts_total", "Routes inserted into Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
-		routeWithdrawals: reg.CounterVec("ze_rib_route_withdrawals_total", "Routes withdrawn from Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
+		routeInserts:         reg.CounterVec("ze_rib_route_inserts_total", "Routes inserted into Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
+		routeWithdrawals:     reg.CounterVec("ze_rib_route_withdrawals_total", "Routes withdrawn from Adj-RIB-In.", []string{metricLabelPeer, metricLabelFamily}),
+		selectedCurrent:      reg.Gauge("ze_rib_selected_current_keys", "Current selected native route keys."),
+		selectedDestinations: reg.Gauge("ze_rib_selected_destinations", "Admitted selected-output destination Sessions."),
+		selectedPending:      reg.Gauge("ze_rib_selected_pending_keys", "Current selected-output reconciliation obligations across destinations."),
+		selectedInFlight:     reg.Gauge("ze_rib_selected_inflight_keys", "Selected keys in final-writer batches currently in flight."),
+		selectedFailures:     reg.Gauge("ze_rib_selected_failed_destinations", "Current destinations with unresolved selected-output failures."),
+		selectedBatches:      reg.CounterVec("ze_rib_selected_batches_total", "Selected final-writer batches by completed or failed outcome.", []string{"outcome"}),
 
 		poolInternTotal: reg.GaugeVec("ze_attr_pool_intern_total", "Total Intern() calls per pool.", []string{metricLabelPool}),
 		poolDedupHits:   reg.GaugeVec("ze_attr_pool_dedup_hits_total", "Intern() dedup hits per pool.", []string{metricLabelPool}),
@@ -262,13 +275,23 @@ type peerGRState struct {
 	RestartTime uint16      // peer's negotiated restart time in seconds
 	ExpiresAt   time.Time   // StaleAt + RestartTime
 	expiryTimer *time.Timer // safety-net timer — auto-purges stale if no command arrives
+	expiryOwned bool        // a scheduled callback owns one manager timer count
 }
 
 // RIBManager implements a BGP RIB plugin.
 // It tracks routes received from and sent to peers.
 type RIBManager struct {
+	// stopping closes intake, timer and background-reader admission under
+	// peerMu. SDK Run drains delivery before shutdown joins and releases them.
+	stopping         bool
+	shutdownOnce     sync.Once
+	backgroundCancel context.CancelFunc
+	backgroundWG     sync.WaitGroup
+	grTimers         sync.WaitGroup
 	// plugin is the SDK plugin handle for engine RPCs (update-route, subscribe-events).
-	plugin *sdk.Plugin
+	plugin           *sdk.Plugin
+	sourceLeases     *ribSourceLeases
+	selectedDispatch *selectedDispatch
 
 	// unstorableFamilies records each peer and family reportUnstorableFamily
 	// has warned about, so the warning is said once (rib_unstorable.go).
@@ -543,6 +566,8 @@ func (r *RIBManager) updateMetrics() {
 
 	r.peerMu.RUnlock()
 
+	r.updateSelectedMetrics(m)
+
 	// Best-path interner occupancy. Read outside r.peerMu via the interner's
 	// own per-table locks; the snapshot is point-in-time but stable because
 	// reverse tables are append-only (indices never shrink).
@@ -696,6 +721,16 @@ func runRIBPlugin(conn net.Conn) int {
 	registerBuiltinCommands()
 
 	r := newRIBManager(p)
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	selected, err := newSelectedDispatch(ctx, p.SelectRoutes, r.signalSelectedReady, r.reportSelectedDestinations)
+	if err != nil {
+		logger().Error("BGP selected output could not start", "error", err,
+			"code", diagnostic.CodeDoctorBGPSelectedOutput, "fix", "ze request restart")
+		return 1
+	}
+	r.selectedDispatch = selected
+	p.OnCurrentSelection(selected.currentSelection)
 	activeManager.Store(r)
 	defer activeManager.Store(nil)
 	ribevents.RegisterFlowSpecLookup(r.flowSpecEligible, r.flowSpecPresent, r.flowSpecPath, r.flowSpecRoutes)
@@ -805,20 +840,15 @@ func runRIBPlugin(conn net.Conn) int {
 				return fmt.Errorf("bgp-rib requires engine next-hop metrics: %w", err)
 			}
 		}
-		go runCompaction(ctx, pool.AllPools())
-		go r.runAIGPSelection(ctx)
-		if metricsPtr.Load() != nil {
-			go r.runMetricsLoop(ctx)
-		}
-		return nil
+		return r.startRIBWorkers(ctx)
 	})
 
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
+	r.sourceLeases = newRIBSourceLeases(r)
+	r.sourceLeases.start(ctx)
 	// Started before events flow; stopped after Run has drained delivery.
 	r.startRecoveryRemovals(ctx, r.sendRecoveryRemoval)
-	defer r.stopRecoveryRemovals()
-	err := p.Run(ctx, &sdk.Registration{
+	defer r.shutdownReceivedSources()
+	err = p.Run(ctx, &sdk.Registration{
 		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
 		// that changes it, for the config transaction (config_tx.go).
 		WantsConfig:   []string{configRootBGP},
@@ -1179,8 +1209,18 @@ func (r *RIBManager) handleReceived(event *Event) {
 		logger().Warn("received event: missing raw fields, requires format=full", "peer", event.GetPeerAddress())
 		return
 	}
+	source, err := r.sourceLeases.acquire(context.Background(), peerAddr, event.PeerOwner, event.SourceReceipt)
+	if err != nil {
+		r.sourceLeases.reportFailures(context.Background())
+		return
+	}
+	defer source.Release()
 
 	r.peerMu.Lock()
+	if r.stopping {
+		r.peerMu.Unlock()
+		return
+	}
 	defer func() {
 		r.peerMu.Unlock()
 		r.reconcileReceived(event)
@@ -1189,14 +1229,14 @@ func (r *RIBManager) handleReceived(event *Event) {
 	// Track peer metadata for best-path comparison (eBGP/iBGP detection).
 	r.updatePeerMetadata(event, peerAddr, peerAS)
 
-	r.handleReceivedPool(event, peerAddr)
+	r.handleReceivedPool(event, peerAddr, source)
 	r.noteReceivedLocked(peerAddr, event.GetMsgID())
 }
 
 // handleReceivedPool stores routes in pool storage.
 // Caller must hold write lock. PeerRIB caches the canonical address string
 // for metric labels and log lines (PeerRIB.PeerAddr).
-func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
+func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr, source *storage.SourceReference) {
 	if r.bgpPeers[peerAddr] == nil {
 		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
 		// and metric labels, which must match netip.Addr.String() everywhere.
@@ -1229,7 +1269,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 				logger().Warn("received event: invalid next hop", "family", fam.String(), "error", err)
 				continue
 			}
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), event.SourcePolicyEpoch, event.SourceReceipt, receivedStale)
+			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), event.SourcePolicyEpoch, event.SourceReceipt, receivedStale, source)
 		}
 	}
 }
@@ -1238,7 +1278,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 // log lines use PeerRIB's cached canonical address string (no per-call
 // conversion). receivedStale is the RFC 9494 Section 4.3 verdict written on
 // every stored route.
-func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID, sourcePolicyEpoch, sourceReceipt uint64, receivedStale bool) {
+func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID, sourcePolicyEpoch, sourceReceipt uint64, receivedStale bool, source *storage.SourceReference) {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
 		r.reportUnstorableFamily(peerRIB.PeerAddr(), fam)
@@ -1258,7 +1298,7 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 			prefixes := affected[:0]
 			// RFC 8277 Section 2.2: keep labels beside the normalized CIDR,
 			// exactly as on the structured receive path.
-			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, sourcePolicyEpoch, sourceReceipt, &prefixes)
+			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, sourcePolicyEpoch, sourceReceipt, &prefixes, source)
 			continue
 		}
 		peerRIB.Insert(fam, attrBytes, wirePrefix)
@@ -1266,6 +1306,7 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 			entry.MsgID = msgID
 			entry.SourcePolicyEpoch = sourcePolicyEpoch
 			entry.SourceReceipt = sourceReceipt
+			entry.SetSourceReference(source)
 			entry.ReceivedLLGRStale = receivedStale
 		})
 	}
@@ -1340,6 +1381,12 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 		return
 	}
 	state := se.State
+	if state == rpc.SessionStateDown {
+		if se.Reason != rpc.ReasonPeerRemoved {
+			r.retainSourceOnDown(peerAddr)
+		}
+	}
+	defer r.settleSourceLeases(peerAddr)
 
 	r.peerMu.Lock()
 	// seenBefore must be read BEFORE the assignment below, which creates the key:
@@ -1360,6 +1407,13 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	cameUp := false
 	var replayGroups []replayGroup
 	purgePeer := false
+	departed := !isUp
+	if !wasUp {
+		departed = se.Reason == rpc.ReasonPeerRemoved
+	}
+	if se.Reason == rpc.ReasonPeerRemoved {
+		delete(r.retainedPeers, peerAddr)
+	}
 
 	if isUp && !wasUp {
 		delete(r.retainedPeers, peerAddr)
@@ -1373,7 +1427,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 			cameUp = true
 			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 		}
-	} else if !isUp && wasUp {
+	} else if departed {
 		r.dropSourcePolicyLocked(peerAddr)
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
@@ -1392,6 +1446,9 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	r.peerMu.Unlock()
 
 	if purgePeer {
+		if se.Reason == rpc.ReasonPeerRemoved {
+			r.sourceLeases.forgetAdmission(peerAddr)
+		}
 		r.emitPurgedWithdraws(r.purgeBestPrevForPeer(peerAddr.String()))
 	}
 
@@ -1414,6 +1471,12 @@ func (r *RIBManager) handleState(event *Event) {
 		return
 	}
 	state := event.GetPeerState()
+	if state == "down" {
+		if event.Reason != rpc.ReasonPeerRemoved {
+			r.retainSourceOnDown(peerAddr)
+		}
+	}
+	defer r.settleSourceLeases(peerAddr)
 
 	r.peerMu.Lock()
 	// seenBefore must be read BEFORE the assignment below, which creates the key:
@@ -1429,6 +1492,13 @@ func (r *RIBManager) handleState(event *Event) {
 	cameUp := false
 	var replayGroups []replayGroup
 	purgePeer := false
+	departed := !isUp
+	if !wasUp {
+		departed = event.Reason == rpc.ReasonPeerRemoved
+	}
+	if event.Reason == rpc.ReasonPeerRemoved {
+		delete(r.retainedPeers, peerAddr)
+	}
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
@@ -1438,7 +1508,7 @@ func (r *RIBManager) handleState(event *Event) {
 			cameUp = true
 			replayGroups = r.collectPeerUpReplay(peerAddr, seenBefore)
 		}
-	} else if !isUp && wasUp {
+	} else if departed {
 		r.dropSourcePolicyLocked(peerAddr)
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerAddr] {
@@ -1457,6 +1527,9 @@ func (r *RIBManager) handleState(event *Event) {
 	r.peerMu.Unlock()
 
 	if purgePeer {
+		if event.Reason == rpc.ReasonPeerRemoved {
+			r.sourceLeases.forgetAdmission(peerAddr)
+		}
 		r.emitPurgedWithdraws(r.purgeBestPrevForPeer(peerAddr.String()))
 	}
 

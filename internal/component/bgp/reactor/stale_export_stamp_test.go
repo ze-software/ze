@@ -603,7 +603,7 @@ func TestForwardRailKeepsLLGRStale(t *testing.T) {
 	f, chain := staleKeepFixture(t, rpc.FilterUpdateOutput{Action: rpc.FilterAccept}, stripLLGRStale)
 	var raws [][]byte
 	addStaleOnCall(f, 2, &raws)
-	session := policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false)
+	session := policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 	run := func(body []byte) egressStepResult {
 		update := wireu.NewWireUpdate(body, chain.ctxID)
 		return f.a.r.runEgressPolicyChainASN4(chain.policy, "10.0.0.2", 65001, 65000, false, session, update, true)
@@ -626,7 +626,7 @@ func TestForwardRailKeepsLLGRStale(t *testing.T) {
 
 // runForwardChain runs chain over body as the export step of a forward rail does.
 func runForwardChain(f *staleChangeFixture, chain staleChain, body []byte) egressStepResult {
-	session := policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false)
+	session := policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit)
 	update := wireu.NewWireUpdate(body, chain.ctxID)
 	return f.a.r.runEgressPolicyChainASN4(chain.policy, "10.0.0.2", 65001, 65000, false, session, update, true)
 }
@@ -856,7 +856,7 @@ func TestDryRunShowsTheFinalPass(t *testing.T) {
 		t.Fatal(err)
 	}
 	dry := libraryDryRun{wireUpdate: update, payload: body, ctxID: chain.ctxID, direction: directionExport, peer: "10.0.0.2",
-		session: policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false),
+		session: policyview.ExportSession(filterapi.PeerFilterInfo{}, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit),
 		intent:  libraryIntentContext{asn4: true, localAS: 65000, peerAS: 65001, asPathEditable: true}}
 
 	library := chain.policy.Library()

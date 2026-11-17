@@ -656,13 +656,20 @@ func (c *Chain) RailEndsOnFinalJudge(caller ExternalCaller) bool {
 }
 
 // endFinal answers the final that decides a run reaching the end of the
-// chain: the configured one, or for an unconfigured policy the session's
-// (RFC 8212 Section 3, filterapi.UnconfiguredAccepts).
+// chain. An export without recorded kind cannot accept, including through a
+// configured final. An unconfigured chain reads this run's direction and kind
+// (RFC 8212 Section 3, policyview.Session.UnconfiguredAccepts).
 func (c *Chain) endFinal(view *policyview.View) policy.Final {
+	session := view.Session()
+	if session.IsExport() {
+		if !session.ExportKind().Known() {
+			return policy.FinalReject
+		}
+	}
 	if !c.unconfigured {
 		return c.final
 	}
-	if filterapi.UnconfiguredAccepts(view.Session().EBGP) {
+	if session.UnconfiguredAccepts() {
 		return policy.FinalAccept
 	}
 	return policy.FinalReject

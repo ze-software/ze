@@ -51,9 +51,10 @@ const (
 // Built at session lifecycle boundaries, read on every UPDATE iteration.
 // Stored via atomic.Pointer on Peer; nil means not established.
 type peerForwardFacts struct {
-	addr    netip.Addr
-	peerKey netip.AddrPort
-	addrStr string
+	dissemination *disseminationSnapshot
+	addr          netip.Addr
+	peerKey       netip.AddrPort
+	addrStr       string
 
 	localAS       uint32
 	globalLocalAS uint32
@@ -398,6 +399,7 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	// on Peer.Settings, peer.go).
 	p.mu.RLock()
 	var localScope *atomic.Pointer[receiveNextHopScope]
+	session := p.session
 	if p.session != nil {
 		localScope = &p.session.nextHopScope
 	}
@@ -423,9 +425,10 @@ func (p *Peer) buildForwardFacts() *peerForwardFacts {
 	extendedMsg := nc != nil && nc.ExtendedMessage
 
 	facts := &peerForwardFacts{
-		addr:    s.Address,
-		peerKey: s.PeerKey(),
-		addrStr: p.addrString,
+		dissemination: p.buildDisseminationSnapshot(session, bindings),
+		addr:          s.Address,
+		peerKey:       s.PeerKey(),
+		addrStr:       p.addrString,
 
 		localAS:       s.LocalAS,
 		globalLocalAS: s.GlobalLocalAS,

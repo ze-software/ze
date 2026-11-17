@@ -1364,13 +1364,14 @@ matching namespace and event-type.";
     }
 
     rpc cancel-request {
+        ze:method "ze-plugin-engine:cancel-request";
         description
             "Cancel one live opt-in request on this authenticated process connection.
              The reader enrolls requests before dispatching them, so cancellation cannot
              overtake admission. A settled answer follows the target handler and final writer.
              Not-active means no cancellable request with that identity remains; it is not
              a stored completion history. Unknown methods and self/future IDs are refused.";
-        ze:help "Cancel and join one admitted request";
+        ze:help "Cancel and join one admitted request.";
         input {
             leaf request-id {
                 type uint64 { range "1..max"; }
@@ -1399,6 +1400,7 @@ matching namespace and event-type.";
     }
 
     rpc select-routes {
+        ze:method "ze-plugin-engine:select-routes";
         description
             "Settle one bounded selected-output batch for a captured destination session.
              The engine authenticates the selecting process incarnation from the connection;
@@ -1407,7 +1409,7 @@ matching namespace and event-type.";
              Both the encoded request and its widest complete final receipt, including RPC
              envelopes, are bounded by rpc.MaxMessageSize before admission. Socket cancellation
              propagates through cancel-request and joins the admitted writer.";
-        ze:help "Settle selected routes at one destination writer";
+        ze:help "Settle selected routes at one destination writer.";
         input {
             leaf destination {
                 type zt:ip-address;

@@ -160,10 +160,10 @@ func TestLLGREgressVerdicts(t *testing.T) {
 	source := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), LLGRAdvertised: true}
 	silent := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	stale := func(dest filterapi.PeerFilterInfo, level uint8) policyview.Session {
-		return policyview.ExportSession(dest, source, true).WithExportMetadata(map[string]any{"stale": level})
+		return policyview.ExportSession(dest, source, true, filterapi.ExportExplicit).WithExportMetadata(map[string]any{"stale": level})
 	}
 	rebuilt := func(dest, src filterapi.PeerFilterInfo) policyview.Session {
-		return policyview.ExportSession(dest, src, true).WithExportMetadata(map[string]any{filterapi.MetaKeyRebuilt: true})
+		return policyview.ExportSession(dest, src, true, filterapi.ExportExplicit).WithExportMetadata(map[string]any{filterapi.MetaKeyRebuilt: true})
 	}
 	fields := func(dest filterapi.PeerFilterInfo, extra string) string {
 		return `{"peer-address":"` + dest.Address.String() + `","peer-as":` + strconv.FormatUint(uint64(dest.PeerAS), 10) +
@@ -183,7 +183,7 @@ func TestLLGREgressVerdicts(t *testing.T) {
 			fields(llgrDest, `,"stale":2`), rpc.FilterAccept, nil},
 		{"GR-stale level 1", llgrEgressFilterName, plain, stale(ebgp, 1),
 			fields(ebgp, `,"stale":1`), rpc.FilterAccept, nil},
-		{"fresh live route", llgrEgressFilterName, marked, policyview.ExportSession(ebgp, source, true),
+		{"fresh live route", llgrEgressFilterName, marked, policyview.ExportSession(ebgp, source, true, filterapi.ExportExplicit),
 			fields(ebgp, ""), rpc.FilterAccept, nil},
 		{"rebuilt LLGR_STALE from an LLGR source", llgrEgressFilterName, marked, rebuilt(ebgp, source),
 			fields(ebgp, `,"source-llgr-advertised":true`), rpc.FilterWithdraw, nil},
@@ -254,7 +254,7 @@ func TestLLGREgressKeepsLLGRStale(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			session := policyview.ExportSession(tc.dest, tc.src, true)
+			session := policyview.ExportSession(tc.dest, tc.src, true, filterapi.ExportExplicit)
 			switch {
 			case tc.rebuilt:
 				session = session.WithExportMetadata(map[string]any{filterapi.MetaKeyRebuilt: true})

@@ -31,6 +31,7 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	buf = strconv.AppendUint(buf, msgID, 10)
 	buf = appendSourcePolicyEpochText(buf, sourcePolicyEpoch)
 	buf = appendSourceReceiptText(buf, sourceReceipt)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 
 	announced := result.AnnouncedByFamily(ctx)
 	withdrawn := result.WithdrawnByFamily(ctx)
@@ -271,6 +272,7 @@ func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, " state "...)
 	buf = state.AppendTo(buf)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	if reason != "" {
 		buf = append(buf, " reason "...)
 		buf = append(buf, reason...)
@@ -279,6 +281,13 @@ func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 	if peer.InitialReplay != 0 {
 		buf = append(buf, " initial-replay "...)
 		buf = strconv.AppendUint(buf, peer.InitialReplay, 10)
+	}
+	if peer.DestinationSession != 0 {
+		buf = append(buf, " destination-session "...)
+		buf = strconv.AppendUint(buf, peer.DestinationSession, 10)
+	}
+	if peer.SelectedDestination {
+		buf = append(buf, " selected-destination true"...)
 	}
 	if peer.SessionGeneration != 0 {
 		buf = append(buf, " session-generation "...)

@@ -72,13 +72,14 @@ func (s *pathSet) upsert(pathID uint32, entry RouteEntry) (RouteEntry, bool) {
 // refresh marks the route of pathID fresh with its original received identity,
 // keeping its route data and label binding for this re-announcement.
 // Every caller looked the path up first, so an absent pathID is not reported.
-func (s *pathSet) refresh(pathID uint32, messageID, sourcePolicyEpoch, sourceReceipt uint64) {
+func (s *pathSet) refresh(pathID uint32, messageID, sourcePolicyEpoch, sourceReceipt uint64, source *SourceReference) {
 	for i := range s.entries {
 		if s.entries[i].pathID == pathID {
 			s.entries[i].entry.StaleLevel = StaleLevelFresh
 			s.entries[i].entry.MsgID = messageID
 			s.entries[i].entry.SourcePolicyEpoch = sourcePolicyEpoch
 			s.entries[i].entry.SourceReceipt = sourceReceipt
+			s.entries[i].entry.SetSourceReference(source)
 			return
 		}
 	}

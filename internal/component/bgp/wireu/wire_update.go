@@ -43,6 +43,7 @@ type WireUpdate struct {
 	messageID     uint64          // Unique ID set by reactor after creation
 	sourceID      source.SourceID // Source that sent/created this message
 	sourceReceipt uint64          // Original received Session identity; zero is explicitly unrecorded.
+	sourceOwner   uint64          // Original engine Peer incarnation, independent of the Session.
 	sentOrigin    *SentOrigin     // Borrowed only during the reactor's sent callback
 
 	sectionOnce sync.Once
@@ -261,6 +262,7 @@ func (u *WireUpdate) Snapshot() *WireUpdate {
 	s.messageID = u.messageID
 	s.sourceID = u.sourceID
 	s.sourceReceipt = u.sourceReceipt
+	s.sourceOwner = u.sourceOwner
 
 	srcAttrs, srcErr := u.Attrs()
 	s.attrsOnce.Do(func() {
@@ -322,6 +324,13 @@ func (u *WireUpdate) SourceReceipt() uint64 { return u.sourceReceipt }
 // SetSourceReceipt binds the issuing Session before receive publication. A
 // reconstructed legacy message MUST keep zero rather than borrow a current session.
 func (u *WireUpdate) SetSourceReceipt(id uint64) { u.sourceReceipt = id }
+
+// SourceOwner is the original engine Peer incarnation, never a forwarding grant.
+func (u *WireUpdate) SourceOwner() uint64 { return u.sourceOwner }
+
+// SetSourceOwner binds the original Peer before receive publication. Callers
+// rebuilding the same message MUST preserve it, never look up a replacement.
+func (u *WireUpdate) SetSourceOwner(owner uint64) { u.sourceOwner = owner }
 
 // SentPathSource preserves ingress ADD-PATH identity lost by final encoding.
 // Ordinal is cumulative within a family's emitted announcements, legacy first

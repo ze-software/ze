@@ -15,7 +15,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
-	"github.com/ze-software/ze/internal/component/bgp/redistribute"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -60,48 +59,35 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 // at all: until 2026-08-13 no import-policy assignment was reachable from the
 // dynamic path, so no prefix, AS-path, community or IRR filter ever ran for them.
 func peersAndDynamicGroups(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
-	// Register BGP redistribute sources (bgp, ibgp, ebgp) for config validation.
-	redistribute.RegisterBGPSources()
-
-	// Step 0: Prune inactive containers and list entries.
-	// Inactive nodes are treated as if they were not in the config.
-	schema, err := config.YANGSchema()
-	if err != nil {
-		return nil, nil, fmt.Errorf("load schema for inactive pruning: %w", err)
-	}
-	config.PruneInactive(tree, schema)
-	if err := validateFilterPolicies(tree); err != nil {
-		return nil, nil, err
-	}
-
-	// Step 1: Resolve templates at the map level.
-	bgpTree, err := ResolveBGPTree(tree)
+	peers, groups, err := peerPopulationsFromTree(tree)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// Step 1a: Validate required fields after inheritance resolution.
-	if err := CheckRequiredFields(schema, bgpTree); err != nil {
+	settings := append([]*reactor.PeerSettings(nil), peers...)
+	for _, group := range groups {
+		settings = append(settings, group.Settings)
+	}
+	if err := validateDissemination(tree, settings); err != nil {
 		return nil, nil, err
 	}
+	return peers, groups, nil
+}
 
-	// Step 1b: Apply YANG schema defaults to each peer map and to each dynamic
-	// group template. This makes YANG the single source of truth for RFC defaults
-	// (hold-time, connect-retry, port, etc.) instead of Go constants.
-	applyPeerSchemaDefaults(bgpTree)
-
-	// Step 2: Parse basic peer settings from the resolved map. A dynamic group's
-	// template is parsed by the same parser (reactor.ParseDynamicGroupTemplate)
-	// and joins `settings` below, so every layer after this point reaches both
-	// populations.
-	peers, err := reactor.PeersFromTree(bgpTree)
+// peerPopulationsFromTree runs the shared full peer walk. Runtime callers
+// resolve ownership against authenticated declarations after this pure build;
+// offline callers use peersAndDynamicGroups to check compiled declarations.
+func peerPopulationsFromTree(tree *config.Tree) ([]*reactor.PeerSettings, []*reactor.DynamicGroupConfig, error) {
+	// A daemon may configure another subsystem alone. Absence is an empty BGP
+	// population, not permission to invent a bgp block in its running tree.
+	if tree.GetContainer("bgp") == nil {
+		return nil, nil, nil
+	}
+	parsed, err := peerSettingsFromTree(tree)
 	if err != nil {
 		return nil, nil, err
 	}
-	groups, err := dynamicGroupsFromTree(bgpTree)
-	if err != nil {
-		return nil, nil, err
-	}
+	peers, groups := parsed.peers, parsed.groups
+	schema, bgpTree := parsed.schema, parsed.resolved
 
 	settings := make([]*reactor.PeerSettings, 0, len(peers)+len(groups))
 	settings = append(settings, peers...)

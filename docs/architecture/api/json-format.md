@@ -123,10 +123,17 @@ Subscribers without the opt-in keep the bare document or text line.
 | bgp.message.direction | string | "received" or "sent" (omitted if empty) |
 | bgp.source-policy-epoch | uint64 | Original received source-policy admission on UPDATE events; omitted when unrecorded or locally originated. Independent of message ID, dispatch session generation and source-DOWN revocation |
 | bgp.source-receipt | uint64 | Original engine-issued source session identity on UPDATE events; omitted when unrecorded or locally originated. Retained replay preserves this value rather than looking up the current peer session |
+| bgp.peer-owner | uint64 | Engine-owned Peer incarnation for this event, including state and refresh. Reconnect keeps it; removal and recreation changes it. Zero is explicitly unrecorded and grants no source authority |
 | bgp.peer.remote.address | string | Peer IP address |
 | bgp.peer.remote.as | int | Peer AS number. Omitted while a dynamic peer's AS is not yet negotiated: the OPEN Ze sends it, a NOTIFICATION sent in OpenSent, and the `connected` and `fsm` events before OpenConfirm carry none. AS 0 is never written, because no peer can hold it (RFC 7607 Section 2) |
 | bgp.peer.remote.router-id | string | The PEER's BGP Identifier, dotted quad. Omitted before the peer's OPEN is read |
 | bgp.peer.router-id | string | THIS speaker's BGP Identifier for the session, dotted quad. Omitted when the peer sets none |
+
+The append formatter and the registered JSON encoder preserve the same
+`bgp.peer-owner` member. Bare events omit an unrecorded zero; an enveloped
+UPDATE still carries its mandatory, explicit `peer-owner` in the receipt.
+<!-- source: internal/component/bgp/format/text.go -- appendPeerJSON -->
+<!-- source: internal/component/bgp/format/json.go -- JSONEncoder.message -->
 
 The two `router-id` keys name two different speakers, and a consumer that
 compares BGP Identifiers MUST read `remote.router-id`. RFC 4271 Section 9.1.2.2

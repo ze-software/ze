@@ -811,6 +811,9 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	reg.Name = proc.Config().Name
 	joinConfigReads(reg, registryConfigReads(proc.Config()))
 	proc.SetRegistration(reg)
+	if err := s.validateDisseminationForProcess(proc); err != nil {
+		return fmt.Errorf("dissemination grants: %w", err)
+	}
 	proc.SetCacheConsumer(input.CacheConsumer)
 	if input.CacheConsumer && s.reactor != nil {
 		s.reactor.RegisterCacheConsumer(proc.Name(), input.CacheConsumerUnordered)

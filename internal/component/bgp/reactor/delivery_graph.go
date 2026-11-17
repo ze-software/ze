@@ -10,6 +10,8 @@
 package reactor
 
 import (
+	"strconv"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
@@ -46,6 +48,22 @@ func deliveryPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPee
 			Name:     s.Name,
 			Bindings: bindings,
 		})
+	}
+	return out
+}
+
+// DisseminationPeersFromSettings preserves exact configured peer identity for
+// role resolution: peers sharing an IP but using different ports stay distinct.
+// It returns a new graph input; callers MUST not mutate its borrowed bindings.
+func DisseminationPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPeer {
+	out := deliveryPeersFromSettings(peers)
+	for i, peer := range peers {
+		out[i].Addr = peer.PeerKey().String()
+		if !peer.Address.IsValid() {
+			// A template has no connection yet. Preserve each original node
+			// so two groups cannot complete each other's required grants.
+			out[i].Addr = "dynamic-template:" + strconv.Itoa(i)
+		}
 	}
 	return out
 }

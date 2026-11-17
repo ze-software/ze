@@ -95,8 +95,7 @@ func TestSelectedSocketCancellationJoinsWriter(t *testing.T) {
 		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("caller cancellation lost: %v", err)
 		}
-		var unsettled *rpc.CancellationUnsettledError
-		if errors.As(err, &unsettled) {
+		if _, unsettled := errors.AsType[*rpc.CancellationUnsettledError](err); unsettled {
 			t.Fatalf("writer joined but cancellation was not acknowledged: %v", err)
 		}
 	case <-work.Done():
@@ -169,7 +168,11 @@ func TestRuntimeCancellationBeforeDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.(*rpc.CancelRequestOutput).Outcome != rpc.CancelRequestNotActive {
+	output, ok := result.(*rpc.CancelRequestOutput)
+	if !ok {
+		t.Fatalf("cancel-request returned %T, want *rpc.CancelRequestOutput", result)
+	}
+	if output.Outcome != rpc.CancelRequestNotActive {
 		t.Fatal("finished request lost its explicit not-active answer")
 	}
 	for _, raw := range []string{`{"request-id":0}`, `{"request-id":3}`, `{"request-id":4}`,
@@ -243,7 +246,14 @@ func testRuntimeRequests(ctx context.Context, allowed func(netip.Addr) bool) *ru
 // Method: admit 10 then 9 at different resources, but refuse an active ID reuse.
 func TestRuntimeCancellationConcurrentIDsKeepAllocationOrderIndependent(t *testing.T) {
 	requests := testRuntimeRequests(t.Context(), func(netip.Addr) bool { return true })
-	defer func() { requests.stop(); requests.cancelAll() }()
+	completions := make([]func(), 0, 2)
+	defer func() {
+		for i := len(completions) - 1; i >= 0; i-- {
+			completions[i]()
+		}
+		requests.stop()
+		requests.cancelAll()
+	}()
 	for i, id := range []uint64{10, 9} {
 		input := selectedServerInput()
 		if i == 1 {
@@ -258,7 +268,7 @@ func TestRuntimeCancellationConcurrentIDsKeepAllocationOrderIndependent(t *testi
 		if err != nil {
 			t.Fatalf("valid concurrent request ID %d refused: %v", id, err)
 		}
-		defer admission.finish()
+		completions = append(completions, admission.finish)
 	}
 	input := selectedServerInput()
 	input.Destination = "192.0.2.9"
@@ -316,8 +326,7 @@ func TestSelectedSocketDisconnectCancelsBeforeDispatchJoin(t *testing.T) {
 	}
 	select {
 	case err := <-finished:
-		var unsettled *rpc.CancellationUnsettledError
-		if !errors.As(err, &unsettled) {
+		if _, unsettled := errors.AsType[*rpc.CancellationUnsettledError](err); !unsettled {
 			t.Fatalf("disconnect claimed a remote receipt: %v", err)
 		}
 	case <-work.Done():

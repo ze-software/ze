@@ -12,7 +12,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -291,7 +290,7 @@ func TestAtomicRetirementExpectedReceipt(t *testing.T) {
 	require.True(t, present)
 	result := f.r.runEgressPolicyChainASN4(f.destination.settings.ExportPolicy, f.destination.addrString,
 		f.destination.PeerAS(), f.destination.settings.LocalAS, false,
-		policyview.Session{EBGP: true}, received.WireUpdate, true)
+		explicitExportTestSession(true), received.WireUpdate, true)
 	require.True(t, result.accept)
 	require.NotNil(t, result.wireOverride)
 	item := fwdItem{peer: f.destination, session: f.destination.session, rawBodies: [][]byte{result.wireOverride.Payload()},

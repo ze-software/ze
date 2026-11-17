@@ -533,7 +533,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		change := bestChangeEntry{Action: routeaction.Add, NLRI: []byte(rule.nlri), Metric: flow.candidate.MED,
 			Priority: priority, ProtocolType: protoType, AIGP: flow.candidate.AIGP, AIGPPresent: flow.candidate.HasAIGP}
 		next.best[rule] = &flowSpecWinner{key: flow.key, communities: communities, ipv6Communities: ipv6Communities, change: change}
-		r.commitAdvertise(r.prepareFlowSpecAdvertise(flow))
+		r.commitAdvertise(r.prepareFlowSpecAdvertise(flow, next.paths[flow.key].redirectRefused))
 	}
 	if previous != nil {
 		for rule := range previous.best {

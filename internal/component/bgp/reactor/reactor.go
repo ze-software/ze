@@ -1919,6 +1919,9 @@ func (r *Reactor) stop(notify bool) {
 	}
 
 	cancel()
+	// Keep the existing Cease and cancellation ordering, then join revoked
+	// source guards before this stop can be reported as completed.
+	completeSourceLeaseRemoval(peers...)
 }
 
 // notifyPeersShutdown sends Cease / Administrative Shutdown to every peer that

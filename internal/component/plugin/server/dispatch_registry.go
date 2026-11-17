@@ -157,7 +157,7 @@ var engineOps = []engineOp{
 		// unnamed would gate the forked plugin and let an in-process one through.
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetRelayStoredRoute(func(_ context.Context, destination string, routes []rpc.StoredRoute) error {
-				return s.relayStoredRoute(procSender(proc), destination, routes)
+				return s.relayStoredRouteForProcess(proc, destination, routes)
 			})
 		},
 	},
@@ -188,8 +188,11 @@ var engineOps = []engineOp{
 	{
 		method: rpc.MethodInjectWireRoute,
 		handle: (*Server).opInjectWireRoute,
-		typedWire: func(_ *Server, _ *process.Process, b *rpc.DirectBridge) {
+		typedWire: func(_ *Server, proc *process.Process, b *rpc.DirectBridge) {
 			b.SetInjectWireRoute(func(protocol, peerKey string, updateBody []byte) error {
+				if err := proc.RequirePeerDeclarations(); err != nil {
+					return err
+				}
 				fn := rpc.GetRouteInjector()
 				if fn == nil {
 					return errors.New("inject-wire-route: no route injector registered")
@@ -405,6 +408,9 @@ func rpcErrMessage(err error) string {
 // opUpdateRoute is the shared handler for update-route (JSON + Direct). It
 // dispatches the peer-scoped command string through the standard dispatcher.
 func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return nil, err
+	}
 	var tb textbuf.Buffer
 	var input rpc.UpdateRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
@@ -505,7 +511,10 @@ func (s *Server) opEmitEvent(ctx context.Context, proc *process.Process, params 
 // opInjectWireRoute is the JSON-codec fallback for inject-wire-route (AC-6): a
 // forked/external plugin with no typed slot reaches the process-wide route
 // injector over the socket instead of erroring "bridge not available".
-func (s *Server) opInjectWireRoute(ctx context.Context, _ *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opInjectWireRoute(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return nil, err
+	}
 	var input rpc.InjectWireRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer

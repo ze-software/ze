@@ -43,7 +43,7 @@ and `RegisterBuiltinFamilies`, `AddRPCHandlers`, `RegisterSessionFact`,
 panic with a `BUG:` message naming the function. A refused call writes
 nothing. The setters the daemon calls while it starts (`SetEventBus`,
 `SetPluginServer`, `SetMetricsRegistry`, `InjectPluginMetrics`, the
-`SetRuntime*` seams, `SetFilterInsertionsChanged`, `SetNTPSyncProvider`,
+`SetRuntime*` seams, `SetPeerDeclarationsChanged`, `SetNTPSyncProvider`,
 `RunBootEffects`) are runtime seams and stay callable; each says so in its
 doc comment, and `TestEveryRegistryWriterIsGuardedOrASeam` derives both sets
 from the package source and refuses an exported writer that is neither.
@@ -602,6 +602,23 @@ is owned by its plugin's `types.go`.
 
 ## Startup phases and callbacks
 
+A Process has one startup attempt and one cleanup lifetime. `StartWithContext`
+refuses a second attempt on that same object, including after a failed start
+or a completed stop. ProcessManager restart and respawn create a new Process.
+The selected-output owner token is captured once on the live Process;
+generation cleanup reads the same token after its lifetime ends, so it cannot
+revoke a same-name successor's resources.
+<!-- source: internal/component/plugin/process/process.go -- StartWithContext -->
+<!-- source: internal/component/plugin/process/selected_owner.go -- SelectedOwner, SelectedOwnerForCleanup -->
+
+Stage 1 publishes each fully initialized registration record atomically. A
+startup worker can inspect another process's declaration while that process
+registers, without waiting for the whole dependency tier. Readers receive the
+borrowed record and must not mutate it while another goroutine may read it;
+publication does not clone the record. A new Process starts with an empty
+record, and an explicit nil publication clears it.
+<!-- source: internal/component/plugin/process/process.go -- NewProcess, Registration, SetRegistration -->
+
 Stages 1 to 5 of the handshake run per phase. The engine loads plugins across up
 to five phases in series: config-path auto-load, explicit, family, event-type,
 send-type. A plugin's `OnStarted` fires after its ready acknowledgment within
@@ -697,14 +714,26 @@ needs destination state, refresh and sent UPDATEs; RS needs state, received
 OPEN and refresh; RR needs state and received OPEN. All three require update
 send permission and received UPDATEs plus state on a source of that same
 configured process. Destination OPEN is what RS/RR use to capture replay
-families. These are declarations and ownership queries; the ordinary writer
-and config-verification integration remain separate consumers.
+families. Config-verification and the final selected writer consume these
+declarations separately. State delivery identifies the complete ordinary
+destination owner for each recipient and captures the exact connection token;
+observing state does not add output permission.
 
 Static registration checks declaration shape before storing it. Namespace
 and event resolution follow component initialization, at Stage 1 and owner
 resolution, so Go's sibling initialization order cannot decide validity. A
 runtime declaration, including an empty Claims list, is authoritative; it
 never inherits a compiled claim that the process did not declare.
+
+A replacement's Stage-5 bridge does not authorize it to use the previous
+process's resolved peer roles. Its own output admission stays held until the
+runtime declaration rebuild succeeds, including when a config transaction
+defers that rebuild. Both JSON and typed calls use the same process gate;
+setup state operations still answer. Post-startup is delivered to the exact
+admitted replacement, once. An unchanged successor to a pending replacement
+waits for that same reconciliation rather than inheriting the old authority.
+<!-- source: internal/component/plugin/process/peer_declarations.go -- RequirePeerDeclarations -->
+<!-- source: internal/component/plugin/server/reload.go -- release -->
 
 <!-- source: internal/component/bgp/plugins/rs/register.go -- Claims -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- ClaimActive -->

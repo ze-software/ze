@@ -506,10 +506,10 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 	if err != nil {
 		return fmt.Errorf("config reload: order plugin removal: %w", err)
 	}
-	// A stopped plugin's filter insertions leave the peers. The stop runs
+	// A stopped plugin's insertions and peer-output roles leave the peers. The stop runs
 	// after the reload re-parsed the peers with the plugin still loaded, so
 	// its members are still on them, and only a rebuild once it is gone
-	// removes them (announceInsertionsChanged, deferred to this reload).
+	// removes them (announcePeerDeclarationsChanged, deferred to this reload).
 	withdrawn := false
 	for _, tier := range slices.Backward(tiers) {
 		for _, name := range tier {
@@ -518,7 +518,7 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 				continue
 			}
 			logger().Info("config reload: stopping plugin", "plugin", name)
-			declared := len(declaredInsertions(proc)) > 0
+			declared := !declaredPeerMetadata(proc).empty()
 			if err := s.rollbackStartupProcess(proc); err != nil {
 				return fmt.Errorf("config reload: remove plugin %q: %w", name, err)
 			}
@@ -526,7 +526,9 @@ func (s *Server) stopCollectedProcesses(stopped map[string]bool) error {
 		}
 	}
 	if withdrawn {
-		s.announceInsertionsChanged()
+		if err := s.announcePeerDeclarationsChanged(nil); err != nil {
+			return err
+		}
 	}
 	return nil
 }

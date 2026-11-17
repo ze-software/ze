@@ -153,6 +153,7 @@ func policyStopReplayStore(t *testing.T, server *pluginserver.Server, destinatio
 // when one reload removes both an accepting policy and a configured route.
 func TestPolicyFinalAcceptRemovalWithdrawsRemovedStatic(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	// The withdrawal selects its target by address from the reactor's peers
 	// (WithdrawNLRIBatch), so the peer is registered there as AddPeer would.
 	peer.reactor = &Reactor{clock: clock.RealClock{},
@@ -232,7 +233,7 @@ func TestPolicyFinalPausedWriterCannotEscapeReject(t *testing.T) {
 	var once sync.Once
 	var unblock sync.Once
 	defer unblock.Do(func() { close(release) })
-	session.egressFinalAccepts = func() bool {
+	session.egressFinalAccepts = func(filterapi.ExportKind) bool {
 		accept := destination.ExportPolicy().AcceptsAtEnd(destination.IsEBGP())
 		once.Do(func() {
 			close(entered)

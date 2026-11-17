@@ -365,6 +365,7 @@ func recoveryPackJoins(section, item *fwdItem, lead, parts *bucketBodyParts) boo
 		section.receivedGeneration == item.receivedGeneration &&
 		section.sourcePolicyEpoch == item.sourcePolicyEpoch &&
 		section.sourceReceipt == item.sourceReceipt &&
+		section.selected == item.selected &&
 		section.exportGeneration == item.exportGeneration &&
 		section.sourceMessageID == item.sourceMessageID &&
 		section.sourcePeerStr == item.sourcePeerStr &&

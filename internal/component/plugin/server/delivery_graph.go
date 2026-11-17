@@ -4,6 +4,7 @@
 package server
 
 import (
+	"maps"
 	"slices"
 	"strings"
 
@@ -73,8 +74,12 @@ type deliveryKey struct {
 // beside them: the config is one producer, the runtime `subscribe` command is
 // the other, and the index is the one lookup the delivery path reads.
 type DeliveryGraph struct {
-	peers map[string]*peerDelivery
-	order []string // peer addresses, sorted, for inspection
+	// disseminationPeers retains exact peer nodes for cold role resolution.
+	// The delivery address index may merge siblings at different TCP ports;
+	// complete source authority must still inspect each original node.
+	disseminationPeers []DeliveryPeer
+	peers              map[string]*peerDelivery
+	order              []string // peer addresses, sorted, for inspection
 	// namespace is the event namespace every token in this index was resolved
 	// against, kept so a reader of the index (the reconciliation report) needs
 	// no second copy of it.
@@ -112,10 +117,11 @@ var emptyDeliveryGraph = newDeliveryGraph("", nil)
 func newDeliveryGraph(namespace string, peers []DeliveryPeer) *DeliveryGraph {
 	nsID := events.LookupNamespaceID(namespace)
 	g := &DeliveryGraph{
-		peers:     make(map[string]*peerDelivery, len(peers)),
-		order:     make([]string, 0, len(peers)),
-		namespace: namespace,
-		ns:        nsID,
+		disseminationPeers: cloneDeliveryPeers(peers),
+		peers:              make(map[string]*peerDelivery, len(peers)),
+		order:              make([]string, 0, len(peers)),
+		namespace:          namespace,
+		ns:                 nsID,
 	}
 	// The wildcard names every type the registry holds NOW, which is the same
 	// expansion the ready RPC makes for a plugin that declares "*"
@@ -146,6 +152,20 @@ func newDeliveryGraph(namespace string, peers []DeliveryPeer) *DeliveryGraph {
 	}
 	slices.Sort(g.order)
 	return g
+}
+
+func cloneDeliveryPeers(peers []DeliveryPeer) []DeliveryPeer {
+	copy := slices.Clone(peers)
+	for i := range copy {
+		copy[i].Bindings = slices.Clone(copy[i].Bindings)
+		for j := range copy[i].Bindings {
+			binding := &copy[i].Bindings[j]
+			binding.Receive = maps.Clone(binding.Receive)
+			binding.Send = maps.Clone(binding.Send)
+			binding.Implicit = maps.Clone(binding.Implicit)
+		}
+	}
+	return copy
 }
 
 // addBinding indexes one `attach process` block and returns the half of it the

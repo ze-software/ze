@@ -8,7 +8,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -37,7 +36,7 @@ func TestPolicyFinalNilAPIRails(t *testing.T) {
 			if in.accept != want {
 				t.Fatalf("ingress final=%v accept=%v", final, in.accept)
 			}
-			out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
+			out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, explicitExportTestSession(true), testWireUpdate(body))
 			if out.accept != want || out.failed {
 				t.Fatalf("forward final=%v result=%+v", final, out)
 			}
@@ -143,6 +142,7 @@ func TestPolicyFinalReloadRetainedRoutes(t *testing.T) {
 // too (RFC 8212 Section 3), from a denied state and from an advertised one.
 func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
 	peer.settings.LocalAddress = netip.MustParseAddr("10.9.9.9")
 	peer.settings.StaticRoutes = []StaticRoute{staticRouteAt("10.17.1.0/24", "10.9.9.9")}
 	peer.settings.DefaultOriginate = map[string]bool{"ipv4/unicast": true}
@@ -151,7 +151,9 @@ func TestPolicyFinalReloadStaticRoutes(t *testing.T) {
 		peers: map[netip.AddrPort]*Peer{peer.Settings().PeerKey(): peer}}
 	session := peer.currentSession()
 	session.adjOut = &peer.adjOut
-	session.egressFinalAccepts = func() bool { return peer.ExportPolicy().AcceptsAtEnd(peer.IsEBGP()) }
+	session.egressFinalAccepts = func(kind filterapi.ExportKind) bool {
+		return peer.ExportPolicy().AcceptsExportAtEnd(peer.IsEBGP(), kind)
+	}
 	peer.runInitialSyncNow()
 	assertHeld := func(want bool) {
 		t.Helper()
@@ -221,7 +223,7 @@ func TestPolicyFinalOnlyDecisionDoesNotAllocate(t *testing.T) {
 	r := &Reactor{}
 	allocations := testing.AllocsPerRun(100, func() {
 		in := r.runIngressPolicyChain(peer, peer.Settings().Address, nil, update, body)
-		out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, policyview.Session{EBGP: true}, update)
+		out := r.runEgressPolicyChain(policy, "192.0.2.1", 65001, 65000, false, explicitExportTestSession(true), update)
 		suppressed, _, _ := r.exportFilterForBody(peer, body)
 		if in.accept || out.accept || out.failed || !suppressed {
 			panic("final reject failed")
@@ -239,7 +241,9 @@ func TestPolicyFinalWriterRejectsOldPrefilteredAnnouncement(t *testing.T) {
 	r.clock = clock.RealClock{}
 	destination.testInitialSync().sendingInitialRoutes.Store(0)
 	session := destination.currentSession()
-	session.egressFinalAccepts = func() bool { return destination.ExportPolicy().AcceptsAtEnd(destination.IsEBGP()) }
+	session.egressFinalAccepts = func(kind filterapi.ExportKind) bool {
+		return destination.ExportPolicy().AcceptsExportAtEnd(destination.IsEBGP(), kind)
+	}
 	update, err := message.UnpackUpdate(syncOrderAnnounceBody)
 	if err != nil {
 		t.Fatal(err)

@@ -22,7 +22,7 @@ func TestParseUpdateEnvelopePreservesPayloadAndIdentity(t *testing.T) {
 			name = "matching"
 		}
 		t.Run(name, func(t *testing.T) {
-			metadata := map[string]any{"peer": "10.0.0.1", "message-id": uint64(40),
+			metadata := map[string]any{"peer": "10.0.0.1", "peer-owner": uint64(0), "source-receipt": uint64(0), "message-id": uint64(40),
 				"source-policy-epoch": epoch, "reactor-forwarded": true}
 			if mismatch == "peer" {
 				metadata[mismatch] = "10.0.0.99"

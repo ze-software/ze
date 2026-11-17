@@ -42,7 +42,7 @@ func (cache *updateEnvelopeCache) wrap(peer *plugin.PeerInfo, message *bgptypes.
 		// Marshal the engine's own receipt, never message.Meta. The list is
 		// consumed synchronously here; no slice alias crosses the queue.
 		metadata, err := json.Marshal(bgptypes.UpdateReceipt{
-			Peer: peer.Address, MessageID: message.MessageID,
+			Peer: peer.Address, PeerOwner: peer.PeerOwner, MessageID: message.MessageID,
 			SourcePolicyEpoch: message.SourcePolicyEpoch,
 			SourceReceipt:     message.SourceReceipt,
 			ReactorForwarded:  message.ReactorForwarded, FastPathSkipped: message.FastPathSkipped,

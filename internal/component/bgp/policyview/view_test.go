@@ -3,6 +3,7 @@ package policyview
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -423,7 +424,7 @@ func TestWireViewEveryReaderAllocationFree(t *testing.T) {
 	session = session.WithImportMetadata(meta)
 	// The same facts on an exported route rebuilt from storage (meta holds
 	// rebuilt=true), for the readers a received route answers absent.
-	exported := ExportSession(sessionPeer(), sessionPeer(), true).WithExportMetadata(meta)
+	exported := ExportSession(sessionPeer(), sessionPeer(), true, filterapi.ExportExplicit).WithExportMetadata(meta)
 	for field := range readerTable.slots {
 		r := mustReader(t, field)
 		answering := session

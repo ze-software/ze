@@ -249,14 +249,14 @@ func TestLibraryASPathIntentsMatchText(t *testing.T) {
 	t.Run("export-external-four-octet", func(t *testing.T) {
 		// AS_SEQUENCE 65000 65000 3356, one segment.
 		want := nlriHex(t, "0000 001c 40010100 40020e 0203 0000fde8 0000fde8 00000d1c 40030401010101 180a0001")
-		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received), true)
+		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65002, 65000, false, explicitExportTestSession(true), testWireUpdate(received), true)
 		if !out.accept || out.wireOverride == nil || !bytes.Equal(out.wireOverride.Payload(), want) {
 			t.Fatalf("export = %+v, want accept with %x", out, want)
 		}
 	})
 
 	t.Run("export-internal-untouched", func(t *testing.T) {
-		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65000, 65000, true, policyview.Session{EBGP: false}, testWireUpdate(received), true)
+		out := r.runEgressPolicyChainASN4(exportPolicy(t), "10.0.0.5", 65000, 65000, true, explicitExportTestSession(false), testWireUpdate(received), true)
 		if !out.accept || out.wireOverride != nil {
 			t.Fatalf("export = %+v, want accept with the AS_PATH unchanged", out)
 		}

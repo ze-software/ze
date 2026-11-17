@@ -32,7 +32,9 @@ func init() {
 			panic("BUG: selected routing view registration failed: " + err.Error())
 		}
 	}
-	if err := pluginserver.RegisterProcessGenerationCleanup(routeViewCleanup); err != nil {
+	if err := pluginserver.RegisterProcessGenerationCleanup(func(_ *pluginserver.Server, proc *process.Process) {
+		routeViewCleanup(proc)
+	}); err != nil {
 		panic("BUG: selected routing cleanup registration failed: " + err.Error())
 	}
 }

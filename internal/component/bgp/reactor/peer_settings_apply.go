@@ -530,6 +530,9 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 		}
 		r.mu.Unlock()
 	}
+	if err := p.revokeRemovedSourceGrants(r, bindingsBefore, bindingsAfter); err != nil {
+		return err
+	}
 
 	// Step 4: the detached processes are told down, and the attached ones
 	// caught up. A session whose up phase moved inside the window holds

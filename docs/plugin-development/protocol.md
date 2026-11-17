@@ -698,6 +698,15 @@ and `log/slog`, and the number or `null` through `encoding/json`, where a field
 tagged `omitzero` is omitted while the AS is unknown.
 <!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, ASN, MarshalJSON, IsZero, String, LogValue -->
 
+Every peer event also carries the engine's stable Peer incarnation as numeric
+`peer-owner` in JSON, `peer-owner <uint64>` in text, and
+`StructuredEvent.PeerOwner` internally. It agrees with
+`SourcePolicyIdentity.PeerOwner`. A reconnect retains that owner but receives
+another `source-receipt`; removing and recreating a peer changes the owner.
+The address, AS number and socket ports cannot identify the Peer incarnation.
+Zero is unrecorded and supplies no source authority. A sent event's peer owner
+identifies its recipient; its original route source remains separate provenance.
+
 A session-down event names the session it ended: `session-generation` in the
 JSON and text forms, `StructuredEvent.SessionGeneration` in the structured
 one, a nonzero number captured when that session closed. An up carries none.
@@ -1051,12 +1060,12 @@ Plugins call the engine during runtime through these SDK methods:
 existing source-owned behavior. Supply the destination's exact UP
 `initial-replay` token as `destination-session`, a monotonic nonzero revision,
 and native `key-nlri` advertisement bytes without the source ADD-PATH prefix.
-A supporting reactor derives semantic identity through the registered family codec.
+The engine derives semantic identity through the registered family codec.
 
 Use kind `1` with a received `StoredRoute` and engine-issued source receipt,
 kind `2` with an admitted origin and origin receipt, or kind `3` for selected
-absence. Sending a number does not create authority. Received paths preserve
-original message/policy provenance
+absence. The engine authenticates these handles; sending a number does not
+create authority. Received paths preserve original message/policy provenance
 and the explicit ADD-PATH distinction, including path identifier zero. Stale
 levels are `1` fresh, `2` stale and `3` LLGR; absence has no stale level.
 The complete field and validation contract is in
@@ -1068,12 +1077,11 @@ both request and worst-case final answer; absence receipts can be larger than
 their input. `SelectRoutesFrameSize` continues to measure the request alone.
 The SDK requires a
 complete ordered final receipt on both transports. Outcomes are written,
-suppressed, absent or stale revision. Success must follow final writer
+suppressed, absent or stale revision; suppression and absence settle the
+previous selected output's retirement. Success must follow final writer
 completion. Never wait for a sent-event callback to finish the RPC: a lifecycle
-callback may already hold that plugin delivery loop. The currently published
-reactor returns an unsupported-output error;
-final source/origin admission and destination retirement are not available
-in that snapshot.
+callback may already hold that plugin delivery loop. An unsupported reactor
+returns an error.
 
 The SDK sets the absolute `deadline-ms` from the caller's context, capped at
 thirty seconds per batch. When that context ends, the socket form sends

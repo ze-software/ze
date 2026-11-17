@@ -115,7 +115,8 @@ func (w *observedBGPWriter) observe(data []byte) {
 // send and receive observation never mutate the shared epoch identity.
 func (r *Reactor) dispatchObservedWire(epoch *plugin.PeerInfo, wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
 	peer := plugin.PeerInfo{
-		Address: epoch.Address, AddressStr: epoch.AddressStr,
+		PeerOwner: epoch.PeerOwner,
+		Address:   epoch.Address, AddressStr: epoch.AddressStr,
 		LocalAddress: epoch.LocalAddress, LocalAddressStr: epoch.LocalAddressStr,
 		LocalAS: epoch.LocalAS, PeerAS: epoch.PeerAS, RouterID: epoch.RouterID,
 		MessageContextID: ctxID,

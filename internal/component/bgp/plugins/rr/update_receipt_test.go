@@ -65,7 +65,7 @@ func TestRRUpdateReceiptDispatch(t *testing.T) {
 			rr := &routeReflector{plugin: p, peers: make(map[string]*peerState), withdrawals: make(map[string]map[string]withdrawalInfo)}
 			const source = "192.0.2.1"
 			const payload = "peer 192.0.2.1 remote as 65001 received update 40 source-policy-epoch 7 origin igp next 192.0.2.1 nlri ipv4/unicast add 10.4.0.0/24\n"
-			metadata := map[string]any{"peer": source, "message-id": uint64(40), "source-policy-epoch": uint64(7), "source-receipt": uint64(0), "reactor-forwarded": false}
+			metadata := map[string]any{"peer": source, "peer-owner": uint64(0), "message-id": uint64(40), "source-policy-epoch": uint64(7), "source-receipt": uint64(0), "reactor-forwarded": false}
 			switch test.mode {
 			case "missing":
 				delete(metadata, test.field)

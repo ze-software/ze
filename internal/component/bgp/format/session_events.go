@@ -30,6 +30,7 @@ func AppendConnected(buf []byte, peer *plugin.PeerInfo, encoding string) []byte 
 	}
 	buf = appendPeerTextPrefix(buf, peer)
 	buf = append(buf, " connected"...)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	return append(buf, '\n')
 }
 
@@ -55,6 +56,7 @@ func AppendFSM(buf []byte, peer *plugin.PeerInfo, from, to fsm.State, encoding s
 	buf = append(buf, from.String()...)
 	buf = append(buf, ' ')
 	buf = append(buf, to.String()...)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	return append(buf, '\n')
 }
 
@@ -82,6 +84,7 @@ func AppendSignal(buf []byte, peer *plugin.PeerInfo, number int, name, encoding 
 	buf = strconv.AppendInt(buf, int64(number), 10)
 	buf = append(buf, ' ')
 	buf = append(buf, name...)
+	buf = appendPeerOwnerText(buf, peer.PeerOwner)
 	return append(buf, '\n')
 }
 

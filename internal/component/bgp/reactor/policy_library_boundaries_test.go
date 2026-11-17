@@ -297,7 +297,7 @@ func TestLibraryFinalDoesNotReplaceAFailure(t *testing.T) {
 		r := &Reactor{attrModHandlers: attrModHandlersWithDefaults(), filterTransportSeam: transport}
 
 		got := r.runEgressPolicyChainASN4(answerPolicy(t, final, "first", "unreachable"), "10.0.0.2", 65002, 65000, false,
-			policyview.Session{EBGP: true}, testWireUpdate(received), true)
+			explicitExportTestSession(true), testWireUpdate(received), true)
 
 		if got.accept || !got.failed {
 			t.Fatalf("final %d: export = %+v, want a failed step", final, got)
@@ -432,7 +432,7 @@ func TestLibraryPrependEncodesAtTheDestinationASNWidth(t *testing.T) {
 			policy := libraryPolicy(t, libraryIntentExport, libraryTypeIntents, routepolicy.FinalAccept)
 
 			out := r.runEgressPolicyChainASN4(policy, "10.0.0.5", 65002, 131072, false,
-				policyview.Session{EBGP: true}, testWireUpdate(received), tc.asn4)
+				explicitExportTestSession(true), testWireUpdate(received), tc.asn4)
 
 			if !out.accept || out.wireOverride == nil {
 				t.Fatalf("export = %+v, want accept with the prepend", out)

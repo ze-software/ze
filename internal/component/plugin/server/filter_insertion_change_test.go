@@ -21,14 +21,15 @@ import (
 func insertionListener(t *testing.T, s *Server) (calls, unlocked *atomic.Int64) {
 	t.Helper()
 	calls, unlocked = &atomic.Int64{}, &atomic.Int64{}
-	registry.SetFilterInsertionsChanged(func() {
+	registry.SetPeerDeclarationsChanged(func() error {
 		calls.Add(1)
 		if s.txLock.tryAcquire() {
 			unlocked.Add(1)
 			s.txLock.release()
 		}
+		return nil
 	})
-	t.Cleanup(func() { registry.SetFilterInsertionsChanged(nil) })
+	t.Cleanup(func() { registry.SetPeerDeclarationsChanged(nil) })
 	return calls, unlocked
 }
 
@@ -51,13 +52,13 @@ func TestInsertionChangeIsSerializedWithTransactions(t *testing.T) {
 	calls, unlocked := insertionListener(t, s)
 
 	require.True(t, s.txLock.tryAcquire())
-	s.announceInsertionsChanged()
-	s.announceInsertionsChanged()
+	require.NoError(t, s.announcePeerDeclarationsChanged(nil))
+	require.NoError(t, s.announcePeerDeclarationsChanged(nil))
 	assert.Equal(t, int64(0), calls.Load(), "a change met inside a transaction waits for its end")
 	s.txLock.release()
 	assert.Equal(t, int64(1), calls.Load(), "the holder's release announces the deferred change once")
 
-	s.announceInsertionsChanged()
+	require.NoError(t, s.announcePeerDeclarationsChanged(nil))
 	assert.Equal(t, int64(2), calls.Load(), "with no transaction the change is announced at once")
 	assert.Equal(t, int64(0), unlocked.Load(), "every rebuild runs holding the transaction lock")
 	assert.True(t, s.txLock.tryAcquire(), "the announce leaves the lock free")
@@ -65,12 +66,12 @@ func TestInsertionChangeIsSerializedWithTransactions(t *testing.T) {
 
 	early := sessionReadyTestServer()
 	early.startupDone = make(chan struct{})
-	early.announceInsertionsChanged()
+	require.NoError(t, early.announcePeerDeclarationsChanged(nil))
 	assert.Equal(t, int64(2), calls.Load(), "during startup the post-startup rebuild places the insertions")
 
-	s.announceInsertionChange([]rpc.FilterInsertion{thirdPartyInsertion}, []rpc.FilterInsertion{thirdPartyInsertion})
+	require.NoError(t, s.announcePeerDeclarationChange(peerDeclarations{insertions: []rpc.FilterInsertion{thirdPartyInsertion}}, peerDeclarations{insertions: []rpc.FilterInsertion{thirdPartyInsertion}}, nil))
 	assert.Equal(t, int64(2), calls.Load(), "an unchanged declaration rebuilds nothing")
-	s.announceInsertionChange([]rpc.FilterInsertion{thirdPartyInsertion}, nil)
+	require.NoError(t, s.announcePeerDeclarationChange(peerDeclarations{insertions: []rpc.FilterInsertion{thirdPartyInsertion}}, peerDeclarations{}, nil))
 	assert.Equal(t, int64(3), calls.Load(), "a changed declaration rebuilds the peers")
 }
 

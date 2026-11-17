@@ -91,7 +91,7 @@ func TestSourceReceiptLabeledFallback(t *testing.T) {
 	peer.SetAddPath(labeledFamily, true)
 	wire := labeledNLRI(0, true, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100})
 	var affected []affectedPrefix
-	r.insertLabeled(peer, labeledFamily, staleInsertAttrs, wire, true, false, 19, 29, 39, &affected)
+	r.insertLabeled(peer, labeledFamily, staleInsertAttrs, wire, true, false, 19, 29, 39, &affected, nil)
 	entry, found := peer.Lookup(labeledFamily, []byte{0, 0, 0, 0, 8, 10})
 	require.True(t, found)
 	require.Equal(t, uint64(39), entry.SourceReceipt)

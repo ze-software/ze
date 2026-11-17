@@ -87,6 +87,7 @@ const monitorFormatKey = "parsed+json"
 func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.StructuredEvent {
 	se := rpc.GetStructuredEvent()
 	se.PeerAddress = peer.AddrStr()
+	se.PeerOwner = peer.PeerOwner
 	se.PeerName = peer.Name
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
@@ -113,6 +114,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se := rpc.GetStructuredEvent()
 	se.UnheldRoles = unheldRoles
 	se.PeerAddress = peer.AddrStr()
+	se.PeerOwner = peer.PeerOwner
 	se.PeerName = peer.Name
 	se.PeerGroup = peer.GroupName
 	se.PeerAS = peer.PeerAS
@@ -125,6 +127,8 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.EventType = rpc.EventKindState
 	se.State = state
 	se.InitialReplay = peer.InitialReplay
+	se.DestinationSession = peer.DestinationSession
+	se.SelectedDestination = peer.SelectedDestination
 	se.SessionGeneration = peer.SessionGeneration
 	se.Reason = reason
 	se.FSMEvent = peer.CloseFSMEvent
@@ -817,9 +821,11 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 			continue // DirectBridge — no text formatting needed
 		}
 		enc := proc.Encoding()
-		if _, ok := fmtCache.get(enc); !ok {
-			scratch := format.AppendStateChange(scratch[:0], peer, state, reason, unheldRoles, enc)
-			fmtCache.set(enc, string(scratch))
+		projected := selectedStatePeer(peer, proc.Name(), state, reason)
+		key := selectedStateFormatKey(enc, projected.SelectedDestination)
+		if _, ok := fmtCache.get(key); !ok {
+			scratch := format.AppendStateChange(scratch[:0], &projected, state, reason, unheldRoles, enc)
+			fmtCache.set(key, string(scratch))
 		}
 	}
 
@@ -831,11 +837,12 @@ func deliverPeerState(s *pluginserver.Server, peer *plugin.PeerInfo, procs []*pr
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		results := make(chan process.EventResult, 1)
+		projected := selectedStatePeer(peer, proc.Name(), state, reason)
 		if proc.HasStructuredHandler() {
-			se := getStructuredStateEvent(peer, state, reason, unheldRoles)
+			se := getStructuredStateEvent(&projected, state, reason, unheldRoles)
 			delivery = process.EventDelivery{Event: se, Result: results}
 		} else {
-			output, _ := fmtCache.get(proc.Encoding())
+			output, _ := fmtCache.get(selectedStateFormatKey(proc.Encoding(), projected.SelectedDestination))
 			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {
@@ -904,8 +911,9 @@ func onPeerUnbound(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.Sess
 // onPeerUnbound's.
 //
 // The up carries reason rpc.ReasonAttached and whatever InitialReplay the caller
-// put in peer, which the reactor sets to 0: the session's initial routing update
-// is not this process's to replay. It arms no peer-up barrier. The claimed roles
+// put in peer, which the reactor sets to 0 for legacy observers. An eligible
+// ordinary destination gets its captured DestinationSession as the replay
+// receipt, so it can send a current selected snapshot. It arms no peer-up barrier. The claimed roles
 // on it are judged over every process the peer feeds once the edges land, the
 // graph's state subscribers and the named ones together.
 //

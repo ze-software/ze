@@ -93,11 +93,9 @@ func wireRedistributeDelivery(tree *config.Tree, settings []*reactor.PeerSetting
 			return err
 		}
 	}
-	if aigp {
-		if err := requireRIBDelivery(plugins, settings, "AIGP selection", false); err != nil {
-			return err
-		}
-	}
+	// AIGP's RFC default enables processing, not ordinary transit. Keep the
+	// legacy receive feed, but judge only explicit dissemination declarations
+	// for complete transit grants (validateDissemination).
 	if orchestrator {
 		if err := grantEveryPeer(plugins, settings, bgpredist.OrchestratorPlugin, orchestratorReceive, orchestratorSend); err != nil {
 			return err

@@ -189,6 +189,10 @@ func (g *DeliveryGraph) disseminationReceives(peer, process string, event events
 // write MUST separately authenticate and recheck that process's live lifetime.
 // It is a configuration/lifecycle lookup, not a per-route hot-path lookup.
 func (s *Server) ResolveDisseminationOwner(peer, role string) (DisseminationOwner, error) {
+	return s.DeliveryGraph().ResolveDisseminationOwner(peer, role, s.disseminationProcesses())
+}
+
+func (s *Server) disseminationProcesses() []DisseminationProcess {
 	var processes []DisseminationProcess
 	for _, prospective := range s.prospectivePlugins() {
 		declaration := s.disseminationForPlugin(prospective)
@@ -197,7 +201,55 @@ func (s *Server) ResolveDisseminationOwner(peer, role string) (DisseminationOwne
 		}
 		processes = append(processes, declaration)
 	}
-	return s.DeliveryGraph().ResolveDisseminationOwner(peer, role, processes)
+	return processes
+}
+
+// ResolveDisseminationOwnerForPeer resolves one exact destination's grants,
+// preserving all original source nodes even when peers share an IP address.
+// This is a cold lifecycle lookup: it acquires process-manager locks and MUST
+// NOT run under a socket writer lock, reactor lock or peer lock.
+func (s *Server) ResolveDisseminationOwnerForPeer(peer DeliveryPeer, role string) (DisseminationOwner, error) {
+	graph := s.DeliveryGraph()
+	peers := make([]DeliveryPeer, 0, len(graph.disseminationPeers)+1)
+	for i, source := range graph.disseminationPeers {
+		source.Addr = fmt.Sprintf("source-%d", i)
+		peers = append(peers, source)
+	}
+	peer.Addr = "destination"
+	peers = append(peers, peer)
+	return newDeliveryGraph(graph.namespace, peers).ResolveDisseminationOwner("destination", role, s.disseminationProcesses())
+}
+
+// ValidateDisseminationBindings applies the same complete-grant gate to
+// authenticated runtime declarations, including third-party processes.
+func (s *Server) ValidateDisseminationBindings() error {
+	graph := s.DeliveryGraph()
+	peers := slices.Clone(graph.disseminationPeers)
+	for i := range peers {
+		peers[i].Addr = fmt.Sprintf("peer-%d", i)
+	}
+	return newDeliveryGraph(graph.namespace, peers).ValidateDisseminationBindings(s.disseminationProcesses())
+}
+
+// ResolveDisseminationOwners verifies a complete candidate before publication.
+// Peer keys MUST distinguish exact configured peers. Runtime declarations,
+// including an empty claim or declaration list, supersede compiled metadata.
+// Callers MUST hold no reactor or peer lock while this reads declarations.
+func (s *Server) ResolveDisseminationOwners(namespace, role string, peers []DeliveryPeer) (map[string]DisseminationOwner, error) {
+	graph := newDeliveryGraph(namespace, peers)
+	processes := s.disseminationProcesses()
+	if err := graph.ValidateDisseminationBindings(processes); err != nil {
+		return nil, err
+	}
+	owners := make(map[string]DisseminationOwner, len(peers))
+	for _, peer := range peers {
+		owner, err := graph.ResolveDisseminationOwner(peer.Addr, role, processes)
+		if err != nil {
+			return nil, err
+		}
+		owners[peer.Addr] = owner
+	}
+	return owners, nil
 }
 
 func (s *Server) disseminationForPlugin(prospective prospectivePlugin) DisseminationProcess {

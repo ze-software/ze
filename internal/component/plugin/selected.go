@@ -17,9 +17,9 @@ import (
 // instances of the same process name and lets the final writer reject old work.
 // Safe for concurrent use; a captured value MUST be rechecked before writing.
 type SelectedOwner struct {
-	sender Sender
-	done   <-chan struct{}
-	ended  <-chan struct{}
+	sender           Sender
+	done             <-chan struct{}
+	ended            <-chan struct{}
 	currentSelection *selectedCurrentReader
 }
 
@@ -49,8 +49,13 @@ func (owner SelectedOwner) Current() error {
 	case <-owner.ended:
 		return errors.New("select-routes: selecting engine has ended")
 	default:
-		return nil
 	}
+	if lifetime, bound := owner.ProcessContext(); bound {
+		if err := lifetime.Err(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Sender answers the authenticated sender for the existing grant guard.

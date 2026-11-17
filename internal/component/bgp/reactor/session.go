@@ -16,6 +16,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -398,6 +399,10 @@ type Session struct {
 	// sendInitialRoutes, plugin RPC handlers) — this mutex prevents races on the
 	// shared buffer. Lock ordering: s.mu before s.writeMu (never reverse).
 	writeMu sessionWriteMutex
+	// selectedMu serializes one selecting stream through stage, final writer
+	// and flush. It MUST precede writeMu; other output rails never acquire it.
+	selectedMu      sessionWriteMutex
+	selectedAttempt uint64 // Owned by writeMu; never a per-key history.
 
 	// onTCPConnected observes this connection's published socket before its
 	// FSM event and local OPEN lifecycle. The factory MUST install it before
@@ -613,7 +618,7 @@ type Session struct {
 	// back to the locked peer policy before those facts exist. The writer MUST
 	// check it even for pre-filtered routes under writeMu. Reload publishes first,
 	// then joins writeMu before snapshotting withdrawals, without holding p.mu.
-	egressFinalAccepts func() bool
+	egressFinalAccepts func(filterapi.ExportKind) bool
 
 	// policyTeardownPending, when non-nil, queues a NOTIFICATION + session close
 	// requested by the import policy filter chain (e.g. filter_family tear-down).

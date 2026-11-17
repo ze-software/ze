@@ -32,6 +32,9 @@ type sessionClose struct {
 	// wrote carries and below every later session's. Plugins receive it as
 	// session-generation (plugin.PeerInfo.SessionGeneration).
 	generation uint64
+	// destinationSession is read from the ended Session, never the peer's
+	// current connection. A delayed DOWN cannot retire a replacement worker.
+	destinationSession uint64
 }
 
 // closeCause returns the first close reason recorded on session

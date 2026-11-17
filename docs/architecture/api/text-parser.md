@@ -69,7 +69,23 @@ Only a header that carries a message ID carries the pair. The raw text line
 (`peer <ip> <direction> update raw <hex>`) and the empty UPDATE line
 (`peer <ip> update`) keep their grammar, which has no message ID: a reader
 records zero there, which grants no announcement authority.
-<!-- source: internal/component/bgp/textparse/scanner.go -- SourcePolicyEpoch -->
+
+The reserved UPDATE header also carries `peer-owner <uint64>`, the engine-owned
+Peer incarnation. It is independent of the address and remains stable across a
+reconnect; the source receipt changes for the new Session. State and refresh
+lines carry the same peer owner. Zero is unrecorded, not a derived identity.
+Only immediate reserved header pairs supply UPDATE provenance: later route
+attributes cannot impersonate it. Duplicate, missing-value and malformed owner
+pairs are refused just like malformed source-receipt pairs.
+
+The same parsed header carries `source-receipt <uint64>` after the policy epoch
+when the engine recorded an original source session. These three pairs are reserved
+provenance; none can be supplied by a route attribute or `route-meta`.
+`textparse.SourceProvenance` reads only the reserved pairs immediately after the
+eight header tokens and rejects malformed or repeated pairs. It never searches
+later route content for authority. Envelope readers bind all three values to the
+engine's receipt before using it. A missing pair records zero.
+<!-- source: internal/component/bgp/textparse/scanner.go -- SourcePolicyEpoch, SourceProvenance -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- dispatchText -->
 
 ### UPDATE Parser: parseTextNLRIOps

@@ -757,7 +757,7 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	// Raw diagnostics do not waive export admission.
 	// RFC 8212 Section 3: "Routes SHALL NOT be added to an Adj-RIB-Out associated
 	// with an EBGP peer if no explicit Export Policy has been applied."
-	finalRejects := s.egressFinalAccepts != nil && !s.egressFinalAccepts()
+	finalRejects := s.egressFinalAccepts != nil && !s.egressFinalAccepts(s.sentForward.exportKind())
 	if finalRejects {
 		body = policyWithdrawals(body)
 		if body == nil {
@@ -1570,7 +1570,7 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		}
 		opaque := len(payload) != 0 && !rawControlPacket(payload)
 		// RFC 8212 Section 3: uncertain framing can conceal UPDATEs.
-		if opaque && s.egressFinalAccepts != nil && !s.egressFinalAccepts() {
+		if opaque && s.egressFinalAccepts != nil && !s.egressFinalAccepts(s.sentForward.exportKind()) {
 			return nil
 		}
 		written, err := s.bufWriter.Write(payload)
@@ -1626,7 +1626,7 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 
 	opaque := !rawControlPacket(buf[:totalLen])
 	// RFC 8212 Section 3: an unknown diagnostic type cannot waive admission.
-	if opaque && s.egressFinalAccepts != nil && !s.egressFinalAccepts() {
+	if opaque && s.egressFinalAccepts != nil && !s.egressFinalAccepts(s.sentForward.exportKind()) {
 		return nil
 	}
 

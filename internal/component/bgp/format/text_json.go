@@ -532,6 +532,14 @@ func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 		buf = strconv.AppendUint(buf, peer.InitialReplay, 10)
 		buf = append(buf, '"')
 	}
+	if peer.DestinationSession != 0 {
+		buf = append(buf, `,"destination-session":"`...)
+		buf = strconv.AppendUint(buf, peer.DestinationSession, 10)
+		buf = append(buf, '"')
+	}
+	if peer.SelectedDestination {
+		buf = append(buf, `,"selected-destination":true`...)
+	}
 	if peer.SessionGeneration != 0 {
 		buf = append(buf, `,"session-generation":"`...)
 		buf = strconv.AppendUint(buf, peer.SessionGeneration, 10)

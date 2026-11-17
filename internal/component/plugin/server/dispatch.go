@@ -602,6 +602,9 @@ func (s *Server) dispatchPluginRPCDirect(ctx context.Context, proc *process.Proc
 // handleUpdateRouteSelDirect handles update-route with a typed *selector.Selector.
 // Reuses the existing Dispatch path by stringifying the selector for the peer field.
 func (s *Server) handleUpdateRouteSelDirect(ctx context.Context, proc *process.Process, sel *selector.Selector, command string, meta map[string]any, sourcePolicyEpoch uint64) (uint32, uint32, error) {
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return 0, 0, err
+	}
 	peer := sel.String()
 	cmdCtx := &CommandContext{
 		Server:            s,
@@ -683,6 +686,9 @@ func (s *Server) dispatchCommandArgs(ctx context.Context, proc *process.Process,
 // walked once, so projecting it consumes the rows the records would carry
 // (Records, internal/component/plugin/types.go).
 func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.Process, command string, args []string, peer string) (*plugin.Response, error) {
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return nil, err
+	}
 	if peer == "" {
 		peer = "*"
 	}
@@ -766,6 +772,9 @@ func (s *Server) dispatchCommandAnswer(ctx context.Context, proc *process.Proces
 // with the response the dispatcher produced rather than its wire projection.
 // See dispatchCommandArgsResponse for why the record path needs it unprojected.
 func (s *Server) dispatchCommandResponse(ctx context.Context, proc *process.Process, command string) (*plugin.Response, error) {
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return nil, err
+	}
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
@@ -885,7 +894,7 @@ func (s *Server) cleanupProcess(proc *process.Process) {
 		report.ClearSource(proc.Name())
 		s.forgetPluginReports(proc.Name())
 
-		runProcessGenerationCleanups(proc)
+		s.runProcessGenerationCleanups(proc)
 		runProcessCleanupHooks(proc.Name())
 	})
 }

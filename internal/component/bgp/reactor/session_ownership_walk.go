@@ -92,8 +92,13 @@ func (w *adjOutWrite) recordNLRI(raw []byte) bool {
 		walk.cause = errAdjOutProvenance
 		return true
 	}
+	if w.sourceSet && w.sourceReceipt != owner.sourceReceipt {
+		walk.cause = errAdjOutProvenance
+		return true
+	}
 	w.source, w.sourceSet = owner.source, true
 	w.policyEpoch = owner.policyEpoch
+	w.sourceReceipt = owner.sourceReceipt
 	if w.session.onMessageReceived != nil {
 		ordinal := w.ordinals[walk.family]
 		if owner.addPath {
@@ -129,6 +134,12 @@ func (w *adjOutWrite) recordNLRI(raw []byte) bool {
 		w.keepReleased(key, entry)
 	}
 	w.table.setOwner(&key, entry, owner)
+	if item := w.session.sentForward; item != nil && item.authority == adjOutSelected {
+		w.table.setSelected(key, entry, item.selected.output)
+		w.table.removeOwed(key, w.table.owed[key])
+	} else if item == nil || item.authority != adjOutExpected {
+		w.table.setSelected(key, entry, selectedOutput{})
+	}
 	if _, contested := w.contested[key]; contested {
 		entry.contested = true
 	}
@@ -161,6 +172,16 @@ func (w *adjOutWrite) recordNLRI(raw []byte) bool {
 			walk.stored = walk.signature.store()
 		}
 		entry.signature = walk.stored
+	}
+	// Selected retirement reconstructs the withdrawal from this current slot,
+	// without asking its source or re-reading a possibly replaced candidate.
+	// Retain framing the semantic key intentionally discards for these outputs
+	// as well as for local duplicate evidence.
+	keepNative := entry.selection.owner.Done() != nil
+	if owner.source == nil {
+		keepNative = walk.readable
+	}
+	if keepNative {
 		if !adjOutExactNLRI(entry, key, raw) {
 			entry.exactNLRI = append([]byte(nil), raw...)
 		}

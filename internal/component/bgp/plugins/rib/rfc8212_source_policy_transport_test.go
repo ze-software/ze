@@ -37,12 +37,12 @@ func transportStateUp(peer string, as uint32) string {
 
 // transportReceived is the format=full JSON event of one received UPDATE
 // from peer, admitted under policy epoch, announcing prefix.
-func transportReceived(peer string, id, epoch uint64, prefix, nlriHex string) string {
+func transportReceived(peer string, id, epoch, peerOwner, sourceReceipt uint64, prefix, nlriHex string) string {
 	return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update","id":%d,"direction":"received"},`+
-		`"peer":{"address":%q,"remote":{"address":%q,"as":65001}},"source-policy-epoch":%d,`+
+		`"peer":{"address":%q,"remote":{"address":%q,"as":65001}},"source-policy-epoch":%d,"source-receipt":%d,"peer-owner":%d,`+
 		`"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":%q}},`+
 		`"update":{"attr":{"origin":"igp"},"ipv4/unicast":[{"next-hop":%q,"action":"add","nlri":[%q]}]}}}`,
-		id, peer, peer, epoch, nlriHex, peer, prefix)
+		id, peer, peer, epoch, sourceReceipt, peerOwner, nlriHex, peer, prefix)
 }
 
 // transportSent is the JSON sent event of the source's message 100 forwarded
@@ -64,13 +64,17 @@ func startRIBOverTransport(t *testing.T, ctx context.Context, transport pluginen
 	engine := pluginengine.Start(t, transport, runRIBPlugin)
 	r := activeManager.Load()
 	require.NotNil(t, r, "runRIBPlugin publishes its manager before startup")
+	// sourcePolicyRequest names this original source as owner1. Keep the
+	// issued Session and every received event on that same immutable identity.
+	sourceReceipt := engine.IssueSource(transportSource, 1)
+	alternativeReceipt := engine.IssueSource(transportAlternative, 2)
 	for _, event := range []string{
 		transportStateUp(transportSource, 65001),
 		transportStateUp(transportAlternative, 65002),
 		transportStateUp(transportDestination, 65003),
-		transportReceived(transportSource, 100, 5, transportShared, "180a0100"),
-		transportReceived(transportSource, 101, 5, transportOnly, "180a0200"),
-		transportReceived(transportAlternative, 102, 5, transportShared, "180a0100"),
+		transportReceived(transportSource, 100, 5, 1, sourceReceipt, transportShared, "180a0100"),
+		transportReceived(transportSource, 101, 5, 1, sourceReceipt, transportOnly, "180a0200"),
+		transportReceived(transportAlternative, 102, 5, 2, alternativeReceipt, transportShared, "180a0100"),
 		transportSent(),
 	} {
 		require.NoError(t, engine.Deliver(ctx, event))

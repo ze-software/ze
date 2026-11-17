@@ -1084,7 +1084,7 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 
 	old := pm.GetProcess(pluginName)
 	startupBudget := previousStartupBudget(old)
-	insertionsBefore := declaredInsertions(old)
+	declarationsBefore := declaredPeerMetadata(old)
 	newProc, err := pm.Respawn(pluginName)
 	if respawnRefused(err) {
 		return fmt.Errorf("respawn %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
@@ -1102,10 +1102,17 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 		}
 		s.releasePluginRegistrations(old)
 	}
+	// Hold before Stage 5 exposes DirectBridge: supervision is not the only
+	// output rail, and OnStarted may already call into the engine.
+	newProc.HoldPeerDeclarations()
 	if err := s.restartHandshake(newProc, startupBudget, handshake); err != nil {
 		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
-	s.announceInsertionChange(insertionsBefore, declaredInsertions(newProc))
+	if err := s.announcePeerDeclarationChange(declarationsBefore, declaredPeerMetadata(newProc), newProc); err != nil {
+		s.rollbackReplacement(newProc)
+		return fmt.Errorf("restart %s: %w", pluginName, err)
+	}
+	s.admitPeerDeclarationReplacement(newProc)
 	return nil
 }
 

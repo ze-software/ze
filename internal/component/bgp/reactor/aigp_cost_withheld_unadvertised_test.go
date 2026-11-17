@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"bytes"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"net/netip"
 	"testing"
 
@@ -329,7 +330,7 @@ func TestAIGPReplayEmittingNothingIsQueuedAgain(t *testing.T) {
 	}
 	session := f.destination.session
 	session.writeMu.Lock()
-	session.egressFinalAccepts = func() bool { return false }
+	session.egressFinalAccepts = func(filterapi.ExportKind) bool { return false }
 	session.writeMu.Unlock()
 	f.metric(11)
 	f.r.readvertiseAIGP()

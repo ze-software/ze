@@ -32,6 +32,62 @@ module ze-bgp-api {
 
     // Introspection
 
+    rpc source-lease {
+        ze:method "ze-bgp:source-lease";
+        ze:help "Acquire, retain or release the selecting process's original source lease.";
+        description
+            "Authenticate one engine-issued original source receipt against this
+             process incarnation and the exact source peer's explicit receive
+             grants. Release revokes authority before joining final writes.
+             Both native and JSON calls use the same evaluator.";
+        input {
+            leaf action {
+                type uint8 { range "1..3"; }
+                mandatory true;
+                ze:help "Use 1 to acquire, 2 to retain, or 3 to release.";
+                description "Select one explicit lifecycle action; zero and unknown values are refused.";
+            }
+            leaf source-receipt {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Name the original engine-issued source receipt.";
+                description "Preserve the source Session identity from its received event; never use a replacement Session's identity.";
+            }
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Bound this call by an absolute Unix deadline in milliseconds.";
+                description "The deadline must be live and no more than thirty seconds in the future. Release cancellation still revokes its authority.";
+            }
+            leaf peer-owner {
+                type uint64;
+                mandatory true;
+                ze:help "Preserve the original event's engine Peer identity.";
+                description "Acquire and retain require a nonzero original Peer incarnation matching the source receipt. Release may use zero for unrecorded identity and never grants authority.";
+            }
+        }
+        output {
+            leaf action {
+                type uint8 { range "1..3"; }
+                mandatory true;
+                ze:help "Report the completed lifecycle action.";
+                description "Echo the requested action only after its final completion; release waits for outstanding writes.";
+            }
+            leaf source-receipt {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Echo the settled original source receipt.";
+                description "The caller refuses an absent, zero or different receipt rather than treating it as successful settlement.";
+            }
+            leaf peer-owner {
+                type uint64;
+                mandatory true;
+                ze:help "Echo the requested original Peer identity.";
+                description "The caller refuses a missing, null or different peer owner. For an absent receipt, release echoes correlation only and attests no identity.";
+            }
+        }
+    }
+
     rpc help {
         description "The answer holds one entry for each builtin command, and each entry joins the
 command name to its summary with a hyphen. A plugin's own command sits in the

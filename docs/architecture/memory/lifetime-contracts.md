@@ -120,6 +120,30 @@ selected route that survives physical DOWN. Cache ownership alone grants none.
 <!-- source: internal/component/bgp/reactor/source_receipt.go -- liveSourceReceipt, sourceReceiptLease -->
 <!-- source: internal/component/bgp/wireu/wire_update.go -- SourceReceipt, Snapshot -->
 
+The source lease RPC checks the exact original Peer's explicit receive grant
+for the authenticated configured process. Release revokes the lease before
+joining its admitted final writes. Its terminal result is the absence of this
+owner's authority, so a retry can complete after the last revoked write has
+removed the lease. It allocates no tombstone and touches no foreign lease;
+Acquire and Retain keep their stricter admission checks. The lease's context is
+a child of the captured Process context, so Stop and internal engine exit cancel a blocked
+typed flush before dispatch cleanup waits for it. The later generation cleanup
+uses the same ended owner token and releases its source references. Permanent
+peer removal joins revoked source writes after its Cease/stop and before its
+terminal DOWN; reactor stop keeps its notification order and joins afterward.
+<!-- source: internal/component/bgp/reactor/source_lease.go -- sourceLeaseApply, sourceLeaseWithGrant -->
+<!-- source: internal/component/bgp/reactor/source_lease_revoke.go -- revokePeers, revokePeerOwner -->
+<!-- source: internal/component/plugin/process/selected_owner.go -- SelectedOwner, endSelectedEngine -->
+
+A reversible source-grant change has one additional cold ownership reference:
+its actual transaction pins the original facts of existing exact-owner leases.
+That pin preserves no route bytes and grants no write. Apply cancels the old
+leases permanently; rollback authenticates the same Process and restored exact
+grant before issuing fresh contexts. Prepared abort, accepted finalization and
+acknowledged restoration each release their pins. No historical receipt or
+completed transaction remains to authorize later work.
+<!-- source: internal/component/bgp/reactor/source_receipt_transaction.go -- preparedSourceGrant, appliedSourceGrant, restoredSourceGrant -->
+
 **A forwarding dedup entry borrows an outgoing item, not a pool slot forever.**
 Both rails MUST finish body construction before publishing a materialization
 to the per-fan-out dedup table. A failed body MUST abandon its candidate before

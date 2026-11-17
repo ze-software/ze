@@ -792,6 +792,14 @@ bgp {
 
 ### The first pass: plugin declarations before the full parse
 
+A daemon configuring only another subsystem needs no `bgp` block. Runtime peer
+building, candidate attachment resolution and the initial peer rebuild return
+an empty BGP population without adding a block to its configuration. The
+explicit BGP resolver still refuses a missing block when a caller requests one.
+<!-- source: internal/component/bgp/config/peers.go -- peerPopulationsFromTree -->
+<!-- source: internal/component/bgp/config/loader_create.go -- reloadPeersFromTree -->
+<!-- source: internal/component/bgp/config/dissemination_config.go -- disseminationPeersFromTree -->
+
 An external plugin brings its own YANG module, so the root it adds is unknown
 until the plugin has run. `config.FirstPass` reads what is needed to run it
 from a config whose other sections the schema cannot judge yet. Nothing calls

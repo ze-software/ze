@@ -58,7 +58,9 @@ func establishedPeerInfo(peer *Peer) plugin.PeerInfo {
 	local, localString := s.LocalAddress, peer.localAddrString
 	local, localString = connectedLocalEndpoint(peer, local, localString)
 	localPort, remotePort := peer.tCPPorts()
+	destinationSession, selectedOwner := peer.selectedStateDestination()
 	return plugin.PeerInfo{
+		PeerOwner:       peer.sourceOwner,
 		Address:         s.Address,
 		LocalAddress:    local,
 		AddressStr:      peer.addrString,
@@ -73,11 +75,13 @@ func establishedPeerInfo(peer *Peer) plugin.PeerInfo {
 		// The OPEN has been read by the time a peer is Established, so this is
 		// the identifier RFC 4271 Section 9.1.2.2 step f) compares. It is a
 		// different number from RouterID above, which is this speaker's own.
-		RemoteRouterID: peer.RemoteRouterID(),
-		Connect:        s.Connection.Connect,
-		Accept:         s.Connection.Accept,
-		State:          peer.State().PluginState(),
-		InitialReplay:  peer.initialReplayToken(),
+		RemoteRouterID:     peer.RemoteRouterID(),
+		Connect:            s.Connection.Connect,
+		Accept:             s.Connection.Accept,
+		State:              peer.State().PluginState(),
+		InitialReplay:      peer.initialReplayToken(),
+		DestinationSession: destinationSession,
+		SelectedOwner:      selectedOwner,
 	}
 }
 
@@ -104,6 +108,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 	}
 	s := peer.Settings()
 	peerInfo := plugin.PeerInfo{
+		PeerOwner:       peer.sourceOwner,
 		Address:         s.Address,
 		LocalAddress:    s.LocalAddress,
 		AddressStr:      peer.addrString,
@@ -130,7 +135,8 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		CloseNotification: closed.notification,
 		// The ended session, which a forwarding plugin's departure names so
 		// the engine owes none of a newer session's routes.
-		SessionGeneration: closed.generation,
+		SessionGeneration:  closed.generation,
+		DestinationSession: closed.destinationSession,
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, closed.reason)
 }
@@ -186,6 +192,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		local, localString := connectedLocalEndpoint(p, s.LocalAddress, p.localAddrString)
 		importPolicy, exportPolicy := p.policyStatus()
 		info := plugin.PeerInfo{
+			PeerOwner:            p.sourceOwner,
 			Address:              s.Address,
 			LocalAddress:         local,
 			AddressStr:           p.addrString,
@@ -980,6 +987,9 @@ func (a *reactorAPIAdapter) VerifyConfig(tree map[string]any) error {
 	if err != nil {
 		return err
 	}
+	if err := a.r.resolveDisseminationSettings(loaded.peers, loaded.groups); err != nil {
+		return err
+	}
 	// RFC 8212 Section 3
 	return a.verifyImportRelaxations(loaded)
 }
@@ -1110,6 +1120,9 @@ func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, globals Glo
 // whose own router-id overrides the global keeps its settings and its session.
 func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, globals Globals, groups dynamicGroupsLoad, label string, j configJournal) error {
 	r := a.r
+	if err := r.resolveDisseminationSettings(newPeers, groups); err != nil {
+		return err
+	}
 
 	// RFC 4271 Section 4.2: the global BGP Identifier the reactor reports.
 	if err := a.applyGlobalsJournaled(globals, j); err != nil {
@@ -1151,6 +1164,9 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 	openSnapshots := make(map[netip.AddrPort]peerOpenSnapshot)
 	for key, peer := range r.peers {
 		currentPeers[key] = peer.settingsSnapshot()
+		if owner := peer.selectedOwnerSnapshot(); owner != nil {
+			currentPeers[key].DisseminationOwner = owner.owner
+		}
 		snapshot := peer.snapshotOpenSessions()
 		currentSessions[key] = snapshot.current
 		openSnapshots[key] = snapshot

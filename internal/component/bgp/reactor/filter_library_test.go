@@ -129,7 +129,7 @@ func TestLibraryChainSetsLocalPreferenceBytes(t *testing.T) {
 	}
 
 	out := r.runEgressPolicyChainASN4(libraryPolicy(t, libraryTestExport, libraryTypeLP200, routepolicy.FinalAccept),
-		"10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received), true)
+		"10.0.0.5", 65002, 65000, false, explicitExportTestSession(true), testWireUpdate(received), true)
 	if !out.accept || out.wireOverride == nil || !bytes.Equal(out.wireOverride.Payload(), want) {
 		t.Fatalf("export = %+v, want accept with %x", out, want)
 	}
@@ -143,7 +143,7 @@ func TestLibraryChainRejects(t *testing.T) {
 	received := libraryTestBody(100)
 
 	out := r.runEgressPolicyChainASN4(libraryPolicy(t, libraryTestExport, libraryTypeReject, routepolicy.FinalAccept),
-		"10.0.0.5", 65002, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(received), true)
+		"10.0.0.5", 65002, 65000, false, explicitExportTestSession(true), testWireUpdate(received), true)
 	if out.accept || out.failed {
 		t.Fatalf("export = %+v, want a policy suppression (accept false, failed false)", out)
 	}
@@ -167,7 +167,7 @@ func BenchmarkFilterDispatch_ZeroAlloc(b *testing.B) {
 	received := libraryTestBody(100)
 	original := bytes.Clone(received)
 	update := testWireUpdate(received)
-	session := policyview.Session{EBGP: true}
+	session := explicitExportTestSession(true)
 	rejected := r.runEgressPolicyChainASN4(policy, "10.0.0.5", 65002, 65000, false,
 		session, testWireUpdate(libraryTestBody(99)), true)
 	if rejected.accept || rejected.failed || rejected.withdraw {
@@ -204,7 +204,7 @@ func BenchmarkFilterModifyEgress(b *testing.B) {
 		byte(attribute.ASSet), 1, 0, 0, 0xfb, 0xf1,
 	})
 	update := testWireUpdate(received)
-	session := policyview.Session{EBGP: true}
+	session := explicitExportTestSession(true)
 
 	b.ReportAllocs()
 	for b.Loop() {

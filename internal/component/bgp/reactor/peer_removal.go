@@ -24,6 +24,7 @@ type peerRemovalEvents interface {
 // removal, a dynamic member the reactor drops, a reload's removal, and the
 // undo of a reload's add.
 type peerRemoval struct {
+	source *Peer // Exact removed identity; never an address lookup of its successor.
 	// stop sends the Cease. A zero stop sends none: the undo of a reload's add
 	// stops the peer itself, under r.mu.
 	stop peerStop
@@ -67,24 +68,28 @@ func (rm peerRemoval) run() {
 // wrote: each carries an older generation.
 func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 	settings := peer.Settings()
+	peer.stopping.Store(true)
 	// The caller already deleted this exact Peer under r.mu. Factory capture
 	// registration MUST hold r.mu for reading and recheck that membership;
 	// this close therefore joins every old input and no late one can appear.
 	// Every removal path MUST finish this release before publishing an add.
 	r.closeCapturesForPeer(settings.Address)
 	peer.advanceForwardGeneration()
-	removal := peerRemoval{stop: stop, removed: &plugin.PeerInfo{
-		Address:           settings.Address,
-		LocalAddress:      settings.LocalAddress,
-		AddressStr:        peer.addrString,
-		LocalAddressStr:   peer.localAddrString,
-		Name:              settings.Name,
-		GroupName:         settings.GroupName,
-		LocalAS:           settings.LocalAS,
-		PeerAS:            rpc.RemoteASOf(peer.PeerAS()), // guarded: a dynamic peer may still be resolving its ASN
-		RouterID:          settings.RouterID,
-		State:             peer.State().PluginState(),
-		SessionGeneration: peer.forwardGeneration.Load(),
+	destinationSession, _ := peer.selectedStateDestination()
+	removal := peerRemoval{source: peer, stop: stop, removed: &plugin.PeerInfo{
+		PeerOwner:          peer.sourceOwner,
+		Address:            settings.Address,
+		LocalAddress:       settings.LocalAddress,
+		AddressStr:         peer.addrString,
+		LocalAddressStr:    peer.localAddrString,
+		Name:               settings.Name,
+		GroupName:          settings.GroupName,
+		LocalAS:            settings.LocalAS,
+		PeerAS:             rpc.RemoteASOf(peer.PeerAS()), // guarded: a dynamic peer may still be resolving its ASN
+		RouterID:           settings.RouterID,
+		State:              peer.State().PluginState(),
+		SessionGeneration:  peer.forwardGeneration.Load(),
+		DestinationSession: destinationSession,
 	}}
 	if r.removalEvents != nil {
 		// Capture allocates only on this cold removal path. The returned
@@ -111,6 +116,11 @@ func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 func (r *Reactor) completeRemovals(removals ...peerRemoval) {
 	for _, removal := range removals {
 		removal.run()
+	}
+	for _, removal := range removals {
+		if removal.source != nil {
+			completeSourceLeaseRemoval(removal.source)
+		}
 	}
 	for _, removal := range removals {
 		if removal.down != nil {

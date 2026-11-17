@@ -80,8 +80,8 @@ var errNoTreeReload = errors.New("bgp: cannot apply the configuration: this reac
 // twice.
 //
 // It also runs after startup, from the listener the BGP plugin installs with
-// registry.SetFilterInsertionsChanged: a plugin respawned with a different
-// declaration, or a reload stopped one that declared insertions. A peer
+// registry.SetPeerDeclarationsChanged: a plugin respawned with a different
+// filter, claim or output declaration, or a reload stopped one. A peer
 // whose member list changed is replaced then, as a reload replaces it. The
 // plugin server calls that listener holding its config transaction lock, so
 // no reload swaps r.configTree during the rebuild. A rebuild is no apply, so

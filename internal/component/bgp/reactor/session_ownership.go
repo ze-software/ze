@@ -125,6 +125,11 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 				return nil, err
 			}
 		}
+		if item.authority == adjOutSelected {
+			if err := item.selected.current(s); err != nil {
+				return nil, err
+			}
+		}
 		if item.peer != nil {
 			s.adjOut = &item.peer.adjOut
 		}
@@ -145,6 +150,12 @@ func (s *Session) beginAdjOut(raw bool) (*adjOutWrite, error) {
 	work.session, work.table = s, s.adjOut
 	if item := s.sentForward; item != nil {
 		work.sourceReceipt = item.sourceReceipt
+		if item.authority == adjOutSelected {
+			if item.selected.retirement {
+				work.source, work.sourceSet = item.receivedPeer, true
+				work.policyEpoch = item.sourcePolicyEpoch
+			}
+		}
 	}
 	work.raw = raw
 	work.encoding = bgpctx.Registry.Get(s.sendCtxID)
@@ -240,6 +251,7 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		// the exact receipt's owner, under the request's epoch.
 		owner.generation = item.receivedGeneration
 		owner.policyEpoch = item.sourcePolicyEpoch
+		owner.sourceReceipt = item.sourceReceipt
 		if owner.source != nil {
 			owner.revocation = owner.source.forwardRevocation.Load()
 		}
@@ -422,6 +434,34 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 				return false, nil
 			}
 			owner = entry.owner
+		case adjOutSelected:
+			if item.selected == nil {
+				return false, errAdjOutProvenance
+			}
+			if withdraw {
+				// Selected retirement names the existing destination slot, not
+				// the replacement candidate's source or received Path Identifier.
+				if entry == nil {
+					return false, nil
+				}
+				if !item.selected.owns(entry.selection) {
+					return false, nil
+				}
+				if entry.selection.revision > item.selected.output.revision {
+					return false, errSelectedRevision
+				}
+				if item.selected.retirement {
+					if key != item.selected.retireKey {
+						return false, errAdjOutProvenance
+					}
+				}
+				owner = entry.owner
+				break
+			}
+			if owner.source == nil {
+				return false, errAdjOutProvenance
+			}
+			owner.message = item.sourceMessageID
 		}
 	}
 	if withdraw {
@@ -561,7 +601,7 @@ func (w *adjOutWrite) owesWithdrawal(key adjOutKey, entry *adjRIBOutRoute) bool 
 	}
 	switch w.session.sentForward.authority {
 	case adjOutForwarded, adjOutExpected:
-	case adjOutUnspecified, adjOutRecovery, adjOutInitial:
+	case adjOutUnspecified, adjOutRecovery, adjOutInitial, adjOutSelected:
 		return false
 	}
 	return w.recoveryOwedFor(entry.owner.source)
@@ -993,11 +1033,14 @@ func (w *adjOutWrite) recordDeletion(key adjOutKey) {
 	}
 	delete(w.table.routes, key)
 	if entry != nil {
+		if entry.selection.owner.Done() != nil {
+			w.table.dropSelected(key, entry.selection.key)
+		}
 		// The entry's last read is above: keepReleased and releasePath copy
 		// what they keep, so the slot can serve the next key installed.
 		w.table.entries.free(entry)
 	}
-	if item := w.session.sentForward; item != nil && item.authority == adjOutRecovery {
+	if item := w.session.sentForward; item != nil && (item.authority == adjOutRecovery || item.authority == adjOutSelected) {
 		delete(w.table.tombstones, key)
 		return
 	}

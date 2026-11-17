@@ -16,6 +16,10 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
+// metaStaleKey is the established GR/LLGR metadata field shared by retained
+// re-advertisement and selected-output reconstruction.
+const metaStaleKey = "stale"
+
 // staleChain is the destination's export chain as the stale readvertise rail
 // runs it: the policy, and the encoding of the body the rail built for the
 // destination. The zero value holds no chain.
@@ -153,8 +157,8 @@ func (r *Reactor) runStaleChain(chain staleChain, dest filterapi.PeerFilterInfo,
 	}
 	// A stale re-advertisement is the RIB's own copy of a retained route, so
 	// the rail carries no source peer.
-	session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false).
-		WithExportMetadata(map[string]any{"stale": stale})
+	session := policyview.ExportSession(dest, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit).
+		WithExportMetadata(map[string]any{metaStaleKey: stale})
 	intent := libraryIntentContext{asn4: chain.asn4, localAS: dest.LocalAS, peerAS: dest.PeerAS,
 		asPathEditable: !dest.IsIBGP}
 	address := dest.Address.String()

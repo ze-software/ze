@@ -1309,7 +1309,7 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, wire *wireu.Wire
 	intent := libraryIntentContext{asn4: sendCtx != nil && sendCtx.ASN4(), localAS: localAS, peerAS: peerAS, asPathEditable: external}
 	// Ordinary attribute sets need the actual body even though the condition
 	// discards their result. A nil body would make a valid modify fail closed.
-	res := p.reactor.runLibraryChain(chain, wire, wire.Payload(), policyview.ExportSession(destination, filterapi.PeerFilterInfo{}, false),
+	res := p.reactor.runLibraryChain(chain, wire, wire.Payload(), policyview.ExportSession(destination, filterapi.PeerFilterInfo{}, false, filterapi.ExportExplicit),
 		intent, directionExport, modifySiteExportChain, p.settings.Address.String(), nil)
 	if res.outcome.Action != policychain.OutcomeAccept {
 		return false

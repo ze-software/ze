@@ -2,17 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Routing correctness of a shipped capability: under the default configuration a Ze node between two BGP peers passes on only the routes it originates, where RFC 4271 Section 9.2 has a speaker advertise the routes its Decision Process chose |
 | RFC gaps | - |
 | Depends | `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` (a best route advertised toward an eBGP peer under the default `next-hop auto` needs the rewrite that spec owns); `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` (the commit-time refusal of a missing or narrower `attach process` grant, which transit uses for `bgp-rib`) |
-| Phase | Design: configured-preference origin admission and selected output |
+| Phase | 2/5: contracts, source authority and dissemination implementation |
 | Handoff | `tmp/session/2026-11-14-210034/state/session-state-bgp-best-route-advertised-to-peers-01a1db03-fbc1-7b32-8cbf-72b6284c110b.md` |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-16 |
+| Updated | 2026-11-17 |
 
 Bucket: `plan/release/fixes/`. `plan/README.md` puts incorrect shipped
 behaviour there, routing defects named, and `post-release/features/` holds
@@ -43,11 +43,14 @@ the design page that owns the subject,
 `docs/architecture/rib-transition.md`, "Owner ruling: best routes reach the
 other peers by default".
 
-This spec is in design. It records the ruling, reproduced failures, existing
-mechanisms and an unapproved advertiser proposal for the main-thread design
-gates. The owner has resolved mixed-origin policy as configured-preference arbitration;
-the concrete advertiser design and its proposed API-origin mapping still await
-whole-design approval. The framing
+Implementation is authorized. On 2026-11-16, Thomas instructed:
+
+> implement plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md no other spec
+
+This instruction authorizes the current advertiser design and its scoped
+implementation. Other specs remain outside this session's work. The dated
+investigations below retain the approval state at the time they were written;
+they do not withhold this authorization. The framing
 in the question above ("nothing arbitrating against redistribution") was the
 asking session's suspicion; the source trace below distinguishes writer
 ownership from route preference arbitration. Dated investigations retain their
@@ -459,7 +462,7 @@ dispositions remain subject to the design gate.
 | RFC 8212 import default | `rfc/short/rfc8212.md` RFC8212-3-1; `bgp-rib` source policy | `bgp-rib` enforces the default import rejection | Preserve source-policy admission; selected operation reaches existing egress export default and requires explicit eBGP export policy |
 | Next-hop default | `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` | owns the `next-hop auto` rewrite toward eBGP that `precomputeNextHop` lacks | dependency: an elected route advertised to eBGP under the default is wrong until it lands |
 
-## Proposal decisions for whole-design review (unapproved)
+## Approved implementation design
 
 Q-3 records the resolved owner policy and its proposed concrete mapping. The
 other rows are technical recommendations grounded in the existing mechanisms and RFC constraints, to be
@@ -1071,8 +1074,8 @@ design check before extending this public operation.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | No forwarder consumes the `bgp-rib` best-change batch | grep on 2026-11-13: no reference in `internal/component/bgp/plugins/rs` or `rr` | an existing consumer already advertises and the defect is elsewhere | design re-reads every subscriber | unvalidated |
-| A-2 | The netlab failure is the default behaviour, not a render mistake | commit `ef1a3cf33d`: pings failed with `bgp-rib` alone and passed with `bgp-rs` attached | the spec fixes the wrong layer | a `.ci` with two peers and no route-server plugin, red at HEAD | unvalidated |
+| A-1 | No forwarder consumes the `bgp-rib` best-change batch | Current producers: `rib_bestchange.go::publishBestChanges` emits the typed event and redistribution. Direct subscribers are `flowexport/enrichbgp.go::bgpEnrichBuilder.Start` (enrichment table) and `bmp/bmp_locrib.go::BMPPlugin.startLocRIB` (BMP monitoring); neither sends ordinary peer UPDATEs | an existing consumer already advertises and the defect is elsewhere | Source re-read on 2026-11-16: both subscriber handlers and the publication function; RS/RR have no best-change subscription | confirmed |
+| A-2 | The netlab failure is the default behaviour, not a render mistake | commit `ef1a3cf33d`: pings failed with `bgp-rib` alone and passed with `bgp-rs` attached | the spec fixes the wrong layer | Main-thread corrected functional run, terminal 4037 exit 1: no-RS forked RIB reaches real API output, next-hop resolution and selected-owner controls, then times out at `elected iBGP route never reached external destination`; matches `publishBestChanges` lacking ordinary send | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -1107,6 +1110,112 @@ design check before extending this public operation.
 |-------------|---|--------------|------|
 | UPDATE from iBGP peer A, `bgp-rib` attached to A and B, eBGP peer B with an export policy | → | Explicit RIB grants → retained global selection → proposed selected operation → shared egress/final writer | `test/plugin/bgp-best-route-transit-default.ci` (planned name) |
 | UPDATE from eBGP peer A, iBGP peer C with no export policy, then the policy configured | → | Absent-policy end disposition → selected output withheld, then delivered; absent-policy report → validate and doctor | `test/plugin/bgp-best-route-needs-export-policy.ci` (planned name) |
+
+### Phase 1 implementation audit, 2026-11-16
+
+This audit judges the current ordinary-output capability, not the completeness
+of the existing role-specific implementations. No acceptance criterion is yet
+established as complete. Existing mechanisms make each group partial; the
+ordinary selected-output integration and its required proofs remain missing.
+
+| Acceptance criteria | Current producer and reusable behavior | Missing work |
+|---------------------|-----------------------------------------|--------------|
+| AC-1 to AC-4 | `rib_bestchange.go::publishBestChanges` publishes the selected winner; `rib_recovery.go::recoveryCandidate` captures retained bytes and provenance | Ordinary output, replacement/final retirement and the ordinary split-horizon control; seven existing probes are red before useful output |
+| AC-5, AC-24 to AC-26 | `registry.go::ClaimsFor`, `registry.go::FencesLiveForwards` and `reactor_api_relay.go::RelayStoredRoute` provide existing role metadata, replay fencing and send permission checks | Destination-eligible role resolution, same-instance complete grant validation, ordinary scope isolation and the API-only/no-RIB configuration proof |
+| AC-6, AC-10, AC-11, AC-13, AC-18 | `reactor_api_relay.go::RelayStoredRoute` is source-bound; `rpc/types.go::StoredRoute` preserves source epoch, message ID and NLRI framing | Distinct selected authority, exact retirement, destination identity, selected-only recovery and lifecycle completion barriers; retain existing relay semantics |
+| AC-7, AC-8 | `rib_recovery.go::recoveryCandidate` owns the selected route's bytes; `rib_replay.go::collectPeerUpReplay` replays sent history on returning sessions only | Selected initial snapshot, eligible retained-source authority and queued-output revocation |
+| AC-9, AC-12, AC-14 | `rib_bestchange.go::publishBestChanges` emits after election locks, but has no ordinary destination dispatch | Bounded independent destination workers, churn cleanup and actionable reconciliation failure/clear proofs |
+| AC-15 to AC-17, AC-19 | Existing `rpc/types.go::StoredRoute` and source-bound relay are carriers, not cross-origin preference or admission receipts | Scoped origin intake, configured preference arbitration, admitted redistribution and accepted-loser result contract |
+| AC-20 to AC-23 | `filterapi/policy.go::Policy.AcceptsAtEnd` and `UnconfiguredAccepts` implement the existing external-only absent-policy default | Engine-derived per-route kind, learned-only internal refusal/reload, role exemptions, validate/log/status/dry-run/doctor projections and their survivor proofs |
+
+Planned-file audit: the existing relay, RIB election/recovery/replay, policy and
+registration partitions remain the extension points. The selected-operation,
+origin-admission and ordinary-dispatch additions are missing. The two named
+functional tests now have ignored drafts under `test/draft/plugin/`, driven by
+`internal/test/fixture/bgp_best_route_transit.go`; no live `.ci` is promoted.
+Both configurations have explicit source received-update/state grants and
+destination send/state/refresh/sent-update grants on the same `rib` instance,
+with no RS/RR attachment. AIGP and Graceful Restart are explicitly disabled to
+isolate ordinary transit. Each draft covers internal and forked RIB placements.
+
+Test-plan audit: the seven named reactor probes already exist and remain
+untouched. The additional proposed unit regressions and both FRR/BIRD scenarios
+remain missing. The first draft proves the wiring for useful elected output
+and final withdrawal beside local API output. The second proves an internal
+API survivor, learned withholding, and policy reload releasing retained output.
+Its validate/doctor/role-exemption assertions remain owed in subsequent phases;
+the draft does not claim AC-21 or AC-22. The main thread's corrected default
+transit run reached feature RED at missing selected output (terminal 4037,
+forked placement), confirming A-2. Its internal-placement lines were elided,
+so this evidence alone does not prove both placements reached that assertion.
+The policy draft separately reached its intended internal-placement feature
+RED after API, election, withholding and applied-reload controls; the forked
+placement's active-file correction still owes a rerun.
+The policy draft's absent-output fence requires the new selected dispatcher to
+join the existing `request quiesce` barrier, including scheduled/in-flight
+selection work. An elected-owner query alone proves selection, not completion
+of downstream dispatch. Without that join, an old forbidden announcement could
+arrive after the API fence and masquerade as output released by the reload.
+The authority/dispatch phases must provide this join before the draft's
+negative assertion is credited; a timing delay cannot replace it.
+
+Documentation read for this phase: `docs/architecture/rib-transition.md`,
+`docs/guide/route-reflection.md`, `docs/functional-tests.md`,
+`docs/architecture/testing/ci-format.md` and
+`docs/contributing/running-commands.md`. This phase adds test drivers only;
+it changes no product behavior or operator documentation claim.
+
+First-run diagnosis (main thread, 2026-11-16): the fresh named runner rejected
+configuration before socket controls ran: `AIGP selection requires process
+"rib" to receive update-received and state from every BGP peer`. The producer
+is `reactor/config_aigp.go::PeerSettings.AIGPEnabled`, which enables AIGP on
+internal sessions by default, followed by
+`config/redistribute_binding.go::wireRedistributeDelivery` and
+`config/flowspec_binding.go::requireRIBDelivery`, which require source grants
+on every peer. This is a fixture-input concern for the wiring question.
+`[workaround]` granting received updates to the destination would conceal the
+exact source/destination boundary the approved spec requires. `[source]` the
+drafts explicitly disable unrelated AIGP selection on all peers, preserving
+the intended grants. The separate AC-26 default-AIGP/no-RIB proof remains owed;
+this correction claims no fix to that behavior. The corrected runs must reach
+election and useful-output controls before counting as wiring RED evidence.
+
+Second setup diagnosis (main thread, 2026-11-16): the policy test's internal
+placement reached feature RED at `policy reload did not release retained
+elected route`, but its forked placement failed at `open ze-bgp.conf: no such
+file or directory`. `runner/runner_config.go::zeConfigFileName` gives the first
+daemon `ze-bgp.conf` and the next distinct stdin block its own cwd and named
+file, here `daemon-2/ze-config-forked.conf`. The fixture incorrectly read the
+single-daemon constant; its reused `liveStagesReload` would also write that
+wrong name. The owning layer is this new test driver. `[workaround]` creating
+a `ze-bgp.conf` copy or guessing by placement could make the read succeed while
+reloading unchanged active configuration. `[source]` the policy `.ci` now
+passes each daemon's explicit active filename; `bgpBestRouteAddPolicy` reads
+it and `bgpBestRouteReload` writes that same path and requests the canonical
+reload command, then requires the actual daemon's reload generation to advance
+and report `applied`. No runner or product code changes, aliases or source-route
+reannouncements are involved.
+
+Complete reload-path diagnosis after that correction: the internal placement
+again reached feature RED, while the forked observer reported `daemon.pid not
+found` (main run 82727, `job-advertiser-wiring-policy-red-authorized-19d94541.log`).
+`runner_exec.go` creates each daemon's config directory but publishes
+`daemon.pid` at the test's `Record.WorkDir`. The hub's
+`declared_plugins.go::pluginServerConfigs` supplies `loadResult.ConfigDir` as
+the external plugin WorkDir, and `process/process.go` applies it to the child.
+Consequently the second observer runs beside its active config and not beside
+the runner-owned PID file. The daemon's `hub/pidfile.go::writePIDFile` creates
+no separate file when `ze.pid.file` is unset. The owning defect is the new
+fixture's assumption that active config and runner PID share a directory.
+`[workaround]` guessing a parent PID path or manufacturing a local alias binds
+the fixture to runner bookkeeping. `[source]` the fixture now uses the existing
+`request reload` command on its authenticated daemon connection, removing its
+PID dependency entirely. `server/system.go::handleDaemonReload` calls the hub's
+`main_reload.go::newRequestReloadFunc`, which runs `signalReload`, the same
+source-file reload implementation SIGHUP uses. The fixture still checks reload
+generation advancement and `applied` before waiting for learned output. This
+correction awaits the main thread's fresh policy rerun; it establishes no new
+product behavior or successful advertisement claim.
 
 ## Acceptance Criteria
 
@@ -1241,11 +1350,10 @@ the function.
   `docs/guide/route-reflection.md` ("Without Route Reflection"),
   `docs/guide/plugins.md`, and `contrib/netlab/ze/ze.j2` (Q-6).
 
-The following bounded file groups are the current proposal, not permission to
-edit source. The selected receipt and claim scope must be agreed before these
-groups can run independently. The origin-admission partition below implements
-the resolved Q-3 policy and must land with these contracts after whole-design
-approval.
+The following bounded file groups are the authorized implementation scope.
+Their dependencies determine when groups can run independently. The
+origin-admission partition implements the resolved Q-3 policy and must land
+with its selected receipt and claim contracts.
 
 | Proposed partition | Source files implicated | Required integration |
 |--------------------|-------------------------|----------------------|
@@ -1324,7 +1432,7 @@ the design gate, including unchanged callers and non-Go clients.
 2. **Proposed phase: contracts and authority** -- selected envelope, captured source facts/retention receipt, public runtime fence declaration, existing writer admission and completion, selected-only recovery. Preserve legacy relay callers unchanged.
 3. **Proposed phase: RIB dissemination** -- retained capture/revision, per-destination bounded dispatch, snapshot/deltas, policy/retention/stop barriers; include scoped origin admission and configured-preference arbitration described above.
 4. **Proposed phase: explicit grants and role wiring** -- the plugin's declared source and destination grant sets, their refusal at commit through the dependency spec's check, destination claim resolution, conflict verification and session-restart ownership transfer. No binding is derived.
-5. **Proposed phase: integration and migration** -- production-wired seven probes plus retained-source, external, isolation and native identity regressions; judge fixture proof changes independently; migrate transit users and run configured-role/interop coverage. Main runs all tests and gates. None of these phases starts before whole-design approval.
+5. **Proposed phase: integration and migration** -- production-wired seven probes plus retained-source, external, isolation and native identity regressions; judge fixture proof changes independently; migrate transit users and run configured-role/interop coverage. Main runs all tests and gates. The owner's implementation instruction authorizes these phases; they run in dependency order after the wiring RED.
 
 ### Critical Review Checklist
 

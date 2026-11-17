@@ -31,8 +31,7 @@ func (s *Server) serveRuntimeRequests(proc *process.Process, conn *plugipc.Plugi
 		}
 		admission, err := requests.admit(request)
 		if err != nil {
-			var collision *requestIDCollision
-			if errors.As(err, &collision) {
+			if _, collision := errors.AsType[*requestIDCollision](err); collision {
 				// Never answer under an ID another handler still owns: that
 				// would release its caller before the original writer joins.
 				if closeErr := conn.AbortRuntime(requests.cancelAll); closeErr != nil {

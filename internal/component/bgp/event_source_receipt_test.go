@@ -13,7 +13,7 @@ func TestParseEventRejectsReboundSourceReceipt(t *testing.T) {
 	// Match the formatter's peer.remote.address shape: a flat address is not
 	// accepted by GetPeerAddress and would reject before testing this binding.
 	envelope := func(sourceReceipt uint64) []byte {
-		return fmt.Appendf(nil, `{"namespace":"bgp","event":"update","payload":{"type":"bgp","bgp":{"peer":{"remote":{"address":"192.0.2.1","as":65001}},"message":{"type":"update","id":42,"direction":"received"},"source-policy-epoch":9,"source-receipt":7,"update":{}}},"metadata":{"peer":"192.0.2.1","message-id":42,"source-policy-epoch":9,"source-receipt":%d,"reactor-forwarded":false}}`, sourceReceipt)
+		return fmt.Appendf(nil, `{"namespace":"bgp","event":"update","payload":{"type":"bgp","bgp":{"peer":{"remote":{"address":"192.0.2.1","as":65001}},"message":{"type":"update","id":42,"direction":"received"},"source-policy-epoch":9,"source-receipt":7,"update":{}}},"metadata":{"peer":"192.0.2.1","peer-owner":0,"message-id":42,"source-policy-epoch":9,"source-receipt":%d,"reactor-forwarded":false}}`, sourceReceipt)
 	}
 	matching, err := ParseEvent(envelope(7))
 	if err != nil {

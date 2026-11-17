@@ -22,7 +22,7 @@ func receiptEnvelope(t *testing.T, message *bgptypes.RawMessage, peer string, ch
 	payload := string(format.AppendMessage(nil, &plugin.PeerInfo{
 		Address: netip.MustParseAddr(peer), PeerAS: rpc.RemoteASOf(65001),
 	}, *message, bgptypes.ContentConfig{Encoding: plugin.EncodingText, Format: plugin.FormatParsed}))
-	metadata := map[string]any{"peer": peer, "message-id": message.MessageID,
+	metadata := map[string]any{"peer": peer, "peer-owner": uint64(0), "message-id": message.MessageID,
 		"source-policy-epoch": message.SourcePolicyEpoch, "source-receipt": message.SourceReceipt, "reactor-forwarded": message.ReactorForwarded,
 		"fast-path-skipped": message.FastPathSkipped}
 	if change != nil {
@@ -50,7 +50,7 @@ func TestRSFastReceiptSkippedAndReplayTargets(t *testing.T) {
 			rs.workers = newWorkerPool(func(_ workerKey, item workItem) { items <- item }, poolConfig{chanSize: 1})
 			const source = "10.0.0.1"
 			for address, state := range map[string]PeerState{
-				source: {Up: true, StateSeen: true},
+				source:     {Up: true, StateSeen: true},
 				"10.0.0.2": {Up: true, StateSeen: true, InitialReplay: 20},
 				"10.0.0.3": {Up: true, StateSeen: true, InitialReplay: 20},
 				"10.0.0.4": {Up: true, StateSeen: true, InitialReplay: 50},

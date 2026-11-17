@@ -771,7 +771,7 @@ func (rr *routeReflector) dispatchText(text string) {
 		if err != nil {
 			return
 		}
-		sourcePolicyEpoch, sourceReceipt, err := textparse.SourceProvenance(text)
+		sourcePolicyEpoch, sourceReceipt, peerOwner, err := textparse.SourceProvenance(text)
 		if err != nil {
 			logger().Warn("received UPDATE provenance rejected", "peer", fields[1], "error", err)
 			ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
@@ -782,7 +782,7 @@ func (rr *routeReflector) dispatchText(text string) {
 			return
 		}
 		if enveloped {
-			if err := receipt.Validate(fields[1], msgID, sourcePolicyEpoch, sourceReceipt); err != nil {
+			if err := receipt.Validate(fields[1], peerOwner, msgID, sourcePolicyEpoch, sourceReceipt); err != nil {
 				logger().Warn("received UPDATE receipt rejected", "peer", fields[1], "message-id", msgID, "error", err)
 				ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 				if releaseErr := rr.plugin.ReleaseCached(ctx, []uint64{msgID}); releaseErr != nil {

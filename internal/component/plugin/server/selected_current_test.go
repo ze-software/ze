@@ -17,7 +17,7 @@ import (
 func selectedCurrentInput() rpc.CurrentSelectionInput {
 	return rpc.CurrentSelectionInput{Destination: "192.0.2.7", DestinationSession: 3,
 		DeadlineMS: time.Now().Add(time.Second).UnixMilli(),
-		Keys: []rpc.CurrentSelectionKey{{Family: "ipv4/unicast", KeyNLRI: []byte{24, 10, 0, 0}, Revision: 7}}}
+		Keys:       []rpc.CurrentSelectionKey{{Family: "ipv4/unicast", KeyNLRI: []byte{24, 10, 0, 0}, Revision: 7}}}
 }
 
 func selectedCurrentAnswer(input rpc.CurrentSelectionInput) *rpc.CurrentSelectionOutput {

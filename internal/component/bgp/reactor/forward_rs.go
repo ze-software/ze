@@ -186,7 +186,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 			continue
 		}
 		// RFC 8212 Section 3: cached forwarding applies the same destination final.
-		if !pf.exportPolicy.AcceptsAtEnd(pf.isEBGP) {
+		if !pf.exportPolicy.AcceptsExportAtEnd(pf.isEBGP, filterapi.ExportExplicit) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
@@ -229,7 +229,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 			continue
 		}
 		// RFC 8212 Section 3: retry uses the current coherent destination facts.
-		if !pf.exportPolicy.AcceptsAtEnd(pf.isEBGP) {
+		if !pf.exportPolicy.AcceptsExportAtEnd(pf.isEBGP, filterapi.ExportExplicit) {
 			skipped = append(skipped, pf.peerKey)
 			continue
 		}
@@ -491,7 +491,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		var policyRemovals [][]byte
 		if facts.exportChainActive && !mods.IsWithdraw() {
 			res := r.runEgressPolicyChain(facts.exportPolicy, facts.addrStr, facts.peerAS, facts.localAS, !facts.isEBGP,
-				policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown).WithExportMetadata(update.Meta), wire)
+				policyview.ExportSession(facts.filterInfo, srcFilter, srcKnown, filterapi.ExportExplicit).WithExportMetadata(update.Meta), wire)
 			if res.accept {
 				treatments = res.treatments
 				policyRemovals = res.removals

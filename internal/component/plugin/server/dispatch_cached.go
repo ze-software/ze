@@ -63,10 +63,19 @@ func (s *Server) opRelayStoredRoute(ctx context.Context, proc *process.Process, 
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid relay-stored-route params: ").Err(err).String()}
 	}
-	if err := s.relayStoredRoute(procSender(proc), input.Destination, input.Routes); err != nil {
+	if err := s.relayStoredRouteForProcess(proc, input.Destination, input.Routes); err != nil {
 		return nil, err
 	}
 	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
+}
+
+// relayStoredRouteForProcess is the authenticated boundary shared by typed and
+// JSON callers. A same-name replacement cannot inherit unreconciled grants.
+func (s *Server) relayStoredRouteForProcess(proc *process.Process, destination string, routes []rpc.StoredRoute) error {
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return err
+	}
+	return s.relayStoredRoute(procSender(proc), destination, routes)
 }
 
 // procSender names the process an engine op arrived from.
@@ -113,6 +122,9 @@ func (s *Server) relayStoredRoute(sender plugin.Sender, destination string, rout
 // destinations are logged and dropped; the remaining destinations proceed.
 // rs-fastpath-3.
 func (s *Server) forwardCached(proc *process.Process, ids []uint64, destinations []string) error {
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return err
+	}
 	if len(ids) == 0 {
 		return nil
 	}

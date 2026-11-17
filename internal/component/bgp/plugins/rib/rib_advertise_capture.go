@@ -55,15 +55,16 @@ type advertiseKey struct {
 // storage. A snapshot alone never authorizes output and MUST NOT acquire
 // provenance from current peer metadata.
 type advertiseRoute struct {
-	key         advertiseKey
-	keyNLRI     []byte
-	revision    uint64
-	route       ribevents.RecoveryRoute
-	staleLevel  uint8
-	fingerprint uint64
-	attrLen     uint32
-	labels      []uint32
-	wireRoute   string
+	key             advertiseKey
+	keyNLRI         []byte
+	revision        uint64
+	route           ribevents.RecoveryRoute
+	staleLevel      uint8
+	fingerprint     uint64
+	attrLen         uint32
+	labels          []uint32
+	wireRoute       string
+	redirectRefused bool
 }
 
 // advertiseSnapshot returns the current immutable selections, never withdrawn
@@ -170,8 +171,7 @@ func (r *RIBManager) commitAdvertise(route *advertiseRoute) {
 		return
 	}
 	if r.advertise.revision == math.MaxUint64 {
-		r.advertise.failure = errors.New("bgp-rib: selected revision exhausted; restart the deciding process before replaying selected routes")
-		r.advertise.reportNeeded.Store(true)
+		r.failAdvertiseLocked(errors.New("bgp-rib: selected revision exhausted; restart the deciding process before replaying selected routes"))
 		return
 	}
 	r.advertise.revision++
@@ -180,6 +180,9 @@ func (r *RIBManager) commitAdvertise(route *advertiseRoute) {
 		r.advertise.current = make(map[advertiseKey]advertiseRoute)
 	}
 	r.advertise.current[route.key] = *route
+	if err := r.selectedDispatch.publish(*route); err != nil {
+		r.failAdvertiseLocked(err)
+	}
 }
 
 // removeAdvertise drops an absent selection under its existing selection lock.
@@ -201,11 +204,13 @@ func (r *RIBManager) removeAdvertise(fam family.Family, prefix netip.Prefix, nat
 		return
 	}
 	if r.advertise.revision == math.MaxUint64 {
-		r.advertise.failure = errors.New("bgp-rib: selected revision exhausted; restart the deciding process before replaying selected routes")
-		r.advertise.reportNeeded.Store(true)
+		r.failAdvertiseLocked(errors.New("bgp-rib: selected revision exhausted; restart the deciding process before replaying selected routes"))
 		return
 	}
 	r.advertise.revision++
+	if err := r.selectedDispatch.remove(key); err != nil {
+		r.failAdvertiseLocked(err)
+	}
 }
 
 // failAdvertise makes a missing retained value an explicit failed snapshot,
@@ -213,23 +218,47 @@ func (r *RIBManager) removeAdvertise(fam family.Family, prefix netip.Prefix, nat
 func (r *RIBManager) failAdvertise(err error) {
 	r.advertise.mu.Lock()
 	defer r.advertise.mu.Unlock()
-	if r.advertise.failure != nil {
-		return
+	r.failAdvertiseLocked(err)
+}
+
+// failAdvertiseLocked publishes the same first cause to snapshot readers and
+// the independent final-writer query. MUST hold advertise.mu; d.mu is later
+// in the lock order, and no caller performs an engine request here.
+func (r *RIBManager) failAdvertiseLocked(err error) {
+	if r.advertise.failure == nil {
+		r.advertise.failure = err
+		r.advertise.reportNeeded.Store(true)
 	}
-	r.advertise.failure = err
-	r.advertise.reportNeeded.Store(true)
+	r.selectedDispatch.fail(r.advertise.failure)
 }
 
 // prepareFlowSpecAdvertise captures the winner the authorization pass already
 // chose. It supplies that retained candidate's own framing; it runs no election
 // and performs no later lookup. Caller MUST hold flowSpecMu and its entry ref.
-func (r *RIBManager) prepareFlowSpecAdvertise(flow *flowSpecRoute) *advertiseRoute {
+func (r *RIBManager) prepareFlowSpecAdvertise(flow *flowSpecRoute, redirectRefused bool) *advertiseRoute {
 	best := *flow.candidate
 	best.entry = flow.entry
 	best.Route = flow.key.NLRI
 	best.PathID = flow.key.PathID
 	best.AddPath = flow.addPath
-	return r.prepareAdvertise(flow.key.Family, netip.Prefix{}, []byte(flow.key.NLRI), &best, nil)
+	route := r.prepareAdvertise(flow.key.Family, netip.Prefix{}, []byte(flow.key.NLRI), &best, nil)
+	if route == nil {
+		key := advertiseKey{family: flow.key.Family, native: flow.key.NLRI}
+		r.advertise.mu.Lock()
+		current, held := r.advertise.current[key]
+		r.advertise.mu.Unlock()
+		if !held {
+			return nil
+		}
+		if current.redirectRefused == redirectRefused {
+			return nil
+		}
+		// Redirect authorization changed without changing the selected path.
+		// Copy the already-owned capture; no pool data is read after its pin.
+		route = &current
+	}
+	route.redirectRefused = redirectRefused
+	return route
 }
 
 // reelectAdvertiseStale refreshes affected native keys after a GR/LLGR mark.

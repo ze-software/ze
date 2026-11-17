@@ -92,6 +92,9 @@ type RouteEntry struct {
 	// on every candidate extraction, and AS_PATH diversity is much higher than
 	// the other attributes (only 87% sharing vs 97%).
 	ASPath attrpool.Handle
+	// source owns the original Session's lease independently of attribute
+	// sharing. Nil leaves SourceReceipt as metadata, never authorization.
+	source *SourceReference
 }
 
 // NewRouteEntry creates a RouteEntry with all handles set to InvalidHandle.
@@ -135,6 +138,8 @@ func (e *RouteEntry) GetBundle() Bundle {
 // Release decrements refcount for Bundle (cascade-releases inner handles)
 // and ASPath. Safe to call multiple times.
 func (e *RouteEntry) Release() {
+	e.source.Release()
+	e.source = nil
 	if e.Bundle.IsValid() {
 		Bundles.Release(e.Bundle)
 		e.Bundle = attrpool.InvalidHandle
@@ -159,6 +164,7 @@ func (e *RouteEntry) AddRef() error {
 			return err
 		}
 	}
+	e.source.AddRef()
 	return nil
 }
 
@@ -176,6 +182,7 @@ func (e *RouteEntry) Clone() *RouteEntry {
 		AttrLen:           e.AttrLen,
 		Bundle:            e.Bundle,
 		ASPath:            e.ASPath,
+		source:            e.source,
 	}
 	if err := clone.AddRef(); err != nil {
 		return nil

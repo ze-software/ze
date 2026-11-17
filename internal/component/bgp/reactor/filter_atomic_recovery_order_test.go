@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -63,7 +62,7 @@ func TestAtomicRetirementRecoveryCanFollowUnrelatedFence(t *testing.T) {
 			}, rail.destination)
 			decision := rail.r.runEgressPolicyChain(rail.destination.settings.ExportPolicy,
 				rail.destination.addrString, rail.destination.PeerAS(), rail.destination.settings.LocalAS, true,
-				policyview.Session{}, wireu.NewWireUpdate(input, rail.source.recvCtxID))
+				explicitExportTestSession(false), wireu.NewWireUpdate(input, rail.source.recvCtxID))
 			require.True(t, decision.accept, "the subset must be accepted before recovery ownership decides A")
 			require.False(t, decision.failed)
 			require.NotNil(t, decision.wireOverride)

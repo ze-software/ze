@@ -80,9 +80,9 @@ owner's live state is still read where it lives. The dns-source checks
 <!-- test: internal/plugins/ddos/flowspec/doctor_stopped_record_test.go TestStoppedRecordCheckWithTheSectionUnrunOffersNoWithdrawal -->
 <!-- test: internal/plugins/ddos/flowspec/doctor_stopped_record_test.go TestRecordChecksRegisterAtTheirPhases -->
 
-The MPLS label checks are plugin runtime checks, each declared in its
-plugin's Stage 1 registration and answered by its doctor callback, because the
-state they read lives in that plugin's process:
+Plugins declare these runtime checks in their Stage 1 registration and answer
+them through their doctor callbacks, because the state they read lives in each
+plugin's process:
 
 | Check | Plugin | Reports | Code |
 |-------|--------|---------|------|
@@ -92,6 +92,7 @@ state they read lives in that plugin's process:
 | `bgp-epe-label-entries` | `bgp-epe` | a PeerNode SID label no writer installed or removed as EPE wants | `doctor-fib-mpls-no-writer` |
 | `fib-vpp-label-entries` | `fib-vpp` | label entries installed without their path MTU; a label route a previous run left in VPP that could not be removed | `doctor-fib-vpp-mpls-path-mtu`, `doctor-fib-vpp-mpls-stale-label` |
 | `fib-vpp-stale-routes` | `fib-vpp` | an IP route or labeled push a previous run left in VPP that could not be removed, IP tables that could not be read, or no FIB source to mark routes with | `doctor-fib-vpp-stale-route` |
+| `ipsec-state-scope` | `ike` | a missing, partial or unreadable complete state-scope receipt with configured IPsec peers, before a Child SA attempt; the finding retains the shared installation validator's cause and native kernel-build repair commands | `doctor-ipsec-state-scope` |
 
 What each finding means, and the stale-label sweep behind the
 `doctor-fib-vpp-mpls-stale-label` code, are in
@@ -102,6 +103,8 @@ sweep behind `doctor-fib-vpp-stale-route` is in
 <!-- source: internal/plugins/rsvpte/doctor_label.go -- labelEntriesCheckName -->
 <!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl -->
 <!-- source: internal/plugins/fib/vpp/doctor_route.go -- staleRoutesCheckDecl -->
+<!-- source: internal/component/ike/engine/doctor_state_scope.go -- stateScopeCheckDecl, answerStateScope -->
+<!-- source: internal/component/ike/engine/doctor_runtime.go -- engineDoctorChecks -->
 
 The `container` plugin, in a build with `ze_container`, declares five runtime
 checks the same way. Each reads the problems its supervisor recorded for a
@@ -1029,6 +1032,15 @@ always did.
 <!-- source: internal/component/plugin/doctor/check_report_bus.go -- checkReportBusFull, busFullRow -->
 
 ### Event codes
+
+The BGP source authority service declares `doctor-bgp-source-lease-cleanup`
+for a stopped selecting process or a permanently removed source whose revoked
+final writes miss their join deadline. The event names the process or exact
+source peer and gives `ze request restart` as the repair. Authority stays
+revoked. A context-free source stop keeps its completion barrier closed until
+the already-canceled guards finish; a report of overdue work is not a successful
+join. The code is reported by the existing recent-events check.
+<!-- source: internal/component/bgp/reactor/register_source_lease.go -- sourceLeaseCleanup, completeSourceLeaseRemoval -->
 
 The check declares `doctor-recent-events` and every event code. An owner that
 raises a transient code on the bus registers it from its `init()` with

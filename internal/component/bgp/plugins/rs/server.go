@@ -751,14 +751,14 @@ func (rs *routeServer) dispatchText(text string) {
 		if peerAddr == "" {
 			return
 		}
-		sourcePolicyEpoch, sourceReceipt, err := textparse.SourceProvenance(text)
+		sourcePolicyEpoch, sourceReceipt, peerOwner, err := textparse.SourceProvenance(text)
 		if err != nil {
 			logger().Warn("received UPDATE provenance rejected", "peer", peerAddr, "error", err)
 			rs.releaseCache(msgID)
 			return
 		}
 		if enveloped {
-			if err := receipt.Validate(peerAddr, msgID, sourcePolicyEpoch, sourceReceipt); err != nil {
+			if err := receipt.Validate(peerAddr, peerOwner, msgID, sourcePolicyEpoch, sourceReceipt); err != nil {
 				logger().Warn("received UPDATE receipt rejected", "peer", peerAddr, "message-id", msgID, "error", err)
 				rs.releaseCache(msgID)
 				return

@@ -83,11 +83,26 @@ func (txn *sourcePolicyTxn) releaseSent() {
 // sent-inventory writes were answered by the engine and its re-elections were
 // emitted on the bus (reelectSourcePolicy says what that settles and what it
 // does not). Safe for concurrent use.
-func (r *RIBManager) handleSourcePolicy(_ context.Context, input rpc.SourcePolicyInput) error {
+func (r *RIBManager) handleSourcePolicy(ctx context.Context, input rpc.SourcePolicyInput) error {
 	return sourcePolicyOwner.Handle(input, sourcepolicy.Phases{
-		Prepare: r.prepareSourcePolicy, Apply: r.applySourcePolicy,
-		Abort: r.abortSourcePolicy, Finalize: r.finalizeSourcePolicy,
+		Prepare:  r.settleSourcePolicyPhase(ctx, r.prepareSourcePolicy),
+		Apply:    r.settleSourcePolicyPhase(ctx, r.applySourcePolicy),
+		Abort:    r.settleSourcePolicyPhase(ctx, r.abortSourcePolicy),
+		Finalize: r.settleSourcePolicyPhase(ctx, r.finalizeSourcePolicy),
 	})
+}
+
+// settleSourcePolicyPhase settles this phase's source receipts after its
+// mutations and downstream writes, including a previously refused release.
+// Other sources' pending releases remain with the background retry worker.
+func (r *RIBManager) settleSourcePolicyPhase(ctx context.Context,
+	phase func(netip.Addr, rpc.SourcePolicyInput) error,
+) func(netip.Addr, rpc.SourcePolicyInput) error {
+	return func(peer netip.Addr, input rpc.SourcePolicyInput) error {
+		err := phase(peer, input)
+		receipts := r.sourceLeases.receiptsForPeer(peer)
+		return errors.Join(err, r.sourceLeases.settleReceipts(ctx, receipts))
+	}
 }
 
 // prepareSourcePolicy validates the captured identity and pins the identity

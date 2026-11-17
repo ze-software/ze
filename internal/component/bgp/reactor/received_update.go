@@ -69,6 +69,7 @@ type ReceivedUpdate struct {
 	receivedGeneration uint64
 	SourcePolicyEpoch  uint64
 	SourceReceipt      uint64 // Original session identity, never reconstructed from the current peer.
+	SourceOwner        uint64 // Original stable Peer incarnation.
 
 	// A replay gets a new cache ID but retains the received generation for the
 	// validation gate. Zero is explicitly unversioned for a removed route.

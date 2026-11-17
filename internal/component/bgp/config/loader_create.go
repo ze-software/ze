@@ -83,7 +83,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// validation errors still fail. ONE walk answers both: a dynamic group's
 	// template is a peer settings like any other and takes every layer the
 	// statically configured peers take.
-	peers, dynGroups, err := peersAndDynamicGroups(tree)
+	peers, dynGroups, err := peerPopulationsFromTree(tree)
 	if err != nil {
 		return nil, fmt.Errorf("build peers: %w", err)
 	}
@@ -337,6 +337,9 @@ func createTreeReloadFunc() reactor.TreeReloadFunc {
 // reloadPeersFromTree is the reload pipeline both loaders share: the peers,
 // the global defaults and the dynamic groups of one parsed config tree.
 func reloadPeersFromTree(tree *config.Tree) ([]*reactor.PeerSettings, reactor.Globals, []*reactor.DynamicGroupConfig, error) {
+	if tree.GetContainer("bgp") == nil {
+		return nil, reactor.Globals{}, nil, nil
+	}
 	schema, err := config.YANGSchema()
 	if err != nil {
 		return nil, reactor.Globals{}, nil, fmt.Errorf("YANG schema: %w", err)
@@ -360,7 +363,7 @@ func reloadPeersFromTree(tree *config.Tree) ([]*reactor.PeerSettings, reactor.Gl
 	// the dynamic groups from the same walk. The groups are returned even
 	// when the config declares none: an empty list is how a removed group's
 	// peers are torn down by the reload's dynamic step.
-	peers, dynGroups, err := peersAndDynamicGroups(tree)
+	peers, dynGroups, err := peerPopulationsFromTree(tree)
 	if err != nil {
 		return nil, reactor.Globals{}, nil, err
 	}

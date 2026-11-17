@@ -80,6 +80,16 @@ func appendSourceReceiptText(buf []byte, receipt uint64) []byte {
 	return strconv.AppendUint(buf, receipt, 10)
 }
 
+// appendPeerOwnerText preserves fixed header positions and records only the
+// engine's immutable Peer identity, outside route attributes and metadata.
+func appendPeerOwnerText(buf []byte, owner uint64) []byte {
+	if owner == 0 {
+		return buf
+	}
+	buf = append(buf, " peer-owner "...)
+	return strconv.AppendUint(buf, owner, 10)
+}
+
 // AppendMessage appends a RawMessage to buf based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.

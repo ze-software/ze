@@ -114,6 +114,61 @@ The query-mode declaration carries these values and Claims too.
 <!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks -->
 <!-- source: internal/component/plugin/cli/main.go -- answerQuery -->
 
+Stage 1 judges attachments from the exact configuration selected for that
+process's Configure attempt. Each protocol registers a pure resolver for its
+namespace; the scope builds immutable candidate graphs before holding its
+lifecycle lock. A new external declaration is therefore checked against the
+new grants in the same candidate, rather than the old running peer graph.
+Validation publishes no candidate and grants no delivery. A missing namespace
+resolver is a refusal. Runtime restarts outside a Configure attempt use the
+running graph.
+<!-- source: internal/component/plugin/server/dissemination_config.go -- RegisterDisseminationConfigResolver, candidateDisseminationGraphs, validateDisseminationForProcess -->
+<!-- source: internal/component/bgp/config/dissemination_config.go -- peerSettingsFromTree, disseminationPeersFromTree -->
+
+Before the first peer starts, the BGP reactor rebuilds its configuration once
+against the complete runtime declarations, including programs absent from the
+compiled registry. Only success completes this initial gate; a failed attempt
+can be retried, and a replacement reactor owes its own gate. An auto-load during
+reload does not rebuild the old running grants with the new declarations: the
+existing final candidate apply validates and reconciles that configuration.
+Outside a Configure attempt, a respawn or removal that changes runtime filter
+insertions, Claims or Dissemination rebuilds peers against the running graph.
+The runtime builder defers ownership to these declarations; offline validation
+uses compiled declarations. A replacement whose changed declarations cannot
+rebuild the peers is stopped and reported as a failed restart, including when
+the rebuild waits for an in-flight transaction to release its running tree.
+Before its handshake exposes a bridge, each replacement holds its own output
+admission. JSON and typed output calls refuse while that exact process waits
+for reconciliation; setup state calls and runtime cleanup remain available.
+Only the current process for that configured name resumes output and receives
+post-startup after success. A deferred unchanged successor keeps the hold until
+the outstanding rebuild settles. A failed rebuild never delivers post-startup.
+The initial fan-out and admission share a per-process single delivery, including
+the interval before the daemon's startup-complete signal closes.
+<!-- source: internal/component/bgp/plugin/initial_peers.go -- initialPeerConfig.resolve -->
+<!-- source: internal/component/plugin/process/peer_declarations.go -- HoldPeerDeclarations, RequirePeerDeclarations, AdmitPeerDeclarations -->
+<!-- source: internal/component/plugin/server/restart.go -- admitPeerDeclarationReplacement -->
+
+State events carry `destination-session`, an opaque decimal string naming the
+captured connection for its entire lifetime. It remains present after initial
+End-of-RIB, and a DOWN names the ended Session rather than a replacement at the
+same address. It is independent of `initial-replay`, which retains its initial
+routing-update meaning. The typed event carries the same uint64 value.
+
+For each actual recipient, `selected-destination: true` says that this process
+is the resolved ordinary output owner with the complete explicit destination
+grants. A state observer, a source-only process and a destination served by an
+explicit role receive no such eligibility. On an attached-UP, only the eligible
+ordinary owner receives its captured connection token as `initial-replay` so
+it can seed a current selected snapshot. Legacy attached observers keep zero.
+These fields describe the captured delivery; they grant no permission to an
+RPC, whose final writer rechecks its own authenticated authority. Text state
+events carry the same destination-session and selected-destination fields.
+<!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedStateDestination -->
+<!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer -->
+<!-- source: internal/component/bgp/server/events.go -- deliverPeerState, getStructuredStateEvent -->
+<!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent, PutStructuredEvent -->
+
 Ze uses a synchronized 5-stage startup protocol with barriers between stages.
 Within each dependency tier, all plugins must complete each stage before any
 can proceed to the next. Tiers are sequenced by dependency order (see
@@ -639,13 +694,15 @@ transaction. A change met while one is in flight waits for it to end and
 then runs from the config it left running, and otherwise it holds the
 transaction lock itself, so a commit arriving meanwhile is refused as busy
 and a SIGHUP reload waits for it.
-A restart that declares the same insertions rebuilds nothing. The rebuild
+The same change listener compares Claims and Dissemination too: changing a
+role can change peer ownership even when no insertion changes. A restart that
+declares the same three values rebuilds nothing. The rebuild
 is no apply: an operator's live `subscribe` stays.
-<!-- source: internal/component/plugin/server/filter_insertion_change.go -- announceInsertionsChanged, announceInsertionChange -->
-<!-- source: internal/component/plugin/server/reload.go -- deferInsertionChange, release -->
+<!-- source: internal/component/plugin/server/filter_insertion_change.go -- announcePeerDeclarationsChanged, announcePeerDeclarationChange -->
+<!-- source: internal/component/plugin/server/reload.go -- deferPeerDeclarationChange, release -->
 <!-- source: internal/component/plugin/server/startup_autoload.go -- stopCollectedProcesses -->
-<!-- source: internal/component/plugin/registry/filter_insertion_change.go -- SetFilterInsertionsChanged -->
-<!-- source: internal/component/bgp/plugin/register.go -- SetFilterInsertionsChanged -->
+<!-- source: internal/component/plugin/registry/filter_insertion_change.go -- SetPeerDeclarationsChanged -->
+<!-- source: internal/component/bgp/plugin/register.go -- SetPeerDeclarationsChanged -->
 
 The declared reads and sets are what config load judges. A chain at `bgp
 import` or `bgp export` naming `<plugin>:<filter>` fails when no declared name
@@ -1855,6 +1912,105 @@ All methods are prefixed with `ze-plugin-engine:`.
 
 #### Selected-route output
 
+##### Original source leases
+
+<!-- source: pkg/plugin/rpc/source_lease.go -- SourceLeaseInput, SourceLeaseOutput -->
+<!-- source: pkg/plugin/sdk/sdk_source_lease.go -- SourceLease -->
+<!-- source: internal/component/bgp/reactor/register_source_lease.go -- source lease registration and generation cleanup -->
+
+Process-generation cleanup receives the server that owned dispatch together
+with the exact ended process. It revokes and joins original-source writes
+before retiring that incarnation's current selected output through the
+server's own reactor. It never looks up an owner by its configured name. A
+failed output removal retires its captured destination session rather than
+leaving the prior advertised frontier for a replacement to inherit.
+
+`SourceLease(ctx, input)` calls the BGP owner's registered
+`ze-bgp:source-lease` operation. It uses the generic native bridge dispatcher
+internally and the same evaluator over JSON externally. The input names an
+engine-issued `source-receipt`, its stable `peer-owner`, an absolute `deadline-ms`, and an explicit
+numeric action: `1` acquire, `2` retain, or `3` release. The answer echoes the
+receipt, peer owner and action only after that action has completed. Missing, null,
+unknown and mismatched answers are refused. A receipt identifies an original
+source Session; knowing its number grants no permission.
+
+`peer-owner` is the engine's existing Peer incarnation identity, allocated once
+when that Peer is created. It is the same value as
+`SourcePolicyIdentity.PeerOwner` and the original received event's `peer-owner`.
+It survives reconnects of that Peer; the reconnect gets a new `source-receipt`.
+Removing and recreating a peer creates another owner. Addresses, AS numbers and
+TCP ports are metadata, never substitutes for this identity.
+
+Acquire checks the exact original Peer's resolved attachment and the caller's
+authenticated runtime dissemination declaration. The same configured process
+must explicitly hold the complete declared source receive set. Grants from a
+different process running the same plugin, a derived attachment, or a different
+peer with the same address do not complete it. Retain extends an existing
+lease through physical source DOWN; the engine chooses no GR or LLGR duration.
+Acquire and Retain require a nonzero peer owner matching the receipt's captured
+original Peer before changing authority. The SDK binds the answer to all three
+requested values, with no floating-point identity conversion.
+Release confirms that no authority remains for the authenticated selecting
+incarnation at that receipt. It needs no receive grant, so cleanup can finish
+after that grant is removed. An existing owned lease is revoked first and its
+outstanding writes are canceled and joined before the answer. A canceled wait
+leaves it revoked and discoverable until those writes finish. Their completion
+can remove the lease before a retry arrives; an absent own lease or an unknown
+positive receipt therefore already satisfies Release. This creates no lease,
+keeps no completion history and never changes another owner's authority.
+Release accepts zero peer owner when the original identity is unrecorded. A
+nonzero owner is caller correlation, not an engine attestation: if the receipt
+still exists, a mismatched owner is refused without revoking it. An unknown
+receipt is already absent and creates no identity or completion history.
+Acquire and Retain still require their original receipt, grant and ownership
+checks. A zero receipt is invalid for every action.
+
+The private reversible grant transaction pins only the existing leases of one
+exact original Peer and selecting Process incarnation. The coordinator must
+first cut that source's receive grant and settle admitted receive delivery;
+prepare can then retain the original session facts without retaining any route
+payload. Apply permanently cancels those old lease contexts and joins admitted
+writes. It does not advance the peer's policy epoch or end its destination role.
+Rollback requires the same authenticated Process and a restored complete,
+explicit source grant. It issues fresh lease contexts from those pins, including
+valid retained sessions already DOWN; an old queued write remains revoked.
+Pins remain until the owner has acknowledged abort or accepted finalization.
+Ordinary acquire cannot use a closed delivery reference to resurrect a lease.
+This primitive alone does not purge plugin candidates or acknowledge a reload:
+the owner lifecycle must also settle candidate removal, re-election and output.
+<!-- source: internal/component/bgp/reactor/source_receipt_transaction.go -- prepareGrant, apply, restore, finish, finalize -->
+
+The Process caches one selected-owner token while live. Generation cleanup
+uses that same token after Stop or engine exit, rather than constructing a new
+live identity. Every lease of the ended incarnation is revoked before cleanup
+joins its writes. A same-name successor has a different token. A Process is
+started once; restart creates a new Process with fresh delivery and cleanup
+state.
+
+That token also captures the exact connection's current-selection reader once.
+Final writers invoke the captured reader without taking the process manager's
+lock. A manager can therefore stop and join an incarnation while its final
+writer finishes; neither operation needs a name lookup held by the other.
+The token checks its original lifetime before and after the callback and
+validates the echoed scope. A lifetime-only token with no reader refuses the
+query.
+
+The bound token also holds a Process-owned cancellation context. Stop cancels
+it through the existing process context tree. Internal engine exit cancels only
+the selected context before publishing `EngineDone`; it does not turn an engine
+failure into an operator Stop. Source leases derive their writer contexts from
+that tree. A typed flush therefore stops before bridge dispatch is joined,
+independently of the generation cleanup that subsequently releases its lease.
+
+Owner engine operations may declare an authenticated cancellation scope.
+`EngineOperation.CancellationScope` validates the live resource before the
+connection reader dispatches work. `NewEngineRequestScope` keeps the resource
+key comparable and binds it to one method and deadline. The existing
+connection-local request store enrolls and joins the call; source leases add
+no cancellation inventory of their own.
+<!-- source: internal/component/plugin/server/register_engine_op.go -- EngineOperation, NewEngineRequestScope -->
+<!-- source: internal/component/plugin/process/selected_owner.go -- SelectedOwner, SelectedOwnerForCleanup -->
+
 ##### Current selection validation
 
 <!-- source: pkg/plugin/rpc/current_selection.go -- current-selection DTO and frame bounds -->
@@ -1946,7 +2102,12 @@ Both the encoded request and its widest complete final answer must fit
 the larger frame with the widest correlation ID, current revision and SDK
 deadline; an absence answer can be larger than its request. The existing
 `SelectRoutesFrameSize` measures the request alone. Route count alone cannot
-bound either frame. Callers keep input unchanged until return. The result contains one ordered identity/revision echo per input and
+bound either frame. `SelectRoutesExchangeSizes` exposes the separate request
+and response budgets. `SelectRoutesItemSizes` uses the same envelope authority
+for cacheable array-member budgets; callers add the empty nonnil-array
+envelope and one comma between members, reserving the widest requested revision
+when a cached item can be reused after revision changes. Callers keep input
+unchanged until return. The result contains one ordered identity/revision echo per input and
 the writer's `current-revision`. Numeric outcomes are `1` written, `2`
 suppressed, `3` absent, or `4` stale revision. Suppression and absence confirm
 retirement of the previous selected output. Missing, partial, unknown or
@@ -2585,13 +2746,14 @@ quoted text payload:
 | Member | Type | Meaning |
 |--------|------|---------|
 | `peer` | IP address | The peer named by the payload |
+| `peer-owner` | uint64 | The engine's stable Peer incarnation named by the payload; zero is explicitly unrecorded |
 | `message-id` | uint64 | The payload's received message ID |
 | `source-policy-epoch` | uint64 | The payload's original policy admission, including an explicit unrecorded zero |
 | `source-receipt` | uint64 | The payload's original source session identity, including an explicit unrecorded zero |
 | `reactor-forwarded` | bool | The reactor fast path has already decided the eligible destinations |
 | `fast-path-skipped` | address:port list | Destinations handed back to the forwarding plugin; omitted when empty |
 
-`peer`, `message-id`, `source-policy-epoch`, `source-receipt` and `reactor-forwarded` are mandatory
+`peer`, `peer-owner`, `message-id`, `source-policy-epoch`, `source-receipt` and `reactor-forwarded` are mandatory
 and non-null. An explicit zero ID or unrecorded policy epoch and an explicit
 `false` decision remain values, not missing members. An omitted or null decision
 must not silently become `false` and send a second copy to a target the reactor
@@ -2599,7 +2761,7 @@ already served.
 
 These are delivery facts from the engine's `RawMessage`, never filter-writable
 `route-meta`. A reader binds the receipt to the actual payload's peer, message ID
-and policy epoch and source receipt before using it. The route server snapshots the skipped list
+and stable peer owner, policy epoch and source receipt before using it. The route server snapshots the skipped list
 into its worker item on structured delivery; JSON decoding owns the list on the
 forked rail. Neither rail keeps a mutable alias to a publisher's receipt.
 

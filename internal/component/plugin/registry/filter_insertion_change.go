@@ -1,47 +1,37 @@
-// Design: docs/architecture/api/process-protocol.md -- Filter Insertion
-// Related: filter_declaration.go -- RuntimeFilterInsertions, the set whose change this announces
-
+// Design: docs/architecture/api/process-protocol.md -- runtime peer declarations.
 package registry
 
 import "sync"
 
-// insertionsChanged is the listener the subsystem that places filter
-// insertions installs (SetFilterInsertionsChanged).
-var insertionsChanged struct {
+var peerDeclarationsChanged struct {
 	mu sync.RWMutex
-	fn func()
+	fn func() error
 }
 
-// SetFilterInsertionsChanged installs the listener told when the running
-// set of declared filter insertions changed after startup: a third-party
-// plugin respawned with a different Stage 1 declaration, or a plugin that
-// declared insertions stopped. The subsystem that places insertions (the BGP
-// config loader) rebuilds its peers from the running config in it, so the
-// lists follow the declarations without a reload. Called once from that
-// subsystem's startup; nil removes it. The plugin server calls it holding
-// its config transaction lock, so the rebuild never interleaves with a
-// reload: the listener MUST NOT start a config transaction, which that lock
-// would refuse.
+// SetPeerDeclarationsChanged installs the subsystem listener for runtime
+// FilterInsertions, Claims and Dissemination changes after startup. The server
+// calls it with config transaction exclusion, without holding its mutex or a
+// process-manager lock. The listener MUST NOT start a config transaction. An
+// error refuses the replacement whose declarations could not be reconciled.
+// Nil removes the listener.
 //
-// It is a runtime seam, callable after Seal: the BGP engine installs it when
-// it starts, after the registry is sealed.
-func SetFilterInsertionsChanged(fn func()) {
-	insertionsChanged.mu.Lock()
-	defer insertionsChanged.mu.Unlock()
-	insertionsChanged.fn = fn
+// It is a runtime seam, callable after Seal: the owning subsystem installs it
+// when it starts, after the registry is sealed.
+func SetPeerDeclarationsChanged(fn func() error) {
+	peerDeclarationsChanged.mu.Lock()
+	defer peerDeclarationsChanged.mu.Unlock()
+	peerDeclarationsChanged.fn = fn
 }
 
-// NotifyFilterInsertionsChanged tells the installed listener that the
-// declared insertions changed. It answers false when no listener is
-// installed: no subsystem places insertions in this daemon, so there is
-// nothing to rebuild, and the caller MUST NOT read false as a rebuild.
-func NotifyFilterInsertionsChanged() bool {
-	insertionsChanged.mu.RLock()
-	fn := insertionsChanged.fn
-	insertionsChanged.mu.RUnlock()
+// NotifyPeerDeclarationsChanged invokes the installed listener outside the
+// registry mutex. False means no subsystem owns peer placement in this daemon;
+// it is not evidence that any peers were rebuilt.
+func NotifyPeerDeclarationsChanged() (bool, error) {
+	peerDeclarationsChanged.mu.RLock()
+	fn := peerDeclarationsChanged.fn
+	peerDeclarationsChanged.mu.RUnlock()
 	if fn == nil {
-		return false
+		return false, nil
 	}
-	fn()
-	return true
+	return true, fn()
 }

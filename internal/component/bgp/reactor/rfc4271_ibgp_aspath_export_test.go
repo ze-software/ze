@@ -56,7 +56,7 @@ func exportFilterTo(t *testing.T, delta string, body []byte, destPeerAS uint32) 
 		filterTransportSeam: aspathEditTransport(t, delta),
 		attrModHandlers:     attrModHandlersWithDefaults(),
 	}
-	res := r.runEgressPolicyChainASN4(answerPolicyAt(t, libraryIntentExport, routepolicy.FinalAccept, "aspath-edit"), "10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, policyview.Session{EBGP: destPeerAS != 65000}, wireu.NewWireUpdate(body, ctxID), true)
+	res := r.runEgressPolicyChainASN4(answerPolicyAt(t, libraryIntentExport, routepolicy.FinalAccept, "aspath-edit"), "10.0.0.30", destPeerAS, 65000, destPeerAS == 65000, explicitExportTestSession(destPeerAS != 65000), wireu.NewWireUpdate(body, ctxID), true)
 	require.True(t, res.accept, "the export chain accepts the route")
 
 	payload := body

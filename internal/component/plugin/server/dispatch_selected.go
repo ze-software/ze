@@ -30,7 +30,7 @@ func (s *Server) selectRoutes(ctx context.Context, proc *process.Process, input 
 	if proc == nil {
 		return nil, errors.New("select-routes: caller process is unavailable")
 	}
-	owner, err := plugin.NewSelectedOwner(procSender(proc), proc.Done(), proc.EngineDone())
+	owner, err := proc.SelectedOwner()
 	if err != nil {
 		return nil, err
 	}

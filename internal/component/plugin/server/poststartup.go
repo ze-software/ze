@@ -45,6 +45,9 @@ const postStartupTimeout = 10 * time.Second
 // sequential handshake and therefore completes before peers start. See
 // startup_claims.go. Do not move such a decision back onto this fan-out.
 func (s *Server) sendPostStartupToAll() {
+	// A replacement admitted while this fan-out runs owes its own delivery,
+	// even before startupDone closes. Process admission makes it single-shot.
+	s.postStartupStarted.Store(true)
 	pm := s.procManager.Load()
 	if pm == nil {
 		return
@@ -90,6 +93,12 @@ func (s *Server) sendPostStartupToNames(names []string) {
 // undelivered, because it will never get the callback.
 func (s *Server) sendPostStartupTo(proc *process.Process) {
 	if proc == nil || !proc.Running() {
+		return
+	}
+	if err := proc.RequirePeerDeclarations(); err != nil {
+		return
+	}
+	if !proc.BeginPostStartup() {
 		return
 	}
 	conn := proc.Conn()

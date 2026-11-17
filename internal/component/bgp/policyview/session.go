@@ -40,8 +40,10 @@ func ImportSession(peer filterapi.PeerFilterInfo) Session {
 
 // ExportSession answers the session of a route sent to dest. source holds the
 // facts of the peer the route came from, valid only when sourceKnown: a route
-// Ze originated, or one whose rail does not carry its source, has none.
-func ExportSession(dest, source filterapi.PeerFilterInfo, sourceKnown bool) Session {
+// Ze originated, or one whose rail does not carry its source, has none. The
+// caller MUST derive kind from the authenticated output owner, independently
+// of source facts. Unknown kind remains unknown and MUST fail export closed.
+func ExportSession(dest, source filterapi.PeerFilterInfo, sourceKnown bool, kind filterapi.ExportKind) Session {
 	return Session{
 		EBGP:        !dest.IsIBGP,
 		Peer:        dest,
@@ -49,19 +51,13 @@ func ExportSession(dest, source filterapi.PeerFilterInfo, sourceKnown bool) Sess
 		Source:      source,
 		SourceKnown: sourceKnown,
 		exporting:   true,
+		exportKind:  kind,
 	}
 }
 
-// WithExportKind supplies the current route's engine-derived authority.
-// The caller MUST derive kind from authenticated ownership before policy runs;
-// sourceKnown alone proves neither a learned route nor a local origin. An
-// import session ignores this export-only context. The receiver is unchanged.
-func (s Session) WithExportKind(kind filterapi.ExportKind) Session {
-	if s.exporting {
-		s.exportKind = kind
-	}
-	return s
-}
+// IsExport identifies an engine-created export context. It says nothing about
+// whether the supplied kind is known; callers MUST judge that independently.
+func (s Session) IsExport() bool { return s.exporting }
 
 // ExportKind answers the authority supplied for this export run, or unknown
 // when none was supplied. It is operational context, never a filter field or

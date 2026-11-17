@@ -361,7 +361,7 @@ the speaker's own global is raised to that 48-octet pair for an on-link
 destination, and a received 48-octet pair is cut to 24 octets for an off-link
 one. A route the
 session writes through its egress gate, the API batch announce among them,
-reaches the same decision there (`normalizeVPNNextHop`), which asks
+reaches the same decision there (`normalizeOrdinaryNextHop`), which asks
 `applyEgressNextHopScope` rather than decide again.
 An IPv4 next hop of a VPN-IPv6 route occupies 24 octets. The field contains a
 zero RD and the IPv4-mapped IPv6 address (RFC 4659 Section 3.2.1.2).
@@ -383,8 +383,11 @@ The shared profile writer builds the RD forms once per forwarding facts
 snapshot. The MP_REACH materializer keeps the received next hop rather
 than write a length outside the family's own table.
 This decision applies to the last nonempty Set, even when an earlier Set has a
-valid width. The final address classifier makes the same selection and retains
-the received field when that last Set cannot be written.
+valid width. The final address classifier and scope normalizer make the same
+selection and retain the received field when that last Set cannot be written.
+Scope decodes that complete field through its profile. Pair trimming borrows
+the raw first unit, including any received RD; growth preserves that unit and
+uses the profile writer for the added link-local address and its RD.
 A configured IPv6 labeled-unicast route (SAFI 4) carries the same decided
 link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 `buildMPReachLabeledUnicast` writes the 32-octet RFC 2545 Section 3 field.
@@ -398,7 +401,7 @@ link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, precomputeVPNNextHop -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler, familyAdmitsNextHopOctets -->
 <!-- source: internal/component/bgp/message/update_build_labeled.go -- buildMPReachLabeledUnicast -->
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- normalizeVPNNextHop -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- normalizeOrdinaryNextHop -->
 <!-- source: internal/core/bgp/attribute/mpnlri.go -- MPReachNLRI.wireNextHop -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- linkLocalConditionFor, linkScope.holdsCommonSubnet -->
 <!-- test: internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go TestRFC4659StaticVPNv6LinkLocalCommonSubnet -->
@@ -612,6 +615,77 @@ stats, err := cs.Commit([]*rib.Route{route}, rib.CommitOptions{SendEOR: false})
 **The forward path is where scale matters.** Route reflection of millions of routes needs zero-copy. The build path handles low-volume local origination.
 
 ### One final ownership and duplicate boundary
+
+#### Selected-route transactions
+
+The selected operation carries a separate process incarnation, native key and
+selection revision into the existing Session writer. These fields are separate
+from the received message ID and the sent-event receipt. Its source guard holds
+the original source-session lease through final flush or cancellation. The
+writer checks the captured session and source-policy admission under its socket
+lock; a retained source uses its captured facts, never a replacement session's
+OPEN or encoding context.
+The original source Peer has one stable engine owner identity, independent of
+the issuing Session's receipt. Received UPDATE wrappers preserve both through
+snapshots and cache reconstruction. The stable identity is the same
+`peer-owner` that state, refresh and source-policy events carry; an inbound
+connection's remote port never supplies it. Sent events keep the destination
+Peer identity separate from the route's original `SourceOwner`.
+It also captures the destination's immutable dissemination snapshot and refuses
+work after that exact peer/session publication changes. Owner kind is resolved
+at the forwarding lifecycle boundary; final writes query the selecting owner's
+captured connection and never look up a process through its manager.
+
+Selected egress is materialized through the shared forwarding pipeline while
+the dispatch lock is held. The prepared sections retain their normal cache,
+pool and provenance ownership, and the selected request writes them after
+releasing that lock. One cancellable selected-stream lock serializes that
+destination's batches. The existing request writer owns socket cancellation,
+flush and the joined deadline cleanup.
+The stored hex NLRI is decoded once by the existing pooled reconstruction.
+Native identity and the original ADD-PATH identifier are checked against those
+retained decoded bytes before egress, rather than allocating a second decoded
+NLRI merely to validate the same path. Dispatch-lock release is deferred so
+error or panic unwinding cannot hold the shared staging gate.
+The original numeric source receipt and validated stale projection are set
+before the reconstructed update enters the recent-update cache. Reusable
+source-session facts exclude these operation annotations.
+
+The same Adj-RIB-Out records the selecting owner, original native key, revision,
+export kind and current write attempt on each surviving output slot. A derived
+index points only to those current slots. After candidate output is written,
+the transaction retires the older slots for that selected key. A replacement
+without ADD-PATH overwrites its existing slot; an ADD-PATH source change retires
+the previous outgoing identifier. Policy exclusion retires the previous
+selected output without selecting a loser. A completed removal deletes its
+index membership and creates no selected tombstone. The engine holds no
+candidate table or historical selection-revision map.
+When the semantic key drops wire framing or other native bytes, the current
+selected slot keeps its exact outgoing NLRI for retirement; EVPN route keys,
+for example, exclude their framing and label. The removal's sent receipt
+names that slot's original source, policy admission and numeric receipt even
+though the absence request itself carries no source lease.
+After a deciding process stops, its generation cleanup first revokes and joins
+source writes, then retires that exact incarnation's current selected slots.
+This engine-owned removal does not query the dead process or require a live
+source. It uses the owning server's reactor and the captured destination
+session. A source-grant cut uses the same boundary restricted to the exact
+source peer, preserving other sources and other owners. A failed retirement
+ends that destination session before cleanup returns, so a replacement never
+inherits the predecessor's advertised frontier. Public selected requests
+continue to require a live owner and cannot acquire this removal authority.
+
+This writer path is under implementation. Ordinary best-route dissemination
+remains unavailable until the RIB destination dispatcher and source-lease
+protocol are connected and verified. Scoped local-origin admission is separate;
+an origin receipt without that admission is refused.
+<!-- source: internal/component/bgp/reactor/reactor_api_selected.go -- SelectRoutes, selectRoute -->
+<!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected, retireSelected -->
+<!-- source: internal/component/bgp/reactor/selected_output.go -- selectedOutput, selectedSlots, setSelected -->
+<!-- source: internal/component/bgp/reactor/selected_cleanup.go -- retireSelectedOwner, hasSelectedOwner -->
+<!-- source: internal/component/bgp/reactor/source_receipt_write.go -- admitWrite, writeContext -->
+
+#### Shared ownership admission
 
 Encoded and pre-encoded managed UPDATEs share the final writer's admission. The existing
 `adjOut` table is bound to one Session and stores one current owner per native

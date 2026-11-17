@@ -29,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/taskguard"
@@ -92,11 +93,11 @@ type Process struct {
 	envelope       atomic.Bool  // true: wrap delivered events in an EventEnvelope (default: bare payload)
 
 	// Plugin registration protocol (5-stage startup)
-	stage        atomic.Int32               // Current stage (PluginStage)
-	registration *plugin.PluginRegistration // Stage 1 registration data
-	capabilities *plugin.PluginCapabilities // Stage 3 capability declarations
-	stageCh      chan struct{}              // Signals stage completion
-	stageMu      sync.Mutex                 // Protects stage transitions
+	stage        atomic.Int32                              // Current stage (PluginStage)
+	registration atomic.Pointer[plugin.PluginRegistration] // Published Stage 1 registration data
+	capabilities *plugin.PluginCapabilities                // Stage 3 capability declarations
+	stageCh      chan struct{}                             // Signals stage completion
+	stageMu      sync.Mutex                                // Protects stage transitions
 
 	// startupFail records WHY the 5-stage handshake stopped before
 	// StageRunning, so the engine can report the cause instead of only the
@@ -147,23 +148,29 @@ type Process struct {
 	// Process only becomes reachable from ProcessManager.processes after its Start has
 	// returned (startConfigs, manager.go), so no reader can see the field being
 	// assigned. Nil means "no engine goroutine here", which is every external plugin.
-	engineDone         chan struct{}
-	mu                 sync.Mutex
-	cleanupOnce        sync.Once // ensures connection cleanup runs exactly once
-	runtimeCleanupOnce sync.Once // ensures server runtime cleanup runs exactly once
-	runtimeCleanupDone chan struct{}
+	engineDone              chan struct{}
+	mu                      sync.Mutex
+	started                 bool                  // One Process owns one attempt and one cleanup lifetime.
+	selectedOwner           *plugin.SelectedOwner // Captured once while this exact connection is live.
+	selectedCancel          context.CancelFunc    // Cancels only selected work; engine exit is distinct from operator Stop.
+	peerDeclarationsPending atomic.Bool           // Exact replacement output waits for its runtime peer authority.
+	postStartupStarted      atomic.Bool           // One callback belongs to one exact Process, across racing fan-outs.
+	cleanupOnce             sync.Once             // ensures connection cleanup runs exactly once
+	runtimeCleanupOnce      sync.Once             // ensures server runtime cleanup runs exactly once
+	runtimeCleanupDone      chan struct{}
 }
 
 // NewProcess creates a new process with the given configuration.
 func NewProcess(config plugin.PluginConfig) *Process {
-	return &Process{
+	proc := &Process{
 		config:             config,
 		registryName:       plugin.RegistryName(config),
-		registration:       &plugin.PluginRegistration{},
 		capabilities:       &plugin.PluginCapabilities{},
 		stageCh:            make(chan struct{}),
 		runtimeCleanupDone: make(chan struct{}),
 	}
+	proc.registration.Store(&plugin.PluginRegistration{})
+	return proc
 }
 
 // Stage returns the current plugin startup stage.
@@ -247,9 +254,12 @@ func (p *Process) WaitForStage(ctx context.Context, stage plugin.PluginStage) er
 	}
 }
 
-// Registration returns the plugin registration data (Stage 1).
+// Registration returns the borrowed plugin registration data (Stage 1).
+// It is safe to call concurrently with SetRegistration. Callers must not mutate
+// the returned record while another goroutine may read it. A zero Process or an
+// explicit SetRegistration(nil) has no record; NewProcess starts with an empty one.
 func (p *Process) Registration() *plugin.PluginRegistration {
-	return p.registration
+	return p.registration.Load()
 }
 
 // Capabilities returns the plugin capability declarations (Stage 3).
@@ -436,9 +446,12 @@ func (p *Process) SetIndex(i int) {
 	p.index = i
 }
 
-// SetRegistration sets the plugin registration data (Stage 1).
+// SetRegistration publishes the plugin registration data (Stage 1).
+// It is safe to call concurrently with Registration. The caller must finish
+// initializing reg before publication and must not mutate it while readers may
+// use it. Passing nil clears the record.
 func (p *Process) SetRegistration(reg *plugin.PluginRegistration) {
-	p.registration = reg
+	p.registration.Store(reg)
 }
 
 // SetCapabilities sets the plugin capability declarations (Stage 3).
@@ -572,7 +585,12 @@ func (p *Process) Start() error {
 // For external plugins, forks via exec.Command.
 func (p *Process) StartWithContext(ctx context.Context) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	if p.started {
+		p.mu.Unlock()
+		return opererr.New("Plugin "+p.config.Name+" already started",
+			"A stopped or failed process cannot reuse its delivery and cleanup lifetime", "ze request plugin restart "+p.config.Name)
+	}
+	p.started = true
 
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
@@ -580,11 +598,19 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	p.startDeliveryLocked()
 
 	// Internal plugins run in-process via goroutine
+	var err error
 	if p.config.Internal {
-		return p.startInternal()
+		err = p.startInternal()
+	} else {
+		err = p.startExternal()
 	}
-
-	return p.startExternal()
+	p.mu.Unlock()
+	if err != nil {
+		// A failed attempt is spent too. Stop outside p.mu so connection
+		// cleanup cannot deadlock while releasing its delivery worker.
+		p.Stop()
+	}
+	return err
 }
 
 // startInternal starts an internal plugin as a goroutine with a single net.Pipe.
@@ -625,7 +651,7 @@ func (p *Process) startInternal() error {
 	p.wg.Go(func() {
 		// Registered first, so it runs LAST: the signal means the engine and every
 		// defer of its own have finished, release included.
-		defer close(p.engineDone)
+		defer p.endSelectedEngine()
 		defer p.running.Store(false)
 		// The panic boundary: a panic in the plugin's own code is logged,
 		// counted and crash-recorded, and the goroutine then returns as a

@@ -16,7 +16,8 @@ import (
 // Its nil and zero values are invalid. Only newSourceReceiptFacts constructs it;
 // the Peer pointer supplies revocation fences, never replacement session facts.
 type sourceReceiptFacts struct {
-	source relaySource
+	source    relaySource
+	peerOwner uint64
 }
 
 func newSourceReceiptFacts(source relaySource) (*sourceReceiptFacts, error) {
@@ -29,6 +30,9 @@ func newSourceReceiptFacts(source relaySource) (*sourceReceiptFacts, error) {
 	if source.info.peer == nil {
 		return nil, errors.New("source receipt: original peer is missing")
 	}
+	if source.info.peer.sourceOwner == 0 {
+		return nil, errors.New("source receipt: original peer owner is unresolved")
+	}
 	if !source.addr.IsValid() {
 		return nil, errors.New("source receipt: original peer address is missing")
 	}
@@ -40,7 +44,7 @@ func newSourceReceiptFacts(source relaySource) (*sourceReceiptFacts, error) {
 	}
 	// A forwardSourceInfo also carries one operation's sender, recovery and
 	// replay state. None is a source-session fact or transferable authority.
-	facts := &sourceReceiptFacts{source: relaySource{addr: source.addr, ctxID: source.ctxID,
+	facts := &sourceReceiptFacts{peerOwner: source.info.peer.sourceOwner, source: relaySource{addr: source.addr, ctxID: source.ctxID,
 		srcID: source.srcID, strAdr: source.strAdr, generation: source.generation, ok: true}}
 	facts.source.info = forwardSourceInfo{isIBGP: source.info.isIBGP, isRRClient: source.info.isRRClient,
 		remoteRouterID: source.info.remoteRouterID, globalLocalAS: source.info.globalLocalAS,
@@ -50,13 +54,15 @@ func newSourceReceiptFacts(source relaySource) (*sourceReceiptFacts, error) {
 
 // sourceReceiptStore holds session facts, not routes or GR policy. Its zero
 // value is usable. Entries are bounded by open session-delivery references,
-// current owner leases and admitted final writes; completed references leave
-// no tombstones. Receipt identifiers never wrap or depend on peer addresses.
+// current owner leases, actual grant transactions and admitted final writes.
+// Completed references leave no tombstones. Receipt identifiers never wrap or
+// depend on peer addresses.
 // Safe for concurrent use. mu is a leaf and is never held across I/O or waits.
 type sourceReceiptStore struct {
 	mu      sync.Mutex
 	next    uint64
 	entries map[uint64]*sourceReceiptRecord
+	grants  map[sourceGrantKey]*sourceReceiptGrant
 }
 
 type sourceReceiptRecord struct {
@@ -65,6 +71,7 @@ type sourceReceiptRecord struct {
 	deliveryOpen bool
 	leases       map[plugin.SelectedOwner]*sourceReceiptLease
 	writes       uint64
+	pins         uint64
 }
 
 // liveSourceReceipt holds the source session's admitted event-delivery lifetime,
@@ -156,16 +163,15 @@ func (store *sourceReceiptStore) acquire(id uint64, owner plugin.SelectedOwner) 
 	if !record.deliveryOpen {
 		return nil, errors.New("source receipt: original event-delivery lifetime has ended")
 	}
-	lease := &sourceReceiptLease{store: store, record: record, owner: owner,
-		revoked: make(chan struct{})}
-	lease.lifetime, lease.cancel = context.WithCancel(context.Background())
+	lease := newSourceReceiptLease(store, record, owner)
 	record.leases[owner] = lease
 	return lease, nil
 }
 
 // retain records the owning plugin's retention decision on an existing lease.
-// The engine computes no GR duration and cannot issue a replacement lease once
-// the session's event-delivery reference ends. Safe for concurrent use.
+// The engine computes no GR duration. Public acquisition cannot replace a lease
+// after event delivery ends; only a real grant transaction's authenticated
+// rollback may restore its pinned existing authority. Safe for concurrent use.
 func (lease *sourceReceiptLease) retain() error {
 	lease.store.mu.Lock()
 	defer lease.store.mu.Unlock()
@@ -253,7 +259,11 @@ func (write sourceReceiptWrite) current() error {
 
 // source returns immutable original facts, not permission to write them.
 // The writer MUST still call current at its final socket admission boundary.
-func (write sourceReceiptWrite) source() relaySource { return write.lease.record.facts.source }
+func (write sourceReceiptWrite) source() relaySource {
+	source := write.lease.record.facts.source
+	source.receipt = write.lease.record.id
+	return source
+}
 
 func (write sourceReceiptWrite) done() <-chan struct{} { return write.lease.revoked }
 
@@ -364,6 +374,9 @@ func waitSourceReceiptWrites(ctx context.Context, idle <-chan struct{}) error {
 // dropUnused requires store.mu. It deletes only completed ownership, never
 // historical keys: there is no candidate or route storage in this table.
 func (store *sourceReceiptStore) dropUnused(record *sourceReceiptRecord) {
+	if record.pins != 0 {
+		return
+	}
 	if record.deliveryOpen {
 		return
 	}

@@ -200,7 +200,7 @@ func runBGPEngine(conn net.Conn) (result int) {
 		// An attachment MUST survive Stop and Wait, then detach by its exact identity.
 		// Only a successfully attached owner installed the insertion listener.
 		if attachment != nil {
-			registry.SetFilterInsertionsChanged(nil)
+			registry.SetPeerDeclarationsChanged(nil)
 		}
 		if bgpReactor != nil {
 			bgpReactor.Stop()
@@ -292,21 +292,19 @@ func runBGPEngine(conn net.Conn) (result int) {
 		}
 		log.Info("bgp reactor started (peers deferred)")
 
-		// A plugin that respawns with a different filter declaration, or that
+		// A plugin that respawns with different peer declarations, or that
 		// a reload stops, changes the members its insertions place, and only a
 		// rebuild of the running config moves them on the peers. The plugin
 		// server calls this holding its config transaction lock
-		// (registry.SetFilterInsertionsChanged).
-		registry.SetFilterInsertionsChanged(func() {
-			if rebuildErr := bgpReactor.RebuildRunningPeers(); rebuildErr != nil {
-				log.Warn("bgp: the filter insertions plugins declare changed and placing them on the peers failed, so the peers keep their previous filter lists until the next reload; fix the cause and run `ze signal reload`",
-					"error", rebuildErr)
-			}
+		// (registry.SetPeerDeclarationsChanged).
+		registry.SetPeerDeclarationsChanged(func() error {
+			return bgpReactor.RebuildRunningPeers()
 		})
 
 		// Register peer startup as post-startup callback. The coordinator
 		// calls this when SignalPluginStartupComplete fires (after all tiers
 		// and explicit plugins finish their 5-stage protocol).
+		var initialPeers initialPeerConfig
 		coord.OnPostStartup(func() error {
 			// A third-party plugin's filter insertions arrive at its Stage 1,
 			// and a compiled-in plugin's apply only once it runs, which may be
@@ -317,10 +315,12 @@ func runBGPEngine(conn net.Conn) (result int) {
 			// daemon's startup error: ze exits with the refusal `ze config
 			// validate` prints for the same config, never runs on with no
 			// peer started.
-			if runningPluginsInsert() {
-				if rebuildErr := bgpReactor.RebuildRunningPeers(); rebuildErr != nil {
-					return fmt.Errorf("bgp: peers not started, because placing the filter insertions the running plugins declare refused the config: %w", rebuildErr)
-				}
+			// Runtime dissemination declarations require this gate even when
+			// no plugin inserts filters. A reload's auto-load uses its candidate
+			// later, in ApplyConfigDiff; applying its declaration to the old map
+			// here could refuse grants that the same candidate completes.
+			if rebuildErr := initialPeers.resolve(bgpReactor.RebuildRunningPeers); rebuildErr != nil {
+				return rebuildErr
 			}
 			// The daemon keeps running when StartPeers refuses (a configured
 			// family with no decoder): each held peer is named in an error
@@ -496,22 +496,4 @@ func runBGPEngine(conn net.Conn) (result int) {
 	}
 
 	return 0
-}
-
-// runningPluginsInsert reports whether a plugin this daemon runs declares a
-// filter insertion: a third-party one at its Stage 1, or a compiled-in one
-// whose registration carries insertions (registry.LoadedPlugins).
-func runningPluginsInsert() bool {
-	if len(registry.RuntimeFilterInsertions()) > 0 {
-		return true
-	}
-	// The plugin server installs the seam before any plugin starts, so here
-	// it always answers; unknown leaves loaded empty.
-	loaded, _ := registry.LoadedPlugins()
-	for _, name := range loaded {
-		if r := registry.Lookup(name); r != nil && len(r.FilterInsertions) > 0 {
-			return true
-		}
-	}
-	return false
 }

@@ -16,7 +16,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/policychain"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -57,7 +56,7 @@ func TestRFC9012FilterRawOverrideRemovesInvalidTLVs(t *testing.T) {
 		r := rawTunnelReactor(answer)
 		// RFC 9012 Section 13.
 		res := r.runEgressPolicyChainASN4(policy, "10.0.0.21", 65001, 65000, false,
-			policyview.Session{EBGP: true}, testWireUpdate(input), false)
+			explicitExportTestSession(true), testWireUpdate(input), false)
 		require.True(t, res.accept, "a raw answer with a valid TLV left is still sent")
 		require.NotNil(t, res.wireOverride, "the raw answer reaches the caller")
 		require.Equal(t, cleaned, res.wireOverride.Payload(),
@@ -84,7 +83,7 @@ func TestRFC9012FilterRawOverrideRemovesInvalidTLVs(t *testing.T) {
 		t.Cleanup(func() { fwdLogger = prev })
 		r := rawTunnelReactor(teCarryBody(bad))
 		res := r.runEgressPolicyChainASN4(policy, "10.0.0.23", 65001, 65000, false,
-			policyview.Session{EBGP: true}, testWireUpdate(input), false)
+			explicitExportTestSession(true), testWireUpdate(input), false)
 		require.False(t, res.accept, "a raw answer whose every TLV is malformed is not sent")
 		require.True(t, res.failed, "a malformed raw answer is a guard miss, not a policy decision")
 		assert.Nil(t, res.wireOverride)
@@ -94,7 +93,7 @@ func TestRFC9012FilterRawOverrideRemovesInvalidTLVs(t *testing.T) {
 	t.Run("a valid answer is sent unchanged", func(t *testing.T) {
 		r := rawTunnelReactor(cleaned)
 		res := r.runEgressPolicyChainASN4(policy, "10.0.0.24", 65001, 65000, false,
-			policyview.Session{EBGP: true}, testWireUpdate(input), false)
+			explicitExportTestSession(true), testWireUpdate(input), false)
 		require.True(t, res.accept)
 		require.NotNil(t, res.wireOverride)
 		require.Equal(t, cleaned, res.wireOverride.Payload())

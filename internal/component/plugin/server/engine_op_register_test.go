@@ -170,17 +170,22 @@ func TestProcessGenerationCleanupIdentity(t *testing.T) {
 		registry.Restore(snapshot)
 	})
 	var cleaned *process.Process
-	if err := RegisterProcessGenerationCleanup(func(proc *process.Process) { cleaned = proc }); err != nil {
+	var cleanedServer *Server
+	if err := RegisterProcessGenerationCleanup(func(server *Server, proc *process.Process) { cleanedServer, cleaned = server, proc }); err != nil {
 		t.Fatal(err)
 	}
 	old := process.NewProcess(plugin.PluginConfig{Name: "reused-name"})
 	replacement := process.NewProcess(plugin.PluginConfig{Name: "reused-name"})
-	runProcessGenerationCleanups(old)
+	server := new(Server)
+	server.runProcessGenerationCleanups(old)
+	if cleanedServer != server {
+		t.Fatal("cleanup lost its owning server")
+	}
 	if cleaned != old || cleaned == replacement {
 		t.Fatal("cleanup lost process-generation identity")
 	}
 	registry.Seal()
-	if err := RegisterProcessGenerationCleanup(func(*process.Process) {}); !errors.Is(err, registry.ErrRegistrySealed) {
+	if err := RegisterProcessGenerationCleanup(func(*Server, *process.Process) {}); !errors.Is(err, registry.ErrRegistrySealed) {
 		t.Fatalf("late cleanup registration = %v", err)
 	}
 }

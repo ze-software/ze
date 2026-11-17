@@ -5,6 +5,7 @@ package reactor
 
 import (
 	"bytes"
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"net/netip"
 	"slices"
 	"testing"
@@ -164,7 +165,7 @@ func TestRecoveryPackReowesEveryKeyWhenSourceEnds(t *testing.T) {
 	}
 	// The source's session is replaced while the withdrawal is written.
 	checks := 0
-	session.egressFinalAccepts = func() bool {
+	session.egressFinalAccepts = func(filterapi.ExportKind) bool {
 		checks++
 		source.advanceForwardGeneration()
 		return true

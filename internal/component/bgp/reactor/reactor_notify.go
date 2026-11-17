@@ -135,6 +135,7 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	// already resolved the current OPEN's full-width remote identity.
 	peer.mu.RLock()
 	peerInfo := plugin.PeerInfo{
+		PeerOwner:       peer.sourceOwner,
 		Address:         peer.settings.Address,
 		LocalAddress:    peer.settings.LocalAddress,
 		AddressStr:      peer.addrString,
@@ -199,6 +200,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 	s := peer.Settings()
 	addrStr := peer.addrString
 	peerInfo := plugin.PeerInfo{
+		PeerOwner:       peer.sourceOwner,
 		Address:         s.Address,
 		LocalAddress:    s.LocalAddress,
 		AddressStr:      addrStr,
@@ -255,11 +257,11 @@ func (r *Reactor) notifyMessageReceiverFrom(originalPeer *Peer, peerAddr netip.A
 	var follow []ingressPolicyContinuation
 	var sourceCtxID bgpctx.ContextID
 	var sourceID source.SourceID
-	var sourceReceipt uint64
+	var sourceReceipt, sourceOwner uint64
 	if wireUpdate != nil {
 		// Read before the call: the UPDATE's ownership may leave with it.
 		sourceCtxID, sourceID = wireUpdate.SourceCtxID(), wireUpdate.SourceID()
-		sourceReceipt = wireUpdate.SourceReceipt()
+		sourceReceipt, sourceOwner = wireUpdate.SourceReceipt(), wireUpdate.SourceOwner()
 	}
 	var kept bool
 	defer func() {
@@ -288,6 +290,7 @@ func (r *Reactor) notifyMessageReceiverFrom(originalPeer *Peer, peerAddr netip.A
 		followUpdate := wireu.NewWireUpdate(next.body, sourceCtxID)
 		followUpdate.SetSourceID(sourceID)
 		followUpdate.SetSourceReceipt(sourceReceipt)
+		followUpdate.SetSourceOwner(sourceOwner)
 		buffer := next.buffer
 		if buffer.Buf == nil {
 			buffer = BufHandle{ID: noPoolBufID, Buf: next.body}
@@ -387,6 +390,7 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, peerAddr netip.Addr, msgT
 			peerAS = session.negotiatedPeerASNoWait()
 		}
 		peerInfo = plugin.PeerInfo{
+			PeerOwner:       peer.sourceOwner,
 			Address:         s.Address,
 			LocalAddress:    s.LocalAddress,
 			AddressStr:      peer.addrString,
@@ -534,6 +538,7 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, peerAddr netip.Addr, msgT
 			MessageID:         messageID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
 			SourceReceipt:     wireUpdate.SourceReceipt(),
+			SourceOwner:       wireUpdate.SourceOwner(),
 			WireUpdate:        wireUpdate,
 			AttrsWire:         attrsWire, // Derived from WireUpdate
 		}
@@ -723,6 +728,7 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, peerAddr netip.Addr, msgT
 				wireUpdate.SetMessageID(messageID)
 				wireUpdate.SetSourceID(sourceID)
 				wireUpdate.SetSourceReceipt(msg.SourceReceipt)
+				wireUpdate.SetSourceOwner(msg.SourceOwner)
 				// Update RawMessage to use modified WireUpdate.
 				attrsWire, parseErr := wireUpdate.Attrs()
 				msg.RawBytes = payload
@@ -793,6 +799,7 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, peerAddr netip.Addr, msgT
 			Meta:              routeMeta,
 			SourcePolicyEpoch: sourcePolicyEpoch,
 			SourceReceipt:     msg.SourceReceipt,
+			SourceOwner:       msg.SourceOwner,
 		}
 		if hasPeer {
 			ru.receivedPeer = peer
@@ -807,6 +814,7 @@ func (r *Reactor) notifyOneMessage(originalPeer *Peer, peerAddr netip.Addr, msgT
 		ru.wireUpdateInline.SetMessageID(wireUpdate.MessageID())
 		ru.wireUpdateInline.SetSourceID(wireUpdate.SourceID())
 		ru.wireUpdateInline.SetSourceReceipt(msg.SourceReceipt)
+		ru.wireUpdateInline.SetSourceOwner(msg.SourceOwner)
 		ru.WireUpdate = &ru.wireUpdateInline
 		r.recentUpdates.Add(ru)
 		kept = true // Cache always accepts

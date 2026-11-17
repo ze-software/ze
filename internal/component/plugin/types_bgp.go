@@ -163,6 +163,8 @@ func (c CloseCause) String() string {
 // Use these methods instead of accessing AddressStr/LocalAddressStr directly
 // so test code and edge cases (missing cache) produce correct output.
 type PeerInfo struct {
+	// PeerOwner is the immutable engine Peer incarnation; zero is unrecorded.
+	PeerOwner       uint64
 	Address         netip.Addr
 	LocalAddress    netip.Addr
 	AddressStr      string // Cached Address.String(); avoids per-event allocation
@@ -200,6 +202,15 @@ type PeerInfo struct {
 	// InitialReplay identifies the exact session whose peer-up replay is owed.
 	// Zero is not a replay receipt.
 	InitialReplay uint64
+	// DestinationSession identifies the captured connection for its entire
+	// lifetime, including DOWN and a process attached after initial sync.
+	// SelectedOwner is the resolved ordinary owner, before per-process event
+	// projection. It is internal metadata, never a grant or wire field.
+	DestinationSession uint64
+	SelectedOwner      string
+	// SelectedDestination is filled by the per-recipient state projection.
+	// A process receiving state alone does not thereby become a destination.
+	SelectedDestination bool
 	// SessionGeneration is, on a session-down state change only, the forward
 	// generation of the session the down ended (reactor Peer.forwardGeneration),
 	// captured when it ended. Every event format carries it as

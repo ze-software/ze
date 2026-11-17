@@ -136,6 +136,77 @@ config is what breaks it. This holds for ze's own plugins as it holds for an
 operator's program: a config that loads `bgp-rib` and attaches it to no peer
 stores no route.
 
+Peer-output ownership can be declared separately from those permissions.
+`DisseminationDecl` names an event namespace, an opaque role and the source
+receive and destination receive/send sets one process needs. A declaration
+creates no grant. `DeliveryGraph.ResolveDisseminationOwner` requires complete
+sets on explicit blocks of the same configured instance. A process claiming
+the role wins over ordinary owners only at an eligible destination. Multiple
+eligible owners in the winning class are refused; a role at one destination
+does not stand ordinary output down at another.
+
+The parser records whole-binding provenance in `ProcessBinding.Explicit`.
+Both graph publication and the reactor API preserve it. Existing derived
+bindings stay derived, and implicit receive additions cannot complete a
+required set. These ownership lookups describe the configuration; a writer
+must still authenticate and recheck the running process lifetime. This
+declaration gate refuses partial explicit source or destination attachments at
+validate, commit and start, with the configured instance and a completed attach
+line. A complete destination also needs a complete source on that same
+instance. The gate does not change legacy derived bindings or plugin loading;
+the broader explicit-configuration ruling below remains separate work.
+<!-- source: internal/component/plugin/server/dissemination_validate.go -- ValidateDisseminationBindings -->
+<!-- source: internal/component/bgp/config/dissemination.go -- validateDissemination -->
+<!-- source: pkg/plugin/rpc/dissemination.go -- DisseminationDecl -->
+<!-- source: internal/component/plugin/server/dissemination.go -- DisseminationOwner, ResolveDisseminationOwner, disseminationForPlugin -->
+<!-- source: internal/component/bgp/reactor/config.go -- parseProcessBindingsFromTree, EnsureProcessBinding, GrantImplicitReceive -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- GetPeerProcessBindings -->
+
+The selected writer reads an immutable dissemination snapshot from the exact
+destination peer's forwarding facts. It records the session and configured
+owner, resolved from the complete declared grants at a lifecycle boundary.
+The final writer rechecks the authenticated process incarnation and that same
+publication, without consulting the process manager under the socket lock.
+Rebuilding interface or next-hop facts preserves that publication when the
+exact peer, session and resolved owner class still match and all required
+grants remain complete. A BGP-section reload that reads no dynamic groups
+includes the retained group templates when checking source eligibility; each
+template has its own graph node before a remote endpoint exists.
+Cold role resolution keeps each original peer node, including peers with the
+same address and different TCP ports. A changed effective owner joins the
+existing session-restart decision even when the raw grant lists stay equal.
+<!-- source: internal/component/bgp/reactor/dissemination_snapshot.go -- disseminationSnapshot, buildDisseminationSnapshot, resolveDisseminationSettings -->
+
+State delivery projects that cached ordinary owner separately for each actual
+recipient. `selected-destination` is true only for the complete ordinary owner,
+and `destination-session` names the captured connection through UP, DOWN and
+attachment after initial synchronization. A late DOWN cannot refer to whichever
+connection currently occupies the peer's address. Typed and JSON delivery carry
+the same values; an observer sharing an encoding does not share the owner's
+cached state body.
+<!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer, selectedStateFormatKey -->
+<!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedStateDestination -->
+
+Removing a complete source grant first publishes the changed attachment, then
+revokes and joins that exact peer's leases held by the cached selecting-process
+incarnation before the reload can acknowledge it. Other processes' retained
+leases and unrelated source peers remain usable. This join runs outside the
+peer and reactor locks.
+<!-- source: internal/component/bgp/reactor/dissemination_revoke.go -- revokeRemovedSourceGrants -->
+
+An original source receipt does not replace these permissions. Source-lease
+acquisition checks the exact source Peer's resolved attachment and the live
+process's declared source receive set. It reuses the complete-grant evaluator
+on that one peer, so another peer at the same IP address and a different port
+cannot supply a missing grant. The same configured process must hold the whole
+set; another instance of the same plugin supplies no part of it. Acquire and
+retain hold the exact Peer's attachment snapshot through the leaf authority
+mutation. Releasing an existing owned lease remains allowed after its receive
+grant is removed so cleanup can finish.
+<!-- source: internal/component/plugin/server/dissemination_source.go -- CheckDisseminationSource -->
+<!-- source: internal/component/bgp/reactor/source_lease.go -- sourceLeaseAdmission, sourceLeaseWithGrant -->
+
 A refused send answers the process with three lines: which process may not send
 which message type to what it addressed, that the attach block grants the
 right (followed by the `send refused: no peer this selector names attaches this
@@ -301,6 +372,13 @@ graph while Cease blocks; it cannot erase the old recipients or grant the
 removed lifetime to a replacement at the same address. The completed removal
 publishes the current peer set afterward. A reader takes a pointer snapshot,
 so no reader sees a half-built index.
+
+The locked removal also joins that Peer's protocol capture inputs before a
+replacement can be added. Session factories recheck exact Peer membership
+when they register capture, under the same reactor lock; a factory that was
+still constructing its input cannot retain the removed lifetime afterward.
+<!-- source: internal/component/bgp/reactor/peer_removal.go -- removalLocked -->
+<!-- source: internal/component/bgp/reactor/capture_pending.go -- prepareSessionCapture -->
 
 The lookup is one index read and it allocates nothing per event. It replaced a
 scan of every process and every subscription on every delivered message.
@@ -945,29 +1023,32 @@ type PathAttributes struct {
 
 Ordinary route sends (API batches, queued initial/drain routes and named commits)
 apply the recipient's export policy at the Session write gate, then normalize the
-effective plain IPv6 next-hop field against RFC 2545 Section 3. This also runs
+effective IPv6 next-hop field using its family's scope condition. For a plain
+field, RFC 2545 Section 3 applies. This also runs
 when no export filters are active. A speaker-owned global address gains the
 configured speaker link-local address only when one connected subnet contains
 both the global next-hop entity and the recipient. A valid supplied global plus
 link-local pair stays intact on that common subnet; otherwise only its global
-half is sent, with the NLRI unchanged. Ze does not discover a third party's
-link-local address.
+half is sent, with the NLRI unchanged. A third party's global can gain only
+that router's link-local address from the captured neighbor table; an unavailable
+entry leaves the global alone.
 
 Normalization does not repair invalid address roles or field widths: those bytes
 remain subject to the ordinary writer's final admission. Standalone link-local
 and IPv4-mapped forms, capability 77, RFC 8950 negotiation and peer-own next-hop
 refusal retain their existing rules. VPN and independently defined next-hop
 layouts are not converted into plain IPv6 fields. A 24- or 48-octet
-RD-prefixed VPN field takes the forwarding rails' own decision
+RD-prefixed VPN field takes the same shared scope decision
 (`applyEgressNextHopScope`, RFC 4659 Section 3.2.1.1). That section asks only
 that the speaker share a connected subnet with the recipient, wherever the
 global is, so a loopback global still qualifies: a 24-octet field naming the
 speaker's global is raised to the 48-octet RD+global, RD+link-local pair when
 the speaker shares a subnet with the recipient, and a 48-octet pair is cut to
 24 octets when it does not. End-of-RIB and already-filtered
-forward/route-server/replay writes bypass this ordinary callback; their existing
-forwarding normalization is separate.
-<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate, normalizeOrdinaryNextHop, normalizeVPNNextHop -->
+forward/route-server/replay writes bypass this ordinary callback and apply that
+shared scope decision on their forwarding rail. The profile supplies complete
+field decoding, admission and framing for both paths.
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- egressGate, normalizeOrdinaryNextHop -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateGated, writeUpdatePreFiltered -->
 
 RFC 8212 Section 3 applies at this gate before any EBGP announcement can enter

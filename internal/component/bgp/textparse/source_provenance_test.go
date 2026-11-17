@@ -45,7 +45,7 @@ func TestSourceProvenancePreservesOriginalIdentity(t *testing.T) {
 		{name: "exact", fields: " source-policy-epoch 9 source-receipt 18446744073709551615", epoch: 9, receipt: 18446744073709551615},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			epoch, receipt, err := SourceProvenance(header + test.fields + " origin igp")
+			epoch, receipt, _, err := SourceProvenance(header + test.fields + " origin igp")
 			if err != nil || epoch != test.epoch || receipt != test.receipt {
 				t.Fatalf("provenance = (%d,%d,%v), want (%d,%d,nil)", epoch, receipt, err, test.epoch, test.receipt)
 			}

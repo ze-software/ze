@@ -37,6 +37,24 @@ p.Run(ctx, &sdk.Registration{...})
 
 ## Handler Reference
 
+### OnCurrentSelection
+
+<!-- source: pkg/plugin/sdk/sdk_current_selection.go -- OnCurrentSelection -->
+
+Register this handler when a selecting plugin can answer its current desired
+selection for a destination session and native keys. The SDK declares support
+from the handler registration. This does not grant permission to send routes.
+Return the exact requested scope and ordered key/revision echoes, the current
+selection cut, and each key's explicit presence and current revision. Return no
+candidate routes. An absent key has revision zero; a present key's revision
+cannot exceed the cut.
+
+The handler runs on a separate bounded worker and may overlap ordinary events,
+execute-command and source-policy handlers. Read only a published snapshot;
+never call engine RPC, perform I/O or take election or peer locks. Honor the
+context. `Run` cancels and joins this worker before returning, so state remains
+owned until that return.
+
 ### OnConfigure
 
 Called during Stage 2 when the engine delivers config sections.

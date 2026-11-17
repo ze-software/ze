@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -37,11 +38,27 @@ type EngineOperation struct {
 	Handler   func(*Server, context.Context, *process.Process, json.RawMessage) (any, error)
 	Startup   EngineOperationStartup
 	TypedWire func(*Server, *process.Process, *rpc.DirectBridge)
+	// CancellationScope authenticates one resource synchronously before the
+	// connection reader dispatches its cancellable operation. The handler MUST
+	// recheck the same authority before mutation. Nil keeps ordinary semantics.
+	CancellationScope func(*Server, *process.Process, json.RawMessage) (EngineRequestScope, error)
 	// Native optionally adapts self-contained Go values to the same evaluator
 	// as Handler. Owners MUST validate payload types, nils and values before
 	// mutation, and MUST NOT return borrowed engine state. Handler is required
 	// even when Native is set, so external plugins retain the public operation.
 	Native func(*Server, context.Context, *process.Process, any) (any, error)
+}
+
+// EngineRequestScope is validated owner input to the existing live-request
+// store. Zero grants no cancellation admission. Its key is private so callers
+// cannot replace a validated resource after construction.
+type EngineRequestScope struct{ scope requestScope }
+
+// NewEngineRequestScope binds an already authenticated comparable resource to
+// one operation and absolute deadline. The owner MUST use a concrete immutable
+// key, never an interface payload whose dynamic value can be noncomparable.
+func NewEngineRequestScope[T comparable](method string, identity T, deadline time.Time) EngineRequestScope {
+	return EngineRequestScope{scope: requestScopeFor(method, identity, deadline)}
 }
 
 // engineOperationMu protects owner declarations and generation cleanup hooks.
@@ -95,6 +112,12 @@ func registerEngineOp(owner string, declaration EngineOperation) error {
 			native:    declaration.Native,
 			startup:   declaration.Startup,
 		}
+		if declaration.CancellationScope != nil {
+			engineOpTable[declaration.Method].cancellationScope = func(s *Server, proc *process.Process, raw json.RawMessage) (requestScope, error) {
+				scope, err := declaration.CancellationScope(s, proc, raw)
+				return scope.scope, err
+			}
+		}
 		return nil
 	})
 }
@@ -129,9 +152,10 @@ func allEngineOps() []*engineOp {
 	return ops
 }
 
-// ProcessGenerationCleanup receives the exact process whose dispatch drained.
-// A callback MUST scope state by that identity, not by a reused process name.
-type ProcessGenerationCleanup func(*process.Process)
+// ProcessGenerationCleanup receives the owning server and exact process whose
+// dispatch drained. A callback MUST scope state by those captured identities,
+// never by a global server or a reused process name.
+type ProcessGenerationCleanup func(*Server, *process.Process)
 
 var processGenerationCleanups []ProcessGenerationCleanup
 
@@ -151,11 +175,11 @@ func RegisterProcessGenerationCleanup(cleanup ProcessGenerationCleanup) error {
 	})
 }
 
-func runProcessGenerationCleanups(proc *process.Process) {
+func (s *Server) runProcessGenerationCleanups(proc *process.Process) {
 	engineOperationMu.RLock()
 	hooks := slices.Clone(processGenerationCleanups)
 	engineOperationMu.RUnlock()
 	for _, cleanup := range hooks {
-		cleanup(proc)
+		cleanup(s, proc)
 	}
 }

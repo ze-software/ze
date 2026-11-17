@@ -477,6 +477,7 @@ none of them is a defect until this table names the new trigger.
 | Copy trigger | What forces it | Producer |
 |---|---|---|
 | A private incoming connection observes an OPEN | Its decoded event must wait for selection, while read and write buffers are reused. The private epoch owns at most one actual sent and one actual received body; selection replays only those observations, without another wire write or counter increment | `(*pendingOpenPublication).retain`, `observedOpen.publish` |
+| A punted PPP DHCPv6 request enters its session worker | The sole PPP reader reuses its receive buffer before the DHCPv6 worker consumes the request. Eight fixed-value slots per session own bounded payloads; outbound UDP and RA bodies copy into the caller-owned complete PPP frame | `(*controlSocket).dispatchDHCPv6`, `writeIPv6Control` |
 | An attribute enters its pool for the first time | The pool owns the canonical copy, and the wire buffer is reused | `(*shard).intern` |
 | The destination has other capabilities | A `ContextID` mismatch (RFC 6793 ASN4 width) needs a re-encode | `buildFwdBody`, `fwdUpdateForDestination` |
 | The destination negotiated ADD-PATH | RFC 7911 Section 2: the source's Path Identifiers are rewritten, into a copy, even when the contexts match | `fwdRegenerateRawPathIDs` |
@@ -485,6 +486,7 @@ none of them is a defect until this table names the new trigger.
 | An announce becomes a withdrawal | LLGR or a destination withhold gate converts all named routes, retaining existing withdrawals as well as announcements. Legacy NLRI and matching-family MP NLRI move into a new payload; incompatible MP families are refused by this builder | `buildWithdrawalPayload` |
 | The sender's MP attribute trails | RFC 7606 Section 5.1 makes MP_REACH_NLRI or MP_UNREACH_NLRI the very first path attribute. A received UPDATE that puts it elsewhere is relayed with the attributes moved, into a read-pool buffer on the same-context branch and a fresh attribute section on the re-encode branch. A compliant UPDATE is never copied for this | `buildFwdBody`, `fwdReorderMPFirst`, `fwdMPFirstUpdate` |
 | The UPDATE does not fit | RFC 7606 Section 5.1 and the message size (4096, or 65535 with Extended Message) split one UPDATE into several; ordinary policy or next-hop growth is sized again before final writer admission | `SplitWireUpdate`, `fwdSplitParsedUpdate`, `(*Session).writeOrdinaryUpdateBody` |
+| A mixed originated UPDATE names its recipient as a next hop | Refusing one announcement must preserve original withdrawals and permitted families. The input can borrow the session's output buffer, so one read-pool copy remains owned until every synchronous partition callback finishes | `(*Session).writeOriginatedPeerOwnUpdate` |
 | Ingress PATHS-LIMIT refuses a path | A received UPDATE carries more paths for one prefix than Ze advertised it accepts. The refused NLRIs are removed into one fresh copy, keeping the session's `ContextID`; an UPDATE that refuses nothing is not copied | `(*Session).receiveCeiling` |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
@@ -501,6 +503,7 @@ none of them is a defect until this table names the new trigger.
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload, buildWithdrawalPayload -->
 <!-- source: internal/component/bgp/wireu/split.go -- SplitWireUpdate -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeOrdinaryUpdateBody -->
+<!-- source: internal/component/bgp/reactor/session_aigp.go -- writeOriginatedPeerOwnUpdate -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- Session.collapseASPathFamily -->
 <!-- source: internal/component/bgp/reactor/session_paths_limit_recv.go -- Session.receiveCeiling -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect -->

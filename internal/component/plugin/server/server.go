@@ -120,8 +120,9 @@ type Server struct {
 	advertisedClaims   map[string]map[string]bool
 	advertisedClaimsMu sync.Mutex
 
-	startupDone     chan struct{} // closed when signalStartupComplete runs
-	startupDoneOnce sync.Once
+	startupDone        chan struct{} // closed when signalStartupComplete runs
+	startupDoneOnce    sync.Once
+	postStartupStarted atomic.Bool // Replacements admitted during the initial fan-out owe the same callback.
 	// lastStopRecorded is true once this server wrote the last-stop record
 	// (last_stop.go), so its own startup end does not delete it as a clean start.
 	lastStopRecorded atomic.Bool

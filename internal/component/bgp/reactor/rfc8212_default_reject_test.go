@@ -20,7 +20,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	bgpfilter "github.com/ze-software/ze/internal/component/bgp/reactor/loopdetect"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -194,7 +193,7 @@ func TestRFC8212Section3AbsentExportRejectsOnEBGP(t *testing.T) {
 			if suppress, override, _ := r.exportFilterForBody(peer, body); !suppress || override != nil {
 				t.Fatalf("absent EBGP snapshot=%v exported %x", snapshot, override)
 			}
-			got := r.runEgressPolicyChain(settings.ExportPolicy, "192.0.2.2", 65001, 65000, false, policyview.Session{EBGP: true}, testWireUpdate(body))
+			got := r.runEgressPolicyChain(settings.ExportPolicy, "192.0.2.2", 65001, 65000, false, explicitExportTestSession(true), testWireUpdate(body))
 			if got.accept || got.failed {
 				t.Fatalf("general forwarding did not give policy rejection: %+v", got)
 			}
@@ -239,7 +238,7 @@ func TestRFC8212AbsentPolicyAcceptsOnIBGP(t *testing.T) {
 			}
 		}
 		for _, asn4 := range []bool{false, true} {
-			got := r.runEgressPolicyChainASN4(settings.ExportPolicy, "192.0.2.2", remote, 65000, settings.IsIBGP(), policyview.Session{EBGP: !settings.IsIBGP()}, update, asn4)
+			got := r.runEgressPolicyChainASN4(settings.ExportPolicy, "192.0.2.2", remote, 65000, settings.IsIBGP(), explicitExportTestSession(!settings.IsIBGP()), update, asn4)
 			if !got.accept || got.failed || got.wireOverride != nil {
 				t.Fatalf("source ASN4=%v changed IBGP destination: %+v", asn4, got)
 			}
@@ -398,7 +397,7 @@ func TestRFC8212GeneralForwardOwnedRejection(t *testing.T) {
 			f.destination.settings.RSClient = true
 			f.destination.mu.Unlock()
 			f.destination.refreshForwardFacts()
-			f.destination.session.egressFinalAccepts = func() bool {
+			f.destination.session.egressFinalAccepts = func(filterapi.ExportKind) bool {
 				facts := f.destination.forwardFacts()
 				return facts.exportPolicy.AcceptsAtEnd(facts.isEBGP)
 			}
@@ -443,6 +442,7 @@ func TestRFC8212GeneralForwardOwnedRejection(t *testing.T) {
 // TestRFC8212RawAPIAdmission drives both authorized raw API forms through the
 // real writer and checks wire bytes and committed ownership, not API success.
 func TestRFC8212RawAPIAdmission(t *testing.T) {
+	announceBody := rawOwnershipAnnounceBody()
 	set := append(rfc9774Segment(rfc9774SegSequence, 2, 65000), rfc9774Segment(rfc9774SegSet, 2, 65010)...)
 	setBody := makeUpdateBody(nil, rfc9774Attrs(set), []byte{24, 203, 0, 113})
 	for _, packet := range []bool{false, true} {
@@ -468,7 +468,7 @@ func TestRFC8212RawAPIAdmission(t *testing.T) {
 				announces bool
 				opaque    bool
 			}{
-				{name: "announce", body: syncOrderAnnounceBody, announces: true},
+				{name: "announce", body: announceBody, announces: true},
 				{name: "as-set", body: setBody, announces: true},
 				{name: "withdraw", body: mustHex(t, "000418c000020000"), denied: mustHex(t, "000418c000020000")},
 				{name: "mixed", body: mustHex(t, "000418c00002000018c00003"), denied: mustHex(t, "000418c000020000"), announces: true},
@@ -481,7 +481,7 @@ func TestRFC8212RawAPIAdmission(t *testing.T) {
 				{name: "attribute-tail", body: mustHex(t, "0000000140"), opaque: true},
 				{name: "withdrawal-tail", body: mustHex(t, "0001210000"), opaque: true},
 				{name: "mp-withdrawal-tail", body: mustHex(t, "00000007800f0400020181"), opaque: true},
-				{name: "nlri-tail", body: append(bytes.Clone(syncOrderAnnounceBody), 33), opaque: true},
+				{name: "nlri-tail", body: append(bytes.Clone(announceBody), 33), opaque: true},
 			} {
 				t.Run(mode+"/"+policyCase.name+"/"+tc.name, func(t *testing.T) {
 					peer, conn := rawOwnershipPeer(t)
@@ -493,7 +493,7 @@ func TestRFC8212RawAPIAdmission(t *testing.T) {
 					}
 					peer.refreshForwardFacts()
 					// Match runOnce's coherent published session-final callback.
-					peer.session.egressFinalAccepts = func() bool {
+					peer.session.egressFinalAccepts = func(filterapi.ExportKind) bool {
 						facts := peer.forwardFacts()
 						return facts.exportPolicy.AcceptsAtEnd(facts.isEBGP)
 					}
@@ -556,7 +556,7 @@ func TestRFC8212RawControlUnaffected(t *testing.T) {
 					peer.settings.ExportPolicy = mustPolicy(t, nil, routepolicy.FinalAccept)
 				}
 				peer.refreshForwardFacts()
-				peer.session.egressFinalAccepts = func() bool {
+				peer.session.egressFinalAccepts = func(filterapi.ExportKind) bool {
 					facts := peer.forwardFacts()
 					return facts.exportPolicy.AcceptsAtEnd(facts.isEBGP)
 				}

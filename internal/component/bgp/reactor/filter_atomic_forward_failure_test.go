@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/component/bgp/policyview"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	routepolicy "github.com/ze-software/ze/internal/component/policy"
@@ -217,7 +216,7 @@ func atomicFailureAssertAdmitted(t *testing.T, f *aigpReplayFixture, id uint64, 
 	received, present := f.r.recentUpdates.Get(id)
 	require.True(t, present)
 	result := f.r.runEgressPolicyChainASN4(f.destination.settings.ExportPolicy, f.destination.addrString,
-		f.destination.PeerAS(), f.destination.settings.LocalAS, false, policyview.Session{EBGP: true}, received.WireUpdate, true)
+		f.destination.PeerAS(), f.destination.settings.LocalAS, false, explicitExportTestSession(true), received.WireUpdate, true)
 	require.True(t, result.accept, "the policy must accept before the independent destination encoding failure")
 	require.False(t, result.failed)
 	require.NotNil(t, result.wireOverride)

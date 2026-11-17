@@ -12,6 +12,8 @@
 package rib
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -48,6 +50,7 @@ const grTimerMargin = 5 * time.Second
 // restart replaced it (new mark-stale created a new state), the callback is stale
 // and must be a no-op — otherwise it would purge the new cycle's routes.
 func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
+	defer r.settleSourceLeases(peerAddr)
 	type staleNLRI struct {
 		fam     family.Family
 		nlri    []byte
@@ -190,7 +193,11 @@ func doRegisterBuiltinCommands() {
 					}
 					families = append(families, fam)
 				}
-				return statusDone, r.retainRoutes(args[0], families, onDown), nil
+				result, err := r.retainRoutes(args[0], families, onDown)
+				if err != nil {
+					return statusError, result, err
+				}
+				return statusDone, result, nil
 			}},
 		{[]string{"request bgp rib release-routes"}, "Release retained peer RIB",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -624,6 +631,7 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 	r.peerMu.Lock()
 	cleared := 0
 	var purgedPeers []netip.Addr
+	defer func() { r.settleSourceLeases(purgedPeers...) }()
 
 	for peer, peerRIB := range r.bgpPeers {
 		if !r.selectsPeer(sel, peer) {
@@ -868,8 +876,24 @@ func (r *RIBManager) status(famFilter string) any {
 // A supplied allowlist prunes other families now, without storing another set.
 // onDown is the explicit GR handoff to the ordinary forwarding DOWN owner;
 // standalone commands instead dispatch their own pruned-family withdrawals.
-func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, onDown bool) any {
+func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, onDown bool) (any, error) {
 	sel := selector.ParseDefault(selectorStr)
+	// Retention is an engine authorization operation. Capture selector matches
+	// under the peer lock and settle it before marking any routes retained.
+	r.peerMu.RLock()
+	var peers []netip.Addr
+	for peer := range r.bgpPeers {
+		if r.selectsPeer(sel, peer) {
+			peers = append(peers, peer)
+		}
+	}
+	r.peerMu.RUnlock()
+	for _, peer := range peers {
+		if err := r.sourceLeases.retain(context.Background(), peer); err != nil {
+			return nil, err
+		}
+	}
+	defer r.settleSourceLeases(peers...)
 	r.peerMu.Lock()
 
 	retained := 0
@@ -895,7 +919,7 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 	r.dispatchSentLifecycle(writes) //nolint:errcheck // No caller waits on this answer (a timer, or a command whose answer carries no error); updateRouteRequest logs each refusal
 	r.reconcileBestPathBulk(affected)
 
-	return map[string]any{"retained-peers": retained}
+	return map[string]any{"retained-peers": retained}, nil
 }
 
 // releaseRoutes clears the retain flag and deletes Adj-RIB-In for matching peers.
@@ -907,6 +931,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 
 	released := 0
 	var purgedPeers []netip.Addr
+	defer func() { r.settleSourceLeases(purgedPeers...) }()
 	var writes []sentLifecycleWrite
 	for peer := range r.retainedPeers {
 		if !r.selectsPeer(sel, peer) {
@@ -919,9 +944,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 			purgedPeers = append(purgedPeers, peer)
 		}
 		delete(r.peerMeta, peer)
-		if state := r.grState[peer]; state != nil && state.expiryTimer != nil {
-			state.expiryTimer.Stop()
-		}
+		r.stopGRExpiryLocked(r.grState[peer])
 		delete(r.grState, peer)
 		writes = append(writes, r.pruneSentSourceLocked(peer, nil)...)
 		released++
@@ -974,9 +997,13 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 		selected = fam
 	}
 
+	r.peerMu.Lock()
+	if r.stopping {
+		r.peerMu.Unlock()
+		return statusError, nil, errRIBStopped
+	}
 	defer r.reconcileFlowSpecs()
 	defer r.reelectAdvertiseStale(peerAddr, selected)
-	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
 
 	marked := 0
@@ -1016,9 +1043,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	}
 
 	// Cancel existing expiry timer if consecutive restart.
-	if existing := r.grState[peerAddr]; existing != nil && existing.expiryTimer != nil {
-		existing.expiryTimer.Stop()
-	}
+	r.stopGRExpiryLocked(r.grState[peerAddr])
 
 	// Store GR state for status display and conditionally start expiry timer.
 	// When restart-time is 0 (used by LLGR to raise stale level without a new
@@ -1032,7 +1057,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	}
 	if restartTime > 0 {
 		expiryDuration := time.Duration(restartTime)*time.Second + grTimerMargin
-		state.expiryTimer = time.AfterFunc(expiryDuration, func() {
+		r.startGRExpiryLocked(state, expiryDuration, func() {
 			r.autoExpireStale(peerAddr, state)
 		})
 	}
@@ -1104,14 +1129,14 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 	}
 
 	if peerRIB != nil && peerRIB.StaleCount() == 0 {
-		if state := r.grState[peerAddr]; state != nil && state.expiryTimer != nil {
-			state.expiryTimer.Stop()
-		}
+		r.stopGRExpiryLocked(r.grState[peerAddr])
 		delete(r.grState, peerAddr)
 	}
 	writes := r.withdrawRemovedSentLocked(peerAddr, removed)
 	r.peerMu.Unlock()
 	refused := r.dispatchSentLifecycle(writes)
+	receipts := r.sourceLeases.receiptsForPeer(peerAddr)
+	refused = errors.Join(refused, r.sourceLeases.settleReceipts(context.Background(), receipts))
 
 	for _, a := range affected {
 		change, ok := r.checkBestPathChange(a.fam, a.nlri, a.addPath, nil)

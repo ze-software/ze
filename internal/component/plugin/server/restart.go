@@ -117,9 +117,10 @@ func (s *Server) lifetimeRestartHandshake(*process.Process, restartStartupBudget
 }
 
 // rollbackReplacement stops and releases a replacement a restart could not
-// bring into the engine: its handshake failed, or the process it replaces
-// still owed its cleanup. Such a process never reached running, so it has no
-// runtime handler, and releasePluginRegistrations runs its cleanup itself.
+// bring into the engine: its handshake failed, the process it replaces still
+// owed cleanup, or its changed declarations could not be reconciled. A process
+// that reached Running already has a runtime cleanup supervisor; an earlier
+// failure is cleaned by releasePluginRegistrations itself.
 //
 // The wait for its end is bounded by its own stop bound (StopJoinBound), as
 // Respawn's join of the process it replaces is, because the operator's
@@ -299,6 +300,29 @@ func (s *Server) restartHandshake(proc *process.Process, budget restartStartupBu
 		s.superviseProcess(proc)
 	})
 
+	return nil
+}
+
+// admitPeerDeclarationReplacement MUST run with this name's restart controller
+// reserved. A deferred transaction owns pending replacements until its final
+// rebuild; only its current exact process may resume output and post-startup.
+func (s *Server) admitPeerDeclarationReplacement(proc *process.Process) {
+	s.txLock.mu.Lock()
+	_, pending := s.txLock.peerDeclarationReplacements[proc.Name()]
+	s.txLock.mu.Unlock()
+	if pending {
+		return
+	}
+	pm := s.procManager.Load()
+	if pm == nil {
+		return
+	}
+	if pm.GetProcess(proc.Name()) != proc {
+		return
+	}
+	if !proc.AdmitPeerDeclarations() {
+		return
+	}
 	// A replacement that joins after signalStartupComplete has run reaches no
 	// other delivery, because sendPostStartupToAll fans out once and no later
 	// phase calls it. Without this line its OnAllPluginsReady handler never
@@ -322,7 +346,10 @@ func (s *Server) restartHandshake(proc *process.Process, budget restartStartupBu
 	// applyFailurePolicy, whose supervisors start at the end of each
 	// runPluginPhase, so the window is real rather than theoretical.
 	if s.startupComplete() {
-		s.sendPostStartupToNames([]string{proc.Name()})
+		s.sendPostStartupTo(proc)
+		return
 	}
-	return nil
+	if s.postStartupStarted.Load() {
+		s.sendPostStartupTo(proc)
+	}
 }
