@@ -108,6 +108,31 @@ func webGoldenSuppliedPanel() *GraphicalSuppliedPanel {
 // visible without a simultaneous rename.
 var webTemplGoldenSpec = golden.Spec{
 	// --- page components --------------------------------------------------
+	"page_backup_workspace.templ": {{
+		Name: "pageBackupWorkspace", Fixture: "page/backup_workspace",
+		Variants: []golden.Variant{
+			{Name: "upload", Data: pageBackupWorkspace(backupPageData{})},
+			{Name: "error", Data: pageBackupWorkspace(backupPageData{
+				Path: "/backups/" + strings.Repeat("a", 64) + "/", Label: "device<&>.zefs",
+				Names: []string{"router.conf", "spare.conf"}, Selected: "router.conf",
+				Content: "\nbgp { router-id invalid; }\n", Base: strings.Repeat("b", 64),
+				Error: "The configuration could not be accepted. Correct the text and validate again.",
+			})},
+			{Name: "review", Data: pageBackupWorkspace(backupPageData{
+				Path: "/backups/" + strings.Repeat("a", 64) + "/", Label: "device<&>.zefs",
+				Names: []string{"router.conf", "spare.conf"}, Selected: "router.conf",
+				Content: "\nbgp { router-id 203.0.113.45; }\n", Base: strings.Repeat("b", 64),
+				CanSave: true, Review: strings.Repeat("c", 64), Diff: "- router-id 192.0.2.1;\n+ router-id 203.0.113.45;",
+				Status: "Review the changes before saving them into the backup.",
+			})},
+			{Name: "saved", Data: pageBackupWorkspace(backupPageData{
+				Path: "/backups/" + strings.Repeat("a", 64) + "/", Label: "device<&>.zefs",
+				Names: []string{"router.conf", "spare.conf"}, Selected: "router.conf",
+				Content: "\nbgp { router-id 203.0.113.45; }\n", Base: strings.Repeat("b", 64),
+				Status: "Configuration saved into the backup. Download the updated backup to keep it.",
+			})},
+		},
+	}},
 	"page_layout.templ": {{
 		Name:    "pageLayout",
 		Fixture: "page/layout.html",

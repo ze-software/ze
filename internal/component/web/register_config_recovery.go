@@ -8,11 +8,11 @@ func init() {
 		return HandleConfigRecovery(deps.EditorManager, deps.Renderer, deps.Authorizer, deps.Recorder)
 	}
 	RegisterWebRoute(WebRoute{
-		Pattern: "GET /config/recover", Wrap: WrapAuth,
+		Pattern: "GET " + configRecoveryPath, Wrap: WrapAuth,
 		Build: build,
 	})
 	RegisterWebRoute(WebRoute{
-		Pattern: "POST /config/recover", Wrap: WrapMutation,
+		Pattern: "POST " + configRecoveryPath, Wrap: WrapMutation,
 		Build: build,
 	})
 }

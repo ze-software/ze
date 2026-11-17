@@ -46,10 +46,10 @@ remain independent of the live configuration.
 
 | Amendment field | State |
 |-----------------|-------|
-| Phase | Research; scope approved, design not yet approved |
+| Phase | Implementation 3/3: implemented, independently reviewed and scoped checks passed; parent verification handoff remains open |
 | Owning mechanism | Existing web parity work in this spec; no separate backlog item |
 | Parent status | Remains in-progress for its existing correctness work; this amendment does not change that work's acceptance or evidence |
-| Implementation | Not started |
+| Implementation | Authorized by the owner's request to implement this spec; backup workspace phases below |
 
 → Constraint: Extend the shared configuration editor and artifact storage;
 do not introduce a second configuration parser or a live publication callback.
@@ -59,43 +59,43 @@ records an edit may change.
 
 #### Backup workspace research
 
-Reading checkpoints:
+Completed research checkpoints (the constraints below are retained design evidence):
 
-- [ ] `docs/guide/config-editor.md`, Backup mode; `internal/component/cli/editor.go`
+- [x] `docs/guide/config-editor.md`, Backup mode; `internal/component/cli/editor.go`
   `NewOfflineSessionEditor` and `SetOfflinePromotion`.
   → Constraint: The offline editor already promotes candidate versions inside
   its supplied artifact. Reuse that publication mechanism; the constructor
   also loads an existing draft and labels its session origin local, so it is
   not an unchanged browser-session factory.
-- [ ] `docs/architecture/web-interface.md`, Per-User Editor;
+- [x] `docs/architecture/web-interface.md`, Per-User Editor;
   `internal/component/web/editor.go` `NewEditorManager` and `GetOrCreate`.
   → Constraint: A manager binds one store, configuration path and factory.
   Its username key alone cannot identify several independent backup workspaces.
-- [ ] `docs/architecture/web-components.md`, Design Principles;
+- [x] `docs/architecture/web-components.md`, Design Principles;
   `internal/component/web/component_commit_bar.templ` `commitBar` and
   `component_breadcrumb.templ` `topbarActions`.
   → Constraint: Existing controls target absolute live-editor URLs. A mounted
   handler prefix alone cannot isolate backup requests. Audit navigation,
   redirects, forms, HTMX requests and chrome before reusing those controls.
-- [ ] `docs/architecture/storage-backends.md`, blob artifacts;
+- [x] `docs/architecture/storage-backends.md`, blob artifacts;
   `internal/component/config/storage/backup.go` `Backup` and `copyKeys`;
   `restore.go` `sourceConfigNames`.
   → Constraint: Preserve the complete artifact rather than export configuration
   text alone. The existing guarded key copy preserves binary values; the
   configuration-name census includes both active pointers and active mirrors.
-- [ ] `ai/doors/api-surfaces.md`; `internal/component/web/webroute.go`
+- [x] `ai/doors/api-surfaces.md`; `internal/component/web/webroute.go`
   `WebRoute`; `cmd/ze/hub/service_web.go` `startWebServer`.
   → Constraint: Production discovers registered web routes and supplies their
   auth wrappers. The current route builder returns only a handler; artifact
   ownership and shutdown cleanup need an explicit lifecycle integration.
-- [ ] `cmd/ze/hub/editor_adapter.go` `newEditorFactory`;
+- [x] `cmd/ze/hub/editor_adapter.go` `newEditorFactory`;
   `internal/component/web/editor_history.go` `EditorManager.Close`.
   → Constraint: The live factory attaches the daemon's confirmation window;
   live service wiring also installs reload and publication callbacks. Backup
   editing must not inherit these. Manager close drains history but does not
   close its borrowed store or remove uploaded files.
 
-**Current behavior:** Graphical import stages configuration text in the live
+**Research baseline:** Graphical import stages configuration text in the live
 user's candidate. CLI backup mode edits a supplied artifact without a daemon.
 There is no browser bridge between those workflows in the inspected producers.
 The existing CLI/storage tests prove their own paths, not the requested browser
@@ -103,7 +103,7 @@ journey. No test was run for this research-only amendment.
 
 | Existing mechanism | Producer | Research disposition |
 |--------------------|----------|----------------------|
-| Artifact editor and promotion | `cli.NewOfflineSessionEditor`, `Editor.SetOfflinePromotion` | Extend for browser ownership and the agreed source/draft policy; retain version, active-pointer and mirror consistency |
+| Artifact editor and promotion | `cli.NewOfflineSessionEditor`, `Editor.SetOfflinePromotion` | Reuse the content-only editor and shared serializer, not the draft-resuming constructor; `PublishArtifactConfig` extends the ordinary guarded version/promotion producers without consuming pending intent |
 | Per-user graphical editing | `web.NewEditorManager`, `EditorManager.GetOrCreate` | Reuse candidate methods and schema-backed inputs; add workspace identity outside the live manager |
 | Complete artifact export | `storage.Backup`, `copyKeys` | Reuse guarded key preservation for download; do not substitute active configuration text |
 | Configuration selection | `storage.sourceConfigNames` | Reuse the storage-owned census through an exported seam if needed; do not duplicate its key grammar in web |
@@ -119,8 +119,8 @@ publish a live configuration change.
 
 | ID | Assumption | Basis | If wrong | Validation method | State |
 |----|------------|-------|----------|-------------------|-------|
-| A-B1 | Open the committed configuration first and retain existing drafts separately | Other backup contents must survive; CLI backup mode currently loads a saved draft | A user expecting draft resumption sees a different starting point | Owner choice at the research gate | Awaiting answer |
-| A-B2 | The hosting process's available schema can inspect the selected configuration | Existing editor parses with the published module set | A backup from another build may contain unsupported fields | Cover unsupported-schema and invalid-source cases without executing uploaded plugin declarations or rendering an empty tree as valid | Open for design |
+| A-B1 | Open the committed configuration first and retain existing drafts separately | Other backup contents must survive; CLI backup mode currently loads a saved draft | A user expecting draft resumption sees a different starting point | `TestBrowserBackupWorkspace` opens committed text, excludes actual editor siblings from the picker and checks every preexisting pending/draft raw key after download | Confirmed by native browser and storage preservation runs |
+| A-B2 | Inspection and validation use the hosting process's available schema | `backupPrepare` uses the shared validator and content editor; uploaded plugin declarations are never executed | A backup from another build may contain unsupported fields | `TestBackupHTTPMalformedSourceKeepsArtifact` and `TestBackupHTTPUnavailableSchemaKeepsArtifact` retain useful raw inspection, refuse validate/review/save with precise diagnostics and preserve every downloaded raw key | Confirmed in final named run; no target-host compatibility claim |
 
 | ID | Risk | Early signal | Required mitigation |
 |----|------|--------------|---------------------|
@@ -130,12 +130,18 @@ publish a live configuration change.
 | R-B4 | Download races editing or cleanup | Inconsistent active pointers or a truncated artifact | Serialize export with edits and lifetime ownership; reopen downloaded artifact and verify unrelated keys |
 | R-B5 | Offline validation is described as target-system acceptance | Host/runtime checks are implied by an artifact save | Label the validation boundary and preserve precise unsupported-schema refusals |
 
-The next design must specify workspace identity across tabs, draft selection,
-upload and storage bounds, expiry/recovery, route scope, export serialization and
-shutdown. It must enumerate all HTTP producers/consumers and retain the existing
-artifact format and CLI callers. The browser proof must upload, select, edit,
-validate, review, download and reopen a real artifact while a separate live-store
-sentinel and unrelated binary artifact keys remain unchanged.
+Mitigations now observed: the B3 raw-key/live-candidate proof addresses R-B1
+and R-B2; HTTP authorization, size/debt and cleanup tests address R-B3;
+serialized full-artifact export plus normal restore reopening addresses R-B4.
+The UI and guide label R-B5's hosting-process boundary; the dedicated malformed
+and unsupported committed-source cases now prove precise refusal and retention.
+
+The implemented design uses an opaque URL per account-owned workspace, starts
+from committed bytes, bounds uploads and retained artifacts, serializes edits
+and export, and joins admitted HTTP work before cleanup. The producer/consumer
+census below names its complete request surface. Native browser proof uploads,
+selects, edits, validates, reviews, downloads and reopens a real artifact while a
+separate live-store sentinel and unrelated binary artifact keys remain unchanged.
 
 Discovery and documentation surfaces: `features/backup-and-restore.md`,
 `ai/INDEX.md`, `docs/guide/web-interface.md`, `docs/guide/config-editor.md`,
@@ -148,9 +154,154 @@ No CLI grammar, YANG syntax, plugin protocol, BGP wire format or new listener is
 required by the approved scope.
 
 Retained session state:
-`tmp/session/2026-11-17-164600-2/state/session-state-spec-web-cli-config-one-off-defects-backup.md`.
-It holds research digests for continuation and may be removed when the approved
-design contains those constraints and no active session needs the digest.
+`tmp/session/2026-11-17-171730/state/session-state-web-cli-config-one-off-defects-d7cbdbd9-12ca-464f-b62b-76070d9eef5c.md`.
+It holds implementation handoffs and may be removed after the backup amendment's
+verification handoff is recorded durably and no active session needs it. The
+superseded research digest was removed after its constraints entered this spec.
+
+#### Backup workspace implementation plan
+
+The owner requested implementation of this spec after the research report.
+Use its existing mechanisms and the approved upload-to-download scope. The
+backup amendment does not claim or take over the parent's unrelated journal
+rows or other sessions' active corrections.
+
+| Approach | Benefit | Cost and disposition |
+|----------|---------|----------------------|
+| Dedicated backup workspace shell over shared artifact and configuration producers | Gives the complete artifact workflow an explicit owner and bounded request surface | Selected: retain shared parsing, validation, diff and publication; choose controls appropriate to inspecting and editing a full configuration |
+| Make every existing Finder control workspace-aware | Reuses the full graphical presentation | Rejected for this implementation: all absolute links, live CLI/tools and live callbacks would need a wider routing migration before isolation was reliable |
+
+| Phase | Work | Required evidence |
+|-------|------|-------------------|
+| B1 | Audit the current tree; register the authenticated backup entry point and write its failing upload-to-workspace wiring test | Named route test reaches the registered production handler and fails on the missing artifact workflow |
+| B2 | Implement bounded private artifact ownership, contained-configuration selection, independent editing, validation/review, artifact-only save, binary download and close/expiry/shutdown cleanup; add typed templ presentation and discovery | Focused positive and negative HTTP/storage tests; binary and draft preservation; concurrent-owner and cleanup tests; reached CLI/storage regressions |
+| B3 | Prove the real browser upload/edit/review/save/download/reopen path, correct any findings, run scoped checks and record the handoff | Real browser journey plus permission/refusal cases; separate live-state sentinel; downloaded artifact reopened with expected active content and unrelated keys |
+
+| AC | Input / condition | Expected behavior | Permitted survivors and why |
+|----|-------------------|-------------------|-----------------------------|
+| B-AC-1 | Authorized operator opens backup editing and uploads a valid `.zefs` artifact | A workspace lists its contained configurations and opens the selected committed configuration | Existing saved drafts remain separate and byte-preserved because they were not selected for editing |
+| B-AC-2 | Operator edits the selected configuration | Shared parsing and validation explain invalid input; review shows the changes; accepting valid changes publishes a new version in that artifact | Unchanged settings and unsupported-but-retained raw backup keys survive; invalid edits remain available for correction |
+| B-AC-3 | Operator downloads after a successful save | A complete artifact downloads and reopens with the saved active configuration and coherent version/mirror pointers | Other configurations, credentials, binary keys and original draft records survive because this operation changes only the selected committed configuration |
+| B-AC-4 | A live candidate exists while two backup workspaces are edited | Each request and download uses its explicit workspace and authenticated owner; live committed and pending bytes stay unchanged | Separate tabs and configurations remain independent; no workspace selection cookie redirects another tab |
+| B-AC-5 | Anonymous, read-only, cross-origin or wrong-owner access; malformed, corrupt or oversized upload | Requests are refused before unauthorized disclosure or mutation, with an actionable message | An authorized owner's valid artifact remains usable after a refused edit or unrelated request |
+| B-AC-6 | Workspace closes, expires, fails during creation or server shuts down | Active artifact operations finish before owned handles and temporary files are removed; admission and disk use remain bounded | The user's original upload and unrelated sessions/files remain untouched |
+
+### Critical Review Checklist
+
+| Check | What to verify for the backup amendment |
+|-------|------------------------------------------|
+| Isolation | Trace every backup form, redirect, save callback and download to the artifact owner; prove live committed and candidate bytes survive |
+| Preservation | Compare every unrelated raw key, selected-config preexisting draft and other configuration before and after export; reopen using the normal restore reader |
+| Useful outcome | The registered production route supports actual upload, edit, refusal correction, review, save and binary download; no helper-only acceptance |
+| Authorization | Full artifacts can contain credentials: require the edit-capable operator and exact workspace owner on reads and writes; enforce same-origin mutations |
+| Lifetime | Serialize export/edit/close, bound artifact count and size, join active requests before deletion and remove only task-owned workspace files |
+| Validation | Use existing configuration producers, refuse unavailable schema precisely and label offline validation without implying target-host acceptance |
+
+#### Backup integration checklist
+
+| Integration point | Applies? | Implemented disposition |
+|-------------------|----------|-------------------------|
+| YANG schema | No | No RPC or configuration leaf added; reuse hosting schema |
+| YANG native constraints | Existing | `backupPrepare` and serialized-byte validation use `cli.ConfigValidator.ValidateTransition` |
+| Custom validators | Existing | Shared validator registry remains authoritative; no backup-specific validator |
+| CLI commands/flags | No | Existing `ze config edit --backup` remains unchanged |
+| CLI grammar | No | Native browser forms add no command grammar |
+| Editor autocomplete | No | This page offers a full-text editor; no completion contract changed |
+| Functional proof for new API | Yes | Production `/backups/` registry, HTTP tests and native `TestBrowserBackupWorkspace` |
+| Pipes | No | Binary HTTP attachment is not an operational-command pipe |
+| Environment registration | No | No environment option added |
+| Runtime dependencies/doctor | Yes | Private files owned by `backupWorkspaces`; `backup_diagnostic.go` raises `doctor-backup-workspace-storage` through existing recent-events doctor |
+| Doctor problem classes | Yes | Storage/cleanup failures use that code; network cleanup retains its existing code through `ShutdownNetworkError`; ordinary input/auth refusals remain actionable request responses |
+| Metrics | No | No new protocol or telemetry contract; bounded ownership and storage failures have their existing error/report paths |
+| BGP families | No | No SAFI, capability, attribute or routing behavior changed |
+
+#### Backup HTTP producer/consumer census
+
+Search scope: `internal/component/web` Go, templ, JavaScript and CSS plus
+`cmd/ze/hub/service_web.go`; terms `backupWorkspacePath`, `backupWorkspaceURL`,
+`backup-*`, `backupReviewToken`, `NavigationURL`, `Direct`, `OwnHandler` and
+`ShutdownNetworkError`. Known controls are the registered subtree and
+`pageBackupWorkspace` form producer. Documentation/non-Go carrier searches for
+`/backups/` and `updated-backup.zefs` find the guide and architecture contract;
+there is no shell/Python production carrier or JavaScript consumer.
+
+| Carrier | Writer | Reader and preservation |
+|---------|--------|-------------------------|
+| `GET/POST /backups/`, multipart `backup` | `pageBackupWorkspace` upload form | Registered `HandleBackupWorkspace`, `upload`/`receive`; streamed private copy and integrity check |
+| `/backups/<id>/`, query `config` | Redirect from `backupWorkspaceURL`; native selection form | `serve` checks owner map/account, then `edit` uses storage-owned name census |
+| POST `action`, `config`, `content`, `base`, `review` | Native edit/close forms | `edit` validates bounds, stale baseline and review digest; `backupPrepare`/serializer use shared configuration producers; `publish` changes only the private artifact |
+| `GET /backups/<id>/download` | Native download link | `download`/`export` emit complete ZeFS attachment; native browser downloads it and `ReadRestoreSource` reopens it after documented client chmod0600 |
+| `PortalService.Direct` | Registered backup route metadata | `NavigationURL` and `HandlePortal`; default false preserves embedded services |
+| Owned handler close/error | `startWebServer` calls `OwnHandler` before wrappers | `WebServer.Shutdown` joins requests, closes owners, and preserves combined error; hub projects only network causes for its network diagnostic |
+
+No ZeFS layout, CLI grammar, YANG syntax, plugin protocol, BGP wire format or
+appliance listener changed.
+
+#### Backup documentation checklist
+
+| # | Question | Disposition |
+|---|----------|-------------|
+| 1 | User-facing feature/evidence | Updated `features/backup-and-restore.md`; existing maturity/counts retained, no fabricated feature-run record |
+| 2 | Config syntax | Unchanged |
+| 3 | CLI command | Unchanged; `docs/guide/config-editor.md` crosslinks the browser alternative |
+| 4 | API/RPC | Browser form contract documented in `docs/architecture/web-interface.md`; no machine RPC changed |
+| 5 | Plugin | No plugin added or changed |
+| 6 | User guide | Updated `docs/guide/web-interface.md`, including client permissions and validation boundary |
+| 7 | Wire format | ZeFS and network wire formats unchanged |
+| 8 | Plugin SDK/protocol | Unchanged |
+| 9 | RFC behavior/proof | No protocol behavior or RFC proof changed |
+| 10 | Test infrastructure | Existing native-host route widened to complete `^TestBrowser` family in `docs/architecture/testing/runner-architecture.md` and QEMU exclusion reason; no runner mechanism added |
+| 11 | Daemon comparison | Unchanged |
+| 12 | Architecture | Updated web-interface, web-components and storage-backends pages |
+| 13 | Route metadata | No packet-route metadata changed; internal portal `Direct` field documented in web components |
+| 14 | Prometheus | No counter added or changed |
+| 15 | Registration/discovery | WebRoute/Portal registration and `ai/INDEX.md` entry; no plugin/event payload inventory added; storage event uses existing doctor registry |
+| 16 | Source anchors/Design headers | Owning pages above updated; `docs/architecture/doctor-and-health-checks.md` existing recent-events contract is unchanged. Full docs run names no changed backup anchor failure; external catalog drift, unrelated `validate_route.go` anchors and a stale derived index remain separately recorded below |
+| 17 | Examples | Existing CLI backup mutual exclusions preserved; new native upload/edit/download sequence and `chmod 600 updated-backup.zefs` checked against handlers/storage opener |
+
+| Phase evidence | Observed result |
+|----------------|-----------------|
+| B1 wiring red, 2026-11-17 | `TestBackupWorkspaceRegisteredWorkflow` executed through the production route registry and failed at valid upload with expected 303, actual 501. The artifact fixture opened successfully and the test reached the temporary handler; this is a behavioral red rather than a compile or fixture failure. Command: `CGO_ENABLED=0 ./le --name backup-workspace test unit pkg path ./internal/component/web/ run '^TestBackupWorkspaceRegisteredWorkflow$'`. |
+| B2 collision red and correction | `TestArtifactLegacyAdoptionPreservesOccupiedHistory` first showed an occupied pending-version hash and its resolved bytes replaced by the legacy mirror. After bounded allocation was shared by forward commits and backward adoption, that test and pre/post-acceptance and release-failure tests passed by name. |
+| B2 census red and correction | `TestArtifactConfigNamesExcludesEditorRecords` first offered seven names instead of five, including the actual draft and per-user change record. Browser-only filtering now omits those siblings, preserves explicit active-pointer authority and standalone suffix-bearing names, and leaves the restore reader's raw census unchanged. |
+| B2 complete storage regression | `job-unit-pkg-3247d5e2.log`: full storage package passed in 32.968 seconds with named artifact, collision, failure, census and legacy explicit-restore tests. This is storage evidence, not browser acceptance. |
+| B2 reached CLI regression | `job-unit-pkg-56417296.log`: `TestChangePathHelpers`, `TestEditBackupNoDaemon` and `TestConfigBackupFamily` passed by name in the CLI/config-CLI packages. |
+| B2 HTTP, doctor and lifetime | `job-unit-pkg-456299f3.log`: every `TestBackup*` and `TestWebServerOwnedRouteClosesAfterRequests` passed, including the registered route, warnings, auth/origin/corrupt refusal, wrong owner/stale review, budgets, cleanup debt, expiry, close failures and runtime doctor visibility. The earlier doctor's missing builtin-code fixture initialization was corrected without changing its specific-code assertion. |
+| B2 reached hub cleanup | `job-unit-pkg-2f3a6acb.log`: `TestOwnedRouteCleanupIsNotANetworkFailure`, `TestWebServiceOverdueHistoryRetainsStoreUntilEveryAcceptedModeDrains`, `TestWebServiceShutdownSealsCLIHistoryBeforeOwnedStoreRelease` and `TestWebNetworkCleanupFailureReportsDoctorEvent` passed by name. This does not claim that run's then-failing web doctor fixture passed. |
+| B3 complete native browser family | `job-browser-web-bab9ad19.log`: full `^TestBrowser` family passed in 99.699 seconds, including backup upload/edit/save/download/reopen, existing CLI transfers, notifications, recovery and history. |
+| B3 native scrolling red/green | `job-backup-scroll-red-30684c7a.log`: 390×640 native wheel test reached its visibility wait and failed. Shared hidden-overflow roots caused the failure. Page-only CSS restores document flow; `job-backup-scroll-green-91774cd4.log` then passed `TestBrowserBackupWorkspaceScroll` (2.90 seconds) and the full `TestBrowserBackupWorkspace` (2.48 seconds). No programmatic scrolling supplies that proof. |
+| Final source, isolation and surface regressions | `job-backup-final-tests-de1ebb0a.log`: selected web tests passed (16.100 seconds), storage tests passed (5.972 seconds) and owned-route hub cleanup passed (1.056 seconds). Named new tests are `TestBackupHTTPSameAccountWorkspacesStayIndependent`, `TestBackupHTTPMalformedSourceKeepsArtifact` and `TestBackupHTTPUnavailableSchemaKeepsArtifact`. All backup/fault/warning/owned-request cases, recovery tests and the six previously red template/handler golden, HTMX/assets and typed-view guards passed. This is the selected final population, not a claim that the earlier whole web/QEMU run passed. |
+| Final native browser | `job-backup-browser-final-91774cd4.log`: `TestBrowserBackupWorkspaceScroll` passed (2.70 seconds) and `TestBrowserBackupWorkspace` passed (2.02 seconds), after the final page and descriptor corrections. |
+| Broader diagnostic regression | Earlier `job-unit-pkg-0deb954f.log` passed the full diagnostic package (1.297 seconds). Its whole web run also found the corrected surface omissions and the separate L2TP form-guard failure; QEMU's package census found separate missing COS/imagestore dispositions. Neither failed broader package is presented as green. |
+| Measured coverage | Final `scratch/backup-coverage.out` is count-mode data. Visited statements/total: `artifact_workspace.go` 33/36; `editor_record.go` 14/15; `backup_edit.go` 113/169; `backup_transfer.go` 107/147; `backup_workspace.go` 108/131; `server_cleanup.go` 4/9. Error fallbacks remain unvisited; this is not 100% branch coverage. |
+| Final lint and page checks | `job-backup-lint-final-7686f882.log` passed the six declared packages across host, Linux integration, FreeBSD, OpenBSD, DragonFly, capability, appliance and compile-out flavors, each with zero issues. Native assets check passed; HTMX check inspected 830 files with no unexplained findings. `job-backup-templ-final-3a6486f3.log` passed after regenerating the breadcrumb with the canonical internal-relative source base; the resulting diff contains only the reviewed menu call and its generated source columns. |
+| Documentation boundary | `job-backup-doc-final-ecef0555.log` is red: 14 external wiki/gh-pages catalog findings and seven unrelated `validate_route.go` source-anchor findings. It names no changed backup anchor failure. Native `doc index update` subsequently refreshed the two untracked derived discovery indexes; no full docs-pass claim is made. |
+| Light precheck boundary | Native `repo check` reports 32 findings and `test weakened check` reports ten other RFC-carrier changes. The cross-package heuristic also names the new `HandleBackupWorkspace` and `NavigationURL`; their actual non-test consumers are the same-package production `RegisterWebRoute.Build` and generated breadcrumb template respectively, verified in source and the passing route/browser tests. The other findings concern existing CLI exports and concurrent BGP/L2TP/plugin/VPP/tooling work. These whole-checkout prechecks are not claimed green. |
+| Commit static-flow correction | The native error inventory required the already-extracted `*opererr.Error` to reach `http.Error` directly. The two-line binding correction preserves the refusal's HTTP status and text; the current Go toolchain's `Root.Close` returns nil, so the prior deferred join carries no additional cause. `job-unit-pkg-8e6a49a5.log` reran and passed `TestBackupHTTPRefusals` and all four named subcases. `job-backup-refusal-lint-dc8bdca8.log` then passed the web package's selected host, Linux integration, FreeBSD, OpenBSD, DragonFly, capability and compile-out flavors with zero issues. |
+
+Logs above are under `tmp/session/2026-11-17-171730/scratch/`. Keep only the
+evidence needed for this implementation handoff; remove superseded run output
+after the durable record and final scoped checks are accepted. No source copy
+or persistent preview server is part of the deliverable.
+
+#### Backup goal validation
+
+| Goal | Concrete evidence beyond helper assertions | State |
+|------|-------------------------------------------|-------|
+| Upload, inspect/edit independently, download updated backup | Registered native browser journey uploads an actual artifact, selects committed text, corrects a refused edit, validates/reviews/saves, downloads a binary artifact and reopens it through normal restore; parsed values and active/mirror/version consistency are checked | Observed passing in B3 logs above |
+| Preserve live state and unrelated backup contents | Same browser journey snapshots every raw live key and its candidate before requests, traps live publication, then compares them; downloaded raw keys preserve real drafts, per-user changes, pending version/object, second configuration, credential and non-UTF-8 binary bytes; user's original file bytes remain identical | Observed passing; full storage regression also passes |
+| Keep two same-account workspace URLs independent | `TestBackupHTTPSameAccountWorkspacesStayIndependent` opens both forms before either save, validates/reviews different contained configurations, saves both, reopens both downloads with their own expected parsed values and preserves every unrelated original key | Observed passing in final selected run; complements the native live-state sentinel proof for B-AC-4 |
+| Preserve inspectable artifacts when hosting schema cannot accept their committed source | The malformed-source and unavailable-schema HTTP cases show the exact raw textarea, require actionable refusal for validate/review/save with retained text and unchanged artifact bytes, then integrity-check a download and compare its complete raw key map | Observed passing in final selected run; A-B2 confirmed within the hosting-schema boundary |
+| Restrict credential-bearing artifacts and bound their lifetime/resources | HTTP negatives refuse anonymous/read-only/cross-origin/wrong-owner access; stale/unreviewed requests retain a usable artifact. Fault-injected cleanup tests seal new allocation until removal succeeds; controlled request barrier proves shutdown joins requests before owner Close | Observed passing; scoped lint and count coverage recorded above; whole-checkout findings remain separate |
+| Keep full workflow reachable in ordinary browser interaction | Native wheel test at narrow viewport observes initially offscreen download, scrolls with real wheel input, then requires complete visible link and center hit-test | Observed red before page CSS correction and green after it |
+
+| Independent implementation review | Scope declared before the pass | Result |
+|-----------------------------------|--------------------------------|--------|
+| Round 1 | New artifact publication and integrity/census helpers, reached pointer/restore behavior, backup HTTP/UI, registered ownership and shutdown wiring, and browser preservation fixtures | Found occupied-history overwrite, nonrepresentative draft fixtures, missing publication-failure proof and unaccounted failed cleanup. Each is addressed in source/new tests; execution and fix-only review remain separate. |
+| Round 2 | Round 1 fixes and reached siblings: bounded allocation and failure paths; shared editor suffixes and browser-only census with unchanged restore behavior; real intent fixtures; cleanup-debt admission/expiry/close; serialized validation and warnings; direct portal navigation and typed shutdown cause classification | Independent source review found no additional BLOCKER or ISSUE in this scope. Execution remained separate. |
+| Round 3 | Later narrow corrections and their siblings: actionable artifact-owner Close failure; the doctor fixture's real builtin-code initialization with its original specific-code assertion retained; approved client-permission preparation after native browser download; complete native browser host-route declaration | Independent source review found no additional BLOCKER or ISSUE in this scope. Execution remained separate. |
+| Round 4 | Narrow page-root scrolling CSS correction and native wheel proof; malformed/unsupported committed-source and two-workspace isolation HTTP proofs; canonical empty page-assets registration, additive template/route golden enrollment and independently approved typed-component census correction, their documentation and reached siblings | Independent source pass found no BLOCKER or ISSUE across all three lenses. Execution remained separate. |
+| Round 5 | Concrete lint corrections only: existing save constant, rooted private upload/download descriptors and paired cleanup/documentation; recovery route constant consumption and two stricter test-helper checks, plus their reached callers | Independent source pass found no BLOCKER or ISSUE across all three lenses. Final execution remains separate. |
 
 ### Configured-plugin conformance after release (2026-11-17)
 

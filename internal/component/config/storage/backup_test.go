@@ -179,7 +179,7 @@ func TestBackupReplaceKeepsStoreList(t *testing.T) {
 	result, err := Backup(source, target, true, zefs.Spare(0))
 	require.NoError(t, err)
 	assert.Equal(t, len(guardRawKeys), result.Keys)
-	require.NoError(t, checkArtifact(target))
+	require.NoError(t, CheckArtifact(target))
 }
 
 // TestCheckArtifactPath verifies the RPC path rules of AC-4: relative, "..",

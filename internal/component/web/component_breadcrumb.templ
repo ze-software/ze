@@ -51,7 +51,7 @@ templ topbarActions(v chromeData) {
 				<button class="portal-toggle" title="Services" data-action="toggle-portal">&#9776;</button>
 				<div class="portal-dropdown">
 					for _, s := range v.Services {
-						<a class="portal-item" href={ "/portal/" + s.Key } title={ s.Title }>
+						<a class="portal-item" href={ s.NavigationURL() } title={ s.Title }>
 							if s.Icon != "" {
 								<img src={ s.Icon } alt="" width="16" height="16">
 							}

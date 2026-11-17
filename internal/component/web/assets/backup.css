@@ -1,0 +1,15 @@
+/* This native document extends below the viewport, unlike the live editor grid. */
+html, body { height: auto; overflow: visible; }
+.backup-page { max-width: 76rem; margin: 2rem auto; padding: 0 1.5rem 3rem; }
+.backup-page nav, .backup-page p { margin-bottom: 1rem; }
+.backup-page h1 { margin: 1.5rem 0 1rem; }
+.backup-panel { margin: 1.25rem 0; padding: 1.25rem; border: 1px solid var(--border-color, #657080); border-radius: .5rem; }
+.backup-panel label { display: block; margin-bottom: .6rem; font-weight: 600; }
+.backup-panel textarea { box-sizing: border-box; width: 100%; padding: 1rem; font: .9rem/1.5 monospace; resize: vertical; tab-size: 4; }
+.backup-panel input[type=file], .backup-panel select { margin: 0 .75rem .75rem 0; max-width: 100%; }
+.backup-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 1rem; }
+.backup-page button, .backup-download { padding: .6rem .85rem; cursor: pointer; }
+.backup-page pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.backup-error { border-left: .3rem solid #c74444; padding: 1rem; }
+.backup-status { border-left: .3rem solid #438d65; padding: 1rem; }
+@media (max-width: 640px) { .backup-page { margin-top: 1rem; padding: 0 .75rem 2rem; } .backup-panel { padding: .75rem; } }

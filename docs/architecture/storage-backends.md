@@ -403,7 +403,7 @@ a same-user writer. Source locks, digest checks and replay rules still apply.
 
 ### Restoring a config from an artifact
 
-`ReadRestoreSource` runs the artifact check (`checkArtifact`, the same
+`ReadRestoreSource` runs the artifact check (`CheckArtifact`, the same
 `zefs.Check` verdict import uses), opens the artifact read-only through
 `OpenBlob`, and selects one config: the name the operator gave, else the only
 config, else the one named like the device, else a refusal listing every name.
@@ -441,6 +441,45 @@ price a backup already pays.
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, ownedStore, CheckArtifactPath, refuseStoreName -->
 <!-- source: internal/component/config/storage/salvage.go -- HoldWrites, Salvage -->
+
+### Editing an uploaded backup
+
+`CheckArtifact` applies the same complete ZeFS integrity verdict to an uploaded
+artifact that a restore uses. Its retained source descriptor takes the import
+decoder's 256 MiB bound and the artifact's owner and permission checks.
+`ArtifactConfigNames` reads the already opened artifact and returns sorted
+configuration names for the browser picker. An explicit active pointer always
+identifies a configuration. Among mirror-only names, a name owned by another
+configuration's editor (`<name>.draft` or `<name>.change.<user>`) is saved editor
+state and is omitted. The editor's path producers and this census share their
+suffix declarations. A suffix-bearing name with no owning configuration remains
+selectable, as do ordinary alternate extensions and names with no extension.
+The existing restore reader keeps its complete pointer-and-mirror census,
+including an explicitly selected legacy mirror with an editor-like name.
+A browser workspace reads its selected committed bytes
+through `ReadActiveConfig`; saved drafts and pending candidates are separate
+records and are not its starting configuration.
+<!-- source: internal/component/config/storage/import.go -- CheckArtifact -->
+<!-- source: internal/component/config/storage/restore.go -- ArtifactConfigNames, artifactConfigNames -->
+<!-- source: internal/component/config/storage/editor_record.go -- EditorDraftSuffix, EditorChangeSeparator -->
+<!-- source: internal/component/cli/editor_session.go -- DraftPath, ChangePath, changePrefix -->
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig -->
+
+`PublishArtifactConfig` accepts only a writable blob artifact. Its caller must
+validate the edited content and serialize review, save and export for its
+workspace. Publication uses the ordinary version writer and active/rollback
+promotion under one storage guard, but never replaces or consumes an existing
+candidate pointer. That candidate must resolve before publication starts.
+New versions skip occupied timestamps, and adopting a mirror-only source finds
+a free timestamp before the new commit. Both searches use the guarded key
+census as their bound, so adoption preserves earlier history and pending bytes.
+The selected configuration's saved draft, per-user changes, other configurations
+and unrelated binary keys remain unchanged. A live tree is refused so this path
+cannot bypass its daemon's reload transaction. Errors retain the normal
+active-pointer commit boundary: an accepted version is not deleted because a
+later storage operation failed. Guard release is part of the reported result.
+<!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig, checkArtifactCandidate, withdrawArtifactVersion -->
+<!-- source: internal/component/config/storage/pointer.go -- writeNewVersionLocked, freeVersionTimeLocked, promoteVersionLocked -->
 
 ## Version pointers and recovery
 

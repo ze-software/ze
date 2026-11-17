@@ -57,7 +57,7 @@ type webService struct {
 // model cleanup. It bounds the diagnostic, not the strict borrowed-store join.
 const webDrainLimit = rpc.DrainTeardownMarginSeconds * time.Second / 6
 
-var errWebHistoryDrainOverdue = opererr.New("Web cleanup is still waiting for an active request or command-history write.",
+var errWebHistoryDrainOverdue = opererr.New("Web cleanup is still waiting for an active request, an owned route resource or a command-history write.",
 	"The configuration store remains owned until all accepted work finishes.", webCleanupEventFix)
 
 func newWebService(server *zeweb.WebServer, broker *zeweb.EventBroker, editors *zeweb.EditorManager) *webService {
@@ -80,15 +80,15 @@ func (s *webService) Shutdown(ctx context.Context) error {
 			if s.broker != nil {
 				s.broker.Close()
 			}
-			networkError := s.WebServer.Shutdown(ctx)
-			if networkError != nil {
+			serverError := s.WebServer.Shutdown(ctx)
+			if networkError := zeweb.ShutdownNetworkError(serverError); networkError != nil {
 				reportWebNetworkCleanupFailure(networkError)
 			}
 			var historyError error
 			if s.editors != nil {
 				historyError = s.editors.Close()
 			}
-			s.stopError = errors.Join(networkError, historyError)
+			s.stopError = errors.Join(serverError, historyError)
 			if historyError != nil {
 				slogutil.Logger("web.server").Error("web command history cleanup failed", "code", diagnostic.CodeDoctorCLIHistoryWrite, "fix", "ze show doctor", "error", historyError)
 			}
@@ -104,7 +104,7 @@ func (s *webService) Shutdown(ctx context.Context) error {
 	case <-s.stopped:
 		return s.stopError
 	case <-timer.C:
-		message := "Web cleanup is still waiting for an active request or command-history write; the configuration store remains owned until cleanup finishes. Inspect recent web.server errors to locate the blocked work."
+		message := "Web cleanup is still waiting for an active request, an owned route resource or a command-history write; the configuration store remains owned until cleanup finishes. Inspect recent web.server errors to locate the blocked work."
 		report.RaiseErrorFixOnce(webCleanupEventSource, diagnostic.CodeDoctorWebCleanupOverdue, webCleanupEventSubject,
 			message, webCleanupEventFix, webCleanupEventWindow)
 		slogutil.Logger("web.server").Error(message, "code", diagnostic.CodeDoctorWebCleanupOverdue, "fix", webCleanupEventFix, "limit", allowance)
@@ -731,7 +731,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		if route.Enabled != nil && !route.Enabled() {
 			continue
 		}
-		srv.Handle(route.Pattern, routeWraps[route.Wrap](route.Build(routeDeps)))
+		handler := route.Build(routeDeps)
+		srv.OwnHandler(handler)
+		srv.Handle(route.Pattern, routeWraps[route.Wrap](handler))
 		if route.Portal != nil {
 			zeweb.RegisterPortalService(*route.Portal)
 		}

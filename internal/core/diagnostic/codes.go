@@ -148,6 +148,7 @@ const (
 	CodeDoctorCLIHistoryRead                       = "doctor-cli-history-read"
 	CodeDoctorCLIHistoryWrite                      = "doctor-cli-history-write"
 	CodeDoctorWebCleanupOverdue                    = "doctor-web-cleanup-overdue"
+	CodeDoctorBackupWorkspaceStorage               = "doctor-backup-workspace-storage"
 	CodeDoctorWebHistoryUnavailable                = "doctor-web-history-unavailable"
 	CodeDoctorWebHistoryResponse                   = "doctor-web-history-response"
 	CodeDoctorWebNetworkCleanup                    = "doctor-web-network-cleanup"
@@ -433,8 +434,14 @@ var builtinCodes = append([]CodeMeta{
 	{
 		Code:        CodeDoctorWebCleanupOverdue,
 		Title:       "Web cleanup is still waiting",
-		Description: "An admitted web request or accepted command-history publication did not finish within the cleanup allowance. The service keeps joining it and retains the borrowed configuration store. Inspect recent web.server errors to locate the blocked work. One recent event per minute covers concurrent shutdown callers without recording commands or user data.",
+		Description: "An admitted web request, an owned route resource or an accepted command-history publication did not finish within the cleanup allowance. The service keeps joining it and retains the borrowed configuration store. Inspect recent web.server errors to locate the blocked work. One recent event per minute covers concurrent shutdown callers without recording commands or user data.",
 		Examples:    []string{"ze show log recent level err component web.server"},
+	},
+	{
+		Code:        CodeDoctorBackupWorkspaceStorage,
+		Title:       "Backup workspace storage is unavailable",
+		Description: "A private backup upload, export or cleanup could not finish. Live configuration was not changed. Check free space and temporary-directory permissions, close unused backup workspaces, and retry the upload. A cleanup failure may leave task-owned private files until the web service is stopped and its storage condition is repaired. Recent events retain no account, backup content or filename.",
+		Examples:    []string{"ze show doctor", "ze show log recent level warn component web.server"},
 	},
 	{
 		Code:        "doctor-static-interface-nexthop-no-backend",

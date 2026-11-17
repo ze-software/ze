@@ -57,6 +57,34 @@ Hidden overlays (shown on demand):
 - `#diff-modal` -- diff review with Confirm Commit / Cancel
 - `#error-panel` -- collapsible right-side panel for validation errors
 
+## Backup workspace page
+
+`pageBackupWorkspace` is a separate native HTML shell with file upload,
+configuration selection, a full-text editor, validation, masked review, save,
+binary download and close controls. It uses ordinary forms, shared base styles
+and a page stylesheet; it has no script, HTMX, SSE or live commit bar. The page
+head uses the generated `pgPageBackupWorkspace` asset declaration, whose set is
+empty because the page and its components require no scripts. The page
+stylesheet restores normal document scrolling so the editor and lower controls
+remain reachable in a narrow viewport. Every action carries the explicit
+workspace URL. Server-rendered refusal pages keep the submitted
+configuration text and separate `backup-error`, `backup-status` and
+`backup-diff` regions expose each result. Save is offered after review, and the
+handler verifies that its content and committed baseline still match that
+review before publication.
+<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
+<!-- source: internal/component/web/page_assets.go -- pgPageBackupWorkspace, pageAssetSets -->
+<!-- source: internal/component/web/backup_edit.go -- backupPageData, edit -->
+<!-- source: internal/component/web/assets/backup.css -- html, body, .backup-page -->
+
+The Services menu follows `PortalService.NavigationURL`. Ordinary services keep
+their embedded `/portal/<key>` target. A service declared `Direct` opens its
+registered path directly; the backup page uses this mode to keep live commit
+controls outside the artifact workflow.
+<!-- source: internal/component/web/handler_portal.go -- PortalService.NavigationURL -->
+<!-- source: internal/component/web/component_breadcrumb.templ -- topbarActions -->
+<!-- source: internal/component/web/register_backup_workspace.go -- init -->
+
 ## Per-page asset imports
 
 Each page loads the vendored assets its own markup needs, and no others. The set
@@ -427,12 +455,25 @@ User clicks "Review & Commit" in commit bar
 
 User clicks "Confirm Commit" in diff modal
   Browser: hx-post="/config/commit"
-  Server:  Calls EditorManager.Commit, returns OOB closed commit bar + closed modal
+  Server:  Calls EditorManager.runCommit, returns OOB closed commit bar + closed modal
+           Applied warnings also update the existing informational notification
+           bar with the success and advisory text; the commit is not retried.
 
 User clicks "Cancel"
   Browser: hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML"
   Server:  Returns diff_modal template (closed, no content)
 ```
+
+An applied commit's cleanup warning keeps its success audit and configuration
+change broadcast. The warning does not reopen the review modal or invite a
+second commit. The SSE client retains an informational answer while replacing
+its previous configuration-change banner, including a same-commit event that
+arrives after the HTTP answer. Ordinary bars still refresh as before. Without
+HTMX, a warning answer renders the success and advisory text in the existing
+page content, which the notification stream does not replace; a clean commit
+still redirects to `/`.
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
+<!-- source: internal/component/web/assets/sse-client.js -- connect -->
 
 ## Template Dispatch (fieldFor)
 

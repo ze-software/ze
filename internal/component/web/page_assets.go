@@ -18,6 +18,8 @@ const (
 	pgL2tpList pageID = "l2tpList"
 	// pgLoginFullPage is rendered by internal/component/web/page_login.templ.
 	pgLoginFullPage pageID = "loginFullPage"
+	// pgPageBackupWorkspace is rendered by internal/component/web/page_backup_workspace.templ.
+	pgPageBackupWorkspace pageID = "pageBackupWorkspace"
 	// pgPageLayout is rendered by internal/component/web/page_layout.templ.
 	pgPageLayout pageID = "pageLayout"
 	// pgPageWorkbench is rendered by internal/component/web/page_workbench.templ.
@@ -28,12 +30,13 @@ const (
 
 // pageAssetSets maps each page onto the assets its head block loads.
 var pageAssetSets = map[pageID][]string{
-	pgL2tpDetail:    {},
-	pgL2tpList:      {},
-	pgLoginFullPage: {},
-	pgPageLayout:    {"/assets/htmx.min.js"},
-	pgPageWorkbench: {"/assets/htmx.min.js"},
-	pgSnapshotPage:  {},
+	pgL2tpDetail:          {},
+	pgL2tpList:            {},
+	pgLoginFullPage:       {},
+	pgPageBackupWorkspace: {},
+	pgPageLayout:          {"/assets/htmx.min.js"},
+	pgPageWorkbench:       {"/assets/htmx.min.js"},
+	pgSnapshotPage:        {},
 }
 
 // everyAsset is every asset this package renders. It is what an unknown page

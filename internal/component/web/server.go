@@ -96,6 +96,7 @@ type WebServer struct {
 	requests      requestOwners
 	shutdownOnce  sync.Once
 	shutdownError error
+	routeClosers  []io.Closer // owned unwrapped route handlers, registered before serving
 }
 
 // NewWebServer creates a new WebServer from the given configuration.
@@ -207,6 +208,17 @@ func (s *WebServer) HandleFunc(pattern string, handler http.HandlerFunc) {
 // Handle registers a handler for the given pattern on the server's mux.
 func (s *WebServer) Handle(pattern string, handler http.Handler) {
 	s.mux.Handle(pattern, handler)
+}
+
+// OwnHandler registers cleanup for a route's unwrapped handler when it owns
+// resources. The caller MUST call this once per owned handler before serving,
+// before authentication wrappers can hide io.Closer. Shutdown MUST join active
+// requests before closing these handlers. Handlers without resources need no
+// cleanup implementation.
+func (s *WebServer) OwnHandler(handler http.Handler) {
+	if closer, ok := handler.(io.Closer); ok {
+		s.routeClosers = append(s.routeClosers, closer)
+	}
 }
 
 // ListenAndServe binds every configured listen address and starts serving.
@@ -478,7 +490,11 @@ func (s *WebServer) Shutdown(ctx context.Context) error {
 			err = errors.Join(err, s.server.Close())
 		}
 		s.requests.wait()
-		s.shutdownError = err
+		var ownerError error
+		for _, closer := range s.routeClosers {
+			ownerError = errors.Join(ownerError, closer.Close())
+		}
+		s.shutdownError = newServerShutdownFailure(err, ownerError)
 	})
 	return s.shutdownError
 }

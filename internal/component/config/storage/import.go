@@ -369,15 +369,20 @@ func retireSource(parent *os.File, intent importIntent, retired bool) error {
 	return parent.Sync()
 }
 
-// checkArtifact runs zefs.Check over a blob artifact and refuses one whose
-// magic, container or any entry fails, naming the failing entries. Every
-// reader of an artifact runs it before it reads a key.
-func checkArtifact(path string) error {
-	report, err := zefs.Check(path)
+// CheckArtifact checks an owner-controlled blob through the same retained,
+// bounded descriptor used by import. It refuses invalid magic, container
+// framing or entry checksums before a caller reads any key.
+func CheckArtifact(path string) (err error) {
+	source, err := openImportSource(path)
 	if err != nil {
 		return err
 	}
-	return checkArtifactReport(path, report)
+	defer func() { err = errors.Join(err, source.close()) }()
+	artifact, err := source.open()
+	if err != nil {
+		return err
+	}
+	return artifact.Close()
 }
 
 func checkArtifactReport(path string, report *zefs.CheckReport) error {

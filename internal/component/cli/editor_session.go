@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -66,7 +67,7 @@ func (s *EditSession) OrphanedSessions(allSessions []string) []string {
 // DraftPath returns the draft file path for a given config path (appends ".draft").
 func DraftPath(configPath string) string {
 	var tb textbuf.Buffer
-	return tb.Str(configPath).Str(".draft").String()
+	return tb.Str(configPath).Str(storage.EditorDraftSuffix).String()
 }
 
 // LockPath returns the lock file path for a given config path (appends ".lock").
@@ -79,7 +80,7 @@ func LockPath(configPath string) string {
 // Uses filepath.Base on the user to strip directory traversal.
 func ChangePath(configPath, user string) string {
 	var tb textbuf.Buffer
-	return tb.Str(configPath).Str(".change.").Str(sanitizeUser(user)).String()
+	return tb.Str(configPath).Str(storage.EditorChangeSeparator).Str(sanitizeUser(user)).String()
 }
 
 // sanitizeUser resolves a username to a safe filename component.
@@ -119,7 +120,7 @@ func ValidateUser(user string) error {
 // Used with store.List(dir) to filter change files from other files.
 func changePrefix(configPath string) string {
 	var tb textbuf.Buffer
-	return tb.Str(filepath.Base(configPath)).Str(".change.").String()
+	return tb.Str(filepath.Base(configPath)).Str(storage.EditorChangeSeparator).String()
 }
 
 // changeUser extracts the username from a change file path.

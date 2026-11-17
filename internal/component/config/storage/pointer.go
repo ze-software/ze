@@ -94,32 +94,58 @@ func WriteCandidateVersionWithGuard(store Storage, guard WriteGuard, configPath 
 		}
 		return "", ErrCandidateExists
 	}
-
-	// Millisecond stamps can collide during startup or rapid commits. The
-	// exclusive guard keeps the finite occupied set fixed while this advances.
-	for {
-		stampStr = FormatVersionStamp(stamp)
-		path, pathErr := versionPath(store, configPath, stampStr)
-		if pathErr != nil {
-			return "", pathErr
-		}
-		_, readErr := guard.ReadFile(path)
-		if isNotExist(readErr) {
-			break
-		}
-		if readErr != nil {
-			return "", readErr
-		}
-		stamp = stamp.Add(time.Millisecond)
-	}
-	if err := guard.WriteVersion(configPath, data, stamp); err != nil {
-		return "", fmt.Errorf("write candidate version: %w", err)
+	stampStr, err = writeNewVersionLocked(store, guard, configPath, data, stamp)
+	if err != nil {
+		return "", err
 	}
 	if err := writePointerLocked(store, guard, configPath, pointerCandidate, stampStr); err != nil {
 		_, removeErr := removeVersionLocked(store, guard, configPath, stampStr)
 		return "", errors.Join(fmt.Errorf("write candidate pointer: %w", err), removeErr)
 	}
 	return stampStr, nil
+}
+
+// writeNewVersionLocked shares collision handling and content-addressed writes
+// between candidate staging and artifact-only publication. The caller MUST
+// hold guard until it publishes the version or withdraws it on failure.
+func writeNewVersionLocked(store Storage, guard WriteGuard, configPath string, data []byte, stamp time.Time) (stampStr string, err error) {
+	stamp, err = freeVersionTimeLocked(store, guard, configPath, stamp, time.Millisecond)
+	if err != nil {
+		return "", err
+	}
+	if err := guard.WriteVersion(configPath, data, stamp); err != nil {
+		return "", fmt.Errorf("write candidate version: %w", err)
+	}
+	return FormatVersionStamp(stamp), nil
+}
+
+// freeVersionTimeLocked preserves every occupied raw history key, including an
+// entry that cannot resolve. The caller MUST retain guard through its write.
+// Both callers step by one millisecond, forward for a commit and backward for
+// its adopted mirror. The fixed key census bounds the number of probes.
+func freeVersionTimeLocked(store Storage, guard WriteGuard, configPath string, stamp time.Time, step time.Duration) (time.Time, error) {
+	keys, err := guard.ListKeys(zefs.KeyFileVersion.Prefix())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("allocate config version: list occupied keys: %w", err)
+	}
+	occupied := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		occupied[key] = struct{}{}
+	}
+	// Each occupied key can block at most one probe in an ordinary timestamp
+	// interval; one extra probe finds a free stamp. Refuse if a clock boundary
+	// repeats formatted timestamps instead of searching without a bound.
+	for range len(keys) + 1 {
+		path, err := versionPath(store, configPath, FormatVersionStamp(stamp))
+		if err != nil {
+			return time.Time{}, err
+		}
+		if _, exists := occupied[path]; !exists {
+			return stamp, nil
+		}
+		stamp = stamp.Add(step)
+	}
+	return time.Time{}, errors.New("allocate config version: occupied timestamp search exhausted")
 }
 
 // StageSourceCandidate stages the bound config source of configPath as the
@@ -269,6 +295,16 @@ func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) 
 	if !ok {
 		return errors.New("promote candidate: candidate pointer not set")
 	}
+	if err := promoteVersionLocked(store, guard, configPath, candidate); err != nil {
+		return err
+	}
+	return clearPointerLocked(store, guard, configPath, pointerCandidate)
+}
+
+// promoteVersionLocked moves one stored version into active and rollback state
+// without consuming a pending candidate. The caller MUST hold guard and either
+// clear its own candidate or preserve the artifact's original candidate.
+func promoteVersionLocked(store Storage, guard WriteGuard, configPath, candidate string) error {
 	candidateData, err := readVersionLocked(store, guard, configPath, candidate)
 	if err != nil {
 		return err
@@ -285,7 +321,7 @@ func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) 
 			if err := guard.WriteFile(configPath, candidateData, 0o600); err != nil {
 				slogutil.Logger("storage").Warn("mirror active config failed", "path", configPath, "error", err)
 			}
-			return clearPointerLocked(store, guard, configPath, pointerCandidate)
+			return nil
 		}
 	}
 	// An active pointer whose version no longer resolves (repair dropped its
@@ -304,16 +340,17 @@ func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) 
 	if !hasActive {
 		legacyData, readErr := guard.ReadFile(configPath)
 		if readErr == nil {
-			// The adopted config is the one the candidate replaces, so its
-			// version is stamped one millisecond BEFORE the candidate. A
-			// stamp taken from the clock here is later than the candidate,
-			// and history (newest first) would then list the replaced config
-			// as newer than the commit that replaced it.
+			// The adopted config precedes the candidate in history. A pending
+			// edit or older version may already occupy the previous millisecond,
+			// so adoption must find a free earlier stamp rather than replace it.
 			candidateTime, parseErr := parseVersionStamp(candidate)
 			if parseErr != nil {
 				return fmt.Errorf("promote candidate: %w", parseErr)
 			}
-			activeTime := candidateTime.Add(-time.Millisecond)
+			activeTime, timeErr := freeVersionTimeLocked(store, guard, configPath, candidateTime.Add(-time.Millisecond), -time.Millisecond)
+			if timeErr != nil {
+				return fmt.Errorf("promote candidate: allocate rollback version: %w", timeErr)
+			}
 			active = FormatVersionStamp(activeTime)
 			if writeErr := guard.WriteVersion(configPath, legacyData, activeTime); writeErr != nil {
 				return fmt.Errorf("promote candidate: write rollback version: %w", writeErr)
@@ -341,7 +378,7 @@ func promoteCandidateLocked(store Storage, guard WriteGuard, configPath string) 
 	if err := guard.WriteFile(configPath, candidateData, 0o600); err != nil {
 		slogutil.Logger("storage").Warn("mirror active config failed", "path", configPath, "error", err)
 	}
-	return clearPointerLocked(store, guard, configPath, pointerCandidate)
+	return nil
 }
 
 func readPointerLocked(store Storage, guard WriteGuard, configPath string, pointer pointerName) (string, bool, error) {

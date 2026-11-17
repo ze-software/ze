@@ -187,6 +187,23 @@ var webHandlerGoldenCases = []webHandlerCase{
 	{Name: "post-admin-execute", Method: http.MethodPost, Target: "/admin/show/version"},
 	{Name: "get-admin-read-only", Method: http.MethodGet, Target: "/admin/", ReadOnly: true},
 
+	// Independent offline backup forms.
+	{Name: "get-backups", Method: http.MethodGet, Target: "/backups/",
+		CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+			require.Contains(t, response.Body.String(), `id="backup-upload-file"`)
+		}},
+	{Name: "get-backups-anonymous", Method: http.MethodGet, Target: "/backups/", Anonymous: true,
+		CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			require.Equal(t, http.StatusUnauthorized, response.Code, response.Body.String())
+			require.Contains(t, response.Body.String(), `action="/login"`)
+		}},
+	{Name: "get-backups-read-only", Method: http.MethodGet, Target: "/backups/", ReadOnly: true,
+		CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			require.Equal(t, http.StatusForbidden, response.Code, response.Body.String())
+			require.Contains(t, response.Body.String(), "require configuration edit access")
+		}},
+
 	// CLI surface.
 	{Name: "get-cli", Method: http.MethodGet, Target: "/cli"},
 	{Name: "post-cli", Method: http.MethodPost, Target: "/cli", Form: "command=show+bgp&path="},

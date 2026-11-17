@@ -4,6 +4,7 @@ package web
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -55,7 +56,7 @@ func TestConfigRecoveryFormNeedsNoCandidate(t *testing.T) {
 	require.NoError(t, mgr.store.WriteFile(path, []byte(corruptRecoveryContent), 0o600))
 	mgr.editorFactory = func(any, string) (contract.Editor, error) {
 		t.Fatal("the recovery form must not open an editor")
-		return nil, nil
+		return nil, errors.New("the recovery form attempted to open an editor")
 	}
 	response := httptest.NewRecorder()
 	recoveryHandlerForTest(t, mgr)(response, authedRequest(t, http.MethodGet, "/config/recover", nil))

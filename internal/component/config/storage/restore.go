@@ -32,7 +32,7 @@ type RestoreSource struct {
 // config's active version, or its file/active mirror when the artifact has no
 // pointer for it (a seed or a hand-built blob).
 func ReadRestoreSource(path, sourceName, deviceName string) (RestoreSource, error) {
-	if err := checkArtifact(path); err != nil {
+	if err := CheckArtifact(path); err != nil {
 		return RestoreSource{}, err
 	}
 	source, err := OpenBlob(path, false)
@@ -41,11 +41,11 @@ func ReadRestoreSource(path, sourceName, deviceName string) (RestoreSource, erro
 	}
 	defer source.Close() //nolint:errcheck // read-only artifact handle.
 
-	names, err := sourceConfigNames(source)
+	census, err := artifactConfigNames(source)
 	if err != nil {
 		return RestoreSource{}, fmt.Errorf("restore %s: %w", path, err)
 	}
-	selected, err := selectRestoreName(names, sourceName, deviceName)
+	selected, err := selectRestoreName(census.names, sourceName, deviceName)
 	if err != nil {
 		return RestoreSource{}, fmt.Errorf("restore %s: %w", path, err)
 	}
@@ -78,21 +78,56 @@ func selectRestoreName(names []string, sourceName, deviceName string) (string, e
 	return "", fmt.Errorf("%w: the artifact holds several configs (%s) and none is named %s like this device; select one with name <source-name>", ErrRestoreSource, held, deviceName)
 }
 
-// sourceConfigNames returns the sorted config names an artifact holds: every
-// name with an active pointer, and every name with a file/active mirror.
-func sourceConfigNames(source Storage) ([]string, error) {
+// ArtifactConfigNames returns the sorted configuration names for the browser
+// picker. Active pointers are authoritative. Mirror-only editor siblings of
+// another name are omitted; standalone names remain accepted with any suffix.
+// It reads the supplied handle and does not open or change another store.
+func ArtifactConfigNames(source Storage) ([]string, error) {
+	census, err := artifactConfigNames(source)
+	if err != nil {
+		return nil, err
+	}
+	all := make(map[string]bool, len(census.names))
+	for _, name := range census.names {
+		all[name] = true
+	}
+	names := make([]string, 0, len(census.names))
+	for _, name := range census.names {
+		if census.active[name] {
+			names = append(names, name)
+			continue
+		}
+		if artifactEditorRecord(name, all) {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
+// artifactCensus keeps explicit active-pointer ownership beside the complete
+// name list, so the browser and legacy restore share one key-grammar reader.
+type artifactCensus struct {
+	names  []string
+	active map[string]bool
+}
+
+// artifactConfigNames preserves the restore reader's complete census: every
+// active-pointer name and every active mirror, including editor-like names.
+func artifactConfigNames(source Storage) (artifactCensus, error) {
 	pointerPrefix := zefs.KeyConfigActive.Prefix()
 	pointerSuffix := strings.TrimPrefix(zefs.KeyConfigActive.Pattern, pointerPrefix+"{name}")
 	pointers, err := source.ListKeys(pointerPrefix)
 	if err != nil {
-		return nil, err
+		return artifactCensus{}, err
 	}
 	mirrorPrefix := zefs.KeyFileActive.Prefix()
 	mirrors, err := source.ListKeys(mirrorPrefix)
 	if err != nil {
-		return nil, err
+		return artifactCensus{}, err
 	}
 	var names []string
+	active := make(map[string]bool, len(pointers))
 	for _, key := range pointers {
 		name, ok := strings.CutSuffix(strings.TrimPrefix(key, pointerPrefix), pointerSuffix)
 		if !ok {
@@ -105,6 +140,7 @@ func sourceConfigNames(source Storage) ([]string, error) {
 			continue
 		}
 		names = append(names, name)
+		active[name] = true
 	}
 	for _, key := range mirrors {
 		name := strings.TrimPrefix(key, mirrorPrefix)
@@ -117,7 +153,7 @@ func sourceConfigNames(source Storage) ([]string, error) {
 		names = append(names, name)
 	}
 	slices.Sort(names)
-	return slices.Compact(names), nil
+	return artifactCensus{names: slices.Compact(names), active: active}, nil
 }
 
 // RestoreConfig commits data as a new version of the config named

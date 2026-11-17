@@ -654,6 +654,17 @@ Without a config name the editor uses the artifact's `<instance>.conf` and
 otherwise asks which config to edit.
 <!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup -->
 
+For browser editing, open the separate
+[offline backup workspace](web-interface.md#offline-backup-workspace).
+Upload a `.zefs` artifact there, edit its selected configuration, and download
+the updated artifact. This workspace changes the uploaded copy independently
+of the live configuration. The CLI flag restrictions above still apply.
+The picker lists committed configurations. Saved drafts and per-account pending
+changes stay in the artifact, and opening a configuration starts from its
+committed content. The downloaded artifact preserves those saved sessions.
+<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace -->
+<!-- source: internal/component/web/register_backup_workspace.go -- init -->
+
 When the editor takes the config name from the store, it reads the store's
 instance name. If that key exists but cannot be read (a CRC mismatch, an I/O
 error), `ze config edit` exits with an error that names `ze doctor` and

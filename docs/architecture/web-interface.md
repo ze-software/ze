@@ -107,6 +107,90 @@ candidate editing. Labels and CLI commands continue to show the literal key.
 <!-- source: internal/component/web/path_transport.go -- encodeConfigPath, decodeConfigPath -->
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes -->
 
+## Offline backup workspace
+
+The registered `/backups/` subtree builds one `backupWorkspaces` owner per web
+server. Its registered Services entry opens the native page directly, without
+live editor chrome. Every request requires the authenticated account's edit
+authorization; mutating requests also use `RequireSameOrigin`. An opaque URL
+identifier selects a workspace only after its account ownership is checked.
+There is no selection cookie, live editor manager or daemon publication callback
+in this handler.
+<!-- source: internal/component/web/register_backup_workspace.go -- init -->
+<!-- source: internal/component/web/handler_portal.go -- PortalService.NavigationURL, HandlePortal -->
+<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP, serve -->
+
+| Request | Result |
+|---------|--------|
+| `GET /backups/` | Native artifact upload form |
+| `POST /backups/`, multipart field `backup` | Verify one binary artifact, retain a private copy and redirect to its opaque workspace URL |
+| `GET /backups/<id>/?config=<name>` | Configuration selection and the committed configuration's full text |
+| `POST /backups/<id>/`, form `action`, `config`, `content`, `base`, `review` | Validate, review or save the supplied text; `action=close` removes the workspace |
+| `GET /backups/<id>/download` | Complete binary snapshot of the last saved artifact |
+<!-- source: internal/component/web/backup_workspace.go -- serve -->
+<!-- source: internal/component/web/backup_edit.go -- edit -->
+<!-- source: internal/component/web/backup_transfer.go -- upload, download -->
+
+Upload is streamed into a private 0600 file beneath an owner-created 0700
+temporary directory. Upload creation and snapshot download open constant
+basenames through a directory descriptor rooted in that workspace; each request
+closes its file and directory handles before cleanup can remove their paths.
+The filename is a label, never a storage path. Artifact
+integrity checking precedes opening; `ArtifactConfigNames` supplies the
+pointer-and-mirror census with saved editor siblings excluded. Explicit active
+pointers remain authoritative, including names that resemble editor records;
+standalone mirror names are accepted regardless of extension. Editing reads
+`ReadActiveConfig`, creates a
+content-only shared CLI editor, and uses its parser, replacement operation,
+transition validation and masked diff. A save revalidates the submitted text,
+checks its committed-source digest and review digest, and runs the editor's
+normal save serializer, including secret hashing and schema stamping.
+The actual serialized bytes are validated again before publication. Successful
+save feedback retains both input-validation advisories and serializer warnings.
+<!-- source: internal/component/web/backup_transfer.go -- receive -->
+<!-- source: internal/component/web/backup_edit.go -- backupReadConfig, backupPrepare, backupPrepared.serialize, edit -->
+<!-- source: internal/component/cli/editor_commands.go -- Editor.Save -->
+
+Publication copies the complete artifact into an owned staging artifact and
+calls `PublishArtifactConfig`. The resulting artifact replaces the workspace
+copy only after successful publication, close and size checks. Existing drafts,
+pending candidate pointers, other configurations and unrelated binary keys are
+preserved. Download uses the same complete guarded key copy, not a configuration
+text export. The owner mutex serializes upload, edit, export and removal;
+retained files are bounded to 64 MiB per artifact, 256 MiB in total, 32 workspaces
+and eight per account. Configuration text is bounded to 4 MiB. Transfers have a
+two-minute socket deadline, reset before the connection is reused.
+<!-- source: internal/component/web/backup_edit.go -- publish -->
+<!-- source: internal/component/web/backup_transfer.go -- export, download -->
+<!-- source: internal/component/web/backup_workspace.go -- ServeHTTP, backupWorkspaces -->
+<!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig -->
+
+The 256 MiB allowance covers retained artifacts, not the additional working
+snapshot or the storage layer's temporary atomic replacement during a save.
+Those copies use the bounded 64 MiB source artifact and at most 4 MiB of saved
+configuration text. A failed partial-upload or snapshot removal occupies one
+cleanup-debt slot. New uploads and exports must remove that debt before
+allocating another copy; ordinary inspection of existing workspaces remains
+available. Failed-upload debt also retains its conservative byte charge until
+removal succeeds, so repeated failures cannot evade the allowance.
+<!-- source: internal/component/web/backup_transfer.go -- upload, export, removeStage -->
+<!-- source: internal/component/web/backup_workspace.go -- retryCleanupDebt -->
+<!-- source: internal/component/web/backup_edit.go -- backupPrepared.serialize, publish -->
+
+One cleanup worker starts after the first accepted upload and checks the
+one-hour idle expiry each minute. Requests also remove expired workspaces before
+admission. `Close` seals admission, joins that worker and removes only the owner's
+temporary directory. The production hub registers each unwrapped handler with
+`WebServer.OwnHandler` before applying authentication wrappers. Server shutdown
+joins admitted requests before closing owned route handlers and before the
+service drains command history. Cleanup errors remain in the returned shutdown
+error. Storage failures also raise the registered
+`doctor-backup-workspace-storage` event without content, account or filename.
+<!-- source: internal/component/web/backup_workspace.go -- cleanupWorker, expire, Close -->
+<!-- source: internal/component/web/server.go -- OwnHandler, Shutdown -->
+<!-- source: cmd/ze/hub/service_web.go -- startWebServer, webService.Shutdown -->
+<!-- source: internal/component/web/backup_diagnostic.go -- reportBackupStorageFailure -->
+
 ## Authentication
 
 Reuses SSH user database (`[]ssh.UserConfig`). Two mechanisms:
@@ -775,7 +859,8 @@ graceful test times the stop against the 3 s deadline.
 
 After the network grace period, shutdown cancels request contexts and closes
 remaining connections, including POST streams, then joins admitted handlers.
-Only after that join does the service drain command history. After a separate
+Only after that join does the server close its owned route resources, then the
+service drains command history. After a separate
 teardown allowance, a stuck handler or storage call produces an ERROR diagnostic
 while the service continues joining. The caller cannot release the borrowed
 store before cleanup finishes, including a second queued mode whose write has
@@ -799,8 +884,12 @@ and its next command is `ze show log recent level err component web.server`.
 It uses the same minute bound. The returned shutdown error still includes
 both network and history failures. Startup cleanup and web-only shutdown
 rely on each failure's producer instead of logging the joined error again.
+Owned-route cleanup failures propagate in the same shutdown result, but
+`ShutdownNetworkError` selects only the original transport cause for this
+network diagnostic. A route-only failure is not reported as a network failure.
 <!-- source: cmd/ze/hub/register_web_history_diagnostic.go -- reportWebNetworkCleanupFailure -->
 <!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown, runWebOnly, startWebServer -->
+<!-- source: internal/component/web/server_cleanup.go -- ShutdownNetworkError -->
 
 The same owner handles startup failure and normal/web-only shutdown.
 <!-- source: internal/component/web/server_lifetime.go -- requestOwners, serveRequest -->

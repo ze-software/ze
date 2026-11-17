@@ -403,7 +403,7 @@ var integrationPackages = []string{
 }
 
 // excludedIntegrationPackages names a package that holds integration tests and
-// is deliberately not run, against the reason it is not.
+// is deliberately not run in the guest, against the reason it is not.
 //
 // Each exclusion needs a reason a reader can check. The map is what
 // TestEveryIntegrationPackageIsNamed accepts in place of QEMU membership.
@@ -429,8 +429,8 @@ var excludedIntegrationPackages = map[string]string{
 		" activity page's computed styles through host agent-browser and Chromium; the QEMU guest lacks" +
 		" agent-browser. Run it on the host through ./le job run label unit-pkg command go test -tags" +
 		" integration -run TestActivityStyleUsesTheme ./internal/le/site/",
-	"internal/component/web": "caller-side result-download integration proofs require host agent-browser" +
-		" and Chromium; the QEMU guest has no browser. Run the documented host download tests in" +
+	"internal/component/web": "TestBrowser integration proofs require host agent-browser" +
+		" and Chromium; the QEMU guest has no browser. Run the complete ^TestBrowser host family in" +
 		" docs/architecture/testing/runner-architecture.md",
 	"internal/component/web/testing": "native observer and capture integration proofs require host agent-browser" +
 		" and Chromium; run the host package as documented in docs/architecture/testing/runner-architecture.md",

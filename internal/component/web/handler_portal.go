@@ -18,6 +18,17 @@ type PortalService struct {
 	Title string
 	Path  string
 	Icon  string
+	// Direct opens the registered path without surrounding it with live
+	// editor chrome. Embedded external services retain their default frame.
+	Direct bool
+}
+
+// NavigationURL is the one menu target for a registered service declaration.
+func (service PortalService) NavigationURL() string {
+	if service.Direct {
+		return service.Path
+	}
+	return "/portal/" + service.Key
 }
 
 var (
@@ -80,6 +91,10 @@ func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 		svc, ok := portalTarget(key)
 		if !ok {
 			http.Error(w, "unknown portal service", http.StatusNotFound)
+			return
+		}
+		if svc.Direct {
+			http.Redirect(w, r, svc.Path, http.StatusFound)
 			return
 		}
 

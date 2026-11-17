@@ -81,7 +81,9 @@ func TestConfigRecoveryUncertainRemovalDoesNotParseUnknownFile(t *testing.T) {
 	require.NotContains(t, response.Body.String(), "was kept")
 	require.Nil(t, us.editor.Tree())
 	require.Error(t, us.editor.SetValue([]string{"bgp"}, "router-id", "192.0.2.200"))
-	require.Equal(t, 2, mgr.store.(*configRecoveryFailureStore).guards, "uncertain removal must not resume the unknown file")
+	failureStore, ok := mgr.store.(*configRecoveryFailureStore)
+	require.True(t, ok)
+	require.Equal(t, 2, failureStore.guards, "uncertain removal must not resume the unknown file")
 }
 
 // TestConfigRecoveryReplacementParseFailureHidesContent injects a new malformed

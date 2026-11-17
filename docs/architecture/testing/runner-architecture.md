@@ -889,14 +889,15 @@ are owned fixtures; neither proof establishes detached-browser descendant cleanu
 The browser integration packages have explicit development-host routes rather
 than the default QEMU package pass:
 
-- `internal/component/web` result-download integration tests require host
-  `agent-browser` and Chromium. Run every `TestBrowserCLIDownload` case against
-  the real browser; a missing browser dependency fails these tests:
+- `internal/component/web` browser integration tests require host
+  `agent-browser` and Chromium. Run the complete `TestBrowser` family against
+  the real browser: CLI downloads, commit notifications, configuration recovery
+  and backup workspaces. A missing browser dependency fails these tests:
 
   ```sh
   . ./feature-tags
-  browser_download_tags="ze_core,ze_distro,integration,$(feature_tags feature-gates.txt ,)"
-  ./le job run label browser-download command env CGO_ENABLED=0 go test -race=false -count=1 -tags "$browser_download_tags" -run '^TestBrowserCLIDownload' ./internal/component/web
+  browser_web_tags="ze_core,ze_distro,integration,$(feature_tags feature-gates.txt ,)"
+  ./le job run label browser-web command env CGO_ENABLED=0 go test -race=false -count=1 -tags "$browser_web_tags" -run '^TestBrowser' ./internal/component/web
   ```
 
 - `internal/component/web/testing` requires host `agent-browser` and Chromium:

@@ -72,6 +72,57 @@ environment {
 ```
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
 
+## Offline backup workspace
+
+Choose **Services → Backup workspace**, or open `/backups/`, to edit a `.zefs`
+backup independently of the running configuration. This page uses a full-text
+configuration editor. It requires an account with configuration edit access,
+because the artifact can contain credentials.
+<!-- source: internal/component/web/register_backup_workspace.go -- init -->
+<!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP -->
+<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
+
+1. Select a backup file and choose **Open backup**.
+2. Choose its **Configuration**, then **Open configuration**. The editor starts
+   with the committed configuration. Existing saved drafts and pending
+   candidates remain in the artifact and are not resumed.
+3. Edit the text and choose **Validate**. A refused edit keeps your text available
+   for correction. Validation covers the checks available in this Ze process;
+   it does not prove acceptance on the target host or running system.
+4. Choose **Review changes**, then **Save into backup**. Changing the text after
+   review requires another review. A form opened before another tab saved the
+   same configuration must be reviewed against the newer saved configuration.
+5. Choose **Download saved backup**. The download is a complete artifact with
+   the edited configuration, its history and the original backup's other keys.
+   Unsaved text is not included.
+<!-- source: internal/component/web/backup_edit.go -- edit, backupPrepare, publish -->
+<!-- source: internal/component/web/backup_transfer.go -- receive, download -->
+<!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig -->
+
+6. Before opening the downloaded backup in the Ze CLI on Unix, restrict access to your account:
+
+   ```sh
+   chmod 600 updated-backup.zefs
+   ```
+<!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
+<!-- source: internal/component/config/storage/tree.go -- secureNode, openNode -->
+
+7. Choose **Close workspace** when finished.
+<!-- source: internal/component/web/backup_edit.go -- edit -->
+
+Each workspace has its own URL and is available only to the account that
+uploaded it. Uploaded copies are private temporary files; the original file on
+your computer is unchanged. An artifact can be at most 64 MiB, and configuration
+text can be at most 4 MiB. The server retains at most 32 workspaces, eight per
+account, with a shared 256 MiB artifact allowance. Workspaces expire after one
+hour without use and are removed when the web service stops. Download the edited
+backup before closing the workspace or stopping the service.
+Saving and downloading also need temporary disk space for a complete working
+copy. If private-file cleanup fails, new uploads, saves and downloads wait until that
+cleanup succeeds; existing workspace inspection remains available.
+<!-- source: internal/component/web/backup_workspace.go -- backupWorkspaces, expire, Close -->
+<!-- source: internal/component/web/backup_transfer.go -- upload, receive, export, removeStage -->
+
 ## Authentication
 
 The web interface uses the same user database as the SSH server. Users log in through a browser login page or authenticate API requests with HTTP Basic Auth.
