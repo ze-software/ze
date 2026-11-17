@@ -180,9 +180,11 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.
 
-**Counting history**
+**Our testing goal**
 
-Until 2026-10-31: all mandatory rows counted, including annotated rows; summary rows excluded.
+We want the strongest testing possible to catch bugs and prevent regressions. Our goal is to test every applicable MUST requirement in the RFCs Ze implements, wherever testing is possible, and to prove that those tests detect a broken implementation.
+
+Later RFCs can update or replace earlier requirements, so our tests must follow the standards as they apply today. The figure above shows how much of that goal we have proven so far.
 
  [Standards requirements and test results →](https://ze-software.net/quality/rfc-compliance/) Tests with other implementations
 
