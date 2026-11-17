@@ -23,24 +23,24 @@
   },
   {
     "rid": "RFC1661-6.1-1",
-    "polarity": "negative",
-    "unit": "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU",
-    "unit-sha": "756500555a4bd29e",
-    "claim-sha": "fa1ea2f86fa75478",
-    "route": "mutant",
-    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "02b8b819c2c4278f",
-    "break": "line 703: \"s.ops.setMRU(s.unitFD, MaxFrameLen)\" -\u003e \"s.ops.setMRU(s.unitFD, s.maxMRU)\""
-  },
-  {
-    "rid": "RFC1661-6.1-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU",
-    "unit-sha": "756500555a4bd29e",
+    "unit-sha": "38ed4cb3a73582e3",
     "claim-sha": "beeb6ac9572ab60d",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::readFrames",
-    "producer-sha": "c69ca024a6d687fa",
-    "break": "line 928: \"n, err := s.chanFile.Read(buf)\" -\u003e \"n, err := s.chanFile.Read(buf[:ProtoFieldLen+int(s.maxMRU)])\""
+    "producer-sha": "9c783a8f42b4b0ab",
+    "break": "line 1111: \"n, err := s.chanFile.Read(buf)\" -\u003e \"n, err := s.chanFile.Read(buf[:ProtoFieldLen+int(s.maxMRU)])\""
+  },
+  {
+    "rid": "RFC1661-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU",
+    "unit-sha": "38ed4cb3a73582e3",
+    "claim-sha": "fa1ea2f86fa75478",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
+    "producer-sha": "39273e1897dc1430",
+    "break": "line 871: \"if err := s.dataplane.SetReceiveMRU(MaxFrameLen); err != nil {\" -\u003e \"if err := s.dataplane.SetReceiveMRU(s.maxMRU); err != nil {\""
   }
 ]

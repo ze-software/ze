@@ -7,18 +7,18 @@
     "claim-sha": "38aed1d1a8abd984",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
-    "producer-sha": "535db84744fc464d",
+    "producer-sha": "e99854c812e37a8b",
     "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2516-5.4-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID",
-    "unit-sha": "c1fda0930c2393bb",
+    "unit-sha": "8b4e1b52c6abf4fc",
     "claim-sha": "7a26879ac0c2e532",
     "route": "revert",
     "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
-    "producer-sha": "535db84744fc464d",
+    "producer-sha": "e99854c812e37a8b",
     "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

@@ -339,7 +339,7 @@ func TestMarkSessionDoesNotResurrectATeardownSession(t *testing.T) {
 	}
 
 	// The event consumer wins the race and tears the session down.
-	if got := st.markTeardown(sid); got == nil {
+	if got := st.markTeardown(st.Lookup(sid)); got == nil {
 		t.Fatalf("markTeardown(%d): session not found", sid)
 	}
 

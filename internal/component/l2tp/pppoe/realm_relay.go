@@ -6,13 +6,17 @@
 package pppoe
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 )
 
 // errRealmHandoffOver is Quiesce's answer once the PPPoE side abandoned the
@@ -22,6 +26,7 @@ var errRealmHandoffOver = errors.New("pppoe: realm relay abandoned: the subscrib
 // realmSubscriber is what a realm request needs to know about the PPPoE
 // session: the access interface, subscriber MAC and owned transport borrower.
 type realmSubscriber struct {
+	ifindex int
 	ifName  string
 	mac     string
 	channel callsink.RelayChannel
@@ -30,9 +35,9 @@ type realmSubscriber struct {
 // relayDriver is the part of the PPP driver a realm handoff drives;
 // *ppp.Driver implements it.
 type relayDriver interface {
-	QuiesceSession(tunnelID, sessionID uint16) error
-	ReleaseSession(tunnelID, sessionID uint16) error
-	RefuseAuth(tunnelID, sessionID uint16, message string) error
+	QuiesceSession(request ppp.EventAuthRequest) error
+	ReleaseSession(request ppp.EventAuthRequest) error
+	RefuseAuth(request ppp.EventAuthRequest, message string) error
 }
 
 var _ relayDriver = (*ppp.Driver)(nil)
@@ -47,8 +52,9 @@ var _ relayDriver = (*ppp.Driver)(nil)
 type realmRelay struct {
 	logger     *slog.Logger
 	driver     relayDriver
-	subscriber func(ifindex int, sid uint16) (realmSubscriber, bool)
-	endSession func(ifindex int, sid uint16)
+	subscriber func(ppp.EventAuthRequest) (realmSubscriber, bool)
+	endSession func(ppp.EventAuthRequest)
+	released   func(ppp.EventAuthRequest) error
 
 	stop     chan struct{}
 	stopOnce sync.Once
@@ -59,13 +65,14 @@ type realmRelay struct {
 }
 
 func newRealmRelay(logger *slog.Logger, driver relayDriver,
-	subscriber func(int, uint16) (realmSubscriber, bool), endSession func(int, uint16),
+	subscriber func(ppp.EventAuthRequest) (realmSubscriber, bool), endSession func(ppp.EventAuthRequest), released func(ppp.EventAuthRequest) error,
 ) *realmRelay {
 	return &realmRelay{
 		logger:     logger,
 		driver:     driver,
 		subscriber: subscriber,
 		endSession: endSession,
+		released:   released,
 		stop:       make(chan struct{}),
 		calls:      make(map[pendingAuthKey]*realmHandoff),
 	}
@@ -133,19 +140,21 @@ func (r *realmRelay) decide(req *ppp.EventAuthRequest) bool {
 	if sink == nil {
 		return false
 	}
-	key := pendingAuthKey{ifindex: int(req.TunnelID), sessionID: req.SessionID}
-	sub, live := r.subscriber(key.ifindex, key.sessionID)
+	key := pendingAuthFor(req.Control)
+	sub, live := r.subscriber(*req)
 	// refuse-by-default: guards startPPPoEAuthDrain -- a session the server dropped is answered by the driver, which no longer holds it
 	if !live {
 		return false
 	}
 
 	h := &realmHandoff{
-		relay:  r,
-		key:    key,
-		realm:  realm,
-		events: make(chan realmEvent, realmEventsMax),
-		done:   make(chan struct{}),
+		relay:   r,
+		key:     key,
+		request: *req,
+		ifindex: sub.ifindex,
+		realm:   realm,
+		events:  make(chan realmEvent, realmEventsMax),
+		done:    make(chan struct{}),
 	}
 	call, accepted, err := sink.RelayRealm(callsink.RealmRequest{
 		Realm:         realm,
@@ -164,7 +173,7 @@ func (r *realmRelay) decide(req *ppp.EventAuthRequest) bool {
 	})
 	if err != nil {
 		r.logger.Warn("pppoe: realm relay refused the subscriber; it is not authenticated locally",
-			"realm", realm, "ifindex", key.ifindex, "session", key.sessionID, "error", err)
+			"realm", realm, "ifindex", sub.ifindex, "session", req.SessionID, "error", err)
 		h.refuse("the L2TP call could not start")
 		close(h.done)
 		return true
@@ -175,8 +184,12 @@ func (r *realmRelay) decide(req *ppp.EventAuthRequest) bool {
 	}
 	h.setCall(call)
 	r.mu.Lock()
+	previous := r.calls[key]
 	r.calls[key] = h
 	r.mu.Unlock()
+	if previous != nil {
+		previous.goneOnce.Do(func() { previous.post(realmEvent{kind: realmEventSubscriberGone}) })
+	}
 	r.wg.Go(h.run)
 	return true
 }
@@ -185,9 +198,9 @@ func (r *realmRelay) decide(req *ppp.EventAuthRequest) bool {
 // session down) to cancel its call. A bridged session reaches it only
 // through PADT: the PPP driver released it, so no PPP session-down comes.
 // A second report for the same session is dropped.
-func (r *realmRelay) subscriberGone(ifindex int, sid uint16) {
+func (r *realmRelay) subscriberGone(attempt ppp.SessionAttempt) {
 	r.mu.Lock()
-	h := r.calls[pendingAuthKey{ifindex: ifindex, sessionID: sid}]
+	h := r.calls[pendingAuthKey{subscriberID: attempt.SubscriberID(), attempt: attempt}]
 	r.mu.Unlock()
 	if h == nil {
 		return
@@ -234,11 +247,13 @@ type realmEvent struct {
 // session. Quiesce runs in the sink's goroutine; Bridged and Ended only
 // queue an event for run, which owns every driver call that can block.
 type realmHandoff struct {
-	relay  *realmRelay
-	key    pendingAuthKey
-	realm  string
-	events chan realmEvent
-	done   chan struct{}
+	relay   *realmRelay
+	key     pendingAuthKey
+	request ppp.EventAuthRequest
+	ifindex int
+	realm   string
+	events  chan realmEvent
+	done    chan struct{}
 
 	callMu   sync.Mutex
 	call     callsink.RelayCall
@@ -257,7 +272,7 @@ func (h *realmHandoff) Quiesce() error {
 		return errRealmHandoffOver
 	default:
 	}
-	return h.relay.driver.QuiesceSession(uint16(h.key.ifindex), h.key.sessionID)
+	return h.relay.driver.QuiesceSession(h.request)
 }
 
 // Bridged queues the bridge result (callsink.RealmHandoff). Never blocks.
@@ -304,15 +319,15 @@ func (h *realmHandoff) cancelCall() {
 // PADT. A session already gone needs no answer.
 func (h *realmHandoff) refuse(why string) {
 	message := "realm " + h.realm + ": " + why
-	err := h.relay.driver.RefuseAuth(uint16(h.key.ifindex), h.key.sessionID, message)
+	err := h.relay.driver.RefuseAuth(h.request, message)
 	if err == nil {
 		return
 	}
-	if errors.Is(err, ppp.ErrSessionNotFound) {
+	if errors.Is(err, ppp.ErrSessionNotFound) || errors.Is(err, ppp.ErrRequestExpired) {
 		return
 	}
 	h.relay.logger.Warn("pppoe: realm relay refusal not delivered; the PPP session ends at its auth timeout",
-		"realm", h.realm, "ifindex", h.key.ifindex, "session", h.key.sessionID, "error", err)
+		"realm", h.realm, "ifindex", h.ifindex, "session", h.request.SessionID, "error", err)
 }
 
 // run is the handoff's lifecycle: it ends when the call failed, the
@@ -331,21 +346,39 @@ func (h *realmHandoff) run() {
 			case realmEventBridged:
 				if ev.err != nil {
 					h.relay.logger.Warn("pppoe: realm relay bridge failed; refusing the subscriber",
-						"realm", h.realm, "session", h.key.sessionID, "error", ev.err)
+						"realm", h.realm, "session", h.request.SessionID, "error", ev.err)
 					h.cancelCall()
 					h.refuse("the L2TP bridge failed")
 					return
 				}
-				if err := h.relay.driver.ReleaseSession(uint16(h.key.ifindex), h.key.sessionID); err != nil {
+				if err := h.relay.driver.ReleaseSession(h.request); err != nil {
 					h.relay.logger.Warn("pppoe: realm relay bridged a session the PPP driver no longer held",
-						"realm", h.realm, "session", h.key.sessionID, "error", err)
+						"realm", h.realm, "session", h.request.SessionID, "error", err)
+					h.cancelCall()
+					return
+				}
+				if err := h.relay.released(h.request); err != nil {
+					// This handback has only the retained admission identity, not
+					// a native interface identity. Hash its bounded report key so
+					// no subscriber text can exceed the report bus subject limit.
+					report.RaiseWarningFix(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+						fmt.Sprintf("realm-admission/%x", sha256.Sum256([]byte(h.request.SubscriberID))),
+						report.FitMessage(fmt.Sprintf("PPPoE realm relay admission release failed for subscriber %s on access interface %d in realm %s; cleanup is unconfirmed",
+							h.request.SubscriberID, h.ifindex, h.realm)), ppp.CleanupFailureFix,
+						map[string]any{"subscriber-id": h.request.SubscriberID, "ifindex": h.ifindex,
+							"realm": h.realm, "error": err.Error()})
+					h.relay.logger.Warn("pppoe: realm relay admission release failed",
+						"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix,
+						"subscriber", h.request.SubscriberID, "error", err)
+					h.cancelCall()
+					return
 				}
 				bridged = true
 			case realmEventEnded:
 				if bridged {
 					// The L2TP session owned the subscriber's PPP: end the
 					// PPPoE session as for a Service-Name relay.
-					h.relay.endSession(h.key.ifindex, h.key.sessionID)
+					h.relay.endSession(h.request)
 					return
 				}
 				h.refuse("the L2TP call ended before the bridge (" + ev.reason + ")")
@@ -366,50 +399,73 @@ func (h *realmHandoff) run() {
 var _ callsink.RealmHandoff = (*realmHandoff)(nil)
 
 // realmSubscriber returns what a realm request needs about the PPPoE
-// session sid on the interface ifindex, or false when no server or session
-// holds it any more.
-func (s *Subsystem) realmSubscriber(ifindex int, sid uint16) (realmSubscriber, bool) {
-	s.mu.Lock()
-	srv := s.servers[ifindex]
-	s.mu.Unlock()
-	if srv == nil {
+// exact admitted request, or false when its transport owner has departed.
+func (s *Subsystem) realmSubscriber(request ppp.EventAuthRequest) (realmSubscriber, bool) {
+	server, session, found := s.sessionForControl(request.Control, request.SessionID)
+	if !found || !request.Active() {
 		return realmSubscriber{}, false
 	}
-	return srv.sessions.relaySubscriber(sid, srv.ifName)
+	return server.sessions.relaySubscriber(session, server.ifName)
 }
 
 // peerLeftSession is the servers' PADT report (InterfaceServer.peerLeft): a
 // realm relay for the session cancels its call, which after the bridge
 // tears the L2TP session down with CDN.
-func (s *Subsystem) peerLeftSession(ifindex int, sid uint16) {
+func (s *Subsystem) peerLeftSession(session *Session) {
 	if s.realmRelay != nil {
-		s.realmRelay.subscriberGone(ifindex, sid)
+		s.realmRelay.subscriberGone(session.Attempt)
 	}
 }
 
 // endRelayedSession ends a PPPoE session whose L2TP call ended after the
 // bridge: PADT to the subscriber, then the session's socket is closed.
-func (s *Subsystem) endRelayedSession(ifindex int, sid uint16) {
-	s.mu.Lock()
-	srv := s.servers[ifindex]
-	s.mu.Unlock()
-	if srv == nil {
-		return
+func (s *Subsystem) endRelayedSession(request ppp.EventAuthRequest) {
+	server, session, found := s.sessionForAttempt(request.Control.Attempt(), request.SessionID)
+	if found {
+		server.handleSessionDown(session)
 	}
-	srv.handleSessionDown(sid)
 }
 
 // relaySubscriber copies, under the table's lock, the fields a realm
-// request carries for session sid.
-func (st *SessionTable) relaySubscriber(sid uint16, ifName string) (realmSubscriber, bool) {
+// request carries for the captured admission.
+func (st *SessionTable) relaySubscriber(expected *Session, ifName string) (realmSubscriber, bool) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	sess := st.sessions[sid]
-	if sess == nil {
+	if expected == nil || st.sessions[expected.SID] != expected {
 		return realmSubscriber{}, false
 	}
-	if sess.Opened == nil {
+	if expected.Opened == nil || expected.State == StateTeardown {
 		return realmSubscriber{}, false
 	}
-	return realmSubscriber{ifName: ifName, mac: sess.MAC.String(), channel: sess.Opened}, true
+	return realmSubscriber{ifindex: expected.AccessIfIndex, ifName: ifName, mac: expected.MAC.String(), channel: expected.Opened}, true
+}
+
+// releaseRelayedSession observes the successful no-Down Driver release. It
+// relinquishes only protocol-worker ownership; native confirmation remains a
+// separate terminal contract. The transport still owns its exact Opened.
+func (s *Subsystem) releaseRelayedSession(request ppp.EventAuthRequest) error {
+	server, session, found := s.sessionForControl(request.Control, request.SessionID)
+	if !found {
+		return errors.New("pppoe: released realm admission departed")
+	}
+	status, err := session.Attempt.CleanupStatus()
+	if err != nil {
+		return err
+	}
+	if !status.Admitted || !status.Finished {
+		return errors.New("pppoe: realm PPP worker retirement was not confirmed")
+	}
+	table := server.sessions
+	table.mu.Lock()
+	if table.sessions[session.SID] != session || session.Attempt != request.Control.Attempt() || session.Control != request.Control {
+		table.mu.Unlock()
+		return errors.New("pppoe: released realm admission changed")
+	}
+	session.pppRelayReleased = true
+	ending := session.State == StateTeardown
+	table.mu.Unlock()
+	if ending {
+		server.closeAdmitted(session)
+	}
+	return nil
 }

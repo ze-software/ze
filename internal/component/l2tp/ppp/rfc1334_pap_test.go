@@ -363,7 +363,7 @@ func TestPAPRequestEmitsEvent(t *testing.T) {
 	}
 
 	// Deliver an accept decision.
-	s.authRespCh <- authResponseMsg{accept: true, message: "welcome"}
+	answerAuthRequestForTest(t, evt, authResponseMsg{accept: true, message: "welcome"})
 
 	// Read the Authenticate-Ack frame on the peer side.
 	proto, payload := readPeerFrame(t, peerEnd)
@@ -439,13 +439,19 @@ func TestPAPRejectWritesNak(t *testing.T) {
 	}
 
 	// Drain EventAuthRequest.
+	var fixtureRequest EventAuthRequest
 	select {
-	case <-authEventsOut:
+	case raw := <-authEventsOut:
+		request, ok := raw.(EventAuthRequest)
+		if !ok {
+			t.Fatalf("auth event %T, want EventAuthRequest", raw)
+		}
+		fixtureRequest = request
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	s.authRespCh <- authResponseMsg{accept: false, message: "nope"}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: false, message: "nope"})
 
 	proto, payload := readPeerFrame(t, peerEnd)
 	if proto != ProtoPAP {
@@ -522,7 +528,7 @@ func TestPAPTimeoutEmitsFailure(t *testing.T) {
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	// authRespCh intentionally unfed; the 80 ms authTimeout fires.
+	// emitted request intentionally unanswered; the 80 ms authTimeout fires.
 	select {
 	case ev := <-authEventsOut:
 		fail, ok := ev.(eventAuthFailure)

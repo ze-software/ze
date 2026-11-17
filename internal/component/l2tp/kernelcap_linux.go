@@ -21,7 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
-const kernelcapComponent = "l2tp"
+const kernelcapComponent = SubsystemName
 
 // l2tpKernelCapabilities returns the two capabilities the L2TP subsystem enrolls.
 func l2tpKernelCapabilities() []kernelcap.Capability {
@@ -30,7 +30,7 @@ func l2tpKernelCapabilities() []kernelcap.Capability {
 			Subsystem:   SubsystemName,
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_L2TP",
-			ConfigLeaf:  "l2tp",
+			ConfigLeaf:  SubsystemName,
 			CodeAbsent:  diagnostic.CodeDoctorL2TPUnavailable,
 			CodeUnknown: diagnostic.CodeDoctorL2TPUnknown,
 			Order:       747,
@@ -41,7 +41,7 @@ func l2tpKernelCapabilities() []kernelcap.Capability {
 			Subsystem:   "l2tp-ppp",
 			Component:   kernelcapComponent,
 			Kernel:      "CONFIG_PPPOL2TP",
-			ConfigLeaf:  "l2tp",
+			ConfigLeaf:  SubsystemName,
 			CodeAbsent:  diagnostic.CodeDoctorL2TPPPPUnavailable,
 			CodeUnknown: diagnostic.CodeDoctorL2TPPPPUnknown,
 			Order:       748,

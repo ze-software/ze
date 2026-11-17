@@ -20,7 +20,7 @@ func proxyStreamCHAP() []byte {
 // proxyStart is a StartSession for an LNS session carrying valid proxy LCP,
 // with CHAP-MD5 configured and both NCPs off so LCP and auth are all it runs.
 func proxyStart(d *Driver, fd int, stream []byte, renegotiate bool) StartSession {
-	return testStartForDriver(d, StartSession{
+	return testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           uint16(fd),

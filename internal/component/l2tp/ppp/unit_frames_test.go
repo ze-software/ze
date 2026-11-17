@@ -250,54 +250,99 @@ func ipcpTerminateRequest(id uint8) []byte {
 // afterLCPOpen again, and requires the first frame the reconnected unit
 // delivers to be the one the peer sent after it, never one of the six.
 func TestReconnectDiscardsFramesOfTheEndedLifetime(t *testing.T) {
-	s, _, _ := newRFC1661Session(LCPStateOpened)
-	unit := newKernelUnit()
-	s.unitFile = unit
-	testHandleFor(s).ops.connect = func(int, int) error { unit.setConnected(true); return nil }
-	stale := make([][]byte, 6)
-	for i := range stale {
-		stale[i] = ipcpTerminateRequest(0x60 + uint8(i))
-	}
-	testHandleFor(s).ops.disconnect = func(int) error { unit.setConnected(false, stale...); return nil }
-
-	frames := make(chan []byte, 4)
-	done := make(chan error, 1)
-	stop := make(chan struct{})
-	s.unitFramesIn = frames
-	s.unitConnected = make(chan struct{}, 1)
-	s.unitIdle = make(chan struct{}, 1)
-	s.unitGone = make(chan struct{})
-	var reader sync.WaitGroup
-	reader.Go(func() { s.readUnitFrames(frames, done, stop) })
-	t.Cleanup(func() {
-		close(stop)
-		_ = unit.Close() //nolint:errcheck // test cleanup
-		reader.Wait()
-	})
-
-	s.authRespCh <- authResponseMsg{accept: true}
-	if !s.afterLCPOpen() {
-		t.Fatal("the first afterLCPOpen failed")
-	}
-	if !s.resetNCP() {
-		t.Fatal("resetNCP failed")
-	}
-	s.authRespCh <- authResponseMsg{accept: true}
-	if !s.afterLCPOpen() {
-		t.Fatal("the second afterLCPOpen failed")
-	}
-
-	fresh := ipcpTerminateRequest(0x77)
-	unit.setConnected(true, fresh)
-	select {
-	case frame := <-frames:
-		if frame[3] != 0x77 {
-			t.Fatalf("the reconnected unit delivered Terminate-Request 0x%02x from the ended NCP lifetime", frame[3])
+	synctest.Test(t, func(t *testing.T) {
+		s, _, _ := newRFC1661Session(LCPStateOpened)
+		unit := newKernelUnit()
+		s.unitFile = unit
+		testHandleFor(s).ops.connect = func(int, int) error { unit.setConnected(true); return nil }
+		stale := make([][]byte, 6)
+		for i := range stale {
+			stale[i] = ipcpTerminateRequest(0x60 + uint8(i))
 		}
-		putFrameBuf(frame)
-	case <-time.After(2 * time.Second):
-		t.Fatal("the reconnected unit delivered nothing")
-	}
+		testHandleFor(s).ops.disconnect = func(int) error { unit.setConnected(false, stale...); return nil }
+
+		frames := make(chan []byte, 4)
+		done := make(chan error, 1)
+		stop := make(chan struct{})
+		s.unitFramesIn = frames
+		s.unitConnected = make(chan struct{}, 1)
+		s.unitIdle = make(chan struct{}, 1)
+		s.unitGone = make(chan struct{})
+		var reader sync.WaitGroup
+		reader.Go(func() { s.readUnitFrames(frames, done, stop) })
+		t.Cleanup(func() {
+			close(stop)
+			_ = unit.Close() //nolint:errcheck // test cleanup
+			reader.Wait()
+		})
+
+		stopFirstReply := replyNextAuthRequest(t, s, authResponseMsg{accept: true})
+		if !s.afterLCPOpen() {
+			t.Fatal("the first afterLCPOpen failed")
+		}
+		stopFirstReply()
+		if !s.resetNCP() {
+			t.Fatal("resetNCP failed")
+		}
+		// Authentication must not consume the old unit backlog before the
+		// reconnect drain sees it. The actual auth-success event marks that wait's
+		// end; runNCPPhase must acquire mu before it can reach awaitUnitDrained.
+		s.unitFramesIn = nil
+		authEvents := make(chan AuthEvent, 1)
+		s.authEventsOut = authEvents
+		secondResult, secondDone := make(chan bool, 1), make(chan struct{})
+		go func() { defer close(secondDone); secondResult <- s.afterLCPOpen() }()
+		t.Cleanup(func() {
+			s.sessStopOnce.Do(func() { close(s.sessStop) })
+			<-secondDone
+		})
+		var auth EventAuthRequest
+		select {
+		case raw := <-authEvents:
+			var ok bool
+			auth, ok = raw.(EventAuthRequest)
+			if !ok {
+				t.Fatalf("second authentication event %T, want actual request", raw)
+			}
+		case <-secondDone:
+			t.Fatal("second Opened phase ended before its authentication request")
+		}
+		// All goroutines are now blocked: awaitAuthDecision has captured its nil
+		// unit input and is waiting for this exact answer, not reading stale frames.
+		synctest.Wait()
+		s.mu.Lock()
+		if err := auth.answer(authResponseMsg{accept: true}); err != nil {
+			s.mu.Unlock()
+			t.Fatalf("answer second authentication request: %v", err)
+		}
+		select {
+		case raw := <-authEvents:
+			if _, ok := raw.(eventAuthSuccess); !ok {
+				s.mu.Unlock()
+				t.Fatalf("second authentication result %T, want success", raw)
+			}
+		case <-secondDone:
+			s.mu.Unlock()
+			t.Fatal("second Opened phase ended before authentication completed")
+		}
+		s.unitFramesIn = frames
+		s.mu.Unlock()
+		if !<-secondResult {
+			t.Fatal("the second afterLCPOpen failed")
+		}
+
+		fresh := ipcpTerminateRequest(0x77)
+		unit.setConnected(true, fresh)
+		select {
+		case frame := <-frames:
+			if frame[3] != 0x77 {
+				t.Fatalf("the reconnected unit delivered Terminate-Request 0x%02x from the ended NCP lifetime", frame[3])
+			}
+			putFrameBuf(frame)
+		case <-time.After(2 * time.Second):
+			t.Fatal("the reconnected unit delivered nothing")
+		}
+	})
 }
 
 // failingUnit blocks every Read until fail closes or the unit closes, then

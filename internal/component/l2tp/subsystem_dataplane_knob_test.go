@@ -42,7 +42,7 @@ func useEnv(t *testing.T, kv map[string]string) {
 // collide on a fixed port.
 func startWithListener(t *testing.T) *Subsystem {
 	t.Helper()
-	sub := NewSubsystem(Parameters{
+	sub := NewSubsystem(&Parameters{
 		Enabled:     true,
 		ListenAddrs: []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0)},
 	})

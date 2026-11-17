@@ -145,11 +145,12 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 				SessionTimeout: 3600, IdleTimeout: 3600,
 				FramedRoutes: []FramedRoute{{Prefix: oldRoute}, {Prefix: oldV6Route}},
 			})
-			first := ppp.EventSessionIPAssigned{
-				TunnelID: tid, SessionID: sid, Family: ppp.AddressFamilyIPv4, Username: "old-user",
-				Peer:       netip.MustParseAddr("192.0.2.41"),
-				DNSPrimary: netip.MustParseAddr("192.0.2.53"), DNSSecondary: netip.MustParseAddr("192.0.2.54"),
-			}
+			wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: tid, sessionID: sid}, ipv6: true, subscriberID: ""})
+			wire.prepareNetwork(t, "old-user", ppp.IPResponseArgs{Accept: true, Family: ppp.AddressFamilyIPv4,
+				Local: netip.MustParseAddr("192.0.2.1"), Peer: netip.MustParseAddr("192.0.2.41"),
+				DNSPrimary: netip.MustParseAddr("192.0.2.53"), DNSSecondary: netip.MustParseAddr("192.0.2.54")},
+				[8]byte{2, 0, 0, 0, 0, 0, 0, 41})
+			first := wire.assign(t, ppp.AddressFamilyIPv4)
 			firstV6 := ppp.EventSessionIPAssigned{TunnelID: tid, SessionID: sid, Family: ppp.AddressFamilyIPv6, Username: "old-user", InterfaceID: [8]byte{2, 0, 0, 0, 0, 0, 0, 41}}
 			r.handlePPPEvent(first)
 			configured, ok := reg.Get(id)
@@ -168,8 +169,9 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 
 			var timeoutCtx, idleCtx context.Context
 			if activateFirst {
+				firstV6 = wire.assign(t, ppp.AddressFamilyIPv6)
 				r.handlePPPEvent(firstV6)
-				r.handlePPPEvent(ppp.EventSessionUp{TunnelID: tid, SessionID: sid})
+				r.handlePPPEvent(wire.nextUp(t))
 				require.Len(t, up, 1)
 				assertL2TPLifetimeAddresses(t, &up[0], first, firstV6)
 				require.Equal(t, "old-pool", up[0].PoolName)
@@ -185,7 +187,9 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 				transport.sessionTimeoutCancel = func() { oldTimeout(); cancelTimeout() }
 				transport.idleTimeoutCancel = func() { oldIdle(); cancelIdle() }
 			}
-			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: tid, SessionID: sid, NetworkPhase: true, Reason: "peer restarted LCP"})
+			withdrawal := wire.beginRestart(t)
+			require.True(t, withdrawal.NetworkPhase)
+			r.handlePPPEvent(withdrawal)
 			_, ok = reg.Get(id)
 			require.False(t, ok, "LCPDown must withdraw the old subscriber")
 			require.Empty(t, liveRoutes, "LCPDown must publish route withdrawals")
@@ -215,13 +219,19 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			secondV6 := firstV6
 			secondV6.Username = "new-user"
 			secondV6.InterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 42}
+			wire.finishRestart(t)
+			wire.prepareNetwork(t, "new-user", ppp.IPResponseArgs{Accept: true, Family: ppp.AddressFamilyIPv4,
+				Local: netip.MustParseAddr("192.0.2.1"), Peer: second.Peer,
+				DNSPrimary: second.DNSPrimary, DNSSecondary: second.DNSSecondary}, secondV6.InterfaceID)
+			secondV6 = wire.assign(t, ppp.AddressFamilyIPv6)
 			r.handlePPPEvent(secondV6)
 			configured, ok = reg.Get(id)
 			require.True(t, ok)
 			require.Equal(t, subscriber.StateConfiguring, configured.State)
 			require.Equal(t, secondV6.InterfaceID, configured.IPv6InterfaceID)
+			second = wire.assign(t, ppp.AddressFamilyIPv4)
 			r.handlePPPEvent(second)
-			r.handlePPPEvent(ppp.EventSessionUp{TunnelID: tid, SessionID: sid})
+			r.handlePPPEvent(wire.nextUp(t))
 			latest := up[len(up)-1]
 			assertL2TPLifetimeAddresses(t, &latest, second, secondV6)
 			require.Equal(t, "new-user", latest.Username)
@@ -229,7 +239,7 @@ func TestL2TPSubscriberNetworkLifetime(t *testing.T) {
 			require.Equal(t, baseline+1, l2tpActiveSubscribers(t))
 			require.Equal(t, map[netip.Prefix]bool{netip.PrefixFrom(second.Peer, 32): true, newRoute: true}, liveRoutes)
 
-			r.handlePPPEvent(ppp.EventSessionDown{TunnelID: tid, SessionID: sid, Reason: "peer finished"})
+			r.handlePPPEvent(wire.finishPeerDown(t))
 			require.Nil(t, tun.lookupSession(sid))
 			_, ok = reg.Get(id)
 			require.False(t, ok)
@@ -286,17 +296,22 @@ func TestL2TPAssignedPrincipalAndProxyLifetime(t *testing.T) {
 			l2tpevents.SessionIPAssigned.Subscribe(bus, func(p *l2tpevents.SessionIPAssignedPayload) {
 				accountingPrincipals = append(accountingPrincipals, p.Username)
 			})
-			assigned := ppp.EventSessionIPAssigned{
-				TunnelID: tid, SessionID: sid, Family: ppp.AddressFamilyIPv4,
-				Username: tc.principal, Peer: netip.MustParseAddr("192.0.2.42"),
-			}
+			wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: tid, sessionID: sid}, ipv6: false, subscriberID: ""})
+			answer := ppp.IPResponseArgs{Accept: true, Family: ppp.AddressFamilyIPv4,
+				Local: netip.MustParseAddr("192.0.2.1"), Peer: netip.MustParseAddr("192.0.2.42")}
+			wire.prepareNetwork(t, tc.principal, answer, [8]byte{})
+			assigned := wire.assign(t, ppp.AddressFamilyIPv4)
 			r.handlePPPEvent(assigned)
 			sess, ok := reg.Get(l2tpSessionID(tid, sid))
 			require.True(t, ok)
 			require.Equal(t, tc.want, sess.Username)
 
-			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: tid, SessionID: sid, NetworkPhase: true})
-			assigned.Username = ""
+			withdrawal := wire.beginRestart(t)
+			require.True(t, withdrawal.NetworkPhase)
+			r.handlePPPEvent(withdrawal)
+			wire.finishRestart(t)
+			wire.prepareNetwork(t, "", answer, [8]byte{})
+			assigned = wire.assign(t, ppp.AddressFamilyIPv4)
 			r.handlePPPEvent(assigned)
 			sess, ok = reg.Get(l2tpSessionID(tid, sid))
 			require.True(t, ok)
@@ -328,13 +343,22 @@ func TestL2TPSubscriberRejectsUnusableAssignments(t *testing.T) {
 	addEstablishedSession(tun, 421, 521, true)
 	publications := 0
 	subevents.SessionIPAssigned.Subscribe(bus, func(*subevents.SessionIPAssignedPayload) { publications++ })
-	for _, event := range []ppp.EventSessionIPAssigned{
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 420, sessionID: 421})
+	for index, metadata := range []ppp.EventSessionIPAssigned{
 		{TunnelID: 420, SessionID: 421, Family: ppp.AddressFamilyIPv4},
 		{TunnelID: 420, SessionID: 421, Family: ppp.AddressFamilyIPv6},
 		{TunnelID: 420, SessionID: 421, Family: ppp.AddressFamilyIPv4, Peer: netip.MustParseAddr("2001:db8::99")},
 		{TunnelID: 420, SessionID: 999, Family: ppp.AddressFamilyIPv4, Peer: netip.MustParseAddr("192.0.2.99")},
 		{TunnelID: 999, SessionID: 421, Family: ppp.AddressFamilyIPv4, Peer: netip.MustParseAddr("192.0.2.99")},
 	} {
+		event := wire.assignment
+		if index > 0 {
+			event = wire.replacementAssignment(t)
+		}
+		// Deliberately malformed consumer metadata retains the original
+		// private receipt; PPP did not produce these invalid values.
+		event.TunnelID, event.SessionID, event.Family = metadata.TunnelID, metadata.SessionID, metadata.Family
+		event.Peer, event.Username, event.InterfaceID = metadata.Peer, metadata.Username, metadata.InterfaceID
 		r.handlePPPEvent(event)
 		_, ok := reg.Get(l2tpSessionID(event.TunnelID, event.SessionID))
 		require.False(t, ok)
@@ -391,7 +415,10 @@ func TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	var down []subscriber.Session
 	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = append(down, p.Session) })
 
-	r.handlePPPEvent(ppp.EventLCPDown{TunnelID: tid, SessionID: sid, NetworkPhase: true})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: tid, sessionID: sid})
+	withdrawal := wire.withdraw(t)
+	require.True(t, withdrawal.NetworkPhase)
+	r.handlePPPEvent(withdrawal)
 	require.Equal(t, []netip.Prefix{netip.PrefixFrom(addr, 32)}, removed, "LCPDown must publish withdrawal of the existing route")
 	_, ok := reg.Get(l2tpSessionID(tid, sid))
 	require.False(t, ok)

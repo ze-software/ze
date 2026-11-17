@@ -26,11 +26,12 @@ var errChannelNotQuiescable = errors.New("ppp: session channel cannot be quiesce
 // MUST be called while the session waits for its authentication decision,
 // that is after its EventAuthRequest and before any AuthResponse. Safe for
 // concurrent use; a second call returns at once.
-func (d *Driver) QuiesceSession(tunnelID, sessionID uint16) error {
-	s, err := d.liveSession(tunnelID, sessionID)
+func (d *Driver) QuiesceSession(request EventAuthRequest) error {
+	s, err := d.lockAuthRequest(request)
 	if err != nil {
 		return err
 	}
+	defer request.pending.mu.Unlock()
 	if s.readerQuiesce == nil {
 		return errChannelNotQuiescable
 	}
@@ -45,7 +46,7 @@ func (d *Driver) QuiesceSession(tunnelID, sessionID uint16) error {
 	case <-d.stopCh:
 		return ErrDriverStopped
 	}
-	if _, err := d.liveSession(tunnelID, sessionID); err != nil {
+	if _, err := d.liveSession(request.Control); err != nil {
 		return err
 	}
 	return nil
@@ -58,22 +59,32 @@ func (d *Driver) QuiesceSession(tunnelID, sessionID uint16) error {
 // connected: NCP never ran), and returns once the session goroutine exited.
 // The transport keeps its own PPPoX socket.
 //
-// MUST follow a successful QuiesceSession. Safe for concurrent use.
-func (d *Driver) ReleaseSession(tunnelID, sessionID uint16) error {
-	k := sessionKey{tunnelID, sessionID}
+// MUST follow a successful QuiesceSession of this same control. Safe for concurrent use.
+func (d *Driver) ReleaseSession(request EventAuthRequest) error {
+	s, err := d.lockAuthRequest(request)
+	if err != nil {
+		return err
+	}
 	d.mu.Lock()
-	s, ok := d.sessions[k]
+	current, ok := d.sessionForControlLocked(request.Control)
 	if !ok {
 		d.mu.Unlock()
+		request.pending.mu.Unlock()
 		return ErrSessionNotFound
 	}
-	delete(d.sessions, k)
+	if current != s {
+		d.mu.Unlock()
+		request.pending.mu.Unlock()
+		return ErrSessionNotFound
+	}
+	delete(d.sessions, s.subscriberID)
 	d.mu.Unlock()
-
-	// released is read by run's teardown, after sessStop wakes the
-	// session, so it is stored first.
+	request.pending.waiting = false
+	// Publish the winning release while retirement is still excluded.
 	s.released.Store(true)
-	s.sessStopOnce.Do(func() { close(s.sessStop) })
+	request.pending.mu.Unlock()
+
+	request.Control.Cancel()
 	s.closeFiles()
 	<-s.done
 	return nil
@@ -89,28 +100,30 @@ func (d *Driver) ReleaseSession(tunnelID, sessionID uint16) error {
 //
 // Safe for concurrent use. Non-blocking, with AuthResponse's
 // ErrAuthResponsePending on a duplicate.
-func (d *Driver) RefuseAuth(tunnelID, sessionID uint16, message string) error {
-	s, err := d.liveSession(tunnelID, sessionID)
+func (d *Driver) RefuseAuth(request EventAuthRequest, message string) error {
+	_, err := d.liveSession(request.Control)
 	if err != nil {
 		return err
 	}
-	select {
-	case s.authRespCh <- authResponseMsg{message: message, terminate: true, displayText: true}:
-		return nil
-	default: // buffered(1) already full: a decision is already pending
-		return ErrAuthResponsePending
-	}
+	return request.answer(authResponseMsg{message: message, terminate: true, displayText: true})
 }
 
-// liveSession returns the session for the key, or ErrSessionNotFound.
-func (d *Driver) liveSession(tunnelID, sessionID uint16) (*pppSession, error) {
+// liveSession accepts only this driver's exact admitted worker capability.
+func (d *Driver) liveSession(control SessionControl) (*pppSession, error) {
 	d.mu.Lock()
-	s, ok := d.sessions[sessionKey{tunnelID, sessionID}]
+	s, ok := d.sessionForControlLocked(control)
 	d.mu.Unlock()
 	if !ok {
 		return nil, ErrSessionNotFound
 	}
-	return s, nil
+	select {
+	case <-s.sessStop:
+		return nil, ErrSessionNotFound
+	case <-d.stopCh:
+		return nil, ErrDriverStopped
+	default:
+		return s, nil
+	}
 }
 
 // readerQuiesced reports whether QuiesceSession asked the channel reader to

@@ -47,15 +47,18 @@ func papReplyFor(t *testing.T, accept bool) (uint16, []byte) {
 	if _, err := peerEnd.Write(papAuthRequestFrame()); err != nil {
 		t.Fatalf("peer write request: %v", err)
 	}
+	var fixtureRequest EventAuthRequest
 	select {
 	case raw := <-authEventsOut:
-		if _, ok := raw.(EventAuthRequest); !ok {
+		request, ok := raw.(EventAuthRequest)
+		fixtureRequest = request
+		if !ok {
 			t.Fatalf("first auth event %T, want EventAuthRequest", raw)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
-	s.authRespCh <- authResponseMsg{accept: accept, message: "answered"}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: accept, message: "answered"})
 
 	proto, payload := readPeerFrame(t, peerEnd)
 
@@ -131,7 +134,7 @@ func authenticatedPAPSession(t *testing.T, accept bool, state LCPState) (*pppSes
 	n := copy(frame, papAuthRequestFrame())
 	frames <- frame[:n]
 	s.framesIn = frames
-	s.authRespCh <- authResponseMsg{accept: accept, message: "decision"}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: accept, message: "decision"})
 	if got := s.runPAPAuthPhase(); got != accept {
 		t.Fatalf("authentication = %v, want %v", got, accept)
 	}
@@ -252,7 +255,7 @@ func TestPAPInitialReplyWriteFailureDoesNotAuthenticate(t *testing.T) {
 		n := copy(frame, papAuthRequestFrame())
 		frames <- frame[:n]
 		s.framesIn = frames
-		s.authRespCh <- authResponseMsg{accept: true}
+		replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 		if s.runPAPAuthPhase() {
 			t.Fatalf("write error %v: authentication succeeded", writeErr)
 		}

@@ -39,19 +39,23 @@ type Subsystem struct {
 	logger *slog.Logger
 
 	lifecycleMu sync.Mutex
+	// retainedStop forbids treating a joined runtime as running after refused cleanup failed.
+	retainedStop bool
 	// dispatchMu is held by the discovery reader for each frame it dispatches,
 	// and by Reload while it swaps the server map (dispatchFrame). Order:
 	// lifecycleMu, then dispatchMu, then mu.
 	dispatchMu sync.Mutex
-	mu         sync.Mutex
-	started    bool
-	discFD     int
-	servers    map[int]*InterfaceServer
-	accesses   *accessConfiguration
-	backend    dataplane.Backend
-	pppDriver  *ppp.Driver
-	readDone   chan struct{}
-	eventDone  chan struct{}
+	// discoveryPaused is read/written only under dispatchMu during reload drain.
+	discoveryPaused bool
+	mu              sync.Mutex
+	started         bool
+	discFD          int
+	servers         map[int]*InterfaceServer
+	accesses        *accessConfiguration
+	backend         dataplane.Backend
+	pppDriver       *ppp.Driver
+	readDone        chan struct{}
+	eventDone       chan struct{}
 	// relayWake is a coalesced hint; tables own every pending end.
 	relayWake  chan struct{}
 	drainDones []<-chan struct{}
@@ -70,8 +74,8 @@ type Subsystem struct {
 }
 
 type pendingAuthKey struct {
-	ifindex   int
-	sessionID uint16
+	subscriberID string
+	attempt      ppp.SessionAttempt
 }
 
 type pendingAuthInfo struct {
@@ -205,7 +209,7 @@ func (s *Subsystem) startLocked(ctx context.Context) (err error) {
 		if poolH == nil {
 			s.logger.Error("pppoe: no pool handler registered; all IP requests will be rejected")
 		}
-		s.realmRelay = newRealmRelay(s.logger, s.pppDriver, s.realmSubscriber, s.endRelayedSession)
+		s.realmRelay = newRealmRelay(s.logger, s.pppDriver, s.realmSubscriber, s.endRelayedSession, s.releaseRelayedSession)
 		s.drainDones = append(s.drainDones,
 			startPPPoEAuthDrain(s.logger, s.pppDriver, subscriber.GetAuthHandler, s.bus, &s.pendingAuth, s.realmRelay),
 			startPPPoEPoolDrain(s.logger, s.pppDriver, poolH, s.bus),
@@ -219,14 +223,14 @@ func (s *Subsystem) startLocked(ctx context.Context) (err error) {
 }
 
 // Stop implements ze.Subsystem.
-func (s *Subsystem) Stop(_ context.Context) error {
+func (s *Subsystem) Stop(ctx context.Context) error {
 	s.lifecycleMu.Lock()
 	defer s.lifecycleMu.Unlock()
 
 	if !s.started {
 		return nil
 	}
-	return s.stopLocked()
+	return s.stopLocked(ctx)
 }
 
 // stopLocked stops discovery and the PPP driver and joins every worker
@@ -234,12 +238,21 @@ func (s *Subsystem) Stop(_ context.Context) error {
 // admissions receive PADT while discovery and their access generation live.
 // MUST be called with lifecycleMu held and mu not held,
 // because the workers it joins take mu.
-func (s *Subsystem) stopLocked() error {
+func (s *Subsystem) stopLocked(ctx context.Context) error {
+	if s.retainedStop && s.pppDriver != nil {
+		if err := s.pppDriver.RetryPendingNativeRelease(ctx); err != nil {
+			return err
+		}
+	}
 	PublishService(nil)
 	s.logger.Info("PPPoE subsystem stopping")
 
 	if s.stop != nil {
-		close(s.stop)
+		select {
+		case <-s.stop:
+		default:
+			close(s.stop)
+		}
 	}
 	if s.readDone != nil {
 		<-s.readDone
@@ -262,7 +275,10 @@ func (s *Subsystem) stopLocked() error {
 	}
 	// Service relays have no PPP worker to release their admissions. Local
 	// PPP workers are joined now, so their final writes have finished too.
-	s.closeAdmissions()
+	if err := s.closeAdmissions(ctx); err != nil {
+		s.retainedStop = true
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.discFD >= 0 {
@@ -282,6 +298,7 @@ func (s *Subsystem) stopLocked() error {
 	s.stop = nil
 	s.servers = nil
 	s.started = false
+	s.retainedStop = false
 	return accessReleaseError(accessErr)
 }
 
@@ -355,6 +372,9 @@ func (s *Subsystem) discoveryReader() {
 func (s *Subsystem) dispatchFrame(ifindex int, frame []byte) {
 	s.dispatchMu.Lock()
 	defer s.dispatchMu.Unlock()
+	if s.discoveryPaused {
+		return
+	}
 
 	s.mu.Lock()
 	srv := s.servers[ifindex]
@@ -395,11 +415,23 @@ func (s *Subsystem) eventConsumer() {
 // produces, one at a time.
 func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 	switch e := ev.(type) {
-	case ppp.EventLCPDown:
-		defer e.Acknowledge()
-		if e.NetworkPhase {
-			s.withdrawSubscriber(e.TunnelID, e.SessionID, e.Reason)
+	case ppp.EventLCPUp:
+		if !s.liveAdmission(e.Control, e.SessionID) {
+			e.Control.Cancel()
 		}
+	case ppp.EventLCPDown:
+		if _, _, found := s.sessionForControl(e.Control, e.SessionID); !found {
+			e.Control.Cancel()
+			return
+		}
+		if e.NetworkPhase {
+			s.withdrawSubscriber(e.Control, e.SessionID, e.Reason)
+		}
+		if !s.liveAdmission(e.Control, e.SessionID) {
+			e.Cancel()
+			return
+		}
+		e.Acknowledge()
 	case ppp.EventSessionUp:
 		s.onSessionUp(e)
 	case ppp.EventSessionIPAssigned:
@@ -410,28 +442,26 @@ func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 		if e.ExistingSession {
 			return
 		}
-		s.onSessionDown(ppp.EventSessionDown{
-			TunnelID: e.TunnelID, SessionID: e.SessionID, Reason: e.Reason,
-		})
+		server, session, found := s.sessionForAttempt(e.Attempt, e.SessionID)
+		if !found {
+			return
+		}
+		s.finishRejectedAdmission(server, session, e)
 	}
 }
 
 // subscriberSession preserves completed NCPs while the remaining NCPs run.
-func (s *Subsystem) subscriberSession(tid, sid uint16) (subscriber.Session, bool) {
-	ifindex := int(tid)
-	s.mu.Lock()
-	srv := s.servers[ifindex]
-	s.mu.Unlock()
-	if srv == nil {
-		s.logger.Debug("pppoe: ignoring an event for a removed access interface", "ifindex", ifindex)
-		return subscriber.Session{}, false
-	}
-	snap, live := srv.sessions.LookupSnapshot(sid)
+func (s *Subsystem) subscriberSession(control ppp.SessionControl, sid uint16) (subscriber.Session, bool) {
+	server, session, live := s.sessionForControl(control, sid)
 	if !live {
-		s.logger.Debug("pppoe: ignoring an event for a removed session", "ifindex", ifindex, "session", sid)
 		return subscriber.Session{}, false
 	}
-	id := pppoeSessionID(ifindex, sid)
+	snap, live := server.sessions.snapshotAdmission(session)
+	if !live || snap.State == StateTeardown {
+		return subscriber.Session{}, false
+	}
+	ifindex := snap.AccessIfIndex
+	id := snap.SubscriberID
 	sess, found := subscriber.DefaultRegistry.Get(id)
 	if !found {
 		sess = subscriber.Session{
@@ -443,7 +473,7 @@ func (s *Subsystem) subscriberSession(tid, sid uint16) (subscriber.Session, bool
 	sess.AccessInterface = snap.IfName
 	sess.ServiceName = snap.ServiceName
 	sess.PppInterface = snap.Identity.InterfaceName
-	if val, ok := s.pendingAuth.Load(pendingAuthKey{ifindex: ifindex, sessionID: sid}); ok {
+	if val, ok := s.pendingAuth.Load(pendingAuthFor(control)); ok {
 		info, valid := val.(pendingAuthInfo)
 		if !valid {
 			s.logger.Error("pppoe: invalid pending authentication state", "ifindex", ifindex, "session", sid)
@@ -461,8 +491,13 @@ func (s *Subsystem) subscriberSession(tid, sid uint16) (subscriber.Session, bool
 // onSessionUp records a session that has completed LCP, authentication and
 // every enabled NCP, then publishes it.
 func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
-	sess, found := s.subscriberSession(e.TunnelID, e.SessionID)
+	if !e.Control.Active() {
+		e.Control.Cancel()
+		return
+	}
+	sess, found := s.subscriberSession(e.Control, e.SessionID)
 	if !found {
+		e.Control.Cancel()
 		return
 	}
 	wasActive := sess.State == subscriber.StateActive
@@ -470,7 +505,7 @@ func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
 	if !wasActive {
 		sess.ActivatedAt = time.Now()
 	}
-	s.pendingAuth.Delete(pendingAuthKey{ifindex: int(e.TunnelID), sessionID: e.SessionID})
+	s.pendingAuth.Delete(pendingAuthFor(e.Control))
 	// RFC 2865 Section 5.11: the Access-Accept Filter-Id carries the
 	// subscriber's rates. The RADIUS handler stores the profile under the same
 	// canonical subscriber ID, so a PPPoE subscriber's
@@ -509,14 +544,19 @@ func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
 // The consumer MUST acknowledge after synchronous publication completes, before
 // PPP can enable forwarding.
 func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
-	defer e.Acknowledge()
+	if !e.Control.Active() {
+		e.Control.Cancel()
+		return
+	}
 
 	if e.Peer.IsValid() && !e.Peer.Is4() || !e.Peer.IsValid() && e.InterfaceID == [8]byte{} {
 		s.logger.Warn("pppoe: invalid IP-assigned event", "address", e.Peer, "session", e.SessionID)
+		e.Cancel()
 		return
 	}
-	sess, ok := s.subscriberSession(e.TunnelID, e.SessionID)
+	sess, ok := s.subscriberSession(e.Control, e.SessionID)
 	if !ok {
+		e.Cancel()
 		return
 	}
 	sess.Username = e.Username
@@ -531,14 +571,18 @@ func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
 	}
 	subscriber.DefaultRegistry.Add(&sess)
 
-	if s.bus == nil {
+	if s.bus != nil {
+		if _, err := subevents.SessionIPAssigned.Emit(s.bus, &subevents.SessionIPAssignedPayload{
+			Session: sess,
+		}); err != nil {
+			s.logger.Warn("pppoe: subscriber session-ip-assigned emit failed", "error", err)
+		}
+	}
+	if !s.liveAdmission(e.Control, e.SessionID) {
+		e.Cancel()
 		return
 	}
-	if _, err := subevents.SessionIPAssigned.Emit(s.bus, &subevents.SessionIPAssignedPayload{
-		Session: sess,
-	}); err != nil {
-		s.logger.Warn("pppoe: subscriber session-ip-assigned emit failed", "error", err)
-	}
+	e.Acknowledge()
 }
 
 // onSessionDown publishes the teardown and sends the PADT that ends the
@@ -547,24 +591,34 @@ func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
 // The event is published even when the registry holds no session: an address
 // can be allocated before its NCP completes.
 func (s *Subsystem) onSessionDown(e ppp.EventSessionDown) {
+	server, session, found := s.sessionForControl(e.Control, e.SessionID)
+	if !found {
+		e.Control.Cancel()
+		return
+	}
+	if !server.sessions.markPPPTerminal(session, e.Control.Attempt()) {
+		return
+	}
 	if s.realmRelay != nil {
-		s.realmRelay.subscriberGone(int(e.TunnelID), e.SessionID)
+		s.realmRelay.subscriberGone(e.Control.Attempt())
 	}
-	s.withdrawSubscriber(e.TunnelID, e.SessionID, e.Reason)
-	ifindex := int(e.TunnelID)
-	s.mu.Lock()
-	srv := s.servers[ifindex]
-	s.mu.Unlock()
-	if srv != nil {
-		srv.handleSessionDown(e.SessionID)
-	}
+	s.withdrawSubscriber(e.Control, e.SessionID, e.Reason)
+	server.handleSessionDown(session)
 }
 
 // withdrawSubscriber releases a network lifetime without closing its transport.
-func (s *Subsystem) withdrawSubscriber(tid, sid uint16, reason string) {
-	ifindex := int(tid)
-	s.pendingAuth.Delete(pendingAuthKey{ifindex: ifindex, sessionID: sid})
-	id := pppoeSessionID(ifindex, sid)
+func (s *Subsystem) withdrawSubscriber(control ppp.SessionControl, sid uint16, reason string) {
+	_, session, found := s.sessionForControl(control, sid)
+	if !found {
+		return
+	}
+	s.pendingAuth.Delete(pendingAuthFor(control))
+	s.withdrawSubscriberIdentity(session.SubscriberID, session.AccessIfIndex, sid, reason)
+}
+
+// withdrawSubscriberIdentity uses only an identity retained by the exact
+// admission. Rejected attempts have no admitted control.
+func (s *Subsystem) withdrawSubscriberIdentity(id string, ifindex int, sid uint16, reason string) {
 	sess, found := subscriber.DefaultRegistry.Get(id)
 	if !found {
 		sess = subscriber.Session{

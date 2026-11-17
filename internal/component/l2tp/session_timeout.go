@@ -12,6 +12,13 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
+// sessionTimeoutLifetime identifies one network lifetime on a retained PPP
+// attempt. Its nonzero size gives each live allocation a distinct identity.
+// A canceled lifetime cannot arm timers after its Up readers return.
+type sessionTimeoutLifetime struct {
+	_ byte
+}
+
 // startSessionTimeouts reads RADIUS metadata for the session and starts
 // timeout goroutines if Session-Timeout or Idle-Timeout are present.
 // Called from handleSessionUp after the session-up event is emitted.
@@ -23,52 +30,68 @@ import (
 // RFC 2865 Section 5.28: Idle-Timeout is the maximum idle time in
 // seconds. The session is disconnected when no traffic has been
 // observed for this duration.
-func (r *l2tpReactor) startSessionTimeouts(tid, sid uint16) {
-	meta := LoadSessionMetadata(l2tpSessionID(tid, sid))
-	if meta == nil {
-		return
-	}
-
+func (r *l2tpReactor) startSessionTimeouts(tunnel *L2TPTunnel, sess *L2TPSession, lifetime *sessionTimeoutLifetime) {
 	r.tunnelsMu.Lock()
-	tunnel, ok := r.tunnelsByLocalID[tid]
-	if !ok {
-		r.tunnelsMu.Unlock()
+	defer r.tunnelsMu.Unlock()
+	if tunnel == nil {
 		return
 	}
-	sess := tunnel.lookupSession(sid)
 	if sess == nil {
-		r.tunnelsMu.Unlock()
+		return
+	}
+	if r.tunnelsByLocalID[tunnel.localTID] != tunnel {
+		return
+	}
+	if tunnel.lookupSession(sess.localSID) != sess {
+		return
+	}
+	if lifetime == nil {
+		return
+	}
+	if sess.timeoutLifetime != lifetime {
+		return
+	}
+	meta := LoadSessionMetadata(l2tpSessionID(tunnel.localTID, sess.localSID))
+	if meta == nil {
 		return
 	}
 
 	if meta.SessionTimeout > 0 {
 		ctx, cancel := context.WithCancel(context.Background())
+		if sess.sessionTimeoutCancel != nil {
+			sess.sessionTimeoutCancel()
+		}
 		sess.sessionTimeoutCancel = cancel
-		go r.runSessionTimeout(tid, sid, time.Duration(meta.SessionTimeout)*time.Second, ctx)
+		sess.sessionTimeoutContext = ctx
+		go r.runSessionTimeout(tunnel, sess, time.Duration(meta.SessionTimeout)*time.Second, ctx)
 	}
 
 	if meta.IdleTimeout > 0 {
 		ctx, cancel := context.WithCancel(context.Background())
+		if sess.idleTimeoutCancel != nil {
+			sess.idleTimeoutCancel()
+		}
 		sess.idleTimeoutCancel = cancel
+		sess.idleTimeoutContext = ctx
 		iface := sess.pppInterface
-		go r.runIdleTimeout(tid, sid, time.Duration(meta.IdleTimeout)*time.Second, iface, ctx)
+		go r.runIdleTimeout(tunnel, sess, time.Duration(meta.IdleTimeout)*time.Second, iface, ctx)
 	}
-	r.tunnelsMu.Unlock()
 }
 
 // runSessionTimeout waits for the session timeout duration then tears
 // down the session. Exits early if ctx is canceled (session torn down
 // by other means).
-func (r *l2tpReactor) runSessionTimeout(tid, sid uint16, timeout time.Duration, ctx context.Context) {
+func (r *l2tpReactor) runSessionTimeout(tunnel *L2TPTunnel, sess *L2TPSession, timeout time.Duration, ctx context.Context) {
+	tid, sid := tunnel.localTID, sess.localSID
 	select {
 	case <-time.After(timeout):
 		r.logger.Info("l2tp: session-timeout expired; tearing down session",
 			"tunnel-id", tid, "session-id", sid, "timeout", timeout)
 		// RFC 2866 Section 5.10 value 5: "Maximum session length timer
 		// expired."
-		if err := r.teardownSessionByID(sid, l2tpevents.TerminateCauseSessionTimeout); err != nil {
+		if !r.teardownCapturedSession(tunnel, sess, ctx, cdnResultAdministrative, l2tpevents.TerminateCauseSessionTimeout) {
 			r.logger.Debug("l2tp: session-timeout teardown (session may already be gone)",
-				"session-id", sid, "error", err)
+				"session-id", sid)
 		}
 	case <-ctx.Done():
 	}
@@ -82,7 +105,8 @@ func (r *l2tpReactor) runSessionTimeout(tid, sid uint16, timeout time.Duration, 
 // readIfaceRXBytes (netlink on Linux, zero on other platforms).
 // When counters are unavailable (non-Linux, interface gone), the
 // timer fires unconditionally after the idle period.
-func (r *l2tpReactor) runIdleTimeout(tid, sid uint16, idleTimeout time.Duration, iface string, ctx context.Context) {
+func (r *l2tpReactor) runIdleTimeout(tunnel *L2TPTunnel, sess *L2TPSession, idleTimeout time.Duration, iface string, ctx context.Context) {
+	tid, sid := tunnel.localTID, sess.localSID
 	lastRX := readIfaceRXBytes(iface)
 	ticker := time.NewTicker(idleTimeout)
 	defer ticker.Stop()
@@ -98,9 +122,9 @@ func (r *l2tpReactor) runIdleTimeout(tid, sid uint16, idleTimeout time.Duration,
 			r.logger.Info("l2tp: idle-timeout expired; tearing down session",
 				"tunnel-id", tid, "session-id", sid, "idle-timeout", idleTimeout, "interface", iface)
 			// RFC 2866 Section 5.10 value 4: "Idle timer expired."
-			if err := r.teardownSessionByID(sid, l2tpevents.TerminateCauseIdleTimeout); err != nil {
+			if !r.teardownCapturedSession(tunnel, sess, ctx, cdnResultAdministrative, l2tpevents.TerminateCauseIdleTimeout) {
 				r.logger.Debug("l2tp: idle-timeout teardown (session may already be gone)",
-					"session-id", sid, "error", err)
+					"session-id", sid)
 			}
 			return
 		case <-ctx.Done():
@@ -113,6 +137,9 @@ func (r *l2tpReactor) runIdleTimeout(tid, sid uint16, idleTimeout time.Duration,
 // session. Safe to call with nil cancel funcs. Called from session
 // teardown paths while holding tunnelsMu.
 func cancelSessionTimeouts(sess *L2TPSession) {
+	sess.timeoutLifetime = nil
+	sess.sessionTimeoutContext = nil
+	sess.idleTimeoutContext = nil
 	if sess.sessionTimeoutCancel != nil {
 		sess.sessionTimeoutCancel()
 		sess.sessionTimeoutCancel = nil

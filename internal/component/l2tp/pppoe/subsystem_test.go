@@ -101,12 +101,14 @@ func TestPPPoESessionDownPublishesPoolKey(t *testing.T) {
 	var down *subevents.SessionDownPayload
 	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = p })
 
-	sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: uint16(ifIndex), SessionID: sid})
+	owner := fixtureCurrentStart(t, srv, srv.sessions.Lookup(sid), &fixtureCurrentStartConfig{method: ppp.AuthMethodNone, dual: false})
+	owner.authenticate(t, &fixtureCurrentAuthConfig{username: ""})
+	sub.handlePPPEvent(owner.up(t))
 	if _, ok := subscriber.DefaultRegistry.Get(pppoeSessionID(ifIndex, sid)); !ok {
 		t.Fatal("session-up did not register the session")
 	}
 
-	sub.handlePPPEvent(ppp.EventSessionDown{TunnelID: uint16(ifIndex), SessionID: sid, Reason: "peer hangup"})
+	sub.handlePPPEvent(owner.down(t))
 
 	if down == nil {
 		t.Fatal("session-down published no subscriber event")
@@ -139,7 +141,14 @@ func TestPPPoESessionDownPublishesWithoutSessionUp(t *testing.T) {
 	var down *subevents.SessionDownPayload
 	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = p })
 
-	sub.handlePPPEvent(ppp.EventSessionDown{TunnelID: uint16(ifIndex), SessionID: sid, Reason: "ncp failed"})
+	server := sub.servers[ifIndex]
+	session := &Session{SID: sid, Opened: fixtureOpened(t, "ppp-before-up"), State: StateSession}
+	if err := server.sessions.Add(session); err != nil {
+		t.Fatal(err)
+	}
+	owner := fixtureCurrentStart(t, server, session, &fixtureCurrentStartConfig{method: ppp.AuthMethodNone, dual: true})
+	owner.authenticate(t, &fixtureCurrentAuthConfig{username: ""})
+	sub.handlePPPEvent(owner.down(t))
 
 	if down == nil {
 		t.Fatal("session-down with no registry entry published no subscriber event")
@@ -186,7 +195,9 @@ func TestPPPoESessionUpCarriesRadiusRates(t *testing.T) {
 	})
 	t.Cleanup(func() { subscriber.RegisterShaperHandler(prevShaper) })
 
-	sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: uint16(ifIndex), SessionID: sid})
+	owner := fixtureCurrentStart(t, srv, srv.sessions.Lookup(sid), &fixtureCurrentStartConfig{method: ppp.AuthMethodNone, dual: false})
+	owner.authenticate(t, &fixtureCurrentAuthConfig{username: ""})
+	sub.handlePPPEvent(owner.up(t))
 
 	sess, ok := subscriber.DefaultRegistry.Get(pppoeSessionID(ifIndex, sid))
 	if !ok {

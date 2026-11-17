@@ -177,7 +177,7 @@ func TestOwnershipConflictReportsAdmission(t *testing.T) {
 		t.Cleanup(report.ResetForTest)
 		driver := NewProductionDriver(slog.New(slog.DiscardHandler))
 		start := &StartSession{TunnelID: 7, SessionID: 8, SubscriberID: "l2tp:7:8"}
-		driver.rejectExistingTransfer(start, existingKey, true)
+		driver.rejectExistingTransfer(start, existingKey)
 		entries := report.Errors(0)
 		if len(entries) != 1 || entries[0].Code != "doctor-ppp-session-admission" || entries[0].Detail["error"] == "" {
 			t.Fatalf("missing ownership refusal event: %+v", entries)

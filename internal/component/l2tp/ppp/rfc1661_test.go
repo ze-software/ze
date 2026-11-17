@@ -123,8 +123,6 @@ func newRFC1661Session(state LCPState) (*pppSession, *frameRecorder, chan Event)
 		eventsOut:            events,
 		authEventsOut:        make(chan AuthEvent, 16),
 		ipEventsOut:          make(chan IPEvent, 16),
-		authRespCh:           make(chan authResponseMsg, 1),
-		ipRespCh:             make(chan ipResponseMsg, 2),
 		stopCh:               make(chan struct{}),
 		sessStop:             make(chan struct{}),
 		done:                 make(chan struct{}),
@@ -503,7 +501,7 @@ func TestRFC1661NoNetworkPhaseUntilAuthCompletes(t *testing.T) {
 	testHandleFor(s).backend = backend
 	ops, opsCalls, opsMu := newFakeOps()
 	testHandleFor(s).ops = ops
-	s.authRespCh <- authResponseMsg{accept: false, message: "denied"}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: false, message: "denied"})
 
 	if s.afterLCPOpen() {
 		t.Fatal("afterLCPOpen succeeded despite a rejected authentication")
@@ -535,7 +533,7 @@ func TestRFC1661NetworkPhaseRunsAfterAuthCompletes(t *testing.T) {
 	testHandleFor(s).backend = backend
 	ops, opsCalls, opsMu := newFakeOps()
 	testHandleFor(s).ops = ops
-	s.authRespCh <- authResponseMsg{accept: true}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 
 	if !s.afterLCPOpen() {
 		t.Fatal("afterLCPOpen failed with an accepted authentication")

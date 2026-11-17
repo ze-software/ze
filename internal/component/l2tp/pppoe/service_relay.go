@@ -4,6 +4,8 @@
 package pppoe
 
 import (
+	"context"
+
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/callsink"
 )
@@ -178,7 +180,7 @@ func (s *Subsystem) drainServiceRelayEnds() {
 // snapshot and the reserved SID valid throughout cleanup.
 type admissionSnapshot struct {
 	session     *Session
-	established bool
+	publication PADSPublication
 }
 
 // admissions snapshots at most the configured admission limit under mu.
@@ -188,31 +190,45 @@ func (st *SessionTable) admissions() []admissionSnapshot {
 	defer st.mu.Unlock()
 	admissions := make([]admissionSnapshot, 0, len(st.sessions))
 	for _, session := range st.sessions {
-		admissions = append(admissions, admissionSnapshot{session: session, established: session.State == StateSession})
+		admissions = append(admissions, admissionSnapshot{session: session, publication: session.padsPublication})
 	}
 	return admissions
 }
 
-// beginAdmissionClose takes cleanup once without freeing the SID. Duplicate
+// beginAdmissionClose claims one cleanup attempt without freeing the SID. Duplicate
 // event handlers MUST return immediately: waiting here would block the sole
 // consumer needed by a PPP finalizer with a full EventsOut queue.
-func (st *SessionTable) beginAdmissionClose(sid uint16) (*Session, removedAdmission) {
+func (st *SessionTable) beginAdmissionClose(expected *Session) (*Session, removedAdmission) {
+	if expected == nil {
+		return nil, removedAdmission{}
+	}
+	sid := expected.SID
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	session := st.sessions[sid]
 	// refuse-by-default: guards closeAdmitted -- an absent admission owns no resources
-	if session == nil {
+	if session != expected {
 		return nil, removedAdmission{}
 	}
 	if session.closeStarted {
 		return nil, removedAdmission{}
 	}
+	if publication := session.wireEnd; publication != nil {
+		select {
+		case <-publication.done:
+		default:
+			// refuse-by-default: guards closeAdmitted -- only the original
+			// wire-end handler may release its in-flight publication receipt.
+			// Its deferred completion retries cleanup without blocking readers.
+			return nil, removedAdmission{}
+		}
+	}
+	if session.pppTransferred && !session.pppTerminal && !session.pppRelayReleased {
+		return nil, removedAdmission{}
+	}
 	session.closeStarted = true
 	session.State = StateTeardown
-	removed := removedAdmission{opened: session.Opened, unusedLease: session.unusedLease, relay: session.relay}
-	session.Opened = nil
-	session.unusedLease = nil
-	session.relay = nil
+	removed := removedAdmission{opened: session.Opened, unusedLease: session.unusedLease, relay: session.relay, retryUnused: session.closeErr != nil}
 	delete(st.relayEnds, sid)
 	return session, removed
 }
@@ -225,6 +241,9 @@ func (st *SessionTable) completeAdmissionClose(session *Session) {
 	if st.sessions[session.SID] != session {
 		return
 	}
+	session.Opened = nil
+	session.unusedLease = nil
+	session.relay = nil
 	st.removeAdmittedLocked(session.SID)
 	close(session.closeDone)
 }
@@ -233,7 +252,7 @@ func (st *SessionTable) completeAdmissionClose(session *Session) {
 // admissions receive PADT after transport closure; an entry
 // still in discovery never advertised a session and receives no PADT.
 // Caller MUST hold lifecycleMu and MUST NOT hold mu or dispatchMu.
-func (s *Subsystem) closeAdmissions() {
+func (s *Subsystem) closeAdmissions(ctx context.Context) error {
 	s.mu.Lock()
 	servers := make([]*InterfaceServer, 0, len(s.servers))
 	for _, server := range s.servers {
@@ -242,17 +261,63 @@ func (s *Subsystem) closeAdmissions() {
 	s.mu.Unlock()
 	for _, server := range servers {
 		for _, admission := range server.sessions.admissions() {
-			session := server.sessions.markTeardown(admission.session.SID)
+			owner := server.sessions.admissionControl(admission.session)
+			session := server.sessions.markTeardown(admission.session)
 			if session != nil {
-				if admission.established {
+				if admission.publication != PADSNotAttempted || owner.transferred {
 					server.finishSessionDown(session)
 				} else {
-					server.closeAdmitted(session.SID)
+					server.closeAdmitted(session)
 				}
 			}
-			<-admission.session.closeDone
+			if err := s.finishStoppedAdmission(server, admission.session); err != nil {
+				return err
+			}
+			s.retryRefusedAdmission(server, admission.session)
+			// A stop observer can finish an admission for which Driver emitted
+			// no terminal event. Complete only that same retained row now.
+			server.handleSessionDown(admission.session)
+			if err := s.waitAdmission(ctx, server, admission.session); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 var _ callsink.RelayHandoff = (*serviceBridgePreparation)(nil)
+
+// failAdmissionClose keeps every exact resource root and makes the same owner
+// retryable. A concurrent drain learns the actual failure without polling.
+func (st *SessionTable) failAdmissionClose(session *Session, err error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.sessions[session.SID] != session {
+		return
+	}
+	session.closeStarted = false
+	session.closeErr = err
+	select {
+	case session.closeNotice <- struct{}{}:
+	default:
+	}
+}
+
+// AdmissionCleanupStatus describes the current producer cleanup attempt.
+// Err is the latest actual failure and stays visible during a retry.
+// Neither nil Err nor !InProgress confirms resource deletion.
+type AdmissionCleanupStatus struct {
+	InProgress bool
+	Err        error
+}
+
+// CleanupStatus snapshots only this exact current row, under the table lock.
+// A false match never grants authority over a replacement or proves release.
+func (st *SessionTable) CleanupStatus(expected *Session) (AdmissionCleanupStatus, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if expected == nil || st.sessions[expected.SID] != expected {
+		return AdmissionCleanupStatus{}, false
+	}
+	return AdmissionCleanupStatus{InProgress: expected.closeStarted, Err: expected.closeErr}, true
+}

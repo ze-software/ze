@@ -18,14 +18,14 @@
     "claim-sha": "cb083ca5056b046e",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/ncp.go::sendIPAssigned",
-    "producer-sha": "896f99912ffbdc26",
-    "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "e0e40f2f25b09df4",
+    "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5072-3-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
-    "unit-sha": "d4add5dc5df278ad",
+    "unit-sha": "32c17827344bfd49",
     "claim-sha": "33e2f9963ca4be96",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",
@@ -36,11 +36,11 @@
     "rid": "RFC5072-3-1",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
-    "unit-sha": "d4add5dc5df278ad",
+    "unit-sha": "32c17827344bfd49",
     "claim-sha": "8ab0c4eb25ff409f",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
-    "producer-sha": "3f1b908bb5a296ba",
-    "break": "line 49: \"ipv6cpEnabled := !s.disableIPv6CP\" -\u003e \"ipv6cpEnabled := false\""
+    "producer-sha": "1eebc490c7a86d56",
+    "break": "line 51: \"ipv6cpEnabled := !s.disableIPv6CP\" -\u003e \"ipv6cpEnabled := false\""
   }
 ]

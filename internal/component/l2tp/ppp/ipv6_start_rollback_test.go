@@ -80,7 +80,10 @@ func TestIPv6ServiceStartFailureRetainedUntilNCPReset(t *testing.T) {
 	t.Cleanup(report.ResetForTest)
 	session, _, events := newRFC1661Session(LCPStateOpened)
 	handle := testHandleFor(session)
-	backend := handle.backend.(*fakeBackend)
+	backend, ok := handle.backend.(*fakeBackend)
+	if !ok {
+		t.Fatalf("session backend = %T, want *fakeBackend", handle.backend)
+	}
 	backend.removeAddrErr = errors.New("link-local withdrawal failed")
 	handle.openIPv6Carrier = func(context.Context) (IPv6Carrier, error) {
 		return nil, errors.New("IPv6 carrier acquisition failed")

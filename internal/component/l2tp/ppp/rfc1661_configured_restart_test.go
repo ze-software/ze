@@ -28,7 +28,7 @@ func configuredLCPSession(t *testing.T, state LCPState, interval time.Duration, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.authRespCh <- authResponseMsg{accept: true}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 	return s, rec, events
 }
 

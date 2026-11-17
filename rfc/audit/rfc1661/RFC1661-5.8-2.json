@@ -1,22 +1,22 @@
 {
   "code": {
     "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition": "5d8dbd54e9961d01",
-    "internal/component/l2tp/ppp/session_run.go::performAction": "ebaa74ab6ea6ade6",
-    "internal/component/l2tp/ppp/session_run.go::run": "bd0ff2ff01e0457c",
+    "internal/component/l2tp/ppp/session_run.go::performAction": "34c5836bd93ead8f",
+    "internal/component/l2tp/ppp/session_run.go::run": "20872ed232fd3c6e",
     "internal/component/l2tp/pppoeclient/session.go::negotiateLCP": "039a2c530a0ae987"
   },
-  "note": "Re-read Section 5.8 and all four tagged units. The server permits an exact Identifier/local-Magic Echo-Reply in Opened and emits neither Echo request nor reply in Req-Sent, Ack-Sent, Ack-Rcvd or Stopped. The negative uses the same valid peer Magic as the answering control, so the state guard rather than Magic validation decides. The real-session lifecycle unit reads an Echo-Request in Opened, then after peer RCR requires the next frame to be the outstanding Configure-Request retry rather than an Echo. The client sends no Echo reply in Req-Sent or Ack-Rcvd and subsequently finishes valid LCP. Explicit valid Max-Failure five and shared LCP fixtures change no packet or assertion. The current FSM, run ticker transition and client negotiation guard match these state conditions. Native ticker mutation and producer-disable records are credited only for their actual breaks.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1661 Section5.8: Echo-Request and Echo-Reply may only be sent in LCP Opened. Complete TestRFC1661KeepaliveEchoOnlyInOpened drives actual run through accepted authentication to an emitted Echo, then peer renegotiation; after three restart intervals its next packet must be the configured request retransmission, never a stale ticker Echo. TestRFC1661EchoReplyInOpened requires the actual reply Identifier/Magic; TestRFC1661NoEchoOutsideOpened uses the same valid peer Magic in ReqSent/AckSent/AckRcvd/Stopped and forbids both Echo Codes, isolating state from Magic rejection. Complete client TestClientLCPEchoBeforeOpenDiscarded injects valid Echo Requests before completion and in AckRcvd, retaining exactly the original Configure-Request before valid final peer configuration. Read LCPDoTransition/performAction plus run ticker state transition and client negotiateLCP Echo discard: only Opened permits server emission and leaving Opened stops old ticker channels. This is assertion/producer source judgment; no new runtime/native evidence inferred.",
   "requirement_sha": "9e7c1a7d87cb760e",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "682b78fb127362e1",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "682b78fb127362e1",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "a1d8f8274d199376",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "a1d8f8274d199376",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "34019b0e2ba66c62",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "34019b0e2ba66c62",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "3ac1fd8ae501d890",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "3ac1fd8ae501d890",
     "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "f11b9ffd4ad1dbc2"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "540e32ea517f5dcc",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "540e32ea517f5dcc",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "6a39d2460a878eec",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "6a39d2460a878eec",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "2bb8cc697c6e3454",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "ec0d0ea97932d3f4",
     "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "59c7fbf6fc10a220"

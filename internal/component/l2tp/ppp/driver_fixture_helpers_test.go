@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strconv"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -29,17 +30,22 @@ func newDriver(cfg driverConfig) *Driver {
 	return driver
 }
 
-func testStartForDriver(driver *Driver, start StartSession, channel, unit, number int) StartSession {
+func testStartForDriver(driver *Driver, input *StartSession, channel, unit, number int) StartSession {
+	start := *input
 	value, found := driverFixtureBindings.Load(driver)
 	if !found {
 		panic("BUG: protocol fixture has no session dependency binding")
 	}
-	cfg := value.(driverConfig)
-	return testSessionStart(start, cfg.Backend, cfg.Ops, channel, unit, number)
+	cfg, ok := value.(driverConfig)
+	if !ok {
+		panic("BUG: protocol fixture binding has an unexpected type")
+	}
+	return testSessionStart(&start, cfg.Backend, cfg.Ops, channel, unit, number)
 }
 
-func testStartPointerForDriver(driver *Driver, start StartSession, channel, unit, number int) *StartSession {
-	bound := testStartForDriver(driver, start, channel, unit, number)
+func testStartPointerForDriver(driver *Driver, input *StartSession, channel, unit, number int) *StartSession {
+	start := *input
+	bound := testStartForDriver(driver, &start, channel, unit, number)
 	return &bound
 }
 
@@ -108,4 +114,27 @@ func interruptRead(f io.Reader) error {
 		return v.SetReadDeadline(time.Now())
 	}
 	return errChannelNotQuiescable
+}
+
+// testControlFromEvent retains the exact worker capability the assertion path
+// already observed. It never resolves a numeric label or a current ID.
+func testControlFromEvent(t *testing.T, event Event) SessionControl {
+	t.Helper()
+	if opened, ok := event.(EventLCPUp); ok {
+		return opened.Control
+	}
+	if up, ok := event.(EventSessionUp); ok {
+		return up.Control
+	}
+	t.Fatalf("event %T does not publish an admitted lifecycle control", event)
+	return SessionControl{}
+}
+
+func testRebindSessionAttempt(t *testing.T, start *StartSession) {
+	t.Helper()
+	attempt, err := NewSessionAttempt(start.SubscriberID, start.Dataplane)
+	if err != nil {
+		t.Fatalf("fixture admission does not bind its actual owner: %v", err)
+	}
+	start.Attempt = attempt
 }

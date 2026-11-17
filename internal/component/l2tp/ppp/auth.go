@@ -297,7 +297,7 @@ func authMethodToLCPOptions(m AuthMethod) (uint16, []byte) {
 }
 
 // awaitAuthDecision emits req on the auth events channel, waits for
-// the external handler's decision on authRespCh (bounded by
+// the external handler's decision on this request's channel (bounded by
 // s.authTimeout), and returns the outcome. Returns ok=false when the
 // session must tear down: stopCh closed, sessStop closed, or the
 // auth-timeout fired. On timeout the helper also calls s.fail (to
@@ -317,6 +317,15 @@ func authMethodToLCPOptions(m AuthMethod) (uint16, []byte) {
 // reject fan-out differs per method).
 func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (authResponseMsg, bool) {
 	req.SubscriberID = s.subscriberID
+	req.Control = s.control
+	req.pending = newAuthRequest(s.control, s.subscriberID)
+	s.authRequest = req.pending
+	defer func() {
+		req.pending.retire()
+		if s.authRequest == req.pending {
+			s.authRequest = nil
+		}
+	}()
 	s.proxyCapture.fill(&req)
 	select {
 	case s.authEventsOut <- req:
@@ -348,12 +357,12 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 		// (TestPAPDecisionEndsWhenLCPInterruptsNCP), so they MUST NOT
 		// pre-empt it.
 		select {
-		case decision := <-s.authRespCh:
+		case decision := <-req.pending.answers:
 			return s.acceptAuthDecision(decision, req), true
 		default:
 		}
 		select {
-		case decision := <-s.authRespCh:
+		case decision := <-req.pending.answers:
 			return s.acceptAuthDecision(decision, req), true
 		case f, ok := <-frames:
 			if !ok {
@@ -395,6 +404,9 @@ func (s *pppSession) authDecisionTimedOut(label string, timeout time.Duration) (
 	}
 	reason := tb.Str("auth timeout after ").Str(timeout.String()).String()
 	s.fail(reason)
+	if s.released.Load() {
+		return authResponseMsg{}, false
+	}
 	s.sendAuthEvent(eventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,

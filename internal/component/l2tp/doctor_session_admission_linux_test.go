@@ -76,9 +76,11 @@ func testKernelPPPAdmissionDoctorOutcome(t *testing.T, outcome string, cause err
 		t.Fatalf("factory calls = %d, want %d", factoryCalls, expectCalls)
 	}
 	var rows []diagnostic.Diagnostic
-	for _, finding := range doctor.RunRuntimeChecks(nil, nil) {
+	findings := doctor.RunRuntimeChecks(nil, nil)
+	for index := range findings {
+		finding := &findings[index]
 		if finding.Code == expectedCode {
-			rows = append(rows, finding)
+			rows = append(rows, *finding)
 		}
 	}
 	if outcome != "refused" {

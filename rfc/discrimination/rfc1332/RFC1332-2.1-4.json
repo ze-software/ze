@@ -3,22 +3,22 @@
     "rid": "RFC1332-2.1-4",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU",
-    "unit-sha": "16482cf8476a7ac0",
+    "unit-sha": "f75f6b995ab6b166",
     "claim-sha": "102885fcae66997e",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "02b8b819c2c4278f",
-    "break": "line 680: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
+    "producer-sha": "39273e1897dc1430",
+    "break": "line 846: \"if err := s.dataplane.SetMTU(int(mru)); err != nil {\" -\u003e \"if err := s.dataplane.SetMTU(int(MaxFrameLen)); err != nil {\""
   },
   {
     "rid": "RFC1332-2.1-4",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU",
-    "unit-sha": "16482cf8476a7ac0",
+    "unit-sha": "f75f6b995ab6b166",
     "claim-sha": "c3d7ae58bf224aec",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-    "producer-sha": "02b8b819c2c4278f",
-    "break": "line 680: \"s.backend.SetMTU(ifname, int(mru))\" -\u003e \"s.backend.SetMTU(ifname, int(MaxFrameLen))\""
+    "producer-sha": "39273e1897dc1430",
+    "break": "line 846: \"if err := s.dataplane.SetMTU(int(mru)); err != nil {\" -\u003e \"if err := s.dataplane.SetMTU(int(MaxFrameLen)); err != nil {\""
   }
 ]

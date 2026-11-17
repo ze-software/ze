@@ -147,7 +147,7 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	})
 	first := <-fake.sessionsIn
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled: true, MRU: 1492, AuthMethod: ppp.AuthMethodCHAPMD5,
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5},
 	})
@@ -352,11 +352,8 @@ func TestL2TPReactorPPPEventSessionDownSendsCDN(t *testing.T) {
 	tun := mkTunnel(r, 100, 200, peerAddr)
 	sess := addEstablishedSession(tun, 1001, 2001, true)
 
-	r.handlePPPEvent(ppp.EventSessionDown{
-		TunnelID:  100,
-		SessionID: 1001,
-		Reason:    "test: peer Terminate-Request",
-	})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
+	r.handlePPPEvent(wire.peerDown(t))
 
 	r.tunnelsMu.Lock()
 	_, stillThere := tun.sessions[sess.localSID]
@@ -398,9 +395,17 @@ func TestL2TPReactorPPPEventInformationalIgnored(t *testing.T) {
 	tun := mkTunnel(r, 100, 200, peer)
 	sess := addEstablishedSession(tun, 1001, 2001, true)
 
-	r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 1001, NegotiatedMRU: 1460})
-	r.handlePPPEvent(ppp.EventSessionUp{TunnelID: 100, SessionID: 1001})
-	r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 100, SessionID: 1001, Reason: "echo-timeout"})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
+	opened := wire.opened
+	opened.NegotiatedMRU = 1460 // historical consumer metadata matrix, not producer output
+	opened.NegotiatedAuthMethod = ppp.AuthMethodNone
+	opened.ProxyLCP = ppp.ProxyLCPOutcomeUnknown
+	r.handlePPPEvent(opened)
+	r.handlePPPEvent(wire.up(t))
+	withdrawal := wire.beginRestart(t)
+	withdrawal.NetworkPhase = false // preserve this informational-only consumer input
+	withdrawal.Reason = "echo-timeout"
+	r.handlePPPEvent(withdrawal)
 
 	r.tunnelsMu.Lock()
 	_, stillThere := tun.sessions[sess.localSID]
@@ -445,12 +450,14 @@ func TestL2TPReactorSessionIPAssignedLogsValidIPv4(t *testing.T) {
 	sess := addEstablishedSession(tun, 1001, 2001, true)
 	sess.username = "alice"
 
-	r.handleSessionIPAssigned(ppp.EventSessionIPAssigned{
-		TunnelID:  100,
-		SessionID: 1001,
-		Family:    ppp.AddressFamilyIPv4,
-		Peer:      netip.MustParseAddr("10.100.0.2"),
-	})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
+	assigned := wire.assignment
+	// Preserve the historical consumer payload. This does not assert that
+	// the Driver emitted a different address or omitted its PAP principal.
+	assigned.Peer = netip.MustParseAddr("10.100.0.2")
+	assigned.Local = netip.Addr{}
+	assigned.Username = ""
+	r.handleSessionIPAssigned(assigned)
 
 	got := logs.String()
 	require.Contains(t, got, "l2tp: session IP assigned")
@@ -469,10 +476,13 @@ func TestL2TPReactorSessionIPAssignedNoLogOnInvalidAddr(t *testing.T) {
 	tun := mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
 	addEstablishedSession(tun, 1001, 2001, true)
 
-	r.handleSessionIPAssigned(ppp.EventSessionIPAssigned{
-		TunnelID:  100,
-		SessionID: 1001,
-	})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
+	assigned := wire.assignment
+	assigned.Family = ppp.AddressFamilyIPv4
+	assigned.Peer = netip.Addr{} // deliberately malformed consumer metadata
+	assigned.Local = netip.Addr{}
+	assigned.Username = ""
+	r.handleSessionIPAssigned(assigned)
 
 	require.False(t, strings.Contains(logs.String(), "l2tp: session IP assigned"),
 		"no log expected when addr is invalid")
@@ -494,7 +504,8 @@ func TestL2TPReactorSessionUpLogsWithNilEventBus(t *testing.T) {
 	sess := addEstablishedSession(tun, 1001, 2001, true)
 	sess.pppInterface = "ppp0"
 
-	r.handleSessionUp(ppp.EventSessionUp{TunnelID: 100, SessionID: 1001})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
+	r.handleSessionUp(wire.up(t))
 
 	got := logs.String()
 	require.Contains(t, got, "l2tp: PPP session up")
@@ -514,7 +525,8 @@ func TestL2TPReactorSessionUpNoLogOnEmptyInterface(t *testing.T) {
 	addEstablishedSession(tun, 1001, 2001, true)
 	// pppInterface left as zero value ""
 
-	r.handleSessionUp(ppp.EventSessionUp{TunnelID: 100, SessionID: 1001})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 100, sessionID: 1001})
+	r.handleSessionUp(wire.up(t))
 
 	require.False(t, strings.Contains(logs.String(), "l2tp: PPP session up"),
 		"no log expected when pppInterface is empty")
@@ -564,7 +576,7 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 	r.newPPPSession = ownedProtocolSessionFixture
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
 
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled: true, MRU: 1500, AuthMethod: ppp.AuthMethodCHAPMD5,
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ProxyLCP: ProxyLCPAccept,
 	})
@@ -650,7 +662,7 @@ func TestReloadAppliesProxyLCPToNewSessions(t *testing.T) {
 	fake := newFakePPPDriver()
 	r.setPPPDriver(fake)
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled: true, MRU: 1500, AuthMethod: ppp.AuthMethodCHAPMD5,
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5}, ProxyLCP: ProxyLCPAccept,
 	})
@@ -695,8 +707,14 @@ func TestHandleLCPUpRecordsProxyLCPOutcome(t *testing.T) {
 		sess := &L2TPSession{localSID: sid}
 		tun.addSession(sess)
 		require.Empty(t, sessionSnapshot(100, sess).ProxyLCP, "outcome before LCP opened")
-		r.handleLCPUp(ppp.EventLCPUp{TunnelID: 100, SessionID: sid, NegotiatedMRU: 1500,
-			NegotiatedAuthMethod: ppp.AuthMethodCHAPMD5, ProxyLCP: tc.outcome})
+		wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 100, sessionID: sid}, ipv6: false, subscriberID: ""})
+		event := wire.opened
+		// This consumer matrix varies public negotiated metadata; the real
+		// original worker/Attempt is unchanged. It is not a proxy producer test.
+		event.NegotiatedMRU = 1500
+		event.NegotiatedAuthMethod = ppp.AuthMethodCHAPMD5
+		event.ProxyLCP = tc.outcome
+		r.handleLCPUp(event)
 		require.Equal(t, tc.want, sessionSnapshot(100, sess).ProxyLCP)
 	}
 }

@@ -69,7 +69,7 @@ func TestPAPWaitContinuesAfterOtherFrames(t *testing.T) {
 	// IPCP stays disabled here, where a handled frame would draw a fourth reply,
 	// a Protocol-Reject: the silence proves the discard before authentication.
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
-	s.authRespCh <- authResponseMsg{accept: true}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 	s.framesIn = papPhaseQueue(
 		lcpFrame(ProtoLCP, LCPEchoRequest, 0x23, []byte{0, 0, 0, 0}),
 		lcpFrame(protoMPLSCP, LCPConfigureRequest, 0x24, nil),

@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -25,6 +26,8 @@ import (
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/callsink"
 )
+
+var errRelayCallCancelled = errors.New("l2tp: relay call abandoned by the subscriber before the bridge completed")
 
 // No "l2tp:" prefix: the subsystem Start wraps this with fmt.Errorf("l2tp: %w"),
 // and the doubled prefix showed up verbatim on the appliance serial console.
@@ -124,7 +127,7 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 		// saw Bridged(nil) tears the bridged session down.
 		if ev.relay.realm != nil {
 			// quiesceRelaySubscriber checked this immutable handoff before bridging.
-			handoff := ev.relay.handoff.(callsink.RealmHandoff)
+			handoff := ev.relay.handoff.(callsink.RealmHandoff) //nolint:errcheck,forcetypeassert // quiesceRelaySubscriber validated this immutable handoff before bridging
 			countRealmBridge(berr)
 			handoff.Bridged(berr)
 		}
@@ -152,14 +155,7 @@ func rollbackPPPBridge(fds [3]int, cause error, closeFD func(int) error) error {
 		if fd < 0 {
 			continue
 		}
-		duplicate := false
-		for _, previous := range fds[:index] {
-			if previous == fd {
-				duplicate = true
-				break
-			}
-		}
-		if duplicate {
+		if slices.Contains(fds[:index], fd) {
 			continue
 		}
 		if err := closeFD(fd); err != nil {

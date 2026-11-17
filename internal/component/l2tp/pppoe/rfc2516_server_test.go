@@ -412,7 +412,7 @@ func TestPADRReplayDuringTeardownIsNotDeduped(t *testing.T) {
 	}
 	// Simulate what handleSessionDown does on the event-consumer goroutine
 	// before this PADR (on the discovery-reader goroutine) is processed.
-	if got := st.markTeardown(teardownSID); got == nil {
+	if got := st.markTeardown(st.Lookup(teardownSID)); got == nil {
 		t.Fatalf("markTeardown(%d): session not found", teardownSID)
 	}
 

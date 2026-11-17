@@ -39,13 +39,13 @@ func pumpLocalAuth(d *ppp.Driver, handler l2tp.AuthHandler) {
 			continue
 		}
 		respond := func(accept bool, msg string, blob []byte) error {
-			return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
+			return d.AuthResponse(req, accept, msg, blob)
 		}
 		r := handler(req, respond)
 		if r.Handled {
 			continue
 		}
-		_ = d.AuthResponse(req.TunnelID, req.SessionID, r.Accept, r.Message, r.AuthResponseBlob) //nolint:errcheck // the wire reply is the assertion
+		_ = d.AuthResponse(req, r.Accept, r.Message, r.AuthResponseBlob) //nolint:errcheck // the wire reply is the assertion
 	}
 }
 
@@ -101,7 +101,7 @@ func chapReplyThroughLocalVerifier(t *testing.T, chanFD int, session uint16, pee
 	t.Cleanup(func() { close(stop) })
 	go drainSessionEvents(d, stop)
 
-	d.SessionsIn() <- ppp.BindSessionForTest(d, ppp.StartSession{
+	d.SessionsIn() <- ppp.BindSessionForTest(d, &ppp.StartSession{
 		LCP:               testLCPConfig(),
 		TunnelID:          1,
 		SessionID:         session,

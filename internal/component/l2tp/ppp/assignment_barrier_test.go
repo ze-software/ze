@@ -169,7 +169,7 @@ func startAssignmentNCP(t *testing.T, s *pppSession, events chan Event, family A
 	s.authTimeout = 20 * time.Second
 	s.ipTimeout = 20 * time.Second
 	s.echoInterval = time.Hour
-	s.authRespCh <- authResponseMsg{accept: true}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 	ips := make(chan IPEvent, 1)
 	s.ipEventsOut = ips
 	stop = make(chan struct{})
@@ -194,7 +194,7 @@ func startAssignmentNCP(t *testing.T, s *pppSession, events chan Event, family A
 	} else if _, ok := ev.(EventLCPUp); !ok {
 		t.Fatalf("first session event = %T, want LCP-up", ev)
 	}
-	request, _ := pendingLifecycleNCP(t, s, peer, ips, family)
+	request, _ := pendingLifecycleNCP(t, peer, ips, family)
 	return func() {
 		writeLifecyclePacket(t, peer, ncpProto(family), LCPConfigureAck, request.Identifier, request.Data)
 	}, done, stop

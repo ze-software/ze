@@ -1,11 +1,13 @@
 {
-  "note": "Forbidden: a Success or Failure whose Identifier is not the Response's. TestCHAPResponseEmitsEvent sends a Response carrying the Challenge Identifier and asserts the Success frame's Identifier equals it, red on any other Identifier. Single-polarity marker: waitCHAPResponse admits only a Response whose Identifier matches the outstanding Challenge.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1994 Section4.2: the Success or Failure Identifier must be copied from the triggering Response. Read the complete actual TestCHAPResponseEmitsEvent: it obtains actual Challenge identifier, sends matching Response and after a genuine accepted auth request requires Success with that identifier. Read complete TestCHAPRejectWritesFailure: its unchanged body sends a distinct valid matching Response, answers the genuine emitted request false and requires Failure with payload[1]==challengeID. MAIN independently approved and applied the exact tag: a rejected Response produces Failure with the Response Identifier. Both outcome branches are now explicitly linked, unlike the earlier sole Success cover; no assertion/body was changed or invented. Read runCHAPAuthPhase, waitCHAPLike matching-ID filtering, writeCHAPSuccess and writeCHAPFailure: each writer receives the actual accepted Response identifier. Single-positive annotation is justified because both valid reply outcomes must echo that identifier, and a mismatched peer Response is discarded before creating a reply rather than becoming a conforming negative input. This semantic audit does NOT judge this author's HAND_WRITTEN cuts/tag proposal and does NOT claim the new actual record exists: independent break review and MAIN clean GREEN/named-unit RED for BOTH Success/Failure direct covers remain required before stamping.",
   "requirement_sha": "fccabf53c9cec790",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5e115b2bec7372da",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5e115b2bec7372da"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "1ee15f8b67142929",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "1d62d8a2e6a92ae1"
   },
   "verdict": "enforced"
 }

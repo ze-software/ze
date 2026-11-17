@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC1661-6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded",
+    "unit-sha": "6ad38880246333ce",
+    "claim-sha": "47127e11bb19dc50",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::handleNCPPacket",
+    "producer-sha": "917ee9c5ee6ea36a",
+    "break": "line 495: \"return false\" -\u003e \"if family == AddressFamilyIPv4 \u0026\u0026 pkt.Code == LCPConfigureReject \u0026\u0026 pkt.Identifier == s.lastIPCPRequestID \u0026\u0026 scanNCPOptions(pkt.Data, known) == ncpOptionsTruncated { s.fail(\\\"ipcp: correlated truncated Configure-Reject treated as fatal\\\"); return true }; return false\""
+  },
+  {
+    "rid": "RFC1661-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded",
+    "unit-sha": "6ad38880246333ce",
+    "claim-sha": "91b055f44db8a52c",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::absorbIPCPReject",
+    "producer-sha": "b22c0b657a319b21",
+    "break": "line 685: \"return ncpReplyFatal\" -\u003e \"return ncpReplyDiscard\""
+  },
+  {
+    "rid": "RFC1661-6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded",
+    "unit-sha": "091529eb22588290",
+    "claim-sha": "c63862cb15b155f7",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::handleNCPPacket",
+    "producer-sha": "917ee9c5ee6ea36a",
+    "break": "line 511: \"case ncpRequestDiscard:\" -\u003e \"case ncpRequestDiscard:\\n\\t\\t\\tif cur == LCPStateAckRcvd {\\n\\t\\t\\t\\ts.setNCPState(family, LCPStateReqSent)\\n\\t\\t\\t}\""
+  },
+  {
+    "rid": "RFC1661-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded",
+    "unit-sha": "091529eb22588290",
+    "claim-sha": "d89679a1ceed649b",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/ncp.go::handleNCPPacket",
+    "producer-sha": "917ee9c5ee6ea36a",
+    "break": "line 527: \"optsBad = true\" -\u003e \"return false\""
+  },
+  {
+    "rid": "RFC1661-6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded",
+    "unit-sha": "5c7f2a32001f1407",
+    "claim-sha": "49452442796bf847",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+    "producer-sha": "824c89b420634628",
+    "break": "line 357: \"if walk.Fault.Discards() {\" -\u003e \"if walk.Fault.Discards() {\\n\\t\\t\\t\\tif state == ppp.LCPStateAckSent {\\n\\t\\t\\t\\t\\tstate = ppp.LCPStateReqSent\\n\\t\\t\\t\\t}\""
+  },
+  {
+    "rid": "RFC1661-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded",
+    "unit-sha": "5c7f2a32001f1407",
+    "claim-sha": "a0e22a567985f66a",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+    "producer-sha": "824c89b420634628",
+    "break": "line 472: \"if err := sendLCPAck(w, buf, pkt); err != nil {\" -\u003e \"if err := error(nil); err != nil {\""
+  }
+]

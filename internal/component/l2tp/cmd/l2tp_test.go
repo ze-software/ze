@@ -264,7 +264,7 @@ func TestConfigJSONMRUAndAllowList(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			publishFake(t, l2tppkg.NewSubsystem(params))
+			publishFake(t, l2tppkg.NewSubsystem(&params))
 			resp, err := handleConfig(nil, commandtest.Args())
 			if err != nil {
 				t.Fatal(err)

@@ -14,23 +14,23 @@
     "rid": "RFC2516-5.5-3",
     "polarity": "positive",
     "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession",
-    "unit-sha": "00129df8d04b190c",
-    "claim-sha": "7c422d6c98cb28d0",
-    "route": "revert",
-    "producer": "internal/component/l2tp/pppoe/server.go::handleSessionDown",
-    "producer-sha": "a8d6a73d7a8023a9",
-    "break": "body of handleSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "unit-sha": "b1eb8bf2f7b4219e",
+    "claim-sha": "087a74960d704f47",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/pppoe/server.go::finishSessionDown",
+    "producer-sha": "9badd4a50e99f5cb",
+    "break": "line 527: \"frame := BuildPADT(buf[:], s.hwAddr, dstMAC, sess.SID, s.acName)\" -\u003e \"frame := BuildPADT(buf[:], s.hwAddr, dstMAC, sess.SID+1, s.acName)\""
   },
   {
     "rid": "RFC2516-5.5-3",
     "polarity": "negative",
     "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing",
-    "unit-sha": "049ac162d809dfa4",
-    "claim-sha": "328808dc4b89772a",
-    "route": "revert",
+    "unit-sha": "6e0d920495ab27e4",
+    "claim-sha": "a5863b3d0fa5cd27",
+    "route": "mutant",
     "producer": "internal/component/l2tp/pppoe/server.go::handlePADT",
-    "producer-sha": "863d986e2f126f57",
-    "break": "body of handlePADT replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer-sha": "d5779a85bbea60b7",
+    "break": "line 459: \"sess := s.sessions.Lookup(pkt.SID)\" -\u003e \"sess := s.sessions.Lookup(pkt.SID - 1)\""
   },
   {
     "rid": "RFC2516-5.5-3",

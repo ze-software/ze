@@ -40,6 +40,14 @@ func (operation CleanupOperation) String() string {
 	}
 }
 
+// These detail keys are shared by PPP runtime and cleanup diagnostics.
+const (
+	reportFieldInterface   = "interface"
+	reportFieldOperation   = "operation"
+	reportFieldError       = "error"
+	reportFieldNativeIndex = "native-index"
+)
+
 // CleanupReportSource is the report-bus owner shared by all PPP transports.
 const CleanupReportSource = "ppp"
 
@@ -71,7 +79,7 @@ func ReportCleanupFailure(identity SessionIdentity, operation CleanupOperation, 
 		step, identity.InterfaceName, identity.NativeIndex)
 	report.RaiseWarningFix(CleanupReportSource, diagnostic.CodeDoctorPPPCleanup, subject,
 		report.FitMessage(message), CleanupFailureFix, map[string]any{
-			"interface": identity.InterfaceName, "native-index": identity.NativeIndex,
-			"operation": step, "error": err.Error(),
+			reportFieldInterface: identity.InterfaceName, reportFieldNativeIndex: identity.NativeIndex,
+			reportFieldOperation: step, reportFieldError: err.Error(),
 		})
 }

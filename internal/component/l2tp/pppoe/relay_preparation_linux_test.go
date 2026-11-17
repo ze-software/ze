@@ -40,7 +40,7 @@ func TestServiceNameRelayReleasesLeaseAtBridge(t *testing.T) {
 	if err := preparation.PrepareBridge(); err != nil {
 		t.Fatalf("repeated preparation: %v", err)
 	}
-	f.srv.handleSessionDown(pads.SID)
+	f.srv.handleSessionDown(f.srv.sessions.Lookup(pads.SID))
 	if !f.pppox.closedByServer(t) {
 		t.Fatal("relay teardown left the transport open")
 	}

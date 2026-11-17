@@ -18,7 +18,7 @@ type missingIdentityPoolDriver struct {
 }
 
 func (d *missingIdentityPoolDriver) IPEventsOut() <-chan ppp.IPEvent { return d.events }
-func (d *missingIdentityPoolDriver) IPResponse(_, _ uint16, answer ppp.IPResponseArgs) error {
+func (d *missingIdentityPoolDriver) IPResponse(_ ppp.EventIPRequest, answer ppp.IPResponseArgs) error {
 	d.answer = answer
 	return nil
 }

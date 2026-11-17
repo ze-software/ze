@@ -26,6 +26,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -188,12 +189,14 @@ func TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession(t *testing.T) {
 	assertHostPADT(t, capturePADT(t, acMAC, sid), testACMAC, 0x2345)
 }
 
-// hostChannel is a PPP channel that keeps each frame the Host wrote whole, and
-// counts its closes. Like padtChannel it keeps accepting writes after Close, so
-// only the session's own guard can refuse them.
+// The channel keeps accepting writes after Close, so the old closed-write
+// assertions still require sessionLink's own guard. Its distinct native pipe
+// transport is closed only through the production closeTransport callback.
 type hostChannel struct {
 	frameLog
-	closes int
+	closes       int
+	native       *os.File
+	nativeCloses int
 }
 
 func (c *hostChannel) Close() error {
@@ -203,12 +206,26 @@ func (c *hostChannel) Close() error {
 
 func (c *hostChannel) Read([]byte) (int, error) { return 0, io.EOF }
 
-// networkPhase runs superviseNetworkPhase over a hostChannel and answers the
-// link, its frames channel and the channel the Host wrote to.
+// The native transport's read peer stays open through every assertion: a
+// refused write proves closure of this original writer, not peer departure.
+// This native-descriptor seam does not claim Linux PPP packet forwarding.
 func networkPhase(t *testing.T) (*sessionLink, chan<- readFrame, *hostChannel, <-chan struct{}) {
 	t.Helper()
-	channel := &hostChannel{}
-	link := &sessionLink{channel: channel, stopped: make(chan struct{}), closeTransport: func() {}}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reader.Close(); _ = writer.Close() })
+	channel := &hostChannel{native: writer}
+	link := &sessionLink{channel: channel, stopped: make(chan struct{}), closeTransport: func() {
+		channel.nativeCloses++
+		if err := writer.Close(); err != nil {
+			t.Errorf("close original native transport: %v", err)
+		}
+	}}
+	if _, err := writer.WriteString("live"); err != nil {
+		t.Fatalf("original native transport was not writable before LCP termination: %v", err)
+	}
 	frames := make(chan readFrame)
 	done := make(chan struct{})
 	session := newTestConnectedSession(t, link,
@@ -243,16 +260,10 @@ func waitClosed(t *testing.T, ch <-chan struct{}, what string) {
 	}
 }
 
-// TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates has the Access
-// Concentrator terminate LCP in the network phase.
-//
-// RFC 2516 Section 7: "When LCP terminates, the Host and Access concentrator
-// MUST stop using that PPPoE session."
-//
 // RFC requirement: RFC2516-7-3 positive -- after the Access Concentrator's LCP
-// Terminate-Request, the Host writes its Terminate-Ack, closes the session's PPP
-// channel and transport, publishes Done, and every later PPP write is refused
-// (network_phase.go keepaliveLoop, dialer.go superviseNetworkPhase).
+// Terminate-Request, the Host writes its exact Terminate-Ack, closes both the
+// PPP channel and original native transport once, publishes Done and refuses
+// every later PPP write and direct native-transport write.
 func TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates(t *testing.T) {
 	link, frames, channel, done := networkPhase(t)
 	frames <- serverFrame(ppp.LCPTerminateRequest, 5, nil)
@@ -276,29 +287,29 @@ func TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates(t *testing.T) {
 	if got := hostLCPWrites(t, channel); len(got) != 1 {
 		t.Fatalf("the Host wrote %v after LCP terminated", got[1:])
 	}
+	if channel.nativeCloses != 1 {
+		t.Fatalf("the original native transport closed %d times, want 1", channel.nativeCloses)
+	}
+	if _, err := channel.native.WriteString("PPP"); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("native transport write after LCP termination = %v, want closed original descriptor", err)
+	}
 }
 
-// TestRFC2516HostKeepsTheSessionUntilLCPTerminates sends the network phase LCP
-// traffic that does not terminate LCP, then the Terminate-Request.
-//
-// RFC 2516 Section 7: "When LCP terminates, the Host and Access concentrator
-// MUST stop using that PPPoE session."
-//
-// RFC requirement: RFC2516-7-3 negative -- an Echo-Request and a stray
-// Terminate-Ack leave the session in use: Done stays open and the Host answers
-// the next Echo-Request; only the Terminate-Request that follows ends it
-// (network_phase.go keepaliveLoop, dialer.go superviseNetworkPhase).
+// RFC requirement: RFC2516-7-3 negative -- Echo and a stray Terminate-Ack keep
+// both the PPP channel and original native transport usable; only the actual
+// Terminate-Request ends that session and closes its native transport.
 func TestRFC2516HostKeepsTheSessionUntilLCPTerminates(t *testing.T) {
 	link, frames, channel, done := networkPhase(t)
 	frames <- serverFrame(ppp.LCPEchoRequest, 7, []byte{0, 0, 0, 1})
 	frames <- serverFrame(ppp.LCPTerminateAck, 8, nil)
-	// The loop takes a frame only after it finished the previous one, so this
-	// send returning means the stray Terminate-Ack was handled.
 	frames <- serverFrame(ppp.LCPEchoRequest, 9, []byte{0, 0, 0, 1})
 	select {
 	case <-link.stopped:
 		t.Fatal("the session stopped before LCP terminated")
 	default:
+	}
+	if _, err := channel.native.WriteString("PPP"); err != nil {
+		t.Fatalf("Echo or stray Terminate-Ack closed the native transport: %v", err)
 	}
 
 	frames <- serverFrame(ppp.LCPTerminateRequest, 10, nil)
@@ -314,4 +325,10 @@ func TestRFC2516HostKeepsTheSessionUntilLCPTerminates(t *testing.T) {
 		}
 	}
 	waitClosed(t, link.stopped, "Done after the Terminate-Request")
+	if channel.nativeCloses != 1 {
+		t.Fatalf("the native transport closed %d times, want once after Terminate-Request", channel.nativeCloses)
+	}
+	if _, err := channel.native.WriteString("PPP"); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("native transport remained usable after Terminate-Request: %v", err)
+	}
 }

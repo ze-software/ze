@@ -16,13 +16,11 @@ func TestAuthRequestSubscriberID(t *testing.T) {
 		for _, method := range authMethods {
 			t.Run(id+"/"+method.String(), func(t *testing.T) {
 				events := make(chan AuthEvent, 1)
-				decisions := make(chan authResponseMsg, 1)
-				decisions <- authResponseMsg{accept: true}
 				session := &pppSession{
 					subscriberID:  id,
 					authEventsOut: events,
-					authRespCh:    decisions,
 				}
+				replyNextAuthRequest(t, session, authResponseMsg{accept: true})
 				request := EventAuthRequest{SubscriberID: "stale-request-owner", Method: method}
 				decision, ok := session.awaitAuthDecision(request, "")
 				if !ok {
@@ -50,13 +48,11 @@ func TestIPRequestSubscriberID(t *testing.T) {
 		for _, family := range []AddressFamily{AddressFamilyIPv4, AddressFamilyIPv6} {
 			t.Run(id+"/"+family.String(), func(t *testing.T) {
 				events := make(chan IPEvent, 1)
-				decisions := make(chan ipResponseMsg, 1)
-				decisions <- ipResponseMsg{accept: true, family: family}
 				session := &pppSession{
 					subscriberID: id,
 					ipEventsOut:  events,
-					ipRespCh:     decisions,
 				}
+				replyNextIPRequest(t, session, ipResponseMsg{accept: true, family: family})
 				request := EventIPRequest{SubscriberID: "stale-request-owner", Family: family}
 				decision, ok := session.awaitIPDecision(request, family)
 				if !ok {
@@ -93,7 +89,7 @@ func TestDriverAdmissionSubscriberID(t *testing.T) {
 
 	const id = "opaque/admitted-owner-65543"
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	driver.SessionsIn() <- testSessionStart(StartSession{
+	driver.SessionsIn() <- testSessionStart(&StartSession{
 		LCP:                 testLCPConfig(),
 		SubscriberID:        id,
 		TunnelID:            63,

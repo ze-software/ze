@@ -264,11 +264,20 @@ func (s *pppSession) requestIPv6CPInterfaceID() (ok, declined bool) {
 }
 
 // awaitIPDecision emits req on ipEventsOut and waits for a matching-
-// family response on ipRespCh, bounded by s.ipTimeout. A response
-// carrying a different family is silently dropped (the handler
-// responded to a future request we have not sent yet, or reordered).
+// family response on its own channel, bounded by s.ipTimeout. Driver.IPResponse
+// rejects another family before it can consume this request's answer slot.
 func (s *pppSession) awaitIPDecision(req EventIPRequest, family AddressFamily) (ipResponseMsg, bool) {
 	req.SubscriberID = s.subscriberID
+	req.Control = s.control
+	req.Family = family
+	req.pending = newIPRequest(s.control, s.subscriberID, family)
+	s.ipRequest = req.pending
+	defer func() {
+		req.pending.retire()
+		if s.ipRequest == req.pending {
+			s.ipRequest = nil
+		}
+	}()
 	select {
 	case s.ipEventsOut <- req:
 	case <-s.stopCh:
@@ -284,7 +293,7 @@ func (s *pppSession) awaitIPDecision(req EventIPRequest, family AddressFamily) (
 	defer timer.Stop()
 	for {
 		select {
-		case decision := <-s.ipRespCh:
+		case decision := <-req.pending.answers:
 			if decision.family != family {
 				s.logger.Warn("ppp: IP response for wrong family dropped",
 					"want", family.String(), "got", decision.family.String())
@@ -813,6 +822,7 @@ func (s *pppSession) performNCPAction(family AddressFamily, act LCPAction, curre
 		return s.sendNCPTerminateAck(family, current)
 	case LCPActSCJ:
 		return s.sendNCPCodeReject(family, current)
+	// refuse-by-default: guards pppSession.applyNCPTransition -- NCP never maps maintenance codes to RXR
 	case LCPActSER:
 		// ser is the Opened edge of RXR, and ncpCodeToEvent never raises
 		// RXR: an NCP Code 9 to 11 is RUC (RFC 1332 Section 2, RFC 5072
@@ -1341,6 +1351,7 @@ func (s *pppSession) reconcileOpenedNCP(family AddressFamily) bool {
 		s.mu.Unlock()
 		return true
 	}
+	// refuse-by-default: guards pppSession.onNCPOpened -- IPv6 service refusal preserves the independent NCP
 	if family == AddressFamilyIPv6 {
 		// Startup installs this family's link-local pair, reconciles it, then
 		// opens its carrier. It preserves any failed rollback owner.
@@ -1369,6 +1380,7 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 	default:
 	}
 	ev.done = make(chan struct{})
+	ev.Control = s.control
 	select {
 	case s.eventsOut <- ev:
 	case <-s.stopCh:

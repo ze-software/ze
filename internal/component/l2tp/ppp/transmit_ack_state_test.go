@@ -21,7 +21,7 @@ func TestUnsentLCPAckCannotAdvanceNegotiation(t *testing.T) {
 				s.negotiatedMRU = MinIPv4MRU
 				// Optional no-wire-auth is a useful permitted control. A
 				// false Opened transition must not even ask its handler.
-				s.authRespCh <- authResponseMsg{accept: true}
+				stopAuthReply := replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 				opts := optStream(mruOpt(MinIPv4MRU))
 				copies := 1
 				if oversized {
@@ -31,6 +31,10 @@ func TestUnsentLCPAckCannotAdvanceNegotiation(t *testing.T) {
 					opts = append(opts, optStream(magicOpt(0x11223344))...)
 				}
 				terminated := s.handleLCPPacket(LCPPacket{Code: LCPConfigureRequest, Identifier: 0x31, Data: opts})
+				// The synchronous packet/phase producer returned. Join the relay
+				// and restore its original buffered observation channel before
+				// the unchanged absence/presence assertions below.
+				stopAuthReply()
 				if oversized {
 					if state := s.currentState(); state == LCPStateAckSent || state == LCPStateOpened {
 						t.Errorf("unsent Configure-Ack advanced LCP from %v to %v", initial, state)

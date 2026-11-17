@@ -202,7 +202,7 @@ func TestHandleDHCPv6ReleaseRemovesRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	relBuf := buildRelease([3]byte{0x01, 0x02, 0x05}, clientDUID, srv, 1)
+	relBuf := buildRelease([3]byte{0x01, 0x02, 0x05}, clientDUID, srv)
 	msg, _ = parseDHCPv6(relBuf)
 	resp, err := svc.handleDHCPv6(msg, srv, nil)
 	if err != nil {
@@ -242,7 +242,7 @@ func TestHandleDHCPv6ReleaseCallsReleasePrefix(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	relBuf := buildRelease([3]byte{0x01, 0x02, 0x05}, clientDUID, srv, 1)
+	relBuf := buildRelease([3]byte{0x01, 0x02, 0x05}, clientDUID, srv)
 	msg, _ = parseDHCPv6(relBuf)
 	if _, err := svc.handleDHCPv6(msg, srv, nil); err != nil {
 		t.Fatal(err)

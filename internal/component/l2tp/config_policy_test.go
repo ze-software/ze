@@ -43,7 +43,7 @@ func TestProviderPPPPolicyBoundaries(t *testing.T) {
 // TestReloadPPPPolicyRefusalKeepsEffectiveConfig proves failed explicit input
 // cannot replace the live policy, and successful reload is visible to show config.
 func TestReloadPPPPolicyRefusalKeepsEffectiveConfig(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled: true, MRU: 1492, AuthMethod: ppp.AuthMethodCHAPMD5,
 		AuthAllow: []ppp.AuthMethod{ppp.AuthMethodCHAPMD5},
 	})

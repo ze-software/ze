@@ -219,7 +219,6 @@ func TestHandleLCPPacketOpenedRXRDoesNotReenterOpened(t *testing.T) {
 				chanFile:             chanFile,
 				eventsOut:            eventsOut,
 				authEventsOut:        authEventsOut,
-				authRespCh:           make(chan authResponseMsg, 1),
 				stopCh:               make(chan struct{}),
 				sessStop:             make(chan struct{}),
 				logger:               discardLogger(),
@@ -235,7 +234,7 @@ func TestHandleLCPPacketOpenedRXRDoesNotReenterOpened(t *testing.T) {
 			}, backend, ops, 0, 99, 7)
 			// If the old re-entry path runs, the preloaded decision keeps
 			// the test from hanging and lets the side effects become visible.
-			s.authRespCh <- authResponseMsg{accept: true}
+			replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 
 			terminated := s.handleLCPPacket(LCPPacket{
 				Code:       tc.code,

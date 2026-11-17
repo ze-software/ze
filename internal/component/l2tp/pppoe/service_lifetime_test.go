@@ -124,7 +124,7 @@ func TestServiceRelayStaleEndKeepsReplacement(t *testing.T) {
 	f := newServiceLifetimeFixture(t, false)
 	oldPADS := f.admit(t)
 	oldRequest, oldCall := f.sink.last()
-	f.server.closeAdmitted(oldPADS.SID)
+	f.server.closeAdmitted(f.server.sessions.Lookup(oldPADS.SID))
 	newPADS := f.admit(t)
 	if newPADS.SID != oldPADS.SID {
 		t.Fatalf("fixture did not reuse SID: old %d, new %d", oldPADS.SID, newPADS.SID)
@@ -159,9 +159,17 @@ func TestServiceRelayStopReleasesAdmissions(t *testing.T) {
 	pads := f.admit(t)
 	_, call := f.sink.last()
 	other := f.addUnrelated(t, pads.SID+1)
-	if f.server.sessions.takePPPLease(pads.SID+1) == nil {
-		t.Fatal("unrelated PPP did not receive its lease")
-	}
+	owner := fixtureCurrentStart(t, f.server, f.server.sessions.Lookup(pads.SID+1), &fixtureCurrentStartConfig{method: ppp.AuthMethodNone, dual: true})
+	// The actual Driver retains this lease in its pending auth wait. Stop
+	// must close it through that owner, never infer release from nil Control.
+	f.sub.pppDriver.Stop()
+	// The first event consumer belonged to the previous driver. Its closed
+	// stream has joined; the current driver needs its own terminal consumer.
+	<-f.sub.eventDone
+	f.sub.pppDriver = owner.driver
+	f.server.pppDriver = owner.driver
+	f.sub.eventDone = make(chan struct{})
+	go f.sub.eventConsumer()
 	if err := f.sub.Stop(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -172,8 +180,11 @@ func TestServiceRelayStopReleasesAdmissions(t *testing.T) {
 	if f.server.sessions.Count() != 0 {
 		t.Fatal("stop retained access admissions")
 	}
-	if f.owners[1].handle.closes.Load() != 0 {
-		t.Fatal("stop closed a transferred PPP lease")
+	if f.owners[1].handle.closes.Load() != 1 {
+		t.Fatal("stop did not release the transferred lease through its actual PPP owner")
+	}
+	if owner.wire.closeCalls.Load() != 1 {
+		t.Fatal("access teardown repeated the Driver-owned lease Close")
 	}
 	if err := other.WithDescriptor(func(int) error { return nil }); err == nil {
 		t.Fatal("stop retained the unrelated access transport")
@@ -225,7 +236,7 @@ func TestServiceRelayAdmissionPanicCancelsCall(t *testing.T) {
 func TestServiceRelayRemovedBeforeCallCaptureCancels(t *testing.T) {
 	f := newServiceLifetimeFixture(t, false)
 	f.sink.beforeReturn = func(request callsink.Request) {
-		f.server.closeAdmitted(request.SessionID)
+		f.server.closeAdmitted(f.server.sessions.Lookup(request.SessionID))
 	}
 	f.sendPADR(t)
 	_, call := f.sink.last()
@@ -280,8 +291,8 @@ func newServiceLifetimeFixture(t *testing.T, consume bool) *serviceLifetimeFixtu
 		if err := sub.Stop(context.Background()); err != nil {
 			t.Error(err)
 		}
-		for _, sid := range server.sessions.sids() {
-			server.closeAdmitted(sid)
+		for _, admission := range server.sessions.admissions() {
+			server.closeAdmitted(admission.session)
 		}
 		for _, owner := range f.owners {
 			if err := owner.opened.Dataplane().Close(); err != nil {
@@ -370,8 +381,23 @@ func (f *serviceLifetimeFixture) addUnrelated(t *testing.T, sid uint16) dataplan
 	if err := f.server.sessions.Add(&Session{SID: sid, State: StateSession}); err != nil {
 		t.Fatal(err)
 	}
-	if !f.server.sessions.setOpened(sid, owner.opened) {
+	if !fixtureCurrentOpened(t, f.server, f.server.sessions.Lookup(sid), owner.opened) {
 		t.Fatal("unrelated admission was not published")
+	}
+	// This row represents another published subscriber. Obtain the table's
+	// monotonic receipt from the real sendPADS producer, not StateSession.
+	previous := f.server.admitting
+	f.server.admitting = admission{session: f.server.sessions.Lookup(sid)}
+	var buffer [EthMaxLen]byte
+	packet := Packet{SrcMAC: f.peer, DstMAC: f.server.hwAddr}
+	pads := BuildPADS(buffer[:], f.server.hwAddr, &packet, f.server.acName, sid)
+	if pads == nil {
+		t.Fatal("unrelated PADS was not encoded")
+	}
+	f.server.sendPADS(sid, pads)
+	f.server.admitting = previous
+	if response := f.receive(t); response.Code != CodePADS || response.SID != sid {
+		t.Fatal("unrelated owner was not published")
 	}
 	return owner.opened
 }
@@ -395,7 +421,8 @@ func newServiceLifetimeOwner(t *testing.T) *serviceLifetimeOwner {
 
 type serviceLifetimeHandle struct {
 	ppp.SessionHandle
-	once    sync.Once
+	mu      sync.Mutex
+	closed  bool
 	closes  atomic.Int32
 	onClose func()
 }
@@ -405,12 +432,16 @@ func (*serviceLifetimeHandle) Identity() ppp.SessionIdentity {
 }
 
 func (owner *serviceLifetimeHandle) Close() error {
-	owner.once.Do(func() {
-		if owner.onClose != nil {
-			owner.onClose()
-		}
-		owner.closes.Add(1)
-	})
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	if owner.closed {
+		return nil
+	}
+	if owner.onClose != nil {
+		owner.onClose()
+	}
+	owner.closes.Add(1)
+	owner.closed = true
 	return nil
 }
 
@@ -577,11 +608,12 @@ func TestServiceRelayDuplicateDownDoesNotJoinCleanup(t *testing.T) {
 		unblock := func() { releaseOnce.Do(func() { close(release) }) }
 		defer unblock()
 		f.owners[0].handle.onClose = func() { close(entered); <-release }
+		admission := f.server.sessions.Lookup(pads.SID)
 		finished := make(chan struct{})
-		go func() { f.server.handleSessionDown(pads.SID); close(finished) }()
+		go func() { f.server.handleSessionDown(admission); close(finished) }()
 		<-entered
 		duplicate := make(chan struct{})
-		go func() { f.server.handleSessionDown(pads.SID); close(duplicate) }()
+		go func() { f.server.handleSessionDown(admission); close(duplicate) }()
 		synctest.Wait()
 		select {
 		case <-duplicate:
@@ -680,7 +712,7 @@ func TestServiceRelayStopNotifiesSubscriber(t *testing.T) {
 	if err := f.server.sessions.Add(&Session{SID: pendingSID, State: StateDiscovery}); err != nil {
 		t.Fatal(err)
 	}
-	if !f.server.sessions.setOpened(pendingSID, unpublished.opened) {
+	if !fixtureCurrentOpened(t, f.server, f.server.sessions.Lookup(pendingSID), unpublished.opened) {
 		t.Fatal("could not stage the unpublished admission")
 	}
 	accessOwner := &serviceLifetimeAccessOwner{}
@@ -750,12 +782,12 @@ func TestServiceRelayCleanupPanicCompletesAdmission(t *testing.T) {
 				t.Fatalf("cleanup panic = %v", recovered)
 			}
 		}()
-		f.server.handleSessionDown(pads.SID)
+		f.server.handleSessionDown(admission)
 	}()
 	select {
 	case <-admission.closeDone:
+		t.Fatal("cleanup panic falsely completed an unconfirmed owner")
 	default:
-		t.Fatal("cleanup panic left the access generation join incomplete")
 	}
 	if call.cancels.Load() != 1 {
 		t.Fatal("cleanup panic retained its relay call")
@@ -763,8 +795,23 @@ func TestServiceRelayCleanupPanicCompletesAdmission(t *testing.T) {
 	if f.owners[0].transport.closes.Load() != 1 {
 		t.Fatal("cleanup panic retained its transport")
 	}
-	if f.server.sessions.Lookup(pads.SID) != nil {
-		t.Fatal("cleanup panic retained its SID")
+	if f.server.sessions.Lookup(pads.SID) != admission || admission.Opened != f.owners[0].opened {
+		t.Fatal("cleanup panic discarded its exact retained owner")
 	}
-	f.sub.closeInterface(f.server)
+	f.owners[0].handle.onClose = nil
+	f.server.handleSessionDown(admission)
+	select {
+	case <-admission.closeDone:
+	default:
+		t.Fatal("same recovered owner did not complete its admission")
+	}
+	if f.server.sessions.Lookup(pads.SID) != nil {
+		t.Fatal("confirmed recovery retained its SID")
+	}
+	if f.owners[0].handle.closes.Load() != 1 {
+		t.Fatal("panic recovery did not close the actual same owner exactly once")
+	}
+	if err := f.sub.closeInterface(context.Background(), f.server); err != nil {
+		t.Fatal(err)
+	}
 }

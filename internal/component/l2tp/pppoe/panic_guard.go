@@ -57,7 +57,7 @@ var pppoePanics = sync.OnceValue(func() *pppoePanicTasks {
 // The table retains any unused lease until preparation or local PPP takes it.
 // Only the discovery reader goroutine touches this admission marker.
 type admission struct {
-	sid      uint16
+	session  *Session
 	padsSent bool
 }
 
@@ -93,8 +93,8 @@ func (s *Subsystem) dispatchDiscovery(srv *InterfaceServer, frame []byte) {
 }
 
 // describeHandlerCall names the unit a contained handler panic ended: the
-// session the auth or pool request belongs to. The PPP driver carries the
-// access interface's ifindex in the request's TunnelID.
+// session the auth or pool request belongs to. These numeric fields are wire
+// labels for diagnostics; they do not select a subscriber or worker.
 func describeHandlerCall(ifindex, sessionID uint16) func() taskguard.Context {
 	return func() taskguard.Context {
 		return taskguard.Context{Unit: "ifindex " + strconv.Itoa(int(ifindex)) + ", session " + strconv.Itoa(int(sessionID))}
@@ -120,18 +120,16 @@ func describeHandlerCall(ifindex, sessionID uint16) func() taskguard.Context {
 // session to end: that frame is dropped, as a malformed one is.
 func (s *InterfaceServer) endAdmissionAfterPanic() {
 	admitted := s.admitting
-	if admitted.sid == 0 {
+	if admitted.session == nil {
 		return
 	}
 	if !admitted.padsSent {
-		s.closeAdmitted(admitted.sid)
+		s.closeAdmitted(admitted.session)
 		return
 	}
-	if s.pppDriver != nil {
-		// The PPP session is absent when the panic came before it was queued:
-		// ErrSessionNotFound then says there is nothing to stop.
-		_ = s.pppDriver.StopSession(uint16(s.ifIndex), admitted.sid) //nolint:errcheck // see above
-	}
+	owner := s.sessions.admissionControl(admitted.session)
+	s.closeTransport(owner.opened)
+	s.stopPPPAdmission(owner.attempt)
 	// RFC 2516 Section 5.5
-	s.handleSessionDown(admitted.sid)
+	s.handleSessionDown(admitted.session)
 }

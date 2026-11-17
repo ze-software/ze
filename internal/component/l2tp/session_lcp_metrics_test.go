@@ -54,13 +54,35 @@ func TestSessionLCPOpenedTotalCountsProxyLCPOutcome(t *testing.T) {
 		&L2TPSession{localSID: 44, state: L2TPSessionEstablished},
 	)
 
-	r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 41, NegotiatedMRU: 1492, ProxyLCP: ppp.ProxyLCPOutcomeRenegotiated})
-	r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 100, SessionID: 41})
-	r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 41, NegotiatedMRU: 1492, ProxyLCP: ppp.ProxyLCPOutcomeRenegotiated})
-	r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 42, NegotiatedMRU: 1492, ProxyLCP: ppp.ProxyLCPOutcomeAccepted})
-	r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 43, NegotiatedMRU: 1492, ProxyLCP: ppp.ProxyLCPOutcomeNone})
-	r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 44, NegotiatedMRU: 1492})
-	r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 999, NegotiatedMRU: 1492, ProxyLCP: ppp.ProxyLCPOutcomeAccepted})
+	// These are consumer metadata cases, including a deliberate Unknown;
+	// they do not claim that PAP/proxy setup produced every edited value.
+	first := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 100, sessionID: 41}, ipv6: false, subscriberID: ""})
+	opened := first.opened
+	opened.NegotiatedMRU, opened.ProxyLCP = 1492, ppp.ProxyLCPOutcomeRenegotiated
+	opened.NegotiatedAuthMethod = ppp.AuthMethodNone
+	r.handlePPPEvent(opened)
+	r.handlePPPEvent(first.beginRestart(t))
+	first.finishRestart(t)
+	opened = first.opened
+	opened.NegotiatedMRU, opened.ProxyLCP = 1492, ppp.ProxyLCPOutcomeRenegotiated
+	opened.NegotiatedAuthMethod = ppp.AuthMethodNone
+	r.handlePPPEvent(opened)
+	for _, tc := range []struct {
+		sid     uint16
+		outcome ppp.ProxyLCPOutcome
+	}{
+		{42, ppp.ProxyLCPOutcomeAccepted}, {43, ppp.ProxyLCPOutcomeNone}, {44, ppp.ProxyLCPOutcomeUnknown},
+	} {
+		wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 100, sessionID: tc.sid}, ipv6: false, subscriberID: ""})
+		opened := wire.opened
+		opened.NegotiatedMRU, opened.ProxyLCP = 1492, tc.outcome
+		opened.NegotiatedAuthMethod = ppp.AuthMethodNone
+		r.handlePPPEvent(opened)
+	}
+	missing := first.opened
+	missing.SessionID, missing.NegotiatedMRU, missing.ProxyLCP = 999, 1492, ppp.ProxyLCPOutcomeAccepted
+	missing.NegotiatedAuthMethod = ppp.AuthMethodNone
+	r.handlePPPEvent(missing)
 
 	for _, want := range []struct{ proxyLCP, value string }{
 		{"renegotiated", "1"},

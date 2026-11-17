@@ -5,6 +5,7 @@
 package l2tp
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"net/netip"
@@ -146,6 +147,10 @@ type L2TPSession struct {
 	// Used by SessionUp EventBus event so the shaper can apply TC.
 	pppInterface string
 
+	// pppAttempt identifies this exact local PPP handoff. Teardown MUST cancel
+	// it even before admission has delivered a worker Control.
+	pppAttempt ppp.SessionAttempt
+
 	// channel retains the relayed PPPoE transport owner until the worker
 	// borrows its descriptor for bridging. A departed subscriber refuses
 	// that borrow instead of exposing a descriptor number the OS could reuse.
@@ -163,8 +168,11 @@ type L2TPSession struct {
 	// RADIUS timeout cancellation. Set by handleSessionUp when the
 	// RADIUS Access-Accept carried Session-Timeout or Idle-Timeout.
 	// Canceled on session teardown. nil when no timeout is active.
-	sessionTimeoutCancel func()
-	idleTimeoutCancel    func()
+	sessionTimeoutCancel  func()
+	idleTimeoutCancel     func()
+	sessionTimeoutContext context.Context
+	idleTimeoutContext    context.Context
+	timeoutLifetime       *sessionTimeoutLifetime
 
 	// callResult carries the outcome of an operator-initiated call
 	// (spec-followup-l2tp-call AC-4) back to the blocking RPC. Set when a
@@ -419,6 +427,8 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 	if sess == nil {
 		return
 	}
+	// Cancel only this admission; a reused wire SID cannot select a successor.
+	sess.pppAttempt.Cancel()
 	cancelSessionTimeouts(sess)
 	ClearSessionMetadata(l2tpSessionID(t.localTID, sid))
 	established := sess.state == L2TPSessionEstablished

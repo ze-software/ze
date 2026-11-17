@@ -6,6 +6,7 @@
 package ppp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,29 +32,25 @@ var (
 	// ErrAlreadyStarted is returned when Start is called twice.
 	ErrAlreadyStarted = errors.New("ppp: driver already started")
 
-	// ErrSessionNotFound is returned by StopSession / SessionByID for
-	// an unknown (tunnelID, sessionID) pair.
+	// ErrSessionNotFound is returned by StopSession / sessionForControl for
+	// a control that does not identify this exact live worker.
 	ErrSessionNotFound = errors.New("ppp: session not found")
 
 	// ErrAuthResponsePending is returned by AuthResponse when the
-	// session's buffered(1) authRespCh already holds an unconsumed
-	// decision. Signals a caller bug (duplicate AuthResponse for one
-	// request) or a race with session teardown.
+	// exact request already accepted a decision; it never describes
+	// another request or a future authentication round.
 	ErrAuthResponsePending = errors.New("ppp: auth response already pending")
 
 	// ErrIPResponsePending is returned by IPResponse when the
-	// session's buffered(2) ipRespCh already holds two pending
-	// decisions (one per family). Signals a caller bug (duplicate
-	// IPResponse for one request) or a race with session teardown.
+	// exact request already accepted a decision. Each NCP wait owns
+	// its own buffered-one answer channel.
 	ErrIPResponsePending = errors.New("ppp: ip response already pending")
-)
 
-// sessionKey identifies a PPP session by its (tunnelID, sessionID)
-// pair. The transport assigns these; ppp treats them as opaque.
-type sessionKey struct {
-	tunnelID  uint16
-	sessionID uint16
-}
+	// ErrRequestExpired refuses an answer to a wait that has already ended.
+	ErrRequestExpired = errors.New("ppp: provider request is no longer active")
+	// ErrIPResponseFamilyMismatch refuses a decision for another NCP family.
+	ErrIPResponseFamilyMismatch = errors.New("ppp: IP response family does not match its request")
+)
 
 // Driver owns all active PPP sessions. It accepts StartSession
 // payloads on SessionsIn(), spawns one long-lived goroutine per
@@ -67,7 +64,8 @@ type sessionKey struct {
 //
 // Caller MUST call Start before any other method. Caller MUST call
 // Stop before discarding the Driver (Stop blocks until every
-// session goroutine exits).
+// session goroutine exits). Composition MUST retain it while
+// HasPendingNativeRelease reports unconfirmed native ownership.
 //
 // Safe for concurrent use across the documented public methods.
 type Driver struct {
@@ -84,11 +82,12 @@ type Driver struct {
 	mu       sync.Mutex
 	started  bool
 	stopped  bool
-	sessions map[sessionKey]*pppSession
-	// owners retains each admitted lease until its worker exits, including
-	// the interval after StopSession or ReleaseSession removes its key.
-	owners map[SessionHandle]sessionKey
-	wg     sync.WaitGroup
+	sessions map[string]*pppSession
+	// owners retains each admitted lease through worker exit AND unconfirmed
+	// native release, including after StopSession/ReleaseSession removes its key.
+	owners              map[SessionHandle]*pppSession
+	wg                  sync.WaitGroup
+	nativeReleaseBudget *NativeReleaseBudget
 }
 
 // NewProductionDriver constructs the protocol driver. Each transport supplies
@@ -106,8 +105,8 @@ func NewProductionDriver(logger *slog.Logger) *Driver {
 		authEventsOut: make(chan AuthEvent, defaultAuthEventsOutBuf),
 		ipEventsOut:   make(chan IPEvent, defaultIPEventsOutBuf),
 		dispatchDone:  make(chan struct{}),
-		sessions:      make(map[sessionKey]*pppSession),
-		owners:        make(map[SessionHandle]sessionKey),
+		sessions:      make(map[string]*pppSession),
+		owners:        make(map[SessionHandle]*pppSession),
 	}
 }
 
@@ -152,11 +151,34 @@ func (d *Driver) Stop() {
 	// Close every session's chan fd so blocking reads return EBADF
 	// and goroutines exit. This is the standard "close-fd shutdown"
 	// pattern; see goroutine-lifecycle.md.
+	type stopOwner struct {
+		session *pppSession
+		retired bool
+	}
 	d.mu.Lock()
-	for _, s := range d.sessions {
-		s.closeFiles()
+	owners := make([]stopOwner, 0, len(d.owners))
+	for _, session := range d.owners {
+		owners = append(owners, stopOwner{session: session, retired: session.nativeRetired})
 	}
 	d.mu.Unlock()
+	// Close can enter an admitted policy's bounded seal. Never hold d.mu
+	// across it or serialize independent owners' remote timeout budgets.
+	// This finite shutdown fanout joins here; no background retry worker exists.
+	var closing sync.WaitGroup
+	for _, owner := range owners {
+		closing.Go(func() {
+			session := owner.session
+			session.closeFiles()
+			// Active workers own exactly one reconciliation at run exit.
+			// Only owners ALREADY retired at the snapshot need Stop's retry.
+			if owner.retired {
+				if err := d.retrySessionOwner(context.Background(), session); err != nil {
+					d.reportNativeReleaseFailure(session, err)
+				}
+			}
+		})
+	}
+	closing.Wait()
 
 	d.wg.Wait()
 	<-d.dispatchDone
@@ -237,19 +259,16 @@ type IPResponseArgs struct {
 
 // IPResponse delivers the external handler's IP decision to the
 // per-session goroutine. Returns ErrSessionNotFound if no session
-// matches (tunnelID, sessionID) -- this covers both "never started"
-// and "already torn down" from the caller's perspective.
+// matches the exact admitted control -- this covers invalid, foreign,
+// canceled and already torn-down workers.
 //
-// Safe for concurrent use. Non-blocking: the per-session ipRespCh
-// is buffered(2) (one slot per family); a duplicate IPResponse for
-// the same family returns ErrIPResponsePending rather than blocking.
-func (d *Driver) IPResponse(tunnelID, sessionID uint16, args IPResponseArgs) error {
-	k := sessionKey{tunnelID, sessionID}
-	d.mu.Lock()
-	s, ok := d.sessions[k]
-	d.mu.Unlock()
-	if !ok {
-		return ErrSessionNotFound
+// Safe for concurrent use. Only the actual emitted request permits an answer.
+// Expired waits return ErrRequestExpired; a duplicate returns ErrIPResponsePending
+// and another family returns ErrIPResponseFamilyMismatch.
+func (d *Driver) IPResponse(request EventIPRequest, args IPResponseArgs) error {
+	_, err := d.liveSession(request.Control)
+	if err != nil {
+		return err
 	}
 	msg := ipResponseMsg{
 		accept:           args.Accept,
@@ -262,80 +281,63 @@ func (d *Driver) IPResponse(tunnelID, sessionID uint16, args IPResponseArgs) err
 		peerInterfaceID:  args.PeerInterfaceID,
 		hasPeerInterface: args.HasPeerInterface,
 	}
-	select {
-	case s.ipRespCh <- msg:
-		return nil
-	default: // buffered(2) already full: duplicate IPResponse or teardown race
-		return ErrIPResponsePending
-	}
+	return request.answer(msg)
 }
 
 // AuthResponse delivers the external handler's auth decision to the
 // per-session goroutine. Returns ErrSessionNotFound if no session
-// matches (tunnelID, sessionID) -- this covers both "never started"
-// and "already torn down" from the caller's perspective.
+// matches the exact admitted control -- this covers invalid, foreign,
+// canceled and already torn-down workers.
 //
-// Safe for concurrent use. Non-blocking: the per-session authRespCh
-// is buffered(1); a duplicate AuthResponse for the same request
-// returns ErrAuthResponsePending rather than blocking.
-func (d *Driver) AuthResponse(tunnelID, sessionID uint16, accept bool, message string, authResponseBlob []byte) error {
-	k := sessionKey{tunnelID, sessionID}
-	d.mu.Lock()
-	s, ok := d.sessions[k]
-	d.mu.Unlock()
-	if !ok {
-		return ErrSessionNotFound
+// Safe for concurrent use. Only the actual emitted request permits an answer.
+// Expired waits return ErrRequestExpired; an already answered request returns
+// ErrAuthResponsePending. Neither result enqueues into a different wait.
+func (d *Driver) AuthResponse(request EventAuthRequest, accept bool, message string, authResponseBlob []byte) error {
+	_, err := d.liveSession(request.Control)
+	if err != nil {
+		return err
 	}
 	msg := authResponseMsg{
 		accept:           accept,
 		message:          message,
 		authResponseBlob: authResponseBlob,
 	}
-	select {
-	case s.authRespCh <- msg:
-		return nil
-	default: // buffered(1) already full: caller issued a duplicate AuthResponse or lost a race with teardown
-		return ErrAuthResponsePending
-	}
+	return request.answer(msg)
 }
 
-// StopSession terminates the session for (tunnelID, sessionID) and
-// waits for the goroutine to exit. Returns ErrSessionNotFound if no
-// such session exists.
+// StopSession terminates only the exact admitted worker and waits for its
+// goroutine to exit. An invalid, foreign or retired control returns
+// ErrSessionNotFound; it never selects a successor by ID or lease.
 //
 // Closes the per-session sessStop first so that a goroutine parked
-// in the auth phase (waiting on authRespCh) unblocks; closing
+// in an authentication wait unblocks; closing
 // chanFile alone would only unblock readFrames, which is not running
 // yet during the initial auth phase on the proxy-LCP short-circuit
 // path.
 //
 // Idempotent: calling StopSession a second time returns
 // ErrSessionNotFound (the first call removed it from the map).
-func (d *Driver) StopSession(tunnelID, sessionID uint16) error {
-	k := sessionKey{tunnelID, sessionID}
+func (d *Driver) StopSession(control SessionControl) error {
 	d.mu.Lock()
-	s, ok := d.sessions[k]
+	s, ok := d.sessionForControlLocked(control)
 	if !ok {
 		d.mu.Unlock()
 		return ErrSessionNotFound
 	}
-	delete(d.sessions, k)
+	delete(d.sessions, s.subscriberID)
 	d.mu.Unlock()
 
-	s.sessStopOnce.Do(func() { close(s.sessStop) })
+	control.Cancel()
 	s.closeFiles()
 	<-s.done
 	return nil
 }
 
-// sessionByID returns a snapshot of a session's state, or false if
-// no such session exists. Used for `show l2tp session` and tests.
-func (d *Driver) sessionByID(tunnelID, sessionID uint16) (sessionInfo, bool) {
-	k := sessionKey{tunnelID, sessionID}
-	d.mu.Lock()
-	s, ok := d.sessions[k]
-	d.mu.Unlock()
-	if !ok {
+// sessionForControl returns the exact worker's snapshot, or false when its
+// control no longer identifies an active admission.
+func (d *Driver) sessionForControl(control SessionControl) (sessionInfo, bool) {
+	s, err := d.liveSession(control)
+	if err != nil {
 		return sessionInfo{}, false
 	}
 	s.mu.Lock()
@@ -357,7 +359,7 @@ func (d *Driver) dispatch() {
 				if !ok {
 					return
 				}
-				start.closeFiles()
+				d.closeRefusedTransfer(&start)
 			default:
 				return
 			}
@@ -383,10 +385,12 @@ func (d *Driver) dispatch() {
 
 // spawnSession creates a pppSession, registers it in the map, and
 // launches its goroutine. Logs and drops if a duplicate
-// (tunnelID, sessionID) arrives, or if the StartSession contains
+// canonical SubscriberID arrives, or if the StartSession contains
 // missing session ownership or frame delivery.
 func (d *Driver) spawnSession(start *StartSession) {
-	k := sessionKey{start.TunnelID, start.SessionID}
+	// Only the constructor's immutable binding can classify an existing key.
+	// A malformed raw ID must not preserve an unrelated pending admission.
+	k := start.Attempt.SubscriberID()
 	comparableOwner := !sessionResourceMissing(start.Dataplane) && reflect.ValueOf(start.Dataplane).Comparable()
 	// Detect an existing lease before validating borrowed resources or LCP:
 	// a malformed requeue has not transferred that live owner again.
@@ -395,41 +399,63 @@ func (d *Driver) spawnSession(start *StartSession) {
 	stopped := d.stopped
 	d.mu.Unlock()
 	if stopped {
-		if !existingOwner {
-			start.closeFiles()
-		}
+		// The same exact handoff observer must resolve even when an already
+		// owned lease is refused during shutdown; this helper never closes it.
+		d.closeRefusedTransfer(start)
 		return
 	}
 	ownershipConflict := existingKey || existingOwner
 	if ownershipConflict {
-		d.rejectExistingTransfer(start, existingKey, existingOwner)
+		d.rejectExistingTransfer(start, existingKey)
 		return
 	}
 	// Missing ownership or missing control delivery is an invalid transfer;
 	// release any supplied owner before publishing its refusal.
 	if sessionResourceMissing(start.Dataplane) {
-		start.closeFiles()
+		d.closeRefusedTransfer(start)
 		d.emitRejection(start, "missing session data plane")
 		return
 	}
 	if !comparableOwner {
-		start.closeFiles()
+		d.closeRefusedTransfer(start)
 		d.emitRejection(start, "session data-plane owner cannot be compared for safe lease admission")
 		return
 	}
+	if start.SubscriberID == "" {
+		d.closeRefusedTransfer(start)
+		d.emitRejection(start, "missing canonical subscriber identity")
+		return
+	}
+	if !start.Attempt.matches(start.SubscriberID, start.Dataplane) {
+		d.closeRefusedTransfer(start)
+		d.emitRejection(start, "session attempt does not bind the subscriber identity and data-plane lease")
+		return
+	}
 	if sessionResourceMissing(start.Frames) {
-		start.closeFiles()
+		d.closeRefusedTransfer(start)
 		d.emitRejection(start, "missing frame channel")
 		return
 	}
 	if sessionResourceMissing(start.Frames.Control()) {
-		start.closeFiles()
+		d.closeRefusedTransfer(start)
 		d.emitRejection(start, "missing control stream")
+		return
+	}
+	claimed, canceled := start.Attempt.admissionState()
+	if claimed {
+		// A prior claimant owns its lease even in another Driver. A replay
+		// never closes it or rebinds the original rendezvous.
+		d.sendRejection(start, ErrSessionAttemptUsed.Error(), true)
+		return
+	}
+	if canceled {
+		d.closeRefusedTransfer(start)
+		d.emitRejection(start, ErrSessionAttemptCanceled.Error())
 		return
 	}
 	maxMRU := start.MaxMRU
 	if err := start.LCP.Validate(); err != nil {
-		start.closeFiles()
+		d.closeRefusedTransfer(start)
 		d.emitRejection(start, err.Error())
 		return
 	}
@@ -438,23 +464,29 @@ func (d *Driver) spawnSession(start *StartSession) {
 	}
 	// RFC 791 Section 3.2 and RFC 5072 Section 2: admit only protocol-capable MRUs.
 	if err := ValidateNetworkMRU(maxMRU, !start.DisableIPv6CP); err != nil {
-		start.closeFiles()
+		d.closeRefusedTransfer(start)
 		d.emitRejection(start, err.Error())
 		return
+	}
+	// Cache exact native report ownership before taking the Driver lock.
+	// Neither a delayed close report nor a retry may reread a successor's
+	// recycled handle metadata. The factory has already bound/stamped birth.
+	identity := start.Dataplane.Identity()
+	var nativeBirthTag string
+	if native, ok := start.Dataplane.(NativeReleaseHandle); ok {
+		nativeBirthTag = native.NativeReleaseBirthTag()
 	}
 	d.mu.Lock()
 	existingKey, existingOwner = d.existingTransferLocked(k, start.Dataplane, true)
 	if d.stopped {
 		d.mu.Unlock()
-		if !existingOwner {
-			start.closeFiles()
-		}
+		d.closeRefusedTransfer(start)
 		return
 	}
 	ownershipConflict = existingKey || existingOwner
 	if ownershipConflict {
 		d.mu.Unlock()
-		d.rejectExistingTransfer(start, existingKey, existingOwner)
+		d.rejectExistingTransfer(start, existingKey)
 		return
 	}
 
@@ -477,6 +509,10 @@ func (d *Driver) spawnSession(start *StartSession) {
 		lcpConfig:            start.LCP,
 		proxyCapture:         capture,
 		subscriberID:         start.SubscriberID,
+		attempt:              start.Attempt,
+		driver:               d,
+		nativeBirthTag:       nativeBirthTag,
+		nativeIdentity:       identity,
 		tunnelID:             start.TunnelID,
 		sessionID:            start.SessionID,
 		chanFile:             start.Frames.Control(),
@@ -501,19 +537,26 @@ func (d *Driver) spawnSession(start *StartSession) {
 		eventsOut:            d.eventsOut,
 		authEventsOut:        d.authEventsOut,
 		ipEventsOut:          d.ipEventsOut,
-		authRespCh:           make(chan authResponseMsg, 1),
-		ipRespCh:             make(chan ipResponseMsg, 2),
 		stopCh:               d.stopCh,
 		sessStop:             make(chan struct{}),
 		done:                 make(chan struct{}),
 		logger: d.logger.With(
 			"tunnel-id", start.TunnelID,
 			"session-id", start.SessionID,
-			"interface", start.Dataplane.Identity().InterfaceName,
+			"interface", identity.InterfaceName,
 		),
 	}
+	s.control = SessionControl{driver: d, worker: s}
+	if err := start.Attempt.claim(s, true); err != nil {
+		d.mu.Unlock()
+		if !errors.Is(err, ErrSessionAttemptUsed) {
+			d.closeRefusedTransfer(start)
+		}
+		d.sendRejection(start, err.Error(), errors.Is(err, ErrSessionAttemptUsed))
+		return
+	}
 	d.sessions[k] = s
-	d.owners[start.Dataplane] = k
+	d.owners[start.Dataplane] = s
 	d.wg.Add(1)
 	d.mu.Unlock()
 
@@ -521,22 +564,17 @@ func (d *Driver) spawnSession(start *StartSession) {
 		defer d.wg.Done()
 		defer close(s.done)
 		defer func() {
-			// On natural exit (peer teardown, LCP failure, auth
-			// reject, timeout), remove the session from the map so
-			// AuthResponse / SessionByID observe ErrSessionNotFound
-			// instead of holding a stale reference. StopSession may have
-			// already released the key for a replacement, which this old
-			// worker must preserve. Its lease stays reserved until now.
+			// Publish retirement before retrying the native gate. An End ACK
+			// that arrived while run still owned I/O is reconciled here.
 			d.mu.Lock()
+			s.nativeRetired = true
 			if d.sessions[k] == s {
 				delete(d.sessions, k)
 			}
-			if ownerKey, present := d.owners[s.dataplane]; present {
-				if ownerKey == k {
-					delete(d.owners, s.dataplane)
-				}
-			}
 			d.mu.Unlock()
+			if err := s.control.RetryNativeRelease(); err != nil {
+				d.reportNativeReleaseFailure(s, err)
+			}
 		}()
 		s.run(start)
 	}()
@@ -544,7 +582,7 @@ func (d *Driver) spawnSession(start *StartSession) {
 
 // existingTransferLocked uses the reverse index only for comparable owners.
 // Caller MUST hold d.mu. The key and owner can belong to different sessions.
-func (d *Driver) existingTransferLocked(key sessionKey, owner SessionHandle, comparableOwner bool) (bool, bool) {
+func (d *Driver) existingTransferLocked(key string, owner SessionHandle, comparableOwner bool) (bool, bool) {
 	_, existingKey := d.sessions[key]
 	if !comparableOwner {
 		return existingKey, false
@@ -556,13 +594,11 @@ func (d *Driver) existingTransferLocked(key sessionKey, owner SessionHandle, com
 // rejectExistingTransfer refuses a request without releasing any already
 // admitted owner. Only an active incoming key forbids transport teardown;
 // an owner reused under another key does not establish that new transport.
-func (d *Driver) rejectExistingTransfer(start *StartSession, existingKey, existingOwner bool) {
-	if !existingOwner {
-		start.closeFiles()
-	}
+func (d *Driver) rejectExistingTransfer(start *StartSession, existingKey bool) {
+	d.closeRefusedTransfer(start)
 	reason := "session data-plane owner is already admitted"
 	if existingKey {
-		reason = "duplicate (tunnelID, sessionID)"
+		reason = "duplicate canonical subscriber identity"
 	}
 	subject := start.SubscriberID
 	if subject == "" {
@@ -579,15 +615,19 @@ func (d *Driver) rejectExistingTransfer(start *StartSession, existingKey, existi
 // "PPP never took this session" and "PPP ran this session then it
 // ended" without parsing reason strings.
 //
-// The refused request's PPP handle has already been released. The transport
-// reconciles its separate session owner.
+// The refused request has no admitted Control. Its Attempt observer says
+// whether an incoming lease was acquired and its exact physical release was
+// confirmed; a failed Close remains strongly retained for retry.
 func (d *Driver) emitRejection(start *StartSession, reason string) {
-	d.sendRejection(start, reason, false)
+	// Only the original Attempt can establish prior admission, never raw labels.
+	_, alreadyAdmitted := start.Attempt.Control()
+	d.sendRejection(start, reason, alreadyAdmitted)
 }
 
 func (d *Driver) sendRejection(start *StartSession, reason string, existingSession bool) {
 	select {
 	case d.eventsOut <- EventSessionRejected{
+		Attempt:         start.Attempt,
 		TunnelID:        start.TunnelID,
 		SessionID:       start.SessionID,
 		Reason:          reason,

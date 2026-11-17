@@ -18,7 +18,7 @@ func TestAuthAllowEmptyRefusesPAPNak(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer d.Stop()
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:      testLCPConfig(),
 		TunnelID: 16, SessionID: 1,
 		AuthMethod: AuthMethodCHAPMD5, AuthRequired: true,

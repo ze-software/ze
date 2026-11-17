@@ -13,7 +13,6 @@ import (
 
 var (
 	errRelayNoHandoff     = errors.New("l2tp: relayed subscriber has no call-end handoff")
-	errRelayCallCancelled = errors.New("l2tp: relay call abandoned by the subscriber before the bridge completed")
 	errRelayNoListener    = errors.New("l2tp: relay configured but no L2TP listener is running")
 	errRelayRealmNoRemote = errors.New("l2tp: relay-realm names a remote that is not declared")
 	errRelayRealmNoAuth   = errors.New("l2tp: realm relay request carries no authentication exchange")

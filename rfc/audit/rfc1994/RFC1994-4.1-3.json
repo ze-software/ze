@@ -1,15 +1,15 @@
 {
-  "note": "Judge ppp4 2026-09-30. rfc1994_local_verifier_test.go (package ppp_test) drives a real LNS session over a net.Pipe: the peer computes its Response Value from a secret, the Driver's EventAuthRequest is answered by l2tp.GetAuthHandler(), the handler l2tp-auth-local registers in init (verifyCHAPMD5 against bob/secret), and the CHAP Code ze writes is read off the wire. Equal Value -> Success (+), differing Value -> Failure (-), so the comparison, not an injected decision, chooses the reply. Targeted breaks (verifyCHAPMD5 always accept / always reject) each redden the matching unit (ppp4-tb-1994-accept.log, ppp4-tb-1994-reject.log); records are runCHAPAuthPhase reverts. The chap_test.go decision-injected units stay as supplementary.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1994 Section4.1: comparison of received Response Value with expected Value determines Success or Failure. Complete direct accepted/rejected runCHAPAuthPhase tests require corresponding Success/Failure wire Code after answering genuine requests. Those stand-in provider decisions alone are not the entire value-comparison proof: complete tagged local-verifier integration pair computes MD5(Identifier||secret||wire Challenge), sends equal versus different-secret values, routes the genuine Driver request through registered authlocal.handle/verifyCHAPMD5, and requires ProtoCHAP Success versus Failure. Read helper/pumpLocalAuth, actual constant-time verifier and CHAP reply branch: the peer value reaches the comparison and its result reaches the exact current request, not a synthetic auth slot. These distinct valid digest inputs isolate comparison rather than malformed framing; local-verifier unit pair also pins acceptance/rejection. Source semantic judgment only; historical/new records must be observed separately.",
   "requirement_sha": "28b31f0ff71709af",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309",
-    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2cb39160024b4e",
-    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "bc2cb39160024b4e"
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5e115b2bec7372da",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5e115b2bec7372da",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "340bb45a3da28183",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "340bb45a3da28183"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "1ee15f8b67142929",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "1d62d8a2e6a92ae1",
     "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2a16f58650477a",
     "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "f6abef15a53bd65c"
   },

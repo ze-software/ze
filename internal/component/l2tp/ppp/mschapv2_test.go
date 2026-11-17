@@ -661,11 +661,11 @@ func TestMSCHAPv2ResponseEmitsEvent(t *testing.T) {
 
 	// Deliver an accept decision with a known 20-byte blob.
 	blob := bytes.Repeat([]byte{0xCD}, mschapv2AuthenticatorResponseLen)
-	s.authRespCh <- authResponseMsg{
+	answerAuthRequestForTest(t, evt, authResponseMsg{
 		accept:           true,
 		message:          "ok",
 		authResponseBlob: blob,
-	}
+	})
 
 	proto, payload = readPeerFrame(t, peerEnd)
 	if proto != ProtoCHAP {
@@ -732,14 +732,20 @@ func TestMSCHAPv2RejectWritesFailure(t *testing.T) {
 		t.Fatalf("peer write response: %v", err)
 	}
 
+	var fixtureRequest EventAuthRequest
 	select {
-	case <-authEventsOut:
+	case raw := <-authEventsOut:
+		request, ok := raw.(EventAuthRequest)
+		if !ok {
+			t.Fatalf("auth event %T, want EventAuthRequest", raw)
+		}
+		fixtureRequest = request
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
 	reject := "E=691 R=0 C=00000000000000000000000000000000 V=3 M=nope"
-	s.authRespCh <- authResponseMsg{accept: false, message: reject}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: false, message: reject})
 
 	_, payload = readPeerFrame(t, peerEnd)
 	if payload[0] != MSCHAPv2CodeFailure {
@@ -830,17 +836,23 @@ func TestMSCHAPv2HandlerWrongBlobLenFailsClean(t *testing.T) {
 				t.Fatalf("peer write: %v", err)
 			}
 
+			var fixtureRequest EventAuthRequest
 			select {
-			case <-authEventsOut:
+			case raw := <-authEventsOut:
+				request, ok := raw.(EventAuthRequest)
+				if !ok {
+					t.Fatalf("auth event %T, want EventAuthRequest", raw)
+				}
+				fixtureRequest = request
 			case <-time.After(2 * time.Second):
 				t.Fatal("timed out waiting for EventAuthRequest")
 			}
 
-			s.authRespCh <- authResponseMsg{
+			answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{
 				accept:           true,
 				message:          "ok",
 				authResponseBlob: tc.blob,
-			}
+			})
 
 			// Single select distinguishes panic from timeout so a
 			// regression that re-introduces the panic surfaces with
@@ -1264,8 +1276,8 @@ func TestCHAPAndMSCHAPv2ShareIdentifier(t *testing.T) {
 	if s.authTimeout != 2*time.Second {
 		t.Fatalf("authTimeout drifted during CHAP phase: %v", s.authTimeout)
 	}
-	if len(s.authRespCh) != 0 {
-		t.Fatalf("authRespCh has %d pending messages after CHAP phase", len(s.authRespCh))
+	if s.authRequest != nil {
+		t.Fatal("authentication request remains pending after CHAP phase")
 	}
 
 	done2 := make(chan bool, 1)
@@ -1372,14 +1384,20 @@ func TestMSCHAPv2RelayRefusalIsStructured(t *testing.T) {
 	if _, err := peerEnd.Write(peerWrite[:off]); err != nil {
 		t.Fatalf("peer write response: %v", err)
 	}
+	var fixtureRequest EventAuthRequest
 	select {
-	case <-authEventsOut:
+	case raw := <-authEventsOut:
+		request, ok := raw.(EventAuthRequest)
+		if !ok {
+			t.Fatalf("auth event %T, want EventAuthRequest", raw)
+		}
+		fixtureRequest = request
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
 	text := "realm example.net: " + strings.Repeat("x", 2000)
-	s.authRespCh <- authResponseMsg{message: text, terminate: true, displayText: true}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{message: text, terminate: true, displayText: true})
 
 	_, payload = readPeerFrame(t, peerEnd)
 	if payload[0] != MSCHAPv2CodeFailure {

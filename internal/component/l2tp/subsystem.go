@@ -114,10 +114,11 @@ func (s *Subsystem) recordDataPlaneFault(fault error) {
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
-// value is inert until Start is called.
-func NewSubsystem(p Parameters) *Subsystem {
+// value is inert until Start is called. Caller MUST pass nonnil Parameters;
+// the constructor copies the configuration snapshot before returning.
+func NewSubsystem(p *Parameters) *Subsystem {
 	return &Subsystem{
-		params:            p,
+		params:            *p,
 		logger:            slogutil.Logger(SubsystemName),
 		openKernelBackend: iface.OpenBackend,
 	}

@@ -1,15 +1,15 @@
 {
-  "note": "Judge ppp4 2026-09-30. Re-read after the frame_test.go negative moved to RFC1661-5-2 (it proved Length validation, a neighbour). Still proven by TestIPCPOnePacketPerFrameThroughRun: ze's IPCP CONFREQ from run() is 0x8021 with Length == Information length (+); a 0x8021 frame carrying a CONFREQ and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack in 1 s (-, receiver-side injection).",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1332 Section2, exactly one IPCP packet per PPP Information field with protocol0x8021. Read every tagged body: TestIPCPFrameCarriesExactlyOnePacket pins raw Protocol octets, decoded protocol, declared Length and whole Information span. TestIPCPOnePacketPerFrameThroughRun completes real LCP/auth/address request and reads actual emitted IPCP Configure-Request, requiring Length==Information length; its negative delivers one valid address Configure-Request followed by a separately well-formed Terminate-Request in the same frame and requires only the first Configure-Ack and no subsequent frame through a one-second bound. The second packet is padding after the first declared Length, not a malformed first request. ParseLCPPacket truncates to that declared length and runNCPPhase handles one packet per frame; the real session path distinguishes a writer defect from an inert codec-only fixture. Current answers use actual request capabilities, retaining the same inputs/assertions. This is semantic source judgment, not a fresh observed discrimination record.",
   "requirement_sha": "9ddbf116bac2d73e",
   "tests": {
     "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "f5b41639f95677f8",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "682b78fb127362e1",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "682b78fb127362e1"
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "34019b0e2ba66c62",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "34019b0e2ba66c62"
   },
   "units": {
     "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "5ec5f340d14bd027",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "130db8c490b33bc9",
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "130db8c490b33bc9"
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "3be58bac540a9c3a",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "3be58bac540a9c3a"
   },
   "verdict": "enforced"
 }

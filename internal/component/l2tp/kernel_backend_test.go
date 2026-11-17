@@ -39,7 +39,7 @@ func TestKernelBackendOwnedThroughSubsystemStop(t *testing.T) {
 	t.Cleanup(func() { newSubsystemKernelWorkerFn, probeKernelModulesFn = previousWorker, previousProbe })
 	global, globalName := iface.GetBackend(), iface.ActiveBackendName()
 	address := netip.MustParseAddrPort("127.0.0.1:0")
-	sub := NewSubsystem(Parameters{Enabled: true, ListenAddrs: []netip.AddrPort{address, address}})
+	sub := NewSubsystem(&Parameters{Enabled: true, ListenAddrs: []netip.AddrPort{address, address}})
 	owner := &kernelBackendProbe{}
 	acquisitions := 0
 	sub.openKernelBackend = func(name string) (iface.Backend, error) {
@@ -102,7 +102,7 @@ func TestKernelBackendOwnedThroughSubsystemStop(t *testing.T) {
 // retry can acquire it once, and repeated preparation must reuse that owner.
 func TestKernelBackendAcquisitionRetriesWithoutGlobalSwap(t *testing.T) {
 	failure := errors.New("kernel factory unavailable")
-	sub := NewSubsystem(Parameters{})
+	sub := NewSubsystem(&Parameters{})
 	owner := &kernelBackendProbe{}
 	calls := 0
 	sub.openKernelBackend = func(string) (iface.Backend, error) {

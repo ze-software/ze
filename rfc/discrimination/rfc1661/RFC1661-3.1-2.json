@@ -3,12 +3,12 @@
     "rid": "RFC1661-3.1-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens",
-    "unit-sha": "8f37331d6a7d16a9",
+    "unit-sha": "8dd75445554c2d2b",
     "claim-sha": "699b0b5c823e1787",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
-    "producer-sha": "3f1b908bb5a296ba",
-    "break": "line 48: \"ipcpEnabled := !s.disableIPCP\" -\u003e \"ipcpEnabled := false\""
+    "producer-sha": "1eebc490c7a86d56",
+    "break": "line 50: \"ipcpEnabled := !s.disableIPCP\" -\u003e \"ipcpEnabled := false\""
   },
   {
     "rid": "RFC1661-3.1-2",

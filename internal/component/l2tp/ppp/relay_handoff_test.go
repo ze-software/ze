@@ -97,7 +97,7 @@ func startRelaySession(t *testing.T, fd int) (*Driver, net.Conn, []byte, EventAu
 
 	sent := make(chan []byte, 1)
 	go relayPeerLCP(t, pair.peerEnd, sent)
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:      testLCPConfig(),
 		TunnelID: 7, SessionID: 9,
 		LNSMode: true, PPPoE: true, MaxMRU: 1500,
@@ -163,11 +163,11 @@ func TestDriverCapturesProxyLCPForRelay(t *testing.T) {
 // Method: on net.Pipe a write completes only when the other end reads, so a
 // peer write that times out proves no reader is left.
 func TestDriverQuiesceStopsReaderBeforeReturning(t *testing.T) {
-	d, peer, _, _ := startRelaySession(t, 16002)
-	if err := d.QuiesceSession(7, 9); err != nil {
+	d, peer, _, request := startRelaySession(t, 16002)
+	if err := d.QuiesceSession(request); err != nil {
 		t.Fatalf("QuiesceSession: %v", err)
 	}
-	s, err := d.liveSession(7, 9)
+	s, err := d.liveSession(request.Control)
 	if err != nil {
 		t.Fatalf("session gone after quiesce: %v", err)
 	}
@@ -198,8 +198,8 @@ func TestDriverQuiesceStopsReaderBeforeReturning(t *testing.T) {
 // read started only after the release could never see such a frame, and
 // SetReadDeadline on a pipe whose other end closed answers io.ErrClosedPipe.
 func TestDriverRelayReleaseSendsNoAuthReply(t *testing.T) {
-	d, peer, _, _ := startRelaySession(t, 16003)
-	if err := d.QuiesceSession(7, 9); err != nil {
+	d, peer, _, request := startRelaySession(t, 16003)
+	if err := d.QuiesceSession(request); err != nil {
 		t.Fatalf("QuiesceSession: %v", err)
 	}
 	type peerRead struct {
@@ -212,7 +212,7 @@ func TestDriverRelayReleaseSendsNoAuthReply(t *testing.T) {
 		n, err := peer.Read(buf)
 		readCh <- peerRead{frame: bytes.Clone(buf[:n]), err: err}
 	}()
-	if err := d.ReleaseSession(7, 9); err != nil {
+	if err := d.ReleaseSession(request); err != nil {
 		t.Fatalf("ReleaseSession: %v", err)
 	}
 	select {
@@ -226,7 +226,7 @@ func TestDriverRelayReleaseSendsNoAuthReply(t *testing.T) {
 	if ev, ok := waitForEventOfType[EventSessionDown](t, d.EventsOut(), 200*time.Millisecond); ok {
 		t.Fatalf("released session reported %+v, want no EventSessionDown", ev)
 	}
-	if _, err := d.liveSession(7, 9); !errors.Is(err, ErrSessionNotFound) {
+	if _, err := d.liveSession(request.Control); !errors.Is(err, ErrSessionNotFound) {
 		t.Fatalf("session still known after ReleaseSession: %v", err)
 	}
 }
@@ -236,12 +236,12 @@ func TestDriverRelayReleaseSendsNoAuthReply(t *testing.T) {
 // carrying the message, then an LCP Terminate-Request, and the session
 // ends with EventSessionDown so the transport sends PADT.
 func TestDriverRelayRefusalClosesLCP(t *testing.T) {
-	d, peer, _, _ := startRelaySession(t, 16004)
-	if err := d.QuiesceSession(7, 9); err != nil {
+	d, peer, _, request := startRelaySession(t, 16004)
+	if err := d.QuiesceSession(request); err != nil {
 		t.Fatalf("QuiesceSession: %v", err)
 	}
 	const message = "realm example.net: L2TP call refused"
-	if err := d.RefuseAuth(7, 9, message); err != nil {
+	if err := d.RefuseAuth(request, message); err != nil {
 		t.Fatalf("RefuseAuth: %v", err)
 	}
 	if err := peer.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {

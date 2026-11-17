@@ -103,7 +103,7 @@ func TestNormalPathDispatchesCHAPMD5(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   301,
 		SessionID:  401,
@@ -132,7 +132,11 @@ func TestNormalPathDispatchesCHAPMD5(t *testing.T) {
 		t.Errorf("CHAP Value-Size = %d, want %d", payload[4], chapChallengeValueLen)
 	}
 
-	if err := d.StopSession(301, 401); err != nil {
+	opened, found := waitForEventOfType[EventLCPUp](t, d.EventsOut(), 2*time.Second)
+	if !found {
+		t.Fatal("no observed LCP-up capability for this admitted session")
+	}
+	if err := d.StopSession(opened.Control); err != nil {
 		t.Logf("StopSession: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
@@ -167,7 +171,7 @@ func TestNormalPathDispatchesMSCHAPv2(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   302,
 		SessionID:  402,
@@ -195,7 +199,11 @@ func TestNormalPathDispatchesMSCHAPv2(t *testing.T) {
 			payload[4])
 	}
 
-	if err := d.StopSession(302, 402); err != nil {
+	opened, found := waitForEventOfType[EventLCPUp](t, d.EventsOut(), 2*time.Second)
+	if !found {
+		t.Fatal("no observed LCP-up capability for this admitted session")
+	}
+	if err := d.StopSession(opened.Control); err != nil {
 		t.Logf("StopSession: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
@@ -367,7 +375,7 @@ func TestAuthFallbackOnNakProceedsToCHAP(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:               testLCPConfig(),
 		TunnelID:          303,
 		SessionID:         403,
@@ -391,7 +399,11 @@ func TestAuthFallbackOnNakProceedsToCHAP(t *testing.T) {
 			payload[0], CHAPCodeChallenge)
 	}
 
-	if err := d.StopSession(303, 403); err != nil {
+	opened, found := waitForEventOfType[EventLCPUp](t, d.EventsOut(), 2*time.Second)
+	if !found {
+		t.Fatal("no observed LCP-up capability for this admitted session")
+	}
+	if err := d.StopSession(opened.Control); err != nil {
 		t.Logf("StopSession: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)

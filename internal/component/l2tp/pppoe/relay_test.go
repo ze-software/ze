@@ -47,7 +47,7 @@ func TestRelayToL2TP_ConsultsSink(t *testing.T) {
 	s := &InterfaceServer{ifName: "eth0", sessions: newSessionTable("eth0", 10), logger: slog.Default()}
 	opened := fixtureRelayOpened(t, 99)
 	require.NoError(t, s.sessions.Add(&Session{SID: 7}))
-	require.True(t, s.sessions.setOpened(7, opened))
+	require.True(t, fixtureCurrentOpened(t, s, s.sessions.Lookup(7), opened))
 	pkt := &Packet{
 		SrcMAC: [EthALen]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff},
 		Tags:   []Tag{{Type: TagServiceName, Value: []byte("wholesale")}},

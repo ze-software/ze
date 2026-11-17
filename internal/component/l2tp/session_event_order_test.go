@@ -23,17 +23,14 @@ package l2tp
 import (
 	"log/slog"
 	"net/netip"
-	"reflect"
 	"slices"
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/stretchr/testify/require"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -351,32 +348,6 @@ func orderTestSession(sid uint16, pppInterface string) *L2TPSession {
 	}
 }
 
-// orderTestIPv4 is what PPP reports when IPCP assigns session orderTestSID of
-// tunnel orderTestTID its address.
-func orderTestIPv4() ppp.EventSessionIPAssigned {
-	return ppp.EventSessionIPAssigned{
-		TunnelID:  orderTestTID,
-		SessionID: orderTestSID,
-		Username:  "grace",
-		Family:    ppp.AddressFamilyIPv4,
-		Peer:      netip.MustParseAddr("192.0.2.7"),
-	}
-}
-
-// acknowledgeableIPAssigned gives ev the acknowledgement channel PPP's
-// sendIPAssigned gives it, and returns that channel. ppp keeps the field
-// unexported so that only PPP makes one. This test stands in for PPP, and
-// writes the field the one way Go allows from another package.
-func acknowledgeableIPAssigned(t *testing.T, ev ppp.EventSessionIPAssigned) (ppp.EventSessionIPAssigned, <-chan struct{}) {
-	t.Helper()
-	done := make(chan struct{})
-	field := reflect.ValueOf(&ev).Elem().FieldByName("done")
-	require.True(t, field.IsValid(), "ppp.EventSessionIPAssigned no longer holds its acknowledgement channel in the field done")
-	//nolint:gosec // G103: the test stands in for PPP, the one writer of the unexported acknowledgement channel.
-	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Set(reflect.ValueOf(done))
-	return ev, done
-}
-
 // TestSessionIPAssignedIsPublishedBeforeTheTeardownThatFollowsIt proves that a
 // teardown on another goroutine delivers its SessionDown only after the
 // SessionIPAssigned that changed the session before it. A reader holds the
@@ -392,13 +363,15 @@ func TestSessionIPAssignedIsPublishedBeforeTheTeardownThatFollowsIt(t *testing.T
 	notices := subscribeSessionNoticeLog(bus)
 	r := newReactorForEventOrder(t, bus)
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"))
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	wire.release = gate.open
 
-	assigned := startOrderPath(func() { r.handleSessionIPAssigned(orderTestIPv4()) })
+	assigned := wire.start(func() { r.handleSessionIPAssigned(wire.assignment) })
 	awaitOrderEvent(t, gate.entered, "the SessionIPAssigned publication reaching its first reader")
 	gate.openWhenIssued(t, r)
 	var teardownErr error
-	torn := startOrderPath(func() {
-		teardownErr = r.teardownSessionOnTunnelWith(11, 7, cdnResultAdministrative, l2tpevents.TerminateCauseAdminReset)
+	torn := wire.start(func() {
+		teardownErr = r.teardownSessionOnTunnel(11, 7)
 	})
 	awaitOrderEvent(t, torn, "the operator teardown")
 	awaitOrderEvent(t, assigned, "the SessionIPAssigned publication")
@@ -422,13 +395,16 @@ func TestSessionUpIsPublishedBeforeTheTeardownThatFollowsIt(t *testing.T) {
 	notices := subscribeSessionNoticeLog(bus)
 	r := newReactorForEventOrder(t, bus)
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"))
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	wire.release = gate.open
 
-	up := startOrderPath(func() { r.handleSessionUp(ppp.EventSessionUp{TunnelID: 11, SessionID: 7}) })
+	upEvent := wire.up(t)
+	up := wire.start(func() { r.handleSessionUp(upEvent) })
 	awaitOrderEvent(t, gate.entered, "the SessionUp publication reaching its first reader")
 	gate.openWhenIssued(t, r)
 	var teardownErr error
-	torn := startOrderPath(func() {
-		teardownErr = r.teardownSessionOnTunnelWith(11, 7, cdnResultAdministrative, l2tpevents.TerminateCauseAdminReset)
+	torn := wire.start(func() {
+		teardownErr = r.teardownSessionOnTunnel(11, 7)
 	})
 	awaitOrderEvent(t, torn, "the operator teardown")
 	awaitOrderEvent(t, up, "the SessionUp publication")
@@ -451,13 +427,15 @@ func TestRouteObserverSeesIPUpBeforeTheDownThatFollowsIt(t *testing.T) {
 	r := newReactorForEventOrder(t, bus)
 	r.routeObserver = &gatedRouteObserver{gate: gate, inner: inner}
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"))
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	wire.release = gate.open
 
-	assigned := startOrderPath(func() { r.handleSessionIPAssigned(orderTestIPv4()) })
+	assigned := wire.start(func() { r.handleSessionIPAssigned(wire.assignment) })
 	awaitOrderEvent(t, gate.entered, "the IP-up reaching the route observer")
 	gate.openWhenIssued(t, r)
 	var teardownErr error
-	torn := startOrderPath(func() {
-		teardownErr = r.teardownSessionOnTunnelWith(11, 7, cdnResultAdministrative, l2tpevents.TerminateCauseAdminReset)
+	torn := wire.start(func() {
+		teardownErr = r.teardownSessionOnTunnel(11, 7)
 	})
 	awaitOrderEvent(t, torn, "the operator teardown")
 	awaitOrderEvent(t, assigned, "the IP-up")
@@ -485,13 +463,15 @@ func TestTeardownDuringIPAssignedLeavesNoSubscriberEntry(t *testing.T) {
 	t.Cleanup(bridge.stop)
 	r := newReactorForEventOrder(t, bus)
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"))
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	wire.release = gate.open
 
-	assigned := startOrderPath(func() { r.handleSessionIPAssigned(orderTestIPv4()) })
+	assigned := wire.start(func() { r.handleSessionIPAssigned(wire.assignment) })
 	awaitOrderEvent(t, gate.entered, "the SessionIPAssigned publication reaching its first reader")
 	gate.openWhenIssued(t, r)
 	var teardownErr error
-	torn := startOrderPath(func() {
-		teardownErr = r.teardownSessionOnTunnelWith(11, 7, cdnResultAdministrative, l2tpevents.TerminateCauseAdminReset)
+	torn := wire.start(func() {
+		teardownErr = r.teardownSessionOnTunnel(11, 7)
 	})
 	awaitOrderEvent(t, torn, "the operator teardown")
 	awaitOrderEvent(t, assigned, "the SessionIPAssigned publication")
@@ -516,12 +496,14 @@ func TestTunnelTeardownDownsFollowEarlierEventsOfItsSessions(t *testing.T) {
 	notices := subscribeSessionNoticeLog(bus)
 	r := newReactorForEventOrder(t, bus)
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"), orderTestSession(8, "ppp8"))
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	wire.release = gate.open
 
-	assigned := startOrderPath(func() { r.handleSessionIPAssigned(orderTestIPv4()) })
+	assigned := wire.start(func() { r.handleSessionIPAssigned(wire.assignment) })
 	awaitOrderEvent(t, gate.entered, "the SessionIPAssigned publication reaching its first reader")
 	gate.openWhenIssued(t, r)
 	var teardownErr error
-	torn := startOrderPath(func() {
+	torn := wire.start(func() {
 		teardownErr = r.teardownTunnel(11, ResultCodeValue{Result: resultAdministrative}, l2tpevents.TerminateCauseAdminReset)
 	})
 	awaitOrderEvent(t, torn, "the tunnel teardown")
@@ -540,7 +522,7 @@ func TestTunnelTeardownDownsFollowEarlierEventsOfItsSessions(t *testing.T) {
 // at the acknowledgement channel as the last thing it does.
 func TestIPAssignedAcknowledgesAfterReadersReturn(t *testing.T) {
 	bus := newSessionOrderBus()
-	ev, acknowledged := acknowledgeableIPAssigned(t, orderTestIPv4())
+	var acknowledged <-chan struct{}
 	var acknowledgedEarly []string
 	lookAtAcknowledgement := func(reader string) {
 		select {
@@ -553,6 +535,10 @@ func TestIPAssignedAcknowledgesAfterReadersReturn(t *testing.T) {
 	l2tpevents.SessionIPAssigned.Subscribe(bus, func(*l2tpevents.SessionIPAssignedPayload) { lookAtAcknowledgement("last reader") })
 	r := newReactorForEventOrder(t, bus)
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"))
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	ev := wire.assignment
+	acknowledged = ev.Acknowledged()
+	require.NotNil(t, acknowledged, "actual Driver assignment has no acknowledgement channel")
 
 	r.handleSessionIPAssigned(ev)
 
@@ -579,6 +565,8 @@ func TestSessionUpStartsTimeoutsAfterPublication(t *testing.T) {
 		cancelSessionTimeouts(sess)
 		r.tunnelsMu.Unlock()
 	})
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	upEvent := wire.up(t)
 	armedDuringPublication := false
 	l2tpevents.SessionUp.Subscribe(bus, func(*l2tpevents.SessionUpPayload) {
 		r.tunnelsMu.Lock()
@@ -586,7 +574,7 @@ func TestSessionUpStartsTimeoutsAfterPublication(t *testing.T) {
 		r.tunnelsMu.Unlock()
 	})
 
-	r.handleSessionUp(ppp.EventSessionUp{TunnelID: 11, SessionID: 7})
+	r.handleSessionUp(upEvent)
 
 	r.tunnelsMu.Lock()
 	armed := sess.sessionTimeoutCancel != nil
@@ -605,17 +593,19 @@ func TestSlowReaderDelaysNoStateChange(t *testing.T) {
 	notices := subscribeSessionNoticeLog(bus)
 	r := newReactorForEventOrder(t, bus)
 	insertEstablishedTunnel(t, r, 11, 22, orderTestPeer, orderTestSession(7, "ppp7"))
+	wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: 11, sessionID: 7})
+	wire.release = gate.open
 	insertEstablishedTunnel(t, r, 12, 23, orderTestOtherPeer, orderTestSession(9, "ppp9"))
 
-	assigned := startOrderPath(func() { r.handleSessionIPAssigned(orderTestIPv4()) })
+	assigned := wire.start(func() { r.handleSessionIPAssigned(wire.assignment) })
 	awaitOrderEvent(t, gate.entered, "the SessionIPAssigned publication of tunnel 11 reaching its first reader")
 	var teardownErr error
-	torn := startOrderPath(func() {
-		teardownErr = r.teardownSessionOnTunnelWith(12, 9, cdnResultAdministrative, l2tpevents.TerminateCauseAdminReset)
+	torn := wire.start(func() {
+		teardownErr = r.teardownSessionOnTunnel(12, 9)
 	})
 	awaitOrderEvent(t, torn, "the teardown on tunnel 12 while a reader of tunnel 11 is held")
 	var found bool
-	looked := startOrderPath(func() { _, found = r.LookupSession(7) })
+	looked := wire.start(func() { _, found = r.LookupSession(7) })
 	awaitOrderEvent(t, looked, "a session lookup while a reader of tunnel 11 is held")
 	gate.open()
 	awaitOrderEvent(t, assigned, "the held publication")
@@ -833,10 +823,9 @@ func ticketPaths() []ticketPath {
 			r.handleTick(tickReq{tunnelID: orderTestTID})
 			return nil
 		}},
-		{name: "a PPP session down", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
-			r.handlePPPEvent(ppp.EventSessionDown{
-				TunnelID: orderTestTID, SessionID: orderTestSID, Reason: "test", Cause: l2tpevents.TerminateCauseUserRequest,
-			})
+		{name: "a PPP session down", drive: func(t *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
+			wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: orderTestTID, sessionID: orderTestSID})
+			r.handlePPPEvent(wire.peerDown(t))
 			return nil
 		}},
 		{name: "a kernel setup failure", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
@@ -850,18 +839,21 @@ func ticketPaths() []ticketPath {
 			return r.teardownSessionByID(orderTestSID, l2tpevents.TerminateCauseAdminReset)
 		}},
 		{name: "a session teardown on a named tunnel", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
-			return r.teardownSessionOnTunnelWith(orderTestTID, orderTestSID, cdnResultAdministrative, l2tpevents.TerminateCauseAdminReset)
+			return r.teardownSessionOnTunnel(orderTestTID, orderTestSID)
 		}},
-		{name: "an LCP down in the network phase", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
-			r.handleLCPDown(ppp.EventLCPDown{TunnelID: orderTestTID, SessionID: orderTestSID, NetworkPhase: true})
+		{name: "an LCP down in the network phase", drive: func(t *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
+			wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: orderTestTID, sessionID: orderTestSID})
+			r.handleLCPDown(wire.withdraw(t))
 			return nil
 		}},
-		{name: "an IP assigned", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
-			r.handleSessionIPAssigned(orderTestIPv4())
+		{name: "an IP assigned", drive: func(t *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
+			wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: orderTestTID, sessionID: orderTestSID})
+			r.handleSessionIPAssigned(wire.assignment)
 			return nil
 		}},
-		{name: "a session up", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
-			r.handleSessionUp(ppp.EventSessionUp{TunnelID: orderTestTID, SessionID: orderTestSID})
+		{name: "a session up", drive: func(t *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
+			wire := newCurrentCoreWire(t, r, &currentCoreSessionIDs{tunnelID: orderTestTID, sessionID: orderTestSID})
+			r.handleSessionUp(wire.up(t))
 			return nil
 		}},
 	}

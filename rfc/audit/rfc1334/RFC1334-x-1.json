@@ -1,16 +1,15 @@
 {
-  "code": {},
-  "note": "Independent rejudgment 2026-11-15 against RFC 1334 Section 2: \"Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP.\" Read every current tagged unit: TestInitialAuthMethodCHAPBeforePAPWhateverOrder, TestSelectAuthFallback, TestAuthOffersCHAPBeforePAP, TestConfiguredPAPStillOffersCHAPFirst and TestAuthAllowSelectionMatrix. The decisive independent temporal cases are the matrix PAP default wire CHAP-MD5 then PAP, and PAP written first with permitted [pap, ms-chap-v2, chap-md5] requiring wire MS-CHAPv2, CHAP-MD5, PAP before publishing PAP at Opened. Canonical Naks use the latest actual request Identifier, include a permitted PAP alternative, and decode CHAP algorithm values, isolating premature PAP from policy-membership and malformed-input failures. Helper cases cover both stronger variants, PAP-last fallback, configured CHAP precedence and PAP-only/no-auth conditional boundaries. The Driver case checks actual spawnSession first-offer wiring; its two tags alone would be one observation, so the independent matrix supplies the temporal contrast. ResolveAuthAllow, initialAuthMethod and selectAuthFallback retain that ordering before sendConfigureRequest. The changed Driver unit only adds validated LCP configuration. Preserve the superseded/dropped annotation's explicit statement that this PAP obligation remains owed; no new RFC1994 obligation is inferred. The obsolete defaultAuthFallbackOrder record is not part of this semantic proof and was not replaced or removed.",
+  "note": "Read RFC1334 Section2 including the full stronger-method-before-PAP obligation; the superseded annotation says the PAP obligation remains owed. Read every tagged unit: TestAuthAllowSelectionMatrix uses real Driver wire negotiation, default configured PAP first offering CHAP-MD5, then correlated PAP Nak fallback; its ordered [pap,ms-chap-v2,chap-md5] case requires MS-CHAPv2 then CHAP-MD5 despite repeated valid PAP Naks before finally allowing PAP and observing PAP at Opened. TestAuthOffersCHAPBeforePAP and TestConfiguredPAPStillOffersCHAPFirst pin first stronger offers and valid post-offer fallback; TestSelectAuthFallback rejects PAP under CHAP-only policy; TestInitialAuthMethodCHAPBeforePAPWhateverOrder covers stronger variants and default policy. Read ResolveAuthAllow, initialAuthMethod, selectAuthFallback and accepted Nak handling: all allowed untried stronger methods precede PAP. The real ordered driver matrix supplies distinct temporal observations; the shared-assertion tags in smaller helpers are not credited as independent pairs. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.",
   "requirement_sha": "b9bbe3e692d702fa",
   "tests": {
     "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthAllowSelectionMatrix": "955ccfa2924ebf5b",
     "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthAllowSelectionMatrix#2": "955ccfa2924ebf5b",
-    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestInitialAuthMethodCHAPBeforePAPWhateverOrder": "42041aaf5bfafeeb",
-    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "42041aaf5bfafeeb",
-    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "3628f96e92c4d5e6",
-    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "3628f96e92c4d5e6",
-    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "3628f96e92c4d5e6",
-    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "3628f96e92c4d5e6"
+    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestInitialAuthMethodCHAPBeforePAPWhateverOrder": "b002bd252f191334",
+    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "b002bd252f191334",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "9b1b7659420f1ace",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "9b1b7659420f1ace",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "9b1b7659420f1ace",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "9b1b7659420f1ace"
   },
   "units": {
     "internal/component/l2tp/ppp/auth_policy_driver_test.go::TestAuthAllowSelectionMatrix": "52c1650484ea783a",
@@ -19,8 +18,8 @@
     "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "eec2205c6445fde3",
     "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "b40d2086ec2fa25f",
     "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "b40d2086ec2fa25f",
-    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "3f3cf89887f3b022",
-    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "3f3cf89887f3b022"
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "acddfbc12a901f26",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "acddfbc12a901f26"
   },
   "verdict": "enforced"
 }

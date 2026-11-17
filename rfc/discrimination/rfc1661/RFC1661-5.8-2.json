@@ -1,25 +1,25 @@
 [
   {
     "rid": "RFC1661-5.8-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
+    "unit-sha": "84855e1adb5480ac",
+    "claim-sha": "bf42c255a642925a",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/session_run.go::run",
+    "producer-sha": "b0c7552102a34aa9",
+    "break": "line 464: \"nowOpened := s.currentState() == LCPStateOpened\" -\u003e \"nowOpened := opened || s.currentState() == LCPStateOpened\""
+  },
+  {
+    "rid": "RFC1661-5.8-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
-    "unit-sha": "aa34714d733a838a",
+    "unit-sha": "84855e1adb5480ac",
     "claim-sha": "a6864d7d0ae9e453",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoRequest",
     "producer-sha": "67e08de14e9b2399",
-    "break": "body of sendEchoRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC1661-5.8-2",
-    "polarity": "negative",
-    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
-    "unit-sha": "aa34714d733a838a",
-    "claim-sha": "bf42c255a642925a",
-    "route": "mutant",
-    "producer": "internal/component/l2tp/ppp/session_run.go::run",
-    "producer-sha": "7cf0aba336f34b08",
-    "break": "line 442: \"nowOpened := s.currentState() == LCPStateOpened\" -\u003e \"nowOpened := opened || s.currentState() == LCPStateOpened\""
+    "break": "body of sendEchoRequest replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1661-5.8-2",

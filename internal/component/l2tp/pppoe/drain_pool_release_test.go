@@ -22,7 +22,7 @@ type undeliveredPoolDriver struct {
 
 func (d *undeliveredPoolDriver) IPEventsOut() <-chan ppp.IPEvent { return d.events }
 
-func (d *undeliveredPoolDriver) IPResponse(_, _ uint16, _ ppp.IPResponseArgs) error {
+func (d *undeliveredPoolDriver) IPResponse(_ ppp.EventIPRequest, _ ppp.IPResponseArgs) error {
 	d.responses++
 	return d.err
 }

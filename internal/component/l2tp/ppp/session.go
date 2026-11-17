@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc5072.md -- RFC 5072 Section 4.1 (Interface-Identifier comparison outcomes, referenced by peerInterfaceIDNegotiated)
 // Related: manager.go -- Driver owns pppSession values in sessions map
 // Related: session_run.go -- per-session goroutine main loop
-// Related: auth_events.go -- authEventsOut + authRespCh fields on pppSession
+// Related: auth_events.go -- authEventsOut requests on pppSession
 
 package ppp
 
@@ -17,7 +17,7 @@ import (
 
 // pppSession is the per-session state owned by one goroutine in the
 // Manager. Field writes are exclusive to the goroutine that owns the
-// session; reads from outside (e.g. SessionByID for `show l2tp
+// session; reads from outside (e.g. sessionForControl for `show l2tp
 // session`) MUST acquire mu.
 //
 // Mirrors the L2TP reactor's per-tunnel ownership model: writer is
@@ -29,6 +29,32 @@ type pppSession struct {
 	tunnelID     uint16
 	sessionID    uint16
 	subscriberID string
+	attempt      SessionAttempt
+	control      SessionControl
+	// driver is the immutable owner even for a rejected cleanup-only handoff.
+	driver      *Driver
+	cleanupOnly bool
+	// Immutable report ownership captured from the factory before admission.
+	nativeBirthTag string
+	nativeIdentity SessionIdentity
+	// nativeReleaseMu is never acquired while d.mu is held.
+	nativeReleaseMu sync.Mutex
+	// Writes hold nativeReleaseMu AND driver.mu; pure observers hold driver.mu.
+	nativeReleaseErr error
+	// Physical release is distinct from index/budget retirement below.
+	// Worker-owned IPv6 service startup/stop publishes this under Driver.mu.
+	// A canceled-owner callback must never join the service or delete it early.
+	ownerServicePending bool
+	ownerServiceErr     error // retained child outcome, independent of physical Close
+	ownerCloseAttempted bool
+	ownerReleased       bool
+	// Native-retention flags are protected by Driver.mu, never session.mu.
+	nativeReserved bool
+	nativeRetired  bool
+	nativeReleased bool
+	// Pending pointers are worker-owned; answers synchronize on request state.
+	authRequest *authRequest
+	ipRequest   *ipRequest
 
 	// The channel carries userspace PPP control frames. unitFile owns
 	// the kernel PPP unit attached by PPPIOCCONNECT; framesIn is fed
@@ -194,17 +220,6 @@ type pppSession struct {
 	// channel for the same reason the auth channel is separate.
 	ipEventsOut chan<- IPEvent
 
-	// Auth decision delivered by Driver.AuthResponse. Buffered(1) so
-	// a caller that beats the session to the receive position does
-	// not block. The session reads exactly once per auth phase.
-	authRespCh chan authResponseMsg
-
-	// IP decisions delivered by Driver.IPResponse. Buffered(2), one
-	// slot per family, so IPv4 and IPv6 responses may arrive in any
-	// order and both be accepted without blocking the caller. The
-	// session reads exactly once per family per NCP round.
-	ipRespCh chan ipResponseMsg
-
 	// NCP configuration captured from StartSession. Zero/false means
 	// the NCP is enabled (spec default "enable-*cp=true").
 	disableIPCP   bool
@@ -227,7 +242,7 @@ type pppSession struct {
 	// sessStopOnce.Do. The auth phase selects on this in addition
 	// to stopCh so a single-session teardown (as opposed to a
 	// whole-driver shutdown) unblocks a goroutine parked on
-	// authRespCh. Closing chanFile alone is insufficient because
+	// its request's answer channel. Closing chanFile alone is insufficient because
 	// the auth phase runs before or alongside readFrames rather
 	// than consuming from it. sessStopOnce guarantees idempotent
 	// close if a future cleanup path joins StopSession.

@@ -94,7 +94,9 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 				down = append(down, p.Session)
 			})
 			baseline := pppoeActiveSubscribers(t)
-			key := pendingAuthKey{ifindex: ifIndex, sessionID: sid}
+			owner := fixtureCurrentStart(t, server, transport, &fixtureCurrentStartConfig{method: ppp.AuthMethodCHAPMD5, dual: true})
+			owner.authenticate(t, &fixtureCurrentAuthConfig{username: "old-user"})
+			key := pendingAuthFor(owner.control)
 			sub.pendingAuth.Store(key, pendingAuthInfo{username: "pending-user", authMethod: "chap-md5"})
 			l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid), &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit", FramedPool: "old-pool"})
 			first := ppp.EventSessionIPAssigned{
@@ -103,6 +105,8 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 				DNSPrimary: netip.MustParseAddr("192.0.2.53"), DNSSecondary: netip.MustParseAddr("192.0.2.54"),
 			}
 			firstV6 := ppp.EventSessionIPAssigned{TunnelID: ifIndex, SessionID: sid, Family: ppp.AddressFamilyIPv6, Username: "old-user", InterfaceID: [8]byte{2, 0, 0, 0, 0, 0, 0, 43}}
+			owner.allocate(t, first)
+			first = owner.assigned(t, first)
 			sub.handlePPPEvent(first)
 			configured, ok := subscriber.DefaultRegistry.Get(id)
 			require.True(t, ok, "IPCP assignment before SessionUp must be retained")
@@ -113,8 +117,9 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			require.Equal(t, "old-user", configured.Username)
 			require.Equal(t, baseline, pppoeActiveSubscribers(t))
 			if activateFirst {
+				firstV6 = owner.assigned(t, firstV6)
 				sub.handlePPPEvent(firstV6)
-				sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: ifIndex, SessionID: sid})
+				sub.handlePPPEvent(owner.up(t))
 				require.Len(t, up, 1)
 				assertPPPoELifetimeAddresses(t, &up[0], first, firstV6)
 				require.Equal(t, uint64(20_000_000), up[0].DownloadRate)
@@ -122,7 +127,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 				require.Equal(t, baseline+1, pppoeActiveSubscribers(t))
 			}
 
-			sub.handlePPPEvent(ppp.EventLCPDown{TunnelID: ifIndex, SessionID: sid, NetworkPhase: true, Reason: "peer restarted LCP"})
+			sub.handlePPPEvent(owner.restart(t))
 			_, ok = subscriber.DefaultRegistry.Get(id)
 			require.False(t, ok, "LCPDown must withdraw the old subscriber")
 			require.Nil(t, l2tp.LoadSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)), "old authorization must not survive replacement authentication")
@@ -151,13 +156,18 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			secondV6 := firstV6
 			secondV6.Username = "new-user"
 			secondV6.InterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 44}
+			owner.reopen(t)
+			owner.authenticate(t, &fixtureCurrentAuthConfig{username: "new-user"})
+			owner.allocate(t, second)
+			secondV6 = owner.assigned(t, secondV6)
 			sub.handlePPPEvent(secondV6)
 			configured, ok = subscriber.DefaultRegistry.Get(id)
 			require.True(t, ok)
 			require.Equal(t, subscriber.StateConfiguring, configured.State)
 			require.Equal(t, secondV6.InterfaceID, configured.IPv6InterfaceID)
+			second = owner.assigned(t, second)
 			sub.handlePPPEvent(second)
-			sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: ifIndex, SessionID: sid})
+			sub.handlePPPEvent(owner.up(t))
 			latest := up[len(up)-1]
 			assertPPPoELifetimeAddresses(t, &latest, second, secondV6)
 			require.Equal(t, "new-user", latest.Username)
@@ -166,7 +176,7 @@ func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
 			require.Equal(t, uint64(7_000_000), latest.UploadRate)
 			require.Equal(t, baseline+1, pppoeActiveSubscribers(t))
 
-			sub.handlePPPEvent(ppp.EventSessionDown{TunnelID: ifIndex, SessionID: sid, Reason: "peer finished"})
+			sub.handlePPPEvent(owner.down(t))
 			require.Nil(t, server.sessions.Lookup(sid))
 			_, ok = subscriber.DefaultRegistry.Get(id)
 			require.False(t, ok)
@@ -212,7 +222,29 @@ func TestPPPoESubscriberRejectsUnusableAssignments(t *testing.T) {
 	} {
 		id := pppoeSessionID(int(event.TunnelID), event.SessionID)
 		t.Cleanup(func() { subscriber.DefaultRegistry.Remove(id) })
-		sub.handlePPPEvent(event)
+		// Invalid values are injected into a genuine outstanding assignment.
+		// Foreign labels use a genuinely different admission, because wire
+		// TunnelID alone is no longer a subscriber authority.
+		emitter := sub.servers[ifIndex]
+		session := emitter.sessions.Lookup(sid)
+		if event.TunnelID != ifIndex || event.SessionID != sid {
+			emitter = &InterfaceServer{ifIndex: int(event.TunnelID), sessions: newSessionTable("foreign", 1)}
+			session = &Session{SID: event.SessionID, State: StateSession, Opened: fixtureOpened(t, "foreign")}
+			if err := emitter.sessions.Add(session); err != nil {
+				t.Fatal(err)
+			}
+		}
+		owner := fixtureCurrentStart(t, emitter, session, &fixtureCurrentStartConfig{method: ppp.AuthMethodNone, dual: true})
+		owner.authenticate(t, &fixtureCurrentAuthConfig{username: ""})
+		valid := ppp.EventSessionIPAssigned{Family: ppp.AddressFamilyIPv4, Peer: netip.MustParseAddr("192.0.2.99")}
+		owner.allocate(t, valid)
+		actual := owner.assigned(t, valid)
+		actual.TunnelID = event.TunnelID
+		actual.SessionID = event.SessionID
+		actual.Family = event.Family
+		actual.Peer = event.Peer
+		actual.InterfaceID = event.InterfaceID
+		sub.handlePPPEvent(actual)
 		_, ok := subscriber.DefaultRegistry.Get(id)
 		require.False(t, ok, "unusable assignment must not create a subscriber")
 	}
@@ -239,7 +271,12 @@ func TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(id) })
 	l2tp.StoreSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid), &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
 	t.Cleanup(func() { l2tp.ClearSessionMetadata(subscriber.SessionID(subscriber.AccessPPPoE, uint64(ifIndex), sid)) })
-	key := pendingAuthKey{ifindex: ifIndex, sessionID: sid}
+	owner := fixtureCurrentStart(t, server, server.sessions.Lookup(sid), &fixtureCurrentStartConfig{method: ppp.AuthMethodNone, dual: true})
+	owner.authenticate(t, &fixtureCurrentAuthConfig{username: ""})
+	// Reach the genuine configuring NCP phase before asking LCP to restart.
+	// Neither family is acknowledged, so this lifetime remains inactive.
+	owner.allocate(t, ppp.EventSessionIPAssigned{Peer: addr})
+	key := pendingAuthFor(owner.control)
 	sub.pendingAuth.Store(key, pendingAuthInfo{username: "old-user", authMethod: "pap"})
 	var down []subscriber.Session
 	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = append(down, p.Session) })
@@ -247,7 +284,7 @@ func TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
 	server.sendFrameFn = func(frame []byte) { sent = append(sent, append([]byte(nil), frame...)) }
 	baseline := pppoeActiveSubscribers(t)
 
-	sub.handlePPPEvent(ppp.EventLCPDown{TunnelID: ifIndex, SessionID: sid, NetworkPhase: true})
+	sub.handlePPPEvent(owner.restart(t))
 	require.Len(t, down, 1, "LCPDown must publish the existing subscriber withdrawal")
 	require.Equal(t, addr, down[0].IPv4Addr)
 	_, ok := subscriber.DefaultRegistry.Get(id)

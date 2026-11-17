@@ -73,7 +73,7 @@ func newPreparationOwner(t *testing.T, lease *countedRelayLease) (*InterfaceServ
 	if err := server.sessions.Add(&Session{SID: 7, State: StateSession}); err != nil {
 		t.Fatal(err)
 	}
-	if !server.sessions.setOpened(7, opened) {
+	if !fixtureCurrentOpened(t, server, server.sessions.Lookup(7), opened) {
 		t.Fatal("session owner was not admitted")
 	}
 	return server, opened
@@ -126,7 +126,7 @@ func TestStaleRelayPreparationKeepsReplacement(t *testing.T) {
 	oldLease := &countedRelayLease{}
 	server, old := newPreparationOwner(t, oldLease)
 	preparation := &serviceBridgePreparation{sessions: server.sessions, sid: 7, opened: old}
-	server.closeAdmitted(7)
+	server.closeAdmitted(server.sessions.Lookup(7))
 	replacementLease := &countedRelayLease{}
 	replacement, err := dataplane.NewOpenedSession(&fixtureFrames{}, replacementLease, &relayFixtureTransport{descriptor: 38})
 	if err != nil {
@@ -135,7 +135,7 @@ func TestStaleRelayPreparationKeepsReplacement(t *testing.T) {
 	if err := server.sessions.Add(&Session{SID: 7, State: StateSession}); err != nil {
 		t.Fatal(err)
 	}
-	if !server.sessions.setOpened(7, replacement) {
+	if !fixtureCurrentOpened(t, server, server.sessions.Lookup(7), replacement) {
 		t.Fatal("replacement owner was not admitted")
 	}
 	if err := preparation.PrepareBridge(); !errors.Is(err, ErrSessionNotFound) {
@@ -147,7 +147,7 @@ func TestStaleRelayPreparationKeepsReplacement(t *testing.T) {
 	if err := replacement.WithDescriptor(func(int) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	server.closeAdmitted(7)
+	server.closeAdmitted(server.sessions.Lookup(7))
 	if oldLease.closes != 1 {
 		t.Errorf("original lease closes = %d, want 1", oldLease.closes)
 	}
@@ -161,11 +161,11 @@ func TestStaleRelayPreparationKeepsReplacement(t *testing.T) {
 func TestAccessTeardownKeepsTransferredPPPLease(t *testing.T) {
 	lease := &countedRelayLease{}
 	server, opened := newPreparationOwner(t, lease)
-	if server.sessions.takePPPLease(7) == nil {
+	if server.sessions.takePPPLease(server.sessions.Lookup(7)) == nil {
 		t.Fatal("local PPP did not receive its lease")
 	}
-	server.closeAdmitted(7)
-	server.closeAdmitted(7)
+	server.closeAdmitted(server.sessions.Lookup(7))
+	server.closeAdmitted(server.sessions.Lookup(7))
 	if lease.closes != 0 {
 		t.Fatal("access teardown closed a PPP-owned lease")
 	}
@@ -182,9 +182,9 @@ func TestAccessTeardownKeepsTransferredPPPLease(t *testing.T) {
 func TestMissingAdmissionCleanupKeepsLiveOwner(t *testing.T) {
 	lease := &countedRelayLease{}
 	server, opened := newPreparationOwner(t, lease)
-	server.closeAdmitted(8)
+	server.closeAdmitted(nil)
 	server.closeTransport(server.sessions.transport(8))
-	server.closeAdmitted(8)
+	server.closeAdmitted(nil)
 	if lease.closes != 0 {
 		t.Fatal("missing admission cleanup closed a live lease")
 	}
@@ -194,7 +194,7 @@ func TestMissingAdmissionCleanupKeepsLiveOwner(t *testing.T) {
 	if server.sessions.Lookup(7) == nil {
 		t.Fatal("missing admission cleanup removed another session")
 	}
-	server.closeAdmitted(7)
+	server.closeAdmitted(server.sessions.Lookup(7))
 	if lease.closes != 1 {
 		t.Errorf("live lease closes = %d, want 1", lease.closes)
 	}

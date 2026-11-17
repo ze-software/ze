@@ -1,13 +1,13 @@
 {
-  "note": "RFC 1334 Section 2.2.2: \"If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate-Ack).\" Rejudged after 83deb89129; the only tagged-unit change for this row is the added proto assertion in the negative and corrected pap.go line references. TestPAPRequestEmitsEvent delivers accept through the real runPAPAuthPhase over a pipe and asserts ProtoPAP, PAPAuthenticateAck and a true return. TestPAPRejectWritesNak asserts ProtoPAP and PAPAuthenticateNak on reject, so an unconditional Ack goes red; the recorded mutant inverts the branch at pap.go:258. Acceptance itself is the handler's decision, delivered on authRespCh; this row proves the reply to that decision. Caveat on proof: the tagged units compare the symbolic constant, and the literal Code 2 is pinned by the untagged TestPAPWriteAck (0x02); the positive record panics WritePAPAck rather than changing the Code. The sentence is in Section 2.2.2; RFC 1334 has no Section 2.3.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1334 Section2.2.2 (stable requirement ID retains2.3): acceptable Peer-ID/password requires a PAP Authenticate-Ack Code2. Complete TestPAPRequestEmitsEvent sends actual PAP credentials over a pipe, inspects the genuine auth request, answers its private capability with acceptance, and requires ProtoPAP, Authenticate-Ack, echoed Identifier0x42, success event and successful handler return. Distinct TestPAPRejectWritesNak sends different valid credentials and an explicit rejection, requiring ProtoPAP and Nak, so unconditional Ack is refused. runPAPAuthPhase uses the actual decision only at the Ack/Nak writer choice; WritePAPAck encodes the declared Code2. No trailing malformed data or earlier unrelated error masks the branch. Scope is protocol response to provider decision; local credential verification is a separate boundary. Fresh discriminator execution is owed.",
   "requirement_sha": "e7b01cfb25cadf22",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "bcead1076c8ea0bc",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "bcead1076c8ea0bc"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0f0281ea71be7ccd",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0f0281ea71be7ccd"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "1665c54fc4dc88c2",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "c5dcc74a7e3e7c50"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0a1c9ab7b773a8aa",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "f9e10bee1d44587c"
   },
   "verdict": "enforced"
 }

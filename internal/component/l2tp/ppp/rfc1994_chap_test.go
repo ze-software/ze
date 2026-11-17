@@ -475,7 +475,7 @@ func TestCHAPResponseEmitsEvent(t *testing.T) {
 	}
 
 	// Deliver an accept decision.
-	s.authRespCh <- authResponseMsg{accept: true, message: "welcome"}
+	answerAuthRequestForTest(t, evt, authResponseMsg{accept: true, message: "welcome"})
 
 	// Read the Success frame on the peer side.
 	proto, payload = readPeerFrame(t, peerEnd)
@@ -521,6 +521,7 @@ func TestCHAPResponseEmitsEvent(t *testing.T) {
 // RFC requirement: RFC1994-4.1-3 negative -- a reject decision yields a Failure packet, not Success (Success/Failure is chosen per the Response comparison).
 // RFC requirement: RFC1994-4.2-1 negative -- a reject (Response != expected) decision does NOT yield Success; the authenticator writes Failure Code=4.
 // RFC requirement: RFC1994-4.2-2 positive -- a reject (Response != expected) decision yields a Failure packet with Code=4.
+// RFC requirement: RFC1994-4.2-3 positive -- a rejected Response produces Failure with the Response Identifier.
 func TestCHAPRejectWritesFailure(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
@@ -535,7 +536,7 @@ func TestCHAPRejectWritesFailure(t *testing.T) {
 	_, payload := readPeerFrame(t, peerEnd)
 	challengeID := payload[1]
 
-	// Send a Response so the handler progresses to authRespCh.
+	// Send a Response so the handler progresses to its request wait.
 	digest := bytes.Repeat([]byte{0x11}, chapMD5DigestLen)
 	peerWrite := make([]byte, 64)
 	off := WriteFrame(peerWrite, 0, ProtoCHAP, nil)
@@ -553,13 +554,19 @@ func TestCHAPRejectWritesFailure(t *testing.T) {
 	}
 
 	// Drain EventAuthRequest.
+	var fixtureRequest EventAuthRequest
 	select {
-	case <-authEventsOut:
+	case raw := <-authEventsOut:
+		request, ok := raw.(EventAuthRequest)
+		if !ok {
+			t.Fatalf("auth event %T, want EventAuthRequest", raw)
+		}
+		fixtureRequest = request
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	s.authRespCh <- authResponseMsg{accept: false, message: "nope"}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: false, message: "nope"})
 
 	_, payload = readPeerFrame(t, peerEnd)
 	if payload[0] != CHAPCodeFailure {
@@ -613,7 +620,7 @@ func TestCHAPTimeoutEmitsFailure(t *testing.T) {
 	_, payload := readPeerFrame(t, peerEnd)
 	challengeID := payload[1]
 
-	// Send a Response so the handler progresses to authRespCh and
+	// Send a Response so the handler progresses to its request wait and
 	// parks waiting for AuthResponse.
 	digest := bytes.Repeat([]byte{0x22}, chapMD5DigestLen)
 	peerWrite := make([]byte, 64)
@@ -638,7 +645,7 @@ func TestCHAPTimeoutEmitsFailure(t *testing.T) {
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	// authRespCh intentionally unfed; the 80 ms authTimeout fires.
+	// emitted request intentionally unanswered; the 80 ms authTimeout fires.
 	select {
 	case ev := <-authEventsOut:
 		fail, ok := ev.(eventAuthFailure)

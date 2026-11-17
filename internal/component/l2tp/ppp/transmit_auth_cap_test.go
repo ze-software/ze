@@ -46,7 +46,7 @@ func TestAuthenticationResultTransmitCap(t *testing.T) {
 					proto, authData := authMethodToLCPOptions(method)
 					peer := optStream(mruOpt(tc.peer), magicOpt(0x11223344))
 					local := optStream(mruOpt(tc.cap), magicOpt(0x01020304), authProtoOpt(proto, authData...))
-					d.SessionsIn() <- testStartForDriver(d, StartSession{
+					d.SessionsIn() <- testStartForDriver(d, &StartSession{
 						LCP:      testLCPConfig(),
 						TunnelID: 24, SessionID: 1,
 						MaxMRU: tc.cap, AuthMethod: method, AuthFallbackOrder: []AuthMethod{method}, AuthRequired: true,
@@ -76,9 +76,11 @@ func TestAuthenticationResultTransmitCap(t *testing.T) {
 						}
 						writeLifecyclePacket(t, pair.peerEnd, ProtoCHAP, CHAPCodeResponse, identifier, response)
 					}
+					var capturedAuthRequest EventAuthRequest
 					select {
 					case ev := <-d.AuthEventsOut():
 						request, ok := ev.(EventAuthRequest)
+						capturedAuthRequest = request
 						if !ok || request.Method != method || request.Identifier != identifier || request.Username != "alice" {
 							t.Fatalf("auth request = %+v", ev)
 						}
@@ -90,7 +92,7 @@ func TestAuthenticationResultTransmitCap(t *testing.T) {
 						message = "E=691 R=0 C=" + strings.Repeat("AB", 16) + " V=3 M=" + message
 					}
 					blob := bytes.Repeat([]byte{0xcd}, mschapv2AuthenticatorResponseLen)
-					if err := d.AuthResponse(24, 1, accept, message, blob); err != nil {
+					if err := d.AuthResponse(capturedAuthRequest, accept, message, blob); err != nil {
 						t.Fatal(err)
 					}
 					code := CHAPCodeSuccess

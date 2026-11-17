@@ -180,7 +180,7 @@ func TestAuthProtoRejectClearsMethod(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testSessionStart(StartSession{
+	d.SessionsIn() <- testSessionStart(&StartSession{
 		LCP:       testLCPConfig(),
 		TunnelID:  181,
 		SessionID: 281,
@@ -209,9 +209,8 @@ func TestAuthProtoRejectClearsMethod(t *testing.T) {
 		t.Fatal("timed out waiting for second CONFREQ")
 	}
 
-	if err := d.StopSession(181, 281); err != nil {
-		t.Logf("StopSession: %v", err)
-	}
+	// No lifecycle capability exists before LCP opens; the transport ends its own peer.
+	closeConn(pair.peerEnd)
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
 }
 
@@ -250,7 +249,7 @@ func TestAuthFallbackOnNakDispatches(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   182,
 		SessionID:  282,
@@ -291,9 +290,8 @@ func TestAuthFallbackOnNakDispatches(t *testing.T) {
 		t.Fatal("timed out waiting for second CONFREQ")
 	}
 
-	if err := d.StopSession(182, 282); err != nil {
-		t.Logf("StopSession: %v", err)
-	}
+	// No lifecycle capability exists before LCP opens; the transport ends its own peer.
+	closeConn(pair.peerEnd)
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
 }
 
@@ -333,7 +331,7 @@ func TestAuthFallbackOnNakExhaustsToNone(t *testing.T) {
 	)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:               testLCPConfig(),
 		TunnelID:          183,
 		SessionID:         283,
@@ -356,9 +354,8 @@ func TestAuthFallbackOnNakExhaustsToNone(t *testing.T) {
 		t.Fatal("timed out waiting for second CONFREQ")
 	}
 
-	if err := d.StopSession(183, 283); err != nil {
-		t.Logf("StopSession: %v", err)
-	}
+	// No lifecycle capability exists before LCP opens; the transport ends its own peer.
+	closeConn(pair.peerEnd)
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
 }
 
@@ -413,7 +410,7 @@ func TestStartSessionAuthMethodThreaded(t *testing.T) {
 	go scriptedPeer(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:        testLCPConfig(),
 		TunnelID:   101,
 		SessionID:  201,
@@ -441,9 +438,11 @@ func TestStartSessionAuthMethodThreaded(t *testing.T) {
 		t.Fatalf("peer write: %v", err)
 	}
 
+	var capturedAuthRequest EventAuthRequest
 	select {
 	case ev := <-d.AuthEventsOut():
 		req, ok := ev.(EventAuthRequest)
+		capturedAuthRequest = req
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthRequest", ev)
 		}
@@ -459,7 +458,7 @@ func TestStartSessionAuthMethodThreaded(t *testing.T) {
 
 	// Accept so the session goroutine exits cleanly before Stop
 	// tears down the pipe the scripted peer is reading from.
-	if err := d.AuthResponse(101, 201, true, "", nil); err != nil {
+	if err := d.AuthResponse(capturedAuthRequest, true, "", nil); err != nil {
 		t.Logf("AuthResponse: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
@@ -496,7 +495,7 @@ func TestProxyLCPAuthMethodOverrides(t *testing.T) {
 		mruOpt(1500),
 		magicOpt(0xCAFEBABE),
 	})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            111,
 		SessionID:           222,
@@ -528,7 +527,11 @@ func TestProxyLCPAuthMethodOverrides(t *testing.T) {
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	if err := d.StopSession(111, 222); err != nil {
+	opened, found := waitForEventOfType[EventLCPUp](t, d.EventsOut(), 2*time.Second)
+	if !found {
+		t.Fatal("no observed LCP-up capability for this admitted session")
+	}
+	if err := d.StopSession(opened.Control); err != nil {
 		t.Logf("StopSession: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
@@ -564,7 +567,7 @@ func TestProxyLCPDispatchesCHAPMD5(t *testing.T) {
 		mruOpt(1500),
 		magicOpt(0xCAFEBABE),
 	})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            121,
 		SessionID:           232,
@@ -585,7 +588,11 @@ func TestProxyLCPDispatchesCHAPMD5(t *testing.T) {
 		t.Errorf("first CHAP packet code = %d, want 1 (Challenge)", payload[0])
 	}
 
-	if err := d.StopSession(121, 232); err != nil {
+	opened, found := waitForEventOfType[EventLCPUp](t, d.EventsOut(), 2*time.Second)
+	if !found {
+		t.Fatal("no observed LCP-up capability for this admitted session")
+	}
+	if err := d.StopSession(opened.Control); err != nil {
 		t.Logf("StopSession: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
@@ -621,7 +628,7 @@ func TestProxyLCPDispatchesMSCHAPv2(t *testing.T) {
 		mruOpt(1500),
 		magicOpt(0xCAFEBABE),
 	})
-	d.SessionsIn() <- testSessionStart(StartSession{
+	d.SessionsIn() <- testSessionStart(&StartSession{
 		LCP:       testLCPConfig(),
 		TunnelID:  131,
 		SessionID: 242,
@@ -649,7 +656,11 @@ func TestProxyLCPDispatchesMSCHAPv2(t *testing.T) {
 			payload[4])
 	}
 
-	if err := d.StopSession(131, 242); err != nil {
+	opened, found := waitForEventOfType[EventLCPUp](t, d.EventsOut(), 2*time.Second)
+	if !found {
+		t.Fatal("no observed LCP-up capability for this admitted session")
+	}
+	if err := d.StopSession(opened.Control); err != nil {
 		t.Logf("StopSession: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
@@ -699,7 +710,7 @@ func TestLocalCONFREQAdvertisesAuthMethod(t *testing.T) {
 			}
 			defer d.Stop()
 
-			d.SessionsIn() <- testSessionStart(StartSession{
+			d.SessionsIn() <- testSessionStart(&StartSession{
 				LCP:       testLCPConfig(),
 				TunnelID:  uint16(140 + int(tc.method)),
 				SessionID: uint16(240 + int(tc.method)),
@@ -747,12 +758,8 @@ func TestLocalCONFREQAdvertisesAuthMethod(t *testing.T) {
 				t.Errorf("Auth-Protocol data = %x, want 2 bytes for PAP", data)
 			}
 
-			if err := d.StopSession(
-				uint16(140+int(tc.method)),
-				uint16(240+int(tc.method)),
-			); err != nil {
-				t.Logf("StopSession: %v", err)
-			}
+			// No admitted lifecycle capability exists during initial LCP negotiation.
+			closeConn(pair.peerEnd)
 			drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
 		})
 	}

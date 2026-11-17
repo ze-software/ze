@@ -1,7 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- PPP auth-phase event boundary
 // Related: events.go -- lifecycle events sealed sum (EventsOut())
 // Related: manager.go -- Driver owns AuthEventsOut() and AuthResponse()
-// Related: session.go -- per-session authRespCh
+// Related: request.go -- per-wait response capability
 
 package ppp
 
@@ -88,7 +88,7 @@ type AuthEvent interface {
 }
 
 // EventAuthRequest is the request to validate peer credentials. The
-// consumer MUST call Driver.AuthResponse(TunnelID, SessionID, ...)
+// consumer MUST pass this exact request to Driver.AuthResponse(request, ...)
 // within the configured auth-timeout (future phases) or the session
 // times out.
 //
@@ -105,6 +105,8 @@ type AuthEvent interface {
 type EventAuthRequest struct {
 	// SubscriberID is the opaque identity supplied by StartSession.
 	SubscriberID string
+	Control      SessionControl
+	pending      *authRequest
 	TunnelID     uint16
 	SessionID    uint16
 	Method       AuthMethod
@@ -125,6 +127,7 @@ func (EventAuthRequest) isAuthEvent() {}
 // an accept response. Informational -- the session transitions to
 // EventSessionUp on Event (lifecycle) channel immediately after.
 type eventAuthSuccess struct {
+	Control   SessionControl
 	TunnelID  uint16
 	SessionID uint16
 }
@@ -135,6 +138,7 @@ func (eventAuthSuccess) isAuthEvent() {}
 // a reject response or an auth-timeout fires. Reason is human-readable
 // for logs; consumers MUST NOT parse it for control flow.
 type eventAuthFailure struct {
+	Control   SessionControl
 	TunnelID  uint16
 	SessionID uint16
 	Reason    string
@@ -143,7 +147,7 @@ type eventAuthFailure struct {
 func (eventAuthFailure) isAuthEvent() {}
 
 // authResponseMsg carries the consumer's decision from
-// Driver.AuthResponse into the per-session goroutine via authRespCh.
+// Driver.AuthResponse into the exact request's answer channel.
 // AuthResponseBlob is the opaque Authenticator-Response payload for
 // MS-CHAPv2 Success; empty for PAP / CHAP-MD5 / AuthMethodNone.
 type authResponseMsg struct {

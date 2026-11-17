@@ -18,14 +18,14 @@
     "claim-sha": "129b9d614f6d559d",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/ncp.go::sendIPAssigned",
-    "producer-sha": "896f99912ffbdc26",
-    "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "e0e40f2f25b09df4",
+    "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC1332-2.1-1",
     "polarity": "negative",
     "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
-    "unit-sha": "d4add5dc5df278ad",
+    "unit-sha": "32c17827344bfd49",
     "claim-sha": "223e30ec7064e37f",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",

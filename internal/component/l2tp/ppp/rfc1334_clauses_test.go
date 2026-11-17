@@ -123,7 +123,7 @@ func TestConfiguredPAPStillOffersCHAPFirst(t *testing.T) {
 		peerDone := make(chan struct{})
 		go authProtoReplyPeer(t, pair.peerEnd, tc.firstWant, LCPConfigureNak, authProtoPAP, nil, secondCR, peerDone)
 
-		d.SessionsIn() <- testSessionStart(StartSession{
+		d.SessionsIn() <- testSessionStart(&StartSession{
 			LCP:       testLCPConfig(),
 			TunnelID:  183,
 			SessionID: uint16(tc.fd - 16000),

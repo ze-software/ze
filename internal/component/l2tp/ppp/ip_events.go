@@ -1,7 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- PPP -> IP handler event boundary
 // Related: events.go -- lifecycle events sealed sum (EventsOut())
 // Related: manager.go -- Driver owns IPEventsOut() and IPResponse()
-// Related: session.go -- per-session ipRespCh
+// Related: request.go -- per-wait response capability
 
 package ppp
 
@@ -45,7 +45,7 @@ type IPEvent interface {
 
 // EventIPRequest is the request to allocate an IP address (and, for
 // IPv4, optional DNS server hints) to the peer. The consumer MUST
-// call Driver.IPResponse(TunnelID, SessionID, Family, ...) within
+// pass this exact request to Driver.IPResponse(request, ...) within
 // the session's configured ip-timeout or the session tears down.
 //
 // SuggestedLocal / SuggestedPeer are populated when the peer has
@@ -61,6 +61,8 @@ type IPEvent interface {
 type EventIPRequest struct {
 	// SubscriberID is the opaque identity supplied by StartSession.
 	SubscriberID         string
+	Control              SessionControl
+	pending              *ipRequest
 	TunnelID             uint16
 	SessionID            uint16
 	Family               AddressFamily
@@ -72,7 +74,7 @@ type EventIPRequest struct {
 func (EventIPRequest) isIPEvent() {}
 
 // ipResponseMsg carries the consumer's decision from
-// Driver.IPResponse into the per-session goroutine via ipRespCh.
+// Driver.IPResponse into the exact request's answer channel.
 // Zero netip.Addr for Local / Peer / DNSPrimary / DNSSecondary means
 // "option absent"; for family=ipv4 Local and Peer MUST both be set
 // on accept. For family=ipv6 hasPeerInterface == true forces a

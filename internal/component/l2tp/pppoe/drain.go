@@ -19,7 +19,7 @@ import (
 // authDrainDriver is the authentication decision boundary of the PPP driver.
 type authDrainDriver interface {
 	AuthEventsOut() <-chan ppp.AuthEvent
-	AuthResponse(tunnelID, sessionID uint16, accept bool, message string, blob []byte) error
+	AuthResponse(request ppp.EventAuthRequest, accept bool, message string, blob []byte) error
 }
 
 // startPPPoEAuthDrain answers the PPP driver's authentication requests. A
@@ -44,13 +44,13 @@ func startPPPoEAuthDrain(logger *slog.Logger, d authDrainDriver, resolve func() 
 			// Plugins can replace the provider after this drain has started.
 			handler := resolve()
 			respond := func(accept bool, msg string, blob []byte) error {
-				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
+				return d.AuthResponse(req, accept, msg, blob)
 			}
 			r := callPPPoEAuthHandler(handler, req, subscriber.AuthRespondFunc(respond))
 			subscriber.RecordAuthResult(subscriber.AccessPPPoE, r.Accept)
 			if r.Accept && req.Username != "" {
 				pending.Store(
-					pendingAuthKey{ifindex: int(req.TunnelID), sessionID: req.SessionID},
+					pendingAuthFor(req.Control),
 					pendingAuthInfo{username: req.Username, authMethod: req.Method.String()},
 				)
 			}
@@ -77,7 +77,7 @@ func startPPPoEAuthDrain(logger *slog.Logger, d authDrainDriver, resolve func() 
 // sendPPPoEAuthDrainResponse serves ordinary decisions and missing-ID refusals.
 // Callers MUST pass only a synchronous decision; an async provider owns its reply.
 func sendPPPoEAuthDrainResponse(logger *slog.Logger, d authDrainDriver, req ppp.EventAuthRequest, result subscriber.AuthResult) {
-	if cause := d.AuthResponse(req.TunnelID, req.SessionID, result.Accept, result.Message, result.AuthResponseBlob); cause != nil {
+	if cause := d.AuthResponse(req, result.Accept, result.Message, result.AuthResponseBlob); cause != nil {
 		const problem = "Ze could not deliver a subscriber authentication decision"
 		const why = "The PPP session may have ended before its decision arrived"
 		const fix = "ze show errors"
@@ -109,7 +109,7 @@ func callPPPoEAuthHandler(handler subscriber.AuthHandler, req ppp.EventAuthReque
 // a test to order session teardown before the pool's answer is delivered.
 type poolDrainDriver interface {
 	IPEventsOut() <-chan ppp.IPEvent
-	IPResponse(tunnelID, sessionID uint16, answer ppp.IPResponseArgs) error
+	IPResponse(request ppp.EventIPRequest, answer ppp.IPResponseArgs) error
 }
 
 // startPPPoEPoolDrain serves requests until Driver.Stop closes them. The caller
@@ -129,7 +129,7 @@ func startPPPoEPoolDrain(logger *slog.Logger, d poolDrainDriver, handler subscri
 			} else {
 				r = callPPPoEPoolHandler(handler, req)
 			}
-			if err := d.IPResponse(req.TunnelID, req.SessionID, r); err != nil {
+			if err := d.IPResponse(req, r); err != nil {
 				subevents.ReleaseUndeliveredPoolAnswer(logger, bus, req, r)
 				logger.Warn("pppoe: pool drain response failed",
 					"ifindex", req.TunnelID, "session", req.SessionID, "error", err)

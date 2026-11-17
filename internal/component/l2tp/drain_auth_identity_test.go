@@ -21,7 +21,7 @@ type identityAuthDriver struct {
 }
 
 func (d *identityAuthDriver) AuthEventsOut() <-chan ppp.AuthEvent { return d.events }
-func (d *identityAuthDriver) AuthResponse(_, _ uint16, accept bool, message string, _ []byte) error {
+func (d *identityAuthDriver) AuthResponse(_ ppp.EventAuthRequest, accept bool, message string, _ []byte) error {
 	d.calls++
 	d.accept, d.message = accept, message
 	return d.err
@@ -42,8 +42,13 @@ func TestAuthDrainRequiresSubscriberIdentity(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			driver := &identityAuthDriver{events: make(chan ppp.AuthEvent, 1), err: tc.err}
-			driver.events <- ppp.EventAuthRequest{SubscriberID: tc.id,
-				TunnelID: 7, SessionID: 42, Method: ppp.AuthMethodNone, Username: "alice"}
+			wire := newCurrentCoreAdmission(t, nil, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 7, sessionID: 42}, ipv6: false, subscriberID: tc.id})
+			request := wire.authRequest(t, "alice")
+			// These are the historical consumer DTO inputs, not a claim that
+			// PPP emitted a missing identity or a None-method named principal.
+			request.SubscriberID = tc.id
+			request.Method = ppp.AuthMethodNone
+			driver.events <- request
 			close(driver.events)
 			bus := newTestBus()
 			var eventID string

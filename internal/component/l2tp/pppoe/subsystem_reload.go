@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/ze"
@@ -52,6 +51,13 @@ func (s *Subsystem) Reload(ctx context.Context, cfg ze.ConfigProvider) error {
 	if !s.started {
 		return errPppoeReloadNotStarted
 	}
+	if s.retainedStop {
+		if err := s.stopLocked(ctx); err != nil {
+			return err
+		}
+		s.started = true
+		return s.reloadIdle(ctx, next, next.Enabled && len(next.Interfaces) > 0)
+	}
 	running := s.readDone != nil
 	wantRun := next.Enabled && len(next.Interfaces) > 0
 	if !running {
@@ -83,15 +89,33 @@ func (s *Subsystem) Reload(ctx context.Context, cfg ze.ConfigProvider) error {
 		}
 	}
 	previous := s.accesses
-	removed := s.swapServers(&next, wantRun, additions)
+	removed := s.quiesceRemovedServers(&next, wantRun)
+	for _, srv := range removed {
+		if err := s.closeInterface(ctx, srv); err != nil {
+			if prepared != nil {
+				err = errors.Join(err, closeAccessConfiguration(prepared.accesses, previous.accesses))
+			}
+			return err
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		if prepared != nil {
+			err = errors.Join(err, closeAccessConfiguration(prepared.accesses, previous.accesses))
+		}
+		return err
+	}
+	if err := s.detachDrainedServers(removed); err != nil {
+		if prepared != nil {
+			err = errors.Join(err, closeAccessConfiguration(prepared.accesses, previous.accesses))
+		}
+		return err
+	}
+	s.swapServers(&next, wantRun, additions)
 	if wantRun {
 		s.accesses = prepared
 	}
-	for _, srv := range removed {
-		s.closeInterface(srv)
-	}
 	if !wantRun {
-		stopErr := s.stopLocked()
+		stopErr := s.stopLocked(ctx)
 		s.started = true
 		s.logger.Info("pppoe reload: subsystem stopped by configuration")
 		return stopErr
@@ -188,6 +212,7 @@ func (s *Subsystem) swapServers(next *Parameters, wantRun bool, additions map[st
 	}
 	s.servers = servers
 	s.params = *next
+	s.discoveryPaused = false
 	return removed
 }
 
@@ -276,28 +301,60 @@ func applyInterfaceConfig(srv *InterfaceServer, ic *InterfaceConfig, p *Paramete
 
 // closeInterface ends every session on an access interface the reload took
 // out of service. Each session's transport is closed and a PADT sent first
-// (handleSessionDown), then its PPP session is stopped; the driver's
-// session-down event then withdraws the subscriber (onSessionDown). MUST be
+// (handleSessionDown), then its original PPP attempt is stopped even after
+// this server leaves the discovery map. MUST be
 // called with mu, dispatchMu and every session-table lock not held: teardown
 // and the PPP stop both need the event consumer to make progress.
-func (s *Subsystem) closeInterface(srv *InterfaceServer) {
+func (s *Subsystem) closeInterface(ctx context.Context, srv *InterfaceServer) error {
 	for _, admission := range srv.sessions.admissions() {
-		sid := admission.session.SID
-		// RFC 2516 Section 5.5: "This packet may be sent anytime after a
-		// session is established to indicate that a PPPoE session has been
-		// terminated.  It may be sent by either the Host or the Access
-		// Concentrator."
-		srv.handleSessionDown(sid)
-		// Another owner may already be sending PADT or releasing its lease.
-		// Join outside all locks before the old access generation can close.
-		<-admission.session.closeDone
-		s.pendingAuth.Delete(pendingAuthKey{ifindex: srv.ifIndex, sessionID: sid})
-		if s.pppDriver == nil {
-			continue
-		}
-		err := s.pppDriver.StopSession(uint16(srv.ifIndex), sid)
-		if err != nil && !errors.Is(err, ppp.ErrSessionNotFound) {
-			s.logger.Warn("pppoe reload: stop PPP session", "interface", srv.ifName, "sid", sid, "error", err)
+		s.retryRefusedAdmission(srv, admission.session)
+		srv.handleSessionDown(admission.session)
+		if err := s.waitAdmission(ctx, srv, admission.session); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// quiesceRemovedServers keeps old owners discoverable by the event consumer.
+// Discovery is paused before the snapshot; no new admission/replacement can
+// publish until every removed access has finished its original closeDone.
+func (s *Subsystem) quiesceRemovedServers(next *Parameters, wantRun bool) []*InterfaceServer {
+	s.dispatchMu.Lock()
+	defer s.dispatchMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.discoveryPaused = true
+	var removed []*InterfaceServer
+	for _, server := range s.servers {
+		kept := wantRun && slices.ContainsFunc(next.Interfaces, func(ic InterfaceConfig) bool { return ic.Name == server.ifName })
+		if !kept {
+			removed = append(removed, server)
+			s.logger.Info("pppoe reload: access interface removed", "interface", server.ifName, "sessions", server.sessions.Count())
+		}
+	}
+	return removed
+}
+
+// detachDrainedServers runs after every captured closeDone, outside its waits.
+// A changed map slot is never deletion authority over the replacement pointer.
+func (s *Subsystem) detachDrainedServers(removed []*InterfaceServer) error {
+	s.dispatchMu.Lock()
+	defer s.dispatchMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, server := range removed {
+		if s.servers[server.ifIndex] != server {
+			return errors.New("pppoe: draining access owner changed")
+		}
+		if server.sessions.Count() != 0 {
+			return errors.New("pppoe: draining access still owns admissions")
+		}
+	}
+	for _, server := range removed {
+		if s.servers[server.ifIndex] == server {
+			delete(s.servers, server.ifIndex)
+		}
+	}
+	return nil
 }

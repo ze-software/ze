@@ -332,6 +332,16 @@ func (s *pppSession) run(start *StartSession) {
 			})
 			return
 
+		case <-s.sessStop:
+			// Exact local cancellation uses the existing NAS-request cause.
+			// The normal final cleanup still owns descriptor Close; signaling
+			// cancellation never closes borrowed I/O ahead of terminal work.
+			s.sendEvent(EventSessionDown{
+				TunnelID: s.tunnelID, SessionID: s.sessionID,
+				Reason: "session stopped", Cause: l2tpevents.TerminateCauseNASRequest,
+			})
+			return
+
 		case err := <-readDone:
 			reason := "chan fd closed"
 			if err != nil && !errors.Is(err, io.EOF) {
@@ -529,16 +539,21 @@ func (s *pppSession) fail(reason string) {
 // This-Layer-Finished keeps running until the lower layer's Down event, and
 // that later exit (read error, driver stop) MUST NOT report a second teardown.
 func (s *pppSession) sendEvent(ev Event) {
+	ev = s.bindEventControl(ev)
 	if _, ok := ev.(EventSessionDown); ok && s.sessionDownSent {
 		return
 	}
 	if _, ending := ev.(EventSessionDown); ending {
+		s.retireProviderRequests()
+		if s.released.Load() {
+			return
+		}
 		// The transport may publish PADT as soon as it receives this event.
 		// Finish the last IPv6 advertisement before granting that permission.
 		// A peer-initiated transport close has already gated the wire, so
 		// its cleanup can only fail a write rather than send after PADT.
 		if err := s.stopIPv6Service(); err != nil {
-			ReportCleanupFailure(s.dataplane.Identity(), CleanupIPv6, err)
+			s.reportIPv6ChildCleanupFailure(err)
 			s.logger.Warn("ppp: IPv6 cleanup before session-down failed; resource removal is unconfirmed",
 				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 		}
@@ -555,27 +570,57 @@ func (s *pppSession) sendEvent(ev Event) {
 // closeFiles releases the session owner once. mu also guards interface setup,
 // so a late operation cannot target resources reused after shutdown.
 func (s *pppSession) closeFiles() {
+	s.nativeReleaseMu.Lock()
+	defer s.nativeReleaseMu.Unlock()
+	// The exact result is recorded/reported for the completion observers.
+	_ = s.closeFilesLocked()
+}
+
+// Caller holds nativeReleaseMu, never Driver.mu.
+func (s *pppSession) closeFilesLocked() error {
 	s.mu.Lock()
 	if s.filesClosed {
 		s.mu.Unlock()
-		return
+		if s.driver == nil {
+			return nil
+		}
+		s.driver.mu.Lock()
+		err, attempted := s.nativeReleaseErr, s.ownerCloseAttempted
+		s.driver.mu.Unlock()
+		if !attempted {
+			return s.driver.closeSessionOwnerLocked(s)
+		}
+		return err
 	}
 	s.filesClosed = true
 	s.channelConnected = false
 	owner := s.dataplane
 	s.mu.Unlock()
 	if err := s.stopIPv6Service(); err != nil {
-		ReportCleanupFailure(owner.Identity(), CleanupIPv6, err)
+		s.reportIPv6ChildCleanupFailure(err)
 		s.logger.Warn("ppp: IPv6 cleanup before session release failed; resource removal is unconfirmed",
 			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 	}
-	if owner != nil {
-		if err := owner.Close(); err != nil {
-			ReportCleanupFailure(owner.Identity(), CleanupSession, err)
-			s.logger.Warn("ppp: session release failed; resource removal is unconfirmed",
-				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
-		}
+	if owner == nil {
+		return nil
 	}
+	if s.driver != nil {
+		s.driver.mu.Lock()
+		attempted, confirmed, err := s.ownerCloseAttempted, s.ownerReleased, s.nativeReleaseErr
+		s.driver.mu.Unlock()
+		if attempted && confirmed {
+			return err
+		}
+		return s.driver.closeSessionOwnerLocked(s)
+	}
+	// Standalone FSM fixtures have no admitted Driver or cleanup observer.
+	if err := owner.Close(); err != nil {
+		s.reportSessionCleanupFailure(owner, err)
+		s.logger.Warn("ppp: session release failed; resource removal is unconfirmed",
+			"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
+		return err
+	}
+	return nil
 }
 
 // stopIPv6Service joins service workers and finishes its final advertisement
@@ -588,9 +633,11 @@ func (s *pppSession) stopIPv6Service() error {
 	s.mu.Unlock()
 	// refuse-by-default: guards pppSession.closeFiles -- no IPv6 service is valid before activation or after a successful stop; owner release must still proceed.
 	if service == nil {
+		s.setOwnerServiceState(false, nil)
 		return nil
 	}
 	if err := service.Stop(); err != nil {
+		s.setOwnerServiceState(true, err)
 		return err
 	}
 	s.mu.Lock()
@@ -598,7 +645,48 @@ func (s *pppSession) stopIPv6Service() error {
 		s.ipv6Svc = nil
 	}
 	s.mu.Unlock()
+	s.setOwnerServiceState(false, nil)
 	return nil
+}
+
+// setOwnerServiceState publishes only cleanup metadata, never native I/O.
+// The worker owns actual service start/stop; callbacks may observe this under
+// Driver.mu without acquiring worker.mu or joining its service goroutines.
+func (s *pppSession) setOwnerServiceState(pending bool, cause error) {
+	if s.driver == nil {
+		return
+	}
+	s.driver.mu.Lock()
+	s.ownerServicePending = pending
+	s.ownerServiceErr = cause
+	s.driver.mu.Unlock()
+	if cause != nil {
+		s.reportIPv6ChildCleanupFailure(cause)
+	}
+}
+
+// Called while the worker owns its ordinary startup serialization. Admission
+// cancellation is checked and service ownership published atomically with the
+// callback's short-lock check. A callback requires cancellation before closing,
+// so it cannot pass this check and race a later new service into a closed owner.
+func (s *pppSession) beginOwnerService() bool {
+	if s.driver == nil {
+		return true
+	}
+	s.driver.mu.Lock()
+	defer s.driver.mu.Unlock()
+	select {
+	case <-s.sessStop:
+		return false
+	case <-s.stopCh:
+		return false
+	default:
+	}
+	if s.ownerCloseAttempted {
+		return false
+	}
+	s.ownerServicePending = true
+	return true
 }
 
 // afterLCPOpenIPv6Service starts the RA sender and DHCPv6 server on
@@ -637,6 +725,9 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 		return
 	}
 
+	if !s.beginOwnerService() {
+		return
+	}
 	svc, err := startIPv6Service(iPv6ServiceConfig{
 		TunnelID:         s.tunnelID,
 		SessionID:        s.sessionID,
@@ -645,13 +736,18 @@ func (s *pppSession) afterLCPOpenIPv6Service() {
 		Dataplane:        s.dataplane,
 	}, DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: append([]byte(nil), s.localInterfaceID[:]...)}, nil, s.logger)
 	if svc != nil {
+		s.setOwnerServiceState(true, err)
+	} else {
+		s.setOwnerServiceState(false, nil)
+	}
+	if svc != nil {
 		// A failed startup may still own an address whose withdrawal failed.
 		// Keep that owner for resetNCP and final session cleanup to retry.
 		s.ipv6Svc = svc
 	}
 	if err != nil {
 		if svc != nil {
-			ReportCleanupFailure(s.dataplane.Identity(), CleanupIPv6, err)
+			s.reportIPv6ChildCleanupFailure(err)
 			s.logger.Warn("ppp: IPv6 service startup cleanup remains unconfirmed",
 				"code", diagnostic.CodeDoctorPPPCleanup, "error", err, "fix", CleanupFailureFix)
 			return
@@ -842,7 +938,7 @@ func (s *pppSession) runAuthPhase() bool {
 
 // runNoAuthPhase is the AuthMethodNone dispatch target. It emits one
 // EventAuthRequest on the auth channel so an external handler can
-// still admit or deny by policy, waits on authRespCh, and on accept
+// still admit or deny by policy, waits on its exact request, and on accept
 // emits EventAuthSuccess. The session's LCP Auth-Protocol option was
 // absent or REJECTed, so no wire packets are exchanged here.
 func (s *pppSession) runNoAuthPhase() bool {
@@ -878,6 +974,18 @@ func (s *pppSession) runNoAuthPhase() bool {
 // events promptly or PPP processing will stall (buffer is
 // defaultAuthEventsOutBuf, 64).
 func (s *pppSession) sendAuthEvent(ev AuthEvent) {
+	switch value := ev.(type) {
+	case EventAuthRequest:
+		value.SubscriberID = s.subscriberID
+		value.Control = s.control
+		ev = value
+	case eventAuthSuccess:
+		value.Control = s.control
+		ev = value
+	case eventAuthFailure:
+		value.Control = s.control
+		ev = value
+	}
 	select {
 	case s.authEventsOut <- ev:
 	case <-s.stopCh:
@@ -1874,8 +1982,13 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 		// carries that.
 		return true
 	case LCPActTLD:
+		s.retireProviderRequests()
+		if s.released.Load() {
+			return false
+		}
 		s.papReplyCode = 0
 		ev := EventLCPDown{
+			Control:      s.control,
 			TunnelID:     s.tunnelID,
 			SessionID:    s.sessionID,
 			Reason:       "LCP left Opened",
@@ -2466,4 +2579,54 @@ func (s *pppSession) writeFrame(frame []byte) bool {
 		return false
 	}
 	return true
+}
+
+// retryRetiredIPv6Cleanup is called only with nativeReleaseMu held after run
+// returned. Driver/table locks are absent across provider cleanup/callbacks.
+// Receipt callbacks MUST return busy/failure instead of joining this worker.
+func (s *pppSession) retryRetiredIPv6Cleanup(ctx context.Context, unitReleased bool) error {
+	if s.driver == nil {
+		return nil
+	}
+	s.driver.mu.Lock()
+	pending, previous := s.ownerServicePending, s.ownerServiceErr
+	s.driver.mu.Unlock()
+	if !pending {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	service := s.ipv6Svc
+	s.mu.Unlock()
+	if service == nil {
+		cause := errors.Join(previous, errors.New("retired PPP IPv6 cleanup owner is unavailable"))
+		s.setOwnerServiceState(true, cause)
+		return cause
+	}
+	if err := service.retryStoppedCleanup(ctx, unitReleased); err != nil {
+		if ctx.Err() != nil {
+			return err
+		}
+		if errors.Is(err, ErrCleanupInProgress) {
+			return err
+		}
+		// Retain the original actual child cause; contention/deadlines never
+		// replace it. The latest retry error is still returned to this caller.
+		cause := previous
+		if cause == nil {
+			cause = err
+		}
+		s.setOwnerServiceState(true, cause)
+		return errors.Join(cause, err)
+	}
+	s.mu.Lock()
+	if s.ipv6Svc == service {
+		s.ipv6Svc = nil
+	}
+	s.mu.Unlock()
+	s.setOwnerServiceState(false, nil)
+	s.clearIPv6ChildCleanupFailure()
+	return nil
 }

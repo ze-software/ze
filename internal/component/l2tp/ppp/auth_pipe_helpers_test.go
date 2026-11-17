@@ -37,7 +37,6 @@ func newAuthTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent) {
 		framesIn:      frames,
 		eventsOut:     eventsOut,
 		authEventsOut: authEventsOut,
-		authRespCh:    make(chan authResponseMsg, 1),
 		stopCh:        make(chan struct{}),
 		sessStop:      make(chan struct{}),
 		done:          make(chan struct{}),

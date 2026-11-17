@@ -21,7 +21,7 @@ type undeliveredPoolDriver struct {
 
 func (d *undeliveredPoolDriver) IPEventsOut() <-chan ppp.IPEvent { return d.events }
 
-func (d *undeliveredPoolDriver) IPResponse(_, _ uint16, _ ppp.IPResponseArgs) error {
+func (d *undeliveredPoolDriver) IPResponse(_ ppp.EventIPRequest, _ ppp.IPResponseArgs) error {
 	d.responses++
 	return d.err
 }
@@ -52,7 +52,9 @@ func TestPoolDrainReleasesUndeliveredAnswer(t *testing.T) {
 			})
 			defer unsubscribe()
 			driver := &undeliveredPoolDriver{events: make(chan ppp.IPEvent, 1), err: tc.err}
-			driver.events <- ppp.EventIPRequest{SubscriberID: "l2tp-7-11", TunnelID: 7, SessionID: 11, Family: ppp.AddressFamilyIPv4}
+			wire := newCurrentCoreAdmission(t, nil, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 7, sessionID: 11}, ipv6: false, subscriberID: "l2tp-7-11"})
+			wire.acceptAuth(t, wire.authRequest(t, ""))
+			driver.events <- wire.poolRequest(t)
 			close(driver.events)
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			done := startPoolDrain(logger, driver, func() PoolHandler {

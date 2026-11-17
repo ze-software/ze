@@ -1,13 +1,13 @@
 {
-  "note": "RFC 1334 Section 2.2.2: \"If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate-Nak), and SHOULD take action to terminate the link.\" The earlier weak verdict rested on the clause 'a PAP packet': TestPAPRejectWritesNak discarded the Protocol. 83deb89129 makes it read the Protocol and assert proto == ProtoPAP on the reject reply, so a Code 3 framed under another Protocol now goes red by reading. Code 3 is asserted by the same unit, and TestPAPRequestEmitsEvent asserts Ack on accept, so an unconditional Nak goes red; the recorded mutant inverts the branch at pap.go:258. Caveat on proof: no record shows the new assertion red. The positive record panics WritePAPNak, which fails before any assertion is reached, and pap.go:250 frames both replies under one WriteFrame(ProtoPAP). The tagged units compare the symbolic constant; the literal Code 3 is pinned by the untagged TestPAPWriteNak (0x03). The SHOULD half is RFC1334-2.3-5 and is not claimed here.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1334 Section2.2.2: unacceptable Peer-ID/password requires PAP Authenticate-Nak Code3; the SHOULD termination clause is another requirement. Complete TestPAPRejectWritesNak sends a valid request and answers its actual auth capability false, requiring ProtoPAP, Nak Code, Identifier0x77, original message, failure event and false handler return. TestPAPRequestEmitsEvent is the conforming accepted contrast requiring PAP Ack, so unconditional Nak cannot pass. Read runPAPAuthPhase, WritePAPNak and writePAPReply: actual decision selects a PAP-framed Code3 reply before refusal lifecycle. These distinct accepted/rejected inputs isolate the comparison outcome rather than structural parsing. Current request-capability migration preserves every wire check; no runtime/record freshness is inferred here.",
   "requirement_sha": "1413540851c632dd",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "bcead1076c8ea0bc",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "bcead1076c8ea0bc"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0f0281ea71be7ccd",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0f0281ea71be7ccd"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "1665c54fc4dc88c2",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "c5dcc74a7e3e7c50"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0a1c9ab7b773a8aa",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "f9e10bee1d44587c"
   },
   "verdict": "enforced"
 }

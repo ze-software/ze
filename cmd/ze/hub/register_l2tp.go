@@ -39,7 +39,7 @@ func registerBNGSubsystems(loadTree *zeconfig.Tree, configTree map[string]any, e
 		return nil, fmt.Errorf("parse l2tp config: %w", l2tpErr)
 	}
 	if l2tpParams.Enabled || len(l2tpParams.ListenAddrs) > 0 {
-		if regErr := eng.RegisterSubsystem(l2tp.NewSubsystem(l2tpParams)); regErr != nil {
+		if regErr := eng.RegisterSubsystem(l2tp.NewSubsystem(&l2tpParams)); regErr != nil {
 			return nil, fmt.Errorf("register l2tp subsystem: %w", regErr)
 		}
 		portals = append(portals, webPortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})

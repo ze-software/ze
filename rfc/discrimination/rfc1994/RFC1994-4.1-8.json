@@ -3,11 +3,11 @@
     "rid": "RFC1994-4.1-8",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp",
-    "unit-sha": "77685c7fbdf62aaa",
+    "unit-sha": "a1a03b504756d53f",
     "claim-sha": "375023a02805b490",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
     "producer-sha": "dd8b1e1b25fb1c02",
-    "break": "line 1036: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"if proto == ProtoCHAP { s.fail(\\\"CHAP Response outside the active authentication exchange\\\"); return true }; return s.rejectUnsupportedProtocol(proto, payload)\""
+    "break": "line 1222: \"return s.rejectUnsupportedProtocol(proto, payload)\" -\u003e \"if proto == ProtoCHAP { s.fail(\\\"CHAP Response outside the active authentication exchange\\\"); return true }; return s.rejectUnsupportedProtocol(proto, payload)\""
   }
 ]

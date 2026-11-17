@@ -72,9 +72,11 @@ func TestCHAPWaitSurvivesNonCHAPFrame(t *testing.T) {
 	digest := bytes.Repeat([]byte{0x5A}, chapMD5DigestLen)
 	writeCHAPResponseFrame(t, peerEnd, want, digest)
 
+	var capturedAuthRequest EventAuthRequest
 	select {
 	case raw := <-authEventsOut:
 		req, ok := raw.(EventAuthRequest)
+		capturedAuthRequest = req
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthRequest", raw)
 		}
@@ -90,7 +92,9 @@ func TestCHAPWaitSurvivesNonCHAPFrame(t *testing.T) {
 	}
 
 	// Accept and drain Success so the handler exits cleanly.
-	s.authRespCh <- authResponseMsg{accept: true, message: ""}
+	if err := capturedAuthRequest.answer(authResponseMsg{accept: true, message: ""}); err != nil {
+		t.Fatal(err)
+	}
 	successProto, successPayload := readPeerFrame(t, peerEnd)
 	if successProto != ProtoCHAP || successPayload[0] != CHAPCodeSuccess {
 		t.Errorf("expected CHAP Success after accept, got proto=0x%04x code=%d",
@@ -183,9 +187,11 @@ func TestCHAPIdentifierMismatchSilentDiscard(t *testing.T) {
 	// Now deliver the matching Identifier; handler must dispatch.
 	writeCHAPResponseFrame(t, peerEnd, want, digest)
 
+	var capturedAuthRequest EventAuthRequest
 	select {
 	case raw := <-authEventsOut:
 		req, ok := raw.(EventAuthRequest)
+		capturedAuthRequest = req
 		if !ok {
 			t.Fatalf("auth event %T, want EventAuthRequest", raw)
 		}
@@ -206,7 +212,9 @@ func TestCHAPIdentifierMismatchSilentDiscard(t *testing.T) {
 	// The pipe is synchronous: drain the Success frame off peerEnd
 	// before waiting for the handler's return value or the write
 	// blocks forever.
-	s.authRespCh <- authResponseMsg{accept: true, message: ""}
+	if err := capturedAuthRequest.answer(authResponseMsg{accept: true, message: ""}); err != nil {
+		t.Fatal(err)
+	}
 	successProto, successPayload := readPeerFrame(t, peerEnd)
 	if successProto != ProtoCHAP {
 		t.Errorf("Success proto = 0x%04x, want ProtoCHAP", successProto)
@@ -300,7 +308,7 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:            testLCPConfig(),
 		TunnelID:       411,
 		SessionID:      511,
@@ -317,12 +325,12 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 
 	// Round 1 -- initial auth.
 	initialID := readCHAPChallengeAndRespond(t, pair.peerEnd)
-	// Handler parks on authRespCh; wait for EventAuthRequest so we
+	// Handler waits on this request's private reply lane; wait for EventAuthRequest so we
 	// know it saw our Response, then accept. readCHAPReplyCode
 	// drains the Success frame that runCHAPAuthPhase writes back so
 	// the main loop can move on.
-	awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
-	if err := d.AuthResponse(411, 511, true, "", nil); err != nil {
+	initialRequest := awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
+	if err := d.AuthResponse(initialRequest, true, "", nil); err != nil {
 		t.Fatalf("AuthResponse(initial accept): %v", err)
 	}
 	if code := readCHAPReplyCode(t, pair.peerEnd); code != CHAPCodeSuccess {
@@ -341,8 +349,8 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 			reauthID, initialID)
 	}
 
-	awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
-	if err := d.AuthResponse(411, 511, false, "credentials expired", nil); err != nil {
+	reauthRequest := awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
+	if err := d.AuthResponse(reauthRequest, false, "credentials expired", nil); err != nil {
 		t.Fatalf("AuthResponse(reauth reject): %v", err)
 	}
 	if code := readCHAPReplyCode(t, pair.peerEnd); code != CHAPCodeFailure {
@@ -463,7 +471,7 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 	go scriptedPeerLCPOnly(t, pair.peerEnd, peerDone)
 	t.Cleanup(func() { <-peerDone })
 
-	d.SessionsIn() <- testSessionStart(StartSession{
+	d.SessionsIn() <- testSessionStart(&StartSession{
 		LCP:       testLCPConfig(),
 		TunnelID:  421,
 		SessionID: 521,
@@ -480,8 +488,8 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 
 	// Initial CHAP auth -> Success; session enters the Network-Layer phase.
 	challengeID := readCHAPChallengeAndRespond(t, pair.peerEnd)
-	awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
-	if err := d.AuthResponse(421, 521, true, "", nil); err != nil {
+	request := awaitAuthEventOfType[EventAuthRequest](t, d.AuthEventsOut(), 2*time.Second)
+	if err := d.AuthResponse(request, true, "", nil); err != nil {
 		t.Fatalf("AuthResponse(accept): %v", err)
 	}
 	if code := readCHAPReplyCode(t, pair.peerEnd); code != CHAPCodeSuccess {
@@ -531,7 +539,7 @@ func TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp(t *testing.T) {
 		t.Fatalf("liveness reply code = %d, want LCPEchoReply (session not alive/Opened after repeated Response)", pkt.Code)
 	}
 
-	if err := d.StopSession(421, 521); err != nil {
+	if err := d.StopSession(request.Control); err != nil {
 		t.Logf("StopSession: %v", err)
 	}
 	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)

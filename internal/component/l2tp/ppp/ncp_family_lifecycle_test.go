@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -279,10 +280,10 @@ func (fixture *ncpFamilyLifecycle) configureRequest(family AddressFamily) []byte
 func (fixture *ncpFamilyLifecycle) lastConfigureRequest(t *testing.T, family AddressFamily) LCPPacket {
 	t.Helper()
 	frames := decodeFrames(t, fixture.frames)
-	for i := len(frames) - 1; i >= 0; i-- {
-		if frames[i].Proto == ncpProto(family) {
-			if frames[i].Pkt.Code == LCPConfigureRequest {
-				return frames[i].Pkt
+	for _, frame := range slices.Backward(frames) {
+		if frame.Proto == ncpProto(family) {
+			if frame.Pkt.Code == LCPConfigureRequest {
+				return frame.Pkt
 			}
 		}
 	}

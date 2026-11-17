@@ -15,20 +15,20 @@ import (
 
 // TestSubsystem_Name returns the canonical identifier.
 func TestSubsystem_Name(t *testing.T) {
-	sub := l2tp.NewSubsystem(l2tp.Parameters{})
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{})
 	assert.Equal(t, "l2tp", sub.Name())
 }
 
 // TestSubsystem_ImplementsInterface confirms the compile-time assertion.
 func TestSubsystem_ImplementsInterface(t *testing.T) {
-	var _ ze.Subsystem = l2tp.NewSubsystem(l2tp.Parameters{})
+	var _ ze.Subsystem = l2tp.NewSubsystem(&l2tp.Parameters{})
 }
 
 // TestSubsystem_StartStopDisabled — Start is a no-op when Enabled=false.
 //
 // VALIDATES: subsystem lifecycle safe when config absent or disabled.
 func TestSubsystem_StartStopDisabled(t *testing.T) {
-	sub := l2tp.NewSubsystem(l2tp.Parameters{})
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{})
 	ctx := context.Background()
 	require.NoError(t, sub.Start(ctx, nil, nil))
 	require.NoError(t, sub.Stop(ctx))
@@ -39,7 +39,7 @@ func TestSubsystem_StartStopDisabled(t *testing.T) {
 // VALIDATES: Start is tolerant of enabled-but-no-listener, mirroring
 // SSH's behavior when host-key is derivable but no addresses given.
 func TestSubsystem_StartEnabledNoListener(t *testing.T) {
-	sub := l2tp.NewSubsystem(l2tp.Parameters{Enabled: true})
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{Enabled: true})
 	ctx := context.Background()
 	require.NoError(t, sub.Start(ctx, nil, nil))
 	require.NoError(t, sub.Stop(ctx))
@@ -59,7 +59,7 @@ func TestSubsystem_StartEnabledWithListener(t *testing.T) {
 	defer l2tp.SetProbeKernelModulesForTest(func() error { return nil })()
 
 	addr := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0)
-	sub := l2tp.NewSubsystem(l2tp.Parameters{
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{
 		Enabled:     true,
 		ListenAddrs: []netip.AddrPort{addr},
 	})
@@ -90,7 +90,7 @@ func TestSubsystem_BindFailureUnwinds(t *testing.T) {
 	// First listener: unrelated ephemeral port (must succeed).
 	// Second listener: the blocker's port (must fail at bind).
 	busy := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), uint16(blockerAddr.Port))
-	sub := l2tp.NewSubsystem(l2tp.Parameters{
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{
 		Enabled: true,
 		ListenAddrs: []netip.AddrPort{
 			netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0),
@@ -111,7 +111,7 @@ func TestSubsystem_BindFailureUnwinds(t *testing.T) {
 	// prove it by starting again on the same ephemeral-port plan (the
 	// kernel would pick a fresh port, so we rely on the re-Start
 	// succeeding as evidence of clean state).
-	sub2 := l2tp.NewSubsystem(l2tp.Parameters{
+	sub2 := l2tp.NewSubsystem(&l2tp.Parameters{
 		Enabled:     true,
 		ListenAddrs: []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0)},
 	})
@@ -122,7 +122,7 @@ func TestSubsystem_BindFailureUnwinds(t *testing.T) {
 
 // TestSubsystem_DoubleStart returns an error on second Start without Stop.
 func TestSubsystem_DoubleStart(t *testing.T) {
-	sub := l2tp.NewSubsystem(l2tp.Parameters{})
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{})
 	ctx := context.Background()
 	require.NoError(t, sub.Start(ctx, nil, nil))
 	err := sub.Start(ctx, nil, nil)
@@ -132,7 +132,7 @@ func TestSubsystem_DoubleStart(t *testing.T) {
 
 // TestSubsystem_StopIdempotent — Stop may be called repeatedly.
 func TestSubsystem_StopIdempotent(t *testing.T) {
-	sub := l2tp.NewSubsystem(l2tp.Parameters{})
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{})
 	ctx := context.Background()
 	require.NoError(t, sub.Stop(ctx))
 	require.NoError(t, sub.Stop(ctx))
@@ -142,7 +142,7 @@ func TestSubsystem_StopIdempotent(t *testing.T) {
 // Reload on a never-Started subsystem now returns ErrSubsystemNotStarted
 // (detailed diff-apply semantics exercised in subsystem_reload_test.go).
 func TestSubsystem_Reload(t *testing.T) {
-	sub := l2tp.NewSubsystem(l2tp.Parameters{})
+	sub := l2tp.NewSubsystem(&l2tp.Parameters{})
 	ctx := context.Background()
 	err := sub.Reload(ctx, nil)
 	require.ErrorIs(t, err, l2tp.ErrSubsystemNotStarted)

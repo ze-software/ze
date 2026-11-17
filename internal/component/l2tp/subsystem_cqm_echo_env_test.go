@@ -46,8 +46,8 @@ func TestCQMEchoIntervalRegistered(t *testing.T) {
 func TestCQMEchoIntervalReadsEnv(t *testing.T) {
 	require.True(t, env.IsRegistered(cqmEchoIntervalKey), "%s must be registered", cqmEchoIntervalKey)
 
-	enabled := NewSubsystem(Parameters{CQMEnabled: true})
-	disabled := NewSubsystem(Parameters{CQMEnabled: false})
+	enabled := NewSubsystem(&Parameters{CQMEnabled: true})
+	disabled := NewSubsystem(&Parameters{CQMEnabled: false})
 
 	t.Run("unset uses 1s", func(t *testing.T) {
 		useEnv(t, map[string]string{cqmEchoIntervalKey: ""})

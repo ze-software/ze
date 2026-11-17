@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden: an authenticator that does not send a Challenge (Code 1). TestCHAPResponseEmitsEvent reads the first wire frame runCHAPAuthPhase writes and asserts protocol 0xC223 and Code CHAPCodeChallenge, red otherwise. Single-polarity marker: there is no must-not-challenge branch.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1994 Section4.1: authenticator transmits CHAP Challenge Code1. Complete TestCHAPResponseEmitsEvent runs actual runCHAPAuthPhase over a pipe and requires first protocol0xC223, Challenge Code, legal Value-Size and fresh wire Identifier/Value before sending the matching Response. Read runCHAPAuthPhase/sendCHAPChallenge/writeCHAPChallenge: first authenticator act calls the writer with CHAPCodeChallenge, declared1. Single-positive scope is justified for an authenticator invocation with no must-not-challenge input branch; other authentication methods are distinct protocols. Suppressing/changing the first Challenge fails the direct wire assertion, not a fake request receipt. The new direct HAND_WRITTEN Code cut is authored separately and requires another judge plus actual observation; this note does not judge that cut or claim a missing record was obtained.",
   "requirement_sha": "2cd22406261bb6de",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5e115b2bec7372da"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "1d62d8a2e6a92ae1"
   },
   "verdict": "enforced"
 }

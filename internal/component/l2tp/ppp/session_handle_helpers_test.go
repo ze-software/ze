@@ -122,7 +122,9 @@ func (h *testSessionHandle) Close() error {
 
 // testSessionStart substitutes the existing registered pipe wrappers for the
 // kernel descriptors. The actual Driver still consumes StartSession directly.
-func testSessionStart(start StartSession, backend testIfaceBackend, ops pppOps, chanFD, unitFD, unitNum int) StartSession {
+func testSessionStart(input *StartSession, backend testIfaceBackend, ops pppOps, chanFD, unitFD, unitNum int) StartSession {
+	// Preserve the old value parameter: bind a private payload copy.
+	start := *input
 	control := newChanFileFn(chanFD, "ppp.chan")
 	opened := newUnitFileFn(unitFD)
 	frames := &testSessionFrames{control: control, opened: opened}
@@ -135,6 +137,14 @@ func testSessionStart(start StartSession, backend testIfaceBackend, ops pppOps, 
 		}
 	}
 	start.Frames, start.Dataplane = frames, handle
+	if start.SubscriberID == "" {
+		start.SubscriberID = "fixture:" + strconv.Itoa(int(start.TunnelID)) + ":" + strconv.Itoa(int(start.SessionID))
+	}
+	attempt, err := NewSessionAttempt(start.SubscriberID, handle)
+	if err != nil {
+		panic("BUG: invalid protocol fixture admission: " + err.Error())
+	}
+	start.Attempt = attempt
 	return start
 }
 

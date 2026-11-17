@@ -9,12 +9,18 @@
 package pppoe
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"log/slog"
 	"net"
+	"os"
 	"testing"
+	"testing/synctest"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 )
 
 // sidOf reads the SESSION_ID field straight out of a built frame, so the
@@ -216,70 +222,135 @@ func TestRFC2516PADSCarriesTheSessionsID(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC2516-5.5-3 positive — the PADT handleSessionDown sends carries the SESSION_ID of the session that ended, addressed to that session's MAC.
-// RFC requirement: RFC2516-7-3 positive — when the PPP driver reports LCP down for a session, handleSessionDown removes that session from the table and sends its PADT, so the AC stops using the PPPoE session.
+// RFC requirement: RFC2516-5.5-3 positive -- the PADT sent after the original
+// worker's actual LCP termination carries that admission's SID and unicast MAC.
+// RFC requirement: RFC2516-7-3 positive -- an actual LCP Terminate-Request
+// reaches the original worker's genuine Down and existing event consumer;
+// its native transport closes before PADT, the worker retires and another
+// admitted session remains writable and answers Echo.
 func TestRFC2516SessionDownSendsPADTForThatSession(t *testing.T) {
-	var sent [][]byte
-	s := newRecordingServer(&sent, nil, 8)
-	mac := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+	synctest.Test(t, func(t *testing.T) {
+		var sent [][]byte
+		s := newRecordingServer(&sent, nil, 8)
+		mac := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+		s.ifIndex = 1
+		sub := newTestSubsystem(t, newRecordBus(), s.ifIndex)
+		sub.servers[s.ifIndex] = s
 
-	sid, err := s.sessions.AllocSID()
-	if err != nil {
-		t.Fatalf("AllocSID: %v", err)
-	}
-	if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
-		t.Fatalf("Add: %v", err)
-	}
+		sid, err := s.sessions.AllocSID()
+		if err != nil {
+			t.Fatalf("AllocSID: %v", err)
+		}
+		if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
+			t.Fatalf("Add: %v", err)
+		}
+		original := s.sessions.Lookup(sid)
+		ended := rfc2516AdmitTerminationSession(t, sub, s, original)
+		otherSID, err := s.sessions.AllocSID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		otherSession := &Session{SID: otherSID, MAC: net.HardwareAddr{2, 0, 0, 0, 0, 2}, IfName: "eth0", State: StateSession}
+		if err := s.sessions.Add(otherSession); err != nil {
+			t.Fatal(err)
+		}
+		other := rfc2516AdmitTerminationSession(t, sub, s, otherSession)
+		record := s.sendFrameFn
+		s.sendFrameFn = func(frame []byte) {
+			if _, err := ended.native.WriteString("PPP"); !errors.Is(err, os.ErrClosed) {
+				t.Fatalf("original native transport still writable at PADT: %v", err)
+			}
+			record(frame)
+		}
 
-	s.handleSessionDown(sid)
+		ended.protocol.send(t, ppp.ProtoLCP, ppp.LCPTerminateRequest, 0x77, nil)
+		lcpDown, ok := ended.protocol.next(t).(ppp.EventLCPDown)
+		if !ok || lcpDown.Control != ended.protocol.control || !lcpDown.NetworkPhase {
+			t.Fatal("actual Terminate-Request did not withdraw the original network lifetime")
+		}
+		sub.handlePPPEvent(lcpDown)
+		ack := ended.protocol.read(t, ppp.ProtoLCP, ppp.LCPTerminateAck)
+		if ack.Identifier != 0x77 {
+			t.Fatalf("Terminate-Ack identifier = %d, want 0x77", ack.Identifier)
+		}
+		down, ok := ended.protocol.next(t).(ppp.EventSessionDown)
+		if !ok || down.Control != ended.protocol.control || down.Reason != "LCP terminated by peer: stopped, lower layer released" {
+			t.Fatalf("terminal event = %+v, want original worker's actual LCP termination", down)
+		}
+		sub.handlePPPEvent(down)
 
-	if len(sent) != 1 {
-		t.Fatalf("handleSessionDown sent %d frame(s), want one PADT", len(sent))
-	}
-	if sent[0][EthHdrLen+1] != CodePADT {
-		t.Fatalf("CODE = 0x%02x, want PADT 0x%02x", sent[0][EthHdrLen+1], CodePADT)
-	}
-	if got := sidOf(sent[0]); got != sid {
-		t.Fatalf("PADT SESSION_ID = 0x%04x, want 0x%04x", got, sid)
-	}
-	if got := net.HardwareAddr(sent[0][0:EthALen]); got.String() != mac.String() {
-		t.Fatalf("PADT destination = %s, want the session's MAC %s", got, mac)
-	}
-	if s.sessions.Lookup(sid) != nil {
-		t.Fatal("session is still in the table after LCP down")
-	}
+		if len(sent) != 1 {
+			t.Fatalf("handleSessionDown sent %d frame(s), want one PADT", len(sent))
+		}
+		if sent[0][EthHdrLen+1] != CodePADT {
+			t.Fatalf("CODE = 0x%02x, want PADT 0x%02x", sent[0][EthHdrLen+1], CodePADT)
+		}
+		if got := sidOf(sent[0]); got != sid {
+			t.Fatalf("PADT SESSION_ID = 0x%04x, want 0x%04x", got, sid)
+		}
+		if got := net.HardwareAddr(sent[0][0:EthALen]); got.String() != mac.String() {
+			t.Fatalf("PADT destination = %s, want the session's MAC %s", got, mac)
+		}
+		if s.sessions.Lookup(sid) != nil {
+			t.Fatal("session is still in the table after LCP down")
+		}
+		if _, err := ended.native.WriteString("PPP"); !errors.Is(err, os.ErrClosed) {
+			t.Fatalf("PPP native write after LCP termination = %v, want closed original descriptor", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		status, err := ended.protocol.control.WaitRetired(ctx)
+		if err != nil || !status.Retired || !status.Released || status.Err != nil {
+			t.Fatalf("original worker did not finish its own retirement: %+v, %v", status, err)
+		}
+		if s.sessions.Lookup(otherSID) != otherSession {
+			t.Fatal("LCP termination removed another session")
+		}
+		rfc2516AssertSurvivingSession(t, other)
+		sub.handlePPPEvent(down)
+		if len(sent) != 1 {
+			t.Fatal("replayed old Down emitted another PADT")
+		}
+		rfc2516AssertSurvivingSession(t, other)
+	})
 }
 
-// RFC requirement: RFC2516-5.5-3 negative — a PADT whose SESSION_ID names no session terminates nothing: the live session stays in the table.
-// RFC requirement: RFC2516-7-3 negative — a session-down report for a SESSION_ID the table does not hold sends no PADT and leaves the live session in place.
+// RFC requirement: RFC2516-5.5-3 negative -- a correctly addressed PADT naming
+// an absent SID cannot terminate an actual live admitted session.
+// RFC requirement: RFC2516-7-3 negative -- an unknown-session PADT and absent
+// session-down report leave the actual live worker and native transport usable.
 func TestRFC2516UnknownSessionIDTerminatesNothing(t *testing.T) {
-	var sent [][]byte
-	s := newRecordingServer(&sent, nil, 8)
-	mac := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
-
-	sid, err := s.sessions.AllocSID()
-	if err != nil {
-		t.Fatalf("AllocSID: %v", err)
-	}
-	if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
-		t.Fatalf("Add: %v", err)
-	}
-	other := sid + 1
-
-	var src [EthALen]byte
-	copy(src[:], mac)
-	s.handlePADT(&Packet{Code: CodePADT, SID: other, SrcMAC: src})
-	if s.sessions.Lookup(sid) == nil {
-		t.Fatalf("PADT naming SESSION_ID 0x%04x removed session 0x%04x", other, sid)
-	}
-
-	s.handleSessionDown(other)
-	if len(sent) != 0 {
-		t.Fatalf("session-down for unknown SESSION_ID 0x%04x sent %d frame(s), want none", other, len(sent))
-	}
-	if s.sessions.Lookup(sid) == nil {
-		t.Fatalf("session-down for unknown SESSION_ID 0x%04x removed session 0x%04x", other, sid)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		var sent [][]byte
+		s := newRecordingServer(&sent, nil, 8)
+		mac := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+		s.ifIndex = 1
+		sub := newTestSubsystem(t, newRecordBus(), s.ifIndex)
+		sub.servers[s.ifIndex] = s
+		sid, err := s.sessions.AllocSID()
+		if err != nil {
+			t.Fatalf("AllocSID: %v", err)
+		}
+		if err := s.sessions.Add(&Session{SID: sid, MAC: mac, IfName: "eth0", State: StateSession}); err != nil {
+			t.Fatalf("Add: %v", err)
+		}
+		live := rfc2516AdmitTerminationSession(t, sub, s, s.sessions.Lookup(sid))
+		other := sid + 1
+		var src [EthALen]byte
+		copy(src[:], mac)
+		s.handlePADT(&Packet{Code: CodePADT, SID: other, SrcMAC: src, DstMAC: s.hwAddr})
+		if s.sessions.Lookup(sid) == nil {
+			t.Fatalf("PADT naming SESSION_ID 0x%04x removed session 0x%04x", other, sid)
+		}
+		s.handleSessionDown(s.sessions.Lookup(other))
+		if len(sent) != 0 {
+			t.Fatalf("session-down for unknown SESSION_ID 0x%04x sent %d frame(s), want none", other, len(sent))
+		}
+		if s.sessions.Lookup(sid) == nil {
+			t.Fatalf("session-down for unknown SESSION_ID 0x%04x removed session 0x%04x", other, sid)
+		}
+		rfc2516AssertSurvivingSession(t, live)
+	})
 }
 
 // RFC requirement: RFC2516-x-12 positive — the Service-Name-Error TAG in the PADS the AC sends for a Service-Name it will not serve has TAG_LENGTH 0, so its data never starts with a nonzero octet and no non-UTF-8 text can reach the wire.
@@ -331,5 +402,60 @@ func TestRFC2516ErrorTagsCarryNoData(t *testing.T) {
 	}
 	if tag := errorTagOf(t, sent[0], TagACSystemError); len(tag.Value) != 0 {
 		t.Fatalf("AC-System-Error TAG_LENGTH = %d, want 0", len(tag.Value))
+	}
+}
+
+type rfc2516TerminationSession struct {
+	protocol *fixtureCurrentPPP
+	native   *os.File
+}
+
+// The transport is an actual native pipe writer; its read peer remains open.
+// The production OpenedSession owns its Close, separately from PPP's handle.
+// The actual Driver alone emits the admission, provider request and Down.
+// This boundary proof is not a claim about Linux PPP packet forwarding.
+func rfc2516AdmitTerminationSession(t *testing.T, sub *Subsystem, server *InterfaceServer, session *Session) rfc2516TerminationSession {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reader.Close(); _ = writer.Close() })
+	handle := &fixtureSessionHandle{identity: ppp.SessionIdentity{InterfaceName: "rfc2516-termination"}}
+	opened, err := dataplane.NewOpenedSession(&fixtureFrames{}, handle, writer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = opened.CloseTransport() })
+	session.Opened = opened
+	protocol := fixtureCurrentStart(t, server, session, &fixtureCurrentStartConfig{method: ppp.AuthMethodNone, dual: false})
+	server.pppDriver = protocol.driver
+	protocol.authenticate(t, &fixtureCurrentAuthConfig{username: ""})
+	up := protocol.up(t)
+	if up.Control != protocol.control {
+		t.Fatal("actual Driver changed its admitted owner")
+	}
+	sub.handlePPPEvent(up)
+	if !up.Control.Active() {
+		t.Fatal("actual admitted worker is not live")
+	}
+	if _, err := writer.WriteString("live"); err != nil {
+		t.Fatalf("original native transport was not writable before termination: %v", err)
+	}
+	return rfc2516TerminationSession{protocol: protocol, native: writer}
+}
+
+func rfc2516AssertSurvivingSession(t *testing.T, owner rfc2516TerminationSession) {
+	t.Helper()
+	if !owner.protocol.control.Active() {
+		t.Fatal("another live admission was canceled")
+	}
+	if _, err := owner.native.WriteString("PPP"); err != nil {
+		t.Fatalf("another session's original native transport closed: %v", err)
+	}
+	owner.protocol.send(t, ppp.ProtoLCP, ppp.LCPEchoRequest, 0x51, []byte{0, 0, 0, 0})
+	reply := owner.protocol.read(t, ppp.ProtoLCP, ppp.LCPEchoReply)
+	if reply.Identifier != 0x51 {
+		t.Fatalf("surviving session Echo identifier = %d, want 0x51", reply.Identifier)
 	}
 }

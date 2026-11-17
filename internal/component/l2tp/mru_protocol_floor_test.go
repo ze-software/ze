@@ -63,7 +63,7 @@ func TestMRUProtocolFloors(t *testing.T) {
 }
 
 func TestMRUFloorReloadIsolation(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{Enabled: true, MRU: 1492, EnableIPCP: true, EnableIPv6CP: true})
+	s := newStartedSubsystem(t, &Parameters{Enabled: true, MRU: 1492, EnableIPCP: true, EnableIPv6CP: true})
 	bad := &fakeConfigProvider{trees: map[string]map[string]any{
 		"l2tp": {"mru": "1279"},
 	}}
@@ -89,7 +89,7 @@ func TestSubsystemStartRejectsMRUFloor(t *testing.T) {
 		{Enabled: true, MRU: 67, EnableIPCP: true},
 		{Enabled: true, MRU: 1279, EnableIPv6CP: true},
 	} {
-		s := NewSubsystem(tc)
+		s := NewSubsystem(&tc)
 		if err := s.Start(context.Background(), nil, nil); err == nil {
 			t.Fatalf("accepted incompatible direct Parameters: %+v", tc)
 		}

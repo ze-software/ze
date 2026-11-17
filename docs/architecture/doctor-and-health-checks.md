@@ -938,14 +938,6 @@ print that store. The `recent-events` check, owned by `internal/component/doctor
 because the bus is core and has no component, reads the same store
 (`report.Errors` and `report.Warnings`) and keeps no copy of its own.
 
-Captured-session L2TP teardown raises `doctor-l2tp-control-send` when its control
-message cannot be sent. The retained event names the actual peer and socket
-failure, with `ze show errors` as the next command. Local teardown still ends
-only the captured session; a stale capture performs no send and raises no event.
-Peer receipt and native PPP cleanup remain separate outcomes.
-<!-- source: internal/component/l2tp/diagnostic_control.go -- reportCapturedControlSendFailure -->
-<!-- source: internal/component/l2tp/teardown.go -- teardownCapturedSession -->
-
 It runs in the `runtime` phase, so only `show doctor` runs it: in the local
 `ze doctor` process the bus is always empty. It answers one row per producer
 code and subject, error events and active warnings apart, newest first:
@@ -962,6 +954,14 @@ the raise (the `Issue` field `Fix`, JSON key `fix`, at most 256 bytes) rather
 than in a table of codes here. `report.RaiseWarning` and `report.RaiseError`
 raise with no fix.
 <!-- source: internal/core/report/report.go -- Issue, RaiseWarningFix, RaiseErrorFix, validFields -->
+
+Captured-session L2TP teardown raises `doctor-l2tp-control-send` when its control
+message cannot be sent. The retained event names the actual peer and socket
+failure, with `ze show errors` as the next command. Local teardown still ends
+only the captured session; a stale capture performs no send and raises no event.
+Peer receipt and native PPP cleanup remain separate outcomes.
+<!-- source: internal/component/l2tp/diagnostic_control.go -- reportCapturedControlSendFailure -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownCapturedSession -->
 
 Shared CLI history publishes failed reads and writes as
 `doctor-cli-history-read` and `doctor-cli-history-write`, from `cli-history` on

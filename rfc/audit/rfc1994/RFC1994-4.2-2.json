@@ -1,17 +1,17 @@
 {
-  "note": "Judge ppp4 2026-09-30. TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier (+): a Value computed from another secret, judged by the registered l2tp-auth-local verifier, draws Code 4 on the wire. TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier (-): an equal Value never draws Code 4; red under the always-reject break (ppp4-tb-1994-reject.log). Records: verifyCHAPMD5 revert.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1994 Section4.2: unequal Response Value requires CHAP Failure Code4. Complete real local-verifier integration rejects a digest computed with the wrong secret, requiring Failure and not Success; its equal-secret contrast requires Success and forbids Failure. Complete authlocal unit pair verifies the actual comparison result. Complete direct rejection test answers the genuinely emitted auth request false and requires Failure, original message, copied Identifier and false handler return; accepted direct path requires Success. Read constant-time verifier through registered handler/current Driver response and runCHAPAuthPhase/writeCHAPFailure, whose Code constant is4. Thus comparison, protocol framing and wire branch are independently observable; a blanket reject cannot satisfy the equal-value control. This row does not claim the separate SHOULD termination obligation or a fresh observed producer record.",
   "requirement_sha": "9a5ab01cd2bf96f6",
   "tests": {
     "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "46afc25a5ef3f4d8",
     "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "46afc25a5ef3f4d8",
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
-    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2cb39160024b4e",
-    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "bc2cb39160024b4e"
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5e115b2bec7372da",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "340bb45a3da28183",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "340bb45a3da28183"
   },
   "units": {
     "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "f414aa88f0f00ffc",
     "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "373a3509d899eeda",
-    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "1ee15f8b67142929",
     "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2a16f58650477a",
     "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "f6abef15a53bd65c"
   },

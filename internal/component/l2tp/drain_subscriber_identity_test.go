@@ -17,7 +17,7 @@ type missingIdentityPoolDriver struct {
 }
 
 func (d *missingIdentityPoolDriver) IPEventsOut() <-chan ppp.IPEvent { return d.events }
-func (d *missingIdentityPoolDriver) IPResponse(_, _ uint16, answer ppp.IPResponseArgs) error {
+func (d *missingIdentityPoolDriver) IPResponse(_ ppp.EventIPRequest, answer ppp.IPResponseArgs) error {
 	d.answer = answer
 	return nil
 }
@@ -26,7 +26,11 @@ func (d *missingIdentityPoolDriver) IPResponse(_, _ uint16, answer ppp.IPRespons
 // an unnamespaced request before invoking any allocation handler.
 func TestPoolDrainRefusesMissingSubscriberIdentity(t *testing.T) {
 	driver := &missingIdentityPoolDriver{events: make(chan ppp.IPEvent, 1)}
-	driver.events <- ppp.EventIPRequest{TunnelID: 7, SessionID: 42, Family: ppp.AddressFamilyIPv4}
+	wire := newCurrentCoreAdmission(t, nil, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 7, sessionID: 42}, ipv6: false, subscriberID: ""})
+	wire.acceptAuth(t, wire.authRequest(t, ""))
+	request := wire.poolRequest(t)
+	request.SubscriberID = "" // deliberate malformed consumer input; actual private request is retained
+	driver.events <- request
 	close(driver.events)
 	calls := 0
 	handler := func(ppp.EventIPRequest) ppp.IPResponseArgs {
@@ -64,8 +68,11 @@ func TestPoolDrainMissingIdentityDoesNotResolveProvider(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			driver := &missingIdentityPoolDriver{events: make(chan ppp.IPEvent, 1)}
-			driver.events <- ppp.EventIPRequest{SubscriberID: tc.id,
-				TunnelID: 7, SessionID: 42, Family: ppp.AddressFamilyIPv4}
+			wire := newCurrentCoreAdmission(t, nil, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 7, sessionID: 42}, ipv6: false, subscriberID: tc.id})
+			wire.acceptAuth(t, wire.authRequest(t, ""))
+			request := wire.poolRequest(t)
+			request.SubscriberID = tc.id // only missing-ID rows edit actual producer metadata
+			driver.events <- request
 			close(driver.events)
 			resolved, called := 0, 0
 			var receivedID string

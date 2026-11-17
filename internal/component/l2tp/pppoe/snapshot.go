@@ -15,14 +15,17 @@ import (
 // SessionSnapshot is a point-in-time copy of a PPPoE session, safe to
 // read without holding locks.
 type SessionSnapshot struct {
-	SID         uint16
-	MAC         net.HardwareAddr
-	IfName      string
-	ServiceName string
-	State       SessionState
-	UnitNum     int // Kernel display only; -1 when the interface is not pppN.
-	Identity    ppp.SessionIdentity
-	CreatedAt   time.Time
+	PADSPublication PADSPublication
+	SubscriberID    string
+	AccessIfIndex   int
+	SID             uint16
+	MAC             net.HardwareAddr
+	IfName          string
+	ServiceName     string
+	State           SessionState
+	UnitNum         int // Kernel display only; -1 when the interface is not pppN.
+	Identity        ppp.SessionIdentity
+	CreatedAt       time.Time
 }
 
 // InterfaceSnapshot is a point-in-time copy of per-interface state.
@@ -51,14 +54,17 @@ func (st *SessionTable) Sessions() []SessionSnapshot {
 	out := make([]SessionSnapshot, 0, len(st.sessions))
 	for _, s := range st.sessions {
 		out = append(out, SessionSnapshot{
-			SID:         s.SID,
-			MAC:         append(net.HardwareAddr(nil), s.MAC...),
-			IfName:      s.IfName,
-			ServiceName: s.ServiceName,
-			State:       s.State,
-			UnitNum:     sessionUnitDisplay(s),
-			Identity:    sessionIdentity(s),
-			CreatedAt:   s.CreatedAt,
+			PADSPublication: s.padsPublication,
+			SubscriberID:    s.SubscriberID,
+			AccessIfIndex:   s.AccessIfIndex,
+			SID:             s.SID,
+			MAC:             append(net.HardwareAddr(nil), s.MAC...),
+			IfName:          s.IfName,
+			ServiceName:     s.ServiceName,
+			State:           s.State,
+			UnitNum:         sessionUnitDisplay(s),
+			Identity:        sessionIdentity(s),
+			CreatedAt:       s.CreatedAt,
 		})
 	}
 	return out
@@ -105,14 +111,17 @@ func (st *SessionTable) LookupSnapshot(sid uint16) (SessionSnapshot, bool) {
 		return SessionSnapshot{}, false
 	}
 	return SessionSnapshot{
-		SID:         s.SID,
-		MAC:         append(net.HardwareAddr(nil), s.MAC...),
-		IfName:      s.IfName,
-		ServiceName: s.ServiceName,
-		State:       s.State,
-		UnitNum:     sessionUnitDisplay(s),
-		Identity:    sessionIdentity(s),
-		CreatedAt:   s.CreatedAt,
+		PADSPublication: s.padsPublication,
+		SubscriberID:    s.SubscriberID,
+		AccessIfIndex:   s.AccessIfIndex,
+		SID:             s.SID,
+		MAC:             append(net.HardwareAddr(nil), s.MAC...),
+		IfName:          s.IfName,
+		ServiceName:     s.ServiceName,
+		State:           s.State,
+		UnitNum:         sessionUnitDisplay(s),
+		Identity:        sessionIdentity(s),
+		CreatedAt:       s.CreatedAt,
 	}, true
 }
 
@@ -154,4 +163,28 @@ func sessionUnitDisplay(session *Session) int {
 		return -1
 	}
 	return unit
+}
+
+// snapshotAdmission refuses a departed or replaced owner under the same lock
+// that copies its immutable identity and mutable transport snapshot.
+func (st *SessionTable) snapshotAdmission(expected *Session) (SessionSnapshot, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if expected == nil || st.sessions[expected.SID] != expected {
+		return SessionSnapshot{}, false
+	}
+	s := expected
+	return SessionSnapshot{
+		PADSPublication: s.padsPublication,
+		SubscriberID:    s.SubscriberID,
+		AccessIfIndex:   s.AccessIfIndex,
+		SID:             s.SID,
+		MAC:             append(net.HardwareAddr(nil), s.MAC...),
+		IfName:          s.IfName,
+		ServiceName:     s.ServiceName,
+		State:           s.State,
+		UnitNum:         sessionUnitDisplay(s),
+		Identity:        sessionIdentity(s),
+		CreatedAt:       s.CreatedAt,
+	}, true
 }

@@ -123,9 +123,11 @@ func TestCHAPChallengeRetransmittedUntilResponse(t *testing.T) {
 	writeCHAPMD5Response(t, peerEnd, firstID, 0x11)
 	writeCHAPMD5Response(t, peerEnd, secondID, 0x22)
 
+	var fixtureRequest EventAuthRequest
 	select {
 	case raw := <-authEventsOut:
 		evt, ok := raw.(EventAuthRequest)
+		fixtureRequest = evt
 		if !ok {
 			t.Fatalf("first auth event %T, want EventAuthRequest", raw)
 		}
@@ -143,7 +145,7 @@ func TestCHAPChallengeRetransmittedUntilResponse(t *testing.T) {
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	s.authRespCh <- authResponseMsg{accept: true, message: "welcome"}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: true, message: "welcome"})
 	reply := nextPeerPayload(t, frames)
 	if reply[0] != CHAPCodeSuccess {
 		t.Fatalf("reply code = %d, want CHAPCodeSuccess", reply[0])
@@ -176,9 +178,12 @@ func TestCHAPNoChallengeWhileVerifying(t *testing.T) {
 
 	id, _ := challengeOf(t, nextPeerPayload(t, frames))
 	writeCHAPMD5Response(t, peerEnd, id, 0x33)
+	var fixtureRequest EventAuthRequest
 	select {
 	case raw := <-authEventsOut:
-		if _, ok := raw.(EventAuthRequest); !ok {
+		request, ok := raw.(EventAuthRequest)
+		fixtureRequest = request
+		if !ok {
 			t.Fatalf("first auth event %T, want EventAuthRequest", raw)
 		}
 	case <-time.After(2 * time.Second):
@@ -192,7 +197,7 @@ func TestCHAPNoChallengeWhileVerifying(t *testing.T) {
 	case <-time.After(10 * s.chapRestart):
 	}
 
-	s.authRespCh <- authResponseMsg{accept: false, message: "nope"}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: false, message: "nope"})
 	reply := nextPeerPayload(t, frames)
 	if reply[0] != CHAPCodeFailure {
 		t.Fatalf("reply code = %d, want CHAPCodeFailure", reply[0])
@@ -317,9 +322,11 @@ func TestMSCHAPv2ChallengeRetransmittedUntilResponse(t *testing.T) {
 		t.Fatalf("peer write response: %v", err)
 	}
 
+	var fixtureRequest EventAuthRequest
 	select {
 	case raw := <-authEventsOut:
 		evt, ok := raw.(EventAuthRequest)
+		fixtureRequest = evt
 		if !ok {
 			t.Fatalf("first auth event %T, want EventAuthRequest", raw)
 		}
@@ -333,7 +340,7 @@ func TestMSCHAPv2ChallengeRetransmittedUntilResponse(t *testing.T) {
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 	// End the round with a refusal so the handler goroutine returns.
-	s.authRespCh <- authResponseMsg{accept: false, message: "nope"}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: false, message: "nope"})
 	select {
 	case <-handlerDone:
 	case <-time.After(2 * time.Second):

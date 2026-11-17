@@ -20,10 +20,8 @@ func newTestDriverNoResponder(backend testIfaceBackend, ops pppOps) *Driver {
 	})
 }
 
-// VALIDATES: AuthResponse returns ErrSessionNotFound for a
-//
-//	(tunnelID, sessionID) pair that was never registered with
-//	the Driver.
+// VALIDATES: AuthResponse returns ErrSessionNotFound for an unbound
+// authentication request that cannot identify a live admitted worker.
 //
 // PREVENTS: regression where the error path silently returns nil
 //
@@ -37,62 +35,89 @@ func TestDriverAuthResponseUnknownSession(t *testing.T) {
 	}
 	defer d.Stop()
 
-	err := d.AuthResponse(99, 99, true, "", nil)
+	err := d.AuthResponse(EventAuthRequest{TunnelID: 99, SessionID: 99}, true, "", nil)
 	if !errors.Is(err, ErrSessionNotFound) {
 		t.Errorf("AuthResponse(unknown) err = %v, want ErrSessionNotFound", err)
 	}
 }
 
-// VALIDATES: AuthResponse returns ErrAuthResponsePending when the
-//
-//	per-session buffered(1) authRespCh already holds an
-//	unconsumed decision.
-//
-// PREVENTS: regression where a duplicate AuthResponse blocks the
-//
-//	caller or silently overwrites the first decision.
-//
-// Trade-off: this test inserts a pppSession shell directly into
-// d.sessions instead of spawning a real session. The real-session
-// path is race-sensitive (must land the second AuthResponse before
-// the first is consumed by runAuthPhase), whereas the shell
-// approach is deterministic. The cost is fragility against future
-// spawnSession invariant changes -- if spawnSession starts
-// initializing fields this test does not set, they will read as
-// zero-values here. Accept that cost for the determinism.
+// VALIDATES: a second decision for the same still-active request is refused
+// with ErrAuthResponsePending and cannot overwrite the first decision.
+// Method: an actual emitted request waits while a one-byte net.Pipe read
+// blocks the worker in its Echo-Reply write, before decision consumption.
 func TestDriverAuthResponseDoubleCallReturnsPending(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 7901)
+	t.Cleanup(func() { closeConn(pair.peerEnd) })
 	ops, _, _ := newFakeOps()
-	d := newTestDriverNoResponder(&fakeBackend{}, ops)
-	// No Start: we only manipulate the sessions map for this unit test.
-
-	// Register a pppSession shell with a buffered(1) authRespCh.
-	// No goroutine runs; we only exercise the AuthResponse path.
-	k := sessionKey{tunnelID: 7, sessionID: 8}
-	s := &pppSession{
-		tunnelID:   k.tunnelID,
-		sessionID:  k.sessionID,
-		authRespCh: make(chan authResponseMsg, 1),
-		sessStop:   make(chan struct{}),
-		done:       make(chan struct{}),
+	driver := newTestDriverNoResponder(&fakeBackend{}, ops)
+	if err := driver.Start(); err != nil {
+		t.Fatal(err)
 	}
-	d.mu.Lock()
-	d.sessions[k] = s
-	d.mu.Unlock()
-
-	if err := d.AuthResponse(7, 8, true, "", nil); err != nil {
+	t.Cleanup(driver.Stop)
+	// Unblock a partial write before driver.Stop on every failure path.
+	t.Cleanup(func() { closeConn(pair.peerEnd) })
+	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
+	driver.SessionsIn() <- testStartForDriver(driver, &StartSession{
+		LCP: testLCPConfig(), TunnelID: 7, SessionID: 8, LNSMode: true,
+		MaxMRU: 1500, DisableIPCP: true, DisableIPv6CP: true,
+		ProxyLCPInitialRecv: stream, ProxyLCPLastSent: stream, ProxyLCPLastRecv: stream,
+	}, 7901, 7902, 7)
+	var request EventAuthRequest
+	select {
+	case event := <-driver.AuthEventsOut():
+		var ok bool
+		request, ok = event.(EventAuthRequest)
+		if !ok {
+			t.Fatalf("event %T, want actual authentication request", event)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no actual authentication request")
+	}
+	var frame [64]byte
+	n := WriteFrame(frame[:], 0, ProtoLCP, nil)
+	n += WriteLCPEcho(frame[:], n, LCPEchoRequest, 0x71, 0xCAFEBABE, nil)
+	if err := pair.peerEnd.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pair.peerEnd.Write(frame[:n]); err != nil {
+		t.Fatal(err)
+	}
+	var reply [64]byte
+	if _, err := io.ReadFull(pair.peerEnd, reply[:1]); err != nil {
+		t.Fatal(err)
+	}
+	// net.Pipe has no write buffer: reading only one byte leaves the real
+	// worker blocked sending the remainder, before it can consume a decision.
+	if err := driver.AuthResponse(request, true, "", nil); err != nil {
 		t.Fatalf("first AuthResponse: %v", err)
 	}
-	if err := d.AuthResponse(7, 8, true, "", nil); !errors.Is(err, ErrAuthResponsePending) {
+	if err := driver.AuthResponse(request, true, "", nil); !errors.Is(err, ErrAuthResponsePending) {
 		t.Errorf("second AuthResponse err = %v, want ErrAuthResponsePending", err)
 	}
-
-	// Drain the buffered message so the channel is not GC-pinned.
-	<-s.authRespCh
+	if _, err := io.ReadFull(pair.peerEnd, reply[1:n]); err != nil {
+		t.Fatal(err)
+	}
+	proto, payload, _, err := ParseFrame(reply[:n])
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet, err := ParseLCPPacket(payload)
+	if err != nil || proto != ProtoLCP || packet.Code != LCPEchoReply || packet.Identifier != 0x71 {
+		t.Fatalf("blocked reply was not the requested echo: proto=%x packet=%+v err=%v", proto, packet, err)
+	}
+	if _, opened := waitForEventOfType[EventSessionUp](t, driver.EventsOut(), time.Second); !opened {
+		t.Fatal("accepted authentication did not complete")
+	}
+	if err := driver.AuthResponse(request, true, "", nil); !errors.Is(err, ErrRequestExpired) {
+		t.Fatalf("retired authentication reply err = %v, want ErrRequestExpired", err)
+	}
 }
 
 // VALIDATES: StopSession unblocks a session parked in the auth phase
 //
-//	waiting on authRespCh, rather than hanging until the
+//	waiting on its private request reply lane, rather than hanging until the
 //	whole Driver is stopped.
 //
 // PREVENTS: regression of the BLOCKER identified in /ze-review where
@@ -117,7 +142,7 @@ func TestDriverStopSessionDuringAuthPhase(t *testing.T) {
 	// Proxy-LCP short-circuit so the session reaches afterLCPOpen
 	// (and therefore runAuthPhase) without needing a scripted peer.
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            11,
 		SessionID:           22,
@@ -130,11 +155,14 @@ func TestDriverStopSessionDuringAuthPhase(t *testing.T) {
 
 	// Wait for the auth request to hit the channel -- this proves
 	// the session is parked in runAuthPhase's receive select.
+	var request EventAuthRequest
 	select {
 	case ev := <-d.AuthEventsOut():
-		if _, ok := ev.(EventAuthRequest); !ok {
+		observed, ok := ev.(EventAuthRequest)
+		if !ok {
 			t.Fatalf("first auth event %T, want EventAuthRequest", ev)
 		}
+		request = observed
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
@@ -142,7 +170,7 @@ func TestDriverStopSessionDuringAuthPhase(t *testing.T) {
 	// StopSession must return promptly. Before the fix, this line
 	// blocked until Driver.Stop (the deferred cleanup) fired.
 	done := make(chan error, 1)
-	go func() { done <- d.StopSession(11, 22) }()
+	go func() { done <- d.StopSession(request.Control) }()
 	select {
 	case err := <-done:
 		if err != nil {
@@ -177,7 +205,7 @@ func TestRunAuthPhaseTimeout(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            30,
 		SessionID:           40,
@@ -236,7 +264,7 @@ func TestRunAuthPhaseReject(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            50,
 		SessionID:           60,
@@ -248,9 +276,11 @@ func TestRunAuthPhaseReject(t *testing.T) {
 	}, 7201, 2001, 3)
 
 	// First event must be the auth request.
+	var capturedAuthRequest EventAuthRequest
 	select {
 	case ev := <-d.AuthEventsOut():
 		req, ok := ev.(EventAuthRequest)
+		capturedAuthRequest = req
 		if !ok {
 			t.Fatalf("first auth event %T, want EventAuthRequest", ev)
 		}
@@ -261,7 +291,7 @@ func TestRunAuthPhaseReject(t *testing.T) {
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	if err := d.AuthResponse(50, 60, false, "credentials denied", nil); err != nil {
+	if err := d.AuthResponse(capturedAuthRequest, false, "credentials denied", nil); err != nil {
 		t.Fatalf("AuthResponse(reject): %v", err)
 	}
 
@@ -307,7 +337,7 @@ func TestEventAuthRequestContent(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            55,
 		SessionID:           66,
@@ -362,7 +392,7 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            70,
 		SessionID:           80,
@@ -376,16 +406,19 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 	}, 7401, 4001, 5)
 
 	// EventAuthRequest arrives first on the auth channel.
+	var capturedAuthRequest EventAuthRequest
 	select {
 	case ev := <-d.AuthEventsOut():
-		if _, ok := ev.(EventAuthRequest); !ok {
+		observedRequest, ok := ev.(EventAuthRequest)
+		capturedAuthRequest = observedRequest
+		if !ok {
 			t.Fatalf("first auth event %T, want EventAuthRequest", ev)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
 
-	if err := d.AuthResponse(70, 80, true, "", nil); err != nil {
+	if err := d.AuthResponse(capturedAuthRequest, true, "", nil); err != nil {
 		t.Fatalf("AuthResponse(accept): %v", err)
 	}
 

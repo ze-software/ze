@@ -7,6 +7,7 @@
 package l2tp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -173,7 +174,7 @@ func (r *l2tpReactor) TeardownAllSessions() int {
 	for _, k := range keys {
 		// An operator clearing every session is RFC 2866 Section 5.10 value 6:
 		// "Administrator reset the port or session."
-		if err := r.teardownSessionOnTunnel(k.tid, k.sid, l2tpevents.TerminateCauseAdminReset); err == nil {
+		if err := r.teardownSessionOnTunnel(k.tid, k.sid); err == nil {
 			n++
 		}
 	}
@@ -252,9 +253,33 @@ func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
 // latter walks every tunnel looking for the SID; here the caller
 // already knows the tuple.
 //
-// cause carries the same obligation teardownSessionByID states.
-func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16, cause l2tpevents.TerminateCause) error {
-	return r.teardownSessionOnTunnelWith(localTID, localSID, cdnResultAdministrative, cause)
+// Administrative clear reports the operator reset cause.
+func (r *l2tpReactor) teardownSessionOnTunnel(localTID, localSID uint16) error {
+	r.tunnelsMu.Lock()
+	t, ok := r.tunnelsByLocalID[localTID]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return fmt.Errorf("%w: local-tid=%d", ErrTunnelNotFound, localTID)
+	}
+	sess, ok := t.sessions[localSID]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
+	}
+	now := r.params.Clock()
+	outbound := t.teardownSession(sess, cdnResultAdministrative, l2tpevents.TerminateCauseAdminReset, now, r.logger)
+	teardowns, downs := t.drainPendingTeardowns()
+	r.tunnelsMu.Unlock()
+
+	r.deliverSessionDowns(downs)
+	for _, req := range outbound {
+		if err := r.listener.Send(req.to, req.bytes); err != nil {
+			r.logger.Warn("l2tp: outbound send failed (teardown-all session)",
+				"to", req.to.String(), "error", err.Error())
+		}
+	}
+	r.enqueueKernelEvents(nil, teardowns)
+	return nil
 }
 
 // teardownRelaySession ends only the exact call that requested cancellation.
@@ -292,32 +317,55 @@ func (r *l2tpReactor) teardownRelaySession(expected *relayCall, localTID, localS
 	r.enqueueKernelEvents(nil, teardowns)
 }
 
-// teardownSessionOnTunnelWith is teardownSessionOnTunnel with the CDN
-// Result Code named by the caller.
-func (r *l2tpReactor) teardownSessionOnTunnelWith(localTID, localSID, result uint16, cause l2tpevents.TerminateCause) error {
+// teardownCapturedSession ends only the captured transport. A nonnil timer
+// also requires its exact, uncanceled context to remain installed. These
+// checks and teardown share tunnelsMu, so a timeout already selected before
+// cancellation cannot end a replacement transport or network lifetime.
+// A nil timer is the factory-failure path before PPP admission.
+// Caller MUST NOT hold tunnelsMu.
+func (r *l2tpReactor) teardownCapturedSession(tunnel *L2TPTunnel, sess *L2TPSession, timer context.Context, result uint16, cause l2tpevents.TerminateCause) bool {
 	r.tunnelsMu.Lock()
-	t, ok := r.tunnelsByLocalID[localTID]
-	if !ok {
+	if tunnel == nil {
 		r.tunnelsMu.Unlock()
-		return fmt.Errorf("%w: local-tid=%d", ErrTunnelNotFound, localTID)
+		return false
 	}
-	sess, ok := t.sessions[localSID]
-	if !ok {
+	if sess == nil {
 		r.tunnelsMu.Unlock()
-		return fmt.Errorf("%w: local-sid=%d", ErrSessionNotFound, localSID)
+		return false
+	}
+	if r.tunnelsByLocalID[tunnel.localTID] != tunnel {
+		r.tunnelsMu.Unlock()
+		return false
+	}
+	if tunnel.lookupSession(sess.localSID) != sess {
+		r.tunnelsMu.Unlock()
+		return false
+	}
+	if timer != nil {
+		if timer.Err() != nil {
+			r.tunnelsMu.Unlock()
+			return false
+		}
+		current := sess.sessionTimeoutContext == timer || sess.idleTimeoutContext == timer
+		if !current {
+			r.tunnelsMu.Unlock()
+			return false
+		}
 	}
 	now := r.params.Clock()
-	outbound := t.teardownSession(sess, result, cause, now, r.logger)
-	teardowns, downs := t.drainPendingTeardowns()
+	outbound := tunnel.teardownSession(sess, result, cause, now, r.logger)
+	teardowns, downs := tunnel.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 
+	// Removal captured these notices before deleting the session. A queued
+	// PPP Down must never recover cleanup by selecting the wire ID again.
 	r.deliverSessionDowns(downs)
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
-			r.logger.Warn("l2tp: outbound send failed (teardown-all session)",
-				"to", req.to.String(), "error", err.Error())
+			// The helper MUST receive this attempted send's actual peer and cause.
+			reportCapturedControlSendFailure(r.logger, req.to, err)
 		}
 	}
 	r.enqueueKernelEvents(nil, teardowns)
-	return nil
+	return true
 }

@@ -65,7 +65,7 @@ func drainAuth(ch <-chan ppp.AuthEvent, handler AuthHandler, out chan<- authDrai
 // authDrainDriver is the authentication decision boundary of the PPP driver.
 type authDrainDriver interface {
 	AuthEventsOut() <-chan ppp.AuthEvent
-	AuthResponse(tunnelID, sessionID uint16, accept bool, message string, blob []byte) error
+	AuthResponse(request ppp.EventAuthRequest, accept bool, message string, blob []byte) error
 }
 
 // startAuthDrain spawns the production auth drain goroutine that reads
@@ -100,7 +100,7 @@ func startAuthDrain(logger *slog.Logger, d authDrainDriver, resolve func() AuthH
 			}
 			handler := resolve()
 			respond := func(accept bool, msg string, blob []byte) error {
-				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
+				return d.AuthResponse(req, accept, msg, blob)
 			}
 			r := callAuthHandler(handler, req, respond)
 			subscriber.RecordAuthResult(subscriber.AccessL2TP, r.Accept)
@@ -127,7 +127,7 @@ func startAuthDrain(logger *slog.Logger, d authDrainDriver, resolve func() AuthH
 // sendAuthDrainResponse serves both ordinary decisions and missing-ID refusals.
 // Callers MUST pass only a synchronous decision; an async provider owns its reply.
 func sendAuthDrainResponse(logger *slog.Logger, d authDrainDriver, req ppp.EventAuthRequest, result AuthResult) {
-	if cause := d.AuthResponse(req.TunnelID, req.SessionID, result.Accept, result.Message, result.AuthResponseBlob); cause != nil {
+	if cause := d.AuthResponse(req, result.Accept, result.Message, result.AuthResponseBlob); cause != nil {
 		const problem = "Ze could not deliver a subscriber authentication decision"
 		const why = "The PPP session may have ended before its decision arrived"
 		const fix = "ze show errors"
@@ -174,7 +174,7 @@ func drainPool(ch <-chan ppp.IPEvent, handler PoolHandler, out chan<- poolDrainR
 // this seam narrow lets a test order session teardown before answer delivery.
 type poolDrainDriver interface {
 	IPEventsOut() <-chan ppp.IPEvent
-	IPResponse(tunnelID, sessionID uint16, answer ppp.IPResponseArgs) error
+	IPResponse(request ppp.EventIPRequest, answer ppp.IPResponseArgs) error
 }
 
 // startPoolDrain reads the driver's requests until Driver.Stop closes them.
@@ -198,7 +198,7 @@ func startPoolDrain(logger *slog.Logger, d poolDrainDriver, resolve func() PoolH
 				handler := resolve()
 				r = callPoolHandler(handler, req)
 			}
-			if err := d.IPResponse(req.TunnelID, req.SessionID, r); err != nil {
+			if err := d.IPResponse(req, r); err != nil {
 				subevents.ReleaseUndeliveredPoolAnswer(logger, bus, req, r)
 				logger.Warn("l2tp: pool drain response failed",
 					"tunnel", req.TunnelID, "session", req.SessionID, "error", err)

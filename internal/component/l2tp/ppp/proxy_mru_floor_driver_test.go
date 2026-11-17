@@ -63,7 +63,7 @@ func TestInterfaceSetupRefusesMRUBelowIPv4Floor(t *testing.T) {
 	s.negotiatedMRU = 67
 	// Keep the control usable if the guard regresses: auth and both-disabled
 	// NCP can complete, exposing the wrong interface installation directly.
-	s.authRespCh <- authResponseMsg{accept: true}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 	if s.afterLCPOpen() {
 		t.Fatal("interface setup accepted an unsupported peer MRU67")
 	}

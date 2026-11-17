@@ -51,7 +51,35 @@ const usableSIDs = maxSID - 1
 // SID 0 and SID 0xffff are permanently marked as allocated (reserved).
 const bitmapWords = (maxSID + 1) / 64
 
+// PADSPublication is the one table-owned monotonic discovery receipt.
+// Attempted means PADS may have escaped, including a sender panic/error.
+// Submitted means the real kernel send returned nil; it is not a peer ACK.
+type PADSPublication uint8
+
+const (
+	PADSUnspecified PADSPublication = iota
+	PADSNotAttempted
+	PADSAttempted
+	PADSSubmitted
+)
+
 type Session struct {
+	padsPublication PADSPublication // table.mu; survives StateTeardown
+
+	// SubscriberID and AccessIfIndex are fixed once from the complete PADR access.
+	SubscriberID  string
+	AccessIfIndex int
+	// Attempt is published with Opened before handoff; Control is bound under table.mu.
+	Attempt ppp.SessionAttempt
+	Control ppp.SessionControl
+	// Transfer intent precedes queueing; only the exact terminal consumer ends it.
+	pppTransferred   bool
+	pppTerminal      bool
+	pppRelayReleased bool
+	wireEnd          *padtPublication // table.mu; nil until one handler claims this wire end
+	// A refused transfer with unresolved cleanup remains owned by this admission.
+	pppRefusal  *ppp.EventSessionRejected
+	pppNotice   chan struct{} // actual terminal/refusal observation, including failure
 	SID         uint16
 	MAC         net.HardwareAddr
 	IfName      string
@@ -77,21 +105,74 @@ type Session struct {
 	relay *serviceBridgePreparation
 	// closeDone joins this admission, including cleanup after it was claimed.
 	// The table owns both fields; only external generation shutdown waits.
-	closeDone    chan struct{}
-	closeStarted bool
+	closeDone       chan struct{}
+	closeStarted    bool
+	closeErr        error         // latest actual producer cleanup failure; owner stays attached
+	closeNotice     chan struct{} // bounded retry/failure wake for a waiting drain
+	bridgePreparing bool          // a closing local lease can never be handed to PPP
 }
 
-// sessionLease closes an unused local lease once, whether bridge preparation
-// or access teardown wins. Only setOpened creates it with a validated handle.
-// Close is safe for concurrent use; a nil *sessionLease is invalid.
+// padtPublication is the original handler's completion receipt for one exact
+// admission. Its fields are immutable after claimPADT; only that successful
+// caller may finish it. A nil receipt grants no publication ownership.
+type padtPublication struct {
+	session *Session
+	done    chan struct{}
+}
+
+// sessionLease shares one cached first Close outcome among concurrent borrowers.
+// A later claimed admission cleanup may explicitly retry this same unused owner.
+// Only setOpened creates this lease; transferred leases never reach retryClose.
 type sessionLease struct {
-	handle ppp.SessionHandle
-	once   sync.Once
-	err    error
+	handle    ppp.SessionHandle
+	mu        sync.Mutex
+	attempted bool
+	closed    bool
+	err       error
 }
 
 func (lease *sessionLease) Close() error {
-	lease.once.Do(func() { lease.err = lease.handle.Close() })
+	lease.mu.Lock()
+	defer lease.mu.Unlock()
+	if lease.attempted {
+		return lease.err
+	}
+	return lease.closeLocked()
+}
+
+// retryClose is a distinct later cleanup attempt, never an ordinary borrower.
+// The caller MUST own the table's new closeStarted claim after an earlier
+// actual cleanup failure, retain the same owner, and have no PPP transfer.
+func (lease *sessionLease) retryClose() error {
+	lease.mu.Lock()
+	defer lease.mu.Unlock()
+	if lease.closed {
+		return nil
+	}
+	return lease.closeLocked()
+}
+
+func (lease *sessionLease) closeLocked() error {
+	lease.attempted = true
+	// Preserve the original panic for the existing outer task boundary while
+	// concurrent ordinary borrowers receive its same retained error outcome.
+	defer func() {
+		if failure := recover(); failure != nil {
+			cause, ok := failure.(error)
+			if !ok {
+				cause = errors.New("pppoe: unused PPP lease Close panicked; release is unknown")
+			}
+			lease.err = cause
+			panic(failure)
+		}
+	}()
+	lease.err = lease.handle.Close()
+	if lease.err == nil {
+		if native, present := lease.handle.(ppp.NativeReleaseHandle); present && native.NativeReleasePending() {
+			lease.err = errors.New("pppoe: unused PPP native release remains pending")
+		}
+	}
+	lease.closed = lease.err == nil
 	return lease.err
 }
 
@@ -191,7 +272,10 @@ func (st *SessionTable) Add(s *Session) error {
 	if _, exists := st.sessions[s.SID]; exists {
 		return ErrSessionExists
 	}
+	s.padsPublication = PADSNotAttempted
 	s.closeDone = make(chan struct{})
+	s.pppNotice = make(chan struct{})
+	s.closeNotice = make(chan struct{}, 1)
 	st.sessions[s.SID] = s
 	if len(s.MAC) == 6 {
 		var key [6]byte
@@ -216,6 +300,7 @@ func (st *SessionTable) Remove(sid uint16) dataplane.OpenedSession {
 // removedAdmission carries both ownership roles out of the table in one
 // operation. Its zero value means there was no admission to remove.
 type removedAdmission struct {
+	retryUnused bool // captured under table.mu from a prior actual producer failure
 	opened      dataplane.OpenedSession
 	unusedLease *sessionLease
 	relay       *serviceBridgePreparation
@@ -274,24 +359,28 @@ func (st *SessionTable) Lookup(sid uint16) *Session {
 	return st.sessions[sid]
 }
 
-// markTeardown sets sid's state to StateTeardown and returns the session,
+// markTeardown sets the captured admission's state to StateTeardown and returns it,
 // which stays in the table -- the caller removes it separately, once its own
-// teardown work (such as sending the PADT) is done. Returns nil when sid is
-// absent or another caller already owns its teardown.
+// teardown work (such as sending the PADT) is done. A later genuine PPP terminal
+// event may complete that same teardown; wire publication and final resource
+// cleanup have their own claims. An absent, replaced or closing row returns nil.
 //
 // The write happens under st.mu, the same lock matchLiveCookie takes to read
 // State: handleSessionDown runs on the PPP driver's event-consumer
 // goroutine, while a replayed PADR's dedup match runs on the discovery-
 // reader goroutine, so without a shared lock the two would race on the field
 // (spec-pppoe-padr-replay-allocates-unbounded-sessions R-2). A received PADT
-// claims teardown through the same lock, so it cannot free a SID whose
-// outbound PADT is still being written.
-func (st *SessionTable) markTeardown(sid uint16) *Session {
+// marks teardown through the same lock. Its wire-end receipt then keeps the
+// SID reserved while an outbound PADT is still being written.
+func (st *SessionTable) markTeardown(expected *Session) *Session {
+	if expected == nil {
+		return nil
+	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	s, ok := st.sessions[sid]
-	if !ok || s.State == StateTeardown {
+	s, ok := st.sessions[expected.SID]
+	if !ok || s != expected || s.closeStarted {
 		return nil
 	}
 	s.State = StateTeardown
@@ -312,17 +401,21 @@ func (st *SessionTable) transport(sid uint16) dataplane.OpenedSession {
 }
 
 // setOpened publishes an immutable session owner before PPP can emit events.
-func (st *SessionTable) setOpened(sid uint16, opened dataplane.OpenedSession) bool {
+func (st *SessionTable) setOpened(expected *Session, opened dataplane.OpenedSession, attempt ppp.SessionAttempt) bool {
+	if expected == nil {
+		return false
+	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	session := st.sessions[sid]
-	if session == nil {
+	session := st.sessions[expected.SID]
+	if session != expected {
 		return false
 	}
 	if session.State == StateTeardown {
 		return false
 	}
 	session.Opened = opened
+	session.Attempt = attempt
 	session.unusedLease = &sessionLease{handle: opened.Dataplane()}
 	return true
 }
@@ -330,18 +423,25 @@ func (st *SessionTable) setOpened(sid uint16, opened dataplane.OpenedSession) bo
 // takePPPLease transfers the server's retained local lease. Local PPP MUST
 // take it before queueing StartSession. A nil result means this admission no
 // longer owns a transferable lease, so the caller MUST NOT start local PPP.
-func (st *SessionTable) takePPPLease(sid uint16) *sessionLease {
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	session := st.sessions[sid]
-	// refuse-by-default: guards handlePADR -- a removed admission cannot transfer a lease into a new PPP session
-	if session == nil {
+func (st *SessionTable) takePPPLease(expected *Session) *sessionLease {
+	if expected == nil {
 		return nil
 	}
-	if session.State == StateTeardown {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	session := st.sessions[expected.SID]
+	// refuse-by-default: guards handlePADR -- only this captured admission can transfer its lease
+	if session != expected {
+		return nil
+	}
+	if session.State == StateTeardown || session.bridgePreparing {
 		return nil
 	}
 	lease := session.unusedLease
+	if lease == nil {
+		return nil
+	}
+	session.pppTransferred = true
 	session.unusedLease = nil
 	return lease
 }
@@ -367,7 +467,7 @@ func (preparation *serviceBridgePreparation) PrepareBridge() error {
 }
 
 // bridgeLease checks the original admission under the table lock, then lends
-// its once-owner so bridge preparation and teardown can close outside the lock.
+// its exact shared owner so preparation and teardown close outside the lock.
 func (st *SessionTable) bridgeLease(sid uint16, opened dataplane.OpenedSession) (*sessionLease, error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -387,6 +487,7 @@ func (st *SessionTable) bridgeLease(sid uint16, opened dataplane.OpenedSession) 
 	if session.unusedLease == nil {
 		return nil, errors.New("pppoe: local PPP already owns this session; an L2TP bridge cannot take its channel")
 	}
+	session.bridgePreparing = true
 	return session.unusedLease, nil
 }
 
@@ -508,18 +609,6 @@ func (st *SessionTable) Count() int {
 	return len(st.sessions)
 }
 
-// sids returns the session id of every session in the table, in no order.
-// Reload uses it to end each session on an access interface it removes.
-func (st *SessionTable) sids() []uint16 {
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	out := make([]uint16, 0, len(st.sessions))
-	for sid := range st.sessions {
-		out = append(out, sid)
-	}
-	return out
-}
-
 // setMaxSessions changes the admission cap, with the clamp newSessionTable
 // applies. Sessions already above a lowered cap stay up: the cap refuses the
 // next AllocSID, it never ends a live session.
@@ -530,4 +619,87 @@ func (st *SessionTable) setMaxSessions(maxSessions int) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.maxSessions = maxSessions
+}
+
+// restoreUnsentPPPLease runs only when queueing panics before its send returns.
+// No Driver acquired that send, so only this producer regains cleanup ownership.
+func (st *SessionTable) restoreUnsentPPPLease(expected *Session, lease *sessionLease) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if expected == nil || st.sessions[expected.SID] != expected || expected.closeStarted {
+		return
+	}
+	expected.pppTransferred = false
+	expected.unusedLease = lease
+}
+
+// claimPADT grants the first handler ownership of this exact wire end. A nil
+// result refuses an absent, replaced, closing or already claimed admission.
+// A successful caller MUST defer finishPADT before running the wire-end work.
+func (st *SessionTable) claimPADT(expected *Session) *padtPublication {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if expected == nil {
+		return nil
+	}
+	if st.sessions[expected.SID] != expected {
+		return nil
+	}
+	if expected.closeStarted {
+		return nil
+	}
+	if expected.wireEnd != nil {
+		return nil
+	}
+	expected.wireEnd = &padtPublication{session: expected, done: make(chan struct{})}
+	return expected.wireEnd
+}
+
+// localPPPAvailable excludes a lease whose bridge preparation already began
+// closing it, even when a failed relay asks the caller to fall back locally.
+func (st *SessionTable) localPPPAvailable(expected *Session) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return expected != nil && st.sessions[expected.SID] == expected && expected.State != StateTeardown && !expected.bridgePreparing && expected.unusedLease != nil
+}
+
+// PADSPublication returns the original owner's immutable progress snapshot.
+func (st *SessionTable) PADSPublication(expected *Session) (PADSPublication, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if expected == nil || st.sessions[expected.SID] != expected {
+		return PADSUnspecified, false
+	}
+	return expected.padsPublication, true
+}
+
+func (st *SessionTable) notePADS(expected *Session, publication PADSPublication) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if expected == nil || st.sessions[expected.SID] != expected || expected.closeStarted {
+		return false
+	}
+	if publication != PADSAttempted && publication != PADSSubmitted {
+		return false
+	}
+	if expected.padsPublication < PADSNotAttempted || expected.padsPublication > PADSSubmitted {
+		return false
+	}
+	if publication == PADSAttempted && expected.State == StateTeardown {
+		return false
+	}
+	if publication > expected.padsPublication {
+		expected.padsPublication = publication
+	}
+	return true
+}
+
+// markSessionFor finishes only the captured admitting PADS, never a current
+// occupant found later by its wire SID.
+func (st *SessionTable) markSessionFor(expected *Session) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if expected != nil && st.sessions[expected.SID] == expected && expected.State == StateDiscovery {
+		expected.State = StateSession
+	}
 }

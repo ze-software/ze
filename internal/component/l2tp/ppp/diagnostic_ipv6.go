@@ -41,7 +41,7 @@ func reportIPv6Failure(logger *slog.Logger, ifname, operation string, cause erro
 		failure.LogAttrs(slog.String("code", codePPPIPv6Service), slog.String("interface", ifname))...)
 	report.RaiseErrorFix("ppp", codePPPIPv6Service, diagnosticSubject(ifname+"/"+operation),
 		report.FitMessage(failure.Problem()+". "+failure.Why()+": "+cause.Error()), failure.Fix(),
-		map[string]any{"interface": ifname, "operation": operation, "error": cause.Error()})
+		map[string]any{reportFieldInterface: ifname, reportFieldOperation: operation, reportFieldError: cause.Error()})
 }
 
 // The exact human subject stays in the message and detail. A long backend name
@@ -63,5 +63,10 @@ func normalIPv6CarrierStop(ctx context.Context, err error) bool {
 	for cause := errors.Unwrap(err); cause != nil; cause = errors.Unwrap(err) {
 		err = cause
 	}
-	return err == ctx.Err() || err == net.ErrClosed || err == io.ErrClosedPipe
+	// A join is not a single-cause closure, even when one child is a normal
+	// stop sentinel: another child may retain the backend failure.
+	if _, composite := err.(interface{ Unwrap() []error }); composite {
+		return false
+	}
+	return errors.Is(err, ctx.Err()) || errors.Is(err, net.ErrClosed) || errors.Is(err, io.ErrClosedPipe)
 }

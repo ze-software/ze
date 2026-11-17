@@ -301,7 +301,7 @@ func TestInitialAuthMethodCHAPBeforePAPWhateverOrder(t *testing.T) {
 
 // VALIDATES: awaitAuthDecision emits the request, returns the handler's
 //
-//	decision on authRespCh, and does NOT fire the timeout
+//	decision for its emitted request, and does NOT fire the timeout
 //	timer when the decision arrives promptly.
 //
 // PREVENTS: regression where a handler that responds quickly still
@@ -314,14 +314,13 @@ func TestAwaitAuthDecisionAccept(t *testing.T) {
 		tunnelID:      11,
 		sessionID:     22,
 		authEventsOut: authEventsOut,
-		authRespCh:    make(chan authResponseMsg, 1),
 		stopCh:        make(chan struct{}),
 		sessStop:      make(chan struct{}),
 		done:          make(chan struct{}),
 		authTimeout:   2 * time.Second,
 		logger:        discardLogger(),
 	}
-	s.authRespCh <- authResponseMsg{accept: true, message: "hello"}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true, message: "hello"})
 
 	req := EventAuthRequest{TunnelID: 11, SessionID: 22, Method: AuthMethodPAP}
 	got, ok := s.awaitAuthDecision(req, "pap")
@@ -372,7 +371,7 @@ func TestAuthDecisionPrincipalForNCP(t *testing.T) {
 					if step.username == "" {
 						method = AuthMethodNone
 					}
-					s.authRespCh <- authResponseMsg{accept: step.accept}
+					replyNextAuthRequest(t, s, authResponseMsg{accept: step.accept})
 					decision, ok := s.awaitAuthDecision(EventAuthRequest{
 						TunnelID: s.tunnelID, SessionID: s.sessionID,
 						Method: method, Username: step.username,
@@ -420,7 +419,6 @@ func TestAwaitAuthDecisionTimeout(t *testing.T) {
 		sessionID:     44,
 		eventsOut:     eventsOut,
 		authEventsOut: authEventsOut,
-		authRespCh:    make(chan authResponseMsg, 1),
 		stopCh:        make(chan struct{}),
 		sessStop:      make(chan struct{}),
 		done:          make(chan struct{}),
@@ -477,7 +475,6 @@ func TestAwaitAuthDecisionStopCh(t *testing.T) {
 		tunnelID:      55,
 		sessionID:     66,
 		authEventsOut: authEventsOut,
-		authRespCh:    make(chan authResponseMsg, 1),
 		stopCh:        stopCh,
 		sessStop:      make(chan struct{}),
 		done:          make(chan struct{}),

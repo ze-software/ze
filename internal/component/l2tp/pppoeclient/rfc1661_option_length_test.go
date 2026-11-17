@@ -161,6 +161,41 @@ func TestRFC1661ClientRequestPastEndSilentlyDiscarded(t *testing.T) {
 			}
 		})
 	}
+
+	for _, tc := range pastEndCases {
+		t.Run("ack-sent/"+tc.name, func(t *testing.T) {
+			// A valid server request is Acked before the malformed request.
+			// The client's own request remains unanswered until the helper's
+			// appended exact Ack, so the malformed input arrives in AckSent.
+			accepted := []byte{ppp.LCPOptMRU, 4, 0x05, 0xD4}
+			log := runClientLCP(t,
+				serverFrame(ppp.LCPConfigureRequest, 0x0F, accepted),
+				serverFrame(ppp.LCPConfigureRequest, 0x10, tc.data))
+
+			// Keeping AckSent lets the exact Ack of the original local
+			// request finish negotiation immediately. A reset to ReqSent
+			// would consume and Ack the helper's later replacement server
+			// request (0x20) before returning. Every wire write counts,
+			// including a wrong extra local Configure-Request or protocol.
+			frames := log.snapshot()
+			if len(frames) != 2 {
+				t.Fatalf("wire writes after AckSent discard = %d, want only the original request and server Ack", len(frames))
+			}
+			pkts := log.lcpPackets(t)
+			if len(pkts) != 2 {
+				t.Fatalf("LCP packets = %d, want the two original negotiation writes", len(pkts))
+			}
+			if pkts[0].Code != ppp.LCPConfigureRequest || pkts[0].Identifier != 1 {
+				t.Fatalf("initial client packet = %+v, want the original Configure-Request with Identifier 1", pkts[0])
+			}
+			if pkts[1].Code != ppp.LCPConfigureAck || pkts[1].Identifier != 0x0F || !bytes.Equal(pkts[1].Data, accepted) {
+				t.Fatalf("server reply = %+v, want the exact Ack of the valid pre-discard request", pkts[1])
+			}
+			if hasReply(pkts, ppp.LCPConfigureAck, 0x20) {
+				t.Fatal("malformed request reset AckSent and required a replacement server Configure-Request")
+			}
+		})
+	}
 }
 
 // RFC requirement: RFC1661-6-1 positive -- a negotiable option received by the

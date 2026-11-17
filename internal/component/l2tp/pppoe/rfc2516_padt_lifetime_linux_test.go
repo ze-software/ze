@@ -111,7 +111,7 @@ func TestRFC2516ACSentPADTClosesTransportBeforeSend(t *testing.T) {
 			t.Fatalf("replacement admitted before old PADT completed: %v", err)
 		}
 	}
-	server.handleSessionDown(sid)
+	server.handleSessionDown(server.sessions.Lookup(sid))
 	if sent != 1 {
 		t.Fatalf("sent %d PADTs, want one", sent)
 	}

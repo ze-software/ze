@@ -37,7 +37,7 @@ func acceptIPWithDNS(primary, secondary netip.Addr) func(*Driver) {
 			default:
 				panic("BUG: unknown NCP request address family")
 			}
-			_ = d.IPResponse(req.TunnelID, req.SessionID, args) //nolint:errcheck // ignore teardown race
+			_ = d.IPResponse(req, args) //nolint:errcheck // ignore teardown race
 		}
 	}
 }

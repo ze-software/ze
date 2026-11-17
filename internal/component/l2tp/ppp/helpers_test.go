@@ -349,6 +349,6 @@ func autoAcceptAuth(d *Driver) {
 		if !ok {
 			continue
 		}
-		_ = d.AuthResponse(req.TunnelID, req.SessionID, true, "", nil) //nolint:errcheck // ignore teardown race (ErrSessionNotFound) or duplicate-response (ErrAuthResponsePending)
+		_ = d.AuthResponse(req, true, "", nil) //nolint:errcheck // ignore teardown race (ErrSessionNotFound) or duplicate-response (ErrAuthResponsePending)
 	}
 }

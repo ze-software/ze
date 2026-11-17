@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1994-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent",
+    "unit-sha": "b0ad4e5be176f46c",
+    "claim-sha": "7f8693da8979f9eb",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/chap.go::writeCHAPChallenge",
+    "producer-sha": "56db444662b40054",
+    "break": "line 144: \"return writeCHAPValued(buf, off, CHAPCodeChallenge, identifier, value, name)\" -\u003e \"return writeCHAPValued(buf, off, CHAPCodeResponse, identifier, value, name)\""
+  }
+]

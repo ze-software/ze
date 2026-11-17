@@ -72,7 +72,7 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testSessionStart(StartSession{
+	d.SessionsIn() <- testSessionStart(&StartSession{
 		LCP:       testLCPConfig(),
 		TunnelID:  1,
 		SessionID: 1,
@@ -572,7 +572,7 @@ func TestIPTimeout(t *testing.T) {
 	defer d.Stop()
 
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            77,
 		SessionID:           88,
@@ -604,7 +604,7 @@ func TestSessionTeardownRemovesAddress(t *testing.T) {
 	td.completeIPCP(t)
 	drainEventsBest(t, td.driver.EventsOut(), 2, 500*time.Millisecond)
 
-	if err := td.driver.StopSession(1, 1); err != nil {
+	if err := td.driver.StopSession(td.control); err != nil {
 		t.Fatalf("StopSession: %v", err)
 	}
 

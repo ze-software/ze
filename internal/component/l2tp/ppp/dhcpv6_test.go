@@ -76,7 +76,7 @@ func buildRenew(txnID [3]byte, clientID, serverID DHCPv6DUID, iaid uint32) []byt
 	return buf[:off]
 }
 
-func buildRelease(txnID [3]byte, clientID, serverID DHCPv6DUID, iaid uint32) []byte {
+func buildRelease(txnID [3]byte, clientID, serverID DHCPv6DUID) []byte {
 	var buf [512]byte
 	off := 0
 
@@ -101,7 +101,7 @@ func buildRelease(txnID [3]byte, clientID, serverID DHCPv6DUID, iaid uint32) []b
 	binary.BigEndian.PutUint16(buf[off:], D6OptIAPD)
 	binary.BigEndian.PutUint16(buf[off+2:], 12)
 	off += 4
-	binary.BigEndian.PutUint32(buf[off:], iaid)
+	binary.BigEndian.PutUint32(buf[off:], 1)
 	off += 4
 	binary.BigEndian.PutUint32(buf[off:], 0)
 	off += 4
@@ -287,7 +287,7 @@ func TestDHCPv6ReleaseHandling(t *testing.T) {
 	srv := testServerID()
 	txn := [3]byte{0x44, 0x55, 0x66}
 
-	release := buildRelease(txn, clientDUID, srv, 1)
+	release := buildRelease(txn, clientDUID, srv)
 	msg, err := parseDHCPv6(release)
 	if err != nil {
 		t.Fatal(err)

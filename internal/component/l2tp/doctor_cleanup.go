@@ -16,7 +16,7 @@ const pppCleanupHealthName = "ppp-cleanup"
 func init() {
 	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
 		Name: pppCleanupCheckName, Phase: diagnostic.DoctorPhaseRuntime,
-		Order: 720, Component: "l2tp", Dependencies: []string{"ppp-session-resources"},
+		Order: 720, Component: SubsystemName, Dependencies: []string{"ppp-session-resources"},
 		Platforms: []string{diagnostic.DoctorPlatformAny},
 		Codes:     []string{diagnostic.CodeDoctorPPPCleanup}, Check: checkPPPCleanup,
 	}); err != nil {

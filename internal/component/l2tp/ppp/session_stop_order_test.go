@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 type sessionStopTrace struct {
@@ -58,8 +59,8 @@ func sessionStopFixture() (*pppSession, *sessionStopTrace) {
 // The actual stop method is isolated from negotiation by a controlled session
 // waiter. It must stop that session's IPv6 service before closing its frames.
 func TestDriverStopSessionStopsIPv6BeforeFrameOwner(t *testing.T) {
-	driver, session, trace := sessionStopDriver(t)
-	if err := driver.StopSession(session.tunnelID, session.sessionID); err != nil {
+	driver, trace, control := sessionStopDriver(t)
+	if err := driver.StopSession(control); err != nil {
 		t.Fatal(err)
 	}
 	if got := trace.snapshot(); !reflect.DeepEqual(got, []string{"final-ra", "owner-close"}) {
@@ -70,40 +71,47 @@ func TestDriverStopSessionStopsIPv6BeforeFrameOwner(t *testing.T) {
 // Whole-driver cancellation owes the same service-before-owner order as the
 // individual session path, even though it also stops the dispatch worker.
 func TestDriverStopStopsIPv6BeforeFrameOwner(t *testing.T) {
-	driver, _, trace := sessionStopDriver(t)
+	driver, trace, _ := sessionStopDriver(t)
 	driver.Stop()
 	if got := trace.snapshot(); !reflect.DeepEqual(got, []string{"final-ra", "owner-close"}) {
 		t.Fatalf("driver stop order %v", got)
 	}
 }
 
-func sessionStopDriver(t *testing.T) (*Driver, *pppSession, *sessionStopTrace) {
+func sessionStopDriver(t *testing.T) (*Driver, *sessionStopTrace, SessionControl) {
 	t.Helper()
-	driver := NewProductionDriver(discardLogger())
+	driver := newSessionTestDriver()
 	if err := driver.Start(); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(driver.Stop)
-	session, trace := sessionStopFixture()
-	session.stopCh = driver.stopCh
+	start, _, _ := frameLeaseStart(t, 1)
+	trace := &sessionStopTrace{}
+	owner := &sessionStopOwner{SessionHandle: start.Dataplane, trace: trace}
+	start.Dataplane = owner
+	attempt, err := NewSessionAttempt(start.SubscriberID, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start.Attempt = attempt
+	frameLeaseProxy(&start)
+	driver.SessionsIn() <- start
+	up, opened := waitForEventOfType[EventSessionUp](t, driver.EventsOut(), time.Second)
+	if !opened {
+		t.Fatal("stop fixture did not admit its actual PPP worker")
+	}
 	driver.mu.Lock()
-	driver.sessions[sessionKey{session.tunnelID, session.sessionID}] = session
-	driver.wg.Add(1)
+	session, found := driver.sessionForControlLocked(up.Control)
 	driver.mu.Unlock()
-	go func() {
-		defer driver.wg.Done()
-		defer close(session.done)
-		defer func() {
-			driver.mu.Lock()
-			delete(driver.sessions, sessionKey{session.tunnelID, session.sessionID})
-			driver.mu.Unlock()
-		}()
-		select {
-		case <-session.sessStop:
-		case <-driver.stopCh:
-		}
-	}()
-	return driver, session, trace
+	if !found {
+		t.Fatal("observed stop fixture worker is absent")
+	}
+	service := newIPv6Service(iPv6ServiceConfig{Dataplane: owner})
+	service.stop = func() error { trace.note("final-ra"); return nil }
+	session.mu.Lock()
+	session.ipv6Svc = service
+	session.mu.Unlock()
+	return driver, trace, up.Control
 }
 
 // Receipt of SessionDown permits the access transport to send PADT. The real
@@ -160,7 +168,11 @@ func TestNCPResetRefusesReuseAfterIPv6CleanupFailure(t *testing.T) {
 	session, _, _ := newRFC1661Session(LCPStateOpened)
 	owner := testHandleFor(session)
 	want := errors.New("route withdrawal refused")
-	owner.backend.(*fakeBackend).removeRouteErr = want
+	backend, ok := owner.backend.(*fakeBackend)
+	if !ok {
+		t.Fatalf("session backend = %T, want *fakeBackend", owner.backend)
+	}
+	backend.removeRouteErr = want
 	service := newIPv6Service(iPv6ServiceConfig{Dataplane: owner})
 	service.routeInstalled = true
 	service.delegatedPrefix = netip.MustParsePrefix("2001:db8:42::/64")

@@ -25,7 +25,7 @@
     "rid": "RFC1994-4.2-2",
     "polarity": "positive",
     "unit": "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure",
-    "unit-sha": "c3a7004b2041ad3c",
+    "unit-sha": "14f0df8b8c3d555f",
     "claim-sha": "b379332425165c9b",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",

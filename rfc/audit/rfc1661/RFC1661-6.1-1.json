@@ -1,20 +1,15 @@
 {
-  "code": {
-    "internal/component/l2tp/ppp/frame.go::ParseFrame": "a00075b0b9a58722",
-    "internal/component/l2tp/ppp/session_run.go::afterLCPOpen": "31901656854a1656",
-    "internal/component/l2tp/ppp/session_run.go::readFrames": "d76b987ab4400b22"
-  },
-  "note": "Re-read Section 6.1 and both tagged units. At requested MRU1492, TestReceiveFullFrameBelowConfiguredMRU starts the real Driver with accepted proxy LCP and records the actual channel read before interpreting the capped reply. It requires the full1502-octet frame, LCP protocol, original Echo code/Identifier and all original1500 Information octets, independently of the1492-octet reply. Its separate negative asserts exactly one installed receive-MRU value of1500 through the fake ops boundary; this does not claim a real-kernel execution. The only changed input is an explicit validated3s/2/10/5 LCP snapshot. TestFullInformationFieldReceived separately asserts ParseFrame and ParseLCPPacket accept1500 and the pooled buffer holds the full frame; its1501 rejection is not credited to this RFC requirement. Current readFrames uses the full pooled buffer and afterLCPOpen installs MaxFrameLen. The recorded receive-buffer and setMRU mutants correspond to the two distinct assertions.",
+  "note": "Read all RFC1661 Section6.1: requesting smaller packets must retain ability to receive the full1500-octet Information field; the Protocol field is outside that1500. Read every tagged body: TestFullInformationFieldReceived checks actual1502-octet frame parsing, a1500-octet control Length and reader-buffer capacity. TestReceiveFullFrameBelowConfiguredMRU drives a real Driver with requested MRU1492 and sends a structurally valid1500-octet LCP Information field through its actual reader, requiring complete receipt before the separately capped response; independently, exact fakeOps receive-MRU assertion remains1500. readFrames reads into full-frame capacity and afterLCPOpen installs MaxFrameLen receive MRU independently of the smaller negotiated request. The read-cap cut and receive-MRU cut target distinct observations; parser-only acceptance alone is not credited as whole-path proof. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.",
   "requirement_sha": "bf8de5e1aac53efe",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "9702a8b651d08d9e",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "d616282c8cfcd04c",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "d616282c8cfcd04c"
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "9e07a3dc23a4bd00",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "9e07a3dc23a4bd00"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "e079b4cb6eaed385",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "a2b86667e0fa30c6",
-    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "a2b86667e0fa30c6"
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU": "09378ba241b1223e",
+    "internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go::TestReceiveFullFrameBelowConfiguredMRU#2": "09378ba241b1223e"
   },
   "verdict": "enforced"
 }

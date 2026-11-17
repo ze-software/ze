@@ -32,21 +32,25 @@ func TestCancelSessionTimeoutsCancelsContext(t *testing.T) {
 
 func TestStartSessionTimeoutsNoMetadata(t *testing.T) {
 	r := newTestReactor(t)
-	r.startSessionTimeouts(1, 1)
+	tunnel := &L2TPTunnel{localTID: 1, sessions: make(map[uint16]*L2TPSession)}
+	sess := &L2TPSession{localSID: 1, timeoutLifetime: &sessionTimeoutLifetime{}}
+	tunnel.sessions[1] = sess
+	r.tunnelsByLocalID[1] = tunnel
+	r.startSessionTimeouts(tunnel, sess, sess.timeoutLifetime)
 }
 
 func TestRunSessionTimeoutCanceled(t *testing.T) {
 	r := newTestReactor(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	r.runSessionTimeout(1, 1, time.Hour, ctx)
+	r.runSessionTimeout(&L2TPTunnel{localTID: 1}, &L2TPSession{localSID: 1}, time.Hour, ctx)
 }
 
 func TestRunIdleTimeoutCanceled(t *testing.T) {
 	r := newTestReactor(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	r.runIdleTimeout(1, 1, time.Hour, "ppp0", ctx)
+	r.runIdleTimeout(&L2TPTunnel{localTID: 1}, &L2TPSession{localSID: 1}, time.Hour, "ppp0", ctx)
 }
 
 func newTestReactor(t *testing.T) *l2tpReactor {

@@ -43,7 +43,8 @@ func (f *fakeConfigProvider) RegisterSchema(_, _ string) error      { return nil
 // guard in Reload passes) with fixed initial Parameters and a slog
 // logger. No reactors / listeners are wired; the setters on the
 // reactor slice are a no-op because the slice is empty.
-func newStartedSubsystem(_ *testing.T, p Parameters) *Subsystem {
+func newStartedSubsystem(_ *testing.T, input *Parameters) *Subsystem {
+	p := *input
 	return &Subsystem{
 		params:  p,
 		started: true,
@@ -53,7 +54,7 @@ func newStartedSubsystem(_ *testing.T, p Parameters) *Subsystem {
 
 // VALIDATES: AC-1 -- shared-secret change is hot-applied.
 func TestReloadAppliesSharedSecret(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		SharedSecret:  "old",
@@ -79,7 +80,7 @@ func TestReloadAppliesSharedSecret(t *testing.T) {
 
 // VALIDATES: AC-2 -- hello-interval change is hot-applied.
 func TestReloadAppliesHelloInterval(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
@@ -103,7 +104,7 @@ func TestReloadAppliesHelloInterval(t *testing.T) {
 // VALIDATES: spec-l2tp-dead-peer-detection AC-6 -- hello-retries
 // (dead-peer detection threshold) is hot-applied on reload.
 func TestReloadAppliesHelloRetries(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		HelloRetries:  1,
@@ -130,7 +131,7 @@ func TestReloadAppliesHelloRetries(t *testing.T) {
 // before a tunnel is cleared) is hot-applied on reload, and the reactor's
 // tunnel defaults, which every new tunnel's reliable engine reads, carry it.
 func TestReloadAppliesMaxRetransmit(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		MaxRetransmit: DefaultMaxRetransmit,
@@ -160,7 +161,7 @@ func TestReloadAppliesMaxRetransmit(t *testing.T) {
 
 // VALIDATES: AC-3 -- max-tunnels and max-sessions hot-apply.
 func TestReloadAppliesLimits(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		MaxTunnels:    100,
@@ -187,7 +188,7 @@ func TestReloadAppliesLimits(t *testing.T) {
 
 // VALIDATES: AC-4 -- listener endpoint change is rejected and logged.
 func TestReloadRejectsListenerChange(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
@@ -209,7 +210,7 @@ func TestReloadRejectsListenerChange(t *testing.T) {
 
 // VALIDATES: AC-4 -- enabled flip is rejected and logged.
 func TestReloadRejectsEnabledFlip(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
@@ -233,7 +234,7 @@ func TestReloadRejectsEnabledFlip(t *testing.T) {
 func TestReloadNoOpOnIdentical(t *testing.T) {
 	lcp, err := pppconfig.ParseLCP("l2tp", nil)
 	require.NoError(t, err)
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		LCP:           lcp,
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
@@ -275,7 +276,7 @@ func TestReloadNoOpOnIdentical(t *testing.T) {
 // VALIDATES: AC-26 -- malformed tree returns error and leaves
 // Parameters untouched.
 func TestReloadMalformedTree(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 	})
@@ -304,7 +305,7 @@ func TestReloadBeforeStart(t *testing.T) {
 // provider-map parse path (appendRemotesFromProvider) reads address/port/
 // shared-secret/outgoing-calls.
 func TestReloadAppliesRemotes(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
@@ -343,7 +344,7 @@ func TestReloadAppliesRemotes(t *testing.T) {
 // PREVENTS: Reload dropping the relay-realm swap, so a running LAC keeps the
 // realm bindings it started with.
 func TestReloadAppliesRelayRealms(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
@@ -384,7 +385,7 @@ func TestReloadAppliesRelayRealms(t *testing.T) {
 // VALIDATES: AC-6 -- a relay binding to an undeclared remote is rejected on
 // the reload (provider-map) path too, not just the config.Tree path.
 func TestReloadRejectsRelayUnknownRemote(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
@@ -467,7 +468,7 @@ func dialSourceProvider(serverIP, remoteAddress string) *fakeConfigProvider {
 func TestReloadRefusesOffHostRemoteFromLoopbackListener(t *testing.T) {
 	remotes := []Remote{{Name: "lns1", Address: netip.MustParseAddrPort("127.0.0.1:1701"), OutgoingCalls: true}}
 	relays := []RelayBinding{{Service: "wholesale", Remote: "lns1"}}
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:1701")},
@@ -491,7 +492,7 @@ func TestReloadRefusesOffHostRemoteFromLoopbackListener(t *testing.T) {
 //
 // VALIDATES: the reload returns nil and s.params.Remotes holds 203.0.113.5.
 func TestReloadAcceptsOffHostRemoteWhenListenerMoves(t *testing.T) {
-	s := newStartedSubsystem(t, Parameters{
+	s := newStartedSubsystem(t, &Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:1701")},

@@ -6,6 +6,7 @@ package l2tp
 import (
 	"fmt"
 	"net/netip"
+	"reflect"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -143,7 +144,17 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 			ppp.AdmissionSessionFactory, err, map[string]any{
 				"tunnel-id": ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum,
 			})
-		r.handleKernelError(kernelSetupFailed{localTID: ksucc.localTID, localSID: ksucc.localSID})
+		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
+		return
+	}
+
+	subscriberID := l2tpSessionID(ksucc.localTID, ksucc.localSID)
+	attempt, err := ppp.NewSessionAttempt(subscriberID, dataplane)
+	if err != nil {
+		ppp.ReportAdmissionFailure(r.logger, subscriberID, ppp.AdmissionOwnership, err,
+			map[string]any{"tunnel-id": ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum})
+		r.closeUntransferredPPPSession(dataplane)
+		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
 		return
 	}
 
@@ -151,7 +162,8 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		LCP:                 policy.LCP,
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
-		SubscriberID:        l2tpSessionID(ksucc.localTID, ksucc.localSID),
+		SubscriberID:        subscriberID,
+		Attempt:             attempt,
 		Frames:              frames,
 		Dataplane:           dataplane,
 		LNSMode:             ksucc.lnsMode,
@@ -175,21 +187,52 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 
 	ifaceName := dataplane.Identity().InterfaceName
 	r.tunnelsMu.Lock()
-	if tunnel, ok := r.tunnelsByLocalID[ksucc.localTID]; ok {
-		if sess := tunnel.lookupSession(ksucc.localSID); sess != nil {
-			sess.pppInterface = ifaceName
-		}
+	live = r.tunnelsByLocalID[ksucc.localTID] == tunnel
+	if live {
+		live = tunnel.lookupSession(ksucc.localSID) == ksucc.session
+	}
+	if live {
+		live = ksucc.session.pppAttempt == (ppp.SessionAttempt{})
+	}
+	if live {
+		ksucc.session.pppInterface = ifaceName
+		ksucc.session.pppAttempt = attempt
 	}
 	r.tunnelsMu.Unlock()
+	if !live {
+		attempt.Cancel()
+		r.closeUntransferredPPPSession(dataplane)
+		return
+	}
 
+	// This exact attempt is retained before transfer. A concurrent teardown
+	// cancels it, so the Driver refuses a queued handoff before protocol I/O.
 	select {
 	case r.pppDriver.SessionsIn() <- start:
 	case <-r.stop:
-		if err := dataplane.Close(); err != nil {
-			ppp.ReportCleanupFailure(dataplane.Identity(), ppp.CleanupSession, err)
-			r.logger.Warn("l2tp: canceled PPP session cleanup failed", "error", err,
-				"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+		attempt.Cancel()
+		r.closeUntransferredPPPSession(dataplane)
+	}
+}
+
+// closeUntransferredPPPSession releases only a factory result still owned by
+// this producer. Callers MUST NOT use it after the StartSession channel send.
+func (r *l2tpReactor) closeUntransferredPPPSession(owner ppp.SessionHandle) {
+	if owner == nil {
+		return
+	}
+	value := reflect.ValueOf(owner)
+	//exhaustive:ignore // Only nil-capable kinds need the typed-nil check.
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		if value.IsNil() {
+			return
 		}
+	}
+	if err := owner.Close(); err != nil {
+		ppp.ReportCleanupFailure(owner.Identity(), ppp.CleanupSession, err)
+		r.logger.Warn("l2tp: untransferred PPP session cleanup failed", "error", err,
+			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 	}
 }
 
@@ -224,9 +267,13 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	var tid, sid uint16
 	var reason string
 	var cause l2tpevents.TerminateCause
+	var control ppp.SessionControl
+	var attempt ppp.SessionAttempt
 	switch e := ev.(type) {
 	case ppp.EventSessionDown:
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, e.Cause
+		control = e.Control
+		attempt = control.Attempt()
 	case ppp.EventSessionRejected:
 		// Refusal of a duplicate says nothing about the admitted session's
 		// lifetime. A reused owner under another key still refuses a new call.
@@ -236,6 +283,7 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 		// A refused new StartSession never ran a session goroutine. The NAS
 		// supplied invalid ownership or setup: RFC 2866 Section 5.10 value 9.
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, l2tpevents.TerminateCauseNASError
+		attempt = e.Attempt
 	case ppp.EventLCPDown:
 		r.handleLCPDown(e)
 		return
@@ -263,6 +311,25 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 		r.tunnelsMu.Unlock()
 		return
 	}
+	if attempt == (ppp.SessionAttempt{}) {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	if sess.pppAttempt != attempt {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	if control != (ppp.SessionControl{}) {
+		bound, admitted := sess.pppAttempt.Control()
+		if !admitted {
+			r.tunnelsMu.Unlock()
+			return
+		}
+		if bound != control {
+			r.tunnelsMu.Unlock()
+			return
+		}
+	}
 	now := r.params.Clock()
 	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, cause, now, r.logger)
 	teardowns, downs := tunnel.drainPendingTeardowns()
@@ -285,17 +352,45 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	r.enqueueKernelEvents(nil, teardowns)
 }
 
+// pppSessionLocked selects only the worker originally admitted for this
+// transport. A retired worker remains identifiable for terminal Down, but an
+// invalid control or a reused wire ID never selects a session.
+// Caller MUST hold tunnelsMu.
+func (r *l2tpReactor) pppSessionLocked(tid, sid uint16, control ppp.SessionControl) (*L2TPTunnel, *L2TPSession) {
+	if control == (ppp.SessionControl{}) {
+		return nil, nil
+	}
+	tunnel := r.tunnelsByLocalID[tid]
+	if tunnel == nil {
+		return nil, nil
+	}
+	sess := tunnel.lookupSession(sid)
+	if sess == nil {
+		return nil, nil
+	}
+	if sess.pppAttempt != control.Attempt() {
+		return nil, nil
+	}
+	bound, admitted := sess.pppAttempt.Control()
+	if !admitted {
+		return nil, nil
+	}
+	if bound != control {
+		return nil, nil
+	}
+	return tunnel, sess
+}
+
 // handleLCPUp retains the actual peer receive MRU and selected method from the
 // driver. Normal and accepted proxy negotiation use the same event contract.
 func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
-	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
-	if !ok {
+	_, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control)
+	if sess == nil {
 		return
 	}
-	sess := tunnel.lookupSession(ev.SessionID)
-	if sess == nil {
+	if !ev.Control.Active() {
 		return
 	}
 	sess.negotiatedMRU = ev.NegotiatedMRU
@@ -325,13 +420,12 @@ func (r *l2tpReactor) handleLCPUp(ev ppp.EventLCPUp) {
 func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	defer ev.Acknowledge()
 	r.tunnelsMu.Lock()
-	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
-	if !ok {
+	tunnel, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control)
+	if sess == nil {
 		r.tunnelsMu.Unlock()
 		return
 	}
-	sess := tunnel.lookupSession(ev.SessionID)
-	if sess == nil {
+	if !ev.Control.Active() {
 		r.tunnelsMu.Unlock()
 		return
 	}
@@ -346,15 +440,20 @@ func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
 	sess.username = ""
 	cancelSessionTimeouts(sess)
 	if !r.hasSessionNoticeReader() {
-		r.tunnelsMu.Unlock()
 		ClearSessionMetadata(l2tpSessionID(ev.TunnelID, ev.SessionID))
+		r.tunnelsMu.Unlock()
 		return
 	}
 	ticket := tunnel.issueNoticeTicket()
 	r.tunnelsMu.Unlock()
 
 	ticket.deliver(func() { r.notifyNetworkLifetimeDown(ev.TunnelID, ev.SessionID, username) })
-	ClearSessionMetadata(l2tpSessionID(ev.TunnelID, ev.SessionID))
+	r.tunnelsMu.Lock()
+	_, current := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control)
+	if current == sess {
+		ClearSessionMetadata(l2tpSessionID(ev.TunnelID, ev.SessionID))
+	}
+	r.tunnelsMu.Unlock()
 }
 
 // hasSessionNoticeReader reports whether a session notification has anybody
@@ -402,13 +501,12 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		return
 	}
 	r.tunnelsMu.Lock()
-	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
-	if !ok {
+	tunnel, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control)
+	if sess == nil {
 		r.tunnelsMu.Unlock()
 		return
 	}
-	sess := tunnel.lookupSession(ev.SessionID)
-	if sess == nil {
+	if !ev.Control.Active() {
 		r.tunnelsMu.Unlock()
 		return
 	}
@@ -485,13 +583,12 @@ func (r *l2tpReactor) logIPAssigned(ev ppp.EventSessionIPAssigned, username stri
 // after it. The RADIUS timeouts start after the publication returned.
 func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 	r.tunnelsMu.Lock()
-	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
-	if !ok {
+	tunnel, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control)
+	if sess == nil {
 		r.tunnelsMu.Unlock()
 		return
 	}
-	sess := tunnel.lookupSession(ev.SessionID)
-	if sess == nil {
+	if !ev.Control.Active() {
 		r.tunnelsMu.Unlock()
 		return
 	}
@@ -505,6 +602,10 @@ func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 		r.logSessionUp(ev, ifaceName)
 		return
 	}
+	if sess.timeoutLifetime == nil {
+		sess.timeoutLifetime = &sessionTimeoutLifetime{}
+	}
+	lifetime := sess.timeoutLifetime
 	// The ticket is the last step under tunnelsMu and its delivery the first
 	// after it, so nothing that can panic runs between the two.
 	ticket := tunnel.issueNoticeTicket()
@@ -522,7 +623,7 @@ func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 	})
 
 	// RFC 2865 Section 5.27/5.28: start RADIUS-driven timeouts.
-	r.startSessionTimeouts(ev.TunnelID, ev.SessionID)
+	r.startSessionTimeouts(tunnel, sess, lifetime)
 }
 
 // logSessionUp records that a session's PPP reached session-up.
@@ -539,13 +640,17 @@ func (r *l2tpReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
 	if r.eventBus == nil {
 		return
 	}
-	var username string
 	r.tunnelsMu.Lock()
-	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
-		if sess := tunnel.lookupSession(ev.SessionID); sess != nil {
-			username = sess.username
-		}
+	_, sess := r.pppSessionLocked(ev.TunnelID, ev.SessionID, ev.Control)
+	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
 	}
+	if !ev.Control.Active() {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	username := sess.username
 	r.tunnelsMu.Unlock()
 	if _, err := l2tpevents.EchoRTT.Emit(r.eventBus, &l2tpevents.EchoRTTPayload{
 		TunnelID:  ev.TunnelID,

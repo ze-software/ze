@@ -74,6 +74,7 @@ func NewPipeDriverForTest(t *testing.T, chanFD int) (*Driver, net.Conn) {
 // BindSessionForTest gives an external-package protocol test the same created
 // session resources as NewPipeDriverForTest. It keeps the actual driver queue
 // and authentication boundary, without exposing the fixture's private recorder.
-func BindSessionForTest(driver *Driver, start StartSession, channel, unit, number int) StartSession {
-	return testStartForDriver(driver, start, channel, unit, number)
+func BindSessionForTest(driver *Driver, input *StartSession, channel, unit, number int) StartSession {
+	start := *input
+	return testStartForDriver(driver, &start, channel, unit, number)
 }

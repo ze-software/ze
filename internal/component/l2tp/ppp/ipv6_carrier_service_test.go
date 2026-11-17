@@ -241,7 +241,7 @@ func TestIPv6ServiceReleaseRetainsPrefixOnWithdrawalFailure(t *testing.T) {
 	backend.removeRouteErr = io.ErrClosedPipe
 	server := testServerID()
 	client := DHCPv6DUID{Type: DUIDTypeLL, HWType: 1, ID: []byte{2, 0, 0, 0, 0, 1}}
-	message, err := parseDHCPv6(buildRelease([3]byte{1, 2, 3}, client, server, 1))
+	message, err := parseDHCPv6(buildRelease([3]byte{1, 2, 3}, client, server))
 	if err != nil {
 		t.Fatal(err)
 	}

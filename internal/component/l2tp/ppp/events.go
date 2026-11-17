@@ -26,6 +26,8 @@ type Event interface {
 // Carries the peer's receive MRU and the actual acknowledged authentication
 // method. Authentication and NCPs run after this point.
 type EventLCPUp struct {
+	// Control identifies this exact admitted worker; numeric fields are labels.
+	Control              SessionControl
 	TunnelID             uint16
 	SessionID            uint16
 	NegotiatedMRU        uint16
@@ -76,6 +78,8 @@ func (EventLCPUp) isPPPEvent() {}
 // transport. Its consumer calls Acknowledge after that withdrawal; PPP waits
 // before processing replacement authentication or NCP packets.
 type EventLCPDown struct {
+	// Control identifies this exact admitted worker; numeric fields are labels.
+	Control      SessionControl
 	TunnelID     uint16
 	SessionID    uint16
 	Reason       string
@@ -106,6 +110,8 @@ func (e EventLCPDown) Acknowledge() {
 // so the transport does not declare the session usable until an IP
 // address is actually on pppN.
 type EventSessionUp struct {
+	// Control identifies this exact admitted worker; numeric fields are labels.
+	Control   SessionControl
 	TunnelID  uint16
 	SessionID uint16
 }
@@ -132,6 +138,8 @@ func (EventSessionUp) isPPPEvent() {}
 // identifier was never negotiated (session.go:
 // peerInterfaceIDNegotiated): there is no identifier to carry.
 type EventSessionIPAssigned struct {
+	// Control identifies this exact admitted worker; numeric fields are labels.
+	Control   SessionControl
 	TunnelID  uint16
 	SessionID uint16
 	// Username is the accepted authentication request's principal.
@@ -183,6 +191,8 @@ func (e EventSessionIPAssigned) Acknowledge() {
 // sets it; an exit ze cannot attribute names NAS Error rather than
 // guessing a more specific cause.
 type EventSessionDown struct {
+	// Control identifies this exact admitted worker; numeric fields are labels.
+	Control   SessionControl
 	TunnelID  uint16
 	SessionID uint16
 	Reason    string
@@ -196,6 +206,8 @@ func (EventSessionDown) isPPPEvent() {}
 // Echo-Request. The L2TP reactor relays this to the EventBus
 // for CQM aggregation (spec-l2tp-9-observer).
 type EventEchoRTT struct {
+	// Control identifies this exact admitted worker; numeric fields are labels.
+	Control   SessionControl
 	TunnelID  uint16
 	SessionID uint16
 	RTT       time.Duration
@@ -206,7 +218,7 @@ func (EventEchoRTT) isPPPEvent() {}
 // EventSessionRejected is emitted when a StartSession is refused
 // before any per-session goroutine starts. The refusal reasons are
 // transport bugs or StartSession hygiene problems: missing ownership or
-// frame delivery, duplicate (tunnelID, sessionID), etc.
+// frame delivery, a duplicate canonical subscriber identity, etc.
 //
 // The refused request started no PPP worker. If ExistingSession is true,
 // the transport MUST leave that key's admitted session intact. Otherwise
@@ -216,6 +228,8 @@ func (EventEchoRTT) isPPPEvent() {}
 //
 // Reason is human-readable for logs.
 type EventSessionRejected struct {
+	// Attempt binds the refused transfer; no PPP worker was admitted for it.
+	Attempt   SessionAttempt
 	TunnelID  uint16
 	SessionID uint16
 	Reason    string
@@ -226,3 +240,45 @@ type EventSessionRejected struct {
 }
 
 func (EventSessionRejected) isPPPEvent() {}
+
+// Cancel stops only the worker that published this assignment. It sends no
+// success acknowledgment and never targets a transport key's current occupant.
+// False means a manually constructed event carries no admitted capability.
+func (event EventSessionIPAssigned) Cancel() bool {
+	return event.Control.Cancel()
+}
+
+// Cancel stops only the worker waiting for this network withdrawal. The exact
+// worker and no-success-acknowledgment contract is the assignment contract.
+func (event EventLCPDown) Cancel() bool {
+	return event.Control.Cancel()
+}
+
+// bindEventControl stamps the admitted capability at the central producer.
+// Call-site literals cannot substitute a different admission's control.
+func (session *pppSession) bindEventControl(event Event) Event {
+	switch value := event.(type) {
+	case EventLCPUp:
+		value.Control = session.control
+		return value
+	case EventLCPDown:
+		value.Control = session.control
+		return value
+	case EventSessionUp:
+		value.Control = session.control
+		return value
+	case EventSessionIPAssigned:
+		value.Control = session.control
+		return value
+	case EventSessionDown:
+		value.Control = session.control
+		return value
+	case EventEchoRTT:
+		value.Control = session.control
+		return value
+	case EventSessionRejected:
+		// A refusal has no admitted worker; preserve its incoming attempt.
+		return value
+	}
+	panic("BUG: unregistered PPP lifecycle event")
+}

@@ -83,6 +83,29 @@ func settleNCPRequest(t *testing.T, td *ncpTestDriver, proto uint16) {
 // but carry an unacceptable value still draws a Configure-Nak, so ze is not
 // simply refusing to answer.
 func TestRFC1661TruncatedOptionSilentlyDiscarded(t *testing.T) {
+	assertFamilyOpened := func(t *testing.T, td *ncpTestDriver, family AddressFamily) {
+		t.Helper()
+		event := td.waitForEvent(t, 2*time.Second)
+		assigned, ok := event.(EventSessionIPAssigned)
+		if !ok || assigned.Control != td.control || assigned.Family != family {
+			t.Fatalf("post-discard assignment = %+v, want the original worker's %s family", event, family)
+		}
+		if family == AddressFamilyIPv4 {
+			if assigned.Local != ipcpTestLocal || assigned.Peer != ipcpTestPeer {
+				t.Fatalf("post-discard IPv4 pair = %v/%v, want the original assignment", assigned.Local, assigned.Peer)
+			}
+		} else if assigned.InterfaceID != ipv6cpTestPeerID {
+			t.Fatalf("post-discard IPv6 identifier = %x, want %x", assigned.InterfaceID, ipv6cpTestPeerID)
+		}
+		// td.waitForEvent acknowledges the actual assignment before the
+		// driver may finish this network lifetime and publish SessionUp.
+		event = td.waitForEvent(t, 2*time.Second)
+		up, ok := event.(EventSessionUp)
+		if !ok || up.Control != td.control || up.TunnelID != 1 || up.SessionID != 1 {
+			t.Fatalf("post-discard event = %+v, want the original admitted SessionUp", event)
+		}
+	}
+
 	t.Run("IPCP truncated option draws no reply", func(t *testing.T) {
 		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 		defer td.cleanup()
@@ -109,6 +132,10 @@ func TestRFC1661TruncatedOptionSilentlyDiscarded(t *testing.T) {
 		if ack.Identifier != 0x42 {
 			t.Errorf("Configure-Ack Identifier = 0x%02x, want 0x42", ack.Identifier)
 		}
+		if !bytes.Equal(ack.Data, acceptable) {
+			t.Fatalf("post-discard IPv4 Ack Data = %x, want %x", ack.Data, acceptable)
+		}
+		assertFamilyOpened(t, td, AddressFamilyIPv4)
 	})
 
 	t.Run("IPv6CP truncated option draws no reply", func(t *testing.T) {
@@ -129,6 +156,10 @@ func TestRFC1661TruncatedOptionSilentlyDiscarded(t *testing.T) {
 		if ack.Identifier != 0x52 {
 			t.Errorf("Configure-Ack Identifier = 0x%02x, want 0x52", ack.Identifier)
 		}
+		if !bytes.Equal(ack.Data, ipv6cpInterfaceIDOption(ipv6cpTestPeerID)) {
+			t.Fatalf("post-discard IPv6 Ack Data = %x, want the exact offered identifier", ack.Data)
+		}
+		assertFamilyOpened(t, td, AddressFamilyIPv6)
 	})
 
 	t.Run("a contained but unacceptable option still draws a Nak", func(t *testing.T) {
@@ -149,6 +180,60 @@ func TestRFC1661TruncatedOptionSilentlyDiscarded(t *testing.T) {
 			t.Errorf("reply code = %d, want Configure-Nak", replies[0].Code)
 		}
 	})
+
+	for _, tc := range []struct {
+		name      string
+		family    AddressFamily
+		protocol  uint16
+		start     StartSession
+		valid     []byte
+		truncated []byte
+	}{
+		{"IPCP", AddressFamilyIPv4, ProtoIPCP, StartSession{DisableIPv6CP: true},
+			[]byte{IPCPOptIPAddress, 6, 10, 0, 0, 2}, []byte{IPCPOptIPAddress, 6, 10, 0}},
+		{"IPv6CP", AddressFamilyIPv6, ProtoIPv6CP, StartSession{DisableIPCP: true},
+			ipv6cpInterfaceIDOption(ipv6cpTestPeerID), []byte{IPv6CPOptInterfaceID, ipv6cpInterfaceIDOptLen, 0x02, 0x00, 0x5E}},
+	} {
+		t.Run(tc.name+"/ack-sent preserves the original request", func(t *testing.T) {
+			td := newNCPTestDriverCfg(t, &tc.start)
+			defer td.cleanup()
+			request := td.readPeerNCPPacket(t, tc.protocol)
+			if request.Code != LCPConfigureRequest {
+				t.Fatalf("initial %s code = %d, want Configure-Request", tc.name, request.Code)
+			}
+			// Keep the actual local request unanswered. A real acceptable
+			// peer request and its observed Ack establish AckSent.
+			td.writePeerNCPPacket(t, tc.protocol, LCPConfigureRequest, 0x60, tc.valid)
+			ack := td.readPeerNCPPacket(t, tc.protocol)
+			if ack.Code != LCPConfigureAck || ack.Identifier != 0x60 || !bytes.Equal(ack.Data, tc.valid) {
+				t.Fatalf("pre-discard %s reply = %+v, want the exact acceptable request Ack", tc.name, ack)
+			}
+			td.writePeerNCPPacket(t, tc.protocol, LCPConfigureRequest, 0x61, tc.truncated)
+			// Count every frame, including a hidden Configure-Request. The
+			// fixture RestartTimer is 3s; this existing400ms window precedes it.
+			if err := td.peer.SetReadDeadline(time.Now().Add(ncpSilenceWindow)); err != nil {
+				t.Fatal(err)
+			}
+			var frame [MaxFrameBufLen]byte
+			n, err := td.peer.Read(frame[:])
+			if n != 0 {
+				t.Fatalf("%s wrote %x after the malformed request, want no frame", tc.name, frame[:n])
+			}
+			timeout, ok := err.(interface{ Timeout() bool })
+			if !ok || !timeout.Timeout() {
+				t.Fatalf("%s post-discard read = %v, want only the silence deadline", tc.name, err)
+			}
+			select {
+			case event := <-td.driver.EventsOut():
+				t.Fatalf("%s malformed request changed the lifecycle: %+v", tc.name, event)
+			default:
+			}
+			// Only the original request's exact Ack is now supplied. A
+			// wrongful reset to ReqSent would reach AckRcvd and never Up.
+			td.writePeerNCPPacket(t, tc.protocol, LCPConfigureAck, request.Identifier, request.Data)
+			assertFamilyOpened(t, td, tc.family)
+		})
+	}
 }
 
 // RFC requirement: RFC1661-6-1 positive -- a negotiable option received with an
@@ -672,22 +757,22 @@ func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC1661-6-2 positive -- the same Code-blind discard binds the
-// NCPs. An IPCP Configure-Reject whose option Data runs past the end of the
-// packet is dropped rather than read, so the session it would otherwise tear
-// down survives and keeps answering (producer handleNCPPacket's reply-code gate,
-// fed by scanNCPOptions, internal/component/l2tp/ppp/ncp.go).
-// RFC requirement: RFC1661-6-2 negative -- a Configure-Reject whose options fit
-// is still acted on: a peer Reject of IP-Address remains fatal, so the discard
-// has not disabled the path.
+// RFC requirement: RFC1661-6-2 positive -- an IPCP Configure-Reject whose option
+// Data extends beyond the packet is discarded even when its Identifier matches
+// the still-outstanding Configure-Request: no reply or lifecycle event is
+// emitted, and the original request can still complete IPCP to SessionUp
+// (producer validNCPReply -> ValidateLCPReply, before scanNCPOptions).
+// RFC requirement: RFC1661-6-2 negative -- the discard is confined to invalid
+// replies: a complete IP-Address Configure-Reject with the actual outstanding
+// request's Identifier and unmodified option Data still ends the session.
 func TestRFC1661NCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 	t.Run("truncated Configure-Reject does not tear the session down", func(t *testing.T) {
 		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 		defer td.cleanup()
 		settleNCPRequest(t, td, ProtoIPCP)
 
-		// IP-Address declares Length 6 with only four octets of the option
-		// present, so its Data runs two octets past the packet.
+		// Preserve the original stray-Identifier case independently of the
+		// correlated parser case below. This reply names no outstanding request.
 		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, 0xC1, []byte{IPCPOptIPAddress, 6, 10, 0})
 
 		if replies := ncpRepliesWithin(t, td, ProtoIPCP, ncpSilenceWindow); len(replies) != 0 {
@@ -701,10 +786,6 @@ func TestRFC1661NCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 			IPCPOptPrimaryDNS, 6, 1, 1, 1, 1,
 			IPCPOptSecondaryDNS, 6, 8, 8, 8, 8,
 		}
-		// A closed pipe here is the session gone: absorbIPCPReject reads a
-		// truncated Reject as a peer Reject of the mandatory IP-Address
-		// option and fails the session, which is the behavior Section 6
-		// forbids.
 		buf := make([]byte, MaxFrameLen)
 		off := WriteFrame(buf, 0, ProtoIPCP, nil)
 		off += WriteLCPPacket(buf, off, LCPConfigureRequest, 0xC2, acceptable)
@@ -714,6 +795,68 @@ func TestRFC1661NCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 		ack := readIPCPUntil(t, td, LCPConfigureAck)
 		if ack.Identifier != 0xC2 {
 			t.Errorf("Configure-Ack Identifier = 0x%02x, want 0xC2", ack.Identifier)
+		}
+	})
+
+	t.Run("correlated truncated Configure-Reject preserves the outstanding request", func(t *testing.T) {
+		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+		defer td.cleanup()
+		request := td.readPeerNCPPacket(t, ProtoIPCP)
+		if request.Code != LCPConfigureRequest || len(request.Data) != 6 || request.Data[0] != IPCPOptIPAddress || request.Data[1] != 6 {
+			t.Fatalf("initial IPCP request = %+v, want the actual six-octet IP-Address option", request)
+		}
+
+		// Do not acknowledge the actual request before sending its malformed
+		// reply. Its Identifier is correct; only its option extent is invalid.
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, request.Identifier, request.Data[:4])
+		// Every wire frame counts here, including a Configure-Request: an
+		// invalid reply must not make the automaton restart negotiation.
+		if err := td.peer.SetReadDeadline(time.Now().Add(ncpSilenceWindow)); err != nil {
+			t.Fatal(err)
+		}
+		var frame [MaxFrameBufLen]byte
+		n, err := td.peer.Read(frame[:])
+		if n != 0 {
+			t.Fatalf("ze wrote %x after the correlated truncated Reject, want silence", frame[:n])
+		}
+		timeout, ok := err.(interface{ Timeout() bool })
+		if !ok || !timeout.Timeout() {
+			t.Fatalf("post-discard read error = %v, want only the silence deadline", err)
+		}
+		select {
+		case event := <-td.driver.EventsOut():
+			t.Fatalf("correlated truncated Reject published lifecycle event %+v", event)
+		default:
+		}
+
+		// The same outstanding request must still be usable. Complete both
+		// directions without replacing its Identifier or changing FSM state.
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureAck, request.Identifier, request.Data)
+		acceptable := []byte{IPCPOptIPAddress, 6, 10, 0, 0, 2}
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureRequest, 0xC2, acceptable)
+		ack := readIPCPUntil(t, td, LCPConfigureAck)
+		if ack.Identifier != 0xC2 || !bytes.Equal(ack.Data, acceptable) {
+			t.Fatalf("post-discard Configure-Ack = %+v, want the exact acceptable request", ack)
+		}
+		if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+			t.Fatal("the original outstanding request did not complete IPCP after the malformed Reject")
+		}
+	})
+
+	t.Run("correlated complete IP-Address Configure-Reject is fatal", func(t *testing.T) {
+		td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
+		defer td.cleanup()
+		request := td.readPeerNCPPacket(t, ProtoIPCP)
+		if request.Code != LCPConfigureRequest || len(request.Data) != 6 || request.Data[0] != IPCPOptIPAddress || request.Data[1] != 6 {
+			t.Fatalf("initial IPCP request = %+v, want the actual six-octet IP-Address option", request)
+		}
+		// The complete unmodified option is a valid rejection of the actual
+		// outstanding request. RFC1661 section5.4 Errata543 permits the full set.
+		td.writePeerNCPPacket(t, ProtoIPCP, LCPConfigureReject, request.Identifier, request.Data)
+		event := td.waitForEvent(t, 2*time.Second)
+		down, ok := event.(EventSessionDown)
+		if !ok || down.Reason != "ipv4: peer Configure-Reject of mandatory option" {
+			t.Fatalf("complete correlated Reject event = %+v, want mandatory-IP-Address SessionDown", event)
 		}
 	})
 }

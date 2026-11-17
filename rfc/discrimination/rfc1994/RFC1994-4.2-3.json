@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1994-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure",
+    "unit-sha": "14f0df8b8c3d555f",
+    "claim-sha": "6a02338df958fc4b",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/chap.go::writeCHAPFailure",
+    "producer-sha": "d90a8e58d810675a",
+    "break": "line 192: \"return writeCHAPReply(buf, off, CHAPCodeFailure, identifier, message)\" -\u003e \"return writeCHAPReply(buf, off, CHAPCodeFailure, identifier+1, message)\""
+  },
+  {
+    "rid": "RFC1994-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent",
+    "unit-sha": "b0ad4e5be176f46c",
+    "claim-sha": "947e6ae165d14d30",
+    "route": "mutant",
+    "producer": "internal/component/l2tp/ppp/chap.go::writeCHAPSuccess",
+    "producer-sha": "5284730b822c73fb",
+    "break": "line 186: \"return writeCHAPReply(buf, off, CHAPCodeSuccess, identifier, message)\" -\u003e \"return writeCHAPReply(buf, off, CHAPCodeSuccess, identifier+1, message)\""
+  }
+]

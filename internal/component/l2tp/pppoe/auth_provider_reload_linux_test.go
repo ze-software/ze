@@ -69,9 +69,15 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 			// Proxy LCP with only MRU gets the production PPP driver to its
 			// authentication request without a kernel PPP device or timer.
 			frames, handle := fixtureKernelSession(t, fds[0], unit, 0)
+			subscriberID := pppoeSessionID(7, uint16(index+1))
+			attempt, err := ppp.NewSessionAttempt(subscriberID, handle)
+			if err != nil {
+				t.Fatal(err)
+			}
 			options := []byte{1, 4, 5, 220}
 			driver.SessionsIn() <- ppp.StartSession{
-				LCP:      testLCPConfig(),
+				LCP:          testLCPConfig(),
+				SubscriberID: subscriberID, Attempt: attempt,
 				TunnelID: 7, SessionID: uint16(index + 1), Frames: frames, Dataplane: handle,
 				LNSMode: true, ProxyLCPInitialRecv: options,
 				ProxyLCPLastSent: options, ProxyLCPLastRecv: options,
@@ -130,9 +136,15 @@ func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	frames, handle := fixtureKernelSession(t, fds[0], unit, 0)
+	subscriberID := pppoeSessionID(7, 1)
+	attempt, err := ppp.NewSessionAttempt(subscriberID, handle)
+	if err != nil {
+		t.Fatal(err)
+	}
 	options := []byte{1, 4, 5, 220}
 	driver.SessionsIn() <- ppp.StartSession{
-		LCP:      testLCPConfig(),
+		LCP:          testLCPConfig(),
+		SubscriberID: subscriberID, Attempt: attempt,
 		TunnelID: 7, SessionID: 1, Frames: frames, Dataplane: handle,
 		LNSMode: true, ProxyLCPInitialRecv: options,
 		ProxyLCPLastSent: options, ProxyLCPLastRecv: options,

@@ -127,7 +127,7 @@ func TestRollbackPPPBridgeRetainsAllErrorsAndClosesAliasesOnce(t *testing.T) {
 }
 
 // An unallocated negative slot must not close anything; zero remains an owned
-// slot even when both neighbouring resources were never allocated.
+// slot even when both neighboring resources were never allocated.
 func TestRollbackPPPBridgeSkipsUnallocatedDescriptors(t *testing.T) {
 	want := errors.New("bridge refused")
 	var closed []int

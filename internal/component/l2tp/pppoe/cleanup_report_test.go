@@ -58,10 +58,10 @@ func TestAccessCleanupFailureReachesOperator(t *testing.T) {
 				if err := server.sessions.Add(&Session{SID: 7}); err != nil {
 					t.Fatal(err)
 				}
-				if !server.sessions.setOpened(7, opened) {
+				if !fixtureCurrentOpened(t, server, server.sessions.Lookup(7), opened) {
 					t.Fatal("owner was not admitted")
 				}
-				server.closeAdmitted(7)
+				server.closeAdmitted(server.sessions.Lookup(7))
 			case "unpublished lease":
 				server.closeSession(opened)
 			case "transport":

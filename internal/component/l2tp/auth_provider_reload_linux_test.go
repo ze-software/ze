@@ -77,10 +77,15 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			attempt, err := ppp.NewSessionAttempt(l2tpSessionID(tunnelID, sessionID), owner)
+			if err != nil {
+				t.Fatal(err)
+			}
 			driver.SessionsIn() <- ppp.StartSession{
 				LCP:      testLCPConfig(),
 				TunnelID: tunnelID, SessionID: sessionID,
 				SubscriberID: l2tpSessionID(tunnelID, sessionID),
+				Attempt:      attempt,
 				Frames:       frames, Dataplane: owner,
 				LNSMode: true, ProxyLCPInitialRecv: options,
 				ProxyLCPLastSent: options, ProxyLCPLastRecv: options,

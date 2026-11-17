@@ -66,11 +66,11 @@ func TestRFC1661RunSendsLCPBeforeAnyOtherProtocol(t *testing.T) {
 // RFC requirement: RFC1661-3.1-2 positive -- after LCP Opened and the accepted no-auth decision, run() requests an IPv4 address and writes an IPCP (0x8021) Configure-Request.
 func TestRFC1661RunSendsNCPAfterLCPOpens(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s, peer, authEvents, ipEvents := startPhaseSession(t, AuthMethodNone, true, time.Hour)
+		_, peer, authEvents, ipEvents := startPhaseSession(t, AuthMethodNone, true, time.Hour)
 		openLifecycleLCP(t, peer)
-		awaitAuthRequest(t, authEvents)
-		s.authRespCh <- authResponseMsg{accept: true}
-		pendingLifecycleNCP(t, s, peer, ipEvents, AddressFamilyIPv4)
+		authRequest := awaitAuthRequest(t, authEvents)
+		answerAuthRequestForTest(t, authRequest, authResponseMsg{accept: true})
+		pendingLifecycleNCP(t, peer, ipEvents, AddressFamilyIPv4)
 	})
 }
 
@@ -91,7 +91,7 @@ func TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				s, peer, authEvents, ipEvents := startPhaseSession(t, AuthMethodCHAPMD5, true, time.Hour)
+				_, peer, authEvents, ipEvents := startPhaseSession(t, AuthMethodCHAPMD5, true, time.Hour)
 				openLifecycleLCP(t, peer)
 				challenge := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
 				time.Sleep(time.Second)
@@ -99,9 +99,9 @@ func TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes(t *testing.T) {
 				if len(ipEvents) != 0 {
 					t.Fatal("address requested while authentication is pending")
 				}
-				answerLifecycleChallenge(t, s, peer, authEvents, AuthMethodCHAPMD5, challenge, accept)
+				answerLifecycleChallenge(t, peer, authEvents, AuthMethodCHAPMD5, challenge, accept)
 				if accept {
-					pendingLifecycleNCP(t, s, peer, ipEvents, AddressFamilyIPv4)
+					pendingLifecycleNCP(t, peer, ipEvents, AddressFamilyIPv4)
 					return
 				}
 				synctest.Wait()
@@ -126,10 +126,10 @@ func TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes(t *testing.T) {
 // RFC requirement: RFC1661-5.8-2 negative -- after the peer's Configure-Request takes the session out of Opened, the next frame written, three seconds on with a one-second echo interval, is the Configure-Request retransmission and no Echo-Request.
 func TestRFC1661KeepaliveEchoOnlyInOpened(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s, peer, authEvents, _ := startPhaseSession(t, AuthMethodNone, false, time.Second)
+		_, peer, authEvents, _ := startPhaseSession(t, AuthMethodNone, false, time.Second)
 		openLifecycleLCP(t, peer)
-		awaitAuthRequest(t, authEvents)
-		s.authRespCh <- authResponseMsg{accept: true}
+		authRequest := awaitAuthRequest(t, authEvents)
+		answerAuthRequestForTest(t, authRequest, authResponseMsg{accept: true})
 		readLifecyclePacket(t, peer, ProtoLCP, LCPEchoRequest)
 
 		request := restartLifecycleLCP(t, peer)
@@ -141,16 +141,19 @@ func TestRFC1661KeepaliveEchoOnlyInOpened(t *testing.T) {
 }
 
 // awaitAuthRequest waits for the session's EventAuthRequest.
-func awaitAuthRequest(t *testing.T, authEvents <-chan AuthEvent) {
+func awaitAuthRequest(t *testing.T, authEvents <-chan AuthEvent) EventAuthRequest {
 	t.Helper()
 	select {
 	case ev := <-authEvents:
-		if _, ok := ev.(EventAuthRequest); !ok {
+		request, ok := ev.(EventAuthRequest)
+		if !ok {
 			t.Fatalf("auth event %T, want EventAuthRequest", ev)
 		}
+		return request
 	case <-time.After(5 * time.Second):
 		t.Fatal("no EventAuthRequest")
 	}
+	return EventAuthRequest{}
 }
 
 // TestNCPHeldUntilNetworkPhase holds a CHAP exchange open with one NCP
@@ -190,8 +193,8 @@ func TestNCPHeldUntilNetworkPhase(t *testing.T) {
 				if calls := backend.P2PCalls(); len(calls) != 0 {
 					t.Fatalf("address installed while authentication is pending: %+v", calls)
 				}
-				answerLifecycleChallenge(t, s, peer, authEvents, AuthMethodCHAPMD5, challenge, true)
-				pendingLifecycleNCP(t, s, peer, ipEvents, family)
+				answerLifecycleChallenge(t, peer, authEvents, AuthMethodCHAPMD5, challenge, true)
+				pendingLifecycleNCP(t, peer, ipEvents, family)
 			})
 		})
 	}
@@ -255,19 +258,25 @@ func onlyChallengesUntil(t *testing.T, peer net.Conn, d time.Duration, last LCPP
 // RFC requirement: RFC1332-2-1 negative -- a received 0x8021 frame holding a Configure-Request followed by a Terminate-Request draws the Configure-Ack alone: no Terminate-Ack is written within one second.
 func TestIPCPOnePacketPerFrameThroughRun(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		s, peer, authEvents, ipEvents := startPhaseSession(t, AuthMethodNone, true, time.Hour)
+		_, peer, authEvents, ipEvents := startPhaseSession(t, AuthMethodNone, true, time.Hour)
 		openLifecycleLCP(t, peer)
-		awaitAuthRequest(t, authEvents)
-		s.authRespCh <- authResponseMsg{accept: true}
+		authRequest := awaitAuthRequest(t, authEvents)
+		answerAuthRequestForTest(t, authRequest, authResponseMsg{accept: true})
+		var fixtureAddressRequest1 EventIPRequest
 		select {
-		case <-ipEvents:
+		case raw := <-ipEvents:
+			request, ok := raw.(EventIPRequest)
+			if !ok {
+				t.Fatalf("address event %T, want EventIPRequest", raw)
+			}
+			fixtureAddressRequest1 = request
 		case <-time.After(5 * time.Second):
 			t.Fatal("NCP never requested an address")
 		}
-		s.ipRespCh <- ipResponseMsg{
+		answerIPRequestForTest(t, fixtureAddressRequest1, ipResponseMsg{
 			accept: true, family: AddressFamilyIPv4,
 			local: netip.MustParseAddr("192.0.2.1"), peer: netip.MustParseAddr("192.0.2.2"),
-		}
+		})
 
 		if err := peer.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
 			t.Fatal(err)

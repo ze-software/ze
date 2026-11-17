@@ -29,7 +29,7 @@ func TestDriverRejectsUnsupportedNetworkMRU(t *testing.T) {
 			defer closeConn(pair.peerEnd)
 			ops, _, _ := newFakeOps()
 			d := newTestDriverNoResponder(&fakeBackend{}, ops)
-			start := testStartPointerForDriver(d, StartSession{LCP: testLCPConfig(), TunnelID: 29, SessionID: 1,
+			start := testStartPointerForDriver(d, &StartSession{LCP: testLCPConfig(), TunnelID: 29, SessionID: 1,
 				MaxMRU: tc.mru, DisableIPv6CP: !tc.ipv6}, 29001, 29002, 0)
 			d.spawnSession(start)
 			ev := waitForEvent(t, d.EventsOut(), time.Second)
@@ -174,7 +174,7 @@ func TestSmallPeerMRURetainsIPv4(t *testing.T) {
 	})
 	local := optStream(mruOpt(1500), magicOpt(0x11223344))
 	peer := optStream(mruOpt(128), magicOpt(0x55667788))
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:      testLCPConfig(),
 		TunnelID: 29, SessionID: 2,
 		MaxMRU: 1500, IPTimeout: 5 * time.Second,
@@ -221,7 +221,7 @@ func TestIPv6MinimumMRUCompletesNCP(t *testing.T) {
 	})
 	local := optStream(mruOpt(1280), magicOpt(0x11223344))
 	peer := optStream(mruOpt(1280), magicOpt(0x55667788))
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:      testLCPConfig(),
 		TunnelID: 29, SessionID: 3,
 		MaxMRU: 1280, DisableIPCP: true, IPTimeout: 5 * time.Second,

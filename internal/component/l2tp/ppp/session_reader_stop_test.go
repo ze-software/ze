@@ -34,12 +34,13 @@ func TestDriverStopSessionJoinsFullControlQueue(t *testing.T) {
 	}
 	start, control, _ := fullControlQueueStart()
 	driver.SessionsIn() <- start
-	if _, opened := waitForEventOfType[EventLCPUp](t, driver.EventsOut(), time.Second); !opened {
+	openedEvent, opened := waitForEventOfType[EventLCPUp](t, driver.EventsOut(), time.Second)
+	if !opened {
 		t.Fatal("session did not reach the blocked authentication publication")
 	}
 	control.fill(t)
 	stopStarted = true
-	go func() { stopDone <- driver.StopSession(1, 1) }()
+	go func() { stopDone <- driver.StopSession(openedEvent.Control) }()
 	select {
 	case err := <-stopDone:
 		stopStarted = false
@@ -67,6 +68,7 @@ func TestDriverActivationFailureJoinsFullControlQueue(t *testing.T) {
 		failure:       failure,
 	}
 	start.Dataplane = owner
+	testRebindSessionAttempt(t, &start)
 	var release sync.Once
 	unblock := func() { release.Do(func() { close(owner.release) }) }
 	t.Cleanup(func() {
@@ -79,8 +81,12 @@ func TestDriverActivationFailureJoinsFullControlQueue(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("session did not reach its controlled activation")
 	}
+	openedEvent, opened := waitForEventOfType[EventLCPUp](t, driver.EventsOut(), time.Second)
+	if !opened {
+		t.Fatal("no observed LCP-up capability for the activating session")
+	}
 	driver.mu.Lock()
-	session := driver.sessions[sessionKey{1, 1}]
+	session, _ := driver.sessionForControlLocked(openedEvent.Control)
 	driver.mu.Unlock()
 	if session == nil {
 		t.Fatal("activated session has no admitted owner")
@@ -99,7 +105,7 @@ func TestDriverActivationFailureJoinsFullControlQueue(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("natural session exit did not join its control reader with a full frame queue")
 	}
-	if _, present := driver.sessionByID(1, 1); present {
+	if _, present := driver.sessionForControl(openedEvent.Control); present {
 		t.Fatal("natural exit retained the ended session admission")
 	}
 }
@@ -121,6 +127,12 @@ func fullControlQueueStart() (StartSession, *fullControlQueue, *testSessionHandl
 		Frames: &testSessionFrames{control: control}, Dataplane: handle,
 		LNSMode: true, DisableIPCP: true, DisableIPv6CP: true,
 	}
+	start.SubscriberID = "fixture:full-control-queue"
+	attempt, err := NewSessionAttempt(start.SubscriberID, handle)
+	if err != nil {
+		panic("BUG: invalid full queue fixture admission: " + err.Error())
+	}
+	start.Attempt = attempt
 	frameLeaseProxy(&start)
 	return start, control, handle
 }

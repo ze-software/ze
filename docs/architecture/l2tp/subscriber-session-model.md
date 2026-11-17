@@ -43,9 +43,12 @@ and the bridge the same event bus, and builds neither when that bus is nil.
 
 **`Session.PPPKey` names a transport-local PPP driver pair.** L2TP uses its
 tunnel and session IDs; PPPoE uses its access interface and session IDs.
-Those pairs can be equal across transports. Shared authorization and pool
-ownership use the existing canonical `Session.ID`, carried unchanged through
-PPP requests and cleanup events. Numeric coordinates remain display fields.
+Those pairs can be equal across transports. They remain display fields.
+Shared authorization and pool ownership use the existing canonical
+`Session.ID`, carried unchanged through PPP requests and cleanup events.
+The shared PPP driver admits by that opaque ID and binds an exact worker to
+the transport's validated `SessionAttempt`; it never reconstructs the ID
+from numeric coordinates.
 <!-- source: internal/component/l2tp/subscriber/session.go -- PPPKey -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, onSessionDown -->
 <!-- source: internal/component/l2tp/session_metadata.go -- StoreSessionMetadata -->
@@ -58,6 +61,13 @@ invoking the allocator. The L2TP pool drain also validates the ID before
 resolving its current provider.
 <!-- source: internal/component/l2tp/drain.go -- startAuthDrain, startPoolDrain -->
 <!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEAuthDrain, startPPPoEPoolDrain -->
+
+The PPPoE drains and realm relay retain the complete original auth or address
+request for every answer. Its private wait capability expires when that
+decision ends, so a delayed answer cannot satisfy a replacement wait on the
+same worker. The realm handoff also retains the exact attempt for transport
+teardown after PPP releases the channel to its L2TP bridge.
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff, endRelayedSession -->
 
 ## Packed L2TP identity value
 
@@ -362,3 +372,34 @@ session removal before delivery without needing a kernel PPP session.
 <!-- source: internal/component/l2tp/drain.go -- startPoolDrain -->
 <!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEPoolDrain -->
 <!-- source: internal/component/l2tp/subscriber/events/pool_answer.go -- PoolAnswerUndeliveredPayload, ReleaseUndeliveredPoolAnswer -->
+
+PPPoE reload pauses discovery before draining removed accesses. Their old
+servers remain reachable by the PPP event consumer while it completes the
+captured admissions. Reload waits without holding subsystem/table/discovery
+locks, checks the old server pointer before detaching it, then installs the new
+map and resumes discovery. An observed refused-transfer cleanup failure returns
+an error and retains the old server/admission for retry. Realm release is an
+explicit no-Down handback after that exact protocol worker finishes; it never
+hands the transferred data-plane lease back for a raw transport-side Close.
+<!-- source: internal/component/l2tp/pppoe/subsystem_reload.go -- quiesceRemovedServers, closeInterface, detachDrainedServers -->
+<!-- source: internal/component/l2tp/pppoe/admission_control.go -- finishRejectedAdmission, waitAdmission -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- releaseRelayedSession -->
+
+If a joined PPP runtime retains a failed refused-transfer owner, the next Stop
+or Reload first invokes the existing Driver retry sweep with that caller's
+context, then re-observes the same Attempt. A successful retry can complete
+the old closeDone before normal idle startup; an error keeps that same owner.
+
+Before PPP transfer, failed or panicking local lease cleanup retains the exact
+Opened borrower, unused lease, relay and table row. Only successful same-owner
+cleanup completes closeDone and frees the SID. SessionTable.CleanupStatus
+copies the current producer failure/progress under the table lock; nil error
+alone is never a deletion receipt. A provider's cached or unknown Close failure
+remains retained; no raw descriptor or carrier-only recovery API is used.
+
+Concurrent unused-lease borrowers share the first Close outcome, including a
+retained panic cause. Ordinary Close never retries that first unknown result.
+A later table-claimed producer cleanup attempt explicitly calls the same
+lease's private retryClose; confirmed successful cleanup stays idempotent.
+<!-- source: internal/component/l2tp/pppoe/session.go -- sessionLease.Close, sessionLease.retryClose -->
+<!-- source: internal/component/l2tp/pppoe/service_relay.go -- beginAdmissionClose -->

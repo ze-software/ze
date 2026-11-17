@@ -32,7 +32,7 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 	)
 	proxiedPeer := optStream(mruOpt(proxiedPeerMRU), magicOpt(0x11223344))
 	proxiedLocal := optStream(mruOpt(1492), magicOpt(0x01020304), authProtoOpt(authProtoPAP))
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            tunnelID,
 		SessionID:           sessionID,
@@ -115,9 +115,11 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 	}
 	writeCHAPResponseFrame(t, pair.peerEnd, identifier, digest[:])
 
+	var capturedAuthRequest EventAuthRequest
 	select {
 	case ev := <-d.AuthEventsOut():
 		req, ok := ev.(EventAuthRequest)
+		capturedAuthRequest = req
 		if !ok {
 			t.Fatalf("auth event=%T, want CHAP request", ev)
 		}
@@ -145,7 +147,7 @@ func TestProxyLCPDisallowedPAPAuthenticatesWithCHAP(t *testing.T) {
 		t.Fatalf("network phase published before credential acceptance: %+v", ev)
 	default:
 	}
-	if err := d.AuthResponse(tunnelID, sessionID, true, "verified CHAP", nil); err != nil {
+	if err := d.AuthResponse(capturedAuthRequest, true, "verified CHAP", nil); err != nil {
 		t.Fatal(err)
 	}
 	proto, success := readPeerFrame(t, pair.peerEnd)

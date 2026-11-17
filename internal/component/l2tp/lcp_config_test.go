@@ -71,7 +71,7 @@ func TestL2TPStartSessionCarriesLCPRestartConfig(t *testing.T) {
 	if start.LCP != p.LCP {
 		t.Fatalf("StartSession lost configured LCP values: %+v", start.LCP)
 	}
-	s := newStartedSubsystem(t, p)
+	s := newStartedSubsystem(t, &p)
 	s.reactors = []*l2tpReactor{r}
 	provider := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"lcp": map[string]any{"restart-timer": "6000", "max-terminate": "7", "max-configure": "8", "max-failure": "9"}}}}
 	if err := s.Reload(context.Background(), provider); err != nil {

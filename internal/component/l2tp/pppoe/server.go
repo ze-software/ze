@@ -62,7 +62,7 @@ type InterfaceServer struct {
 	// PPP driver released into an L2TP bridge produces no PPP session-down,
 	// so PADT is the only news of its end. Nil in tests that build a bare
 	// server.
-	peerLeft func(ifindex int, sid uint16)
+	peerLeft func(*Session)
 	// relayWake coalesces ends for the existing event consumer.
 	// A bare server test can drain its table directly instead.
 	relayWake chan<- struct{}
@@ -261,13 +261,15 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	}
 
 	sess := &Session{
-		SID:         sid,
-		MAC:         net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),
-		IfName:      s.ifName,
-		ServiceName: pkt.ServiceNameString(),
-		Cookie:      append([]byte(nil), cookieTag.Value...),
-		State:       StateDiscovery,
-		CreatedAt:   time.Now(),
+		SubscriberID:  pppoeSessionID(s.ifIndex, sid),
+		AccessIfIndex: s.ifIndex,
+		SID:           sid,
+		MAC:           net.HardwareAddr(append([]byte(nil), pkt.SrcMAC[:]...)),
+		IfName:        s.ifName,
+		ServiceName:   pkt.ServiceNameString(),
+		Cookie:        append([]byte(nil), cookieTag.Value...),
+		State:         StateDiscovery,
+		CreatedAt:     time.Now(),
 	}
 	if hostUniq := pkt.FindTag(TagHostUniq); hostUniq != nil {
 		sess.HostUniq = append([]byte(nil), hostUniq.Value...)
@@ -277,7 +279,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		s.logger.Warn("pppoe: session add failed", "sid", sid, "error", err)
 		return
 	}
-	s.admitting = admission{sid: sid}
+	s.admitting = admission{session: sess}
 
 	// No PPP driver check here: a Service-Name relay needs only the session
 	// socket and the PPP channel below, never the driver, so a LAC with no
@@ -293,7 +295,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	// broadcast or multicast source).
 	if s.openSession == nil {
 		s.reportSessionAdmissionFailure(sid, errors.New("no session data-plane provider is configured"))
-		s.closeSession(s.sessions.Remove(sid))
+		s.closeAdmitted(sess)
 		return
 	}
 	opened, err := s.openSession(context.Background(), dataplane.Request{
@@ -302,10 +304,17 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	})
 	if err != nil {
 		s.reportSessionAdmissionFailure(sid, err)
-		s.closeSession(s.sessions.Remove(sid))
+		s.closeAdmitted(sess)
 		return
 	}
-	if !s.sessions.setOpened(sid, opened) {
+	attempt, err := ppp.NewSessionAttempt(sess.SubscriberID, opened.Dataplane())
+	if err != nil {
+		s.reportSessionAdmissionFailure(sid, err)
+		s.closeSession(opened)
+		s.closeAdmitted(sess)
+		return
+	}
+	if !s.sessions.setOpened(sess, opened, attempt) {
 		s.closeSession(opened)
 		return
 	}
@@ -319,7 +328,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 	var buf [EthMaxLen]byte
 	frame := BuildPADS(buf[:], s.hwAddr, pkt, s.acName, sid)
 	if frame == nil {
-		s.closeSession(s.sessions.Remove(sid))
+		s.closeAdmitted(sess)
 		return
 	}
 
@@ -356,7 +365,16 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 			"The PPP driver needs an interface backend, and none is loaded. "+
 			"Fix: set interface backend netlink, or bind the subscriber's Service-Name to an L2TP relay",
 			"src", net.HardwareAddr(pkt.SrcMAC[:]), "service", pkt.ServiceNameString())
-		s.closeAdmitted(sid)
+		s.closeAdmitted(sess)
+		refusal := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagACSystemError)
+		if refusal != nil {
+			s.sendFrame(refusal)
+		}
+		return
+	}
+	if !s.sessions.localPPPAvailable(sess) {
+		s.reportSessionAdmissionFailure(sid, errors.New("local PPP lease is closing after relay preparation"))
+		s.closeAdmitted(sess)
 		refusal := BuildPADSError(buf[:], s.hwAddr, pkt, s.acName, TagACSystemError)
 		if refusal != nil {
 			s.sendFrame(refusal)
@@ -374,7 +392,8 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		LCP:               s.lcpConfig,
 		TunnelID:          uint16(s.ifIndex),
 		SessionID:         sid,
-		SubscriberID:      pppoeSessionID(s.ifIndex, sid),
+		SubscriberID:      sess.SubscriberID,
+		Attempt:           attempt,
 		Frames:            opened.Frames(),
 		Dataplane:         opened.Dataplane(),
 		LNSMode:           true,
@@ -393,24 +412,40 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		CaptureProxyLCP: realmRelayConfigured(),
 	}
 
-	// From here the PPP driver owns the data-plane lease.
-	if s.sessions.takePPPLease(sid) == nil {
+	// Mark transfer intent before queueing: a fast Driver event can already
+	// reach the consumer when the channel send returns. A panicking unsent
+	// handoff restores only the producer-owned lease before containment runs.
+	lease := s.sessions.takePPPLease(sess)
+	if lease == nil {
 		return
 	}
+	transferred := false
+	defer func() {
+		if !transferred {
+			s.sessions.restoreUnsentPPPLease(sess, lease)
+		}
+	}()
 	s.pppDriver.SessionsIn() <- start
+	transferred = true
 }
 
 // sendPADS sends the admitting PADS frame built for session sid and marks
 // the session established: handlePADR calls it once the session has a taker.
 func (s *InterfaceServer) sendPADS(sid uint16, frame []byte) {
+	session := s.admitting.session
+	if session == nil || session.SID != sid {
+		return
+	}
+	if !s.sessions.notePADS(session, PADSAttempted) {
+		return
+	}
+	// This transient boundary marker deliberately precedes the call: a
+	// sender panic may occur after PADS escaped. It is never confirmation.
 	s.admitting.padsSent = true
-	s.sendFrame(frame)
-
-	// Through the table's lock, not as a bare field write: handleSessionDown
-	// marks StateTeardown from the event-consumer goroutine and
-	// matchLiveCookie reads State from this one, both under that lock, so a
-	// third accessor outside it would leave the field unsynchronized.
-	s.sessions.markSession(sid)
+	if s.submitFrame(frame) {
+		s.sessions.notePADS(session, PADSSubmitted)
+	}
+	s.sessions.markSessionFor(session)
 }
 
 func (s *InterfaceServer) handlePADT(pkt *Packet) {
@@ -436,17 +471,21 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
 	// be sent after sending or receiving a PADT." Disconnect the kernel
 	// transport before waiting for the PPP driver to stop.
-	if s.sessions.markTeardown(pkt.SID) == nil {
+	if s.sessions.markTeardown(sess) == nil {
 		return
 	}
-	defer s.closeAdmitted(pkt.SID)
-	s.closeTransport(s.sessions.transport(pkt.SID))
-
-	if s.pppDriver != nil {
-		_ = s.pppDriver.StopSession(uint16(s.ifIndex), pkt.SID)
+	publication := s.sessions.claimPADT(sess) // a received PADT also ends this wire
+	if publication != nil {
+		defer s.finishPADT(publication)
+	} else {
+		defer s.closeAdmitted(sess)
 	}
+	owner := s.sessions.admissionControl(sess)
+	s.closeTransport(owner.opened)
+
+	s.stopPPPAdmission(owner.attempt)
 	if s.peerLeft != nil {
-		s.peerLeft(s.ifIndex, pkt.SID)
+		s.peerLeft(sess)
 	}
 }
 
@@ -460,8 +499,8 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 // field both go through the session table's lock, so the two goroutines
 // cannot race on it (spec-pppoe-padr-replay-allocates-unbounded-sessions
 // R-2).
-func (s *InterfaceServer) handleSessionDown(sid uint16) {
-	sess := s.sessions.markTeardown(sid)
+func (s *InterfaceServer) handleSessionDown(expected *Session) {
+	sess := s.sessions.markTeardown(expected)
 	if sess == nil {
 		return
 	}
@@ -471,43 +510,78 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 // finishSessionDown publishes PADT for an admission the table already claimed.
 // The caller MUST keep its SID reserved until this method returns.
 func (s *InterfaceServer) finishSessionDown(sess *Session) {
-	sid := sess.SID
-	defer s.closeAdmitted(sid)
-	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
-	// be sent after sending or receiving a PADT." Session-down notification
-	// can precede the PPP goroutine's final cleanup, so close the transport
-	// before publishing PADT on the discovery socket.
-	s.closeTransport(s.sessions.transport(sid))
-
+	owner := s.sessions.admissionControl(sess)
+	// Gate this exact wire before PADT. A transferred/queued lease stays with
+	// Driver; its genuine Down/refusal will finish this same admission.
+	s.closeTransport(owner.opened)
+	s.stopPPPAdmission(owner.attempt)
+	publication := s.sessions.claimPADT(sess)
+	if publication == nil {
+		s.closeAdmitted(sess)
+		return
+	}
+	defer s.finishPADT(publication)
 	var dstMAC [EthALen]byte
 	copy(dstMAC[:], sess.MAC)
-
 	var buf [EthMaxLen]byte
-	frame := BuildPADT(buf[:], s.hwAddr, dstMAC, sid, s.acName)
+	frame := BuildPADT(buf[:], s.hwAddr, dstMAC, sess.SID, s.acName)
 	if frame != nil {
 		s.sendFrame(frame)
 	}
 }
 
+// finishPADT completes only the original handler's wire-end work, including a
+// failed or panicking writer. The caller MUST defer it once after claimPADT.
+// A genuine terminal event can arrive during the write, so closeAdmitted reads
+// the current transfer/terminal state rather than a pre-publication snapshot.
+func (s *InterfaceServer) finishPADT(publication *padtPublication) {
+	close(publication.done)
+	s.closeAdmitted(publication.session)
+}
+
 // closeAdmitted releases only resources the access server still owns. The PPP
 // driver keeps a transferred lease through its final control writes. Transport
 // cleanup still runs if an unused-lease close panics at the discovery boundary.
-func (s *InterfaceServer) closeAdmitted(sid uint16) {
-	admission, removed := s.sessions.beginAdmissionClose(sid)
+func (s *InterfaceServer) closeAdmitted(expected *Session) {
+	admission, removed := s.sessions.beginAdmissionClose(expected)
 	if admission == nil {
 		return
 	}
-	// Run completion last, including when a broken cleanup panics. The SID
-	// and access generation stay owned through transport, token and lease.
-	defer s.sessions.completeAdmissionClose(admission)
-	defer func() { s.closeTransport(removed.opened) }()
+	var cleanupErr error
+	defer func() {
+		if failure := recover(); failure != nil {
+			cause, ok := failure.(error)
+			if !ok {
+				cause = errors.New("pppoe: producer cleanup panicked; original owner retained")
+			}
+			s.sessions.failAdmissionClose(admission, errors.Join(cleanupErr, cause))
+			panic(failure)
+		}
+		if cleanupErr != nil {
+			s.sessions.failAdmissionClose(admission, cleanupErr)
+			return
+		}
+		s.sessions.completeAdmissionClose(admission)
+	}()
+	// Each independent transport/token cleanup still runs if lease Close
+	// panics. The table roots are detached only by confirmed completion.
+	defer func() { cleanupErr = errors.Join(cleanupErr, s.closeTransportRetained(removed.opened)) }()
 	if removed.relay != nil {
 		defer removed.relay.cancel()
 	}
+	admission.Attempt.Cancel()
+	cleanupErr = errors.Join(cleanupErr, s.closeTransportRetained(removed.opened))
 	if removed.unusedLease != nil {
-		if err := removed.unusedLease.Close(); err != nil {
+		var err error
+		if removed.retryUnused {
+			err = removed.unusedLease.retryClose()
+		} else {
+			err = removed.unusedLease.Close()
+		}
+		if err != nil {
+			cleanupErr = errors.Join(cleanupErr, err)
 			ppp.ReportCleanupFailure(removed.unusedLease.handle.Identity(), ppp.CleanupSession, err)
-			s.logger.Warn("pppoe: unused local PPP lease cleanup failed", "sid", sid, "error", err,
+			s.logger.Warn("pppoe: unused local PPP lease cleanup failed", "sid", admission.SID, "error", err,
 				"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 		}
 	}
@@ -528,24 +602,42 @@ func (s *InterfaceServer) closeSession(opened dataplane.OpenedSession) {
 }
 
 func (s *InterfaceServer) closeTransport(opened dataplane.OpenedSession) {
-	if opened == nil {
+	if err := s.closeTransportRetained(opened); err != nil {
+		// The exact failure is already recorded below. Gating callers retain
+		// their admission; final cleanup also propagates this same result.
 		return
+	}
+}
+
+func (s *InterfaceServer) closeTransportRetained(opened dataplane.OpenedSession) error {
+	if opened == nil {
+		return nil
 	}
 	if err := opened.CloseTransport(); err != nil {
 		ppp.ReportCleanupFailure(opened.Dataplane().Identity(), ppp.CleanupTransport, err)
 		s.logger.Warn("pppoe: session transport cleanup failed", "error", err,
 			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+		return err
 	}
+	return nil
 }
 
 func (s *InterfaceServer) sendFrame(frame []byte) {
+	s.submitFrame(frame)
+}
+
+// submitFrame distinguishes kernel submission from a void test observer. A
+// returning sendFrameFn records only an attempted send, never kernel evidence.
+func (s *InterfaceServer) submitFrame(frame []byte) bool {
 	if s.sendFrameFn != nil {
 		s.sendFrameFn(frame)
-		return
+		return false
 	}
 	if err := sendDiscoveryFrame(s.discFD, s.ifIndex, frame); err != nil {
 		s.logger.Debug("pppoe: send failed", "error", err)
+		return false
 	}
+	return true
 }
 
 // relayToL2TP consults the registered call-sink to decide whether an admitted

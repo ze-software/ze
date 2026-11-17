@@ -42,7 +42,7 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 			proto, authData := authMethodToLCPOptions(AuthMethodMSCHAPv2)
 			peer := optStream(mruOpt(1500), magicOpt(0x11223344))
 			local := optStream(mruOpt(MinIPv4MRU), magicOpt(0x01020304), authProtoOpt(proto, authData...))
-			d.SessionsIn() <- testStartForDriver(d, StartSession{
+			d.SessionsIn() <- testStartForDriver(d, &StartSession{
 				LCP:      testLCPConfig(),
 				TunnelID: 24, SessionID: 2,
 				MaxMRU: MinIPv4MRU, AuthMethod: AuthMethodMSCHAPv2,
@@ -58,9 +58,11 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 				bytes.Repeat([]byte{0x11}, mschapv2PeerChallengeLen),
 				bytes.Repeat([]byte{0x22}, mschapv2NTResponseLen), "alice")
 			writeLifecyclePacket(t, pair.peerEnd, ProtoCHAP, MSCHAPv2CodeResponse, challenge.Identifier, response[mschapv2HeaderLen:])
+			var capturedAuthRequest EventAuthRequest
 			select {
 			case ev := <-d.AuthEventsOut():
 				request, ok := ev.(EventAuthRequest)
+				capturedAuthRequest = request
 				if !ok || request.TunnelID != 24 || request.SessionID != 2 || request.Method != AuthMethodMSCHAPv2 || request.Identifier != challenge.Identifier || request.Username != "alice" {
 					t.Fatalf("authentication did not reach its real handler boundary: %+v", ev)
 				}
@@ -68,7 +70,7 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 				t.Fatal("authentication did not reach the handler")
 			}
 			d.mu.Lock()
-			session := d.sessions[sessionKey{tunnelID: 24, sessionID: 2}]
+			session, _ := d.sessionForControlLocked(capturedAuthRequest.Control)
 			d.mu.Unlock()
 			if session == nil {
 				t.Fatal("authentication session disappeared before the handler decision")
@@ -93,7 +95,7 @@ func TestMSCHAPv2UnstructuredFailureDriverCap(t *testing.T) {
 				wantReason = "chap-v2: auth rejected: " + message
 				wantAuthReason = message
 			}
-			if err := d.AuthResponse(24, 2, false, message, nil); err != nil {
+			if err := d.AuthResponse(capturedAuthRequest, false, message, nil); err != nil {
 				t.Fatal(err)
 			}
 			select {

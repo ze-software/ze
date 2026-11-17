@@ -18,7 +18,7 @@
     "claim-sha": "e650aa704d1ac21d",
     "route": "revert",
     "producer": "internal/component/l2tp/session.go::removeSession",
-    "producer-sha": "95ed37e21d5122f8",
+    "producer-sha": "18dacb707bd09fe7",
     "break": "body of removeSession replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

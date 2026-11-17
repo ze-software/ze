@@ -41,7 +41,7 @@ func TestNewLCPLifetimeRestoresConfiguredMRU(t *testing.T) {
 		closeConn(pair.peerEnd)
 		d.Stop()
 	})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:      testLCPConfig(),
 		TunnelID: 29, SessionID: 4,
 		MaxMRU: 1500, AuthTimeout: 5 * time.Second, IPTimeout: 5 * time.Second,
@@ -187,7 +187,7 @@ func (b *mtuOrderBackend) SetMTU(name string, mtu int) error {
 func TestInterfaceMTUInstalledBeforeChannelConnect(t *testing.T) {
 	s, _, _ := newRFC1661Session(LCPStateOpened)
 	s.negotiatedMRU = 1400
-	s.authRespCh <- authResponseMsg{accept: true}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 	var steps []string
 	testHandleFor(s).backend = &mtuOrderBackend{
 		fakeBackend: &fakeBackend{},
@@ -209,7 +209,7 @@ func TestInterfaceMTUInstalledBeforeChannelConnect(t *testing.T) {
 // the interface refused leaves no channel connected with the old MTU in place.
 func TestFailedMTUDoesNotConnectChannel(t *testing.T) {
 	s, _, events := newRFC1661Session(LCPStateOpened)
-	s.authRespCh <- authResponseMsg{accept: true}
+	replyNextAuthRequest(t, s, authResponseMsg{accept: true})
 	testHandleFor(s).backend = &fakeBackend{mtuErr: errors.New("mtu refused")}
 	connects := 0
 	testHandleFor(s).ops.connect = func(_, _ int) error {

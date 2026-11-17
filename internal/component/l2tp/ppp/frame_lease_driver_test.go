@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -42,7 +43,7 @@ func TestDriverNegotiatesOnFrameChannelWithoutDescriptors(t *testing.T) {
 	if _, opened := events[1].(EventSessionUp); !opened {
 		t.Fatalf("events %v, want a completed PPP session", events)
 	}
-	if err := driver.StopSession(1, 1); err != nil {
+	if err := driver.StopSession(testControlFromEvent(t, events[0])); err != nil {
 		t.Fatal(err)
 	}
 	if owner.closes.Load() != 1 {
@@ -187,6 +188,8 @@ func TestDriverOwnerCannotBeAdmittedUnderAnotherKey(t *testing.T) {
 	driver.SessionsIn() <- start
 	drainTwoEvents(t, driver.EventsOut(), time.Second)
 	start.SessionID = 2
+	start.SubscriberID = "fixture:1:2"
+	testRebindSessionAttempt(t, &start)
 	driver.SessionsIn() <- start
 	event := waitForEvent(t, driver.EventsOut(), time.Second)
 	rejected, ok := event.(EventSessionRejected)
@@ -230,6 +233,8 @@ func TestDriverRejectionMarksOnlyAnActiveIncomingKey(t *testing.T) {
 			}
 			if !tc.sameKey {
 				incoming.SessionID = 2
+				incoming.SubscriberID = "fixture:1:2"
+				testRebindSessionAttempt(t, &incoming)
 				if !tc.sameOwner {
 					incoming.LCP = LCPConfig{}
 				}
@@ -275,9 +280,10 @@ func TestDriverOldWorkerExitKeepsReplacementSession(t *testing.T) {
 	unblock := func() { release.Do(func() { close(blocked.releaseClose) }) }
 	t.Cleanup(unblock)
 	start.Dataplane = blocked
+	testRebindSessionAttempt(t, &start)
 	frameLeaseProxy(&start)
 	driver.SessionsIn() <- start
-	drainTwoEvents(t, driver.EventsOut(), time.Second)
+	oldEvents := drainTwoEvents(t, driver.EventsOut(), time.Second)
 	stopped := make(chan error, 1)
 	stopDone := make(chan struct{})
 	// This cleanup was registered after driver.Stop and therefore runs
@@ -289,7 +295,7 @@ func TestDriverOldWorkerExitKeepsReplacementSession(t *testing.T) {
 	})
 	go func() {
 		defer close(stopDone)
-		stopped <- driver.StopSession(1, 1)
+		stopped <- driver.StopSession(testControlFromEvent(t, oldEvents[0]))
 	}()
 	select {
 	case <-blocked.closeStarted:
@@ -299,7 +305,8 @@ func TestDriverOldWorkerExitKeepsReplacementSession(t *testing.T) {
 	replacement, peer, _ := frameLeaseStart(t, 1)
 	frameLeaseProxy(&replacement)
 	driver.SessionsIn() <- replacement
-	if _, opened := waitForEventOfType[EventSessionUp](t, driver.EventsOut(), time.Second); !opened {
+	replacementUp, opened := waitForEventOfType[EventSessionUp](t, driver.EventsOut(), time.Second)
+	if !opened {
 		t.Fatal("replacement did not finish negotiation")
 	}
 	unblock()
@@ -311,7 +318,7 @@ func TestDriverOldWorkerExitKeepsReplacementSession(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("old worker did not finish")
 	}
-	if _, found := driver.sessionByID(1, 1); !found {
+	if _, found := driver.sessionForControl(replacementUp.Control); !found {
 		t.Fatal("old worker removed its replacement's session key")
 	}
 	frameLeaseEcho(t, peer)
@@ -396,10 +403,10 @@ func TestDriverStoppingLeaseKeepsOtherPeerAlive(t *testing.T) {
 	frameLeaseProxy(&first)
 	frameLeaseProxy(&second)
 	driver.SessionsIn() <- first
-	drainTwoEvents(t, driver.EventsOut(), time.Second)
+	firstEvents := drainTwoEvents(t, driver.EventsOut(), time.Second)
 	driver.SessionsIn() <- second
 	drainTwoEvents(t, driver.EventsOut(), time.Second)
-	if err := driver.StopSession(1, 1); err != nil {
+	if err := driver.StopSession(testControlFromEvent(t, firstEvents[0])); err != nil {
 		t.Fatal(err)
 	}
 	if ended.closes.Load() != 1 {
@@ -420,8 +427,14 @@ func frameLeaseStart(t *testing.T, sid uint16) (StartSession, net.Conn, *session
 	handle.ops = ops
 	handle.owned = []io.Closer{control}
 	owner := &sessionLeaseCounter{SessionHandle: handle}
+	id := "fixture:1:" + strconv.Itoa(int(sid))
+	attempt, err := NewSessionAttempt(id, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return StartSession{
 		LCP: testLCPConfig(), TunnelID: 1, SessionID: sid,
+		SubscriberID: id, Attempt: attempt,
 		Frames: &testSessionFrames{control: control}, Dataplane: owner,
 		LNSMode: true, DisableIPCP: true, DisableIPv6CP: true,
 	}, peer, owner

@@ -38,12 +38,17 @@ Relay-Session-Id tag with a 12-octet value.
 
 RFC 2516 Section 5.5 forbids further PPP traffic after either direction of
 PADT. A received PADT must match the session ID and both MAC addresses.
-`handlePADT` detaches and closes the AC-owned PPPoX transport before waiting
-for the PPP driver to stop. `handleSessionDown` closes that transport before
+`handlePADT` closes the captured transport before canceling its original PPP
+attempt. `handleSessionDown` closes that transport before
 sending PADT, because the session-down notification can precede the PPP
-goroutine's final cleanup. Both paths claim teardown exclusively; the SID
-stays reserved until teardown completes, including the outbound PADT write.
-The driver retains ownership of its separate channel and unit descriptors.
+goroutine's final cleanup. The first wire-end handler retains its original
+admission through a completion receipt. A concurrent received PADT or genuine
+PPP terminal callback cannot release that SID while the outbound PADT writer
+is still running. The original handler completes the receipt and then checks
+the current PPP terminal or relay-release observation before cleanup, so a
+terminal event during the write is neither lost nor allowed to free the SID
+early. Duplicate callbacks return without waiting for the writer.
+The driver retains ownership of its transferred resources.
 <!-- source: internal/component/l2tp/pppoe/server.go -- handlePADT, handleSessionDown -->
 
 The AC sets `StartSession.PPPoE` so its shared LCP negotiator rejects ACCM,
@@ -120,9 +125,25 @@ until `CloseTransport`; the relay owner must serialize its use against that
 close. Neither the session wrapper nor the frame channel caches a descriptor.
 <!-- source: internal/component/l2tp/pppoe/dataplane/session.go -- RelayTransport, openedSession.RelayDescriptor, openedSession.CloseTransport -->
 
-**The interface index is the tunnel id and the PPPoE session id is the session
-id.** The PPP driver treats both as opaque keys, so this is the natural scope
-mapping and needs no translation layer.
+**The admitted identity retains the complete access index.** PADR computes
+the canonical subscriber ID once from the server's complete interface index
+and PPPoE session ID. The session table and PPP start request retain that same
+opaque ID and the same validated `SessionAttempt`. PPP's 16-bit tunnel and
+session fields are diagnostic labels; neither selects an access interface or
+an admitted worker.
+
+Cancellation follows that retained attempt before and after admission.
+`Attempt.Cancel` cancels a queued attempt or its once-bound worker, while
+`Attempt.Control` returns only that original worker. PADT gates the captured
+transport and signals that attempt; it never closes a transferred PPP lease.
+A queued or admitted transfer keeps its table row, original Opened borrower and
+reserved SID until the genuine Down/refusal consumer completes that admission.
+A refusal consults its exact attempt cleanup status; a missing worker Control
+is never evidence of lease release.
+A delayed request, event or realm callback must match the exact attempt and
+admission before changing transport state.
+<!-- source: internal/component/l2tp/pppoe/server.go -- handlePADR, handlePADT -->
+<!-- source: internal/component/l2tp/pppoe/admission_control.go -- sessionForAttempt, sessionForControl, stopPPPAdmission -->
 
 **Access preparation precedes discovery.** The selected provider's `Prepare`
 resolves both the data-plane device and the Linux control device and owns any
@@ -409,3 +430,13 @@ error message prefix. Extracting it removed 148 lines with no behavior change.
 The two steps before unit creation (`PPPIOCGCHAN` on the PPPoX socket, then
 `PPPIOCATTCHAN` on a newly opened `/dev/ppp` file) are still common to every
 kernel-backed transport. Only the client creates its unit by name.
+
+PADS progress has one table-owned monotonic receipt. Its zero value is
+unspecified; Add explicitly initializes a fresh row as PADSNotAttempted. `PADSAttempted` is recorded
+before sending and means the packet may have escaped, including a sender panic
+or uncertain result. `PADSSubmitted` records only a successful real kernel send;
+it does not claim peer receipt. StateTeardown never erases this history.
+A void test send observer proves only an attempt. Shutdown and future terminal
+logic use this receipt snapshot instead of deriving publication from State.
+<!-- source: internal/component/l2tp/pppoe/session.go -- PADSPublication, SessionTable.PADSPublication -->
+<!-- source: internal/component/l2tp/pppoe/server.go -- sendPADS, submitFrame -->

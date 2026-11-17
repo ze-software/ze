@@ -9,6 +9,7 @@ package ppp
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net/netip"
 	"sync"
@@ -61,7 +62,9 @@ type IPv6Service struct {
 	lifetimes DHCPv6Lifetimes
 	stop      func() error
 	stopOnce  sync.Once
-	stopErr   error
+	stopErr   error       // original one-time stop result, never rewritten by reconciliation
+	carrier   IPv6Carrier // exact immutable carrier, including acquisition error pairs
+	stopped   bool        // protected by mu; workers/final RA already completed
 
 	mu                 sync.Mutex
 	delegatedPrefix    netip.Prefix
@@ -87,11 +90,18 @@ func (s *IPv6Service) Stop() error {
 		return nil
 	}
 	s.stopOnce.Do(func() {
+		var cause error
 		if s.stop != nil {
-			s.stopErr = s.stop()
+			cause = s.stop()
 		}
+		s.mu.Lock()
+		s.stopErr, s.stopped = cause, true
+		s.mu.Unlock()
 	})
-	return errors.Join(s.stopErr, s.cleanupPrefix(), s.removeLinkLocal())
+	s.mu.Lock()
+	cause := s.stopErr
+	s.mu.Unlock()
+	return errors.Join(cause, s.cleanupPrefix(), s.removeLinkLocal())
 }
 
 // linkLocalPrefixBits is the length of the link-local prefix FE80::/64 that
@@ -368,4 +378,53 @@ func duidEqual(a, b *DHCPv6DUID) bool {
 		a.Time == b.Time &&
 		a.EnterpriseNum == b.EnterpriseNum &&
 		bytes.Equal(a.ID, b.ID)
+}
+
+// retryStoppedCleanup is reserved for the exact retired owner's existing
+// sweep. It never repeats worker joins/final RA or native session Close. A
+// confirmed physical deletion retires ONLY this service's unit-scoped receipt
+// flags; the same captured prefix callback and carrier still need completion.
+func (s *IPv6Service) retryStoppedCleanup(ctx context.Context, unitReleased bool) error {
+	if ctx == nil {
+		return errors.New("IPv6 child cleanup requires a context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !s.mu.TryLock() {
+		return ErrCleanupInProgress
+	}
+	locked := true
+	defer func() {
+		if locked {
+			s.mu.Unlock()
+		}
+	}()
+	if !s.stopped {
+		return ErrCleanupInProgress
+	}
+	firstCarrierErr, carrier := s.stopErr, s.carrier
+	if unitReleased {
+		s.routeInstalled = false
+		s.linkLocalInstalled = false
+		if s.delegatedPrefix.IsValid() {
+			if s.cfg.ReleasePrefix != nil {
+				s.cfg.ReleasePrefix(s.delegatedPrefix)
+			}
+			s.delegatedPrefix = netip.Prefix{}
+		}
+	}
+	s.mu.Unlock()
+	locked = false
+	var carrierErr error
+	if firstCarrierErr != nil {
+		carrierErr = firstCarrierErr
+		if retry, ok := carrier.(interface{ RetryIPv6CarrierCleanup(context.Context) error }); ok {
+			carrierErr = retry.RetryIPv6CarrierCleanup(ctx)
+		}
+	}
+	if unitReleased {
+		return carrierErr
+	}
+	return errors.Join(carrierErr, s.cleanupPrefix(), s.removeLinkLocal())
 }

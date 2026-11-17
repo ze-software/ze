@@ -23,14 +23,17 @@ type StartSession struct {
 	// LCP is an immutable snapshot. The transport MUST construct it with
 	// NewLCPConfig; the driver MUST reject an invalid snapshot before I/O.
 	LCP LCPConfig
-	// Identification. Opaque to ppp; used only as a key for routing
-	// events back to the caller and for log fields.
+	// Transport labels are retained for wire diagnostics, never identity.
 	TunnelID  uint16
 	SessionID uint16
-	// SubscriberID is the transport's canonical subscriber identity. PPP MUST
-	// preserve it unchanged on auth and address requests. Empty is permitted
-	// for protocol-only callers; subscriber handlers require an identity.
+	// SubscriberID is the transport's immutable, nonempty canonical identity.
+	// The transport MUST compute it once and use the same value in Attempt and
+	// its retained admission. PPP MUST preserve it without parsing.
 	SubscriberID string
+	// Attempt is minted once before queueing and retained by that transport
+	// admission. It MUST bind SubscriberID and Dataplane. A rejected transfer
+	// carries this exact binding; a successful admission mints a SessionControl.
+	Attempt SessionAttempt
 
 	// Frames lends control delivery; Dataplane owns every borrowed stream.
 	// Both MUST refer to the same created session and MUST be non-nil.

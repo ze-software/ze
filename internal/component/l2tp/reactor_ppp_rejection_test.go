@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 // A refused duplicate cannot revoke the session that already owns the key.
@@ -32,10 +30,8 @@ func TestL2TPReactorPPPRejectedExistingSessionPreservesTransport(t *testing.T) {
 	before := tunnel.engine.Stats()
 	t.Cleanup(func() { tunnel.engine.Close(r.params.Clock()) })
 
-	r.handlePPPEvent(ppp.EventSessionRejected{
-		TunnelID: 100, SessionID: 41, ExistingSession: true,
-		Reason: "duplicate admission for an active key",
-	})
+	wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 100, sessionID: 41}, ipv6: false, subscriberID: ""})
+	r.handlePPPEvent(wire.duplicateRejection(t))
 
 	require.Same(t, session, tunnel.lookupSession(41), "refusal must retain the admitted transport")
 	require.Equal(t, L2TPSessionEstablished, session.state)
@@ -57,10 +53,7 @@ func TestL2TPReactorPPPRejectedNewSessionSendsCDN(t *testing.T) {
 	tunnel := r.tunnelsByLocalID[100]
 	t.Cleanup(func() { tunnel.engine.Close(r.params.Clock()) })
 
-	r.handlePPPEvent(ppp.EventSessionRejected{
-		TunnelID: 100, SessionID: 43, ExistingSession: false,
-		Reason: "owner is already admitted under a different key",
-	})
+	r.handlePPPEvent(currentCoreNewRejection(t, r, 100, 43))
 
 	require.Nil(t, tunnel.lookupSession(43), "a call PPP refused must leave the transport table")
 	require.Same(t, admitted, tunnel.lookupSession(41), "another key's admitted call must survive")

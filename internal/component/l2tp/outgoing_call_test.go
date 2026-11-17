@@ -146,7 +146,7 @@ func TestResolveCall_NilChannelIsNoOp(t *testing.T) {
 func TestSubsystem_DialFromLoopbackNamesServer(t *testing.T) {
 	defer SetProbeKernelModulesForTest(func() error { return nil })()
 
-	s := NewSubsystem(Parameters{
+	s := NewSubsystem(&Parameters{
 		Enabled:       true,
 		HelloInterval: 60 * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:0")},

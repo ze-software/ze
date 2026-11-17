@@ -16,7 +16,7 @@ func TestSessionActivationFailureProhibitsSessionUp(t *testing.T) {
 	for i, stage := range stages {
 		t.Run(stage, func(t *testing.T) {
 			session, _, events := newRFC1661Session(LCPStateOpened)
-			session.authRespCh <- authResponseMsg{accept: true}
+			replyNextAuthRequest(t, session, authResponseMsg{accept: true})
 			owner := &activationGuardOwner{
 				SessionHandle: session.dataplane,
 				failureStage:  stage,

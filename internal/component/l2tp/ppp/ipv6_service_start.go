@@ -31,7 +31,11 @@ func startIPv6Service(cfg iPv6ServiceConfig, serverID DHCPv6DUID, allocPrefix fu
 		return rollbackIPv6ServiceStart(svc, err)
 	}
 	carrier, err := cfg.Dataplane.OpenIPv6Carrier(context.Background())
+	svc.carrier = carrier
 	if err != nil {
+		if carrier != nil {
+			svc.stop = carrier.Close
+		}
 		return rollbackIPv6ServiceStart(svc, err)
 	}
 	if carrier == nil {

@@ -27,29 +27,33 @@ func TestNCPConvergenceResumesDuringTerminationGrace(t *testing.T) {
 		session.ipEventsOut = ips
 		peer := runLifecycleSession(t, session)
 		openLifecycleLCP(t, peer)
-		awaitAuthRequest(t, authEvents)
-		session.authRespCh <- authResponseMsg{accept: true}
+		authRequest := awaitAuthRequest(t, authEvents)
+		answerAuthRequestForTest(t, authRequest, authResponseMsg{accept: true})
+		var fixtureAddressRequest1 EventIPRequest
 		select {
 		case event := <-ips:
 			request, ok := event.(EventIPRequest)
+			fixtureAddressRequest1 = request
 			if !ok || request.Family != AddressFamilyIPv4 {
 				t.Fatalf("IPv4 address request = %+v", event)
 			}
 		case <-time.After(5 * time.Second):
 			t.Fatal("missing IPv4 address request")
 		}
-		session.ipRespCh <- ipResponseMsg{accept: true, family: AddressFamilyIPv4, local: netip.MustParseAddr("192.0.2.1"), peer: netip.MustParseAddr("192.0.2.2")}
+		answerIPRequestForTest(t, fixtureAddressRequest1, ipResponseMsg{accept: true, family: AddressFamilyIPv4, local: netip.MustParseAddr("192.0.2.1"), peer: netip.MustParseAddr("192.0.2.2")})
 		request4 := readLifecyclePacket(t, peer, ProtoIPCP, LCPConfigureRequest)
+		var fixtureAddressRequest2 EventIPRequest
 		select {
 		case event := <-ips:
 			request, ok := event.(EventIPRequest)
+			fixtureAddressRequest2 = request
 			if !ok || request.Family != AddressFamilyIPv6 {
 				t.Fatalf("IPv6 address request = %+v", event)
 			}
 		case <-time.After(5 * time.Second):
 			t.Fatal("missing IPv6 address request")
 		}
-		session.ipRespCh <- ipResponseMsg{accept: true, family: AddressFamilyIPv6}
+		answerIPRequestForTest(t, fixtureAddressRequest2, ipResponseMsg{accept: true, family: AddressFamilyIPv6})
 		request6 := readLifecyclePacket(t, peer, ProtoIPv6CP, LCPConfigureRequest)
 		options6, err := parseIPv6CPOptions(request6.Data)
 		if err != nil {

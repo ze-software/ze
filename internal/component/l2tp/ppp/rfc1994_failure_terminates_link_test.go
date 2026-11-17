@@ -31,7 +31,6 @@ func newCHAPLinkTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent, ch
 		framesIn:      frames,
 		eventsOut:     eventsOut,
 		authEventsOut: authEventsOut,
-		authRespCh:    make(chan authResponseMsg, 1),
 		stopCh:        make(chan struct{}),
 		sessStop:      make(chan struct{}),
 		done:          make(chan struct{}),
@@ -68,12 +67,18 @@ func runCHAPExchange(t *testing.T, peerEnd net.Conn, s *pppSession, authEventsOu
 		t.Fatalf("peer write response: %v", err)
 	}
 
+	var fixtureRequest EventAuthRequest
 	select {
-	case <-authEventsOut:
+	case raw := <-authEventsOut:
+		request, ok := raw.(EventAuthRequest)
+		if !ok {
+			t.Fatalf("auth event %T, want EventAuthRequest", raw)
+		}
+		fixtureRequest = request
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for EventAuthRequest")
 	}
-	s.authRespCh <- authResponseMsg{accept: accept, message: "decided"}
+	answerAuthRequestForTest(t, fixtureRequest, authResponseMsg{accept: accept, message: "decided"})
 
 	_, reply := readPeerFrame(t, peerEnd)
 	select {

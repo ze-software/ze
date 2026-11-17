@@ -1,17 +1,17 @@
 {
-  "note": "RFC 1334 Section 2.2.2: \"The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply.\" Rejudged after 83deb89129, which changed the two rfc1334_pap_test.go units and left TestPAPReanswersAfterAuthentication as it was. TestPAPRequestEmitsEvent asserts 0x42 on Ack and TestPAPRejectWritesNak asserts 0x77 on Nak, so a hardcoded value goes red on the first-reply path. TestPAPReanswersAfterAuthentication drives handleFrame in AckSent and Opened and asserts replies 0x5a, 0x5b, 0x5c, so a cached initial Identifier in reanswerPAP goes red by reading. That unit carries both tags on one assertion, and the distinct positives in the other two units keep the polarity pair real. It answers Ack only; reanswerPAP passes payload[1] to writePAPReply whatever the cached Code. Caveat on proof: all four records panic reanswerPAP or writePAPReply, so none observes a wrong Identifier, and the MUTATION comment's cached-Identifier break has no record. The doc comment references to pap.go:132, 138, 147, 259 and 262 now match the source.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1334 Section2.2.2: each PAP reply copies the triggering Authenticate-Request Identifier. Complete TestPAPRequestEmitsEvent and TestPAPRejectWritesNak require first Ack0x42 and Nak0x77 respectively. TestPAPReanswersAfterAuthentication uses actual initial PAP acceptance then valid repeated requests0x5b/0x5c in AckSent and Opened, requiring exactly three ProtoPAP Ack replies with0x5a/0x5b/0x5c rather than cached initial identity. Read runPAPAuthPhase/writePAPReply/reanswerPAP: initial paths pass req.Identifier and reanswer passes the new payload Identifier, independently of cached Code. Both initial outcome branches and replacement request identity are observed; the repeat test carries both polarities but does not replace the independent first-reply contrasts. Current real request answers leave these assertions intact. Native recorder evidence remains owed.",
   "requirement_sha": "7beeec6de3934fde",
   "tests": {
-    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "f5fde5c23bd5f38f",
-    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "f5fde5c23bd5f38f",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "bcead1076c8ea0bc",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "bcead1076c8ea0bc"
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "bcb2f537dc58503f",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "bcb2f537dc58503f",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0f0281ea71be7ccd",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0f0281ea71be7ccd"
   },
   "units": {
     "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87",
     "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication#2": "7b2de7debcb06a87",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "1665c54fc4dc88c2",
-    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "c5dcc74a7e3e7c50"
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0a1c9ab7b773a8aa",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "f9e10bee1d44587c"
   },
   "verdict": "enforced"
 }

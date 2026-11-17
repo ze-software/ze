@@ -71,7 +71,7 @@ func TestPeriodicAuthenticationLCPInterruptions(t *testing.T) {
 					peer := runLifecycleSession(t, s)
 					openLifecycleLCP(t, peer)
 					initial := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-					answerLifecycleChallenge(t, s, peer, auth, method, initial, true)
+					answerLifecycleChallenge(t, peer, auth, method, initial, true)
 					awaitLifecycleUp(t, events)
 
 					challenge := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
@@ -124,7 +124,7 @@ func TestPeriodicAuthenticationLCPInterruptions(t *testing.T) {
 					}
 					writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureAck, resent.Identifier, resent.Data)
 					fresh := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-					answerLifecycleChallenge(t, s, peer, auth, method, fresh, true)
+					answerLifecycleChallenge(t, peer, auth, method, fresh, true)
 					awaitLifecycleUp(t, events)
 				})
 			})
@@ -148,12 +148,12 @@ func TestPeriodicAuthenticationDecisions(t *testing.T) {
 				peer := runLifecycleSession(t, s)
 				openLifecycleLCP(t, peer)
 				initial := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-				answerLifecycleChallenge(t, s, peer, auth, method, initial, true)
+				answerLifecycleChallenge(t, peer, auth, method, initial, true)
 				awaitLifecycleUp(t, events)
 				accepted := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-				answerLifecycleChallenge(t, s, peer, auth, method, accepted, true)
+				answerLifecycleChallenge(t, peer, auth, method, accepted, true)
 				rejected := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-				answerLifecycleChallenge(t, s, peer, auth, method, rejected, false)
+				answerLifecycleChallenge(t, peer, auth, method, rejected, false)
 				down := awaitLifecycleDown(t, events)
 				if down.Cause != l2tpevents.TerminateCauseNASError {
 					t.Fatalf("auth rejection ended for cause %v, want authentication failure", down.Cause)
@@ -190,8 +190,8 @@ func TestPendingNCPCompletionFollowsLCPLifetime(t *testing.T) {
 					peer := runLifecycleSession(t, s)
 					openLifecycleLCP(t, peer)
 					challenge := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-					answerLifecycleChallenge(t, s, peer, auth, AuthMethodCHAPMD5, challenge, true)
-					request, peerID := pendingLifecycleNCP(t, s, peer, ips, family)
+					answerLifecycleChallenge(t, peer, auth, AuthMethodCHAPMD5, challenge, true)
+					request, peerID := pendingLifecycleNCP(t, peer, ips, family)
 
 					switch phase {
 					case "termination":
@@ -218,8 +218,8 @@ func TestPendingNCPCompletionFollowsLCPLifetime(t *testing.T) {
 					if phase == "replacement-auth" {
 						// A fresh authenticated exchange must still complete; a
 						// blanket NCP discard would fail this control.
-						answerLifecycleChallenge(t, s, peer, auth, AuthMethodCHAPMD5, challenge, true)
-						fresh, freshPeerID := pendingLifecycleNCP(t, s, peer, ips, family)
+						answerLifecycleChallenge(t, peer, auth, AuthMethodCHAPMD5, challenge, true)
+						fresh, freshPeerID := pendingLifecycleNCP(t, peer, ips, family)
 						writeLifecyclePacket(t, peer, ncpProto(family), LCPConfigureAck, fresh.Identifier, fresh.Data)
 						synctest.Wait()
 						assertLifecycleNCPPublished(t, events, backend, family, freshPeerID)
@@ -345,7 +345,7 @@ func restartLifecycleLCP(t *testing.T, peer net.Conn) LCPPacket {
 	return request
 }
 
-func answerLifecycleChallenge(t *testing.T, s *pppSession, peer net.Conn, auth <-chan AuthEvent, method AuthMethod, challenge LCPPacket, accept bool) {
+func answerLifecycleChallenge(t *testing.T, peer net.Conn, auth <-chan AuthEvent, method AuthMethod, challenge LCPPacket, accept bool) {
 	t.Helper()
 	value := bytes.Repeat([]byte{0x33}, chapMD5DigestLen)
 	if method == AuthMethodMSCHAPv2 {
@@ -365,7 +365,7 @@ func answerLifecycleChallenge(t *testing.T, s *pppSession, peer net.Conn, auth <
 				if req.Method != method || req.Identifier != challenge.Identifier {
 					t.Fatalf("unexpected authentication request: %+v", req)
 				}
-				s.authRespCh <- authResponseMsg{accept: accept, authResponseBlob: make([]byte, mschapv2AuthenticatorResponseLen)}
+				answerAuthRequestForTest(t, req, authResponseMsg{accept: accept, authResponseBlob: make([]byte, mschapv2AuthenticatorResponseLen)})
 				code := CHAPCodeFailure
 				if accept {
 					code = CHAPCodeSuccess
@@ -414,21 +414,23 @@ func awaitLifecycleDown(t *testing.T, events <-chan Event) EventSessionDown {
 	}
 }
 
-func pendingLifecycleNCP(t *testing.T, s *pppSession, peer net.Conn, ips <-chan IPEvent, family AddressFamily) (LCPPacket, [8]byte) {
+func pendingLifecycleNCP(t *testing.T, peer net.Conn, ips <-chan IPEvent, family AddressFamily) (LCPPacket, [8]byte) {
 	t.Helper()
+	var fixtureAddressRequest1 EventIPRequest
 	select {
 	case ev := <-ips:
 		req, ok := ev.(EventIPRequest)
+		fixtureAddressRequest1 = req
 		if !ok || req.Family != family {
 			t.Fatalf("unexpected address request: %+v", ev)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("NCP never requested an address")
 	}
-	s.ipRespCh <- ipResponseMsg{
+	answerIPRequestForTest(t, fixtureAddressRequest1, ipResponseMsg{
 		accept: true, family: family,
 		local: netip.MustParseAddr("192.0.2.1"), peer: netip.MustParseAddr("192.0.2.2"),
-	}
+	})
 	proto := ncpProto(family)
 	request := readLifecyclePacket(t, peer, proto, LCPConfigureRequest)
 	peerData := []byte{IPCPOptIPAddress, 6, 192, 0, 2, 2}
@@ -548,14 +550,14 @@ func TestNCPRepliesCannotCompleteReplacementLifetime(t *testing.T) {
 					peer := runLifecycleSession(t, s)
 					openLifecycleLCP(t, peer)
 					challenge := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-					answerLifecycleChallenge(t, s, peer, auth, AuthMethodCHAPMD5, challenge, true)
-					old, _ := pendingLifecycleNCP(t, s, peer, ips, family)
+					answerLifecycleChallenge(t, peer, auth, AuthMethodCHAPMD5, challenge, true)
+					old, _ := pendingLifecycleNCP(t, peer, ips, family)
 
 					replacement := restartLifecycleLCP(t, peer)
 					writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureAck, replacement.Identifier, replacement.Data)
 					challenge = readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
-					answerLifecycleChallenge(t, s, peer, auth, AuthMethodCHAPMD5, challenge, true)
-					current, peerID := pendingLifecycleNCP(t, s, peer, ips, family)
+					answerLifecycleChallenge(t, peer, auth, AuthMethodCHAPMD5, challenge, true)
+					current, peerID := pendingLifecycleNCP(t, peer, ips, family)
 					if current.Identifier == old.Identifier {
 						t.Fatal("replacement NCP request reused the interrupted request's identifier")
 					}

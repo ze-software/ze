@@ -29,6 +29,7 @@ var ipv6cpTestPeerID = [8]byte{0x02, 0x00, 0x5E, 0xFF, 0xFE, 0x00, 0x12, 0x34}
 type ncpTestDriver struct {
 	t       *testing.T
 	driver  *Driver
+	control SessionControl
 	backend *fakeBackend
 	peer    net.Conn
 	peerFD  int
@@ -101,7 +102,7 @@ func newNCPTestDriverUnit(t *testing.T, overrides *StartSession, ipFn func(*Driv
 	// Short-circuit LCP via proxy AVPs so the test does not have to
 	// play the full LCP exchange as well; spec 6c's focus is NCP.
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	start := testStartForDriver(d, StartSession{
+	start := testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            1,
 		SessionID:           1,
@@ -128,12 +129,15 @@ func newNCPTestDriverUnit(t *testing.T, overrides *StartSession, ipFn func(*Driv
 	d.SessionsIn() <- start
 	// Drain EventLCPUp; the session is now in auth phase. autoAcceptAuth
 	// immediately responds, the NCP phase begins.
-	if ev := waitForEvent(t, d.EventsOut(), 2*time.Second); ev == nil {
+	event := waitForEvent(t, d.EventsOut(), 2*time.Second)
+	if event == nil {
 		t.Fatal("no LCPUp event")
 	}
+	control := testControlFromEvent(t, event)
 	return &ncpTestDriver{
 		t:       t,
 		driver:  d,
+		control: control,
 		backend: backend,
 		peer:    pair.peerEnd,
 		peerFD:  fd,
@@ -215,7 +219,7 @@ func autoAcceptIP(d *Driver) {
 		default:
 			panic("BUG: unknown NCP request address family")
 		}
-		_ = d.IPResponse(req.TunnelID, req.SessionID, args) //nolint:errcheck // ignore teardown race
+		_ = d.IPResponse(req, args) //nolint:errcheck // ignore teardown race
 	}
 }
 
@@ -243,7 +247,7 @@ func autoAcceptIPv4RejectIPv6(d *Driver) {
 		default:
 			panic("BUG: unknown NCP request address family")
 		}
-		_ = d.IPResponse(req.TunnelID, req.SessionID, args) //nolint:errcheck // ignore teardown race
+		_ = d.IPResponse(req, args) //nolint:errcheck // ignore teardown race
 	}
 }
 

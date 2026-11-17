@@ -189,28 +189,55 @@ func TestSessionSnapshotNegotiatedPPP(t *testing.T) {
 				}
 			}
 			assertNegotiated(0, "")
-			r.handlePPPEvent(ppp.EventLCPUp{
-				TunnelID: 100, SessionID: 42, NegotiatedMRU: 1400, NegotiatedAuthMethod: ppp.AuthMethodPAP,
-			})
+			wire := newCurrentCoreAdmission(t, r, &currentCoreAdmissionConfig{ids: currentCoreSessionIDs{tunnelID: 100, sessionID: 42}, ipv6: false, subscriberID: ""})
+			opened := wire.opened
+			opened.NegotiatedMRU = 1400 // historical public metadata matrix, not producer observation
+			opened.NegotiatedAuthMethod = ppp.AuthMethodPAP
+			opened.ProxyLCP = ppp.ProxyLCPOutcomeUnknown
+			r.handlePPPEvent(opened)
 			assertNegotiated(1400, "pap")
 			old, ok := r.LookupSession(42)
 			if !ok {
 				t.Fatal("missing session after LCP up")
 			}
-			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 100, SessionID: 42, NetworkPhase: networkPhase})
+			if networkPhase {
+				wire.prepareNetwork(t, "", ppp.IPResponseArgs{Accept: true, Family: ppp.AddressFamilyIPv4,
+					Local: netip.MustParseAddr("192.0.2.1"), Peer: netip.MustParseAddr("192.0.2.42")}, [8]byte{})
+				assigned := wire.assign(t, ppp.AddressFamilyIPv4)
+				assigned.Acknowledge() // protocol-only prerequisite; no setup NAS notice
+				wire.nextUp(t)
+			}
+			withdrawal := wire.beginRestart(t)
+			require.Equal(t, networkPhase, withdrawal.NetworkPhase)
+			r.handlePPPEvent(withdrawal)
 			assertNegotiated(0, "")
 			if old.MRU != 1400 || old.AuthMethod != "pap" {
 				t.Fatalf("earlier snapshot mutated: %+v", old)
 			}
-			r.handlePPPEvent(ppp.EventLCPUp{
-				TunnelID: 100, SessionID: 42, NegotiatedMRU: 1500, NegotiatedAuthMethod: ppp.AuthMethodNone,
-			})
+			wire.finishRestart(t)
+			opened = wire.opened
+			opened.NegotiatedMRU = 1500
+			opened.NegotiatedAuthMethod = ppp.AuthMethodNone // same historical consumer matrix
+			opened.ProxyLCP = ppp.ProxyLCPOutcomeUnknown
+			r.handlePPPEvent(opened)
 			assertNegotiated(1500, "none")
 			// Late events for removed sessions cannot overwrite another session.
-			r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 999, SessionID: 42, NegotiatedMRU: 64})
-			r.handlePPPEvent(ppp.EventLCPUp{TunnelID: 100, SessionID: 999, NegotiatedMRU: 64})
-			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 999, SessionID: 42})
-			r.handlePPPEvent(ppp.EventLCPDown{TunnelID: 100, SessionID: 999})
+			missing := wire.opened
+			missing.NegotiatedAuthMethod = ppp.AuthMethodNone
+			missing.ProxyLCP = ppp.ProxyLCPOutcomeUnknown
+			missing.TunnelID, missing.NegotiatedMRU = 999, 64
+			r.handlePPPEvent(missing)
+			missing.TunnelID, missing.SessionID = 100, 999
+			r.handlePPPEvent(missing)
+			// Two distinct genuine pre-NCP withdrawals retain the historical
+			// missing-tunnel/session negatives without double-closing one ACK.
+			missingDown := wire.beginRestart(t)
+			missingDown.TunnelID = 999
+			r.handlePPPEvent(missingDown)
+			wire.finishRestart(t)
+			missingDown = wire.beginRestart(t)
+			missingDown.SessionID = 999
+			r.handlePPPEvent(missingDown)
 			assertNegotiated(1500, "none")
 		})
 	}

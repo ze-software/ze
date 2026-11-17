@@ -102,7 +102,7 @@ func startProxyTransmitCapDriver(t *testing.T, peerMRU uint16) *ncpTestDriver {
 		peer = append(peer, mruOpt(peerMRU))
 	}
 	peerOptions := optStream(peer...)
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:                 testLCPConfig(),
 		TunnelID:            24,
 		SessionID:           1,
@@ -138,9 +138,11 @@ func completeProxyTransmitNetwork(t *testing.T, td *ncpTestDriver) {
 	if _, err := td.peer.Write(buildPAPRequestFrame(42, "proxy-subscriber", "proxy-secret")); err != nil {
 		t.Fatal(err)
 	}
+	var capturedAuthRequest EventAuthRequest
 	select {
 	case ev := <-td.driver.AuthEventsOut():
 		req, ok := ev.(EventAuthRequest)
+		capturedAuthRequest = req
 		if !ok || req.TunnelID != 24 || req.SessionID != 1 || req.Method != AuthMethodPAP || req.Username != "proxy-subscriber" || string(req.Response) != "proxy-secret" {
 			t.Fatalf("proxy authentication = %+v, want the permitted PAP credential", ev)
 		}
@@ -152,7 +154,7 @@ func completeProxyTransmitNetwork(t *testing.T, td *ncpTestDriver) {
 		t.Fatalf("proxy reached network allocation before authentication: %+v", ev)
 	default:
 	}
-	if err := td.driver.AuthResponse(24, 1, true, "verified proxy credential", nil); err != nil {
+	if err := td.driver.AuthResponse(capturedAuthRequest, true, "verified proxy credential", nil); err != nil {
 		t.Fatal(err)
 	}
 	ack := readLifecyclePacket(t, td.peer, ProtoPAP, PAPAuthenticateAck)
@@ -167,16 +169,18 @@ func completeProxyTransmitNetwork(t *testing.T, td *ncpTestDriver) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("permitted proxy authentication did not succeed")
 	}
+	var capturedIPRequest EventIPRequest
 	select {
 	case ev := <-td.driver.IPEventsOut():
 		req, ok := ev.(EventIPRequest)
+		capturedIPRequest = req
 		if !ok || req.TunnelID != 24 || req.SessionID != 1 || req.Family != AddressFamilyIPv4 {
 			t.Fatalf("network allocation = %+v, want the proxy's IPv4 request", ev)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("authenticated proxy did not start IPCP")
 	}
-	if err := td.driver.IPResponse(24, 1, IPResponseArgs{
+	if err := td.driver.IPResponse(capturedIPRequest, IPResponseArgs{
 		Accept: true,
 		Family: AddressFamilyIPv4,
 		Local:  ipcpTestLocal,

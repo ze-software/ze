@@ -1,3 +1,5 @@
+//go:build linux
+
 // Design: docs/research/l2tpv2-ze-integration.md -- carrier fixture over the same real UDP sockets
 
 package ppp

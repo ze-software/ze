@@ -152,7 +152,7 @@ func startProxyLCPBudgetDriver(t *testing.T, maximum int) proxyLCPBudgetDriver {
 		t.Fatal(err)
 	}
 	stream := buildOptionStream([]LCPOption{mruOpt(1500), magicOpt(0xCAFEBABE)})
-	driver.SessionsIn() <- testStartForDriver(driver, StartSession{
+	driver.SessionsIn() <- testStartForDriver(driver, &StartSession{
 		LCP:                 lcp,
 		TunnelID:            1,
 		SessionID:           42,
@@ -178,7 +178,7 @@ func startProxyLCPBudgetDriver(t *testing.T, maximum int) proxyLCPBudgetDriver {
 		t.Fatalf("accepted proxy emitted %d initial wire frames, want none", got)
 	}
 	driver.mu.Lock()
-	session := driver.sessions[sessionKey{1, 42}]
+	session, _ := driver.sessionForControlLocked(up.Control)
 	driver.mu.Unlock()
 	if session == nil {
 		t.Fatal("accepted proxy session ended before peer renegotiation")

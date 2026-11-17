@@ -35,7 +35,7 @@ func TestIPMTUInstalledFromNegotiatedMRU(t *testing.T) {
 
 	const peerMRU = 1400
 	stream := buildOptionStream([]LCPOption{mruOpt(peerMRU), magicOpt(0xCAFEBABE)})
-	d.SessionsIn() <- testSessionStart(StartSession{
+	d.SessionsIn() <- testSessionStart(&StartSession{
 		LCP:       testLCPConfig(),
 		TunnelID:  1,
 		SessionID: 42,

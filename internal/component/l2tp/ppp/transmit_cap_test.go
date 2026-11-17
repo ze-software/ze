@@ -90,7 +90,7 @@ func startTransmitCapDriver(t *testing.T, pppoe bool, cap uint16) (*Driver, net.
 		closeConn(pair.peerEnd)
 		d.Stop()
 	})
-	d.SessionsIn() <- testStartForDriver(d, StartSession{
+	d.SessionsIn() <- testStartForDriver(d, &StartSession{
 		LCP:           testLCPConfig(),
 		TunnelID:      23,
 		SessionID:     1,

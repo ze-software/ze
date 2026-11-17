@@ -1,13 +1,13 @@
 {
-  "note": "Judge 2026-09-29. Positive TestRFC1661RunSendsNCPAfterLCPOpens drives run(): LCP Opened, no-auth accepted, then an address request and an IPCP (0x8021) Configure-Request on the wire, else red; observed red with runNCPPhase broken. HEAD negative (both NCPs disabled, runNCPPhase writes 0 frames) is the boundary where nothing is to be chosen: it refuses NCP packets for a protocol not configured, the complement of the positive rather than a violating input, which the obligation (send NCP for the protocols to configure) has no other form of.",
+  "note": "Independent CURRENT-Core source rejudgment against RFC1661 Section3.1: after link establishment/authentication PPP sends NCP packets for the network protocols to configure. Complete TestRFC1661RunSendsNCPAfterLCPOpens runs the actual session from LCP negotiation, accepts the genuine no-auth request, then requires an actual IPv4 address request and IPCP Configure-Request via pendingLifecycleNCP. TestRFC1661NCPConfiguresEachFamilySeparately writes IPv4 and IPv6 NCP separately and requires exactly two frames with protocols0x8021/0x8057 and Configure-Request Codes. TestRFC1661NoNCPPacketsWhenNoNetworkProtocol exercises the distinct no-selected-protocol boundary and requires zero frames with successful NCP phase return. Read afterLCPOpen/runNCPPhase/sendNCPConfigureRequest: configured family enablement, not an unconditional writer, causes packets. The negative is the meaningful complement where no protocol is selected, not a malformed peer input. Source judgment only; existing/new native breaks are not certified here. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.",
   "requirement_sha": "7c1ac94517cc8d86",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "682b78fb127362e1",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "a1d8f8274d199376",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol": "a1d8f8274d199376"
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "34019b0e2ba66c62",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "3ac1fd8ae501d890",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol": "3ac1fd8ae501d890"
   },
   "units": {
-    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "f0831d810966633d",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "2789a6ae5586e26a",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "be28e3131f6726bf",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol": "890ba320d8885463"
   },

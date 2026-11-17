@@ -24,7 +24,7 @@ type identityAuthDriver struct {
 }
 
 func (d *identityAuthDriver) AuthEventsOut() <-chan ppp.AuthEvent { return d.events }
-func (d *identityAuthDriver) AuthResponse(_, _ uint16, accept bool, message string, _ []byte) error {
+func (d *identityAuthDriver) AuthResponse(_ ppp.EventAuthRequest, accept bool, message string, _ []byte) error {
 	d.calls++
 	d.accept, d.message = accept, message
 	return d.err
@@ -50,10 +50,10 @@ func TestAuthDrainRequiresSubscriberIdentity(t *testing.T) {
 			callsink.Register(&fakeRealmSink{canceled: make(chan struct{}, 1)})
 			relayCalls := 0
 			relay := newRealmRelay(logger, newFakeRelayDriver(),
-				func(int, uint16) (realmSubscriber, bool) {
+				func(ppp.EventAuthRequest) (realmSubscriber, bool) {
 					relayCalls++
 					return realmSubscriber{}, false
-				}, func(int, uint16) { t.Error("unexpected relay teardown") })
+				}, func(ppp.EventAuthRequest) { t.Error("unexpected relay teardown") }, func(ppp.EventAuthRequest) error { return nil })
 			t.Cleanup(relay.stopAll)
 			driver := &identityAuthDriver{events: make(chan ppp.AuthEvent, 1), err: tc.err}
 			request := ppp.EventAuthRequest{SubscriberID: tc.id,
@@ -91,7 +91,7 @@ func TestAuthDrainRequiresSubscriberIdentity(t *testing.T) {
 			if driver.calls != 1 {
 				t.Fatalf("authentication reply calls=%d, want 1", driver.calls)
 			}
-			_, stored := pending.Load(pendingAuthKey{ifindex: 7, sessionID: 42})
+			_, stored := pending.Load(pendingAuthFor(request.Control))
 			if tc.id == "" {
 				if relayCalls != 0 {
 					t.Fatalf("missing identity entered relay selection %d times", relayCalls)
