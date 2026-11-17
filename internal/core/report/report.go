@@ -8,6 +8,8 @@
 // resolve. Producers raise it when the condition starts and clear it when the
 // condition ends. The bus deduplicates on (Source, Code, Subject); re-raising
 // updates the message and timestamp without creating a duplicate Issue.
+// ResourceWarning reserves one bounded slot before native work and protects its
+// original failure episode from ordinary source cleanup, raises and eviction.
 //
 // Errors are event-based: an error represents something that already happened.
 // Producers raise it once at the moment of occurrence. There is no clear API
@@ -187,6 +189,7 @@ type warningKey struct {
 type store struct {
 	mu         sync.RWMutex
 	warnings   map[warningKey]*Issue
+	resources  map[resourceWarningKey]*ResourceWarning
 	errors     []*Issue // ring buffer of pointers
 	errorHead  int      // index of next write position
 	errorCount int      // number of valid entries (capped at len(errors))
@@ -258,6 +261,7 @@ func newStore(warningCap, errorCap int) *store {
 
 	return &store{
 		warnings:   make(map[warningKey]*Issue, warningCap),
+		resources:  make(map[resourceWarningKey]*ResourceWarning),
 		errors:     make([]*Issue, errorCap),
 		warningCap: warningCap,
 		errorCap:   errorCap,
@@ -362,13 +366,15 @@ func RaiseWarningFix(source, code, subject, message, fix string, detail ...map[s
 }
 
 // ClearWarning removes the active warning identified by (Source, Code, Subject).
-// No-op if no Issue matches. Empty fields are silently ignored.
+// No-op if no Issue matches or its subject belongs to a retained resource.
+// Empty fields are silently ignored. Acknowledged callers use TryClearWarning.
 func ClearWarning(source, code, subject string) {
 	pkg.Load().clearWarning(source, code, subject)
 }
 
-// ClearSource removes all active warnings whose Source matches.
-// Used by subsystems on shutdown or when invalidating their entire warning set.
+// ClearSource removes ordinary active warnings whose Source matches.
+// Resource-owned subjects remain until their exact original episode clears.
+// Used by subsystems on shutdown or when invalidating their ordinary warnings.
 func ClearSource(source string) {
 	pkg.Load().clearSource(source)
 }
@@ -480,11 +486,18 @@ func (s *store) raiseWarning(source, code, subject, message, fix string, detail 
 		return
 	}
 	key := warningKey{source: source, code: code, subject: subject}
-	now := time.Now()
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.resourceOwnsLocked(key) {
+		return
+	}
+	s.raiseWarningLocked(key, message, fix, detail)
+}
 
+// raiseWarningLocked is the shared admitted ordinary writer. Caller MUST hold
+// s.mu and MUST have refused any resource-owned subject before reaching it.
+func (s *store) raiseWarningLocked(key warningKey, message, fix string, detail map[string]any) {
+	now := time.Now()
 	if existing, ok := s.warnings[key]; ok {
 		existing.Updated = now
 		existing.Message = message
@@ -496,10 +509,10 @@ func (s *store) raiseWarning(source, code, subject, message, fix string, detail 
 	// Raised again, the warning is visible, so it is no longer in doubt.
 	delete(s.evicted, key)
 	s.warnings[key] = &Issue{
-		Source:   source,
-		Code:     code,
+		Source:   key.source,
+		Code:     key.code,
 		Severity: SeverityWarning,
-		Subject:  subject,
+		Subject:  key.subject,
 		Message:  message,
 		Detail:   copyDetail(detail),
 		Fix:      fix,
@@ -507,7 +520,7 @@ func (s *store) raiseWarning(source, code, subject, message, fix string, detail 
 		Updated:  now,
 	}
 
-	if len(s.warnings) > s.warningCap {
+	if s.warningSlotsLocked() > s.warningCap {
 		s.evictOldestWarning()
 	}
 }
@@ -519,6 +532,9 @@ func (s *store) clearWarning(source, code, subject string) {
 	key := warningKey{source: source, code: code, subject: subject}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.resourceOwnsLocked(key) {
+		return
+	}
 	delete(s.warnings, key)
 	// The owner says the condition ended, which settles an evicted copy too.
 	delete(s.evicted, key)
@@ -532,11 +548,17 @@ func (s *store) clearSource(source string) {
 	defer s.mu.Unlock()
 	for k := range s.warnings {
 		if k.source == source {
+			if s.resourceOwnsLocked(k) {
+				continue
+			}
 			delete(s.warnings, k)
 		}
 	}
 	for k := range s.evicted {
 		if k.source == source {
+			if s.resourceOwnsLocked(k) {
+				continue
+			}
 			delete(s.evicted, k)
 		}
 	}
@@ -666,6 +688,9 @@ func (s *store) evictOldestWarning() {
 	var oldestTime time.Time
 	first := true
 	for k, v := range s.warnings {
+		if s.resourceOwnsLocked(k) {
+			continue
+		}
 		if first || v.Updated.Before(oldestTime) {
 			oldestKey = k
 			oldestTime = v.Updated

@@ -1030,12 +1030,35 @@ history no state check reports.
 <!-- test: internal/component/doctor/checks_recent_events_test.go TestRecentEventsSkipsWarningAStateCheckOwns -->
 <!-- test: internal/component/doctor/cmd/show_recent_events_test.go TestShowDoctorListsAPluginOwnedWarningOnce -->
 
+### A problem owned by a retained resource
+
+A daemon-owned resource can outlive the plugin process that reported its
+failure. Its owner reserves one `report.ResourceWarning` slot before native
+work starts. A full reservation set refuses that admission; an unrelated
+warning cannot consume the reserved capacity later. The reservation and exact
+failure episode remain in the daemon through process loss. Ordinary source
+cleanup, warning clearance, same-key raises and warning-cap eviction cannot
+delete or replace the original cause, subject, fix or first-raised time.
+
+The owner retains one `ResourceWarningEpisode` before publishing. The episode
+keeps bounded first and latest actual failure causes, its original fix and
+first-raised time. `Update` changes only that same episode's latest cause;
+domain cleanup counts remain independent. Retrying its publication changes no
+native state. Only its original resource's recovery proof or acknowledgement
+permits `Clear`; the bus does not establish that domain fact. An old episode's
+repeated clear never clears a later failure. An owner with no failure closes
+its unused reservation without a synthetic raise or clear. This is
+daemon-local custody; no resource pointer crosses the plugin protocol.
+<!-- source: internal/core/report/resource_warning.go -- NewResourceWarning, ResourceWarning.NewEpisode, ResourceWarningEpisode.Publish, ResourceWarningEpisode.Update, ResourceWarningEpisode.Clear, ResourceWarning.Close -->
+
 ### A full bus
 
-The bus is bounded: `ze.report.warnings.max` active warnings and
+The bus is bounded: `ze.report.warnings.max` active warnings, including
+reserved resource slots, and
 `ze.report.errors.max` error events, each clamped to 10000. Past the warning cap
-`evictOldestWarning` drops the oldest active warning, and past the error cap the
-ring overwrites its oldest event. Both are counted, and `report.Losses` answers
+`evictOldestWarning` drops the oldest ordinary warning in the remaining
+capacity; reserved resource warnings stay owned. Past the error cap the ring
+overwrites its oldest event. Both are counted, and `report.Losses` answers
 the counts with the caps. The `report-bus-capacity` check, registered by
 `internal/component/plugin/doctor` at the `runtime` phase, answers one
 `doctor-report-bus-full` warning per kind of loss, naming the cap, how many
@@ -1313,9 +1336,10 @@ resort as what it is: a restart of the ze daemon, which ends every call a
 plugin made into it (`systemctl restart ze` under systemd; `ze signal restart`
 writes the graceful-restart marker and shuts ze down, so ze comes back only
 under a supervisor).
-`RemoveProcess` and `ReportCrash` also clear the warnings the plugin raised
-itself through `report-issue` (`report.ClearSource` of its name), because
-only the plugin could clear them.
+`RemoveProcess` and `ReportCrash` also clear the ordinary warnings the plugin
+raised through `report-issue` (`report.ClearSource` of its name), because only
+the plugin could clear them. A warning reserved by a retained daemon resource
+remains owned by that original resource until its recovery is confirmed.
 <!-- source: internal/component/plugin/process/stopped.go -- RecordStopped, ClearStopped, StoppedMessage, RestartCommand, ExitStatus -->
 <!-- source: internal/component/plugin/process/manager.go -- RemoveProcess, StartMore, ConfiguredNames -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- superviseProcess, applyFailurePolicy -->

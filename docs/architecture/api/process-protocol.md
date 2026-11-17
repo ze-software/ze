@@ -1057,9 +1057,10 @@ up, and only its rollback wait is bounded.
 <!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake, lifetimeRestartHandshake, rollbackReplacement -->
 <!-- source: internal/component/plugin/server/startup_budget.go -- previousStartupBudget, restartStartupHandshakeBound -->
 
-A process exit clears the active warnings the plugin raised through
-`report-issue`, after its admitted requests finish. Their owner is gone and
-nothing else can clear them. Historical error events remain in the report ring.
+A process exit clears the ordinary active warnings the plugin raised through
+`report-issue`, after its admitted requests finish. A warning reserved by a
+retained daemon resource stays owned by that original resource until its
+recovery is confirmed. Historical error events remain in the report ring.
 For an unexpected exit, `doctor-plugin-crashed` (an error, fix `ze show errors`)
 then records its status and the policy ze applies.
 <!-- source: internal/component/plugin/server/dispatch.go -- handleSingleProcessCommandsRPC, cleanupProcess -->
@@ -2431,8 +2432,12 @@ from which the `rpc` bounds are declared), so a raise the engine accepts is
 never dropped by the bus. The YANG leaf lengths of `report-issue` repeat
 them, and a test compares the two.
 
-A plugin's active warnings leave the bus when its process goes: the process
-manager clears its source when it removes the plugin or records its crash.
+A plugin's ordinary active warnings leave the bus when its process goes: the
+process manager clears its source when it removes the plugin or records its
+crash. A concretely reserved daemon resource's warning stays owned by that
+original resource. An ordinary `report-issue` raise or clear against its
+protected subject refuses over both transports; it never acknowledges a
+warning change it did not perform.
 An ad-hoc plugin session (`HandleAdHocPluginSession`, an SSH channel) is never
 in the process manager, so its warnings are cleared, and its raise window
 forgotten, when the session ends. Every plugin's rate window is forgotten
@@ -2444,6 +2449,7 @@ alive.
 <!-- source: internal/component/plugin/server/dispatch_report.go -- opReportIssue, raiseReported, reportIssueEncodedMax, pluginReportRate, raiseWarningWithin, activeWarningsMax, forgetPluginReports -->
 <!-- source: internal/component/plugin/server/adhoc.go -- endAdHocSession -->
 <!-- source: internal/core/report/report.go -- SourceWarnings, CodeMax -->
+<!-- source: internal/core/report/resource_warning.go -- TryClearWarning, TryRaiseWarningFix -->
 <!-- test: internal/component/plugin/server/dispatch_report_test.go TestReportRaiseEscapedAtBoundsBothTransports -->
 <!-- test: internal/component/plugin/server/dispatch_report_test.go TestReportActiveWarningsSharePerPlugin -->
 <!-- test: internal/component/plugin/server/dispatch_report_test.go TestAdHocSessionEndClearsItsReports -->

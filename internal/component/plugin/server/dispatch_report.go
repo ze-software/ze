@@ -84,7 +84,9 @@ func (s *Server) opReportIssue(_ context.Context, proc *process.Process, params 
 	}
 	switch in.Action {
 	case rpc.ReportClear:
-		report.ClearWarning(source, in.Code, in.Subject)
+		if err := report.TryClearWarning(source, in.Code, in.Subject); err != nil {
+			return nil, err
+		}
 		return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
 	case rpc.ReportRaise:
 		return s.raiseReported(source, &in)
@@ -225,8 +227,7 @@ func (r *pluginReportRate) raiseWarningWithin(source string, in *rpc.ReportIssue
 		return fmt.Errorf("report-issue from plugin %s refused: it keeps %d warnings active, the most one plugin may keep (the report bus holds %d, and one plugin gets 1/%d of it); clear a warning that no longer holds with ClearIssue, then raise again",
 			source, active, warningCap, rpc.ReportActiveWarningsShare)
 	}
-	report.RaiseWarningFix(source, in.Code, in.Subject, in.Message, in.Fix)
-	return nil
+	return report.TryRaiseWarningFix(source, in.Code, in.Subject, in.Message, in.Fix)
 }
 
 // refusePluginRequest raises the refusal of a request from plugin as a
