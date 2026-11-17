@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/plugins/container"
+	"github.com/ze-software/ze/internal/plugins/container/registry"
 )
 
 // testDigest builds the digest of one hex pair repeated, so each test names
 // distinct images without hashing anything.
-func testDigest(t *testing.T, pair string) imageDigest {
+func testDigest(t *testing.T, pair string) registry.Digest {
 	t.Helper()
-	digest, err := parseDigest(digestTextPrefix + strings.Repeat(pair, digestHexLength/2))
+	digest, err := registry.ParseDigest(digestTextPrefix + strings.Repeat(pair, digestHexLength/2))
 	if err != nil {
 		t.Fatalf("test digest of %q: %v", pair, err)
 	}
@@ -88,7 +89,7 @@ func preparedRoot(t *testing.T) *storeRoot {
 func TestPublishIsOneRenameAndRefusesExisting(t *testing.T) {
 	root := preparedRoot(t)
 	digest := testDigest(t, "ab")
-	imageFolder := filepath.Join(root.path, imagesFolder, digest.folder())
+	imageFolder := filepath.Join(root.path, imagesFolder, digestFolder(digest))
 
 	stageImage(t, root.path, "first", "first")
 	stagedRoot, err := os.Stat(filepath.Join(root.path, stagingFolder, "first", rootfsFolder))
@@ -175,7 +176,7 @@ func TestListIgnoresFolderWithoutMark(t *testing.T) {
 
 	storePath := filepath.Join(dataDir, storeFolder)
 	unmarked := testDigest(t, "cd")
-	if err := os.MkdirAll(filepath.Join(storePath, imagesFolder, unmarked.folder(), rootfsFolder), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(storePath, imagesFolder, digestFolder(unmarked), rootfsFolder), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -225,7 +226,7 @@ func TestStartEmptiesStagingAndKeepsCheckedBlobs(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(staging, "download-partial"), []byte("part"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	blob := filepath.Join(storePath, blobsFolder, testDigest(t, "12").folder())
+	blob := filepath.Join(storePath, blobsFolder, digestFolder(testDigest(t, "12")))
 	if err := os.WriteFile(blob, []byte("checked"), 0o600); err != nil {
 		t.Fatal(err)
 	}

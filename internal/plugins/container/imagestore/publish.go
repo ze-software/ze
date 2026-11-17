@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/plugins/container"
+	"github.com/ze-software/ze/internal/plugins/container/registry"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -83,7 +84,7 @@ var errNoMark = errors.New("the folder holds no completion mark")
 // refusal the staged folder stays where it is, and the caller removes it. It
 // MUST be called from the store's one worker, which owns every change to the
 // store.
-func (r *storeRoot) publish(staged string, digest imageDigest, facts imageFacts) error {
+func (r *storeRoot) publish(staged string, digest registry.Digest, facts imageFacts) error {
 	if err := checkStagedName(staged); err != nil {
 		return publishFailed(digest, facts.Reference, err)
 	}
@@ -91,7 +92,7 @@ func (r *storeRoot) publish(staged string, digest imageDigest, facts imageFacts)
 	if err := r.checkStagedImage(stagedPath); err != nil {
 		return publishFailed(digest, facts.Reference, err)
 	}
-	target := filepath.Join(imagesFolder, digest.folder())
+	target := filepath.Join(imagesFolder, digestFolder(digest))
 
 	// The mark says the root is whole, so the root reaches the disk first.
 	if err := syncFilesystem(r.dir); err != nil {
@@ -201,7 +202,7 @@ func (r *storeRoot) syncFolder(name string) error {
 // does not vouch for the root: it writes no mark and publishes nothing. The
 // error is reported once, so a fetch run again after the cause is known
 // syncs cleanly unless the disk loses another write.
-func syncLostWrite(storePath string, digest imageDigest, reference string, cause error) error {
+func syncLostWrite(storePath string, digest registry.Digest, reference string, cause error) error {
 	return opererr.Wrap(cause,
 		"image "+digest.String()+" was not published: the filesystem that holds the container store "+storePath+
 			" reported a write it could not complete",
@@ -212,7 +213,7 @@ func syncLostWrite(storePath string, digest imageDigest, reference string, cause
 
 // publishFailed is the refusal of a publication that did not happen, with
 // its cause.
-func publishFailed(digest imageDigest, reference string, cause error) error {
+func publishFailed(digest registry.Digest, reference string, cause error) error {
 	return opererr.Wrap(cause,
 		"image "+digest.String()+" could not be published in the container store",
 		"an image is published whole or not at all, so the store holds no part of it",
@@ -259,8 +260,8 @@ func (r *storeRoot) images() ([]container.ImageRow, error) {
 // answers errNoMark when the folder holds none, and an operator error for a
 // mark it cannot read or that names another digest: such a folder claims to
 // be whole, so it is reported rather than passed over.
-func (r *storeRoot) readMark(digest imageDigest) (completionMark, error) {
-	folder := filepath.Join(imagesFolder, digest.folder())
+func (r *storeRoot) readMark(digest registry.Digest) (completionMark, error) {
+	folder := filepath.Join(imagesFolder, digestFolder(digest))
 	file, err := r.root.Open(filepath.Join(folder, markName))
 	if errors.Is(err, fs.ErrNotExist) {
 		return completionMark{}, errNoMark
@@ -284,7 +285,7 @@ func (r *storeRoot) readMark(digest imageDigest) (completionMark, error) {
 	if err := decoder.Decode(&mark); err != nil {
 		return completionMark{}, markUnreadable(r.path, folder, err)
 	}
-	named, err := parseDigest(mark.Digest)
+	named, err := registry.ParseDigest(mark.Digest)
 	if err != nil {
 		return completionMark{}, markUnreadable(r.path, folder, err)
 	}

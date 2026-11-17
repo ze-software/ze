@@ -9,22 +9,25 @@ this page describes what the tree holds today.
 
 ## Where it is today
 
-The store lands in phases. Four are in the tree. The wiring: the seam, the
+The store lands in phases. Five are in the tree. The wiring: the seam, the
 commands, the doctor codes, the state keys and the data directory. The
 layout: the store root and its folders, staging emptied at start,
 publication of an image folder by one rename, and the image listing. The
 registry client: references, manifests, platform selection and blobs
 checked as they arrive. Layer application: the archives of an image
-applied into a staged root by the rules of its section below. Nothing in
-the store calls the client or the applier yet. Every
-other operation of the store answers that it is not implemented in this
-build. No image is fetched yet, so the listing answers an empty store, and
-no container starts on the real store: its resolve answers an error, which
-the supervisor turns into the `failed` state with the reason.
+applied into a staged root by the rules of its section below. The fetch:
+`create container image reference` runs on the store's one worker, keeps the
+blobs it checked, refuses a fetch that would cross the free-space reserve,
+and publishes the image; the listing shows the fetches in flight and the
+failed ones (the section "The fetch"). Every other operation of the store
+answers that it is not implemented in this build. No binding records yet
+which image a reference names, so no container starts on the real store:
+its resolve answers an error, which the supervisor turns into the `failed`
+state with the reason.
 
 | Piece | Where | Today |
 |-------|-------|-------|
-| The store package | `internal/plugins/container/imagestore`, gated by `ze_container` | `Store` answers `show container image list` from the store's folders. `show container store` waits for the quota probe, because its `caps-enforced` field cannot be answered without it. Every other operation answers "not implemented in this build" |
+| The store package | `internal/plugins/container/imagestore`, gated by `ze_container` | `Store` answers `create container image reference` and `show container image list`. `show container store` waits for the quota probe, because its `caps-enforced` field cannot be answered without it. Every other operation answers "not implemented in this build" |
 | The seam the runtime asks | `storeseam.go`: `Store`, `SetStoreFactory` | The store package installs its factory from its own `init()`; the runtime package never imports it |
 | The seam the commands ask | `storeseam_operations.go`: `ImageOperations` | A store MAY also be an `ImageOperations`; an image command refuses, naming why, when it is not |
 | The store a daemon builds | `engineStoreFactory`, `storeseam_engine.go` and `storeseam_zetest.go` | A shipped build builds the store package's store. A `zetest` daemon builds the runtime's fixture store when `ze.test.container.store` is set, and the real store otherwise |
@@ -32,8 +35,9 @@ the supervisor turns into the `failed` state with the reason.
 | The doctor codes | `doctor_store.go` | Eleven codes, registered from the plugin's package, six of them as report-bus event codes |
 | The state keys | `pkg/zefs/keys.go` | Three patterns under `meta/container/`, granted to the plugin |
 | The data directory | `internal/core/paths/paths.go` | `ze.data.dir` wins. Without it the directory follows the binary's location, as the config directory does (the table below) |
-| The registry client | `internal/plugins/container/registry`, gated by `ze_container` | Resolves a reference and fetches checked blobs (the section below). The fetch worker that calls it is a later phase |
-| The test registry | `internal/test/ociregistry` | An in-process registry the client's tests fetch from, with scripted faults |
+| The registry client | `internal/plugins/container/registry`, gated by `ze_container` | Resolves a reference and fetches checked blobs (the section below), for the fetch worker |
+| The test registry | `internal/test/ociregistry` | An in-process registry the client's and the store's tests fetch from, with scripted faults, a held transfer and a fixed address |
+| The registry fixture | `internal/test/fixture/register_container_registry.go` | `le test fixture container/registry <port>` serves one image under `library/redis:latest` to a functional test's daemon |
 
 <!-- source: internal/plugins/container/imagestore/store.go -- Store, newStore, openStore, storePath, withRoot, openRoot, ListImages, notImplemented -->
 <!-- source: internal/plugins/container/imagestore/register.go -- init -->
@@ -128,7 +132,7 @@ phase brings.
 <!-- source: internal/core/paths/paths.go -- classifyBinary, ConfigDirFromBinary, DataDirFromBinary -->
 <!-- source: internal/plugins/container/imagestore/layout.go -- storeFolder, storeSubfolders, storeRoot, prepareStoreRoot, openStoreRoot, checkStoreFolder, makeSubfolders, emptyStaging -->
 <!-- source: internal/plugins/container/imagestore/publish.go -- imageFacts, completionMark, publish, checkStagedImage, writeMark, syncLostWrite, images, readMark -->
-<!-- source: internal/plugins/container/imagestore/digest.go -- imageDigest, parseDigest, parseDigestFolder -->
+<!-- source: internal/plugins/container/imagestore/digest.go -- parseDigestFolder, digestFolder -->
 <!-- source: internal/plugins/container/imagestore/sync_linux.go -- syncFilesystem -->
 <!-- test: internal/plugins/container/imagestore/publish_test.go TestPublishIsOneRenameAndRefusesExisting, TestListIgnoresFolderWithoutMark, TestStartEmptiesStagingAndKeepsCheckedBlobs -->
 <!-- test: internal/plugins/container/imagestore/layout_test.go TestStoreRootOpenToOthersRefused -->
@@ -265,8 +269,8 @@ cut at 256 bytes, and the rule; the fetch worker reports it under
 owner the user Ze runs as cannot give, is an `entryFailure` that carries the
 system's error. Either way the staged folder holds part of the image, and
 the caller removes it and publishes nothing. The applier and its rules are
-built on Linux only; what another system answers is the fetch worker's to
-say, since it is the applier's first caller.
+built on Linux only. On another system the fetch's `applyLayers`
+(`fetch_apply_other.go`) refuses: containers run on Linux only.
 
 <!-- source: internal/plugins/container/imagestore/apply_rules.go -- applyLimits, defaultApplyLimits, applyCounts, refusalRule, layerRefusal, entryFailure, parseEntryPath, entryAttributes, checkAttributeName, entryOwner, checkLinkTarget, openLayerStream, expandedStream -->
 <!-- source: internal/plugins/container/imagestore/apply_linux.go -- newLayerApplier, apply, applyEntry, applyFile, applyFolder, applyHardLink, applyWhiteout, applyOpaque, moveAway, parentFolder, existingFolder, setMetadata -->
@@ -313,7 +317,60 @@ A fetch and an update run for minutes, and a plugin command is cut at 30
 seconds unless it declares its own bound. The Stage 1 command declaration has
 no field for a bound, so the two commands declare none today:
 `TestFetchCommandDeclaresItsBound` is red until the plugin protocol carries
-one.
+one. Until then the fetch command answers within 20 seconds and the fetch
+goes on in the store's worker (the section "The fetch").
+
+## The fetch
+
+`FetchImage` completes the reference and hands the fetch to the store's one
+worker. One fetch runs and at most eight wait; a ninth is refused, naming the
+queue. A fetch of a reference already queued or running is joined. The
+worker is started when a fetch arrives and none runs, takes the fetches one
+at a time, and ends when none waits.
+
+| Step | What the worker does |
+|------|----------------------|
+| Client | `engineClientConfig`: the registry the reference names, verified TLS through the system roots, anonymous, no mirror, the running architecture. The registry list of the operator surface will replace it. A `zetest` daemon reaches every registry through the loopback mirror `ze.test.container.registry.port` names, over plain HTTP |
+| Resolve | The client resolves the manifest and reads the image configuration. A digest already in the store downloads no layer: the answer says it was not new |
+| Leftover blobs | Every blob in `blobs/` that is no layer of this image is removed: the blobs of a stopped fetch of another image |
+| Free space | The bytes to download (manifest, configuration and each layer not kept) must leave the reserve free: the larger of 64 MiB and 5% of the filesystem. Otherwise the fetch is refused before any layer is asked for, naming the three numbers, under `doctor-container-fetch-no-space`. A filesystem whose space cannot be read refuses the fetch too |
+| Download | Each missing layer is written to `staging/blob-sha256-<hex>`, counted into the bytes received, and renamed into `blobs/` once the client checked its digest and size |
+| Apply | The layers are applied in order into `staging/image-sha256-<hex>`, each checked against the configuration's `diff_ids`; the manifest and the configuration are written beside the root, byte for byte |
+| Publish | `publish`, then the image's blobs are removed, and the runtime is told the reference is present; the answer names the containers it started |
+
+The fetch command waits at most 20 seconds for its fetch, because a plugin
+command is cut at 30 seconds. A fetch that runs longer is answered with an
+operator error saying it is still running, whose fix is the listing; the
+fetch goes on to its end, so the cut costs the caller the wait and never the
+image. The fetch runs under the command's context, which for a plugin
+command is the plugin's run context: it stops when the plugin stops, and a
+caller that goes away does not stop it.
+
+The listing adds to the published images one row for each fetch in flight,
+`fetching` with the bytes it received, and one row for the last failed fetch
+of each reference, `failed` with the error's problem and its doctor code. At
+most 16 failed rows stay, the oldest leaving first, and a fetch of the
+reference that ends removes its row.
+
+| Failure | Code | Fix |
+|---------|------|-----|
+| The registry or its realm could not be reached | `doctor-container-registry-unreachable` | The fetch again |
+| The registry refused the credentials or the access | `doctor-container-registry-auth-refused` | The registry's credentials statement |
+| No such repository, tag or digest | `doctor-container-image-not-found` | The fetch with the right reference |
+| A digest or size mismatch | `doctor-container-image-digest-mismatch` | The fetch again |
+| A type, a platform or an application rule refused | `doctor-container-image-refused` | Another image, or `store largest-image` for the expanded-bytes bound |
+| Too little space | `doctor-container-fetch-no-space` | `delete container image all` |
+| A write the system refused, a store folder that failed | `doctor-container-store-unwritable` | `ze show doctor` |
+
+No binding is written yet, and no failure is raised on the report bus: the
+store holds no handle on the plugin's SDK until the generations phase. Both
+wait for it.
+
+<!-- source: internal/plugins/container/imagestore/fetch.go -- FetchImage, enqueueFetch, runFetches, fetchQueue, fetchError, failedRow, fetchingRow -->
+<!-- source: internal/plugins/container/imagestore/fetch_steps.go -- fetchInto, download, checkSpace, storeReserve, downloadBlob, countedBlobFile, diffIDs, defaultClientConfig, registryFailed -->
+<!-- source: internal/plugins/container/imagestore/fetch_apply_linux.go -- applyLayers, applyFailed -->
+<!-- source: internal/plugins/container/imagestore/registry_config_zetest.go -- engineClientConfig -->
+<!-- test: internal/plugins/container/imagestore/fetch_test.go TestFetchCommandAnswersResultAtEnd, TestFetchOfPresentDigestDownloadsNothing, TestFetchReusesCheckedBlob, TestFetchOfAnotherImageRemovesLeftoverBlobs, TestFreeSpaceRefusalBeforeAnyBlob, TestListingShowsFetchingWithBytesReceived, TestFetchQueueBound, TestFetchFailureClassesNameTheirCode, TestFetchShortNameRecordsResolvedDigest -->
 
 <!-- source: internal/plugins/container/image_cmd.go -- imageCommandDecls, imageCommandRPCs, forwardToPlugin, imageCommandHandlers, runImageCommand, keywordValue, singleValue -->
 <!-- source: internal/plugins/container/container.go -- commandDecls, handleCommand -->

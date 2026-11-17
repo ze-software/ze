@@ -120,7 +120,7 @@ func (a *layerApplier) countedFacts(facts *imageFacts) {
 //
 // On an error the root holds part of the layer: the caller removes the
 // staged folder and publishes nothing.
-func (a *layerApplier) apply(blob io.Reader, compression registry.Compression, diffID imageDigest) error {
+func (a *layerApplier) apply(blob io.Reader, compression registry.Compression, diffID registry.Digest) error {
 	a.counts.layers++
 	if a.counts.layers > layersMax {
 		return refuseLayer(ruleLayers, textbuf.StringUint(a.counts.layers)+" layers")
@@ -150,7 +150,7 @@ func (a *layerApplier) apply(blob io.Reader, compression registry.Compression, d
 		return refuseLayer(ruleCompression, closeErr.Error())
 	}
 	received := hex.EncodeToString(hasher.Sum(nil))
-	if received != diffID.hex {
+	if digestTextPrefix+received != diffID.String() {
 		return refuseLayer(ruleDiffDigest, "the stream hashes to "+digestTextPrefix+received+", the configuration declares "+diffID.String())
 	}
 	return nil

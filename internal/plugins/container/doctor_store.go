@@ -41,6 +41,39 @@ const (
 // the root could not be prepared at start.
 const CodeStoreUnwritable = codeStoreUnwritable
 
+// The codes a failed fetch carries, for the image store package: the row of
+// a failed fetch in the image listing names its code, and the fetch's error
+// carries the fix the code's explanation describes. The fixes are built here,
+// from the command words this package declares, so the store repeats none.
+const (
+	CodeRegistryUnreachable = codeRegistryUnreachable
+	CodeRegistryAuthRefused = codeRegistryAuthRefused
+	CodeImageNotFound       = codeImageNotFound
+	CodeImageDigestMismatch = codeImageDigestMismatch
+	CodeImageRefused        = codeImageRefused
+	CodeFetchNoSpace        = codeFetchNoSpace
+	// FixDeleteAllImages frees the space a fetch refused for lack of it
+	// needed.
+	FixDeleteAllImages = exampleDeleteAllImages
+	// FixLargestImage raises the bound on the expanded bytes of one image.
+	FixLargestImage = "set container store largest-image SIZE"
+	// FixShowImageList shows the fetches in flight and the ones that failed.
+	FixShowImageList = fixShowImageList
+	// FixShowDoctor reports what keeps the store from working.
+	FixShowDoctor = exampleShowDoctor
+)
+
+// FixFetch answers the command that fetches reference.
+func FixFetch(reference string) string {
+	return "ze " + cmdCreateImage + " " + referenceKeyword + " " + reference
+}
+
+// FixRegistryCredentials answers the config statement that sets the
+// credentials the registry host is asked with.
+func FixRegistryCredentials(host string) string {
+	return "set container registry " + host + " authentication username NAME password PASSWORD"
+}
+
 // storeDoctorCheck is a runtime doctor check over the image store's own
 // state. The store answers it, not the supervisor's records: the store root
 // is the store's, and the plugin reaches it only through the seam.
@@ -163,7 +196,7 @@ var storeDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        codeRegistryAuthRefused,
 		Title:       "The image registry refused the credentials or the access",
 		Description: "The registry answered that the credentials are wrong or that they give no access to the repository. Set the registry's credentials in the configuration.",
-		Examples:    []string{"set container registry HOST authentication username NAME password PASSWORD", "ze show diagnostic " + codeRegistryAuthRefused},
+		Examples:    []string{FixRegistryCredentials("HOST"), "ze show diagnostic " + codeRegistryAuthRefused},
 	},
 	{
 		Code:        codeImageNotFound,
@@ -181,7 +214,7 @@ var storeDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        codeImageRefused,
 		Title:       "An image was refused",
 		Description: "The image holds an entry Ze does not apply, passes a bound of the store, uses a type Ze does not accept, or offers no entry for this platform. The finding names the entry, the bound or the type. For a bound, raise it in the configuration. Otherwise name another image.",
-		Examples:    []string{"set container store largest-image SIZE", "ze show diagnostic " + codeImageRefused},
+		Examples:    []string{FixLargestImage, "ze show diagnostic " + codeImageRefused},
 	},
 	{
 		Code:        codeFetchNoSpace,

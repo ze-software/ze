@@ -21,12 +21,16 @@ const PluginName = pluginName
 // this build is not one. An implementation MUST be safe for concurrent use:
 // the commands arrive from every surface at once.
 //
-// Every operation takes the request's context first. A fetch and an update
-// run under it, so a caller that goes away stops them. Each answers a typed
-// value or an error, never both, and an error is an operator error that names
-// what is wrong, why, and the command that fixes it.
+// Every operation takes the command's context first. A plugin command runs
+// under the plugin's run context (handleCommand), so a fetch and an update
+// run under it stop when the plugin stops, not when a caller goes away. Each
+// answers a typed value or an error, never both, and an error is an operator
+// error that names what is wrong, why, and the command that fixes it.
 type ImageOperations interface {
-	// FetchImage fetches reference and answers once, at the end.
+	// FetchImage fetches reference and answers once: at the end of the
+	// fetch, or, for a fetch that outlasts the store's answer wait, with an
+	// operator error saying it goes on, so the answer comes before the
+	// plugin command's 30-second cut.
 	FetchImage(ctx context.Context, reference string) (FetchAnswer, error)
 	// ListImages answers one row for each image, each fetch in flight and
 	// each failed fetch.

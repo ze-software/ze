@@ -9,11 +9,14 @@ import (
 	"errors"
 	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/ze-software/ze/internal/core/diskspace"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/plugins/container"
+	"github.com/ze-software/ze/internal/plugins/container/registry"
 )
 
 // The store and the image commands must agree on the seam. Compile-time
@@ -30,19 +33,34 @@ var storeLog = slogutil.LazyLogger("container.store")
 
 // Store is the image store of one run of the container plugin.
 //
-// The store lands in phases. The layout is in place: the store root under
-// the data directory, its folders and modes, staging emptied at start,
-// publication by one rename, and the image listing. Every other operation
-// answers that it is not implemented in this build, and Resolve answers an
-// error, never an absent image, because no fetch could bring one yet.
+// The store lands in phases. In place: the store root under the data
+// directory, its folders and modes, staging emptied at start, the fetch on
+// one worker with its queue, its kept blobs and its free-space rule, layer
+// application, publication by one rename, and the image listing with the
+// fetches in flight and the failed ones. Every other operation answers that
+// it is not implemented in this build, and Resolve answers an error, never
+// an absent image, because no binding records which image a container names
+// yet.
 //
 // No handle is kept between operations: each opens the store root, checks
 // it, and closes it, so a store root that changed mode or owner while Ze ran
 // is refused at the next operation. Safe for concurrent use.
 type Store struct {
 	// notices is what the store tells the runtime: an image present, a
-	// restart on a new generation. Nothing sends one before the fetch phase.
+	// restart on a new generation. A fetch sends the first.
 	notices container.StoreNotices
+	// fetches is the queue of the one worker that runs every fetch.
+	fetches fetchQueue
+	// clientConfig answers how the registry a reference names is reached.
+	// space answers the space of the store's filesystem. answerWait bounds
+	// how long the fetch command waits for its fetch. largestImage bounds
+	// the expanded bytes of one image. Each is set at construction and never
+	// changes; they are fields so the package's tests can point them at a
+	// test registry, a filesystem of a chosen size and a shorter wait.
+	clientConfig func(registry.Reference) (registry.Config, error)
+	space        func(path string) (diskspace.Blocks, error)
+	answerWait   time.Duration
+	largestImage uint64
 	// path is the absolute path of the store root. pathErr replaces it when
 	// no data directory resolved. Both are set at construction, exactly one
 	// of them, and never change.
@@ -67,7 +85,13 @@ func newStore(notices container.StoreNotices) container.Store {
 // this run. A root that cannot be prepared now is not fatal to the plugin:
 // every operation tries again and answers the refusal it meets.
 func openStore(dataDir string, notices container.StoreNotices) *Store {
-	s := &Store{notices: notices}
+	s := &Store{
+		notices:      notices,
+		clientConfig: engineClientConfig,
+		space:        diskspace.Stat,
+		answerWait:   fetchAnswerWaitDefault,
+		largestImage: largestImageDefault,
+	}
 	s.path, s.pathErr = storePath(dataDir)
 	if err := s.withRoot(func(*storeRoot) error { return nil }); err != nil {
 		storeLog().Warn("container: the image store could not be prepared at start",
@@ -176,13 +200,15 @@ func (s *Store) Hold(string, container.Ready) func() {
 	return func() {}
 }
 
-func (s *Store) FetchImage(context.Context, string) (container.FetchAnswer, error) {
-	return container.FetchAnswer{}, notImplemented("create container image")
-}
-
-// ListImages answers one row for each published image. Until the fetch
-// phase no fetch is in flight and none failed, so every row reads present.
+// ListImages answers one row for each published image, present, then one for
+// each fetch in flight, fetching with the bytes it received, and one for the
+// last failed fetch of each reference, failed with its sentence and its code.
 func (s *Store) ListImages(context.Context) ([]container.ImageRow, error) {
+	// The queue is read before the folders. A fetch publishes its image and
+	// only then ends, so a fetch read as in flight is either not published
+	// yet or published by the time the folders are read, and its row is
+	// dropped then: the image shows once, never twice and never not at all.
+	queued := s.fetches.rows()
 	var rows []container.ImageRow
 	err := s.withRoot(func(root *storeRoot) error {
 		var listErr error
@@ -191,6 +217,16 @@ func (s *Store) ListImages(context.Context) ([]container.ImageRow, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	published := make(map[string]struct{}, len(rows))
+	for i := range rows {
+		published[rows[i].Digest] = struct{}{}
+	}
+	for i := range queued {
+		if _, ok := published[queued[i].resolved]; ok {
+			continue
+		}
+		rows = append(rows, queued[i].row)
 	}
 	return rows, nil
 }

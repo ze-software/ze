@@ -11,6 +11,7 @@
 package ociregistry
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -18,6 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -69,6 +71,10 @@ type Options struct {
 	// TokenAnswerSize pads the token answer to exactly this many bytes, for
 	// the bound of the token answer. Zero sends it unpadded.
 	TokenAnswerSize int
+	// Listen is the host:port to listen on, for a functional test whose
+	// daemon is told the address before the registry starts. Empty takes a
+	// free loopback port.
+	Listen string
 }
 
 // Descriptor is the OCI descriptor of one stored object, in the wire form.
@@ -117,6 +123,11 @@ type Fault struct {
 	RedirectTo string
 	// RedirectHops answers this many redirects on this host before serving.
 	RedirectHops int
+	// Hold, when not nil, sends HoldAfter bytes, then waits until Hold is
+	// closed before it sends the rest: a transfer a test keeps in flight for
+	// as long as it reads the progress, then lets finish.
+	Hold      <-chan struct{}
+	HoldAfter int
 }
 
 // Request is one request the registry received.
@@ -163,10 +174,24 @@ func Start(options Options) (*Registry, error) {
 		blobs:     map[string]stored{},
 		faults:    map[string]*Fault{},
 	}
+	r.server = httptest.NewUnstartedServer(r)
+	if options.Listen != "" {
+		// The registry outlives the call that starts it and stops at Close,
+		// so the listener takes no caller's context.
+		var listen net.ListenConfig
+		listener, err := listen.Listen(context.Background(), "tcp", options.Listen)
+		if err != nil {
+			return nil, errors.Join(err, r.server.Listener.Close())
+		}
+		if err := r.server.Listener.Close(); err != nil {
+			return nil, errors.Join(err, listener.Close())
+		}
+		r.server.Listener = listener
+	}
 	if options.TLS {
-		r.server = httptest.NewTLSServer(r)
+		r.server.StartTLS()
 	} else {
-		r.server = httptest.NewServer(r)
+		r.server.Start()
 	}
 	return r, nil
 }
@@ -350,6 +375,20 @@ func (r *Registry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		case <-r.done:
 		}
 		return
+	}
+	if fault.Hold != nil && fault.HoldAfter < len(body) {
+		w.Write(body[:fault.HoldAfter]) //nolint:errcheck // the client reports what arrived
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		select {
+		case <-fault.Hold:
+		case <-req.Context().Done():
+			return
+		case <-r.done:
+			return
+		}
+		body = body[fault.HoldAfter:]
 	}
 	w.Write(body) //nolint:errcheck // the client reports what arrived
 }

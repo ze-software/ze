@@ -107,10 +107,10 @@ func layerTar(t testing.TB, entries ...testEntry) []byte {
 }
 
 // diffDigestOf answers the digest of a decompressed layer.
-func diffDigestOf(t testing.TB, archive []byte) imageDigest {
+func diffDigestOf(t testing.TB, archive []byte) registry.Digest {
 	t.Helper()
 	sum := sha256.Sum256(archive)
-	digest, err := parseDigest(digestTextPrefix + hex.EncodeToString(sum[:]))
+	digest, err := registry.ParseDigest(digestTextPrefix + hex.EncodeToString(sum[:]))
 	if err != nil {
 		t.Fatalf("digest of the layer: %v", err)
 	}

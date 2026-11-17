@@ -4,14 +4,16 @@
 package imagestore
 
 import (
-	"encoding/hex"
 	"errors"
 	"strings"
+
+	"github.com/ze-software/ze/internal/plugins/container/registry"
 )
 
-// Digest forms. The text form is the one a registry and an operator write;
-// the folder form replaces the colon, because a folder name is a field
-// contract and a colon is awkward in a path on every tool that reads it.
+// Digest forms. The text form is the one a registry and an operator write,
+// and registry.ParseDigest is its one parser; the folder form replaces the
+// colon, because a folder name is a field contract and a colon is awkward in
+// a path on every tool that reads it.
 const (
 	digestTextPrefix   = "sha256:"
 	digestFolderPrefix = "sha256-"
@@ -19,57 +21,31 @@ const (
 	digestHexLength = 64
 )
 
-// errDigestMalformed refuses a digest that is not SHA-256 in lower-case hex.
-// The store names folders after digests, so only a digest that matches
-// exactly one folder name is accepted.
-var errDigestMalformed = errors.New("not a sha256 digest of 64 lower-case hex digits")
+// errDigestFolder refuses a folder name that is not the folder form of a
+// digest. The listing passes over such a name: publication never writes one.
+var errDigestFolder = errors.New("not a folder named sha256-<64 lower-case hex digits>")
 
-// imageDigest is a SHA-256 digest that was checked when it was built: only
-// parseDigest and parseDigestFolder build one, so a value of this type always
-// names exactly one folder of the store.
-type imageDigest struct {
-	hex string
-}
-
-// parseDigest reads the text form, sha256:<64 hex digits>.
-func parseDigest(text string) (imageDigest, error) {
-	hexDigits, ok := strings.CutPrefix(text, digestTextPrefix)
-	if !ok {
-		return imageDigest{}, errDigestMalformed
-	}
-	return digestFromHex(hexDigits)
-}
-
-// parseDigestFolder reads the folder form, sha256-<64 hex digits>.
-func parseDigestFolder(name string) (imageDigest, error) {
+// parseDigestFolder reads the folder form, sha256-<64 hex digits>, through
+// the one parser of the text form, so a folder name and a digest the
+// registry names are checked by the same rule.
+func parseDigestFolder(name string) (registry.Digest, error) {
 	hexDigits, ok := strings.CutPrefix(name, digestFolderPrefix)
 	if !ok {
-		return imageDigest{}, errDigestMalformed
+		return registry.Digest{}, errDigestFolder
 	}
-	return digestFromHex(hexDigits)
+	digest, err := registry.ParseDigest(digestTextPrefix + hexDigits)
+	if err != nil {
+		return registry.Digest{}, errDigestFolder
+	}
+	return digest, nil
 }
 
-// digestFromHex checks the hex digits of either form. Upper case is refused
-// rather than folded: two spellings of one digest would name two folders.
-func digestFromHex(hexDigits string) (imageDigest, error) {
-	if len(hexDigits) != digestHexLength {
-		return imageDigest{}, errDigestMalformed
+// digestFolder answers the folder form, sha256-<hex>, of digest. digest MUST
+// not be the zero Digest: every caller holds one a parser built.
+func digestFolder(digest registry.Digest) string {
+	hexDigits, ok := strings.CutPrefix(digest.String(), digestTextPrefix)
+	if !ok {
+		panic("BUG: imagestore: a digest with no sha256 prefix names no folder")
 	}
-	if strings.ToLower(hexDigits) != hexDigits {
-		return imageDigest{}, errDigestMalformed
-	}
-	if _, err := hex.DecodeString(hexDigits); err != nil {
-		return imageDigest{}, errDigestMalformed
-	}
-	return imageDigest{hex: hexDigits}, nil
-}
-
-// String answers the text form, sha256:<hex>.
-func (d imageDigest) String() string {
-	return digestTextPrefix + d.hex
-}
-
-// folder answers the folder form, sha256-<hex>.
-func (d imageDigest) folder() string {
-	return digestFolderPrefix + d.hex
+	return digestFolderPrefix + hexDigits
 }
