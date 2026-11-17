@@ -101,6 +101,10 @@ const (
 	// AbsentFetchFailed is an image whose last fetch failed. Absent.Detail
 	// says why.
 	AbsentFetchFailed
+	// AbsentImageLost is an image a binding or a generation record names,
+	// whose folder the store no longer holds whole. Absent.Detail names the
+	// digest and the fetch that brings it back.
+	AbsentImageLost
 )
 
 // Absent is the answer for an image the store does not hold. It is never an
@@ -110,7 +114,8 @@ type Absent struct {
 	// store names the same reference when it later reports the image present.
 	Reference string
 	Reason    AbsentReason
-	// Detail is why the last fetch failed, for AbsentFetchFailed.
+	// Detail is why the last fetch failed, for AbsentFetchFailed, and the
+	// digest with the fetch that brings it back, for AbsentImageLost.
 	Detail string
 }
 

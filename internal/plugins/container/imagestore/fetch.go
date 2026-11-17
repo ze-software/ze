@@ -185,6 +185,25 @@ func (q *fetchQueue) find(reference registry.Reference) *fetchJob {
 	return nil
 }
 
+// standing answers what the queue knows of reference, for an image no
+// binding names: Absent with its fetch running or waiting, or with its last
+// fetch failed and that failure's sentence and doctor code. It answers false
+// when the queue holds neither.
+func (q *fetchQueue) standing(reference registry.Reference) (container.Absent, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	whole := reference.String()
+	if q.find(reference) != nil {
+		return container.Absent{Reference: whole, Reason: container.AbsentFetchRunning}, true
+	}
+	for _, row := range q.failed {
+		if row.Reference == whole {
+			return container.Absent{Reference: whole, Reason: container.AbsentFetchFailed, Detail: row.Error + " (" + row.Code + ")"}, true
+		}
+	}
+	return container.Absent{}, false
+}
+
 // finish records the end of job, wakes its callers, and answers the next
 // fetch to run, or nil when none waits, which ends the worker.
 func (q *fetchQueue) finish(job *fetchJob, answer container.FetchAnswer, err error) *fetchJob {

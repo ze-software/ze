@@ -62,13 +62,15 @@ type fetchFixture struct {
 	registry *ociregistry.Registry
 	store    *Store
 	notices  *recordedNotices
+	engine   *fakeEngine
 	ctx      context.Context
 }
 
 // newFetchFixture starts a test registry with options and a store that
 // reaches it over plain HTTP: by its own host, and as the mirror of every
 // other registry, so a short name of the public hub is served by it too. The
-// store's filesystem reads as 1 TiB free.
+// store's filesystem reads as 1 TiB free, and its state store is a fake
+// engine.
 func newFetchFixture(t *testing.T, options ociregistry.Options) fetchFixture {
 	t.Helper()
 	server, err := ociregistry.Start(options)
@@ -78,6 +80,8 @@ func newFetchFixture(t *testing.T, options ociregistry.Options) fetchFixture {
 	t.Cleanup(server.Close)
 	notices := &recordedNotices{}
 	store := openStore(t.TempDir(), notices)
+	engine := newFakeEngine()
+	store.engine = engine.link()
 	store.clientConfig = func(reference registry.Reference) (registry.Config, error) {
 		config, err := defaultClientConfig(reference)
 		if err != nil {
@@ -94,7 +98,7 @@ func newFetchFixture(t *testing.T, options ociregistry.Options) fetchFixture {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	return fetchFixture{registry: server, store: store, notices: notices, ctx: ctx}
+	return fetchFixture{registry: server, store: store, notices: notices, engine: engine, ctx: ctx}
 }
 
 // testImage is one image the fixture stored: the reference that names it,
@@ -556,8 +560,9 @@ func TestFetchFailureClassesNameTheirCode(t *testing.T) {
 // and the whole spelling name one image.
 //
 // Method: the test registry serves library/redis:latest as the hub's mirror.
-// The binding of the reference waits for the state keys of the generations
-// phase; the completion mark records the whole reference.
+// The fetch binds the whole reference to the digest, the whole spelling
+// finds the one binding, and a re-fetch after the tag moved rebinds it to
+// the digest the tag resolves to now.
 func TestFetchShortNameRecordsResolvedDigest(t *testing.T) {
 	const whole = "docker.io/library/redis:latest"
 	f := newFetchFixture(t, ociregistry.Options{Auth: ociregistry.AuthBearer})
@@ -580,5 +585,70 @@ func TestFetchShortNameRecordsResolvedDigest(t *testing.T) {
 	}
 	if again.Created || again.Digest != image.digest || again.Reference != whole {
 		t.Errorf("whole spelling answered %+v, want %s at %s, not created", again, whole, image.digest)
+	}
+	if bound := f.engine.boundDigest(t, "redis"); bound != image.digest {
+		t.Errorf("redis is bound to %s, want %s", bound, image.digest)
+	}
+	if count := len(f.engine.keys()); count != 1 {
+		t.Errorf("the two spellings wrote %d state keys, want one binding", count)
+	}
+
+	moved := f.put(t, "library/redis", "latest", "redis moved\n")
+	if moved.digest == image.digest {
+		t.Fatalf("the moved tag names the same digest %s", moved.digest)
+	}
+	refetched, err := f.store.FetchImage(f.ctx, "redis")
+	if err != nil {
+		t.Fatalf("fetch redis after the tag moved: %v", err)
+	}
+	if !refetched.Created || refetched.Digest != moved.digest {
+		t.Errorf("re-fetch answered %+v, want %s, created", refetched, moved.digest)
+	}
+	if bound := f.engine.boundDigest(t, whole); bound != moved.digest {
+		t.Errorf("after the re-fetch %s is bound to %s, want %s", whole, bound, moved.digest)
+	}
+}
+
+// TestFetchBindingRefusedKeepsImage proves a binding the state store refuses
+// fails the fetch and keeps the published image: the error names the
+// binding and the fetch as its fix, the failed row carries its code, the
+// image stays present, no container is started, and the fetch run again
+// finds the digest present, downloads nothing and writes the binding.
+//
+// Method: the fake engine refuses every state write during the first fetch
+// and accepts them during the second.
+func TestFetchBindingRefusedKeepsImage(t *testing.T) {
+	f := newFetchFixture(t, ociregistry.Options{Auth: ociregistry.AuthNone})
+	image := f.put(t, "team/app", "v1", "app\n")
+	f.engine.refuse(true)
+
+	_, err := f.store.FetchImage(f.ctx, image.reference)
+	f.requireFailure(t, image.reference, err, container.CodeStoreUnwritable, container.FixFetch(image.reference))
+	if !strings.Contains(err.Error(), "binding") {
+		t.Errorf("error %q does not name the binding", err)
+	}
+	if f.engine.putsRefused != 1 {
+		t.Errorf("the engine refused %d state writes, want the one binding", f.engine.putsRefused)
+	}
+	if row, found := f.row(t, image.reference, container.ImageStatePresent); !found || row.Digest != image.digest {
+		t.Fatalf("present row %+v (found %v), want %s kept", row, found, image.digest)
+	}
+	if presented := f.notices.presented(); len(presented) != 0 {
+		t.Errorf("the runtime was told %v is present with no binding", presented)
+	}
+
+	f.engine.refuse(false)
+	answer, err := f.store.FetchImage(f.ctx, image.reference)
+	if err != nil {
+		t.Fatalf("fetch again: %v", err)
+	}
+	if answer.Created {
+		t.Errorf("the fetch again answered created, want the image found present")
+	}
+	if bound := f.engine.boundDigest(t, image.reference); bound != image.digest {
+		t.Errorf("%s is bound to %s, want %s", image.reference, bound, image.digest)
+	}
+	if _, found := f.row(t, image.reference, container.ImageStateFailed); found {
+		t.Errorf("the failed row stayed after the fetch that bound the image")
 	}
 }

@@ -17,6 +17,10 @@ import (
 //nolint:gochecknoinits // registration: the store fills the plugin's seam and is discovered through the generated imports
 func init() {
 	container.SetStoreFactory(newStore)
+	// The engine client is the store's one handle on the state store: the
+	// fetch writes the bindings through it and the resolve reads them and
+	// records the generations.
+	container.RegisterEngineClientReceiver(receivedEngine.receive)
 	// The plugin persists its bindings, generations and project-id counter
 	// through the SDK state calls, which the daemon answers only for keys its
 	// owner was granted.

@@ -19,11 +19,13 @@ applied into a staged root by the rules of its section below. The fetch:
 `create container image reference` runs on the store's one worker, keeps the
 blobs it checked, refuses a fetch that would cross the free-space reserve,
 and publishes the image; the listing shows the fetches in flight and the
-failed ones (the section "The fetch"). Every other operation of the store
-answers that it is not implemented in this build. No binding records yet
-which image a reference names, so no container starts on the real store:
-its resolve answers an error, which the supervisor turns into the `failed`
-state with the reason.
+failed ones (the section "The fetch"). Part of the generations: a fetch
+binds its reference to the digest in the state store, and the resolve
+answers a container with its image, its writable folder and its
+configuration, recording its current generation at its first start (the
+section "Resolve"). Every other operation of the store answers that it is
+not implemented in this build: update, rollback, delete, clear, volumes and
+the storage cap.
 
 | Piece | Where | Today |
 |-------|-------|-------|
@@ -125,9 +127,9 @@ renames a folder only after its mark is written, so neither came from a
 whole fetch. A mark that cannot be read, is larger than 64 KiB, or names
 another digest than its folder is refused with the folder's path, because
 that folder claims to be whole. Each image is one row, in digest order,
-state `present`, its size the expanded bytes. `used-by` is empty: a
-container holds an image only once resolve answered it ready, which a later
-phase brings.
+state `present`, its size the expanded bytes. `used-by` names, sorted, the
+containers that hold the image: the runtime holds a ready answer from the
+start of a container to the end of its cleanup (the section "Resolve").
 
 <!-- source: internal/core/paths/paths.go -- classifyBinary, ConfigDirFromBinary, DataDirFromBinary -->
 <!-- source: internal/plugins/container/imagestore/layout.go -- storeFolder, storeSubfolders, storeRoot, prepareStoreRoot, openStoreRoot, checkStoreFolder, makeSubfolders, emptyStaging -->
@@ -336,7 +338,8 @@ at a time, and ends when none waits.
 | Free space | The bytes to download (manifest, configuration and each layer not kept) must leave the reserve free: the larger of 64 MiB and 5% of the filesystem. Otherwise the fetch is refused before any layer is asked for, naming the three numbers, under `doctor-container-fetch-no-space`. A filesystem whose space cannot be read refuses the fetch too |
 | Download | Each missing layer is written to `staging/blob-sha256-<hex>`, counted into the bytes received, and renamed into `blobs/` once the client checked its digest and size |
 | Apply | The layers are applied in order into `staging/image-sha256-<hex>`, each checked against the configuration's `diff_ids`; the manifest and the configuration are written beside the root, byte for byte |
-| Publish | `publish`, then the image's blobs are removed, and the runtime is told the reference is present; the answer names the containers it started |
+| Publish | `publish`, then the image's blobs are removed |
+| Bind | The binding of the whole reference is written to the digest, also when the digest was already in the store, so a re-fetch of a tag that moved rebinds it. Then the runtime is told the reference is present; the answer names the containers it started |
 
 The fetch command waits at most 20 seconds for its fetch, because a plugin
 command is cut at 30 seconds. A fetch that runs longer is answered with an
@@ -361,10 +364,18 @@ reference that ends removes its row.
 | A type, a platform or an application rule refused | `doctor-container-image-refused` | Another image, or `store largest-image` for the expanded-bytes bound |
 | Too little space | `doctor-container-fetch-no-space` | `delete container image all` |
 | A write the system refused, a store folder that failed | `doctor-container-store-unwritable` | `ze show doctor` |
+| The binding was not recorded: no engine connection yet, or the state store refused the write | `doctor-container-store-unwritable`, until the doctor table has a class of its own for it | The fetch again |
 
-No binding is written yet, and no failure is raised on the report bus: the
-store holds no handle on the plugin's SDK until the generations phase. Both
-wait for it.
+A binding that cannot be written fails the fetch and keeps the image: the
+folder is whole and stays published, the listing shows it present beside
+the failed row of its reference, and the runtime is not told, because a
+resolve would find no binding. The fetch run again finds the digest present,
+downloads nothing and writes the binding.
+
+The store reaches the state store through the engine client the plugin
+hands every sibling package (`container.RegisterEngineClientReceiver`,
+from `register.go`), the same for an internal and a forked plugin. No
+failure is raised on the report bus yet.
 
 <!-- source: internal/plugins/container/imagestore/fetch.go -- FetchImage, enqueueFetch, runFetches, fetchQueue, fetchError, failedRow, fetchingRow -->
 <!-- source: internal/plugins/container/imagestore/fetch_steps.go -- fetchInto, download, checkSpace, storeReserve, downloadBlob, countedBlobFile, diffIDs, defaultClientConfig, registryFailed -->
@@ -375,6 +386,49 @@ wait for it.
 <!-- source: internal/plugins/container/image_cmd.go -- imageCommandDecls, imageCommandRPCs, forwardToPlugin, imageCommandHandlers, runImageCommand, keywordValue, singleValue -->
 <!-- source: internal/plugins/container/container.go -- commandDecls, handleCommand -->
 <!-- test: internal/plugins/container/image_cmd_test.go TestEveryImageCommandIsDeclaredAndHandled, TestImageCommandsReachTheStore, TestImageCommandRefusesWhatItCannotRun, TestFetchCommandDeclaresItsBound -->
+
+## Resolve
+
+`Resolve` answers the runtime's request for one container, Ready or Absent,
+or an error when it cannot answer. The runtime mounts the overlay itself;
+the store answers folders and the image's configuration.
+
+| Step | What the store does |
+|------|---------------------|
+| The request | The container name must name one folder and one state key: not empty, no separator, no two dots, no comma, colon or backslash (the overlay mount cannot carry them). A request that declares volumes is refused as not implemented in this build: volumes arrive with capped storage. The storage size is not read: no cap is applied yet |
+| The reference | Completed by the reference table. An empty reference is an error naming the container and the `image` statement that sets it, never a short name of the hub. One that does not complete is an error with the same fix |
+| The state | Read through the engine client. A store the plugin handed no client, or a key the engine did not answer, is an error, never read as no binding |
+| The generation | The record of the container (`meta/container/generation/{container}`) holds the reference and the current digest. When it names the request's reference, it decides the digest, whatever the binding names now: a re-fetch of a tag that moved changes nothing for a container that started. A record of another reference is a config that names another image: the binding of the new reference decides, and the record is replaced. Previous generations, their events, update and rollback are later work |
+| The binding | With no record for the reference, the binding decides. The digest is recorded as the container's current generation before the answer, so the first start fixes it |
+| The image folder | Its completion mark must name the digest. A folder gone, or with no mark, is Absent, never an error: a fetch brings it back. A mark that cannot be read, a configuration that cannot be used, and a folder that cannot be created are errors |
+| The writable folder | `layers/<container>/sha256-<hex>/`, created with the store's mode 0700 where absent; the runtime makes `upper` and `work` inside it. The resolve creates it, not the fetch worker, so a start never waits behind a fetch |
+| The configuration | `config.json`, bounded at 4 MiB, must be JSON for linux and the running architecture. The entrypoint and the command are two lists, then the environment (each `NAME=value`), the working directory, the user as written, the stop signal, and the exposed ports and declared volumes, sorted. Each list is bounded at 4096 entries, and no value may hold a NUL byte. A configuration that declares no process answers empty fields, as the format allows. A refusal is an error whose fix removes the image folder |
+
+The absent answers, each with the completed reference:
+
+| Reason | When | Detail |
+|--------|------|--------|
+| `AbsentNeverFetched` | No binding, and the fetch queue knows nothing of the reference | Empty. The fix is `create container image reference <reference>` |
+| `AbsentFetchRunning` | No binding, and a fetch of the reference runs or waits | Empty |
+| `AbsentFetchFailed` | No binding, and the last fetch of the reference failed | The failure's sentence, then its doctor code in parentheses |
+| `AbsentImageLost` | The binding, or the container's generation record, names a digest whose folder the store no longer holds whole | The digest and the fetch that brings it back: the reference for a binding; for a generation record, the reference pinned by that digest, because the record, not the tag, decides |
+
+`Hold` records which digest a container holds until its release, and the
+image listing names those containers in its used-by column. It protects
+nothing from removal. That is safe only while no operation of the store
+removes an image, a writable layer or a volume: delete, clear, update and
+rollback each answer "not implemented in this build", and the first of them
+to land refuses to remove what a hold names.
+
+<!-- source: internal/plugins/container/imagestore/resolve.go -- Resolve, resolveRecorded, resolveBound, unbound, readyAnswer, makeWritableFolder, makeFolder, checkInstance, requestReference, volumesNotImplemented -->
+<!-- source: internal/plugins/container/imagestore/imageconfig.go -- readImageConfiguration, parseImageConfiguration, checkProcessConfiguration -->
+<!-- source: internal/plugins/container/imagestore/state.go -- engineLink, bindingKey, writeBinding, readBinding, readGeneration, writeGeneration -->
+<!-- source: internal/plugins/container/imagestore/fetch.go -- standing -->
+<!-- source: internal/plugins/container/imagestore/fetch_steps.go -- present, bind, bindingNotRecorded -->
+<!-- source: internal/plugins/container/imagestore/store.go -- Hold, holders, ListImages -->
+<!-- test: internal/plugins/container/imagestore/resolve_test.go TestResolveAbsentNamesReference, TestResolveAbsentReasons, TestResolveRefusesRequest, TestResolveReadyHandsFoldersAndConfiguration, TestResolveGenerationDecidesOverMovedBinding, TestUserIsHandedAsWritten, TestImageConfigurationRefusals, TestImageConfigurationOverBoundRefused, TestHoldNamesContainerInListing -->
+<!-- test: internal/plugins/container/imagestore/state_test.go TestBindingKeyUsesReferenceDigest, TestBindingRecordRefusedWhenUnreadable, TestStoreWithoutEngineRefusesResolve -->
+<!-- test: internal/plugins/container/imagestore/fetch_test.go TestFetchBindingRefusedKeepsImage -->
 
 ## Doctor codes
 
@@ -411,8 +465,8 @@ the data directory, never keys.
 
 | Key | Holds |
 |-----|-------|
-| `meta/container/binding/{reference-digest}` | The digest one image reference is bound to. The key carries the SHA-256 of the reference, because a reference holds a slash and a key parameter matches one path segment |
-| `meta/container/generation/{container}` | A container's current and previous digests and its last 20 events |
+| `meta/container/binding/{reference-digest}` | JSON `reference` (the whole form) and `digest`: the digest one image reference is bound to. The key carries the SHA-256 of the whole reference, because a reference holds a slash and a key parameter matches one path segment; the short and the whole spelling share it. Written by every fetch that ends with the image in the store |
+| `meta/container/generation/{container}` | JSON `reference` and `current`: the reference the container named and the digest it runs, written at its first start on that reference. The previous digest and the last 20 events land with update and rollback |
 | `meta/container/project-id` | The counter the next storage project id comes from |
 
 <!-- source: pkg/zefs/keys.go -- KeyContainerBinding, KeyContainerGeneration, KeyContainerProjectID -->

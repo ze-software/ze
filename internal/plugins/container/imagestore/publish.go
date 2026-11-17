@@ -295,9 +295,8 @@ func (r *storeRoot) readMark(digest registry.Digest) (completionMark, error) {
 	return mark, nil
 }
 
-// row answers the listing row of a published image. UsedBy is empty, not
-// unknown: a container holds an image only once resolve answered it ready,
-// and the store's resolve does not answer ready yet.
+// row answers the listing row of a published image. UsedBy is empty here,
+// and the listing fills it from the holds the runtime took (Store.Hold).
 func (m completionMark) row() container.ImageRow {
 	return container.ImageRow{
 		Reference: m.Reference,

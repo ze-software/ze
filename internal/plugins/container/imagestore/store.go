@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -36,11 +37,11 @@ var storeLog = slogutil.LazyLogger("container.store")
 // The store lands in phases. In place: the store root under the data
 // directory, its folders and modes, staging emptied at start, the fetch on
 // one worker with its queue, its kept blobs and its free-space rule, layer
-// application, publication by one rename, and the image listing with the
-// fetches in flight and the failed ones. Every other operation answers that
-// it is not implemented in this build, and Resolve answers an error, never
-// an absent image, because no binding records which image a container names
-// yet.
+// application, publication by one rename and the binding of the reference,
+// the image listing with the fetches in flight and the failed ones, and the
+// resolve of a container to its image, its writable folder and its current
+// generation. Every other operation answers that it is not implemented in
+// this build.
 //
 // No handle is kept between operations: each opens the store root, checks
 // it, and closes it, so a store root that changed mode or owner while Ze ran
@@ -49,6 +50,11 @@ type Store struct {
 	// notices is what the store tells the runtime: an image present, a
 	// restart on a new generation. A fetch sends the first.
 	notices container.StoreNotices
+	// engine is the link to the engine's state store, which holds the
+	// bindings and the generation records. It is the process's link, set at
+	// construction and never changed; a field so the package's tests can hand
+	// the store a fake engine.
+	engine *engineLink
 	// fetches is the queue of the one worker that runs every fetch.
 	fetches fetchQueue
 	// clientConfig answers how the registry a reference names is reached.
@@ -71,6 +77,10 @@ type Store struct {
 	// the run: emptying it later would remove the work of a fetch in flight.
 	mu       sync.Mutex
 	prepared bool
+	// heldMu guards held, the digest each container holds from its Hold to
+	// its release, by container name.
+	heldMu sync.Mutex
+	held   map[string]string
 }
 
 // newStore builds the store for one run of the plugin over the data
@@ -87,6 +97,7 @@ func newStore(notices container.StoreNotices) container.Store {
 func openStore(dataDir string, notices container.StoreNotices) *Store {
 	s := &Store{
 		notices:      notices,
+		engine:       &receivedEngine,
 		clientConfig: engineClientConfig,
 		space:        diskspace.Stat,
 		answerWait:   fetchAnswerWaitDefault,
@@ -184,20 +195,45 @@ func notImplemented(operation string) error {
 	)
 }
 
-// Resolve answers an error for every container: the store can fetch no
-// image yet, so an absent answer would wait for a fetch that never ends.
-func (s *Store) Resolve(_ context.Context, request container.ResolveRequest) (container.Resolution, error) {
-	return nil, opererr.New(
-		"container "+request.Instance+" has no image: the image store cannot fetch one in this build",
-		"this build holds the store's layout and its image listing, and not yet the fetch and the resolve",
-		"ze show doctor",
-	)
+// Hold records that instance holds the image of resolved, for the listing's
+// used-by column, until the release it answers is called. It protects
+// nothing from removal, which is safe only while no operation of the store
+// removes an image, a writable layer or a volume: delete, clear, update and
+// rollback each answer "not implemented in this build". The first of them to
+// land MUST refuse to remove what a hold names.
+func (s *Store) Hold(instance string, resolved container.Ready) func() {
+	s.heldMu.Lock()
+	defer s.heldMu.Unlock()
+	if s.held == nil {
+		s.held = map[string]string{}
+	}
+	s.held[instance] = resolved.Digest
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			s.heldMu.Lock()
+			defer s.heldMu.Unlock()
+			// A later hold of the same container on another digest is not
+			// this hold's to release.
+			if s.held[instance] == resolved.Digest {
+				delete(s.held, instance)
+			}
+		})
+	}
 }
 
-// Hold answers a release that frees nothing: Resolve never answers Ready, so
-// no resolution exists to hold.
-func (s *Store) Hold(string, container.Ready) func() {
-	return func() {}
+// holders answers the containers that hold digest, sorted.
+func (s *Store) holders(digest string) []string {
+	s.heldMu.Lock()
+	defer s.heldMu.Unlock()
+	names := []string{}
+	for instance, held := range s.held {
+		if held == digest {
+			names = append(names, instance)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
 
 // ListImages answers one row for each published image, present, then one for
@@ -221,6 +257,7 @@ func (s *Store) ListImages(context.Context) ([]container.ImageRow, error) {
 	published := make(map[string]struct{}, len(rows))
 	for i := range rows {
 		published[rows[i].Digest] = struct{}{}
+		rows[i].UsedBy = s.holders(rows[i].Digest)
 	}
 	for i := range queued {
 		if _, ok := published[queued[i].resolved]; ok {

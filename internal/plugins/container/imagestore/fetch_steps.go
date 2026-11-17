@@ -82,7 +82,7 @@ func (s *Store) fetchInto(root *storeRoot, job *fetchJob) (container.FetchAnswer
 	job.resolved.Store(&resolved)
 	mark, err := root.readMark(digest)
 	if err == nil {
-		return s.present(job, digest, mark.ExpandedBytes, false), nil
+		return s.present(job, digest, mark.ExpandedBytes, false)
 	}
 	if !errors.Is(err, errNoMark) {
 		return container.FetchAnswer{}, err
@@ -110,18 +110,53 @@ func (s *Store) fetchInto(root *storeRoot, job *fetchJob) (container.FetchAnswer
 		storeLog().Warn("container: the blobs of a published image could not be removed",
 			"image", digest.String(), "error", err, "code", container.CodeStoreUnwritable)
 	}
-	return s.present(job, digest, facts.ExpandedBytes, true), nil
+	return s.present(job, digest, facts.ExpandedBytes, true)
 }
 
-// present answers a fetch whose image is in the store, after it told the
-// runtime, which starts the containers that waited for it.
-func (s *Store) present(job *fetchJob, digest registry.Digest, size uint64, created bool) container.FetchAnswer {
+// present binds the job's reference to digest, whose image is in the store,
+// then tells the runtime, which starts the containers that waited for it:
+// their resolve reads the binding, so it is written first.
+//
+// A binding that cannot be written fails the fetch and keeps the image: the
+// folder is whole and stays published, the listing shows it present beside
+// the failed row of its reference, and no container is started, because its
+// resolve would find no binding. The fix is the fetch again, which finds the
+// digest present, downloads nothing and writes the binding.
+func (s *Store) present(job *fetchJob, digest registry.Digest, size uint64, created bool) (container.FetchAnswer, error) {
 	reference := job.reference.String()
+	if err := s.bind(job, digest); err != nil {
+		return container.FetchAnswer{}, err
+	}
 	started := s.notices.ImagePresent(job.ctx, reference)
 	if started == nil {
 		started = []string{}
 	}
-	return container.FetchAnswer{Reference: reference, Digest: digest.String(), Size: size, Created: created, Started: started}
+	return container.FetchAnswer{Reference: reference, Digest: digest.String(), Size: size, Created: created, Started: started}, nil
+}
+
+// bind writes the binding of the job's reference to digest. Its failure is
+// a failed fetch under doctor-container-store-unwritable: the doctor table
+// has no class of its own for a state write the engine refused.
+func (s *Store) bind(job *fetchJob, digest registry.Digest) error {
+	engine, err := s.engine.engine()
+	if err != nil {
+		return bindingNotRecorded(job.reference, digest, err)
+	}
+	if err := writeBinding(job.ctx, engine, job.reference, digest); err != nil {
+		return bindingNotRecorded(job.reference, digest, err)
+	}
+	return nil
+}
+
+// bindingNotRecorded is the failure of a fetch whose image is published and
+// whose binding was not written.
+func bindingNotRecorded(reference registry.Reference, digest registry.Digest, cause error) error {
+	whole := reference.String()
+	return &fetchError{code: container.CodeStoreUnwritable, err: opererr.Wrap(cause,
+		"image "+digest.String()+" is in the store, and its binding to "+whole+" was not recorded",
+		"a container runs the digest its reference is bound to, so no container starts on the image until the binding is recorded",
+		container.FixFetch(whole),
+	)}
 }
 
 // download removes the blobs a stopped fetch of another image left, checks
@@ -330,10 +365,10 @@ func (c *countedBlobFile) Truncate(size int64) error {
 	return nil
 }
 
-// imageConfiguration is the part of an image configuration the store reads
+// layerDigests is the part of an image configuration the store reads
 // at fetch: the digest each decompressed layer must hash to. The names are
 // the OCI image format's.
-type imageConfiguration struct {
+type layerDigests struct {
 	RootFS struct {
 		Type    string   `json:"type"`
 		DiffIDs []string `json:"diff_ids"` //nolint:tagliatelle // the OCI image format's key
@@ -343,7 +378,7 @@ type imageConfiguration struct {
 // diffIDs answers the digest each of count layers must hash to once
 // decompressed, from the image configuration config.
 func diffIDs(reference registry.Reference, config []byte, count int) ([]registry.Digest, error) {
-	var parsed imageConfiguration
+	var parsed layerDigests
 	if err := json.Unmarshal(config, &parsed); err != nil {
 		return nil, configRefused(reference, "the image configuration is not readable JSON", err)
 	}

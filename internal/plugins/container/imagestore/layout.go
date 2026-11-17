@@ -177,24 +177,8 @@ func checkStoreFolder(path string, linked, opened fs.FileInfo) error {
 // refuses a name that holds anything but a folder.
 func (r *storeRoot) makeSubfolders() error {
 	for _, name := range storeSubfolders {
-		err := r.root.Mkdir(name, storeMode)
-		if err == nil {
-			continue
-		}
-		if !errors.Is(err, fs.ErrExist) {
-			return storeCannotOpen(r.path, err)
-		}
-		info, err := r.root.Lstat(name)
-		if err != nil {
-			return storeCannotOpen(r.path, err)
-		}
-		if !info.IsDir() {
-			folder := filepath.Join(r.path, name)
-			return opererr.New(
-				"the container store's "+folder+" is not a folder",
-				"the store keeps its "+name+" there",
-				"rm "+folder+" && mkdir -m 0700 "+folder,
-			)
+		if err := r.makeFolder(name, "its "+name); err != nil {
+			return err
 		}
 	}
 	return nil
