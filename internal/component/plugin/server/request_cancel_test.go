@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -248,8 +249,8 @@ func TestRuntimeCancellationConcurrentIDsKeepAllocationOrderIndependent(t *testi
 	requests := testRuntimeRequests(t.Context(), func(netip.Addr) bool { return true })
 	completions := make([]func(), 0, 2)
 	defer func() {
-		for i := len(completions) - 1; i >= 0; i-- {
-			completions[i]()
+		for _, finish := range slices.Backward(completions) {
+			finish()
 		}
 		requests.stop()
 		requests.cancelAll()
