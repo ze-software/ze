@@ -44,6 +44,21 @@ Operator recovery must reach every registered subsystem during reload. A
 failure from an earlier subsystem must not prevent a later transport from
 retrying its retained cleanup, and the result must preserve every failure cause.
 
+Daemon shutdown must keep a provider usable until its declared dependents
+finish engine cleanup. Canceling every plugin together closes VPP while
+interface cleanup still needs its API. Shutdown must respect the selected
+dependency graph and retain its distinct contract: it does not invoke the
+removal-only `OnBye` callback.
+
+Shared kernel CoS also needs a permanent recovery command:
+`ze request class-of-service cleanup`. It makes one bounded pass over failed
+original owners and preserves healthy members, pending work and compensation
+custody. Recovery uses the captured original native grant and dispatcher,
+joins an uncertain operation before compensation, and confirms readback before
+clearing custody. The first subscriber's departure must not retire that grant
+while shared survivors still need it. A current device name or global backend
+lookup cannot replace this authority.
+
 The migration also keeps interface-owned-device cleanup registered through
 the current process-generation callback API, with its original process-pointer
 guard intact. The callback arity repair keeps the shared tree buildable.
@@ -55,6 +70,14 @@ acceptance fixture declares its access interface and omits the backend.
 Its Linux guest execution and 80-run stress passed. Current parser checks,
 lint and documentation checks, and the remaining feature acceptance are still
 owed.
+
+AC-1 also needs a real DUT with `ze_l2tp` present and `ze_vpp` absent.
+The generic and parse runners admit that fixture from the selected artifact's
+embedded Go build tags. Unknown metadata fails; a known mismatch skips before
+resource acquisition. Declaration errors still fail before host admission.
+The unchanged no-VPP refusal and the full-VPP prerequisite questions must each
+execute on their matching build; modeled metadata tests alone do not prove
+the CLI contract.
 
 The adopted VyOS receive parser is also hardened in this work: its
 `pppoe_input_node` and control-dispatch trace read fields beyond a truncated
@@ -171,6 +194,48 @@ That inventory records the design baseline. The implementation now retains its
 generated PPPoE and feature bindings under
 `internal/component/l2tp/pppoe/dataplane/vpp/binapi/`; generation alone does not
 prove the product backend's runtime behavior.
+
+## Implementation progress (2026-11-17)
+
+The feature remains in progress at Phase 2/7. The results below establish
+bounded parts of the work; they do not demonstrate all AC-1 through AC-31.
+Later-phase implementation drafts exist, but their full product acceptance
+remains open. The original design, phase order and acceptance criteria stay
+in force.
+
+### Landed work and observed proof
+
+| Work | Landed source and evidence | Limit |
+|------|----------------------------|-------|
+| Phase 0 mechanism | The Phase 0 test table records the real VPP plain, namespace and VLAN runs, parser and receiver bounds, binding regression, MTU boundary, and strict 29-case CRC32C build proof | This is mechanism evidence, not the complete Ze subscriber path. The native 55-group ownership suite passed after its route-withdrawal repair; its independent countercuts remain owed |
+| Shared PPP foundation | `98b534756dec35376aeada38b97d0919a1b8b370` landed the admission and native cleanup ownership work across 238 paths. `internal/component/l2tp/ppp/start_session.go` `StartSession` now carries `Frames` and `Dataplane`; `internal/component/l2tp/pppoe/dataplane/registry.go` owns provider selection. Scoped PPP/Linux and RFC observations are recorded with that commit | The commit does not establish full kernel parity, shared native CoS custody or VPP integration acceptance |
+| Cleanup callback compatibility | `28d3db6139e71f55f1caab87970ee141626a2ec0` repaired `internal/component/iface/cmd/owned_devices.go`; `e7e590078670a41bbfa7f917fafb021d8d72652f` adapted `internal/component/firewall/register_contribution.go`. `TestProcessGenerationCleanupIdentity`, the iface command package, and the three firewall contribution race tests passed; scoped host/Linux lint passed | The original process-pointer guards remain. The Linux-only namespace-mismatch test was not executed on macOS; callback compatibility does not prove physical recipient retirement |
+| Proof and parser tooling | `9bf6af486404c844abe675731f50efffb728e347` retains explicit RFC guest images; `837213e1fa2c634711ce4570a1f59b459b258bdd` preserves concurrent approvals. `a3362aaad47f8fb3ed1c4251eb1e4264b7ab01d4` landed shared Linux admission and actual-DUT build-tag admission. The current runner race package recorded 545 PASS, zero FAIL and five known SKIP; scoped runner lint passed | Package results and modeled metadata checks do not prove matching-artifact CLI acceptance. The five skips are existing opt-in, host-capability and dedicated-entry requirements |
+| Linux default backend | `test/parse/pppoe-netlink-backend-accepted.ci` executed in the Linux guest and passed its 80-run stress with zero skips | This establishes the omitted-backend fixture, not every PPPoE/L2TP kernel or VPP scenario |
+| GoVPP transport and stub readback | `30e4099b2d` landed bounded native writes and shutdown, with its three transport race questions passing after observed blocked-write failures. The subsequent uncommitted stub inventory repair passed 14 unit questions and all seven stub-backed functional tests. Cuts in `TestVPPStubZeroIndexDumpsAll`, `TestVPPStubNameFilterCaseOverridesIndex` and `TestVPPStubLoopbackFlagsFollowAdminState` failed semantically, then passed after restoration | The stub results exercise native clients against modeled VPP. They do not prove physical VPP forwarding, subscriber acceptance or the separately failing provider shutdown order |
+
+### Observed defects and source-only work
+
+| Area | Actual result or current source state | What remains unproven |
+|------|---------------------------------------|----------------------|
+| Shared legacy CoS | Canonical production is unchanged. The six questions in `internal/plugins/cos/shared_access_test.go` and two in `shared_access_failure_test.go` all failed semantically. Three native shared-CoS questions failed; the separate native map oracle passed | Original baseline capture, survivor ownership, failed departure and unpublished compensation custody need a coherent production repair |
+| CoS reports and compensation | The nine-question baseline across `shared_access_review_test.go`, `shared_access_restart_test.go`, `shared_access_diagnostic_test.go` and `shared_access_cleanup_command_test.go` recorded three PASS and six FAIL: five missing-report failures and unsafe compensation preparation. Registered restart, healthy events and uncertain-write recovery passed | Those three passes are nonregression controls. They do not validate the private successor or its causal cuts |
+| CoS cleanup command | Three new source-approved carriers, `internal/plugins/cos/shared_access_cleanup_registered_test.go`, `shared_access_cleanup_additional_test.go` and `yang/cleanup_command_test.go`, contain seven questions. They are unformatted and unrun after automatic approval review refused formatting before the baseline on a scope mismatch | No command or schema PASS is claimed. Additional controlled-CI and failed-pass-count drafts also remain unjudged and unrun |
+| Native authority and coherent integration | Private Settle and cleanup-transfer proposals have bounded source clearance, including the explicit distinction between participant detachment and physical grant retirement. The coherent integration checkpoint called M6 has not been emitted or applied | Isolated source probes are not integrated runtime evidence. Actual actor capture before Up or first CoA, shared use of the original grant and baseline, proof transfer/restoration, exact old-process retirement and new-recipient admission remain open |
+| CoS command and diagnostics successor | Private implementation remains on source hold: failed-pass counts are lost, report-only retry wording overstates native uncertainty, reports omit Why and the requested profile, and failed apply/rollback compensation lacks cleanup warnings | Corrected source, independent review, registered-command execution, report publication failures and causal cuts are owed; a written diagnostic helper is not a verified repair |
+| Provider shutdown | Both subcases of `internal/component/plugin/server/shutdown_dependency_cleanup_test.go` `TestShutdownKeepsDependenciesLiveThroughEngineCleanup` failed semantically. `internal/component/plugin/server/server.go` `Server.Stop` cancels the provider before dependent cleanup completes. The ordered-shutdown repair is a private proposal | Independent review, coherent adoption, passing lifecycle tests, causal cuts and actual warning-free native VPP shutdown remain owed |
+| Selected DUT variants | Both full-provider and no-VPP DUTs were built; embedded metadata differs only by `ze_vpp`, with `ze_l2tp` present in both. The six parse candidates remain under `test/draft/parse/`, with source judgments and build-tag declarations | Full matching-artifact CLI acceptance, healthy global controls, stress, native test judgments and final promotion remain open; build success alone does not satisfy them |
+
+### Remaining work, in dependency order
+
+| Order | Work and required result |
+|-------|--------------------------|
+| 1 | Complete the original native-authority and CoS ownership integration. Capture the original prepared access, native dispatcher and grant before Up or first CoA; retain one original baseline for shared survivors; settle uncertain operations before compensation. Transfer cleanup only with the exact private proof, and keep detachment distinct from physical retirement. Prove daemon-verified old-process retirement and fresh recipient admission; a closed SDK, reused name or global backend lookup is not authority |
+| 2 | Repair the four CoS command/diagnostic source-hold findings and finish AC-31. Execute the seven new command/schema questions and the failed-pass-count, report-only retry and publication-failure questions. Obtain source review, then coherent M6 adoption and scoped race/Linux/forked-TLS native evidence. Require semantic causal failures and restored passes for the original-baseline, survivor, settlement, transfer and recovery guards |
+| 3 | Repair shutdown through the selected dependency graph while preserving the full-stop contract without `OnBye`. Pass both existing shutdown subcases, the reached lifecycle regressions and real external-process joins, then prove the native VPP cleanup path completes before its provider stops |
+| 4 | Finish matching-artifact parser proof for AC-1, AC-2, AC-29 and AC-30. Execute the refusal with `ze_l2tp` present and `ze_vpp` absent, and the enabled/LCP prerequisite cases on the full build. Preserve declaration failures, exact metadata refusal, valid mismatch skips and the existing Linux default-backend proof |
+| 5 | Accept Phase 2 kernel parity and the complete Phase 3 IPv4, Phase 4 IPv6 and Phase 5 policer/CoA paths. Use the actual Ze entry points, native forwarding/counter and TAP captures, VRF/framed/delegated routes, teardown and concurrent policer ordering. Finish the named functional and `pppoe-vpp-ze-ac-pppd-client` interop proofs, including their rebuilt causal failures; draft code and unit-only passes do not discharge these paths |
+| 6 | Accept Phase 6 VPP loss/restart through `pppoe-vpp-restart`, then Phase 7 guides, digests, feature declarations, RFC performer annotations and discrimination records. Complete scoped checks and both independent review gates, demonstrate all 31 acceptance criteria and every goal, then close. Phase 1 remains owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
 
 ## Required Reading
 
@@ -381,6 +446,7 @@ remains open.
 | AC-28 | An operator reload encounters an earlier subsystem failure while a later transport retains uncertain subscriber cleanup | Reload notifies every registered subsystem in registration order, including the later transport's exact retained cleanup owner, and returns all failure causes. An earlier error cannot make the operator recovery path unreachable |
 | AC-29 | The interface backend gate aggregates a typed host refusal or ordinary configuration errors | Every original cause remains reachable and the operator text stays unchanged. Ordinary errors remain configuration failures. On a host with no default backend, the offline JSON CLI rejects an omitted interface backend with exit 1, `valid=false` and `config-host-backend`, never `config-plugin-verify`. A cause-only break fails that diagnostic assertion |
 | AC-30 | A parse fixture declares `needs-linux`, or `ZE_QEMU_LINUX_ONLY=1` selects parse fixtures | Shared admission validates complete option names, keys and capabilities using the actual file path. Commands, stdin, assertions, existing skip reasons and the exact guest route remain intact. The population filter excludes only valid unmarked files. Malformed files fail rather than skip. The omitted-backend netlink acceptance fixture requires an executed Linux PASS and 80 stress runs with zero skips |
+| AC-31 | Failed shared kernel CoS owners remain while other members are healthy, pending or still compensatable; the operator runs `ze request class-of-service cleanup` | The registered no-argument command makes one bounded pass over eligible failed original owners using their captured native authority. It reports attempted and recovered counts, retains partial progress and every independent failure cause, and preserves healthy, pending and compensatable owners. An empty set is a successful no-op; malformed arguments fail before any native write. Uncertain operations settle before compensation and only confirmed same-owner readback clears cleanup custody |
 
 ## End-to-End User Stories
 | # | User does | Path through system | Test proving it works |
@@ -697,7 +763,7 @@ section reference (`ai/rules/rfc-compliance.md`, functions added from 2026-09-24
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-30 all demonstrated
+- [ ] AC-1..AC-31 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Scoped tests for the reached packages and behaviors pass in the main checkout; GitHub CI verifies the pushed commits, and agents run no `./le verify` command
