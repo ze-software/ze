@@ -10,6 +10,35 @@ he can decide whether to continue here or move machines. This is a checkpoint,
 not closure. No push was ordered. Dual-form AC-4 is unchanged: RFC4301-5.2-2
 must lose `{partial}` only when the broader obligation is actually proven.
 
+## Current continuation, 2026-11-17
+
+Continue from the dual-form spec's **Current continuation checkpoint,
+2026-11-17**. It records landed guard commit `bde4a49a6347`, the separate
+11-test raw/packet PASS on d87/d2eb with matching 43a1 image, and scoped
+host/Linux engine lint PASS. Older unrun and source-only statements below
+are historical. Both specs remain open; no push was made by this session.
+
+Next work is the sound IPv6 queue witness: both IPv4 SA-replacement orders
+passed, but IPv6 failed at the local reassembly counter before replacement.
+The independently CLEAR additive `TestIPv6XFRMFragmentQueueCounter` passed
+formatting and Linux compilation. Old-normal run 21799 failed at the absent
+`XfrmFrag6Queued` field, with no skips, exits 0/1/0 and stopped d87/d2eb+43a1 VM.
+Normal C counter source `e3ecc903` is independently CLEAR, with owning docs
+updated, but unbuilt and without changed-kernel GREEN. Build awaits all eight
+input and Colima compiler acknowledgments; no new candidate path is resolved.
+Lifetime helpers remain unchanged; native probe approval is not issued.
+The first native renewal recorded manifest order 58 after its selected clean
+PASS and producer-halt FAIL. Remaining current preparation is 78 UNEXECUTED
+commands (55 guest, 23 host); four historical receipts' freshness is UNKNOWN.
+This partial function-dependency proof gives no C-enforcement or full-RFC credit.
+Both rejected tasks and their owner question remain pending. Full AC-4,
+compliant-fragment RED and mapped-return work remain open. The generic C-proof
+route has independent schema/native-image reviews CLEAR, but remains an
+UNAPPROVED P3 design proposal with seven later RFC792 rows preserved. Its
+separate owner design question (prepare pairs separately versus recorder builds)
+is PENDING and does not approve either rejected safety action. No tooling
+implementation or C-proof credit is established.
+
 ## Landed work
 
 | Commit | Change and evidence limit |
@@ -320,7 +349,8 @@ remain through closure review.
    All exits zero, interrupted false, no leftovers, stopped VM, same image.
    No live run remains owed for this namespace phase. Existing discrimination
    for unchanged producers keeps its original credit; no new cut is claimed.
-   AC-4, the 79 renewals and the unselected release-route decision remain unchanged.
+   AC-4 and the 79 renewals remain unchanged. The owner later selected the full
+   three-point kernel route, as recorded in the current kernel section below.
    AC-1 is now observed for the current IPv4 single-pair tunnel: clean PASS 10s,
    flag-cut consistent-error FAIL 8s, recovery clean PASS 10s, policy-only PASS 10s,
    state-only PASS 10s, combined-source inconsistent-error FAIL 8s, final clean
@@ -400,54 +430,334 @@ remain through closure review.
    `phase4-validation.txt` and `phase4-proofs-run.py`, which were lost with
    the session trees, so they are prepared again from the spec.
 
-Section 7.4 release-enforcement choice remains open in
-`plan/release/fixes/spec-rfc4301-architecture-gaps.md`, "Owner decisions open".
-The selected kernel receipt and legacy fragment-context probes passed.
-Broader SA-scope installation, kernel fragment work, strict ICMP return mapping and the
-engine scope writer remain unfinished. Scoped review, RFC checks
-and both spec-closure commits remain after the applicable implementation and proof.
+The owner selected the full kernel route on 2026-11-16: complete exact per-SA
+permissions, fragment-context isolation and fragment port-rule enforcement.
+No refusal-only route or scope reduction is selected. The earlier receipt,
+single-pair bare-ESP and legacy fragment-context passes keep their bounded
+identities; they do not establish the new full implementation. AC-4 and the
+79 renewals remain open, with scoped checks, RFC refresh and closure still owed.
 
-The remaining RFC4301-5.2-2 producer is `child.go::installChildDataplane` under
-`internal/component/ike/engine/`. In tunnel mode it binds `inbound.Sel` only
-when `tunnelStateSelectorSupported` accepts one concrete same-family policy.
-It never sets `inbound.Scope`, and the engine has no `NewSAStateScope` caller.
-The new bare-ESP records prove single-pair whole and outer-fragmented receipt
-under the production SPD. General multi-pair and overlapping per-SA isolation
-remain unfinished, with the full feature-bits 0-3 guard intact and K3 unenrolled.
-The partial summary now names that gap instead of claiming discrimination records
-are missing. Its RFC quote and tested/gap selector spans are unchanged.
+The engine writer is now authored in `child_scope.go` and `child.go`, with
+tests: exact immutable inbound/outbound scopes from expanded directional
+policies are validated before either state publishes, transport addresses are
+canonical, the bound is 64 and noninitial permission stays false. Its actual
+RED/GREEN is recorded in distinct outer logs sharing suffix `d7fcdddc`;
+the reused native inner log now holds GREEN 1.501s. Full host packages passed
+before the doctor addition: engine 131.808s, dataplane 3.453s. AC-26's fresh
+runtime scope check then went RED/GREEN with its own independent CLEAR review;
+its broader Go checks remain separately owed. Actual daemon findings are
+recorded in the current kernel section below.
 
 ## Kernel work still open
 
-The active kernel series contains 0001–0004. K1/K2 advertise only feature
-bits 0–2. Bit 3 and the full-guard runtime configuration remain disabled.
-Do not claim full capability from these patches or from the Go unit tests.
-Freeze the patch directory during a kernel build: the native cache identity
-hashes every file there, not only enrolled series entries.
+The frozen active series now includes `0005-xfrm-fragment-guard.patch`, with
+the reviewed transport-boundary correction, conditional ready bit-3
+advertisement and guard enabled in runtime config/require. The old proposal
+is retained only until native commit removal completes the migration; never
+delete it manually or repoint historical plan paths. Core and lifecycle
+reviews are CLEAR. Main serializes recipe activation and keeps the patch
+directory frozen because native cache identity reads every file there.
 
-K3's receipt/reference/accounting review found no issue, but the route review
-found a source-reachable transport defect: authenticated IPv6 transport ESP
-can carry plaintext Fragment headers and reach reassembly. Correct the current
-authenticated transport-state boundary before reassembly and output transform.
-Preserve legitimate outer ciphertext fragmentation and distinguish atomic
-fragments. Do not reject every earlier transport entry in a nested secpath.
-No fix or runtime probe for this finding has been implemented.
+The corrected packet probe's old-kernel RED is
+`job-ipsec-transport-boundary-packet-red-23bf7d7f.log`: four direct/Destination
+Options initial/tail cases had ModeError 0 versus 1 and thread-namespace
+ReasmReqds advances. Whole, atomic and outer-ciphertext controls, plus the
+separate nested control, passed. Instrumentation uses thread-local SNMP6;
+the ciphertext control observes AF_PACKET and exact body, not ReasmOKs.
+The complete receipt also correctly failed on old c358/image45cb at features
+0x7 versus 0xf. Neither RED proves the new kernel works.
 
-The source-only audit identifies the next boundaries: K3's
-`xfrm_state_noninitial_allowed` ignores mode, and its gather checks inspect
-noninitial offsets. It adds no GETDEFAULT bit-3 advertisement, and neither
-`gokrazy/kernel/runtime.config` nor `runtime.require` enables
-`CONFIG_XFRM_FRAGMENT_GUARD`. The current capability-probe test requires only
-bits 0 and 1, so its pass is a partial receipt. The cached upstream archive
-`tmp/qemu/build/aarch64/linux-7.3.tar.xz` is now present; earlier absence claims
-remain dated history. This audit supplies no C compilation or packet proof.
+Main's cold native kernel/matching-guest job `ipsec-k123-kernel-guest` completed
+with exit 0 (`job-ipsec-k123-kernel-guest-f67febab.log`), new cache
+`/Users/thomas/.cache/ze/runtime-kernel/7.3-runtime-arm64-runtime-docker-fe40244f-5d7f6651/vmlinuz`.
+No old image was supplied: native runtime-tree/image machinery built the
+matching image `47a4c8b74c98c558`. Kernel SHA256 is
+`9740ef22ce9ad40cde536908394d33a4d71dede15955113c15c839fe11f62cb9`.
+The native Linux 7.3 arm64 build includes modules and guard/IPv6/defrag options.
+`TestRFC4301KernelAdvertisesCompleteStateScope` passed its full 0xf receipt
+in 0.01s, no skips, all zero exits, stopped VM and interrupted false.
+The same old-RED transport binary then passed
+`TestRFC4301TransportRejectsAuthenticatedIPv6PlaintextFragments` in 4.92s
+and `TestRFC4301NestedTransportKeepsTunnelFragments` in 0.00s
+(`job-ipsec-transport-boundary-new-kernel-fcb2493d.log`), including the body's
+counter/whole/atomic/ciphertext controls. No skips, all zero exits, stopped VM.
+Main's full active-patch/source re-read found no additional issue and hashes
+remain unchanged. Full bits 0–3 admission stays intact.
 
-Keep one author on the whole K3 proposal file. The engine scope writer belongs
-in `child_scope.go`, `child.go` and their tests: derive inbound and outbound
-scopes from expanded directional `childPolicies`, validate before the first
-state publication, retain the 64-record bound and noninitial=false, and keep
-the full bits 0–3 guard. An independent author owns packet tests; main serializes
-series/config activation. The Section 7.4 route decision remains unchanged.
+The first 9740/image47a4 profile passed eleven scope-population tests without
+skips (`466ea81f`), including all eight ANY rows, K1 readback, multipair/rekey/
+bounds and clear-forward. The private K1 port cut produced four wrong-SA
+token failures with eight controls (`2459e7a5`), independently CLEAR. This
+is whole-packet proof only: NONINITIAL=false remains explicit, but widening
+ports broadens effective fragment permission. IPv6 raw-port acceptance passed
+all forms/phases in 0.42s (`0a6f6cb6`); old-kernel RED (`26098b15`) stops at
+permitted WHOLE send EPERM, with no per-fragment RED claim. Ten PMTU tests
+passed without skips (`a8a7fb27`), all exits zero and stopped VM.
+
+Actual daemon probes `d20bb5e4` complete-old and `0c1dd1de` new had one
+configured peer, running true, zero SAs/empty SAD: exact old 0x7/0xf cause/fix,
+scope code absent on the full profile, all exits zero and daemons/VMs stopped.
+Other store findings were ready=false. The earlier old attempt failed its
+BusyBox SAD read and supplies no complete-probe credit. Three doctor CIs
+passed without skips: internal fast 2.9s, external fast 3.4s, internal removal
+4.4s. Fourth external removal passed in 4.0s after its cold 88c98f02 runtime
+build (`job-ipsec-doctor-removal-external-k123-7fad9c53.log`): one selected case,
+zero skipped phases, all exits zero, interrupted false and VM stopped. Current
+kernel SHA256 was `89a57fd6746aa444a1a453feab7c0eece000075f00276fb545cb62312038beb2`, at
+`/Users/thomas/.cache/ze/runtime-kernel/7.3-runtime-arm64-runtime-docker-88c98f02-5d7f6651/vmlinuz`;
+matching image is `a3933863bf7976cd`. The direct complete-receipt test also passed
+in 0.01s (`job-ipsec-current-profile-complete-caps-d4265cb4.log`), with no skips,
+all exits zero, interrupted false and VM stopped. Current runtime.config SHA256
+is `2cf19c2ccdad059fd27d4e1bb9b8a42725f7c285865de13d43db0a9d032172d2`;
+runtime.require is `b56687bcd5990d39d3a23dd86b48a3b52fb5cea7051e74470a80bd0b6d83e136`.
+
+Approved AC-27 lint fixes preserve assertions, packet bytes, tags, claims and
+public refusal identity/cause. Earlier host packages (`70092bc3`) passed before
+those fixes: engine 119.345s, dataplane 2.334s, diagnostic 1.283s. The distinct
+post-style outer `job-ipsec-post-style-host-packages-70092bc3.log` and inner
+`job-unit-pkg-0d6c7694.log` passed engine 123.593s, dataplane 2.521s and diagnostic
+1.291s. Main observed successful Linux engine `b93836ee` and dataplane `668c4a79`
+builds; silent retained build logs do not alone establish their exit status.
+The bounded nine-path AC-27 cleanup landed in `a62375a383` (native script
+session 32163 exit 0), 22 insertions and 21 deletions, carrying the ordinary
+`engine.espPolNoPols` weakening approval. Main verified the commit and clean
+targeted status; two other RFC approval rows remain unspent. Scoped lint left
+only the independently owned diagnostic formatting finding, whose owner's
+targeted retry passed on host and Linux; capability/compile-out stages had no
+findings. No wider lint-green or spec closure is claimed. Other outstanding
+checks remain owed. Canonical docs retain partial narrative only.
+
+Post-style Linux dataplane units passed 31 top-level tests without skips
+(`job-ipsec-post-style-dataplane-linux-units-3641106f.log`): exact scope
+capability/parameters/wire, SPD recording, ten forwarding-default cases and
+full receipt. Binary `bdaf3541` ran on 89a/a393; check/command/lab exits zero,
+interrupted false and VM stopped. This is bounded Go/unit evidence and gives
+no runtime credit to the new C continuation repair.
+
+The reached helper population (`job-ipsec-style-reached-linux-population-a644e963.log`)
+ran 16 tests: ten PASS, six FAIL. Five cleartext/forwarded-ICMP zero-counter
+failures used the shared wrong-namespace `sadSelStat` observer. Exact patch
+`fe6c7813` was independently CLEAR for 16 tagged consumers, with native e729
+approval rows. The author confirmed application and actual source hash
+observer intermediate `711a26fd` was read back. A later authorized comment-only
+header correction yields current `cfeea450`, with functions/tags/assertions
+unchanged. Main observed formatter `34367ae3` and full-manifest Linux
+integration/zetest compile `61adff27` exit 0. Fresh `engine-counter.test`
+(`880a1f6d`) passed all five former counter failures in
+`job-ipsec-thread-counter-five-linux-39fb9b9a.log`: cleartext 5.85s, four
+forwarded-ICMP cases 0.18/0.20/0.20/0.24s. The 16 tagged consumers had 14 PASS
+and two FAIL (`job-ipsec-thread-counter-tagged-linux-f6906673.log`): known
+compliant-fragment delivery 3.30s, plus ordered inbound admit cleanup ENOENT
+at line 53 after all packet checks passed, 1.01s. Noncompliant fragments
+passed with exact counter deltas (1,0,0). Both guests used historical 89a/a393,
+without skips, and stopped. Five-test check/command/lab exits were zero; tagged
+check/lab zero and command one. Native handle 74728 was closed on collection;
+no outer exit is inferred. The CI owner's independently approved full-selector
+cleanup and shared counter correction are now committed in `714970f5b0`, exactly
+two files `cfeea450`/`8b36277e`, both clean in targeted status. Main's native
+script exited 0 and carried five RFC/helper trailers; other approvals remain
+unconsumed. This session has not pushed. External CI-main receipt
+`job-ci-ordered-cleanup-linux-52ac831c.log` passes both ordered tests
+11.26/0.51s, packet vectors intact, no skips, all guest exits zero, stopped
+89a/a393. This is external CI execution, not our runtime run. Task/AC-28 records
+the bounded checkpoint; the known compliant-fragment contract remains red and
+safety-blocked. Binary `880a1f6d` predates cleanup, with no fresh-current-binary
+claim. The counter-phase commit has landed; main owes ownership/reference/process
+checks and cleanup of superseded artifacts, retaining minimum unresolved evidence.
+
+Main reports the exact peer-form source-classification row added and reviewed
+by author/main, with existing TUN/reqid rows verified. CI owns coordinated
+registry publication; actual commit/receipts remain pending, with no runtime change.
+
+The mapped-return wire failure is separate: protected=0/clear=0 reproduced in
+12.05s when isolated (`job-ipsec-mapped-return-isolated-e9eb39b7.log`), same
+89a/a393, no skips, check zero/command one/lab zero, interrupted false and VM
+stopped. Its expectation stays protected=true and no cleartext. This matches
+the existing architecture phase-3 `LL-XFRM-ICMP-TRANSIT` obligation, rather than
+showing a new C bug from style changes; locally generated controls passed.
+
+The private fault kernel is unbuilt/unrun. Automatic review rejected follow-up
+composite scope-key/transport-output input preparation for possible cybersecurity
+risk. Read-only inspection found partial edits in the existing
+`scratch/k2-fragment-proof/inputs/patches/`: 0004 clears the scope key; 0005
+bypasses the output helper for transport mode in both families. Do not build or
+use those partial inputs, retry/rephrase/reassign the rejected preparation, or
+use the earlier pure K2 input as an alternate retry. That rejected preparation
+changed no production patches; the separate normal repair below is authorized.
+Retain the existing blocked artifact only through a safety decision
+or approved removal, with ownership/reference/process checks before removal.
+The 79 original renewals and freshness of the four earlier renewals must be verified after
+the writer change. Neither these passes nor the doc edits complete all three
+points, change RFC classification or meet AC-4.
+
+The post-style seven-test packet matrix (`e4293794`) used 89a/88c, image a393
+and engine binary `2285ba7c`: five PASS, two FAIL. IPv4 ANY contexts, IPv6 raw
+port policies, nested transport/tunnel and both transport-output families
+passed. IPv6 ANY lost four permitted same-SA Destination Options rows and
+transport receive lost its initial whole control. Isolated receive passed in
+5.16s (`b6c76ed5`). Isolated ANY repeated those four failures in 8.68s (`324011f1`),
+with all eight base rows, authenticated counts and whole controls correct.
+The same-process pair had ANY FAIL 10.19s and receive PASS 2.04s (`a015d255`).
+No guest skipped or was interrupted; all stopped, check/lab exits were zero,
+and command exits reflected their assertions. The batch receive loss remains
+unlocalized: later passes do not prove a fix or causal cross-test leak.
+
+The repeatable Options failure is a normal production defect at
+`xfrm6_fragment_prerouting`'s receive continuation. Active 0005 now carries
+the first-fragment/control-block cursor repair, preserving processed
+Hop-by-Hop state and leaving LOCAL_OUT unchanged, SHA256
+`80cf2492bac5b88c302a915fc0fa4b07986add231ad777dcc222202827b36a00`.
+Independent C review is CLEAR; the additive first-fragment Hop-by-Hop
+regression also has independent CLEAR review. The additive baseline passed in
+3.30s (`job-ipsec-hop-options-old-normal-79f077b6.log`), all six both/initial-only/
+tail-only Hop-by-Hop arrival-order cases with whole-chain/following controls
+and exact SA counts. No skips, check/command/lab exits zero, interrupted false
+and VM stopped on 89a/a393, binary `127cef6f`. Main observed formatting
+`09ed7233` and test build `ecdb71b4` PASS. This is a preservation PASS, not a
+mutation proof or repaired-C acceptance. Normal kernel job 72568
+(`job-ipsec-normal-cursor-kernel-6fc0be2f.log`) ended exit 1. The worker compiled
+the kernel, installed modules and printed `done: /out/vmlinuz`; the final host
+`enforceKernelRequirements` then rejected missing built-in `CONFIG_QFMT_V2`.
+Shared base config/require and `kernelreq.go` changed at 17:26:56 during the
+17:04:51 build, in `faa6297d78`. Worker validation reads live requirements before
+make; host validation rereads them after build. Base `2bef4e61`/`57692fbb` became
+`be2894ce`/`6990de48`; runtime `2cf19c2c`/`b56687bc` and patch `80cf2492` did not
+change. The quota/QFMT dependency is valid, with no requirement weakening.
+Native cleanup removed rejected `tmp/kernel/runtime-build-2183217670`; target
+cache 265a is absent. That attempt produced no recoverable/published repaired
+kernel or image. Original Options remains natural production RED on historical
+pre-repair 89a/88c.
+
+The subsequent two-job `9c693ee4`/session 82844 completed exit 0 and published
+accepted cache 6a87, kernel SHA256
+`1b3b839f751e6ab9f69a896d15847c07c9f8b7e2a24f07f934cf7fb029076ab3`.
+QUOTA/QFMT_V2/XFRM_FRAGMENT_GUARD read back as built in; modules `7.3.0-ze`
+and kernel.version match Linux 7.3 runtime/arm64/Docker. Matching image
+`913df5db17ebb20a` first boot (`c6c943c2`) passed complete receipt 0.01s,
+original IPv6 ANY 16-row matrix 6.68s (all four former Options positives true,
+all mixed-SA false), and HBH six cases 0.15s with whole/following controls and
+SA counts. The eight-test packet matrix (`4e681aeb`) passed all eight using
+engine `880a1f6d` and dataplane `bdaf3541`. Both guests had no skips, all exits
+zero, interrupted false and stopped VMs on that accepted pair. This accepts
+the cursor repair, not full three-point conformance or AC-4 closure. The original
+seven-test population then passed five times in one process: 35 top-level PASS
+results and no FAIL or SKIP (`job-ipsec-corrected-rx-stability-c25ff001.log`,
+main session 13208 exit 0). The same accepted pair, count 5, shuffle off,
+original eight-minute test timeout and all packet deadlines/assertions were
+preserved; check/command/lab exits were zero, interrupted false and VM stopped.
+The earlier RX cause remains unlocalized; these passes do not establish its
+cause or a fix. Both safety blockers, 79 unexecuted renewals, four historical
+records' unknown current freshness and phase-3 mapped-return gap remain.
+
+The dual-form spec's Task/AC-29 now records ordinary preservation regressions
+for the existing captured raw-sender authority contract in
+`docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, under Decisions,
+“Fragment gathering”: `xfrm_raw_route_capture`,
+`xfrm_policy_receipt_capture` and `inet_frag_raw_authority`.
+`engine/raw_socket_fragment_policy_integration_linux_test.go` is authored
+and independently reviewed CLEAR. It covers socket-policy presence/miss/absence,
+route authority, generation and lifetime with whole and same-authority controls.
+Formatter session 6402 exited 0 (`e9d970e8`), source `71d4` unchanged. Linux
+build session 80197 exited 0 (`af85e020`, silent log; terminal supplied by main),
+producing static arm64 binary SHA256
+`b73f7299f689254045b7fb67fd32519e5bd29c5e9f2efa0ce738e562348a5145`.
+Guest session 85260 exited 1 (`job-ipsec-raw-authority-packets-be4fca5b.log`):
+IPv4 PolicyAuthority's matching whole send and RouteAuthority's admitted-mark
+whole send returned `EPERM` with fallback BLOCK. All three IPv6 subtests and
+IPv4 PolicyLifetime passed. No SKIP; check 0/command 1/lab 0, interrupted false,
+VM stopped on exact kernel `1b3b839f`/matching image `913df5db17ebb20a`.
+
+Four diagnostic lenses cleared fixture, initialization and encoding. Main read
+canonical Linux 7.3: `ip_route_output_key` calls `ip_route_output_flow` with a
+null socket and performs XFRM lookup, so it is wrong for both intended ordinary
+IPv4 route stages. The normal source repair replaces those two calls with
+`__ip_route_output_key`, in `raw_sendmsg` and `xfrm_fragment_route`; final
+captured lookup and all guards stay unchanged. Active 0005 SHA256 is now
+`235e022ad1b9b1725db8e62852e955a7a3109dc35c2dc6b3492ef7d2cbf43854`, independently
+reviewed CLEAR, with targeted runtime acceptance recorded below. Resolver session 72041
+passed (`a5417483`) and names actual candidate d87a6908; its vmlinuz was absent
+before launch. All eight roots acknowledged input and Colima compiler holds
+before main launched normal two-job build 29078, label
+`ipsec-ipv4-raw-route-kernel`, PID/PGID 23658 (`9c693ee4`). It completed exit 0
+and published actual kernel SHA256
+`d2eb6a14cd07c913deb1a0e9f7ff667230982b64c597ebf8fbee8bc3f80d8f65`.
+Firstboot session 3966 exited 0 (`job-ipsec-ipv4-route-first-boot-631e2522.log`),
+building and booting matching image `43a1d1b2ecccc59c`, module `7.3.0-ze`.
+Complete receipt passed 0.01s; unchanged `b73f` PolicyAuthority/ipv4 passed
+1.24s and RouteAuthority/ipv4 passed 0.94s, including former whole failures.
+No SKIP; check/command/lab 0, interrupted false and stopped VM. This accepts
+the two-call C route repair for those failed cases. Main released input and
+Colima compiler holds to all eight roots after actual readback. Full three raw
+tests, existing eight-test matrix and the new SA-lifetime regression remain
+unrun on this pair. Earlier eight/35 passes retain bounded source/kernel
+identities and do not close AC-29/full AC-4.
+
+The preparer's metadata-only stop adds no owner restriction: main may separately
+execute the existing 13 ordinary host reverts and 11 existing host mutants
+after its phase boundary, retaining selected clean PASS/attributable RED
+requirements. The actual two safety rejections remain. All 79 renewals remain
+unexecuted/four freshness UNKNOWN. The 55 guest commands still name d87a6908
+and remain UNEXECUTED; the 6a87 observations remain historical. The owner's
+question about both rejected tasks is still PENDING, not approval.
+
+Existing AC-4 queue lifetime now has ordinary source regression
+`TestFragmentSAReplacementKeepsQueuedIdentity` in
+`engine/fragment_sa_lifetime_integration_linux_test.go`: same-public-identity/key
+replacement cannot complete the old queue, with whole/fresh-generation controls,
+both families/orders, old totals 2/6, first request increment +1 and B counts
+0/1/2/4. Source `d030` is independently CLEAR but formatting/build/runtime are
+owed; these are assertions, not observations or new RFC claims.
+Native C-discrimination remains unsupported; the existing P3/post-release
+kernel-route design needs REWORK and owner design admission before tooling or
+C-proof credit. Read-only research is not implementation, an escape or a Go
+dependency proof of the C primitive.
+
+The earlier space blocker was resolved after all roots acknowledged a quiet period; main's
+supported coordinated cleaner completed with exit 0, freeing 67.4G of checkout
+Go cache and 0.4G of lint cache, with 80.1G free
+(`scratch/ipsec-coordinated-cache-clean.log`). Valid patched GOROOTs were kept,
+and the built pre-repair 88c kernel and a393 image remain preserved. Main
+released all roots after completion. Retain those native artifacts for the unresolved
+current-profile proof through their owning cleanup mechanisms. The private
+fault-preparation safety blocker remains unchanged; no fault kernel has built
+or executed. The existing state retains the minimum cleaner receipt through
+the related phase commit, then reference/ownership cleanup. That 80.1G is the
+first historical cleanup snapshot. Second supported cleanup
+(`scratch/ipsec-coordinated-cache-clean-second.log`) reports 55.0G checkout and
+0.3G lint freed, with 74.9G free at cleanup. Its execution 72928 was already
+closed when recovered; no exit code was recovered or inferred. Main sent RELEASE
+to all eight roots. The current-floor host driver passed with code 0 on Darwin
+arm64/CGO disabled (`job-ipsec-current-floor-host-driver-ae60c218.log`). A temporary
+unrelated BGP compilation blocker was corrected by its owner. Main's fresh
+admission report then passed: one of four slots occupied, no waiters, 25.6GiB
+available and 52.1GiB disk free. Normal kernel session 81417 then ended exit 1
+(`job-ipsec-current-floor-cursor-kernel-799a7dd1.log`): gcc `cc1` was killed
+compiling Intel `ice_common.o`, and make exited 2. Guard/quota objects compiled
+earlier; no completed/published 6a87 kernel or image exists. Main's fresh Docker
+info reports 2 CPUs and 2,054,840,320 bytes of memory (about 1.9GiB), which is the
+builder budget the host admission figures did not measure. Main selected four
+jobs too aggressively; builder-VM dmesg confirms OOM killed `cc1` in this build's
+owned container. Use two jobs for the next normal retry, as the earlier
+worker compilation did. The old hold was released; root job 82844/PID 75336
+completed exit 0 as native key `9c693ee4`; its retained
+`job-ipsec-two-job-cursor-kernel-9c693ee4.log` ends with ready cache 6a87.
+Accepted kernel/image receipts are above. All eight roots received RELEASE of
+input and Colima compiler holds. Main's exact-ID listing
+found neither old owned container.
+Main verified output `tmp/kernel/runtime-build-2858380835` was empty and removed
+it with `rmdir`, exit 0. That accepted 6a87 build used patch/base hashes
+`80cf2492`/`be2894ce`/`6990de48`; the later raw-route source repair is recorded
+above and is not yet built.
+Owner namespace dd6e maps to a shared Rex fallback session; unique intervening
+writer attribution remains unconfirmed.
+
+The original fixture/testing blocker remains: automated review stopped concrete
+preparation of the existing fragment-context fixture correction, citing
+"possible cybersecurity risk". No patch or approval exists and the test is
+unchanged. The judge assessed design only: noninitial=false cannot support
+those same-SA fragment positives under RFC 4301 Section 7.3. Do not retry,
+rephrase or reassign that rejected task. Unaffected new tests and K3 work
+continued; this blocker must stay explicit in the remaining proof population.
 
 Old Ze-kernel probes also exposed mixed-protection fragment delivery and
 general multi-pair/overlapping SA-scope leaks. Forwarded ICMP return under
