@@ -50,6 +50,13 @@ program the operator names is their purpose
 (`docs/plugin-development/schema.md`, "What works today";
 `docs/architecture/config/yang-config-design.md`, "Who publishes").
 
+The external plugins and their modules are fixed while the daemon runs: a
+reload whose config declares other external plugins is refused whole
+(`pluginserver.RefuseChangedDeclarations`), and a plugin started again that
+declares another schema is refused at Stage 1 (`refuseChangedSchema`, the
+`schema-unchanged` entry of the Stage 1 table). Both name the restart of `ze`
+(`docs/architecture/hub-architecture.md`, "What the daemon does at start").
+
 ## Boundaries
 
 - **The engine never enumerates plugins.** Families, events, send types,

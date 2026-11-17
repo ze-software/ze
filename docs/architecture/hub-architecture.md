@@ -597,6 +597,26 @@ when an external plugin is declared: a pushed config and the config a managed
 edge fetches on first boot are judged by boot, and a refusal there undoes
 their application through `hub.ConfigRefused` and ends the process, because
 the plugins a config declares change only when `ze` restarts.
+
+That rule is enforced while the daemon runs, in two places, and it concerns
+the external plugins and their modules alone: every other part of the config
+reloads without a restart.
+
+| What changes | What ze does | Where |
+|--------------|--------------|-------|
+| A reload (SIGHUP, `request reload`, a commit, a managed push) reads a config whose external plugins differ from the ones the daemon started with: one added, one removed, or one whose `run`, `encoder`, `respawn` or `timeout` changed | The reload is refused whole, before the full parse, with one operator error that names each plugin and what changed, and whose fix is `restart ze`. It is logged and raised as `doctor-config-reload-refused`, the running config is unchanged, and nothing else in the same config is applied. A reload that leaves those declarations as they were is not affected. The plugins named on the command line are the same at boot and at every reload | `diskConfigLoaders`, `pluginserver.RefuseChangedDeclarations` |
+| A plugin the daemon starts again (a respawn, `request plugin restart`) declares another config schema than the one boot published for it | The plugin is refused at Stage 1 and is not run, with an operator error that says what differs and whose fix is `restart ze`. The warning `doctor-plugin-schema-changed` names it. The published set, the running config and every other plugin are unchanged; a later start that declares the published schema is accepted and clears the warning | `refuseChangedSchema`, the `schema-unchanged` entry of `stage1Checks` |
+
+Boot also records what each started plugin declared: a module, none, or no
+declaration at all (`config.RecordStartedPlugins`). A command the daemon
+serves reads the record so that, beside a name no schema defines, it names
+only the declared plugins that could define it.
+<!-- source: cmd/ze/hub/main_reload.go -- diskConfigLoaders, unreadDeclarationsRefusal -->
+<!-- source: internal/component/plugin/server/reload_declarations.go -- RefuseChangedDeclarations, declarationChanges -->
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema -->
+<!-- source: cmd/ze/hub/declared_plugins.go -- startedPlugins -->
+<!-- source: internal/component/plugin/server/reload_declarations_test.go -- TestDeclarationChangesNamesEachDifference, TestRefuseChangedDeclarationsRefusesTheReload -->
+<!-- source: cmd/ze/hub/reload_declarations_test.go -- TestReloadLoaderRefusesChangedPluginDeclarations -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins, undeclaredPluginLines, ConfigRefused -->
 <!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->

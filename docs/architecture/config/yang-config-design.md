@@ -494,6 +494,21 @@ answers the published modules and whether a publish happened, and
 namespace and text) with the published set: not yet published, published,
 changed, or no module of that plugin.
 
+A plugin the daemon starts again, after it ended or by `request plugin
+restart`, sends its Stage 1 declaration again, and the `schema-unchanged`
+entry of the Stage 1 table compares it with that set (`refuseChangedSchema`).
+The same module, or none where the plugin declared none, lets the restart
+proceed. Another text, name or namespace, a module where there was none, or
+none where there was one refuses the plugin at Stage 1 with an operator error
+that says what differs and whose fix is the restart of `ze`. The refusal is
+logged and raised as the warning `doctor-plugin-schema-changed`, the published
+set is not written, and the config under the plugin's root stays loaded. The
+first Stage 1 of a plugin takes the same check, with the declaration boot
+published. A plugin compiled into `ze` is not compared.
+<!-- source: internal/component/plugin/server/stage1_schema.go -- refuseChangedSchema, schemaDifference, moduleDifference -->
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks -->
+<!-- source: internal/component/plugin/server/stage1_schema_test.go -- TestStage1RefusesChangedDeclaration, TestStage1AcceptsUnchangedDeclaration, TestOnRegistrationRefusesChangedSchema -->
+
 A `Resolved` is immutable, so a reader that already holds one keeps the set it
 took, and a reader that asks after the publish gets the joined set. The swap
 runs under the lock `DefaultLoader` reads under: a concurrent caller gets the
@@ -560,7 +575,7 @@ starts no program in any process.
 | A config declares an external plugin and the parse refuses a name the schema does not define (`config.RefusesUnknownNode`: an unknown top-level keyword or an unknown field) | `DeclaredSchemas.ParseRefusal`, `Explain` and `Unchecked` answer one operator error: the refusal, the external plugins the config declares, that Ze reads such a plugin's schema when `ze start` runs it and that this command starts no plugin, so only a running Ze that started with these plugins checks such a section. A command that asked no running Ze says so, and its fix is `ze config validate <file>`, which asks one. `ze config validate` itself, which did ask (`DeclaredSchemas.Unanswered`), says why none answered, and its fix is the command for that reason. The message never says a plugin owns the refused name: Ze holds no schema that could tell |
 | Any other parse refusal | Unchanged: no plugin's schema explains a value out of range or a syntax mistake |
 | A second call in one process | Answers the same as the first |
-| The process's module set is already fixed (`yang.ModuleSetFixed`: it published, or it built a value that keeps the set, as a running daemon does) | Publishes nothing. A declared plugin whose module the process holds is not listed, and its section parses. A declared plugin the process holds no module of is named beside the refusal of an unknown name, with the restart of `ze` as the fix |
+| The process's module set is already fixed (`yang.ModuleSetFixed`: it published, or it built a value that keeps the set, as a running daemon does) | Publishes nothing. A declared plugin whose module the process holds is not listed, and its section parses. A declared plugin the process holds no module of is named beside the refusal of an unknown name, with the restart of `ze` as the fix, unless the daemon started it with that same declaration and it declared no module: boot records what each started plugin declared (`config.RecordStartedPlugins`, from `startedPlugins` in `cmd/ze/hub`), and a plugin that defines no section explains no refused name. A plugin that gave no declaration at boot, one the daemon did not start, and one declared with another `run` line or leaf are still named |
 | A config the first pass refuses | Declares nothing to the step. The caller's full parse refuses the same block |
 
 ### `ze config validate` asks the running Ze first
@@ -650,6 +665,9 @@ command by running each external plugin of the file in declare mode
 (`plugin.QueryDeclaration`).
 <!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas, publishDeclaredSchemas -->
 <!-- source: internal/component/config/yang/publish.go -- ModuleSetFixed -->
+<!-- source: internal/component/config/declared_schemas.go -- RecordStartedPlugins, StartedPlugin, SchemaOutcome, startedWithoutSchemaLocked -->
+<!-- source: cmd/ze/hub/declared_plugins.go -- startedPlugins, schemaOutcome -->
+<!-- source: internal/component/config/declared_schemas_test.go -- TestDeclaredSchemasDoesNotNameAStartedPluginThatDeclaredNoModule, TestDeclaredSchemasNamesThePluginsThatCouldExplain, TestDeclaredSchemasWithoutARecordNamesEveryPlugin -->
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
 <!-- source: internal/component/plugin/declarations.go -- QueryDeclaration, configuredDeclarationRow, unavailableDeclarationRow -->
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->

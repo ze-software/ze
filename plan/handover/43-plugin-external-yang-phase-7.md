@@ -60,6 +60,46 @@ phase 7.
 | 14 | Python library | `rollback` never ran against a live Ze. `ze_plugin.py` is 847 lines |
 | 15 | Owner decision D-3 | Whether a plugin's own command argument model is part of this spec. Open; blocks nothing before the last phase |
 
+## Added 2026-11-17: `ze config validate` asks a running ze, and the owner's decision on it
+
+Since this handover was first written:
+
+| Commit | Where | Content |
+|--------|-------|---------|
+| `33e690ac64` | Server branch; on the laptop as `d4fb5888c7` | `show plugin declarations config <file>` starts no program with no daemon (item 2 done); the Python example is exempt from `TestNoPythonLeRemains` by an exact two-file list (item 10 done, the test stays red on three tests of other work); offline and boot functional tests in their final form |
+| `a0656f1c59` | Server branch only, HELD | `ze config validate` asks a running ze first (spec phase 10, item 1); the `ze:keyword-only` argument statement; SSH exec keeps the payload of a refused command |
+
+`a0656f1c59` is proven on the server (unit tests of twelve packages, three
+functional tests, live with the Python example). It is not carried to the
+laptop, because its daemon side duplicates work another session is doing there.
+
+**Owner decision, 2026-11-17: "yes, keep theirs and point your client at it".**
+Another session on the laptop is building, uncommitted when this was written,
+`show config supplied validation|dump|fmt|graph|diff`: the caller sends a
+config's bytes and the daemon judges them with the existing producers. That is
+the daemon side. From `a0656f1c59` only the client side is kept.
+
+What the switch is, to do once that work is committed on the laptop:
+
+| Step | Detail |
+|------|--------|
+| Remove | The `content` leaf added to `show config validation` (`ze-config-cli-cmd.yang`) and the content read in `dataValidate` (`config_data.go`), with `TestShowConfigValidationJudgesContent` |
+| Point the client | `judgeConfig` (`config/cli/validate_route.go`) sends `show config supplied validation content <base64> name <label>` in place of `show config validation file <name> content <base64>` |
+| Their contract, read on the laptop | `content` is mandatory, 4 to 261,120 padded base64 characters (195,840 bytes), same pattern as the existing content leaves. `name` is optional, a filename label with no directory and no control character, default `supplied.conf`; the client passes the base name of the operator's file so diagnostics name it. The handler is `validationBytesAnswer(data, name)`, the producer of the file form, so the answer keeps the `ValidateResult` shape the client draws. It refuses positional words itself, and declares its content argument through `registry.Meta.SuppliedInput` |
+| Check before relying on it | That the supplied validation, inside a daemon, judges with the module set boot published (an external plugin's section accepted). The functional test `external-yang-validate-asks-running-ze` proves it end to end once pointed at their command |
+| Keep | `sshclient.ReachDaemon` and doctor's use of it, the refusal texts (`DaemonUnanswered`, `Unanswered`), `ze config validate --user`, the SSH payload fix with its unit tests, `ze:keyword-only` on the two `update data` content leaves. Consider declaring `ze:keyword-only` on their `supplied-content` grouping with that session's agreement |
+| Then | The same client route for `fmt`, `dump`, `diff` and `graph` uses their four other supplied commands: no new daemon side is needed |
+| Where | On the laptop, in a detached worktree at the commit that holds their work, not in the shared checkout; the server cannot test it until that commit reaches it |
+
+The spec's phase 10 text still describes the `content` leaf on
+`show config validation`: correct it in the same work as the switch.
+
+Tooling notes from this round: an apply to the laptop's working tree was denied
+to the agent by the permission system once; the owner ran the apply script
+himself. A page edited by another session between assessment and apply made the
+plain patch refuse; the apply script now merges such a file three-way and
+refuses before writing anything on a real conflict.
+
 ## Reds that predate this work
 
 In `./internal/le/`: `TestNoPythonLeRemains`, `TestCensusActionsDeclareHeavy`,

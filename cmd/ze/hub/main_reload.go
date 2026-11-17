@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"sync"
@@ -20,9 +21,12 @@ import (
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/component/kernelcap"
 	zepki "github.com/ze-software/ze/internal/component/pki"
+	zePlugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -38,10 +42,19 @@ import (
 // Candidate reads precede the explicitly selected source. Read errors are fatal,
 // never a reason to choose another authority.
 //
+// started holds the external plugins the daemon booted with, as the first pass
+// answered them (zeconfig.FirstPass, External). Every reload reads the config
+// through this loader, so it is where a reload whose config declares other
+// external plugins is refused, whole, before the full parse: a plugin, its
+// declaration and its config schema change only when ze restarts (owner
+// ruling), while every other part of the config reloads. plugins is the
+// command line's list, the same for boot and for every reload, so a
+// command-line plugin never differs.
+//
 // This is a named function rather than a closure inside runYANGConfig so a test
 // can drive the loader the daemon actually uses. A test that builds its own
 // closure proves only that the test can call LoadConfig.
-func diskConfigLoaders(store storage.Storage, configPath string, plugins []string) (
+func diskConfigLoaders(store storage.Storage, configPath string, plugins []string, started []zePlugin.PluginConfig) (
 	loadMap func() (map[string]any, error),
 	loadBoth func() (map[string]any, *zeconfig.Tree, error),
 ) {
@@ -50,7 +63,28 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 		if readErr != nil {
 			return nil, fmt.Errorf("read config: %w", readErr)
 		}
-		return zeconfig.LoadConfig(string(reloadData), configPath, plugins)
+		text := string(reloadData)
+		// The declarations are compared before the full parse: a config that
+		// adds a plugin and a section of that plugin is refused with the
+		// restart, where the full parse would refuse the section as a name no
+		// schema defines.
+		firstPass, firstPassErr := zeconfig.FirstPass(text, configPath, plugins)
+		if firstPassErr == nil {
+			if refusal := pluginserver.RefuseChangedDeclarations(started, firstPass.External); refusal != nil {
+				return nil, refusal
+			}
+		}
+		result, err := zeconfig.LoadConfig(text, configPath, plugins)
+		if err != nil {
+			// A first pass that refused the text leaves the verdict to this
+			// parse, which refuses the same `plugin` or `environment` block
+			// with the message it always gave.
+			return nil, err
+		}
+		if firstPassErr != nil {
+			return nil, unreadDeclarationsRefusal(firstPassErr)
+		}
+		return result, nil
 	}
 	loadBoth = func() (map[string]any, *zeconfig.Tree, error) {
 		result, err := readAndParse()
@@ -66,6 +100,21 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 		return m, err
 	}
 	return loadMap, loadBoth
+}
+
+// unreadDeclarationsRefusal refuses a reload whose config the full parse
+// accepted and the first pass refused. The two parse the `plugin` block with
+// the same schema nodes, so this is a Ze defect; the reload cannot say whether
+// the plugin declarations changed, and a reload that cannot say refuses.
+func unreadDeclarationsRefusal(firstPassErr error) error {
+	slog.Error("the first pass refused a reload's config the full parse accepted, so the reload cannot compare "+
+		"its plugin declarations with the ones ze started with. This is a Ze defect: report it",
+		"error", firstPassErr, "code", diagnostic.CodeDoctorInternalDefect)
+	return opererr.Wrap(firstPassErr,
+		"the reload was refused: ze could not read the plugin declarations of the new config",
+		"ze refuses a reload that changes the external plugins it runs, and it could not compare them. "+
+			"This is a Ze defect, to report with the config; ze keeps the config it was running. What refused the declarations",
+		"restart ze")
 }
 
 // handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh

@@ -126,6 +126,45 @@ func declaredModules(declarations []pluginserver.EarlyDeclaration) []yang.Extern
 	return modules
 }
 
+// startedPlugins answers what boot learned of the config schema of each
+// external plugin the first pass found, for the record a served command reads
+// when it names the plugins that could explain a name no schema defines
+// (zeconfig.RecordStartedPlugins). external is FirstPassResult.External and
+// declarations what joinDeclaredPlugins answered for it. A plugin with no
+// declaration read, for any reason, is recorded as unread: boot does not know
+// whether it defines a config section.
+func startedPlugins(external []zePlugin.PluginConfig, declarations []pluginserver.EarlyDeclaration) []zeconfig.StartedPlugin {
+	started := make([]zeconfig.StartedPlugin, 0, len(external))
+	for _, declared := range external {
+		started = append(started, zeconfig.StartedPlugin{
+			Declaration: declared,
+			Schema:      schemaOutcome(declared.Name, declarations),
+		})
+	}
+	return started
+}
+
+// schemaOutcome answers what the declaration boot read from the plugin named
+// name says of its config schema.
+func schemaOutcome(name string, declarations []pluginserver.EarlyDeclaration) zeconfig.SchemaOutcome {
+	for _, declaration := range declarations {
+		if declaration.Plugin != name {
+			continue
+		}
+		if declaration.Err != nil {
+			return zeconfig.SchemaUnread
+		}
+		if declaration.Schema == nil {
+			return zeconfig.SchemaNone
+		}
+		if declaration.Schema.YANGText == "" {
+			return zeconfig.SchemaNone
+		}
+		return zeconfig.SchemaDeclared
+	}
+	return zeconfig.SchemaUnread
+}
+
 // declaredPluginNames answers the names of plugins, for DropDeclaredExcept.
 func declaredPluginNames(plugins []zePlugin.PluginConfig) []string {
 	names := make([]string, 0, len(plugins))

@@ -454,8 +454,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	pm := pluginmgr.NewManager()
 	var caRoot *zepki.Root
 	var declarations []pluginserver.EarlyDeclaration
+	// startedExternal is the external plugins this daemon starts with, as the
+	// first pass answers them. A reload whose config declares others is
+	// refused (diskConfigLoaders): they change only when ze restarts.
+	var startedExternal []zePlugin.PluginConfig
 	firstPass, firstPassErr := zeconfig.FirstPass(string(data), configPath, plugins)
 	if firstPassErr == nil {
+		startedExternal = firstPass.External
 		var joinErr error
 		declarations, joinErr = joinDeclaredPlugins(context.Background(), firstPass, pm, func() error {
 			root, rootErr := loadHubAuthority(store)
@@ -494,6 +499,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 					"code", diagnostic.CodeDoctorPluginStopped)
 			}
 		}
+		// What each started plugin declared, kept for the commands this
+		// daemon serves: beside a name no schema defines they name only the
+		// declared plugins that could define it.
+		zeconfig.RecordStartedPlugins(startedPlugins(firstPass.External, declarations))
 	}
 	// A first pass that refuses the text leaves the verdict to the full parse
 	// below, which refuses the same `plugin` or `environment` block with the
@@ -540,6 +549,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 
 		loadResult = recovered
+		// The daemon runs the recovered config, and a reload is compared
+		// with the plugins that config declares.
+		if recoveredPass, passErr := zeconfig.FirstPass(string(data), configPath, plugins); passErr == nil {
+			startedExternal = recoveredPass.External
+		}
 	}
 	if firstPassErr != nil {
 		slog.Error("the first pass refused a config the full parse accepted; no external plugin was run before the parse, "+
@@ -1075,7 +1089,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	var loadConfigFromDisk func() (map[string]any, error)
 	var loadBoth func() (map[string]any, *zeconfig.Tree, error)
 	if configPath != "" && configPath != "-" {
-		loadConfigFromDisk, loadBoth = diskConfigLoaders(store, configPath, plugins)
+		loadConfigFromDisk, loadBoth = diskConfigLoaders(store, configPath, plugins, startedExternal)
 		apiServer.SetConfigLoader(loadConfigFromDisk)
 	}
 

@@ -95,6 +95,7 @@ start ze.
 | `ambiguous-registration` | `1` | The check compares the declaration with the other plugins the daemon runs |
 | `doctor-check-declared-twice` | `1` | The check compares the declared doctor checks with the registry row of the operator's block |
 | `respawn-agreement` | `1` | The check compares the declared failure policy with the `respawn` leaf of the operator's config |
+| `schema-unchanged` | `1` | The check compares the declared config schema with the one the daemon read from the plugin when it started |
 | `dependencies` | `1` | The check looks for each declared dependency among the plugins the daemon configured or loaded |
 | `registration-conflicts` | `1` | The check writes the plugin's names into the daemon's registries, where another plugin can hold the same name |
 | `tls-connect-back` | `transport` | The checker starts no hub, so the TLS connect-back and the `#0 auth` exchange do not run |
@@ -145,6 +146,7 @@ command-names                5          pass
 ambiguous-registration       1          not-judged
 doctor-check-declared-twice  1          not-judged
 respawn-agreement            1          not-judged
+schema-unchanged             1          not-judged
 dependencies                 1          not-judged
 registration-conflicts       1          not-judged
 tls-connect-back             transport  not-judged

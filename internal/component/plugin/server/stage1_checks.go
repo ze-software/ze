@@ -248,6 +248,19 @@ var stage1Checks = []stage1Check{
 		refusalLog:  "plugin respawn refused",
 	},
 	{
+		// A plugin, and so the config schema it brings, changes only when ze
+		// restarts (owner ruling): boot joined and published the module each
+		// external plugin declared, and a plugin started again must declare
+		// that module, or none when it declared none. The check logs and
+		// raises its own refusal, under its own doctor code, so the entry
+		// declares no log line.
+		name: "schema-unchanged", section: sectionStage1, phase: stage1PhaseSink,
+		live: func(e *engineStartupSink, input *rpc.DeclareRegistrationInput) error {
+			return refuseChangedSchema(e.proc.Config(), input.Schema)
+		},
+		daemonState: "it compares the declared config schema with the one the daemon read from the plugin when it started",
+	},
+	{
 		name: "dependencies", section: sectionStage1, phase: stage1PhaseInline,
 		daemonState: "it looks each declared dependency up among the plugins the daemon configured or loaded",
 	},

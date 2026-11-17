@@ -161,3 +161,38 @@ func TestPluginServerConfigsCarriesTheWorkDirectory(t *testing.T) {
 	want.WorkDir = "/etc/ze"
 	assert.Equal(t, []zePlugin.PluginConfig{want}, configs)
 }
+
+// TestStartedPluginsRecordsWhatEachDeclared: boot's record of what each
+// external plugin declared. Method: three plugins of the first pass, one for
+// each outcome, and a fourth with no declaration read at all.
+//
+// VALIDATES: a module text is SchemaDeclared, a declaration with no schema or
+// with no module text is SchemaNone, a plugin that gave no declaration and
+// one boot holds no answer for are SchemaUnread, and each entry keeps the
+// first pass's declaration unchanged.
+// PREVENTS: a plugin that never declared recorded as one that defines no
+// section, which would hide it beside the refusal of its own section.
+func TestStartedPluginsRecordsWhatEachDeclared(t *testing.T) {
+	external := []zePlugin.PluginConfig{
+		{Name: "with-module", Run: "./with-module", Encoder: "json"},
+		{Name: "no-schema", Run: "./no-schema"},
+		{Name: "no-text", Run: "./no-text"},
+		{Name: "silent", Run: "./silent"},
+		{Name: "unanswered", Run: "./unanswered"},
+	}
+	declarations := []pluginserver.EarlyDeclaration{
+		{Plugin: "with-module", Schema: &rpc.SchemaDecl{Module: "m-conf", YANGText: "module m-conf {}"}},
+		{Plugin: "no-schema"},
+		{Plugin: "no-text", Schema: &rpc.SchemaDecl{Module: "n-conf"}},
+		{Plugin: "silent", Err: errors.New("sent nothing")},
+	}
+
+	assert.Equal(t, []zeconfig.StartedPlugin{
+		{Declaration: external[0], Schema: zeconfig.SchemaDeclared},
+		{Declaration: external[1], Schema: zeconfig.SchemaNone},
+		{Declaration: external[2], Schema: zeconfig.SchemaNone},
+		{Declaration: external[3], Schema: zeconfig.SchemaUnread},
+		{Declaration: external[4], Schema: zeconfig.SchemaUnread},
+	}, startedPlugins(external, declarations))
+	assert.Empty(t, startedPlugins(nil, nil))
+}

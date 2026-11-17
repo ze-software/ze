@@ -66,7 +66,11 @@ repeat it.
   (`cmd/ze/ze_le_personality_test.go`) measures it over every shipped flavor.
 - **One reload path.** SIGHUP and a managed push both reach `doReload`
   (`cmd/ze/hub/main_reload.go`). A new trigger joins it rather than building a
-  second path.
+  second path. Every reload reads the config through `diskConfigLoaders`,
+  which refuses a config whose external plugins differ from the ones the
+  daemon started with: they change only when `ze` restarts, and nothing else
+  in the config needs one (`docs/architecture/hub-architecture.md`, "What the
+  daemon does at start").
 - **`Coordinator.postStartup` holds one closure** (`internal/component/plugin/coordinator.go`
   `OnPostStartup`). A second caller replaces BGP's deferred peer start.
 

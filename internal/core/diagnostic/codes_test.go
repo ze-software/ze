@@ -123,6 +123,7 @@ func TestCrossCuttingCodesDescribed(t *testing.T) {
 		CodeDoctorPluginStderrRelayStopped,
 		CodeDoctorPluginRestartOverlap,
 		CodeDoctorPluginStopUnfinished,
+		CodeDoctorPluginSchemaChanged,
 		CodeDoctorPluginEnricherUnavailable,
 		CodeDoctorPluginConnectBackRefused,
 		CodeDoctorManagedListenerUnbound,

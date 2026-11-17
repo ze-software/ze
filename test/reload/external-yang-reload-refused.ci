@@ -1,0 +1,55 @@
+# Test: a reload that adds an external plugin declaration is refused, naming the restart of ze
+#
+# Question: when the daemon is sent SIGHUP with a config whose `plugin` block
+# declares an external plugin the daemon did not start with, is the reload
+# refused, naming that plugin and the restart of ze, with the running config
+# unchanged?
+# Why not a unit test: the refusal has to be reached by the SIGHUP road an
+# operator uses, and its effect is the daemon's own reload status.
+#
+# reload/live-stages drives the reload from inside the daemon and reads
+# `show reload-status`. Its own plugin entry is byte-identical in both
+# configs. Under a daemon that accepts the reload the status reads "applied",
+# and the `has` step fails.
+#
+# VALIDATES: AC-12 of spec-plugin-external-yang-at-startup.
+# PREVENTS: a reload accepted and left unapplied: today the added plugin is
+#   never started (Server.config.Plugins is fixed at NewServer), and the reload
+#   still reports success.
+
+option=timeout:value=60s
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external live-stages {
+		run "le test fixture reload/live-stages stages.script"
+		encoder json
+	}
+	external late-plugin {
+		run "le test fixture plugin/external-yang valid"
+		encoder json
+	}
+}
+EOF_CONF2
+
+tmpfs=stages.script:terminator=EOF_SCRIPT
+reload config2.conf
+has show reload-status => "last-outcome":"failed"
+say EXTERNAL-YANG-RELOAD-REFUSED: the added plugin declaration was refused
+EOF_SCRIPT
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+expect=stderr:pattern=late-plugin.*restart|restart.*late-plugin
+expect=stderr:contains=EXTERNAL-YANG-RELOAD-REFUSED: the added plugin declaration was refused
+reject=stderr:contains=FIXTURE: external-yang generation 1 ready
+reject=stderr:pattern=ZE-OBSERVER-FAIL

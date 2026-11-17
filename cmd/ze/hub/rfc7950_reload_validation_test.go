@@ -42,7 +42,7 @@ plugin {
 func reloadThroughDisk(t *testing.T, server *pluginserver.Server, store storage.Storage, configPath, config string) error {
 	t.Helper()
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
-	_, loadBoth := diskConfigLoaders(store, configPath, nil)
+	_, loadBoth := diskConfigLoaders(store, configPath, nil, nil)
 	return doReload(server, nil, store, configPath, loadBoth, nil)
 }
 

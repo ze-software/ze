@@ -706,7 +706,7 @@ func TestReloadHashesPlaintextPassword(t *testing.T) {
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
 
-	_, loadBoth := diskConfigLoaders(store, configPath, nil)
+	_, loadBoth := diskConfigLoaders(store, configPath, nil, nil)
 
 	treeMap, tree, err := loadBoth()
 	require.NoError(t, err)

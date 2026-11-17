@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -494,4 +495,101 @@ func TestParseRefusalNamesOneFix(t *testing.T) {
 
 	held := opererr.New("the value is out of range", "ze accepts 1 to 10", "set interval 5")
 	assert.Same(t, held, declared.ParseRefusal("ze.conf", held, "the command did nothing"))
+}
+
+// startedDaemon makes the process one a daemon booted in: its module set is
+// kept, and the external plugins it started are recorded with what each
+// declared. Each plugin is recorded as the first pass answers it for
+// configDeclaring.
+func startedDaemon(t *testing.T, started ...StartedPlugin) {
+	t.Helper()
+	offlineProcess(t)
+	yang.KeepsModuleSet("the plugin server of a test")
+	require.True(t, yang.ModuleSetFixed())
+	RecordStartedPlugins(started)
+}
+
+// declarationOf answers the declaration the first pass reads for the plugin
+// configDeclaring declares with name and run.
+func declarationOf(t *testing.T, name, run string) plugin.PluginConfig {
+	t.Helper()
+	firstPass, err := FirstPass(configDeclaring(name, run, ""), "ze.conf", nil)
+	require.NoError(t, err)
+	require.Len(t, firstPass.External, 1)
+	return firstPass.External[0]
+}
+
+// TestDeclaredSchemasDoesNotNameAStartedPluginThatDeclaredNoModule: inside a
+// daemon, a plugin it started that declared no YANG module defines no config
+// section, so it explains no refused name. Method: record such a plugin, then
+// give the step a config that declares it and holds an unknown root.
+//
+// VALIDATES: the plugin is not listed, and the refusal of the unknown name is
+// the parser's own, with no "restart ze" beside what is a plain mistake.
+// PREVENTS: a daemon answering every typo in a config that declares a
+// schema-less plugin with the restart of ze.
+func TestDeclaredSchemasDoesNotNameAStartedPluginThatDeclaredNoModule(t *testing.T) {
+	startedDaemon(t, StartedPlugin{Declaration: declarationOf(t, "observer", "./observer"), Schema: SchemaNone})
+
+	text := configDeclaring("observer", "./observer", "acme-monitor {\n\tinterval 5\n}\n")
+	schema, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
+	require.NoError(t, err)
+
+	assert.Empty(t, declared.WithoutSchema(), "a started plugin that declared no module was named")
+	assert.Nil(t, declared.Unchecked("ze.conf"))
+	_, parseErr := NewParser(schema).Parse(text)
+	require.Error(t, parseErr)
+	assert.Equal(t, parseErr, declared.Explain(parseErr), "the refusal was explained by a plugin that defines no section")
+	refusal := declared.ParseRefusal("ze.conf", parseErr, "the command did nothing")
+	assert.NotEqual(t, "restart ze", refusal.Fix())
+	assert.NotContains(t, refusal.Error(), `external plugin "observer"`)
+}
+
+// TestDeclaredSchemasNamesThePluginsThatCouldExplain: the record narrows the
+// list to the plugins a restart could bring a schema from. Method: one daemon
+// that started three plugins, one for each outcome, and a config that
+// declares them, a fourth the daemon never started, and the schema-less one
+// under another run line.
+//
+// VALIDATES: named are the plugin the daemon did not start, the one that gave
+// no declaration, and the schema-less one when its declaration is not the one
+// the daemon started with; not named are the schema-less one as started and
+// the one whose module the daemon holds.
+// PREVENTS: the record hiding a plugin whose declaration the config changed,
+// which a restart would run and which may then declare a schema.
+func TestDeclaredSchemasNamesThePluginsThatCouldExplain(t *testing.T) {
+	startedDaemon(t,
+		StartedPlugin{Declaration: declarationOf(t, "observer", "./observer"), Schema: SchemaNone},
+		StartedPlugin{Declaration: declarationOf(t, "silent", "./silent"), Schema: SchemaUnread},
+	)
+
+	_, declared, err := SchemaWithDeclaredPlugins(
+		ConfigSource{Text: configDeclaring("observer", "./observer", ""), Path: "observer.conf"},
+		ConfigSource{Text: configDeclaring("silent", "./silent", ""), Path: "silent.conf"},
+		ConfigSource{Text: configDeclaring("late", "./late", ""), Path: "late.conf"},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"silent", "late"}, declared.WithoutSchema())
+
+	otherRun := configDeclaring("observer", "./observer --with-schema", "")
+	_, declared, err = SchemaWithDeclaredPlugins(ConfigSource{Text: otherRun, Path: "ze.conf"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"observer"}, declared.WithoutSchema(),
+		"a declaration the daemon did not start with was taken for the started plugin")
+}
+
+// TestDeclaredSchemasWithoutARecordNamesEveryPlugin: a process that recorded
+// no started plugin cannot tell which declared plugin defines a section.
+// Method: a process whose set is fixed and that recorded nothing.
+//
+// VALIDATES: with no record every declared plugin the process holds no module
+// of is named, as before the record existed.
+// PREVENTS: an absent record read as "every plugin declared no module".
+func TestDeclaredSchemasWithoutARecordNamesEveryPlugin(t *testing.T) {
+	startedDaemon(t)
+
+	text := configDeclaring("observer", "./observer", "")
+	_, declared, err := SchemaWithDeclaredPlugins(ConfigSource{Text: text, Path: "ze.conf"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"observer"}, declared.WithoutSchema())
 }

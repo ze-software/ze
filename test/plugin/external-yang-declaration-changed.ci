@@ -1,0 +1,71 @@
+# Test: a restarted external plugin that declares a different module is failed, and doctor says so
+#
+# Question: when a running external plugin exits, is started again, and its
+# second start declares a module whose text differs from the one the daemon
+# published at boot, is that plugin failed at Stage 1 with the restart of ze as
+# the fix, reported by `show doctor`, while the daemon keeps running?
+# Why not a unit test: TestStage1RefusesChangedDeclaration proves the
+# comparison. This proves a real second process, started by the daemon's own
+# restart policy, meets it, and that the finding reaches doctor.
+#
+# The fixture's redeclare variant declares the valid module on its first
+# start, exits once the daemon is ready, and declares the same module with one
+# more leaf on every later start (externalYANGVariants,
+# internal/test/fixture/plugin_fixture_external_yang.go). It declares failure
+# policy restart, so the daemon starts it again with no operator action.
+#
+# The client takes its credentials from the environment, as
+# test/plugin/doctor-plugin-stopped.ci does and explains.
+#
+# VALIDATES: AC-7 of spec-plugin-external-yang-at-startup, and the
+#   doctor-plugin-schema-changed code of AC-14.
+# PREVENTS: a restarted plugin changing the schema under a running daemon, or
+#   being accepted with a module no reader ever compiled.
+
+option=timeout:value=60s
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang redeclare"
+		encoder json
+	}
+}
+
+acme-monitor {
+	target probe-a
+	interval 5
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+expect=stderr:contains=FIXTURE: external-yang generation 1 is exiting
+reject=stderr:contains=FIXTURE: external-yang generation 2 ready
+
+# The wait is on the daemon's own answer: the warning the refused second start
+# raises. It retries a refused connection, so it also holds the SSH listener.
+cmd=foreground:seq=2:exec=le test fixture daemon/await-answer doctor-plugin-schema-changed "show warnings | json":exit=0
+
+cmd=foreground:seq=3:exec=ze cli -c "show doctor | json":exit=0
+expect=stdout:contains="code": "doctor-plugin-schema-changed"
+expect=stdout:contains=acme-monitor
+expect=stdout:pattern="fix": "[^"]*restart

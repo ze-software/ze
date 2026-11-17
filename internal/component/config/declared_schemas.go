@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -50,6 +51,35 @@ type DaemonUnanswered struct {
 	Rerun bool
 }
 
+// SchemaOutcome is what a daemon learned of the config schema of one external
+// plugin when it started the plugin, before it parsed the config. The zero
+// value is invalid.
+type SchemaOutcome uint8
+
+const (
+	SchemaOutcomeUnspecified SchemaOutcome = iota
+	// SchemaDeclared: the plugin declared a YANG module, and the module set
+	// the daemon published holds it.
+	SchemaDeclared
+	// SchemaNone: the plugin sent its declaration, and the declaration
+	// carries no YANG module. The plugin defines no config section, so no
+	// name a parse refuses is explained by it.
+	SchemaNone
+	// SchemaUnread: the plugin gave the daemon no declaration before the
+	// config was parsed (it could not be run, it stalled, or it ended), so
+	// the daemon does not know whether it defines a config section.
+	SchemaUnread
+)
+
+// StartedPlugin is one external plugin a daemon started at boot, and what it
+// learned of the plugin's config schema then.
+type StartedPlugin struct {
+	// Declaration is the plugin's declaration as FirstPass answered it, with
+	// no work directory: a config read later is compared with it whole.
+	Declaration plugin.PluginConfig
+	Schema      SchemaOutcome
+}
+
 // DeclaredSchemas is what SchemaWithDeclaredPlugins learned about the external
 // plugins its configs declare. The zero value holds no plugin. Its fields are
 // never written after construction.
@@ -58,8 +88,11 @@ type DeclaredSchemas struct {
 	// asked one before it parsed here. It is nil for a command that asked
 	// none.
 	unanswered *DaemonUnanswered
-	// plugins holds the name of each declared external plugin this process
-	// holds no config schema of, each once, in source then config order.
+	// plugins holds the name of each declared external plugin that could
+	// define a name this process's schema does not hold, each once, in
+	// source then config order: a plugin this process holds no config schema
+	// of, less the ones the daemon started with that declaration and that
+	// declared no module (RecordStartedPlugins).
 	plugins []string
 	// offline is true in a process whose module set this file fixed to the
 	// compiled-in one: a command that runs with no daemon. It is false in a
@@ -77,8 +110,11 @@ type DeclaredSchemas struct {
 // holds no schema of them: the message says which plugins the config declares
 // and never that one of them owns the name.
 
-// WithoutSchema answers the name of each declared external plugin this
-// process holds no config schema of, each once, in source then config order.
+// WithoutSchema answers the name of each declared external plugin that could
+// define a name this process's schema does not hold, each once, in source
+// then config order. A plugin this process holds the module of is absent, and
+// so is one the daemon started with the same declaration that declared no
+// module: neither can explain a refused name.
 func (d *DeclaredSchemas) WithoutSchema() []string {
 	return slices.Clone(d.plugins)
 }
@@ -269,6 +305,47 @@ var declaredStep struct {
 	// fixedHere is true once this file fixed the process's module set to the
 	// compiled-in one, which only a process with no daemon in it lets it do.
 	fixedHere bool
+	// started is the external plugins the daemon in this process started at
+	// boot, with what each declared (RecordStartedPlugins). It is nil in a
+	// process that booted no daemon, and in a daemon that started none.
+	started []StartedPlugin
+}
+
+// RecordStartedPlugins records the external plugins a daemon started at boot
+// and what it learned of each one's config schema. The step reads the record
+// when it names the plugins that could explain a refused name: a plugin the
+// daemon started with the declaration a config holds, and that declared no
+// module, defines no config section, so it is not named beside a name the
+// schema does not define. Without the record every declared plugin the
+// process holds no module of is named.
+//
+// The daemon calls it once, at boot, after it published the modules its
+// plugins declared and before it serves a command (cmd/ze/hub runYANGConfig).
+// Each entry MUST carry a specified outcome. Safe for concurrent use.
+func RecordStartedPlugins(started []StartedPlugin) {
+	for _, entry := range started {
+		if entry.Schema == SchemaOutcomeUnspecified {
+			panic("BUG: a started plugin was recorded with no schema outcome: " + entry.Declaration.Name)
+		}
+	}
+	declaredStep.mu.Lock()
+	defer declaredStep.mu.Unlock()
+	declaredStep.started = slices.Clone(started)
+}
+
+// startedWithoutSchemaLocked reports whether the daemon started external,
+// with this exact declaration, and the plugin declared no module. A plugin
+// declared with another run line or another leaf is not the plugin the daemon
+// started: a restart with that declaration can bring a schema.
+// The caller MUST hold declaredStep.mu.
+func startedWithoutSchemaLocked(external plugin.PluginConfig) bool {
+	for _, entry := range declaredStep.started {
+		if entry.Declaration != external {
+			continue
+		}
+		return entry.Schema == SchemaNone
+	}
+	return false
 }
 
 // SchemaWithDeclaredPlugins answers the schema a command parses sources
@@ -293,7 +370,8 @@ var declaredStep struct {
 // daemon first, for a command that asked none, and the fix of the failed ask
 // for one that did (Unanswered). Inside a daemon the same section parses when the
 // daemon started with the plugin, and is refused naming the restart when it
-// did not.
+// did not. A plugin the daemon started that declared no module is never named
+// there: it defines no section (RecordStartedPlugins).
 //
 // A source the first pass refuses declares nothing here: the caller's full
 // parse refuses the same `plugin` or `environment` block with the message it
@@ -328,7 +406,7 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 	if len(sources) == 1 {
 		declared.path = sources[0].Path
 	}
-	names := declaredExternalPlugins(sources)
+	externals := declaredExternalPlugins(sources)
 
 	declaredStep.mu.Lock()
 	defer declaredStep.mu.Unlock()
@@ -344,20 +422,23 @@ func publishDeclaredSchemas(sources []ConfigSource) (*DeclaredSchemas, error) {
 	declared.offline = declaredStep.fixedHere
 
 	published, _ := yang.PublishedExternalModules()
-	for _, name := range names {
-		ofPlugin := func(module yang.ExternalModule) bool { return module.Plugin == name }
+	for _, external := range externals {
+		ofPlugin := func(module yang.ExternalModule) bool { return module.Plugin == external.Name }
 		if slices.ContainsFunc(published, ofPlugin) {
 			continue
 		}
-		declared.plugins = append(declared.plugins, name)
+		if startedWithoutSchemaLocked(external) {
+			continue
+		}
+		declared.plugins = append(declared.plugins, external.Name)
 	}
 	return declared, nil
 }
 
-// declaredExternalPlugins answers the name of each external plugin sources
-// declare, each once, in source then config order.
-func declaredExternalPlugins(sources []ConfigSource) []string {
-	var names []string
+// declaredExternalPlugins answers each external plugin sources declare, as
+// the first pass answers it, each name once, in source then config order.
+func declaredExternalPlugins(sources []ConfigSource) []plugin.PluginConfig {
+	var externals []plugin.PluginConfig
 	for _, source := range sources {
 		firstPass, err := FirstPass(source.Text, source.Path, nil)
 		if err != nil {
@@ -365,18 +446,20 @@ func declaredExternalPlugins(sources []ConfigSource) []string {
 			continue
 		}
 		for _, external := range firstPass.External {
-			if slices.Contains(names, external.Name) {
+			sameName := func(held plugin.PluginConfig) bool { return held.Name == external.Name }
+			if slices.ContainsFunc(externals, sameName) {
 				continue
 			}
-			names = append(names, external.Name)
+			externals = append(externals, external)
 		}
 	}
-	return names
+	return externals
 }
 
 // ResetDeclaredSchemasForTest puts the process back to one that has published
-// no module set (yang.ResetPublishedModulesForTest) and that this file fixed
-// nothing in, and returns the function that restores what it found. A test
+// no module set (yang.ResetPublishedModulesForTest), that this file fixed
+// nothing in and that recorded no started plugin, and returns the function
+// that restores what it found. A test
 // that calls SchemaWithDeclaredPlugins, or an entry that does, with a config
 // that declares an external plugin calls it first.
 // MUST be paired with the returned restore, typically through t.Cleanup. Not
@@ -386,11 +469,14 @@ func ResetDeclaredSchemasForTest() (restore func()) {
 	restorePublished := yang.ResetPublishedModulesForTest()
 	declaredStep.mu.Lock()
 	saved := declaredStep.fixedHere
+	savedStarted := declaredStep.started
 	declaredStep.fixedHere = false
+	declaredStep.started = nil
 	declaredStep.mu.Unlock()
 	return func() {
 		declaredStep.mu.Lock()
 		declaredStep.fixedHere = saved
+		declaredStep.started = savedStarted
 		declaredStep.mu.Unlock()
 		restorePublished()
 	}

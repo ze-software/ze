@@ -38,6 +38,7 @@ const (
 	CodeDoctorPluginStderrRelayStopped      = "doctor-plugin-stderr-relay-stopped"
 	CodeDoctorPluginRestartOverlap          = "doctor-plugin-restart-overlap"
 	CodeDoctorPluginStopUnfinished          = "doctor-plugin-stop-unfinished"
+	CodeDoctorPluginSchemaChanged           = "doctor-plugin-schema-changed"
 	CodeDoctorPluginEnricherUnavailable     = "doctor-plugin-enricher-unavailable"
 	CodeDoctorPluginConnectBackRefused      = "doctor-plugin-connect-back-refused"
 	CodeDoctorManagedListenerUnbound        = "doctor-managed-listener-unbound"
@@ -262,6 +263,15 @@ var pluginInfraCodes = []CodeMeta{
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-plugin-stop-unfinished"},
 	},
 	{
+		Code:  CodeDoctorPluginSchemaChanged,
+		Title: "Restarted plugin declared another config schema",
+		Description: "ze reads the config schema (the YANG module) of an external plugin once, when ze starts, joins it to the schema of the whole configuration, and every reader of the configuration keeps that schema. " +
+			"This plugin was started again while ze ran, after it ended or by `request plugin restart`, and its new declaration carries another schema: another module text, name or namespace, a module where it declared none, or none where it declared one. " +
+			"ze refused the plugin at its first startup stage and does not run it. The running configuration, the schema ze holds and every other plugin are unchanged. " +
+			"The warning says what differs. Restart ze to load the new schema, or put back the program that declares the schema ze started with and restart the plugin.",
+		Examples: []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-plugin-schema-changed"},
+	},
+	{
 		Code:  CodeDoctorPluginEnricherUnavailable,
 		Title: "Show command answers without a plugin's fields",
 		Description: "A plugin's enricher, which adds the plugin's fields to a show command's answer, failed to register or failed when it was called, " +
@@ -337,7 +347,8 @@ var pluginInfraCodes = []CodeMeta{
 		Code:  CodeDoctorConfigReloadRefused,
 		Title: "Configuration reload refused",
 		Description: "The daemon refused a configuration reload: the configuration transaction did not commit (a plugin refused the change or did not answer its verify or apply step), " +
-			"a plugin the new configuration needs could not be resolved or did not start, or the daemon refused the configuration once those plugins had started. " +
+			"a plugin the new configuration needs could not be resolved or did not start, the daemon refused the configuration once those plugins had started, " +
+			"or the new configuration declares other external plugins than the ones the daemon started with, which change only when ze restarts. " +
 			"The daemon stops the plugins the reload started and keeps the configuration it was running; an event raised while it restored that configuration says the restore did not complete. " +
 			"The event says what refused the change and why: correct the configuration and reload again.",
 		Examples:     []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-config-reload-refused"},

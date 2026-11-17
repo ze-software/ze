@@ -18,6 +18,21 @@ receiving the answer. A module that does not compile, or that clashes with a
 module Ze holds, refuses the start and names the plugin. A plugin and its
 module change only when `ze` restarts.
 
+Ze enforces that rule while it runs:
+
+- A reload whose config adds or removes an external plugin, or changes the
+  `run`, `encoder`, `respawn` or `timeout` of one, is refused whole. The
+  message names each plugin and what changed, and its fix is `restart ze`.
+  The rest of the config reloads without a restart, your own section
+  included.
+- When Ze starts your plugin again (it ended and declared `failure-policy
+  restart`, or the operator ran `request plugin restart <name>`), the plugin
+  MUST declare the same module: the same name, namespace and text, or none if
+  it declared none. Another schema refuses the plugin at Stage 1. Ze does not
+  run it, keeps the config under its root, and raises the warning
+  `doctor-plugin-schema-changed`, which `ze show doctor` reports with what
+  differs. To ship a new schema, install the new program and restart `ze`.
+
 A plugin that cannot be run, or that sends no declaration within its stage
 timeout, declares nothing: a config section only its module defines is then
 refused as `unknown top-level keyword: <root>`, and the refusal names the
