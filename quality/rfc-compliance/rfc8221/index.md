@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 16 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 30 | 30 of 32 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 32 | 32 of 32 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: ESP and AH algorithm requirements: sixteen MUST-le
 
 **Area:** ESP algorithms
 
-**Test verification:** 15 of 16 MUST proven
+**Test verification:** 16 of 16 MUST proven
 
-**Evidence:** unit 15
+**Evidence:** unit 16
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: ESP and AH algorithm requirements: sixteen MUST-le
 
 ## Figures
 
-- **MUST bar**: Ze verified 15, Tests awaiting verification 1
-- **Overview bar**: Ze MUST verified 15, Tests awaiting verification 1, Not assessed 3
+- **MUST bar**: Ze verified 16
+- **Overview bar**: Ze MUST verified 16, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 16 |
-| Ze verified | 15 |
+| Ze verified | 16 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -210,8 +210,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L100) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L69) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L100) | unit/verify | revert, verified |
+| positive | [`TestRFC8221ESPMandatoryCiphersInstall`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc8221_esp_install_linux_test.go#L69) | unit/verify | revert, verified |
 
 ### [`RFC8221-5-2`](#rfc8221-5-2)
 

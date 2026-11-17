@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 234 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 234 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 234 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 296 | 296 of 761 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 298 | 298 of 761 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -1060,9 +1060,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7296ESPInUDPStateRefusesSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7296ESPInUDPStateRefusesSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go#L54) | unit/verify | revert, verified |
 | negative | [`TestNonESPMarkerESPPacket`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L112) | unit/verify | revert, verified |
-| positive | [`TestRFC7296ESPInUDPStateHasESPRightAfterUDP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go#L24) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7296ESPInUDPStateHasESPRightAfterUDP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestNonESPMarker`](https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L83) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.23-13`](#rfc7296-2.23-13)

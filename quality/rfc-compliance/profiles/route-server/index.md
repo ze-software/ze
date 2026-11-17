@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 
 ## Figures
 
-- **MUST bar**: Ze verified 247, Tests awaiting verification 76, Not assessed 16, Not built 55
-- **Overview bar**: Ze MUST verified 247, SHOULD verified 17, Not owed 3, Tests awaiting verification 80, Not assessed 214, Not built 57
+- **MUST bar**: Ze verified 251, Tests awaiting verification 74, Not assessed 16, Not built 53
+- **Overview bar**: Ze MUST verified 251, SHOULD verified 17, Not owed 3, Tests awaiting verification 78, Not assessed 214, Not built 55
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/route-server.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 397 |
 | MUST rows kept (the MUST bar) | 394 |
-| Ze verified | 247 |
+| Ze verified | 251 |
 | OS verified | 0 |
-| Tests awaiting verification | 76 |
+| Tests awaiting verification | 74 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 16 |
-| Not built | 55 |
+| Not built | 53 |
 | MUST rows not owed | 3 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 87, Tests awaiting verification 31, Not built 15 | Ze MUST verified 87, SHOULD verified 3, Tests awaiting verification 32, Not assessed 30, Not built 15 | route-server: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 91, Tests awaiting verification 29, Not built 13 | Ze MUST verified 91, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 13 | route-server: required by rfc/short/rfc4271.md |
 | [RFC 9582](../../rfc9582/) | A Profile for Route Origin Authorizations (ROAs) | Not assessed 16 | Not assessed 22 | route-server: required by rfc/short/rfc9582.md |
 
 ### Level 4

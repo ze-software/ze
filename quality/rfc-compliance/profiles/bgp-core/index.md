@@ -12,8 +12,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 
 ## Figures
 
-- **MUST bar**: Ze verified 240, Tests awaiting verification 76, Not built 31
-- **Overview bar**: Ze MUST verified 240, SHOULD verified 8, Not owed 1, Tests awaiting verification 78, Not assessed 104, Not built 31
+- **MUST bar**: Ze verified 244, Tests awaiting verification 74, Not built 29
+- **Overview bar**: Ze MUST verified 244, SHOULD verified 8, Not owed 1, Tests awaiting verification 76, Not assessed 104, Not built 29
 
 | Figure | Rows |
 |---|---|
@@ -22,13 +22,13 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 | Mandatory requirements complete | not complete |
 | MUST rows | 348 |
 | MUST rows kept (the MUST bar) | 347 |
-| Ze verified | 240 |
+| Ze verified | 244 |
 | OS verified | 0 |
-| Tests awaiting verification | 76 |
+| Tests awaiting verification | 74 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 31 |
+| Not built | 29 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -56,7 +56,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 87, Tests awaiting verification 31, Not built 15 | Ze MUST verified 87, SHOULD verified 3, Tests awaiting verification 32, Not assessed 30, Not built 15 |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 91, Tests awaiting verification 29, Not built 13 | Ze MUST verified 91, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 13 |
 
 ### Level 4
 

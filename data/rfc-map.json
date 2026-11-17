@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "040f29d4f298812ad91aabc4636c079b6d197916e5f54cc2aa3c956f63455a48"
+      "sha256": "3a52c9c74c4dd293bfb80e812c3387987b2499bffc4e88470b9b423d0c373247"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "766e82ca8a59e488c141c242056b6ea1eec8540ffe5fb2c35289df734e13a5f6",
-      "revision": "df1fad948ab7070fec1546ce0cfc8f5b0a4c1db8"
+      "sha256": "efc8526d66e15d5b6c8511f9daeb8ca1e1422d87224a36377b58f2af295729ff",
+      "revision": "4f1ed0223dec283018b995bc9a6bfca6c484df0f"
     },
     {
       "label": "Proposed release layers",
@@ -27951,11 +27951,7 @@
         "level": "MUST",
         "gated": true,
         "text": "The next hop for each of these routes MUST be resolvable via the local BGP speaker's Routing Table. (§3.2)",
-        "section": "3.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "the BGP Loc-RIB install performs no reachability check on the route's next hop. mirrorToLocRIB inserts the winning path with whatever next-hop address the attribute carried (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830), and the candidate gather step filters only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057). Resolvability is enforced downstream at FIB-install time, which removes the route from the routing table but leaves it in the Loc-RIB"
-        }
+        "section": "3.2"
       },
       {
         "rid": "RFC4271-5.1.2-2",
@@ -28062,14 +28058,7 @@
         "level": "MUST",
         "gated": true,
         "text": "If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2)",
-        "section": "9.1.2",
-        "annotation": {
-          "kind": "partial",
-          "reason": "tested \"the BGP route MUST be excluded from the Phase 2 decision function\"; gap \"if the route was installed in the routing table\"; internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved excludes unresolved and prospectively self-dependent candidates before ranking. Seven in-process units exercise real ordinary/prospective Loc-RIB resolution and preserve zero-cost, independently recursive, longer-prefix and same-prefix connected controls. Promoted internal and forked daemon tests now prove real BGP ingress, exclusion of a currently unresolved higher-LOCAL_PREF path, reachable zero-cost and direct controls, and Linux kernel installation with native producer-break records. The remaining gap is prospective self-dependency at the live daemon/forked selecting-RIB and installed-routing-table boundary: those carriers never install a candidate whose own prospective election would capture an otherwise currently resolvable next-hop chain. The prospective algorithm is implemented and unit-tested; the whole row retains zero credit until that live condition is proven",
-          "tested": "the BGP route MUST be excluded from the Phase 2 decision function",
-          "gap": "if the route was installed in the routing table",
-          "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved"
-        }
+        "section": "9.1.2"
       },
       {
         "rid": "RFC4271-9.1.2-2",
@@ -80607,5 +80596,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "df1fad948ab7070fec1546ce0cfc8f5b0a4c1db8"
+  "roadmap-revision": "4f1ed0223dec283018b995bc9a6bfca6c484df0f"
 }

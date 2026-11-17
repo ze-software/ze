@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 36 | of 91 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 1 | of 91 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 91 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 150 | 150 of 156 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 149 | 149 of 156 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -23,7 +23,7 @@ what Ze owes
 |---|---:|---|---|
 | Partial test coverage | 3 | of 91 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 51 | of 91 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 39 | of 91 mandatory requirements reviewed | 11 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 39 | of 91 mandatory requirements reviewed | 11 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -870,14 +870,14 @@ No test carries RFC7950-8.1-4, so there is no linked test.
 
 The running configuration datastore MUST always be valid. (Section 8.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: "The running configuration datastore MUST always be valid." The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadInstallsAValidConfig, cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadRefusesAConstraintViolation moved. Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: "The running configuration datastore MUST always be valid." The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7950ReloadRefusesAConstraintViolation`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L94) | unit/verify | revert, verified |
 | negative | [`TestRFC7950WebCommitRefusesAConstraintViolation`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_web_commit_validation_test.go#L82) | unit/verify | revert, verified |
 | negative | [`TestRFC7950RunningDatastoreRefusesAViolationAfterParse`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L77) | unit/verify | revert, verified |
-| positive | [`TestRFC7950ReloadInstallsAValidConfig`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestRFC7950ReloadInstallsAValidConfig`](https://github.com/ze-software/ze/blob/main/cmd/ze/hub/rfc7950_reload_validation_test.go#L76) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7950RunningDatastoreAcceptsAValidConfig`](https://github.com/ze-software/ze/blob/main/internal/component/config/rfc7950_datastore_test.go#L33) | unit/verify | revert, verified |
 
 ### [`RFC7950-8.3-1`](#rfc7950-8.3-1)

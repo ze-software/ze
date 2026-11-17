@@ -555,7 +555,13 @@ show warnings source bgp
 <td><code>doctor-config-reload-refused</code></td>
 <td>plugin-server</td>
 <td>error</td>
-<td>A configuration reload was refused: its transaction did not commit (a plugin refused the change or did not answer), or the plugins the new configuration needs could not be resolved or did not start. ze keeps the configuration it was running; an event raised while ze restored that configuration says the restore did not complete. The fix is the refusal's own command when it names one (a plugin dependency this build does not carry), else <code>ze show errors</code></td>
+<td>A configuration reload was refused: its transaction did not commit (a plugin refused the change or did not answer), the plugins the new configuration needs could not be resolved or did not start, or the new configuration declares other external plugins than the ones ze started with (one added, removed or changed), which change only when ze restarts. ze keeps the configuration it was running; an event raised while ze restored that configuration says the restore did not complete. The fix is the refusal's own command when it names one (a plugin dependency this build does not carry, <code>restart ze</code> for changed external plugins), else <code>ze show errors</code></td>
+</tr>
+<tr>
+<td><code>doctor-plugin-schema-changed</code></td>
+<td>plugin-server</td>
+<td>warning</td>
+<td>An external plugin was started again while ze ran (it ended, or the operator ran <code>request plugin restart</code>) and declared another config schema than the one ze read from it at start: another module text, name or namespace, a module where it declared none, or none where it declared one. ze refused the plugin at its first startup stage and does not run it; the running configuration, the schema ze holds and every other plugin are unchanged. The message says what differs. The fix is <code>restart ze</code>, which loads the new schema; a later start of the plugin with the schema ze started with clears the warning</td>
 </tr>
 <tr>
 <td><code>iface-errors</code></td>
@@ -719,7 +725,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:35 UTC</span>
                 </div>
             </div>
         </footer>

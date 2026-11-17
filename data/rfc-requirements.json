@@ -99828,15 +99828,15 @@
       "coverage": {
         "requirements": 167,
         "gated": 133,
-        "both": 116,
+        "both": 118,
         "one": 0,
-        "annotated": 17,
-        "partial": 4,
-        "partial-rows": 4,
+        "annotated": 15,
+        "partial": 3,
+        "partial-rows": 3,
         "missing": 0,
         "nightly-only": 0,
-        "gaps": 11,
-        "gated-gaps": 11,
+        "gaps": 10,
+        "gated-gaps": 10,
         "demonstrated-gaps": 0,
         "annotated-never-bound": 0,
         "excused-one-polarity": 2,
@@ -99846,10 +99846,10 @@
         "derived-from-other-rows": 0,
         "tags": 518,
         "units": 518,
-        "audited": 102,
+        "audited": 103,
         "discrimination-records": 330,
         "escapes": 0,
-        "stale-records": 34
+        "stale-records": 29
       },
       "requirements": [
         {
@@ -105632,12 +105632,8 @@
           "gated": true,
           "positive-test": "`test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel.ci` (functional/verify)",
           "negative-test": "`test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel.ci` (functional/verify)",
-          "note": "{gap} the BGP Loc-RIB install performs no reachability check on the route's next hop. mirrorToLocRIB inserts the winning path with whatever next-hop address the attribute carried (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830), and the candidate gather step filters only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057). Resolvability is enforced downstream at FIB-install time, which removes the route from the routing table but leaves it in the Loc-RIB",
+          "note": "",
           "nightly-only": false,
-          "annotation": {
-            "kind": "gap",
-            "reason": "the BGP Loc-RIB install performs no reachability check on the route's next hop. mirrorToLocRIB inserts the winning path with whatever next-hop address the attribute carried (internal/component/bgp/plugins/rib/rib_bestchange.go:797-830), and the candidate gather step filters only on SRv6 ineligibility (internal/component/bgp/plugins/rib/rib_commands.go:1039-1057). Resolvability is enforced downstream at FIB-install time, which removes the route from the routing table but leaves it in the Loc-RIB"
-          },
           "covers": [
             {
               "polarity": "negative",
@@ -105741,7 +105737,13 @@
                 "proves": true
               }
             }
-          ]
+          ],
+          "audit": {
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "RFC 4271 Section 3.2 requires every Loc-RIB route's next hop to be resolvable through the local Routing Table. Independently read the six tagged CI covers, both real TCP ingress scenarios, their selection/Loc-RIB/kernel observers and the actual admission-to-installation producers. The ordinary internal and forked carriers prove that an unresolved higher-LOCAL_PREF input cannot displace a resolved zero-cost alternate, that loss of both covers removes the retained subject from BGP best, Loc-RIB and every Linux routing table, and that a direct BGP control survives. Restoration uses retained input without another UPDATE. The prospective carriers first install three genuine BGP seeds, establish ordinary resolution of each replacement's next hop, then require withdrawal and absence of the direct and indirectly self-capturing subjects while preserving exact received attributes. The longer interior host route independently resolves the protected replacement, which must remain selected and installed alongside the direct control. Both prospective carriers completed 80 distinct passing runs with all 1120 verification steps each. Read all six accepted 3.1-2 clean/fault receipts and the current native freshness report: all six covers are fresh, with no stale or unproven cover. The ordinary admission-bypass faults fail the initial subject election at 150/24 via unresolved 10.250.1.1; the current-only prospective faults fail the first direct 152/24 forbidden best publication; the over-rejecting containment faults lose protected 154/24 while 151/24 remains visible. The early best-publication failures also violate this Loc-RIB requirement by source coupling: checkRouteBestChange mirrors the selected path before its caller publishes the best change; internal insertion is synchronous, and forked insertion flushes RouteInstall through applyRouteInstall into engine Loc-RIB before returning. With the actual default import configuration, Path.Valid and admit do not add a reachability gate, and upsert retains the selected BGP contribution. FIB rejection cannot repair that Loc-RIB admission. The forked diagnostics show downstream unreachable-route installation before the intended observer failure; route-remove/connection warnings follow failure during shutdown and are not substituted for the semantic failure. This inference is bounded to successful ordinary installation transport and the tested default configuration, not arbitrary RPC failure or rejecting import policy. No direct later Loc-RIB/kernel assertion failure, separately broken indirect case, or separately broken loss/restoration outcome is claimed: fatal primary assertions stop those broken runs. The clean lifecycle assertions and exact protected/direct controls remain mandatory. The bound helper and coupling inventory prevents a later observer, ordering or admission change from retaining this assurance unnoticed.",
+            "freshness": "fresh"
+          }
         },
         {
           "rid": "RFC4271-5.1.2-2",
@@ -106179,12 +106181,11 @@
               "claim": "-- an import policy that alters a MULTI_EXIT_DISC received over EBGP (100 to 10) has its altered value in the UPDATE the reactor dispatches to the RIB plugin, raw bytes and wire view alike, so the decision process is handed 10 and never 100.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
-                "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiverFrom",
-                "break": "body of Reactor.notifyMessageReceiverFrom replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/filter_delta_handlers.go::genericAttrSetHandler",
+                "break": "line 66: \"p.Op(setIdx)\" -\u003e \"if code == 4 { keepOrDrop(p); return }; p.Op(setIdx) /* MUTATION-APPLIED: preserve received MED */\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -106794,17 +106795,10 @@
           "section": "9.1.2",
           "text": "If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2)",
           "gated": true,
-          "positive-test": "scoped evidence: `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271UnresolvedNextHopCannotWinOnLocalPref` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271OnlyUnresolvedNextHopIsNotInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271RecursiveNextHopLoopIsNotInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271NextHopCannotDependOnItsProspectiveRoute` (unit/verify), `test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel.ci` (functional/verify)",
-          "negative-test": "scoped evidence: `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271ReachableZeroCostNextHopIsInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271IndependentRecursiveNextHopIsInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271SamePrefixConnectedNextHopRemainsUsable` (unit/verify), `test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel.ci` (functional/verify)",
-          "note": "**audit: partial, stale-unit** {partial} tested \"the BGP route MUST be excluded from the Phase 2 decision function\"; gap \"if the route was installed in the routing table\"; internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved excludes unresolved and prospectively self-dependent candidates before ranking. Seven in-process units exercise real ordinary/prospective Loc-RIB resolution and preserve zero-cost, independently recursive, longer-prefix and same-prefix connected controls. Promoted internal and forked daemon tests now prove real BGP ingress, exclusion of a currently unresolved higher-LOCAL_PREF path, reachable zero-cost and direct controls, and Linux kernel installation with native producer-break records. The remaining gap is prospective self-dependency at the live daemon/forked selecting-RIB and installed-routing-table boundary: those carriers never install a candidate whose own prospective election would capture an otherwise currently resolvable next-hop chain. The prospective algorithm is implemented and unit-tested; the whole row retains zero credit until that live condition is proven Parent quote: If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: stale-unit",
+          "positive-test": "`internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271UnresolvedNextHopCannotWinOnLocalPref` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271OnlyUnresolvedNextHopIsNotInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271RecursiveNextHopLoopIsNotInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271NextHopCannotDependOnItsProspectiveRoute` (unit/verify), `test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel.ci` (functional/verify)",
+          "negative-test": "`internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271ReachableZeroCostNextHopIsInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271IndependentRecursiveNextHopIsInstalled` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271SamePrefixConnectedNextHopRemainsUsable` (unit/verify), `test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-prospective-next-hop-kernel.ci` (functional/verify)",
+          "note": "",
           "nightly-only": false,
-          "annotation": {
-            "kind": "partial",
-            "reason": "tested \"the BGP route MUST be excluded from the Phase 2 decision function\"; gap \"if the route was installed in the routing table\"; internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved excludes unresolved and prospectively self-dependent candidates before ranking. Seven in-process units exercise real ordinary/prospective Loc-RIB resolution and preserve zero-cost, independently recursive, longer-prefix and same-prefix connected controls. Promoted internal and forked daemon tests now prove real BGP ingress, exclusion of a currently unresolved higher-LOCAL_PREF path, reachable zero-cost and direct controls, and Linux kernel installation with native producer-break records. The remaining gap is prospective self-dependency at the live daemon/forked selecting-RIB and installed-routing-table boundary: those carriers never install a candidate whose own prospective election would capture an otherwise currently resolvable next-hop chain. The prospective algorithm is implemented and unit-tested; the whole row retains zero credit until that live condition is proven",
-            "tested": "the BGP route MUST be excluded from the Phase 2 decision function",
-            "gap": "if the route was installed in the routing table",
-            "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved"
-          },
           "covers": [
             {
               "polarity": "negative",
@@ -107063,13 +107057,11 @@
             }
           ],
           "audit": {
-            "verdict": "partial",
-            "meaning": "the tests enforce only the declared tested scope; the whole requirement remains unmet",
-            "note": "RFC 4271 Section 9.1.2 states: If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. Tested is \"the BGP route MUST be excluded from the Phase 2 decision function\"; Gap is \"if the route was installed in the routing table\"; Producer is internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved. Independently re-read all seven admission units, both promoted Linux carriers, their actual BGP socket/SDK/query fixture, and the admission, ordinary/prospective resolution, selection and mirroring producers. The unit tests isolate higher-LOCAL_PREF unresolved admission, a lone unresolved route, static self/mutual recursion, a currently reachable candidate made recursively dependent by its proposed installation, resolved zero cost, terminating independent recursion, longer-prefix protection and a same-prefix connected winner. Their received paths, ordinary resolver controls and selected BGP contributions remain explicit. The longer-prefix negative record discriminates that branch, not separately recursive-static acceptance. Both daemon placements now receive the three actual wire inputs and prove a currently unresolved higher-LOCAL_PREF subject cannot displace the reachable zero-cost alternate in BGP best, Loc-RIB or Linux, while a direct BGP control is installed. The internal and forked native admission cuts independently admit the unresolved preference or refuse legitimate zero cost, and each named red occurs at the initial subject election after a clean full lifecycle. Those live carriers never create a currently resolvable candidate whose prospective installation would capture its own direct or indirect resolution chain. The prospective algorithm is implemented and unit-tested; the remaining gap is that prospective condition at the live daemon/forked selecting-RIB and installed-routing-table boundary. These scenarios do not close that clause, and this row retains zero whole-requirement credit.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/bgp/plugins/rib/rib_commands.go::gatherPrefixCandidatesForLocked"
-            ]
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "RFC 4271 Section 9.1.2 requires exclusion from Phase 2 both when a next hop is currently unresolved and when installing the candidate would make it unresolved. Independently re-read all seven tagged admission roots and all four daemon carriers, their fixtures and the producing gather, ordinary/prospective resolution, selection and mirroring paths. The units use real received-path storage and Loc-RIB resolution to assert exclusion of an unresolved preference, a lone unresolved route, existing self/mutual recursion and prospective direct/indirect recursion. Genuine feasible controls assert exact admission of zero cost, terminating independent recursion, longer-prefix protection and a same-prefix connected winner. The old live carriers retain their complete real TCP ingress, BGP best, Loc-RIB and exact Linux installation/loss/recovery assertions, with reachable alternate and direct control. The new internal and forked carriers close the former live prospective gap: they install seeds, prove ordinary resolution before each replacement, retain exact wire attributes, reject direct and indirect self-capture, require absence from BGP best/Loc-RIB/every kernel table, and preserve the longer-host-route protected replacement and independent direct control. Authenticated process placement and real all-table kernel queries prevent an in-process surrogate or empty/error query from satisfying these assertions. Both prospective carriers completed 80 distinct passing runs and 1120 verification steps each. Read the four accepted new 9.1.2-1 clean/fault receipts and the current native freshness report retaining all eleven older records: all fifteen covers are fresh, with no stale or unproven cover. In each placement the current-only fault produces the exact forbidden direct 152/24 via 152.1 best publication; the containment fault loses protected 154/24 while the independent 151/24 direct control remains visible. These isolate prospective admission and over-rejection rather than transport failure. The live positive fault stops at the first direct case, so no separately observed indirect live RED or later broken Loc-RIB/kernel assertion is claimed. The negative fault stops at protected best selection before its later Loc-RIB/kernel checks. Clean executions still assert the complete direct/indirect and protected outcomes. Retained unit discrimination of longer-prefix protection does not separately discriminate the independent-recursive leaf; retained old live faults fail initial unresolved or zero-cost selection and do not separately break later restoration. Those limits do not erase the exact clean assertions. The complete bound fixture/helper and production inventory preserves the meaning of all fifteen covers. This is the full default forwarding-admission requirement; it does not remove the explicit source-owned non-forwarding Adj-RIB-Out recovery view or assert arbitrary RPC-failure behavior.",
+            "freshness": "fresh",
+            "upgrade-reason": "The earlier partial judgment correctly identified the missing live prospective condition. Two newly promoted and placement-verified daemon carriers now assert that condition and its feasible protected control, with four separately accepted semantic-break records and current native freshness for all fifteen covers. The old seven unit roots, eleven retained records and ordinary live assertions remain; the upgrade rests on new evidence rather than reinterpretation of their previous scope."
           }
         },
         {
@@ -107184,7 +107176,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/rib/rfc4271_igp_cost_reselect_test.go` `TestIGPCostChangeReselectsWithoutAIGP` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271NextHopLossReselectsAndRestorationRecovers` (unit/verify), `internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go` `TestRFC4271ImmediateNextHopChangeRepeatsSelection` (unit/verify), `test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/plugins/rib/rfc4271_next_hop_reselection_proof_test.go` `TestRFC4271ImmediateNextHopChangeRepeatsSelection` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -107197,11 +107189,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-                "break": "line 1039: \"NextHop:  nextHop,\" -\u003e \"NextHop:  netip.Addr{},\"",
-                "verified": false,
+                "break": "line 1110: \"NextHop:  nextHop,\" -\u003e \"NextHop:  netip.Addr{},\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -107294,13 +107285,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "RFC 4271 Section 9.1.2 states: If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. Independently re-read all six tagged occurrences and their real resolver, production subscriber, candidate extraction/selection and Loc-RIB mirroring producers. The immediate-hop unit drains initial and resulting no-op selection lookups, changes only the interior gateway at fixed metric 10, and requires candidate extraction to observe that new gateway while keeping the received BGP NEXT_HOP and no AIGP before and after. Its positive record disables next-hop change detection. Its negative native break corrupts received-NEXT_HOP mirroring and also fails initial preservation, so that red is not attributed solely to post-change reselection. The newly tagged cost-only unit keeps every existing test statement unchanged: two real Loc-RIB interior covers start at costs A10/B20, two stored iBGP paths have equal earlier ranking attributes and no AIGP, and the initially preferred A opposes later peer-address fallback. Changing only A's interior cost to 30 then 5 requires the mirrored selected route to move A to B and back to A, without another BGP input or a direct selector call. Its current native record preserves the initial production scan and omits only subscriber-driven repeated selection; clean passes, while the named mutated test fails specifically after A's cost rises to 30 because B never becomes selected. The existing retained-input loss/restoration unit and both internal/forked Linux daemon carriers additionally exercise selection changes on interior-cover availability without another UPDATE, with real ingress and actual BGP-best/Loc-RIB/kernel observations for the latter. Their trigger cuts preserve initial selection and fail after cover changes; these live scenarios do not separately claim cost-only daemon/forked/kernel reselection. The immediate-hop and cost-only triggers are now both directly asserted and discriminated within the bounded in-process IPv4 production subscriber, with distinct preservation controls, so the previous cost-only tagging/recording gap is closed. This does not prove every route-ranking criterion, prospective-recursion integration or packet forwarding.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/bgp/plugins/rib/bestpath.go::compareAfterMED",
-              "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-              "internal/component/bgp/plugins/rib/rib_commands.go::extractCandidate"
-            ]
+            "note": "Same-scope independent rejudgment of the complete RFC 4271 Section 9.1.2 sentence: a change of either the immediate next hop or the IGP cost to NEXT_HOP requires Phase 2 selection again. Read all six tagged covers, their actual unit and daemon fixtures, the production Loc-RIB subscriber, forked metric revision/cache worker, extraction, ranking and mirroring paths, the retained record cuts and the renewed negative receipt. The immediate-hop unit drains initial and no-op extraction observations before changing only the interior gateway at fixed cost 10. It requires a new production candidate lookup against that gateway, resolution true, unchanged received BGP NEXT_HOP and no AIGP. The positive fault removes immediate-hop change detection in Path.Equal. The renewed negative fault corrupts only the mirrored received NEXT_HOP; its accepted clean run passes, while its observed mismatch is the initial learned-address preservation assertion at line 101. That is an honest preservation control, not a separately observed post-change failure. The cost-only unit isolates equal earlier BGP attributes without AIGP, arranges the cheaper route against the later address tie-breaker, changes only interior cost A10 to A30 to A5, and requires selected Loc-RIB A to B to A without another UPDATE or a direct selector call. Its retained subscriber cut preserves initial selection and fails the first required cost-driven move to B. The retained-input unit additionally asserts initial preference, reachable fallback after one cover disappears, absence after both disappear, retention of received paths and restoration without UPDATE. Its selection-trigger cut and each ordinary internal/forked CI selection-trigger cut preserve initial selection and fail after interior-cover change. Both real-socket daemon placements retain their unchanged BGP-best, Loc-RIB, exact all-table kernel and direct-control lifecycle assertions; authenticated placement and successful queries are required. Forked revision changes clear ordinary and prospective caches before retained-route reselection. These carriers do not separately prove cost-only or immediate-gateway-only daemon/kernel behavior. The old CIs gained only an additional 3.1-2 tag; no old tag, input, assertion or lifecycle stage was removed. Read the accepted renewed initial-preservation diagnostic and independently parsed the final native freshness report: all six covers are current, with zero stale and zero unproven records. Exact clean assertions cover both mandatory triggers and the feasible preservation control; no assertion or claim was weakened to renew the record. A discrimination record is confined to its observed primary failure, not proof that every later recovery assertion ran under its fault. The bound production and fixture/helper inventory preserves those meanings. No broader ranking, packet-forwarding or new prospective-integration claim is made by this rejudgment.",
+            "freshness": "fresh"
           }
         },
         {
@@ -107364,7 +107350,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271NextHopLossReselectsAndRestorationRecovers` (unit/verify), `test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/plugins/rib/rfc4271_next_hop_reachability_test.go` `TestRFC4271NextHopLossReselectsAndRestorationRecovers` (unit/verify), `test/plugin/rfc4271-next-hop-kernel-forked.ci` (functional/verify), `test/plugin/rfc4271-next-hop-kernel.ci` (functional/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -107377,11 +107363,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-                "break": "line 1030: \"if !cidr {\" -\u003e \"if !cidr || (havePrev \u0026\u0026 prevNextHop != nextHop) {\"",
-                "verified": false,
+                "break": "line 1101: \"if !cidr {\" -\u003e \"if !cidr || (havePrev \u0026\u0026 prevNextHop != nextHop) {\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -107429,11 +107414,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-                "break": "line 948: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\"",
-                "verified": false,
+                "break": "line 1009: \"r.removeLocRIB(fam, pfx)\" -\u003e \"if false { r.removeLocRIB(fam, pfx) }\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -107475,11 +107459,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Same-scope independent rejudgment against the complete RFC 4271 Sections 9.1.2 and 9.1.2.1: \"Unresolvable routes SHALL be removed from the Loc-RIB and the routing table.\" Re-read every tagged occurrence, the current selection/subscriber/removal path, both unchanged promoted daemon carriers and their complete shared fixture, sysrib withdrawal generation and the real fib-kernel writer. TestRFC4271NextHopLossReselectsAndRestorationRecovers separately checks preferred installation, reachable fallback after one cover disappears, complete BGP Loc-RIB removal after both disappear, retention of both received paths and recovery without another UPDATE. Its retained positive semantic record omits only no-candidate Loc-RIB removal; its negative record suppresses replacement mirroring and fails the still-reachable alternative, not separately recovery. Both Linux daemon placements send real iBGP UPDATEs through sockets, verify the configured internal or forked selecting-RIB placement, and observe BGP best, the selected Loc-RIB contribution and actual ip route reads across all kernel tables at each lifecycle stage. After both covers disappear, an absent BGP best and zero Loc-RIB candidate rows are required before an exact zero kernel-route count can pass. Query failures never count as absence. The retained CI positive records independently omit only runtime withdrawal handling in fibKernel.processEvent; their recorded clean carriers pass all phases and the recorded mutants pass the best/Loc-RIB absence gates before failing the exact kernel zero-route check on the stale proto-250 subject route. Ownership remains tracked and real shutdown flushing is checked before the fixture-owned link and OS route are removed, so forced cleanup does not create the live absence proof. Each retained CI negative record rejects terminal connected reachability and fails the initially legitimate independent BGP control while preserving the initial explicitly-gateway-resolved subject; it does not separately discriminate post-loss preservation or restoration. The unchanged clean lifecycle assertions still observe that direct control after loss and after recovery. This repair changes comments in recomputeForwarding and wraps the unchanged resolution body in fibEntry to suppress only otherwise valid targetless unicast output. These carriers retain explicit gateways or devices; loss of their BGP winner still takes the unchanged winner-nil withdrawal path before fibEntry. The tagged units, shared fixture, six recorded discrimination claims and their producing bodies are unchanged by this repair. The existing code map and enforced verdict are retained; no new execution, packet-forwarding verification, prospective-recursion integration or broader topology coverage is claimed. Together the retained Go Loc-RIB record and independent Linux kernel records continue to enforce both removal destinations in this bounded IPv4 internal/forked topology.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange"
-            ]
+            "note": "Same-scope independent rejudgment against RFC 4271 Sections 9.1.2 and 9.1.2.1: unresolvable routes SHALL be removed from both the Loc-RIB and the routing table. Re-read every tagged cover, the actual retained-input unit, both ordinary real-socket daemon carriers, their complete shared scenario and observer helpers, the current selection/subscriber/mirroring/removal path, sysrib withdrawal generation and fib-kernel removal handling. The unit requires initial installation of the reachable preference, installation of the still-reachable fallback after one cover disappears, complete Loc-RIB absence after both disappear, retention of both received paths and recovery when a cover returns without another UPDATE. Read both accepted renewed unit receipts: omitting only no-candidate Loc-RIB removal passes initial preference and fallback, then fails exact absence at line 319; suppressing replacement mirroring passes initial selection, then fails reachable fallback at line 314. The latter fault does not reach the all-unresolved or restoration checks. Both internal and forked daemon placements receive actual BGP UPDATEs, prove the configured selecting-RIB process placement, and require BGP-best absence and zero Loc-RIB candidate rows before an exact zero-route kernel result across all tables can pass. Query or transport errors cannot count as absence. Their retained positive records disable only live fibKernel.processEvent withdrawal handling: the clean full lifecycle passes; the broken run passes the BGP-best and Loc-RIB absence gates, then fails on the remaining proto-250 subject route. Each retained negative CI record rejects terminal connected reachability and fails the initially legitimate direct BGP control while preserving the initial explicitly-gateway-resolved subject; it does not separately discriminate post-loss preservation or restoration. Clean lifecycle assertions still require the direct control after loss and recovery, and cover restoration must recover retained subject input without UPDATE. Shutdown is joined and every Ze route must be gone while the fixture link and OS connected route still exist, so owned link deletion cannot manufacture the live absence proof. Current source removes the no-candidate Loc-RIB contribution before best withdrawal publication; internal removal calls RIB.Remove, forked removal synchronously flushes RouteRemove, sysrib emits an outstanding programmed route's withdrawal and fib-kernel deletes the installed route. Explicit gateway/device fixture routes still take that path; suppression of otherwise valid targetless output does not substitute for withdrawal. The old CIs gained only an additional 3.1-2 comment and preserve every old tag and assertion. Independently parsed the final native freshness receipt: all six covers are fresh, zero stale and zero unproven, including the two renewed current checkRouteBestChange records. Both removal destinations and feasible fallback/preservation are enforced in this bounded IPv4 internal/forked topology. The helper/producer inventory is bound, and no later broken restoration success, packet-forwarding proof or new prospective-integration claim is inferred.",
+            "freshness": "fresh"
           }
         },
         {
@@ -108275,12 +108256,11 @@
               "claim": "-- on the general forward rail, a route from an internal non-client source is not sent to an internal non-client destination, while the external destination and a route-reflector client destination in the same fan-out are sent it.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
-                "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
-                "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+                "break": "line 804: \"!srcInfo.isRRClient \u0026\u0026 !facts.rrClient\" -\u003e \"false /* MUTATION-APPLIED: allow iBGP non-client redistribution */\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -110664,7 +110644,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 87,
+        "mandatory-proven": 91,
         "mandatory-total": 133,
         "optional-proven": 3,
         "optional-total": 34,
@@ -110672,13 +110652,13 @@
           "must": {
             "total": 133,
             "kept": 133,
-            "ze-proven": 87,
+            "ze-proven": 91,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 31,
+            "proof-pending": 29,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
-            "not-built": 15,
+            "not-built": 13,
             "not-owed": 0,
             "not-owed-by-kind": {}
           },
@@ -110696,16 +110676,14 @@
           }
         },
         "mandatory-by-kind": {
-          "functional": 8,
+          "functional": 10,
           "interop": 4,
-          "unit": 75
+          "unit": 77
         },
         "unmet": [
-          "RFC4271-3.1-2",
           "RFC4271-5.1.6-1",
           "RFC4271-5.1.7-1",
           "RFC4271-6.2-3",
-          "RFC4271-9.1.2-1",
           "RFC4271-9.1.2.2-2",
           "RFC4271-9.2-2",
           "RFC4271-9.2-3",
@@ -110755,7 +110733,7 @@
         "audited": 52,
         "discrimination-records": 226,
         "escapes": 9,
-        "stale-records": 37
+        "stale-records": 15
       },
       "requirements": [
         {
@@ -110943,11 +110921,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -113469,11 +113446,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -113569,11 +113545,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -113611,11 +113586,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 176: \"state.ReplayWindow = int(p.ReplayWin)\" -\u003e \"state.ReplayWindow = 32\"",
-                "verified": false,
+                "break": "line 200: \"state.ReplayWindow = int(p.ReplayWin)\" -\u003e \"state.ReplayWindow = 32\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -113629,11 +113603,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -113666,11 +113639,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -113684,11 +113656,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -113721,11 +113692,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -113739,11 +113709,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -113776,11 +113745,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -113794,11 +113762,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -113831,11 +113798,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -113972,11 +113938,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -114101,11 +114066,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -114515,11 +114479,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
-                "verified": false,
+                "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -114533,11 +114496,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 265: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
-                "verified": false,
+                "break": "line 294: \"ICVLen: 128,\" -\u003e \"ICVLen: 64,\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -115051,11 +115013,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -115106,11 +115067,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -115235,11 +115195,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -115462,11 +115421,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 249: \"state.ICMP = true\" -\u003e \"state.ICMP = false\"",
-                "verified": false,
+                "break": "line 278: \"state.ICMP = true\" -\u003e \"state.ICMP = false\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -115617,7 +115575,7 @@
           "gated": true,
           "positive-test": "scoped evidence: `internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go` `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery` (unit/verify)",
           "negative-test": "scoped evidence: `internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go` `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery` (unit/verify)",
-          "note": "{partial} tested \"the receiver MUST process the received message in a special fashion\"; gap \"If an IPsec implementation receives an inbound ICMP error message on an SA\"; the split is by case, not by clause: Tested covers an ICMP error addressed to Ze, which the kernel delivers when its embedded header, reversed, matches the SA's inbound policy and drops when it does not, on the state internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs with XFRM_STATE_ICMP (TestICMPErrorPayloadHeaderCheckedOnLocalDelivery); Gap is a forwarded ICMP error that arrives on an SA, which is dropped unread because Ze's fwd catch-all is a policy and so keeps xfrm_in_fwd_icmp from running; Ze owes the fix, the node-wide fwd catch-all moved to the netns XFRM default policy and the fwd interface catch-all removed (LL-XFRM-ICMP-TRANSIT, docs/architecture/linux-limitations.md, a design constraint and not a kernel limit); plan/release/fixes/spec-rfc4301-architecture-gaps.md Parent quote: If an IPsec implementation receives an inbound ICMP error message on an SA, and the IP and ICMP headers of the message do not match the traffic selectors for the SA, the receiver MUST process the received message in a special fashion. Specifically, the receiver must extract the header of the triggering packet from the ICMP payload, and reverse fields as described above to determine if the packet is consistent with the selectors for the SA via which the ICMP error message was received. (§6.2) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: unjudged scoped tag claims are not all backed by current producer-break records",
+          "note": "{partial} tested \"the receiver MUST process the received message in a special fashion\"; gap \"If an IPsec implementation receives an inbound ICMP error message on an SA\"; the split is by case, not by clause: Tested covers an ICMP error addressed to Ze, which the kernel delivers when its embedded header, reversed, matches the SA's inbound policy and drops when it does not, on the state internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs with XFRM_STATE_ICMP (TestICMPErrorPayloadHeaderCheckedOnLocalDelivery); Gap is a forwarded ICMP error that arrives on an SA, which is dropped unread because Ze's fwd catch-all is a policy and so keeps xfrm_in_fwd_icmp from running; Ze owes the fix, the node-wide fwd catch-all moved to the netns XFRM default policy and the fwd interface catch-all removed (LL-XFRM-ICMP-TRANSIT, docs/architecture/linux-limitations.md, a design constraint and not a kernel limit); plan/release/fixes/spec-rfc4301-architecture-gaps.md Parent quote: If an IPsec implementation receives an inbound ICMP error message on an SA, and the IP and ICMP headers of the message do not match the traffic selectors for the SA, the receiver MUST process the received message in a special fashion. Specifically, the receiver must extract the header of the triggering packet from the ICMP payload, and reverse fields as described above to determine if the packet is consistent with the selectors for the SA via which the ICMP error message was received. (§6.2) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: unjudged",
           "nightly-only": false,
           "annotation": {
             "kind": "partial",
@@ -115654,11 +115612,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 249: \"state.ICMP = true\" -\u003e \"state.ICMP = false\"",
-                "verified": false,
+                "break": "line 278: \"state.ICMP = true\" -\u003e \"state.ICMP = false\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -115672,7 +115629,7 @@
           "gated": true,
           "positive-test": "scoped evidence: `internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go` `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery` (unit/verify)",
           "negative-test": "scoped evidence: `internal/component/ike/dataplane/rfc4301_icmp_error_integration_linux_test.go` `TestICMPErrorPayloadHeaderCheckedOnLocalDelivery` (unit/verify)",
-          "note": "{partial} tested \"MUST NOT forwarded the ICMP message to the destination\"; gap \"If the packet fails this check\"; the split is by case, not by clause: Tested covers an ICMP error addressed to Ze, which is not delivered when its embedded header, reversed, matches no inbound policy of the SA and is delivered when it does, on the state internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs with XFRM_STATE_ICMP; Gap is a forwarded ICMP error, for which the check never runs: Ze's fwd catch-all drops it before xfrm_in_fwd_icmp, so it is not forwarded either, but no namespace test observes that drop, a testing gap (LL-XFRM-ICMP-TRANSIT, docs/architecture/linux-limitations.md, a design constraint); plan/release/fixes/spec-rfc4301-architecture-gaps.md Parent quote: If the packet fails this check, the IPsec implementation MUST NOT forwarded the ICMP message to the destination. (§6.2) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: unjudged scoped tag claims are not all backed by current producer-break records",
+          "note": "{partial} tested \"MUST NOT forwarded the ICMP message to the destination\"; gap \"If the packet fails this check\"; the split is by case, not by clause: Tested covers an ICMP error addressed to Ze, which is not delivered when its embedded header, reversed, matches no inbound policy of the SA and is delivered when it does, on the state internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs with XFRM_STATE_ICMP; Gap is a forwarded ICMP error, for which the check never runs: Ze's fwd catch-all drops it before xfrm_in_fwd_icmp, so it is not forwarded either, but no namespace test observes that drop, a testing gap (LL-XFRM-ICMP-TRANSIT, docs/architecture/linux-limitations.md, a design constraint); plan/release/fixes/spec-rfc4301-architecture-gaps.md Parent quote: If the packet fails this check, the IPsec implementation MUST NOT forwarded the ICMP message to the destination. (§6.2) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: unjudged",
           "nightly-only": false,
           "annotation": {
             "kind": "partial",
@@ -115709,11 +115666,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
-                "break": "line 249: \"state.ICMP = true\" -\u003e \"state.ICMP = false\"",
-                "verified": false,
+                "break": "line 278: \"state.ICMP = true\" -\u003e \"state.ICMP = false\"",
+                "verified": true,
                 "proves": true
               }
             }
@@ -117198,7 +117154,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 51,
+        "mandatory-proven": 60,
         "mandatory-total": 101,
         "optional-proven": 0,
         "optional-total": 3,
@@ -117206,10 +117162,10 @@
           "must": {
             "total": 101,
             "kept": 101,
-            "ze-proven": 51,
+            "ze-proven": 60,
             "os-verified": 0,
             "os-gap": 3,
-            "proof-pending": 16,
+            "proof-pending": 7,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 31,
@@ -117230,7 +117186,7 @@
           }
         },
         "mandatory-by-kind": {
-          "unit": 51
+          "unit": 60
         },
         "unmet": [
           "RFC4301-4.1-5",
@@ -211676,7 +211632,7 @@
         "audited": 95,
         "discrimination-records": 298,
         "escapes": 0,
-        "stale-records": 2
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -214781,11 +214737,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -214816,11 +214771,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -255950,7 +255904,7 @@
         "audited": 39,
         "discrimination-records": 150,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -258158,7 +258112,7 @@
           "gated": true,
           "positive-test": "`cmd/ze/hub/rfc7950_reload_validation_test.go` `TestRFC7950ReloadInstallsAValidConfig` (unit/verify), `internal/component/config/rfc7950_datastore_test.go` `TestRFC7950RunningDatastoreAcceptsAValidConfig` (unit/verify)",
           "negative-test": "`cmd/ze/hub/rfc7950_reload_validation_test.go` `TestRFC7950ReloadRefusesAConstraintViolation` (unit/verify), `cmd/ze/hub/rfc7950_web_commit_validation_test.go` `TestRFC7950WebCommitRefusesAConstraintViolation` (unit/verify), `internal/component/config/rfc7950_datastore_test.go` `TestRFC7950RunningDatastoreRefusesAViolationAfterParse` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -258222,10 +258176,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "cmd/ze/hub/main_reload.go::diskConfigLoaders",
                 "break": "body of diskConfigLoaders replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -258251,7 +258206,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.1: \"The running configuration datastore MUST always be valid.\" The earlier finding (only config.LoadConfig was driven; no install route) is answered for the reload route: TestRFC7950ReloadInstallsAValidConfig and TestRFC7950ReloadRefusesAConstraintViolation write the file and drive diskConfigLoaders and doReload, the path every SIGHUP and editor reload notifier reaches, and assert the refused reload returns ErrCustomValidation naming the value while the reactor keeps system/host reload-valid-host. TestRFC7950WebCommitRefusesAConstraintViolation shows the web editor commit writes nothing for the same violation. Startup stays covered by the LoadConfig units. Residual: the SSH session editor (session_editor.go) sets no pre-commit validator, so its commit relies on the reload refusal the reload units prove; no tagged unit drives that editor, and none drives the gNMI/API configValidationHook route.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadInstallsAValidConfig",
+              "cmd/ze/hub/rfc7950_reload_validation_test.go::TestRFC7950ReloadRefusesAConstraintViolation"
+            ]
           }
         },
         {
@@ -269908,7 +269867,7 @@
         "audited": 0,
         "discrimination-records": 32,
         "escapes": 0,
-        "stale-records": 2
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -270026,11 +269985,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -270044,11 +270002,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
                 "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -270931,7 +270888,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 15,
+        "mandatory-proven": 16,
         "mandatory-total": 16,
         "optional-proven": 0,
         "optional-total": 3,
@@ -270939,10 +270896,10 @@
           "must": {
             "total": 16,
             "kept": 16,
-            "ze-proven": 15,
+            "ze-proven": 16,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 1,
+            "proof-pending": 0,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 0,
@@ -270963,7 +270920,7 @@
           }
         },
         "mandatory-by-kind": {
-          "unit": 15
+          "unit": 16
         },
         "unmet": []
       }
@@ -352242,7 +352199,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 87,
+        "mandatory-proven": 91,
         "mandatory-total": 133,
         "optional-proven": 3,
         "optional-total": 34,
@@ -352250,13 +352207,13 @@
           "must": {
             "total": 133,
             "kept": 133,
-            "ze-proven": 87,
+            "ze-proven": 91,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 31,
+            "proof-pending": 29,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
-            "not-built": 15,
+            "not-built": 13,
             "not-owed": 0,
             "not-owed-by-kind": {}
           },
@@ -352274,16 +352231,14 @@
           }
         },
         "mandatory-by-kind": {
-          "functional": 8,
+          "functional": 10,
           "interop": 4,
-          "unit": 75
+          "unit": 77
         },
         "unmet": [
-          "RFC4271-3.1-2",
           "RFC4271-5.1.6-1",
           "RFC4271-5.1.7-1",
           "RFC4271-6.2-3",
-          "RFC4271-9.1.2-1",
           "RFC4271-9.1.2.2-2",
           "RFC4271-9.2-2",
           "RFC4271-9.2-3",
@@ -352847,7 +352802,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 51,
+        "mandatory-proven": 60,
         "mandatory-total": 101,
         "optional-proven": 0,
         "optional-total": 3,
@@ -352855,10 +352810,10 @@
           "must": {
             "total": 101,
             "kept": 101,
-            "ze-proven": 51,
+            "ze-proven": 60,
             "os-verified": 0,
             "os-gap": 3,
-            "proof-pending": 16,
+            "proof-pending": 7,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 31,
@@ -352879,7 +352834,7 @@
           }
         },
         "mandatory-by-kind": {
-          "unit": 51
+          "unit": 60
         },
         "unmet": [
           "RFC4301-4.1-5",
@@ -353793,7 +353748,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 15,
+        "mandatory-proven": 16,
         "mandatory-total": 16,
         "optional-proven": 0,
         "optional-total": 3,
@@ -353801,10 +353756,10 @@
           "must": {
             "total": 16,
             "kept": 16,
-            "ze-proven": 15,
+            "ze-proven": 16,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 1,
+            "proof-pending": 0,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 0,
@@ -353825,7 +353780,7 @@
           }
         },
         "mandatory-by-kind": {
-          "unit": 15
+          "unit": 16
         },
         "unmet": []
       },
@@ -375355,7 +375310,7 @@
       "rollup": {
         "rfcs": 14,
         "not-walked": 0,
-        "mandatory-proven": 195,
+        "mandatory-proven": 199,
         "mandatory-total": 345,
         "optional-proven": 16,
         "optional-total": 124,
@@ -375363,13 +375318,13 @@
           "must": {
             "total": 345,
             "kept": 340,
-            "ze-proven": 195,
+            "ze-proven": 199,
             "os-verified": 0,
             "os-gap": 1,
-            "proof-pending": 71,
+            "proof-pending": 69,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
-            "not-built": 73,
+            "not-built": 71,
             "not-owed": 5,
             "not-owed-by-kind": {
               "not-applicable": 5
@@ -375538,7 +375493,7 @@
           "optional-profiles": [],
           "path": "ddos-flowspec: required by rfc/short/rfc4271.md",
           "walked": true,
-          "mandatory-proven": 87,
+          "mandatory-proven": 91,
           "mandatory-total": 133,
           "optional-proven": 3,
           "optional-total": 34,
@@ -375546,13 +375501,13 @@
             "must": {
               "total": 133,
               "kept": 133,
-              "ze-proven": 87,
+              "ze-proven": 91,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 31,
+              "proof-pending": 29,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
-              "not-built": 15,
+              "not-built": 13,
               "not-owed": 0,
               "not-owed-by-kind": {}
             },
@@ -375570,16 +375525,14 @@
             }
           },
           "mandatory-by-kind": {
-            "functional": 8,
+            "functional": 10,
             "interop": 4,
-            "unit": 75
+            "unit": 77
           },
           "unmet": [
-            "RFC4271-3.1-2",
             "RFC4271-5.1.6-1",
             "RFC4271-5.1.7-1",
             "RFC4271-6.2-3",
-            "RFC4271-9.1.2-1",
             "RFC4271-9.1.2.2-2",
             "RFC4271-9.2-2",
             "RFC4271-9.2-3",
@@ -380380,7 +380333,7 @@
       "rollup": {
         "rfcs": 16,
         "not-walked": 0,
-        "mandatory-proven": 219,
+        "mandatory-proven": 223,
         "mandatory-total": 308,
         "optional-proven": 5,
         "optional-total": 93,
@@ -380388,13 +380341,13 @@
           "must": {
             "total": 308,
             "kept": 308,
-            "ze-proven": 219,
+            "ze-proven": 223,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 51,
+            "proof-pending": 49,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
-            "not-built": 38,
+            "not-built": 36,
             "not-owed": 0,
             "not-owed-by-kind": {}
           },
@@ -380449,7 +380402,7 @@
           "optional-profiles": [],
           "path": "looking-glass: required by rfc/short/rfc4271.md",
           "walked": true,
-          "mandatory-proven": 87,
+          "mandatory-proven": 91,
           "mandatory-total": 133,
           "optional-proven": 3,
           "optional-total": 34,
@@ -380457,13 +380410,13 @@
             "must": {
               "total": 133,
               "kept": 133,
-              "ze-proven": 87,
+              "ze-proven": 91,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 31,
+              "proof-pending": 29,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
-              "not-built": 15,
+              "not-built": 13,
               "not-owed": 0,
               "not-owed-by-kind": {}
             },
@@ -380481,16 +380434,14 @@
             }
           },
           "mandatory-by-kind": {
-            "functional": 8,
+            "functional": 10,
             "interop": 4,
-            "unit": 75
+            "unit": 77
           },
           "unmet": [
-            "RFC4271-3.1-2",
             "RFC4271-5.1.6-1",
             "RFC4271-5.1.7-1",
             "RFC4271-6.2-3",
-            "RFC4271-9.1.2-1",
             "RFC4271-9.1.2.2-2",
             "RFC4271-9.2-2",
             "RFC4271-9.2-3",
@@ -381810,7 +381761,7 @@
       "rollup": {
         "rfcs": 18,
         "not-walked": 0,
-        "mandatory-proven": 250,
+        "mandatory-proven": 254,
         "mandatory-total": 362,
         "optional-proven": 8,
         "optional-total": 99,
@@ -381818,13 +381769,13 @@
           "must": {
             "total": 362,
             "kept": 362,
-            "ze-proven": 250,
+            "ze-proven": 254,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 79,
+            "proof-pending": 77,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
-            "not-built": 33,
+            "not-built": 31,
             "not-owed": 0,
             "not-owed-by-kind": {}
           },
@@ -381879,7 +381830,7 @@
           "optional-profiles": [],
           "path": "route-collector: required by rfc/short/rfc4271.md",
           "walked": true,
-          "mandatory-proven": 87,
+          "mandatory-proven": 91,
           "mandatory-total": 133,
           "optional-proven": 3,
           "optional-total": 34,
@@ -381887,13 +381838,13 @@
             "must": {
               "total": 133,
               "kept": 133,
-              "ze-proven": 87,
+              "ze-proven": 91,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 31,
+              "proof-pending": 29,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
-              "not-built": 15,
+              "not-built": 13,
               "not-owed": 0,
               "not-owed-by-kind": {}
             },
@@ -381911,16 +381862,14 @@
             }
           },
           "mandatory-by-kind": {
-            "functional": 8,
+            "functional": 10,
             "interop": 4,
-            "unit": 75
+            "unit": 77
           },
           "unmet": [
-            "RFC4271-3.1-2",
             "RFC4271-5.1.6-1",
             "RFC4271-5.1.7-1",
             "RFC4271-6.2-3",
-            "RFC4271-9.1.2-1",
             "RFC4271-9.1.2.2-2",
             "RFC4271-9.2-2",
             "RFC4271-9.2-3",
@@ -383360,7 +383309,7 @@
       "rollup": {
         "rfcs": 24,
         "not-walked": 0,
-        "mandatory-proven": 247,
+        "mandatory-proven": 251,
         "mandatory-total": 397,
         "optional-proven": 17,
         "optional-total": 221,
@@ -383368,13 +383317,13 @@
           "must": {
             "total": 397,
             "kept": 394,
-            "ze-proven": 247,
+            "ze-proven": 251,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 76,
+            "proof-pending": 74,
             "exclusion-unchecked": 0,
             "not-assessed": 16,
-            "not-built": 55,
+            "not-built": 53,
             "not-owed": 3,
             "not-owed-by-kind": {
               "not-applicable": 3
@@ -383431,7 +383380,7 @@
           "optional-profiles": [],
           "path": "route-server: required by rfc/short/rfc4271.md",
           "walked": true,
-          "mandatory-proven": 87,
+          "mandatory-proven": 91,
           "mandatory-total": 133,
           "optional-proven": 3,
           "optional-total": 34,
@@ -383439,13 +383388,13 @@
             "must": {
               "total": 133,
               "kept": 133,
-              "ze-proven": 87,
+              "ze-proven": 91,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 31,
+              "proof-pending": 29,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
-              "not-built": 15,
+              "not-built": 13,
               "not-owed": 0,
               "not-owed-by-kind": {}
             },
@@ -383463,16 +383412,14 @@
             }
           },
           "mandatory-by-kind": {
-            "functional": 8,
+            "functional": 10,
             "interop": 4,
-            "unit": 75
+            "unit": 77
           },
           "unmet": [
-            "RFC4271-3.1-2",
             "RFC4271-5.1.6-1",
             "RFC4271-5.1.7-1",
             "RFC4271-6.2-3",
-            "RFC4271-9.1.2-1",
             "RFC4271-9.1.2.2-2",
             "RFC4271-9.2-2",
             "RFC4271-9.2-3",
@@ -385833,7 +385780,7 @@
       "rollup": {
         "rfcs": 17,
         "not-walked": 0,
-        "mandatory-proven": 368,
+        "mandatory-proven": 378,
         "mandatory-total": 720,
         "optional-proven": 13,
         "optional-total": 224,
@@ -385841,10 +385788,10 @@
           "must": {
             "total": 720,
             "kept": 720,
-            "ze-proven": 368,
+            "ze-proven": 378,
             "os-verified": 0,
             "os-gap": 58,
-            "proof-pending": 196,
+            "proof-pending": 186,
             "exclusion-unchecked": 0,
             "not-assessed": 3,
             "not-built": 95,
@@ -386279,7 +386226,7 @@
           "optional-profiles": [],
           "path": "vpn-concentrator: required by rfc/short/rfc4301.md",
           "walked": true,
-          "mandatory-proven": 51,
+          "mandatory-proven": 60,
           "mandatory-total": 101,
           "optional-proven": 0,
           "optional-total": 3,
@@ -386287,10 +386234,10 @@
             "must": {
               "total": 101,
               "kept": 101,
-              "ze-proven": 51,
+              "ze-proven": 60,
               "os-verified": 0,
               "os-gap": 3,
-              "proof-pending": 16,
+              "proof-pending": 7,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 31,
@@ -386311,7 +386258,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 51
+            "unit": 60
           },
           "unmet": [
             "RFC4301-4.1-5",
@@ -386900,7 +386847,7 @@
           "optional-profiles": [],
           "path": "vpn-concentrator: required by rfc/short/rfc8221.md",
           "walked": true,
-          "mandatory-proven": 15,
+          "mandatory-proven": 16,
           "mandatory-total": 16,
           "optional-proven": 0,
           "optional-total": 3,
@@ -386908,10 +386855,10 @@
             "must": {
               "total": 16,
               "kept": 16,
-              "ze-proven": 15,
+              "ze-proven": 16,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 1,
+              "proof-pending": 0,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 0,
@@ -386932,7 +386879,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 15
+            "unit": 16
           },
           "unmet": []
         },
@@ -387596,7 +387543,7 @@
       "rollup": {
         "rfcs": 12,
         "not-walked": 0,
-        "mandatory-proven": 248,
+        "mandatory-proven": 258,
         "mandatory-total": 547,
         "optional-proven": 7,
         "optional-total": 169,
@@ -387604,10 +387551,10 @@
           "must": {
             "total": 547,
             "kept": 547,
-            "ze-proven": 248,
+            "ze-proven": 258,
             "os-verified": 0,
             "os-gap": 56,
-            "proof-pending": 166,
+            "proof-pending": 156,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 77,
@@ -387930,7 +387877,7 @@
           "optional-profiles": [],
           "path": "vpn-endpoint: required by rfc/short/rfc4301.md",
           "walked": true,
-          "mandatory-proven": 51,
+          "mandatory-proven": 60,
           "mandatory-total": 101,
           "optional-proven": 0,
           "optional-total": 3,
@@ -387938,10 +387885,10 @@
             "must": {
               "total": 101,
               "kept": 101,
-              "ze-proven": 51,
+              "ze-proven": 60,
               "os-verified": 0,
               "os-gap": 3,
-              "proof-pending": 16,
+              "proof-pending": 7,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 31,
@@ -387962,7 +387909,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 51
+            "unit": 60
           },
           "unmet": [
             "RFC4301-4.1-5",
@@ -388369,7 +388316,7 @@
           "optional-profiles": [],
           "path": "vpn-endpoint: required by rfc/short/rfc8221.md",
           "walked": true,
-          "mandatory-proven": 15,
+          "mandatory-proven": 16,
           "mandatory-total": 16,
           "optional-proven": 0,
           "optional-total": 3,
@@ -388377,10 +388324,10 @@
             "must": {
               "total": 16,
               "kept": 16,
-              "ze-proven": 15,
+              "ze-proven": 16,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 1,
+              "proof-pending": 0,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 0,
@@ -388401,7 +388348,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 15
+            "unit": 16
           },
           "unmet": []
         },
@@ -389987,7 +389934,7 @@
       "rollup": {
         "rfcs": 21,
         "not-walked": 0,
-        "mandatory-proven": 240,
+        "mandatory-proven": 244,
         "mandatory-total": 348,
         "optional-proven": 8,
         "optional-total": 114,
@@ -389995,13 +389942,13 @@
           "must": {
             "total": 348,
             "kept": 347,
-            "ze-proven": 240,
+            "ze-proven": 244,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 76,
+            "proof-pending": 74,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
-            "not-built": 31,
+            "not-built": 29,
             "not-owed": 1,
             "not-owed-by-kind": {
               "not-applicable": 1
@@ -390058,7 +390005,7 @@
           "optional-profiles": [],
           "path": "bgp-core: aggregate named by rfc/short/rfc4271.md",
           "walked": true,
-          "mandatory-proven": 87,
+          "mandatory-proven": 91,
           "mandatory-total": 133,
           "optional-proven": 3,
           "optional-total": 34,
@@ -390066,13 +390013,13 @@
             "must": {
               "total": 133,
               "kept": 133,
-              "ze-proven": 87,
+              "ze-proven": 91,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 31,
+              "proof-pending": 29,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
-              "not-built": 15,
+              "not-built": 13,
               "not-owed": 0,
               "not-owed-by-kind": {}
             },
@@ -390090,16 +390037,14 @@
             }
           },
           "mandatory-by-kind": {
-            "functional": 8,
+            "functional": 10,
             "interop": 4,
-            "unit": 75
+            "unit": 77
           },
           "unmet": [
-            "RFC4271-3.1-2",
             "RFC4271-5.1.6-1",
             "RFC4271-5.1.7-1",
             "RFC4271-6.2-3",
-            "RFC4271-9.1.2-1",
             "RFC4271-9.1.2.2-2",
             "RFC4271-9.2-2",
             "RFC4271-9.2-3",
@@ -398218,7 +398163,7 @@
       "rollup": {
         "rfcs": 21,
         "not-walked": 0,
-        "mandatory-proven": 263,
+        "mandatory-proven": 273,
         "mandatory-total": 704,
         "optional-proven": 9,
         "optional-total": 266,
@@ -398226,10 +398171,10 @@
           "must": {
             "total": 704,
             "kept": 704,
-            "ze-proven": 263,
+            "ze-proven": 273,
             "os-verified": 0,
             "os-gap": 76,
-            "proof-pending": 177,
+            "proof-pending": 167,
             "exclusion-unchecked": 0,
             "not-assessed": 25,
             "not-built": 163,
@@ -398679,7 +398624,7 @@
           "optional-profiles": [],
           "path": "ikev2-ipsec: aggregate named by rfc/short/rfc4301.md",
           "walked": true,
-          "mandatory-proven": 51,
+          "mandatory-proven": 60,
           "mandatory-total": 101,
           "optional-proven": 0,
           "optional-total": 3,
@@ -398687,10 +398632,10 @@
             "must": {
               "total": 101,
               "kept": 101,
-              "ze-proven": 51,
+              "ze-proven": 60,
               "os-verified": 0,
               "os-gap": 3,
-              "proof-pending": 16,
+              "proof-pending": 7,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 31,
@@ -398711,7 +398656,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 51
+            "unit": 60
           },
           "unmet": [
             "RFC4301-4.1-5",
@@ -399404,7 +399349,7 @@
           "optional-profiles": [],
           "path": "ikev2-ipsec: aggregate named by rfc/short/rfc8221.md",
           "walked": true,
-          "mandatory-proven": 15,
+          "mandatory-proven": 16,
           "mandatory-total": 16,
           "optional-proven": 0,
           "optional-total": 3,
@@ -399412,10 +399357,10 @@
             "must": {
               "total": 16,
               "kept": 16,
-              "ze-proven": 15,
+              "ze-proven": 16,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 1,
+              "proof-pending": 0,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 0,
@@ -399436,7 +399381,7 @@
             }
           },
           "mandatory-by-kind": {
-            "unit": 15
+            "unit": 16
           },
           "unmet": []
         },

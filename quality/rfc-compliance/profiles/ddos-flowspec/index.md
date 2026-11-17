@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 
 ## Figures
 
-- **MUST bar**: Ze verified 195, Tests awaiting verification 71, OS testing gap 1, Not built 73
-- **Overview bar**: Ze MUST verified 195, SHOULD verified 16, Not owed 5, Tests awaiting verification 72, OS testing gap 1, Not assessed 107, Not built 73
+- **MUST bar**: Ze verified 199, Tests awaiting verification 69, OS testing gap 1, Not built 71
+- **Overview bar**: Ze MUST verified 199, SHOULD verified 16, Not owed 5, Tests awaiting verification 70, OS testing gap 1, Not assessed 107, Not built 71
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/ddos-flowspec.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 345 |
 | MUST rows kept (the MUST bar) | 340 |
-| Ze verified | 195 |
+| Ze verified | 199 |
 | OS verified | 0 |
-| Tests awaiting verification | 71 |
+| Tests awaiting verification | 69 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 73 |
+| Not built | 71 |
 | MUST rows not owed | 5 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -66,7 +66,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 87, Tests awaiting verification 31, Not built 15 | Ze MUST verified 87, SHOULD verified 3, Tests awaiting verification 32, Not assessed 30, Not built 15 | ddos-flowspec: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 91, Tests awaiting verification 29, Not built 13 | Ze MUST verified 91, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 13 | ddos-flowspec: required by rfc/short/rfc4271.md |
 | [SFLOW-V5](../../sflow-v5/) | sFlow: A Method for Monitoring Traffic in Switched and Routed Networks | Ze verified 21, OS testing gap 1, Not built 9 | Ze MUST verified 21, SHOULD verified 3, OS testing gap 1, Not assessed 8, Not built 9 | ddos-flowspec: required by rfc/short/sflow-v5.md |
 
 ### Level 4

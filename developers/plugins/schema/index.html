@@ -110,6 +110,20 @@ meantime, so a plugin MUST NOT time out between sending its declaration and
 receiving the answer. A module that does not compile, or that clashes with a
 module Ze holds, refuses the start and names the plugin. A plugin and its
 module change only when <code>ze</code> restarts.</p>
+<p>Ze enforces that rule while it runs:</p>
+<ul>
+<li>A reload whose config adds or removes an external plugin, or changes the
+<code>run</code>, <code>encoder</code>, <code>respawn</code> or <code>timeout</code> of one, is refused whole. The
+message names each plugin and what changed, and its fix is <code>restart ze</code>.
+The rest of the config reloads without a restart, your own section
+included.</li>
+<li>When Ze starts your plugin again (it ended and declared <code>failure-policy restart</code>, or the operator ran <code>request plugin restart &lt;name&gt;</code>), the plugin
+MUST declare the same module: the same name, namespace and text, or none if
+it declared none. Another schema refuses the plugin at Stage 1. Ze does not
+run it, keeps the config under its root, and raises the warning
+<code>doctor-plugin-schema-changed</code>, which <code>ze show doctor</code> reports with what
+differs. To ship a new schema, install the new program and restart <code>ze</code>.</li>
+</ul>
 <p>A plugin that cannot be run, or that sends no declaration within its stage
 timeout, declares nothing: a config section only its module defines is then
 refused as <code>unknown top-level keyword: &lt;root&gt;</code>, and the refusal names the
@@ -571,7 +585,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -215,6 +215,11 @@ start ze.</p>
 <td>The check compares the declared failure policy with the <code>respawn</code> leaf of the operator's config</td>
 </tr>
 <tr>
+<td><code>schema-unchanged</code></td>
+<td><code>1</code></td>
+<td>The check compares the declared config schema with the one the daemon read from the plugin when it started</td>
+</tr>
+<tr>
 <td><code>dependencies</code></td>
 <td><code>1</code></td>
 <td>The check looks for each declared dependency among the plugins the daemon configured or loaded</td>
@@ -321,6 +326,7 @@ command-names                5          pass
 ambiguous-registration       1          not-judged
 doctor-check-declared-twice  1          not-judged
 respawn-agreement            1          not-judged
+schema-unchanged             1          not-judged
 dependencies                 1          not-judged
 registration-conflicts       1          not-judged
 tls-connect-back             transport  not-judged
@@ -722,7 +728,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:35 UTC</span>
                 </div>
             </div>
         </footer>

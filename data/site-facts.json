@@ -256,13 +256,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "48303",
+        "denominator": "48414",
         "numerator": "111",
         "percent": "0.2"
       },
       "value": {
         "1": "111",
-        "2": "48303",
+        "2": "48414",
         "3": "108"
       }
     },
@@ -277,14 +277,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "9794",
-        "2": "113",
+        "1": "9836",
+        "2": "115",
         "3": "160",
-        "4": "3033",
+        "4": "3035",
         "5": "207"
       },
       "value": {
-        "1": "48346"
+        "1": "48457"
       }
     },
     "known-failures": {
@@ -297,13 +297,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "9794",
-        "numerator": "3908",
-        "percent": "39.9"
+        "denominator": "9836",
+        "numerator": "3930",
+        "percent": "40.0"
       },
       "value": {
-        "1": "3908",
-        "2": "9794"
+        "1": "3930",
+        "2": "9836"
       },
       "worst": {
         "1": {
@@ -360,8 +360,8 @@
     },
     "rfc-proof-density": {
       "detail": {
-        "1": "46.2",
-        "10": "1512",
+        "1": "46.5",
+        "10": "1510",
         "11": "18",
         "12": "2026",
         "13": "10",
@@ -374,31 +374,31 @@
         "2": "4752",
         "20": "4802",
         "21": "204",
-        "22": "2292",
+        "22": "2290",
         "23": "46",
-        "24": "1479",
-        "25": "33",
+        "24": "1478",
+        "25": "32",
         "26": "499",
         "27": "235",
         "28": "0",
         "29": "0",
-        "3": "2196",
+        "3": "2209",
         "30": "0",
         "31": "14",
         "4": "0",
         "5": "235",
-        "6": "2321",
-        "7": "788",
+        "6": "2308",
+        "7": "777",
         "8": "21",
         "9": "0"
       },
       "proof_density": {
         "denominator": "4752",
-        "numerator": "2196",
-        "percent": "46.2"
+        "numerator": "2209",
+        "percent": "46.5"
       },
       "value": {
-        "1": "2196",
+        "1": "2209",
         "2": "4752"
       },
       "worst": {
@@ -467,7 +467,7 @@
     "protocols": {
       "as112": 6,
       "bfd": 5,
-      "bgp": 151,
+      "bgp": 152,
       "bmp": 4,
       "dhcpv4": 3,
       "dhcpv6": 2,
@@ -487,12 +487,12 @@
       "topology": 18,
       "vrrp": 2
     },
-    "scenario_dirs_raw": 411,
-    "scenarios": 411,
+    "scenario_dirs_raw": 412,
+    "scenarios": 412,
     "scenarios_display": "410+",
     "suite_count": 8,
     "suites": {
-      "interop": 255,
+      "interop": 256,
       "interop-ipsec": 85,
       "interop-l2tp": 15,
       "interop-pppoe": 16,
@@ -505,21 +505,21 @@
     "targets": 13
   },
   "plugin_registrations": 98,
-  "published_at": "2026-11-17T06:06:11Z",
+  "published_at": "2026-11-17T06:59:10Z",
   "release": null,
   "repo": {
-    "design_comments": 10307,
-    "design_comments_display": "10,300+",
-    "detail_comments": 10823,
-    "detail_comments_display": "10,800+",
-    "go_packages": 1015,
+    "design_comments": 11380,
+    "design_comments_display": "11,300+",
+    "detail_comments": 11679,
+    "detail_comments_display": "11,600+",
+    "go_packages": 1046,
     "go_packages_display": "1,000+",
-    "go_source_lines": 1689056,
-    "go_source_lines_display": "1.69 million",
-    "go_test_lines": 2012024,
-    "go_test_lines_display": "2.01 million",
-    "go_vendor_lines": 2000564,
-    "go_vendor_lines_display": "2.00 million"
+    "go_source_lines": 1764695,
+    "go_source_lines_display": "1.76 million",
+    "go_test_lines": 2122409,
+    "go_test_lines_display": "2.12 million",
+    "go_vendor_lines": 2063007,
+    "go_vendor_lines_display": "2.06 million"
   },
   "rfc": {
     "enrolled": 204,
@@ -536,22 +536,22 @@
     "must_kept_display": "4,752",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2196,
-    "proven_display": "2,196",
-    "proven_percent": "46.2",
+    "proven": 2209,
+    "proven_display": "2,209",
+    "proven_percent": "46.5",
     "requirements": 7834,
     "requirements_display": "7,834",
     "summaries": 231,
     "summaries_display": "231"
   },
   "tests": {
-    "e2e": 3033,
+    "e2e": 3035,
     "e2e_display": "3,000+",
     "editor": 207,
     "editor_display": "200+",
-    "fuzz": 113,
+    "fuzz": 115,
     "fuzz_display": "110+",
-    "unit": 48346,
-    "unit_display": "48,300+"
+    "unit": 48457,
+    "unit_display": "48,400+"
   }
 }
