@@ -49,7 +49,7 @@ func TestDaemonRestartInfraUsesExistingGracefulStop(t *testing.T) {
 	swapAAABundle(&aaa.Bundle{
 		Authorizer: authz.StoreAuthorizer{Store: policy}, Accountant: accountant,
 	}, nil)
-	r := &daemonRestartReactor{authWiringReactor: authWiringReactor{dispatcher: s.Dispatcher()}}
+	r := &daemonRestartReactor{dispatcher: s.Dispatcher()}
 	infraSetup(infra.HookParams{
 		Reactor: r, APIServer: func() *pluginserver.Server { return s },
 	}, nil, &configMutationOwner{}, nil)

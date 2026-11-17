@@ -19,7 +19,7 @@ import (
 func TestBrowserGraphicalFileUsesSelectedCandidate(t *testing.T) {
 	s, _ := browserCorpusCase(t, "merge", "unused", "")
 	s.root = filepath.Join("..", "..", "..", "..")
-	path := filepath.Join(s.root, "test/web/graphical-import-file.wb")
+	path := filepath.Join(s.root, "test", "web", "graphical-import-file.wb")
 	loaded := map[string]bool{}
 	sequences := s.browserSequences(path, loaded)
 	if len(sequences) != 1 {
@@ -29,7 +29,7 @@ func TestBrowserGraphicalFileUsesSelectedCandidate(t *testing.T) {
 	if !slices.Equal(step.path, []string{"bgp", "group", "graphical/file"}) || !step.replace {
 		t.Fatalf("native form scope = %v, replace = %v", step.path, step.replace)
 	}
-	fixture := filepath.Join(s.root, "test/web/fixtures/graphical-import-relative.conf")
+	fixture := filepath.Join(s.root, "test", "web", "fixtures", "graphical-import-relative.conf")
 	if step.source != fixture || !loaded[fixture] {
 		t.Fatalf("selected physical input = %q, loaded = %v", step.source, loaded)
 	}

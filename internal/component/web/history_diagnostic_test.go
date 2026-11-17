@@ -12,6 +12,7 @@ import (
 	"testing/synctest"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	_ "github.com/ze-software/ze/internal/component/doctor" // Registers the actual recent-events producer.

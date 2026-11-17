@@ -151,14 +151,15 @@ func newSuppliedInspectionCommand(entry command.LocalCommandEntry, node *command
 		seen[field] = true
 		fileField := field + "-file"
 		if len(input.Fields) == 0 {
-			fileField = "file"
+			fileField = webFileField
 		}
 		admitted.view.Sources = append(admitted.view.Sources, GraphicalSuppliedSource{
 			Label: humanizeFieldLabel(field), Field: field, FileField: fileField,
 			ContentID: "graphical-supplied-" + field, FileID: "graphical-supplied-" + fileField,
 		})
 	}
-	for _, def := range defs {
+	for index := range defs {
+		def := &defs[index]
 		if def.Name() == input.ContentArg {
 			continue
 		}
@@ -173,7 +174,8 @@ func newSuppliedInspectionCommand(entry command.LocalCommandEntry, node *command
 	}
 	if input.NameArg != "" {
 		found := false
-		for _, def := range defs {
+		for index := range defs {
+			def := &defs[index]
 			if def.Name() == input.NameArg {
 				if def.Kind() != command.ArgString {
 					return nil, fmt.Errorf("%s: its diagnostic label is not a string", entry.Path)

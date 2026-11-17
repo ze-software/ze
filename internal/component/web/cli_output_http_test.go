@@ -217,8 +217,7 @@ func cliOutputTestFrames(t *testing.T, w *httptest.ResponseRecorder) ([]cliOutpu
 	require.Equal(t, cliOutputTestMediaType, w.Header().Get("Content-Type"))
 	var frames []cliOutputTestFrame
 	var answer []byte
-	lines := bytes.Split(bytes.TrimSuffix(w.Body.Bytes(), []byte("\n")), []byte("\n"))
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(bytes.TrimSuffix(w.Body.Bytes(), []byte("\n")), []byte("\n")) {
 		require.LessOrEqual(t, len(line)+1, 64*1024)
 		var frame cliOutputTestFrame
 		require.NoError(t, json.Unmarshal(line, &frame))

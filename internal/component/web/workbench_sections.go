@@ -174,7 +174,7 @@ func sections() []sectionDef {
 			{Key: "connections", Label: "Connections", URL: "/show/firewall/connections/"},
 		}},
 		{key: segL2TP, label: "L2TP", children: []WorkbenchSubPage{
-			{Key: "sessions", Label: "Sessions", URL: "/show/l2tp/sessions/"},
+			{Key: configWordSessions, Label: "Sessions", URL: "/show/l2tp/sessions/"},
 			{Key: "configuration", Label: "Configuration", URL: "/show/l2tp/"},
 			{Key: segHealth, Label: "Health", URL: "/show/l2tp/health/"},
 		}},
@@ -203,7 +203,7 @@ func sections() []sectionDef {
 		{key: segLogs, label: "Logs", children: []WorkbenchSubPage{
 			{Key: "live", Label: "Live Log", URL: "/show/logs/live/"},
 			{Key: "warnings", Label: "Warnings", URL: "/show/logs/warnings/"},
-			{Key: "errors", Label: "Errors", URL: "/show/logs/errors/"},
+			{Key: verbErrors, Label: "Errors", URL: "/show/logs/errors/"},
 		}},
 	}
 }

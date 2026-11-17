@@ -113,7 +113,7 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 		case verbWho, verbOption:
 			result = executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, path, terminalModeConfig, command, line, nil)
 		case verbRollback:
-			result.output, err = mgr.rollbackGraphicalRevision(username, r.FormValue("revision"))
+			result.output, err = mgr.rollbackGraphicalRevision(username, r.FormValue(configWordRevision))
 			if err != nil {
 				result.output = "error: " + err.Error()
 			} else {
@@ -236,14 +236,14 @@ func graphicalActionCommand(schema *config.Schema, r *http.Request) (path []stri
 	case verbSave, verbHistory:
 		words = []string{operation}
 	case verbRollback:
-		words = []string{verbRollback, r.FormValue("revision")}
+		words = []string{verbRollback, r.FormValue(configWordRevision)}
 		responsePath = nil
 	case "verify", "now", "accept", "abort":
 		words = []string{verbCommit, operation}
 		if operation == "abort" {
 			responsePath = nil
 		}
-	case "confirmed":
+	case configWordConfirmed:
 		words = []string{verbCommit, operation, r.FormValue("seconds")}
 	case verbDiscard:
 		words = []string{verbDiscard, discardAll}
@@ -264,7 +264,7 @@ func graphicalActionCommand(schema *config.Schema, r *http.Request) (path []stri
 		}
 	}
 	switch operation {
-	case "now", "confirmed":
+	case "now", configWordConfirmed:
 		if selected := r.FormValue("force"); selected != "" {
 			force, err := strconv.ParseBool(selected)
 			if err != nil {

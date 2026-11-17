@@ -89,7 +89,7 @@ func (v *CLIViewTransport) accepts(r *http.Request, input string) bool {
 	}
 	// A request header is bounded by net/http's server limit. No wildcard opts
 	// a legacy text consumer into this wire format.
-	for _, accepted := range strings.Split(r.Header.Get("Accept"), ",") {
+	for accepted := range strings.SplitSeq(r.Header.Get("Accept"), ",") {
 		media, parameters, err := mime.ParseMediaType(strings.TrimSpace(accepted))
 		if err != nil {
 			continue
@@ -157,8 +157,8 @@ func (v *CLIViewTransport) stream(w http.ResponseWriter, r *http.Request, input 
 		// continuation ends. The joined request retains no usable controls.
 		if active != nil {
 			if writeErr := v.write(w, active, cliViewFrame{Handle: handle,
-				BrowserViewFrame: cli.BrowserViewFrame{Done: true},
-				Error:            cliStreamRefusalText(cliStreamRefusal(err))}, &started); writeErr != nil {
+				Done:  true,
+				Error: cliStreamRefusalText(cliStreamRefusal(err))}, &started); writeErr != nil {
 				return true
 			}
 		}
@@ -317,7 +317,7 @@ func (v *CLIViewTransport) Action(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, cliViewFailure("The monitor handle is too long.").Error(), http.StatusBadRequest)
 		return
 	}
-	if len(action) == 0 {
+	if action == "" {
 		http.Error(w, cliViewFailure("Choose a monitor control.").Error(), http.StatusBadRequest)
 		return
 	}

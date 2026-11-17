@@ -52,7 +52,7 @@ func newCLIOutputWriter(w http.ResponseWriter, ctx context.Context, cancel conte
 func acceptsCLIOutput(r *http.Request) bool {
 	// A wildcard never opts a plaintext client into framing. The HTTP server
 	// bounds this header; malformed or refused media ranges are ignored.
-	for _, accepted := range strings.Split(r.Header.Get("Accept"), ",") {
+	for accepted := range strings.SplitSeq(r.Header.Get("Accept"), ",") {
 		media, parameters, err := mime.ParseMediaType(strings.TrimSpace(accepted))
 		if err != nil {
 			continue

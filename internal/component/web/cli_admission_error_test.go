@@ -2,6 +2,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,7 @@ func TestCLICompletionRefusalPreservesProducerRecovery(t *testing.T) {
 // TestSubmittedCLIModeRefusalExplainsRecovery keeps the invalid-mode status
 // while requiring the browser action on the final diagnostic line.
 func TestSubmittedCLIModeRefusalExplainsRecovery(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/cli/terminal", strings.NewReader(url.Values{"mode": {"unexpected"}}.Encode()))
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/cli/terminal", strings.NewReader(url.Values{"mode": {"unexpected"}}.Encode()))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()
 	if _, accepted := submittedCLIMode(response, request); accepted {
@@ -50,7 +51,7 @@ func TestSubmittedCLIModeRefusalExplainsRecovery(t *testing.T) {
 // open a history owner before authentication and tells the browser how to sign in.
 func TestCLIHistoryAuthenticationRefusalExplainsRecovery(t *testing.T) {
 	response := httptest.NewRecorder()
-	writeCLIHistory(response, httptest.NewRequest(http.MethodGet, "/cli?history=1&mode=config", nil), nil)
+	writeCLIHistory(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli?history=1&mode=config", http.NoBody), nil)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d; want %d", response.Code, http.StatusUnauthorized)
 	}
@@ -67,7 +68,7 @@ func TestWebRequestAdmissionRefusalExplainsRecovery(t *testing.T) {
 	response := httptest.NewRecorder()
 	server.serveRequest(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("a sealed service admitted a request")
-	})).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/cli", nil))
+	})).ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli", http.NoBody))
 	if response.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d; want %d", response.Code, http.StatusServiceUnavailable)
 	}

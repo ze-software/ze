@@ -97,7 +97,7 @@ func graphicalValuesFromForm(r *http.Request, path []string, name string, node c
 		return v, graphicalRefusal("The editor accepts at most 1024 rows in one save.")
 	}
 	operation := r.FormValue("operation")
-	if operation == "clear" {
+	if operation == verbClear {
 		v.Members, v.Entries = nil, nil
 		return v, nil
 	}

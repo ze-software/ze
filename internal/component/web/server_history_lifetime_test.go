@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/selfcert"
 )
 
@@ -60,6 +61,6 @@ func TestWebServerNetworkDeadlineJoinsLivePostProducer(t *testing.T) {
 	}
 	require.NoError(t, <-served)
 	late := httptest.NewRecorder()
-	server.server.Handler.ServeHTTP(late, httptest.NewRequest(http.MethodPost, "/cli/stream", nil))
+	server.server.Handler.ServeHTTP(late, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/cli/stream", http.NoBody))
 	require.Equal(t, http.StatusServiceUnavailable, late.Code)
 }

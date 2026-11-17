@@ -77,34 +77,35 @@ func TestSSHCompletionBindsCallerContextAndLiveRegistry(t *testing.T) {
 	makeModel := func(username string) cli.Model {
 		created, createErr := factory(sessionCtx, username, "203.0.113.9:4567", sshCompletionPolicy{t}, zessh.SessionRequest{})
 		require.NoError(t, createErr)
-		model := created.(cli.Model)
+		model, ok := created.(cli.Model)
+		require.True(t, ok)
 		t.Cleanup(func() { require.NoError(t, model.Close()) })
 		model.SetInput("show ssh completion ")
 		return model
 	}
 	operator := makeModel("operator")
 	operator.UpdateCompletions()
-	assert.False(t, hasSSHCompletion(operator.Completions(), "alpha"))
+	assert.False(t, hasSSHCompletion(operator.Completions()))
 	registered := server.Dispatcher().Registry().Register(proc, []pluginserver.CommandDef{{Name: "show ssh completion", Completable: true}})
 	require.True(t, registered[0].OK, registered[0].Error)
 	operator.UpdateCompletions()
-	assert.True(t, hasSSHCompletion(operator.Completions(), "alpha"))
+	assert.True(t, hasSSHCompletion(operator.Completions()))
 	reader := makeModel("reader")
 	reader.UpdateCompletions()
-	assert.False(t, hasSSHCompletion(reader.Completions(), "alpha"))
+	assert.False(t, hasSSHCompletion(reader.Completions()))
 	assert.Contains(t, reader.StatusMessage(), plugin.UnauthorizedMessage)
 	cancel()
 	operator.UpdateCompletions()
-	assert.False(t, hasSSHCompletion(operator.Completions(), "alpha"))
+	assert.False(t, hasSSHCompletion(operator.Completions()))
 	assert.Contains(t, operator.StatusMessage(), context.Canceled.Error())
 	server.Dispatcher().Registry().Unregister(proc, []string{"show ssh completion"})
 	operator.UpdateCompletions()
-	assert.False(t, hasSSHCompletion(operator.Completions(), "alpha"))
+	assert.False(t, hasSSHCompletion(operator.Completions()))
 }
 
-func hasSSHCompletion(items []cli.Completion, text string) bool {
+func hasSSHCompletion(items []cli.Completion) bool {
 	for _, item := range items {
-		if item.Text == text {
+		if item.Text == "alpha" {
 			return true
 		}
 	}

@@ -216,14 +216,14 @@ func cliStreamInput(mode string, cmd cliCommand, registered ...func(string) bool
 	if _, lifecycle := contract.LifecycleCommand(cmd.words.String()); lifecycle {
 		return "", false
 	}
-	if cmd.words.String() == "clear" {
+	if cmd.words.String() == verbClear {
 		return "", false
 	}
 	if cmd.Verb == verbRun && configMode {
 		if len(cmd.Args) == 0 {
 			return "", false
 		}
-		if cmd.words.Tail().String() == "clear" {
+		if cmd.words.Tail().String() == verbClear {
 			return "", false
 		}
 		return cmd.words.Tail().String(), true

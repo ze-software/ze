@@ -216,7 +216,7 @@ marker and closes sessions without a shutdown notification, through the same
 action SSH restart uses. Starting the daemon again requires a supervisor
 configured to restart it after this stop. This command does not reboot the
 host and takes no arguments.";
-            ze:help "Restart the daemon in place with graceful-restart state; keep the host running.";
+            ze:help "Restart the daemon with graceful-restart state while keeping the host running.";
         }
 
         container reboot {

@@ -28,6 +28,7 @@ import (
 func TestWebCLIViewNegotiatesControls(t *testing.T) {
 	client, base, _ := cliViewTestServer(t, cliViewTestAdmission, cliViewTestBinding)
 	response, decoder := cliViewTestOpen(t, client, base, "testuser")
+	t.Cleanup(func() { require.NoError(t, response.Body.Close()) })
 	require.Equal(t, http.StatusOK, response.StatusCode)
 	media, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
 	require.NoError(t, err)
@@ -88,9 +89,11 @@ func TestWebCLIViewActionsTrackRequestLifetime(t *testing.T) {
 	}
 	client, base, views := cliViewTestServer(t, cliViewTestAdmission, bind)
 	first, decoder := cliViewTestOpen(t, client, base, "alice")
+	t.Cleanup(func() { require.NoError(t, first.Body.Close()) })
 	frame := cliViewTestFrame(t, decoder, func(frame cliViewFrame) bool { return strings.Contains(frame.Text, "10.0.0.10") })
 	assert.Less(t, strings.Index(frame.Text, "10.0.0.9"), strings.Index(frame.Text, "10.0.0.10"))
 	second, otherDecoder := cliViewTestOpen(t, client, base, "alice")
+	t.Cleanup(func() { require.NoError(t, second.Body.Close()) })
 	other := cliViewTestFrame(t, otherDecoder, func(frame cliViewFrame) bool { return frame.Handle != "" })
 	require.NotEqual(t, frame.Handle, other.Handle)
 	cliViewTestAction(t, client, base, "bob", frame.Handle, "stop", http.StatusForbidden)
@@ -155,6 +158,7 @@ func TestWebCLIViewStopInterruptsBusyDetail(t *testing.T) {
 	}
 	client, base, views := cliViewTestServer(t, cliViewTestAdmission, bind)
 	response, decoder := cliViewTestOpen(t, client, base, "alice")
+	t.Cleanup(func() { require.NoError(t, response.Body.Close()) })
 	frame := cliViewTestFrame(t, decoder, func(frame cliViewFrame) bool { return strings.Contains(frame.Text, "10.0.0.10") })
 	cliViewTestAction(t, client, base, "alice", frame.Handle, "detail", http.StatusNoContent)
 	select {
@@ -205,7 +209,7 @@ func TestWebCLIViewAdmissionBounds(t *testing.T) {
 	assert.ErrorIs(t, request.ctx.Err(), context.Canceled)
 	response := httptest.NewRecorder()
 	started := false
-	err = views.write(response, request, cliViewFrame{Handle: handle, BrowserViewFrame: cli.BrowserViewFrame{Text: strings.Repeat("a", cli.BrowserViewFrameBytesMax)}}, &started)
+	err = views.write(response, request, cliViewFrame{Handle: handle, Text: strings.Repeat("a", cli.BrowserViewFrameBytesMax)}, &started)
 	require.ErrorContains(t, err, "64 KiB")
 	assert.False(t, started)
 	assert.Empty(t, response.Body.String())
@@ -254,8 +258,8 @@ func TestWebCLIViewMalformedActionDoesNotReachRunner(t *testing.T) {
 	views.Action(response, anonymous)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 	assert.Empty(t, request.actions)
-	status, err := views.action("testuser", handle, "next")
-	require.NoError(t, err)
+	status, refusal := views.action("testuser", handle, "next")
+	require.Nil(t, refusal)
 	assert.Equal(t, http.StatusNoContent, status)
 	assert.Equal(t, cli.BrowserViewAction{ID: "next"}, <-request.actions)
 }
@@ -286,7 +290,7 @@ func TestWebCLIViewWriteDeadlineBoundsSocket(t *testing.T) {
 	writer := &cliViewDeadlineWriter{ResponseRecorder: httptest.NewRecorder()}
 	started := false
 	before := time.Now()
-	err = views.write(writer, request, cliViewFrame{Handle: handle, BrowserViewFrame: cli.BrowserViewFrame{Sequence: 1, Text: "bounded answer"}}, &started)
+	err = views.write(writer, request, cliViewFrame{Handle: handle, Sequence: 1, Text: "bounded answer"}, &started)
 	require.NoError(t, err)
 	assert.True(t, started)
 	assert.True(t, writer.Flushed)
@@ -359,7 +363,6 @@ func cliViewTestOpen(t *testing.T, client *http.Client, base, username string) (
 	request.SetBasicAuth(username, "synthetic")
 	response, err := client.Do(request)
 	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, response.Body.Close()) })
 	return response, json.NewDecoder(response.Body)
 }
 

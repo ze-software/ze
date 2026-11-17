@@ -156,7 +156,8 @@ func (selected *suppliedInspectionCommand) invocation(r *http.Request) (string, 
 		allowed[source.FileField] = true
 		fileFields[source.FileField] = true
 	}
-	for _, def := range selected.defs {
+	for index := range selected.defs {
+		def := &selected.defs[index]
 		if def.Name() != selected.input.ContentArg {
 			allowed[def.Name()] = true
 		}
@@ -222,14 +223,15 @@ func (selected *suppliedInspectionCommand) invocation(r *http.Request) (string, 
 		return "", selected.sizeRefusal()
 	}
 	values := make(map[string]string, len(selected.defs))
-	for _, def := range selected.defs {
+	for index := range selected.defs {
+		def := &selected.defs[index]
 		if def.Name() == selected.input.ContentArg {
 			continue
 		}
 		value := r.PostForm.Get(def.Name())
 		if def.Kind() == command.ArgFlag {
 			if value != "" {
-				if value != "true" {
+				if value != boolTrue {
 					return "", suppliedInspectionRefusal("An inspection selection is invalid.", nil)
 				}
 			}
@@ -292,7 +294,7 @@ func (selected *suppliedInspectionCommand) readSource(r *http.Request, source Gr
 	if len(data) > selected.decodedMax {
 		return nil, "", selected.sizeRefusal()
 	}
-	if len(strings.TrimSpace(string(data))) == 0 {
+	if strings.TrimSpace(string(data)) == "" {
 		return nil, "", suppliedInspectionRefusal("Each inspection input needs a selected file or pasted configuration.", nil)
 	}
 	return data, headerName, nil

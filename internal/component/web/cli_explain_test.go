@@ -24,7 +24,7 @@ func TestWebCLIExplainsCompletedOperationalInput(t *testing.T) {
 	const explanation = "Read the live routing state.\nNo configuration is changed."
 	tree := &command.Node{Children: map[string]*command.Node{
 		"show": {Children: map[string]*command.Node{
-			"probe": {Description: explanation},
+			"probe":      {Description: explanation},
 			"undeclared": {ShortHelp: "A summary alone"},
 		}},
 	}}

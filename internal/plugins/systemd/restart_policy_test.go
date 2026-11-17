@@ -28,8 +28,8 @@ func TestUnitFileIntentionalRestartPolicy(t *testing.T) {
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
-		if strings.HasPrefix(line, "[") {
-			section = strings.TrimSuffix(strings.TrimPrefix(line, "["), "]")
+		if name, found := strings.CutPrefix(line, "["); found {
+			section = strings.TrimSuffix(name, "]")
 			if sections[section] == nil {
 				sections[section] = make(map[string]string)
 			}

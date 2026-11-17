@@ -58,10 +58,10 @@ func recordCLIHistory(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		if record {
 			receipt := r.FormValue("submission")
 			var err error
-			if !validHistoryReceipt(receipt) {
-				err = historyUnavailable("The command recall submission identifier is invalid.")
-			} else {
+			if validHistoryReceipt(receipt) {
 				err = mgr.RecordHistory(GetUsernameFromRequest(r), effective, path, input, receipt)
+			} else {
+				err = historyUnavailable("The command recall submission identifier is invalid.")
 			}
 			if err != nil {
 				submission.warning = err.Error()

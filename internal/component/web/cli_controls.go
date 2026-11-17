@@ -29,8 +29,8 @@ func executeTerminalControl(schema *config.Schema, tree *config.Tree, mgr *Edito
 	}
 	if mode == terminalModeConfig {
 		if cmd.Verb == verbRun {
-			if cmd.words.Tail().String() == "clear" {
-				line = "clear"
+			if cmd.words.Tail().String() == verbClear {
+				line = verbClear
 			}
 		}
 	}
@@ -44,7 +44,7 @@ func executeTerminalControl(schema *config.Schema, tree *config.Tree, mgr *Edito
 		return answer, true
 	}
 	switch line {
-	case "clear":
+	case verbClear:
 		if mode == terminalModeConfig {
 			answer.output = serializeTreeAtPath(displayTree(tree, mgr, username), schema, path)
 			answer.outputComplete = true

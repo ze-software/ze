@@ -263,7 +263,7 @@ func renderL2TPPageContent(renderer *Renderer, path []string, viewTree *config.T
 	}
 
 	switch path[0] {
-	case "sessions":
+	case configWordSessions:
 		return handleL2TPSessionsPage(renderer), true
 	case segHealth:
 		return handleL2TPHealthPage(renderer), true

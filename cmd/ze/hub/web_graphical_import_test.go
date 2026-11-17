@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -223,9 +224,7 @@ func TestGraphicalImportRefusesForgedChoices(t *testing.T) {
 		{"content": {""}},
 	} {
 		fields := url.Values{"source": {"terminal"}, "location": {"absolute"}, "action": {"merge"}, "path": {""}, "content": {"system { host forged; }"}}
-		for name, values := range altered {
-			fields[name] = values
-		}
+		maps.Copy(fields, altered)
 		response, body := s.paste(t, fields)
 		require.Equal(t, http.StatusBadRequest, response.StatusCode, body)
 		assert.Contains(t, strings.ToLower(body), "fix:")

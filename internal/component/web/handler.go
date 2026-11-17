@@ -73,12 +73,12 @@ var configVerbs = map[string]bool{
 	"add":              true,
 	"form":             true,
 	"add-form":         true,
-	"changes":          true,
+	configWordChanges:  true,
 	command.VerbDelete: true,
 	"rename":           true,
 	command.VerbCommit: true,
 	"discard":          true,
-	"compare":          true,
+	verbCompare:        true,
 }
 
 // The top-level URL prefixes. Each one is also the verb ParseURL reports for a

@@ -227,7 +227,8 @@ func (m *EditorManager) Close() error {
 		}
 		retirementError := m.historyRetirementError
 		m.historyMu.Unlock()
-		failures := []error{retirementError}
+		failures := make([]error, 1, 1+len(owners))
+		failures[0] = retirementError
 		for _, owner := range owners {
 			failures = append(failures, owner.close())
 		}

@@ -44,6 +44,16 @@ type CommandCompleterFactory func(context.Context, plugin.CallerIdentity) Comman
 const (
 	webCommandField = "command"
 	webPathField    = "path"
+	webFileField    = "file"
+)
+
+// Shared configuration words at command, form and path boundaries.
+const (
+	configWordChanges   = "changes"
+	configWordConfirmed = "confirmed"
+	configWordRevision  = "revision"
+	configWordSessions  = "sessions"
+	configWordUser      = "user"
 )
 
 // maxCommandLength is the maximum allowed CLI command text length.
@@ -66,6 +76,7 @@ const maxCompletionResults = 50
 // spelling one verb two ways; the rest are editor-mode words the registry holds
 // no entry for.
 const (
+	verbClear      = command.VerbClear
 	verbEdit       = "edit"
 	verbSet        = command.VerbSet
 	verbDelete     = command.VerbDelete
@@ -527,7 +538,7 @@ func HandleCLICompleteWithSource(completer *cli.Completer, source CommandComplet
 			}
 		}
 
-		if r.URL.Query().Get("explain") == "true" {
+		if r.URL.Query().Get("explain") == boolTrue {
 			text, found := explainCLIInput(commandCompleter, input, mode)
 			answer := struct {
 				Explanation string `json:"explanation"`
@@ -600,8 +611,7 @@ func HandleCLICompleteWithSource(completer *cli.Completer, source CommandComplet
 // completer interface also permits plain transport errors, which need browser
 // context and a recovery action at this boundary.
 func cliCompletionFailure(err error) *opererr.Error {
-	var refusal *opererr.Error
-	if errors.As(err, &refusal) {
+	if refusal, ok := errors.AsType[*opererr.Error](err); ok {
 		return refusal
 	}
 	return opererr.Wrap(err, "Command completion is unavailable.",

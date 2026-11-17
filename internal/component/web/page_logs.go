@@ -41,7 +41,7 @@ func renderLogPageContent(renderer *Renderer, r *http.Request, path []string, di
 		return handleLogLivePage(renderer), true
 	case "warnings":
 		return handleLogWarningsPage(renderer, r, dispatch), true
-	case "errors":
+	case verbErrors:
 		return handleLogErrorsPage(renderer, r, dispatch), true
 	}
 

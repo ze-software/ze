@@ -3,6 +3,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -23,7 +25,7 @@ func TestBrowserHistoryRefusalReportsBoundedDoctorEvent(t *testing.T) {
 	mgr := newTestEditorManager(t)
 	submit := func(receipt string) *http.Request {
 		form := url.Values{"command": {"show private-input-never-report"}, "submission": {receipt}}
-		request := httptest.NewRequest(http.MethodPost, "/cli", strings.NewReader(form.Encode()))
+		request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/cli", strings.NewReader(form.Encode()))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		request = request.WithContext(withUsername(request.Context(), "private-user-never-report"))
 		return recordCLIHistory(httptest.NewRecorder(), request, mgr, terminalModeOperational, nil, form.Get("command"), nil)
@@ -50,7 +52,7 @@ func TestBrowserHistoryResponseFailureReportsBoundedDoctorEvent(t *testing.T) {
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
 	mgr := newTestEditorManager(t)
-	request := httptest.NewRequest(http.MethodGet, "/cli?history=1&mode=operational", nil)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli?history=1&mode=operational", http.NoBody)
 	request = request.WithContext(withUsername(request.Context(), "private-user-never-report"))
 	response := httptest.NewRecorder()
 	writeCLIHistory(response, request, mgr)

@@ -21,7 +21,7 @@ import (
 func TestBrowserGraphicalDeclaredRefusalRecoversRealPaste(t *testing.T) {
 	s, _ := browserCorpusCase(t, "merge", "unused", "")
 	s.root = filepath.Join("..", "..", "..", "..")
-	path := filepath.Join(s.root, "test/web/graphical-import-paste.wb")
+	path := filepath.Join(s.root, "test", "web", "graphical-import-paste.wb")
 	body, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestBrowserGraphicalDeclaredRefusalRecoversRealPaste(t *testing.T) {
 // actual import error is not declared immediately after that parsed submission.
 func TestBrowserGraphicalRefusalDeclarationMustMatch(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..")
-	body, err := os.ReadFile(filepath.Join(root, "test/web/graphical-import-paste.wb"))
+	body, err := os.ReadFile(filepath.Join(root, "test", "web", "graphical-import-paste.wb"))
 	if err != nil {
 		t.Fatal(err)
 	}

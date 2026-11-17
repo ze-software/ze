@@ -20,7 +20,7 @@ func positionCompletionServer(t *testing.T, producer ArgCompleter) (*Server, *Co
 	dispatcher := NewDispatcher()
 	require.NoError(t, dispatcher.RegisterWithOptions("show completion position", func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("completion executed the target handler")
-		return nil, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{}), nil
 	}, "Complete the next value", RegisterOptions{ReadOnly: true, Complete: producer}))
 	require.NoError(t, dispatcher.RegisterWithOptions("system command complete", handleSystemCommandComplete, "Complete command arguments", RegisterOptions{ReadOnly: true}))
 	server := &Server{dispatcher: dispatcher}
@@ -41,7 +41,9 @@ func TestBuiltinArgumentCompletionReceivesCompletedValues(t *testing.T) {
 	response, err := server.Dispatcher().Dispatch(ctx, `system command complete args "show completion position" 42 scope "west side" listener "edge-"`)
 	require.NoError(t, err)
 	require.Equal(t, 1, calls)
-	require.Equal(t, []Completion{{Value: "edge-west"}}, response.Data.(plugin.Map)[fieldCompletions])
+	data, ok := response.Data.(plugin.Map)
+	require.True(t, ok)
+	require.Equal(t, []Completion{{Value: "edge-west"}}, data[fieldCompletions])
 }
 
 // TestBuiltinArgumentCompletionTreeRetainsPosition proves the shared overlay
@@ -104,7 +106,9 @@ func TestBuiltinPositionCompletionKeepsCallerAuthorization(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, 1, calls)
-			require.Equal(t, []Completion{{Value: "private-value"}}, response.Data.(plugin.Map)[fieldCompletions])
+			data, ok := response.Data.(plugin.Map)
+			require.True(t, ok)
+			require.Equal(t, []Completion{{Value: "private-value"}}, data[fieldCompletions])
 		})
 	}
 }

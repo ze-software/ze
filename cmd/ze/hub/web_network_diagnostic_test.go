@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	zeweb "github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
@@ -20,7 +21,7 @@ import (
 )
 
 // TestWebNetworkCleanupFailureReportsDoctorEvent compares a clean unused
-// service with an actual live request whose network grace is cancelled.
+// service with an actual live request whose network grace is canceled.
 func TestWebNetworkCleanupFailureReportsDoctorEvent(t *testing.T) {
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
@@ -54,7 +55,7 @@ func TestWebNetworkCleanupFailureReportsDoctorEvent(t *testing.T) {
 	require.NoError(t, server.WaitReady(ready))
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} //nolint:gosec // Per-test self-signed server.
 	t.Cleanup(client.CloseIdleConnections)
-	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+server.Address()+"/held", nil)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+server.Address()+"/held", http.NoBody)
 	require.NoError(t, err)
 	response, err := client.Do(request)
 	require.NoError(t, err)

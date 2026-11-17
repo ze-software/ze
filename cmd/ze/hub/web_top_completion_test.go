@@ -5,6 +5,7 @@
 package hub
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
@@ -33,7 +35,7 @@ func TestWebTopRunCompletesLiveArguments(t *testing.T) {
 	var expectedArgs []string
 	require.NoError(t, server.Dispatcher().RegisterWithOptions("show parity sample", func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("completion executed the target")
-		return nil, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{}), nil
 	}, "Read a sample", pluginserver.RegisterOptions{Complete: func(_ *pluginserver.Server, args []string) []pluginserver.Completion {
 		calls++
 		require.Equal(t, expectedArgs, args)
@@ -61,7 +63,7 @@ func TestWebTopRunCompletesLiveArguments(t *testing.T) {
 	} {
 		expectedArgs = tc.args
 		query := url.Values{"input": {tc.input}, "mode": {tc.mode}, "path": {"system"}}
-		r := httptest.NewRequest(http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
+		r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
 		r.RemoteAddr = "203.0.113.9:4567"
 		r.SetBasicAuth("operator", "synthetic")
 		w := httptest.NewRecorder()
@@ -98,7 +100,7 @@ func TestWebTopRunExplainsRawArguments(t *testing.T) {
 		{"top set system host", false},
 	} {
 		query := url.Values{"input": {tc.input}, "mode": {"config"}, "path": {"system"}, "explain": {"true"}}
-		r := httptest.NewRequest(http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
+		r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
 		r.RemoteAddr = "203.0.113.9:4567"
 		r.SetBasicAuth("operator", "synthetic")
 		w := httptest.NewRecorder()
@@ -134,7 +136,7 @@ func TestWebTopSetCompletesRootFromNestedPosition(t *testing.T) {
 		{"top set syst", "system", "operational"},
 	} {
 		query := url.Values{"input": {tc.input}, "mode": {tc.mode}, "path": {"system"}}
-		r := httptest.NewRequest(http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
+		r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
 		r.RemoteAddr = "203.0.113.9:4567"
 		r.SetBasicAuth("operator", "synthetic")
 		w := httptest.NewRecorder()
@@ -157,7 +159,7 @@ func TestWebTopRunCompletionRetainsDenial(t *testing.T) {
 	t.Cleanup(server.Stop)
 	require.NoError(t, server.Dispatcher().RegisterWithOptions("show parity sample", func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("completion executed the target")
-		return nil, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{}), nil
 	}, "Read a sample", pluginserver.RegisterOptions{Complete: func(*pluginserver.Server, []string) []pluginserver.Completion {
 		t.Fatal("denied completion reached the live producer")
 		return nil
@@ -170,7 +172,7 @@ func TestWebTopRunCompletionRetainsDenial(t *testing.T) {
 	authenticated := zeweb.AuthMiddlewareWithAudit(store, completionAuthenticator{&completionPolicy{t: t}}, func(http.ResponseWriter, *http.Request) {}, handler, nil)
 	for _, username := range []string{"reader", "rpc-denied"} {
 		query := url.Values{"input": {"top top run show parity sample pr"}, "mode": {"config"}, "path": {"system"}}
-		r := httptest.NewRequest(http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
+		r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli/complete?"+query.Encode(), http.NoBody)
 		r.RemoteAddr = "203.0.113.9:4567"
 		r.SetBasicAuth(username, "synthetic")
 		w := httptest.NewRecorder()

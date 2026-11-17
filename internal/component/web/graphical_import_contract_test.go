@@ -31,7 +31,7 @@ func TestGraphicalImportDefaultsRenderNativeChoices(t *testing.T) {
 	for {
 		switch tokens.Next() {
 		case html.ErrorToken:
-			if err := tokens.Err(); err != io.EOF {
+			if err := tokens.Err(); !errors.Is(err, io.EOF) {
 				t.Fatal(err)
 			}
 			if selects != 4 {
@@ -97,7 +97,7 @@ func TestGraphicalImportDefaultsRenderNativeChoices(t *testing.T) {
 func TestGraphicalImportErrorMatchesResponse(t *testing.T) {
 	for _, cause := range []error{errors.New("malformed configuration"), graphicalImportRefusal("The import form is invalid.")} {
 		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, "/config/import", http.NoBody)
+		request := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/config/import", http.NoBody)
 		writeGraphicalImportError(response, request, nil, cause, http.StatusBadRequest)
 		refusal := GraphicalImportError(cause)
 		if response.Code != http.StatusBadRequest {

@@ -117,7 +117,7 @@ func readGraphicalImport(r *http.Request, schema *config.Schema) (*graphicalCand
 	}
 	if r.MultipartForm != nil {
 		for name, files := range r.MultipartForm.File {
-			if name != "file" {
+			if name != webFileField {
 				return nil, graphicalImportRefusal("The import form contains an unknown file field.")
 			}
 			if len(files) != 1 {
@@ -148,7 +148,7 @@ func readGraphicalImport(r *http.Request, schema *config.Schema) (*graphicalCand
 		return nil, graphicalImportRefusal("The imported configuration is empty.")
 	}
 	words := []string{source, r.PostForm.Get("location"), r.PostForm.Get("action")}
-	if source == "file" {
+	if source == webFileField {
 		words = append(words, filename)
 	}
 	// A browser filename is a label for supplied bytes. The shared grammar
@@ -173,7 +173,7 @@ func readGraphicalImportContent(r *http.Request, source string) (content, filena
 			}
 		}
 		return r.PostForm.Get("content"), "", nil
-	case "file":
+	case webFileField:
 		// The multipart file is read below; a missing selection is refused.
 	default:
 		return "", "", graphicalImportRefusal("The configuration input source is unknown.")
@@ -184,7 +184,7 @@ func readGraphicalImportContent(r *http.Request, source string) (content, filena
 	if r.MultipartForm == nil {
 		return "", "", graphicalImportRefusal("No configuration file was selected.")
 	}
-	files := r.MultipartForm.File["file"]
+	files := r.MultipartForm.File[webFileField]
 	if len(files) != 1 {
 		return "", "", graphicalImportRefusal("Select one configuration file for the import.")
 	}

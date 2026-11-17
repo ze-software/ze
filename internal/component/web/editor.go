@@ -942,7 +942,7 @@ func (m *EditorManager) ActiveSessions() []string {
 		}
 		us.mu.Unlock()
 
-		changeWord := "changes"
+		changeWord := configWordChanges
 		if count == 1 {
 			changeWord = "change"
 		}

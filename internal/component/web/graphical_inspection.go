@@ -29,7 +29,7 @@ func graphicalInspectionWords(r *http.Request) ([]string, bool, error) {
 		words := []string{verbShow}
 		switch r.FormValue("source") {
 		case "candidate":
-		case "confirmed", "saved":
+		case configWordConfirmed, "saved":
 			words = append(words, r.FormValue("source"))
 		default:
 			return nil, true, graphicalActionRefusal("Select candidate, running configuration or saved draft before inspecting it.")
@@ -44,25 +44,25 @@ func graphicalInspectionWords(r *http.Request) ([]string, bool, error) {
 		}
 		words := []string{verbShow, "|"}
 		switch view := r.FormValue("view"); view {
-		case "blame", "active", "inactive", "changes", "errors":
+		case "blame", "active", "inactive", configWordChanges, verbErrors:
 			return append(words, view), true, nil
 		case "allchanges":
-			return append(words, "changes", "all"), true, nil
+			return append(words, configWordChanges, "all"), true, nil
 		default:
 			return nil, true, graphicalActionRefusal("Select a candidate metadata view before inspecting it.")
 		}
-	case "compare":
+	case verbCompare:
 		target := r.FormValue("target")
 		switch target {
-		case "confirmed", "saved":
-		case "revision", "user":
+		case configWordConfirmed, "saved":
+		case configWordRevision, configWordUser:
 			// The owning manager resolves these under the execution lock.
 		default:
 			return nil, true, graphicalActionRefusal("Select a supported comparison target.")
 		}
 		format, err := graphicalInspectionFormat(r)
-		return []string{verbShow, "|", "compare", target, "|", "format", format}, true, err
-	case "sessions":
+		return []string{verbShow, "|", verbCompare, target, "|", "format", format}, true, err
+	case configWordSessions:
 		return []string{verbWho}, true, nil
 	case verbDisconnect:
 		session := r.FormValue("session")
@@ -102,11 +102,11 @@ func graphicalInspectionFormat(r *http.Request) (string, error) {
 }
 
 func graphicalPinnedCompare(r *http.Request) bool {
-	if r.FormValue("action") != "compare" {
+	if r.FormValue("action") != verbCompare {
 		return false
 	}
 	switch r.FormValue("target") {
-	case "revision", "user":
+	case configWordRevision, configWordUser:
 		return true
 	default:
 		return false
@@ -126,13 +126,13 @@ func (m *EditorManager) compareGraphicalRevision(username string, path []string,
 	defer us.mu.Unlock()
 	var target string
 	switch r.FormValue("target") {
-	case "revision":
+	case configWordRevision:
 		backups, err := us.editor.ListBackups()
 		if err != nil {
 			return "", err
 		}
 		for index, backup := range backups {
-			if backup.Path == r.FormValue("revision") {
+			if backup.Path == r.FormValue(configWordRevision) {
 				target = "rollback " + strconv.Itoa(index+1)
 				break
 			}
@@ -140,7 +140,7 @@ func (m *EditorManager) compareGraphicalRevision(username string, path []string,
 		if target == "" {
 			return "", graphicalActionRefusal("That saved revision is no longer available. Refresh history and choose a revision again.")
 		}
-	case "user":
+	case configWordUser:
 		for _, change := range us.editor.PendingChanges("") {
 			if change.User == r.FormValue("username") {
 				target = configtext.QuoteCommandWord(change.User)

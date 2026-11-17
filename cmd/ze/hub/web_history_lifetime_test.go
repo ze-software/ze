@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zeweb "github.com/ze-software/ze/internal/component/web"
@@ -109,7 +110,10 @@ func TestWebServiceShutdownSealsCLIHistoryBeforeOwnedStoreRelease(t *testing.T) 
 	t.Cleanup(func() { require.NoError(t, service.Shutdown(context.Background())) })
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} //nolint:gosec // Per-test self-signed server.
 	t.Cleanup(client.CloseIdleConnections)
-	response, err := client.PostForm("https://"+server.Address()+"/cli/terminal", url.Values{"command": {"show"}, "mode": {"operational"}, "submission": {"owned-one"}})
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "https://"+server.Address()+"/cli/terminal", strings.NewReader(url.Values{"command": {"show"}, "mode": {"operational"}, "submission": {"owned-one"}}.Encode()))
+	require.NoError(t, err)
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := client.Do(request)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, response.StatusCode)
 	require.NoError(t, response.Body.Close())
@@ -129,7 +133,8 @@ func TestWebStartupFailureReleasesItsBorrowedManager(t *testing.T) {
 	store, err := storage.Create(t.TempDir())
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, store.Close()) })
-	occupied, err := net.Listen("tcp", "127.0.0.1:0")
+	var listen net.ListenConfig
+	occupied, err := listen.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer occupied.Close() //nolint:errcheck // Test-owned occupied port.
 	server, broker, manager := startWebServer(store, "config.conf", []string{"127.0.0.1:0", occupied.Addr().String()}, true, "", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)

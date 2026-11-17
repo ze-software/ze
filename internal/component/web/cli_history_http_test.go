@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/selfcert"
@@ -57,7 +58,7 @@ func TestCLIHistoryHTTPKeepsTrustedIdentityAndExactModes(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, w.Code)
 	}
 	w = httptest.NewRecorder()
-	handler(w, httptest.NewRequest(http.MethodGet, "/cli?history=1&mode=config", nil))
+	handler(w, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/cli?history=1&mode=config", http.NoBody))
 	require.Equal(t, http.StatusUnauthorized, w.Code)
 }
 

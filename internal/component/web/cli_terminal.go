@@ -109,7 +109,7 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			return
 		}
 		cmd := parseCLICommand(commandText)
-		cmd.confirmed = r.PostFormValue("confirm") == "true"
+		cmd.confirmed = r.PostFormValue("confirm") == boolTrue
 		if values, ok := r.PostForm["content"]; ok {
 			if len(values) > 0 {
 				if len(values[0]) > editorContentMax {
@@ -432,11 +432,11 @@ func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispa
 						executionErr = errors.Join(executionErr, encodeErr)
 					} else {
 						data, applyErr := formatFn(string(payload))
-						if applyErr != "" {
+						if applyErr == "" {
+							output += "\n" + data
+						} else {
 							output += "\n" + command.PipeErrorPrefix + applyErr
 							executionErr = errors.Join(executionErr, errors.New(applyErr))
-						} else {
-							output += "\n" + data
 						}
 					}
 				}

@@ -162,7 +162,7 @@ func collectUsers(tree *config.Tree) []userEntry {
 	}
 
 	var users []userEntry
-	for _, entry := range auth.GetListOrdered("user") {
+	for _, entry := range auth.GetListOrdered(configWordUser) {
 		ue := userEntry{Name: entry.Key}
 		if entry.Value != nil {
 			// Profiles from leaf-list
@@ -213,7 +213,7 @@ func buildUsersTableData(users []userEntry) WorkbenchTableData {
 			Cells: []string{nameDisplay, profileStr, strconv.Itoa(u.KeyCount)},
 		}
 		if !u.System {
-			userURL := tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{"system", "authentication", "user", u.Name})).Byte('/').String()
+			userURL := tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{"system", "authentication", configWordUser, u.Name})).Byte('/').String()
 			row.URL = userURL
 			row.Actions = []WorkbenchRowAction{
 				{Label: labelEdit, URL: userURL},

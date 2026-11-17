@@ -25,7 +25,7 @@ func TestWebCompletionUsesLiveArgumentProducer(t *testing.T) {
 	live := "alpha"
 	require.NoError(t, server.Dispatcher().RegisterWithOptions("request browser-completion probe", func(*pluginserver.CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("completion executed the command")
-		return nil, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{}), nil
 	}, "Inspect live completion values", pluginserver.RegisterOptions{
 		Complete: func(*pluginserver.Server, []string) []pluginserver.Completion {
 			return []pluginserver.Completion{{Value: live, ShortHelp: "Configured plugin"}}

@@ -40,7 +40,7 @@ func TestArgumentCompletionUsesCallerPolicy(t *testing.T) {
 			reads := 0
 			require.NoError(t, d.RegisterWithOptions("request completion probe", func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 				t.Fatal("completion executed the target")
-				return nil, nil
+				return plugin.NewResponse(plugin.StatusDone, plugin.Map{}), nil
 			}, "Complete a live value", RegisterOptions{Complete: func(*Server, []string) []Completion {
 				reads++
 				return []Completion{{Value: "private-value"}}
@@ -52,7 +52,9 @@ func TestArgumentCompletionUsesCallerPolicy(t *testing.T) {
 			if allowed {
 				require.NoError(t, err)
 				assert.Equal(t, 1, reads)
-				assert.Equal(t, []Completion{{Value: "private-value"}}, resp.Data.(plugin.Map)[fieldCompletions])
+				data, ok := resp.Data.(plugin.Map)
+				require.True(t, ok)
+				assert.Equal(t, []Completion{{Value: "private-value"}}, data[fieldCompletions])
 			} else {
 				assert.ErrorIs(t, err, ErrUnauthorized)
 				assert.Zero(t, reads)

@@ -71,7 +71,8 @@ system { host supplied-comparison-sentinel; }
 // as dispatch; candidate mutation remains forbidden.
 func TestWebSuppliedInspectionFinderOffersReadOnlyInputs(t *testing.T) {
 	web := newSuppliedWeb(t)
-	response, body := web.get("reader", "/show/")
+	response, body := web.get("/show/")
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	require.Contains(t, body, "id=\"graphical-supplied-toggle\"")
 	require.Contains(t, body, "id=\"graphical-supplied-command\"")
@@ -85,7 +86,8 @@ func TestWebSuppliedInspectionFinderOffersReadOnlyInputs(t *testing.T) {
 		require.Contains(t, body, "value=\""+entry.Path+"\"")
 	}
 	require.Positive(t, count, "the real supplied-input registry must be linked")
-	response, body = web.get("reader", "/config/inspect/form?command="+url.QueryEscape("show config supplied diff"))
+	response, body = web.get("/config/inspect/form?command=" + url.QueryEscape("show config supplied diff"))
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	for _, id := range []string{"graphical-supplied-before", "graphical-supplied-after", "graphical-supplied-before-file", "graphical-supplied-after-file", "graphical-supplied-submit"} {
 		require.Contains(t, body, "id=\""+id+"\"")
@@ -120,6 +122,7 @@ func TestWebSuppliedInspectionAnswersMatchTerminal(t *testing.T) {
 			}
 			start := web.callCount()
 			response, body := web.post("reader", "/config/inspect", values, nil)
+			require.NoError(t, response.Body.Close())
 			require.Equal(t, http.StatusOK, response.StatusCode, body)
 			result := suppliedResultText(t, body)
 			require.NotEmpty(t, result, "dropping all source input cannot satisfy inspection")
@@ -150,6 +153,7 @@ func TestWebSuppliedInspectionAnswersMatchTerminal(t *testing.T) {
 			response, body = web.post("reader", "/cli/terminal", url.Values{
 				"command": {path + " content " + wantEncoded}, "mode": {"operational"}, "history": {"0"},
 			}, nil)
+			require.NoError(t, response.Body.Close())
 			require.Equal(t, http.StatusOK, response.StatusCode, body)
 			var terminal struct {
 				Output string `json:"output"`
@@ -169,7 +173,8 @@ func TestWebSuppliedInspectionAnswersMatchTerminal(t *testing.T) {
 			require.Equal(t, logBefore, env.Get("ze.log"))
 		})
 	}
-	response, body := web.get("reader", "/cli?history=1&mode=operational")
+	response, body := web.get("/cli?history=1&mode=operational")
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	require.NotContains(t, body, "supplied-reader-sentinel")
 	require.NotContains(t, body, base64.StdEncoding.EncodeToString([]byte(suppliedWebSource)))
@@ -181,6 +186,7 @@ func TestWebSuppliedInspectionFileIsBytesAndBasename(t *testing.T) {
 	web := newSuppliedWeb(t)
 	response, body := web.post("reader", "/config/inspect", url.Values{"command": {"show config supplied validation"}},
 		map[string]suppliedWebFile{"file": {name: `C:\operator\picked.conf`, data: []byte(suppliedWebSource)}})
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	require.NotEmpty(t, suppliedResultText(t, body))
 	calls := web.callsSince(0)
@@ -203,9 +209,11 @@ func TestWebSuppliedInspectionDeniedCallerUsesDaemonPolicy(t *testing.T) {
 	web := newSuppliedWeb(t)
 	values := url.Values{"command": {"show config supplied dump"}, "content": {suppliedWebSource}}
 	response, body := web.post("reader", "/config/inspect", values, nil)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	require.Contains(t, suppliedResultText(t, body), "supplied-reader-sentinel")
 	response, body = web.post("blocked", "/config/inspect", values, nil)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusForbidden, response.StatusCode, body)
 	require.Contains(t, body, plugin.UnauthorizedMessage)
 	require.NotContains(t, body, "supplied-reader-sentinel")
@@ -224,12 +232,14 @@ func TestWebSuppliedInspectionCombinedBudget(t *testing.T) {
 	response, body := web.post("reader", "/config/inspect", url.Values{
 		"command": {"show config supplied dump"}, "content": {source},
 	}, nil)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	require.Contains(t, suppliedResultText(t, body), "supplied-reader-sentinel")
 	before := web.callCount()
 	response, body = web.post("reader", "/config/inspect", url.Values{
 		"command": {"show config supplied diff"}, "before": {source}, "after": {source},
 	}, nil)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusRequestEntityTooLarge, response.StatusCode, body)
 	require.Contains(t, body, "195,840")
 	require.Equal(t, before, web.callCount(), "never dispatch a truncated or independently budgeted pair")
@@ -244,6 +254,7 @@ func TestWebSuppliedInspectionInvalidValidationKeepsEvidence(t *testing.T) {
 		"command": {"show config supplied validation"},
 		"content": {"bgp { router-id invalid-supplied-address; }"},
 	}, nil)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusBadRequest, response.StatusCode, body)
 	result := suppliedResultText(t, body)
 	require.Contains(t, result, "invalid-supplied-address")
@@ -263,7 +274,8 @@ func TestWebSuppliedInspectionFormUsesDeclaredChoices(t *testing.T) {
 		{"dump", []string{"strip-private"}},
 		{"fmt", []string{"check", "diff"}},
 	} {
-		response, body := web.get("reader", "/config/inspect/form?command="+url.QueryEscape("show config supplied "+selection.operation))
+		response, body := web.get("/config/inspect/form?command=" + url.QueryEscape("show config supplied "+selection.operation))
+		require.NoError(t, response.Body.Close())
 		require.Equal(t, http.StatusOK, response.StatusCode, body)
 		for _, flag := range selection.flags {
 			require.Contains(t, body, "name=\""+flag+"\"")
@@ -339,6 +351,7 @@ func TestWebSuppliedInspectionRejectsAmbiguousForms(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			before := web.callCount()
 			response, body := web.post("reader", "/config/inspect", tc.form, tc.files)
+			require.NoError(t, response.Body.Close())
 			require.Equal(t, http.StatusBadRequest, response.StatusCode, body)
 			require.Equal(t, before, web.callCount())
 			require.NotContains(t, body, "supplied-reader-sentinel")
@@ -353,17 +366,21 @@ func TestWebSuppliedInspectionHTTPGuards(t *testing.T) {
 	web := newSuppliedWeb(t)
 	values := url.Values{"command": {"show config supplied dump"}, "content": {suppliedWebSource}}
 	response, body := web.post("reader", "/config/inspect", values, nil)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusOK, response.StatusCode, body)
 	before := web.callCount()
 	request := web.request("", http.MethodPost, "/config/inspect", strings.NewReader(values.Encode()), "application/x-www-form-urlencoded")
 	response, body = web.do(request)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusUnauthorized, response.StatusCode, body)
 	request = web.request("reader", http.MethodPost, "/config/inspect", strings.NewReader(values.Encode()), "application/x-www-form-urlencoded")
 	request.Header.Set("Origin", "https://another-origin.invalid")
 	response, body = web.do(request)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusForbidden, response.StatusCode, body)
 	request = web.request("reader", http.MethodPost, "/config/inspect", strings.NewReader("content="+strings.Repeat("a", 4*1024*1024)), "application/x-www-form-urlencoded")
 	response, body = web.do(request)
+	require.NoError(t, response.Body.Close())
 	require.Equal(t, http.StatusRequestEntityTooLarge, response.StatusCode, body)
 	require.Equal(t, before, web.callCount())
 }
@@ -449,6 +466,7 @@ func newSuppliedWeb(t *testing.T, beforeDispatch ...func(context.Context)) *supp
 	web.client = &http.Client{Transport: transport, Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	for _, user := range users {
 		response, body := web.post("", "/login", url.Values{"username": {user.Name}, "password": {"supplied-test-password"}}, nil)
+		require.NoError(t, response.Body.Close())
 		require.Equal(t, http.StatusSeeOther, response.StatusCode, body)
 		for _, cookie := range response.Cookies() {
 			if cookie.Name == "ze-session" {
@@ -482,13 +500,12 @@ func (web *suppliedWeb) do(request *http.Request) (*http.Response, string) {
 	require.NoError(web.t, err)
 	body, err := io.ReadAll(response.Body)
 	require.NoError(web.t, err)
-	require.NoError(web.t, response.Body.Close())
 	return response, string(body)
 }
 
-func (web *suppliedWeb) get(user, path string) (*http.Response, string) {
+func (web *suppliedWeb) get(path string) (*http.Response, string) {
 	web.t.Helper()
-	return web.do(web.request(user, http.MethodGet, path, nil, ""))
+	return web.do(web.request("reader", http.MethodGet, path, nil, ""))
 }
 
 func (web *suppliedWeb) post(user, path string, form url.Values, files map[string]suppliedWebFile) (*http.Response, string) {

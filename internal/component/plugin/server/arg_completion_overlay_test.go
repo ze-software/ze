@@ -19,7 +19,7 @@ func TestArgumentCompletionOverlayKeepsBaseAndCallerQueriesIndependent(t *testin
 	d := NewDispatcher()
 	require.NoError(t, d.RegisterWithOptions("show isolated arguments", func(*CommandContext, command.ValidatedArgs) (*plugin.Response, error) {
 		t.Fatal("completion executed the target")
-		return nil, nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{}), nil
 	}, "Inspect argument values", RegisterOptions{Complete: func(*Server, []string) []Completion {
 		t.Fatal("overlay construction bypassed its bound query")
 		return nil

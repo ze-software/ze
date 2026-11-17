@@ -68,11 +68,11 @@ func TestSessionFactoryLifecycleUsesCallerDispatcher(t *testing.T) {
 					require.True(t, ok)
 					t.Cleanup(func() { require.NoError(t, model.Close()) })
 					model.SetInput(alias)
-					model = lifecycleModelKey(t, model, tea.KeyPressMsg{Code: tea.KeyEnter})
+					model = lifecycleModelKey(t, &model, tea.KeyPressMsg{Code: tea.KeyEnter})
 					assert.Contains(t, model.View().Content, "Continue? [y/N]")
 					assert.Empty(t, accountant.starts, "confirmation must come before admission")
 					assert.Zero(t, accepted)
-					model = lifecycleModelKey(t, model, tea.KeyPressMsg{Code: 'y', Text: "y"})
+					model = lifecycleModelKey(t, &model, tea.KeyPressMsg{Code: 'y', Text: "y"})
 					canonical := "request restart"
 					if alias == "stop" {
 						canonical = "request shutdown"
@@ -108,7 +108,7 @@ func (p *lifecycleSessionPolicy) Authorize(username, remote, command string, rea
 
 // lifecycleModelKey processes the bounded result/completion chain a single
 // lifecycle key creates. No model Init, timer or background worker is started.
-func lifecycleModelKey(t *testing.T, model cli.Model, key tea.KeyPressMsg) cli.Model {
+func lifecycleModelKey(t *testing.T, model *cli.Model, key tea.KeyPressMsg) cli.Model {
 	t.Helper()
 	updated, next := model.Update(key)
 	for steps := 0; next != nil; steps++ {
@@ -142,9 +142,9 @@ func TestSessionFactoryLifecycleCancellationUsesSessionContext(t *testing.T) {
 	require.True(t, ok)
 	t.Cleanup(func() { require.NoError(t, model.Close()) })
 	model.SetInput("restart")
-	model = lifecycleModelKey(t, model, tea.KeyPressMsg{Code: tea.KeyEnter})
+	model = lifecycleModelKey(t, &model, tea.KeyPressMsg{Code: tea.KeyEnter})
 	cancel()
-	model = lifecycleModelKey(t, model, tea.KeyPressMsg{Code: 'y', Text: "y"})
+	model = lifecycleModelKey(t, &model, tea.KeyPressMsg{Code: 'y', Text: "y"})
 	assert.Equal(t, 1, dispatched)
 	assert.Contains(t, model.View().Content, context.Canceled.Error())
 }
