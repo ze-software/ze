@@ -235,6 +235,30 @@ which also settles how far the ruling reaches into plugin loading.
 <!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
 <!-- source: internal/component/plugin/server/delivery_reconcile.go -- reconcileDelivery -->
 
+### Owner ruling: endpoints and flows on the bus
+
+On 2026-11-17, Thomas ruled that `attach process` comes from ExaBGP's process
+concept and no longer fits. One block names a program, grants it events and
+grants it the right to send, and it exists only under a BGP peer, while the
+bus carries many namespaces. The configuration will state two things apart:
+
+| Concept | What it states |
+|---------|----------------|
+| Endpoint | One party registered on the bus under a name: a built-in plugin, or a program ze starts. The `plugin` block becomes this half of a `bus` block, the hub listener with it |
+| Flow | One named relationship between two parties: the events that go one way, and the commands the receiver may send back. The command list is the permission for every command an external program sends |
+
+A BGP group or peer takes part in a flow by listing its name, and the list
+merges through groups as every list does. A flow that leaves the operator no
+choice is declared by its plugin and shown by a command, not written. The
+ruling above holds unchanged: a flow no peer lists moves nothing, and a
+configuration that lacks a flow a feature needs is refused at commit with the
+line that adds it.
+
+This is not implemented yet. Everything below this section describes
+`attach process` as it works today. The work is owned by
+[spec-explicit-plugin-and-attach-config](../../../plan/release/fixes/spec-explicit-plugin-and-attach-config.md),
+which carries the fields of both blocks and a before and after example.
+
 ### Configuration Syntax
 
 ```
