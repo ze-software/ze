@@ -50,6 +50,23 @@ interface cleanup still needs its API. Shutdown must respect the selected
 dependency graph and retain its distinct contract: it does not invoke the
 removal-only `OnBye` callback.
 
+This lifecycle work also owns the defects its scoped server tests exposed.
+A startup that observes its terminal stop skips remaining readiness steps and
+cannot turn that stopped outcome into success or clear a successor's stopped
+record. A callback admitted while the lifetime was live may finish after Stop;
+completion must not leave reentrant startup callbacks deadlocked. A genuinely
+completed startup keeps its historical result when the server stops later. An intentional
+restart must retire the old fatal plugin's logical ownership before stopping
+it, while retaining its physical join; a genuinely unexpected fatal exit must
+still stop the daemon.
+
+The same server checks require operational command recognition to follow the
+actual quote, pipe and keyword-boundary grammar. Its catalogue must include
+predeclared subsystem commands and replace that declaration at the real
+registration stage. Usage must render the command registry's current route-kind
+values. These are prerequisite repairs, with their original questions and
+independent test judgments preserved, rather than exclusions from the tests.
+
 Shared kernel CoS also needs a permanent recovery command:
 `ze request class-of-service cleanup`. It makes one bounded pass over failed
 original owners and preserves healthy members, pending work and compensation
@@ -210,7 +227,7 @@ prove the product backend's runtime behavior.
 ## Implementation progress (2026-11-17)
 
 The feature remains in progress at Phase 2/7. The results below establish
-bounded parts of the work; they do not demonstrate all AC-1 through AC-32.
+bounded parts of the work; they do not demonstrate all AC-1 through AC-37.
 Later-phase implementation drafts exist, but their full product acceptance
 remains open. The original design, phase order and acceptance criteria stay
 in force.
@@ -251,7 +268,7 @@ in force.
 | 3 | Repair shutdown through the selected dependency graph while preserving the full-stop contract without `OnBye`. Pass both existing shutdown subcases, the reached lifecycle regressions and real external-process joins, then prove the native VPP cleanup path completes before its provider stops |
 | 4 | Finish matching-artifact parser proof for AC-1, AC-2, AC-29 and AC-30. Execute the refusal with `ze_l2tp` present and `ze_vpp` absent, and the enabled/LCP prerequisite cases on the full build. Preserve declaration failures, exact metadata refusal, valid mismatch skips and the existing Linux default-backend proof |
 | 5 | Accept Phase 2 kernel parity and the complete Phase 3 IPv4, Phase 4 IPv6 and Phase 5 policer/CoA paths. Use the actual Ze entry points, native forwarding/counter and TAP captures, VRF/framed/delegated routes, teardown and concurrent policer ordering. Finish the named functional and `pppoe-vpp-ze-ac-pppd-client` interop proofs, including their rebuilt causal failures; draft code and unit-only passes do not discharge these paths |
-| 6 | Accept Phase 6 VPP loss/restart through `pppoe-vpp-restart`, then Phase 7 guides, digests, feature declarations, RFC performer annotations and discrimination records. Complete scoped checks and both independent review gates, demonstrate all 32 acceptance criteria and every goal, then close. Phase 1 remains owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
+| 6 | Accept Phase 6 VPP loss/restart through `pppoe-vpp-restart`, then Phase 7 guides, digests, feature declarations, RFC performer annotations and discrimination records. Complete scoped checks and both independent review gates, demonstrate all 37 acceptance criteria and every goal, then close. Phase 1 remains owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
 
 ## Required Reading
 
@@ -464,6 +481,11 @@ remains open.
 | AC-30 | A parse fixture declares `needs-linux`, or `ZE_QEMU_LINUX_ONLY=1` selects parse fixtures | Shared admission validates complete option names, keys and capabilities using the actual file path. Commands, stdin, assertions, existing skip reasons and the exact guest route remain intact. The population filter excludes only valid unmarked files. Malformed files fail rather than skip. The omitted-backend netlink acceptance fixture requires an executed Linux PASS and 80 stress runs with zero skips |
 | AC-31 | Failed shared kernel CoS owners remain while other members are healthy, pending or still compensatable; the operator runs `ze request class-of-service cleanup` | The registered no-argument command makes one bounded pass over eligible failed original owners using their captured native authority. It reports attempted and recovered counts, retains partial progress and every independent failure cause, and preserves healthy, pending and compensatable owners. An empty set is a successful no-op; malformed arguments fail before any native write. Uncertain operations settle before compensation and only confirmed same-owner readback clears cleanup custody |
 | AC-32 | `internal/test/pluginengine` `Start` runs a real SDK plugin over either wire or bridge, with a held initializer or an initializer that makes an engine RPC | `Start` remains pending until the existing runtime-ready callback receipt confirms initialization. Initializer RPCs are served while waiting; the first command then reaches the initialized handler once with its original arguments. Stage 5 or bridge activation alone cannot release `Start`; no fabricated readiness or command retry substitutes for the receipt |
+| AC-33 | The daemon stops with dependent internal engines or external child processes still cleaning up | The selected dependency graph keeps providers available through actual engine completion and external reaping/stderr joins. Whole-daemon shutdown sends no removal-only `OnBye`. Expired cleanup retains and reports unfinished ownership rather than claiming a join or discarding remaining processes |
+| AC-34 | Stop races startup readiness, callback completion or a replacement generation; an empty startup callback reenters Stop | Once terminal Stop is observed before a remaining readiness step, that step is skipped. A callback admitted while live may finish after Stop, but cannot turn a terminal outcome into success or clear a successor's stopped record. Final Stop admission and completion publication are serialized; no lifecycle lock is held across callbacks. Parent cancellation is observed before the final completion check. A genuinely completed startup keeps its historical success after a later Stop or cancellation |
+| AC-35 | An operator intentionally restarts a running plugin whose unexpected-exit policy is fatal | The old generation loses only its logical restart ownership before it is stopped; its actual cleanup and process join remain retained. The intentional retirement does not stop the daemon. An unexpected fatal exit of the current generation still invokes its configured policy |
+| AC-36 | Operational command recognition receives incomplete quotes, pipe syntax, a keyword prefix, or commands predeclared by a subsystem before its full registration | Recognition follows the actual grammar and complete keyword boundaries, never accepts an unfinished quoted command, and sees the original subsystem declaration. Full registration replaces only that subsystem's declaration without stale or duplicate catalogue entries |
+| AC-37 | Usage renders command arguments after the command registry publishes its current route-kind values | It renders the declared values from the actual registration. Existing command and route-kind behavior remains available; fixture changes require independent judgment against that contract rather than dropping or weakening the usage question |
 
 ## End-to-End User Stories
 | # | User does | Path through system | Test proving it works |
@@ -780,7 +802,7 @@ section reference (`ai/rules/rfc-compliance.md`, functions added from 2026-09-24
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-32 all demonstrated
+- [ ] AC-1..AC-37 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] Scoped tests for the reached packages and behaviors pass in the main checkout; GitHub CI verifies the pushed commits, and agents run no `./le verify` command
