@@ -416,7 +416,22 @@ external plugin's own root therefore loads at `ze start`
 daemon calls the join with a declaration: it starts no plugin. The join's
 other callers are `YANGSchemaWithPlugins` and `YANGValidatorWithPlugins`,
 which pass module texts a Go caller holds (`loadYANGModules`, with
-`yang.ExternalModuleFromText` reading each text's name and namespace).
+`yang.ExternalModuleFromText` reading each text's name and namespace). They
+are how a compiled-in plugin that is selected on the command line (`ze start
+--plugin <name>`, and each reload that repeats it) reaches the join with its
+`Registration.YANG`. `loadConfig` collects those texts with
+`plugin.CollectPluginYANG` and parses with `YANGSchemaWithPlugins`, and the
+BGP reactor's file loader builds its validator the same way.
+`loadYANGModules` leaves out a text identical to a module the set holds, so
+an in-tree plugin, whose yang package's `init()` registers the same text,
+adds nothing. Any other text goes through `JoinExternalModules`. A
+registration whose module no `init()` registered therefore has its root in
+the schema only when its plugin is selected (`TestReloadVerifierRetainsSelectedPluginSchema`).
+This is not a second road beside the published set: both roads end in
+`yang.Join`, and they carry different inputs.
+<!-- source: internal/component/config/loader.go -- loadConfig -->
+<!-- source: internal/component/bgp/config/loader.go -- loadReactorFile -->
+<!-- test: internal/component/bgp/config/loader_test.go TestReloadVerifierRetainsSelectedPluginSchema -->
 
 The join parses the text of every compiled-in module again and resolves the
 whole set with the declared modules (`resolveJoined`), so a start that declares

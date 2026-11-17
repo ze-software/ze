@@ -112,11 +112,18 @@ func loadReactorFile(store storage.Storage, path string, cliPlugins []string) (*
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
+	// The validator covers the modules of the compiled-in plugins named on the
+	// command line, the set LoadConfig below parses against: a module its yang
+	// package's init() registered adds nothing, and one no init() registered
+	// is joined only when its plugin is selected. A validator that cannot be
+	// built is an error, never a reactor left with no runtime attribute
+	// validation; the refusal is the join's own, naming the plugin and module.
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
-
-	if v, vErr := config.YANGValidatorWithPlugins(pluginYANG); vErr == nil && v != nil {
-		plugin.SetYANGValidator(v)
+	validator, err := config.YANGValidatorWithPlugins(pluginYANG)
+	if err != nil {
+		return nil, err
 	}
+	plugin.SetYANGValidator(validator)
 
 	cfg, err := config.LoadConfig(string(data), path, cliPlugins)
 	if err != nil {

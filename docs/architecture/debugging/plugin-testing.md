@@ -43,6 +43,15 @@ Output shows schema structure including augmented fields:
          ...
 ```
 
+The list names each module under the file name its yang package registers,
+once each, in command-line order. The command parses with the modules
+`init()` registered and nothing else. A named plugin whose YANG text no
+registered module carries is not counted. It gets a `!` line that says the
+command refuses its config section, and names the fix, `./le yang glue
+update`. `ze start --plugin <name>` joins such a module from the plugin's
+registration (`config.LoadConfig`). `ze plugin test` does not.
+<!-- source: internal/component/plugin/cli/test_cmd.go -- pluginModuleFiles -->
+
 **Show config tree structure:**
 ```bash
 ze plugin test --plugin bgp-hostname --tree config.conf

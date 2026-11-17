@@ -7,8 +7,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/cliio"
@@ -94,13 +97,25 @@ func cmdPluginTest(args []string) int {
 		return 1
 	}
 
-	// Collect plugin YANG
-	pluginYANG := plugin.CollectPluginYANG(plugins)
-	fmt.Printf("📦 Plugin YANG modules loaded: %d\n", len(pluginYANG))
-	for name := range pluginYANG {
-		fmt.Printf("   - %s\n", name)
+	// The modules of the named plugins that the schema below holds, and the
+	// named plugins whose module it does not: this command parses with the
+	// modules init() registered, and joins no module from a registration.
+	moduleFiles, unregistered := pluginModuleFiles(plugins)
+	var modules textbuf.Buffer
+	modules.Str("📦 Plugin YANG modules loaded: ").Int(int64(len(moduleFiles))).Byte('\n')
+	for _, file := range moduleFiles {
+		modules.Str("   - ").Str(file).Byte('\n')
 	}
-	fmt.Println()
+	for _, name := range unregistered {
+		modules.Str("   ! ").Str(name).
+			Str(": its YANG module is not loaded, because no init() registers it, so this command refuses its config section.\n").
+			Str("     Put the module in the plugin's yang/ directory, then run:\n").
+			Str("     ./le yang glue update\n")
+	}
+	modules.Byte('\n')
+	if writeErr := modules.StdOut(); writeErr != nil {
+		return 1
+	}
 
 	// Show schema if requested
 	if *showSchema {
@@ -122,8 +137,8 @@ func cmdPluginTest(args []string) int {
 		fmt.Println()
 	}
 
-	// Parse config with the process-wide schema: the module of every internal
-	// plugin listed above is registered by init(), so it is already in it. No
+	// Parse config with the process-wide schema, which holds every module
+	// init() registered and none of the plugins reported unregistered above. No
 	// external plugin is started to read its module: a section of one is
 	// refused below, with the command that reaches a running ze.
 	schema, declared, schemaErr := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data), Path: configPath})
@@ -187,6 +202,49 @@ func cmdPluginTest(args []string) int {
 	}
 
 	return 0
+}
+
+// pluginModuleFiles answers, in command-line order and once each, the file
+// name the YANG module of each named internal plugin is registered under, and
+// the named plugins whose YANG text no registered module carries. A
+// registration's text is normally the one its yang package's init()
+// registered (configyang.RegisterModule), so the process's schema holds it. A
+// text no init() registered is joined by ze start --plugin
+// (config.LoadConfig), but not by this command, whose schema is the
+// registered set alone (config.SchemaWithDeclaredPlugins): such a plugin is
+// answered in unregistered, never dropped and never counted as loaded. A name
+// with the "ze." prefix is the plugin without it. A name no internal plugin
+// registers, or a plugin with no YANG, adds nothing.
+func pluginModuleFiles(plugins []string) (files, unregistered []string) {
+	for _, name := range plugins {
+		pluginName := strings.TrimPrefix(name, "ze.")
+		text := plugin.GetInternalPluginYANG(pluginName)
+		if text == "" {
+			continue
+		}
+		file, registered := registeredModuleFile(text)
+		if !registered {
+			if !slices.Contains(unregistered, pluginName) {
+				unregistered = append(unregistered, pluginName)
+			}
+			continue
+		}
+		if !slices.Contains(files, file) {
+			files = append(files, file)
+		}
+	}
+	return files, unregistered
+}
+
+// registeredModuleFile answers the file name of the registered module whose
+// content is text, and false when no registered module carries it.
+func registeredModuleFile(text string) (string, bool) {
+	for _, module := range configyang.Modules() {
+		if module.Content == text {
+			return module.Name, true
+		}
+	}
+	return "", false
 }
 
 // showSchemaNode recursively shows schema node structure.

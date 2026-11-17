@@ -383,7 +383,7 @@ and exists only in the server worktree `spec-external-yang`.
 |---|------|-------|
 | 1 | Read the pending runs and lint, then commit the work above | Main thread |
 | 2 | D-3, below | The owner |
-| 3 | AC-11: write the `ze:decorate` and `ze:backend` check, or narrow the criterion to `ze:validate` and `ze:reference` | Narrowing is the owner's |
+| 3 | AC-11: decided 2026-11-17, the owner narrowed it to `ze:validate` and `ze:reference` ("make it a fix to do post-release"); the `ze:decorate` and `ze:backend` check and its journal row are `plan/post-release/features/spec-plugin-external-yang-judges-decorate-and-backend.md`. Still owed here: the functional test of the narrowed AC-11 (spec still-owes row 10) | A code agent; the main thread runs it |
 | 4 | Remove `CollectPluginYANG`, `YANGSchemaWithPlugins` and `YANGValidatorWithPlugins`. The spec's "Leftover code" table says what each caller does today and what its removal takes; the tests that pass a fixture module move to `JoinExternalModules` and `SchemaOf`, under the test judge | A code agent |
 | 5 | `external-yang-boot-accepts-what-offline-refuses.ci` still pairs `await=stderr` with an exit assertion that proves nothing | A code agent and the test judge |
 | 6 | Pages with no statement of this work found by search: `features/plugins.md`, `docs/guide/plugins.md`, `docs/functional-tests.md`, `docs/architecture/plugin/plugin-system.md`, `ai/digests/hub-engine.md`, `docs/plugin-development/README.md`; then `./le spec citation anchors` and `./le doc check all` | A prose agent; the main thread runs the checks |

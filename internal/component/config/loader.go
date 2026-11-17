@@ -70,14 +70,21 @@ func LoadRunningConfig(running map[string]any, configPath string, cliPlugins []s
 // longer possible; nil publishes nothing, which is ReadConfig's whole
 // difference.
 func loadConfig(input, configPath string, cliPlugins []string, publish func(*Tree)) (*LoadConfigResult, error) {
+	// The module texts of the compiled-in plugins named on the command line.
+	// A plugin whose module its yang package's init() registered adds nothing:
+	// the process's module set holds that text already, and the join leaves it
+	// out. A plugin whose Registration.YANG no init() registered has its module
+	// joined here, and only when it is selected: without the selection its
+	// root stays unknown (TestReloadVerifierRetainsSelectedPluginSchema).
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
 
 	// The schema is kept, not rebuilt: ApplyPasswordHashing below is
 	// schema-driven (it hashes the plaintext- sibling of every ze:bcrypt leaf),
-	// and YANGSchemaWithPlugins caches nothing -- it reloads and resolves every
-	// embedded YANG module on each call. Parsing once and carrying the schema
-	// costs one pointer; asking for it again would cost a second full build on
-	// every daemon start and every SIGHUP.
+	// and YANGSchemaWithPlugins caches nothing -- given any module text it
+	// builds the schema again on each call, and resolves the module set again
+	// when a text is not one the set holds. Parsing once and carrying
+	// the schema costs one pointer; asking for it again would cost a second
+	// build on every daemon start and every SIGHUP with a selected plugin.
 	tree, schema, err := parseTreeWithYANG(input, pluginYANG)
 	if err != nil {
 		return nil, err
@@ -285,7 +292,11 @@ func warnWeakPassword(hashed []HashedPassword) {
 // parseTreeWithYANG parses config text and returns the tree together with the
 // schema it was parsed against. The schema is returned because a caller that
 // transforms the tree needs the same one (LoadConfig -> ApplyPasswordHashing),
-// and rebuilding it means reloading and resolving every YANG module again.
+// and rebuilding it means resolving the module set again.
+// With pluginYANG empty it is YANGSchema, the process's module set. With the
+// module texts of the plugins selected on the command line (loadConfig), or a
+// test's (ParseTreeWithYANG), it is built over the set YANGSchemaWithPlugins
+// joins.
 func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, *Schema, error) {
 	var schema *Schema
 	var schemaErr error

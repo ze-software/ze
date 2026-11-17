@@ -46,7 +46,7 @@ Each of these outcomes has a doctor code:
 | Code | When | Where you read it |
 |------|------|-------------------|
 | `doctor-plugin-schema-undeclared` | Ze holds no config schema of your plugin: it could not be run, it sent no declaration in time, or it declared no module and the config holds a section no schema defines | On the refusal and in the log when the start is refused, and then in `ze doctor`, from the record Ze wrote before it exited, until Ze next starts cleanly. In `ze show doctor` when the config holds no section of your plugin, so Ze starts |
-| `doctor-plugin-schema-refused` | Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a validator Ze does not hold, or it adds nothing | On the refusal and in the log. Ze does not start, and `ze doctor` reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly |
+| `doctor-plugin-schema-refused` | Ze refused your module at start: it does not compile, it clashes with a module Ze holds, it redefines a top-level node, it names a `ze:validate` validator or a `ze:reference` source Ze does not hold, or it adds nothing | On the refusal and in the log. Ze does not start, and `ze doctor` reports the refusal from the record Ze wrote before it exited, until Ze next starts cleanly |
 | `doctor-plugin-schema-changed` | Your plugin was started again with another schema | In `ze show doctor` |
 
 In a running Ze your module is part of the schema every surface reads: the
@@ -371,6 +371,27 @@ stays a string checked by a `ze:validate` function.
 <!-- source: internal/component/config/yang/loader_reference.go -- checkReferences -->
 <!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->
 <!-- source: internal/component/config/yang/validator_instance.go -- ValidateReferences -->
+
+## Extensions that name a registration
+
+Four `ze:` extensions name something registered inside Ze rather than
+something your module defines. A name is held only when the component that
+registers it is compiled into the `ze` you run. When `ze start` joins your
+module, Ze checks the names of two of them:
+
+| Extension | What it names | A name Ze does not hold |
+|-----------|---------------|-------------------------|
+| `ze:validate` | A validator function | Ze refuses the start, naming your plugin, your module, the extension, the name and the schema path, with the code `doctor-plugin-schema-refused` |
+| `ze:reference` | A source of names that a component registered | The same refusal |
+| `ze:decorate` | A display decorator of the web UI | Ze accepts the module. The web UI shows the value with no decoration and no message |
+| `ze:backend` | The backends that support a node | Ze accepts the module. At commit, the components of `interface`, `firewall` and `traffic control` compare the list with the backend the config selects, and a name no backend answers to never matches: a node under those roots that lists only such names is refused whenever a config uses it, and completion does not offer it. Under any other root Ze does not read the extension |
+
+To check a value with logic Ze does not hold, check it in the config verify
+step of your plugin: the refusal names that fix.
+<!-- source: internal/component/config/yang/join.go -- refuseUnheldRegistrations, unheldRegistration, unheldRegistrationRefusal -->
+<!-- source: internal/component/web/decorator.go -- DecoratorRegistry.Get -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
+<!-- source: internal/component/cli/completer.go -- backendAllowed -->
 
 ## Best Practices
 

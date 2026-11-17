@@ -3,9 +3,8 @@
 # Question: for a config under an external plugin's own root, does `ze config
 # validate` with no ze listening refuse the section as not available (it
 # starts no plugin, so it holds no schema of it, and no running ze answered),
-# while `ze start` judges the same root with the plugin's module: it accepts a
-# valid section and delivers it, and it refuses a section that lacks the leaf
-# the module marks mandatory?
+# while `ze start` judges the same root with the plugin's module, and accepts
+# and delivers a valid section?
 # Why not a unit test: the verdicts come from two entries of the binary.
 # Validate parses against the compiled-in schema; boot runs the plugin, reads
 # its module at Stage 1 and loads against the joined schema. Only running both
@@ -26,9 +25,22 @@
 # (external-yang-validate-asks-running-ze.ci), and with none the fix is
 # `ze start`.
 #
+# It also held a third step, boot refusing a section that lacks the leaf the
+# module marks mandatory. The exit expectation and the await fence are
+# file-level, so that step's refused daemon was the one the exit check judged,
+# and with no `then=stop` the check compared a peer wait with no peer, which
+# passes whatever the daemons did. That step is now
+# external-yang-boot-refuses-missing-mandatory.ci.
+#
+# The exit assertion is of the DAEMON'S own exit. `then=stop` on the await
+# makes the runner wait for daemon.ready and for the awaited line, stop the
+# daemon itself, and compare the code the daemon ended with
+# (docs/architecture/testing/ci-format.md, "Await", step 3). So exit 0 means
+# the daemon started, ran the plugin and stopped cleanly.
+#
 # ze.ssh.port points validate's ask at the runner's $PORT, where nothing
-# listens during step 1. The daemons of steps 2 and 3 configure no SSH
-# listener, so the option does not reach them.
+# listens during step 1. The daemon of step 2 configures no SSH listener, so
+# the option does not reach it.
 #
 # What this file does not assert: the range verdicts (interval 0 and 11) the
 # old file compared. TestJoinedModuleRangeRefusesOutOfRangeValue proves them
@@ -36,11 +48,9 @@
 # validate entry of a process that holds the module.
 #
 # VALIDATES: AC-2 of spec-plugin-external-yang-at-startup, as the ruling
-#   restates it, beside AC-1, AC-10 for a mandatory leaf at boot, and AC-19 of
-#   phase 10.
+#   restates it, beside AC-1, and AC-19 of phase 10.
 # PREVENTS: validate accepting a section it could not check; a refusal message
-#   whose advice the daemon then refuses; boot starting a plugin without a
-#   value its module requires.
+#   whose advice the daemon then refuses.
 
 option=env:var=ze.ssh.port:value=$PORT
 
@@ -58,27 +68,6 @@ acme-monitor {
 }
 EOF_CONF
 
-# The fixture variant valid-config-refused brings the same module and expects
-# ze to refuse the config: the connection that closes with Stage 1 unanswered
-# is its normal end, and a daemon that reports ready is its failure.
-#
-# refused=config-yang-missing declares the body a config Ze must refuse, for
-# the repository config sweep (TestRepositoryConfigsValidate), which judges it
-# with the module published as boot holds it and asserts that code. The runner
-# writes the file as it does any other.
-tmpfs=mandatory.conf:refused=config-yang-missing:terminator=EOF_MANDATORY
-plugin {
-	external acme-monitor {
-		run "le test fixture plugin/external-yang valid-config-refused"
-		encoder json
-	}
-}
-
-acme-monitor {
-	interval 6
-}
-EOF_MANDATORY
-
 # No ze running: the section is not available, and the message says a running
 # ze was asked, why none answered, and how to get one.
 cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=1
@@ -92,17 +81,8 @@ reject=stdout:contains=fix: ze cli
 
 # Boot runs the plugin, joins its module and delivers the section.
 cmd=foreground:seq=2:exec=ze start ze.conf:timeout=30s
-await=stderr:contains=FIXTURE: external-yang generation 1 ready
+await=stderr:contains=FIXTURE: external-yang generation 1 ready:then=stop
 expect=exit:code=0
 expect=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=5 acme-monitor/target=probe-a]
-reject=stderr:contains=unknown top-level keyword
-reject=stderr:pattern=ZE-OBSERVER-FAIL
-
-# Boot refuses the section without the mandatory leaf, with the module's
-# check. The plugin never reaches Stage 2.
-cmd=foreground:seq=3:exec=ze start mandatory.conf:timeout=30s
-await=stderr:contains=mandatory field "target" is missing
-expect=stderr:contains=mandatory field "target" is missing
-reject=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=6
 reject=stderr:contains=unknown top-level keyword
 reject=stderr:pattern=ZE-OBSERVER-FAIL

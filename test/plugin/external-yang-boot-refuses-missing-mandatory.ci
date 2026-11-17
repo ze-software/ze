@@ -1,0 +1,50 @@
+# Test: boot refuses an external plugin's section that lacks a mandatory leaf
+#
+# Question: does `ze start` refuse a config whose section under an external
+# plugin's own root lacks the leaf the plugin's module marks mandatory, with
+# the module's own check, and exit with a failure before the plugin reaches
+# Stage 2?
+# Why not a unit test: the module comes from the plugin process at Stage 1 and
+# is joined on the boot path before the full parse. Only a start of the binary
+# shows that boot holds the module when it judges the section, and that the
+# daemon itself ends refused.
+#
+# This was step 3 of external-yang-boot-accepts-what-offline-refuses.ci. The
+# exit expectation there is file-level and judged the daemon of another step,
+# so this step's own exit was never asserted. Here it is the only command, and
+# the exit check reads its exit, as test/plugin/bgp-bfd-profile-undefined-boot.ci
+# does for a refused BGP boot.
+#
+# VALIDATES: AC-10 of spec-plugin-external-yang-at-startup, for a mandatory
+#   leaf at boot.
+# PREVENTS: boot starting a plugin without a value its module requires.
+
+# The fixture variant valid-config-refused brings the same module and expects
+# ze to refuse the config: the connection that closes with Stage 1 unanswered
+# is its normal end, and a daemon that reports ready is its failure.
+#
+# refused=config-yang-missing declares the body a config Ze must refuse, for
+# the repository config sweep (TestRepositoryConfigsValidate), which judges it
+# with the module published as boot holds it and asserts that code. The runner
+# writes the file as it does any other.
+tmpfs=mandatory.conf:refused=config-yang-missing:terminator=EOF_MANDATORY
+plugin {
+	external acme-monitor {
+		run "le test fixture plugin/external-yang valid-config-refused"
+		encoder json
+	}
+}
+
+acme-monitor {
+	interval 6
+}
+EOF_MANDATORY
+
+# Boot refuses the section without the mandatory leaf, with the module's
+# check. The plugin never reaches Stage 2.
+cmd=foreground:seq=1:exec=ze start mandatory.conf:timeout=30s
+expect=exit:code=1
+expect=stderr:contains=mandatory field "target" is missing
+reject=stderr:contains=FIXTURE: external-yang configure root=acme-monitor leaves=[acme-monitor/interval=6
+reject=stderr:contains=unknown top-level keyword
+reject=stderr:pattern=ZE-OBSERVER-FAIL
