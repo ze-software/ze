@@ -1419,7 +1419,7 @@ github.com/vishvananda/netns
 # github.com/xen0n/gosmopolitan v1.3.0
 ## explicit; go 1.23.0
 github.com/xen0n/gosmopolitan
-# github.com/xo/terminfo v1.3.0
+# github.com/xo/terminfo v1.3.1
 ## explicit; go 1.25
 github.com/xo/terminfo
 # github.com/yagipy/maintidx v1.0.0
