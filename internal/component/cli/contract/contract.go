@@ -170,7 +170,11 @@ type ConfigCommandResult struct {
 // so both CLIs share the same code path.
 type Editor interface {
 	ExecuteConfigCommand(ConfigCommandRequest) (ConfigCommandResult, error)
+	// SetSession assigns identity. The caller MUST finish ResumeSession before
+	// publishing this editor for requests.
 	SetSession(s EditSession)
+	// ResumeSession MUST follow SetSession; an error keeps the editor private.
+	ResumeSession() error
 	SessionID() string
 	CreateEntry(path []string) error
 	SetValue(path []string, key, value string) error
@@ -243,6 +247,10 @@ type Editor interface {
 	Dirty() bool
 	SessionChanges(sessionID string) []SessionChange
 	PendingChanges(sessionID string) []PendingChange
+	// PendingDiscardChanges reads the exact account's durable intent without
+	// assigning or resuming an editing session. Read and parse failures refuse
+	// the snapshot; callers MUST stop discard before mutation or audit recording.
+	PendingDiscardChanges(username string) ([]PendingChange, error)
 	ActiveSessions() []string
 }
 

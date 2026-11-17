@@ -18,7 +18,7 @@ import (
 // The write-through SetValue requires a properly structured config with the
 // bgp container. Plain "router-id 1.2.3.4" is not valid for session-based
 // editing because the YANG parser expects bgp { ... } structure.
-const validWebConfig = "bgp {\n\trouter-id 1.2.3.4\n\tlocal { as 65000; }\n}\n"
+const validWebConfig = "bgp {\n\trouter-id 1.2.3.4\n\tsession { asn { local 65000; } }\n}\n"
 
 // newTestEditorManager creates an EditorManager backed by a seeded tree store
 // and the real YANG schema. The test owns the store's lifetime.

@@ -39,7 +39,6 @@ var editorCommands = []editorCommand{
 	}},
 	{name: cmdEdit, help: "Enter a subsection context", forms: []editorHelpForm{
 		{"edit <path>", "Enter a subsection context"},
-		{"edit <list> *", "Edit template for all entries"},
 	}},
 	{name: cmdShow, help: "Display configuration", forms: []editorHelpForm{
 		{"show", "Display configuration (scrollable)"},

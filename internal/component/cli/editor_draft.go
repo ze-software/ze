@@ -585,7 +585,8 @@ func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*c
 var errChangeFileUnparsable = errors.New("does not parse, pending changes kept in it")
 
 // SaveDraft applies changes from the per-user change file to config.conf.draft.
-// Creates a new draft (base + own changes), then deletes the change file.
+// It consumes only this session's leaf entries. Structural ops and every
+// other session's intent stay in the per-user change file until publication.
 func (e *Editor) SaveDraft() error {
 	if e.session == nil {
 		return errNoSessionSet
@@ -599,7 +600,7 @@ func (e *Editor) SaveDraft() error {
 
 	// Read the change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	_, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps, err := e.readChangeFile(guard, changePath)
 	if err != nil {
 		return err
 	}
@@ -681,24 +682,24 @@ func (e *Editor) SaveDraft() error {
 	}
 
 	// Write draft, tagging the modifier so CheckDraftChanged can identify the author.
+	if err := e.consumeSessionChangeEntries(changeTree, changeMeta); err != nil {
+		return fmt.Errorf("save retain other sessions: %w", err)
+	}
 	guard.SetModifier(e.session.ID)
 	draftOutput := config.SerializeSetWithMeta(baseTree, baseMeta, e.schema)
 	if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
 		return fmt.Errorf("save write draft: %w", err)
 	}
 
-	if len(myOps) > 0 {
-		output := config.SerializeChangeFile(config.NewTree(), config.NewMetaTree(), myOps, e.schema)
-		if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
-			return fmt.Errorf("save preserve rename ops: %w", err)
-		}
-	} else if err := guard.Remove(changePath); err != nil {
-		return fmt.Errorf("save remove change file: %w", err)
+	if err := e.writeChangeFileRemainder(guard, changePath, changeTree, changeMeta, changeOps); err != nil {
+		return fmt.Errorf("save remaining changes: %w", err)
 	}
 
-	// Update in-memory state to draft.
-	e.tree = baseTree
+	// CLI editors show the materialized shared draft. An isolated editor keeps
+	// its live candidate; both retain complete metadata for conflict checks.
+	e.tree = e.viewScope.draftTree(e.tree, baseTree)
 	e.meta = baseMeta
+	e.workingContent = e.WorkingContent()
 	e.draftMtime = time.Now()
 	e.draftSaved = true
 	return nil
@@ -808,16 +809,18 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 // also waits for its assignment, keeping subsequent activations in order.
 // The original committed view distinguishes that creation from removal of a
 // previously committed ancestor, which remains a strict refusal.
+// Committed replay uses strict operation checks; materialized drafts use the
+// prepared-plan helper below with their own replay policy.
 //
 // check, when not nil, sees each op against the tree it is about to apply to,
 // and an op it answers false for is skipped. The commit pre-scan
 // (memberOpConflicts) replays the commit's order on a copy through it.
-func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, allowAlreadyApplied bool, check func(*config.Tree, config.StructuralOp) bool) error {
+func (e *Editor) applyStructuralOpsAroundEntries(tree *config.Tree, ops []config.StructuralOp, applyEntries func() error, check func(*config.Tree, config.StructuralOp) bool) error {
 	plan, err := creationReplayPlan(e.schema, ops)
 	if err != nil {
 		return err
 	}
-	if err := e.applyReplayOpsAroundEntries(tree, plan.ops, applyEntries, allowAlreadyApplied, check); err != nil {
+	if err := e.applyReplayOpsAroundEntries(tree, plan.ops, applyEntries, false, check); err != nil {
 		return err
 	}
 	return e.positionCreatedEntries(tree, plan.positions)

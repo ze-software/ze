@@ -26,6 +26,9 @@ type fileModeEditorAdapter struct {
 
 func (fileModeEditorAdapter) SetSession(contract.EditSession) {}
 
+// This fixture deliberately has no session or durable intent to resume.
+func (fileModeEditorAdapter) ResumeSession() error { return nil }
+
 // newFileModeTestManager builds an EditorManager whose editors never enter
 // session mode, so deletes take the Editor's direct-tree path.
 func newFileModeTestManager(t *testing.T) *EditorManager {
@@ -175,7 +178,10 @@ type recordingEditor struct {
 }
 
 func (*recordingEditor) SetSession(contract.EditSession) {}
-func (*recordingEditor) DeleteByPath([]string) error     { return errRecordingDeleteRefused }
+
+// This recording double has no editor; it exercises only delete dispatch.
+func (*recordingEditor) ResumeSession() error        { return nil }
+func (*recordingEditor) DeleteByPath([]string) error { return errRecordingDeleteRefused }
 func (e *recordingEditor) DeleteValue([]string, string) error {
 	e.deleteValueCalled = true
 	return nil

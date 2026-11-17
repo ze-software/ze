@@ -112,7 +112,7 @@ func HandleSuppliedInspection(renderer *Renderer, mgr *EditorManager, dispatch C
 		if plugin.CallerAuthorizer(ctx) == nil {
 			ctx = plugin.WithCallerAuthorizer(ctx, authorizer)
 		}
-		output, rendered, complete, executionErr := executeTerminalOperationalResult(ctx, dispatch,
+		output, rendered, _, complete, executionErr := executeTerminalOperationalResult(ctx, dispatch,
 			username, r.RemoteAddr, line, mgr.currentCLIFormat(username))
 		status := http.StatusOK
 		if !complete {

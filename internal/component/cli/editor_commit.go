@@ -125,7 +125,7 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 		_, err := e.applyCommitEntries(committedTree, myEntries)
 		return err
 	}
-	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false, nil); err != nil {
+	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, nil); err != nil {
 		return nil, err
 	}
 	applied := len(myEntries) + len(myOps)
@@ -173,21 +173,10 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 		return nil, fmt.Errorf("write config: %w", err)
 	}
 
-	// Remove my session from draft and clean up.
-	draftMeta.RemoveSession(e.session.ID)
-	remainingSessions := draftMeta.AllSessions()
-	if len(remainingSessions) == 0 {
-		guard.Remove(draftPath) //nolint:errcheck // Best effort
-	} else {
-		// Rewrite draft without my entries so other sessions' metadata stays current.
-		draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
-		if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
-			return nil, fmt.Errorf("write draft: %w", err)
-		}
+	// Publication already happened: failed cleanup is a warning on that commit.
+	if err := e.cleanupSessionFiles(guard); err != nil {
+		warnings = append(warnings, sessionCleanupWarning(err).Error())
 	}
-
-	// Also clean up the per-user change file now that structural ops are committed.
-	guard.Remove(changePath) //nolint:errcheck // Best effort
 
 	// Update in-memory state to the committed config and clear any stale dirty
 	// markers or saved edit snapshots from the pre-commit working tree.
@@ -318,7 +307,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		_, err := e.applyCommitEntries(committedTree, myEntries)
 		return err
 	}
-	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, false, nil); err != nil {
+	if err := e.applyStructuralOpsAroundEntries(committedTree, myOps, applyEntries, nil); err != nil {
 		return nil, "", err
 	}
 	applied := len(myEntries) + len(myOps)
@@ -438,23 +427,7 @@ func (e *Editor) cleanupCommittedSession() error {
 	}
 	defer guard.Release() //nolint:errcheck // Best effort cleanup after successful commit
 
-	draftPath := DraftPath(e.originalPath)
-	draftData, err := guard.ReadFile(draftPath)
-	if err == nil {
-		draftTree, draftMeta, parseErr := config.NewSetParser(e.schema).ParseWithMeta(string(draftData))
-		if parseErr == nil {
-			draftMeta.RemoveSession(e.session.ID)
-			if len(draftMeta.AllSessions()) == 0 {
-				guard.Remove(draftPath) //nolint:errcheck // Best effort cleanup after successful commit
-			} else {
-				draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
-				guard.WriteFile(draftPath, []byte(draftOutput), 0o600) //nolint:errcheck // Best effort cleanup after successful commit
-			}
-		}
-	}
-
-	changePath := ChangePath(e.originalPath, e.session.User)
-	guard.Remove(changePath) //nolint:errcheck // Best effort cleanup after successful commit
+	cleanupErr := e.cleanupSessionFiles(guard)
 
 	// The daemon took a forced candidate: the overridden users' entries go now.
 	// Like the rest of this cleanup it cannot fail the commit, which has landed,
@@ -462,7 +435,10 @@ func (e *Editor) cleanupCommittedSession() error {
 	overlaps := e.overridden
 	e.overridden = nil
 	if err := e.discardOverridden(guard, overlaps); err != nil {
-		return overriddenNotDiscarded(err)
+		cleanupErr = errors.Join(cleanupErr, overriddenNotDiscarded(err))
+	}
+	if cleanupErr != nil {
+		return sessionCleanupWarning(cleanupErr)
 	}
 	return nil
 }
@@ -604,7 +580,7 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 		if readErr != nil {
 			return fmt.Errorf("reload read config: %w", readErr)
 		}
-		baseTree, baseMeta, err = parseConfigWithFormat(string(committedData), e.schema)
+		baseTree, baseMeta, err = parseEditingConfig(string(committedData), e.schema)
 		if err != nil {
 			return fmt.Errorf("reload parse config: %w", err)
 		}
@@ -654,6 +630,16 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 	committedData, readErr := guard.ReadFile(e.originalPath)
 	if readErr != nil {
 		return fmt.Errorf("reload read config: %w", readErr)
+	}
+	if e.viewScope.isolatesSession() {
+		committedTree, _, err := parseEditingConfig(string(committedData), e.schema)
+		if err != nil {
+			return fmt.Errorf("reload parse committed candidate: %w", err)
+		}
+		baseTree, err = e.projectSessionTree(committedTree, baseTree, baseMeta, filterStructuralOps(changeOps, e.session.ID))
+		if err != nil {
+			return err
+		}
 	}
 	e.originalContent = string(committedData)
 
@@ -789,7 +775,7 @@ func (e *Editor) memberOpConflicts(committedTree *config.Tree, ops []config.Stru
 		_, err := e.applyCommitEntries(tree, entries)
 		return err
 	}
-	if err := e.applyStructuralOpsAroundEntries(tree, ops, applyEntries, false, check); err != nil {
+	if err := e.applyStructuralOpsAroundEntries(tree, ops, applyEntries, check); err != nil {
 		return conflicts
 	}
 	return conflicts

@@ -118,7 +118,8 @@ type commitModalData struct {
 // so the daemon's confirmed-commit window and the commit validation apply to
 // it (AC-18, AC-29). A refused commit, a conflict or nothing to commit
 // re-renders the open modal with the reason; a commit that applied closes it
-// and broadcasts a config-change SSE event.
+// and broadcasts a config-change SSE event. Its applied warnings are shown
+// beside the success without keeping the review modal open for another commit.
 //
 // It takes the authorizer to answer the commit bar it writes back. The caller
 // has already authorized this request for the same command canEdit reads, so
@@ -173,8 +174,8 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 	recordWebAudit(recorder, r, username, audit.ActionConfigCommit, detail)
 	BroadcastConfigChange(broker, username, "committed")
 
-	// Return closed diff modal + empty commit bar. No redirect -- the page
-	// underneath the overlay stays unchanged.
+	// Close the review modal and clear its commit bar. An advisory stays in
+	// the existing notification bar, so feedback cannot invite a second apply.
 	if r.Header.Get("HX-Request") == htmxRequestTrue {
 		modal, renderErr := renderer.RenderDiffModal()
 		if renderErr != nil {
@@ -191,6 +192,27 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		}
 		if _, writeErr := w.Write([]byte(bar)); writeErr != nil {
 			return
+		}
+		if answer.hasWarnings {
+			writeCLINotification(w, renderer, answer.message, "info")
+		}
+		return
+	}
+
+	if answer.hasWarnings {
+		// A redirect would discard the advisory body. Keep this successful
+		// answer in the page content, outside the bar that later SSE updates.
+		layoutData := LayoutData{
+			Title:    "Commit Applied",
+			Content:  renderer.renderComponent("notification_pre", notificationPre(answer.message)),
+			ActiveUI: uiModeTokenFinder,
+		}
+		if err := renderer.RenderLayout(w, layoutData); err != nil {
+			displayFailure := opererr.Wrap(err,
+				"The commit applied, but its result page could not be displayed.",
+				"The configuration has already changed, so check it before repeating the commit.",
+				"Open /show/")
+			http.Error(w, displayFailure.Error(), http.StatusInternalServerError)
 		}
 		return
 	}

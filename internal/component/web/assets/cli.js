@@ -854,6 +854,7 @@
     var downloadButton = document.querySelector('[data-cli-local-operator="save"]');
     var downloadAnchor = document.getElementById('cli-download-file');
     var downloadStatus = document.getElementById('cli-download-status');
+    var outputBytesMax = 4 * 1024 * 1024;
     var downloadBytes = null;
     var downloadURL = '';
     var downloadType = 'text/plain;charset=utf-8';
@@ -926,7 +927,51 @@
 
     function offerFiniteDownload(data) {
       if (data['output-complete'] !== true || data.input || data.confirmation || data.navigate) return;
-      offerTextDownload(data.output || '', 'Complete result', 'ze-command.txt');
+      var count = data['output-byte-count'];
+      if (!Number.isSafeInteger(count) || count < 0) throw outputFailure('The finite result has an invalid byte count.');
+      if (count > outputBytesMax) { refuseDownloadLimit(); return; }
+      var carrier = data['output-bytes'];
+      var bytes = finiteOutputBytes(carrier, count);
+      var binary = carrier.blob.encoding === 'base64';
+      offerDownloadBytes(bytes, 'Complete result', binary ? 'ze-command.bin' : 'ze-command.txt',
+        binary ? 'application/octet-stream' : 'text/plain;charset=utf-8');
+    }
+
+    // Decode the command owner's Blob codec after the authoritative byte count
+    // is bounded. Display text is never a substitute for a missing carrier.
+    function finiteOutputBytes(carrier, count) {
+      if (!carrier || typeof carrier !== 'object' || Array.isArray(carrier)) {
+        throw outputFailure('The finite result has no valid byte carrier.');
+      }
+      var blob = carrier.blob;
+      if (!blob || typeof blob !== 'object' || Array.isArray(blob) || typeof blob.content !== 'string') {
+        throw outputFailure('The finite result has an invalid Blob document.');
+      }
+      if (blob.encoding === 'utf-8') {
+        var textBytes = new Uint8Array(Math.min(count + 1, blob.content.length * 3));
+        var encoded = new TextEncoder().encodeInto(blob.content, textBytes);
+        if (encoded.read !== blob.content.length || encoded.written !== count) {
+          throw outputFailure('The finite result does not match its declared byte count.');
+        }
+        return textBytes.subarray(0, encoded.written);
+      }
+      if (blob.encoding !== 'base64') throw outputFailure('The finite result uses an unknown Blob encoding.');
+      if (blob.content.length !== Math.ceil(count / 3) * 4 ||
+          !/^[A-Za-z0-9+/]*={0,2}$/.test(blob.content)) {
+        throw outputFailure('The finite result contains invalid encoded bytes.');
+      }
+      var decoded;
+      try { decoded = atob(blob.content); }
+      catch (error) { throw outputFailure('The finite result contains invalid encoded bytes.'); }
+      if (decoded.length !== count) throw outputFailure('The finite result does not match its declared byte count.');
+      var bytes = new Uint8Array(count);
+      // The checked count limits this copy to the same 4 MiB artifact budget.
+      for (var index = 0; index < count; index++) bytes[index] = decoded.charCodeAt(index);
+      return bytes;
+    }
+
+    function refuseDownloadLimit() {
+      if (downloadStatus) downloadStatus.textContent = 'Download exceeds 4 MiB. No partial file was saved. Run a command that selects less output, then choose Download.';
     }
 
     function offerDownloadBytes(bytes, label, filename, mediaType) {
@@ -941,13 +986,12 @@
 
     function offerTextDownload(text, label, filename) {
       if (!downloadButton || !downloadAnchor) return;
-      var bytesMax = 4 * 1024 * 1024;
       // A bounded destination prevents a large finite answer from allocating
       // an unbounded second copy just to discover its UTF-8 byte size.
-      var bytes = new Uint8Array(Math.min(bytesMax + 1, text.length * 3));
+      var bytes = new Uint8Array(Math.min(outputBytesMax + 1, text.length * 3));
       var encoded = new TextEncoder().encodeInto(text, bytes);
-      if (encoded.read !== text.length || encoded.written > bytesMax) {
-        if (downloadStatus) downloadStatus.textContent = 'Download exceeds 4 MiB. No partial file was saved. Run a command that selects less output, then choose Download.';
+      if (encoded.read !== text.length || encoded.written > outputBytesMax) {
+        refuseDownloadLimit();
         return;
       }
       offerDownloadBytes(bytes.subarray(0, encoded.written), label, filename, 'text/plain;charset=utf-8');
@@ -1064,7 +1108,7 @@
       var frameBytesMax = 64 * 1024;
       var charactersMax = 512 * 1024;
       var encoder = rich || framed ? new TextEncoder() : null;
-      var rawBytes = framed ? new Uint8Array(4 * 1024 * 1024) : null;
+      var rawBytes = framed ? new Uint8Array(outputBytesMax) : null;
       var rawOffset = 0;
       var rawDone = false;
       var rawFailed = false;

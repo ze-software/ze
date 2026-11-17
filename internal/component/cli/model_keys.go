@@ -511,7 +511,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.statusMessage = "usage: run <command>"
 		return m, nil
 	}
-	if m.mode == ModeOperational && input == cmdConfigure {
+	if m.mode == ModeOperational && IsConfigureCommand(input) {
 		if !m.hasEditor() {
 			m.textInput.SetValue("")
 			m.statusMessage = "config mode not available (no config file loaded)"

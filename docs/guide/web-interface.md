@@ -424,6 +424,13 @@ When two users edit the same leaf concurrently, the commit reports which paths c
 The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.
 <!-- source: internal/component/web/editor.go -- NewEditorManager, maxSessions, idleTimeout -->
 
+Reopening an evicted editor or reconnecting after a daemon restart restores
+your saved and unsaved web changes. Review, pending counts, save and commit
+refer to those resumed changes. Other users' changes and your SSH sessions
+remain separate. If the stored intent cannot be read or recovery cannot finish,
+the page refuses to open; repair the reported problem, then reload `/show/`.
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession -->
+
 ## Browser CLI
 
 The **CLI** link opens the dedicated `/cli` page. Its prompt shows the current
@@ -631,7 +638,15 @@ Admin command results are displayed as titled cards showing the command name, ou
 
 ## Resilience
 
-**Corrupt change files:** If a per-user change file in the live store has an unknown path, malformed command or invalid structural syntax, every edit and every commit for that user fails with an error naming the file, and the file is left as it was. Its pending changes are never dropped in silence: the operator inspects the file, then discards the changes (`discard`) to start again. An invalid leaf value or leaf-list member in an API candidate remains editable: commit refuses the value, and the operator can apply its proposed correction without discarding other changes.
+**Corrupt change files:** An unknown path, malformed command or invalid
+structural syntax in a stored per-user change file prevents the browser from
+reopening that candidate. The error names the file, which remains unchanged.
+Normal web discard also stops when it cannot read the audit snapshot. Preserve
+the file and ask an administrator to inspect and repair the named storage
+problem before reopening the editor. An invalid leaf value or leaf-list member
+in an otherwise readable API candidate remains editable: commit refuses the
+value, and the operator can apply its proposed correction while preserving
+other changes.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.

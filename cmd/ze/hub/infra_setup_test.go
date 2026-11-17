@@ -3,16 +3,16 @@
 package hub
 
 import (
+	"context"
 	"testing"
-
-	"github.com/ze-software/ze/internal/component/config/infra"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	_ "github.com/ze-software/ze/internal/component/authz"
-
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -27,6 +27,7 @@ import (
 // VALIDATES: SSH TUI works on appliance (bgp + ssh config, no ze.ssh.ephemeral).
 // PREVENTS: SetSessionModelFactory accidentally gated on ephemeral mode.
 func TestInfraSetupWiresSessionModelFactory(t *testing.T) {
+	resetAAABundleForTest(t)
 	require.NoError(t, env.Set("ze.ssh.ephemeral", ""))
 	defer func() { _ = env.Set("ze.ssh.ephemeral", "") }()
 
@@ -43,6 +44,11 @@ func TestInfraSetupWiresSessionModelFactory(t *testing.T) {
 
 	sshSrv := infraSetup(params, nil, &configMutationOwner{}, nil)
 	require.NotNil(t, sshSrv, "infraSetup should return a running SSH server")
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		require.NoError(t, sshSrv.Stop(ctx))
+	})
 	srv, ok := sshSrv.(*zessh.Server)
 	require.True(t, ok, "infraSetup should return a *zessh.Server when ssh is compiled in")
 	assert.True(t, srv.HasSessionModelFactoryForTest(),

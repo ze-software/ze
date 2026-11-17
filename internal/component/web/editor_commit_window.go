@@ -46,10 +46,11 @@ func (m *EditorManager) daemonWindow() *confirm.Window {
 // show. A refusal is a failed commit, so a caller shows it as an error and
 // never as the answer to a commit that happened.
 type webCommitAnswer struct {
-	conflicts []contract.Conflict
-	refusal   string
-	message   string
-	applied   bool // the subcommand changed the config or the window
+	conflicts   []contract.Conflict
+	refusal     string
+	message     string
+	applied     bool // the subcommand changed the config or the window
+	hasWarnings bool // message includes advisories on the applied subcommand
 }
 
 // runCommit runs one parsed commit subcommand for username. Every subcommand
@@ -115,6 +116,7 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest, o
 	}
 	answer := m.appliedAnswer(username, req)
 	answer.applied = true
+	answer.hasWarnings = skipped > 0
 	answer.message = cli.WithSkippedWarnings(forced, skipped, answer.message)
 	// The SSH editor's words for what the applied commit warns of, a forced
 	// commit's failed discard and an unrecorded deadline among them.
@@ -122,8 +124,12 @@ func (m *EditorManager) runCommit(username string, req contract.CommitRequest, o
 	tb.Str(answer.message)
 	if result != nil {
 		cli.AppendCommitWarnings(&tb, result.Warnings)
+		if len(result.Warnings) > 0 {
+			answer.hasWarnings = true
+		}
 	}
 	if err != nil {
+		answer.hasWarnings = true
 		cli.AppendCommitWarnings(&tb, []string{err.Error()})
 	}
 	answer.message = tb.String()

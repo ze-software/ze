@@ -16,6 +16,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config"
 )
 
 // TestWebConcurrentEditStress drives many concurrent editor sessions through
@@ -85,20 +87,19 @@ func TestWebConcurrentEditStress(t *testing.T) {
 
 		require.Zero(t, commitErrs.Load(), "no hard commit error expected across the storm")
 
-		// the earlier draft re-parsed the committed file with the
-		// strict config.YANGSchema(), which rejects the web test fixture's
-		// `local { as 65000; }` and does not model the web candidate/reload path.
-		// The non-torn invariant is correctly proven by re-loading through the
-		// same editor path the manager uses (below), so the strict re-parse is
-		// replaced, not dropped.
-		//
-		// Torn-write guard: the atomic store (CreateTemp+Rename) plus per-user
-		// editor serialization must never leave a truncated/interleaved file.
+		// Parse the complete committed bytes strictly in their actual format.
+		// The store may still hold the native seed when every commit conflicts,
+		// or the metadata-set form written by an accepted commit.
 		data, err := mgr.committedConfig()
 		require.NoError(t, err, "committed config must be readable")
 		require.NotEmpty(t, data, "committed config must be non-empty")
-		require.Contains(t, string(data), "bgp {", "bgp block survived the storm intact")
-		require.Contains(t, string(data), "router-id", "router-id leaf survived the storm intact")
+		tree, err := config.ParseTreeForValidation(string(data))
+		require.NoError(t, err, "committed config must parse without a torn or unknown field")
+		bgp := tree.GetContainer("bgp")
+		require.NotNil(t, bgp, "bgp block survived the storm intact")
+		routerID, exists := bgp.Get("router-id")
+		require.True(t, exists, "router-id leaf survived the storm intact")
+		require.NotEmpty(t, routerID)
 
 		// A fresh editor must load the on-disk config without error -- proves the
 		// file is not torn (the editor is the same parse path the manager uses).

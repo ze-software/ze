@@ -25,12 +25,12 @@ func (m *EditorManager) sessionFormatCommand(username, input string) (string, er
 	return answer.Output, nil
 }
 
-func executeTerminalOperationalForUser(ctx context.Context, mgr *EditorManager, dispatch CommandDispatcher, username, remoteAddr, input string) (string, *plugin.RenderedResponse, bool) {
+func executeTerminalOperationalForUser(ctx context.Context, mgr *EditorManager, dispatch CommandDispatcher, username, remoteAddr, input string) (string, *plugin.RenderedResponse, *terminalSelectedOutput, bool) {
 	if _, err := mgr.GetOrCreate(username); err != nil {
-		return "error: " + err.Error(), nil, false
+		return "error: " + err.Error(), nil, nil, false
 	}
-	output, rendered, complete, _ := executeTerminalOperationalResult(ctx, dispatch, username, remoteAddr, input, mgr.currentCLIFormat(username)) //nolint:errcheck // Failure is already represented in Output and complete.
-	return output, rendered, complete
+	output, rendered, selected, complete, _ := executeTerminalOperationalResult(ctx, dispatch, username, remoteAddr, input, mgr.currentCLIFormat(username)) //nolint:errcheck // Failure is already represented in Output and complete.
+	return output, rendered, selected, complete
 }
 
 // currentCLIFormat reads an existing user's preference without opening an

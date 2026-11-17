@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/config"
@@ -306,7 +307,11 @@ func (e *Editor) prepareDraftReplay(guard storage.WriteGuard, tree *config.Tree,
 		}
 	}
 	appendOwners(meta)
-	for _, path := range e.listChangeFiles(guard) {
+	files, err := guard.List(filepath.Dir(e.originalPath))
+	if err != nil {
+		return draftReplay{}, fmt.Errorf("list pending changes for draft replay: %w", err)
+	}
+	for _, path := range e.selectChangeFiles(files) {
 		_, pending, pendingOps, err := e.readChangeFile(guard, path)
 		if err != nil {
 			return draftReplay{}, err

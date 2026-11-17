@@ -114,11 +114,8 @@ func (m *EditorManager) SetConfigSource(read func() ([]byte, error), commit func
 // a new one backed by a fresh Editor and EditSession. When the session count exceeds
 // maxSessions, idle sessions older than idleTimeout are evicted.
 func (m *EditorManager) GetOrCreate(username string) (*userSession, error) {
-	if err := cli.ValidateUser(username); err != nil {
-		return nil, opererr.Wrap(err,
-			"Your username cannot own a configuration editing session.",
-			"Configuration metadata requires a username containing only letters, numbers, hyphens, underscores or dots",
-			"Ask an administrator to configure an account with a permitted username, then sign in with that account")
+	if err := validateEditorUsername(username); err != nil {
+		return nil, err
 	}
 	// Fast path: session already exists. Uses write lock because
 	// lastActivity update is a write that races under RLock.
@@ -149,6 +146,9 @@ func (m *EditorManager) GetOrCreate(username string) (*userSession, error) {
 
 	session := m.editSessionFactory(username, "web")
 	ed.SetSession(session)
+	if err := ed.ResumeSession(); err != nil {
+		return nil, err
+	}
 
 	us := &userSession{
 		showHints:    true,
@@ -554,26 +554,43 @@ func (m *EditorManager) Diff(username string) string {
 	return m.diffChanges(changes)
 }
 
-// discardDiff includes this user's durable intent from earlier editing sessions.
-// Explicit discard-all removes the whole per-user file, so its audit must name
-// those changes without claiming another user's changes were discarded. A cache
-// miss opens the owning editor; an opening failure MUST stop discard before it
+// discardDiff reads this user's durable intent without opening an active
+// editing session. Recovery would rewrite the ownership this audit only reads.
+// A cached user's mutex serializes its edits; the private reader holds its own
+// storage guard. Any opening or snapshot failure MUST stop discard before it
 // removes durable intent or records an audit entry.
 func (m *EditorManager) discardDiff(username string) (string, error) {
-	us, err := m.GetOrCreate(username)
+	if err := validateEditorUsername(username); err != nil {
+		return "", err
+	}
+	m.mu.RLock()
+	us := m.sessions[username]
+	m.mu.RUnlock()
+	if us != nil {
+		us.mu.Lock()
+		defer us.mu.Unlock()
+	}
+	ed, err := m.editorFactory(m.store, m.configPath)
+	if err != nil {
+		return "", fmt.Errorf("editor create for %s: %w", username, err)
+	}
+	changes, err := ed.PendingDiscardChanges(username)
 	if err != nil {
 		return "", err
 	}
-	us.mu.Lock()
-	defer us.mu.Unlock()
-	changes := us.editor.PendingChanges("")
-	own := changes[:0]
-	for _, change := range changes {
-		if change.User == username {
-			own = append(own, change)
-		}
+	return m.diffChanges(changes), nil
+}
+
+// validateEditorUsername keeps every editor factory behind the same identity
+// boundary, including private readers that do not call GetOrCreate.
+func validateEditorUsername(username string) error {
+	if err := cli.ValidateUser(username); err != nil {
+		return opererr.Wrap(err,
+			"Your username cannot own a configuration editing session.",
+			"Configuration metadata requires a username containing only letters, numbers, hyphens, underscores or dots",
+			"Ask an administrator to configure an account with a permitted username, then sign in with that account")
 	}
-	return m.diffChanges(own), nil
+	return nil
 }
 
 // diffChanges is the masked renderer shared by the session review and discard audit.

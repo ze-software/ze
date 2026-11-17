@@ -41,6 +41,7 @@ type Editor struct {
 	originalPath      string
 	store             storage.Storage // Shared store, or history-only for a loose-file editor.
 	looseFile         bool            // Explicit file authority; store, if present, holds history only.
+	viewScope         editorViewScope // Immutable construction choice: shared draft or own candidate.
 	ownsStore         bool            // Close releases an offline editor's lifetime ownership.
 	originalContent   string
 	workingContent    string         // Fallback when tree can't parse
@@ -123,6 +124,19 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 	return newEditor(store, configPath, string(data), true)
 }
 
+// NewIsolatedEditorWithStorage opens an editor whose visible candidate contains
+// committed configuration and only its assigned session's pending intent. The
+// caller MUST assign SetSession and finish ResumeSession before publishing it.
+// The shared draft and its complete metadata still serve replay and conflicts.
+func NewIsolatedEditorWithStorage(store storage.Storage, configPath string) (*Editor, error) {
+	editor, err := NewEditorWithStorage(store, configPath)
+	if err != nil {
+		return nil, err
+	}
+	editor.viewScope = editorViewIsolated
+	return editor, nil
+}
+
 // NewOfflineSessionEditor opens a session editor over a store that no daemon
 // owns, which is a backup artifact opened by `ze config edit --backup`. It
 // carries what a daemon's session editor carries (session identity, the saved
@@ -174,15 +188,10 @@ func newEditor(store storage.Storage, identity, content string, checkPending boo
 	if err != nil {
 		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	tree, meta, err := parseConfigWithFormat(content, schema)
+	tree, meta, err := parseEditingConfig(content, schema)
 	if err != nil {
-		// Retry with lenient parsing: skip unknown fields so the editor
-		// can display a tree view even when stale fields exist on disk.
-		tree, meta, err = parseConfigLenient(content, schema)
-		if err != nil {
-			tree = config.NewTree()
-			meta = nil
-		}
+		tree = config.NewTree()
+		meta = nil
 	}
 	_ = meta // metadata used later by SetSession
 
@@ -199,6 +208,7 @@ func newEditor(store storage.Storage, identity, content string, checkPending boo
 
 	return &Editor{
 		originalPath:    identity,
+		viewScope:       editorViewShared,
 		store:           store,
 		originalContent: content,
 		workingContent:  content,
@@ -474,7 +484,7 @@ func (e *Editor) OriginalContent() string {
 func (e *Editor) WorkingContent() string {
 	if e.treeValid && e.tree != nil && e.schema != nil {
 		if e.session != nil && e.meta != nil {
-			return config.SerializeSetWithMeta(e.tree, e.meta, e.schema)
+			return config.SerializeSetWithMeta(e.tree, e.workingViewMetadata(), e.schema)
 		}
 		return config.Serialize(e.tree, e.schema)
 	}
@@ -488,7 +498,7 @@ func (e *Editor) WorkingContent() string {
 func (e *Editor) stampedWorkingContent() string {
 	if e.treeValid && e.tree != nil && e.schema != nil {
 		if e.session != nil && e.meta != nil {
-			return config.FormatSchemaStamp() + config.SerializeSetWithMeta(e.tree, e.meta, e.schema)
+			return config.FormatSchemaStamp() + config.SerializeSetWithMeta(e.tree, e.workingViewMetadata(), e.schema)
 		}
 		return config.SerializeStamped(e.tree, e.schema)
 	}
@@ -1042,6 +1052,12 @@ func (e *Editor) listChangeFiles(reader pendingChangeReader) []string {
 		return nil
 	}
 
+	return e.selectChangeFiles(files)
+}
+
+// selectChangeFiles applies the same config-specific selection to permissive
+// display reads and to the strict materialized-draft replay listing.
+func (e *Editor) selectChangeFiles(files []string) []string {
 	prefix := changePrefix(e.originalPath)
 
 	var result []string

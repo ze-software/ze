@@ -136,18 +136,54 @@ different owner by stripping punctuation or path segments.
 
 <!-- source: internal/component/web/editor.go -- EditorManager, GetOrCreate -->
 
+The factory uses `NewIsolatedEditorWithStorage` explicitly. Ordinary stored CLI
+editors keep their shared draft view; isolation is a constructor choice, not an
+origin-name test. Saving and rebuilding the web candidate preserve that choice.
+<!-- source: internal/component/cli/editor.go -- NewIsolatedEditorWithStorage -->
+<!-- source: internal/component/cli/editor_view.go -- workingViewMetadata, projectSessionTree -->
+
 Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `ApplyFormEdits`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`, `ReadTree`.
+
+A newly opened editor resumes this account's pending web intent before it enters
+the manager's cache. Recovery includes saved metadata and unsaved assignments
+and structural operations. The shared materialized replay supplies the recorded
+ordering; the visible candidate is rebuilt from committed configuration and
+only the resumed web session's intent. Other users and this account's SSH
+sessions keep their own values and ownership. Candidate text excludes their
+pending metadata values, including when a leaf is contested.
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession, resumeSession, workingSessionMetadata -->
+<!-- source: internal/component/web/editor.go -- GetOrCreate -->
+
+The committed baseline uses the editor constructor's existing parse policy.
+Known fields in set or metadata-set text remain inspectable when another field
+is obsolete. This does not make that source valid for commit: publication keeps
+its strict reader. The draft and change-file parsers keep their existing
+refusals; the committed-view retry never applies to pending intent.
+<!-- source: internal/component/cli/editor_parse.go -- parseEditingConfig -->
+
+Identity publication holds one storage guard but consists of separate writes.
+An error can leave one file rebound. Those records retain their account and
+origin, including when the next attempt receives the same session ID. Recovery
+can retry them; a refused write, replay or final guard release never caches an
+editor or changes committed configuration.
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession, resumeSessionMetadata -->
 
 Explicit discard-all also removes this user's persisted intent from an older
 browser session. Its audit detail selects the exact metadata owner and uses the
 same masked change renderer as the review; it does not infer ownership from a
 formatted session identifier or claim another user's changes were dropped.
-The discard snapshot opens the user's editor even when its cache entry was
-evicted. A failed open returns an error, rather than an empty detail, and every
-discard transport stops before mutation or audit recording. A successfully
-opened editor with no intent for that owner may return an empty detail.
-`GetOrCreate` refreshes activity under the manager lock; the snapshot then takes
-the user lock after the manager lock has been released.
+The discard snapshot reads through a private editor even when the user's cache
+entry was evicted. It never assigns a session identity, resumes custody or
+caches that reader: inspecting the audit detail leaves the stored bytes intact.
+One storage guard covers committed parsing and the saved draft and per-user
+change-file metadata. The shared materialized-draft planner follows recorded
+moves without changing ownership. A failed listing needed for that replay is
+also an error. An open, read, parse or final guard-release failure returns
+an error, and every discard transport stops before mutation or audit recording.
+An exact owner with no stored intent may return an empty detail. When an active
+editor is cached, the snapshot takes its user lock after releasing the manager
+lock, so it also serializes with that user's edits.
+<!-- source: internal/component/cli/editor_pending_snapshot.go -- PendingDiscardChanges, readPendingDiscardChanges -->
 <!-- source: internal/component/web/editor.go -- discardDiff, diffChanges -->
 <!-- source: internal/component/web/handler_config_commit.go -- HandleConfigDiscardWithAuthorizerAndAudit -->
 <!-- source: internal/component/config/change_file.go -- PendingChangeFromSessionEntry, StructuralOp.PendingChange -->
@@ -276,6 +312,19 @@ user's view and applies nothing. With no daemon window (`--web-only`),
 <!-- source: internal/component/web/editor_commit_window.go -- SetConfirmWindow, runCommit, verifyCommit -->
 <!-- source: cmd/ze/hub/service_web.go -- SetConfirmWindow -->
 
+The graphical **Confirm Commit** request also uses `runCommit`. An applied
+commit keeps its success outcome when session cleanup reports a warning. The
+HTMX response closes the review modal, clears the commit bar and displays the
+complete success and advisory text in the existing informational notification
+bar. A later configuration-change event retains that answer and replaces only
+the previous change banner, so repeated events leave at most one banner beside
+the advisory. A normal browser request with a warning renders the same text in
+the successful page's content, where later notification-bar updates cannot
+erase it; clean normal requests keep their redirect to `/`. Neither feedback
+path runs the commit again or repeats its success audit and change event.
+<!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
+<!-- source: internal/component/web/assets/sse-client.js -- connect -->
+
 The dedicated CLI page and the legacy `POST /cli` adapter execute through
 `executeTerminalCommand`. The page layout renders no integrated command bar.
 The retained adapter answers HTMX requests, while the CLI page reads a JSON
@@ -290,6 +339,9 @@ caller's daemon dispatcher; no SSH connection is opened.
 Display and session controls follow the CLI model's Enter behavior. `clear`
 restores the current candidate view in configuration mode and empties the
 operational output; neither form dispatches a daemon command or drops changes.
+Only the exact `configure` control enters configuration mode from operational
+mode. Trailing words or pipes retain normal command refusal, and configuration
+mode refuses `configure` without changing its candidate.
 `top clear` and configuration-mode `run clear` retain the current position.
 Configuration `exit` switches to operational mode; operational `exit` and
 `quit` return to `/show/`. A pending candidate produces a JSON `confirmation`
@@ -375,7 +427,7 @@ is bounded and scrollable.
 <!-- source: internal/component/web/assets/cli.js -- completionResponse, initTerminal -->
 <!-- source: internal/component/web/component_cli_terminal.templ -- cliConfirmPanel -->
 
-<!-- source: internal/component/cli/model_mode.go -- ShouldEnterConfigMode -->
+<!-- source: internal/component/cli/model_mode.go -- ShouldEnterConfigMode, IsConfigureCommand -->
 <!-- source: internal/component/plugin/server/command.go -- RecognizesCommand -->
 <!-- source: cmd/ze/hub/web_completer.go -- Complete, Explain -->
 <!-- source: internal/component/plugin/server/arg_completion.go -- WithArgCompletion -->
@@ -403,10 +455,21 @@ still a successful document. Confirmation, content selection, navigation and
 refusals do not offer an export. A new request immediately invalidates the
 previous result, and downloading never dispatches a second command.
 
-The browser creates a UTF-8 text Blob only for a complete result of at most
-4 MiB. It retains the complete result separately from visible output, refuses
-an oversized result with an explicit message and never downloads a silent
-prefix. Each replacement and page exit revokes the previous object URL.
+The finite JSON answer keeps display text separate from export bytes.
+`output-byte-count` measures only the final selected format before JSON encoding.
+Operational warnings remain above the displayed answer and do not enter the
+export bytes or consume its size budget. A complete result of at most 4 MiB
+also carries `output-bytes`, using the command owner's Blob document with `utf-8` or `base64`
+encoding. A successful empty answer has a zero count and a complete empty Blob.
+The terminal response stores that owner-encoded document as raw JSON,
+so Go callers can decode the response without treating the Blob object as a
+byte slice. If encoding fails, the endpoint returns HTTP 500 with the cause and
+states that the command already ran; the operator must inspect current router
+state before deciding whether to repeat it. No successful complete-result
+answer is emitted. The browser checks the count, encoding and decoded length before
+offering Download; a missing or malformed carrier never falls back to display
+text. An oversized result has an explicit refusal, and no silent prefix can be
+downloaded. Each replacement and page exit revokes the previous object URL.
 The browser negotiates the byte-exact raw-output frames below and retains at
 most 4 MiB of original producer bytes separately from its visible tail. It offers
 Download only after a successful terminal frame and clean EOF; producer error,

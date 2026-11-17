@@ -36,6 +36,12 @@ func (a *editorAdapter) SetSession(s contract.EditSession) {
 	a.ed.SetSession(cli.NewEditSession(s.User, s.Origin))
 }
 
+func (a *editorAdapter) ResumeSession() error { return a.ed.ResumeSession() }
+
+func (a *editorAdapter) PendingDiscardChanges(username string) ([]contract.PendingChange, error) {
+	return a.ed.PendingDiscardChanges(username)
+}
+
 func (a *editorAdapter) SessionID() string               { return a.ed.SessionID() }
 func (a *editorAdapter) CreateEntry(path []string) error { return a.ed.CreateEntry(path) }
 func (a *editorAdapter) SetValue(path []string, key, value string) error {
@@ -155,7 +161,7 @@ func newEditorFactory(validateFn func(candidate, path string) error) contract.Ed
 		if !ok {
 			return nil, fmt.Errorf("expected storage.Storage, got %T", storeAny)
 		}
-		ed, err := cli.NewEditorWithStorage(store, configPath)
+		ed, err := cli.NewIsolatedEditorWithStorage(store, configPath)
 		if err != nil {
 			return nil, err
 		}

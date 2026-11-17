@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | feature parity: scoped acceptance |
+| Phase | existing web correctness before parity gaps |
 | Handoff | verify |
 | Updated | 2026-11-17 |
 
@@ -21,10 +21,57 @@ editor, the command and pipe layer, YANG loading, and rendered markup (web pages
 website CSS, generated docs). Each row is a claim until a red test reproduces it
 at HEAD.
 
+The current correctness pass also owns read-only discard audit snapshots and
+discarding saved leaf changes. Inspection must preserve durable bytes, and an
+explicit discard must not let saved ownership reappear after reopening.
+
 Left to root-cause specs: `yangTypeToValueType` and `validateYangType` (S1);
 the `website/AI.md` checklist and the stranded-documentation rows (T2, T4).
 
 ## Required Reading
+
+### Correctness before further parity work (2026-11-17)
+
+Owner priority, verbatim:
+
+> the full parity, identify what is missing but first ensure that we exists is correct.
+
+Verify the existing graphical editor and browser CLI through their real entry
+points before implementing the remaining missing capabilities. Preserve the
+existing validation command contract. Record missing implementation separately
+from incorrect behavior and missing acceptance evidence.
+
+Executed regressions confirm that successful graphical commits drop their
+warnings, finite binary downloads lose bytes, operational `configure` ignores
+an argument or pipe tail, and cold web editors hide preserved candidate intent.
+They also confirm that save and commit cleanup remove another session's intent
+from a shared per-user change file. A delayed configuration-change event can
+erase an already displayed commit advisory. The download, control-grammar and
+warning corrections have passing targeted web regressions. Both direct and
+staged commits preserve the other session's exact pending data after correcting
+the test's metadata-aware readback. Live-save isolation has an executed
+baseline, and recovery integration is applied locally after independent
+lifecycle-fixture assessment. Focused recovery and storage-failure retries now
+pass, as do the shared CLI replay and confirmed-rollback regressions. The full
+CLI package's only current failures were two Linux-only XFRM cases on macOS;
+fresh unchanged Linux acceptance now passes all four direct/merge and
+commit/candidate branches. The broader web run exposed a
+real discard-audit regression: inspecting an evicted editor resumes custody and
+rewrites its stored timestamps. Its read-only correction is applied locally,
+and the unchanged evicted-user regression passes. All four injected draft,
+change-file, required-listing and final-release failures also pass their
+targeted regression. All eight snapshot cases and the reached shared CLI and
+daemon recovery cases now pass. Eighteen CLI-bar cases pass with the race
+detector. The finite download correction also keeps operational warnings
+outside the selected stdout: isolated empty, exact-limit and mode/format
+regressions pass, followed by all 24 reached download and HTTP golden cases.
+The CLI/web lint rerun passes with zero issues across its selected build
+flavours; the preceding CLI/web/hub matrix reported no hub finding. Saved-leaf
+discard has an executed failure:
+discarded saved ownership and values return after reopening. No complete
+correctness or parity claim is made.
+Missing configured-plugin conformance remains open while these existing paths
+are checked.
 
 ### Authorized web correction amendment (2026-11-15)
 
@@ -202,6 +249,13 @@ baseline fields would remove the condition that the browser test proves.
 | AC-44 | Interactive monitoring capabilities available through CLI views have useful browser equivalents for sorting, selecting a peer, inspecting detail, returning to the live view and stopping updates. | Browser controls may differ from terminal keystrokes; the same data producers, identity and authorization remain authoritative. No protocol state is imported into the web adapter. |
 | AC-45 | A source-derived capability matrix accounts for editor commands, operational commands, completion, explanations, history, streams, monitoring, graphical equivalents and authorization. Executable parity probes cover the concrete gaps alongside registry-derived offered/dispatch coverage, including shared CLI preservation of removed flat statements in revision comparisons. | Unsupported behavior on both CLI and web is reported as such and is not invented as a web-only feature. Unfinished Workbench layouts remain experimental when the equivalent capability is available in the primary interfaces. |
 | AC-46 | Static dispatch validation reads all six synthetic L2TP command declarations from the same literal declaration/handler table used by offline registration, Stage 1 and runtime dispatch. Existing pool and emit commands retain their names, handlers and sorted help output. | This fixture maintenance does not claim completed L2TP web controls or a passing full dispatch check before other findings are resolved. |
+| AC-47 | A successful graphical Review & Commit displays any warning and its recovery advice while retaining successful publication, audit and notification exactly once. HTMX and ordinary requests preserve clean successful behavior. | An applied commit with a warning is not reported as a refusal or retried. |
+| AC-48 | A complete finite browser CLI download preserves the final selected stdout bytes, including binary Blob answers, without a display-string round trip. Displayed warnings remain outside the artifact and its byte budget. Real browser proof compares the downloaded bytes. | Denied, incomplete and oversized results never offer a partial successful export; explicit JSON formatting retains its declared Blob envelope. A successful empty output remains a valid empty artifact even with a displayed advisory. |
+| AC-49 | Browser operational `configure` follows the shared CLI control grammar: only the exact control enters configuration mode; malformed argument and pipe tails are handled without being silently ignored. | Valid registered commands continue through the normal authenticated dispatcher. |
+| AC-50 | Reopening an evicted or restarted user's web editor exposes its preserved resumable web candidate intent with honest review, pending counts and commit behavior. Another owner's changes remain isolated, and failed recovery refuses explicitly without overwriting preserved work. | Recovery reuses the shared session and replay machinery; a global saved draft is not blindly adopted as the user's candidate. |
+| AC-51 | Shared CLI and web editor help advertises supported editing forms and retains ordinary subsection editing. | Wildcard template editing remains a shared unsupported operation; removing its inaccurate help form does not implement or change its refusal. |
+| AC-52 | Discard audit inspection reads saved and unsaved intent, including saved addresses affected by later structural edits, without changing durable bytes, creating an editing session or caching an unresumed editor. Read, parse, required listing and final guard-release failures stop discard before mutation or audit recording. | Other owners' intent remains excluded from the masked detail and unchanged in storage; an empty successful snapshot is permitted only when no intent matches the selected owner. |
+| AC-53 | Explicit discard removes saved changes to existing leaves as well as unsaved changes; reopening does not recover discarded ownership, and committed configuration remains byte-identical. | Pending intent outside the selected discard ownership remains intact. The CLI guide's session-only boundary and the current web account-wide boundary need reconciliation before changing cross-origin behavior. |
 
 #### Implementation phases and wiring proof
 
@@ -215,7 +269,8 @@ baseline fields would remove the condition that the browser test proves.
 | P6 | Interactive monitoring and complete capability evidence | Existing monitor/view producers plus browser sorting/detail/back/stop journeys; registry-derived inventory and executable gap probes |
 | P6c | Caller-supplied configuration inspection through owned daemon commands | Registered supplied dump, validation, formatting, dependency graph and comparison commands; local-producer equivalence, bounded input, secret masking and shared dispatcher authorization/accounting probes |
 | P6d | Declared-schema integration for configuration inspection | File, stored, history and supplied diff, dump and graph use the shared declared-schema step; published external modules remain usable, unavailable sections explain the daemon recovery, ordinary parse/range refusals retain their existing meaning, and no inspection starts a plugin |
-| P6e | Conformance of committed configured plugins through the daemon | Model `request plugin conformance name <configured-name>` as an executing action; resolve its target from the accepted daemon generation, reuse the existing conformance report, and prove allowed, denied, unconfigured, candidate-only, removed, canceled and stopped-generation cases before claiming this capability |
+| P6e | Conformance of startup-configured plugins through the daemon | Model `request plugin conformance name <configured-name>` as an executing action; resolve its executable from the daemon's immutable startup declarations, reuse the existing conformance report, and prove allowed, denied, unconfigured, candidate-only, cancellation and daemon-stop cases before claiming this capability |
+| P6f | Correctness of the existing graphical editor and browser CLI, before missing parity implementation | Reproduce and correct AC-47 through AC-53, then run the affected authenticated browser and backend acceptance paths; keep source coverage, runtime proof and absent features distinct |
 
 P1 and the shared-history foundation P2a have independent source concerns.
 P3 backend routing/completion can proceed alongside P2a, with the history owner
@@ -400,10 +455,20 @@ query's independent budget. The shared context fix now passes that regression,
 preserving the offline no-spawn declaration rule from `d4fb5888c7`. Full plugin
 and conformance package runs passed before the final pointer correction; the
 current affected consumer checks pass in `7527ae72` (plugin 4.715 seconds,
-conformance 2.007 seconds). Successful reloads without
-an authoritative tree must withdraw executable authority; rejected reloads must
-retain the prior accepted snapshot. Neither that implementation nor full
-conformance execution parity is claimed complete.
+conformance 2.007 seconds). Commit `2210546edb` fixes external declarations,
+their executable and their schema until daemon restart; reload refuses changes.
+The remaining configured-target implementation must use that startup authority.
+The earlier reload-generation draft is superseded. P6e is paused while P6f
+checks existing functionality. Neither that implementation nor full conformance
+execution parity is claimed complete.
+
+The broader source inventory also leaves these executable gaps open: a browser
+workspace for a caller's offline backup artifact, daemon forms of standalone
+root/flag workflows outside the registered-command census, and explicit remote
+recovery of an unreadable pending change file. Ordinary web recovery and
+discard refuse unreadable intent rather than bypassing their audit guard.
+These remain parity work; registered-path coverage does not establish their
+implementation or execution.
 
 P6d is implemented locally. Its initial baseline reproduced twelve missing
 offline explanations. The corrected published-schema fixture then passed all

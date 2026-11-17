@@ -19,7 +19,14 @@
       var bar = document.getElementById('notification-bar');
       if (bar && e.data) {
         var doc = new DOMParser().parseFromString(e.data, 'text/html');
-        bar.textContent = '';
+        if (bar.classList.contains('notification-info')) {
+          // An applied answer may carry a warning. Keep it visible even when
+          // this commit's SSE arrives later, alongside one current banner.
+          var previous = bar.querySelector('.notification-banner');
+          if (previous) previous.remove();
+        } else {
+          bar.textContent = '';
+        }
         while (doc.body.firstChild) {
           bar.appendChild(doc.body.firstChild);
         }

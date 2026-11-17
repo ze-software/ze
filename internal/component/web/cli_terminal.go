@@ -34,16 +34,18 @@ const (
 // The JS client updates the output viewport, message area, and prompt from
 // these fields, matching the SSH CLI's fixed-zone layout.
 type terminalResponse struct {
-	Output         string `json:"output"`
-	Feedback       string `json:"feedback"`
-	Path           string `json:"path"`
-	Prompt         string `json:"prompt,omitempty"`
-	Mode           string `json:"mode,omitempty"`
-	Input          string `json:"input,omitempty"`
-	HistoryWarning string `json:"history-warning,omitempty"`
-	Confirmation   string `json:"confirmation,omitempty"`
-	Navigate       string `json:"navigate,omitempty"`
-	OutputComplete bool   `json:"output-complete"`
+	Output          string          `json:"output"`
+	OutputBytes     json.RawMessage `json:"output-bytes,omitempty"`
+	OutputByteCount int             `json:"output-byte-count"`
+	Feedback        string          `json:"feedback"`
+	Path            string          `json:"path"`
+	Prompt          string          `json:"prompt,omitempty"`
+	Mode            string          `json:"mode,omitempty"`
+	Input           string          `json:"input,omitempty"`
+	HistoryWarning  string          `json:"history-warning,omitempty"`
+	Confirmation    string          `json:"confirmation,omitempty"`
+	Navigate        string          `json:"navigate,omitempty"`
+	OutputComplete  bool            `json:"output-complete"`
 }
 
 // HandleCLITerminalWithDispatchAuthorizerAndAudit returns a POST handler for
@@ -159,17 +161,40 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 		if configCommand {
 			feedback = terminalFeedback(cmd, result.output)
 		}
+		selected := terminalSelectedOutput(result.output)
+		if result.selectedOutput != nil {
+			selected = *result.selectedOutput
+		}
 		resp := terminalResponse{
-			Output:         result.output,
-			Feedback:       feedback,
-			Path:           encodeConfigPath(result.path),
-			Prompt:         formatTerminalPrompt(result.mode, result.path),
-			Mode:           result.mode,
-			Input:          result.input,
-			HistoryWarning: cliHistoryWarning(r),
-			Confirmation:   result.confirmation,
-			Navigate:       result.navigate,
-			OutputComplete: result.outputComplete,
+			Output:          result.output,
+			OutputByteCount: len(selected),
+			Feedback:        feedback,
+			Path:            encodeConfigPath(result.path),
+			Prompt:          formatTerminalPrompt(result.mode, result.path),
+			Mode:            result.mode,
+			Input:           result.input,
+			HistoryWarning:  cliHistoryWarning(r),
+			Confirmation:    result.confirmation,
+			Navigate:        result.navigate,
+			OutputComplete:  result.outputComplete,
+		}
+		// The display string can lose invalid UTF-8 when JSON encodes it.
+		// Keep only a complete, in-budget artifact in the owner's byte codec;
+		// retain its JSON document so this DTO also decodes its own wire form.
+		// The original count distinguishes overflow from a malformed carrier.
+		if result.outputComplete {
+			if resp.OutputByteCount <= cliStreamOutputBytesMax {
+				output, err := json.Marshal(command.Blob(selected))
+				if err != nil {
+					http.Error(w, opererr.Wrap(err,
+						"The browser CLI command ran, but its output could not be encoded.",
+						"No complete download is available. Do not repeat a command that changes the router.",
+						"Open /cli and inspect the current router state before deciding whether to repeat the command").Error(),
+						http.StatusInternalServerError)
+					return
+				}
+				resp.OutputBytes = output
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -223,6 +248,11 @@ func terminalAuthCommandForMode(mode string, cmd cliCommand, raw string, registe
 	return terminalAuthCommand(cmd)
 }
 
+// terminalSelectedOutput retains successful formatter output before display
+// warnings without copying string storage. A nil pointer means no separate
+// selection; a nonnil empty value is a valid operational answer.
+type terminalSelectedOutput string
+
 type terminalCommandResult struct {
 	auditSuccess bool
 	// outputComplete follows actual producer/formatter outcomes. It is never
@@ -232,6 +262,7 @@ type terminalCommandResult struct {
 	path           []string
 	mode           string
 	output         string
+	selectedOutput *terminalSelectedOutput
 	completion     *plugin.RenderedResponse
 	confirmation   string
 	navigate       string
@@ -270,7 +301,7 @@ func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree
 	}
 	if control, handled := executeTerminalControl(schema, viewTree, mgr, username, result.path, controlMode, cmd); handled {
 		if control.operational != "" {
-			control.output, control.completion, control.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, control.operational)
+			control.output, control.completion, control.selectedOutput, control.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, control.operational)
 		}
 		return control
 	}
@@ -312,11 +343,7 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 			result.output = "usage: run <command>"
 			return result
 		}
-		result.output, result.completion, result.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, cmd.words.Tail().String())
-		return result
-	case verbConfigure:
-		result.output = "already in config mode"
-		result.outputComplete = true
+		result.output, result.completion, result.selectedOutput, result.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, cmd.words.Tail().String())
 		return result
 	case verbHelp:
 		result.output = terminalEditorHelp()
@@ -379,13 +406,13 @@ func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, 
 		}
 		return result
 	}
-	switch cmd.Verb {
-	case verbConfigure:
+	if cli.IsConfigureCommand(raw) {
 		result.mode = terminalModeConfig
 		result.output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, contextPath)
 		result.outputComplete = true
 		return result
-	case verbHelp:
+	}
+	if cmd.Verb == verbHelp {
 		result.output = terminalEditorHelp()
 		result.outputComplete = true
 		return result
@@ -393,27 +420,28 @@ func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, 
 	if cli.ShouldEnterConfigMode(raw, registered) {
 		return executeTerminalConfigMode(ctx, schema, viewTree, mgr, username, remoteAddr, contextPath, cmd, dispatch)
 	}
-	result.output, result.completion, result.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, raw)
+	result.output, result.completion, result.selectedOutput, result.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, raw)
 	return result
 }
 
 func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input, sessionFormat string) (string, *plugin.RenderedResponse) {
-	output, rendered, _, _ := executeTerminalOperationalResult(ctx, dispatch, username, remoteAddr, input, sessionFormat) //nolint:errcheck // Output already carries the original failure; this text projection has no status result.
+	output, rendered, _, _, _ := executeTerminalOperationalResult(ctx, dispatch, username, remoteAddr, input, sessionFormat) //nolint:errcheck // Output already carries the original failure; this text projection has no export or status result.
 	return output, rendered
 }
 
 // executeTerminalOperationalResult retains both a failed command's diagnostic
 // payload and its original error. A rendered payload never makes a failure
 // complete, and an authorization refusal never exposes attached data.
-func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input, sessionFormat string) (string, *plugin.RenderedResponse, bool, error) {
+// A successful formatter also returns its selected bytes before display warnings.
+func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input, sessionFormat string) (string, *plugin.RenderedResponse, *terminalSelectedOutput, bool, error) {
 	if dispatch == nil {
 		err := errors.New("operational command dispatch not available")
-		return "error: " + err.Error(), nil, false, err
+		return "error: " + err.Error(), nil, nil, false, err
 	}
 	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatResult(input, sessionFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
-		return tb.Str("pipe error: ").Str(pipeErr).String(), nil, false, errors.New(pipeErr)
+		return tb.Str("pipe error: ").Str(pipeErr).String(), nil, nil, false, errors.New(pipeErr)
 	}
 	rendered, executionErr := dispatch.JSON(ctx, plugin.CallerIdentity{
 		Username: username, RemoteAddr: remoteAddr, Authorizer: plugin.CallerAuthorizer(ctx),
@@ -442,13 +470,14 @@ func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispa
 				}
 			}
 		}
-		return operationalWarningOutput(rendered, output), rendered, false, executionErr
+		return operationalWarningOutput(rendered, output), rendered, nil, false, executionErr
 	}
 	output, applyErr := formatFn(rendered.Output)
 	if applyErr != "" {
-		return command.PipeErrorPrefix + applyErr, rendered, false, errors.New(applyErr)
+		return command.PipeErrorPrefix + applyErr, rendered, nil, false, errors.New(applyErr)
 	}
-	return operationalWarningOutput(rendered, output), rendered, true, nil
+	selected := terminalSelectedOutput(output)
+	return operationalWarningOutput(rendered, output), rendered, &selected, true, nil
 }
 
 func operationalPermissionDenied(err error) bool {

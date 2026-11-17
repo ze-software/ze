@@ -96,8 +96,29 @@ its latest materialization, excluding independently owned addresses, and only
 the remaining moves are applied. Metadata follows those same effective moves.
 The shared tree is never rewound through a historical source: another session
 may have created a new entry there. Already materialized copies retain their
-earlier snapshot. This needs no saved replay cursor or new change-file syntax.
+earlier snapshot. A failed listing or read of the ownership records refuses
+replay; it never means that an address has no independent owner. This needs no
+saved replay cursor or new change-file syntax.
 <!-- source: internal/component/cli/editor_create_entry.go -- prepareDraftReplay, materializedEntrySource, entryHasIndependentOwner, copyBeforeRenames -->
+
+Stored CLI editors retain the shared materialized draft after a save or a
+session-view rebuild, including another owner's saved entries and annotations.
+The web factory explicitly constructs an isolated editor instead. Its save
+retains the live candidate, and its rebuild starts from committed configuration
+with only that session's intent. Both views retain complete ownership metadata
+for replay and conflict checks; a view choice never changes what a commit owns.
+<!-- source: internal/component/cli/editor.go -- NewEditorWithStorage, NewIsolatedEditorWithStorage -->
+<!-- source: internal/component/cli/editor_view.go -- workingViewMetadata, projectSessionTree -->
+
+Browser recovery first rebinds the account's eligible web metadata and
+operations, preserving every other owner. It privately runs the same shared
+materialized replay to resolve saved addresses and list positions, then builds
+the visible candidate from committed configuration with only the resumed
+session's entries and operations. Rebinding does not consume the program.
+Saving keeps this isolated candidate while writing the shared draft, and
+candidate serialization excludes other sessions' contested metadata values.
+<!-- source: internal/component/cli/editor_resume.go -- resumeSession, workingSessionMetadata -->
+<!-- source: internal/component/cli/editor_draft.go -- SaveDraft -->
 
 After draft or committed replay, copied and renamed destinations owned by the creation
 program take their positions from the candidate tree. Later renames rebase those
@@ -161,6 +182,18 @@ write-through keeps a pending delete rather than dropping it.
 config never contain one, so the materialized draft and commit formats are
 unchanged.
 
+A user's change file can hold intent from several editing sessions. Saving one
+session moves only its leaf entries into the draft and retains its structural
+ops for commit. Other sessions' entries and ops remain owned by those sessions.
+Accepted publication consumes only the committing session, on both the direct
+and staged-candidate paths. A failed cleanup is reported beside the commit that
+applied; it does not turn that publication into a refusal.
+The cleanup warning keeps the cause and tells the operator to keep the session
+files, review retained changes with `show | changes all`, and repair the reported
+failure. Repeating the commit or discarding shared files is not a recovery step:
+the commit already applied, and another session can still own those files.
+<!-- source: internal/component/cli/editor_session_cleanup.go -- consumeSessionChangeEntries, cleanupSessionFiles -->
+
 A per-user change file holds an unvalidated candidate. API edits may store a
 leaf value or leaf-list member that commit will refuse. The editor restores
 those values without judging their leaf constraints, so the operator can
@@ -203,10 +236,15 @@ interpretation.
 
 ## Constraints
 
-**`PendingChange` exists in both the `config` and `contract` packages, with
-identical field names and separate types.** The adapter layer casts between
-them. If either type gains a field the other lacks, the cast loses data in
-silence.
+`PendingChange` has separate `config` and `contract` representations. Boundary
+conversion preserves the owner, kind, paths, member and values. The `config`
+representation also carries the session identifier used for internal selection
+and deduplication. The read-only discard snapshot returns contract records;
+regular editor adapters convert the configuration records.
+<!-- source: internal/component/config/change_file.go -- PendingChange -->
+<!-- source: internal/component/cli/contract/contract.go -- PendingChange -->
+<!-- source: internal/component/cli/editor_pending_snapshot.go -- PendingDiscardChanges -->
+<!-- source: cmd/ze/hub/editor_adapter.go -- PendingChanges -->
 
 **`MetaTree.RenameListEntry` and `MetaTree.CopyListEntry` exist for subtree
 rebase during a rename and a copy.** Neither is a general-purpose meta

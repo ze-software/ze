@@ -18,7 +18,7 @@ func HistoryCommandMode(mode EditorMode, input string, registered func(string) b
 		if IsSessionFormatCommand(input) {
 			return mode, true
 		}
-		if input == cmdConfigure {
+		if IsConfigureCommand(input) {
 			return mode, false
 		}
 		if ShouldEnterConfigMode(input, registered) {

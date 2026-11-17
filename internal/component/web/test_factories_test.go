@@ -41,7 +41,7 @@ func testEditorFactory() contract.EditorFactory {
 		if !ok {
 			return nil, fmt.Errorf("expected storage.Storage, got %T", storeAny)
 		}
-		ed, err := cli.NewEditorWithStorage(store, configPath)
+		ed, err := cli.NewIsolatedEditorWithStorage(store, configPath)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func testEditorFactoryCommitErr(commitErr error) contract.EditorFactory {
 		if !ok {
 			return nil, fmt.Errorf("expected storage.Storage, got %T", storeAny)
 		}
-		ed, err := cli.NewEditorWithStorage(store, configPath)
+		ed, err := cli.NewIsolatedEditorWithStorage(store, configPath)
 		if err != nil {
 			return nil, err
 		}
@@ -89,6 +89,12 @@ func (a *testEditorAdapter) ExecuteConfigCommand(request contract.ConfigCommandR
 func (a *testEditorAdapter) SetSession(s contract.EditSession) {
 	a.ed.SetSession(cli.NewEditSession(s.User, s.Origin))
 }
+func (a *testEditorAdapter) ResumeSession() error { return a.ed.ResumeSession() }
+
+func (a *testEditorAdapter) PendingDiscardChanges(username string) ([]contract.PendingChange, error) {
+	return a.ed.PendingDiscardChanges(username)
+}
+
 func (a *testEditorAdapter) SessionID() string               { return a.ed.SessionID() }
 func (a *testEditorAdapter) CreateEntry(path []string) error { return a.ed.CreateEntry(path) }
 func (a *testEditorAdapter) SetValue(path []string, key, value string) error {
