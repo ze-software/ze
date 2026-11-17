@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; context proof and 64 renewals remain; AC-4 stays open |
+| Phase | Guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; context proof and 55 guest renewals remain; AC-4 stays open |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -91,12 +91,11 @@ selected producer seals changed to `17aa3b0ab62f6479`. Receipts are
 `job-ipsec-rfc4301-negotiated-selectors-proof-c580bfc1.log` and
 `job-ipsec-rfc4303-esp-protocol-proof-e05930b5.log`. These remain dependency proofs of
 partial tagged claims, including distinct claims on the same ESP unit. The current
-manifest at the end of the six-negative batch marks 15 current renewals RECORDED:
-orders 58, 9, 15, 44, 7, 13, 16, 31, 38, 57, 60, 61, 69, 75 and 76.
-There are 64 UNEXECUTED commands: 55 guest and nine host.
+manifest at the end of the nine-host REVERT batch marks 24 current renewals RECORDED.
+There are 55 UNEXECUTED commands, all guest; no host renewal remains.
 The original 83 rows remain unchanged, and current freshness of the four
-historical receipts is still UNKNOWN. A fresh native RFC check remains owed after
-renewals.
+historical receipts is still UNKNOWN; no genuinely scoped native verifier for those
+four is established. A fresh native RFC check remains owed after renewals.
 
 Both automatic safety holds and the pending owner question remain unchanged: no
 constrained-fixture retry or rejected private fault preparation/use is approved. The
@@ -131,9 +130,21 @@ reached, with no option-refusal credit. Orders 75/76 fail forbidden zero TCP/ICM
 selectors while four allowed controls pass, with narrowing checked under both policies.
 The selected negative units are retained in RFC4301-4.4.1-3, RFC4301-4.4.2-2,
 RFC4301-5.1.2.1-1, RFC4301-7.3-3 and RFC4301-7.3-4 under `rfc/discrimination/rfc4301/`.
-These renewals add no native C or AC-4 credit. Next are nine host REVERT renewals,
-then 55 guest renewals, four freshness checks, the pending C-route and safety decisions,
-and the final audit and Review Gate.
+These renewals add no native C or AC-4 credit.
+
+Nine host REVERT renewals, orders 45–49, 73, 74, 80 and 82, are now accepted:
+each selected test passed clean, then failed at its native producer halt; all native
+runs exited 0. These are dependency proofs of partial tagged claims. Orders 47/80 halt
+through establishPSK before the EAP cipher assertions; orders 48/49 halt through their
+fixtures. Order 74's three clean cases pass, but its fault stops at local_port_under_ANY
+before the later remote-port and ICMP cases. Order 73 uses the reached acceptablePairs
+producer; the earlier programmableSelector R10 refusal ran no fault and wrote no native
+record. Order 82 halts installChildSA through createFirstChildSA. Native records are
+RFC4303-2.1-2, RFC4303-3.4.3-2, RFC5216-2.4-4, RFC7296-2.23-11, RFC4301-7.1-3 and
+RFC7296-2.23-2 under `rfc/discrimination/`. No code fix, additional EAP semantic proof,
+native C enforcement or AC-4 closure is credited. Next are the 55 guest renewals,
+resolution of the four UNKNOWN freshness verdicts, the pending C-route and safety
+decisions, and the final audit and Review Gate.
 
 ## Task
 

@@ -17,9 +17,9 @@
     "unit-sha": "5629435fb160f4c8",
     "claim-sha": "b789baac395aaa82",
     "route": "revert",
-    "producer": "internal/component/ike/engine/ts_narrow.go::programmableSelector",
-    "producer-sha": "714ecb308a1969cf",
-    "break": "body of programmableSelector replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/ike/engine/ts_narrow.go::acceptablePairs",
+    "producer-sha": "ea7a20e400a96a2f",
+    "break": "body of acceptablePairs replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4301-7.1-3",
@@ -40,7 +40,7 @@
     "claim-sha": "9548a2a28abac864",
     "route": "revert",
     "producer": "internal/component/ike/ipsec/spd_policy.go::protocolCarriesPorts",
-    "producer-sha": "e0f46cd44b20a965",
-    "break": "body of protocolCarriesPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "c995bfa83ea080d1",
+    "break": "body of protocolCarriesPorts replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

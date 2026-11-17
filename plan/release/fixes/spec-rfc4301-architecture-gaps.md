@@ -7,7 +7,7 @@
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (owns dual-form receive; its local IPv4 single-pair ICMP clean and proofs (c)/(d) are observed on 2026-11-16, while full per-SA scope remains open) |
-| Phase | 2b -- guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; blocked context proof and 64 renewals remain |
+| Phase | 2b -- guard landed; current queue counter, SA lifetime and raw/packet matrix accepted; blocked context proof and 55 guest renewals remain |
 | Handoff | - |
 | Updated | 2026-11-17 |
 
@@ -46,8 +46,8 @@ a partial claim, not C enforcement or the whole requirement. Runs 94797, 40175 a
 also renewed host-positive orders 9, 15 and 44 after exact selected clean PASS and
 native installChildSA halt FAIL; only their selected producer seals changed to
 `17aa3b0ab62f6479`. These are partial-claim dependency proofs; the dual-form checkpoint
-names the logs. The original 83 historical rows remain unchanged; 15 current renewals
-are RECORDED and 64 commands remain UNEXECUTED (55 guest, nine host). Four historical
+names the logs. The original 83 historical rows remain unchanged; 24 current renewals
+are RECORDED and 55 commands remain UNEXECUTED, all guest. Four historical
 receipts still have UNKNOWN current freshness. Both safety holds, the pending safety-action owner question,
 compliant-fragment RED, full AC-4 and separate mapped-return gap remain open. The P3
 C-proof proposal has independent design reviews CLEAR, including the observer manifest
@@ -57,7 +57,7 @@ recorder builds is PENDING. Seven later RFC792 rows stay post-release, with no t
 implementation or proof credit. No push was made by this session.
 
 The [dual-form current checkpoint](spec-ipsec-dual-form-receive-spd-bypass.md#current-continuation-checkpoint-2026-11-17)
-records the five positive and six negative host mutations and their native record references.
+records the completed host renewals and their native record references.
 Its acceptance limits apply here.
 
 ## Local ICMP proof receipt, 2026-11-16
