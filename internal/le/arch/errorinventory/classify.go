@@ -161,14 +161,50 @@ func (sc scope) isOperatorError(expr ast.Expr, depth int) bool {
 }
 
 // callIsOperatorError reports whether a call answers an operator error: an
-// opererr constructor handed a fix that is not the empty literal, or a
-// function of the tree that answers only operator errors.
+// opererr constructor handed a fix that is not the empty literal, a standard
+// errors.AsType extraction with that explicit target type, or a function of
+// the tree that answers only operator errors.
 func (sc scope) callIsOperatorError(call *ast.CallExpr, depth int) bool {
 	return sc.callResultIsOperatorError(call, 0, depth)
 }
 
 // callResultIsOperatorError judges the zero-based result of a known call.
 func (sc scope) callResultIsOperatorError(call *ast.CallExpr, result, depth int) bool {
+	if generic, isGeneric := ast.Unparen(call.Fun).(*ast.IndexExpr); isGeneric {
+		if result != 0 {
+			return false
+		}
+		if len(call.Args) != 1 {
+			return false
+		}
+		if !sc.file.refersTo(generic.X, "errors", "AsType") {
+			return false
+		}
+		if !sc.file.isOperatorErrorType(generic.Index) {
+			return false
+		}
+		selector, isSelector := ast.Unparen(generic.X).(*ast.SelectorExpr)
+		if !isSelector {
+			return false
+		}
+		qualifier, isQualifier := selector.X.(*ast.Ident)
+		if !isQualifier {
+			return false
+		}
+		if _, shadowed := sc.binding(qualifier); shadowed {
+			return false
+		}
+		// Extraction preserves a visible constructor's missing-fix refusal.
+		if input, isCall := ast.Unparen(call.Args[0]).(*ast.CallExpr); isCall {
+			if sc.file.refersTo(input.Fun, opererrPath, opererrNew) {
+				return sc.callIsOperatorError(input, depth+1)
+			}
+			if sc.file.refersTo(input.Fun, opererrPath, opererrWrap) {
+				return sc.callIsOperatorError(input, depth+1)
+			}
+		}
+		return true
+	}
 	if sc.file.refersTo(call.Fun, opererrPath, opererrNew) {
 		if result != 0 {
 			return false

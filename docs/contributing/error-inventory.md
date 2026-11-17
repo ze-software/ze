@@ -111,6 +111,14 @@ does not type the selected result. Assignment and variable declarations retain
 the same result position through nested helper calls.
 <!-- source: internal/le/arch/errorinventory/classify.go -- assignmentValue, answersOperatorError, returnsOnlyOperatorErrors -->
 
+The first result of the standard library's `errors.AsType[*opererr.Error]`
+has the same explicit target-type proof as a variable declared `*opererr.Error`.
+Import aliases are resolved to their package paths. Its boolean result, another
+target type and an unrelated function named `AsType` supply no such proof; a
+locally bound qualifier cannot stand in for the `errors` import. A directly
+supplied `opererr.New` or `opererr.Wrap` still must name a nonempty fix.
+<!-- source: internal/le/arch/errorinventory/classify.go -- callResultIsOperatorError -->
+
 A local variable declared `*opererr.Error` keeps that proof when a later plain
 assignment fills it. A short declaration that shadows it starts a new binding.
 For a receiver method, the receiver must have a declared concrete named type:
