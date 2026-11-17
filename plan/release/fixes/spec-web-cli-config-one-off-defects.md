@@ -30,6 +30,166 @@ the `website/AI.md` checklist and the stranded-documentation rows (T2, T4).
 
 ## Required Reading
 
+### Offline backup browser workspace (2026-11-17)
+
+Owner requirement, verbatim:
+
+> web interface
+>
+> 5. Offline backup editing lacks a browser workspace.
+>    Users need to upload a backup, inspect and edit it independently of the running system, then download the updated backup. That complete workflow is missing.
+
+The owner approved this scope with "LGTM": upload a `.zefs` backup, select a
+configuration, inspect and edit it, validate and review the changes, and download
+the updated artifact with its other contents preserved. Workspace edits must
+remain independent of the live configuration.
+
+| Amendment field | State |
+|-----------------|-------|
+| Phase | Research; scope approved, design not yet approved |
+| Owning mechanism | Existing web parity work in this spec; no separate backlog item |
+| Parent status | Remains in-progress for its existing correctness work; this amendment does not change that work's acceptance or evidence |
+| Implementation | Not started |
+
+→ Constraint: Extend the shared configuration editor and artifact storage;
+do not introduce a second configuration parser or a live publication callback.
+→ Constraint: An artifact can contain configurations, history, pending changes,
+credentials and unrelated keys. Inspect their producers before deciding which
+records an edit may change.
+
+#### Backup workspace research
+
+Reading checkpoints:
+
+- [ ] `docs/guide/config-editor.md`, Backup mode; `internal/component/cli/editor.go`
+  `NewOfflineSessionEditor` and `SetOfflinePromotion`.
+  → Constraint: The offline editor already promotes candidate versions inside
+  its supplied artifact. Reuse that publication mechanism; the constructor
+  also loads an existing draft and labels its session origin local, so it is
+  not an unchanged browser-session factory.
+- [ ] `docs/architecture/web-interface.md`, Per-User Editor;
+  `internal/component/web/editor.go` `NewEditorManager` and `GetOrCreate`.
+  → Constraint: A manager binds one store, configuration path and factory.
+  Its username key alone cannot identify several independent backup workspaces.
+- [ ] `docs/architecture/web-components.md`, Design Principles;
+  `internal/component/web/component_commit_bar.templ` `commitBar` and
+  `component_breadcrumb.templ` `topbarActions`.
+  → Constraint: Existing controls target absolute live-editor URLs. A mounted
+  handler prefix alone cannot isolate backup requests. Audit navigation,
+  redirects, forms, HTMX requests and chrome before reusing those controls.
+- [ ] `docs/architecture/storage-backends.md`, blob artifacts;
+  `internal/component/config/storage/backup.go` `Backup` and `copyKeys`;
+  `restore.go` `sourceConfigNames`.
+  → Constraint: Preserve the complete artifact rather than export configuration
+  text alone. The existing guarded key copy preserves binary values; the
+  configuration-name census includes both active pointers and active mirrors.
+- [ ] `ai/doors/api-surfaces.md`; `internal/component/web/webroute.go`
+  `WebRoute`; `cmd/ze/hub/service_web.go` `startWebServer`.
+  → Constraint: Production discovers registered web routes and supplies their
+  auth wrappers. The current route builder returns only a handler; artifact
+  ownership and shutdown cleanup need an explicit lifecycle integration.
+- [ ] `cmd/ze/hub/editor_adapter.go` `newEditorFactory`;
+  `internal/component/web/editor_history.go` `EditorManager.Close`.
+  → Constraint: The live factory attaches the daemon's confirmation window;
+  live service wiring also installs reload and publication callbacks. Backup
+  editing must not inherit these. Manager close drains history but does not
+  close its borrowed store or remove uploaded files.
+
+**Current behavior:** Graphical import stages configuration text in the live
+user's candidate. CLI backup mode edits a supplied artifact without a daemon.
+There is no browser bridge between those workflows in the inspected producers.
+The existing CLI/storage tests prove their own paths, not the requested browser
+journey. No test was run for this research-only amendment.
+
+| Existing mechanism | Producer | Research disposition |
+|--------------------|----------|----------------------|
+| Artifact editor and promotion | `cli.NewOfflineSessionEditor`, `Editor.SetOfflinePromotion` | Extend for browser ownership and the agreed source/draft policy; retain version, active-pointer and mirror consistency |
+| Per-user graphical editing | `web.NewEditorManager`, `EditorManager.GetOrCreate` | Reuse candidate methods and schema-backed inputs; add workspace identity outside the live manager |
+| Complete artifact export | `storage.Backup`, `copyKeys` | Reuse guarded key preservation for download; do not substitute active configuration text |
+| Configuration selection | `storage.sourceConfigNames` | Reuse the storage-owned census through an exported seam if needed; do not duplicate its key grammar in web |
+| Production route registration | `web.RegisterWebRoute`, `hub.startWebServer` | Extend the registered surface and auth wrappers; explicitly own workspace lifetime |
+| Existing graphical chrome and actions | `commitBar`, `topbarActions` | Reuse only after explicit URL scoping; live command dispatch and tools must not enter the artifact workflow |
+
+**Required data flow:** authenticated upload → bounded private artifact →
+integrity check and configuration selection → artifact-backed editor →
+validation and diff review → publication in that artifact → complete binary
+download → owned workspace cleanup. The user's original file remains on their
+machine. A web-server process may host the workspace; no edit may require or
+publish a live configuration change.
+
+| ID | Assumption | Basis | If wrong | Validation method | State |
+|----|------------|-------|----------|-------------------|-------|
+| A-B1 | Open the committed configuration first and retain existing drafts separately | Other backup contents must survive; CLI backup mode currently loads a saved draft | A user expecting draft resumption sees a different starting point | Owner choice at the research gate | Awaiting answer |
+| A-B2 | The hosting process's available schema can inspect the selected configuration | Existing editor parses with the published module set | A backup from another build may contain unsupported fields | Cover unsupported-schema and invalid-source cases without executing uploaded plugin declarations or rendering an empty tree as valid | Open for design |
+
+| ID | Risk | Early signal | Required mitigation |
+|----|------|--------------|---------------------|
+| R-B1 | A reused link or callback reaches live state | Any rendered backup control targets a live editor route; live sentinel changes | Explicit request scope and separate artifact owner; browser and callback-negative tests |
+| R-B2 | Old pending changes are silently applied or lost | Opening a backup changes its source records or presents an unexpected candidate | Resolve A-B1; test saved drafts and multiple accounts/configurations |
+| R-B3 | Credentials leak or uploads exhaust storage | Unauthorized download, raw keys in markup/logs, unbounded request or retained files | Authorize full-artifact access; private files; bounded size/count/disk use; cleanup on close, expiry and shutdown |
+| R-B4 | Download races editing or cleanup | Inconsistent active pointers or a truncated artifact | Serialize export with edits and lifetime ownership; reopen downloaded artifact and verify unrelated keys |
+| R-B5 | Offline validation is described as target-system acceptance | Host/runtime checks are implied by an artifact save | Label the validation boundary and preserve precise unsupported-schema refusals |
+
+The next design must specify workspace identity across tabs, draft selection,
+upload and storage bounds, expiry/recovery, route scope, export serialization and
+shutdown. It must enumerate all HTTP producers/consumers and retain the existing
+artifact format and CLI callers. The browser proof must upload, select, edit,
+validate, review, download and reopen a real artifact while a separate live-store
+sentinel and unrelated binary artifact keys remain unchanged.
+
+Discovery and documentation surfaces: `features/backup-and-restore.md`,
+`ai/INDEX.md`, `docs/guide/web-interface.md`, `docs/guide/config-editor.md`,
+`docs/architecture/web-interface.md`, `web-components.md` and
+`docs/architecture/storage-backends.md` if its private census gains an exported
+contract. The design's integration checklist must name the workspace storage
+and cleanup diagnostics, authorization and same-origin wrappers, route lifetime,
+template generation, browser transfer proof and reached CLI/storage regressions.
+No CLI grammar, YANG syntax, plugin protocol, BGP wire format or new listener is
+required by the approved scope.
+
+Retained session state:
+`tmp/session/2026-11-17-164600-2/state/session-state-spec-web-cli-config-one-off-defects-backup.md`.
+It holds research digests for continuation and may be removed when the approved
+design contains those constraints and no active session needs the digest.
+
+### Configured-plugin conformance after release (2026-11-17)
+
+Owner scope decision, verbatim, about browser-triggered checks of configured
+plugins:
+
+> I am fine without this feature
+
+> it can be considered after release
+
+P6e is removed from this spec's release acceptance. Consider the configured-name
+daemon operation after release; this decision does not authorize implementation
+then. The local shell checker remains available, and its remote-execution
+refusal remains enforced. Preserve existing implementation and draft tests;
+neither their removal nor a completed daemon capability is claimed. This
+explicit exception qualifies the browser parity requirements below.
+
+### Explicit browser recovery of unreadable changes (2026-11-17)
+
+Owner requirement, verbatim:
+
+> web interface - please fix
+>
+> 4. There is no complete browser recovery for corrupted pending changes.
+>    If a stored change file cannot be parsed, the browser refuses to open or discard it. An administrator currently needs file access to repair it. We need an explicit, authorized recovery action available remotely.
+
+Acceptance: Finder and Workbench failures offer an independent recovery form;
+an authorized, same-origin, explicitly confirmed POST discards only the
+authenticated account's unchanged unreadable change file. The warning names
+all origins, including SSH and console, because unreadable ownership cannot be
+selected. It also names structural instructions retained in that file after
+saving: those cannot be preserved selectively either. The separate saved draft
+file, committed configuration and other accounts survive. Readable candidates
+and stale confirmations are refused. Storage
+failures report the actual or uncertain removal outcome, and cached candidates
+cannot expose or restore discarded intent. Positive evidence must include the
+real browser journey from failure through cancellation and confirmed recovery
+to a usable editor, plus unauthorized negative cases.
+
 ### Correctness before further parity work (2026-11-17)
 
 Owner priority, verbatim:
@@ -70,8 +230,8 @@ flavours; the preceding CLI/web/hub matrix reported no hub finding. Saved-leaf
 discard has an executed failure:
 discarded saved ownership and values return after reopening. No complete
 correctness or parity claim is made.
-Missing configured-plugin conformance remains open while these existing paths
-are checked.
+Configured-plugin conformance is a post-release consideration under the owner
+scope decision above, not a blocker for these existing paths.
 
 ### Authorized web correction amendment (2026-11-15)
 
@@ -269,7 +429,7 @@ baseline fields would remove the condition that the browser test proves.
 | P6 | Interactive monitoring and complete capability evidence | Existing monitor/view producers plus browser sorting/detail/back/stop journeys; registry-derived inventory and executable gap probes |
 | P6c | Caller-supplied configuration inspection through owned daemon commands | Registered supplied dump, validation, formatting, dependency graph and comparison commands; local-producer equivalence, bounded input, secret masking and shared dispatcher authorization/accounting probes |
 | P6d | Declared-schema integration for configuration inspection | File, stored, history and supplied diff, dump and graph use the shared declared-schema step; published external modules remain usable, unavailable sections explain the daemon recovery, ordinary parse/range refusals retain their existing meaning, and no inspection starts a plugin |
-| P6e | Conformance of startup-configured plugins through the daemon | Model `request plugin conformance name <configured-name>` as an executing action; resolve its executable from the daemon's immutable startup declarations, reuse the existing conformance report, and prove allowed, denied, unconfigured, candidate-only, cancellation and daemon-stop cases before claiming this capability |
+| P6e | Post-release consideration: conformance of startup-configured plugins through the daemon | Removed from release acceptance by the owner scope decision above. If resumed, select the executable from immutable startup declarations and prove execution authorization, target selection, cancellation and daemon shutdown before claiming the capability. |
 | P6f | Correctness of the existing graphical editor and browser CLI, before missing parity implementation | Reproduce and correct AC-47 through AC-53, then run the affected authenticated browser and backend acceptance paths; keep source coverage, runtime proof and absent features distinct |
 
 P1 and the shared-history foundation P2a have independent source concerns.
@@ -457,9 +617,10 @@ and conformance package runs passed before the final pointer correction; the
 current affected consumer checks pass in `7527ae72` (plugin 4.715 seconds,
 conformance 2.007 seconds). Commit `2210546edb` fixes external declarations,
 their executable and their schema until daemon restart; reload refuses changes.
-The remaining configured-target implementation must use that startup authority.
-The earlier reload-generation draft is superseded. P6e is paused while P6f
-checks existing functionality. Neither that implementation nor full conformance
+The earlier reload-generation draft is superseded. The owner subsequently
+removed P6e from release acceptance; it can be considered after release under
+the scope decision above. Any resumed configured-target implementation must use
+that startup authority. Neither that implementation nor full conformance
 execution parity is claimed complete.
 
 The broader source inventory also leaves these executable gaps open: a browser
