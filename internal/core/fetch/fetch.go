@@ -268,41 +268,52 @@ func ToDisk(url, disk, expectedSHA string) error {
 	return fmt.Errorf("stream %s to %s failed after %d attempts: %w", redact.URL(url), disk, retryMax, err)
 }
 
-// stallReader closes a response body when no Read returns within the
+// ErrStalled is the error a StallReader's Read wraps once its timer closed
+// the body, so a caller can tell a stall from another read failure.
+var ErrStalled = errors.New("download stalled")
+
+// StallReader closes a response body when no Read returns within the
 // timeout, so a stalled transfer fails instead of hanging. Each Read re-arms
 // the timer, so a steady slow transfer (bytes arriving before each deadline)
 // is NOT killed; only a complete stall triggers. The timer's function runs
 // on the runtime's timer goroutine, and a stalled Read returns because
 // closing the body unblocks it. Close MUST be called once the copy ends.
-// Not safe for concurrent Reads.
-type stallReader struct {
+// Not safe for concurrent Reads. Exported for the container registry
+// client, which bounds each registry answer the same way.
+type StallReader struct {
 	body    io.ReadCloser
 	timeout time.Duration
 	timer   *time.Timer
 	stalled atomic.Bool
 }
 
-func newStallReader(body io.ReadCloser, timeout time.Duration) *stallReader {
-	sr := &stallReader{body: body, timeout: timeout}
+// NewStallReader arms the timer and wraps body. The caller MUST call Close
+// once it stops reading.
+func NewStallReader(body io.ReadCloser, timeout time.Duration) *StallReader {
+	sr := &StallReader{body: body, timeout: timeout}
 	sr.timer = time.AfterFunc(timeout, sr.stall)
 	return sr
 }
 
-func (sr *stallReader) stall() {
+func (sr *StallReader) stall() {
 	sr.stalled.Store(true)
 	sr.body.Close() //nolint:errcheck // unblocks the stalled Read; the Read reports the stall
 }
 
-func (sr *stallReader) Read(p []byte) (int, error) {
+// Read reads from the body and re-arms the timer. Once the timer closed the
+// body, the error wraps ErrStalled.
+func (sr *StallReader) Read(p []byte) (int, error) {
 	sr.timer.Reset(sr.timeout)
 	n, err := sr.body.Read(p)
 	if err != nil && sr.stalled.Load() {
-		return n, fmt.Errorf("download stalled: no data received for %v", sr.timeout)
+		return n, fmt.Errorf("%w: no data received for %v", ErrStalled, sr.timeout)
 	}
 	return n, err
 }
 
-func (sr *stallReader) Close() {
+// Close stops the timer. It MUST be called once the copy ends; it does not
+// close the body, which stays the caller's.
+func (sr *StallReader) Close() {
 	sr.timer.Stop()
 }
 
@@ -332,7 +343,7 @@ func doToDisk(url, disk, expectedSHA string) error {
 		}
 	}()
 
-	sr := newStallReader(resp.Body, stallTimeout)
+	sr := NewStallReader(resp.Body, stallTimeout)
 	defer sr.Close()
 
 	var w io.Writer = f

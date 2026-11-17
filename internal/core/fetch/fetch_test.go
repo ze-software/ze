@@ -9,7 +9,9 @@ package fetch
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +19,57 @@ import (
 	"testing"
 	"time"
 )
+
+// oneByteBody hands one byte, then blocks every Read until it is closed, as
+// a response body whose server stopped sending does.
+type oneByteBody struct {
+	sent   bool
+	closed chan struct{}
+}
+
+func (b *oneByteBody) Read(p []byte) (int, error) {
+	if !b.sent {
+		b.sent = true
+		p[0] = 'a'
+		return 1, nil
+	}
+	<-b.closed
+	return 0, io.ErrClosedPipe
+}
+
+func (b *oneByteBody) Close() error {
+	close(b.closed)
+	return nil
+}
+
+// TestStallReaderExported proves the exported stall reader, which the
+// container registry client wraps each response body in: a byte that arrives
+// before the timeout is handed on, and a read that then waits past the
+// timeout ends with ErrStalled rather than hanging. Method: a body that sends
+// one byte and then nothing until the stall closes it.
+func TestStallReaderExported(t *testing.T) {
+	const timeout = 100 * time.Millisecond
+	sr := NewStallReader(&oneByteBody{closed: make(chan struct{})}, timeout)
+	defer sr.Close()
+
+	buf := make([]byte, 8)
+	n, err := sr.Read(buf)
+	if err != nil || n != 1 || buf[0] != 'a' {
+		t.Fatalf("first read = %d, %v; want the one byte sent before the timeout", n, err)
+	}
+	started := time.Now()
+	_, err = sr.Read(buf)
+	waited := time.Since(started)
+	if !errors.Is(err, ErrStalled) {
+		t.Fatalf("read with no byte sent = %v, want ErrStalled", err)
+	}
+	if waited < timeout {
+		t.Errorf("the stall ended the read after %v, before the %v timeout", waited, timeout)
+	}
+	if waited > 5*time.Second {
+		t.Errorf("the stall ended the read after %v, far past the %v timeout", waited, timeout)
+	}
+}
 
 func TestDownloadToFileSuccess(t *testing.T) {
 	body := []byte("complete-image-data")

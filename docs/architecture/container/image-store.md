@@ -9,10 +9,12 @@ this page describes what the tree holds today.
 
 ## Where it is today
 
-The store lands in phases. Two are in the tree. The wiring: the seam, the
+The store lands in phases. Three are in the tree. The wiring: the seam, the
 commands, the doctor codes, the state keys and the data directory. The
 layout: the store root and its folders, staging emptied at start,
-publication of an image folder by one rename, and the image listing. Every
+publication of an image folder by one rename, and the image listing. The
+registry client: references, manifests, platform selection and blobs
+checked as they arrive, which nothing in the store calls yet. Every
 other operation of the store answers that it is not implemented in this
 build. No image is fetched yet, so the listing answers an empty store, and
 no container starts on the real store: its resolve answers an error, which
@@ -28,6 +30,8 @@ the supervisor turns into the `failed` state with the reason.
 | The doctor codes | `doctor_store.go` | Eleven codes, registered from the plugin's package, six of them as report-bus event codes |
 | The state keys | `pkg/zefs/keys.go` | Three patterns under `meta/container/`, granted to the plugin |
 | The data directory | `internal/core/paths/paths.go` | `ze.data.dir` wins. Without it the directory follows the binary's location, as the config directory does (the table below) |
+| The registry client | `internal/plugins/container/registry`, gated by `ze_container` | Resolves a reference and fetches checked blobs (the section below). The fetch worker that calls it is a later phase |
+| The test registry | `internal/test/ociregistry` | An in-process registry the client's tests fetch from, with scripted faults |
 
 <!-- source: internal/plugins/container/imagestore/store.go -- Store, newStore, openStore, storePath, withRoot, openRoot, ListImages, notImplemented -->
 <!-- source: internal/plugins/container/imagestore/register.go -- init -->
@@ -127,6 +131,91 @@ phase brings.
 <!-- test: internal/plugins/container/imagestore/publish_test.go TestPublishIsOneRenameAndRefusesExisting, TestListIgnoresFolderWithoutMark, TestStartEmptiesStagingAndKeepsCheckedBlobs -->
 <!-- test: internal/plugins/container/imagestore/layout_test.go TestStoreRootOpenToOthersRefused -->
 <!-- test: internal/core/paths/paths_test.go TestDataDirFromBinary, TestDefaultDataDirHonorsOverride -->
+
+## The registry client
+
+The client is pull only, written over the standard library's HTTP client, in
+the gated package `internal/plugins/container/registry`. It stores nothing:
+it hands the store a resolved image and writes a blob into the file the
+store gives it.
+
+**A reference is completed once.** `ParseReference` applies the host rule: the
+first component is a registry host when it holds a dot or a colon or is
+`localhost`, otherwise the name is a repository of the public hub,
+`docker.io`, where a name of one component goes under `library/`. No tag and
+no digest means the tag `latest`. `index.docker.io` is written `docker.io`,
+and the hub is dialled at `registry-1.docker.io`. The short and the whole
+spelling of one image are one value. A part that does not match its grammar
+refuses the reference, naming the part: nothing is corrected, an upper-case
+repository or registry host included. A digest is SHA-256 in lower-case hex
+only.
+
+**Resolve** asks for the manifest by its digest when the reference pins one,
+by its tag otherwise. An index is resolved to the entry for Linux on the
+running architecture (arm64 variant `v8` equals no variant; an amd64 entry
+above the baseline feature level is passed over), and the refusal of an index
+without one lists the platforms it offers. Then the image configuration is
+fetched, and its platform must be the running one too.
+
+| Object | Checked |
+|--------|---------|
+| A manifest or an index | At most 4 MiB. Its bytes hash to the digest asked for, to the digest the answer declares in `Docker-Content-Digest`, and, for an index entry, have the size the index declares. The type is the body's `mediaType`, or the answer's content type when the body names none |
+| Its type | An OCI index or manifest, a Docker manifest list or manifest. Schema 1, a nested index and any other type are refused by name |
+| The configuration | An OCI or Docker image configuration type, otherwise the manifest is not a container image. At most 4 MiB, its digest and size checked as it arrives |
+| The layers | From 1 to 128, each an uncompressed, gzip or zstd tar. A foreign or non-distributable layer, a layer with foreign addresses, and an encrypted layer are refused |
+| A blob | Each byte counted against the declared size as it arrives, the copy cut before the first byte past it, and the whole hashed against the digest. A refused blob leaves the store's file empty |
+
+**Requests.** The standard client follows no redirect: `follow` does, at
+most 10, refusing a redirect from HTTPS to another scheme. The
+authorization header goes only to the exact host and port it was obtained
+for, ports written out from the scheme, so a blob redirect to another host
+carries none. A transport error and a server error are retried, three
+attempts with a delay that doubles from one second. A mismatch is never
+retried, because another attempt fetches another file. A body that sends
+nothing for 60 seconds ends with the core fetch package's `StallReader`
+error, and a context that ends stops the request at once. No proxy is used.
+
+**Authentication.** A 401 is answered once per request. A bearer challenge
+sends the credentials, when the configuration holds them, to the realm it
+names, and only there; the realm's answer is bounded at 64 KiB and its
+token must be token68. A realm over plain HTTP is refused for a registry
+reached over HTTPS. A basic challenge sends the credentials to the registry
+itself, and is refused when there are none.
+
+**The mirror** is asked first, once, with no credentials. When it fails in
+any way, a mismatch included, the registry is asked, with its retries, and
+the mirror's failure is kept (`LastMirrorFailure`) for the fetch worker to
+report.
+
+**Trust.** The HTTPS transport verifies the certificate against the system
+roots, or against the trust anchor alone when the registry names one. There
+is no transport without certificate checks.
+
+**Errors.** Each failure is an `Error` of one class, `Failure`: unreachable,
+auth-refused, not-found, digest-mismatch or refused. The classes are the
+fetch rows of the doctor table below; the container plugin, which owns the
+codes and the commands, adds the code and the fix. No error names a
+credential, a token or an authorization header: every URL is built without
+userinfo, a registry's error body is reduced to its error code, and
+`Credentials` print as a placeholder under every format verb. The client
+writes no log line.
+
+<!-- source: internal/plugins/container/registry/reference.go -- ParseReference, ParseDigest, Digest, Reference, splitRegistry, endpointHost -->
+<!-- source: internal/plugins/container/registry/client.go -- New, Config, Credentials, Transport, Architecture, RunningArchitecture, fromMirrorThenRegistry, withRetry, get, follow, canonicalHost, transportFailure, statusFailure -->
+<!-- source: internal/plugins/container/registry/auth.go -- answerChallenge, token, tokenOnce, parseChallenge -->
+<!-- source: internal/plugins/container/registry/manifest.go -- Resolve, manifestOnce, parseManifest, selectPlatform, imageParts, checkLayer, checkConfigPlatform -->
+<!-- source: internal/plugins/container/registry/blob.go -- FetchBlob, BlobFile, copyVerified -->
+<!-- source: internal/plugins/container/registry/errors.go -- Failure, Error -->
+<!-- source: internal/test/ociregistry/registry.go -- Start, Options, Fault, PutImage, PutIndex -->
+<!-- test: internal/plugins/container/registry/reference_test.go TestParseReferenceForms, TestParseReferenceHostRule, TestParseReferenceRefusesMalformed -->
+<!-- test: internal/plugins/container/registry/pull_test.go TestPullAnonymousManifestAndBlobs, TestRetryOnServerErrorThenSuccess, TestBlobStallTimesOut, TestFetchCancelStopsTransfer -->
+<!-- test: internal/plugins/container/registry/auth_test.go TestPullBearerTokenExchangeSendsCredentialsToRealmOnly, TestPullBasicChallenge, TestTokenRealmOverPlainHTTPRefused, TestTokenAnswerSizeBound -->
+<!-- test: internal/plugins/container/registry/redirect_test.go TestRedirectToOtherHostDropsAuthorization, TestRedirectSameHostKeepsAuthorization, TestRedirectDowngradeRefused, TestRedirectLimit -->
+<!-- test: internal/plugins/container/registry/verify_test.go TestManifestDigestMismatchRefused, TestBlobDigestMismatchRefused, TestBlobSizeMismatchRefused, TestDigestMismatchNotRetried, TestManifestSizeBound, TestNonSHA256DigestRefused -->
+<!-- test: internal/plugins/container/registry/platform_test.go TestIndexSelectsRunningPlatform, TestIndexWithoutPlatformNamesOffered, TestUnacceptedManifestTypesRefused -->
+<!-- test: internal/plugins/container/registry/mirror_test.go TestMirrorTriedFirstThenRegistry, TestMirrorGetsNoRegistryCredentials -->
+<!-- test: internal/plugins/container/registry/tls_test.go TestHTTPTransportFetchesOverPlainHTTP, TestHTTPSTransportRefusesPlainHTTP, TestTrustAnchorReplacesSystemRoots -->
+<!-- test: internal/plugins/container/registry/secret_test.go TestCredentialsNeverInErrorOrLog -->
 
 ## The commands
 

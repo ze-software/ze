@@ -8,8 +8,8 @@
 | Release reason | A post-release feature by owner ruling (umbrella O-3): Ze fetches and stores OCI images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime, spec-appliance-perm-grows-at-install |
-| Phase | 2/9 store layout and publication, applied and not yet run: its tests and gates are owed to the main thread (handoff). Phase 1 committed |
-| Handoff | `tmp/handoff-image-store-phase2.md`, after `tmp/handoff-image-store-2.md` and `tmp/handoff-image-store.md` |
+| Phase | 3/9 registry client, applied and not yet run: its tests and gates are owed to the main thread (handoff). Phases 1 and 2 committed |
+| Handoff | `tmp/session/2026-11-16-200343/scratch/handoff-image-store-phase3.md`, after `tmp/handoff-image-store-phase2.md`, `tmp/handoff-image-store-2.md` and `tmp/handoff-image-store.md` |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
 | Updated | 2026-11-17 |
@@ -635,39 +635,40 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseReferenceForms` | `internal/plugins/container/registry/reference_test.go` | Each row of the reference table gives its registry, repository and pin | |
-| `TestParseReferenceHostRule` | `internal/plugins/container/registry/reference_test.go` | A first component with a dot, with a colon, and the word localhost are hosts, and any other first component is part of the repository | |
-| `TestParseReferenceRefusesMalformed` | `internal/plugins/container/registry/reference_test.go` | An upper-case repository, an empty component and a bad digest are refused, naming the part | |
+| `TestParseReferenceForms` | `internal/plugins/container/registry/reference_test.go` | Each row of the reference table gives its registry, repository and pin | Written in phase 3, with the whole form, the shared value of the short and the whole spelling, and the pin. Not run yet |
+| `TestParseReferenceHostRule` | `internal/plugins/container/registry/reference_test.go` | A first component with a dot, with a colon, and the word localhost are hosts, and any other first component is part of the repository | Written in phase 3, with a bracketed IPv6 host. Not run yet |
+| `TestParseReferenceRefusesMalformed` | `internal/plugins/container/registry/reference_test.go` | An upper-case repository, an empty component and a bad digest are refused, naming the part | Written in phase 3, with an upper-case host, a bad tag, a bad port, a bad separator and the length bound, and one reference holding every separator accepted. Not run yet |
 | `TestFetchShortNameRecordsResolvedDigest` | `internal/plugins/container/imagestore/fetch_test.go` | A short name with no tag is bound to the digest `latest` resolved to, and the short and whole spellings share one binding | |
 | `TestFetchPublishedRedisImage` | `internal/plugins/container/imagestore/redis_test.go` | From the seeded layout behind an anonymous token challenge, the stored image's record holds each field of the Redis image's configuration | |
 | `TestUserIsHandedAsWritten` | `internal/plugins/container/imagestore/resolve_test.go` | A user given by name, by number, with a group, and absent each reach the record exactly as the image's configuration wrote it, and the store opens no account file. The resolution and its refusals are the runtime child's tests | |
-| `TestPullAnonymousManifestAndBlobs` | `internal/plugins/container/registry/pull_test.go` | A registry with no challenge serves a manifest and its blobs | |
-| `TestPullBearerTokenExchangeSendsCredentialsToRealmOnly` | `internal/plugins/container/registry/auth_test.go` | The credentials reach the realm and only the realm | |
-| `TestPullBasicChallenge` | `internal/plugins/container/registry/auth_test.go` | A basic challenge is answered with the credentials to the registry itself | |
-| `TestTokenRealmOverPlainHTTPRefused` | `internal/plugins/container/registry/auth_test.go` | A challenge that names a plain HTTP realm is refused for a registry whose transport is HTTPS | |
-| `TestRedirectToOtherHostDropsAuthorization` | `internal/plugins/container/registry/redirect_test.go` | A second listener sees no authorization header | |
-| `TestRedirectSameHostKeepsAuthorization` | `internal/plugins/container/registry/redirect_test.go` | The same host and port sees the header | |
-| `TestRedirectDowngradeRefused` | `internal/plugins/container/registry/redirect_test.go` | A redirect from HTTPS to HTTP is refused | |
-| `TestRedirectLimit` | `internal/plugins/container/registry/redirect_test.go` | Ten redirects are followed and the eleventh is refused | |
-| `TestManifestDigestMismatchRefused` | `internal/plugins/container/registry/verify_test.go` | A manifest whose bytes hash to another digest is refused, naming both | |
-| `TestBlobDigestMismatchRefused` | `internal/plugins/container/registry/verify_test.go` | A blob whose bytes hash to another digest is refused before it is handed on | |
-| `TestBlobSizeMismatchRefused` | `internal/plugins/container/registry/verify_test.go` | A blob shorter or longer than its declared size is refused | |
-| `TestDigestMismatchNotRetried` | `internal/plugins/container/registry/verify_test.go` | One request is made for a blob with a wrong digest | |
-| `TestRetryOnServerErrorThenSuccess` | `internal/plugins/container/registry/pull_test.go` | A server error is retried and the second answer is used | |
-| `TestManifestSizeBound` | `internal/plugins/container/registry/verify_test.go` | A manifest of 4 MiB is read and one byte more is refused | |
-| `TestNonSHA256DigestRefused` | `internal/plugins/container/registry/verify_test.go` | A descriptor with another algorithm is refused, naming it | |
-| `TestIndexSelectsRunningPlatform` | `internal/plugins/container/registry/platform_test.go` | amd64, arm64 and arm64 variant v8 each select their entry | |
-| `TestIndexWithoutPlatformNamesOffered` | `internal/plugins/container/registry/platform_test.go` | The refusal lists the platforms the index holds | |
-| `TestUnacceptedManifestTypesRefused` | `internal/plugins/container/registry/platform_test.go` | Schema 1, a nested index, a foreign layer, an encrypted layer and an artifact manifest are each refused by name | |
-| `TestBlobStallTimesOut` | `internal/plugins/container/registry/pull_test.go` | A transfer that stops sending ends with the stall error | |
-| `TestFetchCancelStopsTransfer` | `internal/plugins/container/registry/pull_test.go` | Cancelling the context ends a transfer in flight | |
-| `TestMirrorTriedFirstThenRegistry` | `internal/plugins/container/registry/mirror_test.go` | The mirror is asked first, and the registry after the mirror fails | |
-| `TestMirrorGetsNoRegistryCredentials` | `internal/plugins/container/registry/mirror_test.go` | The mirror sees no authorization header | |
-| `TestHTTPTransportFetchesOverPlainHTTP` | `internal/plugins/container/registry/tls_test.go` | A registry with the HTTP transport is fetched from | |
-| `TestHTTPSTransportRefusesPlainHTTP` | `internal/plugins/container/registry/tls_test.go` | The same server under the HTTPS transport is refused | |
-| `TestTrustAnchorReplacesSystemRoots` | `internal/plugins/container/registry/tls_test.go` | A registry signed by the named anchor is trusted, and one signed by another is not | |
-| `TestCredentialsNeverInErrorOrLog` | `internal/plugins/container/registry/secret_test.go` | No error text and no log line holds the password or the token | |
-| `TestStallReaderExported` | `internal/core/fetch/fetch_test.go` | The exported stall reader ends a read after its timeout | |
+| `TestPullAnonymousManifestAndBlobs` | `internal/plugins/container/registry/pull_test.go` | A registry with no challenge serves a manifest and its blobs | Written in phase 3, with no authorization sent. Not run yet |
+| `TestPullBearerTokenExchangeSendsCredentialsToRealmOnly` | `internal/plugins/container/registry/auth_test.go` | The credentials reach the realm and only the realm | Written in phase 3, with wrong credentials refused. Not run yet |
+| `TestPullBasicChallenge` | `internal/plugins/container/registry/auth_test.go` | A basic challenge is answered with the credentials to the registry itself | Written in phase 3, with a client without credentials refused. Not run yet |
+| `TestTokenRealmOverPlainHTTPRefused` | `internal/plugins/container/registry/auth_test.go` | A challenge that names a plain HTTP realm is refused for a registry whose transport is HTTPS | Written in phase 3, with the plain realm of an HTTP registry accepted. Not run yet |
+| `TestTokenAnswerSizeBound` | `internal/plugins/container/registry/auth_test.go` | A token answer of 64 KiB is read and one byte more is refused | Added in phase 3 for the boundary table's token row. Not run yet |
+| `TestRedirectToOtherHostDropsAuthorization` | `internal/plugins/container/registry/redirect_test.go` | A second listener sees no authorization header | Written in phase 3. Not run yet |
+| `TestRedirectSameHostKeepsAuthorization` | `internal/plugins/container/registry/redirect_test.go` | The same host and port sees the header | Written in phase 3: the registry demands the token at each of two hops. Not run yet |
+| `TestRedirectDowngradeRefused` | `internal/plugins/container/registry/redirect_test.go` | A redirect from HTTPS to HTTP is refused | Written in phase 3, with the plain target never asked. Not run yet |
+| `TestRedirectLimit` | `internal/plugins/container/registry/redirect_test.go` | Ten redirects are followed and the eleventh is refused | Written in phase 3. Not run yet |
+| `TestManifestDigestMismatchRefused` | `internal/plugins/container/registry/verify_test.go` | A manifest whose bytes hash to another digest is refused, naming both | Written in phase 3, by tag against the declared digest and by digest against the digest asked for. Not run yet |
+| `TestBlobDigestMismatchRefused` | `internal/plugins/container/registry/verify_test.go` | A blob whose bytes hash to another digest is refused before it is handed on | Written in phase 3: the store's file is left empty. Not run yet |
+| `TestBlobSizeMismatchRefused` | `internal/plugins/container/registry/verify_test.go` | A blob shorter or longer than its declared size is refused | Written in phase 3. Not run yet |
+| `TestDigestMismatchNotRetried` | `internal/plugins/container/registry/verify_test.go` | One request is made for a blob with a wrong digest | Written in phase 3. Not run yet |
+| `TestRetryOnServerErrorThenSuccess` | `internal/plugins/container/registry/pull_test.go` | A server error is retried and the second answer is used | Written in phase 3, with a persistent server error failing after three requests. Not run yet |
+| `TestManifestSizeBound` | `internal/plugins/container/registry/verify_test.go` | A manifest of 4 MiB is read and one byte more is refused | Written in phase 3. Not run yet |
+| `TestNonSHA256DigestRefused` | `internal/plugins/container/registry/verify_test.go` | A descriptor with another algorithm is refused, naming it | Written in phase 3, for a digest and for a layer descriptor. Not run yet |
+| `TestIndexSelectsRunningPlatform` | `internal/plugins/container/registry/platform_test.go` | amd64, arm64 and arm64 variant v8 each select their entry | Written in phase 3, with an amd64 v3 entry passed over for the baseline. Not run yet |
+| `TestIndexWithoutPlatformNamesOffered` | `internal/plugins/container/registry/platform_test.go` | The refusal lists the platforms the index holds | Written in phase 3. Not run yet |
+| `TestUnacceptedManifestTypesRefused` | `internal/plugins/container/registry/platform_test.go` | Schema 1, a nested index, a foreign layer, an encrypted layer and an artifact manifest are each refused by name | Written in phase 3, with a Docker schema 2 manifest accepted. Not run yet |
+| `TestBlobStallTimesOut` | `internal/plugins/container/registry/pull_test.go` | A transfer that stops sending ends with the stall error | Written in phase 3: the error wraps `fetch.ErrStalled`. Not run yet |
+| `TestFetchCancelStopsTransfer` | `internal/plugins/container/registry/pull_test.go` | Cancelling the context ends a transfer in flight | Written in phase 3, with no retry after the cancellation. Not run yet |
+| `TestMirrorTriedFirstThenRegistry` | `internal/plugins/container/registry/mirror_test.go` | The mirror is asked first, and the registry after the mirror fails | Written in phase 3, with a mirror blob that does not match fetched again from the registry. Not run yet |
+| `TestMirrorGetsNoRegistryCredentials` | `internal/plugins/container/registry/mirror_test.go` | The mirror sees no authorization header | Written in phase 3, for a mirror that serves and one that fails. Not run yet |
+| `TestHTTPTransportFetchesOverPlainHTTP` | `internal/plugins/container/registry/tls_test.go` | A registry with the HTTP transport is fetched from | Written in phase 3. Not run yet |
+| `TestHTTPSTransportRefusesPlainHTTP` | `internal/plugins/container/registry/tls_test.go` | The same server under the HTTPS transport is refused | Written in phase 3. Not run yet |
+| `TestTrustAnchorReplacesSystemRoots` | `internal/plugins/container/registry/tls_test.go` | A registry signed by the named anchor is trusted, and one signed by another is not | Written in phase 3, with the system roots refusing the test authority too. Not run yet |
+| `TestCredentialsNeverInErrorOrLog` | `internal/plugins/container/registry/secret_test.go` | No error text and no log line holds the password or the token | Written in phase 3, over four failures and the formats of a Config. Not run yet |
+| `TestStallReaderExported` | `internal/core/fetch/fetch_test.go` | The exported stall reader ends a read after its timeout | Written in phase 3, with `ErrStalled` added for the caller. Not run yet |
 | `TestApplyRegularTreeKeepsOwnerModeTime` | `internal/plugins/container/imagestore/apply_test.go` | Files, directories and links read back as written | |
 | `TestApplyWhiteoutRemovesLowerEntry` | `internal/plugins/container/imagestore/apply_whiteout_test.go` | A whiteout removes a name of an earlier layer and its subtree | |
 | `TestApplyOpaqueDirectoryKeepsSameLayerEntries` | `internal/plugins/container/imagestore/apply_whiteout_test.go` | Earlier children are gone and children of the same layer stay, in either archive order | |
@@ -795,6 +796,7 @@ The tests below that start a container or need a size cap run in Ze's own-system
 - `docs/architecture/testing/qemu-integration.md` - the `container-store` action beside the other appliance proofs, and the store package in "Existing Integration Test Packages"
 - The image seam file the runtime child creates in the plugin folder - the store fills the seam, and the record gains the fields this spec adds once that spec holds them
 - The container plugin's registration and its Stage 1 declaration, created by the runtime child - commands with their bounds, doctor check declarations, event codes, the declared read of `pki`, the state key grant
+- Phase 3 touched: `internal/core/fetch/fetch.go` and `fetch_test.go` (`StallReader`, `NewStallReader`, `ErrStalled`), `docs/architecture/appliance/on-device-installer.md` (the exported stall reader), `feature-gates.txt` (the `registry` line), `docs/architecture/container/image-store.md` (the registry client section). Created: `internal/plugins/container/registry/` (`reference.go`, `client.go`, `auth.go`, `manifest.go`, `blob.go`, `errors.go` and nine test files) and `internal/test/ociregistry/registry.go`
 - Phase 2 touched: `internal/core/paths/paths.go` (`classifyBinary`, the data directory mapping), `internal/plugins/container/doctor_store.go` (`CodeStoreUnwritable` for the store's log line), `docs/architecture/config/environment.md` (the `ze.data.dir` row), `docs/architecture/container/image-store.md` (the layout and publication)
 - Phase 1 touched, of the runtime child's files: `internal/plugins/container/container.go` (the store chosen at the engine entry, the image commands declared and looked up), `register.go` (the proxies, the store's codes), `storeseam_zetest.go` (the test store chosen by its key, no `init()`), `yang/ze-container-cmd.yang` (the ten command nodes), `internal/component/plugin/all/all_ze_container.go` (the store's blank import), `docs/architecture/container/runtime.md` (the seam rows and the test store), `docs/architecture/config/environment.md` (`ze.data.dir`)
 
@@ -1010,6 +1012,17 @@ The tests below that start a container or need a size cap run in Ze's own-system
 - Phase 2: a failed filesystem sync refuses the publication on purpose. Linux reports through `syncfs`, once, a write the filesystem lost since the last sync, whichever file it belonged to, so the store cannot vouch for the root. The refusal (`syncLostWrite`) says the filesystem reported a write it could not complete and points at the kernel log. Observed once on the development host, whose disk had recorded write errors.
 - Phase 2: `fspersistence` flagged `os.Rename` in `internal/plugins/container/storeseam_zetest.go` `installProbe` (from the runtime child, unchanged by phase 1). The fixture probe is now published by `zefs.RenameNoReplace` beneath the image folder, the route the store uses, and a copy another install published first is kept. No allowlist entry was added: `internal/le/` belongs to another session's work.
 - Phase 2: `ConfigDirFromBinary` and `DataDirFromBinary` both answer from one classifier, `classifyBinary` in `internal/core/paths/paths.go`, so the two directories of one binary cannot disagree. `ConfigDirFromBinary` answers what it answered before.
+- Phase 3: the registry client answers typed failures, not operator errors. `registry.Error` carries a class (`Failure`: unreachable, auth-refused, not-found, digest-mismatch, refused), a problem and a why. The fix needs the command words and the doctor codes, which the container plugin declares (`doctor_store.go`), and the plugin package cannot be imported by the registry package without a cycle once the store calls the client. So the fetch worker of phase 5 maps each class to its code and its fix and builds the `opererr` there, and the words stay declared once.
+- Phase 3: the registry package has its own `Digest` type, exported, beside the store's unexported `imageDigest` (`imagestore/digest.go`). Both accept SHA-256 in lower-case hex only. The store will import the registry package in phase 5, so phase 5 replaces `imageDigest` by `registry.Digest` (with the folder form as a store function) rather than keep two parsers of one fact.
+- Phase 3: `fetch.ValidSHA256` is not reused. It accepts upper-case hex, which would let two spellings of one digest name two folders, so the client checks digests with its own lower-case rule. The stall reader is reused as the spec says, exported as `fetch.StallReader` with `NewStallReader`, and its stall error now wraps a new sentinel, `fetch.ErrStalled`, with the same text as before, so a caller can tell a stall from another read failure.
+- Phase 3: the mirror is asked once, not retried. A failure of any kind, a digest or size mismatch included, sends the request to the registry, whose attempts are retried three times. Retrying a mirror that is down would delay every fetch before the fallback the design exists for. The mirror's last failure is kept (`Client.LastMirrorFailure`) for the fetch worker to report under `doctor-container-registry-unreachable`: the client writes no log line, because it holds no code.
+- Phase 3: a token realm over plain HTTP for a registry reached over HTTPS is refused as auth-refused, before any credential is sent. A realm that is neither HTTP nor HTTPS, or names no host, is refused the same way.
+- Phase 3: a registry's error body reaches an error as its first error code only, reduced to upper-case letters, digits and underscores and bounded at 64 characters. The design asked for the text bounded with control characters removed; the code alone carries no text a registry chose beyond a word of the protocol's code set, so no message a registry wrote, credential echoes included, reaches an operator.
+- Phase 3: the client uses no proxy (`http.Transport.Proxy` is nil). The configuration has no proxy node, and an environment variable is not a Ze setting. Open for the owner: does a registry fetch need a proxy setting?
+- Phase 3: an upper-case registry host is refused, as an upper-case repository is, rather than folded to lower case: one image keeps one spelling and one binding.
+- Phase 3: a manifest's type is the `mediaType` its body names, and the answer's content type only when the body names none. Schema 1 is refused on `schemaVersion` 1 whatever the type says.
+- Phase 3: the default retry delay is one second, doubling, since the spec names no base. A 429 answer is not retried and reads unreachable; the spec retries server errors only.
+- Phase 3: `TestTokenAnswerSizeBound` is added for the boundary table's token row, which no test of the plan covered.
 
 ## Checklist
 
