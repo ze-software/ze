@@ -201,6 +201,27 @@ func requireGuestKernel(unit string, guest bool, kernel string) error {
 		Str("` names a guest nothing would boot"))
 }
 
+// selectGuestImage binds an optional image only after placement has resolved.
+// The empty image deliberately retains the native QEMU carrier's automatic
+// selection; an explicit image must be consumed by a guest with a named kernel.
+func (o *observationRunner) selectGuestImage(image string) error {
+	if image == "" {
+		return nil
+	}
+	var tb textbuf.Buffer
+	if o.kernel == "" {
+		return parseErr(tb.Str("an explicit guest image needs the runtime kernel it boots: ").
+			Str("pass `kernel <vmlinuz>` with `image <docker-host.img>`, or remove `image`"))
+	}
+	if !o.guest {
+		return parseErr(tb.Str(o.record.Unit).Str(" runs on this host, so no guest would read ").
+			Str("the selected image: remove `image` or select a compatible guest with ").
+			Str("`kernel <vmlinuz>`"))
+	}
+	o.image = image
+	return nil
+}
+
 // runInGuest compiles the tagged unit's package for the guest on this host and
 // runs the one unit inside the guest.
 //
@@ -303,8 +324,11 @@ func (o *observationRunner) guestScript(binary, profile string) string {
 // Every other unit keeps the ordinary owner's UID, which a re-executed user
 // namespace maps and which a test that means something only unprivileged needs.
 func (o *observationRunner) guestRunArgv(script string) []string {
-	argv := make([]string, 0, 9)
+	argv := make([]string, 0, 11)
 	argv = append(argv, o.self, testoverlay.LETestCommand, "qemu", "docker-lab", keyKernel, o.kernel)
+	if o.image != "" {
+		argv = append(argv, testqemu.KeywordImage, o.image)
+	}
 	if o.root {
 		argv = append(argv, testqemu.KeywordRoot)
 	}
@@ -385,7 +409,10 @@ func (o *observationRunner) buildGuestDaemons(binaries, goarch, overlay string) 
 // as guestRunArgv does for a Go unit. The harness gives `test qemu all` the root,
 // the mount and the guest le it requires.
 func (o *observationRunner) guestCIArgv(binaries, goarch string) []string {
-	return []string{o.self, testoverlay.LETestCommand, "qemu", "docker-lab", keyKernel, o.kernel,
-		testqemu.KeywordHarness, "timeout", guestCICommandTimeout,
-		"command", testqemu.OneCICommand(binaries, filepath.ToSlash(o.tag.File), goarch)}
+	argv := []string{o.self, testoverlay.LETestCommand, "qemu", "docker-lab", keyKernel, o.kernel}
+	if o.image != "" {
+		argv = append(argv, testqemu.KeywordImage, o.image)
+	}
+	return append(argv, testqemu.KeywordHarness, "timeout", guestCICommandTimeout,
+		"command", testqemu.OneCICommand(binaries, filepath.ToSlash(o.tag.File), goarch))
 }

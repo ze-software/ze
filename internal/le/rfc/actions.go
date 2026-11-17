@@ -76,10 +76,11 @@ var actions = leaction.New(area,
 			{Keyword: keyMutant, Kind: leaction.KindString, Help: "one mutant, as file:line:column#n", Value: "file:line:column#n", Requirement: leaction.Optional, Repeat: true},
 			{Keyword: keyCitation, Kind: leaction.KindString, Help: "the citation the record carries", Value: keyCitation, Requirement: leaction.Optional},
 			{Keyword: keyReason, Kind: leaction.KindString, Help: "why the record is written this way", Value: keyReason, Requirement: leaction.Optional},
-			// Required only for a unit whose build constraints hold in the
-			// Linux guest alone, and refused for every other unit
-			// (requireGuestKernel).
+			// A guest observation requires a runtime kernel; an explicit
+			// kernel also selects a compatible unit's guest placement.
+			// A host observation refuses it (requireGuestKernel).
 			{Keyword: keyKernel, Kind: leaction.KindPath, Help: "the kernel image the unit runs under", Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyImage, Kind: leaction.KindPath, Help: "an existing own-system image paired with the guest kernel", Value: keyPath, Requirement: leaction.Optional},
 			// These three only on a kernel-producer escape (validateKernelEscape).
 			// Repeat: a claim can rest on more than one kernel function, and a
 			// unit can reach more than one Ze producer.

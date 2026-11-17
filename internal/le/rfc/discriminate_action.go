@@ -49,6 +49,8 @@ const (
 	keyCitation = "citation"
 	// keyKernel names the runtime kernel a guest observation boots.
 	keyKernel = "kernel"
+	// keyImage names an existing own-system image paired with that kernel.
+	keyImage = "image"
 	// keyKernelFunction names one Linux function a kernel-producer escape
 	// rests on, repeated for each, and keyLaterRoute the route that could
 	// still prove it.
@@ -143,9 +145,11 @@ type recordRequest struct {
 	// mutants are the selectors the mutant route applies, all in the one broken
 	// run: the first is the record's producer and every further one is paired.
 	mutants []string
-	// kernel is the runtime kernel a unit that compiles only in the Linux
-	// guest boots, empty for every other unit.
+	// kernel selects and boots a compatible Linux guest, empty for a host
+	// observation.
 	kernel string
+	// image optionally selects an existing own-system image for that kernel.
+	image string
 	// kernelFunctions, zeStateExcluded and laterRoute are the fields only a
 	// kernel-producer escape carries (validateKernelEscape).
 	kernelFunctions []string
@@ -170,7 +174,7 @@ func discriminateRecordAnswer(args leaction.Arguments) (any, int) {
 		route: args.One(keyRoute), producer: args.One(keyProducer),
 		citation: args.One(keyCitation), reason: args.One(keyReason),
 		report: args.One(keyReport), mutants: args.Values(keyMutant),
-		kernel:          args.One(keyKernel),
+		kernel: args.One(keyKernel), image: args.One(keyImage),
 		kernelFunctions: args.Values(keyKernelFunction), laterRoute: args.One(keyLaterRoute),
 		zeStateExcluded: zeStateExclusionsOf(args.Values(keyZeStateExcluded)),
 	})
@@ -375,6 +379,12 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 	tag Tag, record *DiscriminationRecord, request recordRequest,
 	hostReady func() error) (ObservedRed, error) {
 	if record.Route == RouteNoBreak {
+		if request.image != "" {
+			var tb textbuf.Buffer
+			return ObservedRed{}, parseErr(tb.Str("route no-break observes no guest, so no image ").
+				Str("would be read: remove `image`, or use an observing route with ").
+				Str("`kernel <vmlinuz> image <docker-host.img>`"))
+		}
 		return ObservedRed{}, nil
 	}
 	if carrier.Kind == kindFunctional {
@@ -388,6 +398,9 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 	}
 	runner, err := newObservationRunner(tree, reader, index, carrier, tag, record, request.kernel)
 	if err != nil {
+		return ObservedRed{}, err
+	}
+	if err := runner.selectGuestImage(request.image); err != nil {
 		return ObservedRed{}, err
 	}
 	red, solo, err := runner.observeBreaks(broken, solos)

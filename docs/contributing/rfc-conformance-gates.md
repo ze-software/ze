@@ -2329,6 +2329,16 @@ system identity before executing the supplied script:
     ./le rfc record id <ID> polarity <p> unit <file>::<Func> \
       route revert producer <file>::<Func> kernel tmp/kernel/build/vmlinuz
 
+An optional `image <docker-host.img>` selects an existing own-system image with
+that explicit `kernel`. The recorder forwards both paths unchanged to the native
+QEMU carrier, which validates the existing runtime kernel tree and the image's
+boot identity before running the unit. This also applies to a guest `.ci`.
+An image without a kernel, for a host observation, or on `route no-break` is
+refused because no guest would consume it. When `image` is omitted, the native
+carrier keeps its automatic image and runtime selection.
+<!-- source: internal/le/rfc/discriminate_guest.go -- selectGuestImage, guestRunArgv, guestCIArgv -->
+<!-- source: internal/le/test/qemu/dockerlab_command.go -- runDockerLabCommand -->
+
 A `.ci` the host's runner skips runs in the same own system. The functional
 runner
 decides, not the recorder: `testrunner.NeedsGuest` answers whether this host

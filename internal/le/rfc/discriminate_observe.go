@@ -64,6 +64,9 @@ type observationRunner struct {
 	guest bool
 	// kernel is the runtime kernel a guest run boots, empty for a host run.
 	kernel string
+	// image is an explicitly selected own-system image. Empty retains the
+	// QEMU carrier's automatic image selection (selectGuestImage).
+	image string
 	// root is true when the unit's test declares guestRootDirective, so its
 	// guest run is elevated (guestRunArgv).
 	root bool
