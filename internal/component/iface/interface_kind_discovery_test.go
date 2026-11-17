@@ -16,10 +16,11 @@ import (
 // commit validation without a second kind declaration. Method: warm the source,
 // register a list and a reference leaf, then ask the actual reference walker.
 func TestConfiguredInterfaceReferenceDiscoversRegisteredKind(t *testing.T) {
+	targets := map[string]any{"destination": "probe0"}
 	root := map[string]any{"interface": map[string]any{
-		"ethernet": map[string]any{"eth0": map[string]any{}},
-		"probe-port": map[string]any{"probe0": map[string]any{}},
-		"probe-targets": map[string]any{"destination": "probe0"},
+		"ethernet":      map[string]any{"eth0": map[string]any{}},
+		"probe-port":    map[string]any{"probe0": map[string]any{}},
+		"probe-targets": targets,
 	}}
 	if got := configuredInterfaceReference(root, nil).Names; !slices.Equal(got, []string{"eth0"}) {
 		t.Fatalf("before registration names = %v", got)
@@ -64,7 +65,7 @@ func TestConfiguredInterfaceReferenceDiscoversRegisteredKind(t *testing.T) {
 	if failures := validator.ValidateReferences(root); len(failures) != 0 {
 		t.Fatalf("declared registered-kind target was refused: %v", failures)
 	}
-	root["interface"].(map[string]any)["probe-targets"].(map[string]any)["destination"] = "not-declared"
+	targets["destination"] = "not-declared"
 	if failures := validator.ValidateReferences(root); len(failures) != 1 {
 		t.Fatalf("undeclared target failures = %v, want one refusal", failures)
 	}

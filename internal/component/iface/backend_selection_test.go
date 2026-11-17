@@ -18,8 +18,8 @@ func TestRequireActiveBackend(t *testing.T) {
 	})
 	want := &fakeBackend{}
 	for _, state := range []struct {
-		name string
-		backend Backend
+		name     string
+		backend  Backend
 		accepted bool
 	}{
 		{name: "test-required", backend: want, accepted: true},
@@ -32,9 +32,13 @@ func TestRequireActiveBackend(t *testing.T) {
 		backendsMu.Unlock()
 		got, err := RequireActiveBackend("test-required")
 		if state.accepted {
-			if err != nil || got != want { t.Fatalf("exact selection: backend=%v error=%v", got, err) }
+			if err != nil || got != want {
+				t.Fatalf("exact selection: backend=%v error=%v", got, err)
+			}
 			continue
 		}
-		if err == nil || got != nil { t.Fatalf("mismatched selection: backend=%v error=%v", got, err) }
+		if err == nil || got != nil {
+			t.Fatalf("mismatched selection: backend=%v error=%v", got, err)
+		}
 	}
 }

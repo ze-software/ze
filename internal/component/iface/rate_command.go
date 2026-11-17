@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -73,26 +74,26 @@ func executeCommand(command string, args []string) (string, any, error) {
 	if strings.EqualFold(command, PPPoEClientCommand) {
 		statuses, err := pppoeClientAnswer(globalPPPoEClients.Load())
 		if err != nil {
-			return "error", nil, err
+			return rpc.StatusError, nil, err
 		}
-		return "done", statuses, nil
+		return rpc.StatusDone, statuses, nil
 	}
 	if strings.EqualFold(command, DelegatedPrefixCommand) {
 		rows, err := delegatedPrefixAnswer(globalDelegatedUnits.Load(), time.Now())
 		if err != nil {
-			return "error", nil, err
+			return rpc.StatusError, nil, err
 		}
-		return "done", rows, nil
+		return rpc.StatusDone, rows, nil
 	}
 	if !strings.EqualFold(command, RateCommand) {
 		var tb textbuf.Buffer
-		return "error", nil, errors.New(tb.Str("interface plugin serves no command ").Quoted(command).String())
+		return rpc.StatusError, nil, errors.New(tb.Str("interface plugin serves no command ").Quoted(command).String())
 	}
 	data, err := rateAnswer(globalTracker.Load(), args)
 	if err != nil {
-		return "error", nil, err
+		return rpc.StatusError, nil, err
 	}
-	return "done", data, nil
+	return rpc.StatusDone, data, nil
 }
 
 // rateAnswer is the answer of RateCommand over tracker: one interface when

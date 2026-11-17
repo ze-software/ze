@@ -28,7 +28,7 @@ type redialRecorder struct {
 	stateAtSecond string
 }
 
-func (d *redialRecorder) Dial(_ PPPoEClientConfig, _ <-chan struct{}, _ *slog.Logger) (PPPoESession, error) {
+func (d *redialRecorder) Dial(_ PPPoEClientConfig, _ <-chan struct{}, _ *slog.Logger) (PPPoESession, error) { //nolint:gocritic // hugeParam: PPPoEDialer fixes the value signature; the recorder preserves that dial boundary.
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.calls++

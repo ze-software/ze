@@ -310,7 +310,7 @@ type fakeDialer struct {
 	err  error
 }
 
-func (d *fakeDialer) Dial(_ PPPoEClientConfig, stopCh <-chan struct{}, _ *slog.Logger) (PPPoESession, error) {
+func (d *fakeDialer) Dial(_ PPPoEClientConfig, stopCh <-chan struct{}, _ *slog.Logger) (PPPoESession, error) { //nolint:gocritic // hugeParam: PPPoEDialer fixes the value signature; the fake preserves that dial boundary.
 	if d.err != nil {
 		return PPPoESession{}, d.err
 	}

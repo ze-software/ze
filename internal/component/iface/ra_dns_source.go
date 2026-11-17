@@ -256,7 +256,8 @@ func raUsableSelf(text string) netip.Addr {
 // dropped, each link-local address of another link it refused, and each server that did not fit the option (D-16), once per
 // change from the previous selection, so a steady state does not repeat the
 // lines on every reconcile.
-func logRDNSSSelection(log *slog.Logger, key raUnitKey, selection, previous raRDNSSSelection) {
+// Both selections MUST be non-nil and unchanged for the call; neither is retained.
+func logRDNSSSelection(log *slog.Logger, key raUnitKey, selection, previous *raRDNSSSelection) {
 	if slices.Equal(selection.dropped, previous.dropped) && selection.cut == previous.cut &&
 		slices.Equal(selection.offLink, previous.offLink) {
 		return

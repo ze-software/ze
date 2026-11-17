@@ -725,17 +725,18 @@ func runEngine(conn net.Conn) int {
 		})...)
 
 		// RDNSS options the netlink monitor hands up from accepted RAs.
-		unsubscribers = append(unsubscribers, eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventNDUserOption,
-			events.AsString(raRDNSSProducer.handle)))
-
-		// The learned resolvers fill each unit's RDNSS list. The request
-		// after the subscription brings the state the registry already
-		// holds, which a snapshot sent before it never delivered here.
-		unsubscribers = append(unsubscribers, dnssource.SnapshotEvent.Subscribe(eb, func(snapshot *dnssource.Snapshot) {
-			if learnedDNS.AcceptSnapshot(snapshot) {
-				nonBlockingNotify(rdnssCh)
-			}
-		}))
+		unsubscribers = append(unsubscribers,
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventNDUserOption,
+				events.AsString(raRDNSSProducer.handle)),
+			// The learned resolvers fill each unit's RDNSS list. The request
+			// after the subscription brings the state the registry already
+			// holds, which a snapshot sent before it never delivered here.
+			dnssource.SnapshotEvent.Subscribe(eb, func(snapshot *dnssource.Snapshot) {
+				if learnedDNS.AcceptSnapshot(snapshot) {
+					nonBlockingNotify(rdnssCh)
+				}
+			}),
+		)
 		if _, err := dnssource.SnapshotRequest.Emit(eb); err != nil {
 			log.Warn("interface: system-dns snapshot not requested; RDNSS follows the first change instead", "err", err)
 		}

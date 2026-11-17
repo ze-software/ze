@@ -188,8 +188,9 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 			delete(active, key)
 			continue
 		}
-		logRDNSSSelection(log, key, selections[key], entry.rdnss)
-		entry.rdnss = selections[key]
+		selection := selections[key]
+		logRDNSSSelection(log, key, &selection, &entry.rdnss)
+		entry.rdnss = selection
 		active[key] = entry
 		if entry.spec.Equal(newSpec) {
 			continue
@@ -201,7 +202,8 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 		active[key] = entry
 	}
 
-	for key, spec := range desired {
+	for key := range desired {
+		spec := desired[key]
 		if _, running := active[key]; running {
 			continue
 		}
@@ -211,8 +213,9 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 				"iface", key.ifaceName, "unit", key.unit, "error", err)
 			continue
 		}
-		logRDNSSSelection(log, key, selections[key], raRDNSSSelection{})
-		active[key] = raEntry{sender: sender, spec: spec, rdnss: selections[key]}
+		selection := selections[key]
+		logRDNSSSelection(log, key, &selection, &raRDNSSSelection{})
+		active[key] = raEntry{sender: sender, spec: spec, rdnss: selection}
 		log.Info("interface: router advertisement sender started",
 			"iface", key.ifaceName, "unit", key.unit,
 			"prefixes", len(spec.Advertisement.Prefixes))

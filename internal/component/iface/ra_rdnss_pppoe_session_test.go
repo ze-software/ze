@@ -50,7 +50,7 @@ func TestRARDNSSWithdrawnWhenPPPoESessionEnds(t *testing.T) {
 		sess := pppoeTestSession(done)
 		sess.PrimaryDNS = netip.MustParseAddr("192.0.2.53")
 		log := slog.New(slog.NewTextHandler(io.Discard, nil))
-		client := NewPPPoEClient(pppoeClientConfigFrom(cfg.PPPoEClient[0]), &fakeDialer{sess: sess}, nil, log)
+		client := NewPPPoEClient(pppoeClientConfigFrom(&cfg.PPPoEClient[0]), &fakeDialer{sess: sess}, nil, log)
 		client.resolvers = resolvers
 		client.sessionEnded = p.withdrawPPPoESession
 		client.Start()

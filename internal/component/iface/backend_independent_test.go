@@ -42,7 +42,15 @@ func TestOpenBackendPreservesActiveOwner(t *testing.T) {
 	if err := second.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if first.(*independentBackend).closes != 1 || second.(*independentBackend).closes != 1 {
+	firstOwner, ok := first.(*independentBackend)
+	if !ok {
+		t.Fatalf("first owner has type %T, want *independentBackend", first)
+	}
+	secondOwner, ok := second.(*independentBackend)
+	if !ok {
+		t.Fatalf("second owner has type %T, want *independentBackend", second)
+	}
+	if firstOwner.closes != 1 || secondOwner.closes != 1 {
 		t.Fatal("independent owners were not released exactly once")
 	}
 	assertIndependentBackendSelection(t, active)
@@ -66,7 +74,9 @@ func TestOpenBackendFailurePreservesActiveOwner(t *testing.T) {
 
 // A factory returning no owner cannot be reported as a successful acquisition.
 func TestOpenBackendRejectsMissingOwner(t *testing.T) {
-	active := installIndependentBackendFactory(t, func() (Backend, error) { return nil, nil })
+	active := installIndependentBackendFactory(t, func() (Backend, error) {
+		return nil, nil //nolint:nilnil // This broken-factory result must be refused without replacing the active owner.
+	})
 	owner, err := OpenBackend(t.Name())
 	if owner != nil || err == nil {
 		t.Fatalf("missing owner = %v, %v", owner, err)

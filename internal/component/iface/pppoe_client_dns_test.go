@@ -32,9 +32,9 @@ type dnsSession struct {
 	ended     chan error
 }
 
-// newDNSSession runs a session that learned primary and secondary, beside a
+// newDNSSession runs a session that learned 192.0.2.53 and secondary, beside a
 // DHCPv4 lease on eth0 that the session MUST leave alone.
-func newDNSSession(t *testing.T, primary, secondary string) *dnsSession {
+func newDNSSession(t *testing.T, secondary string) *dnsSession {
 	t.Helper()
 	h := &dnsSession{
 		backend:   &changeBackend{},
@@ -53,9 +53,7 @@ func newDNSSession(t *testing.T, primary, secondary string) *dnsSession {
 		Changes: h.changes, Done: h.done,
 		Cleanup: func() {},
 	}
-	if primary != "" {
-		sess.PrimaryDNS = netip.MustParseAddr(primary)
-	}
+	sess.PrimaryDNS = netip.MustParseAddr("192.0.2.53")
 	if secondary != "" {
 		sess.SecondaryDNS = netip.MustParseAddr(secondary)
 	}
@@ -88,7 +86,7 @@ func assertServers(t *testing.T, r *system.Resolvers, want ...string) {
 // PREVENTS: learned servers never written, or left behind after WAN loss.
 func TestPPPoEClientSetsResolverLease(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newDNSSession(t, "192.0.2.53", "192.0.2.54")
+		h := newDNSSession(t, "192.0.2.54")
 		assertServers(t, h.resolvers, "198.51.100.1", "192.0.2.53", "192.0.2.54")
 		if got := h.client.status().DNSServers; !slices.Equal(got, []string{"192.0.2.53", "192.0.2.54"}) {
 			t.Fatalf("status dns-servers = %v", got)
@@ -111,7 +109,7 @@ func TestPPPoEClientSetsResolverLease(t *testing.T) {
 // PREVENTS: `received-interface pppoe0` never selecting the session's servers.
 func TestPPPoEClientLeaseNamesConfiguredInterface(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newDNSSession(t, "192.0.2.53", "")
+		h := newDNSSession(t, "")
 		defer h.stop()
 		var names []string
 		for _, rec := range h.resolvers.Snapshot().Records {
@@ -133,7 +131,7 @@ func TestPPPoEClientLeaseNamesConfiguredInterface(t *testing.T) {
 // PREVENTS: stale servers after the access concentrator changes them.
 func TestPPPoEClientReplacesResolverLeaseOnDNSOnlyChange(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newDNSSession(t, "192.0.2.53", "192.0.2.54")
+		h := newDNSSession(t, "192.0.2.54")
 		defer h.stop()
 		next := changedResult("192.0.2.2", "192.0.2.1", 1492)
 		next.PrimaryDNS = netip.MustParseAddr("192.0.2.63")
@@ -154,7 +152,7 @@ func TestPPPoEClientReplacesResolverLeaseOnDNSOnlyChange(t *testing.T) {
 // PREVENTS: servers the access concentrator no longer offers left in use.
 func TestPPPoEClientWithdrawsLeaseWhenRenegotiationDropsDNS(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newDNSSession(t, "192.0.2.53", "192.0.2.54")
+		h := newDNSSession(t, "192.0.2.54")
 		defer h.stop()
 		h.changes <- changedResult("192.0.2.2", "192.0.2.1", 1492)
 		synctest.Wait()
@@ -173,7 +171,7 @@ func TestPPPoEClientWithdrawsLeaseWhenRenegotiationDropsDNS(t *testing.T) {
 // PREVENTS: an operator unable to see which resolvers the WAN supplied.
 func TestShowInterfacePPPoEClientDNSServers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		h := newDNSSession(t, "192.0.2.53", "192.0.2.54")
+		h := newDNSSession(t, "192.0.2.54")
 		defer h.stop()
 		idle := NewPPPoEClient(PPPoEClientConfig{Name: "backup", SourceInterface: "eth2"}, &fakeDialer{}, nil,
 			slog.New(slog.NewTextHandler(io.Discard, nil)))

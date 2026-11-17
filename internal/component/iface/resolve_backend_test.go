@@ -4,6 +4,7 @@ package iface
 
 import (
 	"errors"
+	"maps"
 	"testing"
 )
 
@@ -31,9 +32,7 @@ func withExactResolveBackends(t *testing.T, factories map[string]func() (Backend
 	}
 	activeBackend, activeBackendName = nil, ""
 	activeBackendGeneration++
-	for name, factory := range factories {
-		backends[name] = factory
-	}
+	maps.Copy(backends, factories)
 	backendsMu.Unlock()
 	previousResolver := globalResolver
 	globalResolver = freshResolver()

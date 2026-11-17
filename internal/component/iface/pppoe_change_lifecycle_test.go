@@ -77,7 +77,7 @@ type changeDialer struct {
 	times   chan time.Time
 }
 
-func (d *changeDialer) Dial(_ PPPoEClientConfig, _ <-chan struct{}, _ *slog.Logger) (PPPoESession, error) {
+func (d *changeDialer) Dial(_ PPPoEClientConfig, _ <-chan struct{}, _ *slog.Logger) (PPPoESession, error) { //nolint:gocritic // hugeParam: PPPoEDialer fixes the value signature; the fake preserves that dial boundary.
 	d.times <- time.Now()
 	return d.session, nil
 }

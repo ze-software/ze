@@ -179,7 +179,7 @@ type PPPoEClient struct {
 }
 
 // NewPPPoEClient creates a PPPoE client from config. Call Start to begin.
-func NewPPPoEClient(cfg PPPoEClientConfig, dialer PPPoEDialer, backend Backend, logger *slog.Logger) *PPPoEClient {
+func NewPPPoEClient(cfg PPPoEClientConfig, dialer PPPoEDialer, backend Backend, logger *slog.Logger) *PPPoEClient { //nolint:gocritic // hugeParam: the public value signature establishes an owned config snapshot, off the data plane.
 	return &PPPoEClient{
 		cfg:     cfg,
 		backend: backend,
@@ -648,9 +648,10 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 	}
 
 	desired := make(map[string]pppoeClientEntry, len(cfg.PPPoEClient))
-	for _, e := range cfg.PPPoEClient {
+	for index := range cfg.PPPoEClient {
+		e := &cfg.PPPoEClient[index]
 		if !e.Disable {
-			desired[e.Name] = e
+			desired[e.Name] = *e
 		}
 	}
 
@@ -663,7 +664,9 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 			delete(active, name)
 			continue
 		}
-		if pppoeClientConfigChanged(client.cfg, entry) {
+		// Preserve the comparison's value snapshot rather than borrowing live config.
+		running := client.cfg
+		if pppoeClientConfigChanged(&running, &entry) {
 			log.Info("pppoe-client: restarting client (config changed)", "name", name)
 			client.Stop()
 			delete(active, name)
@@ -676,11 +679,12 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 	}
 
 	// Start clients that are new or were restarted above.
-	for name, entry := range desired {
+	for name := range desired {
+		entry := desired[name]
 		if _, running := active[name]; running {
 			continue
 		}
-		client := NewPPPoEClient(pppoeClientConfigFrom(entry), pppoeDialerVar, b, log)
+		client := NewPPPoEClient(pppoeClientConfigFrom(&entry), pppoeDialerVar, b, log)
 		client.sessionEnded = sessionEnded
 		client.Start()
 		active[name] = client
@@ -689,7 +693,8 @@ func reconcilePPPoEClients(cfg *ifaceConfig, active map[string]*PPPoEClient, b B
 }
 
 // pppoeClientConfigFrom builds the client config one parsed entry declares.
-func pppoeClientConfigFrom(entry pppoeClientEntry) PPPoEClientConfig {
+// entry MUST be non-nil and remain unchanged for the call; no pointer is retained.
+func pppoeClientConfigFrom(entry *pppoeClientEntry) PPPoEClientConfig {
 	return PPPoEClientConfig{
 		Name:            entry.Name,
 		SourceInterface: entry.SourceInterface,
@@ -709,8 +714,9 @@ func pppoeClientConfigFrom(entry pppoeClientEntry) PPPoEClientConfig {
 // running client. It compares every field but Timing, so a field added to
 // PPPoEClientConfig restarts the client on change with no edit here. Timing
 // alone never restarts: reconcilePPPoEClients hands it to setTiming instead.
-func pppoeClientConfigChanged(running PPPoEClientConfig, entry pppoeClientEntry) bool {
+// Both inputs MUST be non-nil snapshots; neither is changed or retained.
+func pppoeClientConfigChanged(running *PPPoEClientConfig, entry *pppoeClientEntry) bool {
 	desired := pppoeClientConfigFrom(entry)
 	desired.Timing = running.Timing
-	return running != desired
+	return *running != desired
 }

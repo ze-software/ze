@@ -158,7 +158,7 @@ type timingDialer struct {
 	session *PPPoESession
 }
 
-func (d *timingDialer) Dial(cfg PPPoEClientConfig, _ <-chan struct{}, _ *slog.Logger) (PPPoESession, error) {
+func (d *timingDialer) Dial(cfg PPPoEClientConfig, _ <-chan struct{}, _ *slog.Logger) (PPPoESession, error) { //nolint:gocritic // hugeParam: PPPoEDialer fixes the value signature; the recorder owns each dial's timing snapshot.
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.configs = append(d.configs, cfg)

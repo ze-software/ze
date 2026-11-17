@@ -894,7 +894,7 @@ func TestInterfaceExistsReadErrorIsNotAbsence(t *testing.T) {
 }
 
 // pppoeReloadConfig is the interface section of a CPE: the upstream NIC, a
-// pppoe-client dialling over it, and optionally a dummy the reload drops.
+// pppoe-client dialing over it, and optionally a dummy the reload drops.
 func pppoeReloadConfig(t *testing.T, withDummy bool) *ifaceConfig {
 	t.Helper()
 	dummy := ""

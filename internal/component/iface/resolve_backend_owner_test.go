@@ -30,7 +30,7 @@ func TestResolveBackendReturnsProducingOwner(t *testing.T) {
 func TestResolveBackendRefusesMissingReadback(t *testing.T) {
 	const selected = "test-resolve-missing-readback"
 	owner := &exactResolveBackend{link: func(string) (*InterfaceInfo, error) {
-		return nil, nil
+		return nil, nil //nolint:nilnil // A missing readback without an error is the invalid backend result this test rejects.
 	}}
 	withExactResolveBackends(t, map[string]func() (Backend, error){
 		selected: func() (Backend, error) { return owner, nil },
