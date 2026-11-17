@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -48,32 +49,32 @@ func TestSourceLeaseFixtureRequiresIssuedSession(t *testing.T) {
 func TestSourceLeaseFixtureReleaseIsTerminal(t *testing.T) {
 	e := &Engine{}
 	first, sibling := e.IssueSource("192.0.2.1", 701), e.IssueSource("192.0.2.2", 702)
-	invoke := func(action rpc.SourceLeaseAction, receipt, peerOwner uint64) (*rpc.SourceLeaseOutput, error) {
+	invoke := func(action rpc.SourceLeaseAction, receipt, peerOwner uint64) error {
 		input := rpc.SourceLeaseInput{Action: action, SourceReceipt: receipt, PeerOwner: peerOwner, DeadlineMS: time.Now().Add(time.Second).UnixMilli()}
 		encoded, err := json.Marshal(input)
 		require.NoError(t, err)
 		answer, err := e.answer(rpc.MethodSourceLease, encoded)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		output, ok := answer.(*rpc.SourceLeaseOutput)
 		require.True(t, ok)
 		require.NoError(t, output.Validate(input))
-		return output, nil
+		return nil
 	}
-	_, err := invoke(rpc.SourceLeaseAcquire, sibling, 702)
+	err := invoke(rpc.SourceLeaseAcquire, sibling, 702)
 	require.NoError(t, err)
 	for _, receipt := range []uint64{first, first, ^uint64(0)} {
-		_, err = invoke(rpc.SourceLeaseRelease, receipt, 701)
+		err = invoke(rpc.SourceLeaseRelease, receipt, 701)
 		require.NoError(t, err)
 	}
 	require.Len(t, e.sources, 2, "unknown disposal must not allocate source history")
 	require.False(t, e.sources[first].acquired)
 	require.True(t, e.sources[sibling].acquired)
-	_, err = invoke(rpc.SourceLeaseRetain, sibling, 702)
+	err = invoke(rpc.SourceLeaseRetain, sibling, 702)
 	require.NoError(t, err, "a useful sibling lease survives terminal disposal")
-	_, err = invoke(rpc.SourceLeaseRetain, first, 701)
+	err = invoke(rpc.SourceLeaseRetain, first, 701)
 	require.ErrorContains(t, err, "not acquired", "disposal does not grant retention")
-	_, err = invoke(rpc.SourceLeaseAcquire, ^uint64(0), 701)
+	err = invoke(rpc.SourceLeaseAcquire, ^uint64(0), 701)
 	require.ErrorContains(t, err, "not issued")
 }

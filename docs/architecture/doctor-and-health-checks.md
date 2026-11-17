@@ -1098,7 +1098,15 @@ source peer and gives `ze request restart` as the repair. Authority stays
 revoked. A context-free source stop keeps its completion barrier closed until
 the already-canceled guards finish; a report of overdue work is not a successful
 join. The code is reported by the existing recent-events check.
+The same process-generation barrier owns an unfinished enhanced-refresh Begin,
+including an empty replay: it retires and joins that original Session. Successful
+retirement adds no warning class. The existing code also reports a failure to
+remove an ended selecting process's current output after retiring the captured
+destination; that report gives `ze show bgp peers` as the next check.
 <!-- source: internal/component/bgp/reactor/register_source_lease.go -- sourceLeaseCleanup, completeSourceLeaseRemoval -->
+<!-- source: internal/component/bgp/reactor/register_source_lease.go -- sourceGenerationCleanup -->
+<!-- source: internal/component/bgp/reactor/selected_cleanup.go -- retireSelectedOwner -->
+<!-- source: internal/component/bgp/reactor/selected_refresh_owner.go -- joinSelectedRefreshClose -->
 
 The check declares `doctor-recent-events` and every event code. An owner that
 raises a transient code on the bus registers it from its `init()` with

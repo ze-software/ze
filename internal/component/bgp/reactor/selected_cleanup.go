@@ -45,7 +45,12 @@ func (r *Reactor) retireSelectedOwner(ctx context.Context, owner plugin.Selected
 			continue
 		}
 		if !peer.adjOut.hasSelectedOwner(session, owner, source) {
-			continue
+			if source != nil {
+				continue
+			}
+			if !session.hasSelectedRefreshOwner(owner) {
+				continue
+			}
 		}
 		if err := session.retireSelectedOwner(ctx, peer, owner, source); err != nil {
 			// Cleanup cannot hand an unretired frontier to the successor.
@@ -79,10 +84,42 @@ func (table *adjRIBOut) hasSelectedOwner(session *Session, owner plugin.Selected
 }
 
 func (s *Session) retireSelectedOwner(ctx context.Context, peer *Peer, owner plugin.SelectedOwner, source *Peer) error {
-	if err := s.selectedMu.LockContext(ctx); err != nil {
-		return err
+	var overdue *selectedRefreshPending
+	lockErr := s.selectedMu.LockContext(ctx)
+	if lockErr != nil {
+		if source != nil {
+			return lockErr
+		}
+		overdue = s.pendingSelectedRefreshOwner(owner)
+		if overdue == nil {
+			return lockErr
+		}
+		// A previous destination may have spent this shared deadline.
+		// Full-owner pending cleanup is terminal: stop new output and
+		// still join the actual selected stream before reporting overdue.
+		s.seal()
+		s.selectedMu.Lock()
 	}
 	defer s.selectedMu.Unlock()
+	if source == nil {
+		pending := s.pendingSelectedRefreshOwner(owner)
+		if pending == nil {
+			pending = overdue
+		}
+		if pending != nil {
+			// The completed Begin belongs to this captured Session even if
+			// its replay has no routes. selectedMu keeps the exact owner
+			// obligation stable. Normal close may bound its wait for an
+			// existing claimant, so then join the retained exact claim.done.
+			// The ended SDK cannot authorize End or a replacement Session.
+			s.seal()
+			s.closeConnWithin(0)
+			closeErr := pending.joinSelectedRefreshClose(ctx)
+			writerErr := s.joinSelectedRefreshWriter(ctx)
+			s.selectedRefresh.Store(nil)
+			return errors.Join(lockErr, closeErr, writerErr)
+		}
+	}
 	permit := selectedCleanupPermit{session: s, source: source}
 	work := selectedWrite{output: selectedOutput{owner: owner, revision: math.MaxUint64},
 		session: s, destinationSession: s.initialReplay.Load(), absent: true, cleanup: &permit}

@@ -408,6 +408,11 @@ type Session struct {
 	// and flush. It MUST precede writeMu; other output rails never acquire it.
 	selectedMu      sessionWriteMutex
 	selectedAttempt uint64 // Owned by writeMu; never a per-key history.
+	// selectedRefresh records only actual unfinished Begin writes in this
+	// Session. Immutable publication keeps ended-owner scans independent of
+	// unrelated Sessions' held selected/write paths. Marker mutations hold
+	// both; terminal cleanup holds selectedMu after sealing this Session.
+	selectedRefresh atomic.Pointer[selectedRefreshPending]
 
 	// onTCPConnected observes this connection's published socket before its
 	// FSM event and local OPEN lifecycle. The factory MUST install it before

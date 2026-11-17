@@ -86,6 +86,9 @@ func (a *reactorAPIAdapter) SelectRefresh(ctx context.Context, request *plugin.S
 	if !negotiated.EnhancedRouteRefresh {
 		return output, nil
 	}
+	if err := session.selectedRefreshOwner(request.Family(), owner); err != nil {
+		return nil, err
+	}
 	// RFC 7313 Section 4: "For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an <AFI, SAFI> to a neighbor before it sends the EoR for the <AFI, SAFI> to the neighbor."
 	if input.Action == rpc.SelectedRefreshBegin {
 		if session.localGR {
@@ -122,6 +125,7 @@ func (a *reactorAPIAdapter) SelectRefresh(ctx context.Context, request *plugin.S
 		return nil, err
 	}
 	peer.incrRefreshSent()
+	session.recordSelectedRefresh(conn, request.Family(), input.Action, owner)
 	output.Outcome = rpc.SelectedRefreshWritten
 	return output, nil
 }

@@ -1307,7 +1307,18 @@ MP_UNREACH (normal or extended length) or classic empty UPDATE completes it;
 malformed raw diagnostic frames remain sendable without unlocking BoRR.
 The deciding worker brackets its own replay and awaits every final receipt;
 ordinary replay scheduling remains the selecting plugin's responsibility.
+A successful Begin also leaves one engine-owned obligation for that negotiated
+family on the exact Session and selecting process incarnation. Only a successful
+End from that incarnation clears it. The bounded, immutable Session snapshot
+lets process cleanup skip unrelated busy connections without waiting on them.
+If the process ends between calls, its existing generation cleanup retires and
+joins the original connection, even for an empty replay. Source-specific route
+revocation does not retire a healthy process's unfinished refresh. A new Session
+starts with no history, and a successor cannot overwrite or complete an older
+incarnation's pending Begin.
 <!-- source: internal/component/bgp/reactor/selected_refresh.go -- SelectRefresh -->
+<!-- source: internal/component/bgp/reactor/selected_refresh_owner.go -- selectedRefreshPending, recordSelectedRefresh -->
+<!-- source: internal/component/bgp/reactor/selected_cleanup.go -- retireSelectedOwner -->
 <!-- source: internal/component/bgp/reactor/selected_refresh_eor.go -- complete -->
 
 Config-driven initial sync, transaction sends and API origination all establish

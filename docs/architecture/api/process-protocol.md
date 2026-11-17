@@ -2228,6 +2228,17 @@ means enhanced markers were not negotiated. Zero, a missing receipt or a
 mismatched echo fails the request. A replacement Session or configured alias
 cannot satisfy an old request. Process stop cancels and joins a blocked final
 write. Marker and route calls share the destination's selected-stream lock.
+A complete Begin also records the exact selecting incarnation's unfinished
+family on that Session. A complete End clears only its own incarnation's
+obligation. The existing process-generation cleanup retires and joins the
+original connection if the process ends between marker calls, including an
+empty route replay; it does not ask the expired SDK to authorize End. Completed
+Begin/End connections and unrelated Sessions remain usable. Source-specific
+route cleanup leaves a healthy selecting process's refresh intact. A replacement
+Session inherits no pending markers, and another process incarnation cannot
+overwrite or complete an older Begin on the same connection.
+Retirement joins the first captured socket close's completion claim. Calling
+`net.Conn.Close` again is not proof that an earlier close has finished.
 
 The selecting worker MUST await Begin, then all replay route receipts, then
 End. The marker operation does not enumerate routes or settle a queued replay.
@@ -2242,6 +2253,7 @@ withdrawn routes, using either legal attribute-length encoding. Malformed
 raw diagnostic output remains sendable and cannot satisfy the EOR gate.
 The sender GR fact comes from local OPEN publication, independently of remote GR.
 <!-- source: internal/component/bgp/reactor/selected_refresh.go -- SelectRefresh -->
+<!-- source: internal/component/bgp/reactor/selected_refresh_owner.go -- selectedRefreshPending, hasSelectedRefreshOwner -->
 <!-- source: internal/component/bgp/reactor/selected_refresh_eor.go -- complete, completeEOR, eorFamily -->
 <!-- source: pkg/plugin/rpc/selected_refresh.go -- SelectRefreshInput, SelectRefreshOutput -->
 <!-- source: internal/component/plugin/server/dispatch_selected_refresh.go -- selectRefresh -->

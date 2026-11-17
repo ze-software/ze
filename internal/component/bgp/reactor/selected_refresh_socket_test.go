@@ -127,6 +127,15 @@ func TestSelectedRefreshSocketCancellationJoinsRealWriter(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, rpc.SelectedRefreshWritten, result.Outcome)
 			require.Equal(t, []string{"borr"}, refreshWireLabels(t, fixture.conn.written()))
+			// Finish this useful recording connection's replay before the
+			// fixture installs a different socket epoch on the same Session.
+			// The following held request still exercises a fresh actual Begin.
+			completed := input
+			completed.Action = rpc.SelectedRefreshEnd
+			result, err = client.SelectRefresh(work, completed)
+			require.NoError(t, err)
+			require.Equal(t, rpc.SelectedRefreshWritten, result.Outcome)
+			require.Equal(t, []string{"borr", "eorr"}, refreshWireLabels(t, fixture.conn.written()))
 
 			sibling, siblingWire := newGroupUpdatesPeer(t, "192.0.2.81", "absent")
 			sibling.settings.ExportPolicy = fixture.peer.settings.ExportPolicy

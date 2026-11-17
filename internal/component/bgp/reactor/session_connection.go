@@ -955,10 +955,12 @@ func (s *Session) claimSocket(conn net.Conn) *socketClaim {
 		claimed := s.socketClosed.Load()
 		if claimed != nil {
 			if claimed.conn == conn {
+				s.captureSelectedRefreshClose(claimed)
 				return nil
 			}
 		}
 		if s.socketClosed.CompareAndSwap(claimed, claim) {
+			s.captureSelectedRefreshClose(claim)
 			return claim
 		}
 	}
