@@ -17,7 +17,7 @@ OCI containers run by ze: confined, limited, supervised and removed without a tr
 
 ## Dependencies
 
-- Required: None
+- Required: [`sysctl`](../sysctl/index.md)
 - Optional: None
 
 ## Used by

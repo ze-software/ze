@@ -172,9 +172,9 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 ### Mandatory RFC requirements proven
 
-45.7%
+46.2%
 
-2,172 of 4,752 requirements for Ze or the OS.
+2,196 of 4,752 requirements for Ze or the OS.
 
 **196**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -235,7 +235,7 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 
 ### Go tests
 
-47,400+
+48,300+
 
 Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
 
@@ -251,7 +251,7 @@ Start sessions and exchange route updates. Run editor commands, commits and relo
 
 ### Fuzz targets
 
-110
+110+
 
 Generate inputs for parsers and decoders. Probe packets and configuration text for crashes. Replay saved failures as regression cases.
 
@@ -272,7 +272,7 @@ Feature pages explain behavior and limits. The [maturity record](https://ze-soft
 [Open page](https://ze-software.net/reference/configuration/)
 **Commands**
 
-**513 CLI commands** Syntax, arguments and pipe operators →
+**534 CLI commands** Syntax, arguments and pipe operators →
 
 [Open page](https://ze-software.net/reference/cli/)
 **Plugins**
@@ -326,6 +326,10 @@ The documentation index groups guides by the job you want to do. The feature cat
 ## Choose how to try Ze.
 
 A local BGP lab is the simplest starting point. If you already run ExaBGP or want a different deployment, follow the path that matches your setup.
+
+### Build Ze to fit your needs.
+
+Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.
 
  Local labStart here
 

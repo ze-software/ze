@@ -1,6 +1,6 @@
 # RFC 6286 - Autonomous-System-Wide Unique BGP Identifier for BGP-4
 
-AS-wide unique BGP Identifier. Every requirement listed for RFC 6286, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
+AS-wide unique BGP Identifier (default configuration). Every requirement listed for RFC 6286, the tests linked to it, and their recorded reviews. This summary is included in the automatic compliance check, ./le rfc check.
 
 ## Overview
 
@@ -10,20 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3 | of 4 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| Tested both ways | 4 | of 4 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 4 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 6 | 6 of 16 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Partial test coverage | 1 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Audit verdicts | 5 | of 4 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
+| Tests shown to detect a fault | 18 | 18 of 18 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Audit verdicts | 5 | of 4 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -55,21 +48,21 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
-| Partial test coverage | bad | green at zero, RED above it: testing one clause does not verify the whole requirement |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
 
 | Field | Value |
 |---|---|
-| Public row | AS-wide unique BGP Identifier |
+| Public row | AS-wide unique BGP Identifier (default configuration) |
 | Automatic checks | Included |
 | Requirements | 5 |
 | Mandatory requirements (MUST level) | 4 |
@@ -78,10 +71,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 16 |
-| Tests linked to requirements | 16 |
+| Test tags | 18 |
+| Tests linked to requirements | 18 |
 | Recorded audit verdicts | 5 |
-| Fault test records | 6 |
+| Fault test records | 18 |
 | Summary | `rfc/short/rfc6286.md` |
 | Requirement table | `rfc/requirements/rfc6286.md` |
 | RFC text | `rfc/full/rfc6286.txt` |
@@ -92,53 +85,49 @@ Included in automatic checks: Autonomous-System-Wide Unique BGP Identifier for B
 
 ## Published support status
 
-**Area:** AS-wide unique BGP Identifier
+**Area:** AS-wide unique BGP Identifier (default configuration)
 
-**Test verification:** 0 of 4 MUST proven
+**Test verification:** 4 of 4 MUST proven
 
-**Evidence:** -
+**Evidence:** unit 4
 
-**Unmet:** RFC6286-2.1-1
+**Unmet:** -
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
+| Positive and negative tests | 4 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial test coverage (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **4** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (3):** [`RFC6286-2.2-1`](#rfc6286-2.2-1), [`RFC6286-2.2-2`](#rfc6286-2.2-2), [`RFC6286-2.3-1`](#rfc6286-2.3-1)
-
-**Annotated (including scoped evidence) (1):** [`RFC6286-2.1-1`](#rfc6286-2.1-1)
-
-**Partial test coverage (subset of annotated; zero whole-requirement credit) (1):** [`RFC6286-2.1-1`](#rfc6286-2.1-1)
+**Positive and negative tests (4):** [`RFC6286-2.1-1`](#rfc6286-2.1-1), [`RFC6286-2.2-1`](#rfc6286-2.2-1), [`RFC6286-2.2-2`](#rfc6286-2.2-2), [`RFC6286-2.3-1`](#rfc6286-2.3-1)
 
 ## Figures
 
-- **MUST bar**: Tests awaiting verification 3, Not built 1
-- **Overview bar**: SHOULD verified 1, Tests awaiting verification 3, Not built 1
+- **MUST bar**: Ze verified 4
+- **Overview bar**: Ze MUST verified 4, SHOULD verified 1
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze verified | 0 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 1 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -164,17 +153,15 @@ Source: [data/rfc/rfc6286.json](../../../data/rfc/rfc6286.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6286-2.1-1` | The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1) | MUST | 2.1 - Definition of the BGP Identifier | **positive:** `unit/verify` [`TestParsePeerFromTreeInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L128). **positive:** `unit/verify` [`TestRFC6286GlobalZeroRouterIDRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L35). **negative:** `unit/verify` [`TestRFC6286GlobalZeroRouterIDRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L39). **negative:** `unit/verify` [`TestRFC6286NonZeroRouterIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L10). **{partial}:** tested "non-zero integer"; gap "is determined on startup and is the same for every local interface and every BGP peer"; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: "we should have a global router-id which can be overwritten per peer which is over what the RFC allows"), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer's identifier, so a configured override gives that peer an identifier different from the others'; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), stale-unit: internal/component/bgp/reactor/config.go::parsePeerSettings moved. RFC 6286 Section 2.1 says: The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. Tested is "non-zero integer"; Gap is "is determined on startup and is the same for every local interface and every BGP peer"; Producer is internal/component/bgp/reactor/config.go::parsePeerSettings. All four tagged covers are unchanged. The zero_router_id_rejected case requires the exact RFC 6286 error for an explicit peer-level 0.0.0.0. TestRFC6286GlobalZeroRouterIDRejected requires the same error for an explicit global zero, then accepts global 0.0.0.1 and requires identifier 1 on its inheriting peer. TestRFC6286NonZeroRouterIDAccepted independently requires peer override 0.0.0.1 to become identifier 1. Both leaves still use parseRouterID, whose id == 0 check refuses zero alone; all four stored discrimination records name this unchanged producer. The only working-tree change to parsePeerSettings adds delay-open to its timer-container comment, after identifier parsing; it changes no branch, input or assertion. The gap remains: parsePeerSettings permits each peer or resolved group to override the global identifier, and internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled applies changed globals at runtime through setGlobals. The existing owner-approved override deviation is retained and not counted conformant. This metadata refresh credits neither startup constancy nor one identifier across every peer, and gives zero whole-requirement credit. |
+| `RFC6286-2.1-1` | The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1) | MUST | 2.1 - Definition of the BGP Identifier | **positive:** `unit/verify` [`TestParsePeerFromTreeInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L128). **positive:** `unit/verify` [`TestRFC6286DefaultIdentifierSharedOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_default_identifier_test.go#L30). **positive:** `unit/verify` [`TestRFC6286DefaultIdentifierSurvivesUnchangedReload`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_default_reload_test.go#L24). **positive:** `unit/verify` [`TestRFC6286GlobalZeroRouterIDRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L35). **negative:** `unit/verify` [`TestRFC6286GlobalZeroRouterIDRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L39). **negative:** `unit/verify` [`TestRFC6286NonZeroRouterIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L10) |
 | `RFC6286-2.1-2` | The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. (Section 2.1) | SHOULD | 2.1 - Definition of the BGP Identifier | **positive:** `unit/verify` [`TestRFC6286LocalIdentifierUniqueWithinItsAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_unique_within_as_test.go#L24). **positive:** `unit/verify` [`TestRouterIDClaimConcurrentOnlyOneWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_routerid_unique_test.go#L468). **negative:** no negative test. **{single-polarity}:** the negative case -- ze accepting a duplicate -- is the operator-selected `bgp/session/allow-shared-router-id true` path, which is conformant precisely because the requirement is a lowercase "should", so there is no violation for a negative test to catch. Enforcement is proven by TestRouterIDClaimConcurrentOnlyOneWins and the TestRouterIDConflict* family; the opt-out by TestValidateOpenAllowSharedRouterID |
-| `RFC6286-2.2-1` | If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to "Bad BGP Identifier". (Section 2.2) | MUST | 2.2 - Open Message Error Handling | **positive:** `unit/verify` [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L105). **positive:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L445). **positive:** `unit/verify` [`TestProcessOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L163). **negative:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447) |
+| `RFC6286-2.2-1` | If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to "Bad BGP Identifier". (Section 2.2) | MUST | 2.2 - Open Message Error Handling | **positive:** `unit/verify` [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L105). **positive:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L445). **positive:** `unit/verify` [`TestProcessOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L166). **negative:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447) |
 | `RFC6286-2.2-2` | If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to "Bad BGP Identifier". (Section 2.2) | MUST | 2.2 - Open Message Error Handling | **positive:** `unit/verify` [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L107). **positive:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L449). **negative:** `unit/verify` [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L109). **negative:** `unit/verify` [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L451) |
 | `RFC6286-2.3-1` | If the BGP Identifiers of the peers involved in the connection collision are identical, then the connection initiated by the BGP speaker with the larger AS number is preserved. (Section 2.3) | MUST | 2.3 - Connection Collision Resolution | **positive:** `unit/verify` [`TestDetectCollisionEqualIdentifierPrefersLargerAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L585). **negative:** `unit/verify` [`TestDetectCollisionEqualIdentifierPrefersLargerAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L589) |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC6286-2.1-1`](#rfc6286-2.1-1) The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1) | {partial}, Partial test coverage | tested "non-zero integer"; gap "is determined on startup and is the same for every local interface and every BGP peer"; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: "we should have a global router-id which can be overwritten per peer which is over what the RFC allows"), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer's identifier, so a configured override gives that peer an identifier different from the others'; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override |
+RFC 6286 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Test status
 
@@ -184,22 +171,22 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1)
 
-Records cover only part of this requirement: tested "non-zero integer"; gap "is determined on startup and is the same for every local interface and every BGP peer"; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: "we should have a global router-id which can be overwritten per peer which is over what the RFC allows"), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer's identifier, so a configured override gives that peer an identifier different from the others'; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override; they do not verify the whole requirement.
-
-Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), stale-unit: internal/component/bgp/reactor/config.go::parsePeerSettings moved. RFC 6286 Section 2.1 says: The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. Tested is "non-zero integer"; Gap is "is determined on startup and is the same for every local interface and every BGP peer"; Producer is internal/component/bgp/reactor/config.go::parsePeerSettings. All four tagged covers are unchanged. The zero_router_id_rejected case requires the exact RFC 6286 error for an explicit peer-level 0.0.0.0. TestRFC6286GlobalZeroRouterIDRejected requires the same error for an explicit global zero, then accepts global 0.0.0.1 and requires identifier 1 on its inheriting peer. TestRFC6286NonZeroRouterIDAccepted independently requires peer override 0.0.0.1 to become identifier 1. Both leaves still use parseRouterID, whose id == 0 check refuses zero alone; all four stored discrimination records name this unchanged producer. The only working-tree change to parsePeerSettings adds delay-open to its timer-container comment, after identifier parsing; it changes no branch, input or assertion. The gap remains: parsePeerSettings permits each peer or resolved group to override the global identifier, and internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled applies changed globals at runtime through setGlobals. The existing owner-approved override deviation is retained and not counted conformant. This metadata refresh credits neither startup constancy nor one identifier across every peer, and gives zero whole-requirement credit.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 6286 Section 2.1 defines a 4-octet, unsigned, non-zero identifier determined at startup and shared across interfaces and peers. This judgment covers the default configuration stated in Conformance Configuration: one nonzero global bgp/router-id, no session override, and no operator-requested identifier change. TestRFC6286DefaultIdentifierSharedOnWire drives ReadConfig, group resolution, PeersFromTree and Session.Accept, then decodes the actual OPEN for three peers across configured IPv4 and IPv6 local addresses, repeated session construction, and identifiers 1, 0x80000000 and 0xffffffff. Its recorded wrong-identifier break changes each expected wire value and fails this unit. TestRFC6286DefaultIdentifierSurvivesUnchangedReload asserts startup identity after initial apply, identity and both Peer objects after unchanged reload, and the OPEN identifier both peer settings emit. Its recorded unsolicited +1 change in the unchanged-global branch fails the initial identity assertion. Existing config tests reject explicit global and peer zero, accept identifier 1 and require the exact inherited value. These separate assertions cover the whole default-path definition. Explicit peer/group/peer-only identifiers and operator-requested reload changes remain supported controls, separately tested and outside this default-path claim.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC6286GlobalZeroRouterIDRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L39) | unit/verify | revert, verified |
 | negative | [`TestRFC6286NonZeroRouterIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L10) | unit/verify | revert, verified |
 | positive | [`TestParsePeerFromTreeInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L128) | unit/verify | revert, verified |
+| positive | [`TestRFC6286DefaultIdentifierSharedOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_default_identifier_test.go#L30) | unit/verify | mutant, verified |
+| positive | [`TestRFC6286DefaultIdentifierSurvivesUnchangedReload`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_default_reload_test.go#L24) | unit/verify | mutant, verified |
 | positive | [`TestRFC6286GlobalZeroRouterIDRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_router_id_test.go#L35) | unit/verify | revert, verified |
 
 ### [`RFC6286-2.1-2`](#rfc6286-2.1-2)
 
 The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. (Section 2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 6286 Section 2.1 says: The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The single-positive annotation remains valid for this uniqueness SHOULD: intentional shared identifiers use the documented operator opt-out, while Section 2.2's zero and internal-self rejection remains mandatory. TestRouterIDClaimConcurrentOnlyOneWins now prepares one actual Session per Peer before all sixteen validators start together. It retains exactly-one acceptance, routerIDConflictError for every loser, a recorded holder, and no neighboring-key claim. Peer.validateOpen reads the prepared AS identity and routerIDClaims.claim serializes the check and insertion under one leaf mutex. Session-owned claim bookkeeping preserves, rather than relaxes, cross-Peer uniqueness. TestRFC6286LocalIdentifierUniqueWithinItsAS separately sends the local identifier from an internal peer and requires ErrBadBGPIdentifier, exact NOTIFICATION 2/3 and no OpenConfirm. Open.ValidateBGPIdentifier still tests internal plus equal local identifier. These assertions cover the remote-peer and local-speaker uniqueness cases; permitting every duplicate or accepting the internal self identifier violates an exact assertion. No broader startup or per-peer identifier-configuration conformance is credited by this row.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Section 2.1 uses lowercase should for AS-wide uniqueness. The single-positive annotation is appropriate: intentional duplication remains accepted through allow-shared-router-id, while Section 2.2 still rejects zero and internal self identifiers. TestRouterIDClaimConcurrentOnlyOneWins prepares sixteen peers of one AS, validates one shared identifier concurrently, requires exactly one acceptance, requires a routerIDConflictError for every other peer, and verifies the holder and absence of an unrelated claim. Peer.validateOpen and routerIDClaims.claim use the judged AS and serialize claim insertion. TestRFC6286LocalIdentifierUniqueWithinItsAS separately requires exact NOTIFICATION 2/3 and no OpenConfirm for the local identifier from an internal peer. Blanket acceptance and blanket refusal cannot satisfy these assertions. This row credits default advisory uniqueness, not an assertion that explicit operator options have been removed.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
@@ -210,38 +197,38 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to "Bad BGP Identifier". (Section 2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) accepting an OPEN whose BGP Identifier is zero; (b) TestOpenValidateBGPIdentifier: zero from internal and from external wantErr with NotifyOpenMessage / NotifyOpenBadBGPID; negative: 1 and 0xFFFFFFFF accepted. The same unit also proves the sentence's second clause (local id from internal rejected, from external accepted). handleOpen and processOpen rails tagged positive too.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Section 2.2's zero-identifier condition is isolated by TestOpenValidateBGPIdentifier: zero from internal and external peers requires OPEN Message Error / Bad BGP Identifier with empty data, while valid boundary identifiers 1 and 0xffffffff are accepted. The current recorded clause breaks disable only zero rejection or reject every nonzero identifier and demonstrate the corresponding exact assertions. TestHandleOpenRejectsBadBGPIdentifier repeats refusal through handleOpen and asserts the error, exact transmitted NOTIFICATION and lack of OpenConfirm; its valid cases retain nil error and OpenConfirm and now close/drain the recorded connection to assert no NOTIFICATION. TestProcessOpenRejectsBadBGPIdentifier verifies exact zero refusal through the collision-winner rail. The two OPEN rails call validateOpenIdentifier and cannot bypass this condition.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447) | unit/verify | not verified |
-| positive | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L445) | unit/verify | not verified |
-| positive | [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L105) | unit/verify | not verified |
-| positive | [`TestProcessOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L163) | unit/verify | not verified |
+| negative | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447) | unit/verify | mutant, verified |
+| positive | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L445) | unit/verify | mutant, verified |
+| positive | [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L105) | unit/verify | mutant, verified |
+| positive | [`TestProcessOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L166) | unit/verify | mutant, verified |
 
 ### [`RFC6286-2.2-2`](#rfc6286-2.2-2)
 
 If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to "Bad BGP Identifier". (Section 2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) accepting the local identifier from an internal peer, or rejecting it from an external one; (b) TestOpenValidateBGPIdentifier rows 'local identifier from internal peer' wantErr 2/3 and 'from external peer' no error, plus localID+-1 accepted; zero rows cover the first clause. TestHandleOpenRejectsBadBGPIdentifier repeats both polarities on the FSM rail.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Section 2.2's self-identifier condition is isolated by TestOpenValidateBGPIdentifier: an internal peer presenting the local nonzero identifier requires exact error 2/3, an external peer presenting that identifier is accepted, and internal peers with localID-1 or localID+1 are accepted. Current clause-break records remove internal-self refusal or remove the internal-peer guard and expose the corresponding wrong outcomes. TestHandleOpenRejectsBadBGPIdentifier repeats both sides through handleOpen; its strengthened valid arm additionally closes/drains the captured connection and asserts no NOTIFICATION. validateOpenIdentifier judges the peer AS through the prepared proposal and isIBGPWith; the selected ASN4 reader tests cover the AS_TRANS/capability distinction. Zero-input cases separately cover the sentence's first condition and do not substitute for the nonzero self-identifier cases.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L451) | unit/verify | not verified |
-| negative | [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L109) | unit/verify | not verified |
-| positive | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L449) | unit/verify | not verified |
-| positive | [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L107) | unit/verify | not verified |
+| negative | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L451) | unit/verify | mutant, verified |
+| negative | [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L109) | unit/verify | mutant, verified |
+| positive | [`TestOpenValidateBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L449) | unit/verify | mutant, verified |
+| positive | [`TestHandleOpenRejectsBadBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6286_session_open_validation_test.go#L107) | unit/verify | mutant, verified |
 
 ### [`RFC6286-2.3-1`](#rfc6286-2.3-1)
 
 If the BGP Identifiers of the peers involved in the connection collision are identical, then the connection initiated by the BGP speaker with the larger AS number is preserved. (Section 2.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) with identical identifiers, preserving the connection of the smaller AS; (b) TestDetectCollisionEqualIdentifierPrefersLargerAS asserts accept/close for peer AS > local AS and peer AS < local AS with equal identifiers; negative rows show unequal identifiers ignore the AS.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Section 2.3 preserves the connection initiated by the larger-AS speaker when identifiers are identical. TestDetectCollisionEqualIdentifierPrefersLargerAS requires accept-and-close-existing when the remote AS is larger and reject-and-keep-existing when the local AS is larger, both with equal identifiers. Its negative rows use the same AS ordering but unequal identifiers and require the RFC 4271 identifier comparison in both directions. Thus blanket local or remote preference and applying the AS rule to unequal identifiers fail exact assertions. Session.detectCollision reads the frozen local proposal and judged peer AS. TestASN4DisabledSessionReadersJudgeMyAS additionally drives this consumer with AS_TRANS below the local AS and the four-octet capability ASN above it, requiring opposite collision winners, so four-octet AS support is not inferred solely from a uint32 field.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDetectCollisionEqualIdentifierPrefersLargerAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L589) | unit/verify | not verified |
-| positive | [`TestDetectCollisionEqualIdentifierPrefersLargerAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L585) | unit/verify | not verified |
+| negative | [`TestDetectCollisionEqualIdentifierPrefersLargerAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L589) | unit/verify | mutant, verified |
+| positive | [`TestDetectCollisionEqualIdentifierPrefersLargerAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/collision_test.go#L585) | unit/verify | mutant, verified |
 
 ## Requirement list review
 

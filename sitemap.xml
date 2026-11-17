@@ -1486,6 +1486,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-out/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-container-layer-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-container-layer/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-cymru-cache-address/</loc>
   </url>
   <url>
@@ -1576,6 +1582,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/create-bgp-peer/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/create-container-image-reference/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/create-container-image/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/create-interface-address/</loc>
   </url>
   <url>
@@ -1619,6 +1631,21 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/delete-bgp-peer/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-container-image-all/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-container-image-digest/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-container-image/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-container-volume-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/delete-container-volume/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/delete-data-key/</loc>
@@ -2219,6 +2246,15 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-config-validation/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-container-image-list/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-container-store/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-container-volume-list/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-crashes/</loc>
@@ -2978,6 +3014,18 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-bgp-peer-prefix/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-container-image-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-container-image-rollback-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-container-image-rollback/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-container-image/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-data-config/</loc>

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 27 | 27 of 41 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 30 | 30 of 41 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -247,7 +247,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L195) | unit/verify | revert, verified |
-| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20) | unit/verify | revert, verified |
 | positive | [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L382) | unit/verify | revert, verified |
 | positive | [`TestRFC4303ESPPacketOnTheWireCarriesProtocol50`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L175) | unit/verify | revert, verified |
 
@@ -286,7 +286,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L244) | unit/verify | revert, verified |
-| positive | [`TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestRFC4303InboundESPMapsByConfiguredDestination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC4303InboundESPSAKeyedOnConfiguredDestination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L148) | unit/verify | revert, verified |
 
@@ -393,7 +393,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L98) | unit/verify | revert, verified |
-| positive | [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L359) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L359) | unit/verify | revert, verified |
 | positive | [`TestRFC4303ESPReplayWindowCarriesIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L70) | unit/verify | revert, verified |
 
 ### [`RFC4303-3.4.3-3`](#rfc4303-3.4.3-3)

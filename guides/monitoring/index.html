@@ -75,6 +75,7 @@
 <li><a href="#bgp-metrics">BGP Metrics</a>
 <ol>
 <li><a href="#instance">Instance</a></li>
+<li><a href="#selected-output">Selected output</a></li>
 <li><a href="#per-peer">Per-Peer</a></li>
 <li><a href="#session-lifecycle">Session Lifecycle</a></li>
 <li><a href="#startup-and-connection-timing">Startup and Connection Timing</a></li>
@@ -280,15 +281,18 @@ prefixes held for snapshot or forwarding reconciliation.</p>
 <!-- source: internal/component/sysrib/doctor_route_view.go -- findings, newRouteViewHealth -->
 <p>The <code>netdata</code> block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as <code>ze_bgp_*</code>, <code>ze_bfd_*</code>, or <code>ze_l2tp_*</code>.</p>
 <p>PPP cleanup failures remain visible in <code>show doctor</code> as <code>doctor-ppp-cleanup</code>
-and in the <code>ppp-cleanup</code> health row. The finding names the created interface,
-its native index and the backend error. <code>show warnings</code> shows the retained
-details. Network-resource cleanup and session-owner release retain separate
+and in the <code>ppp-cleanup</code> health row. Resource failures name the created interface,
+its native index and the backend error. A failed realm admission handback names
+the retained subscriber, access interface index, realm and cause; it does not
+invent native interface identity. <code>show warnings</code> shows the retained details.
+Network-resource cleanup and session-owner release retain separate
 causes when both fail for the same interface. Repair the reported backend and confirm resource removal before
 restarting service. A later successful session does not clear this finding;
 report-bus eviction is reported as uncertainty rather than recovery.</p>
 <!-- source: internal/component/l2tp/ppp/cleanup_health.go -- ReportCleanupFailure -->
 <!-- source: internal/component/l2tp/doctor_cleanup.go -- checkPPPCleanup -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- closeAdmitted, closeSession, closeTransport -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run -->
 <pre><code>telemetry {
     prometheus {
         enabled true;
@@ -879,6 +883,54 @@ hidden path is and which chain hid it: <code>show rib candidates prefix &lt;pref
 </tr>
 </tbody>
 </table>
+<h4 id="selected-output">Selected output</h4>
+<p>The deciding BGP RIB exposes its current output obligations without creating a
+time series per route or Session. These gauges use the RIB's existing ten-second
+refresh. A failed batch remains owed until final reconciliation; completed
+suppression counts as a completed batch because its old output was retired.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_rib_selected_current_keys</code></td>
+<td>gauge</td>
+<td>Current selected native keys</td>
+</tr>
+<tr>
+<td><code>ze_rib_selected_destinations</code></td>
+<td>gauge</td>
+<td>Admitted destination Sessions</td>
+</tr>
+<tr>
+<td><code>ze_rib_selected_pending_keys</code></td>
+<td>gauge</td>
+<td>Pending reconciliation keys across current destinations</td>
+</tr>
+<tr>
+<td><code>ze_rib_selected_inflight_keys</code></td>
+<td>gauge</td>
+<td>Keys in final-writer batches currently in flight</td>
+</tr>
+<tr>
+<td><code>ze_rib_selected_failed_destinations</code></td>
+<td>gauge</td>
+<td>Current destinations with an unresolved output failure</td>
+</tr>
+<tr>
+<td><code>ze_rib_selected_batches_total</code></td>
+<td>counter</td>
+<td>Batches by <code>outcome</code>: <code>completed</code> or <code>failed</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_metrics.go -- updateSelectedMetrics, recordSelectedBatch -->
 <h4 id="per-peer">Per-Peer</h4>
 <table>
 <thead>
@@ -1405,7 +1457,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

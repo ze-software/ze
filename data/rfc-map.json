@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "6338efdb4937be42e586823edb10bb23700803c639d734bba387692b1f5d9a56"
+      "sha256": "040f29d4f298812ad91aabc4636c079b6d197916e5f54cc2aa3c956f63455a48"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "234b70f5fa71a12893a5b4162ed6f23a9a687345ae34a7b1dee6500a67248254",
-      "revision": "637f9c8f0baab8d688a823b1d333b99cf213f99a"
+      "sha256": "766e82ca8a59e488c141c242056b6ea1eec8540ffe5fb2c35289df734e13a5f6",
+      "revision": "df1fad948ab7070fec1546ce0cfc8f5b0a4c1db8"
     },
     {
       "label": "Proposed release layers",
@@ -46240,14 +46240,7 @@
         "level": "MUST",
         "gated": true,
         "text": "The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1)",
-        "section": "2.1",
-        "annotation": {
-          "kind": "partial",
-          "reason": "tested \"non-zero integer\"; gap \"is determined on startup and is the same for every local interface and every BGP peer\"; a config reload also applies a changed global router-id at runtime (internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled), so the startup clause is unmet too; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: \"we should have a global router-id which can be overwritten per peer which is over what the RFC allows\"), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer's identifier, so a configured override gives that peer an identifier different from the others'; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override",
-          "tested": "non-zero integer",
-          "gap": "is determined on startup and is the same for every local interface and every BGP peer",
-          "producer": "internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled"
-        }
+        "section": "2.1"
       },
       {
         "rid": "RFC6286-2.1-2",
@@ -80614,5 +80607,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "637f9c8f0baab8d688a823b1d333b99cf213f99a"
+  "roadmap-revision": "df1fad948ab7070fec1546ce0cfc8f5b0a4c1db8"
 }

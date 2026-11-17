@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 234 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 234 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 234 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>293</strong><b>293 of 761 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>296</strong><b>296 of 761 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> IKEv2</p>
-<p><strong>Test verification:</strong> 90 of 234 MUST proven</p>
-<p><strong>Evidence:</strong> interop 1, functional 1, unit 88</p>
+<p><strong>Test verification:</strong> 91 of 234 MUST proven</p>
+<p><strong>Evidence:</strong> interop 1, functional 1, unit 89</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7296:must">Ze verified 90, Tests awaiting verification 144</div>
+<div data-ze-rfc-bar="rfc7296:must">Ze verified 91, Tests awaiting verification 143</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7296:overview">Ze MUST verified 90, SHOULD verified 4, Tests awaiting verification 146, Not assessed 3</div>
+<div data-ze-rfc-bar="rfc7296:overview">Ze MUST verified 91, SHOULD verified 4, Tests awaiting verification 145, Not assessed 3</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7296:must.kept">234</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc7296:must.ze-proven">90</span></td>
+<td><span data-ze-rfc="rfc7296:must.ze-proven">91</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7296:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc7296:must.proof-pending">144</span></td>
+<td><span data-ze-rfc="rfc7296:must.proof-pending">143</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7296:must.os-gap">0</span></td>
@@ -3655,7 +3655,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276" title="internal/component/ike/engine/rfc7296_test.go" target="_blank" rel="noopener"><code>TestChildSANoNATNoEncap</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L290" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></td>
@@ -4345,12 +4345,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L66" title="internal/component/ike/engine/rfc7296_natt_bothforms_test.go" target="_blank" rel="noopener"><code>TestBfmEncapsulatedESPAcceptedWithoutNAT</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L117" title="internal/component/ike/engine/rfc7296_natt_bothforms_test.go" target="_blank" rel="noopener"><code>TestBfmEncapsulatedESPSentWhenNATDetected</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -9929,7 +9929,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

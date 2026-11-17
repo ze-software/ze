@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 11 | 11 of 27 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 11 | 11 of 27 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -73,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 27 |
 | Tests linked to requirements | 27 |
 | Recorded audit verdicts | 7 |
-| Fault test records | 11 |
+| Fault test records | 13 |
 | Summary | `rfc/short/rfc2918.md` |
 | Requirement table | `rfc/requirements/rfc2918.md` |
 | RFC text | `rfc/full/rfc2918.txt` |
@@ -86,9 +86,9 @@ Included in automatic checks: BGP Route Refresh: six MUST-level requirements, al
 
 **Area:** Route Refresh
 
-**Test verification:** 3 of 6 MUST proven
+**Test verification:** 4 of 6 MUST proven
 
-**Evidence:** functional 1, unit 2
+**Evidence:** functional 1, unit 3
 
 **Unmet:** -
 
@@ -110,8 +110,8 @@ Included in automatic checks: BGP Route Refresh: six MUST-level requirements, al
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 3, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4
+- **MUST bar**: Ze verified 4, Tests awaiting verification 2
+- **Overview bar**: Ze MUST verified 4, SHOULD verified 1, Tests awaiting verification 2, Not assessed 4
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: BGP Route Refresh: six MUST-level requirements, al
 | Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
-| Ze verified | 3 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -152,11 +152,11 @@ Source: [data/rfc/rfc2918.json](../../../data/rfc/rfc2918.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2918-2-1` | This capability is advertised using the Capability code 2 and Capability length 0. (§2) | MUST | 2 - Route Refresh Capability | **positive:** `unit/verify` [`TestCapabilityWriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L706). **positive:** `unit/verify` [`TestRFC2918RouteRefreshCapabilityOctetsInSentOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L90). **negative:** `unit/verify` [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L182) |
+| `RFC2918-2-1` | This capability is advertised using the Capability code 2 and Capability length 0. (§2) | MUST | 2 - Route Refresh Capability | **positive:** `unit/verify` [`TestCapabilityWriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L706). **positive:** `unit/verify` [`TestRFC2918RouteRefreshCapabilityOctetsInSentOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L90). **negative:** `unit/verify` [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L196) |
 | `RFC2918-3-1` | The ROUTE-REFRESH message is a new BGP message type defined as follows: Type: 5 - ROUTE-REFRESH (§3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L16). **negative:** `unit/verify` [`TestParseHeaderAllTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L39) |
-| `RFC2918-3-2` | Message Format: One <AFI, SAFI> encoded as 0 7 15 23 31 +-------+-------+-------+-------+ \| AFI \| Res. \| SAFI \| +-------+-------+-------+-------+ (§3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshPack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L31). **negative:** `unit/verify` [`TestHandleRouteRefresh_InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L459). **negative:** `unit/verify` [`TestRouteRefreshUnpackShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L75) |
+| `RFC2918-3-2` | Message Format: One <AFI, SAFI> encoded as 0 7 15 23 31 +-------+-------+-------+-------+ \| AFI \| Res. \| SAFI \| +-------+-------+-------+-------+ (§3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshPack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L31). **negative:** `unit/verify` [`TestHandleRouteRefresh_InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L473). **negative:** `unit/verify` [`TestRouteRefreshUnpackShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L75) |
 | `RFC2918-4-1` | A BGP speaker may send a ROUTE-REFRESH message to its peer only if it has received the Route Refresh Capability from its peer. (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestRFC2918SendRouteRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L94). **positive:** `unit/verify` [`TestRFC2918SoftClearPeerSendsRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L158). **negative:** `unit/verify` [`TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L115). **negative:** `unit/verify` [`TestRFC2918SoftClearPeerSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L173) |
-| `RFC2918-4-2` | If a BGP speaker receives from its peer a ROUTE-REFRESH message with the <AFI, SAFI> that the speaker didn't advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message. (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRouteRefresh_NonNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L544). **positive:** `unit/verify` [`TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L40). **negative:** `unit/verify` [`TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L41). **negative:** `unit/verify` [`TestRouteRefreshValidLengthDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2454) |
+| `RFC2918-4-2` | If a BGP speaker receives from its peer a ROUTE-REFRESH message with the <AFI, SAFI> that the speaker didn't advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message. (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRouteRefresh_NonNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L560). **positive:** `unit/verify` [`TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L40). **negative:** `unit/verify` [`TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L41). **negative:** `unit/verify` [`TestRouteRefreshValidLengthDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2454) |
 | `RFC2918-4-3` | Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy. (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011). **positive:** `unit/verify` [`TestRFC2918ConfigStaticRetainedForRefresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19). **positive:** `unit/verify` [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L68). **positive:** `unit/verify` [`TestRefreshSentFeedbackRetainsReplayOrigin`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L32). **negative:** `unit/verify` [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1084). **negative:** `unit/verify` [`TestRFC2918RefreshDoesNotSendToDownPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L87). **negative:** `unit/verify` [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69). **positive:** `functional/verify` [`refresh-config-static.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10) |
 | `RFC2918-4-4` | A BGP speaker that is willing to receive the ROUTE-REFRESH message from its peer should advertise the Route Refresh Capability to the peer using BGP Capabilities advertisement [BGP-CAP]. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 | `RFC2918-4-5` | The <AFI, SAFI> carried in such a message should be one of the <AFI, SAFI> that the peer has advertised to the speaker at the session establishment time via capability advertisement. (§4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
@@ -180,7 +180,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L182) | unit/verify | not verified |
+| negative | [`TestOpenRejectsMalformedKnownCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L196) | unit/verify | not verified |
 | positive | [`TestRFC2918RouteRefreshCapabilityOctetsInSentOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_b_open_caps_test.go#L90) | unit/verify | revert, verified |
 | positive | [`TestCapabilityWriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L706) | unit/verify | not verified |
 
@@ -199,12 +199,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 Message Format: One <AFI, SAFI> encoded as 0 7 15 23 31 +-------+-------+-------+-------+ | AFI | Res. | SAFI | +-------+-------+-------+-------+ (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength moved. Forbidden: a body other than one <AFI, SAFI> in 32 bits (AFI 16, Res 8, SAFI 8). TestRouteRefreshPack asserts Len(data) == HeaderLen+4 and each of the four body bytes, red on a wrong size or layout. TestHandleRouteRefresh_InvalidLength asserts ErrInvalidMessage for 3-, 5- and 0-byte bodies, and TestRouteRefreshUnpackShort asserts ErrShortRead for 3 bytes, red if a body of another length is accepted.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a body other than one <AFI, SAFI> in 32 bits (AFI 16, Res 8, SAFI 8). TestRouteRefreshPack asserts Len(data) == HeaderLen+4 and each of the four body bytes, red on a wrong size or layout. TestHandleRouteRefresh_InvalidLength asserts ErrInvalidMessage for 3-, 5- and 0-byte bodies, and TestRouteRefreshUnpackShort asserts ErrShortRead for 3 bytes, red if a body of another length is accepted. Independent companion-fixture rejudgment against RFC 2918 Section 3's exact AFI(16), Reserved(8), SAFI(8) format, all three tagged units and current handler producer. The repaired handler fixture now establishes the session and confirms Enhanced Route Refresh negotiation before presenting the same independent 3-, 5- and zero-byte bodies. Each still must return ErrInvalidMessage with the exact invalid-length diagnostic; its assertions and malformed input isolation are unchanged. The independent pack carrier still asserts exactly four body bytes in the required layout, and the short decoder carrier still rejects three bytes. The state precondition avoids an earlier FSM rejection masking the length rule. All existing entries and the enforced verdict remain.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRouteRefreshUnpackShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L75) | unit/verify | not verified |
-| negative | [`TestHandleRouteRefresh_InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L459) | unit/verify | not verified |
+| negative | [`TestHandleRouteRefresh_InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L473) | unit/verify | mutant, verified |
 | positive | [`TestRouteRefreshPack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L31) | unit/verify | not verified |
 
 ### [`RFC2918-4-1`](#rfc2918-4-1)
@@ -224,14 +224,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 If a BGP speaker receives from its peer a ROUTE-REFRESH message with the <AFI, SAFI> that the speaker didn't advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message. (S4)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily moved. Forbidden: acting on a ROUTE-REFRESH for an <AFI, SAFI> the speaker did not advertise. D-8 fix: Session.screenRouteRefresh now applies the family rule on the read path before onMessageReceived, for both call sites. TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored drives ReadAndProcess on an Established session that advertised IPv4/unicast only: positive, an IPv6/unicast refresh reaches no onMessageReceived consumer, draws no bytes on the unbuffered pipe and leaves the session Established; negative, an IPv4/unicast refresh is delivered exactly once with its body unchanged. Observed-red revert records on routeRefreshFamilyUnadvertised for both polarities. The check keys on the negotiated set, a subset of what the speaker advertised, so every unadvertised family is ignored; it additionally ignores a family advertised but not negotiated, which RFC 4760 already forbids acting on. The older positive TestHandleRouteRefresh_NonNegotiatedFamily (NoError only) adds nothing on its own.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: acting on a ROUTE-REFRESH for an <AFI, SAFI> the speaker did not advertise. D-8 fix: Session.screenRouteRefresh now applies the family rule on the read path before onMessageReceived, for both call sites. TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored drives ReadAndProcess on an Established session that advertised IPv4/unicast only: positive, an IPv6/unicast refresh reaches no onMessageReceived consumer, draws no bytes on the unbuffered pipe and leaves the session Established; negative, an IPv4/unicast refresh is delivered exactly once with its body unchanged. Observed-red revert records on routeRefreshFamilyUnadvertised for both polarities. The check keys on the negotiated set, a subset of what the speaker advertised, so every unadvertised family is ignored; it additionally ignores a family advertised but not negotiated, which RFC 4760 already forbids acting on. The older positive TestHandleRouteRefresh_NonNegotiatedFamily (NoError only) adds nothing on its own. Independent companion-fixture rejudgment against RFC 2918 Section 4, all four tagged entries and the current pre-consumer family-screening producer. The changed handler fixture is now Established and negotiates IPv4-only Route Refresh before the same IPv6 request. Its narrowed claim correctly reports only NoError, making no standalone consumer-suppression claim. Full row enforcement continues to rest on the stronger real read-path carrier: the unadvertised family reaches no consumer, emits no reply and keeps Established, while the advertised family reaches the consumer once with its exact body. The separate valid-length delivery carrier continues to assert callback and refresh counts. All existing entries and the enforced verdict remain; the repaired supplementary unit does not acquire broader proof credit.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L41) | unit/verify | revert, verified |
 | negative | [`TestRouteRefreshValidLengthDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2454) | unit/verify | not verified |
 | positive | [`TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L40) | unit/verify | revert, verified |
-| positive | [`TestHandleRouteRefresh_NonNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L544) | unit/verify | not verified |
+| positive | [`TestHandleRouteRefresh_NonNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L560) | unit/verify | mutant, verified |
 
 ### [`RFC2918-4-3`](#rfc2918-4-3)
 
@@ -243,10 +243,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 |---|---|---|---|
 | negative | [`TestRFC2918RefreshDoesNotSendToDownPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L87) | unit/verify | revert, verified |
 | negative | [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1084) | unit/verify | not verified |
-| negative | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69) | unit/verify | revert, verified |
+| negative | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2918ConfigStaticRetainedForRefresh`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19) | unit/verify | revert, verified |
 | positive | [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011) | unit/verify | revert, verified |
-| positive | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L68) | unit/verify | revert, verified |
+| positive | [`TestRFC2918RefreshRunsCurrentExportPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L68) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRefreshSentFeedbackRetainsReplayOrigin`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L32) | unit/verify | revert, verified |
 | positive | [`refresh-config-static.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10) | functional/verify | revert, verified |
 

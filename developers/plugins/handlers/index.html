@@ -55,9 +55,11 @@ They are registered on the <code>sdk.Plugin</code> before calling <code>Run()</c
 <li><a href="#registration">Registration</a></li>
 <li><a href="#handler-reference">Handler Reference</a>
 <ol>
+<li><a href="#oncurrentselection">OnCurrentSelection</a></li>
 <li><a href="#onconfigure">OnConfigure</a></li>
 <li><a href="#onshareregistry">OnShareRegistry</a></li>
 <li><a href="#onevent">OnEvent</a></li>
+<li><a href="#oneventsettlement">OnEventSettlement</a></li>
 <li><a href="#onexecutecommand">OnExecuteCommand</a></li>
 <li><a href="#onconfigverify">OnConfigVerify</a></li>
 <li><a href="#onconfigapply">OnConfigApply</a></li>
@@ -118,6 +120,20 @@ p.OnDecodeCapability(func(code uint8, hex string) (any, error) { ... })
 p.Run(ctx, &amp;sdk.Registration{...})
 </code></pre>
 <h2 id="handler-reference">Handler Reference</h2>
+<h3 id="oncurrentselection">OnCurrentSelection</h3>
+<!-- source: pkg/plugin/sdk/sdk_current_selection.go -- OnCurrentSelection -->
+<p>Register this handler when a selecting plugin can answer its current desired
+selection for a destination session and native keys. The SDK declares support
+from the handler registration. This does not grant permission to send routes.
+Return the exact requested scope and ordered key/revision echoes, the current
+selection cut, and each key's explicit presence and current revision. Return no
+candidate routes. An absent key has revision zero; a present key's revision
+cannot exceed the cut.</p>
+<p>The handler runs on a separate bounded worker and may overlap ordinary events,
+execute-command and source-policy handlers. Read only a published snapshot;
+never call engine RPC, perform I/O or take election or peer locks. Honor the
+context. <code>Run</code> cancels and joins this worker before returning, so state remains
+owned until that return.</p>
 <h3 id="onconfigure">OnConfigure</h3>
 <p>Called during Stage 2 when the engine delivers config sections.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure -->
@@ -221,6 +237,14 @@ p.Run(ctx, &amp;sdk.Registration{...})
 })
 </code></pre>
 <p>Return <code>nil</code> to acknowledge, or an error to signal failure.</p>
+<h3 id="oneventsettlement">OnEventSettlement</h3>
+<p>Register this handler before <code>Run</code> when an event starts deferred work. The global
+quiesce barrier calls it after earlier events were applied. Return only after
+their downstream effects complete, and honor the supplied context. The handler
+runs on an independent bounded worker, so events and nested engine calls can
+continue while it waits. A synchronous observer needs no settlement handler.</p>
+<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement, EventSettlementHandler -->
+<!-- source: internal/component/plugin/process/event_settlement.go -- SettleEventsApplied -->
 <h3 id="onexecutecommand">OnExecuteCommand</h3>
 <p>Called at runtime when the engine routes a command to the plugin.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
@@ -956,7 +980,7 @@ return fmt.Errorf("validation failed")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

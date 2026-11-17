@@ -9,6 +9,15 @@ program in declare mode (`ZE_PLUGIN_MODE=declare`, described in
 [protocol.md](../protocol/index.md), "Query Mode: Answering Without Starting") and judges
 what the program wrote. It needs no daemon and no config file.
 
+With no daemon running, the checker is the only command that starts your
+program. `ze show plugin declarations config <file>` starts no external plugin
+then: it lists your plugin with the state `not-available`, and its reason names
+this checker and the form a running Ze answers. A running Ze starts your
+program in declare mode when you type `show plugin declarations config <file>`
+in the session `ze cli` opens, and the row then carries what your plugin
+declares.
+<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
+
 Two commands run the same checker and write the same rows:
 
 ```bash
@@ -30,6 +39,14 @@ budget `ze.plugin.query.timeout` sets, 5 seconds by default.
 <!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
 <!-- source: internal/le/plugin/conformance/actions.go -- runCheck -->
 <!-- source: internal/component/plugin/conformance/conformance.go -- Run, DefaultName -->
+
+A caller cancellation or deadline stops the query's isolated process group and
+joins it before the checker answers. That interruption produces an error and no
+completed conformance report; it does not claim that the plugin failed. If the
+caller remains active and the query's own budget expires, the `exits-clean` row
+still fails.
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run -->
+<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration, canceledDeclarationQuery -->
 
 ### The report
 
@@ -107,7 +124,7 @@ start ze.
 |------|---------|
 | 0 | No row failed. Some rows are `not-judged` |
 | 1 | One row or more failed |
-| 2 | The run did not happen, so there is no report: no run string, no shell on this host, an invalid budget, or a caller that is not local |
+| 2 | No completed report: no run string, no shell on this host, an invalid budget, a caller that is not local, or caller cancellation or deadline during the query |
 <!-- source: internal/component/plugin/conformance/conformance.go -- ExitConforms, ExitViolation, ExitNoRun, Run -->
 
 ### A sample report

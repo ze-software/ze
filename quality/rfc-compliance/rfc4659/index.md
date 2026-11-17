@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 2 | of 18 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 18 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 18 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 11 | 11 of 28 tests linked to requirements, 0 without a fault test and 10 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 13 | 13 of 28 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -23,7 +23,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Declared gap or no test | 13 | of 18 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 6 | of 18 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 6 | of 18 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -242,10 +242,10 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4659VPNv6RouteWithheldWhenNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L88) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC4659VPNv6RouteWithheldWhenNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L88) | unit/verify | mutant, verified |
 | negative | [`TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L143) | unit/verify | revert, verified |
 | negative | [`TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L218) | unit/verify | not verified |
-| positive | [`TestRFC4659VPNv6RouteSentWhenNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L68) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC4659VPNv6RouteSentWhenNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L68) | unit/verify | mutant, verified |
 | positive | [`TestRFC4659VPNv6UpdateAcceptedWhenNegotiated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L129) | unit/verify | revert, verified |
 | positive | [`TestOpenAdvertisesVPNv6Capability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L173) | unit/verify | revert, verified |
 
@@ -361,7 +361,7 @@ No test carries RFC4659-8-4, so there is no linked test.
 
 When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)
 
-Audit verdict: unimplemented (no code path enforces the requirement), fresh. Independent AC12 rejudgment on 2026-11-16 against RFC4659 Section8 approach(b): the IPv6-transport-conditioned SHALL still applies. The current buildMPReachVPN selects the registered profile and writes the supplied next-hop addresses and labels; mpReachNextHopHandler materializes a next-hop Set while preserving the remaining NLRI. Neither selects IPv6 tunnel transport or installs an ASBR-local VPN label/forwarding relationship. RIB checkRouteBestChange now handles opaque route selection too, but only CIDR families mirror into prefix-keyed Loc-RIB; selectedProjection.prepare requires a registered IP family and valid unmapped unzoned CIDR prefix. Thus generic VPN control-plane handling is implemented while the integrated option-(b) service remains absent. No positive/negative carriers tag this row. Retain unimplemented and the explicit gap, with no exemption or whole-row credit. The annotation still names retired sysrib.go::processEvent and should be corrected to the actual projection_path.go::selectedProjection.prepare guard without changing the RFC quote or narrowing applicability. No run or proof replay performed.
+Audit verdict: unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::RIBManager.checkRouteBestChange moved. Independent AC12 rejudgment on 2026-11-16 against RFC4659 Section8 approach(b): the IPv6-transport-conditioned SHALL still applies. The current buildMPReachVPN selects the registered profile and writes the supplied next-hop addresses and labels; mpReachNextHopHandler materializes a next-hop Set while preserving the remaining NLRI. Neither selects IPv6 tunnel transport or installs an ASBR-local VPN label/forwarding relationship. RIB checkRouteBestChange now handles opaque route selection too, but only CIDR families mirror into prefix-keyed Loc-RIB; selectedProjection.prepare requires a registered IP family and valid unmapped unzoned CIDR prefix. Thus generic VPN control-plane handling is implemented while the integrated option-(b) service remains absent. No positive/negative carriers tag this row. Retain unimplemented and the explicit gap, with no exemption or whole-row credit. The annotation still names retired sysrib.go::processEvent and should be corrected to the actual projection_path.go::selectedProjection.prepare guard without changing the RFC quote or narrowing applicability. No run or proof replay performed.
 
 No test carries RFC4659-8-5, so there is no linked test.
 

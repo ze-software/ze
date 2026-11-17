@@ -219,6 +219,12 @@ This page is the infrastructure it is owed against.</p>
 </tr>
 </tbody>
 </table>
+<p>The PPPoE suite's <code>pppoe-shared-access-two-clients</code> scenario uses the actual
+daemon and two pppd 2.5.5 clients on one native VLAN. Its checker requires
+separate discovery, authenticated IPCP, kernel interfaces and bound traffic,
+then independent teardown with the original survivor still forwarding. It is
+classless fixture support, with no CoS or native-retirement claim.</p>
+<!-- source: internal/le/interoplab/pppoe/shared_access_check.go -- checkSharedAccess -->
 <!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber, interop-topology and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp, l2tp-ppp, docker-pppoe-accel verbs -->
 <p>The L2TP lab's <code>lcp-restart-timer-pppd</code> scenario first proves a working PPP
@@ -6460,7 +6466,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

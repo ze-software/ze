@@ -9,7 +9,7 @@ Packet filter and NAT rules (nftables on Linux)
 | Registry area | Firewall |
 | Kind | Runtime plugin |
 | Source path | `internal/component/firewall` |
-| YANG modules | 2 |
+| YANG modules | 3 |
 
 ## Configuration
 
@@ -36,5 +36,5 @@ Order only when both plugins are selected; never auto-loads a plugin.
 
 Package: `internal/component/firewall`
 
-YANG files: `internal/component/firewall/yang/ze-firewall-cmd.yang`, `internal/component/firewall/yang/ze-firewall-conf.yang`
+YANG files: `internal/component/firewall/yang/ze-firewall-api.yang`, `internal/component/firewall/yang/ze-firewall-cmd.yang`, `internal/component/firewall/yang/ze-firewall-conf.yang`
 Metadata source: `Registration`

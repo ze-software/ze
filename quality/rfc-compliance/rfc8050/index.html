@@ -138,7 +138,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>1</strong><b>of 6 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 6 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 6 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -656,7 +656,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8050-x-4"><code>RFC8050-x-4</code></a></h3>
 <p>MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/incoming_candidate.go::adoptIncoming moved. Independent rejudgment against RFC 8050 Section 2: &#34;In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.&#34; Read all current tagged units and their assertion-producing helpers. Subtype-only controls decode all four ADD-PATH and four ordinary BGP4MP forms under both timestamp types without OPENs, preserving exact prefixes, identifiers including zero, and complete bytes. Mixed-family/direction controls require actual matching directional OPENs and refuse missing, stale, repeated, unrelated, identity-mismatched or independently opened context rather than guessing a mode. Real command handlers preserve that refusal and decode the exact mixed route counts with valid context. The changed live collision carrier preserves its original winner socket and OPEN occurrences at both handoff barriers. BGP4MP has no TCP ports: the full overlapping stream must report context unavailable; a separate known-winner decoder is explicitly seeded only from that TCP connection&#39;s two captured OPEN occurrences and excludes the observed old-socket Cease. It still asserts exact directional mixed prefixes and Path Identifiers, isolated subtype controls and record counts. Adoption retains the original Session rather than taking the old acceptWithOpen path. The migration carrier also pins the actual fallback OPEN identity and retained writer epoch. These are data/connection evidence assertions, not a claim that ambiguous overlapping TCP epochs can be inferred from one MRT endpoint tuple.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment against RFC 8050 Section 2: &#34;In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.&#34; Read all current tagged units and their assertion-producing helpers. Subtype-only controls decode all four ADD-PATH and four ordinary BGP4MP forms under both timestamp types without OPENs, preserving exact prefixes, identifiers including zero, and complete bytes. Mixed-family/direction controls require actual matching directional OPENs and refuse missing, stale, repeated, unrelated, identity-mismatched or independently opened context rather than guessing a mode. Real command handlers preserve that refusal and decode the exact mixed route counts with valid context. The changed live collision carrier preserves its original winner socket and OPEN occurrences at both handoff barriers. BGP4MP has no TCP ports: the full overlapping stream must report context unavailable; a separate known-winner decoder is explicitly seeded only from that TCP connection&#39;s two captured OPEN occurrences and excludes the observed old-socket Cease. It still asserts exact directional mixed prefixes and Path Identifiers, isolated subtype controls and record counts. Adoption retains the original Session rather than taking the old acceptWithOpen path. The migration carrier also pins the actual fallback OPEN identity and retained writer epoch. These are data/connection evidence assertions, not a claim that ambiguous overlapping TCP epochs can be inferred from one MRT endpoint tuple. Final closure rejudgment: independently reread the complete RFC 8050, its Section 2 rationale and Section 3 complete-message constraint, all 21 tagged entries and their assertion-producing helpers, current MRT context producers, both wire observers, and incoming adoption. The incoming Session is still acquired on its original TCP connection. Private decoded OPEN observations now wait for selection in a bounded owned pair, with callbacks outside the epoch mutex and replay after selected validation/liveness checks before peer-up. That semantic publication does not recapture frames or increment physical counters: readFrame and the observed writer still supply actual original directional OPENs at transport time, including losing observations and the old-socket Cease. The exact winner byte/count assertions, deliberately unavailable overlapping-stream context and separately seeded known-winner decode remain the correct bounded claims. All 21 entries and seven existing producer keys remain intact; this verdict does not infer TCP ports absent from BGP4MP or invent mixed-family negotiation from the subtype.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -724,12 +724,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L36" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_migration_epoch_test.go#L27" title="internal/component/bgp/reactor/rfc8050_migration_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTMigrationEpochUsesActualLocalOPEN</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L22" title="internal/component/bgp/reactor/rfc8050_mrt_observer_test.go" target="_blank" rel="noopener"><code>TestRFC8050MessageCallbackPreservesEncodingAndFraming</code></a></td>
@@ -946,7 +946,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -231,6 +231,22 @@ error rather than reading empty. A file literally named <code>-</code> is addres
 <code>ze config rollback</code>, <code>ze config history</code>) reject <code>-</code> because they need a TTY or
 on-disk revision history that a pipe does not have.</p>
 <!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
+<p>When the input is on another machine, the daemon can inspect supplied bytes
+without reading a caller-named path. Use <code>show config supplied dump</code>,
+<code>validation</code>, <code>fmt</code> or <code>graph</code> with <code>content &lt;base64&gt;</code> and an optional
+<code>name &lt;filename&gt;</code> diagnostic label. Dump also accepts <code>strip-private</code>; fmt
+accepts <code>check</code> or <code>diff</code>. These read-only commands use the same producers as
+the file commands and do not stage or apply configuration.</p>
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler -->
+<p><code>show config supplied diff content &lt;base64&gt;</code> compares one encoded JSON object
+with <code>before</code> and <code>after</code> fields containing the two native configuration
+strings. Encode the whole object once. The combined object, or one ordinary
+source, is limited to 195,840 bytes before base64 encoding. The encoded
+content is masked in command records.</p>
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, show config supplied diff -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedPair -->
+<!-- source: internal/core/redact/redact.go -- Command -->
 <p>MRT analysis (<code>le mrt show</code>, <code>density</code>, and content filters) derives mixed-family
 ADD-PATH decoding from both actual directional OPEN messages in the same input.
 Missing or ambiguous negotiation is an explicit decoding error, not a successful
@@ -488,7 +504,7 @@ moves you keeps its move, so <code>top edit bgp</code> goes to <code>bgp</code>.
 editor prints inside an <code>edit</code> context reads <code>top set &lt;full path&gt; ...</code>, which
 is exact from any position. The editor commands are in
 <a href="../config-editor/#editor-commands">Configuration Editor</a>.</p>
-<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 <p><strong>Storage:</strong></p>
 <pre><code>ze config import &lt;file&gt;...       # Import files into the database
 ze config import --name &lt;n&gt; &lt;file&gt;  # Import under a different name
@@ -1237,7 +1253,7 @@ IP address.</p>
 <p>What each plugin declares: the commands it serves and the pipe aliases it puts
 on them. <code>show plugin list</code> answers which plugins the binary carries; this
 command answers what they declare. Answered in the operator's own process, so
-it needs no daemon.</p>
+it needs no daemon for the plugins this binary carries.</p>
 <pre><code>ze show plugin declarations                             # the plugins this binary carries
 ze show plugin declarations config /etc/ze/ze.conf      # plus the plugins that file names
 </code></pre>
@@ -1245,11 +1261,35 @@ ze show plugin declarations config /etc/ze/ze.conf      # plus the plugins that 
 The <code>config &lt;path&gt;</code> form adds one row for each plugin the file declares, and
 the config block decides where that row's declaration comes from. An <code>internal</code>
 block names code this binary carries, so the row is answered from the
-registration. An <code>external</code> block names another program, so the row is answered
-by starting that program with <code>ZE_PLUGIN_MODE=declare</code> in its environment, with
-every <code>ze.plugin.</code> variable removed, and reading the one framed declaration line
-it writes to stdout. Anything else the child writes is ignored, so a banner or a
-log line cannot corrupt the answer.</p>
+registration. An <code>external</code> block names another program, and only that program
+can say what it declares.</p>
+<p>With no daemon running, Ze starts no external plugin. The <code>ze</code> command and
+<code>ze cli -c</code> answer in their own process, so there the row of an external plugin
+reads <code>not-available</code>: the plugin is declared in the config, and nobody asked
+its program. The reason names the two commands that read the declaration:</p>
+<table>
+<thead>
+<tr>
+<th>To read the declaration</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>From a running Ze</td>
+<td><code>ze cli</code>, then type <code>show plugin declarations config &lt;path&gt;</code> in that session. The file must be in the configuration directory of that Ze</td>
+</tr>
+<tr>
+<td>With no daemon, by starting the program yourself</td>
+<td><code>ze show plugin conformance run "&lt;run string&gt;"</code></td>
+</tr>
+</tbody>
+</table>
+<p>A running Ze answers the row by starting the program with
+<code>ZE_PLUGIN_MODE=declare</code> in its environment, with every <code>ze.plugin.</code> variable
+removed, and reading the one framed declaration line it writes to stdout.
+Anything else the child writes is ignored, so a banner or a log line cannot
+corrupt the answer. SSH, the web UI, MCP, REST and gRPC reach the same handler.</p>
 <p>Every pipe operator applies: <code>| json</code>, <code>| yaml</code>, <code>| table</code>, <code>| count</code>,
 <code>| match &lt;text&gt;</code>, <code>| first &lt;n&gt;</code>. The rows carry these keys:</p>
 <table>
@@ -1270,7 +1310,7 @@ log line cannot corrupt the answer.</p>
 </tr>
 <tr>
 <td><code>state</code></td>
-<td>One of the six below</td>
+<td>One of the seven below</td>
 </tr>
 <tr>
 <td><code>commands</code></td>
@@ -1318,11 +1358,17 @@ log line cannot corrupt the answer.</p>
 <td><code>not-judged</code></td>
 <td>an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration</td>
 </tr>
+<tr>
+<td><code>not-available</code></td>
+<td>the plugin is external and no daemon runs here, so its program was not started and nobody asked it</td>
+</tr>
 </tbody>
 </table>
 <p>No plugin is ever omitted: a plugin that could not answer keeps its row and says
 why. <code>declared-none</code> and <code>no-answer</code> stay apart, because a plugin with nothing
-to declare and a plugin that answered nothing are different facts.</p>
+to declare and a plugin that answered nothing are different facts. An external
+block that names no <code>run</code> command reads <code>unstartable</code> in both places: no
+process could start it.</p>
 <p>A declaration that was read is judged by the checks the daemon applies at
 Stage 1, so a row reads <code>declared</code> only when the daemon would start the plugin.
 A refused declaration reads <code>unstartable</code>, and its reason is the daemon's own.
@@ -1332,7 +1378,9 @@ binary, and its reason says to run the command from <code>ze</code>.</p>
 <code>ze.plugin.query.timeout</code> sets it. Zero or less is refused rather than read as
 "wait no time". A plugin that runs out of it is stopped with everything it
 started.</p>
-<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
+<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
+<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
+<!-- source: internal/component/config/declared_schemas.go -- DeclaredSchemas.Offline -->
 <!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
 <!-- source: internal/component/plugin/declaration_judge.go -- JudgeDeclaration, ErrNoDeclarationJudge -->
 <h3 id="show-plugin-conformance-run">show plugin conformance run</h3>
@@ -1415,8 +1463,10 @@ with the <code>ze_container</code> tag and runs in the daemon, in the <code>cont
 </code></pre>
 <p>There is no start command and no stop command: the <code>enabled</code> statement of a
 container says whether it runs.</p>
-<p>The container runtime is not complete, so no build starts a container today
-and the command answers one of these refusals:</p>
+<p>For an enabled container the command stops it when it runs, then starts it
+again, and answers the container's name and the state it holds after the
+start. No shipped build holds an image store yet, so a start there is
+refused. The command answers one of these refusals:</p>
 <table>
 <thead>
 <tr>
@@ -1442,15 +1492,25 @@ and the command answers one of these refusals:</p>
 <td><code>set container instance &lt;name&gt; enabled true</code></td>
 </tr>
 <tr>
-<td><code>container &lt;name&gt; cannot run: this build of ze does not start containers yet</code></td>
-<td>the container is enabled</td>
+<td><code>container &lt;name&gt; cannot start: this build of ze holds no image store</code></td>
+<td>the container is enabled, and the build has no store to take its image from</td>
 <td><code>set container instance &lt;name&gt; enabled false</code></td>
+</tr>
+<tr>
+<td><code>container &lt;name&gt; cannot start: containers run on Linux only</code></td>
+<td>the daemon runs on another platform</td>
+<td><code>set container instance &lt;name&gt; enabled false</code></td>
+</tr>
+<tr>
+<td><code>container &lt;name&gt; was not created: &lt;step&gt;</code>, or another start step that failed</td>
+<td>a step of the start failed; the container was removed</td>
+<td><code>ze request container restart name &lt;name&gt;</code> once the cause is fixed</td>
 </tr>
 </tbody>
 </table>
 <!-- source: internal/plugins/container/container.go -- handleCommand, commandDecls -->
-<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, unknownInstance -->
-<!-- source: internal/plugins/container/config.go -- runtimeNotBuilt -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, supervisor.stopThenStart, unknownInstance, noImageStore, noRuntime -->
+<!-- source: internal/plugins/container/library_linux.go -- createFailed -->
 <!-- source: internal/plugins/container/yang/ze-container-cmd.yang -- YANG schema -->
 <h3 id="request-plugin-restart">request plugin restart</h3>
 <p>Restarts a configured plugin without restarting ze, whether it runs or not.
@@ -4437,6 +4497,11 @@ answered a different peer on each call.</p>
 <td>Dry-run the peer's configured export chain against a BGP UPDATE</td>
 </tr>
 <tr>
+<td><code>show policy test peer &lt;sel&gt; export route-kind local update &lt;HEX&gt;</code></td>
+<td>read-only</td>
+<td>Predict export of a local announcement instead of the default learned route</td>
+</tr>
+<tr>
 <td><code>show policy test peer &lt;sel&gt; import update &lt;HEX&gt;</code></td>
 <td>read-only</td>
 <td>Dry-run the peer's configured import chain against a BGP UPDATE</td>
@@ -4451,12 +4516,20 @@ answered a different peer on each call.</p>
 <p>The peer selector comes first (<code>peer &lt;sel&gt;</code>, matching <code>show bgp peer &lt;sel&gt; ...</code>), then the direction (<code>import</code>/<code>export</code>), then optional <code>filter &lt;NAME&gt;</code>, then <code>update &lt;HEX&gt;</code>.</p>
 <p><code>&lt;HEX&gt;</code> is a hex-encoded full BGP UPDATE message (including the 19-byte header). The <code>0x</code> prefix is optional.</p>
 <p>Optional: <code>source-asn4 false</code> to paste an UPDATE as received over a two-octet session (default: ASN4). The dry-run first merges its AS4_PATH and AS4_AGGREGATOR into the four-octet form, as the live import does (RFC 6793 Section 4.2.3), and explains that route, which is the one the filters see.</p>
+<p>On export, <code>route-kind learned</code> is the default and <code>route-kind local</code> predicts
+a local announcement. The result reports <code>simulated-route-kind</code>. A resolved
+explicit role keeps its default for either choice, identified by
+<code>role-default: true</code>. The choice is read-only and authorizes no live route.
+Import refuses this argument; unknown values are also refused. Without an
+export policy, an internal destination rejects learned routes and permits
+local routes, while an external destination rejects both. An internal
+learned-route rejection reports <code>policy.final-source: learned-export-policy</code>.</p>
 <p>Output is structured JSON with fields: <code>direction</code>, <code>peer</code>, <code>action</code> (accept/reject/modify/undetermined), <code>trace</code> (per-filter decisions), <code>text-before</code>, <code>text-after</code>, <code>changed-attrs</code>, and <code>wire-changes</code> (the wire-level attribute operations the chain applies, such as <code>AS_PATH set</code>, which <code>text-before</code> and <code>text-after</code> cannot show). An export dry-run toward an internal peer lists no <code>AS_PATH</code> operation, because the export chain applies no <code>as-path-prepend</code> or <code>remove-private</code> toward one (RFC 4271 Section 5.1.2).</p>
 <p>If the remote AS is unresolved, <code>action</code> is <code>undetermined</code> and <code>reason</code> tells you
 to wait for establishment and repeat <code>show policy test</code>. No filter executes,
 including a single-filter override. Trace and text are empty, with no wire
 changes. For a known EBGP session, an absent direction has a rejecting final.
-<code>policy</code> reports the direction's effective final, as <code>show policy chain</code> does:
+<code>policy</code> reports the simulated route class's effective final:
 <code>final-source: rfc8212</code> marks the RFC 8212 default reject on an EBGP direction
 with no policy, and <code>undetermined</code> an absent direction whose session type is not
 known yet.</p>
@@ -5759,7 +5832,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

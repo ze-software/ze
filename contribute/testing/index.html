@@ -63,6 +63,7 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <ol>
 <li><a href="#unit-tests-testgo">Unit tests (*_test.go)</a>
 <ol>
+<li><a href="#plugin-transport-fixtures">Plugin transport fixtures</a></li>
 <li><a href="#kernel-tests-in-a-user-namespace">Kernel tests in a user namespace</a></li>
 <li><a href="#fixture-environment-isolation">Fixture environment isolation</a></li>
 </ol></li>
@@ -276,6 +277,16 @@ namespace collisions. A list of caller filenames or helper names proves neither.
 For example, the redirect tests pass plugin JSON through the RIB parser before
 querying the session's effective setting.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
+<h4 id="plugin-transport-fixtures">Plugin transport fixtures</h4>
+<!-- source: internal/test/pluginengine/pluginengine.go -- IssueSource, sourceLeaseAnswer -->
+<p>Plugin transport fixtures use <code>internal/test/pluginengine</code> to run a plugin's
+actual entry point and SDK callbacks over the framed connection and bridge.
+A received route that requires a source lease must carry a receipt the fixture
+engine issued with <code>IssueSource(peer)</code>. Reuse it for that source Session's
+UPDATEs; a successor Session receives a new one. The fake engine refuses an
+unissued receipt and retention or release before acquisition. These checks
+exercise transport and ownership lifecycle; the real engine's grant and
+original-Session authorization are proved by its own tests.</p>
 <h4 id="kernel-tests-in-a-user-namespace">Kernel tests in a user namespace</h4>
 <p>A unit test that needs kernel privilege (links, routes, XFRM, nftables,
 conntrack, raw or AF_PACKET sockets, a low port, a named network namespace)
@@ -1268,7 +1279,7 @@ negotiated link-local address pair.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -61,15 +61,23 @@ The config block decides where a row's declaration comes from, because the
 block says which binary holds the plugin's code. An `internal` block names code
 this binary carries, so the row is answered from the compiled-in
 `registry.Registration` and no process is started. An `external` block names
-another program, whatever name the block gives it, so the row is answered by
-starting that program in query mode (`ZE_PLUGIN_MODE=declare`), with every
-`ze.plugin.` variable removed from the child's environment, and reading the
-declaration it writes to stdout. A block reading `external mrt { run
-"/opt/vendor/my-mrt" }` is a vendor's program that took a name Ze also uses,
-and it answers for itself. Anything else the child writes is ignored, so a
-banner or a log line cannot corrupt the answer.
+another program, whatever name the block gives it, so only that program can
+answer. A block reading `external mrt { run "/opt/vendor/my-mrt" }` is a
+vendor's program that took a name Ze also uses, and Ze's own `mrt` declaration
+is never its answer.
 
-The state field carries one of six values, so absence never stands in for an
+Whether that program is asked depends on where the command runs. With no
+daemon running, Ze starts no external plugin: `ze show plugin declarations
+config <path>` and `ze cli -c` answer in their own process, the row reads
+`not-available`, and its reason names the two commands that read the
+declaration. A running Ze starts the program in query mode
+(`ZE_PLUGIN_MODE=declare`), with every `ze.plugin.` variable removed from the
+child's environment, and reads the declaration it writes to stdout: type the
+same command in the session `ze cli` opens. Anything else the child writes is
+ignored, so a banner or a log line cannot corrupt the answer. With no daemon,
+`ze show plugin conformance run "<run string>"` starts the program you name.
+
+The state field carries one of seven values, so absence never stands in for an
 answer:
 
 | State | What it means |
@@ -80,13 +88,14 @@ answer:
 | `unstartable` | the process could not be started, or it wrote a declaration the daemon refuses at Stage 1 |
 | `timeout` | the process started, wrote no declaration inside the budget, and was stopped |
 | `not-judged` | an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration |
+| `not-available` | the plugin is external and no daemon runs here, so its program was not started and nobody asked it |
 
 A declaration that was read is judged by the checks the daemon applies at
 Stage 1, so a row reads `declared` only when the daemon would start the plugin.
 `ze show plugin conformance run "<run string>"` judges one program against the
 same checks and writes one row for each check
 (`docs/plugin-development/testing.md`).
-<!-- source: internal/component/plugin/declarations.go -- queriedDeclarationRow, stateUnjudged -->
+<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow, stateUnjudged, stateNotAvailable -->
 <!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
 
 The budget is 5 seconds, the same wait a startup stage gets, and

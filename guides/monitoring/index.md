@@ -163,15 +163,18 @@ prefixes held for snapshot or forwarding reconciliation.
 The `netdata` block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as `ze_bgp_*`, `ze_bfd_*`, or `ze_l2tp_*`.
 
 PPP cleanup failures remain visible in `show doctor` as `doctor-ppp-cleanup`
-and in the `ppp-cleanup` health row. The finding names the created interface,
-its native index and the backend error. `show warnings` shows the retained
-details. Network-resource cleanup and session-owner release retain separate
+and in the `ppp-cleanup` health row. Resource failures name the created interface,
+its native index and the backend error. A failed realm admission handback names
+the retained subscriber, access interface index, realm and cause; it does not
+invent native interface identity. `show warnings` shows the retained details.
+Network-resource cleanup and session-owner release retain separate
 causes when both fail for the same interface. Repair the reported backend and confirm resource removal before
 restarting service. A later successful session does not clear this finding;
 report-bus eviction is reported as uncertainty rather than recovery.
 <!-- source: internal/component/l2tp/ppp/cleanup_health.go -- ReportCleanupFailure -->
 <!-- source: internal/component/l2tp/doctor_cleanup.go -- checkPPPCleanup -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- closeAdmitted, closeSession, closeTransport -->
+<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run -->
 
 ```
 telemetry {
@@ -458,6 +461,25 @@ hidden path is and which chain hid it: `show rib candidates prefix <prefix>`
 | `ze_uptime_seconds` | gauge | Seconds since reactor started |
 | `ze_peers_configured` | gauge | Number of configured peers |
 | `ze_cache_entries` | gauge | UPDATE cache entry count |
+
+#### Selected output
+
+The deciding BGP RIB exposes its current output obligations without creating a
+time series per route or Session. These gauges use the RIB's existing ten-second
+refresh. A failed batch remains owed until final reconciliation; completed
+suppression counts as a completed batch because its old output was retired.
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_rib_selected_current_keys` | gauge | Current selected native keys |
+| `ze_rib_selected_destinations` | gauge | Admitted destination Sessions |
+| `ze_rib_selected_pending_keys` | gauge | Pending reconciliation keys across current destinations |
+| `ze_rib_selected_inflight_keys` | gauge | Keys in final-writer batches currently in flight |
+| `ze_rib_selected_failed_destinations` | gauge | Current destinations with an unresolved output failure |
+| `ze_rib_selected_batches_total` | counter | Batches by `outcome`: `completed` or `failed` |
+
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- SetMetricsRegistry -->
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_metrics.go -- updateSelectedMetrics, recordSelectedBatch -->
 
 #### Per-Peer
 

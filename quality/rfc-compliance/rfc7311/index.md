@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 22 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 22 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 22 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 35 | 35 of 81 tests linked to requirements, 0 without a fault test and 20 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 32 | 32 of 81 tests linked to requirements, 0 without a fault test and 23 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -440,18 +440,18 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAIGPDistanceChangeReselectsRetainedRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L103) | unit/verify | mutant, verified |
+| negative | [`TestAIGPDistanceChangeReselectsRetainedRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L103) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestAIGPReadvertisesFromReceivedGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L174) | unit/verify | revert, verified |
 | negative | [`TestRFC7311ExtendedNextHopCostRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go#L103) | unit/verify | revert, verified |
 | negative | [`TestRFC7311RecursiveZeroCostRemainsAnnounced`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go#L27) | unit/verify | revert, verified |
-| negative | [`TestRFC7311ReceivedRecursiveAIGPChangeReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L88) | unit/verify | revert, verified |
+| negative | [`TestRFC7311ReceivedRecursiveAIGPChangeReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L88) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC7311RecursiveAIGPChangeReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L24) | unit/verify | revert, verified |
 | negative | [`TestAIGPRecursiveDistanceUsesReceivedMetrics`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestAIGPDistanceChangeReselectsRetainedRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L102) | unit/verify | mutant, verified |
 | positive | [`TestAIGPReadvertisesFromReceivedGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go#L173) | unit/verify | revert, verified |
 | positive | [`TestRFC7311ExtendedNextHopCostRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go#L102) | unit/verify | revert, verified |
 | positive | [`TestRFC7311RecursiveZeroCostRemainsAnnounced`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go#L26) | unit/verify | revert, verified |
-| positive | [`TestRFC7311ReceivedRecursiveAIGPChangeReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L87) | unit/verify | revert, verified |
+| positive | [`TestRFC7311ReceivedRecursiveAIGPChangeReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L87) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC7311RecursiveAIGPChangeReachesWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestAIGPRecursiveDistanceUsesReceivedMetrics`](https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L16) | unit/verify | revert, verified |
 

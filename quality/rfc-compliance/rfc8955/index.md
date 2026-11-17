@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 21 | of 29 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 5 | of 29 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 29 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 63 | 63 of 108 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 62 | 62 of 108 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -552,7 +552,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. posi
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L159) | unit/verify | revert, verified |
-| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, verified |
+| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC8955-7.3-2`](#rfc8955-7.3-2)
 

@@ -239,8 +239,8 @@ rendered a blank panel and answered 200.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>./le repo update</code></td>
-<td>Regenerates every <code>*_templ.go</code> from its <code>.templ</code> source. Run it after any <code>.templ</code> edit</td>
+<td>Scoped native templ generation</td>
+<td>Regenerates the selected <code>*_templ.go</code> from its <code>.templ</code> source; example below</td>
 </tr>
 <tr>
 <td><code>./le doc check templ-output</code></td>
@@ -248,10 +248,15 @@ rendered a blank panel and answered 200.</p>
 </tr>
 </tbody>
 </table>
-<p>The generator runs from <code>vendor/</code>, so <code>./le repo update</code> needs no network and
-nothing on <code>PATH</code>. Run <code>./le repo update</code>, not a bare <code>templ generate</code>: the walk
-root is written into the generated Go, so a bare run rewrites every file and
-reds the check.</p>
+<p>The native job runs the vendored generator. For example, after changing the
+supplied-input controls:</p>
+<pre><code class="language-bash">./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal" -f internal/component/web/component_graphical_supplied.templ
+</code></pre>
+<p>Choose the edited <code>.templ</code> source with <code>-f</code> and retain the <code>internal/</code> root in
+<code>-path</code>: that root is written into generated runtime filenames and must match
+the checker. <code>./le repo update</code> has no templ stage. The complete workflow is in
+<a href="../../contribute/testing/">Testing</a>.</p>
+<!-- source: internal/le/doc/wiring/templ.go -- answerTemplOutput -->
 <p>The browser assets are vendored in <code>third_party/web/</code> and copied to each
 consumer by the same <code>./le repo update</code> run. htmx 4.0.0 and its
 <code>hx-sse.min.js</code> extension serve the web interface, the looking glass and the
@@ -462,6 +467,20 @@ Accounts with edit permission can disconnect another session; use Discard for
 your own changes. <strong>Display preferences</strong> changes the shared editor's columns
 and diagnostic presentation for your account. These inspection and preference
 controls are available to read-only accounts.</p>
+<p>Open <strong>Inspect supplied configuration</strong> to inspect a local file or pasted text
+without loading it into your candidate. Choose the inspection, then select a
+file or paste configuration. Comparison provides separate <strong>Before</strong> and
+<strong>After</strong> inputs, each accepting a file or paste. The complete input is limited
+to 195,840 bytes; a comparison shares that limit across both sources and their
+framing. Read-only accounts can use these controls when their command policy
+allows the inspection. Results and refusals appear below the form; the selected
+file and pasted text remain available for correction.</p>
+<p>Comparison reports resolved BGP settings and schema-declared ordered-list
+ordering, matching the local file comparison. Other non-BGP value changes,
+including <code>system host</code>, are not reported.</p>
+<!-- source: internal/component/web/component_graphical_supplied.templ -- graphicalSuppliedPanel, graphicalSuppliedInputs -->
+<!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspection -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources, diffListOrders -->
 <p>In <strong>Edit</strong>, open <strong>Import into candidate</strong> to select a local file or paste
 configuration. Choose <strong>Configuration root</strong> for a complete configuration or
 <strong>Selected item</strong> for a body relative to the item you are viewing. <strong>Merge</strong>
@@ -590,6 +609,17 @@ configuration position, for example <code>ze[bgp peer london]#</code>. Commands 
 order, so a command following <code>edit</code> uses the position returned by that edit.
 The page displays command output and feedback separately; the up and down keys
 recall command history when the completion menu is closed.</p>
+<p><strong>Download</strong> saves the current successful command result to your computer, with
+its selected output format. The download uses the answer already received and
+runs no second command. Complete finite and raw streamed results up to 4 MiB
+are supported, including older streamed bytes removed from the visible tail.
+The server must confirm successful stream completion before Download becomes
+available. Failure, Stop, missing completion or an exceeded limit never offers a
+partial capture as a complete file. Starting another command clears the previous
+download. Unfinished confirmation or load requests offer no download.
+Interactive monitors offer a <strong>Current frame snapshot</strong>, which saves only the
+currently displayed frame. A command containing <code>| save</code> still cannot write a
+path on the daemon.</p>
 <p>The authenticated history API is <code>GET /cli?history=1&amp;mode=config</code> (or
 <code>mode=operational</code>). It returns a bounded, masked <code>entries</code> array for the signed-in
 user, and reports an unavailable store as an error. Commands submitted through
@@ -718,6 +748,18 @@ A relative load takes a hierarchical body for the current position; absolute
 loads can also use set-format statements.</p>
 <!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 <!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace -->
+<p>For read-only inspection, operational commands under <code>show config supplied</code>
+accept <code>content &lt;base64&gt;</code> for dump, validation, formatting, dependency graphs
+and comparison. These inspect the supplied bytes without loading them into
+your candidate. Single-source content is the native configuration; comparison
+content is one JSON object with <code>before</code> and <code>after</code> configuration strings,
+encoded together. The decoded input is limited to 195,840 bytes. See the
+<a href="../command-reference/#conventions">command reference</a> for labels and selections.
+The graphical <strong>Inspect supplied configuration</strong> controls compose these inputs
+for you, so no manual base64 encoding is needed when using those forms.</p>
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedPair -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content -->
 <h3 id="completion-and-output-format">Completion and Output Format</h3>
 <p>Tab offers schema and command completions for the terminal's current position.
 Arrow keys or Tab select an item and Enter accepts it. An unquoted <code>?</code> explains
@@ -728,6 +770,10 @@ declared in YANG, including enum members of a union, are offered by the shared
 completer. A failed runtime query displays its reason and correction, so it
 cannot be mistaken for an empty set of values.</p>
 <!-- source: internal/component/web/assets/cli.js -- completionResponse, initTerminal -->
+<p>In configuration mode, <code>top set</code> completes paths from the root, even when your
+current position is nested. <code>top run</code> completes operational commands and live
+argument values as <code>run</code> does. Repeated <code>top</code> prefixes keep that root selection.</p>
+<!-- source: internal/component/web/cli.go -- completeCLIInput, explainCLIInput -->
 <p>In operational mode, <code>set cli format</code> queries the output preference and
 <code>set cli format json</code> selects a format for this authenticated user's session.
 The preference also applies to config-mode <code>run</code> commands; an explicit format
@@ -747,12 +793,17 @@ same producer as the terminal dashboard.</p>
 <strong>Stop</strong> or Ctrl+C ends the stream, and submitting a new command stops the active
 stream before running the next command. Leaving the page also cancels it. The
 browser removes ended controls and shows why a failed action or producer could
-not continue. Raw text streams are bounded at 4 MiB by the server; the browser
-keeps at most 1 MiB of visible text and marks older output that it has removed.
-Interactive views retain only the latest frame, limited to 64 KiB. Unsupported
-live pipe filters are refused with a reason.</p>
+not continue. Raw streams are bounded at 4 MiB by the server; the browser keeps a
+bounded visible tail and marks older output that it has removed. A completed
+download retains the original bytes, including those no longer visible.
+Interactive views retain only the latest frame, limited to 64 KiB. Live commands
+accept the same stream pipes as the CLI, such as <code>| json</code>, <code>| log</code> and
+<code>| match &lt;text&gt;</code>. Invalid chains name the refused pipe. Remote <code>| save &lt;path&gt;</code>
+is refused; use Download to save results on your computer. A raw piped event
+larger than 4 MiB stops the stream with a reason.</p>
 <!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
 <!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
+<!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes -->
 <!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 <h2 id="live-updates">Live Updates</h2>
 <p>The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.</p>
@@ -833,7 +884,7 @@ data: &lt;html-fragment&gt;
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

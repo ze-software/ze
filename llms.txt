@@ -14,17 +14,17 @@ This file collects information for AI tools in one place. It describes the produ
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 518 CLI commands, 39 config sections, 98 plugin registrations, 60 direct Go dependencies, 46 update reports.
-- Test evidence counts: 47,500+ unit tests, 110 fuzz targets, 3,000+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
+- Current generated counts: 52 shipped or experimental feature cards, 534 CLI commands, 39 config sections, 98 plugin registrations, 64 direct Go dependencies, 46 update reports.
+- Test evidence counts: 48,300+ unit tests, 110+ fuzz targets, 3,000+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-11-16.
+- Generated date: 2026-11-17.
 
 ## Quality and verification model
 
 Ze tests behavior at several levels because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 47,500+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 110 fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 48,300+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 110+ fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
@@ -197,7 +197,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `bgp-softver`: Software Version capability (code 75) Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/softver`.
 - `bgp-watchdog`: Watchdog route management plugin Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/watchdog`.
 - `connected`: Connected routes: redistribute directly connected interface prefixes Config roots: connected. Dependencies: policy. Optional: none. Start after (order only): redistribute-orchestrator. YANG files: 1. Source: `internal/plugins/connected`.
-- `container`: OCI containers run by ze: confined, limited, supervised and removed without a trace Config roots: container. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/container`.
+- `container`: OCI containers run by ze: confined, limited, supervised and removed without a trace Config roots: container. Dependencies: sysctl. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/container`.
 - `copp`: Control-plane policing: rate-limit new TCP connections to BGP listen port Config roots: control-plane-protection. Dependencies: firewall. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/copp`.
 - `cos`: 802.1p class-of-service profile definitions Config roots: class-of-service. Dependencies: none. Optional: none. Start after (order only): l2tp-auth-radius. YANG files: 1. Source: `internal/plugins/cos`.
 - `crashes`: Crash capture: kernel crash record harvest at daemon start, crash reports Config roots: none. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/crashes`.
@@ -212,7 +212,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `fib-kernel`: FIB kernel: programs OS routes from system RIB via netlink/route socket Config roots: fib/kernel. Dependencies: rib, sysctl. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/kernel`.
 - `fib-p4`: FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime Config roots: fib/p4. Dependencies: rib. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/p4`.
 - `fib-vpp`: FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API Config roots: fib/vpp. Dependencies: rib, vpp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/vpp`.
-- `firewall`: Packet filter and NAT rules (nftables on Linux) Config roots: firewall, system/conntrack. Dependencies: none. Optional: vpp. Start after (order only): none. YANG files: 2. Source: `internal/component/firewall`.
+- `firewall`: Packet filter and NAT rules (nftables on Linux) Config roots: firewall, system/conntrack. Dependencies: none. Optional: vpp. Start after (order only): none. YANG files: 3. Source: `internal/component/firewall`.
 - `firewall-domain`: DNS-sourced address groups for firewall rules Config roots: firewall. Dependencies: firewall. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/component/firewall/plugins/domain`.
 - `firewall-irr`: IRR-based prefix-list filtering for firewall rules Config roots: firewall. Dependencies: firewall, irr. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/component/firewall/plugins/irr`.
 - `flow-export`: sFlow, NetFlow v9, and IPFIX counter export Config roots: flow-export. Dependencies: interface. Optional: bgp-rib. Start after (order only): none. YANG files: 1. Source: `internal/plugins/flowexport`.
@@ -222,7 +222,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `iface-ra`: Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861) Config roots: none. Dependencies: interface. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/plugins/iface/ra`.
 - `ike`: IKEv2 engine for native IPsec VPN Config roots: vpn. Dependencies: firewall. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/component/ike/engine`.
 - `imageserver`: Image server: HTTP provisioning for disk images and boot files Config roots: service. Dependencies: none. Optional: none. Start after (order only): interface. YANG files: 1. Source: `internal/plugins/imageserver`.
-- `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: vpp. Start after (order only): none. YANG files: 6. Source: `internal/component/iface`.
+- `interface`: OS network interface monitoring and management Config roots: interface. Dependencies: sysctl. Optional: vpp. Start after (order only): none. YANG files: 7. Source: `internal/component/iface`.
 - `irr`: IRR data owner: fetches, schedules and stores the IRR prefix lists every consumer enforces Config roots: system/irr. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/irr`.
 - `isis`: Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP Config roots: isis. Dependencies: sysctl, policy. Optional: none. Start after (order only): none. YANG files: 2. Source: `internal/plugins/isis`.
 - `kernel`: Kernel routes: redistribute externally-installed kernel routes into BGP Config roots: kernel. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/kernel`.
@@ -252,14 +252,16 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 143 daemon, 12 daemon, offline, 3 offline, 314 read-only, 46 read-only, offline.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 156 daemon, 12 daemon, offline, 3 offline, 317 read-only, 46 read-only, offline.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
-### `clear` commands (32)
+### `clear` commands (34)
 - `clear bgp healthcheck` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear bgp healthcheck`): Reset healthcheck probe to INIT
 - `clear bgp rib advertised` (daemon; wire ze-bgp:rib-clear-advertised; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, family:string; usage `clear bgp rib advertised <selector> [family <family>]`): Withdraw every route advertised to a peer\.
 - `clear bgp rib in` (daemon; wire ze-bgp:rib-clear-in; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `clear bgp rib in <selector>`): Remove all routes received from a peer\.
 - `clear bgp rib out` (daemon; wire ze-bgp:rib-clear-out; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, family:string; usage `clear bgp rib out <selector> [family <family>]`): Re\-advertise all routes to a peer\.
+- `clear container layer` (daemon; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `clear container layer name <container>`): Clear a writable layer\: name \<container\>\.
+- `clear container layer name` (daemon; wire ze-container:clear-layer; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args value:string; usage `clear container layer name <value>`): Empty the named container\'s writable layer\.
 - `clear cymru cache address` (daemon; wire ze-resolve:clear-cymru-cache-address; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args ip-address:union; usage `clear cymru cache address <ip-address>`): Remove the cached Cymru origin of one IP address\.
 - `clear cymru cache all` (daemon; wire ze-resolve:clear-cymru-cache-all; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear cymru cache all`): Remove every cached Cymru answer\.
 - `clear debug` (daemon, offline; wire ze-debug:clear-debug; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear debug`): Clear the default debug profile\.
@@ -289,9 +291,11 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `clear vpn ipsec sa peer` (daemon; wire ze-ike:clear-vpn-ipsec-sa-peer; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `clear vpn ipsec sa peer <name>`): Tear down one peer\'s IKE Security Associations\.
 - `clear vrrp statistics all` (daemon; wire ze-vrrp:clear-statistics; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `clear vrrp statistics all`): Reset every VRRP virtual router\'s counters to zero\.
 
-### `create` commands (11)
+### `create` commands (13)
 - `create agent skill` (daemon, offline; wire ze-skills:create-agent-skill; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args agent:enum; usage `create agent <claude|codex|opencode|pi> skill`): Install the ze skill for the operator\'s agent harnesses\.
 - `create bgp peer` (daemon; wire ze-bgp:peer-create; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:union, asn:union, local-as:union, local-address:union, router-id:string, receive-hold-time:uint, send-hold-time:uint, connect-retry:uint, connect:enum, accept:enum, family:string, graceful-restart:uint, group-updates:enum, attach:string; usage `create bgp peer <selector> <asn> [local-as <local-as>] [local-address <local-address>] [router-id <router-id>] [receive-hold-time <receive-hold-time>] [send-hold-time <send-hold-time>] [connect-retry <connect-retry>] [connect <true|false>] [accept <true|false>] [family <family>] [graceful-restart <graceful-restart>] [group-updates <true|false>] [attach <attach>]`): Add a peer to the running daemon\.
+- `create container image` (daemon; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `create container image reference <image>`): Fetch an image\: reference \<image\>\.
+- `create container image reference` (daemon; wire ze-container:create-image; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args value:string; usage `create container image reference <value>`): Fetch the named image into the store\.
 - `create interface address` (daemon; wire ze-iface:interface-addr-add; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, prefix:union; usage `create interface address <name> <prefix>`): Add an IP address to an interface\.
 - `create interface bridge name` (daemon; wire ze-iface:interface-create-bridge; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `create interface bridge name <name>`): Create a Linux bridge for L2 forwarding\.
 - `create interface bridge name address` (daemon; wire ze-iface:interface-addr-add; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, prefix:union; usage `create interface bridge name <name> address <prefix>`): Add an IP address to the bridge\.
@@ -308,9 +312,14 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `debug ospf inject disable` (daemon; wire ze-ospf:debug-inject-disable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `debug ospf inject disable`): Disable OSPF debug LSA injection\.
 - `debug ospf inject enable` (daemon; wire ze-ospf:debug-inject-enable; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `debug ospf inject enable`): Enable OSPF debug LSA injection \(shared across both address families\)\.
 
-### `delete` commands (8)
+### `delete` commands (13)
 - `delete agent skill` (daemon, offline; wire ze-skills:delete-agent-skill; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args agent:enum; usage `delete agent <claude|codex|opencode|pi|all> skill`): Remove the ze skill from the operator\'s agent harnesses\.
 - `delete bgp peer` (daemon; wire ze-bgp:peer-delete; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `delete bgp peer <selector>`): Remove a peer from the running config\.
+- `delete container image` (daemon; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `delete container image digest <digest>`): Delete images\: digest \<digest\>\, or all\.
+- `delete container image all` (daemon; wire ze-container:delete-image-all; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `delete container image all`): Delete every stored image no configured container holds\.
+- `delete container image digest` (daemon; wire ze-container:delete-image; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args value:string; usage `delete container image digest <value>`): Delete the stored image a digest names\.
+- `delete container volume` (daemon; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `delete container volume name <volume> instance <container>`): Delete a stored volume\: name \<volume\> instance \<container\>\.
+- `delete container volume name` (daemon; wire ze-container:delete-volume; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args value:string, instance:string; usage `delete container volume name <value> <instance>`): Delete a stored volume the configuration no longer declares\.
 - `delete data key` (daemon; wire ze-config:data-key-delete; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args key:string; usage `delete data key <key>`): Remove one runtime\-state key from the daemon\'s store\.
 - `delete debug module` (daemon, offline; wire ze-debug:delete-module; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args module-name:string, flag:string; usage `delete debug module <module-name> [flag <flag>] [scope <kind> <value>]`): Disable debug for a subsystem\, or remove one of its flags or scopes\.
 - `delete debug profile name` (daemon, offline; wire ze-debug:delete-profile-name; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args profile-name:string; usage `delete debug profile name <profile-name>`): Delete a named debug profile\.
@@ -409,7 +418,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request quiesce` (daemon; wire ze-plugin:system-quiesce; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request quiesce`): Block until every subsystem has drained pending async work\, then reply\.
 - `request reboot` (daemon; wire ze-plugin:system-daemon-reboot; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request reboot`): Gracefully shutdown then reboot the system\.
 - `request reload` (daemon; wire ze-plugin:system-daemon-reload; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request reload`): Reload the configuration without restarting\.
-- `request restart` (daemon; wire ze-plugin:system-daemon-restart; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request restart`): Restart the daemon in place with graceful\-restart state\; keep the host running\.
+- `request restart` (daemon; wire ze-plugin:system-daemon-restart; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request restart`): Restart the daemon with graceful\-restart state while keeping the host running\.
 - `request shutdown` (daemon; wire ze-plugin:system-daemon-shutdown; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request shutdown`): Gracefully shutdown\: drain connections\, close peers\, exit\.
 - `request subscribe` (daemon; wire ze-cmd:bgp-subscribe; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request subscribe`): Start receiving events of one or more types\.
 - `request support archive` (daemon, offline; wire ze-support:request-support-archive; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args module:string, exclude:string, since:string, reason:string; usage `request support archive [module <module>] [exclude <exclude>] [since <since>] [reason <reason>]`): Collect logs\, config\, state and diagnostics into one archive\.
@@ -449,7 +458,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set sysctl` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `set sysctl <key> <value>`): Set a transient sysctl value
 - `set system file-descriptors` (daemon; wire ze-host:set-system-file-descriptors; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args limit:union; usage `set system file-descriptors [limit <limit|max>]`): Raise the file descriptor limit for the daemon process\.
 
-### `show` commands (322)
+### `show` commands (325)
 - `show aaa accounting` (read-only; wire ze-aaa:show-accounting; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show aaa accounting`): Show AAA accounting counters and any dropped records\.
 - `show agent context` (read-only, offline; wire ze-skills:show-agent-context; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show agent context`): Show what an agent session is told about this Ze\.
 - `show agent skill` (read-only, offline; wire ze-skills:show-agent-skill; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args agent:enum; usage `show agent <claude|codex|opencode|pi> skill`): Show whether the ze skill is set up for each agent harness\.
@@ -529,6 +538,9 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show config supplied graph` (read-only, offline; wire ze-config-cli:show-config-supplied-graph; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape blob; args content:string, name:string; usage `show config supplied graph <content> [name <name>]`): Show dependencies from supplied configuration bytes\.
 - `show config supplied validation` (read-only, offline; wire ze-config-cli:show-config-supplied-validation; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args content:string, name:string; usage `show config supplied validation <content> [name <name>]`): Validate supplied configuration without applying it\.
 - `show config validation` (read-only, offline; wire ze-config-cli:show-config-validation; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args file:string; usage `show config validation <file>`): Check a config for errors without applying it\.
+- `show container image list` (read-only; wire ze-container:show-image-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show container image list`): Show the images in the store and the fetches in flight\.
+- `show container store` (read-only; wire ze-container:show-store; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show container store`): Show the image store\'s place\, its space and its layers\.
+- `show container volume list` (read-only; wire ze-container:show-volume-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show container volume list`): Show the stored volumes\, their size and their use\.
 - `show crashes` (read-only; wire ze-crashes:show-crashes; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show crashes [name <name>]`): View saved crash reports\, and whether kernel capture is armed\.
 - `show data cat` (read-only, offline; wire ze-config-storage:show-data-cat; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape blob; args key:string; usage `show data cat <key>`): Print the value of a storage key\.
 - `show data check` (read-only, offline; wire ze-config-storage:show-data-check; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show data check`): Check the integrity of the store\'s entries and config history\.
@@ -692,7 +704,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show policy chain peer` (read-only; wire ze-bgp:show-policy-chain; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `show policy chain peer <selector> [import|export]`): Show the import\/export filter chain applied to a peer\.
 - `show policy list` (read-only; wire ze-cmd:show-policy-list; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show policy list`): List all available filter types and named instances\.
 - `show policy routes` (read-only; wire ze-policyroute:show-policy-routes; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show policy routes`): Show policy\-based routing rules\.
-- `show policy test peer` (read-only; wire ze-bgp:show-policy-test; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, direction:enum; usage `show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>]`): Test what your policy does to a specific UPDATE\.
+- `show policy test peer` (read-only; wire ze-bgp:show-policy-test; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string, direction:enum; usage `show policy test peer <selector> <import|export> [filter <name>] update <hex> [route-kind <learned|local>] [source-asn4 <true|false>]`): Test what your policy does to a specific UPDATE\.
 - `show pppoe` (read-only; wire ze-l2tp:pppoe-summary; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show pppoe`): PPPoE session and protocol state\.
 - `show pppoe interfaces` (read-only; wire ze-l2tp:pppoe-interfaces; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show pppoe interfaces`): Show which interfaces are accepting PPPoE sessions\.
 - `show pppoe session id` (read-only; wire ze-l2tp:pppoe-session; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string; usage `show pppoe session id <id>`): Show full detail for one PPPoE session\.
@@ -783,11 +795,15 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `system version api` (read-only; wire ze-plugin:system-version-api; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `system version api`): Show the IPC protocol version\.
 - `system version software` (read-only; wire ze-plugin:system-version-software; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `system version software`): Show the ze software version\.
 
-### `update` commands (18)
+### `update` commands (22)
 - `update bgp config` (daemon; wire ze-bgp:peer-save; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `update bgp config`): Write the running peer set to the configuration file\.
 - `update bgp peer prefix` (daemon; wire ze-bgp:update-peer-prefix; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args selector:string; usage `update bgp peer <selector> prefix`): Refresh max\-prefix limits from PeeringDB\.
-- `update data config` (daemon; wire ze-config:data-config-update; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, content:string; usage `update data config <name> <content>`): Import one config into the daemon\'s store as a new version\.
-- `update data key` (daemon; wire ze-config:data-key-update; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args key:string, content:string; usage `update data key <key> <content>`): Write one runtime\-state key into the daemon\'s store\.
+- `update container image` (daemon; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `update container image name <container>`): Update a container\'s image\: name \<container\>\, or rollback\.
+- `update container image name` (daemon; wire ze-container:update-image; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args value:string; usage `update container image name <value>`): Fetch the named container\'s image again and move it to a new digest\.
+- `update container image rollback` (daemon; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `update container image rollback name <container>`): Return a container to its previous image\: name \<container\>\.
+- `update container image rollback name` (daemon; wire ze-container:update-image-rollback; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args value:string; usage `update container image rollback name <value>`): Return the named container to its previous image and its writes\.
+- `update data config` (daemon; wire ze-config:data-config-update; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, content:string; usage `update data config <name> content <content>`): Import one config into the daemon\'s store as a new version\.
+- `update data key` (daemon; wire ze-config:data-key-update; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args key:string, content:string; usage `update data key <key> content <content>`): Write one runtime\-state key into the daemon\'s store\.
 - `update firewall domain-group` (daemon; wire ze-firewall:update-domain-group; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `update firewall domain-group <name>`): Resolve a domain group\'s DNS names now and program its set\.
 - `update irr all` (daemon; wire ze-irr:update-irr-all; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `update irr all`): Fetch every referenced IRR dataset now\.
 - `update irr as-set` (daemon; wire ze-irr:update-irr-as-set; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args as-set:string; usage `update irr as-set <as-set>`): Fetch the IRR dataset of an AS\-SET now\.
@@ -884,7 +900,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `github.com/packetcap/go-pcap`: Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead.
 - `github.com/cloudflare/circl`: Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420).
 
-### Linux Kernel Interfaces (8)
+### Linux Kernel Interfaces (10)
 - `github.com/vishvananda/netlink`: The main library for configuring the Linux network stack: links, addresses, routes, neighbors, bridges, VLANs, tunnels, IPsec, QoS. Used across interfaces, traffic, FIB, OSPF, ISIS, and MPLS.
 - `github.com/vishvananda/netns`: Linux network-namespace handles, used alongside netlink for namespace-scoped route watching.
 - `github.com/google/nftables`: Programs the kernel's nftables firewall (tables, chains, rules, sets) over netlink.
@@ -893,6 +909,8 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `github.com/cilium/ebpf`: Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin.
 - `filippo.io/mlockexe`: Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS...
 - `github.com/opencontainers/runc`: Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence.
+- `github.com/opencontainers/cgroups`: Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup.
+- `github.com/opencontainers/runtime-spec`: Provides OCI seccomp action definitions used by the container plugin's system-call filter tests.
 
 ### Routing & Dataplane (2)
 - `github.com/gaissmai/bart`: Balanced Routing Table, built on Knuth's Allotment Routing Table (ART): the longest-prefix-match structure underneath Ze's RIB store.
@@ -923,7 +941,9 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `golang.org/x/tools`: Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries.
 - `golang.org/x/vuln`: Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors.
 
-### Testing & Build Tooling (13)
+### Testing & Build Tooling (15)
+- `github.com/gofrs/flock`: Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals.
+- `github.com/moby/sys/user`: Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines.
 - `github.com/moby/patternmatcher`: Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds.
 - `mvdan.cc/sh/v3`: Parses Bash commands so the agent safety checks can inspect the commands a session is about to run.
 - `github.com/stretchr/testify`: Assertion and require helpers used across the Go unit test suite.
@@ -1098,7 +1118,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Testing health](https://ze-software.net/quality/health/index.md): Test coverage, known weaknesses, and results over time (web: https://ze-software.net/quality/health/)
 - [RFC compliance](https://ze-software.net/quality/rfc-compliance/index.md): Standards requirements, test evidence, and missing coverage (web: https://ze-software.net/quality/rfc-compliance/)
 - [RFC dependency map](https://ze-software.net/quality/rfc-map/index.md): Explore standards, release layers, and the work behind them (web: https://ze-software.net/quality/rfc-map/)
-- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 60 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
+- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 64 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 
 ## Docs
@@ -1138,7 +1158,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 518 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 534 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): 39 sections, generated from Ze's YANG schemas (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

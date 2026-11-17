@@ -106,6 +106,19 @@ next LAC after the first sixteen sessions have established.
 <!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scalePeerTemplates -->
 <!-- source: internal/le/interoplab/l2tp/scale_inputs.go -- scaleUsername, scaleInterface, scaleUsers -->
 
+The scale configuration enables CQM explicitly. After the original complete
+FRR route census and before either existing teardown, a selector check reads
+two real subscribers with equal local SIDs on different tunnels. Their detail,
+FSM history, observer events and all eight traffic counters must carry the
+selected original identity and listener. An unqualified read or clear must
+report ambiguity. A guard copied from the other admission must be refused.
+Those refusals must retain every original subscriber identity and native
+interface, all 48 FRR routes, independent event histories, the original
+Accounting-Starts and no Accounting-Stop. The existing selected RADIUS
+disconnect, 47-survivor proof, peer CDN and 46-survivor/accounting tail then run
+unchanged.
+<!-- source: internal/le/interoplab/l2tp/scale_selector.go -- checkScaleReadableSelection, scaleSelectedViews, scaleSelectorAccountingUnchanged -->
+
 The pinned kl2tpd release uses cgo for its Linux PPPoX socket bindings.
 Its builder installs GCC, musl development headers and Linux headers, then
 enables cgo for this third-party peer. The runtime remains the maintained

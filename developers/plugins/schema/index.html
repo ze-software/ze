@@ -97,7 +97,7 @@
 </tr>
 <tr>
 <td>External plugin (a separate process, SDK or any language)</td>
-<td>Joined to the schema at <code>ze start</code>, from the <code>YANGText</code> of its Stage 1 declaration; the operator writes config under its roots. <code>ze config validate</code> and the other commands that run with no daemon do not join it yet</td>
+<td>Joined to the schema at <code>ze start</code>, from the <code>YANGText</code> of its Stage 1 declaration; the operator writes config under its roots. With no daemon running Ze starts no plugin, so <code>ze config validate</code> and the other commands that parse a config then cannot check a section under those roots</td>
 <td>The roots it declares, its own included</td>
 </tr>
 </tbody>
@@ -115,10 +115,73 @@ timeout, declares nothing: a config section only its module defines is then
 refused as <code>unknown top-level keyword: &lt;root&gt;</code>, and the refusal names the
 plugin, why it did not declare and the command that checks it
 (<code>ze show plugin conformance run "&lt;command&gt;"</code>).</p>
-<p>With no daemon, <code>ze config validate</code> still reports
-<code>unknown top-level keyword: &lt;root&gt;</code> for an external plugin's section: joining
-the module there is the rest of
-<code>plan/post-release/features/spec-plugin-external-yang-at-startup.md</code>.</p>
+<p>With no daemon running, Ze never starts an external plugin's program. Your
+module reaches Ze only when <code>ze start</code> runs your plugin, so a command that
+parses a config with no daemon holds the schemas compiled into the <code>ze</code> binary
+and nothing else. It accepts a config that declares your plugin and holds no
+section under your roots. It refuses a section under your roots as
+<code>unknown top-level keyword: &lt;root&gt;</code>, and the message says why and how to check
+the section.</p>
+<p><code>ze config validate &lt;file&gt;</code> asks the running Ze first when the config declares
+an external plugin: it sends the file's content, so the file may be anywhere,
+and the running Ze, which read your module when it started your plugin, judges
+the section in full. The output and the exit codes are those of a local
+verdict. With no Ze running it answers:</p>
+<pre><code>config ze.conf does not parse: it holds a name that no config schema compiled into ze defines
+the config declares external plugin "acme-monitor"; the config schema of an external plugin is not compiled into ze: ze reads it from the plugin when `ze start` runs it. This command starts no plugin, so only a running ze that started with these plugins checks a section that such a plugin defines, and none answered: no ze listens at 127.0.0.1:2222 (...). Run the command below, then `ze config validate ze.conf` again. What the parser refused: line 8: unknown top-level keyword: acme-monitor
+fix: ze start
+</code></pre>
+<p>The other commands ask no running Ze yet. Their message says so, and its fix
+is <code>ze config validate &lt;file&gt;</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>A section under an external plugin's root</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze config validate</code></td>
+<td>Judged by the running Ze; with none running, refused with the message above</td>
+</tr>
+<tr>
+<td><code>ze config fmt</code>, <code>dump</code>, <code>diff</code>, <code>migrate</code>, <code>completion</code>, <code>show config graph</code>, with no daemon</td>
+<td>Refused, naming <code>ze config validate &lt;file&gt;</code> as the fix</td>
+</tr>
+<tr>
+<td><code>ze config edit</code></td>
+<td>The file under edit is refused when it is opened</td>
+</tr>
+<tr>
+<td><code>ze doctor</code>, the support report, <code>show crashes</code> readiness, <code>ze tacacs</code> probe, <code>show plugin declarations config</code>, <code>ze plugin test</code>, with no daemon</td>
+<td>The config they read is refused, naming <code>ze config validate &lt;file&gt;</code> as the fix</td>
+</tr>
+</tbody>
+</table>
+<p>The message names the plugins the config declares. It does not say that one of
+them owns the refused name: Ze holds no schema that could tell a section of
+your plugin from a mistyped keyword.</p>
+<p><code>show config validation &lt;file&gt;</code> typed in a <code>ze cli</code> session, or sent over SSH,
+the web, MCP, REST or gRPC, reaches the running Ze too, but the daemon reads
+the file on its own host and only from its config directories. A caller that
+holds the config elsewhere sends its bytes: <code>show config supplied validation content &lt;base64&gt;</code>, which is what <code>ze config validate</code> does. <code>ze cli -c "show config validation &lt;file&gt;"</code> answers in its own process and asks no daemon.</p>
+<p>Inside a running daemon the same commands start no program either. The daemon
+joined the modules of its plugins when it started, and a command it serves (a
+web upload, an editor commit, a served <code>show</code>) is answered from that set, so a
+section under your roots is checked against your module there, ranges
+included. A config that declares a plugin the daemon did not start with is
+refused there with the restart of <code>ze</code> as the fix.</p>
+<p>Declare mode (<code>ZE_PLUGIN_MODE=declare</code>) is still worth answering.
+<code>ze show plugin conformance run "&lt;command&gt;"</code> starts the program that way with
+no daemon, because running the program you name is what it is for. No other
+command with no daemon starts it: <code>ze show plugin declarations config &lt;file&gt;</code>
+lists your plugin with the state <code>not-available</code> and names that checker. A
+running Ze starts your program in declare mode when <code>show plugin declarations config &lt;file&gt;</code> is typed in a session it serves.</p>
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas.ParseRefusal -->
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
 <!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins, undeclaredPluginLines -->
 <!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
 <!-- source: internal/component/config/first_pass.go -- FirstPass -->
@@ -346,13 +409,11 @@ stays a string checked by a <code>ze:validate</code> function.</p>
 <li><strong>Use the <code>Handlers</code> field</strong> -- list the config path prefixes your plugin manages</li>
 </ol>
 <h2 id="example-complete-plugin-with-schema">Example: Complete Plugin with Schema</h2>
-<p><strong>Planned, not yet working for an external plugin.</strong> This plugin runs as an
-external process and defines its own root, <code>acme-monitor</code>. Today Ze refuses
-an <code>acme-monitor { ... }</code> block in the config (see "What works today" above),
-so the plugin never receives a section. The example becomes valid when
-<code>plan/post-release/features/spec-plugin-external-yang-at-startup.md</code> lands. The SDK calls it shows
-(<code>NewConfigTx</code>, <code>Run</code>, <code>SchemaDecl</code>) work today for roots a compiled-in module
-defines.</p>
+<p>This plugin runs as an external process and defines its own root,
+<code>acme-monitor</code>. Ze joins its module when <code>ze start</code> runs the plugin; a command
+that parses the config with no daemon starts no plugin and cannot check the
+section (see "What works today" above). <code>sdk.RunOrDeclare</code> is the entry that
+also answers declare mode, which the conformance check uses.</p>
 <p>A complete example showing YANG schema registration with the SDK. The plugin
 reads leaves of its root, so it registers a config transaction: Stage 2
 installs the parsed config, and a reload verifies, applies and, when the commit
@@ -510,7 +571,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 15:23 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

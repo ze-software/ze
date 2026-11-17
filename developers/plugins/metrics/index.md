@@ -696,3 +696,48 @@ carries the edit.
 The bgp-rib plugin (`internal/component/bgp/plugins/rib/`) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,
 atomic pointer, periodic update loop, and per-peer label cleanup.
+
+## Shared local series holders
+
+SDK gauge and histogram vector handles expose the optional
+`sdk.SeriesRetainer` capability. A Go plugin imports
+`github.com/ze-software/ze/pkg/plugin/sdk` to name both `sdk.SeriesRetainer` and
+its `sdk.SeriesLease` result. These public aliases expose the canonical
+retention contract; they introduce no wrapper or separate lease type.
+The registry and vector interfaces do not require the optional capability,
+so check it before starting work that depends on shared series cleanup:
+
+```go
+vector := p.MetricsRegistry().GaugeVec("ze_login_quality", "Login quality.", []string{"login"})
+retainer, ok := vector.(sdk.SeriesRetainer)
+if !ok {
+    return fmt.Errorf("login quality metrics require sdk.SeriesRetainer")
+}
+lease, err := retainer.RetainSeries(username)
+if err != nil {
+    return err
+}
+defer lease.Release() // after this holder's final update
+vector.With(username).Set(0.25)
+```
+
+`RetainSeries` borrows the original family and label set without changing the
+metric publication protocol. Acquire successfully before the first `With`
+update and release after the last one. Ordinary `Delete` refuses while any
+holder remains; the final release uses the existing deletion publication.
+Copies of a lease share release state, so repeated `Release` calls are safe
+and cannot release a later holder of the same labels. A zero lease has no
+effect.
+
+`RetainSeries` returns an error for invalid labels, refused families or the
+publisher's series limit. The error preserves the actual declaration,
+label-count, UTF-8, label-size or capacity refusal so the caller can report its
+cause. Retention returns that error without invoking a logging callback;
+ordinary `With` keeps its existing warning policy. Both use the same admission
+producer and preserve the UTF-8 and label-size boundaries. A reservation publishes
+no value; ordinary `With` makes it visible. On an unsupported capability or
+failed admission, return the error before starting the dependent work; do not
+continue with unchecked deletion or treat the refusal as disabled telemetry.
+The publisher keeps no released label sets in its custody map.
+<!-- source: pkg/plugin/sdk/metrics_series.go -- SeriesRetainer, SeriesLease -->
+<!-- source: pkg/plugin/sdk/metrics.go -- publishedVec.RetainSeries -->

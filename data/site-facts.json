@@ -59,16 +59,16 @@
   },
   "blog_articles": 6,
   "changes": 46,
-  "cli_commands": 513,
+  "cli_commands": 534,
   "cli_group_commands": {
     "clear-bgp": 4,
     "clear-dns": 4,
     "clear-irr": 4,
     "clear-l2tp": 4,
-    "clear-other": 16,
-    "create": 11,
+    "clear-other": 18,
+    "create": 13,
     "debug": 4,
-    "delete": 8,
+    "delete": 13,
     "doctor": 1,
     "help": 3,
     "monitor": 8,
@@ -84,7 +84,7 @@
     "show-bgp": 37,
     "show-bmp": 4,
     "show-command": 5,
-    "show-config": 9,
+    "show-config": 14,
     "show-data": 4,
     "show-ddos": 4,
     "show-dns": 5,
@@ -96,7 +96,7 @@
     "show-l2tp": 18,
     "show-metrics": 4,
     "show-ospf": 50,
-    "show-other": 68,
+    "show-other": 71,
     "show-pki": 6,
     "show-plugin": 4,
     "show-policy": 4,
@@ -110,22 +110,25 @@
     "show-vpp": 4,
     "show-vrrp": 4,
     "system": 8,
-    "update": 18
+    "update-container": 4,
+    "update-other": 9,
+    "update-serve": 4,
+    "update-system": 5
   },
-  "cli_groups": 50,
+  "cli_groups": 53,
   "config_sections": 39,
-  "dependencies": 60,
+  "dependencies": 64,
   "equivalents": {
     "groups": {
       "clear": {
         "equivalent": 2,
         "reviewed": 7,
-        "total": 32
+        "total": 34
       },
       "create": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 11
+        "total": 13
       },
       "debug": {
         "equivalent": 0,
@@ -135,7 +138,7 @@
       "delete": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 8
+        "total": 13
       },
       "doctor": {
         "equivalent": 0,
@@ -180,7 +183,7 @@
       "show": {
         "equivalent": 32,
         "reviewed": 76,
-        "total": 317
+        "total": 325
       },
       "system": {
         "equivalent": 0,
@@ -190,7 +193,7 @@
       "update": {
         "equivalent": 0,
         "reviewed": 0,
-        "total": 18
+        "total": 22
       }
     },
     "mapping_entries": 48,
@@ -229,7 +232,7 @@
     },
     "core_experimental": 52
   },
-  "generated_at": "2026-11-16",
+  "generated_at": "2026-11-17",
   "github_stars": 60,
   "health": {
     "adoption": {
@@ -241,9 +244,9 @@
           "with_rfc_tag": "0"
         },
         "2026": {
-          "packages": "773",
-          "with_ci": "37",
-          "with_fuzz": "49",
+          "packages": "780",
+          "with_ci": "38",
+          "with_fuzz": "50",
           "with_rfc_tag": "143"
         }
       },
@@ -253,13 +256,13 @@
     },
     "assert-nothing": {
       "inert": {
-        "denominator": "47431",
+        "denominator": "48303",
         "numerator": "111",
         "percent": "0.2"
       },
       "value": {
         "1": "111",
-        "2": "47431",
+        "2": "48303",
         "3": "108"
       }
     },
@@ -274,14 +277,14 @@
         "1": "6"
       },
       "detail": {
-        "1": "9489",
-        "2": "110",
+        "1": "9794",
+        "2": "113",
         "3": "160",
-        "4": "3015",
+        "4": "3033",
         "5": "207"
       },
       "value": {
-        "1": "47474"
+        "1": "48346"
       }
     },
     "known-failures": {
@@ -294,13 +297,13 @@
     },
     "negative-tests": {
       "overall": {
-        "denominator": "9489",
-        "numerator": "3740",
-        "percent": "39.4"
+        "denominator": "9794",
+        "numerator": "3908",
+        "percent": "39.9"
       },
       "value": {
-        "1": "3740",
-        "2": "9489"
+        "1": "3908",
+        "2": "9794"
       },
       "worst": {
         "1": {
@@ -357,8 +360,8 @@
     },
     "rfc-proof-density": {
       "detail": {
-        "1": "45.7",
-        "10": "1513",
+        "1": "46.2",
+        "10": "1512",
         "11": "18",
         "12": "2026",
         "13": "10",
@@ -371,31 +374,31 @@
         "2": "4752",
         "20": "4802",
         "21": "204",
-        "22": "2293",
+        "22": "2292",
         "23": "46",
         "24": "1479",
-        "25": "34",
+        "25": "33",
         "26": "499",
         "27": "235",
         "28": "0",
         "29": "0",
-        "3": "2172",
+        "3": "2196",
         "30": "0",
         "31": "14",
         "4": "0",
         "5": "235",
-        "6": "2345",
-        "7": "811",
+        "6": "2321",
+        "7": "788",
         "8": "21",
         "9": "0"
       },
       "proof_density": {
         "denominator": "4752",
-        "numerator": "2172",
-        "percent": "45.7"
+        "numerator": "2196",
+        "percent": "46.2"
       },
       "value": {
-        "1": "2172",
+        "1": "2196",
         "2": "4752"
       },
       "worst": {
@@ -502,7 +505,7 @@
     "targets": 13
   },
   "plugin_registrations": 98,
-  "published_at": "2026-11-16T15:37:24Z",
+  "published_at": "2026-11-17T06:06:11Z",
   "release": null,
   "repo": {
     "design_comments": 10307,
@@ -533,22 +536,22 @@
     "must_kept_display": "4,752",
     "not_walked": 0,
     "not_walked_display": "0",
-    "proven": 2172,
-    "proven_display": "2,172",
-    "proven_percent": "45.7",
+    "proven": 2196,
+    "proven_display": "2,196",
+    "proven_percent": "46.2",
     "requirements": 7834,
     "requirements_display": "7,834",
     "summaries": 231,
     "summaries_display": "231"
   },
   "tests": {
-    "e2e": 3015,
+    "e2e": 3033,
     "e2e_display": "3,000+",
     "editor": 207,
     "editor_display": "200+",
-    "fuzz": 110,
-    "fuzz_display": "110",
-    "unit": 47474,
-    "unit_display": "47,400+"
+    "fuzz": 113,
+    "fuzz_display": "110+",
+    "unit": 48346,
+    "unit_display": "48,300+"
   }
 }

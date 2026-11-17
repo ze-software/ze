@@ -78,7 +78,9 @@ plugins connect back via TLS.</p>
 </ol></li>
 <li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a>
 <ol>
+<li><a href="#selected-output-receipts">Selected output receipts</a></li>
 <li><a href="#system-routing-views">System routing views</a></li>
+<li><a href="#owned-interface-devices-and-firewall-tables">Owned interface devices and firewall tables</a></li>
 </ol></li>
 <li><a href="#message-flow-example">Message Flow Example</a></li>
 <li><a href="#error-handling">Error Handling</a></li>
@@ -428,6 +430,11 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td><code>claims</code></td>
 <td><code>[]string</code></td>
 <td>Exclusive runtime roles the plugin takes over</td>
+</tr>
+<tr>
+<td><code>dissemination</code></td>
+<td><code>[]DisseminationDecl</code></td>
+<td>Peer-output roles and the explicit source/destination grants each needs; declaring a role grants no permission</td>
 </tr>
 <tr>
 <td><code>failure-policy</code></td>
@@ -924,9 +931,12 @@ An initializer may make ordinary engine calls during that wait; socket startup
 serves them through the same operation registry as the runtime connection.
 Cross-plugin commands still belong in <code>OnAllPluginsReady</code>.</p>
 <h2 id="query-mode-answering-without-starting">Query Mode: Answering Without Starting</h2>
-<p>Ze can start your plugin to ask what it declares, with no daemon running and no
-hub to connect to. It sets <code>ZE_PLUGIN_MODE=declare</code> in your process's
-environment. Your plugin writes its Stage 1 declaration to stdout, exits 0, and
+<p>Ze can start your plugin to ask what it declares, with no hub to connect to.
+Two commands do it: <code>ze show plugin conformance run "&lt;run string&gt;"</code>, which
+needs no daemon, and <code>show plugin declarations config &lt;file&gt;</code> typed in a
+session a running Ze serves. With no daemon the second one starts nothing and
+lists your plugin as <code>not-available</code>. Either way Ze sets
+<code>ZE_PLUGIN_MODE=declare</code> in your process's environment. Your plugin writes its Stage 1 declaration to stdout, exits 0, and
 does none of a live start's work: no data initialization, no connection, no
 bind, no listener, no timer.</p>
 <h3 id="what-you-call">What you call</h3>
@@ -1140,6 +1150,13 @@ each wire method to its registered handler.</p>
 <td>Settle prepare/apply/abort/finalize for a captured retained source</td>
 </tr>
 <tr>
+<td><code>ze-plugin-callback:event-settlement</code></td>
+<td><code>OnEventSettlement</code></td>
+<td><code>rpc.EventSettlementInput</code></td>
+<td><code>rpc.EventSettlementOutput</code></td>
+<td>Await asynchronous work after prior events were applied</td>
+</tr>
+<tr>
 <td><code>ze-plugin-callback:validate-open</code></td>
 <td><code>OnValidateOpen</code></td>
 <td><code>ValidateOpenInput</code></td>
@@ -1217,8 +1234,20 @@ even if they do not implement the lifecycle yet. That unsupported declaration
 refuses policy changes before publication; pure observers are not owners.
 In Go, a plugin with no handler sets <code>SourcePolicyOwner: true</code> in the
 <code>sdk.Registration</code> it passes to <code>Run</code>; the engine then refuses the change and
-tells the operator to take the peer down around it.
-<code>OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)</code> automatically
+tells the operator to take the peer down around it.</p>
+<p>Plugins that defer work after returning from an event handler register
+<code>OnEventSettlement(func(context.Context) error)</code> before <code>Run</code>. The SDK derives
+the <code>event-settlement</code> declaration and starts one independent worker with at
+most 16 waiting requests. The handler MUST finish downstream work before it
+returns, honor its request deadline and synchronize shared state. Ordinary
+callbacks and current-selection lookups remain live during this wait. The
+engine first awaits event application; settlement never replaces that FIFO
+receipt. A plugin written in another language declares the same support and
+answers <code>event-settlement</code> with the echoed <code>deadline-ms</code>, explicit <code>status</code>
+and a cause for failure. An error or missing outcome never confirms completion.</p>
+<!-- source: pkg/plugin/sdk/sdk_event_settlement.go -- OnEventSettlement, eventSettlementWorker -->
+<!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
+<p><code>OnSourcePolicy(func(context.Context, rpc.SourcePolicyInput) error)</code> automatically
 declares both ownership and <code>source-policy</code> handler support. All four operations
 use one registered callback on both transports, not the shutdown <code>OnDrain</code> path.</p>
 <p>Requests carry a transaction, operation, captured source identity, target epoch
@@ -1282,6 +1311,14 @@ Rendered without a branch, it writes the number or <code>unknown</code> through 
 and <code>log/slog</code>, and the number or <code>null</code> through <code>encoding/json</code>, where a field
 tagged <code>omitzero</code> is omitted while the AS is unknown.</p>
 <!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, ASN, MarshalJSON, IsZero, String, LogValue -->
+<p>Every peer event also carries the engine's stable Peer incarnation as numeric
+<code>peer-owner</code> in JSON, <code>peer-owner &lt;uint64&gt;</code> in text, and
+<code>StructuredEvent.PeerOwner</code> internally. It agrees with
+<code>SourcePolicyIdentity.PeerOwner</code>. A reconnect retains that owner but receives
+another <code>source-receipt</code>; removing and recreating a peer changes the owner.
+The address, AS number and socket ports cannot identify the Peer incarnation.
+Zero is unrecorded and supplies no source authority. A sent event's peer owner
+identifies its recipient; its original route source remains separate provenance.</p>
 <p>A session-down event names the session it ended: <code>session-generation</code> in the
 JSON and text forms, <code>StructuredEvent.SessionGeneration</code> in the structured
 one, a nonzero number captured when that session closed. An up carries none.
@@ -1825,6 +1862,20 @@ run, so it cannot count routes.</li>
 <td>Relay stored routes</td>
 </tr>
 <tr>
+<td><code>ze-plugin-engine:select-routes</code></td>
+<td><code>SelectRoutes</code></td>
+<td><code>SelectRoutesInput</code></td>
+<td><code>SelectRoutesOutput</code></td>
+<td>Join final selected-output writes for one captured destination session</td>
+</tr>
+<tr>
+<td><code>ze-plugin-engine:cancel-request</code></td>
+<td>Used by <code>SelectRoutes</code> cancellation</td>
+<td><code>CancelRequestInput</code></td>
+<td><code>CancelRequestOutput</code></td>
+<td>Join an opt-in request on this connection</td>
+</tr>
+<tr>
 <td><code>ze-plugin-engine:route-install</code></td>
 <td><code>RouteInstall</code></td>
 <td><code>RouteInstallInput</code></td>
@@ -1938,6 +1989,42 @@ run, so it cannot count routes.</li>
 </tr>
 </tbody>
 </table>
+<h3 id="selected-output-receipts">Selected output receipts</h3>
+<!-- source: pkg/plugin/sdk/sdk_selected.go -- SelectRoutes -->
+<!-- source: pkg/plugin/rpc/selected.go -- selected DTOs, outcomes and frame sizing -->
+<p><code>SelectRoutes</code> is the selected-owner operation; <code>RelayStoredRoute</code> keeps its
+existing source-owned behavior. Supply the destination's exact UP
+<code>initial-replay</code> token as <code>destination-session</code>, a monotonic nonzero revision,
+and native <code>key-nlri</code> advertisement bytes without the source ADD-PATH prefix.
+The engine derives semantic identity through the registered family codec.</p>
+<p>Use kind <code>1</code> with a received <code>StoredRoute</code> and engine-issued source receipt,
+kind <code>2</code> with an admitted origin and origin receipt, or kind <code>3</code> for selected
+absence. The engine authenticates these handles; sending a number does not
+create authority. Received paths preserve original message/policy provenance
+and the explicit ADD-PATH distinction, including path identifier zero. Stale
+levels are <code>1</code> fresh, <code>2</code> stale and <code>3</code> LLGR; absence has no stale level.
+The complete field and validation contract is in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/process-protocol.md#selected-route-output" target="_blank" rel="noopener"><code>Selected-route output</code></a>.</p>
+<p>Keep the input unchanged until return and bound each exchange by
+<code>rpc.SelectRoutesExchangeSize(input) &lt;= rpc.MaxMessageSize</code>. This reserves
+both request and worst-case final answer; absence receipts can be larger than
+their input. <code>SelectRoutesFrameSize</code> continues to measure the request alone.
+The SDK requires a
+complete ordered final receipt on both transports. Outcomes are written,
+suppressed, absent or stale revision; suppression and absence settle the
+previous selected output's retirement. Success must follow final writer
+completion. Never wait for a sent-event callback to finish the RPC: a lifecycle
+callback may already hold that plugin delivery loop. An unsupported reactor
+returns an error.</p>
+<p>The SDK sets the absolute <code>deadline-ms</code> from the caller's context, capped at
+thirty seconds per batch. When that context ends, the socket form sends
+<code>cancel-request</code> for its original correlation ID and method, and joins the
+remote handler and final writer before returning cancellation. The separate
+cancellation receipt budget is five seconds. A broken transport or failed join
+returns <code>rpc.CancellationUnsettledError</code>; report the unresolved destination
+instead of treating it as settled. A cancellation during a partial request
+write ends that connection. Typed handlers receive the caller's bounded
+context and must also finish their writer before returning.</p>
 <h3 id="system-routing-views">System routing views</h3>
 <p>Each selected path's <code>ecmp</code> list retains the owning source of every member.
 The optional member <code>protocol</code> is a registered name for an owner different from
@@ -2095,6 +2182,63 @@ succeeds. Fencing releases the retained publication, and successful cleanup
 releases the empty ledger.</p>
 <!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
 <!-- source: internal/component/sysrib/route_view_output.go -- withdraw -->
+<h3 id="owned-interface-devices-and-firewall-tables">Owned interface devices and firewall tables</h3>
+<p>A plugin compiled into ze that owns kernel state asks the interface and firewall
+components to create it, so the same calls work internal and forked. Only a
+plugin that granted itself device name prefixes (<code>iface.MustGrantOwnedDeviceNames</code>)
+or reserved table names (<code>firewall.MustReserveTableNames</code>) from its <code>init()</code> is
+accepted. A plugin built outside the ze binary cannot make either declaration,
+so every call it makes is refused. The owner is the plugin's authenticated
+name: a forked plugin MUST be declared under its registry name.</p>
+<!-- source: pkg/plugin/sdk/sdk_owned_devices.go -- OwnedBridgesReplace, OwnedLinkCreate, OwnedLinkRemove -->
+<!-- source: pkg/plugin/sdk/sdk_firewall_tables.go -- FirewallTablesReplace -->
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>SDK method</th>
+<th>Input/output types</th>
+<th>Available</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze-iface:owned-bridges-replace</code></td>
+<td><code>OwnedBridgesReplace</code></td>
+<td><code>OwnedBridgesReplaceInput</code> / <code>OwnedBridgesReplaceOutput</code></td>
+<td>Stage 2 and runtime</td>
+</tr>
+<tr>
+<td><code>ze-iface:owned-link-create</code></td>
+<td><code>OwnedLinkCreate</code></td>
+<td><code>OwnedLinkCreateInput</code> / <code>OwnedLinkCreateOutput</code></td>
+<td>Stage 2 and runtime</td>
+</tr>
+<tr>
+<td><code>ze-iface:owned-link-remove</code></td>
+<td><code>OwnedLinkRemove</code></td>
+<td><code>OwnedLinkRemoveInput</code> / <code>OwnedLinkRemoveOutput</code></td>
+<td>Stage 2 and runtime</td>
+</tr>
+<tr>
+<td><code>ze-firewall:tables-replace</code></td>
+<td><code>FirewallTablesReplace</code></td>
+<td><code>FirewallTablesReplaceInput</code> / <code>FirewallTablesReplaceOutput</code></td>
+<td>Stage 2 and runtime</td>
+</tr>
+</tbody>
+</table>
+<!-- source: pkg/plugin/rpc/owned_devices.go -- MethodOwnedBridgesReplace, MethodOwnedLinkCreate, MethodOwnedLinkRemove -->
+<!-- source: pkg/plugin/rpc/firewall_tables.go -- MethodFirewallTablesReplace -->
+<p>The bridge and table calls replace the caller's complete set; an empty set
+withdraws everything the caller holds. <code>FirewallTablesReplace</code> carries its
+tables as a firewall config section, <code>{"firewall":{"table":{...}}}</code>, the form
+the operator's firewall config takes. <code>OwnedLinkCreate</code> names the target
+network namespace by a process id and that namespace's inode number together,
+and is refused when they disagree. Today every accepted caller's request is
+refused as not implemented in this build, and nothing is created
+(<code>docs/architecture/api/process-protocol.md</code>, "Owned interface devices and
+firewall table contribution").</p>
 <h2 id="message-flow-example">Message Flow Example</h2>
 <pre><code>Plugin                                             Engine
    |                                                  |
@@ -2188,7 +2332,7 @@ config-verify, etc.) and bye.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

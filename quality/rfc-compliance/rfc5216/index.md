@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 4 | of 47 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 47 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 47 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 85 | 85 of 101 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 87 | 87 of 101 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -300,8 +300,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5216TLSSessionDoesNotChooseTheDataCipher`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L111) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5216DataCipherComesFromTheESPProposal`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L89) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5216TLSSessionDoesNotChooseTheDataCipher`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L111) | unit/verify | revert, verified |
+| positive | [`TestRFC5216DataCipherComesFromTheESPProposal`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L89) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSMutualAuthHandshakeSucceeds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L374) | unit/verify | revert, verified |
 
 ### [`RFC5216-2.4-5`](#rfc5216-2.4-5)

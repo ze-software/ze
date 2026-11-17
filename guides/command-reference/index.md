@@ -37,6 +37,24 @@ error rather than reading empty. A file literally named `-` is addressed as
 on-disk revision history that a pipe does not have.
 <!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
 
+When the input is on another machine, the daemon can inspect supplied bytes
+without reading a caller-named path. Use `show config supplied dump`,
+`validation`, `fmt` or `graph` with `content <base64>` and an optional
+`name <filename>` diagnostic label. Dump also accepts `strip-private`; fmt
+accepts `check` or `diff`. These read-only commands use the same producers as
+the file commands and do not stage or apply configuration.
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler -->
+
+`show config supplied diff content <base64>` compares one encoded JSON object
+with `before` and `after` fields containing the two native configuration
+strings. Encode the whole object once. The combined object, or one ordinary
+source, is limited to 195,840 bytes before base64 encoding. The encoded
+content is masked in command records.
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, show config supplied diff -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedPair -->
+<!-- source: internal/core/redact/redact.go -- Command -->
+
 MRT analysis (`le mrt show`, `density`, and content filters) derives mixed-family
 ADD-PATH decoding from both actual directional OPEN messages in the same input.
 Missing or ambiguous negotiation is an explicit decoding error, not a successful
@@ -229,7 +247,7 @@ moves you keeps its move, so `top edit bgp` goes to `bgp`. A fix line the
 editor prints inside an `edit` context reads `top set <full path> ...`, which
 is exact from any position. The editor commands are in
 [Configuration Editor](../config-editor/index.md#editor-commands).
-<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 
 **Storage:**
 
@@ -729,7 +747,7 @@ IP address.
 What each plugin declares: the commands it serves and the pipe aliases it puts
 on them. `show plugin list` answers which plugins the binary carries; this
 command answers what they declare. Answered in the operator's own process, so
-it needs no daemon.
+it needs no daemon for the plugins this binary carries.
 
 ```
 ze show plugin declarations                             # the plugins this binary carries
@@ -740,11 +758,24 @@ The bare form answers from the compiled-in registration and starts no process.
 The `config <path>` form adds one row for each plugin the file declares, and
 the config block decides where that row's declaration comes from. An `internal`
 block names code this binary carries, so the row is answered from the
-registration. An `external` block names another program, so the row is answered
-by starting that program with `ZE_PLUGIN_MODE=declare` in its environment, with
-every `ze.plugin.` variable removed, and reading the one framed declaration line
-it writes to stdout. Anything else the child writes is ignored, so a banner or a
-log line cannot corrupt the answer.
+registration. An `external` block names another program, and only that program
+can say what it declares.
+
+With no daemon running, Ze starts no external plugin. The `ze` command and
+`ze cli -c` answer in their own process, so there the row of an external plugin
+reads `not-available`: the plugin is declared in the config, and nobody asked
+its program. The reason names the two commands that read the declaration:
+
+| To read the declaration | Command |
+|-------------------------|---------|
+| From a running Ze | `ze cli`, then type `show plugin declarations config <path>` in that session. The file must be in the configuration directory of that Ze |
+| With no daemon, by starting the program yourself | `ze show plugin conformance run "<run string>"` |
+
+A running Ze answers the row by starting the program with
+`ZE_PLUGIN_MODE=declare` in its environment, with every `ze.plugin.` variable
+removed, and reading the one framed declaration line it writes to stdout.
+Anything else the child writes is ignored, so a banner or a log line cannot
+corrupt the answer. SSH, the web UI, MCP, REST and gRPC reach the same handler.
 
 Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 `| match <text>`, `| first <n>`. The rows carry these keys:
@@ -753,7 +784,7 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 |-----|-------|
 | `name` | The plugin name, as the registry or the config block spells it |
 | `kind` | `internal` for code this binary carries, `external` for another program |
-| `state` | One of the six below |
+| `state` | One of the seven below |
 | `commands` | The commands the plugin declares. Absent when it declares none |
 | `pipes` | The pipe aliases the plugin declares. Absent when it declares none |
 | `reason` | Why a row carries no declaration. Absent when one was read |
@@ -766,10 +797,13 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 | `unstartable` | the process could not be started, or it wrote a declaration the daemon refuses at Stage 1 |
 | `timeout` | the process started, wrote no declaration inside the budget, and was stopped |
 | `not-judged` | an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration |
+| `not-available` | the plugin is external and no daemon runs here, so its program was not started and nobody asked it |
 
 No plugin is ever omitted: a plugin that could not answer keeps its row and says
 why. `declared-none` and `no-answer` stay apart, because a plugin with nothing
-to declare and a plugin that answered nothing are different facts.
+to declare and a plugin that answered nothing are different facts. An external
+block that names no `run` command reads `unstartable` in both places: no
+process could start it.
 
 A declaration that was read is judged by the checks the daemon applies at
 Stage 1, so a row reads `declared` only when the daemon would start the plugin.
@@ -782,7 +816,9 @@ The budget is 5 seconds per plugin, the same wait a startup stage gets, and
 "wait no time". A plugin that runs out of it is stopped with everything it
 started.
 
-<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
+<!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
+<!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
+<!-- source: internal/component/config/declared_schemas.go -- DeclaredSchemas.Offline -->
 <!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
 <!-- source: internal/component/plugin/declaration_judge.go -- JudgeDeclaration, ErrNoDeclarationJudge -->
 
@@ -843,19 +879,23 @@ ze request container restart name <name>     # <name> is the container's configu
 There is no start command and no stop command: the `enabled` statement of a
 container says whether it runs.
 
-The container runtime is not complete, so no build starts a container today
-and the command answers one of these refusals:
+For an enabled container the command stops it when it runs, then starts it
+again, and answers the container's name and the state it holds after the
+start. No shipped build holds an image store yet, so a start there is
+refused. The command answers one of these refusals:
 
 | Refusal | When | Fix the refusal names |
 |---------|------|-----------------------|
 | `request container restart needs the name of a container` | the command reached the plugin with no name. The command's schema makes the name mandatory, so the daemon can refuse the line before the plugin runs | `ze request container restart name NAME` |
 | `no container named <name> is configured` | the configuration holds no container of that name | `ze show config running` |
 | `container <name> is disabled in the configuration` | its `enabled` statement is false: a restart would start what the configuration keeps stopped | `set container instance <name> enabled true` |
-| `container <name> cannot run: this build of ze does not start containers yet` | the container is enabled | `set container instance <name> enabled false` |
+| `container <name> cannot start: this build of ze holds no image store` | the container is enabled, and the build has no store to take its image from | `set container instance <name> enabled false` |
+| `container <name> cannot start: containers run on Linux only` | the daemon runs on another platform | `set container instance <name> enabled false` |
+| `container <name> was not created: <step>`, or another start step that failed | a step of the start failed; the container was removed | `ze request container restart name <name>` once the cause is fixed |
 
 <!-- source: internal/plugins/container/container.go -- handleCommand, commandDecls -->
-<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, unknownInstance -->
-<!-- source: internal/plugins/container/config.go -- runtimeNotBuilt -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, supervisor.stopThenStart, unknownInstance, noImageStore, noRuntime -->
+<!-- source: internal/plugins/container/library_linux.go -- createFailed -->
 <!-- source: internal/plugins/container/yang/ze-container-cmd.yang -- YANG schema -->
 
 ### request plugin restart
@@ -3589,6 +3629,7 @@ answered a different peer on each call.
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `show policy test peer <sel> export update <HEX>` | read-only | Dry-run the peer's configured export chain against a BGP UPDATE |
+| `show policy test peer <sel> export route-kind local update <HEX>` | read-only | Predict export of a local announcement instead of the default learned route |
 | `show policy test peer <sel> import update <HEX>` | read-only | Dry-run the peer's configured import chain against a BGP UPDATE |
 | `show policy test peer <sel> export filter <NAME> update <HEX>` | read-only | Dry-run a single named filter against a BGP UPDATE |
 
@@ -3598,13 +3639,22 @@ The peer selector comes first (`peer <sel>`, matching `show bgp peer <sel> ...`)
 
 Optional: `source-asn4 false` to paste an UPDATE as received over a two-octet session (default: ASN4). The dry-run first merges its AS4_PATH and AS4_AGGREGATOR into the four-octet form, as the live import does (RFC 6793 Section 4.2.3), and explains that route, which is the one the filters see.
 
+On export, `route-kind learned` is the default and `route-kind local` predicts
+a local announcement. The result reports `simulated-route-kind`. A resolved
+explicit role keeps its default for either choice, identified by
+`role-default: true`. The choice is read-only and authorizes no live route.
+Import refuses this argument; unknown values are also refused. Without an
+export policy, an internal destination rejects learned routes and permits
+local routes, while an external destination rejects both. An internal
+learned-route rejection reports `policy.final-source: learned-export-policy`.
+
 Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify/undetermined), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (the wire-level attribute operations the chain applies, such as `AS_PATH set`, which `text-before` and `text-after` cannot show). An export dry-run toward an internal peer lists no `AS_PATH` operation, because the export chain applies no `as-path-prepend` or `remove-private` toward one (RFC 4271 Section 5.1.2).
 
 If the remote AS is unresolved, `action` is `undetermined` and `reason` tells you
 to wait for establishment and repeat `show policy test`. No filter executes,
 including a single-filter override. Trace and text are empty, with no wire
 changes. For a known EBGP session, an absent direction has a rejecting final.
-`policy` reports the direction's effective final, as `show policy chain` does:
+`policy` reports the simulated route class's effective final:
 `final-source: rfc8212` marks the RFC 8212 default reject on an EBGP direction
 with no policy, and `undetermined` an absent direction whose session type is not
 known yet.

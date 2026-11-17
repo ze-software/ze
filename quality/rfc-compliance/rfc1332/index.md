@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 8 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 8 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 8 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 12 | 12 of 21 tests linked to requirements, 0 without a fault test and 9 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 20 | 20 of 21 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -23,7 +23,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Audit verdicts | 6 | of 8 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 5 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 6 | of 8 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -94,9 +94,9 @@ Included in automatic checks: PPP Internet Protocol Control Protocol under L2TP 
 
 **Area:** IPCP
 
-**Test verification:** 5 of 8 MUST proven
+**Test verification:** 8 of 8 MUST proven
 
-**Evidence:** unit 5
+**Evidence:** unit 8
 
 **Unmet:** -
 
@@ -118,19 +118,19 @@ Included in automatic checks: PPP Internet Protocol Control Protocol under L2TP 
 
 ## Figures
 
-- **MUST bar**: Ze verified 5, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 5, Tests awaiting verification 3, Not assessed 6
+- **MUST bar**: Ze verified 8
+- **Overview bar**: Ze MUST verified 8, Not assessed 6
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 8 |
 | MUST rows kept (the MUST bar) | 8 |
-| Ze verified | 5 |
+| Ze verified | 8 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -187,13 +187,13 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 Exactly one IPCP packet is encapsulated in the Information field of PPP Data Link Layer frames where the Protocol field indicates type hex 8021 (IP Control Protocol). (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun, internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2 moved. Judge ppp4 2026-09-30. Re-read after the frame_test.go negative moved to RFC1661-5-2 (it proved Length validation, a neighbour). Still proven by TestIPCPOnePacketPerFrameThroughRun: ze's IPCP CONFREQ from run() is 0x8021 with Length == Information length (+); a 0x8021 frame carrying a CONFREQ and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack in 1 s (-, receiver-side injection).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1332 Section2, exactly one IPCP packet per PPP Information field with protocol0x8021. Read every tagged body: TestIPCPFrameCarriesExactlyOnePacket pins raw Protocol octets, decoded protocol, declared Length and whole Information span. TestIPCPOnePacketPerFrameThroughRun completes real LCP/auth/address request and reads actual emitted IPCP Configure-Request, requiring Length==Information length; its negative delivers one valid address Configure-Request followed by a separately well-formed Terminate-Request in the same frame and requires only the first Configure-Ack and no subsequent frame through a one-second bound. The second packet is padding after the first declared Length, not a malformed first request. ParseLCPPacket truncates to that declared length and runNCPPhase handles one packet per frame; the real session path distinguishes a writer defect from an inert codec-only fixture. Current answers use actual request capabilities, retaining the same inputs/assertions. This is semantic source judgment, not a fresh observed discrimination record.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L258) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L258) | unit/verify | revert, verified |
 | positive | [`TestIPCPFrameCarriesExactlyOnePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L145) | unit/verify | revert, verified |
-| positive | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L257) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L257) | unit/verify | revert, verified |
 
 ### [`RFC1332-2-2`](#rfc1332-2-2)
 
@@ -211,35 +211,35 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state. (§2.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase moved. Rejudged 2026-11-08 after 14d3df65a7 against RFC 1332 Section 2.1 "Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state." Network-phase clause: TestNCPHeldUntilNetworkPhase/ipv4 holds CHAP pending 3 s; onlyChallengesUntil fails on any frame but a CHAP Challenge (Code 1) with a changed Identifier (RFC 1994 4.1 retransmission), so any IPCP 0x8021 or IP frame fails it; it also asserts no EventIPRequest and no AddAddressP2P (-); runAuthPhase revert recorded. Tightened window isolates the rule better than the old one. Opened clause, units unchanged: TestIPCPNoAddressBeforeOpened holds IPCP at Ack-Rcvd and fails on EventSessionIPAssigned, any AddAddressP2P or SetAdminUp (-, mutant ncp.go handleNCPPacket NewState == Opened -> != recorded); TestIPResponseConfiguresInterface installs ppp42 10.0.0.1/32 peer 10.0.0.2/32 and brings it up after Opened (+, sendIPAssigned revert recorded). Receive side: TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened under RFC1661-3.6-2.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Read RFC1332 Section2.1 in full: both Network-Layer Protocol phase and IPCP Opened are necessary before IP communication. Every tagged unit was read: TestIPResponseConfiguresInterface completes actual IPCP and pins exact ppp42 local/peer installation and EventSessionIPAssigned, then waits for SessionUp before observing admin-up; TestIPCPNoAddressBeforeOpened acknowledges only the original local request, holds AckRcvd short of Opened and forbids address, assigned event and admin-up. TestNCPHeldUntilNetworkPhase separately holds valid CHAP authentication pending with IPCP enabled, forbids address requests, installed addresses and non-CHAP wire traffic, then uses accepted authentication to prove the NCP path is live. afterLCPOpen runs authentication before runNCPPhase; onNCPOpened installs the address only on actual Opened transition, with interface activation after settlement. This covers both clauses at Ze's actual delegated kernel boundary; it does not claim observed kernel data forwarding. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPCPNoAddressBeforeOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L167) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L168) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestIPResponseConfiguresInterface`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L106) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L168) | unit/verify | revert, verified |
+| positive | [`TestIPResponseConfiguresInterface`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L106) | unit/verify | revert, verified |
 
 ### [`RFC1332-2.1-3`](#rfc1332-2.1-3)
 
 The maximum length of an IP packet transmitted over a PPP link is the same as the maximum length of the Information field of a PPP data link layer frame. (§2.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU, internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 moved. Independent rejudgment 2026-11-15. Read RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted over a PPP link is the same as the maximum length of the Information field of a PPP data link layer frame." TestIPMTUInstalledFromNegotiatedMRU still drives the real Driver/proxy-LCP path with peer MRU 1400 and maxMRU 1500, and asserts exactly one backend MTU call, ppp7=1400, plus kernel receive MRU 1500. afterLCPOpen uses transmitMRU and sets the device MTU before reconnecting the channel. This is useful discriminating evidence at Ze's delegated-kernel boundary: the current semantic mutation replaces mru with MaxFrameLen and both tagged claims go red. However the positive and negative tags share one input and one exact-output observation; the later no-MTU-above-1400 loop cannot independently fail after the exact-1400 assertion succeeded. It is not an independent polarity pair under the current audit skill. The new validated LCP fixture changes neither assertion nor this limitation. Weak denotes the existing polarity-proof gap, not a newly found runtime MTU defect; no test, producer or claim was edited by this auditor.
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Read RFC1332 Section2.1: the maximum IP packet length must equal the PPP Information field maximum. The sole tagged TestIPMTUInstalledFromNegotiatedMRU drives actual proxy-LCP/Driver admission with peer MRU1400 and receive capacity1500; it pins exactly one ppp7 MTU call at1400 and receive MRU1500. afterLCPOpen uses transmitMRU for SetMTU before channel connection. This is meaningful delegated-kernel evidence and the current MaxFrameLen-for-mru cut targets that exact observation. Both polarity tags nevertheless use the same input and exact1400 assertion; the later no-above1400 loop cannot fail independently after that assertion passed. Preserve the existing polarity-proof gap; mechanical helper/caller preservation does not upgrade it. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L19) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L18) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L19) | unit/verify | mutant, verified |
+| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L18) | unit/verify | mutant, verified |
 
 ### [`RFC1332-2.1-4`](#rfc1332-2.1-4)
 
 Larger IP datagrams must be fragmented as necessary. (§2.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU, internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 moved. Independent rejudgment 2026-11-15. Read RFC 1332 Section 2.1: "Larger IP datagrams must be fragmented as necessary." The tagged TestIPMTUInstalledFromNegotiatedMRU proves Ze installs ppp7 MTU 1400 from the peer's negotiated MRU, the size used by Linux IPv4 output for fragmentation; it does not send or observe an oversized IP datagram or kernel fragmentation. Delegated-boundary evidence is permitted by the repository rule and is not itself called a product defect. The existing same test carries both polarities over one 1400-MRU input; its exact-1400 assertion already excludes every value the later above-1400 loop could reject. The semantic MaxFrameLen-for-mru mutation discriminates that shared assertion but does not create a second polarity case or prove fragmentation itself. Retain the installed-MTU scoped truth and report the existing polarity-proof gap rather than silently renewing whole-pair assurance. Added validated LCP configuration preserves the existing assertions. No Go source or tests were changed by this auditor.
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Read RFC1332 Section2.1: larger IP datagrams must be fragmented as necessary. The sole tagged TestIPMTUInstalledFromNegotiatedMRU proves actual negotiated MRU1400 installs device MTU1400, the delegated Linux fragmentation threshold. It does not inject or observe an oversized datagram or kernel fragmentation. Delegation is the agreed production boundary, but the same unit's two tags share one1400 input and the exact same backend observation; its later above1400 loop adds no independent negative case. The current MaxFrameLen cut can discriminate the installed-MTU observation, not supply another polarity or an observed fragmentation event. Preserve existing weak verdict and installed-MTU scoped truth without inventing a production fragmentation defect. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L21) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L20) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L21) | unit/verify | mutant, verified |
+| positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L20) | unit/verify | mutant, verified |
 
 ### [`RFC1332-3-1`](#rfc1332-3-1)
 

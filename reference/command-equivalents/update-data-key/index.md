@@ -5,7 +5,7 @@ Write one runtime\-state key into the daemon\'s store\.
 ## Ze command
 
 - Registry path: `update data key`
-- Usage: `update data key <key> <content>`
+- Usage: `update data key <key> content <content>`
 - Mode: Daemon
 - Wire method: `ze-config:data-key-update`
 - Backends: any backend

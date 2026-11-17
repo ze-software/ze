@@ -1,6 +1,6 @@
 # Command Equivalents
 
-513 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+534 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -68,6 +68,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear bgp rib advertised` | Daemon | - | - | - | - | [details](clear-bgp-rib-advertised/) |
 | `clear bgp rib in` | Daemon | - | - | - | - | [details](clear-bgp-rib-in/) |
 | `clear bgp rib out` | Daemon | - | - | - | - | [details](clear-bgp-rib-out/) |
+| `clear container layer` | Daemon | - | - | - | - | [details](clear-container-layer/) |
+| `clear container layer name` | Daemon | - | - | - | - | [details](clear-container-layer-name/) |
 | `clear cymru cache address` | Daemon | - | - | - | - | [details](clear-cymru-cache-address/) |
 | `clear cymru cache all` | Daemon | - | - | - | - | [details](clear-cymru-cache-all/) |
 | `clear debug` | daemon, offline | - | - | - | - | [details](clear-debug/) |
@@ -103,6 +105,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | --- | --- | --- | --- | --- | --- | --- |
 | `create agent skill` | daemon, offline | - | - | - | - | [details](create-agent-skill/) |
 | `create bgp peer` | Daemon | - | - | - | - | [details](create-bgp-peer/) |
+| `create container image` | Daemon | - | - | - | - | [details](create-container-image/) |
+| `create container image reference` | Daemon | - | - | - | - | [details](create-container-image-reference/) |
 | `create interface address` | Daemon | - | - | - | - | [details](create-interface-address/) |
 | `create interface bridge name` | Daemon | - | - | - | - | [details](create-interface-bridge-name/) |
 | `create interface bridge name address` | Daemon | - | - | - | - | [details](create-interface-bridge-name-address/) |
@@ -128,6 +132,11 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | --- | --- | --- | --- | --- | --- | --- |
 | `delete agent skill` | daemon, offline | - | - | - | - | [details](delete-agent-skill/) |
 | `delete bgp peer` | Daemon | - | - | - | - | [details](delete-bgp-peer/) |
+| `delete container image` | Daemon | - | - | - | - | [details](delete-container-image/) |
+| `delete container image all` | Daemon | - | - | - | - | [details](delete-container-image-all/) |
+| `delete container image digest` | Daemon | - | - | - | - | [details](delete-container-image-digest/) |
+| `delete container volume` | Daemon | - | - | - | - | [details](delete-container-volume/) |
+| `delete container volume name` | Daemon | - | - | - | - | [details](delete-container-volume-name/) |
 | `delete data key` | Daemon | - | - | - | - | [details](delete-data-key/) |
 | `delete debug module` | daemon, offline | - | - | - | - | [details](delete-debug-module/) |
 | `delete debug profile name` | daemon, offline | - | - | - | - | [details](delete-debug-profile-name/) |
@@ -367,7 +376,15 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show config history` | read-only, offline | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
 | `show config list` | read-only, offline | - | - | - | - | [details](show-config-list/) |
 | `show config running` | Read-only | - | - | - | - | [details](show-config-running/) |
+| `show config supplied diff` | read-only, offline | - | - | - | - | [details](show-config-supplied-diff/) |
+| `show config supplied dump` | read-only, offline | - | - | - | - | [details](show-config-supplied-dump/) |
+| `show config supplied fmt` | read-only, offline | - | - | - | - | [details](show-config-supplied-fmt/) |
+| `show config supplied graph` | read-only, offline | - | - | - | - | [details](show-config-supplied-graph/) |
+| `show config supplied validation` | read-only, offline | - | - | - | - | [details](show-config-supplied-validation/) |
 | `show config validation` | read-only, offline | - | - | - | - | [details](show-config-validation/) |
+| `show container image list` | Read-only | - | - | - | - | [details](show-container-image-list/) |
+| `show container store` | Read-only | - | - | - | - | [details](show-container-store/) |
+| `show container volume list` | Read-only | - | - | - | - | [details](show-container-volume-list/) |
 | `show crashes` | Read-only | - | - | - | - | [details](show-crashes/) |
 | `show data cat` | read-only, offline | - | - | - | - | [details](show-data-cat/) |
 | `show data check` | read-only, offline | - | - | - | - | [details](show-data-check/) |
@@ -631,6 +648,10 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | --- | --- | --- | --- | --- | --- | --- |
 | `update bgp config` | Daemon | - | - | - | - | [details](update-bgp-config/) |
 | `update bgp peer prefix` | Daemon | - | - | - | - | [details](update-bgp-peer-prefix/) |
+| `update container image` | Daemon | - | - | - | - | [details](update-container-image/) |
+| `update container image name` | Daemon | - | - | - | - | [details](update-container-image-name/) |
+| `update container image rollback` | Daemon | - | - | - | - | [details](update-container-image-rollback/) |
+| `update container image rollback name` | Daemon | - | - | - | - | [details](update-container-image-rollback-name/) |
 | `update data config` | Daemon | - | - | - | - | [details](update-data-config/) |
 | `update data key` | Daemon | - | - | - | - | [details](update-data-key/) |
 | `update firewall domain-group` | Daemon | - | - | - | - | [details](update-firewall-domain-group/) |

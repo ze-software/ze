@@ -2038,6 +2038,16 @@ A container is a workload Ze starts from an image and confines: its own namespac
   One entry is one container. Whether it runs is stated here and nowhere else: Ze has no start command and no stop command, and the enabled leaf says whether the container runs.
   - **enabled** `boolean`: Run this container; false keeps its config and stops it.
     The default is true. False keeps every other statement of the container in the configuration and keeps the container stopped, in the disabled state, until the leaf is true again.
+  - **stop-signal** `enumeration`: Signal that asks the container to stop.
+    The signal a stop sends to the container's first process. When the leaf is absent, the signal the image declares is sent, or the termination signal when the image declares none.
+    - `hup`
+    - `int`
+    - `quit`
+    - `term`
+    - `usr1`
+    - `usr2`
+  - **stop-timeout** `uint16`: Time between the stop signal and the kill.
+    A stop sends the container its stop signal, then waits this long for it to end before Ze kills every process of it through its control group. The top of the range is 30 because a daemon stop gives the containers 30 seconds to obey their stop signals.
 
 ## control-plane-protection
 
@@ -2541,7 +2551,7 @@ The FIB is where Ze writes the best routes the system RIB chose. Each container 
 
 ## firewall
 
-*Provided by `firewall` ([ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang)); `firewall-domain` ([ze-firewall-domain-group-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group-cmd.yang), [ze-firewall-domain-group.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group.yang)); `firewall-irr` ([ze-firewall-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang), [ze-firewall-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang))*
+*Provided by `firewall` ([ze-firewall-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-api.yang), [ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang)); `firewall-domain` ([ze-firewall-domain-group-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group-cmd.yang), [ze-firewall-domain-group.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group.yang)); `firewall-irr` ([ze-firewall-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang), [ze-firewall-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang))*
 
 Ze-managed nftables firewall tables.
 
@@ -2863,7 +2873,7 @@ Flow export configuration. Ze exports interface counters to every collector. It 
 
 ## interface
 
-*Provided by `interface` ([ze-iface-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-show-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-show-cmd.yang)); `vrrp` ([ze-vrrp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-cmd.yang), [ze-vrrp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-conf.yang))*
+*Provided by `interface` ([ze-iface-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-api.yang), [ze-iface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-cmd.yang), [ze-iface-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-conf.yang), [ze-iface-interface-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-interface-cmd.yang), [ze-iface-monitor-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-monitor-cmd.yang), [ze-iface-owned-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-owned-api.yang), [ze-iface-show-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/iface/yang/ze-iface-show-cmd.yang)); `vrrp` ([ze-vrrp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-cmd.yang), [ze-vrrp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/yang/ze-vrrp-conf.yang))*
 
 Interface-level class-of-service profile bindings.
 
@@ -7194,7 +7204,7 @@ The container holds the system-wide settings. This module attaches the local use
 - **commit-revisions** `uint16`: Maximum number of config archive files kept per file:// location.
   After each archive write, Ze prunes the files beyond this count, oldest first. 0 disables the pruning and keeps every file. The count applies to a file:// archive only, and Ze never prunes an HTTP archive.
 - **conntrack** `container`: Connection tracking (conntrack) module loading, table tuning, and timeout configuration.
-  *Provided by `firewall` ([ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang))*
+  *Provided by `firewall` ([ze-firewall-api.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-api.yang), [ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang))*
   The container holds the helper modules to load, the table bounds, the protocol timeouts and the TCP behavior flags. Ze writes each one to its net.netfilter sysctl key.
   - **accounting** `empty`: Enable per-connection byte/packet counters (nf_conntrack_acct).
     Ze writes the value to net.netfilter.nf_conntrack_acct. The counters cost memory per flow, so the kernel keeps them off until they are asked for.

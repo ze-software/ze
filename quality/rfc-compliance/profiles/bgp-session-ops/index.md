@@ -11,7 +11,7 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 ## Figures
 
 - **MUST bar**: Ze verified 38, Tests awaiting verification 22, Not built 17
-- **Overview bar**: Ze MUST verified 38, SHOULD verified 6, Tests awaiting verification 26, Not assessed 112, Not built 17
+- **Overview bar**: Ze MUST verified 38, SHOULD verified 4, Tests awaiting verification 28, Not assessed 112, Not built 17
 
 | Figure | Rows |
 |---|---|
@@ -32,14 +32,14 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 122 |
-| SHOULD verified | 6 |
+| SHOULD verified | 4 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD tests awaiting verification | 4 |
+| SHOULD tests awaiting verification | 6 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 112 |
 | SHOULD not built | 0 |
@@ -69,7 +69,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 4724](../../rfc4724/) | Graceful Restart Mechanism for BGP | Ze verified 14, Tests awaiting verification 3, Not built 9 | Ze MUST verified 14, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4, Not built 9 |
-| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze verified 2, Not built 1 | Ze MUST verified 2, SHOULD verified 4, Tests awaiting verification 1, Not built 1 |
+| [RFC 7947](../../rfc7947/) | Internet Exchange BGP Route Server | Ze verified 2, Not built 1 | Ze MUST verified 2, SHOULD verified 2, Tests awaiting verification 3, Not built 1 |
 
 ### Level 7
 

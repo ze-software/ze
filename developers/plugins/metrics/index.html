@@ -74,6 +74,7 @@ process uses the deferred daemon hook described below.</p>
 <li><a href="#the-task-panic-counter">The Task Panic Counter</a></li>
 <li><a href="#which-plugins-need-metrics">Which Plugins Need Metrics</a></li>
 <li><a href="#reference-implementation">Reference Implementation</a></li>
+<li><a href="#shared-local-series-holders">Shared local series holders</a></li>
 </ol></details></nav><div class="doc-body">
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
 <h2 id="implementation-pattern">Implementation Pattern</h2>
@@ -1659,6 +1660,45 @@ carries the edit.</p>
 <p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,
 atomic pointer, periodic update loop, and per-peer label cleanup.</p>
+<h2 id="shared-local-series-holders">Shared local series holders</h2>
+<p>SDK gauge and histogram vector handles expose the optional
+<code>sdk.SeriesRetainer</code> capability. A Go plugin imports
+<code>github.com/ze-software/ze/pkg/plugin/sdk</code> to name both <code>sdk.SeriesRetainer</code> and
+its <code>sdk.SeriesLease</code> result. These public aliases expose the canonical
+retention contract; they introduce no wrapper or separate lease type.
+The registry and vector interfaces do not require the optional capability,
+so check it before starting work that depends on shared series cleanup:</p>
+<pre><code class="language-go">vector := p.MetricsRegistry().GaugeVec("ze_login_quality", "Login quality.", []string{"login"})
+retainer, ok := vector.(sdk.SeriesRetainer)
+if !ok {
+    return fmt.Errorf("login quality metrics require sdk.SeriesRetainer")
+}
+lease, err := retainer.RetainSeries(username)
+if err != nil {
+    return err
+}
+defer lease.Release() // after this holder's final update
+vector.With(username).Set(0.25)
+</code></pre>
+<p><code>RetainSeries</code> borrows the original family and label set without changing the
+metric publication protocol. Acquire successfully before the first <code>With</code>
+update and release after the last one. Ordinary <code>Delete</code> refuses while any
+holder remains; the final release uses the existing deletion publication.
+Copies of a lease share release state, so repeated <code>Release</code> calls are safe
+and cannot release a later holder of the same labels. A zero lease has no
+effect.</p>
+<p><code>RetainSeries</code> returns an error for invalid labels, refused families or the
+publisher's series limit. The error preserves the actual declaration,
+label-count, UTF-8, label-size or capacity refusal so the caller can report its
+cause. Retention returns that error without invoking a logging callback;
+ordinary <code>With</code> keeps its existing warning policy. Both use the same admission
+producer and preserve the UTF-8 and label-size boundaries. A reservation publishes
+no value; ordinary <code>With</code> makes it visible. On an unsupported capability or
+failed admission, return the error before starting the dependent work; do not
+continue with unchecked deletion or treat the refusal as disabled telemetry.
+The publisher keeps no released label sets in its custody map.</p>
+<!-- source: pkg/plugin/sdk/metrics_series.go -- SeriesRetainer, SeriesLease -->
+<!-- source: pkg/plugin/sdk/metrics.go -- publishedVec.RetainSeries -->
 </div>
 </div>
             </section>
@@ -1672,7 +1712,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

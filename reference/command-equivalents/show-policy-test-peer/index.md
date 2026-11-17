@@ -5,12 +5,12 @@ Test what your policy does to a specific UPDATE\.
 ## Ze command
 
 - Registry path: `show policy test peer`
-- Usage: `show policy test peer <selector> <import\|export> [filter <name>] update <hex> [source-asn4 <true\|false>]`
+- Usage: `show policy test peer <selector> <import\|export> [filter <name>] update <hex> [route-kind <learned\|local>] [source-asn4 <true\|false>]`
 - Mode: Read-only
 - Wire method: `ze-bgp:show-policy-test`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `filter`, `source-asn4`, `update`
+- Subcommands: `filter`, `route-kind`, `source-asn4`, `update`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -21,7 +21,7 @@ Test what your policy does to a specific UPDATE\.
 - Command pipes: none
 - Pipe aliases: none
 
-Feed a hex\-encoded BGP UPDATE through a peer\'s external policy chain and see its final decision and attribute modifications\. Named in\-process protocol checks are marked not\-evaluated\, not simulated\; the result does not establish that those checks would accept a live UPDATE\. Selecting one as a single\-filter override is refused\. Read\-only\: no routes are actually forwarded\. The selector and the direction\, filter\, update and source\-asn4 tokens are parsed by the handler\, so the peer selector can be a free\-form name or address and the tokens can arrive in any order\.
+Feed a hex\-encoded BGP UPDATE through a peer\'s external policy chain and see its final decision and attribute modifications\. Named in\-process protocol checks are marked not\-evaluated\, not simulated\; the result does not establish that those checks would accept a live UPDATE\. Selecting one as a single\-filter override is refused\. Read\-only\: no routes are actually forwarded\. The selector and the direction\, filter\, update\, source\-asn4 and route\-kind tokens are parsed by the handler\, so the peer selector can be a free\-form name or address and the tokens can arrive in any order\.
 
 ## Arguments
 

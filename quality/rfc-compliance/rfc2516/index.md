@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 6 | of 37 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 37 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 37 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 54 | 54 of 84 tests linked to requirements, 0 without a fault test and 19 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 70 | 70 of 84 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 
 **Area:** PPPoE
 
-**Test verification:** 23 of 37 MUST proven
+**Test verification:** 25 of 37 MUST proven
 
-**Evidence:** unit 23
+**Evidence:** unit 25
 
 **Unmet:** RFC2516-3-1, RFC2516-x-11, RFC2516-x-14, RFC2516-x-15
 
@@ -119,8 +119,8 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 
 ## Figures
 
-- **MUST bar**: Ze verified 23, Tests awaiting verification 9, OS testing gap 1, Not built 4
-- **Overview bar**: Ze MUST verified 23, Tests awaiting verification 9, OS testing gap 1, Not assessed 3, Not built 4
+- **MUST bar**: Ze verified 25, Tests awaiting verification 7, OS testing gap 1, Not built 4
+- **Overview bar**: Ze MUST verified 25, Tests awaiting verification 7, OS testing gap 1, Not assessed 3, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 | Mandatory requirements complete | not complete |
 | MUST rows | 37 |
 | MUST rows kept (the MUST bar) | 37 |
-| Ze verified | 23 |
+| Ze verified | 25 |
 | OS verified | 0 |
-| Tests awaiting verification | 9 |
+| Tests awaiting verification | 7 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -359,9 +359,9 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L76) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2516UnservedServiceNameIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L199) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestPADRWithoutServiceNameGetsServiceNameError`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_server_test.go#L165) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L76) | unit/verify | revert, verified |
+| positive | [`TestRFC2516UnservedServiceNameIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L199) | unit/verify | revert, verified |
+| positive | [`TestPADRWithoutServiceNameGetsServiceNameError`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_server_test.go#L165) | unit/verify | revert, verified |
 
 ### [`RFC2516-x-6`](#rfc2516-x-6)
 
@@ -408,7 +408,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 | negative | [`TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L179) | unit/verify | revert, verified |
 | negative | [`TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L96) | unit/verify | revert, verified |
 | negative | [`TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L153) | unit/verify | revert, verified |
-| positive | [`TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L154) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L154) | unit/verify | revert, verified |
 | positive | [`TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L120) | unit/verify | revert, verified |
 | positive | [`TestLCPConfigRequestMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L117) | unit/verify | revert, verified |
@@ -484,7 +484,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516PADRWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L155) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2516PADRWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L155) | unit/verify | revert, verified |
 | positive | [`TestRFC2516PADRSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L138) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.4-3`](#rfc2516-5.4-3)
@@ -496,21 +496,21 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516PADSWithZeroSessionIDIsARefusal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L61) | unit/verify | revert, verified |
-| positive | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L73) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2516PADSCarriesTheSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L184) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L73) | unit/verify | revert, verified |
+| positive | [`TestRFC2516PADSCarriesTheSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L184) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.5-3`](#rfc2516-5.5-3)
 
 The DESTINATION_ADDR field is a unicast Ethernet address, the CODE field is set to 0xa7 and the SESSION_ID MUST be set to indicate which session is to be terminated. (§5.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing moved. Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (TestBuildPADT, handleSessionDown sends the PADT for that SID, an unknown SID terminates nothing). Host half, the gap of the prior weak verdict, now proven on raw octets: TestRFC2516HostPADTNamesItsAccessConcentratorAndSession (PADO+PADS through tryReadPADO/tryReadPADS, then sendPADT: DESTINATION_ADDR = offering AC's MAC with the group bit clear, CODE 0xa7, SESSION_ID 0x2345 from the PADS), observed red under a revert of sendPADT; TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession (a PADO from broadcast or multicast source is never an offer, so no PADT can be addressed to a group; a PADS from another AC carrying 0x3456 is ignored and the PADT names 0x2345), observed red under a revert of tryReadPADS. Residual, named not disqualifying: the two-line acMAC copy from padoPkt.SrcMAC in Dial is mirrored in the test helper because Dial needs kernel PPPoE; Dial passes the same acMAC/sessID to sendPADT on every path (read at dialer.go).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. ACTUAL LIVE SOURCE VERDICT, no native stamp or runtime claim. Read full RFC2516 section5.5 and exact summary requirement: destination is unicast Ethernet, CODE0xa7 and SESSION_ID identifies the terminated session. Census five tagged units across three carriers: AC TestRFC2516SessionDownSendsPADTForThatSession and TestRFC2516UnknownSessionIDTerminatesNothing, external pppoe TestBuildPADT, host TestRFC2516HostPADTNamesItsAccessConcentratorAndSession and TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession. Read full units and actual NewBuilder/BuildPADT/Finish, ParseDiscovery, Host tryReadPADO/PADS/sendPADT, discovery seams, InterfaceServer matching teardown and genuine Driver consumer. BuildPADT positive asserts exact CODE/SID/destination; AC positive preserves exact single PADT code/SID/unicast MAC after actual original worker termination, native close before PADT and disjoint worker survival. Correctly addressed absent-SID PADT reaches unknown-session rule and must preserve actual admitted worker/native/Echo. Host positive discovers real offered AC MAC and assigned0x2345, then directly inspects raw destination unicast bit, literal0xa7 and exact original SID. Negative changes only valid PADO source to broadcast/multicast, and offers complete foreignAC PADS0x3456 before correctAC0x2345; neither may supply the Host termination destination/SID. Actual ParseDiscovery group-source rejection and tryReadPADS source correlation are reached with otherwise valid packets, excluding neighbouring-rule ambiguity. These tests would fail on wrong code/address/session selection, not merely absence of panic. Final AC/host changed declarations match independently judged caa945ad/2291368d proposals; source pins are in7-3 note. The missing host pipe helper was corrected before final comparison. MAIN owes named canonical GREEN and meaningful semantic RED proof refreshes, including wrong PADT SID and absent-SID selects-live cuts from15edda33; no whole-producer panic substitutes for these assertions. Full source judgment covers all three fields and both production roles; supported audit rejudge stamping remains MAIN work after final formatting/source pin confirmation.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L318) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L318) | unit/verify | mutant, verified |
 | negative | [`TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L163) | unit/verify | revert, verified |
 | positive | [`TestBuildPADT`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L225) | unit/verify | revert, verified |
-| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L225) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L225) | unit/verify | mutant, verified |
 | positive | [`TestRFC2516HostPADTNamesItsAccessConcentratorAndSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L142) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.5-4`](#rfc2516-5.5-4)
@@ -521,10 +521,10 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L54) | unit/verify | revert, verified |
 | negative | [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L30) | unit/verify | revert, verified |
-| positive | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L53) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2516ACSentPADTClosesTransportBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L87) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L53) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ACSentPADTClosesTransportBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L87) | unit/verify | revert, verified |
 | positive | [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L29) | unit/verify | revert, verified |
 | positive | [`TestRFC2516ClientSentPADTStopsPPPBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L131) | unit/verify | revert, verified |
 
@@ -553,20 +553,20 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session. (§7)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing, internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates, internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates moved. Re-judged after a02374d9ad changed TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates against RFC 2516 Section 7 ("When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session."). The only change: the post-termination sendEchoReply result, previously discarded, must now satisfy errors.Is(err, io.ErrClosedPipe). That error is produced only by sessionLink.Write's closed guard (dialer.go), passed through writeClientPacket unwrapped and by sendEchoReply with %w, so the check pins the session's own refusal; the hostChannel still accepts writes after Close, so neither this nor the zero-later-frames check can pass unless superviseNetworkPhase closed the link after keepaliveLoop returned on the Terminate-Request. Every earlier assertion is kept (exactly one Terminate-Ack for Identifier 5, one channel close, Done published, link.Write refused, no frame after the Ack): strictly stronger. Negative TestRFC2516HostKeepsTheSessionUntilLCPTerminates unchanged: Echo-Request and stray Terminate-Ack leave Done open and the Host answering, only the Terminate-Request ends it, so the stop is tied to LCP termination. AC half unchanged: handleSessionDown removes the session and sends its PADT (exact CODE, SESSION_ID, destination MAC); an unknown SID sends nothing and removes nothing. Discrimination records (re-taken 45025b3639) replace whole producer bodies with a panic, which proves only that the units reach the producers; the specific break (dropping link.Close from superviseNetworkPhase) was judged by reading: it leaves link.stopped open and Write succeeding, so three assertions go red.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. ACTUAL LIVE SOURCE VERDICT: all four tagged units, both new AC helpers and their type, host networkPhase helper and hostChannel type now match exact frozen caa945ad and2291368d proposals in normalized source comparison. The previously missing networkPhase pipe implementation is corrected and independently reread. Final AC raw source pin ee2cd48656adc3e8e64e342c6f58450af6010e11a866719ee9b25cd6c876a96a and hostc4ad462a2bc64bb6dd81906a8295da268230e4e50104a1a03e502a069c3ad404 are provenance only, not native audit fingerprints. Complete four-tag census confirmed. Source judgment is ready, with actual validation and supported audit stamping owned by MAIN. Read the complete RFC2516 section7 obligation that Host and Access Concentrator stop using that PPPoE session when LCP terminates, its following Discovery obligation, section5.5 and exact summary row. Census is four units in two carriers: pppoe TestRFC2516SessionDownSendsPADTForThatSession and TestRFC2516UnknownSessionIDTerminatesNothing; pppoeclient TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates and TestRFC2516HostKeepsTheSessionUntilLCPTerminates. A authored none and separately APPROVE(a) each after full HEAD/current/proposed source and actual producer/helper reads. AC positive preserves exact PADT count/code/SID/unicast destination/removal, but now actual original worker TermReq77 produces genuine LCPDown, acknowledged through the actual consumer, exact Ack77, genuine Down and consumer cleanup. Its original native pipe writer must be closed before PADT while the reader remains open; the worker must retire/release; another admitted actual worker must stay native-writable and answer Echo, including after old Down replay. AC negative retains absent-SID PADT and absent-session Down and all old no-send/survival assertions; correctly addressed PADT reaches absent-SID selection and real worker/native/Echo survival excludes unconditional teardown. Host positive retains exact Ack5, one logical close, Done and all later guarded-write refusal checks; actual production callback must close original native writer once and direct write must return os.ErrClosed with reader alive. The logical channel deliberately still accepts writes after Close so original guard checks remain discriminating. Host negative retains Echo7/strayAck8/Echo9/TermReq10 sequence, exact replies and lifecycle assertions, adding native survival before actual termination and exact once-close afterward. Actual producers read: Driver/Attempt fixture and native transport ownership, Subsystem LCPDown/Down matching consumers, InterfaceServer finishSessionDown/closeAdmitted/CloseTransport, custom-client keepaliveLoop/superviseNetworkPhase/sessionLink.Close. These are native-owner boundary tests, not a Linux PPP forwarding claim. No renewed PPP-session admission is exercised, so the adjacent return-to-Discovery obligation remains its separate requirement scope. No runtime, observed countercut, compile result or native audit stamp is claimed. MAIN owes focused four-unit canonical GREEN and named behavior-only producer breaks, then supported rejudge stamp.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L320) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC2516HostKeepsTheSessionUntilLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L298) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L227) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L263) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L320) | unit/verify | mutant, verified |
+| negative | [`TestRFC2516HostKeepsTheSessionUntilLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L298) | unit/verify | mutant, verified |
+| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L227) | unit/verify | mutant, verified |
+| positive | [`TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L263) | unit/verify | mutant, verified |
 
 ### [`RFC2516-7-4`](#rfc2516-7-4)
 
 If the Host wishes to start another PPP session, it MUST return to the PPPoE Discovery stage. (§7)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestRFC2516HostReturnsToDiscoveryForTheNextSession changed only by passing Timing: testPPPoETiming (ReconnectDelayMin 1s) now that keepalive and reconnect timing come from config, and the comment naming the delay. Assertions unchanged: after the first session's Done the client calls Dial again (Discovery) within 5s, the first session's Cleanup (PADT) ran first, and the client holds SESSION_ID 0 in state discovery.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession, internal/component/iface/rfc2516_pppoe_client_test.go::TestRFC2516HostReturnsToDiscoveryForTheNextSession#2 moved. Rejudge 2026-11-08: TestRFC2516HostReturnsToDiscoveryForTheNextSession changed only by passing Timing: testPPPoETiming (ReconnectDelayMin 1s) now that keepalive and reconnect timing come from config, and the comment naming the delay. Assertions unchanged: after the first session's Done the client calls Dial again (Discovery) within 5s, the first session's Cleanup (PADT) ran first, and the client holds SESSION_ID 0 in state discovery.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

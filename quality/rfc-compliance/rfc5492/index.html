@@ -501,7 +501,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3 - Overview of Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L109" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L123" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a valid unknown capability has no conforming termination case under this prohibition; TestOpenIgnoresUnknownCapability exercises handleOpen and completes establishment, while rejection for a missing required capability is separate local policy</p></td>
 </tr>
@@ -510,7 +510,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3 - Overview of Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L112" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L126" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> this prohibition defines no input for which an unknown capability warrants Unsupported Capability; TestOpenIgnoresUnknownCapability observes the outgoing KEEPALIVE and absence of NOTIFICATION, while a missing required capability invokes a separate permitted response</p></td>
 </tr>
@@ -519,7 +519,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5 - Extensions to Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L114" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L128" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> valid unknown capabilities must all be ignored, so this rule has no conforming reject case; TestOpenIgnoresUnknownCapability checks known-capability negotiation and the session response, while malformed encodings and absent required capabilities exercise different rules</p></td>
 </tr>
@@ -778,13 +778,13 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <p>No test carries RFC5492-4-3, so there is no linked test.</p>
 <h3><a href="#rfc5492-3-3"><code>RFC5492-3-3</code></a></h3>
 <p>the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: terminating the session because a received capability is not supported. TestOpenIgnoresUnknownCapability sends an OPEN with code 254 and asserts handleOpen returns nil, state OpenConfirm then Established after KEEPALIVE, and s.Conn() is the same connection. {single-polarity: positive} is justified: a prohibition with no conforming termination input.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability moved. Forbidden: terminating the session because a received capability is not supported. TestOpenIgnoresUnknownCapability sends an OPEN with code 254 and asserts handleOpen returns nil, state OpenConfirm then Established after KEEPALIVE, and s.Conn() is the same connection. {single-polarity: positive} is justified: a prohibition with no conforming termination input.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L109" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L123" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -793,13 +793,13 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 </div>
 <h3><a href="#rfc5492-3-4"><code>RFC5492-3-4</code></a></h3>
 <p>In particular, the Unsupported Capability NOTIFICATION message MUST NOT be generated and the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote now covers both halves: no Unsupported Capability NOTIFICATION and no termination for an unsupported capability. TestOpenIgnoresUnknownCapability asserts the bytes written after the OPEN are exactly one KEEPALIVE (Len HeaderLen, type KEEPALIVE) and unchanged after establishment (no NOTIFICATION), and that the connection survives to Established. Single-polarity marker present.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability moved. Quote now covers both halves: no Unsupported Capability NOTIFICATION and no termination for an unsupported capability. TestOpenIgnoresUnknownCapability asserts the bytes written after the OPEN are exactly one KEEPALIVE (Len HeaderLen, type KEEPALIVE) and unchanged after establishment (no NOTIFICATION), and that the connection survives to Established. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L112" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L126" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -808,13 +808,13 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 </div>
 <h3><a href="#rfc5492-5-2"><code>RFC5492-5-2</code></a></h3>
 <p>It MUST NOT be used when a BGP speaker receives a capability that it does not understand; such capabilities MUST be ignored. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 (Unsupported Capability MUST NOT be used for a capability not understood): TestOpenIgnoresUnknownCapability asserts only a KEEPALIVE is written for an OPEN with code 254. Clause 2 (such capabilities MUST be ignored): the same unit asserts the following Route Refresh TLV is negotiated and the session reaches Established. Single-polarity marker present.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability moved. Clause 1 (Unsupported Capability MUST NOT be used for a capability not understood): TestOpenIgnoresUnknownCapability asserts only a KEEPALIVE is written for an OPEN with code 254. Clause 2 (such capabilities MUST be ignored): the same unit asserts the following Route Refresh TLV is negotiated and the session reaches Established. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L114" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L128" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestOpenIgnoresUnknownCapability</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1015,7 +1015,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

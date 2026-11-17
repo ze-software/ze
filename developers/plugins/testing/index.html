@@ -74,6 +74,14 @@
 program in declare mode (<code>ZE_PLUGIN_MODE=declare</code>, described in
 <a href="../protocol/">protocol.md</a>, "Query Mode: Answering Without Starting") and judges
 what the program wrote. It needs no daemon and no config file.</p>
+<p>With no daemon running, the checker is the only command that starts your
+program. <code>ze show plugin declarations config &lt;file&gt;</code> starts no external plugin
+then: it lists your plugin with the state <code>not-available</code>, and its reason names
+this checker and the form a running Ze answers. A running Ze starts your
+program in declare mode when you type <code>show plugin declarations config &lt;file&gt;</code>
+in the session <code>ze cli</code> opens, and the row then carries what your plugin
+declares.</p>
+<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow -->
 <p>Two commands run the same checker and write the same rows:</p>
 <pre><code class="language-bash"># The shipped binary, for a plugin author or an operator.
 ze show plugin conformance run "./my-plugin --flag"
@@ -92,6 +100,13 @@ budget <code>ze.plugin.query.timeout</code> sets, 5 seconds by default.</p>
 <!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
 <!-- source: internal/le/plugin/conformance/actions.go -- runCheck -->
 <!-- source: internal/component/plugin/conformance/conformance.go -- Run, DefaultName -->
+<p>A caller cancellation or deadline stops the query's isolated process group and
+joins it before the checker answers. That interruption produces an error and no
+completed conformance report; it does not claim that the plugin failed. If the
+caller remains active and the query's own budget expires, the <code>exits-clean</code> row
+still fails.</p>
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run -->
+<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration, canceledDeclarationQuery -->
 <h3 id="the-report">The report</h3>
 <p>The report holds one row for each check, in the order the protocol reaches
 them. Each row carries these fields:</p>
@@ -278,7 +293,7 @@ start ze.</p>
 </tr>
 <tr>
 <td>2</td>
-<td>The run did not happen, so there is no report: no run string, no shell on this host, an invalid budget, or a caller that is not local</td>
+<td class="cell-no">✕</td>
 </tr>
 </tbody>
 </table>
@@ -707,7 +722,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 5 | of 41 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
 | One polarity plus reason | 14 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 41 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 27 | 27 of 30 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 26 | 26 of 30 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 
 **Area:** IPv6 customer edge router
 
-**Test verification:** 18 of 41 MUST proven
+**Test verification:** 17 of 41 MUST proven
 
-**Evidence:** unit 18
+**Evidence:** unit 17
 
 **Unmet:** RFC7084-4.1-3, RFC7084-4.2-14, RFC7084-4.2-15, RFC7084-4.2-16, RFC7084-4.2-20, RFC7084-4.2-22, RFC7084-4.2-9, RFC7084-4.3-10, RFC7084-4.3-11, RFC7084-4.3-12, RFC7084-4.3-14, RFC7084-4.3-19, RFC7084-4.3-2, RFC7084-4.3-3, RFC7084-4.3-5, RFC7084-4.3-6
 
@@ -123,8 +123,8 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 
 ## Figures
 
-- **MUST bar**: Ze verified 18, Tests awaiting verification 1, OS testing gap 7, Not built 15
-- **Overview bar**: Ze MUST verified 18, Tests awaiting verification 1, OS testing gap 7, Not assessed 24, Not built 16
+- **MUST bar**: Ze verified 17, Tests awaiting verification 2, OS testing gap 7, Not built 15
+- **Overview bar**: Ze MUST verified 17, Tests awaiting verification 2, OS testing gap 7, Not assessed 24, Not built 16
 
 | Figure | Rows |
 |---|---|
@@ -133,9 +133,9 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 | Mandatory requirements complete | not complete |
 | MUST rows | 41 |
 | MUST rows kept (the MUST bar) | 41 |
-| Ze verified | 18 |
+| Ze verified | 17 |
 | OS verified | 0 |
-| Tests awaiting verification | 1 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 7 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -612,7 +612,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L101) | unit/verify | revert, verified |
+| positive | [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L101) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7084-4.3-9`](#rfc7084-4.3-9)
 

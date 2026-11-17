@@ -518,6 +518,171 @@
     ]
   },
   {
+    "path": "clear container layer",
+    "short-help": "Clear a writable layer: name <container>.",
+    "description": "A clear needs the name of one container, after the name keyword:\nclear container layer name <container>.",
+    "mode": "daemon",
+    "usage": "clear container layer name <container>",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "subcommands": [
+      "name"
+    ]
+  },
+  {
+    "path": "clear container layer name",
+    "short-help": "Empty the named container's writable layer.",
+    "description": "The container's writable layer is emptied. A running container is stopped\nfirst and started again on the empty layer. The name of a container the\nconfiguration no longer holds is accepted, and its stored layer is removed.",
+    "mode": "daemon",
+    "wire-method": "ze-container:clear-layer",
+    "args": [
+      {
+        "name": "value",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Name of the container.",
+        "description": "The name of a container, configured or not.\nThe word after the name keyword is the value."
+      }
+    ],
+    "usage": "clear container layer name <value>",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "layer",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "value",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
     "path": "clear cymru cache address",
     "short-help": "Remove the cached Cymru origin of one IP address.",
     "description": "Removes the origin of one address. The name of the AS it pointed\nat stays cached, because it belongs to the AS. The answer reports found true when any owner\nheld it, removed, and the owners rows.",
@@ -4408,6 +4573,171 @@
     ]
   },
   {
+    "path": "create container image",
+    "short-help": "Fetch an image: reference <image>.",
+    "description": "A fetch needs an image reference, after the reference keyword:\ncreate container image reference <image>.",
+    "mode": "daemon",
+    "usage": "create container image reference <image>",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "subcommands": [
+      "reference"
+    ]
+  },
+  {
+    "path": "create container image reference",
+    "short-help": "Fetch the named image into the store.",
+    "description": "The image is fetched from its registry, each byte checked against its digest\nand size, and stored in one folder named by its digest. A name with no\nregistry host is fetched from the default registry, and a name with no tag\nmeans the tag latest. The command answers once, at the end; the image\nlisting shows the fetch meanwhile. Every container that waited for the image\nthen starts.",
+    "mode": "daemon",
+    "wire-method": "ze-container:create-image",
+    "args": [
+      {
+        "name": "value",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Image reference.",
+        "description": "The image reference: a name, optionally with a registry host first and\na tag or a digest last. The word after the reference keyword is the value."
+      }
+    ],
+    "usage": "create container image reference <value>",
+    "grammar": [
+      {
+        "text": "create",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "image",
+        "kind": "keyword"
+      },
+      {
+        "text": "reference",
+        "kind": "keyword"
+      },
+      {
+        "text": "value",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
     "path": "create interface address",
     "short-help": "Add an IP address to an interface.",
     "description": "The interface must already exist.",
@@ -6597,6 +6927,432 @@
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
     ]
+  },
+  {
+    "path": "delete container image",
+    "short-help": "Delete images: digest <digest>, or all.",
+    "description": "A delete needs a digest, after the digest keyword, or the all keyword:\ndelete container image digest <digest>, delete container image all.",
+    "mode": "daemon",
+    "usage": "delete container image digest <digest>",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "subcommands": [
+      "all",
+      "digest"
+    ]
+  },
+  {
+    "path": "delete container image all",
+    "short-help": "Delete every stored image no configured container holds.",
+    "description": "Every stored image no configured container holds is removed, with the\nblobs a stopped fetch left. An image a container holds is kept and listed\nunder kept, with the container that holds it.",
+    "mode": "daemon",
+    "wire-method": "ze-container:delete-image-all",
+    "usage": "delete container image all",
+    "grammar": [
+      {
+        "text": "delete",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "image",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
+    "path": "delete container image digest",
+    "short-help": "Delete the stored image a digest names.",
+    "description": "The one stored image the digest names is removed. An image a configured\ncontainer holds as its current or its previous generation is kept, and the\nrefusal names the container and the generation.",
+    "mode": "daemon",
+    "wire-method": "ze-container:delete-image",
+    "args": [
+      {
+        "name": "value",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Digest of the image.",
+        "description": "A digest, or a prefix of at least 12 hexadecimal digits that names one\nimage. The word after the digest keyword is the value."
+      }
+    ],
+    "usage": "delete container image digest <value>",
+    "grammar": [
+      {
+        "text": "delete",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "image",
+        "kind": "keyword"
+      },
+      {
+        "text": "digest",
+        "kind": "keyword"
+      },
+      {
+        "text": "value",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
+    "path": "delete container volume",
+    "short-help": "Delete a stored volume: name <volume> instance <container>.",
+    "description": "A volume delete needs the volume, after the name keyword, and its\ncontainer, after the instance keyword:\ndelete container volume name <volume> instance <container>.",
+    "mode": "daemon",
+    "usage": "delete container volume name <volume> instance <container>",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "subcommands": [
+      "name"
+    ]
+  },
+  {
+    "path": "delete container volume name",
+    "short-help": "Delete a stored volume the configuration no longer declares.",
+    "description": "The volume's folder and everything the container wrote in it are removed.\nA volume the configuration still declares is refused, and the refusal names\nthe statement to remove.",
+    "mode": "daemon",
+    "wire-method": "ze-container:delete-volume",
+    "args": [
+      {
+        "name": "value",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Name of the volume.",
+        "description": "The name of the volume, as the container's volume entry spelled it.\nThe word after the name keyword is the value."
+      },
+      {
+        "name": "instance",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Name of the container.",
+        "description": "The container the volume belongs to: two containers may each hold a\nvolume of the same name."
+      }
+    ],
+    "usage": "delete container volume name <value> <instance>",
+    "grammar": [
+      {
+        "text": "delete",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "volume",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "value",
+        "kind": "value"
+      },
+      {
+        "text": "instance",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
   },
   {
     "path": "delete data key",
@@ -17141,7 +17897,7 @@
   },
   {
     "path": "request restart",
-    "short-help": "Restart the daemon in place with graceful-restart state; keep the host running.",
+    "short-help": "Restart the daemon with graceful-restart state while keeping the host running.",
     "description": "Ze writes 'restart initiated' before it prepares an in-place daemon\nrestart and signals the daemon stop. A BGP daemon writes its graceful-restart\nmarker and closes sessions without a shutdown notification, through the same\naction SSH restart uses. Starting the daemon again requires a supervisor\nconfigured to restart it after this stop. This command does not reboot the\nhost and takes no arguments.",
     "mode": "daemon",
     "wire-method": "ze-plugin:system-daemon-restart",
@@ -31063,6 +31819,561 @@
     ]
   },
   {
+    "path": "show config supplied diff",
+    "short-help": "Compare two supplied configurations with secrets masked.",
+    "description": "Compare two caller-held sources with the existing resolved diff and\nsecret masking. Decode content as one JSON object with required before and after\nstring fields, each holding native configuration text. Duplicate, missing,\nunknown or nonstring fields and trailing data are refused. The combined JSON\nenvelope, not each individual source, has the content byte limit.",
+    "mode": "read-only, offline",
+    "wire-method": "ze-config-cli:show-config-supplied-diff",
+    "args": [
+      {
+        "name": "content",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Input bytes in padded base64, at most 195,840 bytes.",
+        "description": "Caller-held bytes encoded as padded base64. The whole input is bounded to\n195,840 decoded bytes and never recorded in command history or accounting."
+      }
+    ],
+    "usage": "show config supplied diff <content>",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "supplied",
+        "kind": "keyword"
+      },
+      {
+        "text": "diff",
+        "kind": "keyword"
+      },
+      {
+        "text": "content",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
+    "path": "show config supplied dump",
+    "short-help": "Show the resolved tree from supplied configuration bytes.",
+    "description": "Parse and resolve supplied configuration bytes with the same producer\nas show config dump. Sensitive values retain its encoded or stripped display.",
+    "mode": "read-only, offline",
+    "wire-method": "ze-config-cli:show-config-supplied-dump",
+    "args": [
+      {
+        "name": "strip-private",
+        "type": "flag",
+        "short-help": "Replace sensitive values with a marker.",
+        "description": "Replace sensitive values with the same placeholder as the file-based\ndump, so the resolved tree can be shared without its secrets."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Input bytes in padded base64, at most 195,840 bytes.",
+        "description": "Caller-held bytes encoded as padded base64. The whole input is bounded to\n195,840 decoded bytes and never recorded in command history or accounting."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "short-help": "Filename label for diagnostics; no file is opened.",
+        "description": "An optional filename label for diagnostics, without a directory or control\ncharacters. The default is supplied.conf. No file is opened or written."
+      }
+    ],
+    "usage": "show config supplied dump <content> [strip-private] [name <name>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "supplied",
+        "kind": "keyword"
+      },
+      {
+        "text": "dump",
+        "kind": "keyword"
+      },
+      {
+        "text": "content",
+        "kind": "value"
+      },
+      {
+        "text": "strip-private",
+        "kind": "flag"
+      },
+      {
+        "text": "name",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
+    "path": "show config supplied fmt",
+    "short-help": "Format supplied configuration without writing a file.",
+    "description": "Format supplied configuration through the existing formatter. The\nanswer is formatted configuration text, or the selected check or diff diagnostic.\nThis command has no file-write option.",
+    "mode": "read-only, offline",
+    "wire-method": "ze-config-cli:show-config-supplied-fmt",
+    "args": [
+      {
+        "name": "check",
+        "type": "flag",
+        "short-help": "Report whether formatting is needed.",
+        "description": "Report whether formatting would change the supplied bytes, with the\nsame verdict as show config fmt check."
+      },
+      {
+        "name": "diff",
+        "type": "flag",
+        "short-help": "Show what formatting would change.",
+        "description": "Show the formatting changes as the same diagnostic hunks as show\nconfig fmt diff, using the supplied name as a label."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Input bytes in padded base64, at most 195,840 bytes.",
+        "description": "Caller-held bytes encoded as padded base64. The whole input is bounded to\n195,840 decoded bytes and never recorded in command history or accounting."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "short-help": "Filename label for diagnostics; no file is opened.",
+        "description": "An optional filename label for diagnostics, without a directory or control\ncharacters. The default is supplied.conf. No file is opened or written."
+      }
+    ],
+    "usage": "show config supplied fmt <content> [check] [diff] [name <name>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "supplied",
+        "kind": "keyword"
+      },
+      {
+        "text": "fmt",
+        "kind": "keyword"
+      },
+      {
+        "text": "content",
+        "kind": "value"
+      },
+      {
+        "text": "check",
+        "kind": "flag"
+      },
+      {
+        "text": "diff",
+        "kind": "flag"
+      },
+      {
+        "text": "name",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
+  },
+  {
+    "path": "show config supplied graph",
+    "short-help": "Show dependencies from supplied configuration bytes.",
+    "description": "Build the dependency graph from supplied bytes through the existing\ngraph producer. Inactive configuration contributes no dependency.",
+    "mode": "read-only, offline",
+    "wire-method": "ze-config-cli:show-config-supplied-graph",
+    "args": [
+      {
+        "name": "content",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Input bytes in padded base64, at most 195,840 bytes.",
+        "description": "Caller-held bytes encoded as padded base64. The whole input is bounded to\n195,840 decoded bytes and never recorded in command history or accounting."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "short-help": "Filename label for diagnostics; no file is opened.",
+        "description": "An optional filename label for diagnostics, without a directory or control\ncharacters. The default is supplied.conf. No file is opened or written."
+      }
+    ],
+    "usage": "show config supplied graph <content> [name <name>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "supplied",
+        "kind": "keyword"
+      },
+      {
+        "text": "graph",
+        "kind": "keyword"
+      },
+      {
+        "text": "content",
+        "kind": "value"
+      },
+      {
+        "text": "name",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "blob"
+  },
+  {
+    "path": "show config supplied validation",
+    "short-help": "Validate supplied configuration without applying it.",
+    "description": "Check supplied configuration with the existing full validation producer.\nAn invalid configuration retains its diagnostics and failed verdict. Nothing is applied.",
+    "mode": "read-only, offline",
+    "wire-method": "ze-config-cli:show-config-supplied-validation",
+    "args": [
+      {
+        "name": "content",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Input bytes in padded base64, at most 195,840 bytes.",
+        "description": "Caller-held bytes encoded as padded base64. The whole input is bounded to\n195,840 decoded bytes and never recorded in command history or accounting."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "short-help": "Filename label for diagnostics; no file is opened.",
+        "description": "An optional filename label for diagnostics, without a directory or control\ncharacters. The default is supplied.conf. No file is opened or written."
+      }
+    ],
+    "usage": "show config supplied validation <content> [name <name>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "supplied",
+        "kind": "keyword"
+      },
+      {
+        "text": "validation",
+        "kind": "keyword"
+      },
+      {
+        "text": "content",
+        "kind": "value"
+      },
+      {
+        "text": "name",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
     "path": "show config validation",
     "short-help": "Check a config for errors without applying it.",
     "description": "Both the grammar of the file and the meaning of its values are checked,\nand each problem is reported with the diagnostic code that explains it. Nothing is\napplied.",
@@ -31154,6 +32465,348 @@
       }
     ],
     "answer-shape": "doc"
+  },
+  {
+    "path": "show container image list",
+    "short-help": "Show the images in the store and the fetches in flight.",
+    "description": "One row for each image in the store, each fetch in flight and each fetch\nthat failed: the whole reference, the digest, the size and the fetch time, the\nstate (present, fetching, failed or previous), the bytes a fetch received so\nfar, and the containers that hold the image. A failed row carries the error\nand its doctor code.",
+    "mode": "read-only",
+    "wire-method": "ze-container:show-image-list",
+    "usage": "show container image list",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "image",
+        "kind": "keyword"
+      },
+      {
+        "text": "list",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "always",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "reference",
+        "digest",
+        "size",
+        "fetched",
+        "state",
+        "received",
+        "used-by",
+        "error",
+        "code"
+      ]
+    ]
+  },
+  {
+    "path": "show container store",
+    "short-help": "Show the image store's place, its space and its layers.",
+    "description": "The store's folder, the total and free bytes of its filesystem, the reserve\na fetch never takes, whether the kernel enforces the size caps, and one row\nfor each writable layer with its cap and its use.",
+    "mode": "read-only",
+    "wire-method": "ze-container:show-store",
+    "usage": "show container store",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "store",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
+    "path": "show container volume list",
+    "short-help": "Show the stored volumes, their size and their use.",
+    "description": "One row for each stored volume: the container, the volume, its cap, its\nuse, and whether the configuration still declares it (in-use) or not (orphan).",
+    "mode": "read-only",
+    "wire-method": "ze-container:show-volume-list",
+    "usage": "show container volume list",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "volume",
+        "kind": "keyword"
+      },
+      {
+        "text": "list",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "always",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "instance",
+        "name",
+        "size",
+        "used",
+        "state"
+      ]
+    ]
   },
   {
     "path": "show crashes",
@@ -51403,7 +53056,7 @@
   {
     "path": "show policy test peer",
     "short-help": "Test what your policy does to a specific UPDATE.",
-    "description": "Feed a hex-encoded BGP UPDATE through a peer's external policy chain and\nsee its final decision and attribute modifications. Named in-process protocol\nchecks are marked not-evaluated, not simulated; the result does not establish\nthat those checks would accept a live UPDATE. Selecting one as a single-filter\noverride is refused. Read-only: no routes are actually forwarded.\nThe selector and the direction, filter, update and source-asn4 tokens are\nparsed by the handler, so the peer selector can be a free-form name or\naddress and the tokens can arrive in any order.",
+    "description": "Feed a hex-encoded BGP UPDATE through a peer's external policy chain and\nsee its final decision and attribute modifications. Named in-process protocol\nchecks are marked not-evaluated, not simulated; the result does not establish\nthat those checks would accept a live UPDATE. Selecting one as a single-filter\noverride is refused. Read-only: no routes are actually forwarded.\nThe selector and the direction, filter, update, source-asn4 and route-kind tokens are\nparsed by the handler, so the peer selector can be a free-form name or\naddress and the tokens can arrive in any order.",
     "mode": "read-only",
     "wire-method": "ze-bgp:show-policy-test",
     "args": [
@@ -51426,7 +53079,7 @@
         "description": "The word is required, and a call without it is refused. It picks which\nof the peer's two chains the UPDATE is fed through."
       }
     ],
-    "usage": "show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>]",
+    "usage": "show policy test peer <selector> <import|export> [filter <name>] update <hex> [route-kind <learned|local>] [source-asn4 <true|false>]",
     "grammar": [
       {
         "text": "show",
@@ -51473,6 +53126,20 @@
       {
         "text": "hex",
         "kind": "value"
+      },
+      {
+        "text": "route-kind",
+        "group": [
+          {
+            "text": "kind",
+            "values": [
+              "learned",
+              "local"
+            ],
+            "kind": "value"
+          }
+        ],
+        "kind": "group"
       },
       {
         "text": "source-asn4",
@@ -51584,6 +53251,7 @@
     ],
     "subcommands": [
       "filter",
+      "route-kind",
       "source-asn4",
       "update"
     ]
@@ -62166,6 +63834,341 @@
     ]
   },
   {
+    "path": "update container image",
+    "short-help": "Update a container's image: name <container>, or rollback.",
+    "description": "An update needs the name of one container, after the name keyword:\nupdate container image name <container>. rollback returns it to its previous\nimage.",
+    "mode": "daemon",
+    "usage": "update container image name <container>",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "subcommands": [
+      "name",
+      "rollback"
+    ]
+  },
+  {
+    "path": "update container image name",
+    "short-help": "Fetch the named container's image again and move it to a new digest.",
+    "description": "The reference the container's configuration names is fetched again. When it\nresolves to another digest, the container restarts on it with an empty\nwritable layer, and the image it ran stays as its previous generation. When\nthe digest is the same, nothing changes.",
+    "mode": "daemon",
+    "wire-method": "ze-container:update-image",
+    "args": [
+      {
+        "name": "value",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Name of the container.",
+        "description": "The name of a configured container, as its instance entry spells it.\nThe word after the name keyword is the value."
+      }
+    ],
+    "usage": "update container image name <value>",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "image",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "value",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
+    "path": "update container image rollback",
+    "short-help": "Return a container to its previous image: name <container>.",
+    "description": "A rollback needs the name of one container, after the name keyword:\nupdate container image rollback name <container>.",
+    "mode": "daemon",
+    "usage": "update container image rollback name <container>",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "subcommands": [
+      "name"
+    ]
+  },
+  {
+    "path": "update container image rollback name",
+    "short-help": "Return the named container to its previous image and its writes.",
+    "description": "The container's current and previous generations swap, and the container\nrestarts on the image it ran before, with the writes it had. Ze never rolls\nback on its own. A container with no previous generation is refused.",
+    "mode": "daemon",
+    "wire-method": "ze-container:update-image-rollback",
+    "args": [
+      {
+        "name": "value",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Name of the container.",
+        "description": "The name of a configured container, as its instance entry spells it.\nThe word after the name keyword is the value."
+      }
+    ],
+    "usage": "update container image rollback name <value>",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "image",
+        "kind": "keyword"
+      },
+      {
+        "text": "rollback",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "value",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
     "path": "update data config",
     "short-help": "Import one config into the daemon's store as a new version.",
     "description": "Imports one config through the store the daemon owns, so it works while ze\nruns. For the daemon's own config, the content is staged as the candidate and\nthe same reload a SIGHUP runs promotes it: the config becomes active only when\nthe reload accepts it, and a refused config leaves the active config, its\npointers and the daemon unchanged, with the reload's reason in the refusal.\nThe import is refused while a confirmed-commit window is open, with the\nwindow's own refusal, and while another change is staged. For any other name,\nthe content is committed as a new active version, the previous one kept as\nrollback, and nothing reloads. The answer carries the name, the version stamp\nand the byte count. The content is never recorded: the audit log, the\naccounting record, the SSH exec log and the session transcript hold a\nplaceholder in its place.",
@@ -62187,7 +64190,7 @@
         "description": "The config's bytes, base64-encoded (RFC 4648 Section 4, with padding): 1 to\n195,840 bytes, at most 261,120 characters. The value is never recorded."
       }
     ],
-    "usage": "update data config <name> <content>",
+    "usage": "update data config <name> content <content>",
     "grammar": [
       {
         "text": "update",
@@ -62204,6 +64207,10 @@
       {
         "text": "name",
         "kind": "value"
+      },
+      {
+        "text": "content",
+        "kind": "keyword"
       },
       {
         "text": "content",
@@ -62326,7 +64333,7 @@
         "description": "The bytes to write, base64-encoded (RFC 4648 Section 4, with padding): 1 to\n195,840 bytes, at most 261,120 characters. The value is never recorded."
       }
     ],
-    "usage": "update data key <key> <content>",
+    "usage": "update data key <key> content <content>",
     "grammar": [
       {
         "text": "update",
@@ -62343,6 +64350,10 @@
       {
         "text": "key",
         "kind": "value"
+      },
+      {
+        "text": "content",
+        "kind": "keyword"
       },
       {
         "text": "content",

@@ -23,6 +23,13 @@ This page is the infrastructure it is owed against.
 | RSVP-TE (Ze as transit) | Docker: freeRouter, ingress and egress | `test/interop-rsvpte/scenarios/` | `./le test integration interop-rsvpte` |
 | Multi-node topologies (several Ze nodes, any suite's images, named links) | Docker: any registered image | `test/interop-topology/scenarios/` | `./le test integration interop-topology` |
 
+The PPPoE suite's `pppoe-shared-access-two-clients` scenario uses the actual
+daemon and two pppd 2.5.5 clients on one native VLAN. Its checker requires
+separate discovery, authenticated IPCP, kernel interfaces and bound traffic,
+then independent teardown with the original survivor still forwarding. It is
+classless fixture support, with no CoS or native-retirement claim.
+<!-- source: internal/le/interoplab/pppoe/shared_access_check.go -- checkSharedAccess -->
+
 <!-- source: internal/le/test/integration/gates.go -- interop, interop-ipsec, interop-radius, interop-radius-subscriber, interop-topology and interop-rsvpte verbs -->
 <!-- source: internal/le/test/deployment/actions.go -- l2tp, l2tp-ppp, docker-pppoe-accel verbs -->
 

@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/route-collector.json]
 
 ## Figures
 
-- **MUST bar**: Ze verified 248, Tests awaiting verification 80, Not built 34
-- **Overview bar**: Ze MUST verified 248, SHOULD verified 8, Tests awaiting verification 82, Not assessed 89, Not built 34
+- **MUST bar**: Ze verified 250, Tests awaiting verification 79, Not built 33
+- **Overview bar**: Ze MUST verified 250, SHOULD verified 8, Tests awaiting verification 81, Not assessed 89, Not built 33
 
 | Figure | Rows |
 |---|---|
@@ -18,13 +18,13 @@ Figures as of the last build, read from [data/rfc/profiles/route-collector.json]
 | Mandatory requirements complete | not complete |
 | MUST rows | 362 |
 | MUST rows kept (the MUST bar) | 362 |
-| Ze verified | 248 |
+| Ze verified | 250 |
 | OS verified | 0 |
-| Tests awaiting verification | 80 |
+| Tests awaiting verification | 79 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 34 |
+| Not built | 33 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -52,7 +52,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 89, Tests awaiting verification 29, Not built 15 | Ze MUST verified 89, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 15 | route-collector: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 87, Tests awaiting verification 31, Not built 15 | Ze MUST verified 87, SHOULD verified 3, Tests awaiting verification 32, Not assessed 30, Not built 15 | route-collector: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -80,7 +80,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Tests awaiting verification 3, Not built 1 | SHOULD verified 1, Tests awaiting verification 3, Not built 1 | route-collector: required by rfc/short/rfc6286.md |
+| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze verified 4 | Ze MUST verified 4, SHOULD verified 1 | route-collector: required by rfc/short/rfc6286.md |
 | [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 33, Tests awaiting verification 19, Not built 1 | Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1 | route-collector: required by rfc/short/rfc7606.md |
 
 ### Level 8
@@ -115,8 +115,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 RFCs this use case lists as optional, each declared by the Optional use cases row of its own summary. They count in none of the figures above until the owner brings one into scope by moving it to the Use cases row. Their own bars and figures follow.
 
-- **MUST bar**: Ze verified 16, Tests awaiting verification 4, Not built 6
-- **Overview bar**: Ze MUST verified 16, SHOULD verified 3, Not owed 1, Tests awaiting verification 4, Not assessed 9, Not built 6
+- **MUST bar**: Ze verified 17, Tests awaiting verification 3, Not built 6
+- **Overview bar**: Ze MUST verified 17, SHOULD verified 3, Not owed 1, Tests awaiting verification 3, Not assessed 9, Not built 6
 
 | Figure | Rows |
 |---|---|
@@ -125,9 +125,9 @@ RFCs this use case lists as optional, each declared by the Optional use cases ro
 | Mandatory requirements complete | not complete |
 | MUST rows | 27 |
 | MUST rows kept (the MUST bar) | 26 |
-| Ze verified | 16 |
+| Ze verified | 17 |
 | OS verified | 0 |
-| Tests awaiting verification | 4 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -154,5 +154,5 @@ The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and S
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 9072](../../rfc9072/) | Extended Optional Parameters Length for BGP OPEN Message | Ze verified 5, Not built 4 | Ze MUST verified 5, SHOULD verified 1, Not assessed 2, Not built 4 | route-collector: optional in rfc/short/rfc9072.md |
-| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze verified 3, Tests awaiting verification 3 | Ze MUST verified 3, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4 | route-collector: optional in rfc/short/rfc2918.md |
+| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze verified 4, Tests awaiting verification 2 | Ze MUST verified 4, SHOULD verified 1, Tests awaiting verification 2, Not assessed 4 | route-collector: optional in rfc/short/rfc2918.md |
 | [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze verified 8, Tests awaiting verification 1, Not built 2 | Ze MUST verified 8, SHOULD verified 1, Not owed 1, Tests awaiting verification 1, Not assessed 3, Not built 2 | route-collector: optional in rfc/short/rfc8654.md |

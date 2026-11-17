@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze uses 60 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
+Ze uses 64 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
 
 ## Terminal, Web & SSH Interfaces (11)
 
@@ -16,7 +16,7 @@ Ze uses 60 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/charmbracelet/x/ansi` | `v0.11.9` | Strips terminal escape codes in the CLI editor tests, so a pattern matches the text the operator sees rather than its color codes. |
 | `github.com/muesli/reflow` | `v0.3.0` | ANSI-aware text width calculation, so the CLI's prompt and status bar line up correctly despite embedded color codes. |
 | `github.com/creack/pty` | `v1.1.24` | Opens a pseudo-terminal in a Linux integration test that exercises serial console handling. |
-| `github.com/chromedp/chromedp` | `v0.21.0` | Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot. |
+| `github.com/chromedp/chromedp` | `v0.23.0` | Drives headless Chrome in a test that proves the website fills its published figures from the facts snapshot. |
 
 ## Networking & Protocols (7)
 
@@ -30,7 +30,7 @@ Ze uses 60 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/packetcap/go-pcap` | `v0.0.0-20260731105150-c86974bbfbcd` | Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead. |
 | `github.com/cloudflare/circl` | `v1.6.5` | Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420). |
 
-## Linux Kernel Interfaces (8)
+## Linux Kernel Interfaces (10)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -42,6 +42,8 @@ Ze uses 60 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/cilium/ebpf` | `v0.22.0` | Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin. |
 | `filippo.io/mlockexe` | `v1.0.0` | Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS page cache: without the lock it waits on the disk holding its own binary at the moment it must keep sessions alive. |
 | `github.com/opencontainers/runc` | `v1.5.3` | Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence. |
+| `github.com/opencontainers/cgroups` | `v0.1.0` | Describes and manages the Linux control groups used by the container plugin for resource limits and cleanup. |
+| `github.com/opencontainers/runtime-spec` | `v1.3.0` | Provides OCI seccomp action definitions used by the container plugin's system-call filter tests. |
 
 ## Routing & Dataplane (2)
 
@@ -77,17 +79,19 @@ Ze uses 60 direct Go dependencies. The list and versions come from `go.mod`, and
 | `golang.org/x/crypto` | `v0.58.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
 | `golang.org/x/mod` | `v0.42.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
 | `golang.org/x/net` | `v0.62.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
-| `golang.org/x/sync` | `v0.24.0` | errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure. |
-| `golang.org/x/sys` | `v0.49.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
+| `golang.org/x/sync` | `v0.25.0` | errgroup, which the plugin manager uses to drain every plugin's event queue concurrently and return the first failure. |
+| `golang.org/x/sys` | `v0.50.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
 | `golang.org/x/term` | `v0.47.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
 | `golang.org/x/text` | `v0.43.0` | Prepares TACACS+ usernames with the PRECIS UsernameCasePreserved profile that RFC 8907 Section 3.7 requires. |
 | `golang.org/x/tools` | `v0.52.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 | `golang.org/x/vuln` | `v1.9.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
-## Testing & Build Tooling (13)
+## Testing & Build Tooling (15)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
+| `github.com/gofrs/flock` | `v0.13.2` | Locks pending RFC approval records while development tools update them, so concurrent writers preserve each other's approvals. |
+| `github.com/moby/sys/user` | `v0.4.1` | Parses container account files through the runtime library; regression tests check valid groups and rejection of oversized group lines. |
 | `github.com/moby/patternmatcher` | `v0.6.1` | Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds. |
 | `mvdan.cc/sh/v3` | `v3.14.1` | Parses Bash commands so the agent safety checks can inspect the commands a session is about to run. |
 | `github.com/stretchr/testify` | `v1.12.1` | Assertion and require helpers used across the Go unit test suite. |

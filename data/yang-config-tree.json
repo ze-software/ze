@@ -8364,6 +8364,42 @@
             "short-help": "Run this container; false keeps its config and stops it.",
             "source": "config",
             "type": "boolean"
+          },
+          {
+            "description": "The signal a stop sends to the container's first process. When the\nleaf is absent, the signal the image declares is sent, or the\ntermination signal when the image declares none.",
+            "kind": "leaf",
+            "name": "stop-signal",
+            "short-help": "Signal that asks the container to stop.",
+            "source": "config",
+            "type": "enumeration",
+            "values": [
+              {
+                "name": "hup"
+              },
+              {
+                "name": "int"
+              },
+              {
+                "name": "quit"
+              },
+              {
+                "name": "term"
+              },
+              {
+                "name": "usr1"
+              },
+              {
+                "name": "usr2"
+              }
+            ]
+          },
+          {
+            "description": "A stop sends the container its stop signal, then waits this long for\nit to end before Ze kills every process of it through its control\ngroup. The top of the range is 30 because a daemon stop gives the\ncontainers 30 seconds to obey their stop signals.",
+            "kind": "leaf",
+            "name": "stop-timeout",
+            "short-help": "Time between the stop signal and the kill.",
+            "source": "config",
+            "type": "uint16"
           }
         ],
         "description": "One entry is one container. Whether it runs is stated here and nowhere\nelse: Ze has no start command and no stop command, and the enabled\nleaf says whether the container runs.",

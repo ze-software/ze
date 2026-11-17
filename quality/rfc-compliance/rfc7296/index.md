@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 234 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 234 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 234 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 293 | 293 of 761 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 296 | 296 of 761 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: Internet Key Exchange Protocol Version 2 / IKEv2 (
 
 **Area:** IKEv2
 
-**Test verification:** 90 of 234 MUST proven
+**Test verification:** 91 of 234 MUST proven
 
-**Evidence:** interop 1, functional 1, unit 88
+**Evidence:** interop 1, functional 1, unit 89
 
 **Unmet:** -
 
@@ -110,8 +110,8 @@ Included in automatic checks: Internet Key Exchange Protocol Version 2 / IKEv2 (
 
 ## Figures
 
-- **MUST bar**: Ze verified 90, Tests awaiting verification 144
-- **Overview bar**: Ze MUST verified 90, SHOULD verified 4, Tests awaiting verification 146, Not assessed 3
+- **MUST bar**: Ze verified 91, Tests awaiting verification 143
+- **Overview bar**: Ze MUST verified 91, SHOULD verified 4, Tests awaiting verification 145, Not assessed 3
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: Internet Key Exchange Protocol Version 2 / IKEv2 (
 | Mandatory requirements complete | not complete |
 | MUST rows | 234 |
 | MUST rows kept (the MUST bar) | 234 |
-| Ze verified | 90 |
+| Ze verified | 91 |
 | OS verified | 0 |
-| Tests awaiting verification | 144 |
+| Tests awaiting verification | 143 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -722,7 +722,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestChildSANoNATNoEncap`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestChildSANoNATNoEncap`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276) | unit/verify | revert, verified |
 | positive | [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L290) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.23-3`](#rfc7296-2.23-3)
@@ -1049,8 +1049,8 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestBfmBareESPKeptForUnfloatedSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L143) | unit/verify | not verified |
-| positive | [`TestBfmEncapsulatedESPAcceptedWithoutNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L66) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestBfmEncapsulatedESPSentWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L117) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestBfmEncapsulatedESPAcceptedWithoutNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L66) | unit/verify | revert, verified |
+| positive | [`TestBfmEncapsulatedESPSentWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L117) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.23-12`](#rfc7296-2.23-12)
 

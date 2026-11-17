@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 13 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 13 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 13 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 24 | 24 of 34 tests linked to requirements, 0 without a fault test and 10 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 34 | 34 of 34 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: PAP and LCP authentication are implemented by the 
 
 **Area:** PAP
 
-**Test verification:** 10 of 13 MUST proven
+**Test verification:** 13 of 13 MUST proven
 
-**Evidence:** unit 10
+**Evidence:** unit 13
 
 **Unmet:** -
 
@@ -110,19 +110,19 @@ Included in automatic checks: PAP and LCP authentication are implemented by the 
 
 ## Figures
 
-- **MUST bar**: Ze verified 10, Tests awaiting verification 3
-- **Overview bar**: Ze MUST verified 10, Tests awaiting verification 3, Not assessed 3
+- **MUST bar**: Ze verified 13
+- **Overview bar**: Ze MUST verified 13, Not assessed 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 13 |
 | MUST rows kept (the MUST bar) | 13 |
-| Ze verified | 10 |
+| Ze verified | 13 |
 | OS verified | 0 |
-| Tests awaiting verification | 3 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -181,51 +181,51 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod, internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod moved. Independent rejudgment 2026-11-15 against RFC 1334 Section 1: "If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase." The current short row accurately records RFC1994-1-1 as the restatement. TestLocalCONFREQAdvertisesAuthMethod starts the actual Driver with valid LCP configuration and an explicit single-method fallback policy, reads its first LCP Configure-Request and asserts the Authentication-Protocol value for PAP, CHAP-MD5 and MS-CHAPv2, including the exact CHAP algorithm and PAP data length. The distinct TestAuthProtoRejectClearsMethod first verifies a real PAP offer, sends a canonical Configure-Reject with the current request Identifier and original authentication bytes, and requires the next Configure-Request to omit Authentication-Protocol when optional authentication becomes None. These are different producer conditions, not a neighbouring malformed-packet rule. spawnSession preserves the method, sendConfigureRequest calls authMethodToLCPOptions and BuildLocalConfigRequest, and validated Reject dispatch clears it before SCR. Fixture LCP values add valid admission without changing the wire assertions. Existing native discrimination was retaken by the main thread; this note claims no additional semantic coverage from a producer-disabled panic.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1334 Section1: authentication desired requires Authentication-Protocol during Link Establishment; RFC1994 repeats this PPP-wide obligation. Read TestLocalCONFREQAdvertisesAuthMethod in full plus authProtoReplyPeer/TestAuthProtoRejectClearsMethod: real Driver initial LCP Configure-Request carries exact PAP0xC023, CHAP0xC223/algorithm05 or MS-CHAPv2/algorithm81 according to explicit single-method configuration. Peer helper first checks actual protocol/request/offer, sends a matching-ID exact-byte Configure-Reject, and the next request must omit the option when optional authentication is no longer desired. Positive and negative reach distinct valid protocol conditions, not another malformed-packet guard. Read authMethodToLCPOptions, sendConfigureRequest and accepted-Reject auth adjustment; actual wire option is configuration-dependent. New owned fixture/control plumbing does not bypass negotiation or replace wire assertions. Fresh native records remain separate. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L679) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L148) | unit/verify | revert, verified |
+| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L679) | unit/verify | revert, verified |
 
 ### [`RFC1334-x-1`](#rfc1334-x-1)
 
 Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP. (§2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst, internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2 moved. Independent rejudgment 2026-11-15 against RFC 1334 Section 2: "Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP." Read every current tagged unit: TestInitialAuthMethodCHAPBeforePAPWhateverOrder, TestSelectAuthFallback, TestAuthOffersCHAPBeforePAP, TestConfiguredPAPStillOffersCHAPFirst and TestAuthAllowSelectionMatrix. The decisive independent temporal cases are the matrix PAP default wire CHAP-MD5 then PAP, and PAP written first with permitted [pap, ms-chap-v2, chap-md5] requiring wire MS-CHAPv2, CHAP-MD5, PAP before publishing PAP at Opened. Canonical Naks use the latest actual request Identifier, include a permitted PAP alternative, and decode CHAP algorithm values, isolating premature PAP from policy-membership and malformed-input failures. Helper cases cover both stronger variants, PAP-last fallback, configured CHAP precedence and PAP-only/no-auth conditional boundaries. The Driver case checks actual spawnSession first-offer wiring; its two tags alone would be one observation, so the independent matrix supplies the temporal contrast. ResolveAuthAllow, initialAuthMethod and selectAuthFallback retain that ordering before sendConfigureRequest. The changed Driver unit only adds validated LCP configuration. Preserve the superseded/dropped annotation's explicit statement that this PAP obligation remains owed; no new RFC1994 obligation is inferred. The obsolete defaultAuthFallbackOrder record is not part of this semantic proof and was not replaced or removed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Read RFC1334 Section2 including the full stronger-method-before-PAP obligation; the superseded annotation says the PAP obligation remains owed. Read every tagged unit: TestAuthAllowSelectionMatrix uses real Driver wire negotiation, default configured PAP first offering CHAP-MD5, then correlated PAP Nak fallback; its ordered [pap,ms-chap-v2,chap-md5] case requires MS-CHAPv2 then CHAP-MD5 despite repeated valid PAP Naks before finally allowing PAP and observing PAP at Opened. TestAuthOffersCHAPBeforePAP and TestConfiguredPAPStillOffersCHAPFirst pin first stronger offers and valid post-offer fallback; TestSelectAuthFallback rejects PAP under CHAP-only policy; TestInitialAuthMethodCHAPBeforePAPWhateverOrder covers stronger variants and default policy. Read ResolveAuthAllow, initialAuthMethod, selectAuthFallback and accepted Nak handling: all allowed untried stronger methods precede PAP. The real ordered driver matrix supplies distinct temporal observations; the shared-assertion tags in smaller helpers are not credited as independent pairs. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L34) | unit/verify | mutant, verified |
 | negative | [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L122) | unit/verify | mutant, verified |
 | negative | [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L50) | unit/verify | mutant, verified |
-| negative | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L99) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L99) | unit/verify | mutant, verified |
 | positive | [`TestAuthAllowSelectionMatrix`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_policy_driver_test.go#L33) | unit/verify | mutant, verified |
 | positive | [`TestInitialAuthMethodCHAPBeforePAPWhateverOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_auth_test.go#L273) | unit/verify | mutant, verified |
 | positive | [`TestAuthOffersCHAPBeforePAP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L49) | unit/verify | mutant, verified |
-| positive | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestConfiguredPAPStillOffersCHAPFirst`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_clauses_test.go#L98) | unit/verify | mutant, verified |
 
 ### [`RFC1334-2.3-1`](#rfc1334-2.3-1)
 
 If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack). (Section 2.2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak, internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent moved. RFC 1334 Section 2.2.2: "If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate-Ack)." Rejudged after 83deb89129; the only tagged-unit change for this row is the added proto assertion in the negative and corrected pap.go line references. TestPAPRequestEmitsEvent delivers accept through the real runPAPAuthPhase over a pipe and asserts ProtoPAP, PAPAuthenticateAck and a true return. TestPAPRejectWritesNak asserts ProtoPAP and PAPAuthenticateNak on reject, so an unconditional Ack goes red; the recorded mutant inverts the branch at pap.go:258. Acceptance itself is the handler's decision, delivered on authRespCh; this row proves the reply to that decision. Caveat on proof: the tagged units compare the symbolic constant, and the literal Code 2 is pinned by the untagged TestPAPWriteAck (0x02); the positive record panics WritePAPAck rather than changing the Code. The sentence is in Section 2.2.2; RFC 1334 has no Section 2.3.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1334 Section2.2.2 (stable requirement ID retains2.3): acceptable Peer-ID/password requires a PAP Authenticate-Ack Code2. Complete TestPAPRequestEmitsEvent sends actual PAP credentials over a pipe, inspects the genuine auth request, answers its private capability with acceptance, and requires ProtoPAP, Authenticate-Ack, echoed Identifier0x42, success event and successful handler return. Distinct TestPAPRejectWritesNak sends different valid credentials and an explicit rejection, requiring ProtoPAP and Nak, so unconditional Ack is refused. runPAPAuthPhase uses the actual decision only at the Ack/Nak writer choice; WritePAPAck encodes the declared Code2. No trailing malformed data or earlier unrelated error masks the branch. Scope is protocol response to provider decision; local credential verification is a separate boundary. Fresh discriminator execution is owed.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L411) | unit/verify | mutant, verified |
+| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L293) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.3-2`](#rfc1334-2.3-2)
 
 If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak) (§2.2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak, internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent moved. RFC 1334 Section 2.2.2: "If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate-Nak), and SHOULD take action to terminate the link." The earlier weak verdict rested on the clause 'a PAP packet': TestPAPRejectWritesNak discarded the Protocol. 83deb89129 makes it read the Protocol and assert proto == ProtoPAP on the reject reply, so a Code 3 framed under another Protocol now goes red by reading. Code 3 is asserted by the same unit, and TestPAPRequestEmitsEvent asserts Ack on accept, so an unconditional Nak goes red; the recorded mutant inverts the branch at pap.go:258. Caveat on proof: no record shows the new assertion red. The positive record panics WritePAPNak, which fails before any assertion is reached, and pap.go:250 frames both replies under one WriteFrame(ProtoPAP). The tagged units compare the symbolic constant; the literal Code 3 is pinned by the untagged TestPAPWriteNak (0x03). The SHOULD half is RFC1334-2.3-5 and is not claimed here.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1334 Section2.2.2: unacceptable Peer-ID/password requires PAP Authenticate-Nak Code3; the SHOULD termination clause is another requirement. Complete TestPAPRejectWritesNak sends a valid request and answers its actual auth capability false, requiring ProtoPAP, Nak Code, Identifier0x77, original message, failure event and false handler return. TestPAPRequestEmitsEvent is the conforming accepted contrast requiring PAP Ack, so unconditional Nak cannot pass. Read runPAPAuthPhase, WritePAPNak and writePAPReply: actual decision selects a PAP-framed Code3 reply before refusal lifecycle. These distinct accepted/rejected inputs isolate the comparison outcome rather than structural parsing. Current request-capability migration preserves every wire check; no runtime/record freshness is inferred here.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L297) | unit/verify | mutant, verified |
+| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L407) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1)
 
@@ -308,14 +308,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply. (Section 2.2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak, internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent moved. RFC 1334 Section 2.2.2: "The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply." Rejudged after 83deb89129, which changed the two rfc1334_pap_test.go units and left TestPAPReanswersAfterAuthentication as it was. TestPAPRequestEmitsEvent asserts 0x42 on Ack and TestPAPRejectWritesNak asserts 0x77 on Nak, so a hardcoded value goes red on the first-reply path. TestPAPReanswersAfterAuthentication drives handleFrame in AckSent and Opened and asserts replies 0x5a, 0x5b, 0x5c, so a cached initial Identifier in reanswerPAP goes red by reading. That unit carries both tags on one assertion, and the distinct positives in the other two units keep the polarity pair real. It answers Ack only; reanswerPAP passes payload[1] to writePAPReply whatever the cached Code. Caveat on proof: all four records panic reanswerPAP or writePAPReply, so none observes a wrong Identifier, and the MUTATION comment's cached-Identifier break has no record. The doc comment references to pap.go:132, 138, 147, 259 and 262 now match the source.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1334 Section2.2.2: each PAP reply copies the triggering Authenticate-Request Identifier. Complete TestPAPRequestEmitsEvent and TestPAPRejectWritesNak require first Ack0x42 and Nak0x77 respectively. TestPAPReanswersAfterAuthentication uses actual initial PAP acceptance then valid repeated requests0x5b/0x5c in AckSent and Opened, requiring exactly three ProtoPAP Ack replies with0x5a/0x5b/0x5c rather than cached initial identity. Read runPAPAuthPhase/writePAPReply/reanswerPAP: initial paths pass req.Identifier and reanswer passes the new payload Identifier, independently of cached Code. Both initial outcome branches and replacement request identity are observed; the repeat test carries both polarities but does not replace the independent first-reply contrasts. Current real request answers leave these assertions intact. Native recorder evidence remains owed.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L150) | unit/verify | revert, verified |
 | positive | [`TestPAPReanswersAfterAuthentication`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L149) | unit/verify | revert, verified |
-| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L414) | unit/verify | revert, verified |
+| positive | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1334_pap_test.go#L300) | unit/verify | revert, verified |
 
 ### [`RFC1334-2.3-4`](#rfc1334-2.3-4)
 

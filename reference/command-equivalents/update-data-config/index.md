@@ -5,7 +5,7 @@ Import one config into the daemon\'s store as a new version\.
 ## Ze command
 
 - Registry path: `update data config`
-- Usage: `update data config <name> <content>`
+- Usage: `update data config <name> content <content>`
 - Mode: Daemon
 - Wire method: `ze-config:data-config-update`
 - Backends: any backend

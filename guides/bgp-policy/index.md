@@ -52,10 +52,15 @@ even if it has no references. Use `insert` in the editor when order matters.
 For example, `filter { import { filters [ name ]; final accept; } export {
 final reject; } }` runs `name` on import and rejects every export that reaches
 the policy final. With no explicit policy at any level, EBGP rejects routes
-in that direction (RFC 8212 Section 3). IBGP keeps its accepting default,
-including sessions using the migration AS. Automatic and inactive references
-do not count as an explicit policy.
+in that direction (RFC 8212 Section 3). On IBGP, ordinary selected output needs
+an export policy for a learned route. Explicit local announcements and routes
+sent through an attached route-server or reflector role keep their accepting
+default, including sessions using the migration AS. Automatic and inactive
+references do not count as an explicit policy. The engine records the output
+kind independently of source-peer facts or route metadata.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
+<!-- source: internal/component/bgp/reactor/export_kind.go -- forwardSourceInfo.exportKind, fwdItem.exportKind -->
 
 A non-required automatic reference you deactivate stays disabled after a plugin
 restart or an unrelated declaration rebuild. A reload uses its current
@@ -103,9 +108,10 @@ owner's existing send permission. FlowSpec instead restores the selecting RIB's
 currently authorized paths through the same owner. A destination negotiating only
 FlowSpec does not require the optional receive store; negotiated ordinary families
 still require their retained source.
-Removing the last explicit export policy rejects on EBGP. On IBGP, removing an
-accepting direction needs no replay or static-route reset. Routes removed in the
-same reload are still withdrawn.
+Removing the last explicit export policy rejects on EBGP. On IBGP, explicit
+local and role output keep their default; removing an accepting policy does
+not reset their static-route state. Routes removed in the same reload are still
+withdrawn.
 If required restoration fails, reload returns the error and rolls back the policy
 instead of committing an accepting configuration with stale rejected state.
 
@@ -671,8 +677,18 @@ EBGP sessions would carry nothing is visible without bringing one up
 ([`ze config validate`](../command-reference/index.md#ze-config-validate)).
 <!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy, RFC8212Absences, rfc8212Fix -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
-Policy dry-run applies the same final: absence rejects on EBGP and
-accepts on IBGP. With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
+An export dry-run simulates a learned route by default. Add `route-kind local`
+to predict a local announcement instead, or `route-kind learned` to state the
+default explicitly. This choice changes only the prediction: it installs no
+route and grants no permission to a live writer. An internal destination with
+no export policy rejects the learned simulation and accepts the local one.
+A destination served by an explicit role uses that role's existing default
+for either choice; an external session rejects both without export policy.
+The result names its `simulated-route-kind` and marks `role-default` when the
+role determines the answer. The argument is refused on import, and any value
+other than `learned` or `local` is refused. Import keeps its existing default.
+
+With a rejecting final, a pure withdrawal remains `accept` with unchanged resulting
 text. A mixed announcement and withdrawal reports `modify`, with only its explicit
 withdrawals in the resulting text. A filter execution failure or teardown still
 reports `reject` without resulting text; neither is a successful withdrawal.
@@ -697,8 +713,10 @@ explanation; exercise it with an UPDATE on the peer session instead. Inactive
 references do not execute and have no trace entry.
 When the remote AS is unresolved, the overall action is `undetermined` and
 `reason` tells you to wait for establishment and repeat `show policy test`.
-`policy` still reports the direction, with `undetermined` for an absent final.
 No filter executes, including a single-filter override. Trace and text are empty.
+`policy` reports the simulated class's final, with `undetermined` for an absent
+final whose session type is unresolved. A known internal learned-route rejection
+uses `final-source: learned-export-policy`, distinct from `rfc8212`.
 <!-- source: internal/component/bgp/reactor/policy_dryrun.go -- PolicyDryRun -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- policyInfo, absentPolicyInfo -->
 

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 3 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 3 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 5 | 5 of 6 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 6 | 6 of 6 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 3 | of 3 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -195,7 +195,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC6608EstablishedExpectedMessagesKeepTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L98) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC6608EstablishedExpectedMessagesKeepTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L98) | unit/verify | mutant, verified |
 | positive | [`TestRFC6608EstablishedUnexpectedOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L70) | unit/verify | mutant, verified |
 
 ## Requirement list review

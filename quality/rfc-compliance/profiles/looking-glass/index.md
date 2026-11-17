@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 
 ## Figures
 
-- **MUST bar**: Ze verified 217, Tests awaiting verification 52, Not built 39
-- **Overview bar**: Ze MUST verified 217, SHOULD verified 5, Tests awaiting verification 53, Not assessed 87, Not built 39
+- **MUST bar**: Ze verified 219, Tests awaiting verification 51, Not built 38
+- **Overview bar**: Ze MUST verified 219, SHOULD verified 5, Tests awaiting verification 52, Not assessed 87, Not built 38
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 308 |
 | MUST rows kept (the MUST bar) | 308 |
-| Ze verified | 217 |
+| Ze verified | 219 |
 | OS verified | 0 |
-| Tests awaiting verification | 52 |
+| Tests awaiting verification | 51 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 39 |
+| Not built | 38 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 89, Tests awaiting verification 29, Not built 15 | Ze MUST verified 89, SHOULD verified 3, Tests awaiting verification 30, Not assessed 30, Not built 15 | looking-glass: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 87, Tests awaiting verification 31, Not built 15 | Ze MUST verified 87, SHOULD verified 3, Tests awaiting verification 32, Not assessed 30, Not built 15 | looking-glass: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -84,7 +84,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Tests awaiting verification 3, Not built 1 | SHOULD verified 1, Tests awaiting verification 3, Not built 1 | looking-glass: required by rfc/short/rfc6286.md |
+| [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze verified 4 | Ze MUST verified 4, SHOULD verified 1 | looking-glass: required by rfc/short/rfc6286.md |
 | [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze verified 5 | Ze MUST verified 5, Not assessed 4 | looking-glass: required by rfc/short/rfc6811.md |
 | [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 33, Tests awaiting verification 19, Not built 1 | Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1 | looking-glass: required by rfc/short/rfc7606.md |
 

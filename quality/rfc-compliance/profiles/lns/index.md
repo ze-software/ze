@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 269, Tests awaiting verification 55, OS testing gap 94, Not built 41
-- **Overview bar**: Ze MUST verified 269, SHOULD verified 9, Tests awaiting verification 56, OS testing gap 94, Not assessed 151, Not built 41
+- **MUST bar**: Ze verified 282, Tests awaiting verification 42, OS testing gap 94, Not built 41
+- **Overview bar**: Ze MUST verified 282, SHOULD verified 9, Tests awaiting verification 43, OS testing gap 94, Not assessed 151, Not built 41
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 459 |
 | MUST rows kept (the MUST bar) | 459 |
-| Ze verified | 269 |
+| Ze verified | 282 |
 | OS verified | 0 |
-| Tests awaiting verification | 55 |
+| Tests awaiting verification | 42 |
 | OS testing gap | 94 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -52,13 +52,13 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze verified 46, Tests awaiting verification 15, OS testing gap 2, Not built 13 | Ze MUST verified 46, SHOULD verified 2, Tests awaiting verification 16, OS testing gap 2, Not assessed 22, Not built 13 | lns: required by rfc/short/rfc1661.md |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze verified 48, Tests awaiting verification 13, OS testing gap 2, Not built 13 | Ze MUST verified 48, SHOULD verified 2, Tests awaiting verification 14, OS testing gap 2, Not assessed 22, Not built 13 | lns: required by rfc/short/rfc1661.md |
 
 ### Level 1
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze verified 6, Tests awaiting verification 8, Not built 2 | Ze MUST verified 6, SHOULD verified 2, Tests awaiting verification 8, Not assessed 9, Not built 2 | lns: required by rfc/short/rfc1994.md |
+| [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze verified 11, Tests awaiting verification 3, Not built 2 | Ze MUST verified 11, SHOULD verified 2, Tests awaiting verification 3, Not assessed 9, Not built 2 | lns: required by rfc/short/rfc1994.md |
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze verified 27, Tests awaiting verification 4 | Ze MUST verified 27, Tests awaiting verification 4, Not assessed 1 | lns: required by rfc/short/rfc2865.md |
 | [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze verified 8, Tests awaiting verification 7 | Ze MUST verified 8, Tests awaiting verification 7, Not assessed 1 | lns: required by rfc/short/rfc2866.md |
 
@@ -66,9 +66,9 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze verified 5, Tests awaiting verification 3 | Ze MUST verified 5, Tests awaiting verification 3, Not assessed 6 | lns: required by rfc/short/rfc1332.md |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze verified 10, Tests awaiting verification 3 | Ze MUST verified 10, Tests awaiting verification 3, Not assessed 3 | lns: required by rfc/short/rfc1334.md |
-| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze verified 30, OS testing gap 91, Not built 17 | Ze MUST verified 30, OS testing gap 91, Not assessed 79, Not built 17 | lns: required by rfc/short/rfc4861.md |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze verified 8 | Ze MUST verified 8, Not assessed 6 | lns: required by rfc/short/rfc1332.md |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze verified 13 | Ze MUST verified 13, Not assessed 3 | lns: required by rfc/short/rfc1334.md |
+| [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze verified 29, Tests awaiting verification 1, OS testing gap 91, Not built 17 | Ze MUST verified 29, Tests awaiting verification 1, OS testing gap 91, Not assessed 79, Not built 17 | lns: required by rfc/short/rfc4861.md |
 
 ### Level 3
 
@@ -81,7 +81,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 9, Tests awaiting verification 3, Not built 4 | Ze MUST verified 9, Tests awaiting verification 3, Not assessed 12, Not built 4 | lns: required by rfc/short/rfc5072.md |
+| [RFC 5072](../../rfc5072/) | IP Version 6 over PPP | Ze verified 10, Tests awaiting verification 2, Not built 4 | Ze MUST verified 10, Tests awaiting verification 2, Not assessed 12, Not built 4 | lns: required by rfc/short/rfc5072.md |
 
 ### Level 5
 

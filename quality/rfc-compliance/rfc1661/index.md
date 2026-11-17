@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 10 | of 76 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 76 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 76 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 128 | 128 of 216 tests linked to requirements, 0 without a fault test and 13 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 145 | 145 of 216 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -23,7 +23,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Declared gap or no test | 13 | of 76 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 64 | of 76 mandatory requirements reviewed | 5 weak, wrong or unimplemented, 41 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 64 | of 76 mandatory requirements reviewed | 5 weak, wrong or unimplemented, 35 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -81,7 +81,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 216 |
 | Tests linked to requirements | 216 |
 | Recorded audit verdicts | 64 |
-| Fault test records | 141 |
+| Fault test records | 147 |
 | Summary | `rfc/short/rfc1661.md` |
 | Requirement table | `rfc/requirements/rfc1661.md` |
 | RFC text | `rfc/full/rfc1661.txt` |
@@ -94,9 +94,9 @@ Included in automatic checks: PPP LCP under L2TP and PPPoE. Ze implements framin
 
 **Area:** PPP LCP
 
-**Test verification:** 46 of 76 MUST proven
+**Test verification:** 48 of 76 MUST proven
 
-**Evidence:** interop 4, unit 42
+**Evidence:** interop 4, unit 44
 
 **Unmet:** RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3
 
@@ -122,8 +122,8 @@ Included in automatic checks: PPP LCP under L2TP and PPPoE. Ze implements framin
 
 ## Figures
 
-- **MUST bar**: Ze verified 46, Tests awaiting verification 15, OS testing gap 2, Not built 13
-- **Overview bar**: Ze MUST verified 46, SHOULD verified 2, Tests awaiting verification 16, OS testing gap 2, Not assessed 22, Not built 13
+- **MUST bar**: Ze verified 48, Tests awaiting verification 13, OS testing gap 2, Not built 13
+- **Overview bar**: Ze MUST verified 48, SHOULD verified 2, Tests awaiting verification 14, OS testing gap 2, Not assessed 22, Not built 13
 
 | Figure | Rows |
 |---|---|
@@ -132,9 +132,9 @@ Included in automatic checks: PPP LCP under L2TP and PPPoE. Ze implements framin
 | Mandatory requirements complete | not complete |
 | MUST rows | 76 |
 | MUST rows kept (the MUST bar) | 76 |
-| Ze verified | 46 |
+| Ze verified | 48 |
 | OS verified | 0 |
-| Tests awaiting verification | 15 |
+| Tests awaiting verification | 13 |
 | OS testing gap | 2 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -353,20 +353,20 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 When the Data field is indicated by the Length to extend beyond the end of the Information field, the entire packet is silently discarded without affecting the automaton. (§6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded, internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2, internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded, internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded#2, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded, internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2 moved. Sentence: when an option Data is indicated by its Length to extend beyond the Information field, the entire packet is silently discarded without affecting the automaton. (a) Replying: TestRFC1661LCPTruncatedOptionSilentlyDiscarded goes red on rec.count() != 0 for three layouts. (b) Moving the automaton: the same test starts in ReqSent and AckSent and asserts currentState() == start, then that a valid request is still Acked. TestRFC1661TruncatedOptionSilentlyDiscarded (IPCP, IPv6CP), the reply-direction units and TestRFC1661ClientRequestPastEndSilentlyDiscarded extend it. Negative: a contained unacceptable option still draws a Nak.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. ACTUAL LIVE SOURCE VERDICT: the final NCP-request a69f41b7 and independent B-approved client8020de7d units now match their frozen proposals in normalized body comparison, and the complete ten-tag census is confirmed. Final PPP carrier raw source pin d433ecb656ff65ffc7fa1a7de943b78e94ab543445dd096596b0cff96d0bdf5c and client carrier2b6b31a3d06cd2f7c5af9636daae782fd83b5f0220ad47a5b9070855f198ad2c are provenance only, not native audit fingerprints. No further source repair is needed for these two proof gaps; this is pending source judgment only and MAIN owns actual validation and any supported audit stamp. Read full RFC1661 section6 and the exact summary row, then every tagged unit in both carriers: PPP TestRFC1661TruncatedOptionSilentlyDiscarded, TestRFC1661LCPTruncatedOptionSilentlyDiscarded, TestRFC1661LCPReplyWithOptionsPastEndDiscarded, TestRFC1661NCPReplyWithOptionsPastEndDiscarded, and PPPoE-client TestRFC1661ClientRequestPastEndSilentlyDiscarded, ten tags total. The requirement binds whole-packet silence and an unaffected automaton when an option extends past Information; valid-contained opposite controls must still respond. Core LCP request tests isolate three malformed layouts in actual ReqSent/AckSent with exact wire/state assertions, and reply tests use correlated request identifiers with unchanged-state/wire assertions and valid controls. A independently judged B's repaired NCPReply: retained strayC1, real matching outstanding-ID truncated Reject, all-wire timeout-only silence, no lifecycle event, same-original-request completion, plus matching complete mandatory-option Reject causing exact ipv4 fatal Down. A independently judged B's NCP-request a69f: all old IPCP/IPv6CP malformed bytes and contained-unacceptable Nak cases remain; exact following Ack Data and actual original-Control family assignment/SessionUp prove AckRcvd survives, while two actual AckSent cases count every frame and require silence before only the original local request Ack completes, with no replacement peer request. The four ac4f source cuts each directly violate a named assertion: AckRcvd reset loses completion, AckSent reset loses completion, hidden CR fails all-frame silence, unconditional discard loses valid-contained Nak. A authored the client strengthening and does not self-judge it: independent B read full HEAD/current/proposal and actual custom-client producer/helpers, approved8020 and officially recorded332 row137. B's verdict covers both retained malformed layouts and two added genuine AckSent sequences: exact two total writes and original CR1/Ack0x0F Data exclude response/state-reset and replacement-request escape. These separate source judgments close both custom-client and NCP state-preservation weaknesses. No compile, runtime, observed mutant RED, proof record or native audit stamp is claimed here. MAIN owes focused named-unit canonical GREEN and behavioral RED for reviewed cuts, then supported rejudge stamp after confirming final formatting remains semantically identical; no whole verifier is requested.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1661LCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L675) | unit/verify | not verified |
 | negative | [`TestRFC1661LCPTruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L328) | unit/verify | not verified |
-| negative | [`TestRFC1661NCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L765) | unit/verify | not verified |
-| negative | [`TestRFC1661TruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L81) | unit/verify | not verified |
-| negative | [`TestRFC1661ClientRequestPastEndSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L129) | unit/verify | not verified |
+| negative | [`TestRFC1661NCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L765) | unit/verify | mutant, verified |
+| negative | [`TestRFC1661TruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L81) | unit/verify | mutant, verified |
+| negative | [`TestRFC1661ClientRequestPastEndSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L129) | unit/verify | mutant, verified |
 | positive | [`TestRFC1661LCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L669) | unit/verify | not verified |
 | positive | [`TestRFC1661LCPTruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L321) | unit/verify | not verified |
-| positive | [`TestRFC1661NCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L760) | unit/verify | not verified |
-| positive | [`TestRFC1661TruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L75) | unit/verify | not verified |
-| positive | [`TestRFC1661ClientRequestPastEndSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L122) | unit/verify | not verified |
+| positive | [`TestRFC1661NCPReplyWithOptionsPastEndDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L760) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661TruncatedOptionSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L75) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661ClientRequestPastEndSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L122) | unit/verify | mutant, verified |
 
 ### [`RFC1661-3.1-1`](#rfc1661-3.1-1)
 
@@ -382,12 +382,12 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Then, PPP MUST send NCP packets to choose and configure one or more network-layer protocols. (Section 3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens moved. Judge 2026-09-29. Positive TestRFC1661RunSendsNCPAfterLCPOpens drives run(): LCP Opened, no-auth accepted, then an address request and an IPCP (0x8021) Configure-Request on the wire, else red; observed red with runNCPPhase broken. HEAD negative (both NCPs disabled, runNCPPhase writes 0 frames) is the boundary where nothing is to be chosen: it refuses NCP packets for a protocol not configured, the complement of the positive rather than a violating input, which the obligation (send NCP for the protocols to configure) has no other form of.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1661 Section3.1: after link establishment/authentication PPP sends NCP packets for the network protocols to configure. Complete TestRFC1661RunSendsNCPAfterLCPOpens runs the actual session from LCP negotiation, accepts the genuine no-auth request, then requires an actual IPv4 address request and IPCP Configure-Request via pendingLifecycleNCP. TestRFC1661NCPConfiguresEachFamilySeparately writes IPv4 and IPv6 NCP separately and requires exactly two frames with protocols0x8021/0x8057 and Configure-Request Codes. TestRFC1661NoNCPPacketsWhenNoNetworkProtocol exercises the distinct no-selected-protocol boundary and requires zero frames with successful NCP phase return. Read afterLCPOpen/runNCPPhase/sendNCPConfigureRequest: configured family enablement, not an unconditional writer, causes packets. The negative is the meaningful complement where no protocol is selected, not a malformed peer input. Source judgment only; existing/new native breaks are not certified here. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1661NoNCPPacketsWhenNoNetworkProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L365) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC1661RunSendsNCPAfterLCPOpens`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L66) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC1661RunSendsNCPAfterLCPOpens`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L66) | unit/verify | mutant, verified |
 | positive | [`TestRFC1661NCPConfiguresEachFamilySeparately`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L326) | unit/verify | revert, verified |
 
 ### [`RFC1661-3.4-1`](#rfc1661-3.4-1)
@@ -421,14 +421,14 @@ No test carries RFC1661-3.5-2, so there is no linked test.
 
 Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed. (Section 3.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes, internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes#2, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes, internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes moved. RFC 1661 Section 3.5: "Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed." Rejudged statically at HEAD. TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes runs the real session with CHAP and IPCP enabled: ipEvents is buffered, so its emptiness after one second and synctest.Wait is observable; pending yields no address request, rejected yields none, accepted yields the address request and an IPCP Configure-Request. Running runNCPPhase ahead of runAuthPhase goes red by reading. The narrowed claim on TestRFC1661NoNetworkPhaseUntilAuthCompletes now states only what it asserts: on a rejected no-auth decision afterLCPOpen returns false with no SetMTU, setMRU or SetAdminUp. TestRFC1661NetworkPhaseRunsAfterAuthCompletes proves that path runs on accept. afterLCPOpen as changed by 926f01f732 still runs runAuthPhase before runNCPPhase and SetMTU. Pending is proved for CHAP only; PAP and MS-CHAPv2 share the runAuthPhase dispatch.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1661 Section3.5: advancement to Network-Layer Protocol phase must wait for completed authentication. Complete TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes holds a real CHAP exchange with IPCP enabled: after durable one-second pending observation no address request exists, rejected exchange still has none, while an accepted Response leads to a genuine address request and IPCP Configure-Request. Distinct direct afterLCPOpen tests use actual emitted no-auth requests: rejection requires false return and zero MTU/admin-up/MRU operations; acceptance requires exactly one relevant interface operation. Read afterLCPOpen and runAuthPhase/runNCPPhase: auth returns before NCP and interface activation, with failed/canceled requests returning false. Pending CHAP input is structurally valid and isolated, so silence is authentication ordering rather than invalid frame rejection; positive acceptance proves the network path live. Current immutable request replies preserve these causal gates. Fresh records remain owed. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L84) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC1661NetworkPhaseRunsAfterAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L527) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L85) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC1661NoNetworkPhaseUntilAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L495) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L84) | unit/verify | revert, verified |
+| negative | [`TestRFC1661NetworkPhaseRunsAfterAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L527) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L85) | unit/verify | mutant, verified |
+| positive | [`TestRFC1661NoNetworkPhaseUntilAuthCompletes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L495) | unit/verify | mutant, verified |
 
 ### [`RFC1661-3.5-4`](#rfc1661-3.5-4)
 
@@ -534,7 +534,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 |---|---|---|---|
 | negative | [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L421) | unit/verify | revert, verified |
 | negative | [`TestRFC1661UpWithoutOpenSendsNoConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L729) | unit/verify | revert, verified |
-| positive | [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L420) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC1661OpenTransmitsConfigureRequestOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_clauses_test.go#L420) | unit/verify | revert, verified |
 | positive | [`TestRFC1661OpenTransmitsConfigureRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L698) | unit/verify | revert, verified |
 
 ### [`RFC1661-5.1-2`](#rfc1661-5.1-2)
@@ -882,14 +882,14 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Echo-Request and Echo-Reply packets MUST only be sent in the LCP Opened state. (Section 5.8)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/session_run.go::performAction, internal/component/l2tp/ppp/session_run.go::run moved. Re-read Section 5.8 and all four tagged units. The server permits an exact Identifier/local-Magic Echo-Reply in Opened and emits neither Echo request nor reply in Req-Sent, Ack-Sent, Ack-Rcvd or Stopped. The negative uses the same valid peer Magic as the answering control, so the state guard rather than Magic validation decides. The real-session lifecycle unit reads an Echo-Request in Opened, then after peer RCR requires the next frame to be the outstanding Configure-Request retry rather than an Echo. The client sends no Echo reply in Req-Sent or Ack-Rcvd and subsequently finishes valid LCP. Explicit valid Max-Failure five and shared LCP fixtures change no packet or assertion. The current FSM, run ticker transition and client negotiation guard match these state conditions. Native ticker mutation and producer-disable records are credited only for their actual breaks.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1661 Section5.8: Echo-Request and Echo-Reply may only be sent in LCP Opened. Complete TestRFC1661KeepaliveEchoOnlyInOpened drives actual run through accepted authentication to an emitted Echo, then peer renegotiation; after three restart intervals its next packet must be the configured request retransmission, never a stale ticker Echo. TestRFC1661EchoReplyInOpened requires the actual reply Identifier/Magic; TestRFC1661NoEchoOutsideOpened uses the same valid peer Magic in ReqSent/AckSent/AckRcvd/Stopped and forbids both Echo Codes, isolating state from Magic rejection. Complete client TestClientLCPEchoBeforeOpenDiscarded injects valid Echo Requests before completion and in AckRcvd, retaining exactly the original Configure-Request before valid final peer configuration. Read LCPDoTransition/performAction plus run ticker state transition and client negotiateLCP Echo discard: only Opened permits server emission and leaving Opened stops old ticker channels. This is assertion/producer source judgment; no new runtime/native evidence inferred.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L126) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L126) | unit/verify | mutant, verified |
 | negative | [`TestRFC1661NoEchoOutsideOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1239) | unit/verify | revert, verified |
 | negative | [`TestClientLCPEchoBeforeOpenDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go#L115) | unit/verify | revert, verified |
-| positive | [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L125) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC1661KeepaliveEchoOnlyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L125) | unit/verify | revert, verified |
 | positive | [`TestRFC1661EchoReplyInOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1197) | unit/verify | mutant, verified |
 
 ### [`RFC1661-5.9-1`](#rfc1661-5.9-1)
@@ -1034,14 +1034,14 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 Max-Configure MUST be configurable (§4.6)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/session_run.go::run moved. Section 4.6 requires Max-Configure to be configurable. TestConfiguredLCPMaxConfigure contrasts budgets of three and five with exact Configure-Request counts and Stopped on exhaustion; its answering-peer control opens on the second request. TestProxyLCPRenegotiationUsesConfiguredRestartBudget additionally enters accepted proxy LCP through the real Driver and pipe, observes no initial request or timer retry while Opened, then requires exactly three or five requests on 500 ms Restart expiries after peer RCR, followed by Stopped and a session-down event at the final expiry. TestProxyLCPRenegotiationAnswerStopsRestartBudget answers the second request with its matching Ack, requires reopening and exactly two requests with no later event. Section 4.1 gives Opened RCR scr without irc, so accepted-proxy initialization in run must retain the configured budget of a completed exchange; the tests reject a zero initial counter as well as an unconfigurable counter. Both transport settings reach this shared counter. Client LCP independently reads its existing configurable Max-Configure snapshot; these tags do not claim configurable counters for IPv6CP.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1661 Section4.6, Max-Configure must be configurable. Complete TestConfiguredLCPMaxConfigure contrasts budgets3/5, exact Configure-Request counts, exhausted restartCount0 and Stopped, plus a matching answering peer that opens after exactly two requests. Complete proxy restart pair and helper enter accepted proxy LCP through a real Driver, observe no initial/retry packets while Opened, then require configured3/5 requests at exact500ms boundaries after peer RCR, final session-down/Stopped and matching elapsed time. The answering proxy contrast requires reopening after exactly two requests and no later event. Current run retains configured MaxConfigure for accepted proxy lifetime; applyTransition loads appropriate configured IRC value, sendConfigureRequest decrements, handleRestartTimeout dispatches TO+/TO-. Read ParseLCP parameter-to-NewLCPConfig flow and client negotiateLCP configured remaining counter: no changed shared code replaced configuration with a fixed value. Source rejudgment covers this counter, not other NCP/client settings; native evidence/stamp is not claimed.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestConfiguredLCPMaxConfigure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L87) | unit/verify | mutant, verified |
 | negative | [`TestProxyLCPRenegotiationAnswerStopsRestartBudget`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go#L69) | unit/verify | mutant, verified |
 | positive | [`TestConfiguredLCPMaxConfigure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_configured_restart_test.go#L86) | unit/verify | mutant, verified |
-| positive | [`TestProxyLCPRenegotiationUsesConfiguredRestartBudget`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go#L20) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestProxyLCPRenegotiationUsesConfiguredRestartBudget`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_restart_budget_test.go#L20) | unit/verify | mutant, verified |
 
 ### [`RFC1661-4.6-4`](#rfc1661-4.6-4)
 
@@ -1122,13 +1122,13 @@ No test carries RFC1661-5.9-3, so there is no linked test.
 
 If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost. (Section 6.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/session_run.go::afterLCPOpen, internal/component/l2tp/ppp/session_run.go::readFrames moved. Re-read Section 6.1 and both tagged units. At requested MRU1492, TestReceiveFullFrameBelowConfiguredMRU starts the real Driver with accepted proxy LCP and records the actual channel read before interpreting the capped reply. It requires the full1502-octet frame, LCP protocol, original Echo code/Identifier and all original1500 Information octets, independently of the1492-octet reply. Its separate negative asserts exactly one installed receive-MRU value of1500 through the fake ops boundary; this does not claim a real-kernel execution. The only changed input is an explicit validated3s/2/10/5 LCP snapshot. TestFullInformationFieldReceived separately asserts ParseFrame and ParseLCPPacket accept1500 and the pooled buffer holds the full frame; its1501 rejection is not credited to this RFC requirement. Current readFrames uses the full pooled buffer and afterLCPOpen installs MaxFrameLen. The recorded receive-buffer and setMRU mutants correspond to the two distinct assertions.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Read all RFC1661 Section6.1: requesting smaller packets must retain ability to receive the full1500-octet Information field; the Protocol field is outside that1500. Read every tagged body: TestFullInformationFieldReceived checks actual1502-octet frame parsing, a1500-octet control Length and reader-buffer capacity. TestReceiveFullFrameBelowConfiguredMRU drives a real Driver with requested MRU1492 and sends a structurally valid1500-octet LCP Information field through its actual reader, requiring complete receipt before the separately capped response; independently, exact fakeOps receive-MRU assertion remains1500. readFrames reads into full-frame capacity and afterLCPOpen installs MaxFrameLen receive MRU independently of the smaller negotiated request. The read-cap cut and receive-MRU cut target distinct observations; parser-only acceptance alone is not credited as whole-path proof. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L125) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L125) | unit/verify | mutant, verified |
 | positive | [`TestFullInformationFieldReceived`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_magic_echo_test.go#L282) | unit/verify | revert, verified |
-| positive | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L124) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestReceiveFullFrameBelowConfiguredMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_proxy_policy_driver_test.go#L124) | unit/verify | mutant, verified |
 
 ### [`RFC1661-6.4-5`](#rfc1661-6.4-5)
 

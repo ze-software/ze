@@ -385,8 +385,8 @@ Keep the logs if a check fails.</pre>
                     <article class="index4-metric-panel" aria-labelledby="index4-rfc-title">
                         <span class="index4-badge concept-evidence">Standards requirements</span>
                         <h3 id="index4-rfc-title">Mandatory RFC requirements proven</h3>
-                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">45.7</span><span class="index4-percent">%</span></p>
-                        <p><span data-ze-stat="rfc.proven_display">2,172</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
+                        <p class="index4-big-figure"><span data-ze-stat="rfc.proven_percent">46.2</span><span class="index4-percent">%</span></p>
+                        <p><span data-ze-stat="rfc.proven_display">2,196</span> of <span data-ze-stat="rfc.must_kept_display">4,752</span> requirements for Ze or the OS.</p>
                         <div class="index4-small-figures"><div><b><span data-ze-stat="rfc.implemented_display">196</span></b><span>RFCs implemented</span></div>
                             <div><b><span data-ze-stat="rfc.not_walked_display">0</span></b><span>unreviewed requirement lists excluded</span></div></div>
                         <p class="index4-panel-note">Each test identifies the requirement it checks. The ledger names the evidence and missing coverage.</p>
@@ -445,13 +445,13 @@ Keep the logs if a check fails.</pre>
                     </table>
                 </section>
                 <div class="index4-test-grid" aria-label="Other test layers">
-                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">47,400+</span></p>
+                    <article><span class="index4-badge concept-evidence">Package behavior</span><h3>Go tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.unit_display">48,300+</span></p>
                         <p>Check encoded bytes and parsed values. Verify configuration, state transitions and plugins.
                             Mutation checks with gomu examine whether tests catch code changes.</p><a href="quality/unit-fuzz-mutation/">Go tests and mutation checks →</a></article>
                     <article><span class="index4-badge concept-evidence">Visible behavior</span><h3>End-to-end tests</h3><p class="index4-test-figure"><span data-ze-stat="tests.e2e_display">3,000+</span></p>
                         <p>Start sessions and exchange route updates. Run editor commands, commits and reloads.
                             Check output, errors and saved state.</p><a href="quality/functional-ci/">Scenarios and expected results →</a></article>
-                    <article><span class="index4-badge concept-evidence">Generated inputs</span><h3>Fuzz targets</h3><p class="index4-test-figure"><span data-ze-stat="tests.fuzz_display">110</span></p>
+                    <article><span class="index4-badge concept-evidence">Generated inputs</span><h3>Fuzz targets</h3><p class="index4-test-figure"><span data-ze-stat="tests.fuzz_display">110+</span></p>
                         <p>Generate inputs for parsers and decoders. Probe packets and configuration text for crashes.
                             Replay saved failures as regression cases.</p><a href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">Fuzz inputs and regression cases →</a></article>
                 </div>
@@ -484,7 +484,7 @@ Keep the logs if a check fails.</pre>
                     </a>
                     <a class="card reference-card cat-operate" href="reference/cli/">
                         <span class="cat">Commands</span>
-                        <strong class="reference-card-title"><span data-ze-stat="cli_commands">513</span> CLI commands</strong>
+                        <strong class="reference-card-title"><span data-ze-stat="cli_commands">534</span> CLI commands</strong>
                         <span class="reference-card-description">Syntax, arguments and pipe operators →</span>
                     </a>
                     <a class="card reference-card cat-automate" href="reference/plugins/">
@@ -600,6 +600,10 @@ Keep the logs if a check fails.</pre>
                         follow the path that matches your setup.
                     </p>
                 </div>
+                <aside class="build-size" aria-labelledby="build-size-title">
+                    <h3 id="build-size-title">Build Ze to fit your needs.</h3>
+                    <p>Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.</p>
+                </aside>
                 <div class="index4-choice-grid reveal">
                     <article class="index4-choice index4-choice-featured">
                         <div class="index4-choice-top"><span class="index4-choice-badge">Local lab</span><span class="index4-recommendation">Start here</span></div>
@@ -712,7 +716,7 @@ Keep the logs if a check fails.</pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="license/">Ze is AGPLv3 open source.</a>
                     <a href="legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

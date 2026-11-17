@@ -419,8 +419,14 @@ file is judged in the parsed workflow's load composition, using the browser
 daemon's own baseline, including parsed authentication/profile declarations,
 and the shared editor's merge or replace operation. A default web case that
 needs multiple users or a reader shares the runner's daemon-selection rule.
-Login and authenticated editor-owner switching before a load remain explicit
-unsupported-composition findings, retaining standalone validation of that file.
+Declared logins are checked against the generated fixture credentials; their
+resolved profiles gate editor mutations before a physical input is consumed.
+The same authenticated candidate survives CLI and graphical page navigation.
+Native import controls provide the selected token path, root or selected-item
+scope, and merge or replace operation. Repeated login remains an explicit
+unsupported composition: the browser runner cannot fill a second login form
+on an authenticated page. Failed authentication, denied mutation and unknown
+composition retain the physical file's standalone validation.
 An accepted editor draft is counted separately; its submitted commit snapshot uses
 the full configuration validator. Standalone and applied config oracles remain
 unchanged. The fragment is
@@ -531,7 +537,7 @@ option=<type>:key=value[:key=value...]
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
 | `needs-arch` | `value=<goarch>[,<goarch>]` | Run only on a host whose CPU arch (`GOARCH`) is in the list. On any other host the test is SKIPPED, and the SKIP line names both arches: `SKIP ... -- needs-arch=arm64, host GOARCH=amd64: ...`. A test that builds or boots for a target arch carries it (owner decision 2026-10-13: a target arch is tested only on a CPU of that arch), because Ze builds every kernel on a host of its own arch, with no CPU emulation. Each token must be an arch the kernel builder supports (`kernelbuilder.SupportedArches`, today `amd64` and `arm64`): an empty token, a typo such as `amd46`, a kernel spelling such as `x86_64` or `aarch64`, a missing `value=` or any other key is a parse error on every host. A fixture whose arch is incidental to what it asserts asks for the host's arch instead (`hostKernelArch`, `internal/test/fixture/install_fixture.go`), so it runs everywhere. The `test/parse` suite has its own parser and does not take `needs-arch`. |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`; the skip reason ends with the host command that runs that one test there, `./le test qemu ci test <path>`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le test qemu all`; the skip reason ends with the host command that runs that one test there, `./le test qemu ci test <path>`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, `sys-time` and `sys-admin`; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty `caps=` is refused on every host. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le test qemu netns` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
@@ -644,15 +650,29 @@ the context check, so an unfinished frame cannot prevent teardown.
 
 | The `.ci` test ... | Use |
 |--------------------|-----|
-| Only validates config (`ze config validate -`), parses, or runs an offline `ze show` / `ze env` | Nothing. It runs natively on every OS |
+| Only validates config (`ze config validate -`), parses, or runs an offline `ze show` / `ze env`, without asserting acceptance of a Linux-only host default | Nothing. It runs natively on every OS |
+| Validates acceptance with an omitted backend whose host default exists only on Linux | `option=needs-linux`, without `caps=` |
 | Boots a daemon that APPLIES Linux-only config (interface, VLAN, firewall, L2TP kernel) | `option=needs-linux` |
 | The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink) | `option=needs-linux:caps=net-admin` |
 | The same, and opens a raw or packet socket (`resolve ping`, traceroute) | `option=needs-linux:caps=net-raw` |
 | The same, and loads eBPF | `option=needs-linux:caps=bpf` |
 | The same, and sets the system clock (the NTP plugin restoring persisted time) | `option=needs-linux:caps=sys-time` |
+| The same, and starts a container (namespaces, a root mount and a control group on the host) | `option=needs-linux:caps=sys-admin` |
 | Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
 | Builds or boots for one target arch, which only a CPU of that arch can do | `option=needs-arch:value=arm64` |
 | Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, parseOptionSkipOs, parseOptionNeedsArch, parseOptionNeedsPath -->
+
+Offline validation judges the current host. For example, the interface backend
+defaults to netlink on Linux and has no default on other hosts. A test that
+asserts acceptance with that backend omitted uses `needs-linux` to name where
+its question applies. It requires no capability because it changes no kernel
+state. A workstation SKIP proves no acceptance: run the exact draft or live
+test in Ze's Linux guest and require an executed PASS.
+<!-- source: internal/component/iface/default_linux.go -- defaultBackendName -->
+<!-- source: internal/component/iface/default_other.go -- defaultBackendName -->
+<!-- source: internal/test/runner/parsing.go -- ciFileParser.parseNeedsLinux -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
 
 `caps=` takes a comma-separated list, so a test that programs netlink and loads
 eBPF declares `caps=net-admin,bpf` and is gated on both. An unknown token is a
@@ -1025,9 +1045,16 @@ other head, a retired standalone harness name among them, is no head of the
 runner's: it reaches the `PATH` lookup, finds no program, and fails the step.
 A name that the suite compiled into its temporary directory
 runs from there: the chaos suites compile `le`, so `exec=le chaos run ...`
-runs that build. Any other name is found on `PATH`. A shim directory on the
-child's `PATH` holds `ze` and `le`, so a plugin `run "le test ..."`
-line in a config reaches the same binaries.
+runs that build. Any other name is found on the `PATH` the step itself gets,
+in its order: the shim directory, which holds `ze` and `le`, then the
+directory beside `ze`, then the inherited `PATH`. So a step reaches a
+program the harness builds beside `ze` (`exec=ze-containerprobe ...`), and a
+plugin `run "le test ..."` line in a config reaches the same binaries. A name
+on none of them fails the step at its start with the `PATH` searched. Until
+2026-11-16 the lookup read the runner's own `PATH`, which lacks the directory
+beside `ze`, so the container probe was "not found in $PATH" in the guest.
+<!-- source: internal/test/runner/runner.go -- childPathEnv, childLookPath -->
+<!-- test: internal/test/runner/child_lookpath_test.go TestBareStepProgramResolvesBesideZe, TestBareStepProgramMissNamesTheSearchedPath -->
 
 A step that runs an `le` action names the head `le`, never `./le`. An `le`
 head reaches the build the suite chose, as above: the runner's own executable
@@ -1347,7 +1374,22 @@ a key inside it.
 | `expect=stdout:contains=`, `expect=stdout:pattern=` |
 | `expect=stderr:contains=`, `expect=stderr:pattern=` |
 | `reject=stdout:contains=`, `reject=stdout:pattern=`, `reject=stderr:pattern=` |
-| `option=skip-os:value=`, `option=env:` |
+| `option=skip-os:value=`, `option=env:`, `option=needs-linux` |
+<!-- source: internal/test/runner/parsing.go -- ciDirectives -->
+
+The parse suite uses the shared Linux admission reader for `needs-linux`, with
+the test's actual path. A non-Linux skip names that exact test's guest command.
+Option keys and capabilities keep the shared validation rules. A later parse
+error still fails the file, even when an earlier option marked it skipped.
+<!-- source: internal/test/runner/parsing.go -- ciFileParser.parseNeedsLinux, parsingRunner.Run -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
+
+The generic and parse readers share the Linux-only population filter. After
+successful parsing, it excludes unmarked tests when `ZE_QEMU_LINUX_ONLY=1`,
+retaining any existing skip reason. A malformed file still fails discovery
+and its runner, rather than becoming a skipped success.
+<!-- source: internal/test/runner/record_parse.go -- linuxOnlySkipReason, EncodingTests.parseAndAdd -->
+<!-- source: internal/test/runner/parsing.go -- ParsingTests.parseCIFile, parsingRunner.Run -->
 
 Two spellings this suite once had are **deleted**, not aliased. Both existed
 only here, and both are what two parsers over one corpus costs:
@@ -1642,6 +1684,13 @@ way, and ze-peer's options are one table of entries that pair what is accepted
 with the parser that reads it. The decode suite does not read the words of its
 `exec=` line: it runs them, so `ze bgp decode` itself refuses a flag it does
 not know and the test fails on its exit status.
+
+Colons inside a simple value, including its final colon, are literal. Only a
+colon that begins a new `key=` token separates fields. For example,
+`reject=stdout:contains="wire-method": "ze-system:` keeps the final colon, so
+it permits `ze-system-dns:`. Extracting a complex field removes its preceding
+separator alone; a literal colon immediately before that separator stays in
+the preceding value.
 
 ```
 line 3: option=asn: a segment has no key: "65000" has no "="; write each field as key=value (accepts value)

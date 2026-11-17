@@ -1,6 +1,6 @@
 # `request restart`
 
-Restart the daemon in place with graceful\-restart state\; keep the host running\.
+Restart the daemon with graceful\-restart state while keeping the host running\.
 
 ## Ze command
 

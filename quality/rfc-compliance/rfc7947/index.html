@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 3 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 3 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 3 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>17</strong><b>17 of 26 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>13</strong><b>13 of 26 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -328,7 +328,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>MUST bar</strong></p>
 <div data-ze-rfc-bar="rfc7947:must">Ze verified 2, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7947:overview">Ze MUST verified 2, SHOULD verified 4, Tests awaiting verification 1, Not built 1</div>
+<div data-ze-rfc-bar="rfc7947:overview">Ze MUST verified 2, SHOULD verified 2, Tests awaiting verification 3, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -385,7 +385,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7947:should.total">5</span></td>
 </tr>
 <tr><td>SHOULD verified</td>
-<td><span data-ze-rfc="rfc7947:should.proven">4</span></td>
+<td><span data-ze-rfc="rfc7947:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
 <td><span data-ze-rfc="rfc7947:should.os-verified">0</span></td>
@@ -406,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7947:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
 <tr><td>SHOULD tests awaiting verification</td>
-<td><span data-ze-rfc="rfc7947:should.proof-pending">1</span></td>
+<td><span data-ze-rfc="rfc7947:should.proof-pending">3</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
 <td><span data-ze-rfc="rfc7947:should.exclusion-unchecked">0</span></td>
@@ -477,7 +477,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.1 - Client UPDATE Messages</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7947-x-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L28" title="internal/component/bgp/reactor/rfc7947_rs_decision_test.go" target="_blank" rel="noopener"><code>TestRFC7947RouteServerWorseReannouncementYieldsOtherSourceRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L628" title="internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go" target="_blank" rel="noopener"><code>TestRSAnnouncementAddPathClientGetsEveryPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L638" title="internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go" target="_blank" rel="noopener"><code>TestRSAnnouncementAddPathClientGetsEveryPath</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go#L503" title="internal/component/bgp/reactor/rfc7947_rs_withdrawal_replacement_test.go" target="_blank" rel="noopener"><code>TestRSOwnerWithdrawalPolicyDeniedSkipsToNextSurvivor</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_decision_test.go#L86" title="internal/component/bgp/reactor/rfc7947_rs_decision_test.go" target="_blank" rel="noopener"><code>TestRFC7947RouteServerWorseLaterRouteDoesNotDisplace</code></a></span></div>
 </div></td>
@@ -542,7 +542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L330" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSEBGPPrepend</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L259" title="internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go" target="_blank" rel="noopener"><code>TestRelayStoredRoutePlainEBGPPrependsLocalAS</code></a></td>
@@ -557,7 +557,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_forward_rs_test.go#L452" title="internal/component/bgp/reactor/rfc7947_forward_rs_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRSTransparent</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go#L223" title="internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go" target="_blank" rel="noopener"><code>TestRelayStoredRouteRSClientPreservesASPath</code></a></td>
@@ -632,19 +632,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L95" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_consumer_test.go#L94" title="internal/component/bgp/reactor/rfc7947_consumer_test.go" target="_blank" rel="noopener"><code>TestRFC7947ClientPolicyControlsWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7947-x-5"><code>RFC7947-x-5</code></a></h3>
 <p>The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1. (§2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): &#34;The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1.&#34; be95c10053 wraps the settings of TestRSAnnouncementAddPathClientGetsEveryPath (and the shared fixture builders) in acceptingPolicies (FinalAccept import and export, no refs) because every peer is EBGP. An accepting policy removes no path, so every path the ADD-PATH client must receive is still selected by the route server&#39;s own election. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7947): &#34;The route server SHOULD perform one or more BGP Decision Processes to select routes for subsequent advertisement to its clients, taking into account possible configuration to provide multiple Network Layer Reachability Information (NLRI) paths to a particular client as described in Section 2.3.2.2 or multiple Loc-RIBs as described in Section 2.3.2.1.&#34; be95c10053 wraps the settings of TestRSAnnouncementAddPathClientGetsEveryPath (and the shared fixture builders) in acceptingPolicies (FinalAccept import and export, no refs) because every peer is EBGP. An accepting policy removes no path, so every path the ADD-PATH client must receive is still selected by the route server&#39;s own election. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history. Independent companion-fixture rejudgment against RFC 7947 Section 2.1, all four tagged entries and their assertion-producing helpers: the complete current non-ADD-PATH controls still require an inferior later arrival to send nothing and a worsened owner reannouncement to select the other source&#39;s exact route after causal settled TCP fences. The ADD-PATH carrier still requires two distinct identifiers and both exact paths; the client-policy carrier still refuses a denied survivor and selects the next permitted one or withdraws when none remains. The shared extendedRecoveryPeers helper now supplies terminal interior host routes for the scenario&#39;s next hops, proves their resolution through the real Loc-RIB, and registers cleanup. These prerequisite routes do not insert or remove any BGP prefix under judgment. lowLiveReconnect retains its complete establishment-and-initial-sync wait after the extracted same handshake. Only the deliberately held, untagged peer-up replay carrier moves that settlement observation after its release; its EOR, route order, elected attributes and no-withdrawal assertions stay intact. The exact existing advisory-level requirement, four-entry population and enforced verdict remain; this source judgment claims no new execution.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -655,7 +655,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L628" title="internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go" target="_blank" rel="noopener"><code>TestRSAnnouncementAddPathClientGetsEveryPath</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go#L638" title="internal/component/bgp/reactor/rfc7947_rs_announcement_election_test.go" target="_blank" rel="noopener"><code>TestRSAnnouncementAddPathClientGetsEveryPath</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -969,7 +969,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

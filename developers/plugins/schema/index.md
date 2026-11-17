@@ -7,7 +7,7 @@ Plugins declare their configuration schema using YANG (RFC 7950). This guide cov
 | Plugin kind | Its own YANG module | Config it receives |
 |-------------|---------------------|--------------------|
 | Internal plugin, compiled into `ze` (package added to `internal/component/plugin/all`) | Registered at build, parsed and validated; the operator writes config under its roots | Its `WantsConfig` roots |
-| External plugin (a separate process, SDK or any language) | Joined to the schema at `ze start`, from the `YANGText` of its Stage 1 declaration; the operator writes config under its roots. `ze config validate` and the other commands that run with no daemon do not join it yet | The roots it declares, its own included |
+| External plugin (a separate process, SDK or any language) | Joined to the schema at `ze start`, from the `YANGText` of its Stage 1 declaration; the operator writes config under its roots. With no daemon running Ze starts no plugin, so `ze config validate` and the other commands that parse a config then cannot check a section under those roots | The roots it declares, its own included |
 
 At `ze start` the daemon reads the plugin declarations first (the `plugin`
 block and the plugins named on the command line), runs each declared external
@@ -24,10 +24,65 @@ refused as `unknown top-level keyword: <root>`, and the refusal names the
 plugin, why it did not declare and the command that checks it
 (`ze show plugin conformance run "<command>"`).
 
-With no daemon, `ze config validate` still reports
-`unknown top-level keyword: <root>` for an external plugin's section: joining
-the module there is the rest of
-`plan/post-release/features/spec-plugin-external-yang-at-startup.md`.
+With no daemon running, Ze never starts an external plugin's program. Your
+module reaches Ze only when `ze start` runs your plugin, so a command that
+parses a config with no daemon holds the schemas compiled into the `ze` binary
+and nothing else. It accepts a config that declares your plugin and holds no
+section under your roots. It refuses a section under your roots as
+`unknown top-level keyword: <root>`, and the message says why and how to check
+the section.
+
+`ze config validate <file>` asks the running Ze first when the config declares
+an external plugin: it sends the file's content, so the file may be anywhere,
+and the running Ze, which read your module when it started your plugin, judges
+the section in full. The output and the exit codes are those of a local
+verdict. With no Ze running it answers:
+
+```
+config ze.conf does not parse: it holds a name that no config schema compiled into ze defines
+the config declares external plugin "acme-monitor"; the config schema of an external plugin is not compiled into ze: ze reads it from the plugin when `ze start` runs it. This command starts no plugin, so only a running ze that started with these plugins checks a section that such a plugin defines, and none answered: no ze listens at 127.0.0.1:2222 (...). Run the command below, then `ze config validate ze.conf` again. What the parser refused: line 8: unknown top-level keyword: acme-monitor
+fix: ze start
+```
+
+The other commands ask no running Ze yet. Their message says so, and its fix
+is `ze config validate <file>`.
+
+| Command | A section under an external plugin's root |
+|---------|-------------------------------------------|
+| `ze config validate` | Judged by the running Ze; with none running, refused with the message above |
+| `ze config fmt`, `dump`, `diff`, `migrate`, `completion`, `show config graph`, with no daemon | Refused, naming `ze config validate <file>` as the fix |
+| `ze config edit` | The file under edit is refused when it is opened |
+| `ze doctor`, the support report, `show crashes` readiness, `ze tacacs` probe, `show plugin declarations config`, `ze plugin test`, with no daemon | The config they read is refused, naming `ze config validate <file>` as the fix |
+
+The message names the plugins the config declares. It does not say that one of
+them owns the refused name: Ze holds no schema that could tell a section of
+your plugin from a mistyped keyword.
+
+`show config validation <file>` typed in a `ze cli` session, or sent over SSH,
+the web, MCP, REST or gRPC, reaches the running Ze too, but the daemon reads
+the file on its own host and only from its config directories. A caller that
+holds the config elsewhere sends its bytes: `show config supplied validation
+content <base64>`, which is what `ze config validate` does. `ze cli -c "show
+config validation <file>"` answers in its own process and asks no daemon.
+
+Inside a running daemon the same commands start no program either. The daemon
+joined the modules of its plugins when it started, and a command it serves (a
+web upload, an editor commit, a served `show`) is answered from that set, so a
+section under your roots is checked against your module there, ranges
+included. A config that declares a plugin the daemon did not start with is
+refused there with the restart of `ze` as the fix.
+
+Declare mode (`ZE_PLUGIN_MODE=declare`) is still worth answering.
+`ze show plugin conformance run "<command>"` starts the program that way with
+no daemon, because running the program you name is what it is for. No other
+command with no daemon starts it: `ze show plugin declarations config <file>`
+lists your plugin with the state `not-available` and names that checker. A
+running Ze starts your program in declare mode when `show plugin declarations
+config <file>` is typed in a session it serves.
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas.ParseRefusal -->
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
 <!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins, undeclaredPluginLines -->
 <!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
 <!-- source: internal/component/config/first_pass.go -- FirstPass -->
@@ -260,13 +315,11 @@ stays a string checked by a `ze:validate` function.
 
 ## Example: Complete Plugin with Schema
 
-**Planned, not yet working for an external plugin.** This plugin runs as an
-external process and defines its own root, `acme-monitor`. Today Ze refuses
-an `acme-monitor { ... }` block in the config (see "What works today" above),
-so the plugin never receives a section. The example becomes valid when
-`plan/post-release/features/spec-plugin-external-yang-at-startup.md` lands. The SDK calls it shows
-(`NewConfigTx`, `Run`, `SchemaDecl`) work today for roots a compiled-in module
-defines.
+This plugin runs as an external process and defines its own root,
+`acme-monitor`. Ze joins its module when `ze start` runs the plugin; a command
+that parses the config with no daemon starts no plugin and cannot check the
+section (see "What works today" above). `sdk.RunOrDeclare` is the entry that
+also answers declare mode, which the conformance check uses.
 
 A complete example showing YANG schema registration with the SDK. The plugin
 reads leaves of its root, so it registers a config transaction: Stage 2

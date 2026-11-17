@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 9 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 25 | 25 of 41 tests linked to requirements, 0 without a fault test and 9 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 37 | 37 of 41 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 41 |
 | Tests linked to requirements | 41 |
 | Recorded audit verdicts | 15 |
-| Fault test records | 34 |
+| Fault test records | 37 |
 | Summary | `rfc/short/rfc1994.md` |
 | Requirement table | `rfc/requirements/rfc1994.md` |
 | RFC text | `rfc/full/rfc1994.txt` |
@@ -93,9 +93,9 @@ Included in automatic checks: PPP CHAP-MD5 (RFC 1994): authenticator (LNS) + pee
 
 **Area:** PPP CHAP (MD5)
 
-**Test verification:** 6 of 16 MUST proven
+**Test verification:** 11 of 16 MUST proven
 
-**Evidence:** unit 6
+**Evidence:** unit 11
 
 **Unmet:** RFC1994-2.3-1, RFC1994-4.1-9
 
@@ -119,8 +119,8 @@ Included in automatic checks: PPP CHAP-MD5 (RFC 1994): authenticator (LNS) + pee
 
 ## Figures
 
-- **MUST bar**: Ze verified 6, Tests awaiting verification 8, Not built 2
-- **Overview bar**: Ze MUST verified 6, SHOULD verified 2, Tests awaiting verification 8, Not assessed 9, Not built 2
+- **MUST bar**: Ze verified 11, Tests awaiting verification 3, Not built 2
+- **Overview bar**: Ze MUST verified 11, SHOULD verified 2, Tests awaiting verification 3, Not assessed 9, Not built 2
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: PPP CHAP-MD5 (RFC 1994): authenticator (LNS) + pee
 | Mandatory requirements complete | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 16 |
-| Ze verified | 6 |
+| Ze verified | 11 |
 | OS verified | 0 |
-| Tests awaiting verification | 8 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -204,22 +204,22 @@ A test reads not verified when no record shows it failing after a deliberate fau
 
 If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase. (Section 1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod, internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod moved. Independent rejudgment 2026-11-15 against RFC 1994 Section 1: "If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase." TestLocalCONFREQAdvertisesAuthMethod starts the actual Driver, supplies valid LCP settings and an explicit method-only fallback order, then requires its first LCP Configure-Request to contain CHAP Authentication-Protocol 0xc223 and algorithm 0x05 for CHAP-MD5 (and checks PAP/MS-CHAPv2 controls). The distinct TestAuthProtoRejectClearsMethod verifies an initial optional PAP offer, sends its exact option back in a correlated Configure-Reject and requires a new Configure-Request without Authentication-Protocol once the method becomes None; the Section 1 obligation is PPP-wide rather than CHAP-specific. Both inputs are structurally valid and reach the intended advertisement/clear producers. Re-read spawnSession, authMethodToLCPOptions, BuildLocalConfigRequest, sendConfigureRequest and adjustAuthOnNakOrReject. Added validated LCP configuration changes only admission, not either wire assertion. Current native records were retaken by the main thread; producer-disabled panic observations are not described as new semantic coverage.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1994 Section1, authentication desired requires the LCP Authentication-Protocol option during Link Establishment. Complete TestLocalCONFREQAdvertisesAuthMethod explicitly runs CHAP-MD5 and requires LCP Configure-Request option0xC223 with algorithm05; its PAP/MS-CHAPv2 cases separately demonstrate the shared conditional producer. Complete TestAuthProtoRejectClearsMethod and helper first observe valid offered authentication then send a canonical matching Configure-Reject; optional no-auth fallback must omit the option on the next real request. Read authMethodToLCPOptions/sendConfigureRequest/accepted-Reject adjustment: stored desire actually selects wire configuration. The negative is optional authentication being no longer desired, not acceptance of a missing required option or an invalid frame. Genuine current Driver/ownership fixtures preserve this wire path; native reobservation remains owed. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L155) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L694) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestAuthProtoRejectClearsMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L155) | unit/verify | revert, verified |
+| positive | [`TestLocalCONFREQAdvertisesAuthMethod`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_dispatch_test.go#L694) | unit/verify | revert, verified |
 
 ### [`RFC1994-4.1-1`](#rfc1994-4.1-1)
 
 The authenticator MUST transmit a CHAP packet with the Code field set to 1 (Challenge). (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent moved. Forbidden: an authenticator that does not send a Challenge (Code 1). TestCHAPResponseEmitsEvent reads the first wire frame runCHAPAuthPhase writes and asserts protocol 0xC223 and Code CHAPCodeChallenge, red otherwise. Single-polarity marker: there is no must-not-challenge branch.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1994 Section4.1: authenticator transmits CHAP Challenge Code1. Complete TestCHAPResponseEmitsEvent runs actual runCHAPAuthPhase over a pipe and requires first protocol0xC223, Challenge Code, legal Value-Size and fresh wire Identifier/Value before sending the matching Response. Read runCHAPAuthPhase/sendCHAPChallenge/writeCHAPChallenge: first authenticator act calls the writer with CHAPCodeChallenge, declared1. Single-positive scope is justified for an authenticator invocation with no must-not-challenge input branch; other authentication methods are distinct protocols. Suppressing/changing the first Challenge fails the direct wire assertion, not a fake request receipt. The new direct HAND_WRITTEN Code cut is authored separately and requires another judge plus actual observation; this note does not judge that cut or claim a missing record was obtained.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L385) | unit/verify | not verified |
+| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L385) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.1-2`](#rfc1994-4.1-2)
 
@@ -229,48 +229,48 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestCHAPChallengeRetransmittedUntilResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go#L98) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestCHAPChallengeRetransmittedUntilResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_retransmit_test.go#L98) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.1-3`](#rfc1994-4.1-3)
 
 Based on this comparison, the authenticator MUST send a Success or Failure packet (described below). (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure, internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent moved. Judge ppp4 2026-09-30. rfc1994_local_verifier_test.go (package ppp_test) drives a real LNS session over a net.Pipe: the peer computes its Response Value from a secret, the Driver's EventAuthRequest is answered by l2tp.GetAuthHandler(), the handler l2tp-auth-local registers in init (verifyCHAPMD5 against bob/secret), and the CHAP Code ze writes is read off the wire. Equal Value -> Success (+), differing Value -> Failure (-), so the comparison, not an injected decision, chooses the reply. Targeted breaks (verifyCHAPMD5 always accept / always reject) each redden the matching unit (ppp4-tb-1994-accept.log, ppp4-tb-1994-reject.log); records are runCHAPAuthPhase reverts. The chap_test.go decision-injected units stay as supplementary.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1994 Section4.1: comparison of received Response Value with expected Value determines Success or Failure. Complete direct accepted/rejected runCHAPAuthPhase tests require corresponding Success/Failure wire Code after answering genuine requests. Those stand-in provider decisions alone are not the entire value-comparison proof: complete tagged local-verifier integration pair computes MD5(Identifier||secret||wire Challenge), sends equal versus different-secret values, routes the genuine Driver request through registered authlocal.handle/verifyCHAPMD5, and requires ProtoCHAP Success versus Failure. Read helper/pumpLocalAuth, actual constant-time verifier and CHAP reply branch: the peer value reaches the comparison and its result reaches the exact current request, not a synthetic auth slot. These distinct valid digest inputs isolate comparison rather than malformed framing; local-verifier unit pair also pins acceptance/rejection. Source semantic judgment only; historical/new records must be observed separately.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L521) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L521) | unit/verify | mutant, verified |
 | negative | [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L185) | unit/verify | mutant, verified |
-| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L386) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L386) | unit/verify | mutant, verified |
 | positive | [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L168) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.2-1`](#rfc1994-4.2-1)
 
 If the Value received in a Response is equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 3 (Success). (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure, internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent moved. Judge ppp4 2026-09-30. TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier (+): MD5(Id, configured secret, Challenge) through the registered local verifier draws Code 3 on the wire. TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier (-): a differing Value never draws Code 3; red under the always-accept break (ppp4-tb-1994-accept.log). This closes the earlier two-half gap: one unit now carries the Response Value to the wire Code. Records: verifyCHAPMD5 revert.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1994 Section4.2: Response Value equal to expected requires CHAP Success Code3. Complete registered-local-verifier integration pair computes a real expected MD5 from the actual Challenge and uses same versus wrong secret; equal value requires Success and explicitly rejects Failure, unequal value requires Failure and explicitly rejects Success, all under ProtoCHAP. Tagged authlocal unit pair checks actual verifier Accept polarity; complete direct runCHAPAuthPhase tests pin provider decision to Success/Failure wire branches. Read verifyCHAPMD5/handler dispatch, actual request forwarding and writeCHAPSuccess: response comparison and emitted Code are causally joined, with CHAPCodeSuccess declared3. Input buffers remain structurally valid, so verifier mismatch is not a neighbouring parser error. New immutable request forwarding does not invent authority or lose the wire check. Current native records/stamping are separate owed work.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L81) | unit/verify | revert, verified |
-| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L522) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L522) | unit/verify | mutant, verified |
 | negative | [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L184) | unit/verify | revert, verified |
 | positive | [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L46) | unit/verify | revert, verified |
-| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L387) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L387) | unit/verify | mutant, verified |
 | positive | [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L166) | unit/verify | revert, verified |
 
 ### [`RFC1994-4.2-2`](#rfc1994-4.2-2)
 
 If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure) (§4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure moved. Judge ppp4 2026-09-30. TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier (+): a Value computed from another secret, judged by the registered l2tp-auth-local verifier, draws Code 4 on the wire. TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier (-): an equal Value never draws Code 4; red under the always-reject break (ppp4-tb-1994-reject.log). Records: verifyCHAPMD5 revert.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1994 Section4.2: unequal Response Value requires CHAP Failure Code4. Complete real local-verifier integration rejects a digest computed with the wrong secret, requiring Failure and not Success; its equal-secret contrast requires Success and forbids Failure. Complete authlocal unit pair verifies the actual comparison result. Complete direct rejection test answers the genuinely emitted auth request false and requires Failure, original message, copied Identifier and false handler return; accepted direct path requires Success. Read constant-time verifier through registered handler/current Driver response and runCHAPAuthPhase/writeCHAPFailure, whose Code constant is4. Thus comparison, protocol framing and wire branch are independently observable; a blanket reject cannot satisfy the equal-value control. This row does not claim the separate SHOULD termination obligation or a fresh observed producer record.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestLocalAuthCHAPMD5Accept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L49) | unit/verify | revert, verified |
 | negative | [`TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L167) | unit/verify | revert, verified |
 | positive | [`TestLocalAuthCHAPMD5Reject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go#L83) | unit/verify | revert, verified |
-| positive | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L523) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L523) | unit/verify | mutant, verified |
 | positive | [`TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_local_verifier_test.go#L183) | unit/verify | revert, verified |
 
 ### [`RFC1994-4.1-4`](#rfc1994-4.1-4)
@@ -325,22 +325,22 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 The Identifier field MUST be copied from the Identifier field of the Response which caused this reply. (Section 4.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure, internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent moved. Forbidden: a Success or Failure whose Identifier is not the Response's. TestCHAPResponseEmitsEvent sends a Response carrying the Challenge Identifier and asserts the Success frame's Identifier equals it, red on any other Identifier. Single-polarity marker: waitCHAPResponse admits only a Response whose Identifier matches the outstanding Challenge.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1994 Section4.2: the Success or Failure Identifier must be copied from the triggering Response. Read the complete actual TestCHAPResponseEmitsEvent: it obtains actual Challenge identifier, sends matching Response and after a genuine accepted auth request requires Success with that identifier. Read complete TestCHAPRejectWritesFailure: its unchanged body sends a distinct valid matching Response, answers the genuine emitted request false and requires Failure with payload[1]==challengeID. MAIN independently approved and applied the exact tag: a rejected Response produces Failure with the Response Identifier. Both outcome branches are now explicitly linked, unlike the earlier sole Success cover; no assertion/body was changed or invented. Read runCHAPAuthPhase, waitCHAPLike matching-ID filtering, writeCHAPSuccess and writeCHAPFailure: each writer receives the actual accepted Response identifier. Single-positive annotation is justified because both valid reply outcomes must echo that identifier, and a mismatched peer Response is discarded before creating a reply rather than becoming a conforming negative input. This semantic audit does NOT judge this author's HAND_WRITTEN cuts/tag proposal and does NOT claim the new actual record exists: independent break review and MAIN clean GREEN/named-unit RED for BOTH Success/Failure direct covers remain required before stamping.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L524) | unit/verify | not verified |
-| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L388) | unit/verify | not verified |
+| positive | [`TestCHAPRejectWritesFailure`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L524) | unit/verify | mutant, verified |
+| positive | [`TestCHAPResponseEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_test.go#L388) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.1-8`](#rfc1994-4.1-8)
 
 Implementation Notes: Because the Success might be lost, the authenticator MUST allow repeated Response packets during the Network-Layer Protocol phase after completing the Authentication phase. (Section 4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp moved. Independent rejudgment 2026-11-15 against RFC 1994 Section 4.1: "Because the Success might be lost, the authenticator MUST allow repeated Response packets during the Network-Layer Protocol phase after completing the Authentication phase." TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp completes real LCP and accepted CHAP authentication, observes CHAP Success and the success event, then repeats the identical Response Identifier and 0x33 digest produced by readCHAPChallengeAndRespond after the session reached the network phase. It rejects every lifecycle event during the repeat and requires a subsequent LCP Echo-Reply, so a terminated or stalled session fails the scoped tolerance claim. The direct handler owns no misleading malformed-packet precondition; the auth backend deliberately accepts the stand-in digest. Read handleFrame/supportsProtocol/rejectUnsupportedProtocol: configured CHAP is tolerated without a Protocol-Reject or teardown outside the auth waiter. The single-positive annotation is justified for this repeated-input tolerance. Resending the previous CHAP reply Code is the separate RFC1994-4.1-9 obligation and remains an explicitly recorded gap; this verdict does not claim that behavior. The new valid LCP fixture leaves these assertions unchanged. No additional semantic coverage is inferred from a recorded producer-disabled panic.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent CURRENT-Core source rejudgment against RFC1994 Section4.1 sentence allowing repeated Response during Network-Layer phase after auth completion. Complete TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp runs real Driver LCP/CHAP to Success and network lifetime, repeats the same Identifier and0x33 digest, forbids any lifecycle event during that input and then requires an LCP Echo-Reply proving session remains live/Opened. Read readCHAPChallengeAndRespond, handleFrame/supportsProtocol/rejectUnsupportedProtocol: this configured CHAP input reaches final tolerance dispatch, not disabled-NCP or malformed-frame guards. The single-positive tolerance annotation matches this isolated repeated input. Resending the prior reply Code is separate RFC1994-4.1-9, an existing explicit gap; this note does not silently treat dropped responses as proof of that other obligation. No source mutation or actual new record observed by this judge. Rejudged independently after full old/current tagged-unit and B private lint-proposal reads. The address-taking caller edits and immediate helper-local copies preserve every old input, wire assertion, state transition, timeout and cleanup join; the changed helpers still construct genuine Driver/request/Attempt capabilities. All tagged units were included, including inline tags. Producer behavior for this requirement is unchanged by the scoped lint packet. This pending source verdict claims neither a fresh compiler/runtime result nor a native discrimination observation; MAIN owns final source stamping and recorded cuts.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L452) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go#L452) | unit/verify | mutant, verified |
 
 ### [`RFC1994-4.1-9`](#rfc1994-4.1-9)
 

@@ -162,13 +162,20 @@ never completed its registration keeps a row in both commands.</p>
 block says which binary holds the plugin's code. An <code>internal</code> block names code
 this binary carries, so the row is answered from the compiled-in
 <code>registry.Registration</code> and no process is started. An <code>external</code> block names
-another program, whatever name the block gives it, so the row is answered by
-starting that program in query mode (<code>ZE_PLUGIN_MODE=declare</code>), with every
-<code>ze.plugin.</code> variable removed from the child's environment, and reading the
-declaration it writes to stdout. A block reading <code>external mrt { run "/opt/vendor/my-mrt" }</code> is a vendor's program that took a name Ze also uses,
-and it answers for itself. Anything else the child writes is ignored, so a
-banner or a log line cannot corrupt the answer.</p>
-<p>The state field carries one of six values, so absence never stands in for an
+another program, whatever name the block gives it, so only that program can
+answer. A block reading <code>external mrt { run "/opt/vendor/my-mrt" }</code> is a
+vendor's program that took a name Ze also uses, and Ze's own <code>mrt</code> declaration
+is never its answer.</p>
+<p>Whether that program is asked depends on where the command runs. With no
+daemon running, Ze starts no external plugin: <code>ze show plugin declarations config &lt;path&gt;</code> and <code>ze cli -c</code> answer in their own process, the row reads
+<code>not-available</code>, and its reason names the two commands that read the
+declaration. A running Ze starts the program in query mode
+(<code>ZE_PLUGIN_MODE=declare</code>), with every <code>ze.plugin.</code> variable removed from the
+child's environment, and reads the declaration it writes to stdout: type the
+same command in the session <code>ze cli</code> opens. Anything else the child writes is
+ignored, so a banner or a log line cannot corrupt the answer. With no daemon,
+<code>ze show plugin conformance run "&lt;run string&gt;"</code> starts the program you name.</p>
+<p>The state field carries one of seven values, so absence never stands in for an
 answer:</p>
 <table>
 <thead>
@@ -202,6 +209,10 @@ answer:</p>
 <td><code>not-judged</code></td>
 <td>an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration</td>
 </tr>
+<tr>
+<td><code>not-available</code></td>
+<td>the plugin is external and no daemon runs here, so its program was not started and nobody asked it</td>
+</tr>
 </tbody>
 </table>
 <p>A declaration that was read is judged by the checks the daemon applies at
@@ -209,7 +220,7 @@ Stage 1, so a row reads <code>declared</code> only when the daemon would start t
 <code>ze show plugin conformance run "&lt;run string&gt;"</code> judges one program against the
 same checks and writes one row for each check
 (<code>docs/plugin-development/testing.md</code>).</p>
-<!-- source: internal/component/plugin/declarations.go -- queriedDeclarationRow, stateUnjudged -->
+<!-- source: internal/component/plugin/declarations.go -- configuredDeclarationRow, unavailableDeclarationRow, queriedDeclarationRow, stateUnjudged, stateNotAvailable -->
 <!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
 <p>The budget is 5 seconds, the same wait a startup stage gets, and
 <code>ze.plugin.query.timeout</code> sets it. A value of zero or less is refused rather
@@ -312,7 +323,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

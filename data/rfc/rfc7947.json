@@ -20,11 +20,11 @@
   },
   "should": {
     "total": 5,
-    "proven": 4,
+    "proven": 2,
     "os-verified": 0,
     "os-gap": 0,
     "not-owed": 0,
-    "proof-pending": 1,
+    "proof-pending": 3,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 0,

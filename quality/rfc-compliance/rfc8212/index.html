@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 2 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 2 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 2 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>8</strong><b>8 of 8 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>7</strong><b>7 of 8 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -428,7 +428,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL NOT</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8212-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L128" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentImportRejectsOnEBGP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L133" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentImportRejectsOnEBGP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc8212-ebgp-no-import-policy.ci#L36" title="test/plugin/rfc8212-ebgp-no-import-policy.ci" target="_blank" rel="noopener"><code>rfc8212-ebgp-no-import-policy.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc8212-ebgp-no-import-policy.ci#L33" title="test/plugin/rfc8212-ebgp-no-import-policy.ci" target="_blank" rel="noopener"><code>rfc8212-ebgp-no-import-policy.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc8212_default_reject.go#L77" title="internal/le/interoplab/bgp/check_rfc8212_default_reject.go" target="_blank" rel="noopener"><code>checkRFC8212DefaultRejectFRR</code></a></span></div>
@@ -439,7 +439,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL NOT</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8212-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L180" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentExportRejectsOnEBGP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L185" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentExportRejectsOnEBGP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc8212-ebgp-no-export-policy.ci#L39" title="test/plugin/rfc8212-ebgp-no-export-policy.ci" target="_blank" rel="noopener"><code>rfc8212-ebgp-no-export-policy.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/reload/rfc8212-explicit-policy-reload.ci#L30" title="test/reload/rfc8212-explicit-policy-reload.ci" target="_blank" rel="noopener"><code>rfc8212-explicit-policy-reload.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc8212-ebgp-no-export-policy.ci#L35" title="test/plugin/rfc8212-ebgp-no-export-policy.ci" target="_blank" rel="noopener"><code>rfc8212-ebgp-no-export-policy.ci</code></a></span></div>
@@ -471,7 +471,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L128" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentImportRejectsOnEBGP</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L133" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentImportRejectsOnEBGP</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -501,9 +501,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L180" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentExportRejectsOnEBGP</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8212_default_reject_test.go#L185" title="internal/component/bgp/reactor/rfc8212_default_reject_test.go" target="_blank" rel="noopener"><code>TestRFC8212Section3AbsentExportRejectsOnEBGP</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc8212-ebgp-no-export-policy.ci#L35" title="test/plugin/rfc8212-ebgp-no-export-policy.ci" target="_blank" rel="noopener"><code>rfc8212-ebgp-no-export-policy.ci</code></a></td>
@@ -684,7 +684,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

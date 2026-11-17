@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 28 | of 95 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 95 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 95 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 203 | 203 of 212 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 204 | 204 of 212 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -1299,7 +1299,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L709) | unit/verify | revert, verified |
-| positive | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L706) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L706) | unit/verify | revert, verified |
 
 ### [`RFC2661-7.5.1-2`](#rfc2661-7.5.1-2)
 

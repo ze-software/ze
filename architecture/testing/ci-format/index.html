@@ -745,8 +745,14 @@ file is judged in the parsed workflow's load composition, using the browser
 daemon's own baseline, including parsed authentication/profile declarations,
 and the shared editor's merge or replace operation. A default web case that
 needs multiple users or a reader shares the runner's daemon-selection rule.
-Login and authenticated editor-owner switching before a load remain explicit
-unsupported-composition findings, retaining standalone validation of that file.
+Declared logins are checked against the generated fixture credentials; their
+resolved profiles gate editor mutations before a physical input is consumed.
+The same authenticated candidate survives CLI and graphical page navigation.
+Native import controls provide the selected token path, root or selected-item
+scope, and merge or replace operation. Repeated login remains an explicit
+unsupported composition: the browser runner cannot fill a second login form
+on an authenticated page. Failed authentication, denied mutation and unknown
+composition retain the physical file's standalone validation.
 An accepted editor draft is counted separately; its submitted commit snapshot uses
 the full configuration validator. Standalone and applied config oracles remain
 unchanged. The fragment is
@@ -942,7 +948,7 @@ protocol message and the remote close.</p>
 <tr>
 <td><code>needs-linux</code></td>
 <td><code>[caps=&lt;tok&gt;[,&lt;tok&gt;]]</code></td>
-<td>Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through <code>./le test qemu all</code>; the skip reason ends with the host command that runs that one test there, <code>./le test qemu ci test &lt;path&gt;</code>. <code>caps=</code> declares required capabilities such as <code>net-admin</code>, <code>net-raw</code>, <code>bpf</code>, and <code>sys-time</code>; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty <code>caps=</code> is refused on every host.</td>
+<td>Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through <code>./le test qemu all</code>; the skip reason ends with the host command that runs that one test there, <code>./le test qemu ci test &lt;path&gt;</code>. <code>caps=</code> declares required capabilities such as <code>net-admin</code>, <code>net-raw</code>, <code>bpf</code>, <code>sys-time</code> and <code>sys-admin</code>; an unavailable capability produces a visible skip. An unknown token, an unknown key or an empty <code>caps=</code> is refused on every host.</td>
 </tr>
 <tr>
 <td><code>needs-path</code></td>
@@ -1068,8 +1074,12 @@ the context check, so an unfinished frame cannot prevent teardown.</p>
 </thead>
 <tbody>
 <tr>
-<td>Only validates config (<code>ze config validate -</code>), parses, or runs an offline <code>ze show</code> / <code>ze env</code></td>
+<td>Only validates config (<code>ze config validate -</code>), parses, or runs an offline <code>ze show</code> / <code>ze env</code>, without asserting acceptance of a Linux-only host default</td>
 <td>Nothing. It runs natively on every OS</td>
+</tr>
+<tr>
+<td>Validates acceptance with an omitted backend whose host default exists only on Linux</td>
+<td><code>option=needs-linux</code>, without <code>caps=</code></td>
 </tr>
 <tr>
 <td>Boots a daemon that APPLIES Linux-only config (interface, VLAN, firewall, L2TP kernel)</td>
@@ -1092,6 +1102,10 @@ the context check, so an unfinished frame cannot prevent teardown.</p>
 <td><code>option=needs-linux:caps=sys-time</code></td>
 </tr>
 <tr>
+<td>The same, and starts a container (namespaces, a root mount and a control group on the host)</td>
+<td><code>option=needs-linux:caps=sys-admin</code></td>
+</tr>
+<tr>
 <td>Skips on one non-Linux OS for a reason unrelated to the kernel</td>
 <td><code>option=skip-os:value=darwin</code></td>
 </tr>
@@ -1105,6 +1119,17 @@ the context check, so an unfinished frame cannot prevent teardown.</p>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux, parseOptionSkipOs, parseOptionNeedsArch, parseOptionNeedsPath -->
+<p>Offline validation judges the current host. For example, the interface backend
+defaults to netlink on Linux and has no default on other hosts. A test that
+asserts acceptance with that backend omitted uses <code>needs-linux</code> to name where
+its question applies. It requires no capability because it changes no kernel
+state. A workstation SKIP proves no acceptance: run the exact draft or live
+test in Ze's Linux guest and require an executed PASS.</p>
+<!-- source: internal/component/iface/default_linux.go -- defaultBackendName -->
+<!-- source: internal/component/iface/default_other.go -- defaultBackendName -->
+<!-- source: internal/test/runner/parsing.go -- ciFileParser.parseNeedsLinux -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
 <p><code>caps=</code> takes a comma-separated list, so a test that programs netlink and loads
 eBPF declares <code>caps=net-admin,bpf</code> and is gated on both. An unknown token is a
 parse error on every host, macOS included, so a typo cannot silently disable the
@@ -1569,9 +1594,16 @@ other head, a retired standalone harness name among them, is no head of the
 runner's: it reaches the <code>PATH</code> lookup, finds no program, and fails the step.
 A name that the suite compiled into its temporary directory
 runs from there: the chaos suites compile <code>le</code>, so <code>exec=le chaos run ...</code>
-runs that build. Any other name is found on <code>PATH</code>. A shim directory on the
-child's <code>PATH</code> holds <code>ze</code> and <code>le</code>, so a plugin <code>run "le test ..."</code>
-line in a config reaches the same binaries.</p>
+runs that build. Any other name is found on the <code>PATH</code> the step itself gets,
+in its order: the shim directory, which holds <code>ze</code> and <code>le</code>, then the
+directory beside <code>ze</code>, then the inherited <code>PATH</code>. So a step reaches a
+program the harness builds beside <code>ze</code> (<code>exec=ze-containerprobe ...</code>), and a
+plugin <code>run "le test ..."</code> line in a config reaches the same binaries. A name
+on none of them fails the step at its start with the <code>PATH</code> searched. Until
+2026-11-16 the lookup read the runner's own <code>PATH</code>, which lacks the directory
+beside <code>ze</code>, so the container probe was "not found in $PATH" in the guest.</p>
+<!-- source: internal/test/runner/runner.go -- childPathEnv, childLookPath -->
+<!-- test: internal/test/runner/child_lookpath_test.go TestBareStepProgramResolvesBesideZe, TestBareStepProgramMissNamesTheSearchedPath -->
 <p>A step that runs an <code>le</code> action names the head <code>le</code>, never <code>./le</code>. An <code>le</code>
 head reaches the build the suite chose, as above: the runner's own executable
 when the suite compiled none. <code>./le</code> is the
@@ -1899,10 +1931,23 @@ a key inside it.</p>
 <td><code>reject=stdout:contains=</code>, <code>reject=stdout:pattern=</code>, <code>reject=stderr:pattern=</code></td>
 </tr>
 <tr>
-<td><code>option=skip-os:value=</code>, <code>option=env:</code></td>
+<td><code>option=skip-os:value=</code>, <code>option=env:</code>, <code>option=needs-linux</code></td>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/test/runner/parsing.go -- ciDirectives -->
+<p>The parse suite uses the shared Linux admission reader for <code>needs-linux</code>, with
+the test's actual path. A non-Linux skip names that exact test's guest command.
+Option keys and capabilities keep the shared validation rules. A later parse
+error still fails the file, even when an earlier option marked it skipped.</p>
+<!-- source: internal/test/runner/parsing.go -- ciFileParser.parseNeedsLinux, parsingRunner.Run -->
+<!-- source: internal/test/runner/record_parse_option.go -- parseOptionNeedsLinux -->
+<p>The generic and parse readers share the Linux-only population filter. After
+successful parsing, it excludes unmarked tests when <code>ZE_QEMU_LINUX_ONLY=1</code>,
+retaining any existing skip reason. A malformed file still fails discovery
+and its runner, rather than becoming a skipped success.</p>
+<!-- source: internal/test/runner/record_parse.go -- linuxOnlySkipReason, EncodingTests.parseAndAdd -->
+<!-- source: internal/test/runner/parsing.go -- ParsingTests.parseCIFile, parsingRunner.Run -->
 <p>Two spellings this suite once had are <strong>deleted</strong>, not aliased. Both existed
 only here, and both are what two parsers over one corpus costs:</p>
 <ul>
@@ -2143,6 +2188,12 @@ way, and ze-peer's options are one table of entries that pair what is accepted
 with the parser that reads it. The decode suite does not read the words of its
 <code>exec=</code> line: it runs them, so <code>ze bgp decode</code> itself refuses a flag it does
 not know and the test fails on its exit status.</p>
+<p>Colons inside a simple value, including its final colon, are literal. Only a
+colon that begins a new <code>key=</code> token separates fields. For example,
+<code>reject=stdout:contains="wire-method": "ze-system:</code> keeps the final colon, so
+it permits <code>ze-system-dns:</code>. Extracting a complex field removes its preceding
+separator alone; a literal colon immediately before that separator stays in
+the preceding value.</p>
 <pre><code>line 3: option=asn: a segment has no key: "65000" has no "="; write each field as key=value (accepts value)
 line 4: http=get: key "status" is given twice; keep one
 </code></pre>
@@ -3730,7 +3781,7 @@ expect=completion:contains=router-id,local-as,peer
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>

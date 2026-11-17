@@ -39,13 +39,17 @@ checks needed for the current diff and is a stage of Thomas's release check, `./
 command help gates, and source-anchor validation. `./le doc wiring` is the changed-file-aware
 pre-commit gate.
 
-Among its checks, the added-symbol wiring check refuses an exported symbol the
-change adds under `internal/` or `cmd/` when no non-test Go file names it. Three
-kinds of symbol are exempt: an entry in the reviewed allowlist, a name ending
-in `ForTest`, and an export of a test-only helper package. The test-only
-packages are the list the `test-only-imports` tier check reads
-(`docs/architecture/module-tiers.md`, "Test-only helpers"). That check refuses
-any non-test importer, so such an export can never have a non-test reference.
+Among its checks, the added-symbol wiring check judges exported symbols the
+change adds under `internal/` or `cmd/`. It refuses a symbol when no non-test Go
+file under `internal/`, `cmd/` or `pkg/` names it on a line other than its
+declaration, after stripping `//` comments. A public SDK alias is a consumer;
+exports added under `pkg/` remain outside the candidate population. Three kinds
+of symbol are exempt: an entry in the reviewed allowlist, a name ending in
+`ForTest`, and an export of a test-only helper package. The test-only packages
+are the list the `test-only-imports` tier check reads
+(`docs/architecture/module-tiers.md`, "Test-only helpers"). The tier check
+restricts these helpers to tests and tooling under `internal/le`, so the wiring
+check exempts their exports without requiring a non-test reference.
 <!-- source: internal/le/doc/wiring/wiring.go -- checkWiring -->
 <!-- source: internal/le/doc/wiring/allowlist.go -- wiringAllowlist -->
 <!-- source: internal/le/arch/testonly/testonly.go -- Packages -->

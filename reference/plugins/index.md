@@ -111,7 +111,7 @@ Generated group for registry entries mapped to the Container area. Config roots:
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`container`](container/index.md) | OCI containers run by ze: confined, limited, supervised and removed without a trace | `container` | None | `internal/plugins/container` |
+| [`container`](container/index.md) | OCI containers run by ze: confined, limited, supervised and removed without a trace | `container` | `sysctl` | `internal/plugins/container` |
 
 ## Control Plane Protection
 

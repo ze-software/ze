@@ -697,7 +697,9 @@
     "config_roots": [
       "container"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "sysctl"
+    ],
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/plugins/container",
@@ -940,6 +942,7 @@
     "start_after": [],
     "source_dir": "internal/component/firewall",
     "yang_files": [
+      "internal/component/firewall/yang/ze-firewall-api.yang",
       "internal/component/firewall/yang/ze-firewall-cmd.yang",
       "internal/component/firewall/yang/ze-firewall-conf.yang"
     ]
@@ -1099,6 +1102,7 @@
       "internal/component/iface/yang/ze-iface-conf.yang",
       "internal/component/iface/yang/ze-iface-interface-cmd.yang",
       "internal/component/iface/yang/ze-iface-monitor-cmd.yang",
+      "internal/component/iface/yang/ze-iface-owned-api.yang",
       "internal/component/iface/yang/ze-iface-show-cmd.yang"
     ]
   },

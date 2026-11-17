@@ -157,7 +157,7 @@ goes to `bgp`, as `edit bgp` typed at the root would. `top run <cmd>`,
 without `top`. `top load terminal relative merge` pastes at the root. History
 keeps the line as you typed it, and completion after `top ` offers what the
 root offers. This form runs in the SSH editor and `ze config edit`.
-<!-- source: internal/component/cli/model_commands.go -- cmdTop, lineBehindTop -->
+<!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 <!-- source: internal/component/cli/model_keys.go -- handleEnter, finishPasteMode -->
 
 In an editing session a bare `discard` is refused and names both forms above.

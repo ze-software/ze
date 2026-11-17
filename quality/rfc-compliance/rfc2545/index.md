@@ -234,7 +234,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | positive | [`TestStaticOriginateContinuesAfterUnusablePolicyNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L164) | unit/verify | revert, verified |
 | positive | [`TestStaticOriginateIPv6NextHopAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L23) | unit/verify | revert, verified |
 | positive | [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L8) | functional/verify | revert, verified |
-| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L24) | functional/verify | revert, verified |
+| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L24) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2545-3-2`](#rfc2545-3-2)
 
@@ -268,7 +268,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Snap
 | positive | [`TestSendAnnounceAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L141) | unit/verify | revert, verified |
 | positive | [`checkRFC2545NextHops`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L561) | interop/nightly | mutant, producer-changed (the paired producer internal/component/bgp/reactor/egress_inject_filter.go::normalizeOrdinaryNextHop's behavior changed since the break was applied to it) |
 | positive | [`conf-llnh-update.ci`](https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L14) | functional/verify | revert, verified |
-| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L28) | functional/verify | revert, verified |
+| positive | [`adj-rib-in-replay-rfc2545-next-hop.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci#L28) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2545-3-3`](#rfc2545-3-3)
 
@@ -285,7 +285,7 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 | negative | [`TestRFC2545JointSubnetWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_joint_subnet_test.go#L20) | unit/verify | revert, verified |
 | negative | [`TestOrdinaryIPv6PolicyPairJointSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go#L60) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestSendAnnounceOmitsLinkLocalWhenPeerOffLink`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L178) | unit/verify | revert, verified |
-| negative | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L51) | unit/verify | revert, verified |
+| negative | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L51) | unit/verify | mutant, verified |
 | negative | [`TestRFC2545ThirdPartyLinkLocalForward`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L107) | unit/verify | revert, verified |
 | negative | [`TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L135) | unit/verify | revert, verified |
 | negative | [`checkRFC2545NextHops`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L572) | interop/nightly | mutant, verified |
@@ -297,7 +297,7 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 | positive | [`TestRFC2545JointSubnetWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_joint_subnet_test.go#L19) | unit/verify | revert, verified |
 | positive | [`TestOrdinaryIPv6OwnGlobalJointSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go#L46) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestSendAnnounceAppendsLinkLocalWhenSection3Holds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_peer_send_test.go#L144) | unit/verify | revert, verified |
-| positive | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L49) | unit/verify | revert, verified |
+| positive | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L49) | unit/verify | mutant, verified |
 | positive | [`TestRFC2545ThirdPartyLinkLocalForward`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L105) | unit/verify | revert, verified |
 | positive | [`TestRFC2545StaticLabeledIPv6LinkLocalCommonSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L134) | unit/verify | revert, verified |
 | positive | [`checkRFC2545NextHops`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L566) | interop/nightly | mutant, verified |
@@ -315,9 +315,9 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L52) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L52) | unit/verify | mutant, verified |
 | negative | [`TestRFC2545ThirdPartyLinkLocalForward`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L108) | unit/verify | revert, verified |
-| positive | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L50) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2545ThirdPartyLinkLocalAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L50) | unit/verify | mutant, verified |
 | positive | [`TestRFC2545ThirdPartyLinkLocalForward`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_third_party_link_local_test.go#L106) | unit/verify | revert, verified |
 | positive | [`checkRFC2545ThirdPartyLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc2545_third_party.go#L30) | interop/nightly | revert, verified |
 

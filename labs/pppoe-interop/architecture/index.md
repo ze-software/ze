@@ -23,6 +23,38 @@ requires the same discovery and NCP path from an independent pppd trace. It
 also dials a wrong credential and requires CHAP refusal before proving that all
 session state disappeared.
 
+### Two clients on one native VLAN
+
+`pppoe-shared-access-two-clients` runs the real Ze daemon and two independent
+pppd clients on VLAN 100. Both clients use the maintained pppd 2.5.5 image,
+with separate credentials, container namespaces, PPP interface names, PID
+files and logs. The checker requires each client's discovery exchange to
+carry its own MAC and admitted session ID, both directions of LCP
+acknowledgment, CHAP success, distinct IPCP addresses, matching kernel PPP
+devices and routes, and traffic bound to each PPP interface in both directions.
+
+The checker terminates the first client's exact PID from its own pppd PID
+file. It requires that client's daemon row and native PPP interfaces to
+disappear while the second client's original row, assignment and traffic
+remain. It then terminates the second client and requires both sessions to
+be gone while the configured access VLAN remains unchanged. Suite teardown
+owns all three containers and their capture/log files, including failed runs.
+This is a classless fixture foundation; it does not test CoS maps, original
+Snapshot counts, native fences or retirement receipts.
+
+On macOS, select this scenario through the registered lab route:
+
+```sh
+CGO_ENABLED=0 ./le --name session test qemu docker-lab lab 'test deployment docker-pppoe-accel' env 'ZE_PPPOE_INTEROP_SCENARIO=pppoe-shared-access-two-clients' timeout 3600s
+```
+
+This route resolves Ze's own runtime kernel and image and checks their
+identity. Its kernel must provide `/dev/ppp`, PPPoE and VLAN support; the
+native preflight is mandatory. Explicit `kernel` and `image` keywords belong
+to the separate `command` mode and are refused with `lab`.
+<!-- source: internal/le/interoplab/pppoe/shared_access_plan.go -- sharedAccessPlan -->
+<!-- source: internal/le/interoplab/pppoe/shared_access_check.go -- checkSharedAccess -->
+
 ## Layout
 
 ```
@@ -702,3 +734,228 @@ missing wire evidence rather than passing vacuously.
 | `test/pppoe/pppoe-service-name.ci` | Access concentrator | Functional fixture | No (`option=netns-link`, `./le test qemu pppoe`) |
 | `./le test deployment docker-pppoe-accel` | Client and access concentrator | accel-ppp and pppd | Host kernel |
 | `./le test qemu pppoe-accel` | Client | accel-ppp | Runtime kernel |
+
+## Configured Ze with the native VPP provider
+
+The separate `product` action runs the staged Ze daemon as the access
+concentrator. It uses the existing VPP source image, independent pppd 2.5.5
+image, Docker Suite and Ze-kernel carrier. The VPP peer runs Ze and holds the
+actual VPP API/statistics sockets. No API proxy, scratch PPP server or
+replacement daemon answers for either process.
+<!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- RunProduct, runProductSuite, productPlan -->
+
+```text
+./le --name session test qemu docker-lab \
+  lab "test deployment vpp-pppoe product" timeout 3600s
+```
+
+For a source counterfactual using an already built native VPP image, the
+optional `image` keyword accepts its complete immutable `sha256:` identity:
+
+```text
+./le --name session test deployment vpp-pppoe product image sha256:<complete-image-ID>
+```
+
+That direct form requires the already selected Docker daemon to run Ze's
+kernel. Both routes refuse an unsuitable Docker host before they build an
+image. Both routes also stage the daemon and le helper from current source.
+<!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- runProductSuite -->
+
+The loopback REST observer is a registered, bounded le action. It uses the
+existing authenticated execute endpoint and shared renderer. Its command
+allowlist contains only the session and interface show commands. An error,
+warning, missing data, null data or oversized reply cannot prove that the
+table is empty.
+<!-- source: internal/le/test/deployment/vpppppoe/product_observe.go -- observeProduct, answerProductObserve -->
+
+Each plain, named-namespace and VLAN topology configures the VPP backend and
+CHAP-MD5 against Ze. A bounded Ethernet capture must contain every successful
+client's PADI/PADO/PADR/PADS exchange, with Ze's configured AC-Name and
+Service-Name. The physical access source MAC and SID must agree with Ze and
+native VPP.
+<!-- source: internal/le/test/deployment/vpppppoe/product_discovery.go -- productDiscovery, productDiscoveryTags -->
+
+The lab prepares only AF_PACKET and LCP infrastructure. Ze must create its
+own PPPoE map, native session, peer host route and session forwarding state.
+The server has no `/dev/ppp` device, and the checker reads both relevant
+namespaces for Linux PPP interfaces.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- prepareProduct, noProductKernelPPP -->
+
+Before traffic starts, the peer's CHAP trace and negotiated kernel PPP
+address must agree with Ze's native interface identity and session dump.
+The `ze-pppoe` FIB owner must match that same session. Its exact source path
+must attach to that native session interface. Another source's path or the
+forwarding display cannot supply that association.
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- productAuth, matchProductNative, productOwner, productHostRoute -->
+
+Traffic travels in both directions between the subscriber and an
+independent host. Source routes on the peer force replies through the
+corresponding PPP interface. Both native packet counters must increase for
+each subscriber.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- productTraffic -->
+
+A capture on the actual LCP control TAP starts before those traffic
+barriers. The checker joins its exact capture process and requires a complete
+zero-capture, zero-kernel-drop summary. A missing summary is a failure.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- startProductCapture, finishProductCapture -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_discovery.go -- joinProductCapture -->
+
+Single-client topologies require a successful 1492-byte IP packet and
+measured refusal of a 1493-byte DF packet. They also require the native-only
+1400/1401 boundary while the peer's MTU remains larger. The checker restores
+the smaller native MTU even if its probe fails.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- productTraffic -->
+<!-- source: internal/le/test/deployment/vpppppoe/mtu.go -- checkIndependentMTU -->
+
+After graceful peer closure, Ze and native VPP must report session absence.
+The peer's PPP interface must disappear, and the owned host route must be
+withdrawn. Another accepted dial exercises the released pool capacity.
+A wrong secret must produce a real CHAP Challenge/Response/Failure and never
+IPCP success.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct, waitProductEmpty, productRoutesGone -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- productAuth -->
+
+The hundred-client topology uses one independent client container with a
+hundred macvlan devices and distinct locally administered unicast MACs.
+All hundred sessions must have unique native identities and negotiated peer
+addresses, owned host routes and successful bidirectional traffic.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct, productClient, productTraffic -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- validateProductSessions, productPopulation -->
+
+A 101st MAC must complete PADI/PADO/PADR and receive a zero-SID
+AC-System-Error PADS from the configured physical AC. Its explicit Host-Uniq
+must match all four frames. The actual daemon must report session-ID
+exhaustion, and the joined pppd must log that resource refusal. A discovery
+timeout or unrelated process failure cannot satisfy the limit check.
+<!-- source: internal/le/test/deployment/vpppppoe/product_capacity.go -- productCapacityRefusal, finishProductCapacity, productCapacityReason -->
+
+All hundred existing identities must remain unchanged after the refusal.
+One exact admitted pppd process then ends. All 99 surviving identities and
+their bidirectional traffic must remain intact. The pool has 101 addresses,
+so this limit check cannot succeed through pool exhaustion alone.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct, signalProductDial -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- sameProductOwners -->
+
+The checker then requires removal of all hundred native sessions and their
+routes. This is a scoped `max-sessions 100` acceptance check. It provides no
+throughput or performance measurement.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct, waitProductEmpty, productRoutesGone -->
+
+The native-create-before-PADS claim requires the server/provider unit, the
+native C proof and the real-product wire/traffic run. The unit holds actual
+native factory completion and requires no successful PADS before its
+acknowledgment. The C proof establishes the owned-create acknowledgment and
+readback. A later native dump alone cannot establish this ordering.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct -->
+
+A successful product run establishes the observed final session and packet
+path. It does not establish timestamp ordering between independent clocks.
+The peer trace vocabulary comes from pppd 2.5.5 `chap.c`
+(`chap_handle_status`, `chap_print_pkt`). The checker reads negotiated IP
+state from the peer kernel rather than log text.
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- productAuth, parseProductLinks -->
+
+This action is the IPv4 product base. Separate required acceptance packages
+cover RADIUS/accounting, framed routes and VRFs, policers and CoA. They also
+cover IPv6 control and delegated prefixes, physical restart/reconnect
+recovery, and all access-index/SID reuse and foreign-object cases. A pass
+here cannot close those acceptance criteria.
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct -->
+
+Source alone does not record a product-lab pass. Retain the actual named
+scenario results and negative counterfactuals before you claim a pass.
+Suite owns all containers, networks, staged binaries and captures. The QEMU
+carrier owns the guest and must report completed cleanup as part of the
+result.
+<!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- RunProduct, productPlan, productConfig -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_check.go -- checkProduct, prepareProduct, productTraffic, finishProductCapture -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_state.go -- validateProductSessions, matchProductNative, productPopulation -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_observe.go -- observeProduct, answerProductObserve -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_discovery.go -- productDiscovery, joinProductCapture -->
+
+<!-- source: internal/le/test/deployment/vpppppoe/product_capacity.go -- productCapacityRefusal, finishProductCapacity -->
+
+### Actual Ze IPv6 service over VPP
+
+The separate `product-ipv6` acceptance action reuses the product lab's staging,
+immutable VPP image selection, pinned pppd 2.5.5 image and Suite cleanup. It
+runs the real daemon in plain, named-control-namespace and VLAN topologies:
+<!-- source: internal/le/test/deployment/vpppppoe/product_plan.go -- runProductSuite -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_check.go -- productIPv6Plan -->
+
+```sh
+./le --name session test qemu docker-lab lab "test deployment vpp-pppoe product-ipv6" timeout 3600s
+```
+
+This source-first scenario requires the configured `ipv6-na` address pool and
+RA prefix `2001:db8:20::/64`, independently of the existing
+`2001:db8:100::/56` prefix-delegation pool. A small CPE client binds only the
+independent pppd's negotiated PPP link. It sends RS and DHCPv6, then checks
+the received RA source, hop limit, managed flags and live prefix option.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_peer.go -- productIPv6Peer -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_wire.go -- productIPv6RA -->
+
+The client also checks the actual DHCPv6 Advertise/Reply bytes. Both IA_NA
+and IA_PD must carry the requested IAIDs, matching client/server identities,
+transaction IDs and valid lifetimes. Wrong-server Request and truncated
+Solicit controls must stay unanswered. Successful acquisition immediately
+after those controls proves that the service still works. The helper never
+creates Ze's session or native paths.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_peer.go -- productIPv6Peer -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_wire.go -- productIPv6RA, productIPv6Lease -->
+
+The checker reads the exact `ze-pppoe` source paths for the leased /128 and
+delegated /64. Both paths must contain the negotiated link-local next hop
+and native session interface. Both addresses carry bidirectional traffic to
+an independent host, with native receive/transmit counter increases.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_check.go -- checkProductIPv6, productIPv6TrafficBoth -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_wire.go -- productIPv6Route -->
+
+A joined bounded capture must see zero IPv4 and global IPv6 subscriber
+payloads on the Linux control TAP. The TAP must own no IPv6 address,
+including a link-local address. The checker suppresses automatic TAP
+address generation before Ze starts. Ze must create no Linux PPP unit in
+either namespace.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_check.go -- checkProductIPv6, productIPv6TrafficBoth, checkProductIPv6TAP, startProductIPv6Capture -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_wire.go -- productIPv6Route -->
+
+Two independently established dual-stack lifetimes then close one NCP each.
+An exact-session Terminate-Request must receive its matching Terminate-Ack.
+The CPE's tc filter holds only that family's subsequent Configure-Requests.
+pppd's `fsm_rtermack` leaves Opened, calls the protocol's down
+callback and starts negotiation again. The other family remains usable.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_check.go -- checkProductIPv6 -->
+
+Raw echo probes on the same negotiated MAC/SID must succeed before closure
+and receive no response after their family closes. The independent traffic
+host's joined captures must first see the exact positive request, then zero
+requests after closure. This traffic observation prevents a missing return
+route from masking an ingress gate left open. It observes VPP's gate
+independently of the CPE kernel's own NCP drop mode.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_check.go -- productFamilyCheck, productFamilyCapture -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_raw_linux.go -- productFamilyProbe -->
+
+Routes of the closed family must disappear while the same native subscriber
+remains and the other family still forwards. Final peer termination must
+remove both bindings and the native session before the second lifetime
+starts.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_check.go -- checkProductIPv6, productFamilyCheck, productFamilyCapture, productIPv6WaitWithdrawal -->
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_raw_linux.go -- productFamilyProbe -->
+
+A reply is accepted only with the exact reverse Ethernet/PPPoE tuple and
+complete IP/ICMP envelope. IPv4 version, IHL, TotalLength and header checksum
+must agree with the received bytes. IPv6 version and PayloadLength must
+also agree. The original addresses, marker, identifier, sequence and ICMP
+checksum must match.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_response.go -- productFamilyResponse -->
+
+Only a full healthy receive window establishes response absence. Early
+packet-budget exhaustion and native reader failures are unknown
+observations and fail the scenario. They cannot establish a successful
+negative result.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_response.go -- productFamilyResponse, productFamilyObserve -->
+
+These are acceptance requirements in source. Runtime evidence requires a
+passing named action against the integrated production service and the
+corresponding behavioral failures under its production semantic cuts.
+<!-- source: internal/le/test/deployment/vpppppoe/product_ipv6_register.go -- answerProductIPv6 -->

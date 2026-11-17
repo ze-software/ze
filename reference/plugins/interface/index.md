@@ -9,7 +9,7 @@ OS network interface monitoring and management
 | Registry area | Interface |
 | Kind | Runtime plugin |
 | Source path | `internal/component/iface` |
-| YANG modules | 6 |
+| YANG modules | 7 |
 
 ## Configuration
 
@@ -36,5 +36,5 @@ Order only when both plugins are selected; never auto-loads a plugin.
 
 Package: `internal/component/iface`
 
-YANG files: `internal/component/iface/yang/ze-iface-api.yang`, `internal/component/iface/yang/ze-iface-cmd.yang`, `internal/component/iface/yang/ze-iface-conf.yang`, `internal/component/iface/yang/ze-iface-interface-cmd.yang`, `internal/component/iface/yang/ze-iface-monitor-cmd.yang`, `internal/component/iface/yang/ze-iface-show-cmd.yang`
+YANG files: `internal/component/iface/yang/ze-iface-api.yang`, `internal/component/iface/yang/ze-iface-cmd.yang`, `internal/component/iface/yang/ze-iface-conf.yang`, `internal/component/iface/yang/ze-iface-interface-cmd.yang`, `internal/component/iface/yang/ze-iface-monitor-cmd.yang`, `internal/component/iface/yang/ze-iface-owned-api.yang`, `internal/component/iface/yang/ze-iface-show-cmd.yang`
 Metadata source: `Registration`

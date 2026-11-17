@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../
 
 ## Figures
 
-- **MUST bar**: Ze verified 254, Tests awaiting verification 186, OS testing gap 76, Not assessed 25, Not built 163
-- **Overview bar**: Ze MUST verified 254, SHOULD verified 9, Tests awaiting verification 189, OS testing gap 77, Not assessed 276, Not built 165
+- **MUST bar**: Ze verified 264, Tests awaiting verification 176, OS testing gap 76, Not assessed 25, Not built 163
+- **Overview bar**: Ze MUST verified 264, SHOULD verified 9, Tests awaiting verification 179, OS testing gap 77, Not assessed 276, Not built 165
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../
 | Mandatory requirements complete | not complete |
 | MUST rows | 704 |
 | MUST rows kept (the MUST bar) | 704 |
-| Ze verified | 254 |
+| Ze verified | 264 |
 | OS verified | 0 |
-| Tests awaiting verification | 186 |
+| Tests awaiting verification | 176 |
 | OS testing gap | 76 |
 | Exclusion unchecked | 0 |
 | Not assessed | 25 |
@@ -72,12 +72,12 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 3948](../../rfc3948/) (cycle with rfc3602, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | UDP Encapsulation of IPsec ESP Packets | Ze verified 6, Tests awaiting verification 4, Not built 1 | Ze MUST verified 6, SHOULD verified 2, Tests awaiting verification 4, Not assessed 3, Not built 1 |
-| [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze verified 4, Tests awaiting verification 1, OS testing gap 3 | Ze MUST verified 4, Tests awaiting verification 1, OS testing gap 3, Not assessed 5 |
-| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze verified 44, Tests awaiting verification 23, OS testing gap 3, Not built 31 | Ze MUST verified 44, Tests awaiting verification 23, OS testing gap 4, Not assessed 1, Not built 32 |
+| [RFC 4106](../../rfc4106/) (cycle with rfc3602, rfc3948, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | The Use of Galois/Counter Mode (GCM) in IPsec Encapsulating Security Payload (ESP) | Ze verified 5, OS testing gap 3 | Ze MUST verified 5, OS testing gap 3, Not assessed 5 |
+| [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze verified 52, Tests awaiting verification 15, OS testing gap 3, Not built 31 | Ze MUST verified 52, Tests awaiting verification 15, OS testing gap 4, Not assessed 1, Not built 32 |
 | [RFC 4302](../../rfc4302/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | IP Authentication Header | Ze verified 9, OS testing gap 19, Not built 4 | Ze MUST verified 9, OS testing gap 19, Not assessed 10, Not built 4 |
 | [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze verified 7, Tests awaiting verification 2, Not built 14 | Ze MUST verified 7, Tests awaiting verification 3, Not assessed 2, Not built 15 |
 | [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze verified 19 | Ze MUST verified 19, Not assessed 11 |
-| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze verified 90, Tests awaiting verification 144 | Ze MUST verified 90, SHOULD verified 4, Tests awaiting verification 146, Not assessed 3 |
+| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze verified 91, Tests awaiting verification 143 | Ze MUST verified 91, SHOULD verified 4, Tests awaiting verification 145, Not assessed 3 |
 | [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze verified 17, Not built 3 | Ze MUST verified 17, SHOULD verified 1, Not assessed 5, Not built 3 |
 
 ### Level 5

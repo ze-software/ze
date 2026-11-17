@@ -1048,7 +1048,7 @@ address. A session whose events named it nothing is selected by no name.</p>
 </tr>
 <tr>
 <td><code>container</code></td>
-<td>OCI containers run by Ze itself, configured under <code>container { instance &lt;name&gt; }</code>. Today the plugin holds the config root with the <code>enabled</code> leaf, the command <code>request container restart name &lt;name&gt;</code>, its doctor codes and the kernel requirement for a hard CPU limit. No build starts a container yet: a config that enables one is refused, with the statement that disables it. Compile-out-able with the <code>ze_container</code> build tag <!-- source: feature-gates.txt -- ze_container --></td>
+<td>OCI containers run by Ze itself, configured under <code>container { instance &lt;name&gt; }</code>. Today the plugin holds the config root with the <code>enabled</code> leaf, the command <code>request container restart name &lt;name&gt;</code>, its doctor codes and the kernel requirement for a hard CPU limit. A start path exists and is not yet proven on a real kernel; no shipped build holds an image store, so none starts a container. Compile-out-able with the <code>ze_container</code> build tag <!-- source: feature-gates.txt -- ze_container --></td>
 <td>-- (Config-driven)</td>
 </tr>
 </tbody>
@@ -2287,7 +2287,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
                 </div>
             </div>
         </footer>
