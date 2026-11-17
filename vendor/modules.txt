@@ -358,7 +358,7 @@ github.com/chromedp/cdproto/tracing
 github.com/chromedp/cdproto/webaudio
 github.com/chromedp/cdproto/webauthn
 github.com/chromedp/cdproto/webmcp
-# github.com/chromedp/chromedp v0.21.0
+# github.com/chromedp/chromedp v0.23.0
 ## explicit; go 1.25
 github.com/chromedp/chromedp
 github.com/chromedp/chromedp/device
