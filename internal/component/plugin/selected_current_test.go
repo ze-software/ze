@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -29,7 +30,9 @@ func TestSelectedOwnerCapturedReader(t *testing.T) {
 	require.NoError(t, err)
 	copy := owner
 	require.True(t, owner.SameIncarnation(copy))
-	_, err = owner.WithCurrentSelection(func(context.Context, rpc.CurrentSelectionInput) (*rpc.CurrentSelectionOutput, error) { return nil, nil })
+	_, err = owner.WithCurrentSelection(func(context.Context, rpc.CurrentSelectionInput) (*rpc.CurrentSelectionOutput, error) {
+		return nil, context.Canceled
+	})
 	require.ErrorContains(t, err, "already bound")
 	_, err = owner.CurrentSelection(t.Context(), input)
 	require.NoError(t, err)
