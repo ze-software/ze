@@ -1735,10 +1735,21 @@ Docs and records:
 - The complete path depends on the inbound IKE bypass: `udp_queue_rcv_one_skb` (`net/ipv4/udp.c`, v7.0) runs `xfrm4_policy_check` before `encap_rcv`, so on a device with `disable_policy` 0 the Child SA's policy drops the re-presented UDP datagram unless the BYPASS for UDP 4500 ranks ahead of it. `lo` hid that check. The kernel tests install the production SPD (`installUnmatched`, then `installIKEBypass`). With exact inbound state binding, an out-of-selector packet is refused by its actual SA before SPD lookup (`XfrmInStateMismatch`). A host-specific explicit DISCARD inside the accepted state scope separately proves SPD consultation (`XfrmInPolBlock`), and its exact removal restores valid delivery. Complete-path rows also count the original bare-form mismatch; fast-path rows do not. AC-3 records the exact deltas.
 - Which process runs the PostConfig doctor checks (doctor.Answer dispatch) decides whether ipsec-esp-form-fast-path and doctor-traffic-usage-ebpf measure the daemon's capabilities or the CLI's: settled and fixed in this spec.
 
+The source-only constructor finding recorded by `c6833512e8` is cleared as a
+false finding, not a code fix. That commit already pinned Go 1.27.3 in `go.mod`.
+HEAD pins 1.27.4. Go 1.27 permits promoted field keys through value embeddings.
+The installed Go 1.27.4 compiler's `src/cmd/compile/internal/types2/literals.go`,
+`(*Checker).compositeLit`, explicitly applies that version rule. The five
+recording/netlink constructor sources and the netlink declarations match tracked
+HEAD, with no uncommitted constructor repair required. `a62375a383` modernized
+an already-valid recording literal as part of AC-27's bounded style cleanup.
+It did not repair a constructor defect. This correction claims no new runtime
+validation.
+
 ## Owned journal rows
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
-| `committed-tree-does-not-build.md` | 2026-11-13 | IKE recording and netlink constructors key promoted fields; source-only, unexecuted |
+| `committed-tree-does-not-build.md` | 2026-11-13 | IKE recording/netlink constructors: cleared false source-only finding under Go 1.27 semantics, not a code fix |
 | `escape-hatch-scoped-wider-than-its-justification.md` | 2026-11-10 | `espFormReceiver` re-presents bare ESP through lo, so no inbound SPD check runs |
 | `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | `esp4_offload` GRO consumes bare ESP before tc ingress on a distro kernel |
 | `kernel-refuses-what-the-installer-sends.md` | 2026-11-12 | the systemd unit granted no `CAP_BPF`, so the kernel refused every BPF load Ze makes under it |
