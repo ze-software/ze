@@ -554,7 +554,7 @@ func (m *EditorManager) Diff(username string) string {
 	return m.diffChanges(changes)
 }
 
-// discardDiff reads this user's durable intent without opening an active
+// discardDiff reads this user's browser intent without opening an active
 // editing session. Recovery would rewrite the ownership this audit only reads.
 // A cached user's mutex serializes its edits; the private reader holds its own
 // storage guard. Any opening or snapshot failure MUST stop discard before it
@@ -574,7 +574,7 @@ func (m *EditorManager) discardDiff(username string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("editor create for %s: %w", username, err)
 	}
-	changes, err := ed.PendingDiscardChanges(username)
+	changes, err := ed.PendingDiscardChanges(username, "web")
 	if err != nil {
 		return "", err
 	}

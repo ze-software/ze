@@ -13,12 +13,12 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
-// PendingDiscardChanges reads this account's durable pending intent without
+// PendingDiscardChanges reads this account and origin's durable intent without
 // assigning a session, rebinding custody or changing the editor. The editor
 // remains private: callers MUST NOT publish it as an active candidate without
 // SetSession and ResumeSession. The one storage guard supplies a coherent read;
 // missing intent is empty, while a read, parse or release failure is an error.
-func (e *Editor) PendingDiscardChanges(username string) ([]contract.PendingChange, error) {
+func (e *Editor) PendingDiscardChanges(username, origin string) ([]contract.PendingChange, error) {
 	if err := ValidateUser(username); err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func (e *Editor) PendingDiscardChanges(username string) ([]contract.PendingChang
 	if err != nil {
 		return nil, pendingDiscardFailure(err)
 	}
-	changes, readErr := e.readPendingDiscardChanges(guard, username)
+	changes, readErr := e.readPendingDiscardChanges(guard, username, origin)
 	releaseErr := guard.Release()
 	if err := errors.Join(readErr, releaseErr); err != nil {
 		return nil, pendingDiscardFailure(err)
@@ -56,7 +56,7 @@ func pendingDiscardFailure(err error) error {
 // The shared materialized-draft planner rebases saved metadata through recorded
 // structural operations without publishing an editing session. Parsed entries
 // and operations bound the loops; pending-change identity deduplicates overlap.
-func (e *Editor) readPendingDiscardChanges(guard storage.WriteGuard, username string) ([]config.PendingChange, error) {
+func (e *Editor) readPendingDiscardChanges(guard storage.WriteGuard, username, origin string) ([]config.PendingChange, error) {
 	committed, err := guard.ReadFile(e.originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("read config %s: %w", e.originalPath, err)
@@ -103,10 +103,16 @@ func (e *Editor) readPendingDiscardChanges(guard storage.WriteGuard, username st
 	}
 	for _, session := range draftMeta.AllSessions() {
 		for _, entry := range draftMeta.SessionEntries(e.schema, session) {
+			if entry.Entry.Source != origin {
+				continue
+			}
 			add(config.PendingChangeFromSessionEntry(entry))
 		}
 	}
 	for i := range ops {
+		if ops[i].Source != origin {
+			continue
+		}
 		add(ops[i].PendingChange(e.schema))
 	}
 	config.SortPendingChanges(changes)

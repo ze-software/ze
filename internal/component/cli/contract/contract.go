@@ -247,10 +247,10 @@ type Editor interface {
 	Dirty() bool
 	SessionChanges(sessionID string) []SessionChange
 	PendingChanges(sessionID string) []PendingChange
-	// PendingDiscardChanges reads the exact account's durable intent without
+	// PendingDiscardChanges reads the exact account and origin's intent without
 	// assigning or resuming an editing session. Read and parse failures refuse
 	// the snapshot; callers MUST stop discard before mutation or audit recording.
-	PendingDiscardChanges(username string) ([]PendingChange, error)
+	PendingDiscardChanges(username, origin string) ([]PendingChange, error)
 	ActiveSessions() []string
 }
 

@@ -254,7 +254,9 @@ Each authenticated user gets an independent editor session with its own working 
 4. **Edit:** Click an entry name to see its full config. Edit leaf values through inline fields.
 5. **Review:** The commit bar at the bottom shows pending change count. Click "Review & Commit" to see a diff.
 6. **Commit:** Apply changes. Conflicts with other users are detected and reported.
-7. **Discard:** Click "Discard" to abandon all pending changes.
+7. **Discard:** Click "Discard" to abandon your browser's pending changes. Separate SSH edits under the same username remain pending.
+<!-- source: internal/component/web/editor.go -- Discard -->
+<!-- source: internal/component/cli/editor_commit.go -- DiscardSessionPath -->
 
 ### Collections and Configuration Actions
 

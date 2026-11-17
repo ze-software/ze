@@ -38,8 +38,8 @@ func (a *editorAdapter) SetSession(s contract.EditSession) {
 
 func (a *editorAdapter) ResumeSession() error { return a.ed.ResumeSession() }
 
-func (a *editorAdapter) PendingDiscardChanges(username string) ([]contract.PendingChange, error) {
-	return a.ed.PendingDiscardChanges(username)
+func (a *editorAdapter) PendingDiscardChanges(username, origin string) ([]contract.PendingChange, error) {
+	return a.ed.PendingDiscardChanges(username, origin)
 }
 
 func (a *editorAdapter) SessionID() string               { return a.ed.SessionID() }

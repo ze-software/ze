@@ -91,8 +91,8 @@ func (a *testEditorAdapter) SetSession(s contract.EditSession) {
 }
 func (a *testEditorAdapter) ResumeSession() error { return a.ed.ResumeSession() }
 
-func (a *testEditorAdapter) PendingDiscardChanges(username string) ([]contract.PendingChange, error) {
-	return a.ed.PendingDiscardChanges(username)
+func (a *testEditorAdapter) PendingDiscardChanges(username, origin string) ([]contract.PendingChange, error) {
+	return a.ed.PendingDiscardChanges(username, origin)
 }
 
 func (a *testEditorAdapter) SessionID() string               { return a.ed.SessionID() }

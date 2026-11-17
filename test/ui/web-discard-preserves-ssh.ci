@@ -1,0 +1,46 @@
+# Test: browser discard preserves separate SSH work under the same account
+# accept-only: the registered native fixture asserts durable state through both live transports
+# Question: can the same operator discard a browser edit and reopen all saved
+# and unsaved SSH work, including a structural copy, without committing anything?
+# A package handler test cannot establish the daemon's account/session wiring,
+# persistence and recovery over real SSH and authenticated browser requests.
+
+option=storage:value=disk
+option=timeout:value=90s
+
+tmpfs=web-discard-preserves-ssh.conf:terminator=EOF_CONF
+system {
+    host baseline-host;
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO";
+            profile [ admin ];
+        }
+    }
+    authorization {
+        profile admin {
+            run { default-action allow; }
+            edit { default-action allow; }
+        }
+    }
+}
+environment {
+    ssh {
+        enabled true;
+        server main { ip 127.0.0.1; port $PORT2; }
+    }
+    web {
+        enabled true;
+        server main { ip 127.0.0.1; port $PORT3; }
+    }
+}
+bgp {
+    router-id 10.0.0.250;
+    session { asn { local 64999; } }
+    group original { description baseline-source; }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze start web-discard-preserves-ssh.conf:timeout=90s
+cmd=foreground:seq=2:exec=le test fixture ui/web-discard-preserves-ssh $PORT2 web-discard-preserves-ssh.conf https://127.0.0.1:$PORT3:timeout=90s
+expect=exit:code=0

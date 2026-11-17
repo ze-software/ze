@@ -173,6 +173,13 @@ root offers. This form runs in the SSH editor and `ze config edit`.
 <!-- source: internal/component/cli/model_commands.go -- cmdTop, LineBehindTop -->
 <!-- source: internal/component/cli/model_keys.go -- handleEnter, finishPasteMode -->
 
+Session discard removes only the current session's assignments and structural
+operations, even when several sessions share an account's change file. Browser
+discard includes preserved browser work reopened for that account; separate
+SSH edits remain pending.
+<!-- source: internal/component/cli/editor_commit.go -- DiscardSessionPath -->
+<!-- source: internal/component/cli/editor_resume.go -- ResumeSession -->
+
 In an editing session a bare `discard` is refused and names both forms above.
 Without an editing session, a bare
 `discard` drops every change, and `discard <path>` puts back the committed
