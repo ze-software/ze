@@ -2,15 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P2 |
 | Release reason | Owner decision: Ze terminates PPPoE subscriber sessions in VPP, after the first release (OD-5, decided 2026-10-28). The shipped-behaviour fix that was Phase 1 (validate accepts PPPoE under the VPP backend and every session then fails) moved to `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 0/7 |
+| Phase | 2/7 (shared PPP seam; full product acceptance remains owed) |
 | Handoff | - |
-| Updated | 2026-10-28 |
+| Updated | 2026-11-17 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -25,6 +25,61 @@ will also terminate PPPoE subscriber sessions in the VPP data plane, so that
 subscriber traffic is encapsulated, decapsulated, routed and policed by VPP at
 DPDK speed while Ze keeps the whole control plane (discovery, LCP, auth, NCP,
 DHCPv6, RA, RADIUS, accounting).
+
+The shared kernel handle also retains exact route ownership before attempting
+a native add. A failed add or withdrawal keeps its cleanup intent; an invalid
+or unattempted tuple cannot remove another owner's route. This repair belongs
+to the shared seam introduced by this feature.
+
+The seam must preserve the full PPPoE access-interface identity through
+admission and every PPP event. Numeric protocol labels must not select a
+worker: an opaque admission binding must identify its exact owner, including
+after identifier reuse. Kernel subscriber shaping must own an independent tc
+backend and durably acknowledge its original-state snapshots, whether its
+plugin runs internally or in another process.
+The VPP connection must also prove the physical identity of its API, statistics
+peer and supervised child before publishing readiness or retiring their state.
+
+Operator recovery must reach every registered subsystem during reload. A
+failure from an earlier subsystem must not prevent a later transport from
+retrying its retained cleanup, and the result must preserve every failure cause.
+
+The migration also keeps interface-owned-device cleanup registered through
+the current process-generation callback API, with its original process-pointer
+guard intact. The callback arity repair keeps the shared tree buildable.
+
+Offline backend validation also preserves typed causes and their diagnostic
+codes. This work repairs the interface gate's lost causes and gives the parse
+reader shared Linux admission and Linux-only selection. The default-netlink
+acceptance fixture declares its access interface and omits the backend.
+Its Linux guest execution and 80-run stress passed. Current parser checks,
+lint and documentation checks, and the remaining feature acceptance are still
+owed.
+
+The adopted VyOS receive parser is also hardened in this work: its
+`pppoe_input_node` and control-dispatch trace read fields beyond a truncated
+logical payload without a preceding length check. This is a source-confirmed
+logical bounds defect; no crash has been demonstrated. A separately retained
+Ze diff and malformed-frame proof are part of Phase 0, before the image is
+used as mechanism evidence.
+
+Phase 0 must also fix `pppoe_cp.c` `pppoe_add_del_cp` in the adopted patch.
+Its hardware lookup uses a software interface index as a hardware pool index,
+and its delete path writes the map without checking that the pair exists.
+The unchanged C regression demonstrated the absent-delete failure in the
+native lab; VPP remained responsive. A separate Ze diff must prove correct mapping when the index
+values differ, safe refusal of invalid deletes, and removal of a valid pair.
+
+The native ARM lab build also exposed an upstream CRC32C portability defect:
+the session worker hash calls scalar helpers absent from the software CRC
+branch. Phase 0 supplies those seeded helpers without assuming hardware CRC
+instructions, and runs an independent 29-case C regression during the build.
+
+The shared ownership migration also covers the existing Service-Name and realm
+relay lifetimes. An accepted relay must end in both directions, shutdown must
+release admissions still waiting to bridge, and an old call's delayed cleanup
+must preserve a replacement using the same numeric identifiers. A full control
+queue must not prevent the PPP reader from joining when its session ends.
 
 The goal has five parts:
 
@@ -49,7 +104,7 @@ Read at the source, not from its README:
 | Session interface | `pppoe_add_del_session(client_mac, session_id, disable_fib=1)` creates the VPP `pppoe_sessionN` interface; ng then disables the `ip4-not-enabled`/`ip6-not-enabled` features on it and names the session after the VPP interface | `session_hooks/vyos_vpp/vpppoe.c` (`vpppoe_sync_add_pppoe_interface`, `vpppoe_set_feature`); `vpphooks.c` (`vpphook_pppoe_create_vpp_session_interface`) |
 | Addresses and routes | Every address operation becomes a VPP route to the session interface: peer /32, framed routes, IPv6 /128 and delegated prefixes, all with `ip_route_add_del` | `vpphooks.c` (`vpphook_ipaddr_add_peer`, `vpphook_iproute_add`, `vpphook_ip6route_add`); `vppiputils.c` |
 | Rate limit | Two VPP policers per session (`policer_add_del`), bound with `policer_input` and `policer_output`, the input one enabled as a feature on the `ip4-unicast`, `ip6-unicast`, `ip4-multicast`, `ip6-multicast` arcs | `session_hooks/vyos_vpp/vpppolicer.c` (`vpppolicer_install_limiter`) |
-| IPv6 control | VPP punts RS, NS and DHCPv6 inside PPP frames to the cp TAP; ng parses IPv6 out of the PPP channel and answers in PPP frames ("non-socket DHCPv6/ND") | `accel-pppd/ipv6/ppp_ipv6layer.c`, `ipv6/dhcpv6.c`, `ipv6/nd.c` (`is_non_socket_dhcpv6_nd`); commit `07f158d` |
+| IPv6 control | The adopted patch punts RS, RA and DHCPv6 inside PPP frames to the cp TAP; ng parses IPv6 out of the PPP channel and answers in PPP frames ("non-socket DHCPv6/ND") | Patched VPP `pppoe_decap.c` (`is_control_plane_packet`); `accel-pppd/ipv6/ppp_ipv6layer.c`, `ipv6/dhcpv6.c`, `ipv6/nd.c` (`is_non_socket_dhcpv6_nd`); commit `07f158d` |
 | Teardown | Flush routes, remove policers, delete the VPP session | `vpphooks.c` (`vpphook_pppoe_terminate`) |
 | VPP loss | On a lost VPP connection the VPP PPPoE services stop; they restart when netlink reports the cp TAP again | commit `90c6d35` (`libnetlink/new_link_event.c`, `ctrl/pppoe/pppoe.c` `pppoe_on_add_link`) |
 
@@ -65,13 +120,29 @@ VyOS builds VPP `stable/2510` with every patch in `vyos/vyos-vpp-patches`
 | Patch | What it changes | Why ng needs it |
 |-------|-----------------|-----------------|
 | `0013-pppoe.-Automated-session-management.-12.patch` | `pppoe_add_del_cp` takes `dp_sw_if_index` + `cp_sw_if_index` (a map per access interface instead of one global cp); `pppoe_add_del_session` gains `disable_fib`; LCP, IPCP and PADT sniffing for optional auto sessions | Several access interfaces; a session created before IPCP assigns an address |
-| `0014-pppoe-Added-option-enable-pass-nd-and-dhcpv6.patch` | startup.conf `pppoe { enable-pass-nd-and-dhcpv6 }` punts ICMPv6 RS/NS and UDP DHCPv6 inside the session to the cp interface | IPv6 RA/DHCPv6 served from the PPP channel |
+| `0014-pppoe-Added-option-enable-pass-nd-and-dhcpv6.patch` | startup.conf `pppoe { enable-pass-nd-and-dhcpv6 }` punts ICMPv6 RS/RA and UDP DHCPv6 inside the session to the cp interface | IPv6 RA/DHCPv6 served from the PPP channel; the patch does not punt NS |
 | `0018-policer-Added-features-for-unicast-multicast-arc.-29.patch` | Registers `policer-input` on the `ip4/ip6-unicast` and `ip4/ip6-multicast` arcs | Upstream `policer-input` exists only on `device-input`, which a PPPoE session interface never traverses |
 | `0025-T8231-Removed-PPPoE-input-feature-setup-41.patch` | Stops enabling `pppoe-input` as a `device-input` feature on the cp interface | Non-PPPoE traffic was being steered into PPPoE nodes |
 | `0031-PPPoE-Added-cp_binding_dump-API-call-49.patch` | `pppoe_cp_binding_dump` | Reconciling the dp/cp map after a restart or reload |
 
 `0024-T7860-IPv6-ICMP-RA-punt-shortcut-36.patch` touches `pppoe_cp.c` but serves
 DHCPv6 on LCP TAPs, not subscribers.
+
+Ze additionally retains `third_party/vpp-patches/0099-pppoe-bound-frame-parsing.patch`
+after these five originals. It bounds all three decapsulation lanes and the
+control dispatcher by the actual buffer chain and declared payload length,
+keeps discovery separate from the session protocol field, and provides an
+optional lab-only runtime parser test. Its 31-case runtime proof and the
+four receive-path checks passed in the Ze-kernel lab; the evidence is recorded
+in the Phase 0 test table below.
+
+The separate `ze/0100-pppoe-cp-binding-tests.patch` adds the
+optional `test pppoe cp-binding` regression command under the same lab test
+option. Its absent-map deletion must fail against the adopted implementation
+before a separate Ze source fix is applied. The native lab observed
+`unmapped deletion was accepted` before `ze/0101-pppoe-validate-cp-bindings.patch`.
+The unchanged ten-case command passed after that repair in the same
+Ze-kernel guest. The full packet mechanism proof remains separate.
 
 ### What upstream VPP 25.10 does without patches
 
@@ -95,6 +166,11 @@ It is not in `vendor/` because nothing imports it; neither are `punt`, `ip6_nd`
 or `feature`. A patched VPP changes the message CRCs, so the govpp module's
 binapi would no longer match and Ze would generate its own `pppoe` binapi from
 the patched `.api`.
+
+That inventory records the design baseline. The implementation now retains its
+generated PPPoE and feature bindings under
+`internal/component/l2tp/pppoe/dataplane/vpp/binapi/`; generation alone does not
+prove the product backend's runtime behavior.
 
 ## Required Reading
 
@@ -154,6 +230,12 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 
 ## Current Behavior (MANDATORY)
 
+The source inventory below records the pre-implementation design baseline.
+The shared `StartSession` seam now carries `Frames` and `Dataplane`, and the
+current provider locations are recorded after Files to Create. The original
+paths remain here as the research record; acceptance of the complete backend
+remains open.
+
 **Source files read:**
 - [ ] `internal/component/l2tp/pppoe/server.go` - `handlePADR`: cookie check, SID alloc, `pppoeCreate` then `ppp.DevPPPSetup`, then PADS, then `ppp.StartSession` on `SessionsIn()`
 - [ ] `internal/component/l2tp/pppoe/subsystem.go` - `Start`: one raw discovery socket for all interfaces, servers keyed by kernel ifindex; PPP driver built with `iface.GetBackend()` as its `ppp.IfaceBackend`; `onSessionUp` calls `subscriber.GetShaperHandler()` with `sess.PppInterface`
@@ -181,6 +263,15 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 - PPPoE under `interface backend vpp` validates and then fails every session at IPCP Opened (journal row below). It becomes either a working VPP session data plane or a verify-time refusal.
 - `ppp.StartSession` stops carrying kernel file descriptors as its data-plane contract (replaced, not layered: see Key Design Decisions).
 
+## Existing Mechanisms
+
+| Mechanism | Location | Current role | Use in this spec |
+|-----------|----------|--------------|------------------|
+| Registered interface and traffic backends | `internal/component/iface/backend.go`, `internal/component/traffic/backend.go` | Select one configured backend and reject unsupported semantics | Extend the registration pattern with the PPPoE session seam |
+| Subscriber handler registries | `internal/component/l2tp/subscriber/handler_registry.go` | Share authentication, pool and rate handling across PPPoE and L2TP | Preserve these entry points while replacing the session data-plane contract |
+| VPP connector and readiness events | `internal/component/vpp/`, `internal/core/vpp/events/` | Supervise VPP and notify consumers of connection changes | Use for session programming and loss handling |
+| Shared PPP driver | `internal/component/l2tp/ppp/` | Own PPP negotiation for both access transports | Replace its kernel descriptor contract with one frame channel and session handle |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -198,7 +289,7 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| VPP -> Linux (control frames) | LCP TAP, cp map | No (Phase 0 lab) |
+| VPP -> Linux (control frames) | LCP TAP, cp map | Phase 0 mechanism passed on 2026-11-16; complete product backend acceptance remains owed |
 | Ze -> VPP (session, routes, policers) | GoVPP binary API through `vppcomp.GetActiveConnector()` | No |
 | VPP lifecycle -> PPPoE | EventBus `vpp/connected`, `vpp/disconnected`, `vpp/reconnected` | Events exist; consumer No |
 | PPPoE -> subscriber plugins | unchanged: `subscriber` handler registries and `subscriber` event namespace | Yes (digest) |
@@ -224,11 +315,11 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | A Linux AF_PPPOX socket connected on the cp TAP but never attached to a PPP channel delivers and sends PPP frames as a datagram socket | ng `establish_ppp` non-dev-ppp path; Linux `pppoe_rcv_core` queues to the socket when not bound | Use an AF_PACKET 0x8864 socket on the TAP with Ze-side demux by (MAC, SID) | Phase 0 lab capture | unvalidated |
-| A-2 | The ligato `vpp-base` image ships `pppoe_plugin.so` | upstream builds every core plugin | Lab builds VPP itself (same pipeline as OD-1 option B) | `vppctl show plugins` in Phase 0 | unvalidated |
-| A-3 | VLAN-tagged access (subinterfaces) reaches the cp TAP with the tag intact | `pppoe_cp_node.c` resets the buffer to the Ethernet header | VLAN access needs an LCP pair per subinterface and per-subinterface cp map | Phase 0 capture | unvalidated |
-| A-4 | VPP's pppoe encap honours the session interface MTU | upstream `pppoe.c` | MRU/MTU enforcement must be a VPP feature or a refusal | Phase 0 oversize ping | unvalidated |
-| A-5 | Discovery and session sockets opened in the LCP netns work while Ze runs in another namespace | `vpp.lcp.netns` default `dataplane`; Ze has netns helpers for other features | Restrict to empty netns and say so in docs | Phase 0 | unvalidated |
+| A-1 | A Linux AF_PPPOX socket connected on the cp TAP but never attached to a PPP channel delivers and sends PPP frames as a datagram socket | ng `establish_ppp` non-dev-ppp path; Linux `pppoe_rcv_core` queues to the socket when not bound | Use an AF_PACKET 0x8864 socket on the TAP with Ze-side demux by (MAC, SID) | Complete native plain, namespace and VLAN mechanism runs passed reciprocal LCP/IPCP and control-socket assertions, 2026-11-16 | confirmed |
+| A-2 | The source-built Phase 0 artifact contains and loads `pppoe_plugin.so` | `third_party/vpp-patches/Dockerfile` pins VPP 25.10, applies the retained patches and includes `pppoe` in the CMake plugin selection (OD-1 B) | Repair the source-build or startup recipe before taking mechanism evidence | Complete proof required running `show plugins`, 31 parser cases, four receive paths and ten binding cases, and passed on 2026-11-16 | confirmed |
+| A-3 | VLAN-tagged access (subinterfaces) reaches the cp TAP with the tag intact | `pppoe_cp_node.c` resets the buffer to the Ethernet header | VLAN access needs an LCP pair per subinterface and per-subinterface cp map | Native capture showed untagged frames at the Linux VLAN socket; explicit child LCP creation and child-to-child mapping made the complete VLAN mechanism pass | broken; stated fallback proven |
+| A-4 | VPP's pppoe encap honours the session interface MTU | upstream `pppoe.c` | MRU/MTU enforcement must be a VPP feature or a refusal | Complete proof passed all three native topologies at 1492/1493 and the independent VPP-only 1400/1401 boundary with client MTU above 1400, 2026-11-16 | confirmed |
+| A-5 | Discovery and session sockets opened in the LCP netns work while Ze runs in another namespace | `vpp.lcp.netns` default `dataplane`; Ze has netns helpers for other features | Restrict to empty netns and say so in docs | Complete native namespace topology passed socket restoration, reciprocal control and forwarded traffic, 2026-11-16 | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -238,6 +329,7 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 | R-3 | VPP restart loses every session silently | Sessions in Ze, none in `pppoe_session_dump` | Reconcile on `vpp/reconnected` (OD-2) |
 | R-4 | Policer semantics differ from tc shaping | Operator configured TBF on VPP | Refuse at verify; separate `policer` rate mode |
 | R-5 | Scale: one VPP interface per session | VPP interface table growth, stats segment size | Measure on Thomas's Mac (perf rule); size limits documented |
+| R-6 | Native-only compilation selects no CRC ISA while VPP core calls scalar CRC32C helpers | Observed native ARM compiler errors in `session/application.c` before the PPPoE runtime tests | Retained portable helper patch, unchanged native flags, and exact seeded-vector regression before accepting the image |
 
 ## Blast Radius
 | Question | Answer |
@@ -249,6 +341,8 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
+| `./le build vpp run` with the optional proof variant | → | Registered source build and immutable image report | `TestVPPBuildActionRegisters`, `TestVPPProofVariantGrammarPassesStartupChecks` |
+| `./le test deployment vpp-pppoe run` or `proof` | → | Isolated mechanism and same-guest parser proof | `TestMechanismActionRegisters`, `TestMechanismProofActionRegisters`; native results are recorded in the Phase 0 test table |
 | Config `interface backend vpp` + `pppoe interface X` | → | PPPoE verify selects the `vpp` session data plane or refuses | `test/parse/pppoe-vpp-dataplane-refused-without-backend.ci`, `test/parse/pppoe-vpp-dataplane-accepted.ci` |
 | PADR on a VPP access interface | → | VPP session backend `CreateSession` -> `pppoe_add_del_session` | `TestPPPoEVPPSessionCreatedBeforePADS` (fake GoVPP channel) and `test/vpp/pppoe-vpp-session.ci` |
 | IPCP Opened | → | session handle installs peer /32 route in VPP | `TestPPPoEVPPPeerRouteOnIPCPOpened`, interop `pppoe-vpp-ze-ac-pppd-client` |
@@ -274,6 +368,19 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 | AC-15 | A policed session ends (PADT, terminate, CoA Disconnect, idle) or a CoA swaps its rate, with many such sessions at once under traffic | The `policer-input` features leave the ip4/ip6 unicast and multicast arcs before the policer is unbound and deleted; VPP keeps its PID; no policer remains for a session that is gone. Source: accel-ppp-ng PR #46 (https://github.com/accel-ppp/accel-ppp-ng/pull/46), where the reverse order let `policer_input_node_fn` run on a deleted policer and VPP died with SIGBUS (VyOS T9502) |
 | AC-16 | A VPP session ends while others are up (PADT, operator clear, idle or session timeout) | The session's PPPoE socket, which is its PPP frame channel with no `/dev/ppp` unit, is closed exactly once by its one owner, after it is deregistered from any poller; the daemon and every other session keep running. Source: accel-ppp-ng PR #44 (https://github.com/accel-ppp/accel-ppp-ng/pull/44), where the shared fd was closed early and the later `EPOLL_CTL_DEL` on it failed with EBADF and aborted the daemon, dropping every session (VyOS T9499) |
 | AC-17 | A VPP session carries a RADIUS Idle-Timeout or Session-Timeout, and sends traffic | Its byte counters and idle detection come from the session's data-plane handle (the VPP session interface's counters, by the sw_if_index known only after the session interface is created); accounting octets move; a counter read that fails is reported and never read as zero or as idle, and never ends the session as a NAS error. Source: accel-ppp-ng PR #42 (https://github.com/accel-ppp/accel-ppp-ng/pull/42), where the ifindex was resolved before the hook created the interface, stats read nothing, and every session ended with NAS-Error every 60 s (VyOS T9211) |
+| AC-18 | Truncated Ethernet/VLAN/PPPoE frames, payload declarations beyond the actual buffer chain, and truncated direct IPv6/ICMPv6/UDP headers reach the patched VPP receiver under Ze's manual session management (auto-discovery disabled) | Every receive lane and the control dispatcher reject and count malformed lengths before classification or unsafe tracing; valid empty discovery, VLAN and split-header frames still pass. The retained Ze diff's real-buffer runtime command passes all 31 cases, including explicit accepted-frame metadata assertions, and malformed wire frames produce no control-plane forwarding or session allocation |
+| AC-19 | A valid data/control interface pair has different software and hardware index values; callers also request deletion with an invalid interface, an absent binding or a mismatched pair | `pppoe_add_del_cp` resolves the hardware interface from the supplied software index and installs the intended pair. Invalid, absent and mismatched deletions are refused before any map write, preserving every existing binding. Deleting the exact valid pair removes both map entries and leaves other bindings intact; VPP remains responsive throughout |
+| AC-20 | The native lab compiler selects the software CRC32C branch | Patched VPP builds without forcing CRC instructions. Scalar helpers preserve the input seed and low-byte-first order; the standalone C executable passes 27 independently specified word vectors and two standard chaining cases, returns nonzero on a mismatch, and emits the exact 29-case success answer required by the recipe |
+| AC-21 | A shared PPP or relayed admission ends during authentication, pending bridge setup, a full control queue, remote teardown or local shutdown; an older call's cleanup arrives after numeric identifiers are reused | Every owned reader and resource is released once, both relay endpoints learn termination, and cleanup verifies the exact current owner before changing a replacement. An admitted session survives malformed or duplicate requeue of its owner |
+| AC-22 | One NCP is disabled, declined or closed while the other family is usable | VPP enables only the opened family's receive path. A later negotiated address pair can enable its family; withdrawing its last pair disables that family without interrupting the other |
+| AC-23 | A route or protocol-enable mutation has an uncertain outcome, or forwarding cleanup fails before VPP would reuse a session's native interface index | The exact mutation and ownership remain retained for reconciliation. The interface is not recycled while old paths or enable references can reach another subscriber; confirmed mutation followed by stream-close failure is still owned |
+| AC-24 | The kernel handle adds or withdraws a route, including a failed add, failed removal, invalid or unattempted tuple, and exhaustion of its ownership bound | It records the canonical destination, gateway, metric and protocol intent before native add; only that exact owned intent may be withdrawn. Failed operations retain the intent for retry, absent ownership performs no native deletion, and at most 1024 intents are retained with released slots reusable |
+| AC-25 | PPPoE access indices differ above bit 15, or a queued response, lifecycle event or cleanup arrives after a subscriber ID or authentication/address-request round is reused | Full access identities remain distinct. Every response and mutation verifies the exact admitted worker binding; provider answers also identify the exact pending request. An old admission or request cannot acknowledge, authorize, cancel, release or change its replacement. The interface-owned-device cleanup callback remains compatible with the server's process-generation API and preserves its original process-pointer guard |
+| AC-26 | A kernel subscriber needs shaping while the global traffic backend is VPP, with the shaper running internally or as an external plugin | The shaper owns an independent tc backend and durably acknowledges its own original-state snapshots before replacement. Its cleanup restores only its own state; the global backend remains independently owned. Missing or corrupt persistence refuses the destructive operation |
+| AC-27 | A managed VPP API socket belongs to a different process than the spawned child, or the statistics socket belongs to a different physical process than the API, including across PID namespaces | Readiness and counter publication are refused. Process retirement requires the exact retained physical process proof; a claimed PID, logical generation or another child's completed wait cannot retire a live foreign peer |
+| AC-28 | An operator reload encounters an earlier subsystem failure while a later transport retains uncertain subscriber cleanup | Reload notifies every registered subsystem in registration order, including the later transport's exact retained cleanup owner, and returns all failure causes. An earlier error cannot make the operator recovery path unreachable |
+| AC-29 | The interface backend gate aggregates a typed host refusal or ordinary configuration errors | Every original cause remains reachable and the operator text stays unchanged. Ordinary errors remain configuration failures. On a host with no default backend, the offline JSON CLI rejects an omitted interface backend with exit 1, `valid=false` and `config-host-backend`, never `config-plugin-verify`. A cause-only break fails that diagnostic assertion |
+| AC-30 | A parse fixture declares `needs-linux`, or `ZE_QEMU_LINUX_ONLY=1` selects parse fixtures | Shared admission validates complete option names, keys and capabilities using the actual file path. Commands, stdin, assertions, existing skip reasons and the exact guest route remain intact. The population filter excludes only valid unmarked files. Malformed files fail rather than skip. The omitted-backend netlink acceptance fixture requires an executed Linux PASS and 80 stress runs with zero skips |
 
 ## End-to-End User Stories
 | # | User does | Path through system | Test proving it works |
@@ -284,7 +391,74 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 
 ## 🧪 TDD Test Plan
 
+### Phase 0 Lab Tooling Tests
+
+The main thread observed all 12 build tests and all 31 mechanism tests plus
+discovery fuzz seeds pass in `job-unit-pkg-50e95a94.log`, after the final
+mechanical repairs. Scoped host and Linux lint reported zero issues in
+`job-pppoe-mechanism-lint-5e4d4c3e.log`. The owning session state records those
+runs. These tests cover the lab tooling, not A-1 through A-5 or the
+product session backend. The root registry package also passed in
+`job-unit-pkg-136c4de5.log`.
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestVPPBuildActionRegisters` | `internal/le/build/vpp/build_test.go` | Native build entry point and unknown-action refusal | Passed |
+| `TestVPPBuildUsesRegisteredImage` | same | Registered recipe, narrow context, immutable image identity and retention release | Passed |
+| `TestVPPBuildFailureIsReported` | same | Build failure produces no artifact or unowned cleanup | Passed |
+| `TestVPPBuildRetentionFailureIsReported` | same | Retention-release failure reaches the caller | Passed |
+| `TestVPPBuildCancellationReachesBuilder` | same | Caller cancellation reaches Docker | Passed |
+| `TestVPPBuildRetentionCleanupSurvivesCancellation` | same | Export-race cleanup survives caller cancellation | Passed |
+| `TestVPPBuildRunHandlesSignals` | `internal/le/build/vpp/signal_test.go` | Real registered action handles SIGINT/SIGTERM and releases its retained image | Passed; signal-root counterfactual failed before the live source passed |
+| `TestVPPProofVariantSelectsSeparateImage` | `internal/le/build/vpp/variant_test.go` | Missing-metadata image uses a separate tag and reports its variant | Passed |
+| `TestVPPProofVariantPreservesBaselineRecipe` | same | Both variants share source and recipe; baseline is unchanged | Passed |
+| `TestVPPProofVariantRefusesUnknownName` | same | Undeclared proof variants are refused | Passed |
+| `TestVPPProofVariantOmissionSelectsBaseline` | same | Omitted or explicit baseline selects the normal image | Passed |
+| `TestVPPProofVariantGrammarPassesStartupChecks` | `internal/le/build/vpp/startup_test.go` | Production `internal/le` composition passes the real registry startup checks | Passed; unchanged assertion moved to the complete production fixture after independent judgment |
+| `TestMechanismActionRegisters` | `internal/le/test/deployment/vpppppoe/plan_test.go` | Native mechanism entry point and unknown-action refusal | Passed |
+| `TestMechanismFindsNegotiatedClientInterface` | same | Checker uses the assigned PPP interface and refuses absent or ambiguous state | Passed |
+| `TestMechanismRejectsEthernetReturnRoute` | same | Reply route must use the negotiated PPP interface | Passed |
+| `TestMechanismRequiresCounterIncreaseInBothDirections` | same | Controlled traffic must advance both actual VPP counters | Passed |
+| `TestMechanismPlanRetainsFailureEvidence` | same | Bounded peer logs are declared before cleanup | Passed |
+| `TestMechanismControlStatePreservesProbeFailures` | same | Transport and permission errors cannot become healthy state | Passed |
+| `TestMechanismControlStateAcceptsMissingMarker` | same | Only a completed missing-file answer permits the state read | Passed |
+| `TestMechanismDiscoveryChecksDeclaredLength` | same | Discovery parser bounds the declared payload | Passed |
+| `TestMechanismPlanHasIndependentTrafficPeer` | same | Traffic sender is separate from the VPP and subscriber peers | Passed |
+| `TestMechanismPlanMountsOnlyOwnedInputs` | same | Peers receive only task-owned helper and evidence mounts | Passed |
+| `TestMechanismLCPAckEchoesRequest` | same | Bounded LCP Configure-Ack echoes the received request | Passed |
+| `TestMechanismLCPAckRejectsTruncatedRequest` | same | Truncated control packets produce no acknowledgment | Passed |
+| `TestMechanismReadsBothVPPPacketCounters` | same | Both explicit packet counter rows are required | Passed |
+| `TestMechanismResolvesControlPair` | same | LCP readback identifies the intended control interface | Passed |
+| `TestMechanismImageRequiresCompleteDigest` | same | Counterfactual input requires a complete immutable image ID | Passed |
+| `TestMechanismProofActionRegisters` | `internal/le/test/deployment/vpppppoe/proof_test.go` | Combined proof has its own native action | Passed |
+| `TestMechanismMetadataProofRequiresItsOracle` | same | Only the complete exact metadata refusal on successful CLI transport with empty stderr proves the mutation | Passed; ten attribution cases. Added mixed assertion, embedded assertion and stderr negatives first failed against substring matching, then passed after the checker repair |
+| `TestMechanismBindingsActionRegisters` | `internal/le/test/deployment/vpppppoe/binding_proof_test.go` | Binding regression has its own admitted native action | Passed |
+| `TestMechanismBindingProofRequiresCompletedExactSuccess` | same | Only the completed exact ten-case success marker proves the binding cases | Passed; eleven attribution cases |
+| `TestMechanismBindingPlanUsesBaseline` | same | The isolated binding peer reads back the normal baseline variant | Passed |
+| `TestMechanismProofOrdersBindingStageAndPreservesIdentity` | same | Full baseline precedes same-image bindings and metadata; failures stop later stages | Passed |
+| `TestMechanismProofRetainsBaselineAcrossStages` | `internal/le/test/deployment/vpppppoe/lease_proof_test.go` | A shared-tag replacement cannot remove the baseline before dependent peers finish; cancellation still releases once | Passed after observed behavioral failure |
+| `TestMechanismProofReportsBaselineLeaseFailures` | same | Build, identity and release failures remain failures with their evidence | Passed after observed behavioral failure |
+| `TestMechanismProofPreflightsBeforeBaselineBuild` | `internal/le/test/deployment/vpppppoe/preflight_proof_test.go` | Docker, staged-helper and kernel refusals stop before source image builds | Passed after observed behavioral failure |
+| `TestMechanismImageReleasePreservesPrimaryFailure` | same | Client image release preserves primary setup and earlier cleanup failures under cancellation | Passed after observed behavioral failure |
+| `TestMechanismMTUProbeRequiresIndependentClientMTU` | `internal/le/test/deployment/vpppppoe/mtu_test.go` | Actual client interface MTU must independently exceed 1400 | Passed after observed behavioral failure |
+| `TestMechanismMTUProbeControlsVPPBoundary` | same | Lower only VPP to 1400, require 1400 success and 1401 refusal, restore 1492 | Passed after observed behavioral failure |
+| `TestMechanismMTUProbeRequiresExactVPPReadback` | same | Read exactly one session row and its IPv4 MTU element | Passed after observed behavioral failure |
+| `TestMechanismMTUProbeRequiresTypedPingRefusal` | same | Transport failure, unrelated packet loss and a different MTU cannot prove enforcement | Passed after observed behavioral failure |
+| `TestMechanismMTUProbeRestoresAfterPositiveFailure` | same | Positive-control failure still restores VPP and preserves both error causes | Passed after observed behavioral failure |
+| `TestMechanismMTUProbeRestoresAfterCancellation` | same | Cancellation after an attempted change still causes bounded restoration and readback | Passed after observed behavioral failure |
+| `FuzzMechanismDiscovery` | `internal/le/test/deployment/vpppppoe/plan_test.go` | Bounded discovery parsing over malformed inputs | Seed cases passed; no sustained fuzz run claimed |
+| `test pppoe frame-bounds` | `third_party/vpp-patches/0099-pppoe-bound-frame-parsing.patch` (optional runtime C test) | AC-18: real buffers cover truncated declarations, poisoned padding, discovery, VLAN, split chains and IPv6/ICMPv6/UDP bounds; accepted metadata is explicit | Complete Ze-kernel proof passed on 2026-11-16: all31 cases and malformed-wire checks in plain/namespace/VLAN topologies on baseline `sha256:a0aac6ad351b37311384caa5fab112630d3a733875777faffc5689a61a6085bc`; missing-metadata image `sha256:92da1e02c179f5731d3a6fbe9010333f50fe17bafc419252b589ab298f1d04d0` produced only the exact expected metadata assertion |
+| `test pppoe cp-binding` | `third_party/vpp-patches/ze/0100-pppoe-cp-binding-tests.patch` (optional runtime C test) | AC-19: software/hardware index skew, absent-map refusal with `VNET_API_ERROR_NO_SUCH_ENTRY`, mismatched-delete preservation and valid create/delete | Native runtime RED: `unmapped deletion was accepted`, VPP running without OOM, before separate 0101 repair; unchanged ten-case regression passed afterwards in the same guest, baseline image `sha256:fcfbf59eaa472d77898e1b1f60a8ca965f4f03d7e7f3ba04099b729712f24d2f` |
+| `test pppoe receive-bounds` | `third_party/vpp-patches/ze/0102-pppoe-receiver-bounds-tests.patch` (optional runtime C test) | AC-18: actual scalar, paired-left, paired-right and control-dispatch graph paths, drops, counters, safe traces and unchanged session allocation | Complete Ze-kernel proof required and passed the exact four-path answer before dialing in all three baseline topologies, 2026-11-16 |
+| `test pppoe ownership` | `third_party/vpp-patches/ze/0103-pppoe-owned-reconciliation.patch` (native C test) | Exact session, feature, policer and route ownership; wrong MAC/SID absence; all feature selectors; native policer configuration; independent shared-prefix paths and route withdrawal | Ze-kernel runtime first failed the exact IPv4 withdrawal assertion; retaining the original requested path before native fixup repaired it. The unchanged assertion and strengthened 55-group suite passed on 2026-11-16, guest image `sha256:a017bfa233b228b5e486a2ec74fc7a2c5d52c7cf078af66dead01e36139d4d06`. Independent countercut runs remain owed |
+| `test_crc32c_scalar` | `third_party/vpp-patches/0098-crc32-portable-scalar-helpers.patch` (build-time C executable) | AC-20: every scalar width, nonzero seeds, low-byte order and standard CRC32C chaining, with a strict process/output oracle | Native ARM compiler RED preceded the repair; source build completed all 1045 targets and the actual executable printed `VPP CRC32C scalar helpers: 29 cases passed` in the owned proof-cycle log recorded in the session state |
+
 ### Unit Tests
+
+The original planned locations below are retained as the design record. The
+implementation mapping after Files to Create identifies their current owning
+packages; the blank status cells still require evidence for the named questions.
+
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestSessionDataplaneRegistry` | `internal/component/l2tp/pppoe/dataplane_test.go` | Register, lookup by name, duplicate refused, unknown name error lists registered names | |
@@ -322,6 +496,7 @@ Each row keeps its `lower-layer:` annotation and names both performers, one per 
 Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture assertions; G-2 by AC-1/AC-13; G-3 by AC-6, AC-7, AC-9; G-4 by AC-8; G-5 by the restart scenario. Each scenario is reverted-and-rebuilt once to record its red (`ai/rules/interop-and-goal-validation.md`). The lab Docker host runs Ze's kernel (`ai/META-DECISIONS.md`).
 
 ## Files to Modify
+- `internal/le/register.go` - compose the Phase 0 VPP build and mechanism actions
 - `internal/component/l2tp/pppoe/server.go` - `handlePADR` calls the selected session data plane instead of `pppoeCreate`/`DevPPPSetup`
 - `internal/component/l2tp/pppoe/subsystem.go` - select the data plane by backend name; discovery socket opened per data plane (cp TAP, netns); VPP readiness events
 - `internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` - no leaf added (OD-3); the refusal `spec-pppoe-refuse-vpp-backend` lands is replaced by the data-plane selection
@@ -333,6 +508,20 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 - `feature-gates.txt` - dependent gate entry for the VPP session data plane
 
 ## Files to Create
+- `internal/le/build/vpp/build.go`, `register.go`, `variant.go` - registered source build, retained image ownership and closed proof variants
+- `internal/le/build/vpp/build_test.go`, `signal_test.go`, `variant_test.go`, `startup_test.go` - Phase 0 build and actual startup coverage
+- `internal/le/test/deployment/vpppppoe/register.go`, `plan.go`, `check.go`, `wire.go` - native mechanism action, isolated peers and bounded state/wire assertions
+- `internal/le/test/deployment/vpppppoe/control_linux.go`, `control_other.go`, `inject_linux.go` - unattached PPPoX control channel, namespace ownership and independent packet inputs
+- `internal/le/test/deployment/vpppppoe/proof.go`, `plan_test.go`, `proof_test.go` - same-guest baseline/counterfactual orchestration and tooling tests
+- `internal/le/test/deployment/vpppppoe/binding_proof_test.go`, `lease_proof_test.go` - binding attribution, composition and baseline image ownership tests
+- `internal/le/test/deployment/vpppppoe/preflight_proof_test.go` - preflight ordering and cleanup diagnostic regressions
+- `internal/le/test/deployment/vpppppoe/mtu.go`, `mtu_test.go` - independently measured VPP MTU boundary and cancellation-safe restoration
+- `third_party/vpp-patches/Dockerfile`, `README.md`, `LICENSE` - source pin, provenance, build recipe and license
+- `third_party/vpp-patches/0013-pppoe.-Automated-session-management.-12.patch`, `0014-pppoe-Added-option-enable-pass-nd-and-dhcpv6.patch`, `0018-policer-Added-features-for-unicast-multicast-arc.-29.patch`, `0025-T8231-Removed-PPPoE-input-feature-setup-41.patch`, `0031-PPPoE-Added-cp_binding_dump-API-call-49.patch` - unchanged adopted VyOS diffs
+- `third_party/vpp-patches/0099-pppoe-bound-frame-parsing.patch`, `third_party/vpp-patches/proof/missing-frame-metadata.diff` - Ze receive hardening, optional real-buffer tests and the separate proof-only mutation
+- `third_party/vpp-patches/0098-crc32-portable-scalar-helpers.patch` - portable seeded scalar helpers and the standalone build-time C regression
+- `third_party/vpp-patches/ze/0100-pppoe-cp-binding-tests.patch` - optional C binding regression command; observed native failure precedes the separate `ze/0101-pppoe-validate-cp-bindings.patch` source repair
+- `third_party/vpp-patches/ze/0102-pppoe-receiver-bounds-tests.patch` - optional real-graph regression of all receiver lanes, control dispatch, malformed counters and initialized traces
 - `internal/component/l2tp/pppoe/dataplane.go` - the seam: interface and name registry
 - `internal/plugins/pppoe/kernel/` - kernel session data plane (moved, not copied)
 - `internal/plugins/pppoe/vpp/` - VPP session data plane (`ze_vpp` + `ze_l2tp`)
@@ -340,14 +529,24 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 - `test/parse/pppoe-vpp-*.ci`, `test/vpp/pppoe-vpp-*.ci`
 - OD-1 B: `third_party/vpp-patches/` (diffs against the VPP release) and the build step that applies them
 
+The session backend implementation uses the following locations. The original
+planned paths above remain as history rather than instructions to create
+parallel packages.
+
+| Role | Current implementation |
+|------|------------------------|
+| Session provider interface and registry | `internal/component/l2tp/pppoe/dataplane/registry.go`, `session.go`; registry tests in `dataplane/registry_test.go` |
+| Kernel session provider | `internal/component/l2tp/pppoe/dataplane/kernel/`; registered by `internal/component/l2tp/plugins/pppoe-kernel/register.go` |
+| VPP session provider | `internal/component/l2tp/pppoe/dataplane/vpp/`; registered by `internal/component/l2tp/plugins/pppoe-vpp/register.go` |
+
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
 | YANG schema | No | OD-3: no leaf added |
 | YANG validation constraints | Yes | Backend verifier for PPPoE on VPP |
 | YANG custom validators | Yes | LCP pair present for each PPPoE access interface |
-| CLI commands/flags | Yes | `show pppoe session` gains the data-plane interface |
-| CLI grammar | No | No new verb |
+| CLI commands/flags | Yes | Native VPP build and mechanism/proof actions; `show pppoe session` gains the data-plane interface |
+| CLI grammar | Yes | Native lab/build actions use action-before-keyword grammar; the product `show` form is unchanged |
 | Editor autocomplete | No | |
 | Functional test for new RPC/API | Yes | `test/vpp/pppoe-vpp-*.ci` |
 | Pipe completeness | No | |
@@ -363,13 +562,13 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 | 2 | Config syntax changed | No (OD-3) | `docs/guide/configuration.md` states PPPoE follows `interface backend` |
 | 6 | User guide page | Yes | `docs/guide/vpp.md` (status table, PPPoE section), PPPoE guide |
 | 9 | RFC behavior proven | Yes | `rfc/short/rfc2516.md` performer annotations |
-| 10 | Test infrastructure | Yes | `docs/labs/pppoe-interop.md` (VPP scenarios) |
+| 10 | Test infrastructure | Yes | `docs/labs/pppoe-interop.md` (VPP scenarios and proof), `docs/architecture/testing/qemu-integration.md` (manual QEMU carrier) |
 | 12 | Internal architecture | Yes | `ai/digests/subscriber.md`, `ai/digests/vpp-dataplane.md`, `ai/doors/access-security.md` |
 | 16 | Source anchors | Yes | Run `./le spec citation anchors spec plan/post-release/features/spec-pppoe-vpp-dataplane.md` at implementation |
 
 ## Implementation Steps
 
-1. **Phase 0: Lab proof of mechanism (no product code).** Real VPP container (af_packet access interface, LCP pair), pppd client, Ze unmodified except a scratch harness. Prove A-1..A-5 and the upstream facts above by capture and `vppctl show pppoe session`. Output: the evidence recorded in this spec, run against the VPP Ze builds with the patches (OD-1 B).
+1. **Phase 0: Lab proof of mechanism (no product code).** Real VPP container (af_packet access interface, LCP pair), pppd client, Ze unmodified except a scratch harness. Prove A-1..A-5 and the upstream facts above by capture and `vppctl show pppoe session`. Apply the separately retained Ze parser hardening diff, run its real-buffer runtime test, and inject malformed frames to prove AC-18 through the receive entry points. Run the baseline and exact missing-metadata counterfactual on the same Ze-kernel Docker guest. Also prove AC-19 with divergent software/hardware indices, refused invalid/absent/mismatched map deletions, preserved unrelated bindings and successful exact-pair removal. Repair native CRC32C portability and require the strict 29-case build-time proof for AC-20. Output: the evidence recorded in this spec, run against the VPP Ze builds with the patches (OD-1 B).
 2. **Phase 1: moved out.** The verify-time refusal of PPPoE under `interface backend vpp` is `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md` (OD-5), which owns the journal row and lands before this spec. This spec's AC-1 holds while no VPP session data plane is registered, and Phase 3's registration replaces that refusal with AC-2.
 3. **Phase 2: The seam, kernel backend moved behind it.** `pppoe` declares the session data-plane interface and registry; the kernel implementation moves to its own package and registers; `ppp.StartSession` carries a frame channel and a per-session data-plane handle in place of `ChanFD`/`UnitFD`/`UnitNum` and `IfaceBackend`; L2TP supplies the kernel handle. The handle's contract names one owner for each descriptor it holds, which closes it exactly once (AC-16). No behaviour change. Tests: AC-13, AC-16, `TestKernelDataplaneParity`, `TestPPPChannelSeam`.
 4. **Phase 3: VPP backend, IPv4.** cp map, discovery and session control on the cp TAP, session create before PADS, MTU, peer route in VRF, framed routes, teardown order, session counters and idle detection read through the session handle, `show pppoe` and doctor. Tests: AC-2..AC-7, AC-11, AC-14, AC-16, AC-17, interop `pppoe-vpp-ze-ac-pppd-client` IPv4.
@@ -383,6 +582,7 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Correctness | PADS never precedes a successful VPP session add; PADT never precedes VPP session delete |
+| Control binding | Hardware lookup follows the supplied software index; invalid or mismatched map deletion preserves every existing binding, while exact-pair deletion works |
 | Data flow | No subscriber IP packet traverses the Linux kernel on the VPP backend (capture) |
 | Rule: no-layering | No path tries kernel then VPP; fds removed from `StartSession`, not kept beside the handle |
 | Rule: exact-or-reject | tc shaping config refused under VPP, never mapped to a policer silently |
@@ -424,6 +624,14 @@ Goal validation: G-1 by the first scenario's VPP-counter and TAP-capture asserti
 None. The row this spec found (`validate-accepts-what-start-refuses.md`, 2026-10-28) is owned by `plan/release/fixes/spec-pppoe-refuse-vpp-backend.md`.
 
 ## Work Not Done
+
+### Wrong assumptions found during implementation
+
+| Assumption | Observed result | Resolution |
+|------------|-----------------|------------|
+| A-3: rely on a preserved raw VLAN header and a parent-only CP map | The scratch helper received and emitted untagged discovery on `cp0.100`; capture showed PADO leaving Linux but no access egress. VPP's Ethernet classifier had no matching CP VLAN child | Use the fallback already named in A-3: create the data subinterface's complete LCP pair, read back its actual CP child and map child to child. The unchanged native VLAN mechanism then passed. This preserves the approved backend/control-plane design |
+
+### Scope moved to another spec
 
 | Item | Where it went | Why |
 |------|---------------|-----|
@@ -489,10 +697,10 @@ section reference (`ai/rules/rfc-compliance.md`, functions added from 2026-09-24
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-14 all demonstrated
+- [ ] AC-1..AC-30 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass, and `./le verify changed` over the closing commits
+- [ ] Scoped tests for the reached packages and behaviors pass in the main checkout; GitHub CI verifies the pushed commits, and agents run no `./le verify` command
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
