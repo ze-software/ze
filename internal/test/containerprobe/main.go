@@ -32,6 +32,20 @@
 // `ze-containerprobe refused ADDRESS PORT` requires one attempt to be
 // refused: a packet there and a reset back.
 //
+// `ze-containerprobe resp ADDRESS PORT` runs on the client's side of a
+// container that runs a published Redis image: it dials ADDRESS:PORT within
+// a bounded wait it reports, then sends PING, SET and GET over that one
+// connection and requires +PONG, +OK and the value SET stored (resp.go).
+//
+// `ze-containerprobe fetch TYPED LISTED SECONDS`, `ze-containerprobe running
+// NAME COMMAND` and `ze-containerprobe diagnose NAME` run on the host beside
+// a daemon whose container image comes from a real registry (stages.go):
+// fetch runs the fetch command for TYPED and waits at most SECONDS for the
+// listing's row of LISTED to be present, failing at once on a failed row;
+// running waits a bounded time for a process named COMMAND in container
+// NAME's control group; diagnose prints what the daemon and the kernel say
+// of the store and of NAME, and always succeeds.
+//
 // `ze-containerprobe networked STORE NAME ADDRESS GATEWAY MTU` runs on the
 // host: it waits a bounded time for the report of container NAME and judges
 // that eth0 held ADDRESS (a prefix) and MTU and was up, that the default route
@@ -194,7 +208,8 @@ const (
 // usage names every mode.
 const usage = "usage: ze-containerprobe run | run-ignoring-stop | run-networked | run-serving | reset STORE | verify STORE NAME" +
 	" | confined STORE NAME | networked STORE NAME ADDRESS GATEWAY MTU | host-end BRIDGE OWNER FILE" +
-	" | published ADDRESS PORT | refused ADDRESS PORT" +
+	" | published ADDRESS PORT | refused ADDRESS PORT | resp ADDRESS PORT" +
+	" | fetch TYPED LISTED SECONDS | running NAME COMMAND | diagnose NAME" +
 	" | unlinked FILE | gone STORE NAME [at-least|less-than SECONDS] | starts STORE NAME COUNT" +
 	" | drive STORE NAME CONFIG second-signal|remove [REMOVED-CONFIG]"
 
@@ -275,6 +290,36 @@ func main() {
 		if !refused(os.Args[2], os.Args[3]) {
 			os.Exit(1)
 		}
+	case "resp":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe resp ADDRESS PORT")
+		}
+		if !resp(os.Args[2], os.Args[3]) {
+			os.Exit(1)
+		}
+	case "fetch":
+		if len(os.Args) != 5 {
+			fail("usage: ze-containerprobe fetch TYPED LISTED SECONDS")
+		}
+		seconds, err := strconv.Atoi(os.Args[4])
+		if err != nil {
+			fail("probe fetch: SECONDS is not a number: " + err.Error())
+		}
+		if !fetch(os.Args[2], os.Args[3], time.Duration(seconds)*time.Second) {
+			os.Exit(1)
+		}
+	case "running":
+		if len(os.Args) != 4 {
+			fail("usage: ze-containerprobe running NAME COMMAND")
+		}
+		if !running(os.Args[2], os.Args[3]) {
+			os.Exit(1)
+		}
+	case "diagnose":
+		if len(os.Args) != 3 {
+			fail("usage: ze-containerprobe diagnose NAME")
+		}
+		diagnose(os.Args[2])
 	case "networked":
 		if len(os.Args) != 7 {
 			fail("usage: ze-containerprobe networked STORE NAME ADDRESS GATEWAY MTU")
