@@ -502,7 +502,7 @@ github.com/gaissmai/bart/internal/sparse
 github.com/gaissmai/bart/internal/tests/golden
 github.com/gaissmai/bart/internal/tests/random
 github.com/gaissmai/bart/internal/value
-# github.com/ghostiam/protogetter v1.0.1
+# github.com/ghostiam/protogetter v1.0.2
 ## explicit; go 1.26.0
 github.com/ghostiam/protogetter
 # github.com/go-critic/go-critic v0.15.0

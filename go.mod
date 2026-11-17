@@ -156,7 +156,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
-	github.com/ghostiam/protogetter v1.0.1 // indirect
+	github.com/ghostiam/protogetter v1.0.2 // indirect
 	github.com/go-critic/go-critic v0.15.0 // indirect
 	github.com/go-json-experiment/json v1.27.2 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
