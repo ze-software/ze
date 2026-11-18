@@ -55,12 +55,15 @@ const (
 // keyword above and name something else: one is what an operator types, the
 // other is what the JSON carries.
 const (
-	keyAction    = "action"
-	keyCount     = "count"
-	keyLogin     = "login"
-	keySessionID = "session-id"
-	keyState     = "state"
-	keyTunnelID  = "tunnel-id"
+	keyAction       = "action"
+	keyCount        = "count"
+	keyLogin        = "login"
+	keySubscriberID = "subscriber-id"
+	keyPPPInterface = "ppp-interface"
+	keyError        = "error"
+	keySessionID    = "session-id"
+	keyState        = "state"
+	keyTunnelID     = "tunnel-id"
 )
 
 // errSubsystemUnavailable is returned when any show/teardown command
@@ -282,7 +285,7 @@ func handleObserver(ctx *pluginserver.CommandContext, validated command.Validate
 				keySessionID:    int(s.SessionID),
 				"event-count":   s.EventCount,
 				keyTunnelID:     int(s.TunnelID),
-				"subscriber-id": s.Birth,
+				keySubscriberID: s.Birth,
 			}
 			if s.EventCount > 0 {
 				m["last-event-type"] = s.LastEventType
@@ -311,7 +314,7 @@ func handleObserver(ctx *pluginserver.CommandContext, validated command.Validate
 		ev := &events[i]
 		m := map[string]any{
 			"timestamp":     ev.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"subscriber-id": ev.Birth,
+			keySubscriberID: ev.Birth,
 			"type":          ev.Type.String(),
 			keyTunnelID:     int(ev.TunnelID),
 			keySessionID:    int(ev.SessionID),
@@ -332,8 +335,8 @@ func handleObserver(ctx *pluginserver.CommandContext, validated command.Validate
 	}
 	return jsonResponse("l2tp observer", map[string]any{
 		keySessionID:    int(sid),
-		"subscriber-id": captured.Birth(),
-		"listener":      originalReadListener(captured.Listener()),
+		keySubscriberID: captured.Birth(),
+		argListener:     originalReadListener(captured.Listener()),
 		keyTunnelID:     observerReadTunnel(events),
 		"events":        out,
 		keyCount:        len(out),
@@ -495,11 +498,11 @@ func handleSessionHistory(ctx *pluginserver.CommandContext, validated command.Va
 		return plugin.OperatorErrorResponse(sessionReadError(err, "The captured L2TP session transitions are no longer available")), nil
 	}
 	row := fsmTransitionsJSON(history)
-	row["subscriber-id"] = ss.SubscriberID
+	row[keySubscriberID] = ss.SubscriberID
 	row[keySessionID] = int(ss.LocalSID)
 	row[keyTunnelID] = int(ss.TunnelLocalTID)
 	if ss.Listener.IsValid() {
-		row["listener"] = ss.Listener.String()
+		row[argListener] = ss.Listener.String()
 	}
 	return jsonResponse("l2tp session history", row)
 }
@@ -671,10 +674,10 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 		m["birth"] = s.Birth.String()
 	}
 	if s.Listener.IsValid() {
-		m["listener"] = s.Listener.String()
+		m[argListener] = s.Listener.String()
 	}
 	if s.SubscriberID != "" {
-		m["subscriber-id"] = s.SubscriberID
+		m[keySubscriberID] = s.SubscriberID
 	}
 	// A session may exist before LCP opens or while it renegotiates. Keep
 	// unknown distinct from an agreed no-auth method and from local config.
@@ -855,8 +858,8 @@ func sessionTrafficAll(svc l2tp.Service) (*plugin.Response, error) {
 			if !ss.Birth.IsValid() {
 				rows = append(rows, map[string]any{
 					keySessionID: int(ss.LocalSID), keyTunnelID: int(ss.TunnelLocalTID),
-					"ppp-interface": ss.PppInterface,
-					"error":         sessionReadError(nil, "The inventory row has no original session reference").Error(),
+					keyPPPInterface: ss.PppInterface,
+					keyError:        sessionReadError(nil, "The inventory row has no original session reference").Error(),
 				})
 				continue
 			}
@@ -869,10 +872,10 @@ func sessionTrafficAll(svc l2tp.Service) (*plugin.Response, error) {
 				row = map[string]any{
 					keySessionID:    int(ss.LocalSID),
 					keyTunnelID:     int(ss.TunnelLocalTID),
-					"subscriber-id": ss.SubscriberID,
-					"listener":      originalReadListener(ss.Listener),
-					"ppp-interface": ss.PppInterface,
-					"error":         sessionReadError(err, "The original L2TP session traffic could not be read").Error(),
+					keySubscriberID: ss.SubscriberID,
+					argListener:     originalReadListener(ss.Listener),
+					keyPPPInterface: ss.PppInterface,
+					keyError:        sessionReadError(err, "The original L2TP session traffic could not be read").Error(),
 				}
 			}
 			rows = append(rows, row)
@@ -899,9 +902,9 @@ func sessionTrafficRow(captured l2tp.CapturedSession) (map[string]any, error) {
 	return map[string]any{
 		keySessionID:    int(ss.LocalSID),
 		keyTunnelID:     int(ss.TunnelLocalTID),
-		"subscriber-id": ss.SubscriberID,
-		"listener":      originalReadListener(ss.Listener),
-		"ppp-interface": ss.PppInterface,
+		keySubscriberID: ss.SubscriberID,
+		argListener:     originalReadListener(ss.Listener),
+		keyPPPInterface: ss.PppInterface,
 		"rx-bytes":      stats.RxBytes,
 		"tx-bytes":      stats.TxBytes,
 		"rx-packets":    stats.RxPackets,

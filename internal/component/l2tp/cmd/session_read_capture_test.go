@@ -88,10 +88,11 @@ func newSessionReadService(t *testing.T) *sessionReadService {
 	birth, err := subscriberid.ParseL2TPBirth("l2tp-00000000000000000000000000001917")
 	require.NoError(t, err)
 	endpoint := netip.MustParseAddrPort("127.0.0.1:1917")
-	capture := &sessionReadCapture{cqmCommandCapture: cqmCommandCapture{
+	original := cqmCommandCapture{
 		snapshot: l2tp.SessionSnapshot{Birth: birth, SubscriberID: birth.String(), LocalSID: 7, TunnelLocalTID: 17, Listener: endpoint, Username: "original", PppInterface: "original-ppp"},
 		events:   []l2tp.ObserverEvent{{Birth: birth, Timestamp: time.Unix(1000, 0), Type: l2tp.ObserverEventEchoRTT, TunnelID: 17, SessionID: 7, RTT: 13 * time.Millisecond}},
-	}}
+	}
+	capture := &sessionReadCapture{cqmCommandCapture: original}
 	return &sessionReadService{fakeService: &fakeService{listeners: []l2tp.ListenerSnapshot{{Name: "edge", Addr: endpoint}}}, captured: capture}
 }
 
@@ -119,9 +120,12 @@ func TestSingleSessionReadersUseQualifiedOriginalCapture(t *testing.T) {
 				require.Len(t, data["events"], 1)
 				require.Equal(t, 1, service.captured.reads)
 			case "fsm":
-				transitions := data["transitions"].([]any)
+				transitions, ok := data["transitions"].([]any)
+				require.True(t, ok, "session transitions must be a JSON array")
 				require.Len(t, transitions, 1)
-				require.Equal(t, "original", transitions[0].(map[string]any)["trigger"])
+				transition, ok := transitions[0].(map[string]any)
+				require.True(t, ok, "session transition must be a JSON object")
+				require.Equal(t, "original", transition["trigger"])
 				require.Equal(t, 1, service.captured.fsmReads)
 			case "traffic":
 				require.Equal(t, float64(1101), data["rx-bytes"])

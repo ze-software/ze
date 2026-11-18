@@ -41,7 +41,8 @@ func TestSessionTrafficPreservesCounterAvailability(t *testing.T) {
 		{name: "mixed", readings: [4]ppp.CounterReading{ppp.MeasuredCounter(0), {}, ppp.MeasuredCounter(13), {}}, want: [4]any{float64(0), nil, float64(13), nil}},
 	} {
 		t.Run(input.name, func(t *testing.T) {
-			capture := &trafficCounterCapture{cqmCommandCapture: cqmCommandCapture{snapshot: l2tp.SessionSnapshot{LocalSID: 7, PppInterface: "original-ppp"}}, counters: ppp.SessionCounters{
+			original := cqmCommandCapture{snapshot: l2tp.SessionSnapshot{LocalSID: 7, PppInterface: "original-ppp"}}
+			capture := &trafficCounterCapture{cqmCommandCapture: original, counters: ppp.SessionCounters{
 				RxBytes: 1101, TxBytes: 2202, RxPackets: 33, TxPackets: 44,
 				RxErrors: input.readings[0], TxErrors: input.readings[1], RxDropped: input.readings[2], TxDropped: input.readings[3],
 			}}
@@ -95,7 +96,8 @@ func TestSessionTrafficInventoryKeepsOriginalCapturesAndSurvivors(t *testing.T) 
 		row := l2tp.SessionSnapshot{Birth: birth, SubscriberID: reference, LocalSID: 7, TunnelLocalTID: 17, Listener: endpoint, PppInterface: "reused-label"}
 		rows = append(rows, row)
 		if index == 0 {
-			service.captures[birth] = &trafficCounterCapture{cqmCommandCapture: cqmCommandCapture{snapshot: row}, counters: ppp.SessionCounters{RxBytes: 1917, TxBytes: 2917}}
+			original := cqmCommandCapture{snapshot: row}
+			service.captures[birth] = &trafficCounterCapture{cqmCommandCapture: original, counters: ppp.SessionCounters{RxBytes: 1917, TxBytes: 2917}}
 		}
 	}
 	service.snapshot = l2tp.Snapshot{SessionCount: 2, Tunnels: []l2tp.TunnelSnapshot{{LocalTID: 17, Sessions: rows}}}
@@ -109,13 +111,16 @@ func TestSessionTrafficInventoryKeepsOriginalCapturesAndSurvivors(t *testing.T) 
 	require.Equal(t, plugin.StatusDone, response.Status, response.Error)
 	var answer map[string]any
 	require.NoError(t, json.Unmarshal([]byte(responseString(t, response)), &answer))
-	result := answer["sessions"].([]any)
+	result, ok := answer["sessions"].([]any)
+	require.True(t, ok, "traffic inventory must be a JSON array")
 	require.Len(t, result, 2)
-	useful := result[0].(map[string]any)
+	useful, ok := result[0].(map[string]any)
+	require.True(t, ok, "useful traffic row must be a JSON object")
 	require.Equal(t, rows[0].SubscriberID, useful["subscriber-id"])
 	require.Equal(t, float64(1917), useful["rx-bytes"])
 	require.Equal(t, float64(2917), useful["tx-bytes"])
-	stale := result[1].(map[string]any)
+	stale, ok := result[1].(map[string]any)
+	require.True(t, ok, "stale traffic row must be a JSON object")
 	require.Equal(t, rows[1].SubscriberID, stale["subscriber-id"])
 	require.Equal(t, rows[1].Listener.String(), stale["listener"])
 	require.NotEmpty(t, stale["error"])

@@ -63,8 +63,10 @@ func sessionReadError(cause error, problem string) *opererr.Error {
 func sessionReadCandidates(service l2tp.Service, selector l2tp.SessionSelector) string {
 	var candidates []string
 	snapshot := service.Snapshot()
-	for _, tunnel := range snapshot.Tunnels {
-		for _, session := range tunnel.Sessions {
+	for tunnelIndex := range snapshot.Tunnels {
+		tunnel := &snapshot.Tunnels[tunnelIndex]
+		for sessionIndex := range tunnel.Sessions {
+			session := &tunnel.Sessions[sessionIndex]
 			if session.LocalSID != selector.SID {
 				continue
 			}

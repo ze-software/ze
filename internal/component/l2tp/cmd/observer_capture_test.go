@@ -93,9 +93,11 @@ func TestObserverDetailUsesOneCapturedOriginalHistory(t *testing.T) {
 	require.Zero(t, service.unsafeReads)
 	var data map[string]any
 	require.NoError(t, json.Unmarshal([]byte(responseString(t, response)), &data))
-	events := data["events"].([]any)
+	events, ok := data["events"].([]any)
+	require.True(t, ok, "observer events must be a JSON array")
 	require.Len(t, events, 1)
-	event := events[0].(map[string]any)
+	event, ok := events[0].(map[string]any)
+	require.True(t, ok, "observer event must be a JSON object")
 	require.Equal(t, birth.String(), event["subscriber-id"])
 	require.Equal(t, float64(17), event["tunnel-id"])
 	require.Equal(t, 13.0, event["rtt-ms"])
