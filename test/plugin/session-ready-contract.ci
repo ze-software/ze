@@ -1,3 +1,5 @@
+# Question: does the daemon credit a session-ready report to the actual configured process alias?
+# An established peer and the real report/barrier producer prove wiring beyond a unit.
 # Test: a peer waits for an in-tree plugin it attaches under an OPERATOR ALIAS.
 #
 # VALIDATES: RFC 4724 Section 4 -- "the End-of-RIB marker MUST be sent by a BGP
@@ -49,12 +51,10 @@
 # reachable in this scenario, and each reason below was read at its producer on
 # 2026-09-02.
 #
-# bgp-rib puts NOTHING before the marker on a peer's FIRST session.
-# (*RIBManager).collectPeerUpReplay (bgp/plugins/rib/rib_replay.go) returns nil
-# while seenBefore is false, so the Adj-RIB-Out replay starts at the SECOND
-# establishment of the same peer. This file establishes once by construction, and
-# the routes a second establishment would replay are the ones the first session
-# sent, of which there are none.
+# This fixture has one peer, no other source and no configured origin, so its
+# first session has no selected route to replay. The sent-history replay also
+# has no previous session's output. Ordinary first-session selected replay in a
+# populated RIB is covered separately; it is not prohibited by this fixture.
 #
 # No directive holds a peer down while another producer fills that RIB. ze-peer
 # takes file, asn, bind, conn_map, await_eor, linger, silent, tcp_connections,
@@ -126,7 +126,7 @@ bgp {
 		# session came up, which is the event its report answers. Deleting any
 		# one of them empties the barrier and reddens this file.
 		attach process ribout {
-			receive [ update state ]
+			receive [ update state refresh ]
 			send [ update ]
 		}
 	}
