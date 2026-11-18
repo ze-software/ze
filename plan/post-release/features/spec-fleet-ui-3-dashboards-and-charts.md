@@ -41,6 +41,22 @@ built.
 | Empty | A card with nothing to count says so in one line and keeps its size, so the grid does not jump |
 | Size | Cards in a row share one height |
 
+### Card appearance
+
+Checked against two screenshots of the reference layout on 2026-11-18. These
+add to the appearance table of `spec-fleet-ui-0-umbrella.md`.
+
+| Part | Appearance |
+|------|------------|
+| First row of the estate dashboard | Four cards of equal width and height: three status donuts and one figures card. This row is what an operator reads first, so it is never pushed down by anything |
+| Status donut card | Title at the top left. The ring at the left with the object's icon in its centre, drawn with small gaps between segments; the legend to its right, one line per state. TOTAL and its figure at the bottom right of the card |
+| Legend line | A round dot in the state's colour, the state word, then the count in a slightly lighter weight. A state that needs explaining carries a small round information mark after its word, whose tooltip says what the state means. A state with a count of zero is still listed, so the legend's shape never changes |
+| Figures card | Pairs of an uppercase caption and a large figure, laid out in two columns. A figure with a unit shows the unit as a small suffix on the baseline, for example 2.3 with a small TiB |
+| Grouped donuts | Where two related things are counted, they share one wide card: each has its own uppercase caption, ring and legend, and a thin line separates them |
+| Grouped usage | Related usage bars share one full-width card, split into columns by thin vertical lines. Each column has a title, a one-line subtitle in `--text-secondary`, the bar, its legend, and a foot of caption and figure pairs such as USED, AVAILABLE and TOTAL |
+| Usage bar with a figure inside | When the filled part is wide enough, its percentage is written inside it; otherwise beside it. A second category is a second colour in the same track |
+| Page | Cards sit on the page background with a small even gap. Space left under the last row stays empty; cards are not stretched to fill it |
+
 ### Estate dashboard
 
 Twelve columns. The number after each card is its width.
@@ -48,7 +64,7 @@ Twelve columns. The number after each card is its width.
 ```
 +----------------+----------------+----------------+----------------+
 | DEVICES    (3) | CONFIGURATION(3)| SOFTWARE   (3) | ESTATE     (3) |
-|  (donut)       |  (donut)       |  (stacked bar) |  44 devices    |
+|  (donut)       |  (donut)       |  (donut)       |  44 devices    |
 |  36 Healthy    |  39 In sync    |  1.4.2   31    |  4 sites       |
 |   3 Degraded   |   2 Pending    |  1.4.1   12    |  412 peers up  |
 |   1 Down       |   1 Rejected   |  1.3.9    1    |  of 420        |
@@ -74,7 +90,7 @@ Twelve columns. The number after each card is its width.
 |------|-------|----------|------|
 | Devices | Donut by display state, with a legend of word and count | Devices tab filtered by that state | Registry (`fleet-1`), health (`fleet-4`) |
 | Configuration | Donut by configuration state | Devices tab filtered by that configuration state | Registry |
-| Software | Stacked bar by software version, newest first | Devices tab filtered by that version | Inventory (`fleet-4`) |
+| Software | Donut by software version, newest first, at most four versions named and the rest grouped as Older | Devices tab filtered by that version | Inventory (`fleet-4`) |
 | Estate | Figures: devices, sites, BGP peers established of configured, open alarms | Devices tab, alarms tab | Registry, latest samples (`fleet-8`) |
 | Alarms | The eight most severe open alarms: severity word, device, summary, since | Alarms tab; each row to the device | Alarms (`fleet-ui-5`) |
 | Needs attention | One line per condition needing an operator: paused rollouts, diverged devices, rejected configurations, devices offline for more than a day, devices more than one version behind | The matching filtered view | Registry, rollouts (`fleet-5`) |
@@ -126,6 +142,9 @@ charts stay, ending where the samples end, because the history is held by the hu
 
 | Rule | Detail |
 |------|--------|
+| Chart card | Title at the top left with the period under it as a one-line subtitle in `--text-secondary` ("Last week"). The plot fills the card: faint horizontal and vertical grid lines, value labels with their unit on the left axis, day and time labels on two lines under the horizontal axis. The legend is centred under the plot: a short line sample in the series colour, then the series name |
+| Chart row | Four chart cards of equal width form the last row of an object's dashboard. The row above them holds the status donut and the usage cards; the Quick info card spans the full width above both |
+| Series colours | The first series is `--chart-1`. A second series on the same plot (traffic out beside traffic in) is `--chart-3`, so two lines are told apart without relying on a legend alone |
 | Range | One selector per dashboard: one hour, one day, one week. Default one day. Carried in the URL as `range` |
 | Drawing | The line chart component of the umbrella, on the vendored uPlot, reading its colours from the chart variables at draw time |
 | Series | At most four per chart, each named in a legend with its latest value |

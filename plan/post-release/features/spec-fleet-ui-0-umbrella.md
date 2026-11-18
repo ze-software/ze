@@ -131,8 +131,8 @@ after it give their contents.
 +--------------------------------------------------------------------------------+
 | [=] Ze Fleet   hub-lon-01        [ search devices, pages, tools ]  (3) Tasks  U |
 +----------------------+---------------------------------------------------------+
-| Estate | Admin       | (icon) edge-lon-04   Healthy            [Actions v]    |
-| [ filter tree     ]  | Estate > lon > edge > edge-lon-04                      |
+| ESTATE | ADMIN  [pin]| (icon) edge-lon-04   Healthy   + Run diagnostic  [...] |
+| [ filter tree    Q]  | Estate > lon > edge > edge-lon-04                      |
 | v Estate    (41/44)  | Dashboard | Console | System | Interfaces | Routing | .. |
 |   v lon      (12/12) +---------------------------------------------------------+
 |     v edge    (4/4)  |                                                         |
@@ -142,14 +142,14 @@ after it give their contents.
 |   > ams      (9/10)  |                                              +---------+ |
 |   > (no site) (2/2)  |                                              | side    | |
 |                      |                                              | panel   | |
-| [pin] <drag to size> |                                              +---------+ |
+|    <drag to size>    |                                              +---------+ |
 +----------------------+---------------------------------------------------------+
 ```
 
 | Region | Contents, left to right or top to bottom |
 |--------|------------------------------------------|
 | Header (2.5rem high, the height of the existing workbench top bar) | Sidebar toggle; product name linking to the estate dashboard; hub name; search box; Tasks button with the count of running tasks; account menu holding the theme switch, the web mode switch and sign out |
-| Sidebar (default 17rem, 12rem to 28rem, resizable by dragging its edge) | Two tabs, Estate and Administration; a filter box, shown on the Estate tab; the tree; a pin control. Unpinned, the sidebar overlays the content and closes after a selection. The width and the pin state are remembered per browser |
+| Sidebar (default 17rem, 12rem to 28rem, resizable by dragging its edge) | Two tabs, Estate and Administration, with a pin control at the right end of their row; a filter box, shown on the Estate tab; the tree. Unpinned, the sidebar overlays the content and closes after a selection. The width and the pin state are remembered per browser |
 | Main pane | Object header: state icon, name, state word, a spinner while a task targets the object, an Actions menu. Breadcrumb line. Tab row. Tab content |
 | Side panel (22rem, right edge of the main pane) | Details of the table row selected in the tab content. Its row is named in the URL, so the view can be bookmarked and shared |
 
@@ -220,6 +220,43 @@ Typography and shape:
 | Card grid | 12 columns, gap `--space-3`, margin `--space-3` |
 | Row heights | Tree row 1.75rem, table row 2.25rem, tab row 2.25rem |
 | Focus | 2px `--border-focus` outline on every focusable element. Nothing is reachable by mouse only |
+
+Appearance of the parts an operator recognises first. These were checked
+against a screenshot of the reference layout on 2026-11-18 and are binding on
+every page.
+
+| Part | Appearance |
+|------|------------|
+| Header | The darkest surface of the page (`--bg-inset`), full width. Product name at the far left with the sidebar toggle beside it; at the far right the Tasks button as an icon carrying a small dot in the error colour when a task failed, then the account avatar. Nothing in the header is boxed except the search field |
+| Sidebar tabs | Two labels in the card title style (uppercase, weight 600, letter spaced), side by side at the top of the sidebar. The active one has the `--bg-surface` background and a 2px `--accent` line under it. The pin control sits at the right end of the same row |
+| Tree filter | A full-width field directly under the sidebar tabs, with its placeholder naming the tree and a search icon at its right edge |
+| Tree row | Left to right: a chevron when the row has children; the object's icon with a small round state mark overlapping its lower right corner; the name; then, right aligned, a count in a small pill and a three-dot menu control. Thin vertical guide lines in `--border` join a parent to its children. The selected row is a rounded block in `--accent-subtle` spanning the sidebar's width |
+| Object header | The object's icon and its name at the left, in the object name style; at the right, the object's primary action as a text link with a leading plus sign, and the Actions menu. A thin `--border` line separates it from the tab row |
+| Tab row | Labels in the card title style at 0.85rem. The active tab has the `--bg-surface` background, `--text-primary` text and a 2px `--accent` line under it; the others are `--text-secondary`. A tab that opens outside the fleet mode carries a small external link mark |
+| Card | One step lighter than the page (`--bg-secondary` on `--bg-primary`), with a 1px border and rounded corners. The title is at the top left in plain weight 600 text, not uppercase; a count or a short link (for example "Top 5", or a figure in the error colour) sits at the top right on the same line |
+| Status donut | A thick ring with the object's icon in its centre. Beside it, a caption in the card title style naming what is counted, then one legend line per state: a round dot in the state's colour, the state word, the count. Under the ring, the caption TOTAL and the figure. Two donuts may share one card, stacked, with a thin line between them |
+| Usage bar | Above the bar, a scale reading 0%, 50%, 100% in `--text-secondary`. The bar is a thin rounded track in `--bg-surface` with its filled part in `--accent`. Under it, right aligned, a dot, the name and the percentage. At the foot of the card, pairs of an uppercase caption and a large figure, for example TOTAL USED and TOTAL FREE |
+| Table inside a card | Uppercase header labels in `--accent`, rows separated by thin lines, figures right aligned in the monospace font |
+| Table section | A tab's content is one or more sections stacked in a single content card. Each section has its title in `--accent` at the top left with a full-width thin `--accent` rule under it, and its creating action at the top right (a text link with a plus sign, or a rounded button with a menu when there are several) |
+| Query row | Under the section title: the caption "Filter", a wide text field with a placeholder inviting a query, a bordered Search button, and a text link opening the assisted filter builder |
+| Pagination row | Right aligned, both above and below the table: "1 - 24 of 49 objects", then first, previous, next and last controls as double and single chevrons, then "Show by" and a small select |
+| Table rows | Header labels uppercase in `--accent`. The first cell holds the object's icon and its name as an underlined link in `--accent`. A state cell is a small round icon in the state's colour followed by the state word. Rows are separated by thin lines, with no zebra striping |
+| Row controls | The last column is fixed at the right edge while the others scroll under it, marked by a thin vertical `--accent` line: an eye control that opens the side panel, then a three-dot menu |
+| Table actions row | Under the query row, when the table allows selection: the caption "Table actions", then each action as an icon and a word (for example Edit, Delete), dimmed while nothing is selected |
+| Selection row | Directly above and below the table, left aligned: "2 selected of 44 objects", then the text links "Select all" and "Unselect all" |
+| Header cell | A small icon naming the kind of value (text, state, address, number) before the uppercase label, both in `--accent`. The first header cell is the page's selection checkbox |
+| Selected or opened row | The whole row carries the `--accent-subtle` band. It marks the row whose details are in the side panel |
+| Side panel content | At its top right, the row's own actions as an icon and a word (Edit, Delete). Below, a stack of small cards, each with a title in weight 600 and rows of a label in `--text-secondary` and a value. A value that is an identifier or an address has a copy control at the row's right edge; a value that is a state has its round icon before the word; an absent value is a dash |
+| Buttons | The action that runs the query is a filled button in `--accent`. Secondary actions are bordered buttons with an icon. Creating actions in a section header are bordered buttons with a leading plus sign |
+| Side panel | Always present beside a table while it is pinned, with an unpin control at its top right. With no row chosen it shows a centred sentence, "Click the eye to see details", over an illustration. Unpinned, it opens over the content when a row's eye is used |
+| Task and event rows | A list, not a grid: an expand chevron when the row has parts, the name, a small round result mark, a count pill of its parts, then right aligned "Ended 59 minutes ago" in `--text-secondary`, a larger round result indicator, and the eye control |
+| Quick info card | Label and value pairs in four columns. Labels are `--text-secondary`, values `--text-primary`. A value that is a state carries its icon; a value that is another object is that object's icon and a link; labels shown as tags are small filled chips |
+| Callout inside a card | A box with a 1px border in the warning colour, a round warning icon at its left, a first line in weight 600 and a second line that may hold a link. Used when a card must tell the operator to act |
+| Header actions of an object | At the right of the object header: an optional text link, then the main action as a rounded bordered button with a menu chevron, then a three-dot menu for the rest |
+| Count beside a title | A small filled round badge in the error colour holding the number, directly after the card title, when the card lists things needing attention |
+| "See all" | A small underlined link at the top right of a card whose content is a summary of a longer list |
+| Light theme | The page is the light grey of `--bg-secondary`, cards and the sidebar are white (`--bg-primary`), and the header is the same light grey with a thin line under it. Borders are fine and pale. The dark theme inverts the relationship: the page is darkest and cards one step lighter |
+| Empty list on a dashboard | A centred illustration with two short lines in `--success`, for example "All good" and "No alarms open". An empty list that is good news says so; it is not left blank and not styled as an error |
 
 ### Component set
 
