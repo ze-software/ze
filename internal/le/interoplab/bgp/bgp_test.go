@@ -493,6 +493,8 @@ func TestSpecialCheckerParsers(t *testing.T) {
 // TestBespokeCheckerBranches pins every non-linear checker predicate that a
 // generic presence assertion cannot represent.
 func TestBespokeCheckerBranches(t *testing.T) {
+	t.Run(bestRouteTransitFRR, bestRouteTransitFRRCheckerBranches)
+	t.Run(bestRouteTransitBIRD, bestRouteTransitBIRDCheckerBranches)
 	t.Run("rfc6608-fsm-error-relay", fsmErrorCheckerBranches)
 	t.Run(pathsLimitScenario, pathsLimitCheckerBranches)
 	t.Run(rpkiReloadScenario, rpkiReloadCheckerBranches)

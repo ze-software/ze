@@ -92,15 +92,31 @@ Those commits do not close the spec or claim release readiness.
 | Learned-only export policy, reload and diagnostics | Committed in `067a0c5b302cca916135dc13dd0b55292af1cd54` | Scoped policy and diagnostics runs and four functional scenarios passed; final integrated regression remains owed |
 | Selected-only replacement-recipient replay, AC-27 | Committed in `96dc0b610e` | Actual socket regression, useful FlowSpec controls and producing-code discrimination passed; final integrated regression remains owed |
 | Applied-event completion across plugin transports | Committed in `a2247ff49e190f4b61030a4bee932d472f858c50` and `824dc2284b21e5ab54b883b616c8ba48d9beb242` | Scoped unit, race and producing-code discrimination runs passed; the complete advertiser lifecycle is still being tested |
-| Source authority, ordinary selection, retained validation and RS/RR lifetimes | Combined implementation applied in the main checkout | The named launcher builds with the new drivers. Old GR, RIB, RS/RR and reactor test fixtures still require migration to exact peer/connection identities before their scoped tests can run. Independent source reviews have cleared the reviewed corrections; they do not substitute for execution |
-| Mutable mock RTR snapshots and query framing | Implemented; publishing as a separate test-tooling chunk | All seven mock-package roots passed. Removing the producing length guard makes the real TCP query test fail at its malformed-query assertion. Repeated race runs and the remaining snapshot discrimination are owed |
+| Source authority, ordinary selection, retained validation and RS/RR lifetimes | Combined source integrated; wiring and test repairs continue | The named launcher builds with the new drivers. RIB and RS/RR scoped tests now run, with the broader results below. GR and reactor fixture migrations still need execution, and missing GR command wiring is being implemented. Independent source reviews do not substitute for execution |
+| Mutable mock RTR snapshots and query framing | Committed in `f8ebbaf49b6bd0a1f5a65e7154f3c7dbf13490de` | All seven mock-package roots passed. Removing the producing length guard fails the real TCP query test; the same healthy root then passed with race detection. Repeated race runs and the remaining snapshot discrimination are owed |
+| Shared source-preference comparison | Committed in `559acf8707db9bdfca411f4a03d0c7f6983f8926` | Four selected ranking roots and then all 74 Loc-RIB package roots passed with race detection; this does not establish the full advertiser lifecycle |
 | Registered route/marker variants and recovery grammar | Implemented in the combined working tree | Three route/marker roots and four recovery roots passed after fixture repairs; final source-fault and integration checks remain owed |
-| Real GR/RTR/ordinary-recipient scenario | Driver implemented; four scenarios remain drafts | First purge/internal run reached daemon startup and was refused for a missing destination `update-sent` grant. Correct the draft's grants, then prove its route lifecycle and repeat before promotion |
-| FRR and BIRD user-outcome scenarios | Source work in progress | Both pinned-daemon scenarios, their producing-code discrimination and final Review Gate remain owed |
+| Real GR/RTR/ordinary-recipient scenario | Driver implemented; four scenarios remain drafts | The missing explicit destination `update-sent` grants are corrected. The next run reached the observer: its stored-attribute expectation must use the engine's canonical ASN4 representation. Investigation also confirmed missing registered GR-to-RIB source commands and owner-excluded refresh. Their implementation and the real route-lifecycle proof remain in progress |
+| FRR and BIRD user-outcome scenarios | Both scenario implementations applied; publishing as a separate tooling chunk | Both checker branches and all three new oracle/preparation roots passed with race detection. Native source/backup/recipient configurations and ordered checkers are present. Both actual pinned-daemon scenarios, producing-code discrimination and final Review Gate remain owed |
 
 The current execution evidence and exact source-review pins stay in the session
 state file named above. No acceptance criterion is marked complete solely
 because its source has been applied or committed.
+
+After the narrow rerun passed nine selected RS roots and fifteen selected RIB
+roots, the broader race run completed with the following results:
+
+| Package | Result at this checkpoint |
+|---------|---------------------------|
+| RIB | 836 roots passed; 24 failed; no race reported |
+| Route server | 193 roots passed; eight failed; two races reported in a structured-retention fixture; a retirement test timed out and prevented five pending roots from finishing |
+| Reflector | 62 roots passed; two failed |
+| Shared Loc-RIB | All 74 roots passed |
+
+These failures remain part of this spec's work. Fixes must preserve their
+behavioral questions; passing counts are not RFC coverage percentages or
+acceptance-criterion completion. The native log and individual failures are
+retained in the owning session record.
 
 ### Observed evidence
 

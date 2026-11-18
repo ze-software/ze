@@ -673,6 +673,15 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 | Recursive next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
 | Multipath/ECMP | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Partial | Yes |
 
+Ordinary BGP transit is distinct from route-server service. The
+`bgp-best-route-transit-frr` and `bgp-best-route-transit-bird` scenarios
+exercise selected output through Ze without a route-server plugin: a native
+winner, its retained backup, final withdrawal and a recipient export
+exclusion beside useful surviving output. Those assertions do not by
+themselves establish a passing interop result; native runs provide that
+evidence. Learned output requires the recipient's configured export policy.
+<!-- source: internal/le/interoplab/bgp/check_best_route_transit.go -- checkBestRouteTransit -->
+
 ## OSPF Standards Coverage
 
 The tables above compare BGP. This one compares OSPF, against the two daemons that
