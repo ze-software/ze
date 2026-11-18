@@ -36,9 +36,8 @@ func (p *Plugin) EmitEventApplied(ctx context.Context, namespace, eventType, dir
 		result, err = p.engineMux.CallRPCCancellable(work, rpc.MethodEmitEvent, input)
 	}
 	if err != nil {
-		var unsettled *rpc.CancellationUnsettledError
 		if work.Err() != nil {
-			if !errors.As(err, &unsettled) {
+			if _, unsettled := errors.AsType[*rpc.CancellationUnsettledError](err); !unsettled {
 				return 0, fmt.Errorf("applied event did not settle; cleanup/output may still be owed: %w", err)
 			}
 		}

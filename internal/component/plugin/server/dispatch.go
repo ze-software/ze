@@ -425,10 +425,8 @@ func (s *Server) deliverEventCaptured(ctx context.Context, emitter *process.Proc
 	if capture != nil {
 		// A self subscriber is required work, not a subscriber silently omitted to
 		// avoid a deadlock. Refuse the whole applied operation before publication.
-		for _, proc := range procs {
-			if proc == emitter {
-				return 0, eventAppliedSelfRefusal()
-			}
+		if slices.Contains(procs, emitter) {
+			return 0, eventAppliedSelfRefusal()
 		}
 		defer s.dispatchEngineEvent(nsID, etID, enginePayload)
 	}
