@@ -1,13 +1,12 @@
 # Test: every locally registered data command reaches the pipe layer
+# QUESTION: Does the shipped ze CLI deliver every registered local-data answer
+# through a real output pipe, including caller-held standalone inputs?
+# A unit test cannot prove binary composition, process stdio delivery or the
+# ze cli -c entry point. The AST registry test separately proves population.
 #
-# VALIDATES: AC-10 -- every production MustRegisterLocalData command runs through
-#   ze cli -c with a real pipe, without a daemon.
-# PREVENTS: a converted local handler remaining unreachable from the client, or
-#   a new registration landing without functional entry-to-pipe coverage.
-#
-# The local_json calls are the executable functional population. The registry
-# population unit test derives production registrations from Go AST and derives
-# coverage from these calls, so neither side is a hand-maintained command list.
+# VALIDATES: AC-10 and AC-45 S5 -- actual local entry-to-pipe semantics.
+# PREVENTS: a registered owner remaining unreachable, empty fabricated answers,
+# ignored caller bytes, and a new registration without executable evidence.
 
 option=timeout:value=45s
 
@@ -27,16 +26,38 @@ expect=stdout:contains=COVERED: set debug profile name [done]
 expect=stdout:contains=COVERED: set debug timeout [done]
 expect=stdout:contains=COVERED: show bgp decode [done]
 expect=stdout:contains=COVERED: show bgp encode [done]
+expect=stdout:contains=COVERED: show config activate [done]
 expect=stdout:contains=COVERED: show config cat [done]
+expect=stdout:contains=COVERED: show config deactivate [done]
 expect=stdout:contains=COVERED: show config diff [done]
 expect=stdout:contains=COVERED: show config dump [done]
+expect=stdout:contains=COVERED: show config environment-validation [done]
+expect=stdout:contains=COVERED: show config fix-plan [done]
 expect=stdout:contains=COVERED: show config fmt [done]
 expect=stdout:contains=COVERED: show config graph [done]
 expect=stdout:contains=COVERED: show config history [done]
 expect=stdout:contains=COVERED: show config list [done]
+expect=stdout:contains=COVERED: show config migrate [done]
+expect=stdout:contains=COVERED: show config replace [done]
+expect=stdout:contains=COVERED: show config set [done]
+expect=stdout:contains=COVERED: show config source [done]
+expect=stdout:contains=COVERED: show config supplied activate [done]
+expect=stdout:contains=COVERED: show config supplied completion [done]
+expect=stdout:contains=COVERED: show config supplied deactivate [done]
+expect=stdout:contains=COVERED: show config supplied diff [done]
+expect=stdout:contains=COVERED: show config supplied dump [done]
+expect=stdout:contains=COVERED: show config supplied fix-plan [done]
+expect=stdout:contains=COVERED: show config supplied fmt [done]
+expect=stdout:contains=COVERED: show config supplied graph [done]
+expect=stdout:contains=COVERED: show config supplied migrate [done]
+expect=stdout:contains=COVERED: show config supplied replace [done]
+expect=stdout:contains=COVERED: show config supplied set [done]
+expect=stdout:contains=COVERED: show config supplied source [done]
+expect=stdout:contains=COVERED: show config supplied validation [done]
 expect=stdout:contains=COVERED: show config validation [done]
 expect=stdout:contains=COVERED: show data cat [done]
 expect=stdout:contains=COVERED: show data check [done]
+expect=stdout:contains=COVERED: show data encode [done]
 expect=stdout:contains=COVERED: show data list [done]
 expect=stdout:contains=COVERED: show data registered [done]
 expect=stdout:contains=COVERED: show debug profile [done]
@@ -44,6 +65,8 @@ expect=stdout:contains=COVERED: show diagnostic [done]
 expect=stdout:contains=COVERED: show env get [done]
 expect=stdout:contains=COVERED: show env list [done]
 expect=stdout:contains=COVERED: show env registered [done]
+expect=stdout:contains=COVERED: show exabgp migration config [done]
+expect=stdout:contains=COVERED: show exabgp migration environment [done]
 expect=stdout:contains=COVERED: show plugin conformance run [done]
 expect=stdout:contains=COVERED: show plugin declarations [done]
 expect=stdout:contains=COVERED: show plugin declarations config [done]
@@ -53,9 +76,11 @@ expect=stdout:contains=COVERED: show schema handlers [done]
 expect=stdout:contains=COVERED: show schema list [done]
 expect=stdout:contains=COVERED: show schema methods [done]
 expect=stdout:contains=COVERED: show schema protocol [done]
+expect=stdout:contains=COVERED: show secret decode [done]
+expect=stdout:contains=COVERED: show secret encode [done]
 expect=stdout:contains=COVERED: show skill [done]
 expect=stdout:contains=COVERED: show skills [done]
 expect=stdout:contains=COVERED: show yang completion [done]
 expect=stdout:contains=COVERED: show yang doc [done]
 expect=stdout:contains=COVERED: show yang tree [done]
-expect=stdout:contains=OK: 45/45 local-data commands and local one-shot save
+expect=stdout:contains=OK: 71/71 local-data commands and local one-shot save

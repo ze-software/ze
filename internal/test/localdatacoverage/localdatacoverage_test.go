@@ -363,11 +363,37 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show bgp encode route 10.0.0.0/24 next-hop 192.168.1.1 | json compact", Evidence: "show bgp encode"},
 		{Command: "show bgp decode %s | json compact", Evidence: "show bgp decode"},
 		{Command: "doctor kernel-capabilities | json compact", Evidence: "doctor"},
+		{Command: "show config activate file %s content %s | json compact", Evidence: "show config activate"},
+		{Command: "show config deactivate file %s content %s | json compact", Evidence: "show config deactivate"},
+		{Command: "show config environment-validation | json compact", Evidence: "show config environment-validation"},
+		{Command: "show config fix-plan file %s | json compact", Evidence: "show config fix-plan"},
+		{Command: "show config migrate file %s | json compact", Evidence: "show config migrate"},
+		{Command: "show config replace file %s content %s | json compact", Evidence: "show config replace"},
+		{Command: "show config set file %s content %s | json compact", Evidence: "show config set"},
+		{Command: "show config source file %s | json compact", Evidence: "show config source"},
+		{Command: "show config supplied activate content %s | json compact", Evidence: "show config supplied activate"},
+		{Command: "show config supplied completion content %s context bgp | json compact", Evidence: "show config supplied completion"},
+		{Command: "show config supplied deactivate content %s | json compact", Evidence: "show config supplied deactivate"},
+		{Command: "show config supplied diff content %s | json compact", Evidence: "show config supplied diff"},
+		{Command: "show config supplied dump content %s name caller-upload.conf | json compact", Evidence: "show config supplied dump"},
+		{Command: "show config supplied fix-plan content %s name standalone-invalid.conf | json compact", Evidence: "show config supplied fix-plan"},
+		{Command: "show config supplied fmt content %s name caller-upload.conf | json compact", Evidence: "show config supplied fmt"},
+		{Command: "show config supplied graph content %s name caller-upload.conf | json compact", Evidence: "show config supplied graph"},
+		{Command: "show config supplied migrate content %s name standalone-inspect.conf | json compact", Evidence: "show config supplied migrate"},
+		{Command: "show config supplied replace content %s | json compact", Evidence: "show config supplied replace"},
+		{Command: "show config supplied set content %s | json compact", Evidence: "show config supplied set"},
+		{Command: "show config supplied source content %s name standalone-inspect.conf | json compact", Evidence: "show config supplied source"},
+		{Command: "show config supplied validation content %s name caller-upload.conf | json compact", Evidence: "show config supplied validation"},
+		{Command: "show data encode content %s capacity 20 | json compact", Evidence: "show data encode"},
+		{Command: "show exabgp migration config content %s name caller-input.conf | json compact", Evidence: "show exabgp migration config"},
+		{Command: "show exabgp migration environment content %s name caller-input.conf | json compact", Evidence: "show exabgp migration environment"},
+		{Command: "show secret encode content %s | json compact", Evidence: "show secret encode"},
+		{Command: "show secret decode content %s | json compact", Evidence: "show secret decode"},
 	}
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 45/45 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 71/71 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {

@@ -3974,12 +3974,22 @@ places move together, and three of them carry a count.
 | Place | What to add |
 |-------|-------------|
 | `internal/test/localdatacoverage.Evidence()` | One `{Command, Evidence}` row. The command MUST carry a real pipe, and `Evidence` MUST be the exact registered path |
-| The walk in the same file | An assertion over what the command answered. A row with no assertion proves the command ran, not that it answered anything |
+| The walk in `internal/test/localdatacoverage/` | An assertion over what the command answered. A row with no assertion proves the command ran, not that it answered anything |
 | `localdatacoverage.CompletionMarker` and the two totals in `TestLocalDataCoverageEvidenceIsNonVacuousAndComplete` | The new counts |
 | `test/ui/pipe-local-command.ci` | The new `COVERED: <evidence> [done]` line, in sorted order, before the completion marker |
 
+Change that scenario through `test/draft/ui/pipe-local-command.ci` first, following
+the draft, cost-report and proof under load described above. Its question is delivery
+from the actual `ze cli -c` process through a real pipe. The standalone walk
+checks returned configuration trees, detached-source preservation, diagnostic
+labels, useful documents, literal codec bytes and refusals. It does not contact
+a daemon; daemon transport and authorization need their own reached scenarios.
+The AST census remains authoritative when the count changes: a new registration
+cannot borrow a child path's marker or disappear behind a revised total.
+
 The command owes no `wire-methods.snapshot` row, because it registers no RPC.
 <!-- source: internal/test/localdatacoverage/localdatacoverage.go -- Evidence, CompletionMarker -->
+<!-- source: internal/test/localdatacoverage/standalone_commands.go -- runStandaloneCommands -->
 <!-- source: internal/component/command/registry/local_data_functional_coverage_test.go -- TestEveryLocalDataRegistrationHasAFunctionalCase -->
 
 ### Option 1: Tmpfs (Recommended)
