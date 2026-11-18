@@ -108,17 +108,24 @@ environment {
 }
 ```
 
-Use an absolute path the daemon user can create or write to, then restart Ze.
+Use an absolute path the daemon user can create or write to, then commit the change.
+Ze normalizes separators and `.` components to keep private roots stable and
+refuses any `..` component; name the intended absolute folder directly.
 The `ze.backup.directory` environment override takes priority over this leaf.
-Changing it takes effect at the next daemon start; active workspaces keep their
-current private folders until they close. Ze creates a missing parent and
-private subfolders, preserves an existing parent's permissions and unrelated
-files, and refuses an unusable explicit location. An unconfigured development
+The commit creates a missing folder and checks write access as the running
+daemon account. A successful commit selects it for new workspaces and downloads
+without restarting Ze. A failed commit keeps the previous folder. Existing
+workspaces and downloads keep their private files until they close or expire;
+empty retired roots are then removed. Removing the leaf restores the platform
+default unless the OS override is set. Ze preserves an existing parent's
+permissions and unrelated files and refuses an unusable explicit location.
+An unconfigured development
 binary whose platform data directory cannot be resolved keeps the operating
 system's temporary folder. Browser downloads go to the location chosen in the
 browser's download settings.
 <!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment, backup, directory -->
 <!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
+<!-- source: internal/component/config/artifact/directory.go -- PrepareDirectory, Complete -->
 <!-- source: internal/component/config/artifact/owner.go -- ensureRoot -->
 
 The backup workspace also runs with `ze start --web-only`. It uses the same

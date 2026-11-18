@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | full-spec audit resumed: remaining correctness, original journal obligations and parity acceptance |
+| Phase | E1 backup-folder commit activation implemented; unrelated parent work stopped |
 | Handoff | verify |
 | Updated | 2026-11-18 |
 
@@ -34,6 +34,76 @@ Left to root-cause specs: `yangTypeToValueType` and `validateYangType` (S1);
 the `website/AI.md` checklist and the stranded-documentation rows (T2, T4).
 
 ## Required Reading
+
+### Apply backup-folder changes on commit (2026-11-18)
+
+Owner follow-up, verbatim, after asking about activation and permissions:
+
+> please make sure the code does
+
+The requested correction supersedes D1's restart-only selection and lazy
+folder checks. It is the current authorized scope; all unrelated parent work
+remains stopped. A successful config commit must select the new backup folder
+without restarting Ze. Folder preparation must create missing directories and
+prove the daemon can create private files before accepting the change. Existing
+parent permissions, ownership and unrelated contents remain operator-owned.
+
+| AC | Observable outcome | Permitted survivors and reason |
+|----|--------------------|-------------------------------|
+| E-AC-1 | A real accepted config commit changes where subsequent uploaded backups and system-download working files are stored, without restarting | Existing workspace identities and files stay usable in their original private roots; switching destinations must not destroy active work |
+| E-AC-2 | Commit preparation creates a missing folder privately and proves actual daemon-user write access; a file, unusable path or live-store-owned namespace refuses with a useful error | A refused commit leaves the previously accepted directory and live store unchanged; pre-existing parent modes, owners and unrelated files survive |
+| E-AC-3 | A later transaction or publication failure never activates its candidate directory | The previous accepted folder and all open backup work remain available because acceptance, rather than tentative apply, selects a destination |
+| E-AC-4 | True OS overrides retain priority; removing the YANG setting restores the existing Linux/appliance/default policy | Other environment settings keep their existing behavior; YANG-derived values must not become permanent OS overrides |
+| E-AC-5 | Repeated destination switches preserve private permissions, quotas, expiry, cleanup debt and final cleanup across all owned roots | User-owned parents and unrelated files remain; empty retired private roots must not accumulate |
+
+Existing mechanisms under investigation: the server's original
+`DeferReloadAcceptance` scope owns the whole reload/publication decision;
+`ReloadConfig` owns serialized runtime transaction admission; artifact `Owner`
+owns account-bound files and cleanup; storage `CheckBackupDirectory` owns
+live-namespace protection. Ordinary tree validators and asynchronous provider
+watches cannot provide a fallible commit-time preparation and accepted-only
+activation. The implementation will extend the existing transaction boundary
+through registration, keeping backup-specific names out of generic engine code
+and avoiding a global environment reload redesign.
+
+E1 implementation extends the original server reload acceptance scope with an
+owner-registered native preparation callback. The callback receives active
+candidate data and a per-server generation. It performs fallible folder
+preparation before the no-diff exit, and the original outer scope completes the
+prepared value only after its accepted or aborted decision. Backup activation
+is an infallible scalar selection; a newer failed candidate cannot block an
+older accepted one, and an older acceptance cannot overwrite a newer accepted
+selection. Initial owner attachment reads the actual running tree; generic
+server startup does not prepare backup paths before the live store is installed.
+
+The backup owner creates no private root for an unused candidate. The next
+allocation after acceptance uses the selected parent; existing item paths stay
+in their original roots. Occupied roots remain bounded by the existing artifact
+inventory, empty retired roots are pruned, and shutdown removes all owned roots.
+The existing storage namespace check runs before parent creation and the private
+write probe. User-owned parent directories are not removed or permission-repaired.
+
+| E1 execution | Observed result |
+|--------------|-----------------|
+| Behavioral RED | Native `TestBackupDirectoryCommitSelection` compiled and reached real `ReloadConfig` plus outer acceptance in all three subcases. Accepted and outer-abort cases found no prepared folder; an unusable file was incorrectly accepted. `job-unit-pkg-6e3c832e.log` exited 1 before production changes. |
+| Source boundary | Generic registration/acceptance implementation is isolated in plugin server; artifact/config CLI own directory parsing, probes, accepted selection and root lifetimes. No new RPC, plugin process, archive policy or other parent work is added. |
+| Native transaction GREEN | The ten original `TestConfigPreparation` roots passed by name in `job-backup-commit-transaction-c5d35180.log` (0.799s); count-mode measurement covered 39/42 statements in the new producer. A further completion-error test was added to prove other owners still finish and remains in the final race selection. |
+| Independent test oracle | Revised patch `70f407a7dc3fe57bff20964ad0e60b3d510926eef3af6de8611297d5cb0a0f84` was independently approved for the two existing YANG/OS tests. Both now receive the actual parsed running configuration through a real coordinator/attached HTTP owner. All original permission, sentinel, upload/download and cleanup assertions remain. |
+| Initial full feature GREEN | Full artifact/config race suites passed in `job-backup-commit-owner-207e302c.log` (113.951s / 45.951s), including all six real-commit outcomes and actual permission-probe checks. |
+| Reached acceptance GREEN | `job-backup-commit-reload-a368b669.log` passed all 24 selected roots: eleven native preparation roots, eight existing reload/rollback/shutdown roots, two actual hub candidate-publication roots and three artifact command roots. No skips. Native producer measurement reached 40/42 statements (95.2%). |
+| Path-lifetime RED | Additional tests reproduced deletion of an occupied root when the configured parent contained `/./`, and acceptance of a linked parent containing `/../`. `job-unit-pkg-b50b71fd.log` exited 1. The source fix must normalize allowed absolute parents and refuse parent traversal before folder preparation; this is required to preserve E-AC-1/5. |
+| Path/lifetime GREEN | The two actual path failures and three additional transfer/debt roots passed under race in `job-backup-commit-path-green-3f412b5a.log` (2.296s). No assertions were weakened. |
+| Final workspace GREEN | Full artifact race tests passed after normalization in `job-backup-commit-final-owner-df60591d.log` (113.676s, 70.2% package statement coverage), including all six commit outcomes, unchanged existing workspace tests and every new transfer/privacy/cleanup case. Earlier config, hub, command and generic transaction source remains unchanged from its recorded passing runs. |
+| Final focused GREEN | After the two lint corrections, all eleven native preparation roots and the real commit/YANG/OS selection roots passed under race in `job-backup-commit-lint-fix-tests-3b9a391a.log` (1.970s / 5.849s). |
+| Final lint boundary | Host and Linux scoped lint have no findings in E1's 24-file commit manifest. Both retain six findings in unrelated server dispatch/route-admission files outside this change; `job-backup-commit-final-lint-d664c57d.log` remains red and is not represented as a full lint pass. E1 behavior and focused checks are complete; the broader parent remains open. |
+
+| Lifecycle scenario | E1 disposition and proof |
+|--------------------|--------------------------|
+| Reload/commit during shutdown; cancellation during preparation | Selected: native preparation must obey the existing transaction admission fence and abort without activation; controlled server tests exercise the boundary without timing races |
+| Verify/apply refusal, timeout or crashed participant | Selected return boundary: failed runtime reload aborts its local preparation; existing transaction failure tests plus deterministic native preparation tests observe preserved selection |
+| Outer publication/listener failure | Selected: actual `DeferReloadAcceptance(false)` after successful inner reload leaves the old folder selected; controlled commit test observes open workspace/download bytes |
+| Plugin process failure policies, respawn bounds, startup stages and tier barriers | Unreached: no process registration, spawning, failure policy, handshake or startup callback is changed |
+| Plugin exits during stop; signal during teardown; startup command dispatch | Unreached process behavior: no shutdown drain/teardown or command-dispatch implementation changes; only existing server-owned artifact cleanup expands to its retained roots |
 
 ### Configure the backup working directory (2026-11-18)
 

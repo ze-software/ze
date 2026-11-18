@@ -73,7 +73,12 @@ func attachServerArtifactsLocked(server *pluginserver.Server, owner *artifact.Ow
 	if err := owner.SetDirectoryGuard(storagecli.CheckBackupDirectory); err != nil {
 		return err
 	}
-	_, err := server.OnStop(func() error {
+	configured, err := captureArtifactDirectory(server)
+	if err != nil {
+		return err
+	}
+	owner.CaptureDirectory(configured)
+	_, err = server.OnStop(func() error {
 		closeErr := owner.Close()
 		artifactOwners.Lock()
 		delete(artifactOwners.items, server)

@@ -12,10 +12,11 @@ module ze-hub-conf {
 
     // Environment block - ZeBGP-specific settings
     container environment {
-        description "Ze copies each leaf in this block into an environment variable at config load. The OS
+        description "Ze copies the ordinary environment settings in this block into environment variables at config load. The OS
             environment wins: a variable already set there keeps its value, and the leaf is ignored. Ze
             also refuses to overwrite a variable it set itself. A changed leaf therefore reaches the
-            runtime at the next daemon start, and not at a reload.";
+            runtime at the next daemon start, and not at a reload. The backup directory is an exception:
+            it is prepared and selected through successful configuration commits, without being copied into the OS environment.";
         ze:help "ZeBGP environment settings";
 
         container daemon {
@@ -45,8 +46,9 @@ module ze-hub-conf {
 
         container backup {
             description "Private working copies for uploaded backups and complete system backup downloads.
-                The directory is selected at startup; change it with a daemon restart. Existing workspaces
-                remain in their original private folder until the owning daemon closes them.";
+                The candidate directory is checked when the configuration is committed and becomes
+                effective only after that commit succeeds. Existing workspaces and downloads remain
+                in their original private folders until they close or expire.";
             ze:help "Backup workspace storage settings.";
 
             leaf directory {
@@ -63,8 +65,11 @@ module ze-hub-conf {
                     data directory keeps its operating-system temporary folder. Ze creates a missing
                     parent folder and private children; it does not change an existing parent's mode or
                     remove unrelated files. The daemon user must be able to create files here.
-                    Changes take effect after restarting the daemon, not at configuration reload.";
-                ze:help "Absolute backup folder; restart after changing it.";
+                    A commit creates a missing folder and checks write permissions as the running daemon
+                    account. A failed commit keeps the previous effective folder. Existing private roots
+                    remain owned until their contents close or expire; empty retired roots are removed.
+                    Removing the leaf restores the platform default unless the OS override is set.";
+                ze:help "Absolute backup folder; apply after a successful commit.";
             }
         }
 

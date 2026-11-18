@@ -5,7 +5,6 @@ package config
 
 import (
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/version"
 )
@@ -33,7 +32,6 @@ type envPlumbing struct {
 //
 //nolint:gochecknoglobals // Table-driven plumbing.
 var envPlumbingTable = []envPlumbing{
-	{section: "backup", option: "directory", envKey: paths.BackupDirectoryKey},
 	{section: sectionDaemon, option: "pid", envKey: "ze.pid.file"},
 	{section: sectionDaemon, option: "user", envKey: "ze.user"},
 	{section: sectionBGP, option: "openwait", envKey: "ze.bgp.openwait"},

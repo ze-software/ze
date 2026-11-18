@@ -614,13 +614,20 @@ checks the saved salvage. It never reports a truncated list as complete.
 ### Editing an uploaded backup
 
 The private artifact owner's root is selected from
-`environment/backup/directory` or its `ze.backup.directory` override at startup.
+`environment/backup/directory` or its `ze.backup.directory` OS override.
 Its default appends `backups` to the existing platform data directory; unresolved
 unconfigured development layouts retain the OS temporary folder. An invalid
 explicit location refuses instead of falling back. Uploads and download
 snapshots share this policy. The configured parent remains user-owned: its mode
 and unrelated files survive, and the owner removes only its random private
-child at close. Changing the setting requires a daemon restart.
+children at close. A configuration commit prepares a missing parent and checks
+write access before acceptance; only a successful commit changes the selected
+folder. Existing workspace and download paths stay valid in their original
+roots. Empty retired roots are removed, failed cleanup remains explicit debt,
+and Close removes all owned roots. Preparation retains no speculative private
+root, so repeated changes cannot accumulate empty roots. The leaf is not
+written into the OS environment. Removing it restores the default unless the
+OS override is set.
 The shared server binds a directory guard from its actual installed live store.
 It resolves existing link prefixes and reuses `StoreOwnedPath` to refuse the
 live tree and reserved entries before creating the configured parent. Ordinary

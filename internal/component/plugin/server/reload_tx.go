@@ -73,6 +73,7 @@ type reloadAcceptance struct {
 	batches      []*reloadOperationBatch
 	finishDone   chan struct{}
 	finishErr    error
+	prepared     []configPrepared
 }
 
 // DeferReloadAcceptance keeps irreversible plugin cleanup pending across the
@@ -138,6 +139,9 @@ func (a *reloadAcceptance) finishWithLock(accepted, acquire bool) (result error)
 	claimed, previous, entered := a.claimed, a.previous, a.entered
 	a.mu.Unlock()
 	defer func() {
+		// Native selection follows publication even when plugin finalization
+		// fails. Rejection releases preparation even when compensation failed.
+		result = errors.Join(result, a.completeConfigPreparations(ctx, accepted))
 		if accepted && result != nil {
 			result = fmt.Errorf("candidate is active but config finalization failed: %w; inspect ze show errors and restart the daemon after repairing the named owner", result)
 		}

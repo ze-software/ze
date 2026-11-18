@@ -70,6 +70,7 @@ type txLock struct {
 	configTransactions  map[string]string
 	configOwner         *reloadAcceptance
 	pendingCompensation *reloadAcceptance
+	configGeneration    uint64 // Only the transaction holder assigns preparation generations.
 	// peerDeclarationChangePending coalesces metadata changes until release,
 	// before another transaction can replace the running config. Replacements
 	// are bounded by configured names and retain exact process identities.
@@ -356,10 +357,18 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	ctx, cancelTx := context.WithCancelCause(ctx)
 	acceptance, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
 	s.txLock.setCancel(cancelTx, acceptance)
+	var prepared []configPrepared
 	defer func() {
 		if result == nil {
+			acceptance.mu.Lock()
+			acceptance.prepared = append(acceptance.prepared, prepared...)
+			acceptance.mu.Unlock()
 			s.txLock.configTransactions = reloadTransactionIDs(ctx)
 			s.claimReloadOwnership(acceptance)
+		} else {
+			cleanup, cancel := context.WithTimeout(acceptance.lifetime, reloadCompletionBudget)
+			result = errors.Join(result, completeConfigPreparations(cleanup, prepared, false))
+			cancel()
 		}
 		cancelTx(nil)
 		s.txLock.release()
@@ -380,6 +389,11 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	}
 	// Retries and unrelated changes accept the participants restored above too.
 	s.seedReloadTransactions(ctx)
+	var err error
+	prepared, err = s.prepareConfig(ctx, newTree)
+	if err != nil {
+		return err
+	}
 
 	logger().Info("config reload started")
 

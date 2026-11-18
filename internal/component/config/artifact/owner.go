@@ -34,25 +34,28 @@ const (
 // MUST seal admission, join the worker and remove owned files. Safe concurrently;
 // MUST NOT be copied. Its zero value is invalid; use New.
 type Owner struct {
-	mu             sync.Mutex
-	items          map[string]*workspace
-	uploads        map[string]*upload
-	sources        map[string]*source
-	views          map[string]*view
-	root           string
-	parentTemp     string
-	directoryGuard func(string) error
-	bytes          int64
-	closed         bool
-	now            func() time.Time
-	stop           chan struct{}
-	done           chan struct{}
-	worker         sync.WaitGroup
-	workerStarted  bool
-	closeError     error
-	removeAll      func(string) error
-	cleanupDebt    string
-	debtBytes      int64
+	mu                  sync.Mutex
+	items               map[string]*workspace
+	uploads             map[string]*upload
+	sources             map[string]*source
+	views               map[string]*view
+	root                string
+	roots               map[string]struct{}
+	parentTemp          string
+	directoryConfig     string
+	directoryGeneration uint64
+	directoryGuard      func(string) error
+	bytes               int64
+	closed              bool
+	now                 func() time.Time
+	stop                chan struct{}
+	done                chan struct{}
+	worker              sync.WaitGroup
+	workerStarted       bool
+	closeError          error
+	removeAll           func(string) error
+	cleanupDebt         string
+	debtBytes           int64
 }
 
 type workspace struct {
@@ -72,7 +75,7 @@ type Info struct {
 }
 
 func New() *Owner {
-	return &Owner{items: make(map[string]*workspace), uploads: make(map[string]*upload),
+	return &Owner{items: make(map[string]*workspace), uploads: make(map[string]*upload), roots: make(map[string]struct{}),
 		sources: make(map[string]*source), views: make(map[string]*view), now: time.Now, removeAll: os.RemoveAll,
 		stop: make(chan struct{}), done: make(chan struct{})}
 }
@@ -210,7 +213,7 @@ func (m *Owner) ensureRoot() error {
 	configured := parent == ""
 	if configured {
 		var err error
-		parent, err = configuredBackupParent()
+		parent, err = configuredBackupParent(m.directoryConfig)
 		if err != nil {
 			return err
 		}
@@ -237,6 +240,7 @@ func (m *Owner) ensureRoot() error {
 	}
 	m.parentTemp = parent
 	m.root = root
+	m.roots[root] = struct{}{}
 	return nil
 }
 
@@ -379,19 +383,19 @@ func (m *Owner) expire(now time.Time) error {
 		delete(m.views, id)
 		m.bytes -= int64(len(v.content))
 	}
-	return errors.Join(failures...)
+	return errors.Join(errors.Join(failures...), m.pruneRetiredRoots())
 }
 
 func (m *Owner) retryCleanupDebt() error {
 	if m.cleanupDebt == "" {
-		return nil
+		return m.pruneRetiredRoots()
 	}
 	if err := m.removeAll(m.cleanupDebt); err != nil {
 		return err
 	}
 	m.cleanupDebt = ""
 	m.debtBytes = 0
-	return nil
+	return m.pruneRetiredRoots()
 }
 
 // removeStage retains one conservative debt charge. Allocations MUST first call
@@ -408,7 +412,7 @@ func (m *Owner) removeStage(path string, charge int64) error {
 
 // Close MUST be registered on the actual command server before the owner is
 // exposed. It seals admission, serializes with admitted storage work, joins its
-// worker, then removes only its own root. Safe for concurrent callers.
+// worker, then removes only its own roots. Safe for concurrent callers.
 func (m *Owner) Close() error {
 	m.mu.Lock()
 	if m.closed {
@@ -422,14 +426,29 @@ func (m *Owner) Close() error {
 	m.worker.Wait()
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.root != "" {
-		if err := m.removeAll(m.root); err != nil {
-			m.closeError = opererr.Wrap(err, "Private backup workspace cleanup did not finish.",
+	var failures []error
+	if m.cleanupDebt != "" {
+		if err := m.removeAll(m.cleanupDebt); err != nil {
+			failures = append(failures, opererr.Wrap(err, "Private backup workspace cleanup did not finish.",
 				"Some private uploaded or working-copy files may remain. No live configuration was changed.",
-				"Run ze show doctor and repair temporary-directory access before removing the reported private workspace files")
+				"Run ze show doctor and repair backup-folder access before removing the reported private workspace files"))
 			ReportStorageFailure()
+		} else {
+			m.cleanupDebt = ""
+			m.debtBytes = 0
 		}
 	}
+	for root := range m.roots {
+		if err := m.removeAll(root); err != nil {
+			failures = append(failures, opererr.Wrap(err, "Private backup workspace cleanup did not finish.",
+				"Some private uploaded or working-copy files may remain. No live configuration was changed.",
+				"Run ze show doctor and repair backup-folder access before removing the reported private workspace files"))
+			ReportStorageFailure()
+			continue
+		}
+		delete(m.roots, root)
+	}
+	m.closeError = errors.Join(failures...)
 	m.items = nil
 	m.uploads = nil
 	m.sources = nil

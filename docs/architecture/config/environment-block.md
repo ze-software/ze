@@ -2,7 +2,8 @@
 
 ## TL;DR
 
-YANG container `environment { }` sets env vars from the config file:
+YANG container `environment { }` sets process options from the config file.
+Ordinary settings populate env vars; `backup/directory` uses live commits:
 
 ```
 environment {
@@ -41,18 +42,23 @@ environment {
 Priority: **OS env > config block > YANG default**.
 
 `backup/directory` selects the absolute parent of private backup uploads,
-editor workspaces and download snapshots. The `ze.backup.directory` override
-wins. With no explicit setting, the owner uses the existing platform data
-directory's `backups` folder; an unresolved development layout retains its
-operating-system temporary directory. Like the other plumbed environment
-settings, a changed leaf takes effect after restarting the daemon. An existing
-workspace keeps its original root until its owner closes it.
+editor workspaces and download snapshots. The `ze.backup.directory` OS override
+wins. The backup leaf uses the configuration commit lifecycle instead of OS
+environment plumbing, so a successful commit selects a checked folder without
+a restart. Preparation creates a missing parent and probes real write access
+as the daemon account; rejection keeps the old effective selection. Existing
+workspace and download files remain in their original roots until close or
+expiry. Removing the leaf restores the existing platform data directory's
+`backups` folder unless the OS override is set; unresolved development layouts
+retain the OS temporary folder. The ordinary plumbed environment settings keep
+their startup-only behavior.
 <!-- source: internal/component/hub/yang/ze-hub-conf.yang -- backup, directory -->
-<!-- source: internal/component/config/apply_env.go -- envPlumbingTable, ApplyEnvConfig -->
+<!-- source: internal/component/config/cli/register_artifact_directory.go -- prepareArtifactDirectory -->
 
 The config loader maps `environment/log/*` to env vars via
-`slogutil.ApplyLogConfig` and everything else via `config.ApplyEnvConfig`.
-Each leaf writes the target env var at startup (never overwriting a
+`slogutil.ApplyLogConfig` and ordinary non-log settings via `config.ApplyEnvConfig`.
+The live `backup/directory` leaf is excluded from both mappings. Each plumbed
+leaf writes the target env var at startup (never overwriting a
 pre-existing OS env var). Only `config.LoadConfig`, the load of the config the
 process runs, writes them. `config.ReadConfig` parses and validates the same
 way and writes nothing, so a command that only reads a config file (a show

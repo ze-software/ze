@@ -28,7 +28,7 @@ func backupDirectoryEnvironment(t *testing.T, directory string) {
 	env.ResetCache()
 }
 
-func backupDirectoryConfig(t *testing.T, directory string) {
+func backupDirectoryConfig(t *testing.T, directory string) map[string]any {
 	t.Helper()
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
@@ -36,8 +36,12 @@ func backupDirectoryConfig(t *testing.T, directory string) {
 	require.NoError(t, err, "the configured backup directory must exist in the real always-linked YANG schema")
 	values := config.ExtractEnvironment(tree)
 	require.Equal(t, directory, values["backup"]["directory"])
-	require.Contains(t, config.EnvironmentEntries(values), "ze.backup.directory="+directory)
+	require.NotContains(t, config.EnvironmentEntries(values), "ze.backup.directory="+directory,
+		"live backup settings must not become apparent OS overrides")
+	prior := env.Get("ze.backup.directory")
 	config.ApplyEnvConfig(values)
+	require.Equal(t, prior, env.Get("ze.backup.directory"))
+	return tree.ToRunningMap()
 }
 
 // TestBackupDirectoryYANGSelectsSharedArtifactRoot follows a parsed configuration
@@ -50,9 +54,8 @@ func TestBackupDirectoryYANGSelectsSharedArtifactRoot(t *testing.T) {
 	require.NoError(t, os.Chmod(parent, 0o750))
 	marker := filepath.Join(parent, "keep.txt")
 	require.NoError(t, os.WriteFile(marker, []byte("unrelated parent content"), 0o600))
-	backupDirectoryConfig(t, parent)
-	owner := artifact.New()
-	fixture := newPolicyHTTP(t, owner, false)
+	running := backupDirectoryConfig(t, parent)
+	owner, fixture := backupDirectoryHTTPFixture(t, running)
 	upload := fixture.upload(t, fixture.source, "alice", "https://example.com")
 	require.Equal(t, http.StatusSeeOther, upload.Code, upload.Body.String())
 	state := owner.FixtureState()
@@ -96,8 +99,8 @@ func TestBackupDirectoryYANGSelectsSharedArtifactRoot(t *testing.T) {
 func TestBackupDirectoryOSOverrideWins(t *testing.T) {
 	parent := t.TempDir()
 	backupDirectoryEnvironment(t, parent)
-	backupDirectoryConfig(t, filepath.Join(t.TempDir(), "configured"))
-	owner := artifact.New()
+	running := backupDirectoryConfig(t, filepath.Join(t.TempDir(), "configured"))
+	owner, _ := backupDirectoryHTTPFixture(t, running)
 	t.Cleanup(func() { require.NoError(t, owner.Close()) })
 	root, err := owner.FixtureRoot()
 	require.NoError(t, err)

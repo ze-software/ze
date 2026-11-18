@@ -329,6 +329,30 @@ another transaction still holds the lock.
 <!-- source: internal/component/plugin/server/reload.go -- setCancel -->
 <!-- source: internal/component/plugin/server/reload_tx.go -- finishWithLock -->
 
+Native daemon owners register `ConfigPrepare` from their own `register.go` init
+through `RegisterConfigPreparation`, under the shared startup seal. Preparation
+runs under transaction exclusion before the no-change shortcut, using the full
+active candidate with private inactive-intent metadata removed. Callbacks MUST
+not mutate or retain candidate maps or reenter reload, and MUST join bounded
+work and honor cancellation. A callback may return no preparation when its
+owner is unaffected. A failed preparation rejects the attempt and aborts values
+already prepared for that attempt; earlier successful attempts in the same
+outer scope retain their values.
+
+The original `DeferReloadAcceptance` scope retains these values until its
+caller decides. Each receives `Complete(ctx, accepted)` exactly once: true after
+publication, including when plugin finalization reports a failure, or false
+when the scope is rejected, including when runtime compensation fails. A native
+owner MUST select its prepared value on true and be safe for concurrent
+completion of distinct values. Per-server generations increase during serialized
+preparation; an owner comparing generations MUST compare accepted generations,
+so a later failed attempt cannot suppress an earlier accepted value, and a late
+older acceptance cannot replace a newer accepted value. Completing a newer
+scope does not decide an earlier scope's native preparation. Startup attachment
+remains the native owner's responsibility; preparation is a reload boundary.
+<!-- source: internal/component/plugin/server/config_prepare.go -- ConfigPrepare, prepareConfig, completeConfigPreparations -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- finishWithLock -->
+
 `OnConfigComplete` declares `config-completion` at Stage 1. For each committed
 transaction, the server captures its participant processes, callback connections
 and actual applied operation order. Completion never looks up a replacement

@@ -17,7 +17,9 @@ abort the process.
 Each YANG `environment/<section>/<option>` leaf also has a matching env
 var so the operator can override it at runtime. The config file path
 sets the env var at startup via `slogutil.ApplyLogConfig` (log keys) or
-`config.ApplyEnvConfig` (everything else).
+`config.ApplyEnvConfig` (ordinary non-log settings). The live
+`environment/backup/directory` leaf instead uses commit preparation and accepted
+selection; it never writes its OS override variable.
 <!-- source: internal/component/config/apply_env.go -- ApplyEnvConfig -->
 
 **Priority:** OS env var > config file `environment { }` block > default.
@@ -50,7 +52,7 @@ See `ai/rules/config.md` for the YANG vs env-only decision framework.
 | `ze.ready.file` | string | (unset) | ENV | Test infrastructure: signal file written when hub is ready |
 | `ze.config.dir` | string | (unset) | ENV | Override default config directory; when unset the directory is derived from the binary location |
 | `ze.data.dir` | string | (unset) | ENV | Override default data directory, where container images, layers and volumes are stored; when unset the directory is derived from the binary location, beside the config directory: `/perm/var/lib/ze` on the appliance, `/var/lib/ze` under a system prefix, `<prefix>/var/lib/ze` under another prefix. A binary in no known layout has no data directory, and the container store refuses every operation until this is set |
-| `ze.backup.directory` | string | platform data directory + `/backups` | YANG | Absolute parent folder for all private backup workspaces and download snapshots; `environment/backup/directory` supplies it at startup. Restart after changing it. An unconfigured development binary with no resolved data directory retains the OS temporary folder |
+| `ze.backup.directory` | string | platform data directory + `/backups` | YANG | OS override of the absolute parent for private backup workspaces and downloads. `environment/backup/directory` is prepared and selected after successful commits without writing this OS variable. Removing the leaf restores the default unless the override is set. Unknown unconfigured development layouts retain the OS temporary folder |
 <!-- source: internal/component/config/environment.go -- env var registrations -->
 <!-- source: internal/core/paths/paths.go -- ze.config.dir registration; DefaultConfigDir override-then-binary resolution; dataDirKey, DataDirFromBinary, DefaultDataDir -->
 <!-- source: internal/core/paths/backup.go -- BackupDirectoryKey -->

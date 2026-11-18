@@ -128,7 +128,7 @@ No web listener is needed for command access to an artifact.
 <!-- source: internal/component/config/artifact/owner.go -- Owner, Close -->
 <!-- source: internal/component/config/cli/artifact_rpc.go -- serverArtifacts, AttachArtifactOwner, attachServerArtifactsLocked, artifactHandler -->
 
-All private artifact operations use the startup `environment/backup/directory`
+All private artifact operations use the committed `environment/backup/directory`
 setting, with `ze.backup.directory` taking priority. An absent setting resolves
 through `paths.DefaultDataDir` to its `backups` folder, giving the installed
 Linux and appliance their existing distinct persistent-data roots. Only an
@@ -137,12 +137,28 @@ OS temporary-folder policy. Explicit relative or unusable folders refuse
 without selecting another location. The owner creates a missing parent with
 mode `0700`, leaves an existing parent unchanged, and creates its random private
 child with mode `0700`. Only that child belongs to its cleanup lifetime. The
-selected root stays fixed until close; configuration changes require a daemon
-restart under the existing environment plumbing policy.
+selected folder changes only after a successful configuration commit. Its
+preparation creates a missing parent and performs a real private-file write,
+close and removal probe as the daemon account. Failure or outer reload rejection
+keeps the old effective folder. The leaf is not copied into the OS environment,
+so an earlier configured value cannot masquerade as an inherited override.
+The registered native preparation joins the original reload acceptance scope;
+stale acceptance cannot replace a newer accepted directory generation.
+
+New allocations use the accepted folder, while existing workspace, upload and
+download paths remain valid in their original private roots. Empty retired
+roots are pruned; occupied roots remain bounded by the existing inventory
+quotas, and failed removal fences further allocation as cleanup debt. Owner
+shutdown joins requests and removes every owned root and any outstanding probe
+file, preserving user-owned parent directories. Repeated directory commits
+without allocations retain no speculative private roots.
 Before creating any parent, the shared server binds the actual live store's
 directory policy. The owner refuses its tree and reserved names, including a
 resolved link into that namespace, while allowing ordinary sibling folders.
 <!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
+<!-- source: internal/component/config/artifact/directory.go -- PrepareDirectory, Complete -->
+<!-- source: internal/component/config/artifact/directory_roots.go -- pruneRetiredRoots, checkOwnedParent -->
+<!-- source: internal/component/config/cli/register_artifact_directory.go -- prepareArtifactDirectory, captureArtifactDirectory -->
 <!-- source: internal/component/config/artifact/owner.go -- ensureRoot, Close -->
 <!-- source: internal/core/paths/paths.go -- DefaultDataDir -->
 <!-- source: internal/component/config/storage/backup_directory.go -- CheckBackupDirectory, resolveBackupDirectory -->

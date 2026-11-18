@@ -416,6 +416,9 @@ func (m *Owner) Snapshot(ctx context.Context, user, id, name string) (Transfer, 
 	if m.bytes+w.bytes+m.debtBytes > OwnerBytesMax {
 		return Transfer{}, tooLarge()
 	}
+	if err := m.ensureRoot(); err != nil {
+		return Transfer{}, storageFailure(err)
+	}
 	transfer, err := identity()
 	if err != nil {
 		return Transfer{}, storageFailure(err)
