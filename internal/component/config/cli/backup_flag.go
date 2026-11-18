@@ -7,7 +7,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -41,23 +40,15 @@ func openBackup(path string, writable bool) (storage.Storage, error) {
 
 // publishInBackup returns the commit writer of `ze config set --backup`.
 //
-// It publishes content the way a daemon commit does: a candidate version,
-// then the promotion that moves the active and rollback pointers and writes
-// the file/active mirror. Writing the mirror alone would leave the active
-// pointer on the old version, and every reader that follows the pointer
-// (storage.ReadActiveConfig, `ze data restore`) would still answer the old
-// config.
+// It shares complete artifact publication with daemon-owned backup commands:
+// a version, active and rollback pointers, and the file/active mirror change
+// together while an existing pending candidate and saved drafts stay separate.
 //
 // expected is not compared: the writer holds the artifact's exclusive lock,
 // so nothing else can have changed the config since the editor read it.
 func publishInBackup(store storage.Storage, configPath string) func(expected, content []byte) error {
 	return func(_, content []byte) error {
-		if _, err := storage.WriteCandidateVersion(store, configPath, content, time.Now()); err != nil {
-			return err
-		}
-		if err := storage.PromoteCandidate(store, configPath); err != nil {
-			return errors.Join(err, storage.ClearCandidate(store, configPath))
-		}
-		return nil
+		_, err := storage.PublishArtifactConfig(store, configPath, content)
+		return err
 	}
 }

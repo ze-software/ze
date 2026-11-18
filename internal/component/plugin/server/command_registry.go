@@ -185,6 +185,9 @@ type CommandRegistry struct {
 	commands   map[string]*RegisteredCommand // lowercase name → registration
 	builtins   map[string]bool               // lowercase builtin names (cannot be shadowed)
 	deprecated map[string]*deprecatedAlias   // old lowercase name → alias
+	// commandTree is immutable schema metadata, bound before process commands
+	// register. SDK declarations can hide a command but cannot unhide its path.
+	commandTree *command.Node
 
 	// deprecatedWarned tracks old command names that have already logged a
 	// deprecation warning this session (log once per name).
@@ -204,6 +207,14 @@ func newCommandRegistry() *CommandRegistry {
 	}
 }
 
+// setCommandTree binds the shared schema before plugin startup. The caller
+// MUST finish this before Register accepts any process declarations.
+func (r *CommandRegistry) setCommandTree(tree *command.Node) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.commandTree = tree
+}
+
 // AddBuiltin marks a command name as builtin (cannot be shadowed).
 // Called during dispatcher initialization.
 func (r *CommandRegistry) AddBuiltin(name string) {
@@ -214,6 +225,7 @@ func (r *CommandRegistry) AddBuiltin(name string) {
 
 // Register adds commands for a process.
 // Returns results for each command (success or failure reason).
+// A loader binding schema visibility MUST call setCommandTree before this.
 //
 // If frozen, publishes a new snapshot reflecting the addition, exactly as
 // Unregister does for a removal. Freeze happens once startup's phases are over
@@ -247,6 +259,10 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 			timeout = DefaultCommandTimeout
 		}
 
+		hidden := def.Hidden
+		if command.HiddenAtPath(r.commandTree, strings.Fields(def.Name)) {
+			hidden = true
+		}
 		// Register
 		r.commands[key] = &RegisteredCommand{
 			Name:         def.Name,
@@ -255,7 +271,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 			Description:  def.Description,
 			Args:         def.Args,
 			Completable:  def.Completable,
-			Hidden:       def.Hidden,
+			Hidden:       hidden,
 			Timeout:      timeout,
 			Process:      proc,
 			RegisteredAt: now,

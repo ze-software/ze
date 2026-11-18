@@ -528,8 +528,10 @@
   }
 
   // Delegated click handlers for data-action buttons (CSP-safe, no inline handlers).
+  // Document and Text targets have no selectors. Only Elements own these actions.
   function initActions() {
     document.addEventListener('click', function(e) {
+      if (!(e.target instanceof Element)) return;
       var btn = e.target.closest('[data-action]');
       if (!btn) return;
       var action = btn.getAttribute('data-action');
@@ -588,6 +590,7 @@
     });
 
     document.addEventListener('click', function(e) {
+      if (!(e.target instanceof Element)) return;
       var openDropdown = document.querySelector('.portal-dropdown--open');
       if (openDropdown && !e.target.closest('.portal-menu')) {
         openDropdown.classList.remove('portal-dropdown--open');
@@ -595,31 +598,35 @@
     });
 
     document.addEventListener('click', function(e) {
-      if (e.target && e.target.classList && e.target.classList.contains('add-entry-overlay')) {
+      if (!(e.target instanceof Element)) return;
+      if (e.target.classList.contains('add-entry-overlay')) {
         e.target.remove();
       }
     });
 
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
+      if (!(e.target instanceof Element)) return;
       var overlay = document.getElementById('add-entry-overlay');
-      if (overlay && e.target && e.target.closest('#add-entry-overlay')) {
+      if (overlay && e.target.closest('#add-entry-overlay')) {
         overlay.remove();
       }
     });
 
     document.addEventListener('change', function(e) {
+      if (!(e.target instanceof Element)) return;
       var control = e.target.closest('[data-action="submit-on-change"]');
       if (control && control.form) control.form.submit();
     });
 
     document.addEventListener('htmx:after:request', function(e) {
-      if (e.target && e.target.matches('[data-close-on-after-request="true"]')) {
+      if (!(e.target instanceof Element)) return;
+      if (e.target.matches('[data-close-on-after-request="true"]')) {
         var overlay = document.getElementById('add-entry-overlay');
         if (overlay) overlay.remove();
         setTimeout(refreshCommitBar, 300);
       }
-      if (e.target && e.target.closest && e.target.closest('.wb-form-post')) {
+      if (e.target.closest('.wb-form-post')) {
         // htmx 4 carries the request context on every event and no longer
         // reports a boolean. A response the server answered at all is a
         // response with a status, and under 400 is what htmx 2 called
@@ -762,6 +769,7 @@
   function initFlyout() {
     var activeFlyout = null;
     document.addEventListener('mouseenter', function(e) {
+      if (!(e.target instanceof Element)) return;
       var group = e.target.closest('.sidebar-list-group');
       if (!group) return;
       var flyout = group.querySelector('.sidebar-flyout');
@@ -775,6 +783,7 @@
     }, true);
 
     document.addEventListener('mouseleave', function(e) {
+      if (!(e.target instanceof Element)) return;
       var group = e.target.closest('.sidebar-list-group');
       if (!group) return;
       // Delay hiding so mouse can move into the flyout.
@@ -803,7 +812,7 @@
   function initToolOverlay() {
     document.addEventListener('click', function(e) {
       var t = e.target;
-      if (!t || !t.classList) return;
+      if (!(t instanceof Element)) return;
       if (t.classList.contains('tool-overlay-close') ||
           t.classList.contains('tool-overlay-confirm-cancel')) {
         var overlay = t.closest('.tool-overlay');
@@ -811,8 +820,8 @@
       }
     });
     document.addEventListener('htmx:after:request', function(e) {
-      if (e.target && e.target.classList &&
-          e.target.classList.contains('tool-overlay-confirm-form')) {
+      if (!(e.target instanceof Element)) return;
+      if (e.target.classList.contains('tool-overlay-confirm-form')) {
         var overlay = e.target.closest('.tool-overlay');
         if (overlay) overlay.remove();
       }

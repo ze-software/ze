@@ -7,6 +7,7 @@ copy, the removal or the write of one runtime-state key, and the import of one
 config as a new version, each through the store handle the daemon owns.";
     revision 2026-09-26 { description "Initial revision"; }
     revision 2026-11-14 { description "Added delete data key, the removal of one runtime-state key through the daemon, refused while a plugin granted the key runs, request data repair, a salvage copy of the live store, update data key, the write of one runtime-state key from base64 content, and update data config, the import of one config as a new version from base64 content, through the reload when it is the daemon's own config."; }
+    revision 2026-11-17 { description "Add complete stored-configuration rename and indexed rollback through owner transactions, preserving version pointers, history and saved editor work."; }
 
     container delete {
         config false;
@@ -146,9 +147,78 @@ path, . and .. are refused.";
 
         container data {
             config false;
-            description "These act on the running daemon's store. The file is on the daemon's host, and
-                         the daemon reads or writes it under its own store lock.";
-            ze:help "Back up the store, restore a config from a backup, or write a salvage copy.";
+            description "These act on the running daemon's store under its own store lock. File
+paths refer to the daemon's host; config names select its stored configurations.";
+            ze:help "Maintain the store and its stored configurations.";
+
+            container config {
+                config false;
+                description "Maintain a named stored configuration with its versioned state.";
+                ze:help "Maintain stored configuration identities and history.";
+                container rollback {
+                    config false;
+                    ze:command "ze-config:data-config-rollback";
+                    description "Publish a selected stored revision as a new active version, retaining
+the previous active version as rollback. Revision numbers follow the existing
+history listing: 1 is the most recent dated entry. A staged candidate, a pending
+confirmed window or an unfinished file publication refuses the write. The running
+daemon's own configuration is staged and reloaded through its normal transaction;
+other configurations use the same guarded version publication as local rollback.";
+                    ze:help "Restore one stored revision through the configuration owner.";
+                    leaf name {
+                        type string {
+                            length "1..255";
+                            pattern '[^/\\]+' {
+                                error-message "name is a filename without a directory. Give the stored config's basename.";
+                            }
+                        }
+                        mandatory true;
+                        description "Stored configuration name, without a directory.";
+                        ze:help "Stored config filename.";
+                    }
+                    leaf revision {
+                        type uint32 { range "1..max"; }
+                        mandatory true;
+                        description "One-based revision number in the same descending timestamp order
+as the existing configuration history list. No other revision is substituted.";
+                        ze:help "History revision number, starting at 1 for the most recent.";
+                    }
+                }
+                container rename {
+                    config false;
+                    ze:command "ze-config:data-config-rename";
+                    description "Rename an inactive stored configuration with its dated history,
+version pointers, active and candidate mirrors, and saved draft/account changes.
+Shared content objects and unrelated audit/history records are preserved. Any
+destination-owned state or unfinished identity transaction refuses the rename.
+The running daemon's source and configured managed-client identities are refused
+because their launch or fetch bindings cannot be safely rebound by this command.";
+                    ze:help "Rename a stored configuration and preserve all its saved state.";
+                    leaf old {
+                        type string {
+                            length "1..255";
+                            pattern '[^/\\]+' {
+                                error-message "old is a filename without a directory. Give the stored config's basename.";
+                            }
+                        }
+                        mandatory true;
+                        description "Existing stored configuration name, without a directory.";
+                        ze:help "Existing stored config filename.";
+                    }
+                    leaf new {
+                        type string {
+                            length "1..255";
+                            pattern '[^/\\]+' {
+                                error-message "new is a filename without a directory. Give the new stored config's basename.";
+                            }
+                        }
+                        mandatory true;
+                        description "Unused destination configuration name, without a directory.
+No mirror, pointer, version or saved editor state may already belong to it.";
+                        ze:help "Unused new config filename.";
+                    }
+                }
+            }
 
             container backup {
                 config false;
@@ -183,13 +253,13 @@ owns.";
             container restore {
                 config false;
                 ze:command "ze-config:data-restore";
-                description "Stages the artifact's config as the candidate and runs the same reload a SIGHUP
-runs. The config becomes active only when the reload accepts it; a refused
-config leaves the active config and its pointers untouched. Nothing else in the
-store changes. With client, a hub writes the config it serves to that managed
-client instead, as a new version, and pushes config-changed to the client; the
-hub does not reload its own config.";
-                ze:help "Restore a config from a backup file on the daemon's host.";
+                description "Select config to stage one configuration through the normal reload, or full
+to accept every artifact key for recovery after a clean daemon shutdown and
+successful store close. Full recovery verifies an independent immutable copy
+before answering, then requests restart only after response delivery. A failed
+shutdown prevents replacement. With config and client, a hub updates that served
+client's configuration without reloading its own.";
+                ze:help "Restore a configuration now or accept full-store recovery after shutdown.";
                 leaf path {
                     type string { length "1..4096"; }
                     mandatory true;
@@ -199,9 +269,18 @@ backup path.";
                 }
                 leaf config {
                     type empty;
-                    description "Restore the artifact's config only. A full restore replaces the whole store
-and runs offline with ze data restore.";
+                    description "Restore one selected configuration through the normal reload. Select
+exactly one mode, config or full.";
                     ze:help "Restore the config only";
+                }
+                leaf full {
+                    type empty;
+                    description "Accept a verified complete store replacement for the outer daemon
+lifetime. It runs only after all runtime borrowers finish, the original store
+closes successfully and the daemon returns its existing restart result. The
+response confirms acceptance rather than completion. It cannot be combined
+with config, name or client.";
+                    ze:help "Accept full-store recovery after a clean shutdown and owner close.";
                 }
                 leaf name {
                     type string { length "1..255"; }

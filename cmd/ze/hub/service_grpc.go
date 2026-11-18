@@ -59,9 +59,10 @@ func grpcBuildImpl(in *apiBuildInputs, sh *apiShared) (apiServerHandle, error) {
 	}
 	return apiServerHandle{
 		Server: srv,
-		Shutdown: func(context.Context) {
+		Shutdown: func(context.Context) error {
 			// gRPC stop is graceful and does not take a deadline.
 			srv.Stop()
+			return nil
 		},
 	}, nil
 }

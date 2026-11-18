@@ -82,12 +82,35 @@ func ResetColumnsForTest() {
 	columnRegistry.reset()
 }
 
+// RegisterChildBoundary confines a parent's shape, columns, address fields and
+// aliases to that parent.
+// Every typed child branch resolves an empty floor at its first keyword unless
+// an equal or longer path declares its own value. Selector tokens inserted
+// farther down the branch therefore cannot expose the parent's declarations.
+//
+// A one-token tail accepted by acceptedArgument remains an argument of the
+// parent and keeps its metadata. Nil accepts no parent arguments. The predicate
+// MUST be bounded, safe for concurrent use and MUST NOT call these registries:
+// lookup calls it with the registry's read lock held.
+//
+// This declares an inheritance rule, not command availability: dispatch still
+// requires a registered command. No child inventory or schema load is needed,
+// so commands registered later and withdrawn plugin values follow the same rule.
+// Safe for concurrent use.
+func RegisterChildBoundary(parent string, acceptedArgument func(string) bool) {
+	shapeRegistry.registerChildBoundary(parent, acceptedArgument)
+	columnRegistry.registerChildBoundary(parent, acceptedArgument)
+	addressFieldRegistry.registerChildBoundary(parent, acceptedArgument)
+	aliasRegistry.registerChildBoundary(parent, acceptedArgument)
+}
+
 // commandRegistry maps a command path to one value and resolves a command to
 // the value registered on the longest matching path.
 //
 // A command with no declaration of its own inherits the nearest registered
 // ancestor's. A command that MUST NOT inherit registers an empty declaration of
-// its own. That is why an empty declaration is stored rather than dropped:
+// its own, or its parent registers a child inheritance boundary. That is why an
+// empty declaration is stored rather than dropped:
 // absent and empty are different answers.
 //
 // register stores what its caller computed, so the alias registry is its one
@@ -97,12 +120,26 @@ func ResetColumnsForTest() {
 // point there rather than a defect. A registry holding ONE package's
 // declaration about a path embeds this one and adds declare below.
 type commandRegistry[T any] struct {
-	mu        sync.RWMutex
-	byCommand map[string]T
+	mu              sync.RWMutex
+	byCommand       map[string]T
+	childBoundaries map[string]func(string) bool
 }
 
 func newCommandRegistry[T any]() *commandRegistry[T] {
-	return &commandRegistry[T]{byCommand: make(map[string]T)}
+	return &commandRegistry[T]{
+		byCommand:       make(map[string]T),
+		childBoundaries: make(map[string]func(string) bool),
+	}
+}
+
+func (r *commandRegistry[T]) registerChildBoundary(parent string, acceptedArgument func(string) bool) {
+	parent = normalizeCommand(parent)
+	if parent == "" {
+		panic("BUG: child inheritance boundary has no parent command")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.childBoundaries[parent] = acceptedArgument
 }
 
 func (r *commandRegistry[T]) register(commands []string, value T) {
@@ -119,7 +156,7 @@ func (r *commandRegistry[T]) register(commands []string, value T) {
 }
 
 // remove drops what one command path declares, so the path is undeclared again
-// and a command under it inherits from the nearest declared ancestor.
+// and a command under it resolves the nearest declaration or child boundary.
 //
 // It is not the reverse of register for a path that held a declaration before:
 // register stores one value for each path, so what the path held is already
@@ -165,6 +202,9 @@ func (r *commandRegistry[T]) lookup(command string) (T, bool) {
 // that reached it by another route. A declaration on the command itself and one
 // inherited from a grandparent are both a hit here, and only the path tells
 // them apart (declared.go, DeclaredForCommand).
+// A child boundary supplies a virtual empty declaration at the first keyword
+// below its parent, except for one accepted parent argument. An equal or longer
+// explicit declaration wins over it.
 func (r *commandRegistry[T]) lookupPath(command string) (T, string, bool) {
 	words, _, err := ScanExecution(command)
 	if err != nil {
@@ -193,6 +233,35 @@ func (r *commandRegistry[T]) lookupPath(command string) (T, string, bool) {
 			found = true
 		}
 	}
+	for parent, acceptedArgument := range r.childBoundaries {
+		if !invocationMatchesPathPrefix(words, parent) {
+			continue
+		}
+		tail := words[len(strings.Fields(parent)):]
+		if len(tail) == 0 {
+			continue
+		}
+		if len(tail) == 1 {
+			if acceptedArgument != nil {
+				if acceptedArgument(tail[0]) {
+					continue
+				}
+			}
+		}
+		// The first decoded token is the child floor. Preserve quoting when
+		// that token contains spaces, so its provenance remains one word.
+		var floorPath textbuf.Buffer
+		floorPath.Str(parent).Byte(' ')
+		WriteInvocationValue(&floorPath, tail[0])
+		floor := floorPath.String()
+		if len(floor) > bestLen {
+			var empty T
+			best = empty
+			bestPath = floor
+			bestLen = len(floor)
+			found = true
+		}
+	}
 	return best, bestPath, found
 }
 
@@ -216,6 +285,7 @@ func (r *commandRegistry[T]) reset() {
 	defer r.mu.Unlock()
 
 	r.byCommand = make(map[string]T)
+	r.childBoundaries = make(map[string]func(string) bool)
 }
 
 // declarationRegistry holds ONE declaration for each command path: what a
@@ -260,7 +330,8 @@ type priorDeclaration[T any] struct {
 func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *declarationRegistry[T] {
 	return &declarationRegistry[T]{
 		commandRegistry: commandRegistry[T]{
-			byCommand: make(map[string]T),
+			byCommand:       make(map[string]T),
+			childBoundaries: make(map[string]func(string) bool),
 		},
 		name:    name,
 		isEmpty: isEmpty,
@@ -277,9 +348,8 @@ func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *dec
 //   - The value is EMPTY and the path holds something. Keep what it holds. An
 //     empty declaration is a FLOOR: it stops a shorter path being inherited and
 //     says nothing about what the answer holds, so it never overrides a value
-//     that does say. The BGP peer command plugin blanks every direct child of
-//     `show bgp`, and the rib command plugin declares `tab` for `show bgp rib`.
-//     Package initialization order decided that path's answer before this rule.
+//     that does say. An empty declaration cannot erase the shape or column
+//     order another package declared on that path.
 //   - The two values are equal. A package restating its own declaration is a
 //     no-op, so equality decides rather than identity.
 //   - The two values differ and neither is empty. Panic. Every caller declares
@@ -442,6 +512,7 @@ func (r *declarationRegistry[T]) reset() {
 	defer r.mu.Unlock()
 
 	r.byCommand = make(map[string]T)
+	r.childBoundaries = make(map[string]func(string) bool)
 	r.byOwner = make(map[string]map[string]priorDeclaration[T])
 }
 

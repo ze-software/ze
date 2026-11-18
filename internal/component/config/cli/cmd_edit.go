@@ -12,7 +12,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -258,15 +258,17 @@ func doPromptCreateConfig(path string, in io.Reader, errw io.Writer, timeout tim
 
 // selectConfig prompts the user to select a config from the live store.
 // Returns the selected config path, or empty string if canceled/error.
-func selectConfig(store storage.Storage, configDir, defaultPath string) string {
-	return doSelectConfig(store, configDir, defaultPath, os.Stdin, os.Stderr, createPromptTimeout)
+func selectConfig(store storage.Storage, defaultPath string) string {
+	return doSelectConfig(store, defaultPath, os.Stdin, os.Stderr, createPromptTimeout)
 }
 
 // doSelectConfig is the testable core of selectConfig.
-// Lists .conf files in configDir via storage; if none exist (AC-7), creates defaultPath.
+// Selects an existing default from the active configuration census, including
+// pointer-only configs. Otherwise lists .conf names; if none exist (AC-7),
+// creates defaultPath.
 // If multiple exist (AC-6), presents numbered list and accepts selection.
-func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.Reader, errw io.Writer, timeout time.Duration) string { //nolint:cyclop // linear flow with early returns
-	files, err := store.List(configDir)
+func doSelectConfig(store storage.Storage, defaultPath string, in io.Reader, errw io.Writer, timeout time.Duration) string { //nolint:cyclop // linear flow with early returns
+	files, err := storage.ArtifactConfigNames(store)
 	if err != nil {
 		fmt.Fprintf(errw, "cannot list configurations: %v\n", err) //nolint:errcheck // terminal output
 		return ""
@@ -275,11 +277,13 @@ func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.
 	// Filter to .conf files (excludes .draft, .lock, ssh_host_*, etc.)
 	var configs []string
 	for _, f := range files {
+		if f == defaultPath {
+			return defaultPath
+		}
 		if strings.HasSuffix(f, ".conf") {
 			configs = append(configs, f)
 		}
 	}
-	slices.Sort(configs)
 
 	// AC-7: no configs exist, create default config
 	if len(configs) == 0 {
@@ -458,12 +462,9 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			return exitError
 		}
-		configPath = name
-		if !store.Exists(configPath) {
-			configPath = selectConfig(store, "file/active", configPath)
-			if configPath == "" {
-				return exitError
-			}
+		configPath = selectConfig(store, name)
+		if configPath == "" {
+			return exitError
 		}
 		configPath = filepath.Join(resolve.StoreDir(""), configPath)
 	}
@@ -514,10 +515,7 @@ func cmdEditBackup(backupPath, configName, user string) int {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			return exitError
 		}
-		configName = name
-		if !store.Exists(configName) {
-			configName = selectConfig(store, "file/active", configName)
-		}
+		configName = selectConfig(store, name)
 	}
 	if configName == "" {
 		store.Close() //nolint:errcheck // The selection refusal is already reported.
@@ -525,8 +523,16 @@ func cmdEditBackup(backupPath, configName, user string) int {
 	}
 	ed, err := cli.NewOfflineSessionEditor(store, filepath.Base(configName), backupEditorUser(user))
 	if err != nil {
-		store.Close() //nolint:errcheck // Returning the editor error.
-		fmt.Fprintf(os.Stderr, "error: config edit: %v\n", err)
+		closeErr := store.Close()
+		var fix textbuf.Buffer
+		fix.Str("ze config edit --backup ")
+		command.WriteInvocationValue(&fix, backupPath)
+		fix.Str(" --user <valid-user> ")
+		command.WriteInvocationValue(&fix, configName)
+		fmt.Fprintln(os.Stderr, "error:", opererr.Wrap(errors.Join(err, closeErr),
+			"config edit: the backup editor could not be opened",
+			"No editor session was started. Check the configuration name, editor user and saved draft before retrying.",
+			fix.String()))
 		return exitError
 	}
 	ed.OwnStore()

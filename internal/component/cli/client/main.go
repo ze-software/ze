@@ -961,20 +961,24 @@ func applyDescriptions(root *Command, descriptions map[string]string) {
 	}
 }
 
-// applyCommandText writes both texts the daemon's "system command list" answer
-// carries onto the node each entry names. The summary lands on ShortHelp,
-// which every one-line surface reads, and the explanation on Description, which
-// the command's help page and the `?` key read. It applies to a builtin and to
-// a plugin command alike.
+// applyCommandText retains visibility and both texts from the daemon's
+// "system command list" answer on the node each entry names. A hidden row
+// hides discovery while retaining the typed path and existing schema visibility.
+// The summary lands on ShortHelp, which every one-line surface reads, and the
+// explanation on Description, which the command's help page and the `?` key read.
+// It applies to a builtin and to a plugin command alike.
 //
-// ONE walk carries both, so the node that takes the summary is the node that
-// takes the explanation. A field already written is left alone, and a path the
-// tree does not hold is skipped: injectPluginCommands creates such a node.
+// One walk carries visibility and both texts. A text field already written is
+// left alone. A path the tree does not hold is skipped: injectPluginCommands
+// creates such a node.
 func applyCommandText(root *Command, entries []commandEntry) {
 	for _, entry := range entries {
 		node := nodeAtPath(root, entry.Value)
 		if node == nil {
 			continue
+		}
+		if entry.Hidden {
+			node.Hidden = true
 		}
 		if node.ShortHelp == "" {
 			node.ShortHelp = entry.ShortHelp

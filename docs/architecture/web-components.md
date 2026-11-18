@@ -13,6 +13,13 @@ The web interface follows three rules:
 
 3. **One HTTP request updates multiple components.** HTMX out-of-band (OOB) swaps let a single response update the detail panel, Finder columns, breadcrumb, commit bar, and error panel.
 
+Delegated action, overlay and flyout listeners check that the event target is an
+`Element` before calling `closest` or `matches`. This accepts HTML and SVG
+elements. Document and text-node events have no element action to select and
+return without changing controls. The same listeners remain attached across
+HTMX swaps.
+<!-- source: internal/component/web/assets/cli.js -- initActions, initFlyout, initToolOverlay -->
+
 ## Page Layout
 
 ```
@@ -76,6 +83,16 @@ review before publication.
 <!-- source: internal/component/web/page_assets.go -- pgPageBackupWorkspace, pageAssetSets -->
 <!-- source: internal/component/web/backup_edit.go -- backupPageData, edit -->
 <!-- source: internal/component/web/assets/backup.css -- html, body, .backup-page -->
+
+The same shell's **Check or repair a data file** panel accepts an arbitrary file
+or base64 paste, including a damaged backup that cannot open in the editor.
+Its source page keeps the native report, warnings, unchanged-original download
+and separate salvage download together. A failed check renders its report with
+a failing HTTP status. Closing the source removes its uploaded copy; it does
+not remove an independently created salvage. The source panel has ordinary
+forms and no script or separate domain owner.
+<!-- source: internal/component/web/component_backup_source.templ -- componentBackupSourceUpload, componentBackupSource -->
+<!-- source: internal/component/web/backup_source.go -- sourceRoute, source -->
 
 The Services menu follows `PortalService.NavigationURL`. Ordinary services keep
 their embedded `/portal/<key>` target. A service declared `Direct` opens its
@@ -423,7 +440,7 @@ main HTMX swap so the file/paste controls remain available for correction.
 <!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport, readGraphicalImport, GraphicalImportDefaults -->
 <!-- source: internal/component/web/component_graphical_import.templ -- graphicalImportPanel -->
 
-**Inspect supplied configuration** is a separate disclosure outside the editing
+**Inspect or edit local files** is a separate disclosure outside the editing
 branch. Its typed view data joins `command.ListLocal` supplied-input descriptors
 to the same current command tree the admin console uses. The shared surface
 predicate and read-verb declaration determine which registered commands it
@@ -435,12 +452,19 @@ so refreshing the candidate does not remove the inspection controls.
 A GET form swaps the selected command's native file/paste controls through
 HTMX. The POST form sends only those inputs and declared choices to
 `/config/inspect`, and swaps its result separately so refusals preserve the
-operator's form. Source bytes are encoded once. A comparison becomes one
+operator's form. Source bytes are encoded once. Multiple text inputs become one
 strict UTF-8 JSON object within the same combined byte budget. Multipart input
 stays in memory under the bounded request reader; the filename is only a
 basename label. Dispatch keeps the authenticated identity, accepted authorizer
 and request cancellation. It uses the shared CLI formatting producer without
 recording history, opening an editor or changing the candidate.
+
+The labels describe files and text because this surface also offers registered
+converters, detached edits and byte encoders. The selected owner's description
+states what each source means. Empty and whitespace-only bytes are not trimmed.
+The actual content model decides whether an empty single-source input is valid.
+<!-- source: internal/component/web/component_graphical_supplied.templ -- graphicalSuppliedPanel, graphicalSuppliedInputs -->
+<!-- source: internal/component/web/graphical_supplied.go -- invocation, readSource -->
 
 <!-- source: internal/component/web/graphical_supplied_view.go -- GraphicalSuppliedPanel, GraphicalSuppliedInputs -->
 <!-- source: internal/component/web/graphical_supplied_commands.go -- suppliedInspectionCommands, newSuppliedInspectionCommand -->

@@ -40,6 +40,8 @@ func newHealthRevert(store storage.Storage, configName string) *HealthRevert {
 	}
 }
 
+// Start begins one bounded health monitor borrowing the store. Its owner MUST
+// call Wait before releasing that store, including after an early daemon stop.
 func (h *HealthRevert) Start(preChangeConfig []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -117,6 +119,8 @@ func (h *HealthRevert) onHealthy() {
 	close(h.done)
 }
 
+// Wait joins the store work started by Start. It MUST run before the store's
+// owner closes or replaces it; Start MUST have been called exactly once first.
 func (h *HealthRevert) Wait() {
 	<-h.done
 }

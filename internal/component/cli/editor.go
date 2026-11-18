@@ -111,13 +111,13 @@ func NewLooseFileEditor(store storage.Storage, configPath string) (*Editor, erro
 }
 
 // NewEditorWithStorage creates a new editor backed by the given storage.
-// All file I/O (config, draft, backup, lock) goes through the storage interface.
+// Committed content follows its verified active pointer; draft, change-file,
+// backup and lock operations remain in the same storage key space.
 func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, error) {
 	if store == nil {
 		return nil, fmt.Errorf("config editor: %w; run ze init", storage.ErrNoStore)
 	}
-	// Read original file
-	data, err := store.ReadFile(configPath)
+	data, err := storage.ReadActiveConfig(store, configPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %w", err)
 	}
@@ -431,8 +431,9 @@ func (e *Editor) NotifyReload() error {
 	return e.onReload()
 }
 
-// SetCommitWriter selects the owning daemon's source-authority transaction.
+// SetCommitWriter selects the owning source's publication transaction.
 // The callback MUST publish both configuration and history before returning nil.
+// An editor of a versioned stored source MUST have this callback before Save.
 func (e *Editor) SetCommitWriter(fn func(expected, content []byte) error) {
 	e.commitWriter = fn
 }
@@ -957,8 +958,9 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 	return all
 }
 
-// PendingChanges returns the unified pending-change view for a specific session,
-// or all sessions when sessionID is empty.
+// PendingChanges returns the best-effort pending inventory for a specific
+// session, or all sessions when sessionID is empty. An unreadable durable file
+// contributes no records; PendingReview instead reports that read failure.
 func (e *Editor) PendingChanges(sessionID string) []config.PendingChange {
 	return e.pendingChanges(e.store, sessionID)
 }
@@ -969,6 +971,26 @@ type pendingChangeReader interface {
 }
 
 func (e *Editor) pendingChanges(reader pendingChangeReader, sessionID string) []config.PendingChange {
+	// Empty selects every owner, independently of the active session.
+	if sessionID != "" {
+		if e.session != nil {
+			if sessionID == e.session.ID {
+				if reader == nil {
+					return e.pendingSessionChanges(nil, nil, sessionID)
+				}
+				// The current session already knows its account's change path.
+				// A directory census adds a failure unrelated to reading that file.
+				meta, ops, err := e.readChangeFileContent(reader, ChangePath(e.originalPath, e.session.User))
+				if err != nil {
+					// Preserve this inventory API's existing best-effort behavior:
+					// readable memory survives an unavailable durable source.
+					return e.pendingSessionChanges(nil, nil, sessionID)
+				}
+				return e.pendingSessionChanges(meta, ops, sessionID)
+			}
+		}
+	}
+
 	seen := make(map[string]bool)
 	var changes []config.PendingChange
 
@@ -1021,6 +1043,39 @@ func (e *Editor) pendingChanges(reader pendingChangeReader, sessionID string) []
 		}
 	}
 
+	config.SortPendingChanges(changes)
+	return changes
+}
+
+// pendingSessionChanges is the single logical record collector for the active
+// session's inventory and review. The metadata and recorded operations bound
+// every loop. It changes no ownership or conflict baseline; presentation may
+// replace Previous on the returned copies after collecting them.
+func (e *Editor) pendingSessionChanges(meta *config.MetaTree, ops []config.StructuralOp, sessionID string) []config.PendingChange {
+	seen := make(map[string]bool)
+	var changes []config.PendingChange
+	add := func(change config.PendingChange) {
+		key := pendingChangeKey(change)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		changes = append(changes, change)
+	}
+	for _, source := range []*config.MetaTree{e.meta, meta} {
+		if source == nil {
+			continue
+		}
+		for _, entry := range source.SessionEntries(e.schema, sessionID) {
+			add(config.PendingChangeFromSessionEntry(entry))
+		}
+	}
+	for i := range ops {
+		if ops[i].SessionKey() != sessionID {
+			continue
+		}
+		add(ops[i].PendingChange(e.schema))
+	}
 	config.SortPendingChanges(changes)
 	return changes
 }
@@ -1335,12 +1390,12 @@ func (e *Editor) deleteLive() {
 	_ = e.removeFile(e.livePath()) // Ignore error if doesn't exist
 }
 
-// Rollback restores the configuration from a backup file.
-// Creates a backup of the current config first, so the rollback itself can be undone.
-// The write lands outside the commit path, so while the daemon's
-// confirmed-commit window is open it is refused with the window's refusal
-// naming its owner (confirm.WriteOutside): the window's revert would wipe it.
-// The owner's refusal also points to `commit abort`, which ends the window.
+// Rollback restores history into a session's candidate for review and commit.
+// Without a session it backs up the current configuration and restores directly.
+// Both forms are refused while the daemon's confirmed-commit window is open:
+// its revert could invalidate the restored view or overwrite a direct restore.
+// The window's refusal names its owner; that owner's refusal also points to
+// `commit abort`, which ends the window.
 func (e *Editor) Rollback(backupPath string) error {
 	err := confirm.WriteOutside(e.daemonWindow(), func() error {
 		return e.rollback(backupPath)

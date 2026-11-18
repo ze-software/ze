@@ -73,6 +73,9 @@ type RESTServer struct {
 	authentication api.AuthenticationProvider
 	corsOrigin     string
 	auditRecorder  audit.Recorder
+	// requestCancel ends the BaseContext shared by every accepted request.
+	// Shutdown cancels it before joining handlers, including monitor streams.
+	requestCancel context.CancelFunc
 
 	srv *http.Server
 	// configured holds the addresses passed in by the caller, in original order.
@@ -124,10 +127,13 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
+	requestCtx, requestCancel := context.WithCancel(context.Background())
+	s.requestCancel = requestCancel
 	s.srv = &http.Server{
 		// Addr is informational; multi-listener serving uses Serve(ln).
 		Addr:              cfg.ListenAddrs[0],
 		Handler:           mux,
+		BaseContext:       func(net.Listener) context.Context { return requestCtx },
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -224,12 +230,20 @@ func (s *RESTServer) serve(listeners []net.Listener) error {
 	return nil
 }
 
-// Shutdown gracefully shuts down the server, closing every listener.
+// Shutdown cancels active request contexts, closes every listener and joins
+// active requests before returning.
+// An expired grace context remains an error, but MUST NOT release the caller's
+// borrowed resources while a request still uses them. The caller MUST retain
+// those resources until Shutdown returns.
 func (s *RESTServer) Shutdown(ctx context.Context) error {
 	s.mu.Lock()
 	s.stopped = true
 	s.mu.Unlock()
-	return s.srv.Shutdown(ctx)
+	s.requestCancel()
+	if err := s.srv.Shutdown(ctx); err != nil {
+		return errors.Join(err, s.srv.Shutdown(context.Background()))
+	}
+	return nil
 }
 
 // Reconfigure migrates listeners to a new set of addresses.

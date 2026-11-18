@@ -60,8 +60,12 @@ func resolveFixPlan(configPath string) (any, int) {
 		return nil, exitError
 	}
 
-	result := runValidation(string(data), configPath)
-	return diagnostic.NewFixPlan(configPath, result.Diagnostics), exitOK
+	return fixPlanBytes(data, configPath), exitOK
+}
+
+func fixPlanBytes(data []byte, name string) diagnostic.FixPlanResult {
+	result := runValidation(string(data), name)
+	return diagnostic.NewFixPlan(name, result.Diagnostics)
 }
 
 func fixUsage() {

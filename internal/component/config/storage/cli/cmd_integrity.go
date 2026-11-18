@@ -3,9 +3,7 @@
 package cli
 
 import (
-	"encoding/hex"
 	"fmt"
-	"hash/crc32"
 	"io"
 	"os"
 	"strconv"
@@ -289,7 +287,7 @@ func cmdRepair(storePath string, args []string) int {
 }
 
 // printRepair prints the salvage report, repairs the history of the output
-// (repairStoreHistory), prints the summary line and answers the exit code: a
+// (salvageHistory), prints the summary line and answers the shared verdict: a
 // `recovered:` line per key on stdout, a `skipped:` line per entry that did
 // not read on stderr, a `removed:` line on stdout per key a writer removed
 // from the source while the walk ran, which is not in the output, then the
@@ -309,46 +307,19 @@ func printRepair(report *zefs.RepairReport, outputPath string) int {
 		tb.Reset().Str("removed: ").Str(key).Byte('\n')
 		tb.StdOut() //nolint:errcheck // CLI output
 	}
-	historyIssues, err := repairStoreHistory(outputPath)
+	findings, err := salvageHistory(outputPath)
 	if err != nil {
 		tb.Reset().Str("error: ").Err(err).Byte('\n')
 		tb.StdErr() //nolint:errcheck // CLI output; the exit code carries the verdict
 		return 2
 	}
+	verdict := newRepairVerdict(report, findings)
+	verdict.printHistory()
 
 	tb.Reset().Int(int64(report.RecoveredCount)).Str(" recovered, ").Int(int64(report.SkippedCount)).
 		Str(" skipped, ").Int(int64(len(report.Vanished))).Str(" removed while the repair ran -> ").Str(outputPath).Byte('\n')
 	tb.StdOut() //nolint:errcheck // CLI output
-	if report.SkippedCount > 0 {
-		return 1
-	}
-	if historyIssues > 0 {
-		return 1
-	}
-	return 0
-}
-
-// repairStoreHistory repairs the history of the repaired output
-// (salvageHistory), reports each finding, and returns how many dropped keys
-// and remaining errors there are.
-func repairStoreHistory(outputPath string) (int, error) {
-	findings, err := salvageHistory(outputPath)
-	if err != nil {
-		return 0, err
-	}
-	unresolved := 0
-	var remaining []storage.HistoryFinding
-	for _, finding := range findings {
-		if !historyDropped(finding) {
-			remaining = append(remaining, finding)
-			continue
-		}
-		unresolved++
-		var tb textbuf.Buffer
-		tb.Str("dropped: ").Str(finding.Kind).Str(": ").Str(finding.Key).Str(": ").Str(finding.Detail).Byte('\n')
-		tb.StdErr() //nolint:errcheck // CLI output
-	}
-	return unresolved + printHistoryFindings(remaining), nil
+	return verdict.exitCode()
 }
 
 // salvageHistory drops the dangling and malformed entries and wrong-hash
@@ -383,16 +354,16 @@ func historyDropped(finding storage.HistoryFinding) bool {
 }
 
 func cmdEncode(_ string, args []string) int {
-	mode := "full" // "full", "crc", "header"
+	part := netcapFull
 	capOverride := -1
 	var dataArgs []string
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--crc":
-			mode = "crc"
+			part = netcapCRC
 		case "--header":
-			mode = "header"
+			part = netcapHeader
 		case "--cap":
 			if i+1 >= len(args) {
 				fmt.Fprintf(os.Stderr, "error: --cap requires a value\n")
@@ -436,38 +407,11 @@ func cmdEncode(_ string, args []string) int {
 		cap_ = capOverride
 	}
 
-	crc := crc32.Checksum(data, zefs.CRC32cTable)
-
-	switch mode {
-	case "crc":
-		var b [4]byte
-		b[0] = byte(crc >> 24)
-		b[1] = byte(crc >> 16)
-		b[2] = byte(crc >> 8)
-		b[3] = byte(crc)
-		fmt.Fprintln(os.Stdout, hex.EncodeToString(b[:])) //nolint:errcheck // CLI output
-	case "header":
-		encoded, err := zefs.EncodeNetcapstring(data, cap_)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return 2
-		}
-		// Header is everything before the first '\n'
-		for i, c := range encoded {
-			if c == '\n' {
-				os.Stdout.Write(encoded[:i]) //nolint:errcheck // stdout
-				fmt.Fprintln(os.Stdout)      //nolint:errcheck // CLI output
-				break
-			}
-		}
-	case "full":
-		encoded, err := zefs.EncodeNetcapstring(data, cap_)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return 2
-		}
-		os.Stdout.Write(encoded) //nolint:errcheck // stdout
+	encoded, err := encodeNetcap(data, cap_, part)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 2
 	}
-
+	os.Stdout.Write(encoded) //nolint:errcheck // CLI output
 	return 0
 }

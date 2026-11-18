@@ -200,10 +200,23 @@ func BuildCommandTree(schema *Resolved) *command.Node {
 	}
 
 	inheritArgDefs(root, nil)
+	inheritCommandHidden(root)
 
 	validateTreeOf(schema, root)
 
 	return root
+}
+
+// inheritCommandHidden runs after all module branches are merged, so a hidden
+// grouping also hides commands contributed beneath it by another module.
+// Recursion follows the resolved command schema, as inheritArgDefs does.
+func inheritCommandHidden(node *command.Node) {
+	for _, child := range node.Children {
+		if node.Hidden {
+			child.Hidden = true
+		}
+		inheritCommandHidden(child)
+	}
 }
 
 // inheritArgDefs carries the leaves a non-command container declares down to
@@ -382,6 +395,13 @@ func (patterns compiledPatterns) mergeYANGEntry(node *command.Node, entry *gyang
 		if !exists {
 			target = &command.Node{Name: name}
 			node.Children[name] = target
+		}
+		for _, ext := range child.Exts {
+			if strings.HasSuffix(ext.Keyword, ":hidden") {
+				if ext.Argument == "true" {
+					target.Hidden = true
+				}
+			}
 		}
 
 		// ze:command nodes get their WireMethod and their help text (executable

@@ -194,7 +194,7 @@ func readSourceLocked(store Storage, guard WriteGuard, configPath string) ([]byt
 		}
 		return os.ReadFile(configPath) //nolint:gosec // explicit operator-supplied config
 	case ConfigSourceStored:
-		return readActiveLocked(store, guard, configPath)
+		return ReadActiveConfigWithGuard(store, guard, configPath)
 	case ConfigSourceStdin:
 		return nil, errors.New("stdin configuration has no reload source")
 	case ConfigSourceUnspecified:
@@ -204,8 +204,11 @@ func readSourceLocked(store Storage, guard WriteGuard, configPath string) ([]byt
 	}
 }
 
-// readActiveLocked is ReadActiveConfig for a caller holding the config lock.
-func readActiveLocked(store Storage, guard WriteGuard, configPath string) ([]byte, error) {
+// ReadActiveConfigWithGuard is ReadActiveConfig under a configuration guard.
+// The caller MUST hold a guard from store and retain it while consuming the
+// returned bytes. AcquireLock already waits for a pending boot record.
+// Not safe for concurrent use with another operation on that guard.
+func ReadActiveConfigWithGuard(store Storage, guard WriteGuard, configPath string) ([]byte, error) {
 	stamp, ok, err := readPointerLocked(store, guard, configPath, pointerActive)
 	if err != nil {
 		return nil, err

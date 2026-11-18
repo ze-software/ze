@@ -112,5 +112,7 @@ func TestBrowserConfigRecoveryFromBrokenFinder(t *testing.T) {
 	browser.command("fill", "#input-bgp-srouter--id", "192.0.2.210")
 	browser.command("press", "Enter")
 	browser.wait(`document.getElementById('commit-count').textContent.includes('1 pending change')`, "recovered editor accepts a new candidate edit")
-	assert.Contains(t, mgr.Diff("alice"), "192.0.2.210")
+	diff, err := mgr.Diff("alice")
+	require.NoError(t, err)
+	assert.Contains(t, diff, "192.0.2.210")
 }

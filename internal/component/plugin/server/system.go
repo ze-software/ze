@@ -86,6 +86,9 @@ func handleSystemHelp(ctx *CommandContext, _ command.ValidatedArgs) (*plugin.Res
 	if ctx.Dispatcher() != nil {
 		var tb textbuf.Buffer
 		for _, cmd := range ctx.Dispatcher().Commands() {
+			if cmd.Hidden {
+				continue
+			}
 			commands = append(commands, tb.Reset().Str(cmd.Name).Str(" - ").Str(cmd.ShortHelp).String())
 		}
 		// Add plugin commands (skip hidden)
@@ -405,7 +408,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 		var encoded rpc.RawRow
 
 		for _, cmd := range dispatcher.Commands() {
-			row := Completion{Value: cmd.Name, ShortHelp: cmd.ShortHelp, Description: cmd.Description, Completable: cmd.Complete != nil}
+			row := Completion{Value: cmd.Name, ShortHelp: cmd.ShortHelp, Hidden: cmd.Hidden, Description: cmd.Description, Completable: cmd.Complete != nil}
 			if verbose {
 				row.Source = sourceBuiltin
 			}
@@ -557,6 +560,9 @@ func handleSystemCommandComplete(ctx *CommandContext, validated command.Validate
 		// Complete builtins
 		lowerPartial := strings.ToLower(partial)
 		for _, cmd := range ctx.Dispatcher().Commands() {
+			if cmd.Hidden {
+				continue
+			}
 			if strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, Completion{
 					Value:     cmd.Name,

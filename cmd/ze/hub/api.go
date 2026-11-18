@@ -203,9 +203,17 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 
 		streamCtx, cancel := context.WithCancel(ctx)
 		ch := make(chan string, apiStreamBuffer)
+		done := make(chan struct{})
 		writer := newAPIStreamLineWriter(streamCtx, ch)
+		// The transport MUST keep the source's borrowers through producer and
+		// accounting cleanup, including when cancellation precedes readiness.
+		stop := func() {
+			cancel()
+			<-done
+		}
 
 		go func() {
+			defer close(done)
 			defer close(ch)
 			defer stopAccounting()
 			defer func() {
@@ -220,12 +228,12 @@ func apiStreamSource(s *pluginserver.Server) api.StreamSource {
 		select {
 		case <-writer.ready():
 			if err := writer.startError(); err != nil {
-				cancel()
+				stop()
 				return nil, nil, err
 			}
-			return ch, cancel, nil
+			return ch, stop, nil
 		case <-ctx.Done():
-			cancel()
+			stop()
 			return nil, nil, ctx.Err()
 		}
 	}

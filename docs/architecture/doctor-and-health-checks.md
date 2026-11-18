@@ -2,6 +2,32 @@
 
 Ze has three tiers of self-diagnosis, and they differ by WHEN they answer.
 
+The pre-config `store-recovery-pending` check reports retained full-store
+recovery staging with `doctor-storage-recovery-pending`. It reads the same
+retained directory authority used to refuse a second recovery source, names
+the first unresolved directory and verifies its durable ownership record. A
+proven source gets a complete quoted restore command with the exact target
+`--path`. The command completes recovery only after all store owners stop.
+<!-- source: internal/component/doctor/doctor_checks.go -- doctorOwnedChecks -->
+<!-- source: internal/component/doctor/checks_storage_recovery.go -- doctorCheckRecoveryPending -->
+<!-- source: internal/component/config/storage/daemon_recovery_manual.go -- PendingRecoveryCommand -->
+
+An unproven or partially cleaned directory gets preservation instructions.
+Store owners must stop, and the operator must verify the intended live store.
+The operator then moves the whole directory outside its configuration directory,
+preserves every byte and overwrites no destination. This resolves
+admission debt and retains unknown material for owner inspection.
+<!-- source: internal/component/doctor/checks_storage_recovery.go -- doctorCheckRecoveryPending -->
+<!-- source: internal/component/config/storage/daemon_recovery_manual.go -- PendingRecoveryCommand -->
+
+Diagnosis leaves all source bytes untouched. Failure to
+inspect the actual store directory is an error finding rather than a healthy
+answer. See [source-owned recovery](storage-backends.md) for the shared
+ownership and import protocol.
+<!-- source: internal/component/doctor/doctor_checks.go -- doctorOwnedChecks -->
+<!-- source: internal/component/doctor/checks_storage_recovery.go -- doctorCheckRecoveryPending -->
+<!-- source: internal/component/config/storage/daemon_recovery_manual.go -- PendingRecoveryCommand -->
+
 | Tier | Command | When the fact is produced |
 |------|---------|---------------------------|
 | Readiness | `ze doctor`, and its daemon form `show doctor` | At read time, by re-probing config and the environment. `show doctor` runs the producer (`doctor.Answer`) inside the daemon, and adds the `runtime`-phase checks and the checks the running plugins declared; `ze doctor` asks the running daemon for that answer and draws it, and runs the config-phase checks in the operator's own process only when no daemon answers |
@@ -21,6 +47,28 @@ and refuses to start when a plugin recorded a HARD failure. A CLI verb never
 reaches `run`, so no `ze` invocation is refused by it: the command that tells
 the operator what is wrong keeps working on a host where the daemon will not
 boot.
+
+## BGP policy absences in the supplied configuration
+
+The `bgp-policy-absence` post-config check uses the same peer walk and resolved
+same-process grant graph as config validation. It reports an ordinary internal
+recipient with no export policy under `doctor-bgp-learned-export-no-policy`:
+Ze sends it no routes learned from other peers, while local announcements remain
+permitted. An eligible explicit role and an unattached internal peer do not get
+this finding. External missing directions retain their RFC8212 explanation under
+`doctor-bgp-rfc8212-no-policy`.
+<!-- source: internal/component/bgp/config/policy_absence_doctor.go -- doctorCheckBGPPolicyAbsences -->
+<!-- source: internal/component/bgp/reactor/policy_absence.go -- PolicyAbsences -->
+
+Each warning names the configured peer or group and the editor command that adds
+its policy. A subsequent check over a supplied configuration with an explicit
+accepting or rejecting policy clears the absence. The check clones the shared
+saved tree before peer resolution. It reports that configuration, not live OPEN
+state or external declarations; the Established warning reads the live captured
+owner separately.
+<!-- source: internal/component/bgp/config/policy_absence_doctor.go -- doctorCheckBGPPolicyAbsences -->
+<!-- source: internal/component/bgp/config/doctor_checks.go -- bgpDoctorChecks -->
+<!-- source: internal/component/bgp/reactor/policy_absence.go -- PolicyAbsences -->
 
 ## The runtime phase: checks only the daemon runs
 
@@ -1025,6 +1073,10 @@ on `web-network-cleanup`, before the service drains history. It names
 per minute. The service still joins history and returns both failures. Startup
 cleanup and standalone shutdown rely on these constituent producers instead of
 logging the joined error again.
+The network grace's own expiration does not raise this event when forced
+closure and request joins complete successfully. Unexpected cancellation,
+transport failures and failed forced closure still raise it; route and history
+cleanup failures retain their separate classifications.
 <!-- source: cmd/ze/hub/register_web_history_diagnostic.go -- reportWebNetworkCleanupFailure -->
 <!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown, runWebOnly, startWebServer -->
 

@@ -42,7 +42,9 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 			ValidateArgString("eager", &defs[3]).Error(),
 			`duplicate keyword "mode"`,
 			missingValueError("router-id").Error(),
-			"required argument missing: selector",
+			"required argument missing: selector\n" +
+				"The command definition makes selector mandatory and supplies no further explanation\n" +
+				"fix: type the command again with selector <selector>",
 		}
 		got := make([]string, 0, len(want))
 		for _, fault := range faults.Faults() {
@@ -57,7 +59,7 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 			"  mode accepts only these values:\n"+
 			"    active\n"+
 			"    passive\n"+
-			"- "+want[2]+"\n- "+want[3]+"\n- "+want[4]+", as in 'selector <selector>'\n"+
+			"- "+want[2]+"\n- "+want[3]+"\n- required argument missing: selector, as in 'selector <selector>'\n"+
 			"fix: correct each fault listed above, then type the command again", err.Error())
 
 		missing, ok := errors.AsType[*MissingArgumentError](err)
@@ -141,7 +143,9 @@ func TestValidateArgsNamesEveryFault(t *testing.T) {
 		got := faults.Faults()
 		require.Len(t, got, 2, "asn is named once, for its missing value")
 		assert.Equal(t, missingValueError("asn").Error(), got[0].Error())
-		assert.Equal(t, "required argument missing: selector", got[1].Error())
+		assert.Equal(t, "required argument missing: selector\n"+
+			"The command definition makes selector mandatory and supplies no further explanation\n"+
+			"fix: type the command again with selector <selector>", got[1].Error())
 	})
 
 	t.Run("a missing leaf's usage is the usage line's value form", func(t *testing.T) {

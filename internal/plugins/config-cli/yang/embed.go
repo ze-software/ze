@@ -4,5 +4,11 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-config-artifact-cmd.yang
+var ZeConfigArtifactCmdYANG string
+
 //go:embed ze-config-cli-cmd.yang
 var ZeConfigCliCmdYANG string
+
+//go:embed ze-config-utilities-cmd.yang
+var ZeConfigUtilitiesCmdYANG string

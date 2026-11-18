@@ -26,6 +26,8 @@ func init() {
 		// content reaches the entry as the placeholder. Its mandatory `name`
 		// leaf is its guard, as `key` is for the key commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-config:data-config-update", Handler: handleDataConfigUpdate, AuditAction: audit.ActionDataConfigImport},
+		pluginserver.RPCRegistration{WireMethod: "ze-config:data-config-rename", Handler: handleDataConfigRename, AuditAction: audit.ActionDataConfigRename},
+		pluginserver.RPCRegistration{WireMethod: "ze-config:data-config-rollback", Handler: handleDataConfigRollback, AuditAction: audit.ActionDataConfigRollback},
 		// A salvage writes a new store on the daemon's host and changes nothing
 		// in the live one, as a backup writes a file, so like the backup it
 		// declares no audit action.

@@ -1,19 +1,23 @@
-// Design: docs/architecture/config/syntax.md — config rollback command
+// Design: docs/architecture/api/commands.md -- indexed config rollback.
 // Overview: main.go — dispatch and exit codes
 
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage/daemonroute"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/resolve"
 )
 
@@ -26,6 +30,10 @@ func cmdRollback(args []string) int {
 }
 
 func cmdRollbackImpl(store storage.Storage, args []string) int {
+	return cmdRollbackThrough(store, args, daemonroute.OverSSH)
+}
+
+func cmdRollbackThrough(store storage.Storage, args []string, ask daemonroute.Ask) int {
 	fs := flag.NewFlagSet("config rollback", flag.ExitOnError)
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -69,18 +77,24 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	var ed *cli.Editor
-	if store == nil {
-		store, err = resolve.StorageFor(fs.Arg(1))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: config rollback: %v\n", err)
+	if store != nil {
+		return rollbackStoredConfig(store, fs.Arg(1), n)
+	}
+	store, err = resolve.StorageFor(fs.Arg(1))
+	if errors.Is(err, storage.ErrBusy) {
+		selected, routeErr := rollbackConfigThroughDaemon(resolve.StoreDir(fs.Arg(1)), fs.Arg(1), n, err, ask)
+		if routeErr != nil {
+			fmt.Fprintln(os.Stderr, "error:", rollbackRouteRefusal(routeErr, fs.Arg(1)))
 			return exitError
 		}
-		defer store.Close() //nolint:errcheck // Offline ownership.
-		ed, err = cli.NewLooseFileEditor(store, fs.Arg(1))
-	} else {
-		ed, err = cli.NewEditorWithStorage(store, fs.Arg(1))
+		return printConfigRollback(n, selected)
 	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: config rollback: %v\n", err)
+		return exitError
+	}
+	defer store.Close() //nolint:errcheck // Offline ownership.
+	ed, err := cli.NewLooseFileEditor(store, fs.Arg(1))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -110,6 +124,35 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	fmt.Printf("Rolled back to revision %d (%s)\n", n, backups[n-1].Timestamp.Format("2006-01-02 15:04:05"))
+	return printConfigRollback(n, backups[n-1].Timestamp)
+}
+
+// rollbackStoredConfig leaves selection and publication inside one owner
+// transaction. Selecting first could let concurrent history change the index.
+func rollbackStoredConfig(store storage.Storage, name string, revision int) int {
+	var selected storage.VersionInfo
+	err := confirm.WriteOutsideRecorded(store, name, func() error {
+		var rollbackErr error
+		selected, _, rollbackErr = storage.RollbackConfig(store, name, revision)
+		return rollbackErr
+	})
+	if err != nil {
+		// Keep the recorded window's boot recovery command on the final line.
+		if stopped, recorded := err.(*confirm.StoppedWindowError); recorded { //nolint:errorlint // WriteOutsideRecorded returns this refusal directly, before apply.
+			var refusal *opererr.Error = stopped.OperatorError()
+			fmt.Fprintln(os.Stderr, "error:", refusal)
+			return exitError
+		}
+		fmt.Fprintln(os.Stderr, "error:", opererr.Wrap(err,
+			"ze config rollback: the stored rollback could not finish",
+			"The requested publication was not confirmed. Inspect its history before retrying.",
+			configRollbackHistoryLine(name)))
+		return exitError
+	}
+	return printConfigRollback(revision, selected.Date)
+}
+
+func printConfigRollback(revision int, selected time.Time) int {
+	fmt.Printf("Rolled back to revision %d (%s)\n", revision, selected.Format("2006-01-02 15:04:05"))
 	return exitOK
 }

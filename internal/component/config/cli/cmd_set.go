@@ -4,16 +4,12 @@
 package cli
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"slices"
 
-	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/helpfmt"
-	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -77,8 +73,6 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	// Parse path: last = value, second-to-last = key, rest = container path
 	value := setArgs[len(setArgs)-1]
 	path := setArgs[:len(setArgs)-1]
-	key := path[len(path)-1]
-	containerPath := path[:len(path)-1]
 
 	if *backupPath != "" {
 		if *reload {
@@ -104,35 +98,8 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 		ed.SetCommitWriter(publishInBackup(store, configPath))
 	}
 
-	// Validate value against YANG schema
-	completer, err := cli.NewCompleter()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return exitError
-	}
-	if err := completer.ValidateValueAtPath(path, value); err != nil {
-		// A refusal names what it refused, so the message carries the value.
-		// The operator still reads which rule the value broke.
-		fmt.Fprintf(os.Stderr, "error: %s\n", ed.DisplayMessageAtPath(path, err.Error(), value))
-		return exitError
-	}
-
-	// Apply the set
-	if err := ed.SetValue(containerPath, key, value); err != nil {
-		// A key refusal keeps the rest of the command, including a secret
-		// assignment. Mask that operand before building the typed fix.
-		displayArgs := slices.Clone(setArgs)
-		displayArgs[len(displayArgs)-1] = ed.DisplayValueAtPath(path, value)
-		var placeholders []int
-		if displayArgs[len(displayArgs)-1] != value {
-			placeholders = append(placeholders, len(displayArgs)-1)
-		}
-		framed := cli.FramedKeyRefusal(err, "set", nil, displayArgs, nil, placeholders...)
-		if refusal, ok := errors.AsType[*opererr.Error](framed); ok {
-			fmt.Fprintln(os.Stderr, "error:", refusal)
-			return exitError
-		}
-		fmt.Fprintf(os.Stderr, "error: set failed: %v\n", err)
+	if err := applyConfigSet(ed, setArgs); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
 		return exitError
 	}
 

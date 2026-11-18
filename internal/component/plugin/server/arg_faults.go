@@ -37,7 +37,8 @@ func (e *selectorMissing) Unwrap() error {
 }
 
 // restateArgumentFaults answers faults, the list command.ValidateArgs refused
-// matchedCmd's line with (several faults, or one value its leaf refuses), as
+// matchedCmd's line with (several faults, one value its leaf refuses, or one
+// missing mandatory argument), as
 // the operator should read it. A value fault names matchedCmd's path before its
 // argument, and the fix writes the value that replaces it.
 //

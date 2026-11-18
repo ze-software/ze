@@ -8,7 +8,6 @@ package cli
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"regexp"
@@ -18,12 +17,13 @@ import (
 	"github.com/ze-software/ze/internal/component/config/secret"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // secretActions maps each `ze secret` action to the codec call it makes. The
 // registered Subs and the unknown-action refusal both derive from it.
-var secretActions = map[string]func(string) (string, error){
+var secretActions = map[string]func(string) (string, *opererr.Error){
 	"decode": decodeSecret,
 	"encode": encodeSecret,
 }
@@ -82,7 +82,7 @@ func runSecret(args []string, stdout, stderr io.Writer) int {
 	}
 	answer, err := transform(value)
 	if err != nil {
-		writeSecretLines(stderr, err.Error())
+		writeSecretLines(stderr, "error: "+err.Error())
 		return exitInvalid
 	}
 	writeSecretLines(stdout, answer)
@@ -123,8 +123,7 @@ func readSecretOperand(action string, operands []string, stderr io.Writer) (stri
 				"  ze secret "+action+" '<value>'")
 			return "", exitError
 		}
-		value := strings.TrimSuffix(string(data), "\n")
-		return strings.TrimSuffix(value, "\r"), exitOK
+		return trimSecretLineEnding(string(data)), exitOK
 	}
 	if strings.HasPrefix(operand, "-") {
 		writeSecretLines(stderr,
@@ -136,39 +135,48 @@ func readSecretOperand(action string, operands []string, stderr io.Writer) (stri
 	return operand, exitOK
 }
 
+// trimSecretLineEnding is the stdin rule, also selected explicitly by callers
+// supplying bytes to the daemon: remove at most one LF and then one CR.
+func trimSecretLineEnding(value string) string {
+	return strings.TrimSuffix(strings.TrimSuffix(value, "\n"), "\r")
+}
+
 // decodeSecret returns the plaintext behind a $9$ value, or an error that says
 // why the value cannot be decoded and what to do instead.
-func decodeSecret(value string) (string, error) {
+func decodeSecret(value string) (string, *opererr.Error) {
 	if value == "" {
-		return "", errors.New("error: the value to decode is empty.\n" +
-			"Copy the whole $9$ value from the config, in single quotes:\n" +
-			"  ze secret decode '$9$...'")
+		return "", opererr.New("the value to decode is empty.",
+			"Copy the whole $9$ value from the config, in single quotes.",
+			"ze secret decode '$9$...'")
 	}
 	if !secret.IsEncoded(value) {
 		return "", notEncodedError(value)
 	}
 	plain, err := secret.Decode(value)
 	if err != nil {
-		return "", errors.New("error: the value is not a valid $9$ secret: " + decodeFailureReason(err) + ".\n" +
-			"It was probably cut short, or the shell changed it: an unquoted $ starts a shell variable.\n" +
-			"Copy the whole value from the config again, in single quotes:\n" +
-			"  ze secret decode '$9$...'")
+		return "", opererr.New("the value is not a valid $9$ secret: "+decodeFailureReason(err)+".",
+			"Copy the whole value again, in single quotes; an unquoted $ starts a shell variable.",
+			"ze secret decode '$9$...'")
 	}
 	return plain, nil
 }
 
 // notEncodedError explains a value without the $9$ prefix. A one-way password
 // hash gets its own message, because no command can recover its password.
-func notEncodedError(value string) error {
+func notEncodedError(value string) *opererr.Error {
 	if match := secretHashFormat.FindStringSubmatch(value); match != nil {
-		return errors.New("error: the value is a one-way password hash ($" + match[1] + "$), not a $9$ secret.\n" +
-			"A hash keeps no copy of the password, so it cannot be decoded.\n" +
-			"To replace the password, set a new one:\n" +
-			"  ze config set <file> <path> '<new-password>'")
+		problem := "the value is a one-way password hash, not a $9$ secret."
+		switch match[1] {
+		case "1", "2a", "2b", "2y", "5", "6", "y":
+			problem = "the value is a one-way password hash ($" + match[1] + "$), not a $9$ secret."
+		}
+		return opererr.New(problem,
+			"A hash keeps no copy of the password, so it cannot be decoded. Set a new password instead.",
+			"ze config set <file> <path> '<new-password>'")
 	}
-	return errors.New("error: the value does not start with $9$, so it is not a Ze secret.\n" +
-		"Copy the whole value from the config, with its $9$ prefix, in single quotes:\n" +
-		"  ze secret decode '$9$...'")
+	return opererr.New("the value does not start with $9$, so it is not a Ze secret.",
+		"Copy the whole value from the config, with its $9$ prefix, in single quotes.",
+		"ze secret decode '$9$...'")
 }
 
 // decodeFailureReason names, in the operator's terms, what the codec found
@@ -186,23 +194,19 @@ func decodeFailureReason(err error) string {
 // encodeSecret returns the $9$ form of a plaintext. A value that already
 // carries the $9$ prefix is refused, because the config reads such a value as
 // encoded and would never see the plaintext it was meant to hold.
-func encodeSecret(value string) (string, error) {
+func encodeSecret(value string) (string, *opererr.Error) {
 	if value == "" {
-		return "", errors.New("error: the value to encode is empty.\n" +
-			"Pass the plaintext in single quotes:\n" +
-			"  ze secret encode '<plaintext>'")
+		return "", opererr.New("the value to encode is empty.",
+			"Pass the plaintext in single quotes.", "ze secret encode '<plaintext>'")
 	}
 	if secret.IsEncoded(value) {
-		return "", errors.New("error: the value already starts with $9$, so it is already encoded.\n" +
-			"To read its plaintext, decode it:\n" +
-			"  ze secret decode '" + value + "'")
+		return "", opererr.New("the value already starts with $9$, so it is already encoded.",
+			"To read its plaintext, decode it.", "ze secret decode '$9$...'")
 	}
 	encoded, err := secret.Encode(value)
 	if err != nil {
-		return "", fmt.Errorf("error: ze could not encode the value, because the system random source failed.\n"+
-			"Run the command again. If it keeps failing, check the host:\n"+
-			"  ze doctor\n"+
-			"cause: %w", err)
+		return "", opererr.Wrap(err, "Ze could not encode the value because the system random source failed.",
+			"Run the command again. If it keeps failing, check the host.", "ze doctor")
 	}
 	return encoded, nil
 }

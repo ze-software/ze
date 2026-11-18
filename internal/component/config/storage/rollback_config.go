@@ -5,9 +5,7 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -51,12 +49,8 @@ func admitConfigRollbackLocked(held WriteGuard, name string) error {
 		{zefs.KeyConfigConfirmPending.Key(name), "confirmed-commit record"},
 		{zefs.KeyConfigFileCommit.Key(name), "file commit"},
 	} {
-		_, readErr := held.ReadKey(intent.key)
-		if readErr == nil {
-			return fmt.Errorf("rollback configuration %s: an unfinished %s must be recovered first", name, intent.explanation)
-		}
-		if !errors.Is(readErr, fs.ErrNotExist) {
-			return fmt.Errorf("rollback configuration %s: read %s: %w", name, intent.key, readErr)
+		if err := refuseConfigIntentLocked(held, intent.key, intent.explanation); err != nil {
+			return fmt.Errorf("rollback configuration %s: %w", name, err)
 		}
 	}
 	return nil

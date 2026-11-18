@@ -44,7 +44,7 @@ import (
 // the daemon (registry.Meta.DaemonPath), and the handler is served there. A
 // declared daemon path no YANG node carries is refused: the command would
 // reach no remote surface while its declaration reads as served.
-func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) error {
+func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) error {
 	declared := make(map[string]string)
 	for wire, paths := range wireToPaths {
 		for _, path := range paths {
@@ -84,6 +84,7 @@ func loadLocalData(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, p
 			continue // A shorter data path covers it; that path is served on its own.
 		}
 		if err := d.RegisterWithOptions(servedAt, localDataHandler(servedAt, handler), pathToDesc[servedAt], RegisterOptions{
+			Hidden:      command.HiddenAtPath(cmdTree, strings.Fields(servedAt)),
 			ReadOnly:    IsReadOnlyPath(servedAt) && !entry.Meta.NotReadOnly,
 			ArgDefs:     pathToArgDefs[servedAt],
 			Description: pathToHelp[servedAt],

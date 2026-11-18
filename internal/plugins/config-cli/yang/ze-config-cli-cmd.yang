@@ -5,6 +5,7 @@ module ze-config-cli-cmd {
     // These handlers inspect, compare, and format configuration files through
     // the config backend. See ai/rules/plugin-self-containment.md.
     description "The show config command tree, owned by the config CLI.";
+    revision 2026-11-17 { description "Expose supplied conversion, repair plans and masked source inspection through shared producers."; }
     revision 2026-11-16 { description "Add bounded caller-supplied configuration inspection and comparison through the same command handlers on every surface."; }
     revision 2026-11-02 { description "Declare strip-private on show config dump, and check and diff on show config fmt, so every surface can make those choices."; }
     revision 2026-10-24 { description "Add show config running, the configuration the daemon applied, answered by the daemon."; }
@@ -50,6 +51,52 @@ characters. The default is supplied.conf. No file is opened or written.";
         }
     }
 
+    grouping source-file {
+        leaf file {
+            type string { length "1..4096"; }
+            mandatory true;
+            description "A configuration filename on the answering host. The local route also
+accepts - for stdin. Daemon routes confine the path to configured directories.";
+            ze:help "Configuration filename on the answering host.";
+        }
+    }
+
+    grouping source-path {
+        leaf path {
+            type string { length "1..4096"; }
+            description "A quoted sequence of configuration path words, including quoted list
+keys where needed. It selects a subtree and never names a file.";
+            ze:help "Configuration path, such as bgp peer edge.";
+        }
+    }
+
+    grouping output-form {
+        leaf format {
+            type enumeration {
+                enum set { ze:help "Write flat set commands."; }
+                enum hierarchical { ze:help "Write nested configuration blocks."; }
+            }
+            default set;
+            description "The output form. Both forms preserve values and hash plaintext
+passwords through the same producer used by ze config migrate.";
+            ze:help "Output form: set or hierarchical.";
+        }
+    }
+
+    grouping detached-preview {
+        leaf dry-run {
+            type empty;
+            description "Return the masked difference without serializing a changed configuration.
+Every form remains detached and never publishes into a file or live candidate.";
+            ze:help "Return only the masked change preview.";
+        }
+    }
+
+    grouping detached-change {
+        uses supplied-content;
+        uses detached-preview;
+    }
+
     container show {
         config false;
         ze:help "Read-only commands to inspect system, protocol, and network state.";
@@ -60,12 +107,157 @@ characters. The default is supplied.conf. No file is opened or written.";
                          against a production router.";
             ze:help "Inspect, compare, and format configuration.";
 
+            container set {
+                config false;
+                ze:command "ze-config-cli:show-config-set";
+                description "Read a confined source file and apply one base64-encoded set command.
+The transformed text is returned without changing the source or live candidate.";
+                ze:help "Return a detached file transformed by one set command.";
+                uses source-file;
+                uses detached-change;
+            }
+
+            container activate {
+                config false;
+                ze:command "ze-config-cli:show-config-activate";
+                description "Read a confined source file and apply one base64-encoded activate command.
+The transformed text is returned without changing the source or live candidate.";
+                ze:help "Return a detached file transformed by one activate command.";
+                uses source-file;
+                uses detached-change;
+            }
+
+            container deactivate {
+                config false;
+                ze:command "ze-config-cli:show-config-deactivate";
+                description "Read a confined source file and apply one base64-encoded deactivate command.
+The transformed text is returned without changing the source or live candidate.";
+                ze:help "Return a detached file transformed by one deactivate command.";
+                uses source-file;
+                uses detached-change;
+            }
+
+            container replace {
+                config false;
+                ze:command "ze-config-cli:show-config-replace";
+                description "Read a confined source file and validate base64-encoded replacement bytes
+against it. Return shared-editor serialization without publishing the replacement.";
+                ze:help "Return a validated detached replacement of a file.";
+                uses source-file;
+                uses detached-change;
+            }
+
+            container migrate {
+                config false;
+                ze:command "ze-config-cli:show-config-migrate";
+                description "Read a confined configuration file and convert its written form.
+The result is returned as text; the source file is never rewritten.";
+                ze:help "Convert a configuration file between its two written forms.";
+                uses source-file;
+                uses output-form;
+            }
+
+            container fix-plan {
+                config false;
+                ze:command "ze-config-cli:show-config-fix-plan";
+                description "Read a confined configuration file and return its validation
+diagnostics and repair candidates without applying a repair.";
+                ze:help "Plan configuration repairs without applying them.";
+                uses source-file;
+            }
+
+            container source {
+                config false;
+                ze:command "ze-config-cli:show-config-source";
+                description "Read a confined configuration file and display its unexpanded
+source tree with parsed secret leaves masked, optionally at a selected path.";
+                ze:help "Display a file's masked source tree at an optional path.";
+                uses source-file;
+                uses source-path;
+            }
+
+            container environment-validation {
+                config false;
+                ze:command "ze-config-cli:show-config-environment-validation";
+                description "Check explicitly set registered environment values against their types
+and report range failures recorded by their readers. Only this process's
+environment is judged; no configuration file or candidate is changed.";
+                ze:help "Check environment values the answering process cannot use.";
+            }
+
             container supplied {
                 config false;
                 description "Inspect caller-held configuration through the normal command channel.
 Nothing is staged, applied, loaded into the daemon environment, or written to a
 file. Native input syntax and answer masking match the existing file readers.";
                 ze:help "Inspect configuration supplied as bytes by the caller.";
+
+                container set {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-set";
+                    description "The content JSON contains before configuration and after holding exactly
+one set command. Both sources and assigned values stay inside masked content.
+Return the transformed text without changing a file or live candidate.";
+                    ze:help "Transform detached configuration with one set command.";
+                    uses detached-change;
+                }
+
+                container activate {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-activate";
+                    description "The content JSON contains before configuration and after holding exactly
+one activate command. Return the changed text without publishing it anywhere.";
+                    ze:help "Transform detached configuration with one activate command.";
+                    uses detached-change;
+                }
+
+                container deactivate {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-deactivate";
+                    description "The content JSON contains before configuration and after holding exactly
+one deactivate command. Return the changed text without publishing it anywhere.";
+                    ze:help "Transform detached configuration with one deactivate command.";
+                    uses detached-change;
+                }
+
+                container replace {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-replace";
+                    description "The content JSON contains before and after configuration text.
+Validate the replacement transition and return shared-editor serialization.
+No source file, store or live candidate is changed.";
+                    ze:help "Validate and serialize a detached configuration replacement.";
+                    uses detached-change;
+                }
+
+                container migrate {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-migrate";
+                    description "Convert current configuration bytes between set commands and nested
+blocks through the local converter. No file or candidate is written.";
+                    ze:help "Convert supplied configuration between its two written forms.";
+                    uses supplied-source;
+                    uses output-form;
+                }
+
+                container fix-plan {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-fix-plan";
+                    description "Validate supplied bytes and report diagnostic repair candidates.
+An invalid configuration still answers its plan; nothing is applied.";
+                    ze:help "Plan repairs for supplied configuration without applying them.";
+                    uses supplied-source;
+                }
+
+                container source {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-source";
+                    description "Display a source tree before inheritance resolution, with parsed
+secret leaves masked. An unparseable whole source is returned for repair.";
+                    ze:help "Read the masked source tree at an optional path.";
+                    uses supplied-source;
+                    uses source-path;
+                }
 
                 container dump {
                     config false;
@@ -171,6 +363,12 @@ revisions to review what changed before you roll back.";
                 description "Shows revisions with timestamps and commit metadata. Pair with 'show config
 diff' to review changes before rolling back.";
                 ze:help "List available configuration rollback points.";
+                leaf file {
+                    type string { length "1..4096"; }
+                    mandatory true;
+                    description "The configuration whose stored revision history is listed. Standard input has no revision history.";
+                    ze:help "Configuration file whose revisions are listed.";
+                }
             }
 
             container list {
@@ -241,6 +439,11 @@ applied.";
                     mandatory true;
                     description "The config file to check, or - to read it on stdin.";
                     ze:help "Config file path, or - for stdin.";
+                }
+                leaf pending {
+                    type empty;
+                    description "Check the saved <file>.draft source instead of the committed file. The daemon confines the draft path itself, including symbolic links.";
+                    ze:help "Validate the saved draft beside the selected file.";
                 }
             }
         }

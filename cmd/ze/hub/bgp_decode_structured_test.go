@@ -48,7 +48,7 @@ func decodedMessageType(t *testing.T, output string) string {
 // human text (outputJSON=false) and every format operator passed it through
 // unchanged, so an operator asking for JSON got the text rendering.
 func TestBGPDecodePayloadRendersInEveryFormat(t *testing.T) {
-	dispatch := withBGPDecode(nil)
+	_, dispatch := standaloneCommandFixture(t)
 	rendered, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode "+keepaliveHex)
 	defer rendered.TransportComplete()
 	if pluginreg.GetPacketDecoder() == nil {
@@ -61,7 +61,7 @@ func TestBGPDecodePayloadRendersInEveryFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	payload := rendered.Output
-	require.Equal(t, "keepalive", decodedMessageType(t, payload))
+	require.Equal(t, "keepalive", decodedNativeMessageType(t, payload))
 
 	for _, tc := range []struct {
 		format string
@@ -121,14 +121,14 @@ func TestBGPDecodeTextPayloadRendersInNoFormat(t *testing.T) {
 	}
 }
 
-// TestBGPDecodeReportsADecoderError proves the wrapper fails closed on bad
+// TestBGPDecodeReportsADecoderError proves the native command fails closed on bad
 // input: the decoder's error reaches the caller instead of an empty or
 // half-structured response.
 //
 // VALIDATES: ai/rules/evidence.md -- a guard fails closed or says something.
 // PREVENTS: an unreadable hex string producing an empty success payload.
 func TestBGPDecodeReportsADecoderError(t *testing.T) {
-	dispatch := withBGPDecode(nil)
+	_, dispatch := standaloneCommandFixture(t)
 	rendered, err := dispatch.JSON(context.Background(), wodCaller, "show bgp decode ZZZZ")
 	defer rendered.TransportComplete()
 	require.Error(t, err)

@@ -157,7 +157,9 @@ func TestValidateArgsMissingMandatoryReportsBinding(t *testing.T) {
 	if !errors.As(err, &missing) {
 		t.Fatalf("err = %v, want *MissingArgumentError", err)
 	}
-	if err.Error() != "required argument missing: label" {
+	if err.Error() != "required argument missing: label\n"+
+		"The command definition makes label mandatory and supplies no further explanation\n"+
+		"fix: type the command again with label <label>" {
 		t.Errorf("text = %q", err.Error())
 	}
 	if value, found := missing.Positional("selector"); !found || value != "peer-a" {

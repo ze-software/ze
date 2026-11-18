@@ -523,35 +523,43 @@ func discardPathNothingPending(path []string) error {
 // Diff returns a textual diff of the user's pending changes, with every secret
 // value masked. It is the ONE diff the web renders: the commit page, the review
 // modal, the audit detail and the terminal all read it.
-// Returns an empty string if no session exists or no changes are pending.
-//
-// The editor's own text diff is NOT used. That one compares serialized config
-// content, so it carries the stored value of every ze:sensitive leaf, and no
-// leaf identity survives in it to mask by. Every editor this manager creates is
-// given a session (GetOrCreate), and a session change names the leaf it edited.
-func (m *EditorManager) Diff(username string) string {
+// An absent session has no pending intent. A storage or rendering failure
+// returns an operator error, which callers MUST handle before publication or
+// audit. Unreadable saved intent keeps the existing private recovery notice.
+func (m *EditorManager) Diff(username string) (string, error) {
 	m.mu.RLock()
 	us, ok := m.sessions[username]
 	m.mu.RUnlock()
 
 	if !ok {
-		return ""
+		return "", nil
 	}
 
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	sid := us.editor.SessionID()
-	if sid == "" {
-		return ""
+	review, err := us.editor.PendingReview(nil)
+	if err != nil {
+		return "", editorReviewRefusal(err)
 	}
+	return review, nil
+}
 
-	changes := us.editor.PendingChanges(sid)
-	if len(changes) == 0 {
-		return ""
+// editorReviewRefusal owns the browser review boundary. Check corrupt intent
+// before displaying any parser evidence; a direct native refusal already owns
+// its complete recovery. Other errors keep their whole cause, including every
+// independent cleanup failure in a join.
+func editorReviewRefusal(err error) *opererr.Error {
+	if cli.IsCorruptChangeFile(err) {
+		return editorSessionRefusal(err)
 	}
-
-	return m.diffChanges(changes)
+	if refusal, ok := err.(*opererr.Error); ok {
+		return refusal
+	}
+	return opererr.Wrap(err,
+		"Your pending configuration changes could not be reviewed.",
+		"No review was published; your edits remain pending until the configuration or storage problem is repaired.",
+		"Run ze show doctor, then reopen /config/commit/")
 }
 
 // discardDiff reads this user's browser intent without opening an active
@@ -578,7 +586,7 @@ func (m *EditorManager) discardDiff(username string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return m.diffChanges(changes), nil
+	return cli.RenderPendingChanges(m.schema, changes)
 }
 
 // validateEditorUsername keeps every editor factory behind the same identity
@@ -591,81 +599,6 @@ func validateEditorUsername(username string) error {
 			"Ask an administrator to configure an account with a permitted username, then sign in with that account")
 	}
 	return nil
-}
-
-// diffChanges is the masked renderer shared by the session review and discard audit.
-func (m *EditorManager) diffChanges(changes []contract.PendingChange) string {
-	var b textbuf.Buffer
-	for _, change := range changes {
-		previous := m.maskChangeValue(change.Path, change.Previous)
-		value := m.maskChangeValue(change.Path, change.Value)
-
-		switch change.Kind {
-		case contract.PendingChangeRename:
-			b.Str("~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
-			continue
-		case contract.PendingChangeCopy:
-			b.Str("+ copy ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
-			continue
-		case contract.PendingChangeDelete:
-			b.Str("- ").Str(change.Path).Byte(' ')
-			if change.Member == "" {
-				b.Str(previous)
-			} else {
-				b.Str(change.Member)
-			}
-			b.Byte('\n')
-			continue
-		case contract.PendingChangeDeactivate:
-			writeMemberDiffLine(&b, "~ deactivate ", change)
-			continue
-		case contract.PendingChangeActivate:
-			writeMemberDiffLine(&b, "~ activate ", change)
-			continue
-		case contract.PendingChangeSet:
-			// Render the value change below.
-		default:
-			panic("BUG: unknown editor pending change kind")
-		}
-		if change.Previous != "" {
-			b.Str("- ").Str(change.Path).Byte(' ').Str(previous).Byte('\n')
-		}
-		b.Str("+ ").Str(change.Path).Byte(' ').Str(value).Byte('\n')
-	}
-	return b.String()
-}
-
-// maskChangeValue answers the value one pending change renders. The change
-// names the leaf it edited, so the schema decides, exactly as it does for a
-// rendered field (secret.go). Without it a commit review publishes the secret
-// the operator replaced, and the new one beside it.
-//
-// A leaf-list member needs no mask: ValueOrArrayNode carries neither
-// ze:sensitive nor ze:bcrypt, so the schema cannot mark one as a secret.
-func (m *EditorManager) maskChangeValue(path, value string) string {
-	if value == "" || m.schema == nil {
-		return value
-	}
-
-	segments, err := config.ParseEditPath(path)
-	if err != nil {
-		return config.SecretDataPlaceholder
-	}
-	if len(segments) == 0 {
-		return value
-	}
-
-	return maskSecretLeaf(findLeafNode(m.schema, segments[:len(segments)-1], segments[len(segments)-1]), value)
-}
-
-// writeMemberDiffLine writes a "<verb> <path> <member>" diff line for a
-// leaf-list member deactivation or activation.
-func writeMemberDiffLine(b *textbuf.Buffer, verb string, change contract.PendingChange) {
-	b.Str(verb).Str(change.Path)
-	if change.Member != "" {
-		b.Byte(' ').Str(change.Member)
-	}
-	b.Byte('\n')
 }
 
 // pendingChangePaths returns the YANG paths of every pending change in the

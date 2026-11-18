@@ -204,7 +204,8 @@ func TestPendingRowsKeepEditorQuotedKey(t *testing.T) {
 func TestQuotedKeyCommitReviewMasksSecret(t *testing.T) {
 	mgr, terminal := newYANGTerminal(t)
 	webTerminalLine(t, terminal, "", `set bgp group "secret key?/%雪" connection md5 password browser-private-sentinel`)
-	review := mgr.Diff("testuser")
+	review, err := mgr.Diff("testuser")
+	require.NoError(t, err)
 	assert.Contains(t, review, config.SecretDataPlaceholder)
 	assert.NotContains(t, review, "browser-private-sentinel")
 }

@@ -15,6 +15,8 @@ import (
 // leafless static route used by the IPsec showcase and a directly created dummy.
 // The candidate tree must keep the entry, not just its nonempty sibling's leaves.
 func TestSessionEmptyEntryCommit(t *testing.T) {
+	// The IPsec fixture describes the production Linux schema, independent of the test host.
+	t.Cleanup(config.SetSchemaOSForTest("linux"))
 	for _, candidate := range []bool{false, true} {
 		for _, merge := range []bool{false, true} {
 			name := "direct"

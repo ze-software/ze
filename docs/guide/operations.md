@@ -136,10 +136,11 @@ commands expose decoded values, never the tree's framing bytes.
 | `ze data repair --output <path>` | Copy recoverable keys into a new destination; runs while ze runs, and installing the copy needs ze stopped |
 | `ze data backup <file> [spare <n>]` | Copy every key to one exact-fit 0600 blob artifact under the store lock; offline only |
 | `ze data restore <file> config [name <source-name>]` | Commit the artifact's config as a new active version; offline only |
-| `ze data restore <file> full` | Replace the whole tree with the artifact's keys; the previous tree is kept as `database.replaced-<stamp>` and the artifact is unchanged; offline only |
+| `ze data restore <file> full` | Offline, replace the whole tree with the artifact's keys, keeping the previous tree as `database.replaced-<stamp>` and the artifact unchanged. While a daemon owns the selected store, request verified recovery through that owner; replacement follows clean teardown. |
 | `request data backup path <absolute-file> [spare <n>] [force]` | Live backup of the daemon's store, written on the daemon's host |
 | `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it; refused while a `commit confirmed` window is open |
 | `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |
+| `request data restore path <absolute-file> full` | Accept a verified complete copy for recovery after clean shutdown and successful store close; response delivery triggers the existing restart, and acceptance is distinct from completion |
 | `delete data key <key>` | Live removal of one runtime-state key (under `meta/` outside `meta/config/`) through the daemon's own store; a configuration key, a key whose granted plugin runs, and an absent key are refused |
 | `update data key <key> content <base64>` | Live write of one runtime-state key, created or replaced with the decoded bytes; `content` is at most 261,120 base64 characters (195,840 bytes, one SSH packet with the command); refused as `delete data key` refuses, and recorded with `<redacted>` for the content |
 | `update data config name <name> content <base64>` | Live import of one config as a new version: for the daemon's own config, staged and active only when the reload accepts it, refused while a `commit confirmed` window is open or a change is staged; for another name, committed with no reload; `content` has the bound of `update data key`, and a larger config is restored with `request data restore path <file> config` |
@@ -151,6 +152,22 @@ commands expose decoded values, never the tree's framing bytes.
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyDelete -->
 <!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- handleDataRepair -->
 <!-- source: internal/component/config/storage/cli/storage_data.go -- dataCheck -->
+<!-- source: internal/component/config/storage/cli/data_rpc_full_restore.go -- acceptFullRestore, fullRestoreLifecycleUnavailable -->
+
+A full daemon restore requires the outer live-tree lifetime installed by
+`ze start`. It first makes an independent verified source. After its accepted
+response is delivered, the daemon drains and stops normally. The store is
+replaced only after all runtime borrowers return and the original writer closes
+successfully. An unclean result prevents replacement. Exit 75 keeps the existing
+supervisor restart contract; a foreground caller must start Ze again. A failed
+recovery retains its private source and names the command that finishes it.
+`config`, `name` and `client` cannot be combined with `full`.
+
+When a daemon owns the selected store, local `ze data restore <file> full`
+sends that same request to its owner. The local command confirms the source,
+digest, byte count and restart status in the acceptance receipt before reporting
+success. This confirms acceptance; completion still follows clean teardown.
+<!-- source: internal/component/config/storage/cli/cmd_restore.go -- restoreFullThroughDaemon, fullRestoreAnswer.matches -->
 
 ### Connection
 

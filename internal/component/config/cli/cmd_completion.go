@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -11,8 +12,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -85,28 +88,60 @@ func completerFor(configPath string) (*cli.Completer, *config.Tree, int) {
 		return nil, nil, exitError
 	}
 
-	// Before the completer is built: it takes the module set it finds, and
-	// this step fixes that set. With no daemon it is the compiled-in one: no
-	// plugin is started, so an external plugin's section is not completed.
-	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data), Path: configPath})
+	completer, tree, err := completerForBytes(data, configPath)
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "%v", err)
 		return nil, nil, exitError
+	}
+	return completer, tree, exitOK
+}
+
+// completerForBytes selects the available schema and parses caller-held bytes.
+// It starts no declared program and never renders private source fragments in
+// a refusal. Local files, stdin and supplied requests use this same policy.
+func completerForBytes(data []byte, label string) (*cli.Completer, *config.Tree, error) {
+	// Before the completer is built: it takes the module set it finds, and
+	// this step fixes that set. With no daemon it is the compiled-in one: no
+	// plugin is started, so an external plugin's section is not completed.
+	schema, _, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data), Path: label})
+	if err != nil {
+		return nil, nil, completionError(err, "the configuration schema is unavailable")
 	}
 
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		helpfmt.WriteError(os.Stderr, false, "parsing config: %v", declared.Explain(err))
-		return nil, nil, exitError
+		return nil, nil, completionError(err, "the configuration does not match the available schema")
 	}
 
 	completer, err := cli.NewCompleter()
 	if err != nil {
-		helpfmt.WriteError(os.Stderr, false, "completion: %v", err)
-		return nil, nil, exitError
+		return nil, nil, completionError(err, "the completion schema is unavailable")
 	}
-	return completer, tree, exitOK
+	return completer, tree, nil
+}
+
+// completionError retains typed location and schema constraints, never the
+// parser's source text, keyed path, supplied value or declared-program text.
+func completionError(err error, problem string) error {
+	var message textbuf.Buffer
+	message.Str("configuration completion: ").Str(problem)
+	line, _ := config.SplitLine(err)
+	if line > 0 {
+		message.Str(" at line ").Int(int64(line))
+	}
+	var validation *configyang.ValidationError
+	if errors.As(err, &validation) {
+		// Only these kinds carry a schema-derived constraint safe to show.
+		//exhaustive:ignore
+		switch validation.Type {
+		case configyang.ErrTypeEnum, configyang.ErrTypeRange, configyang.ErrTypeLength, configyang.ErrTypeType:
+			message.Str("; expected ").Str(validation.Expected)
+		}
+	}
+	return opererr.New(message.String(),
+		"Check the configuration syntax and the schema available to Ze; completion starts no external plugin.",
+		"ze config validate <file>")
 }
 
 func cmdCompletion(args []string) int {
@@ -124,7 +159,7 @@ func cmdCompletion(args []string) int {
 		fmt.Println(completer.GhostText(tree, request.input, request.context))
 		return exitOK
 	}
-	return printCompletions(completer.Complete(tree, request.input, request.context))
+	return printCompletions(completionCandidates(completer.Complete(tree, request.input, request.context)))
 }
 
 func completionUsage() {
@@ -155,7 +190,7 @@ func completionUsage() {
 }
 
 // printCompletions writes the completion candidates for a reader.
-func printCompletions(completions []cli.Completion) int {
+func printCompletions(completions []completionCandidate) int {
 	var line textbuf.Buffer
 	for _, comp := range completions {
 		line.Reset()

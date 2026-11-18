@@ -6,7 +6,6 @@ package hub
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -28,7 +27,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/system"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
-	pluginreg "github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve"
 	zeweb "github.com/ze-software/ze/internal/component/web"
@@ -151,7 +149,7 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 	return newWebService(webSrv, broker, editors), nil
 }
 
-func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
+func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) (exit int) {
 	resolvers, unwatchResolvers := newResolvers(&system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
 	defer resolvers.Close()
 	defer unwatchResolvers()
@@ -171,18 +169,51 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	if listenAddr != "" {
 		listenAddrs = []string{listenAddr}
 	}
-	ring := pluginserver.NewEventRing(128)
+	commands, commandErr := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	if commandErr != nil {
+		refusal := opererr.Wrap(commandErr, "The web interface could not prepare its commands.",
+			"No web server was started, and no configuration was applied.", "ze show doctor")
+		fmt.Fprintf(os.Stderr, "error: %v\n", refusal)
+		return 1
+	}
+	sigCh := make(chan os.Signal, 2) //nolint:mnd // buffer 2: graceful + force
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	var service *webService
+	var forceDone chan struct{}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer shutdownCancel()
+		cleanupError := shutdownWebOnly(shutdownCtx, service, commands)
+		// Accepted response callbacks finish in the web join, so neither a
+		// command nor signal delivery can send after this channel closes.
+		releaseForceSignals(sigCh)
+		if forceDone != nil {
+			<-forceDone
+		}
+		if cleanupError != nil {
+			refusal := opererr.Wrap(cleanupError, "The web interface could not finish cleanup.",
+				"Web requests or command-owned resources did not stop cleanly; store recovery is not confirmed.", "ze show doctor")
+			fmt.Fprintf(os.Stderr, "error: %v\n", refusal)
+			exit = 1
+		}
+		if exit == 0 {
+			exit = webOnlyExitStatus(cleanupError)
+		}
+	}()
+	bindWebOnlyRecovery(store, commands, sigCh)
+	ring := commands.EventRing()
 	ring.Append("web", "server.started")
-	dispatch := webOnlyDispatcher(ring)
+	dispatch := webOnlyDispatcher(commands)
 	auditLog, auditErr := openAuditLog("")
 	if auditErr != nil {
 		fmt.Fprintf(os.Stderr, "error: audit log: %v\n", auditErr)
 		return 1
 	}
 	showCmd.RegisterAuditProvider(auditLog.Query)
+	commands.Dispatcher().SetAuditRecorder(auditLog)
 	// Web-only mode runs before any config is loaded, so there are no
 	// config-file users (only the zefs power user authenticates here), no
-	// plugin engine to source completion commands from (nil source), and no pki
+	// plugin engine to source runtime completions from, and no pki
 	// block to reference: the self-signed certificate path is the only one.
 	// noConfigUsers states that emptiness rather than leaving it implied.
 	//
@@ -195,15 +226,14 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 		fmt.Fprintf(os.Stderr, "warning: web power-user auth unavailable: %v\n", powerErr)
 	}
 	localUsersLive := liveLocalUsers(powerUsers, noConfigUsers, slogutil.Logger("hub.web.auth"))
-	webSrv, broker, editors := startWebServer(store, "", listenAddrs, insecureWeb, "", dispatch, resolvers, nil, auditLog, nil, powerUsers, localUsersLive, nil, nil, nil)
+	webCommands := func() []command.CommandEntry { return commands.Dispatcher().Registry().VisibleCommandEntries() }
+	webSrv, broker, editors := startWebServer(store, "", listenAddrs, insecureWeb, "", dispatch, resolvers, nil, auditLog, nil, powerUsers, localUsersLive, webCommands, commands.WithArgCompletion, serverOperationalCommand(commands))
 	if webSrv == nil {
 		return 1
 	}
 	wireEventRingToBroker(ring, broker)
-	service := newWebService(webSrv, broker, editors)
+	service = newWebService(webSrv, broker, editors)
 
-	sigCh := make(chan os.Signal, 2) //nolint:mnd // buffer 2: graceful + force
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	writeReadyFile()
 
 	fmt.Println("Ze web running. Press Ctrl+C to stop.")
@@ -211,57 +241,25 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	fmt.Println("\nShutting down (Ctrl+C again to force)...")
 
 	// Second signal forces immediate exit (lifecycle goroutine, not hot path).
-	go forceExitOnSignal(sigCh)
-
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer shutdownCancel()
-	// Shutdown's network, history and overdue producers already report each
-	// constituent failure. Standalone shutdown keeps its best-effort exit code.
-	_ = service.Shutdown(shutdownCtx) //nolint:errcheck // The producers report failures; this call still joins cleanup.
+	forceDone = make(chan struct{})
+	go func() {
+		defer close(forceDone)
+		forceExitOnSignal(sigCh)
+	}()
 
 	return 0
 }
 
-// webOnlyDispatcher creates a minimal CommandDispatcher backed by a local event
-// ring. Used by RunWebOnly where no plugin server exists.
-func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
-	return func(_ context.Context, _ plugin.CallerIdentity, command string) (*plugin.Response, error) {
-		switch {
-		case strings.HasPrefix(command, "show event namespaces"):
-			counts := ring.NamespaceCounts()
-			rows := make([]map[string]any, 0, len(counts))
-			for ns, count := range counts {
-				rows = append(rows, map[string]any{"namespace": ns, "count": count})
-			}
-			b, err := json.Marshal(map[string]any{"namespaces": rows})
-			if err != nil {
-				return nil, err
-			}
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(b)), nil
-
-		case strings.HasPrefix(command, "show event recent"):
-			namespace := ""
-			if _, after, ok := strings.Cut(command, "namespace "); ok {
-				namespace = strings.TrimSpace(after)
-			}
-			records := ring.Snapshot(50, namespace)
-			out := make([]map[string]any, 0, len(records))
-			for i := range records {
-				out = append(out, map[string]any{
-					"timestamp":  records[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-					"namespace":  records[i].Namespace,
-					"event-type": records[i].EventType,
-				})
-			}
-			b, err := json.Marshal(map[string]any{"events": out, "count": len(out)})
-			if err != nil {
-				return nil, err
-			}
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(b)), nil
-
-		default:
+// webOnlyDispatcher uses the native command registry without starting a daemon.
+// An absent command keeps the standalone interface's operator guidance.
+func webOnlyDispatcher(server *pluginserver.Server) zeweb.CommandDispatcher {
+	dispatch := serverDispatcher(server, audit.Web)
+	return func(ctx context.Context, caller plugin.CallerIdentity, input string) (*plugin.Response, error) {
+		response, err := dispatch(ctx, caller, input)
+		if errors.Is(err, pluginserver.ErrUnknownCommand) {
 			return nil, errWebOnlyUnavailable
 		}
+		return response, err
 	}
 }
 
@@ -269,44 +267,8 @@ func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
 // command that needs the daemon. The message is written for direct display in
 // the web UI (tools render dispatch errors inline; log pages map it to an
 // honest empty state) rather than exposing the raw command string (F4/AC-10).
-var errWebOnlyUnavailable = errors.New("operational commands require a running daemon with a loaded configuration; the web interface is running in standalone mode")
-
-// withBGPDecode wraps a CommandDispatcher to handle "show bgp decode" in-process.
-// BGP decode is a pure function registered as a local command; neither the
-// plugin-server dispatcher nor the web-only stub knows about it. This wrapper
-// intercepts the command and calls the decoder directly so the web tool page
-// works in both full-daemon and web-only modes (F5/AC-8).
-//
-// The decoder is reached through the leaf registry seam, which the gated BGP
-// CLI package fills from its init(). With ze_bgp compiled out the seam is nil
-// and the command falls through to the dispatcher, which reports it as unknown
-// -- the honest answer for a binary that has no BGP.
-func withBGPDecode(inner zeweb.CommandDispatcher) zeweb.CommandDispatcher {
-	const prefix = "show bgp decode "
-	return func(ctx context.Context, caller plugin.CallerIdentity, command string) (*plugin.Response, error) {
-		if decode := pluginreg.GetPacketDecoder(); decode != nil && strings.HasPrefix(command, prefix) {
-			hex := strings.TrimSpace(command[len(prefix):])
-			// The decoder is asked for JSON (outputJSON=true) so the response
-			// carries structured data. A payload that is already rendered text
-			// leaves "| json", "| yaml" and "| table" nothing to work with, so
-			// the rendering is the pipe layer's job here, never the decoder's
-			// (ai/rules/cli.md).
-			decoded, err := decode(hex, "", "", true)
-			if err != nil {
-				return nil, err
-			}
-			var payload map[string]any
-			if err := json.Unmarshal([]byte(decoded), &payload); err != nil {
-				return nil, fmt.Errorf("decode bgp packet: %w", err)
-			}
-			return plugin.NewResponse(plugin.StatusDone, plugin.Map(payload)), nil
-		}
-		if inner != nil {
-			return inner(ctx, caller, command)
-		}
-		return nil, errWebOnlyUnavailable
-	}
-}
+var errWebOnlyUnavailable = opererr.New("This command needs a running daemon with a loaded configuration.",
+	"The standalone web interface cannot answer it from configuration editing alone.", "ze start")
 
 // wireEventRingToBroker connects an EventRing to an SSE broker so that new
 // events are pushed to connected Live Log clients as "log-entry" SSE events.
@@ -337,7 +299,6 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 // powerUsers is the caller's zefs snapshot, used to NAME those accounts for the
 // UI. It never decides who may log in; localUsersLive already carries them.
 func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, configOwner *configMutationOwner, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry, argumentTree func(*command.Node, command.ArgumentQuery) *command.Node, registered func(string) bool, streams ...plugin.CommandStreamHandlers) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
-	dispatch = withBGPDecode(dispatch)
 	if insecureWeb {
 		authorizer = nil
 	}
@@ -463,7 +424,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	tree := committedBaselineTree(store, configPath)
 
 	// Create editor manager for config editing via web.
-	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory())
+	var editorMgr *zeweb.EditorManager = zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory())
 	var broker *zeweb.EventBroker
 	managerOwned := true
 	defer func() {
@@ -580,7 +541,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		diff := editorMgr.Diff(username)
+		diff, err := editorMgr.Diff(username)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		count := editorMgr.ChangeCount(username)
 		html, renderErr := renderer.RenderDiffModalOpen(diff, count)
 		if renderErr != nil {
@@ -773,12 +738,19 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	return srv, broker, editorMgr
 }
 
-// forceExitOnSignal waits for a second signal and exits immediately.
+// forceExitOnSignal waits for a second OS signal and exits immediately.
 // The standalone web service starts it once during shutdown, for an impatient
-// Ctrl+C. It lives beside its only caller, so a build without ze_web drops it.
+// Ctrl+C. The caller MUST stop delivery, close sigCh and join this worker before
+// returning its borrowed resources. Command-requested stops never force exit.
 func forceExitOnSignal(sigCh <-chan os.Signal) {
-	<-sigCh
-	exitForced()
+	// The caller's channel close ends this one process-lifecycle worker.
+	for event := range sigCh {
+		if _, systemSignal := event.(syscall.Signal); !systemSignal {
+			continue
+		}
+		stopForceExit()
+		return
+	}
 }
 
 // adminCommandTrees is the web admin console's command tree producer. It

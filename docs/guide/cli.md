@@ -25,6 +25,20 @@ ze start --cli                              # Start the daemon and attach a cons
 | `ze cli -c <cmd>` | Full | Automation, route injection |
 | `ze start --cli` | Interactive, full | Running the daemon and operating it from one terminal |
 
+With `ze.cli.transcript` enabled, `ze cli -c` records the command and its rendered
+answer under `$XDG_DATA_HOME/ze/transcripts/`. This includes commands served
+locally, which need no SSH credentials or running daemon. See
+[transcript recording](configuration.md#environment-block) for file ownership and defaults.
+<!-- source: internal/component/cli/client/main.go -- runBGP, runOne, openOneShotTranscript -->
+
+### SSH idle timeout
+
+`environment ssh idle-timeout` sets how many seconds an SSH connection can stay
+silent. The default is 600 seconds. Receiving or sending data restarts the idle
+period, so an active terminal or monitor can stay connected beyond that duration.
+<!-- source: internal/component/ssh/ssh.go -- Server.Start -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment/ssh/idle-timeout -->
+
 ### The attached console
 
 `ze start --cli` starts the daemon and attaches an interactive console to it.

@@ -292,8 +292,24 @@ func commandArguments(path []string, node *command.Node, form url.Values) string
 
 	values := make(map[string]string, len(node.ArgDefs))
 	for i := range node.ArgDefs {
-		name := node.ArgDefs[i].Name()
-		values[name] = strings.TrimSpace(form.Get(name))
+		def := &node.ArgDefs[i]
+		name := def.Name()
+		if !form.Has(name) {
+			continue
+		}
+		value := strings.TrimSpace(form.Get(name))
+		if value == "" {
+			if !def.Mandatory() {
+				continue
+			}
+			// A blank control is missing input unless the model admits an
+			// empty value, as a supplied-byte argument may. The dispatcher
+			// still owns the missing-argument refusal for an empty number.
+			if command.ValidateArgString(value, def) != nil {
+				continue
+			}
+		}
+		values[name] = value
 	}
 	command.WriteInvocation(&tb, path, command.InvocationArgs(node.ArgDefs), values)
 	return tb.String()
@@ -358,7 +374,21 @@ func adminNodeAt(tree *command.Node, path []string) *command.Node {
 // adminHasChildren answers whether the node holds a child command. The finder
 // asks it for each rendered item, so it counts rather than building a list.
 func adminHasChildren(node *command.Node) bool {
-	return node != nil && len(node.Children) > 0
+	if node == nil {
+		return false
+	}
+	if node.Hidden {
+		return false
+	}
+	for _, child := range node.Children {
+		if child == nil {
+			continue
+		}
+		if !child.Hidden {
+			return true
+		}
+	}
+	return false
 }
 
 // adminChildNames answers the node's child command names, sorted, so the
@@ -367,8 +397,17 @@ func adminChildNames(node *command.Node) []string {
 	if node == nil || len(node.Children) == 0 {
 		return nil
 	}
+	if node.Hidden {
+		return nil
+	}
 	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
+	for name, child := range node.Children {
+		if child == nil {
+			continue
+		}
+		if child.Hidden {
+			continue
+		}
 		names = append(names, name)
 	}
 	slices.Sort(names)

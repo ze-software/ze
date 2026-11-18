@@ -1,0 +1,100 @@
+module ze-config-utilities-cmd {
+    namespace "urn:ze:config:utilities:cmd";
+    prefix configutilities;
+    import ze-extensions { prefix ze; }
+    import ze-config-cli-cmd { prefix configclicmd; }
+    description "Caller-held completion and private codec inputs through native config producers.";
+    revision 2026-11-18 {
+        description "Expose bounded supplied completion and reversible secret conversion on every command surface.";
+    }
+
+    grouping private-content {
+        description "Private caller bytes, including an explicitly empty operand for native refusal.";
+        leaf content {
+            type string {
+                length "0..261120";
+                pattern "([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?" {
+                    error-message "content must be padded base64. Encode the operand bytes as base64 and give the result after content.";
+                }
+            }
+            mandatory true;
+            ze:keyword-only;
+            ze:sensitive;
+            description "Private operand encoded as padded base64, at most 195,840 decoded bytes.
+The bytes are masked in history and accounting. No host file or key is read.";
+            ze:help "Private operand in padded base64, at most 195,840 decoded bytes.";
+        }
+        leaf trim-line-ending {
+            type empty;
+            description "Remove at most one trailing LF and then one CR, as the standalone
+secret command does for stdin. Without this flag every input byte is preserved.";
+            ze:help "Apply the standalone stdin trailing line-ending rule.";
+        }
+    }
+
+    augment "/configclicmd:show/configclicmd:config/configclicmd:supplied" {
+        container completion {
+            config false;
+            ze:command "ze-config-cli:show-config-supplied-completion";
+            description "Complete editing input against supplied configuration with the native
+schema and completer. Content is one JSON object with required configuration and
+input string fields. Duplicate, missing, unknown and nonstring fields, malformed
+UTF-8 and trailing data are refused. The combined envelope has the byte limit.
+Input is literal; plus characters are not changed to spaces. No declared program
+is started to obtain a schema.";
+            ze:help "Complete literal editing input against supplied configuration.";
+            leaf content {
+                type string {
+                    length "4..261120";
+                    pattern "([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?";
+                }
+                mandatory true;
+                ze:keyword-only;
+                ze:sensitive;
+                description "One padded base64 JSON envelope with configuration and input strings,
+at most 195,840 decoded bytes. Both fields are masked in command records because
+editing input can itself contain a private value.";
+                ze:help "Private configuration and editing input in one base64 JSON envelope.";
+            }
+            leaf context {
+                type string { length "1..4096"; }
+                description "Optional slash-separated configuration path used by the native
+completer, such as bgp. Omission completes from the whole tree.";
+                ze:help "Slash-separated configuration context.";
+            }
+            leaf ghost {
+                type empty;
+                description "Return the native ghost suffix followed by a newline instead of the
+completion document. The suffix is the text that extends the current input.";
+                ze:help "Return the native ghost suffix.";
+            }
+        }
+    }
+
+    augment "/configclicmd:show" {
+        container secret {
+            config false;
+            description "Convert a caller-supplied private operand with the same reversible
+secret codecs as the standalone command. No daemon secret or key is read.";
+            ze:help "Convert a supplied private value.";
+            container encode {
+                config false;
+                ze:command "ze-config-cli:show-secret-encode";
+                description "Encode the literal supplied operand in the reversible $9$ form.
+Empty values and values already carrying the $9$ prefix are refused. The result
+is returned to the requesting caller with the standalone final newline.";
+                ze:help "Encode a supplied private value in the reversible $9$ form.";
+                uses private-content;
+            }
+            container decode {
+                config false;
+                ze:command "ze-config-cli:show-secret-decode";
+                description "Decode a supplied $9$ value to plaintext with the native codec.
+Malformed values and one-way password hashes are refused. The plaintext is
+returned to the requesting caller with the standalone final newline.";
+                ze:help "Decode a supplied $9$ value to its plaintext.";
+                uses private-content;
+            }
+        }
+    }
+}

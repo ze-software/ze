@@ -126,6 +126,15 @@ Managed configuration adds:
 - `config-fetch` and `config-changed` RPCs answered by the managed listener
 - Client configs stored as entries in the hub's live tree
 
+The daemon retains the managed server and calls its synchronous `Stop` before
+returning its borrowed store. The outbound client also has a cancel-and-join
+owner. Shutdown waits for `CheckManaged` and `OnCommit` callbacks already using
+storage, including candidate writes before reload admission. A pending full-store
+restore cannot replace the store while these managed operations still use it.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- Stop -->
+<!-- source: internal/component/managed/client.go -- RunManagedClient -->
+
 ### Roles
 
 | Role | Config | Description |

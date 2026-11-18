@@ -43,6 +43,13 @@ The revert timer is `time.AfterFunc` under a mutex. `OnPeerClosed` stops the
 timer and writes recovery bytes. Timer expiry records the legacy entry's hash
 at `meta/config/last-known-good-pushed`. A live SSH upload starts no such timer.
 <!-- source: cmd/ze/health_revert.go -- HealthRevert.OnPeerClosed, HealthRevert.onHealthy -->
+
+The launcher joins the health monitor before releasing its store, including on
+an early stop. A timer still within its 30-second window can therefore delay
+that release until the monitor finishes. Accepted full-store recovery runs only
+after this last borrower and the daemon's own deferred cleanup have finished.
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart -->
+<!-- source: cmd/ze/health_revert.go -- HealthRevert.Start, HealthRevert.Wait -->
 <!-- source: cmd/ze/hub/config_upload.go -- configMutationOwner.Upload -->
 
 ## Related

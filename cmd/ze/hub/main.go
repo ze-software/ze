@@ -406,7 +406,27 @@ func installNoBGPAAADispatch(d *pluginserver.Dispatcher) {
 	d.SetAccountingHook(newLiveAAABundleAccountant())
 }
 
-func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int { //nolint:cyclop // startup orchestration
+func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) (exitStatus int) { //nolint:cyclop // startup orchestration
+	// Nil means every observed cleanup succeeded. This first defer runs after
+	// all borrowers, including deferred service owners, and is the final verdict
+	// the outer store owner MUST use before applying a pending full restore.
+	var cleanupFailure error
+	defer func() {
+		if cleanupFailure == nil {
+			return
+		}
+		exitStatus = 1
+		failure := opererr.Wrap(cleanupFailure, "Ze could not finish stopping its services",
+			"an incomplete stop cannot safely authorize an in-place restart or apply a pending full-store restore",
+			"ze doctor")
+		var tb textbuf.Buffer
+		tb.Str("error: ").Err(failure).Byte('\n').StdErr() //nolint:errcheck // reporting failure cannot change the failed stop result
+	}()
+	retainCleanupFailure := func(owner string, failure error) {
+		if failure != nil {
+			cleanupFailure = errors.Join(cleanupFailure, fmt.Errorf("%s: %w", owner, failure))
+		}
+	}
 	// Close the AAA bundle and clear the accepted local identity on every exit
 	// path so backend workers drain and no daemon or test run inherits
 	// credentials or policy.
@@ -1047,10 +1067,23 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		logStartupFailure("create plugin server", serverErr)
 		return 1
 	}
-	// Every exit owns the server's stop hooks, including infrastructure built
-	// during a startup that later fails. OnceFunc also joins concurrent stops;
-	// stopHooks.run alone can return while another caller is still draining.
-	stopAPI := sync.OnceFunc(apiServer.Stop)
+	// Every exit owns built transports and the server's stop hooks, including
+	// infrastructure acquired before a later startup failure. OnceFunc joins
+	// concurrent stops; stopHooks.run alone can return during another drain.
+	var apiShutdowns []func(context.Context) error
+	stopAPI := sync.OnceFunc(func() {
+		if len(apiShutdowns) > 0 {
+			apiCtx, apiCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			for _, shutdown := range apiShutdowns {
+				retainCleanupFailure("API shutdown", shutdown(apiCtx))
+			}
+			apiCancel()
+		}
+		apiServer.Stop()
+		if failure := apiServer.StopFailure(); failure != nil {
+			retainCleanupFailure("daemon shutdown", failure)
+		}
+	})
 	defer stopAPI()
 	// The listener migrator exists before the infrastructure hook, which hands
 	// it the SSH server it builds (setupInfraHook).
@@ -1195,7 +1228,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Fprintf(os.Stderr, "error: %v\n", pidErr)
 		logStartupFailure("write pid file", pidErr)
 		stopAPI()
-		_ = eng.Stop(startCtx)
+		retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
 		return 1
 	}
 	defer removePIDFile(pidPath)
@@ -1204,7 +1237,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
 		logStartupFailure("drop privileges", err)
 		stopAPI()
-		_ = eng.Stop(startCtx)
+		retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
 		return 1
 	}
 
@@ -1503,7 +1536,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// REST/gRPC API listen config and users were resolved above (before the
 	// management-listener guard); apiCfg, apiCfgOK, and bootUsers are reused here.
-	var apiShutdowns []func(context.Context)
 	// `request reload` reloads the file the operator wrote, as SIGHUP does, so
 	// it shares the SIGHUP implementation and the daemon's reloads mutex.
 	apiServer.SetFullReloadFunc(newRequestReloadFunc(commitReloads, signalReloads, apiServer.WaitForStartupComplete, gnmiReloadNotify, apiServer, eng, configProvider, store, configPath, loadBoth, lm))
@@ -1539,7 +1571,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 					logStartupFailure("start rest api", apiErr)
 					stopAPI()
-					_ = eng.Stop(startCtx)
+					retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
 					return 1
 				}
 				if h.Server != nil {
@@ -1553,7 +1585,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 					logStartupFailure("start grpc api", apiErr)
 					stopAPI()
-					_ = eng.Stop(startCtx)
+					retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
 					return 1
 				}
 				if h.Server != nil {
@@ -1610,7 +1642,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			gnmiSrv.Stop()
 		}
 		stopAPI()
-		_ = eng.Stop(startCtx)
+		retainCleanupFailure("engine shutdown", eng.Stop(startCtx))
 		return 1
 	}
 	startupCancel()
@@ -1683,7 +1715,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer shutdownCancel()
 			for _, svc := range builtServices {
-				_ = svc.Shutdown(shutdownCtx)
+				retainCleanupFailure(svc.Name()+" shutdown", svc.Shutdown(shutdownCtx))
 			}
 		}()
 	}
@@ -1710,14 +1742,28 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// config-fetch, pushes config-changed). No-op unless a server block has client
 	// entries and storage is blob-backed. Independent of the outbound managed client.
 	// A live config restore targets a served client through this server only.
-	if managedServer := startManagedServer(managedCtx, store, &hubConfig); managedServer != nil && dataTarget != nil {
-		serving := *dataTarget
-		serving.ServesClient = managedServer.Serves
-		storagecli.InstallDataRPC(&serving)
+	if managedServer := startManagedServer(managedCtx, store, &hubConfig); managedServer != nil {
+		// The hub MUST join this server before returning the borrowed store.
+		defer managedServer.Stop()
+		if dataTarget != nil {
+			serving := *dataTarget
+			serving.ServesClient = managedServer.Serves
+			storagecli.InstallDataRPC(&serving)
+		}
 	}
 
 	if managedClient != nil && store != nil {
-		go managed.RunManagedClient(managedCtx, *managedClient)
+		// Cancellation alone cannot end a callback already inside storage.
+		// The hub MUST join the complete runner, including pre-reload writes.
+		managedDone := make(chan struct{})
+		defer func() {
+			managedCancel()
+			<-managedDone
+		}()
+		go func(client managed.ClientConfig) {
+			defer close(managedDone)
+			managed.RunManagedClient(managedCtx, client)
+		}(*managedClient)
 	}
 
 	if cliAttach {
@@ -1803,14 +1849,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		gnmiSrv.Stop()
 	}
 
-	if len(apiShutdowns) > 0 {
-		apiCtx, apiCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		for _, sd := range apiShutdowns {
-			sd(apiCtx)
-		}
-		apiCancel()
-	}
-
 	stopAPI()
 
 	// The engine's grace starts after apiServer.Stop returns: created before
@@ -1819,9 +1857,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	if err := eng.Stop(stopCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
-	}
+	retainCleanupFailure("engine shutdown", eng.Stop(stopCtx))
 
 	// The record starts once ze serves; on a slow disk a stop soon after can
 	// arrive before it lands, and "Ze stopped." must not be printed over it.
@@ -1835,16 +1871,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	// A stop a plugin's failure caused (a fatal policy, or a respawn the
-	// plugin declares it cannot meet) exits 1, as a refused startup does, so
-	// a service manager restarting on failure and an operator's script see
-	// the failure rather than a clean shutdown. It is printed the way a
-	// refused startup is.
-	if failure := apiServer.StopFailure(); failure != nil {
-		var tb textbuf.Buffer
-		tb.Str("error: ").Err(failure).Byte('\n').StdErr() //nolint:errcheck // the process exits next; a lost line does not change the exit status
-		return 1
-	}
+	// The first defer judges every cleanup owner, including a fatal plugin
+	// cause retained by stopAPI and service owners finishing after this return.
 	if cause := stopRestartCause.Load(); cause != nil {
 		if *cause == rpc.DrainRestartInPlace {
 			return rpc.DaemonRestartExitStatus

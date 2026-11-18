@@ -138,7 +138,12 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 		}
 		if terminalAuditSucceeded(command, result) {
 			if command.Verb == verbDiscard {
-				detail = discardAuditDetail(mgr, username, detail)
+				var err *opererr.Error
+				detail, err = discardAuditDetail(mgr, username, detail)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 			}
 			recordWebAudit(recorder, r, username, action, detail)
 			if result.auditSuccess {

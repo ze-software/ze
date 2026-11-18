@@ -9,6 +9,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"path/filepath"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/cli"
@@ -28,6 +29,10 @@ var (
 type configRecoveryData struct {
 	Username    string
 	Fingerprint string
+}
+
+type configRecoveryErrorData struct {
+	ChangeName string
 }
 
 // HandleConfigRecovery opens no candidate: recovery must remain reachable when
@@ -238,17 +243,21 @@ func parseConfigRecoveryConfirmation(w http.ResponseWriter, r *http.Request) (st
 	return fingerprint, nil
 }
 
-// writeConfigRecoveryError never renders the parser error: a malformed
-// assignment can put a secret in that error before masking can identify it.
-func writeConfigRecoveryError(w http.ResponseWriter, r *http.Request, renderer *Renderer) {
+// writeConfigRecoveryError names the retained file from the manager and the
+// authenticated account whose editor open failed. It never renders the parser
+// error: a malformed assignment can put a secret there before masking can identify it.
+func writeConfigRecoveryError(w http.ResponseWriter, r *http.Request, renderer *Renderer, mgr *EditorManager) {
+	view := configRecoveryErrorData{
+		ChangeName: filepath.Base(cli.ChangePath(mgr.configPath, GetUsernameFromRequest(r))),
+	}
 	if r.Header.Get("HX-Request") == htmxRequestTrue {
-		if err := writeComponent(w, "pending-change recovery error", configRecoveryError()); err != nil {
+		if err := writeComponent(w, "pending-change recovery error", configRecoveryError(view)); err != nil {
 			writeConfigRecoveryDisplayFailure(w, err)
 		}
 		return
 	}
 	var content bytes.Buffer
-	if err := configRecoveryError().Render(r.Context(), &content); err != nil {
+	if err := configRecoveryError(view).Render(r.Context(), &content); err != nil {
 		writeConfigRecoveryDisplayFailure(w, err)
 		return
 	}

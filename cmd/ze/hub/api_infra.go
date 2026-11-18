@@ -142,10 +142,11 @@ type apiShared struct {
 // apiServerHandle is one built transport: the running server as Reconfigurable
 // (so the always-on listenerMigrator drives it without naming a server type)
 // plus its shutdown. A zero handle (nil Server) means the transport was not
-// enabled in config.
+// enabled in config. The hub MUST join Shutdown before its store closes and
+// MUST retain any returned cleanup failure in the daemon exit result.
 type apiServerHandle struct {
 	Server   Reconfigurable
-	Shutdown func(context.Context)
+	Shutdown func(context.Context) error
 }
 
 // restBuild / grpcBuild are installed by register_rest.go / register_grpc.go

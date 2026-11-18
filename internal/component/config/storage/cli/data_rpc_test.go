@@ -378,7 +378,7 @@ func TestRestoreConfigRejectedLeavesPointers(t *testing.T) {
 	}{
 		{[]string{"path", source}, "config keyword is required"},
 		{[]string{"path", source, "config", "name", "missing.conf"}, "holds: ze.conf"},
-		{[]string{"path", source, "full"}, "unknown keyword"},
+		{[]string{"path", source, "full"}, "full-store recovery lifecycle is not installed"},
 	} {
 		response := dataCall(t, handleDataRestore, refused.args...)
 		assert.Equal(t, zePlugin.StatusError, response.Status, refused.args)

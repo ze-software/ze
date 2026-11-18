@@ -197,7 +197,7 @@ func TestSuppliedExaBGPMigrationDaemonDispatch(t *testing.T) {
 	require.NoError(t, err)
 	dispatcher := pluginserver.NewDispatcher()
 	require.NoError(t, pluginserver.LoadBuiltins(dispatcher, configyang.WireMethodToPath(resolved),
-		configyang.PathToDescription(resolved), configyang.PathToHelp(resolved), configyang.PathToArgDefs(resolved)))
+		configyang.PathToDescription(resolved), configyang.PathToHelp(resolved), configyang.PathToArgDefs(resolved), configyang.BuildCommandTree(resolved)))
 	for _, operation := range []string{"config", "environment"} {
 		t.Run(operation, func(t *testing.T) {
 			content := suppliedMigrationConfig

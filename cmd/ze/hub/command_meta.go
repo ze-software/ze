@@ -160,6 +160,15 @@ func buildCommandMeta(
 		streamingOff[strings.ToLower(path)] = true
 	}
 	for _, cmd := range dispatcherCmds {
+		listed, err := command.ListedOnDaemonSurfaces(command.CommandRegistration{
+			Path: cmd.Name, Kind: command.KindBuiltin, Hidden: cmd.Hidden,
+		})
+		if err != nil {
+			panic("BUG: buildCommandMeta: " + err.Error())
+		}
+		if !listed {
+			continue
+		}
 		if streamingOff[strings.ToLower(cmd.Name)] {
 			continue
 		}
@@ -201,10 +210,6 @@ func buildCommandMeta(
 		// The skip is at the top of the loop, because the duplicate branch below
 		// fills help text on a dispatcher entry. That entry keeps the command
 		// visible.
-		//
-		// The dispatcher loop above needs no equivalent skip.
-		// pluginserver.Command has no Hidden field, and a builtin command has no
-		// hidden state.
 		listed, err := command.ListedOnDaemonSurfaces(command.CommandRegistration{
 			Path: cmd.Name, Kind: command.KindPlugin, Hidden: cmd.Hidden,
 		})

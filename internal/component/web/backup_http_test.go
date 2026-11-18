@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,17 +23,14 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/selfcert"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func backupHTTPFixture(t *testing.T) (*backupWorkspaces, []byte) {
 	t.Helper()
-	owner, ok := HandleBackupWorkspace(RouteDeps{Authorizer: fakeAuthorizer{allowEdit: true}}).(*backupWorkspaces)
+	owner, ok := HandleBackupWorkspace(RouteDeps{Dispatch: backupCommandDispatcher(t), Authorizer: fakeAuthorizer{allowEdit: true}}).(*backupWorkspaces)
 	require.True(t, ok)
-	owner.parentTemp = t.TempDir()
 	t.Cleanup(func() { require.NoError(t, owner.Close()) })
 	path := filepath.Join(t.TempDir(), "original.zefs")
 	artifact, err := storage.CreateBlobPopulated(path, func(seed storage.Storage) error {
@@ -227,13 +223,8 @@ func TestBackupHTTPRefusals(t *testing.T) {
 			}
 			response := backupHTTPUpload(t, owner, source, test.user, test.origin)
 			assert.Equal(t, test.status, response.Code, response.Body.String())
-			assert.Empty(t, owner.items)
-			assert.Zero(t, owner.bytes)
-			if owner.root != "" {
-				entries, err := os.ReadDir(owner.root)
-				require.NoError(t, err)
-				assert.Empty(t, entries, "a refused upload must remove its partial directory")
-			}
+			list := backupCommand(t, owner.dispatch, "alice", "show config artifact list")
+			assert.Equal(t, "[]", backupJSON(t, list.Data))
 		})
 	}
 }
@@ -260,68 +251,8 @@ func TestBackupHTTPWrongOwnerAndStaleReview(t *testing.T) {
 	assert.Equal(t, http.StatusOK, backupHTTPRequest(t, owner, path+"download", "alice", nil).Code)
 }
 
-// TestBackupHTTPRemainingBudgetBoundsUpload drives the streaming limit with
-// one byte less remaining storage than a real artifact requires.
-func TestBackupHTTPRemainingBudgetBoundsUpload(t *testing.T) {
-	owner, source := backupHTTPFixture(t)
-	owner.bytes = backupWorkspaceBytesMax - int64(len(source)) + 1
-	response := backupHTTPUpload(t, owner, source, "alice", "https://example.com")
-	assert.Equal(t, http.StatusRequestEntityTooLarge, response.Code)
-	assert.Empty(t, owner.items)
-}
-
-// TestBackupHTTPFailedUploadCleanupSealsAdmission retains a failed partial
-// directory as bounded cleanup debt, keeps existing workspaces usable and
-// admits another upload only after that debt is actually removed.
-func TestBackupHTTPFailedUploadCleanupSealsAdmission(t *testing.T) {
-	owner, source := backupHTTPFixture(t)
-	upload := backupHTTPUpload(t, owner, source, "alice", "https://example.com")
-	require.Equal(t, http.StatusSeeOther, upload.Code)
-	validURL := upload.Header().Get("Location")
-	validID := strings.Trim(strings.TrimPrefix(validURL, backupWorkspacePath), "/")
-	validDirectory := filepath.Dir(owner.items[validID].path)
-	blocked := ""
-	owner.mu.Lock()
-	owner.removeAll = func(path string) error {
-		if path == validDirectory {
-			return os.RemoveAll(path)
-		}
-		if blocked == "" {
-			blocked = path
-		}
-		if path == blocked {
-			return errors.New("injected partial-upload removal failure")
-		}
-		return os.RemoveAll(path)
-	}
-	owner.mu.Unlock()
-	failed := backupHTTPUpload(t, owner, []byte("corrupt artifact"), "alice", "https://example.com")
-	require.Equal(t, http.StatusInternalServerError, failed.Code)
-	require.Equal(t, blocked, owner.cleanupDebt)
-	require.Positive(t, owner.debtBytes)
-	entries, err := os.ReadDir(owner.root)
-	require.NoError(t, err)
-	require.Len(t, entries, 2)
-	refused := backupHTTPUpload(t, owner, source, "alice", "https://example.com")
-	assert.Equal(t, http.StatusServiceUnavailable, refused.Code)
-	assert.Len(t, owner.items, 1)
-	entries, err = os.ReadDir(owner.root)
-	require.NoError(t, err)
-	assert.Len(t, entries, 2, "repeated upload failures must not allocate more directories")
-	assert.Equal(t, http.StatusOK, backupHTTPRequest(t, owner, validURL, "alice", nil).Code)
-	owner.mu.Lock()
-	owner.removeAll = os.RemoveAll
-	owner.mu.Unlock()
-	retry := backupHTTPUpload(t, owner, source, "alice", "https://example.com")
-	require.Equal(t, http.StatusSeeOther, retry.Code, retry.Body.String())
-	assert.Empty(t, owner.cleanupDebt)
-	assert.Zero(t, owner.debtBytes)
-	_, err = os.Stat(blocked)
-	assert.ErrorIs(t, err, os.ErrNotExist)
-}
-
-// TestBackupWorkspaceDirectNavigation follows the registered target without
-// exposing the artifact editor inside a live configuration commit shell.
+// TestBackupWorkspaceDirectNavigation follows the registered native workspace
+// target while preserving the existing embedded-service portal route.
 func TestBackupWorkspaceDirectNavigation(t *testing.T) {
 	route, ok := lookupWebRoute(RegisteredWebRoutes(), backupWorkspacePath)
 	require.True(t, ok)
@@ -330,145 +261,6 @@ func TestBackupWorkspaceDirectNavigation(t *testing.T) {
 	assert.Equal(t, backupWorkspacePath, route.Portal.NavigationURL())
 	assert.Equal(t, "/portal/existing", (PortalService{Key: "existing", Path: "/existing/"}).NavigationURL(),
 		"existing embedded services must retain their portal URL")
-}
-
-// TestBackupHTTPFailedSnapshotCleanupBoundsAllOwners allows one successful
-// download to leave cleanup debt, then refuses another owner's export before
-// it can allocate a second retained snapshot.
-func TestBackupHTTPFailedSnapshotCleanupBoundsAllOwners(t *testing.T) {
-	owner, source := backupHTTPFixture(t)
-	first := backupHTTPUpload(t, owner, source, "alice", "https://example.com")
-	second := backupHTTPUpload(t, owner, source, "bob", "https://example.com")
-	require.Equal(t, http.StatusSeeOther, first.Code)
-	require.Equal(t, http.StatusSeeOther, second.Code)
-	firstURL := first.Header().Get("Location")
-	secondURL := second.Header().Get("Location")
-	owner.mu.Lock()
-	owner.removeAll = func(path string) error {
-		if filepath.Base(path) == "download.zefs" {
-			return errors.New("injected snapshot cleanup failure")
-		}
-		return os.RemoveAll(path)
-	}
-	owner.mu.Unlock()
-	assert.Equal(t, http.StatusOK, backupHTTPRequest(t, owner, firstURL+"download", "alice", nil).Code)
-	owner.mu.Lock()
-	debt := owner.cleanupDebt
-	debtBytes := owner.debtBytes
-	owner.mu.Unlock()
-	require.NotEmpty(t, debt)
-	require.Positive(t, debtBytes)
-	assert.Equal(t, http.StatusInternalServerError, backupHTTPRequest(t, owner, secondURL+"download", "bob", nil).Code)
-	secondID := strings.Trim(strings.TrimPrefix(secondURL, backupWorkspacePath), "/")
-	_, err := os.Stat(filepath.Join(filepath.Dir(owner.items[secondID].path), "download.zefs"))
-	assert.ErrorIs(t, err, os.ErrNotExist, "one failed cleanup must block allocating another snapshot")
-	assert.Equal(t, http.StatusOK, backupHTTPRequest(t, owner, secondURL, "bob", nil).Code,
-		"reading an existing workspace must remain available")
-	owner.mu.Lock()
-	owner.removeAll = os.RemoveAll
-	owner.mu.Unlock()
-	assert.Equal(t, http.StatusOK, backupHTTPRequest(t, owner, secondURL+"download", "bob", nil).Code)
-	owner.mu.Lock()
-	assert.Empty(t, owner.cleanupDebt)
-	assert.Zero(t, owner.debtBytes)
-	owner.mu.Unlock()
-}
-
-// TestBackupHTTPStorageFailureReachesDoctor records an actual private-directory
-// failure under the registered runtime event, without storing upload content.
-func TestBackupHTTPStorageFailureReachesDoctor(t *testing.T) {
-	report.ResetForTest()
-	t.Cleanup(report.ResetForTest)
-	diagnostic.RegisterBuiltinCodes()
-	require.NotNil(t, diagnostic.Lookup(diagnostic.CodeDoctorBackupWorkspaceStorage),
-		"the test must initialize diagnostic metadata as the real binary does")
-	owner, source := backupHTTPFixture(t)
-	owner.parentTemp = filepath.Join(t.TempDir(), "missing-parent")
-	response := backupHTTPUpload(t, owner, source, "private-account", "https://example.com")
-	assert.Equal(t, http.StatusInternalServerError, response.Code)
-	require.Contains(t, diagnostic.EventCodes(), diagnostic.CodeDoctorBackupWorkspaceStorage)
-	events := report.Errors(0)
-	require.Len(t, events, 1)
-	assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, events[0].Code)
-	assert.NotContains(t, events[0].Message, "private-account")
-	assert.NotContains(t, events[0].Message, "original.zefs")
-	assert.NotEmpty(t, events[0].Fix)
-	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhaseRuntime) {
-		if check.Name != "recent-events" {
-			continue
-		}
-		require.Contains(t, check.Codes, diagnostic.CodeDoctorBackupWorkspaceStorage)
-		rows := check.Check(diagnostic.DoctorCheckContext{})
-		require.Len(t, rows, 1)
-		assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, rows[0].Code)
-		assert.Equal(t, events[0].Fix, rows[0].Fix)
-		assert.Equal(t, diagnostic.SeverityWarning, rows[0].Severity)
-		assert.Contains(t, rows[0].Message, events[0].Message)
-		assert.Contains(t, rows[0].Message, events[0].Source)
-		assert.Contains(t, rows[0].Message, events[0].Subject)
-		assert.Contains(t, rows[0].Message, "1 time, last at "+events[0].Updated.UTC().Format(time.RFC3339))
-		assert.NotContains(t, rows[0].Message, "private-account")
-		assert.NotContains(t, rows[0].Message, "original.zefs")
-		return
-	}
-	t.Fatal("the actual runtime recent-events doctor check must report workspace storage failures")
-}
-
-// TestBackupHTTPExpiryAndClose removes only owned workspace files, keeps an
-// unrelated sentinel, and refuses new operations after owner shutdown.
-func TestBackupHTTPExpiryAndClose(t *testing.T) {
-	owner, source := backupHTTPFixture(t)
-	now := time.Now()
-	owner.now = func() time.Time { return now }
-	upload := backupHTTPUpload(t, owner, source, "alice", "https://example.com")
-	require.Equal(t, http.StatusSeeOther, upload.Code)
-	path := upload.Header().Get("Location")
-	sentinel := filepath.Join(owner.parentTemp, "unrelated")
-	require.NoError(t, os.WriteFile(sentinel, []byte("keep"), 0o600))
-	owner.mu.Lock()
-	now = now.Add(backupWorkspaceIdle + time.Second)
-	owner.mu.Unlock()
-	assert.Equal(t, http.StatusNotFound, backupHTTPRequest(t, owner, path, "alice", nil).Code)
-	assert.Empty(t, owner.items)
-	assert.Zero(t, owner.bytes)
-	root := owner.root
-	require.NoError(t, owner.Close())
-	_, err := os.Stat(root)
-	require.ErrorIs(t, err, os.ErrNotExist)
-	kept, err := os.ReadFile(sentinel)
-	require.NoError(t, err)
-	assert.Equal(t, "keep", string(kept))
-	assert.Equal(t, http.StatusGone, backupHTTPRequest(t, owner, backupWorkspacePath, "alice", nil).Code)
-}
-
-// TestBackupHTTPCloseFailureReportsPossibleRetention returns the real cleanup
-// cause with an actionable, non-optimistic retention message, while its worker
-// and admission are already stopped. Only this test's private files survive.
-func TestBackupHTTPCloseFailureReportsPossibleRetention(t *testing.T) {
-	report.ResetForTest()
-	t.Cleanup(report.ResetForTest)
-	owner, ok := HandleBackupWorkspace(RouteDeps{Authorizer: fakeAuthorizer{allowEdit: true}}).(*backupWorkspaces)
-	require.True(t, ok)
-	owner.parentTemp = t.TempDir()
-	require.NoError(t, owner.ensureRoot())
-	root := owner.root
-	t.Cleanup(func() { require.NoError(t, os.RemoveAll(root)) })
-	path := filepath.Join(root, "retained.zefs")
-	require.NoError(t, os.WriteFile(path, []byte("private task-owned bytes"), 0o600))
-	failure := errors.New("injected private directory cleanup failure")
-	owner.removeAll = func(string) error { return failure }
-	err := owner.Close()
-	require.ErrorIs(t, err, failure)
-	assert.Contains(t, err.Error(), "files may remain")
-	assert.Contains(t, err.Error(), "Run ze show doctor")
-	data, readErr := os.ReadFile(path)
-	require.NoError(t, readErr)
-	assert.Equal(t, "private task-owned bytes", string(data))
-	assert.Equal(t, http.StatusGone, backupHTTPRequest(t, owner, backupWorkspacePath, "alice", nil).Code)
-	require.ErrorIs(t, owner.Close(), failure)
-	events := report.Errors(0)
-	require.Len(t, events, 1)
-	assert.Equal(t, diagnostic.CodeDoctorBackupWorkspaceStorage, events[0].Code)
 }
 
 type backupOwnedHandler struct {

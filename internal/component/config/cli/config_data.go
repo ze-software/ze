@@ -25,8 +25,6 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -34,12 +32,10 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/resolve"
 
-	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // Row keys of the answers below. register.go declares the column order with the
@@ -156,37 +152,15 @@ func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 		return command.LocalRefusal(exitError, "usage: show config list\n")
 	}
 	return withRuntimeStore("", "", func(store storage.Storage) command.LocalAnswer {
-		rows := make([]map[string]any, 0)
-
-		for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
-			keys, err := store.List(prefix)
-			if err != nil {
-				continue // the directory does not exist yet
-			}
-			for _, key := range keys {
-				rows = append(rows, map[string]any{keySource: "data", keyPath: key})
-			}
-		}
-
-		for _, dir := range configSearchDirs() {
-			entries, err := os.ReadDir(dir)
-			if err != nil {
-				continue
-			}
-			for _, e := range entries {
-				if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
-					continue
-				}
-				rows = append(rows, map[string]any{
-					keySource: "fs", keyPath: filepath.Join(dir, e.Name()),
-				})
-			}
+		rows, err := configListRows(store, true)
+		if err != nil {
+			return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 		}
 		return command.LocalAnswer{Payload: map[string]any{"configs": rows}}
 	})
 }
 
-// dataHistory answers `show config history <file>`: the rollback revisions
+// dataHistory answers `show config history file <file>`: the rollback revisions
 // stored beside a configuration, and the draft if one is open.
 //
 // The draft is a ROW like any other rather than a line printed above the table,
@@ -194,7 +168,7 @@ func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 // `draft  (editing in progress)` before the numbered revisions, which no row
 // operator could reach.
 func dataHistory(validated command.ValidatedArgs) command.LocalAnswer {
-	args := validated.Tokens()
+	args := fileLeafTokens(validated)
 	if len(args) != 1 {
 		return command.LocalRefusal(exitError, "error: requires exactly one config file\n")
 	}
@@ -216,22 +190,11 @@ func dataHistory(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 
 	return withRuntimeStore(storeBeside, args[0], func(store storage.Storage) command.LocalAnswer {
-		backups, err := store.ListVersions(storeBeside)
+		rows, err := configHistoryRows(store, storeBeside)
 		if err != nil {
 			return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 		}
 
-		rows := make([]map[string]any, 0, len(backups)+1)
-		if store.Exists(cli.DraftPath(storeBeside)) {
-			rows = append(rows, map[string]any{keyRevision: "draft", "state": "editing in progress"})
-		}
-		for i, b := range backups {
-			rows = append(rows, map[string]any{
-				keyRevision: i + 1,
-				"timestamp": b.Date.Format("2006-01-02 15:04:05"),
-				keyPath:     b.Path,
-			})
-		}
 		return command.LocalAnswer{Payload: map[string]any{"revisions": rows}}
 	})
 }
@@ -253,16 +216,12 @@ func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 		return command.LocalRefusal(exitError, reason.String())
 	}
 
-	readPath, err := command.CallerPath(validated.Route(), "show config validation", args, args[0])
-	if err != nil {
-		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
-	}
-	data, err := cliio.ReadFile(readPath)
+	data, selected, err := readValidationSource(validated.Route(), validated.Tokens(), args[0], validated.Flag("pending"))
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 
-	return validationBytesAnswer(data, args[0])
+	return validationBytesAnswer(data, selected)
 }
 
 // validationBytesAnswer keeps the verdict and evidence identical for a file

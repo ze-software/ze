@@ -475,6 +475,9 @@ func (s *WebServer) WaitReady(ctx context.Context) error {
 // Shutdown seals HTTP admission, grants ctx's network grace, then cancels and
 // force-closes remaining requests and joins their handlers. The service MUST
 // finish this join before draining history or releasing the borrowed store.
+// Expiry of ctx's network allowance permits that forced close; successful close
+// and joins complete cleanup. Earlier cancellation and transport failures remain
+// errors, including a deadline error not caused by this context's expiration.
 // A stuck handler may block this join; the service owner bounds its own wait and
 // reports failure. Safe concurrently; later calls join the same shutdown.
 func (s *WebServer) Shutdown(ctx context.Context) error {
@@ -485,9 +488,22 @@ func (s *WebServer) Shutdown(ctx context.Context) error {
 		s.requests.seal()
 		s.logger.Info("web server shutting down")
 		err := s.server.Shutdown(ctx)
+		// Capture the allowance's state before cancellation or Close can block.
+		// A transport may return the same sentinel before this context expires.
+		graceExpired := false
+		if err == context.DeadlineExceeded {
+			if ctx.Err() == context.DeadlineExceeded {
+				graceExpired = true
+			}
+		}
 		s.requests.cancel()
 		if err != nil {
-			err = errors.Join(err, s.server.Close())
+			closeError := s.server.Close()
+			if graceExpired {
+				err = closeError
+			} else {
+				err = errors.Join(err, closeError)
+			}
 		}
 		s.requests.wait()
 		var ownerError error

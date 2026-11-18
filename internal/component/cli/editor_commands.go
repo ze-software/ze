@@ -1205,6 +1205,8 @@ func (e *Editor) resolveListTarget(verb string, tokens []string) (config.ListEnt
 
 // Save commits changes: creates backup of original, writes serialized tree.
 // Returns an error when a session is active -- use CommitSession() instead.
+// A versioned stored source MUST have its owning SetCommitWriter callback;
+// Save refuses before backup or writes when the callback is absent.
 //
 // It returns the advisory warnings the commit produced, which today is one line
 // for each weak password it hashed (commitContent). The save SUCCEEDED whenever
@@ -1231,6 +1233,9 @@ func (e *Editor) Save() ([]string, error) {
 
 	if !e.dirty.Load() {
 		return nil, nil
+	}
+	if err := e.checkSaveAuthority(); err != nil {
+		return nil, err
 	}
 
 	content, warnings, err := e.commitContent()

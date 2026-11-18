@@ -50,6 +50,15 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Codes:        []string{diagnostic.CodeDoctorStoreIntegrity},
 	Check:        doctorCheckStoreIntegrity,
 }, {
+	Name:         "store-recovery-pending",
+	Phase:        diagnostic.DoctorPhasePreConfig,
+	Order:        110,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"storage"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorStorageRecoveryPending},
+	Check:        doctorCheckRecoveryPending,
+}, {
 	Name:         "machine-id",
 	Phase:        diagnostic.DoctorPhasePreConfig,
 	Order:        120,

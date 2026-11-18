@@ -42,7 +42,7 @@ func TestBackupWorkspaceRegisteredWorkflow(t *testing.T) {
 	require.True(t, ok, "backup editing must be registered on the production web surface")
 	require.Equal(t, WrapAuth, route.Wrap)
 	mux := http.NewServeMux()
-	handler := route.Build(RouteDeps{Authorizer: fakeAuthorizer{allowEdit: true}})
+	handler := route.Build(RouteDeps{Dispatch: backupCommandDispatcher(t), Authorizer: fakeAuthorizer{allowEdit: true}})
 	closer, ok := handler.(io.Closer)
 	require.True(t, ok, "the artifact owner must expose cleanup before route wrapping")
 	t.Cleanup(func() { require.NoError(t, closer.Close()) })

@@ -230,6 +230,10 @@ type Editor interface {
 	// config, with every secret leaf masked. It names a secret whose value
 	// moved, and it publishes neither value.
 	Diff() string
+	// PendingReview renders this session's intent against current committed
+	// values without changing candidate or conflict metadata. Callers MUST
+	// serialize editor access and stop the operation on a snapshot failure.
+	PendingReview(path []string) (string, error)
 	SaveDraft() error
 	SetPreCommitValidate(fn func(candidate string) error)
 	ListBackups() ([]BackupInfo, error)

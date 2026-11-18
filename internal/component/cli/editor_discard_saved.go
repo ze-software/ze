@@ -55,7 +55,7 @@ func (e *Editor) discardSavedSessionPath(guard storage.WriteGuard, prefix string
 	if len(affected) == 0 {
 		return nil
 	}
-	committedData, err := guard.ReadFile(e.originalPath)
+	committedData, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return discardSavedFailure(err)
 	}

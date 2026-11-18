@@ -6,13 +6,19 @@ package cli
 
 import (
 	"errors"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/component/config/storage/daemonroute"
 	"github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/configtext"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // restoreMode is the part of the store a restore replaces.
@@ -40,8 +46,8 @@ const (
 const restoreUsage = "usage: ze data restore <file> config [name <source-name>]\n       ze data restore <file> full\n"
 
 // cmdRestore handles `ze data restore <file> config [name <n>]` and
-// `ze data restore <file> full`. Both take writer ownership of the store, so
-// they refuse while a daemon owns it.
+// `ze data restore <file> full`. A full restore reaches the daemon when it
+// owns the target; otherwise it takes writer ownership and applies offline.
 func cmdRestore(storePath string, args []string) int {
 	var out textbuf.Buffer
 	parsed, err := parseRestoreArgs(args)
@@ -61,6 +67,10 @@ func cmdRestore(storePath string, args []string) int {
 // lock: detect refuses it as a live store, so restoring from it would leave a
 // store no opener accepts.
 func cmdRestoreFull(storePath string, parsed restoreArgs) int {
+	return cmdRestoreFullThrough(storePath, parsed, daemonroute.OverSSH)
+}
+
+func cmdRestoreFullThrough(storePath string, parsed restoreArgs, ask daemonroute.Ask) int {
 	var out textbuf.Buffer
 	dir, err := restoreDir(storePath)
 	if err == nil {
@@ -71,14 +81,22 @@ func cmdRestoreFull(storePath string, parsed restoreArgs) int {
 		out.StdErr() //nolint:errcheck // error output
 		return 1
 	}
+	if storage.RecoverySource(parsed.file) {
+		receipt, err := storage.ResumeRecovery(parsed.file, dir)
+		if err != nil {
+			out.Str("error: restore: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // error output
+			return 1
+		}
+		out.Str("restore: ").Str(parsed.file).Str(": retained full recovery completed; ").Int(receipt.Bytes).
+			Str(" verified bytes restored and the private source removed\n").StdOut() //nolint:errcheck // status output
+		return 0
+	}
 	restored, err := storage.RestoreBlob(parsed.file, dir)
+	if errors.Is(err, storage.ErrBusy) {
+		return restoreFullThroughDaemon(storePath, parsed.file, err, ask)
+	}
 	if err != nil {
 		out.Str("error: restore: ").Err(err).Byte('\n')
-		if errors.Is(err, storage.ErrBusy) {
-			out.Str("hint: a daemon owns the store").Str(daemonAddress(storePath))
-			out.Str("; a full restore replaces the tree the daemon serves: stop the daemon, then run ze data restore ")
-			out.Str(parsed.file).Str(" full; to restore only its config live use: request data restore path <absolute-file> config\n")
-		}
 		out.StdErr() //nolint:errcheck // error output
 		return 1
 	}
@@ -96,6 +114,71 @@ func cmdRestoreFull(storePath string, parsed restoreArgs) int {
 	out.Str(dir).Str("; the artifact is unchanged\n")
 	out.StdOut() //nolint:errcheck // status output
 	return 0
+}
+
+// restoreFullThroughDaemon requests acceptance from the actual live owner. A
+// complete matching receipt proves staging; applying follows daemon teardown.
+func restoreFullThroughDaemon(storePath, source string, busy error, ask daemonroute.Ask) int {
+	path, err := filepath.Abs(source)
+	var line textbuf.Buffer
+	if err == nil {
+		_, err = command.ValidateModelArgs("request data restore", []string{keywordPath, path, restoreKeywordFull}, nil)
+	}
+	if err == nil {
+		line.Str("request data restore path ").Str(configtext.QuoteCommandWord(path)).Str(" full")
+		var answer fullRestoreAnswer
+		err = daemonroute.Send(ask, storePath, line.String(), &answer)
+		if err == nil {
+			err = answer.matches(path)
+		}
+	}
+	if unanswered, ok := errors.AsType[*daemonroute.Unanswered](err); ok {
+		err = daemonroute.UnansweredRefusal("ze data restore", busy, unanswered)
+	}
+	var out textbuf.Buffer
+	if err != nil {
+		out.Str("error: restore: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // terminal output
+		return 1
+	}
+	out.Str("restore: ").Str(source).Str(": full recovery accepted; it will run after a clean daemon shutdown\n").StdOut() //nolint:errcheck // status output
+	return 0
+}
+
+type fullRestoreAnswer struct {
+	Path string `json:"path"`
+	State string `json:"state"`
+	Bytes int64 `json:"bytes"`
+	Digest string `json:"digest"`
+	RestartExitStatus int `json:"restart-exit-status"`
+}
+
+func (answer fullRestoreAnswer) matches(path string) error {
+	if answer.Path != path {
+		return fullRestoreReceiptMismatch()
+	}
+	if answer.State != "accepted" {
+		return fullRestoreReceiptMismatch()
+	}
+	if answer.Bytes <= 0 {
+		return fullRestoreReceiptMismatch()
+	}
+	if answer.RestartExitStatus != rpc.DaemonRestartExitStatus {
+		return fullRestoreReceiptMismatch()
+	}
+	digest, err := hex.DecodeString(answer.Digest)
+	if err != nil {
+		return fullRestoreReceiptMismatch()
+	}
+	if len(digest) != 32 {
+		return fullRestoreReceiptMismatch()
+	}
+	return nil
+}
+
+func fullRestoreReceiptMismatch() error {
+	return opererr.New("full recovery acceptance could not be confirmed",
+		"the daemon's answer did not match the requested source and complete recovery receipt; whether recovery was accepted is unknown",
+		"ze doctor")
 }
 
 // restoreDir answers the configuration folder whose live tree a full restore

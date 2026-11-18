@@ -1,0 +1,66 @@
+// Design: docs/architecture/web-components.md -- source upload and native integrity reports.
+package web
+
+import "strconv"
+
+templ componentBackupSourceUpload() {
+	<section class="backup-panel" aria-labelledby="backup-source-title">
+		<h2 id="backup-source-title">Check or repair a data file</h2>
+		<p>Open a damaged backup or another data file without requiring a valid ZeFS container. Checking and salvage use the normal Ze storage tools. The uploaded original stays separate from any salvage.</p>
+		<form method="POST" action="/backups/sources/" enctype="multipart/form-data">
+			<label for="backup-source-file">Data file (at most 64 MiB)</label>
+			<input id="backup-source-file" type="file" name="source" required>
+			<button id="backup-source-upload" type="submit">Open data file</button>
+		</form>
+		<details>
+			<summary>Paste base64 data instead</summary>
+			<form method="POST" action="/backups/sources/" enctype="multipart/form-data">
+				<label for="backup-source-content">Base64 data (at most 64 MiB after decoding)</label>
+				<textarea id="backup-source-content" name="content" rows="6" spellcheck="false"></textarea>
+				<button id="backup-source-paste" type="submit">Open pasted data</button>
+			</form>
+		</details>
+	</section>
+}
+
+templ componentBackupSource(v backupSourcePageData) {
+	<section class="backup-panel" aria-labelledby="backup-source-details">
+		<h2 id="backup-source-details">Uploaded data source</h2>
+		<p><strong>Bytes:</strong> { strconv.FormatInt(v.Bytes, 10) }</p>
+		<p>This private source remains unchanged by checks and salvage. Download any result you need before closing it. Neither operation changes the live configuration.</p>
+		if v.Error != "" {
+			<pre id="backup-source-error" class="backup-error" role="alert">{ v.Error }</pre>
+		}
+		if v.Status != "" {
+			if v.Warning {
+				<pre id="backup-source-status" class="backup-warning" role="status">{ v.Status }</pre>
+			} else {
+				<pre id="backup-source-status" class="backup-status" role="status">{ v.Status }</pre>
+			}
+		}
+		for _, warning := range v.Warnings {
+			<pre class="backup-warning">{ warning }</pre>
+		}
+		<form method="POST" action={ v.Path } class="backup-actions">
+			<button id="backup-source-check" name="action" value="check" type="submit">Check source</button>
+			<button id="backup-source-repair" name="action" value="repair" type="submit">Create separate salvage</button>
+			<button id="backup-source-close" name="action" value="close" type="submit">Close source</button>
+		</form>
+		<div class="backup-actions">
+			<a id="backup-source-download" class="backup-download" href={ v.Path + "download" }>Download original source</a>
+			if v.Salvage != "" {
+				<a id="backup-source-salvage" class="backup-download" href={ v.Salvage }>Download salvage</a>
+			}
+		</div>
+		if v.Salvage != "" {
+			<p>The salvage is a complete separate ZeFS artifact. Inspect its native report before using it; a download link alone does not mean every key or history entry recovered.</p>
+			<p>Before opening it in the Ze CLI on Unix, restrict its permissions:</p>
+			<pre><code>chmod 600 salvaged.zefs</code></pre>
+		}
+		if v.Report != "" {
+			<h3>Native operation report</h3>
+			<pre id="backup-source-report">{ v.Report }</pre>
+		}
+		<p>Sources expire after two minutes without use. Closing a source removes its uploaded copy; an already created salvage expires separately after one hour without use. Both are removed when the daemon stops.</p>
+	</section>
+}

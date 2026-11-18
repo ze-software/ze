@@ -152,7 +152,12 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 		if terminalAuditSucceeded(cmd, result) {
 			if cmd.Verb == verbDiscard {
 				// The row names what the discard dropped, never a change it kept.
-				auditDetail = discardAuditDetail(mgr, username, auditDetail)
+				var err *opererr.Error
+				auditDetail, err = discardAuditDetail(mgr, username, auditDetail)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
 			}
 			recordWebAudit(recorder, r, username, auditAction, auditDetail)
 		}
@@ -542,12 +547,13 @@ func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, r
 	// refuse-by-default: guards terminalAuditSucceeded -- commands outside commit, discard and rollback do not produce audit rows
 	switch cmd.Verb {
 	case verbCommit:
-		detail := mgr.Diff(username)
-		return audit.ActionConfigCommit, detail, nil
+		detail, err := mgr.Diff(username)
+		return audit.ActionConfigCommit, detail, err
 	case verbDiscard:
 		if len(cmd.Args) > 0 {
 			if cmd.Args[0] != discardAll {
-				return audit.ActionConfigDiscard, mgr.Diff(username), nil
+				detail, err := mgr.Diff(username)
+				return audit.ActionConfigDiscard, detail, err
 			}
 		}
 		detail, err := mgr.discardDiff(username)

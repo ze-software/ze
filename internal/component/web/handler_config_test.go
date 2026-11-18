@@ -1542,7 +1542,9 @@ func TestConfigFormSaveIsOneEdit(t *testing.T) {
 	// diffPair answers the host and the domain the diff names, "" for one it
 	// does not name.
 	diffPair := func() (host, domain string) {
-		for line := range strings.SplitSeq(mgr.Diff("alice"), "\n") {
+		diff, err := mgr.Diff("alice")
+		require.NoError(t, err)
+		for line := range strings.SplitSeq(diff, "\n") {
 			if v, ok := strings.CutPrefix(line, "+ system host "); ok {
 				host = v
 			}

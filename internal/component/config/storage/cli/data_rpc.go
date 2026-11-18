@@ -169,6 +169,7 @@ func parseDataBackupArgs(args []string) (dataBackupArgs, error) {
 // dataRestoreArgs is one parsed `request data restore` line.
 type dataRestoreArgs struct {
 	path       string
+	mode       restoreMode
 	sourceName string
 	client     string
 }
@@ -178,8 +179,8 @@ type dataRestoreArgs struct {
 // candidate FIRST and promoted LAST, by the same reload a SIGHUP runs, so a
 // config the reload refuses never becomes active and the active pointer and its
 // rollback stay as they were. It is refused while a confirmed-commit window is
-// open, with the window's own refusal naming its owner. With client, see
-// restoreClientConfig: the client's config is not the one a window reverts.
+// open, with the window's own refusal naming its owner. A managed client's
+// config is not the one that window reverts.
 func handleDataRestore(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*zePlugin.Response, error) {
 	args := validated.Tokens()
 	target := dataRPC.Load()
@@ -193,13 +194,76 @@ func handleDataRestore(ctx *pluginserver.CommandContext, validated command.Valid
 	if err := storage.CheckArtifactPath(parsed.path); err != nil {
 		return dataRefusal(fmt.Errorf("request data restore: %w", err)), nil
 	}
-	if parsed.client != "" {
-		return restoreClientConfig(target, parsed), nil
+	if parsed.mode == restoreModeFull {
+		response, err := acceptFullRestore(ctx, func(admission *storage.RecoveryAdmission) (storage.RecoveryReceipt, error) {
+			return admission.StagePath(ctx.Context(), parsed.path)
+		})
+		if response != nil {
+			if response.Status == zePlugin.StatusDone {
+				if data, ok := response.Data.(zePlugin.Map); ok {
+					data[keywordPath] = parsed.path
+				}
+			}
+		}
+		return response, err
+	}
+	response := restoreConfigFromSource(ctx.Context(), target, parsed.client, func(deviceName string) (storage.RestoreSource, error) {
+		return storage.ReadRestoreSource(parsed.path, parsed.sourceName, deviceName)
+	})
+	if response.Status == zePlugin.StatusDone {
+		if data, ok := response.Data.(zePlugin.Map); ok {
+			data[keywordPath] = parsed.path
+		}
+	}
+	return response, nil
+}
+
+// RestoreConfigFromSource restores one checked configuration through the actual
+// installed runtime owner. read MUST return complete owned bytes and release
+// every source lock before returning; it MUST NOT stage or publish a target.
+// This allows path and private-token adapters to share selection and publication
+// without holding a private-source lock while the live reload runs.
+func RestoreConfigFromSource(ctx context.Context, client string, read func(deviceName string) (storage.RestoreSource, error)) *zePlugin.Response {
+	target := dataRPC.Load()
+	if target == nil {
+		return dataRefusal(errors.New("request data restore: this daemon serves no store"))
+	}
+	return restoreConfigFromSource(ctx, target, client, read)
+}
+
+func restoreConfigFromSource(ctx context.Context, target *DataRPCTarget, client string, read func(string) (storage.RestoreSource, error)) *zePlugin.Response {
+	if err := ctx.Err(); err != nil {
+		return dataRefusal(fmt.Errorf("request data restore: %w", err))
 	}
 	deviceName := filepath.Base(target.ConfigPath)
-	selected, err := storage.ReadRestoreSource(parsed.path, parsed.sourceName, deviceName)
+	if client != "" {
+		if target.ServesClient == nil {
+			return dataRefusal(fmt.Errorf("request data restore: client %s: this daemon serves no managed client; only a hub with a client entry under plugin hub server serves one", client))
+		}
+		if !target.ServesClient(client) {
+			return dataRefusal(fmt.Errorf("request data restore: client %s: this hub has no client entry named %s under plugin hub server", client, client))
+		}
+		deviceName = pluginserver.ClientConfigKey(client)
+	}
+	selected, err := read(deviceName)
 	if err != nil {
-		return dataRefusal(fmt.Errorf("request data restore: %w", err)), nil
+		return dataRefusal(fmt.Errorf("request data restore: %w", err))
+	}
+	if err := ctx.Err(); err != nil {
+		return dataRefusal(fmt.Errorf("request data restore: %w", err))
+	}
+	if client != "" {
+		stamp, err := storage.RestoreConfig(target.Store, deviceName, selected.Data)
+		if errors.Is(err, storage.ErrCandidateExists) {
+			return dataRefusal(fmt.Errorf("request data restore: a change to %s is already staged; commit or discard it first", deviceName))
+		}
+		if err != nil {
+			return dataRefusal(fmt.Errorf("request data restore: %w", err))
+		}
+		return &zePlugin.Response{Status: zePlugin.StatusDone, Data: zePlugin.Map{
+			"source-name": selected.Name, "config-name": deviceName,
+			keywordClient: client, answerVersion: stamp,
+		}}
 	}
 	var window *confirm.Window
 	if target.Window != nil {
@@ -208,21 +272,20 @@ func handleDataRestore(ctx *pluginserver.CommandContext, validated command.Valid
 	var stamp string
 	writeErr := confirm.WriteOutside(window, func() error {
 		var stageErr error
-		stamp, stageErr = restoreDaemonConfig(ctx.Context(), target, selected.Data)
+		stamp, stageErr = restoreDaemonConfig(ctx, target, selected.Data)
 		return stageErr
 	})
 	if writeErr != nil {
-		return dataRefusal(fmt.Errorf("request data restore: %w", writeErr)), nil
+		return dataRefusal(fmt.Errorf("request data restore: %w", writeErr))
 	}
 	return &zePlugin.Response{
 		Status: zePlugin.StatusDone,
 		Data: zePlugin.Map{
-			keywordPath:   parsed.path,
 			"source-name": selected.Name,
 			"config-name": deviceName,
 			answerVersion: stamp,
 		},
-	}, nil
+	}
 }
 
 // errConfigChangeStaged is restoreDaemonConfig's refusal of a stage over a
@@ -234,8 +297,14 @@ var errConfigChangeStaged = errors.New("a config change is already staged; commi
 // the reload, returning the version stamp. It refuses with
 // errConfigChangeStaged when another change is already staged.
 // `request data restore ... config` and `update data config` for the daemon's
-// own config both take this path.
+// own config and its indexed rollback take this path. A missing reload owner
+// refuses before staging; a store-only server cannot apply a live config.
 func restoreDaemonConfig(ctx context.Context, target *DataRPCTarget, data []byte) (string, error) {
+	if target.Reload == nil {
+		return "", opererr.New("The running configuration has no reload owner.",
+			"No candidate was staged because no loaded configuration owner can apply it.",
+			"ze start")
+	}
 	stamp, err := storage.WriteCandidateVersion(target.Store, target.ConfigPath, data, time.Now())
 	if errors.Is(err, storage.ErrCandidateExists) {
 		return "", errConfigChangeStaged
@@ -249,58 +318,28 @@ func restoreDaemonConfig(ctx context.Context, target *DataRPCTarget, data []byte
 	return stamp, nil
 }
 
-// restoreClientConfig writes the artifact's config as the config this hub serves
-// to one managed client, file/active/client-<name>.conf, as a new version
-// promoted under the store guard. The hub does NOT reload: the config is the
-// client's, not the hub's. The storage write observer sees the key and pushes
-// config-changed to the client, which fetches the new config and applies it
-// through its own reload. A daemon that is not a hub serving that client
-// refuses, because the key would be written and never served.
-func restoreClientConfig(target *DataRPCTarget, parsed dataRestoreArgs) *zePlugin.Response {
-	if target.ServesClient == nil {
-		return dataRefusal(fmt.Errorf("request data restore: client %s: this daemon serves no managed client; only a hub with a client entry under plugin hub server serves one", parsed.client))
-	}
-	if !target.ServesClient(parsed.client) {
-		return dataRefusal(fmt.Errorf("request data restore: client %s: this hub has no client entry named %s under plugin hub server", parsed.client, parsed.client))
-	}
-	clientName := pluginserver.ClientConfigKey(parsed.client)
-	selected, err := storage.ReadRestoreSource(parsed.path, parsed.sourceName, clientName)
-	if err != nil {
-		return dataRefusal(fmt.Errorf("request data restore: %w", err))
-	}
-	stamp, err := storage.RestoreConfig(target.Store, clientName, selected.Data)
-	if errors.Is(err, storage.ErrCandidateExists) {
-		return dataRefusal(fmt.Errorf("request data restore: a change to %s is already staged; commit or discard it first", clientName))
-	}
-	if err != nil {
-		return dataRefusal(fmt.Errorf("request data restore: %w", err))
-	}
-	return &zePlugin.Response{
-		Status: zePlugin.StatusDone,
-		Data: zePlugin.Map{
-			keywordPath:   parsed.path,
-			"source-name": selected.Name,
-			"config-name": clientName,
-			keywordClient: parsed.client,
-			answerVersion: stamp,
-		},
-	}
-}
-
-// parseDataRestoreArgs reads `path <abs> config [name <n>] [client <c>]`. The config
-// keyword is required: a full restore replaces the store under the daemon,
-// so it runs offline only.
+// parseDataRestoreArgs selects exactly one mode. A full restore carries no
+// configuration selector: its distinct owner replaces every stored key.
 func parseDataRestoreArgs(args []string) (dataRestoreArgs, error) {
 	parsed := dataRestoreArgs{}
-	configMode := false
 	for i := 0; i < len(args); i++ {
 		keyword := args[i]
-		if keyword == "config" {
-			configMode = true
+		if keyword == restoreKeywordConfig {
+			if parsed.mode != restoreModeUnspecified {
+				return dataRestoreArgs{}, errors.New("select exactly one restore mode: config or full")
+			}
+			parsed.mode = restoreModeConfig
+			continue
+		}
+		if keyword == restoreKeywordFull {
+			if parsed.mode != restoreModeUnspecified {
+				return dataRestoreArgs{}, errors.New("select exactly one restore mode: config or full")
+			}
+			parsed.mode = restoreModeFull
 			continue
 		}
 		if keyword != keywordPath && keyword != keywordName && keyword != keywordClient {
-			return dataRestoreArgs{}, fmt.Errorf("unknown keyword %q: the keywords are path, config, name and client", keyword)
+			return dataRestoreArgs{}, fmt.Errorf("unknown keyword %q: the keywords are path, config, full, name and client", keyword)
 		}
 		if i+1 >= len(args) {
 			return dataRestoreArgs{}, fmt.Errorf("%s needs a value", keyword)
@@ -318,8 +357,16 @@ func parseDataRestoreArgs(args []string) (dataRestoreArgs, error) {
 	if parsed.path == "" {
 		return dataRestoreArgs{}, errors.New("path <absolute-file> is required")
 	}
-	if !configMode {
-		return dataRestoreArgs{}, errors.New("the config keyword is required: a live restore replaces the config only")
+	if parsed.mode == restoreModeUnspecified {
+		return dataRestoreArgs{}, errors.New("the config keyword is required for a config restore; choose config or full explicitly")
+	}
+	if parsed.mode == restoreModeFull {
+		if parsed.sourceName != "" {
+			return dataRestoreArgs{}, errors.New("name selects one configuration; full restores every key and takes no name")
+		}
+		if parsed.client != "" {
+			return dataRestoreArgs{}, errors.New("client selects one served configuration; full restores this daemon's entire store")
+		}
 	}
 	return parsed, nil
 }

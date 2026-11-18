@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/configtext"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -94,13 +95,21 @@ type StoppedWindowError struct {
 }
 
 func (e *StoppedWindowError) Error() string {
-	var tb textbuf.Buffer
-	return tb.Str("a confirmed commit by ").Str(e.Owner).
-		Str(" was not confirmed before the daemon stopped.\n").
-		Str("That commit is reverted when the daemon starts, and the revert would undo this change.\n").
-		Str("Start the daemon to revert the commit, then make this change from its config editor:\n").
-		Str("  ze start ").Str(e.ConfigPath).String()
+	return e.OperatorError().Error()
 }
+
+// OperatorError is the recorded window's complete recovery refusal. Its fix
+// starts the selected configuration; no offline write can resolve the window.
+func (e *StoppedWindowError) OperatorError() *opererr.Error {
+	return opererr.New("a confirmed commit by "+e.Owner+" was not confirmed before the daemon stopped.",
+		"That commit is reverted when the daemon starts, and the revert would undo this change.\n"+
+			"Start the daemon to revert the commit, then make this change from its config editor:",
+		"ze start "+configtext.QuoteCommandWord(e.ConfigPath))
+}
+
+// Unwrap exposes the native refusal while keeping this recorded-window error
+// available to callers that judge its type or identity.
+func (e *StoppedWindowError) Unwrap() error { return e.OperatorError() }
 
 // Load reads the record a stopped daemon left. It answers nil only when no
 // record exists; a record that does not decode, or names no user or deadline,

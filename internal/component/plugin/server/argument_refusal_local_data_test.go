@@ -39,8 +39,12 @@ func TestDispatchArgumentHelpUsesTheExactLocalDataRegistration(t *testing.T) {
 		name string
 		want string
 	}{
-		{path, "required argument missing: content\nhint: run '" + path + " help' to see the arguments it takes"},
-		{path + " detail", "required argument missing: content"},
+		{path, "required argument missing: content\n" +
+			"The command definition makes content mandatory and supplies no further explanation\n" +
+			"fix: " + path + " content <content>\nhint: run '" + path + " help' to see the arguments it takes"},
+		{path + " detail", "required argument missing: content\n" +
+			"The command definition makes content mandatory and supplies no further explanation\n" +
+			"fix: " + path + " detail content <content>"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			response, err := d.Dispatch(&CommandContext{}, tc.name)

@@ -31,10 +31,10 @@ func TestBuildCommand(t *testing.T) {
 			want:    "peer name peer1",
 		},
 		{
-			name:    "empty value skipped",
+			name:    "explicit empty value quoted",
 			command: "show",
 			params:  map[string]string{"prefix": ""},
-			want:    "show",
+			want:    `show prefix ""`,
 		},
 		{
 			name:    "whitespace in key rejected",

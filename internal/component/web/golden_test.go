@@ -131,8 +131,46 @@ var webTemplGoldenSpec = golden.Spec{
 				Content: "\nbgp { router-id 203.0.113.45; }\n", Base: strings.Repeat("b", 64),
 				Status: "Configuration saved into the backup. Download the updated backup to keep it.",
 			})},
+			{Name: "source", Data: pageBackupWorkspace(backupPageData{
+				Source: &backupSourcePageData{
+					Path: "/backups/sources/" + strings.Repeat("d", 64) + "/", Bytes: 1024,
+					Status:  "Warning: the salvage is incomplete. Review its native report before using the download. The uploaded source is unchanged.",
+					Warning: true, Warnings: []string{"One damaged history entry could not be recovered."},
+					Report:  "{\n  \"recovered\": 3,\n  \"lost\": 1\n}",
+					Salvage: "/backups/" + strings.Repeat("e", 64) + "/download",
+				},
+			})},
 		},
 	}},
+	"component_backup_source.templ": {
+		{Name: "componentBackupSourceUpload", Fixture: "component/backup_source_upload", Variants: []golden.Variant{
+			{Data: componentBackupSourceUpload()},
+		}},
+		{Name: "componentBackupSource", Fixture: "component/backup_source", Variants: []golden.Variant{
+			{Name: "opened", Data: componentBackupSource(backupSourcePageData{
+				Path: "/backups/sources/" + strings.Repeat("d", 64) + "/", Bytes: 1024,
+			})},
+			{Name: "checked", Data: componentBackupSource(backupSourcePageData{
+				Path: "/backups/sources/" + strings.Repeat("d", 64) + "/", Bytes: 1024,
+				Status: "The native operation completed. The uploaded source is unchanged.",
+				Report: "{\n  \"valid\": true\n}",
+			})},
+			{Name: "salvage-warning", Data: componentBackupSource(backupSourcePageData{
+				Path: "/backups/sources/" + strings.Repeat("d", 64) + "/", Bytes: 1024,
+				Status:  "Warning: the salvage is incomplete. Review its native report before using the download. The uploaded source is unchanged.",
+				Warning: true, Warnings: []string{"One damaged history entry could not be recovered."},
+				Report:  "{\n  \"recovered\": 3,\n  \"lost\": 1\n}",
+				Salvage: "/backups/" + strings.Repeat("e", 64) + "/download",
+			})},
+			{Name: "salvage-error", Data: componentBackupSource(backupSourcePageData{
+				Path: "/backups/sources/" + strings.Repeat("d", 64) + "/", Bytes: 1024,
+				Error:    "The data source could not be recovered completely.\nReview the native report before using the salvage.",
+				Warnings: []string{"A damaged key <router&history> could not be recovered."},
+				Report:   "{\n  \"recovered\": 2,\n  \"lost\": 2\n}",
+				Salvage:  "/backups/" + strings.Repeat("e", 64) + "/download",
+			})},
+		}},
+	},
 	"page_layout.templ": {{
 		Name:    "pageLayout",
 		Fixture: "page/layout.html",
@@ -198,7 +236,7 @@ var webTemplGoldenSpec = golden.Spec{
 			{Data: configRecovery(configRecoveryData{Username: "operator", Fingerprint: strings.Repeat("f", 64)})},
 		}},
 		{Name: "configRecoveryError", Fixture: "component/config_recovery_error", Variants: []golden.Variant{
-			{Data: configRecoveryError()},
+			{Data: configRecoveryError(configRecoveryErrorData{ChangeName: "config.conf.change.operator"})},
 		}},
 	},
 	"component_error_panel.templ": {{

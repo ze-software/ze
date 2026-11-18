@@ -8,13 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // cmdListWithStorage lists stored configurations and explicit loose files.
@@ -41,7 +39,12 @@ func cmdListWithStorage(store storage.Storage, args []string) int {
 			return exitError
 		}
 		defer backup.Close() //nolint:errcheck // Read-only inspection.
-		if !listStored(backup) {
+		found, err := listStored(backup)
+		if err != nil {
+			fmt.Fprint(os.Stderr, command.LocalErrorLine(err))
+			return exitError
+		}
+		if !found {
 			fmt.Fprintf(os.Stderr, "No config found in %s.\n", *backupPath)
 		}
 		return exitOK
@@ -55,57 +58,48 @@ func cmdListWithStorage(store storage.Storage, args []string) int {
 		}
 		defer store.Close() //nolint:errcheck // Read-only inspection.
 	}
-	found := listStored(store)
-
-	// List .conf files from filesystem (XDG config home + cwd)
-	for _, dir := range configSearchDirs() {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".conf") {
-				continue
-			}
-			fmt.Println("[fs] " + filepath.Join(dir, e.Name()))
-			found = true
-		}
+	rows, err := configListRows(store, true)
+	if err != nil {
+		fmt.Fprint(os.Stderr, command.LocalErrorLine(err))
+		return exitError
+	}
+	for _, row := range rows {
+		fmt.Printf("[%s] %s\n", row.Source, row.Path)
 	}
 
-	if !found {
+	if len(rows) == 0 {
 		fmt.Fprintln(os.Stderr, "No config files found. Use 'ze config edit' to create one.")
 	}
 	return exitOK
 }
 
 // listStored prints every active and draft config the store holds, one
-// "[data] <key>" line each, and reports whether it printed any.
-func listStored(store storage.Storage) bool {
-	found := false
-	for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
-		keys, err := store.List(prefix)
-		if err != nil {
-			continue // directory doesn't exist yet
-		}
-		for _, key := range keys {
-			fmt.Println("[data] " + key)
-			found = true
-		}
+// "[data] <key>" line each, and reports whether it printed any. A listing
+// failure returns before printing, distinct from a genuinely empty store.
+func listStored(store storage.Storage) (bool, error) {
+	rows, err := configListRows(store, false)
+	if err != nil {
+		return false, err
 	}
-	return found
+	for _, row := range rows {
+		fmt.Printf("[%s] %s\n", row.Source, row.Path)
+	}
+	return len(rows) != 0, nil
 }
 
 // configSearchDirs returns directories to scan for .conf files: the XDG
-// config directory and the working directory.
-func configSearchDirs() []string {
+// config directory and the working directory. A working directory that cannot
+// be established refuses the search rather than silently losing that source.
+func configSearchDirs() ([]string, error) {
 	var dirs []string
 	if dir := xdgConfigDir(); dir != "" {
 		dirs = append(dirs, dir)
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		dirs = append(dirs, cwd)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
-	return dirs
+	return append(dirs, cwd), nil
 }
 
 // xdgConfigDir answers ze's directory under the XDG config home

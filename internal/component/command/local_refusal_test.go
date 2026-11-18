@@ -15,6 +15,8 @@ func TestLocalRefusalNamesTheHelpForAMissingArgument(t *testing.T) {
 	missing := &MissingArgumentError{Leaf: "module-name"}
 	got := localRefusal("ze set debug module", missing)
 	want := "error: required argument missing: module-name\n" +
+		"The command definition makes module-name mandatory and supplies no further explanation\n" +
+		"fix: supply the required module-name argument\n" +
 		"hint: run 'ze set debug module help' to see the arguments it takes\n"
 	if got != want {
 		t.Fatalf("missing argument refusal:\n got %q\nwant %q", got, want)
@@ -37,6 +39,8 @@ func TestArgumentRefusalPreservesTheMissingCause(t *testing.T) {
 	refusal := ArgumentRefusal("ze set debug module", missing)
 	got := LocalErrorLine(refusal)
 	want := "error: required argument missing: module-name\n" +
+		"The command definition makes module-name mandatory and supplies no further explanation\n" +
+		"fix: supply the required module-name argument\n" +
 		"hint: run 'ze set debug module help' to see the arguments it takes\n"
 	if got != want {
 		t.Fatalf("shared missing argument refusal:\n got %q\nwant %q", got, want)

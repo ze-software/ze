@@ -58,15 +58,28 @@ func suppliedHandler(path string, produce suppliedProducer) command.LocalDataHan
 			}
 			name = label
 		}
-		if err := args.Context().Err(); err != nil {
-			return suppliedRefusal(path, "request canceled", err)
-		}
-		answer := produce(args, data, name)
-		if err := args.Context().Err(); err != nil {
-			return suppliedRefusal(path, "request canceled", err)
-		}
-		return answer
+		return suppliedAnswer(path, produce, args, data, name)
 	}
+}
+
+// suppliedAnswer bounds the produced bytes as well as the request. A compact
+// nested source can expand substantially when serialized as repeated set paths.
+func suppliedAnswer(path string, produce suppliedProducer, args command.ValidatedArgs, data []byte, name string) command.LocalAnswer {
+	if err := args.Context().Err(); err != nil {
+		return suppliedRefusal(path, "request canceled", err)
+	}
+	answer := produce(args, data, name)
+	if err := args.Context().Err(); err != nil {
+		return suppliedRefusal(path, "request canceled", err)
+	}
+	if !args.Route().CallerLocal() {
+		if blob, text := answer.Payload.(command.Blob); text {
+			if len(blob) > command.BlobRemoteOctetsMax {
+				return suppliedRefusal(path, "the produced text exceeds the daemon response limit; use the local ze config command on the host holding the source", nil)
+			}
+		}
+	}
+	return answer
 }
 
 func suppliedRefusal(path, problem string, cause error) command.LocalAnswer {
@@ -133,6 +146,12 @@ func suppliedDiff(_ command.ValidatedArgs, data []byte, _ string) command.LocalA
 // suppliedPair consumes exactly one bounded JSON object. Token decoding keeps
 // duplicate and null fields visible; ordinary struct unmarshaling loses them.
 func suppliedPair(data []byte) ([]byte, []byte, error) {
+	return suppliedPairFields(data, suppliedBefore, suppliedAfter)
+}
+
+// suppliedPairFields keeps the same strict two-string envelope for comparison
+// sources and completion input. The field names are owner-declared constants.
+func suppliedPairFields(data []byte, first, second string) ([]byte, []byte, error) {
 	if !utf8.Valid(data) {
 		return nil, nil, errors.New("the comparison envelope is not UTF-8")
 	}
@@ -157,23 +176,23 @@ func suppliedPair(data []byte) ([]byte, []byte, error) {
 			return nil, nil, errors.New("each comparison source must be a string")
 		}
 		switch field {
-		case suppliedBefore:
+		case first:
 			if seenBefore {
-				return nil, nil, errors.New("the before source was given more than once")
+				return nil, nil, errors.New("the " + first + " source was given more than once")
 			}
 			seenBefore, before = true, []byte(text)
-		case suppliedAfter:
+		case second:
 			if seenAfter {
-				return nil, nil, errors.New("the after source was given more than once")
+				return nil, nil, errors.New("the " + second + " source was given more than once")
 			}
 			seenAfter, after = true, []byte(text)
 		default:
-			return nil, nil, errors.New("only before and after fields are accepted")
+			return nil, nil, errors.New("only " + first + " and " + second + " fields are accepted")
 		}
 	}
 	closing, err := decoder.Token()
 	if err != nil || closing != json.Delim('}') || !seenBefore || !seenAfter {
-		return nil, nil, errors.New("the comparison envelope needs both before and after sources")
+		return nil, nil, errors.New("the comparison envelope needs both " + first + " and " + second + " sources")
 	}
 	var trailing json.RawMessage
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {

@@ -105,6 +105,10 @@ type GRPCServer struct {
 	sessions       *api.ConfigSessionManager
 	authentication api.AuthenticationProvider
 	auditRecorder  audit.Recorder
+	// requestCtx ends active RPCs before GracefulStop joins their handlers.
+	// Each interceptor preserves its caller context and links it to this lifetime.
+	requestCtx    context.Context
+	requestCancel context.CancelFunc
 	// tlsConfigured records that the server was built with a certificate and
 	// key, so its listeners are encrypted. Reconfigure needs it: a reload moving
 	// a listener off loopback must apply the same TLS requirement the
@@ -179,6 +183,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		opts = append(opts, grpc.Creds(creds))
 	}
 
+	s.requestCtx, s.requestCancel = context.WithCancel(context.Background())
 	s.srv = grpc.NewServer(opts...)
 	zepb.RegisterZeServiceServer(s.srv, &zeServiceImpl{engine: engine})
 	zepb.RegisterZeConfigServiceServer(s.srv, &zeConfigServiceImpl{engine: engine, sessions: sessions, auditRecorder: cfg.AuditRecorder})
@@ -275,11 +280,14 @@ func (s *GRPCServer) serve(listeners []net.Listener) error {
 	return nil
 }
 
-// Stop gracefully stops the server, closing every bound listener.
+// Stop cancels active RPC contexts, then gracefully joins their handlers and
+// closes every bound listener. The caller MUST retain borrowed resources until
+// Stop returns; a monitor stream must not wait for its client to stop first.
 func (s *GRPCServer) Stop() {
 	s.mu.Lock()
 	s.stopped = true
 	s.mu.Unlock()
+	s.requestCancel()
 	s.srv.GracefulStop()
 }
 
@@ -446,7 +454,18 @@ type wrappedStream struct {
 
 func (w *wrappedStream) Context() context.Context { return w.ctx }
 
+// requestContext keeps caller cancellation, metadata and deadlines while also
+// ending the operation when Stop begins. The caller MUST release its link when
+// its handler returns; no completed RPC remains registered with the lifetime.
+func (s *GRPCServer) requestContext(parent context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parent)
+	stop := context.AfterFunc(s.requestCtx, cancel)
+	return ctx, func() { stop(); cancel() }
+}
+
 func (s *GRPCServer) authUnaryInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	ctx, release := s.requestContext(ctx)
+	defer release()
 	caller, err := s.checkAuth(ctx)
 	if err != nil {
 		return nil, err
@@ -455,13 +474,15 @@ func (s *GRPCServer) authUnaryInterceptor(ctx context.Context, req any, _ *grpc.
 }
 
 func (s *GRPCServer) authStreamInterceptor(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	caller, err := s.checkAuth(ss.Context())
+	ctx, release := s.requestContext(ss.Context())
+	defer release()
+	caller, err := s.checkAuth(ctx)
 	if err != nil {
 		return err
 	}
 	wrapped := &wrappedStream{
 		ServerStream: ss,
-		ctx:          context.WithValue(ss.Context(), callerKey, caller),
+		ctx:          context.WithValue(ctx, callerKey, caller),
 	}
 	return handler(srv, wrapped)
 }

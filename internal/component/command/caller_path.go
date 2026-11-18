@@ -22,6 +22,8 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -210,14 +212,23 @@ func callerPathOutside(commandPath string, tokens []string, path string, dirs []
 	return callerPathRefusal(commandPath, tokens, reason.String())
 }
 
-// callerPathRefusal builds the one-line refusal both cases share: what the
-// command needs, and the local `ze` command to run where the input is.
+// callerPathRefusal owns the refusal both cases share and its local recovery
+// invocation. Private command content is masked before its words are quoted.
 func callerPathRefusal(commandPath string, tokens []string, reason string) error {
-	var tb textbuf.Buffer
-	tb.Str(commandPath).Byte(' ').Str(reason).Str("; run 'ze ").Str(commandPath)
+	var local textbuf.Buffer
+	local.Str("ze ").Str(commandPath)
+	private := false
 	for _, token := range tokens {
-		tb.Byte(' ').Str(token)
+		display := token
+		if private || redact.IsBcryptHash(token) {
+			display = redact.Placeholder
+		}
+		local.Byte(' ')
+		WriteInvocationValue(&local, display)
+		private = redact.IsCredentialKeyword(token)
 	}
-	tb.Str("' on the host that holds the file")
-	return errors.New(tb.String())
+	invocation := local.String()
+	return opererr.New(commandPath+" "+reason,
+		"This input must be read where it is available; run '"+invocation+"' on the host that holds the file",
+		invocation)
 }

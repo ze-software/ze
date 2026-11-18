@@ -18,6 +18,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -121,9 +122,9 @@ func (v ValidatedArgs) Value(leaf string) (value string, found bool) {
 }
 
 // MissingArgumentError is ValidateArgs's refusal of a call that left a
-// mandatory definition unfilled. A call that left several unfilled is refused
-// with one MissingArgumentError per leaf, in declaration order, inside an
-// *ArgumentFaults.
+// mandatory definition unfilled. The validator keeps one MissingArgumentError
+// per missing leaf inside an *ArgumentFaults, even when only one is missing,
+// so each route can supply the complete command as the correction.
 //
 // It carries the lone positional binding the call DID make, because the daemon
 // dispatcher chooses between two refusals on it: a command whose selector
@@ -135,14 +136,43 @@ type MissingArgumentError struct {
 	// Leaf is a mandatory definition that no token filled.
 	Leaf       string
 	usage      string
+	purpose    string
+	unplaced   []string
 	bound      string
 	boundValue string
 }
 
-// Error answers the refusal text every route prints.
+// Error explains the missing leaf and how to supply it when the command path
+// is not known. Routes restate ArgumentFaults with that complete command.
 func (e *MissingArgumentError) Error() string {
+	return opererr.New(e.problem(), e.why(), e.fix()).Error()
+}
+
+// problem is also the compact label of this cause in a multi-fault list.
+func (e *MissingArgumentError) problem() string {
 	var tb textbuf.Buffer
 	return tb.Str("required argument missing: ").Str(e.Leaf).String()
+}
+
+// why carries the model's declared argument meaning. A missing declaration is
+// an explicit gap, never a purpose inferred from the leaf's name.
+func (e *MissingArgumentError) why() string {
+	var tb textbuf.Buffer
+	if e.purpose == "" {
+		return tb.Str("The command definition makes ").Str(e.Leaf).
+			Str(" mandatory and supplies no further explanation").String()
+	}
+	return tb.Str("This command needs ").Str(e.Leaf).Str(": ").Str(e.purpose).String()
+}
+
+// fix uses the model's actual value form when this is a validator-built cause.
+// A directly constructed cause has no usage metadata and cannot invent it.
+func (e *MissingArgumentError) fix() string {
+	var tb textbuf.Buffer
+	if e.usage == "" {
+		return tb.Str("supply the required ").Str(e.Leaf).Str(" argument").String()
+	}
+	return tb.Str("type the command again with ").Str(e.usage).String()
 }
 
 // Usage answers the words that supply the missing leaf, its keyword and then
@@ -164,6 +194,15 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 		return "", false
 	}
 	return e.boundValue, true
+}
+
+// UnplacedTokens answers a copy of the positional values ValidateArgs could
+// not bind to any definition. Named keyword/value pairs never contribute.
+// The validator snapshots this evidence before returning its refusal, so a
+// selector guard need not parse the caller's line again. A directly constructed
+// cause holds no validation evidence and answers nil.
+func (e *MissingArgumentError) UnplacedTokens() []string {
+	return slices.Clone(e.unplaced)
 }
 
 // ValidateArgs implements two-phase validation of command arguments
@@ -196,13 +235,15 @@ func (e *MissingArgumentError) Positional(leaf string) (value string, found bool
 // that would drift. "Lone" is the point: when a command leaves several tokens
 // unconsumed, which of them is the value is a guess, and the caller must not
 // make it. A call that left a mandatory definition unfilled is refused with a
-// *MissingArgumentError, which carries that binding for the same reason.
+// *ArgumentFaults containing a *MissingArgumentError, which carries that binding
+// for the same reason.
 //
 // The whole line is read before the call is refused, and every fault it holds
 // is named: a keyword with no value, a value its leaf refuses, a keyword typed
 // twice, a token no definition takes, and each missing mandatory argument.
 // A line with one fault is refused with that fault alone, except a value its
-// leaf refuses (*ValueArgumentError), which is an *ArgumentFaults of one so
+// leaf refuses (*ValueArgumentError) or a missing mandatory argument
+// (*MissingArgumentError), which is an *ArgumentFaults of one so
 // every route restates it with the whole command; a line
 // with more is refused with an *ArgumentFaults, whose Unwrap answers each, so
 // errors.As finds every fault kind on both shapes. The faults are in the order
@@ -388,10 +429,25 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	// *MissingArgumentError, so an operator who types the first one is not
 	// refused again for the next. A leaf whose keyword or value is at fault
 	// is matched by now, so it is never also reported missing.
+	// Snapshot unresolved positional values only when a missing cause needs
+	// them. The indexes came from this bounded token walk; all missing causes
+	// share one immutable snapshot, while callers receive copies.
+	var unplacedValues []string
 	missing := false
 	for i := range defs {
 		if defs[i].mandatory && !matched[defs[i].name] {
-			faults.addMissing(&MissingArgumentError{Leaf: defs[i].name, usage: keywordUsage(&defs[i]), bound: bound, boundValue: boundValue})
+			if unplacedValues == nil {
+				unplacedValues = make([]string, len(unplaced))
+				for i, at := range unplaced {
+					unplacedValues[i] = args[at]
+				}
+			}
+			purpose := defs[i].Description()
+			if purpose == "" {
+				purpose = defs[i].ShortHelp()
+			}
+			faults.addMissing(&MissingArgumentError{Leaf: defs[i].name, usage: keywordUsage(&defs[i]),
+				purpose: purpose, unplaced: unplacedValues, bound: bound, boundValue: boundValue})
 			missing = true
 		}
 	}

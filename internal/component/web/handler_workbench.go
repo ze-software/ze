@@ -89,7 +89,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 			userTree, err := mgr.viewTree(username)
 			if err != nil {
 				if cli.IsCorruptChangeFile(err) {
-					writeConfigRecoveryError(w, r, renderer)
+					writeConfigRecoveryError(w, r, renderer, mgr)
 					return
 				}
 				http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)

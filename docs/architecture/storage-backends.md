@@ -146,6 +146,30 @@ bypass config-name mapping. `ListKeys` recursively returns sorted keys matching
 its literal prefix, including partial leaf prefixes; an empty prefix selects
 all keys.
 
+Committed configuration readers use `ReadActiveConfig`, including stored editor
+construction and backup show and diff. An active pointer selects its verified
+version even when the raw active mirror is missing or stale. A pointer that
+cannot resolve, or an object whose digest does not match, refuses the read;
+the raw mirror does not replace that failure. Editor resume, replay, review,
+discard and commit use `ReadActiveConfigWithGuard` while holding the existing
+configuration guard. Drafts and per-account change records still use raw file
+reads. Explicit loose-file editors keep their filesystem source.
+<!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig, ReadActiveConfigWithGuard -->
+<!-- source: internal/component/cli/editor.go -- NewEditorWithStorage, NewLooseFileEditor -->
+<!-- source: internal/component/config/cli/cmd_show.go -- openBackupShowEditor -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- readDiffSource -->
+
+Default editor discovery uses `ArtifactConfigNames`, which includes pointer-only
+configurations, before choosing or creating a config. A direct dirty stored
+`Editor.Save` with an active pointer requires `SetCommitWriter`: the owning
+publisher decides live validation/reload versus offline promotion. Without that
+callback, Save refuses before serialization, backup or writes instead of
+reporting a mirror-only write as a committed version. Legacy mirror-only saves
+and explicit loose-file saves retain their existing behavior.
+<!-- source: internal/component/config/cli/cmd_edit.go -- doSelectConfig -->
+<!-- source: internal/component/cli/editor_commands.go -- Save -->
+<!-- source: internal/component/cli/editor_file.go -- checkSaveAuthority -->
+
 Unlocked reads return caller-owned bytes. A guard's reads may reference the blob
 mapping and MUST NOT outlive `Release`. All operations inside a guarded section
 MUST use that guard, including existence checks and `List`. Guarded lists see
@@ -497,6 +521,20 @@ a blob, preserving binary frame bytes through JSON base64 encoding.
 
 ### Restoring a config from an artifact
 
+The detached `request config artifact import` command and standalone
+`ze data --path <artifact> import <file>` share `ImportConfig`. The caller's
+complete bytes remain unvalidated configuration input: importing a new basename
+writes its active file key, while importing an existing active pointer or mirror
+publishes native version history. A pending candidate refuses replacement of
+an existing configuration. Retained confirmed commits and unfinished file
+commits refuse import. The artifact adapter accepts a
+private source token and a configuration basename, rather than a daemon path;
+the owner stages the complete destination artifact and applies its normal quotas.
+<!-- source: internal/component/config/storage/cli/main.go -- ImportConfig -->
+<!-- source: internal/component/config/storage/import_config.go -- ImportConfig -->
+<!-- source: internal/component/config/storage/publication_intent.go -- refuseConfigIntentLocked -->
+<!-- source: internal/component/config/artifact/raw.go -- ChangeStoreFromSource -->
+
 `ReadRestoreSource` runs the artifact check (`CheckArtifact`, the same
 `zefs.Check` verdict import uses), opens the artifact read-only through
 `OpenBlob`, and selects one config: the name the operator gave, else the only
@@ -516,6 +554,16 @@ while a confirmed-commit window is open (`confirm.WriteOutside`), because the
 window's revert would wipe it. `request data
 backup` runs `Backup` over the daemon's own bound handle (`ownedStore` looks
 through `BindConfigSource`), under the lock every commit takes.
+
+Private artifact selected-config restore uses the same `ReadRestoreSource` and
+`RestoreConfigFromSource` publication as the daemon's path adapter. Source
+selection returns complete owned bytes before the artifact owner lock releases;
+the live candidate and reload run afterward. Neither adapter changes the
+installed runtime target. A missing reload owner refuses before candidate
+staging. The managed-client branch requires a configured served client and
+publishes that client's configuration without reloading the hub.
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataRestore, RestoreConfigFromSource, restoreDaemonConfig -->
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreConfig -->
 
 `request data repair` and the daemon's `show data check` walk the frame files
 of the live tree (`zefs.RepairPath`, `zefs.CheckPath`) rather than its keys.

@@ -209,7 +209,11 @@ func TestLoadersCarryTheDeclaredAuditAction(t *testing.T) {
 	t.Run("LoadBuiltins request reload", func(t *testing.T) {
 		d := NewDispatcher()
 		wireToPath := internalBuildTestWireToPath(t)
-		if err := LoadBuiltins(d, wireToPath, nil, nil, nil); err != nil {
+		loader, err := yang.DefaultLoader()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := LoadBuiltins(d, wireToPath, nil, nil, nil, yang.BuildCommandTree(loader)); err != nil {
 			t.Fatal(err)
 		}
 		// LoadBuiltins serves each wire method under one path, the shortest

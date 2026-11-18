@@ -431,13 +431,15 @@ module ze-extensions {
     }
 
     // Extension: hidden
-    // Marks a leaf as hidden from config display and the web editor.
-    // Hidden leaves are stored in the config tree but not shown in the UI
-    // or config output. Used for internal metadata fields (e.g., PeeringDB
-    // update timestamps).
+    // Hidden config nodes are saved but omitted from display views.
+    // Hidden command paths remain executable when typed in full.
     extension hidden {
         argument value;
-        description "Marks a leaf as hidden from config display and web editor.
+        description "Hides a config node from display views and the web editor;
+                     configured values remain in serialized configuration.
+                     On a command or grouping, hides that path and its
+                     descendants from help and completion while full-path
+                     execution remains available.
                      The argument is a boolean string (true/false).";
     }
 

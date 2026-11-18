@@ -30,19 +30,19 @@ type BGPTreeResolver func(tree *config.Tree) (map[string]any, error)
 // must not name.
 type BGPPeerValidator func(tree *config.Tree) error
 
-// BGPPolicyAbsence is one EBGP peer, or one dynamic group, whose import or
-// export direction has no explicit policy, so RFC 8212 closes it: Ze uses none
-// of the routes it receives, or sends it none. The config is valid and the
-// session establishes, which is why only a report names it.
+// BGPPolicyAbsence explains a missing policy on one peer or dynamic group.
+// Its Code distinguishes RFC8212 external rejection from ordinary internal
+// learned-export rejection. The valid configuration still permits a session.
 type BGPPolicyAbsence struct {
 	Owner     string // "peer <name>" or "group <name>", as the config names it
 	Direction string // import or export
-	Message   string // what RFC 8212 stops, worded as the establishment warning
+	Message   string // what the missing policy stops, as the establishment warning
 	Fix       string // the configuration editor command that configures the direction
+	Code      string // the shared diagnostic code; empty retains the legacy warning code
 }
 
 // BGPPolicyValidator runs the engine's peer validation (BGPPeerValidator's
-// walk) and, on a config that passes it, names every RFC 8212 policy absence.
+// walk) and, on a config that passes it, names every policy absence.
 // One walk answers both, so the report judges exactly the peers the daemon
 // would build.
 type BGPPolicyValidator func(tree *config.Tree) ([]BGPPolicyAbsence, error)
@@ -116,7 +116,7 @@ func ValidateBGPPeers(tree *config.Tree) error {
 }
 
 // ValidateBGPPeersWithPolicy runs the engine's peer validation and names the
-// RFC 8212 policy absences of a config that passes it. It returns nothing when
+// policy absences of a config that passes it. It returns nothing when
 // no engine is compiled in: without a BGP speaker there is no peer to validate
 // and no session RFC 8212 can close.
 //

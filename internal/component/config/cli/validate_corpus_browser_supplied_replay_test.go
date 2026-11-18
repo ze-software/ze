@@ -254,7 +254,7 @@ func (b *browserCorpus) inspectionRequest(method, target string, body io.Reader,
 	}
 	dispatcher := pluginserver.NewDispatcher()
 	if err := pluginserver.LoadBuiltins(dispatcher, configyang.WireMethodToPath(resolved),
-		configyang.PathToDescription(resolved), configyang.PathToHelp(resolved), configyang.PathToArgDefs(resolved)); err != nil {
+		configyang.PathToDescription(resolved), configyang.PathToHelp(resolved), configyang.PathToArgDefs(resolved), tree); err != nil {
 		return nil, err
 	}
 	var policy aaa.Authorizer

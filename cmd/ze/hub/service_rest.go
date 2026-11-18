@@ -17,7 +17,6 @@
 package hub
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -79,12 +78,8 @@ func restBuildImpl(in *apiBuildInputs, sh *apiShared) (apiServerHandle, error) {
 		fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", addr)
 	}
 	return apiServerHandle{
-		Server: srv,
-		Shutdown: func(ctx context.Context) {
-			if shErr := srv.Shutdown(ctx); shErr != nil {
-				fmt.Fprintf(os.Stderr, "warning: REST API shutdown: %v\n", shErr)
-			}
-		},
+		Server:   srv,
+		Shutdown: srv.Shutdown,
 	}, nil
 }
 

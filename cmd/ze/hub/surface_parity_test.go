@@ -438,7 +438,11 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 	for _, prefix := range pluginserver.StreamingPrefixes() {
 		streaming[strings.ToLower(prefix)] = true
 	}
+	commandTree := yangloader.BuildCommandTree(schema)
 	add := func(reg command.CommandRegistration) {
+		if command.HiddenAtPath(commandTree, strings.Fields(reg.Path)) {
+			reg.Hidden = true
+		}
 		key := strings.ToLower(reg.Path)
 		if seen[key] {
 			return
@@ -486,7 +490,6 @@ func collectCommandRegistrations(t *testing.T, schema *yangloader.Resolved, view
 	// A plugin command on a schema node with no `ze:command` of its own (`show
 	// vrrp interface`) is declared Modeled, read from the same schema shell
 	// completion walks.
-	commandTree := yangloader.BuildCommandTree(schema)
 	for _, r := range pluginreg.All() {
 		for i := range r.Commands {
 			decl := &r.Commands[i]

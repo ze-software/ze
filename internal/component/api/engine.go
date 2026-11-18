@@ -40,8 +40,9 @@ type AuthChecker func(username, command string) bool
 
 // StreamSource creates a streaming event channel for a command.
 // Returns the event channel, a cancel function, and any error.
-// The channel is closed when the stream ends or cancel is called.
-// Caller MUST call the cancel function when done to release resources.
+// Cancellation MUST join the producer and its cleanup, closing the event
+// channel before returning. The caller MUST call cancel before releasing the
+// resources its stream borrows, including when transport delivery failed.
 type StreamSource func(ctx context.Context, caller CallerIdentity, command string) (<-chan string, func(), error)
 
 // APIEngine is the shared backend for REST and gRPC transports.

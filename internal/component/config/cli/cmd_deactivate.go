@@ -97,9 +97,9 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 	displayPath := textbuf.Join(path, " ")
 	// ApplyActivation is the dispatch the SSH and web editors use, so the
 	// offline verb accepts and refuses the same paths they do.
-	status, err := ed.ApplyActivation(path, activate)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	status, refusal := applyConfigActivation(ed, path, activate)
+	if refusal != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", refusal)
 		return exitError
 	}
 	if !ed.Dirty() {

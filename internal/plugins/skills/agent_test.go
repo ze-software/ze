@@ -84,7 +84,7 @@ func daemonDispatcher(t *testing.T) *pluginserver.Dispatcher {
 	require.NoError(t, err, "load the embedded YANG modules")
 	d := pluginserver.NewDispatcher()
 	require.NoError(t, pluginserver.LoadBuiltins(d, yang.WireMethodToPath(loader),
-		yang.PathToDescription(loader), yang.PathToHelp(loader), yang.PathToArgDefs(loader)))
+		yang.PathToDescription(loader), yang.PathToHelp(loader), yang.PathToArgDefs(loader), yang.BuildCommandTree(loader)))
 	return d
 }
 

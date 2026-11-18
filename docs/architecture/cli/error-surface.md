@@ -218,6 +218,17 @@ second constructor carries a typed refusal into the answer.
 
 <!-- source: internal/component/plugin/types.go -- OperatorErrorResponse -->
 
+A transport that receives this text checks it with `opererr.FromRendered`
+before presenting it as a typed refusal. All three parts must contain text;
+an incomplete answer is an operating error, never a constructor panic. A valid
+answer renders byte for byte as received, including multiline evidence and
+corrections. The flat text does not recover the producer's original semantic
+part boundaries or Go cause identities: the first line becomes `Problem`, the
+remaining explanation before the final `fix: ` block becomes `Why`, and
+`Unwrap` is nil. Code within one process passes its native error directly.
+
+<!-- source: internal/core/opererr/rendered.go -- FromRendered -->
+
 `./le arch operator-error check` judges both forms on the lines a change adds or
 changes, at `./le commit create` and in the verify stage. `./le arch
 operator-error report` lists every instance in the tree and refuses nothing.

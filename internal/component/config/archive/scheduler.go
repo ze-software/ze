@@ -42,7 +42,8 @@ const (
 
 // Scheduler runs time-based archive triggers (daily/hourly).
 // It fires all matching archives on boot, then on interval.
-// Stopped by canceling the context.
+// The owner MUST cancel its context and join Run before releasing readConfig's
+// borrowed resources; cancellation does not interrupt an in-flight read.
 type Scheduler struct {
 	configs    []ArchiveConfig
 	tracker    *ChangeTracker
@@ -87,7 +88,9 @@ func NewScheduler(configs []ArchiveConfig, configPath string, readConfig func() 
 }
 
 // Run starts the scheduler. It fires all time-based archives immediately (boot),
-// then runs on interval. Blocks until ctx is canceled.
+// then runs on interval. Cancellation prevents further archives; Run returns
+// after any in-flight read or archive finishes. The owner MUST join that return
+// before closing the resources readConfig borrows.
 func (s *Scheduler) Run(ctx context.Context) {
 	if len(s.configs) == 0 {
 		return

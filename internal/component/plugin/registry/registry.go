@@ -45,10 +45,14 @@ type Registration struct {
 	CLIHandler  func(args []string) int // CLI handler for `ze plugin <name>`
 
 	// Optional metadata.
-	RFCs            []string // Related RFC numbers (e.g., ["8955", "8956"])
-	Families        []string // Address families handled (e.g., ["ipv4/flow", "ipv6/flow"])
-	CapabilityCodes []uint8  // Capability codes decoded (e.g., [73] for FQDN)
-	ConfigRoots     []string // Config roots the plugin owns (e.g., ["bgp"]). A present root auto-loads the plugin.
+	// HideFromSelection omits a registration from plugin-name completion.
+	// A registration can carry a filter type or boot effect without offering
+	// an engine to select. Lookup, All and Names retain it for those consumers.
+	HideFromSelection bool
+	RFCs              []string // Related RFC numbers (e.g., ["8955", "8956"])
+	Families          []string // Address families handled (e.g., ["ipv4/flow", "ipv6/flow"])
+	CapabilityCodes   []uint8  // Capability codes decoded (e.g., [73] for FQDN)
+	ConfigRoots       []string // Config roots the plugin owns (e.g., ["bgp"]). A present root auto-loads the plugin.
 	// ConfigReads are roots the plugin reads but does not own: its config
 	// verifier and its schema see them beside ConfigRoots, and they never
 	// auto-load it. bgp-rpki reads `pki` for RTR over TLS, and a config that
@@ -476,24 +480,27 @@ var (
 	plugins = make(map[string]*Registration)
 	mu      sync.RWMutex
 
-	// runtimeSessionReady answers SignalsSessionReady for a process name this
-	// map does not hold: every EXTERNAL plugin, and every in-tree plugin the
-	// operator attached under an alias. The plugin server installs it once at
-	// startup. It reads the Stage-1 declaration off the running process and
-	// resolves the alias to the implementation the registry filed, so the fact
-	// is declared ONCE, by the plugin, and this is a seam onto it rather than a
-	// second copy of it.
+	// runtimeSessionReady answers SignalsSessionReady from the current Process
+	// for every name, including names with a compiled registration. The plugin
+	// server installs it at startup and supplies current Stage-1 declarations
+	// for external programs, including forked built-ins. Genuine Internal
+	// runners keep their compiled declarations through the same server lookup.
+	// This seam reads the declaration rather than retaining a second copy.
 	//
-	// Nil until the server installs it, and nil in every binary that runs no
-	// plugin server. A nil seam answers false, which is the same answer an
-	// undeclared process gets: nothing that cannot report is expected to.
+	// Nil until the server installs it, and nil in binaries without a plugin
+	// server. With no seam, SignalsSessionReady uses a matching compiled
+	// registration's value; an unknown name answers false.
 	runtimeSessionReady func(process string) bool
+
+	// runtimeReplayFence reads the current authenticated Process directly.
+	// The server owns declaration lifetime; this seam stores no declaration.
+	runtimeReplayFence *replayFenceLookup
 
 	// runtimeRegistryNames resolves a running process name to the registry
 	// names its config uses (`plugin { internal rs { use bgp-rs } }` answers
-	// ["bgp-rs"]), for a declaration only a compile-time Registration carries:
-	// FencesLiveForwards. The plugin server installs it beside
-	// runtimeSessionReady. Nil answers no names, so an alias fences nothing.
+	// ["bgp-rs"]), for compiled implementation metadata such as RS fast-path
+	// participation. The plugin server installs it beside
+	// runtimeSessionReady. Nil resolves no names for compiled metadata lookup.
 	runtimeRegistryNames func(process string) []string
 
 	// builtinFamilies maps family names to source names for engine-builtin families
@@ -894,6 +901,22 @@ func Names() []string {
 	return names
 }
 
+// SelectableNames returns plugin-name completion choices from the live registry.
+// Hidden registrations remain available to runtime and catalog consumers.
+func SelectableNames() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	names := make([]string, 0, len(plugins))
+	for name, registration := range plugins {
+		if registration.HideFromSelection {
+			continue
+		}
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
 // Has returns true if a plugin with the given name is registered.
 func Has(name string) bool {
 	mu.RLock()
@@ -1190,50 +1213,28 @@ func RequiresPeerUpBarrier(name string) bool {
 	return reg.PeerUpBarrier
 }
 
-// SignalsSessionReady reports whether the plugin behind a name declares
-// Registration.SignalsSessionReady.
-//
-// The caller holds a PROCESS name, and a process name is a registry key only
-// when the operator did not rename the implementation. `internal rs
-// { use bgp-rs }` files the registration under "bgp-rs" and runs the process as
-// "rs", so a name this map does not hold is not an answer: it is a question for
-// the runtime seam, which owns the running processes and resolves the alias
-// (SetRuntimeSessionReady, and (*Server).declaresSessionReady behind it). An
-// EXTERNAL process arrives there too, because it is registered nowhere in this
-// tree and declares at Stage 1 instead.
-//
-// False when no seam is installed, and false when the seam finds no
-// declaration. The owner made the declaration voluntary on 2026-09-02, so a
-// third-party plugin with no reason to report is not made to, and false is the
-// answer that keeps this safe: a plugin that will never report is then never
-// expected to. The End-of-RIB waits for no report (owner ruling, 2026-09-18);
-// what a report lowers is the replay fence (FencesLiveForwards).
+// SignalsSessionReady reads the current server's Process declaration when its
+// runtime seam is installed. This rule applies even when the process name also
+// names a compiled registration. Without a server seam, compiled metadata keeps
+// its static answer. Neither readiness nor fencing grants peer permission.
 func SignalsSessionReady(name string) bool {
 	mu.RLock()
 	reg := plugins[name]
 	runtime := runtimeSessionReady
 	mu.RUnlock()
-
-	if reg != nil {
-		return reg.SignalsSessionReady
+	if runtime != nil {
+		return runtime(name)
 	}
-	if runtime == nil {
+	if reg == nil {
 		return false
 	}
-	return runtime(name)
+	return reg.SignalsSessionReady
 }
 
-// SetRuntimeSessionReady installs the seam that answers SignalsSessionReady for
-// an external process, which declares through Stage 1 rather than through a
-// compile-time Registration. The plugin server owns the running processes, so it
-// owns the answer; this package only holds the door open for the reactor, which
-// cannot import it.
-//
-// Called once at server startup. Passing nil removes the seam, which returns
-// every external process to "declares nothing".
-//
-// It is a runtime seam, callable after Seal: the plugin server starts after
-// the registry is sealed.
+// SetRuntimeSessionReady installs the current server's readiness lookup for
+// every process name. The server MUST read its current Process and MUST NOT lend
+// compiled readiness to an external program. Passing nil restores compiled-only
+// static answers. Safe after Seal; the registry mutex is not held during lookup.
 func SetRuntimeSessionReady(fn func(process string) bool) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -1583,6 +1584,7 @@ func Reset() {
 	// Cleared with the registry it belongs to: a seam surviving Reset answers
 	// for a plugin server the next test never started.
 	runtimeSessionReady = nil
+	runtimeReplayFence = nil
 	runtimeRegistryNames = nil
 }
 
@@ -1893,16 +1895,17 @@ func TopologicalGraphTiers(deps map[string][]string) ([][]string, error) {
 	return tiers, nil
 }
 
-// FencesLiveForwards reports whether the plugin running under name declares
-// Registration.FencesLiveForwards. name is a PROCESS name, which is a registry
-// key only when the operator attached the plugin under its own name: an alias
-// (`plugin { internal rs { use bgp-rs } }`) is resolved through the plugin
-// server's runtimeRegistryNames seam, the same resolution SignalsSessionReady
-// makes. Without it, a route server attached as "rs" raised no replay fence,
-// and its live forwards reached a peer ahead of its own peer-up replay. A name
-// that resolves to no fencing registration answers false: a plugin that never
-// declared the fence is never waited for.
+// FencesLiveForwards reads the current server's authenticated process
+// declaration when its lookup is installed. Outside a running server, compiled
+// metadata and its existing alias resolver retain their static answer. Neither
+// route grants peer permission; readiness signaling is also required.
 func FencesLiveForwards(name string) bool {
+	mu.RLock()
+	runtime := runtimeReplayFence
+	mu.RUnlock()
+	if runtime != nil {
+		return runtime.query(name)
+	}
 	return processDeclares(name, func(reg *Registration) bool {
 		return reg.FencesLiveForwards && reg.SignalsSessionReady
 	})

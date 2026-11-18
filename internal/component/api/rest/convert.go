@@ -17,9 +17,7 @@ func fromRESTExecuteRequest(caller api.CallerIdentity, command string, params ma
 		} else {
 			sval = fmt.Sprint(val)
 		}
-		if sval != "" {
-			stringParams[key] = sval
-		}
+		stringParams[key] = sval
 	}
 	built, err := api.BuildCommand(command, stringParams)
 	if err != nil {

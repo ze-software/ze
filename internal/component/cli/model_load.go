@@ -428,6 +428,19 @@ func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult,
 		return m.applyTextFilters(r, e, opts.TextFilters)
 	}
 
+	// A bare comparison reviews this session's intent. Explicit sources,
+	// targets and format pipes retain the parsed-tree comparison contract.
+	if source == "" {
+		if opts.CompareDefault {
+			if !opts.FormatExplicit {
+				if m.editor.HasSession() {
+					output, err := m.editor.PendingReview(m.contextPath)
+					return m.applyTextFilters(commandResult{output: output}, err, opts.TextFilters)
+				}
+			}
+		}
+	}
+
 	result, err := m.cmdShowDisplayWithSource(opts.Format, opts.CompareTarget, source)
 	if err != nil {
 		return result, err
@@ -620,7 +633,9 @@ func ParsePipeFilters(words CommandWords) []PipeFilter {
 // ShowPipeOpts holds the classified result of show-specific pipe filters.
 type ShowPipeOpts struct {
 	Format        string       // "tree" (default) or "config"
+	FormatExplicit bool        // A format pipe explicitly selected the tree/set representation.
 	CompareTarget string       // "", "confirmed", "saved", "rollback N"
+	CompareDefault bool        // The compare pipe had no explicit target.
 	TreeFilter    string       // "", "active", "inactive"
 	Blame         bool         // show | blame
 	Changes       bool         // show | changes
@@ -643,8 +658,10 @@ func ClassifyShowPipes(filters []PipeFilter) (ShowPipeOpts, error) {
 				return ShowPipeOpts{}, fmt.Errorf("unknown format: %s (use tree or config)", f.Arg)
 			}
 			opts.Format = f.Arg
+			opts.FormatExplicit = true
 		case cmdCompare:
 			opts.CompareTarget = f.Arg
+			opts.CompareDefault = f.Arg == ""
 			if opts.CompareTarget == "" {
 				opts.CompareTarget = srcConfirmed
 			}

@@ -50,7 +50,8 @@ func wireEnvHints(tree *Node) {
 // MergeYANGNodes creates command nodes missing from tree but present in the
 // YANG tree. Local handlers (registered via MustRegisterLocal) define YANG
 // command structures but don't produce RPC-tree nodes, so they'd otherwise
-// be absent from completion. This fills those gaps with YANG descriptions.
+// be absent from completion. This fills those gaps with YANG descriptions and
+// preserves schema visibility on both existing and newly created nodes.
 func MergeYANGNodes(tree, yangTree *Node) {
 	if tree == nil || yangTree == nil || yangTree.Children == nil {
 		return
@@ -73,6 +74,9 @@ func mergeChildren(dst, src *Node) {
 			// module it came from declares one.
 			dstChild = &Node{Name: name, ShortHelp: srcChild.ShortHelp, Description: srcChild.Description}
 			dst.Children[name] = dstChild
+		}
+		if srcChild.Hidden {
+			dstChild.Hidden = true
 		}
 		mergeChildren(dstChild, srcChild)
 	}

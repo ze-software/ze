@@ -56,7 +56,7 @@ func resumeSessionFailure(err error) error {
 // replay steps. The constructor chooses the visible view: CLI keeps the shared
 // materialization, while an isolated editor projects only the resumed session.
 func (e *Editor) resumeSession(guard storage.WriteGuard) (*config.Tree, int, error) {
-	committedData, err := guard.ReadFile(e.originalPath)
+	committedData, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return nil, 0, fmt.Errorf("read config %s: %w", e.originalPath, err)
 	}

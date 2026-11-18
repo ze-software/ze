@@ -3,7 +3,10 @@ package web
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -47,8 +50,7 @@ func backupHTTPRefusesInvalidSource(t *testing.T, content, diagnostic string) {
 	require.Equal(t, http.StatusSeeOther, upload.Code, upload.Body.String())
 	path := upload.Header().Get("Location")
 	id := strings.Trim(strings.TrimPrefix(path, backupWorkspacePath), "/")
-	workspace := owner.items[id]
-	require.NotNil(t, workspace)
+	digest := sha256.Sum256(source)
 	opened := backupHTTPRequest(t, owner, path+"?config=router.conf", "alice", nil)
 	require.Equal(t, http.StatusOK, opened.Code, opened.Body.String())
 	assert.Equal(t, content, backupSourceTextarea(t, opened.Body.String()), "raw committed text must remain inspectable")
@@ -62,9 +64,9 @@ func backupHTTPRefusesInvalidSource(t *testing.T, content, diagnostic string) {
 			assert.Contains(t, refused.Body.String(), diagnostic)
 			assert.Contains(t, refused.Body.String(), "Correct the reported configuration problem and select Validate again")
 			assert.Equal(t, content, backupSourceTextarea(t, refused.Body.String()), "refused text must remain available for correction")
-			retained, err := os.ReadFile(workspace.path)
+			retained, err := owner.command(t.Context(), httptest.NewRequestWithContext(withUsername(t.Context(), "alice"), http.MethodGet, path, http.NoBody), "show config artifact info artifact "+id)
 			require.NoError(t, err)
-			assert.Equal(t, source, retained, "a refused action must leave the entire retained artifact byte-identical")
+			assert.Equal(t, hex.EncodeToString(digest[:]), retained.Digest, "a refused action must leave the entire retained artifact byte-identical")
 		})
 	}
 	download := backupHTTPRequest(t, owner, path+"download", "alice", nil)

@@ -25,8 +25,9 @@ var managedServerLog = slogutil.LazyLogger("hub.managed-server")
 //   - reads each client's config from the blob at file/active/client-<name>.conf,
 //   - pushes config-changed when that blob is written (via the storage write observer).
 //
-// The server's goroutines self-terminate when ctx is canceled (its closeOnDone worker
-// closes the listeners). It is independent of the outbound managed client
+// The caller MUST call Stop before releasing store. Cancellation closes the
+// listeners, but Stop also joins requests and notifications already reading it.
+// It is independent of the outbound managed client
 // (RunManagedClient): a hub can serve clients, be a managed client, or both.
 func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *zePlugin.HubConfig) *pluginserver.ManagedServer {
 	if hubConfig == nil || store == nil {
@@ -92,6 +93,8 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 
 	// Push config-changed when a client's config blob is written. NotifyConfigChanged
 	// only enqueues (non-blocking), so the storage write path is never stalled.
+	// Stop joins every consumer of that queue. The callback itself never reads
+	// storage, so it can remain installed until the borrowed store closes.
 	store.SetWriteObserver(func(key string) {
 		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
 			srv.NotifyConfigChanged(name)

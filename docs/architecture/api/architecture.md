@@ -30,6 +30,20 @@
 
 ---
 
+## Command parameter values
+
+REST, gRPC and MCP preserve an explicitly supplied empty string. The shared
+command writer quotes it as one empty token, distinct from an omitted argument.
+The command model then accepts or refuses that value. HTML forms omit blank
+optional controls before command composition. REST and gRPC retain their existing
+refusal of whitespace in parameter keys and values.
+<!-- source: internal/component/command/arguments.go -- WriteInvocation -->
+<!-- source: internal/component/api/requests.go -- BuildCommand -->
+<!-- source: internal/component/api/rest/convert.go -- fromRESTExecuteRequest -->
+<!-- source: internal/component/api/grpc/convert.go -- fromProtoExecuteRequest, fromProtoStreamRequest -->
+<!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
+<!-- source: internal/component/web/handler_admin.go -- commandArguments -->
+
 ## TL;DR (Read This First)
 
 | Concept | Description |
@@ -194,6 +208,9 @@ attachment after initial synchronization. A late DOWN cannot refer to whichever
 connection currently occupies the peer's address. Typed and JSON delivery carry
 the same values; an observer sharing an encoding does not share the owner's
 cached state body.
+The separate `ordinary-replay-owned` advisory reaches every state recipient on
+UP when that captured connection has an ordinary owner. It stands auxiliary
+automatic replay down without granting the observer selected-output authority.
 <!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer, selectedStateFormatKey -->
 <!-- source: internal/component/bgp/reactor/peer_selected_state.go -- selectedStateDestination -->
 
@@ -450,18 +467,31 @@ itself. A relay bgp-adj-rib-in sends itself (its own self-replay, or the operato
 `request bgp adj-rib-in replay`) is judged on its own grant and refused toward a
 peer that does not grant it `send [ update ]`.
 
-An accepting transition after export-final rejection uses that same authorized
-owner and retained-source replay, not a separate API desired-state cache. The
-live session holds source updates behind the replay until its last page has
-reached the writer; a concurrent source withdrawal therefore wins over an older
-page, including an ADD-PATH withdrawal from the same source session.
-Reconciliation errors propagate through the reload transaction and its inverse;
-an accepting configuration is not committed while required replay has failed.
-FlowSpec is not replayed from the optional receive store: restoration enumerates
-the selecting RIB's authorized keys, reads each current path, and relays it under
-the same actual owner's grant. The receive-store prerequisite therefore applies
-to negotiated ordinary families, not to a FlowSpec-only destination.
-<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal, policyReplayOwner, flushPolicyReplay -->
+An ordinary destination's export-final transition targets its captured selecting
+process and Session. That owner reoffers current learned selections and settles
+their final output receipts; optional receive-store candidates are not replayed.
+A learned-only transition neither withdraws nor resends local, API, static,
+default or plugin origins. When the local disposition changes too, rejection withdraws
+recorded advertisements and acceptance regenerates configured local routes.
+Retained API originals keep their receipts; a direct one-shot API producer must
+reannounce if rejection removed its output.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
+
+Explicit RS/RR forwarding and authorized Adj-RIB-In self-replay retain the
+legacy replay path described above. For their non-FlowSpec families, the receive
+store must first apply its queued UPDATE events. During retained-source replay,
+the live session holds source updates until the last page reaches the writer;
+a concurrent source withdrawal therefore follows an older page, including an
+ADD-PATH withdrawal from the same source session. Their FlowSpec restoration
+reads the selecting RIB's authorized keys and current paths through the actual
+owner's send grant, so a FlowSpec-only destination needs no optional receive
+store. Required reconciliation errors propagate through the reload transaction
+and its inverse. Arbitrary filter-definition changes still do not generally
+re-evaluate existing routes.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds, policyReplayOwner, flushPolicyReplay -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
+<!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- requeuePolicyReplay -->
 <!-- source: internal/core/bgp/ribevents/replay.go -- ReplayRoutesCommand, RelayReplay, ReplayPathCommand, RelayReplayPath -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- replayRoutesCommand, buildReplayPage -->
@@ -707,6 +737,25 @@ cannot be encoded becomes a refusal carrying that same delivery action.
 <!-- source: internal/component/api/engine.go -- APIEngine.Execute -->
 <!-- source: internal/component/api/rest/server.go -- writeExecResult -->
 <!-- source: internal/component/api/grpc/server.go -- zeServiceImpl.Execute -->
+
+## Transport shutdown
+
+The hub joins built REST and gRPC transports before releasing their borrowed
+configuration store, including a later startup failure. REST closes its
+listeners and waits for active requests. Both transports first cancel their
+active request contexts, so monitor streams end while the plugin server is
+still available. Each request keeps its caller's metadata and cancellation.
+If REST's shutdown grace expires, it retains that error and continues waiting
+for those requests before returning;
+the hub then reports an unclean stop and refuses pending full-store recovery.
+gRPC's graceful Stop also joins its active requests before returning.
+Canceling a shared API stream also joins its registered producer and accounting
+cleanup before returning to the transport, so the request's shutdown covers
+that worker as well as the response handler.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/api.go -- apiStreamSource -->
+<!-- source: internal/component/api/rest/server.go -- RESTServer.Shutdown -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer.Stop -->
 
 ## Identity and Authorization
 

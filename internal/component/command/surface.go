@@ -107,8 +107,8 @@ func (k RegistrationKind) String() string {
 type CommandRegistration struct {
 	Path string
 	Kind RegistrationKind
-	// Hidden is a plugin command declared Hidden: it runs when typed in full
-	// and is listed nowhere.
+	// Hidden comes from the command's schema path or plugin declaration: it
+	// runs when typed in full and is listed nowhere.
 	Hidden bool
 	// Streaming says a streaming handler (RegisterStreamingHandler) serves the
 	// path, so a terminal surface runs it as a live stream.

@@ -89,14 +89,19 @@ func AllBuiltinRPCs() []RPCRegistration {
 // entry are skipped. The local-data commands a YANG node declares are loaded
 // beside them (loadLocalData). The first name another registration already
 // holds stops the load and is returned (ErrCommandHeld).
-func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) error {
+// A non-nil cmdTree MUST come from the same resolved schema as the maps. It
+// carries visibility for builtins, local-data commands and plugin declarations.
+// The benchmark-only registerDefaultHandlers wrapper supplies no schema tree.
+func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) error {
+	d.registry.setCommandTree(cmdTree)
 	for _, reg := range AllBuiltinRPCs() {
 		name := wireToPath[reg.WireMethod]
 		if name == "" {
 			continue // No YANG tree entry (editor-internal)
 		}
 		if err := d.RegisterWithOptions(name, reg.Handler, pathToDesc[name], RegisterOptions{
-			ReadOnly:         IsReadOnlyPath(name),
+			Hidden:           command.HiddenAtPath(cmdTree, strings.Fields(name)),
+			ReadOnly:         IsReadOnlyPath(name) && !reg.NotReadOnly,
 			RequiresSelector: reg.RequiresSelector,
 			PluginProxy:      reg.PluginCommand != "",
 			ArgDefs:          pathToArgDefs[name],
@@ -112,7 +117,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 	for wire, path := range wireToPath {
 		wireToPaths[wire] = []string{path}
 	}
-	return loadLocalData(d, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs)
+	return loadLocalData(d, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs, cmdTree)
 }
 
 // ErrWireMethodHeld is the refusal for a builtin RPC whose wire method another
@@ -131,6 +136,7 @@ var ErrWireMethodHeld = errors.New("wire method registered by two builtins")
 // take the other's command by registering later. The server MUST NOT serve
 // after a refusal.
 func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) error {
+	d.registry.setCommandTree(cmdTree)
 	wireToHandler := make(map[string]Handler, len(regs))
 	wireSeen := make(map[string]bool, len(regs))
 	for _, reg := range regs {
@@ -154,7 +160,8 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 				handler = wrapWithEnsureChain(handler, chain)
 			}
 			if err := d.RegisterWithOptions(name, handler, pathToDesc[name], RegisterOptions{
-				ReadOnly:         IsReadOnlyPath(name),
+				Hidden:           command.HiddenAtPath(cmdTree, strings.Fields(name)),
+				ReadOnly:         IsReadOnlyPath(name) && !reg.NotReadOnly,
 				RequiresSelector: reg.RequiresSelector,
 				PluginProxy:      reg.PluginCommand != "",
 				ArgDefs:          pathToArgDefs[name],
@@ -167,7 +174,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, regs []RPCRegistration, wireToPaths 
 			}
 		}
 	}
-	return loadLocalData(d, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs)
+	return loadLocalData(d, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs, cmdTree)
 }
 
 // legacyReadRoots are the noun-first tree roots that answer a read and are not
@@ -200,7 +207,7 @@ func IsReadOnlyPath(path string) bool {
 
 // registerDefaultHandlers registers all builtin handlers with the dispatcher.
 func registerDefaultHandlers(d *Dispatcher, wireToPath map[string]string) error {
-	return LoadBuiltins(d, wireToPath, nil, nil, nil)
+	return LoadBuiltins(d, wireToPath, nil, nil, nil, nil)
 }
 
 // Handler processes a command and returns a response.
@@ -536,7 +543,7 @@ func (c *CommandContext) ArgsOrSelector(args []string, leaf string) []string {
 
 // Command represents a registered command with metadata.
 //
-// A Command is 184 bytes, past the 160-byte rangeValCopy bound .golangci.yml
+// A Command is past the 160-byte rangeValCopy bound .golangci.yml
 // sets. A loop over a []Command therefore ranges by index and takes the address
 // of the element, rather than copying it.
 type Command struct {
@@ -556,6 +563,7 @@ type Command struct {
 	// summary, and no one-line surface reads it at all.
 	Description      string
 	ReadOnly         bool             // True if command only reads state (safe for "ze show")
+	Hidden           bool             // Hidden from discovery; full-path execution remains available.
 	RequiresSelector bool             // True if command requires an explicit selector instead of implicit/all scope
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
 	// Complete answers the values the command's argument may take, from the
@@ -596,6 +604,7 @@ func (c *Command) TakesInlineSelector() bool {
 
 // RegisterOptions holds optional settings for command registration.
 type RegisterOptions struct {
+	Hidden           bool             // Schema visibility, including hidden ancestors.
 	ReadOnly         bool             // True if command only reads state
 	RequiresSelector bool             // True if the command requires an explicit selector value
 	PluginProxy      bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
@@ -696,6 +705,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		ShortHelp:        help,
 		Description:      opts.Description,
 		ReadOnly:         opts.ReadOnly,
+		Hidden:           opts.Hidden,
 		RequiresSelector: opts.RequiresSelector,
 		ArgDefs:          opts.ArgDefs,
 		Complete:         opts.Complete,
@@ -1225,8 +1235,8 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			}
 		}
 
-		// A line refused with a list of faults (several faults, or one value
-		// its leaf refuses) is restated as every route restates it
+		// A line refused with a list of faults (several faults, one value
+		// its leaf refuses, or one missing mandatory argument) is restated as every route restates it
 		// (command.ArgumentFaults.RestatedForLine), with what only the
 		// dispatcher knows: the command's path, where the selector is typed,
 		// and the line that supplies a missing one. The guard below still
@@ -1251,7 +1261,18 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// never runs on it.
 		if matchedCmd.RequiresSelector && !explicitSelector && (ctx == nil || ctx.Peer == "") {
 			if !argFaultOutsideSelector(argErr) {
-				return nil, missingSelectorError(matchedCmd, args)
+				// Several unbound words need the guard's explanation of why no
+				// selector was chosen. A typed lone missing selector with no
+				// ambiguous payload keeps the shared refusal already restated
+				// above, including its cause, declared purpose and whole fix.
+				missing, found := errors.AsType[*command.MissingArgumentError](argErr)
+				if !found {
+					return nil, missingSelectorError(matchedCmd, validated.PositionalTokens())
+				}
+				unplaced := missing.UnplacedTokens()
+				if len(unplaced) > 1 {
+					return nil, missingSelectorError(matchedCmd, unplaced)
+				}
 			}
 		}
 
@@ -1401,9 +1422,9 @@ func adoptablePositional(validated command.ValidatedArgs, argErr error) (string,
 // one verdict that does not: it is what a line with nothing after the path
 // gets ("delete bgp peer"), and what a line whose values carry no keyword gets,
 // and for both the guard's refusal names the fix. Every other verdict names the
-// token or the leaf the operator must repair. A *command.ArgumentFaults always
-// does, a lone refused value among them, even when every fault it holds is a
-// missing argument: the guard's
+// token or the leaf the operator must repair. An *ArgumentFaults containing
+// only the missing selector still belongs to that guard. Every other list
+// names its own fault, even when every fault it holds is a missing argument: the guard's
 // refusal names the selector alone, while the list (restated by
 // restateArgumentFaults) names each missing leaf, the missing selector by the
 // guard's own form, so an operator who supplies the selector is not refused
@@ -1412,8 +1433,18 @@ func argFaultOutsideSelector(argErr error) bool {
 	if argErr == nil {
 		return false
 	}
-	if _, listed := errors.AsType[*command.ArgumentFaults](argErr); listed {
-		return true
+	if faults, listed := errors.AsType[*command.ArgumentFaults](argErr); listed {
+		members := faults.Faults()
+		if len(members) != 1 {
+			return true
+		}
+		missing, found := errors.AsType[*command.MissingArgumentError](members[0])
+		if !found {
+			return true
+		}
+		// The selector guard still chooses the ambiguous-payload diagnostic.
+		// Without that ambiguity it preserves this typed shared refusal.
+		return missing.Leaf != selectorLeaf
 	}
 	if _, missing := errors.AsType[*command.MissingArgumentError](argErr); missing {
 		return false

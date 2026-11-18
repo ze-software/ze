@@ -161,7 +161,8 @@ func (f *webEditorRecoveryFixture) checkCandidate(t *testing.T, manager *zeweb.E
 	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 	assert.Contains(t, response.Body.String(), "original-group")
 	assert.Equal(t, 2, manager.ChangeCount("alice"), "the recovered leaf and rename remain reviewable")
-	diff := manager.Diff("alice")
+	diff, err := manager.Diff("alice")
+	require.NoError(t, err)
 	assert.Contains(t, diff, "alice-pending")
 	assert.Contains(t, diff, "rename")
 	assert.Contains(t, diff, "alice-renamed")
@@ -199,7 +200,9 @@ func (f *webEditorRecoveryFixture) checkCommit(t *testing.T, manager *zeweb.Edit
 	require.NotNil(t, bgp)
 	assert.Equal(t, []string{"alice-renamed"}, bgp.ListKeys("group"))
 	assert.Zero(t, manager.ChangeCount("alice"))
-	assert.Empty(t, manager.Diff("alice"))
+	diff, err := manager.Diff("alice")
+	require.NoError(t, err)
+	assert.Empty(t, diff)
 	f.checkOwners(t)
 }
 

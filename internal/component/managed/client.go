@@ -58,6 +58,8 @@ type ClientConfig struct {
 // RunManagedClient connects to the hub and maintains the connection with
 // reconnect and heartbeat. Blocks until ctx is canceled. This is a
 // long-lived goroutine -- one per managed client instance.
+// A caller that starts a goroutine MUST cancel ctx and wait for this function
+// to return before releasing resources borrowed by CheckManaged or OnCommit.
 func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 	backoff := newBackoff(1*time.Second, 60*time.Second, 0.1)
 

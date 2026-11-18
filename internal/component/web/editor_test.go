@@ -174,19 +174,22 @@ func TestEditorManagerDiff(t *testing.T) {
 	mgr := newTestEditorManager(t)
 
 	// Before any changes, diff should be empty (no session yet).
-	diff := mgr.Diff("alice")
+	diff, err := mgr.Diff("alice")
+	require.NoError(t, err)
 	assert.Empty(t, diff, "diff must be empty before any changes")
 
 	// Set a value so the user has a session.
-	err := mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.1")
+	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err, "SetValue must succeed")
 
 	// The concrete editor and adapter must preserve the value change.
-	diff = mgr.Diff("alice")
+	diff, err = mgr.Diff("alice")
+	require.NoError(t, err)
 	assert.Contains(t, diff, "+ bgp router-id 10.0.0.1\n")
 
 	// Diff for a different user (no session) must still be empty.
-	diff = mgr.Diff("bob")
+	diff, err = mgr.Diff("bob")
+	require.NoError(t, err)
 	assert.Empty(t, diff, "diff must be empty for user with no session")
 }
 

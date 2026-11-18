@@ -362,8 +362,14 @@ func TestSuppliedConfigDescriptorsMatchModel(t *testing.T) {
 					command.ValidateArgString("../router.conf", name) == nil {
 					t.Fatal("single-input descriptor lost its modeled basename label")
 				}
-			} else if input.NameArg != "" || !slices.Equal(input.Fields, []string{suppliedBefore, suppliedAfter}) {
-				t.Fatalf("comparison descriptor differs from the actual envelope: %+v", input)
+			} else {
+				fields := []string{suppliedBefore, suppliedAfter}
+				if entry.Path == "show config supplied completion" {
+					fields = []string{"configuration", "input"}
+				}
+				if input.NameArg != "" || !slices.Equal(input.Fields, fields) {
+					t.Fatalf("comparison descriptor differs from the actual envelope: %+v", input)
+				}
 			}
 		})
 	}
@@ -392,7 +398,8 @@ func TestSuppliedConfigComparisonRetainsSideDiagnostics(t *testing.T) {
 }
 
 // TestSuppliedConfigPipesPreserveOwnedAnswerShapes joins the actual input
-// declarations to the same answer shapes and pipe validator as the file forms.
+// declarations to the shared pipe validator. File-based forms keep their native
+// shapes, and completion declares its own document.
 func TestSuppliedConfigPipesPreserveOwnedAnswerShapes(t *testing.T) {
 	seen := 0
 	for _, entry := range command.ListLocal() {
@@ -403,12 +410,24 @@ func TestSuppliedConfigPipesPreserveOwnedAnswerShapes(t *testing.T) {
 		t.Run(entry.Path, func(t *testing.T) {
 			operation := strings.TrimPrefix(entry.Path, "show config supplied ")
 			shape, declared := command.ShapeForCommand(entry.Path)
-			fileShape, fileDeclared := command.ShapeForCommand("show config " + operation)
-			if !declared || !fileDeclared || shape != fileShape {
-				t.Fatal("supplied and file forms do not declare the same answer shape")
+			if entry.Path == "show config supplied completion" {
+				if !declared || shape != command.ShapeDoc {
+					t.Fatal("supplied completion does not declare its owned completion document")
+				}
+			} else {
+				fileShape, fileDeclared := command.ShapeForCommand("show config " + operation)
+				if !declared || !fileDeclared || shape != fileShape {
+					t.Fatal("supplied and file forms do not declare the same answer shape")
+				}
 			}
 			content := validConfig
-			if len(entry.Meta.SuppliedInput.Fields) != 0 {
+			if entry.Path == "show config supplied completion" {
+				data, err := json.Marshal(map[string]string{suppliedConfiguration: content, suppliedInput: "set router"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				content = string(data)
+			} else if len(entry.Meta.SuppliedInput.Fields) != 0 {
 				content = suppliedConfigPair(t, content, content)
 			}
 			line := entry.Path + " content " + base64.StdEncoding.EncodeToString([]byte(content))

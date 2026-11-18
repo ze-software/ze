@@ -57,7 +57,7 @@ func pendingDiscardFailure(err error) error {
 // structural operations without publishing an editing session. Parsed entries
 // and operations bound the loops; pending-change identity deduplicates overlap.
 func (e *Editor) readPendingDiscardChanges(guard storage.WriteGuard, username, origin string) ([]config.PendingChange, error) {
-	committed, err := guard.ReadFile(e.originalPath)
+	committed, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("read config %s: %w", e.originalPath, err)
 	}

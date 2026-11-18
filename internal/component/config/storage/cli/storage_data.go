@@ -18,7 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // answerVanishedEntries is the `show data check` answer key counting the keys
@@ -43,9 +42,11 @@ func dataList(validated command.ValidatedArgs) command.LocalAnswer {
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
-	prefix := ""
-	if len(remaining) > 0 {
-		prefix = remaining[0]
+	prefix, selected := validated.Value("prefix")
+	if !selected {
+		if len(remaining) > 0 {
+			prefix = remaining[0]
+		}
 	}
 	keys, err := s.ListKeys(prefix)
 	if err != nil {
@@ -133,18 +134,14 @@ func (v storeVerdict) answer() command.LocalAnswer {
 // dataRegistered answers `show data registered [pattern]`: the key patterns the
 // code declares, and what each one holds.
 func dataRegistered(validated command.ValidatedArgs) command.LocalAnswer {
-	args := validated.Tokens()
-	entries := zefs.Entries()
-	rows := make([]map[string]any, 0, len(entries))
-	for _, e := range entries {
-		if len(args) > 0 && e.Pattern != args[0] {
-			continue
+	pattern, selected := validated.Value("pattern")
+	if !selected {
+		args := validated.PositionalTokens()
+		if len(args) > 0 {
+			pattern = args[0]
 		}
-		rows = append(rows, map[string]any{
-			"pattern": e.Pattern, "description": e.Description,
-		})
 	}
-	return command.LocalAnswer{Payload: map[string]any{"patterns": rows}}
+	return registeredAnswer(pattern)
 }
 
 // catAnswer answers `show data cat [--path <store>] <key>`: the bytes of the

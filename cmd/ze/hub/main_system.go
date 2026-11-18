@@ -374,13 +374,28 @@ func startStandaloneTelemetry(tree *zeconfig.Tree) *standaloneTelemetry {
 }
 
 var (
-	archiveSchedulerMu     sync.Mutex
-	archiveSchedulerCancel context.CancelFunc
+	archiveSchedulerMu sync.Mutex
+	// Nil means no scheduled archive worker owns a configuration borrower.
+	archiveSchedulerCurrent *archiveSchedulerRun
 )
 
+// archiveSchedulerRun owns one scheduler goroutine. Its caller MUST stop it
+// before releasing or replacing the configuration store it borrows.
+type archiveSchedulerRun struct {
+	cancel context.CancelFunc
+	done   <-chan struct{}
+}
+
+// stop cancels future runs and joins an in-flight read or archive. Safe for
+// concurrent use; every caller waits for the same worker to finish.
+func (s *archiveSchedulerRun) stop() {
+	s.cancel()
+	<-s.done
+}
+
 // startArchiveScheduler launches the background scheduler for time-based
-// archive triggers (daily/hourly). The scheduler goroutine stops when the
-// cancel function is called (at shutdown or config reload).
+// archive triggers (daily/hourly). Replacement MUST join the previous worker
+// before acquiring another store borrower; shutdown MUST call stopArchiveScheduler.
 func startArchiveScheduler(tree *zeconfig.Tree, configPath string, store configstorage.Storage, srv *pluginserver.Server) {
 	if tree == nil {
 		return
@@ -389,9 +404,9 @@ func startArchiveScheduler(tree *zeconfig.Tree, configPath string, store configs
 	archiveSchedulerMu.Lock()
 	defer archiveSchedulerMu.Unlock()
 
-	if archiveSchedulerCancel != nil {
-		archiveSchedulerCancel()
-		archiveSchedulerCancel = nil
+	if archiveSchedulerCurrent != nil {
+		archiveSchedulerCurrent.stop()
+		archiveSchedulerCurrent = nil
 	}
 
 	configs, err := archive.ExtractConfigs(tree)
@@ -419,9 +434,12 @@ func startArchiveScheduler(tree *zeconfig.Tree, configPath string, store configs
 	}
 
 	ctx, cancel := context.WithCancel(parent)
-	archiveSchedulerCancel = cancel
-
-	go sched.Run(ctx)
+	done := make(chan struct{})
+	archiveSchedulerCurrent = &archiveSchedulerRun{cancel: cancel, done: done}
+	go func() {
+		defer close(done)
+		sched.Run(ctx)
+	}()
 }
 
 // readConfigWithStorage reads the authority chosen at startup. A failed stored
@@ -451,14 +469,15 @@ func readConfigWithStorage(store configstorage.Storage, configPath string) func(
 	}
 }
 
-// stopArchiveScheduler stops the active archive scheduler.
+// stopArchiveScheduler MUST finish before the borrowed configuration store
+// closes. Cancellation alone does not join an in-flight stored read or upload.
 func stopArchiveScheduler() {
 	archiveSchedulerMu.Lock()
 	defer archiveSchedulerMu.Unlock()
 
-	if archiveSchedulerCancel != nil {
-		archiveSchedulerCancel()
-		archiveSchedulerCancel = nil
+	if archiveSchedulerCurrent != nil {
+		archiveSchedulerCurrent.stop()
+		archiveSchedulerCurrent = nil
 	}
 }
 

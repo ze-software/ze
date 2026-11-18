@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -70,22 +69,23 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 		defer store.Close() //nolint:errcheck // Read-only inspection.
 	}
 
-	backups, err := store.ListVersions(fs.Arg(0))
+	rows, err := configHistoryRows(store, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 
-	if len(backups) == 0 && !store.Exists(cli.DraftPath(fs.Arg(0))) {
+	if len(rows) == 0 {
 		fmt.Println("No rollback revisions found")
 		return exitOK
 	}
 
-	if store.Exists(cli.DraftPath(fs.Arg(0))) {
-		fmt.Println("draft  (editing in progress)")
-	}
-	for i, b := range backups {
-		fmt.Printf("%d  %s  %s\n", i+1, b.Date.Format("2006-01-02 15:04:05"), b.Path)
+	for _, row := range rows {
+		if row.State != "" {
+			fmt.Printf("%v  (%s)\n", row.Revision, row.State)
+			continue
+		}
+		fmt.Printf("%v  %s  %s\n", row.Revision, row.Timestamp, row.Path)
 	}
 
 	return exitOK

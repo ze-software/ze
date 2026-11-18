@@ -30,13 +30,30 @@ func FindNode(root *Node, path []string) *Node {
 	return current
 }
 
+// HiddenAtPath reports whether a path crosses a hidden schema node. A path
+// outside the schema has no visibility restriction unless an ancestor is hidden:
+// plugins can register new commands under existing groupings.
+func HiddenAtPath(root *Node, path []string) bool {
+	node := root
+	for _, name := range path {
+		if node == nil {
+			return false
+		}
+		if node.Hidden {
+			return true
+		}
+		node = node.Children[name]
+	}
+	return node != nil && node.Hidden
+}
+
 // listedChildren names the children a help page lists, with the description
 // each one shows, sorted by name.
 //
 // A `ze:modifier "choice"` child is left out: its name is never typed, so it is
 // not a subcommand and not a token. The words its leaf declares reach the
 // operator through the generated usage line and through completion
-// (usage.go, completer.go). Every other child is listed, including a modifier
+// (usage.go, completer.go). Every other visible child is listed, including a modifier
 // group whose keyword the operator does type.
 //
 // A `ze:modifier "one-of"` child is left out for the same reason, and its
@@ -44,9 +61,18 @@ func FindNode(root *Node, path []string) *Node {
 // Listing the group would name a word the handler rejects and hide the words it
 // accepts.
 func listedChildren(node *Node) []HelpEntry {
+	if node == nil {
+		return nil
+	}
+	if node.Hidden {
+		return nil
+	}
 	entries := make([]HelpEntry, 0, len(node.Children))
 	for name, child := range node.Children {
 		if child == nil {
+			continue
+		}
+		if child.Hidden {
 			continue
 		}
 		if child.Modifier == ModifierChoice {
@@ -54,6 +80,12 @@ func listedChildren(node *Node) []HelpEntry {
 		}
 		if child.Modifier == ModifierOneOf {
 			for memberName, member := range child.Children {
+				if member == nil {
+					continue
+				}
+				if member.Hidden {
+					continue
+				}
 				entries = append(entries, helpEntryFor(memberName, member))
 			}
 			continue
@@ -127,7 +159,13 @@ func HelpEntries(root *Node, path []string) []HelpEntry {
 // that have no description of their own.
 func describeChildren(node *Node) string {
 	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
+	for name, child := range node.Children {
+		if child == nil {
+			continue
+		}
+		if child.Hidden {
+			continue
+		}
 		names = append(names, name)
 	}
 	slices.Sort(names)

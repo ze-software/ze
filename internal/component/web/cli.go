@@ -406,7 +406,12 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	}
 	if terminalAuditSucceeded(cmd, result) {
 		if cmd.Verb == verbDiscard {
-			detail = discardAuditDetail(mgr, username, detail)
+			var err *opererr.Error
+			detail, err = discardAuditDetail(mgr, username, detail)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 		recordWebAudit(recorder, r, username, action, detail)
 	}
@@ -464,10 +469,15 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 // discardAuditDetail answers the config-discard detail of a discard that
 // succeeded: the part of before, the user's diff read just ahead of it, that
 // the discard dropped (audit.DroppedDiff). A path discard keeps the changes
-// outside its path, and the row MUST NOT name those as dropped. The terminal
-// and the CLI bar both call it. MUST be called after the discard succeeded.
-func discardAuditDetail(mgr *EditorManager, username, before string) string {
-	return audit.DroppedDiff(before, mgr.Diff(username))
+// outside its path, and the row MUST NOT name those as dropped. The terminal,
+// CLI bar and graphical actions call it. MUST be called after discard succeeds.
+// A nil refusal means the remaining changes were reviewed successfully.
+func discardAuditDetail(mgr *EditorManager, username, before string) (string, *opererr.Error) {
+	after, err := mgr.Diff(username)
+	if err != nil {
+		return "", editorReviewRefusal(err)
+	}
+	return audit.DroppedDiff(before, after), nil
 }
 
 // adjustListContext corrects the web URL path for CLI use.

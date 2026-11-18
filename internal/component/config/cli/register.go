@@ -61,6 +61,42 @@ func init() {
 	// places this package reads configuration from (command.CallerPath).
 	command.RegisterCallerPathDirs(callerPathDirs, callerPathWithheld)
 	registerSuppliedCommands()
+	command.MustRegisterLocalData("show config environment-validation", environmentValidationAnswer, registry.Meta{
+		ShortHelp: "Check registered environment values and recorded range failures.", Mode: modeOffline,
+	}, command.RenderLocalAnswer)
+	command.RegisterShape([]string{"show config environment-validation"}, command.ShapeDoc)
+	// Detached file output still carries the daemon host's usable credentials.
+	// Edit authorization must run before the shared file reader, even though
+	// only the operator's own local adapter can publish into that source file.
+	command.MustRegisterLocalData("show config migrate", dataMigrate, registry.Meta{
+		ShortHelp: "Convert a configuration file to set commands or nested blocks.", Mode: modeOffline,
+		NotReadOnly: true,
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config fix-plan", dataFixPlan, registry.Meta{
+		ShortHelp: "Plan repairs for a configuration file without changing it.", Mode: modeOffline,
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config source", dataSource, registry.Meta{
+		ShortHelp: "Show a file's masked source configuration at an optional path.", Mode: modeOffline,
+	}, command.RenderLocalAnswer)
+	command.RegisterShape([]string{"show config migrate", "show config source"}, command.ShapeBlob)
+	command.RegisterShape([]string{"show config fix-plan"}, command.ShapeDoc)
+	command.MustRegisterLocalData("show config set", dataSet, registry.Meta{
+		ShortHelp: "Return a file transformed by one supplied set command.", Mode: modeOffline,
+		NotReadOnly: true,
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config activate", dataActivate, registry.Meta{
+		ShortHelp: "Return a file transformed by one supplied activate command.", Mode: modeOffline,
+		NotReadOnly: true,
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config deactivate", dataDeactivate, registry.Meta{
+		ShortHelp: "Return a file transformed by one supplied deactivate command.", Mode: modeOffline,
+		NotReadOnly: true,
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config replace", dataReplace, registry.Meta{
+		ShortHelp: "Return a validated replacement of a file without publishing it.", Mode: modeOffline,
+		NotReadOnly: true,
+	}, command.RenderLocalAnswer)
+	command.RegisterShape([]string{"show config set", "show config activate", "show config deactivate", "show config replace"}, command.ShapeBlob)
 
 	registry.MustRegisterRootHandler("config", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
@@ -91,14 +127,16 @@ func init() {
 		{Name: "--yes", Description: "replace existing destination configs without asking", ValueHint: registry.FlagValueNone},
 	})
 
-	// Read-only shortcuts read their explicit candidate/running config source.
+	// File shortcuts read their explicit candidate/running config source.
 	// Each of these answers with DATA, so the operator's pipe chain renders it
 	// and no command carries a rendering flag of its own. They printed and
 	// returned an exit code before, which is why
 	// `ze cli -c "show config dump x.conf | json"` answered `unknown command`.
+	// Complete private output requires edit authorization on the daemon route.
 	command.MustRegisterLocalData("show config dump", dataDump, registry.Meta{
-		ShortHelp: "Show the fully resolved config tree of a file, as the daemon would load it.",
-		Mode:      modeOffline,
+		ShortHelp:   "Show the fully resolved config tree of a file, as the daemon would load it.",
+		Mode:        modeOffline,
+		NotReadOnly: true,
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config diff", dataDiff, registry.Meta{
 		ShortHelp: "Show what changed between the running and candidate configurations.",
@@ -110,7 +148,10 @@ func init() {
 			return *refusal
 		}
 		return fmtAnswer(validated.Route(), args)
-	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."},
+	}, registry.Meta{
+		ShortHelp:   "Pretty-print the config with consistent formatting and ordering.",
+		NotReadOnly: true,
+	},
 		command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config validation", dataValidate, registry.Meta{
 		ShortHelp: "Check a config for errors without applying it.",
@@ -177,6 +218,34 @@ const (
 // Paths and summaries remain literal so source-based contract gates read the
 // same declarations that populate the runtime registry.
 func registerSuppliedCommands() {
+	command.MustRegisterLocalData("show config supplied set", suppliedHandler("show config supplied set", suppliedSet), registry.Meta{
+		ShortHelp: "Apply one set statement to detached configuration and return its text.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, Fields: []string{suppliedBefore, suppliedAfter}},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied activate", suppliedHandler("show config supplied activate", suppliedActivate), registry.Meta{
+		ShortHelp: "Apply one activate statement to detached configuration and return its text.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, Fields: []string{suppliedBefore, suppliedAfter}},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied deactivate", suppliedHandler("show config supplied deactivate", suppliedDeactivate), registry.Meta{
+		ShortHelp: "Apply one deactivate statement to detached configuration and return its text.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, Fields: []string{suppliedBefore, suppliedAfter}},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied replace", suppliedHandler("show config supplied replace", suppliedReplace), registry.Meta{
+		ShortHelp: "Validate and serialize a detached configuration replacement.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, Fields: []string{suppliedBefore, suppliedAfter}},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied migrate", suppliedHandler("show config supplied migrate", suppliedMigrate), registry.Meta{
+		ShortHelp: "Convert supplied configuration to set commands or nested blocks.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: suppliedNameArg},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied fix-plan", suppliedHandler("show config supplied fix-plan", suppliedFixPlan), registry.Meta{
+		ShortHelp: "Plan repairs for supplied configuration without changing it.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: suppliedNameArg},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied source", suppliedHandler("show config supplied source", suppliedSource), registry.Meta{
+		ShortHelp: "Show the masked source configuration at an optional path.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: suppliedNameArg},
+	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config supplied dump", suppliedHandler("show config supplied dump", suppliedDump), registry.Meta{
 		ShortHelp: "Show the resolved configuration from supplied bytes.", Mode: modeOffline,
 		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, NameArg: suppliedNameArg},
@@ -198,9 +267,10 @@ func registerSuppliedCommands() {
 		SuppliedInput: &registry.SuppliedInput{ContentArg: suppliedContent, Fields: []string{suppliedBefore, suppliedAfter}},
 	}, command.RenderLocalAnswer)
 	command.RegisterShape([]string{
-		"show config supplied dump", "show config supplied validation", "show config supplied diff",
+		"show config supplied dump", "show config supplied validation", "show config supplied diff", "show config supplied fix-plan",
 	}, command.ShapeDoc)
 	command.RegisterShape([]string{
-		"show config supplied fmt", "show config supplied graph",
+		"show config supplied fmt", "show config supplied graph", "show config supplied migrate", "show config supplied source",
+		"show config supplied set", "show config supplied activate", "show config supplied deactivate", "show config supplied replace",
 	}, command.ShapeBlob)
 }

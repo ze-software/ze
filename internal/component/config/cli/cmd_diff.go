@@ -261,7 +261,11 @@ func readDiffSource(store storage.Storage, path string) ([]byte, error) {
 	if cliio.IsStdin(path) {
 		return cliio.ReadFile(path)
 	}
-	return store.ReadFile(path)
+	name, err := storage.StoredConfigName(store, path)
+	if err != nil {
+		return nil, err
+	}
+	return storage.ReadActiveConfig(store, name)
 }
 
 // parseAndResolve retains the parsed tree for schema-driven order comparison.

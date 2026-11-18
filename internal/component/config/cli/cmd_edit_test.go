@@ -290,7 +290,7 @@ func TestSelectConfigAC6(t *testing.T) {
 	in := strings.NewReader("1\n")
 	var errBuf bytes.Buffer
 
-	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "ze.conf", in, &errBuf, time.Second)
 
 	if selected == "" {
 		t.Fatalf("expected a selection, got empty string. stderr: %s", errBuf.String())
@@ -334,7 +334,7 @@ func TestSelectConfigAC6SecondChoice(t *testing.T) {
 	in := strings.NewReader("2\n")
 	var errBuf bytes.Buffer
 
-	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "ze.conf", in, &errBuf, time.Second)
 
 	if !strings.HasSuffix(selected, "site-b.conf") {
 		t.Errorf("expected site-b.conf (second option), got %q", selected)
@@ -358,7 +358,7 @@ func TestSelectConfigAC7(t *testing.T) {
 	in := strings.NewReader("") // no input needed for AC-7
 	var errBuf bytes.Buffer
 
-	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "ze.conf", in, &errBuf, time.Second)
 
 	if selected != "ze.conf" {
 		t.Errorf("expected %q (created default config), got %q", "ze.conf", selected)
@@ -406,7 +406,7 @@ func TestSelectConfigInvalidInput(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			in := strings.NewReader(tt.input)
 			var errBuf bytes.Buffer
-			selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
+			selected := doSelectConfig(store, "ze.conf", in, &errBuf, time.Second)
 			if selected != "" {
 				t.Errorf("expected empty for %q, got %q", tt.input, selected)
 			}
@@ -440,7 +440,7 @@ func TestSelectConfigTimeout(t *testing.T) {
 	defer w.Close() //nolint:errcheck // test cleanup
 
 	var errBuf bytes.Buffer
-	selected := doSelectConfig(store, "file/active", "ze.conf", r, &errBuf, 50*time.Millisecond)
+	selected := doSelectConfig(store, "ze.conf", r, &errBuf, 50*time.Millisecond)
 
 	if selected != "" {
 		t.Errorf("expected empty on timeout, got %q", selected)
@@ -480,7 +480,7 @@ func TestSelectConfigFiltersNonConf(t *testing.T) {
 	in := strings.NewReader("1\n")
 	var errBuf bytes.Buffer
 
-	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "ze.conf", in, &errBuf, time.Second)
 
 	// Should only show router.conf (the only .conf file)
 	if !strings.HasSuffix(selected, "router.conf") {

@@ -30,8 +30,8 @@ import (
 // TestConfigValidationHookRunsFullValidation gives.
 func TestConfigValidationHookEnumRefusal(t *testing.T) {
 	hook := configValidationHook("test.conf")
-	const good = `interface { ethernet eth0 { unit 0 { ipv4 { rpf-check strict; } } } }`
-	const bad = `interface { ethernet eth0 { unit 0 { ipv4 { rpf-check stict; } } } }`
+	const good = `interface { backend netlink; ethernet eth0 { unit 0 { ipv4 { rpf-check strict; } } } }`
+	const bad = `interface { backend netlink; ethernet eth0 { unit 0 { ipv4 { rpf-check stict; } } } }`
 	require.NoError(t, hook(good, good), "the control candidate is accepted")
 
 	err := hook(good, bad)

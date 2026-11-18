@@ -343,6 +343,14 @@ In-process storage guards are released before plugin callbacks run. The lifetime
 `database.lock` remains held until the store closes.
 <!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker, reloadGate -->
 
+The hub also cancels and joins the complete outbound managed client, because its
+callbacks can read or write storage before reload admission. It retains the
+managed server and joins its active config requests and notifications through
+`Stop`. Both owners finish before the hub returns its store to the launcher.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: internal/component/plugin/server/managed_serve.go -- Stop -->
+
 Once the reload gate is closed, and before gNMI, the API servers or any plugin
 is stopped, the hub runs the drain phase: the plugin server sends one `drain`
 RPC, in parallel, to every plugin that declared a drain budget, and the hub
@@ -357,14 +365,34 @@ Every stop enters the hub the same way. `request shutdown`, `quit`, SSH `stop`
 and a plugin failure under the `fatal` policy stop nothing themselves: they
 hand the stop to the hub through the daemon shutdown function, so BGP sends
 its Cease from teardown, after the drain. Those stops, and SIGTERM, carry kind
-`stop`. When teardown completes, `run` returns 1 if the plugin server retains
-a fatal plugin error or a registered resource cleanup failure (`Server.StopFailure`).
-It returns 75 for an intentional in-place restart and 0 for an ordinary clean
-stop. The supervisor restarts exit 75; the generated systemd unit marks it
-successful and forces restart,
+`stop`. When teardown completes, `run` returns 1 if a plugin caused the stop
+or any engine, API transport, registered service or daemon-owned resource
+reported a cleanup failure. Every owner still runs after another fails, and the
+final diagnostic retains all reported causes with `ze doctor` as the next step.
+The final result is selected after deferred service cleanup: only a clean stop
+can return 75 for an intentional in-place restart or 0 for an ordinary stop.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/api_infra.go -- apiServerHandle -->
+The same once-only stop owner joins every built API transport before stopping
+the plugin server, including a startup that fails after acquiring a transport.
+
+The supervisor restarts exit 75; the generated systemd unit marks it successful
+and forces restart,
 and gokrazy's normal supervision loop retries nonzero exits other than 125.
 A foreground process exits 75 and needs its caller to start it again.
-<!-- source: internal/component/plugin/server/server.go -- Server.Stop, Server.StopFailure -->
+
+Full-store recovery uses that same restart contract. Its command verifies an
+independent private source before acceptance and captures the installed restart
+action. Response completion triggers the action; it does not replace the live
+store. The outer launcher waits for the complete hub call, including service
+and history defers, then closes the original writer. Only a clean restart result
+and successful close permit the existing durable keep-source import. An unclean
+runtime result discards the pending source. Failed recovery retains the source
+and reports its exact recovery command. A runtime without that outer live-tree
+lifetime refuses full recovery.
+<!-- source: internal/component/config/storage/cli/data_rpc_full_restore.go -- AcceptFullRestoreWriter, acceptFullRestore -->
+<!-- source: internal/component/config/storage/daemon_recovery.go -- DaemonRecovery.Close, ClosedRecovery.Apply, ClosedRecovery.Discard -->
+<!-- source: internal/component/plugin/server/daemon_restart.go -- Server.CaptureRestartCompletion -->
 `request restart`, `request reboot`, SSH `restart` and SSH `reboot`
 record kind `restart` with the cause `in-place` (daemon restart) or `reboot`
 before they stop BGP in silence for graceful restart. From the start of the drain the stop is
@@ -372,6 +400,7 @@ terminal: a plugin that exits is not started again.
 <!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
 <!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
 <!-- source: cmd/ze/hub/drain.go -- requestRestartStop, requestRebootStop -->
+<!-- source: internal/component/plugin/server/server.go -- Server.Stop, Server.StopFailure -->
 
 A signal during the stop follows one table. During the config fence it skips
 the drain and the fence goes on ("drain skipped by signal"); during the drain

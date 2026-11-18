@@ -63,7 +63,7 @@ func (e *Editor) commitSession(force bool) (*CommitResult, error) {
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
 	// Read and parse config.conf (committed).
-	committedData, err := guard.ReadFile(e.originalPath)
+	committedData, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
@@ -251,7 +251,7 @@ func (e *Editor) commitSessionCandidate(stamp time.Time, force bool) (*CommitRes
 		}
 	}()
 
-	committedData, err := guard.ReadFile(e.originalPath)
+	committedData, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("read config: %w", err)
 	}
@@ -592,7 +592,7 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 			return fmt.Errorf("reload parse draft: %w", err)
 		}
 	} else {
-		committedData, readErr := guard.ReadFile(e.originalPath)
+		committedData, readErr := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 		if readErr != nil {
 			return fmt.Errorf("reload read config: %w", readErr)
 		}
@@ -643,7 +643,7 @@ func (e *Editor) reloadSessionView(guard storage.WriteGuard) error {
 	}
 
 	// Refresh originalContent from disk to capture external commits.
-	committedData, readErr := guard.ReadFile(e.originalPath)
+	committedData, readErr := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if readErr != nil {
 		return fmt.Errorf("reload read config: %w", readErr)
 	}

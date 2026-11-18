@@ -430,7 +430,7 @@ func newSuppliedWeb(t *testing.T, beforeDispatch ...func(context.Context)) *supp
 	require.NoError(t, err)
 	dispatcher := pluginserver.NewDispatcher()
 	require.NoError(t, pluginserver.LoadBuiltins(dispatcher, yangloader.WireMethodToPath(resolved),
-		yangloader.PathToDescription(resolved), yangloader.PathToHelp(resolved), yangloader.PathToArgDefs(resolved)))
+		yangloader.PathToDescription(resolved), yangloader.PathToHelp(resolved), yangloader.PathToArgDefs(resolved), yangloader.BuildCommandTree(resolved)))
 	dispatcher.SetAuthorizer(policy)
 	web := &suppliedWeb{t: t, store: store, cookies: make(map[string]*http.Cookie)}
 	dispatch := func(ctx context.Context, caller plugin.CallerIdentity, line string) (*plugin.Response, error) {

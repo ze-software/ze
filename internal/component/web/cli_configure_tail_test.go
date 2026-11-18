@@ -37,7 +37,8 @@ func TestWebCLIConfigureRejectsTrailingInput(t *testing.T) {
 			runTerminalCommandForm(t, handler, url.Values{
 				"command": {"set bgp router-id 192.0.2.44"}, "mode": {terminalModeConfig},
 			})
-			before := mgr.Diff("testuser")
+			before, err := mgr.Diff("testuser")
+			require.NoError(t, err)
 			require.NotEmpty(t, before, "the refusal must preserve a real pending candidate")
 			answer := runTerminalCommandForm(t, handler, url.Values{
 				"command": {tc.line}, "mode": {tc.mode},
@@ -45,7 +46,9 @@ func TestWebCLIConfigureRejectsTrailingInput(t *testing.T) {
 			require.Equal(t, tc.mode, answer.Mode)
 			require.False(t, answer.OutputComplete)
 			require.Contains(t, answer.Output, "configure")
-			require.Equal(t, before, mgr.Diff("testuser"))
+			after, err := mgr.Diff("testuser")
+			require.NoError(t, err)
+			require.Equal(t, before, after)
 			if tc.want == "" {
 				require.Empty(t, seen, "configuration input must not dispatch operationally")
 				return

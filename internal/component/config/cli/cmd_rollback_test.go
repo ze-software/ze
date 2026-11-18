@@ -171,7 +171,7 @@ func TestCmdRollbackLeftOpenWindowNamesStart(t *testing.T) {
 	assert.Equal(t, exitError, code, "a rollback beside a left-open window is refused")
 	assert.Contains(t, stderr, "alice", "the refusal names the window's owner")
 	assert.Contains(t, stderr, "when the daemon starts", "the refusal says why: the daemon reverts the window at start")
-	assert.Contains(t, stderr, "\n  ze start "+configPath+"\n", "the refusal ends with the command that clears it")
+	assert.Contains(t, stderr, "\nfix: ze start "+configPath+"\n", "the refusal ends with the command that clears it")
 	assert.NotContains(t, stderr, "seconds left", "no countdown runs with the daemon stopped")
 	assert.NotContains(t, stderr, "commit accept", "nobody can accept the window with the daemon stopped")
 }

@@ -31,12 +31,13 @@ import (
 const fixLabel = "fix: "
 
 // zeroText is what a zero Error renders. Only a composite literal or new(Error)
-// in Ze code builds one, never New or Wrap, so the text names the defect
+// in Ze code builds one, never a constructor, so the text names the defect
 // instead of rendering an empty refusal.
 const zeroText = "BUG: opererr.Error built without opererr.New or opererr.Wrap"
 
-// Error is an operator error. Build it with New or Wrap: the fields are
-// private, so no caller replaces the parts the constructor checked.
+// Error is an operator error. Build it with New or Wrap, or check received
+// wire text with FromRendered: the fields are private, so no caller replaces
+// the parts the constructor checked.
 //
 // The zero value is uninitialized and is not a valid operator error. Its
 // Error() names that defect, and its accessors answer empty strings.

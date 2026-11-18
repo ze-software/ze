@@ -235,12 +235,13 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 			fmt.Fprintf(os.Stderr, "error: open config store: %v\n", err)
 			return 1
 		}
-		defer store.Close() //nolint:errcheck // shutdown releases store ownership
 		store = storage.BindConfigSource(store, configPath, storage.ConfigSourceFile)
 		// One runtime for every config: hub.Run reads the file and parses it
 		// against the YANG schema, whatever top-level blocks it declares.
-		return withPanicCapture(func() int {
-			return hub.Run(store, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
+		return runOwnedDaemonStore(store, func(borrowed storage.Storage) int {
+			return withPanicCapture(func() int {
+				return hub.Run(borrowed, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
+			})
 		})
 	}
 
@@ -256,62 +257,63 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 			return 1
 		}
 	}
-	defer store.Close() //nolint:errcheck // shutdown releases store ownership
 	configName, err := internalresolve.DefaultConfig(store)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		return 1
+		return daemonStoreFailure(errors.Join(err, store.Close()))
 	}
 	store = storage.BindConfigSource(store, configName, storage.ConfigSourceStored)
+	return runOwnedDaemonStore(store, func(store storage.Storage) int {
 
-	// Explicit --web-only: start standalone web UI, no daemon.
-	if webOnly {
-		if cliEnabled {
-			fmt.Fprintf(os.Stderr, "warning: --cli ignored in --web-only mode (no daemon to attach to)\n")
-		}
-		if mcpAddr != "" {
-			fmt.Fprintf(os.Stderr, "warning: --mcp ignored in --web-only mode (no daemon)\n")
-		}
-		return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
-	}
-
-	// Check managed mode: meta/instance/managed=true in the store.
-	if isManaged(store) {
-		return cmdStartManaged(store, plugins, chaosSeed, chaosRate)
-	}
-
-	if !store.Exists(configName) {
-		// Config does not exist at all: try first-boot bootstrap.
-		switch {
-		case bootstrapConfigFromTemplate(store, configName):
-			fmt.Fprintf(os.Stderr, "bootstrap: created config from template + discovery\n")
-		case bootstrapFromDiscovery(store, configName):
-			fmt.Fprintf(os.Stderr, "bootstrap: created config from interface discovery (DHCP + SSH)\n")
-		default:
-			fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
-			if webEnabled {
-				fmt.Fprintf(os.Stderr, "hint: use --web-only to start the web UI without a daemon\n")
+		// Explicit --web-only: start standalone web UI, no daemon.
+		if webOnly {
+			if cliEnabled {
+				fmt.Fprintf(os.Stderr, "warning: --cli ignored in --web-only mode (no daemon to attach to)\n")
 			}
-			return 1
+			if mcpAddr != "" {
+				fmt.Fprintf(os.Stderr, "warning: --mcp ignored in --web-only mode (no daemon)\n")
+			}
+			return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
 		}
-	}
 
-	applied, preChange := checkPushedConfig(store, configName, plugins)
-	writeConfigActiveHash(store, configName)
+		// Check managed mode: meta/instance/managed=true in the store.
+		if isManaged(store) {
+			return cmdStartManaged(store, plugins, chaosSeed, chaosRate)
+		}
 
-	if applied {
-		hr := newHealthRevert(store, configName)
-		hr.Start(preChange)
-		hub.PeerLifecycleCallback = hr
-	}
+		if !store.Exists(configName) {
+			// Config does not exist at all: try first-boot bootstrap.
+			switch {
+			case bootstrapConfigFromTemplate(store, configName):
+				fmt.Fprintf(os.Stderr, "bootstrap: created config from template + discovery\n")
+			case bootstrapFromDiscovery(store, configName):
+				fmt.Fprintf(os.Stderr, "bootstrap: created config from interface discovery (DHCP + SSH)\n")
+			default:
+				fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
+				if webEnabled {
+					fmt.Fprintf(os.Stderr, "hint: use --web-only to start the web UI without a daemon\n")
+				}
+				return 1
+			}
+		}
 
-	// No config-type gate on --web. Every config the YANG schema accepts runs on
-	// one daemon, so "the daemon cannot serve this config" is not a state a probe
-	// can report: a config it cannot parse fails in runYANGConfig and says why.
-	// The gate used to key on ConfigTypeUnknown, which covers every config with
-	// no `bgp {}` block -- an interface-only or plugin-only config among them.
-	return withPanicCapture(func() int {
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
+		applied, preChange := checkPushedConfig(store, configName, plugins)
+		writeConfigActiveHash(store, configName)
+
+		if applied {
+			hr := newHealthRevert(store, configName)
+			hr.Start(preChange)
+			defer hr.Wait()
+			hub.PeerLifecycleCallback = hr
+		}
+
+		// No config-type gate on --web. Every config the YANG schema accepts runs on
+		// one daemon, so "the daemon cannot serve this config" is not a state a probe
+		// can report: a config it cannot parse fails in runYANGConfig and says why.
+		// The gate used to key on ConfigTypeUnknown, which covers every config with
+		// no `bgp {}` block -- an interface-only or plugin-only config among them.
+		return withPanicCapture(func() int {
+			return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
+		})
 	})
 }
 

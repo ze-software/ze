@@ -4,16 +4,16 @@
 
 package hub
 
-// The web tool page decodes "show bgp decode <hex>" in-process through the leaf
-// registry seam (registry.SetPacketDecoder), which the gated BGP CLI package
-// fills from its own init(). In the shipped binary that package is linked by
+// The web tool page reaches the registered "show bgp decode <hex>" producer.
+// The gated BGP CLI package also fills the decoder seam from its init(). In the
+// shipped binary that package is linked by
 // cmd/ze/dispatch_bgp.go; the cmd/ze/hub package on its own never imports it --
 // that is the whole point of the seam. This test-only blank import makes the
-// hub test binary mirror the shipped binary so the withBGPDecode tests exercise
-// a filled seam rather than a nil one.
+// hub test binary mirror the shipped binary so native dispatcher tests exercise
+// the compiled command rather than its absent-feature refusal.
 //
 // Without ze_bgp there is no BGP CLI package to fill the seam, so
-// registry.GetPacketDecoder() answers nil and the withBGPDecode tests assert
+// registry.GetPacketDecoder() answers nil and the native dispatcher tests assert
 // the fall-through to the dispatcher instead. They read the seam itself rather
 // than a build-tag mirror of it, and build_tag_bgp_absent_test.go asserts the
 // nil in a build that runs.

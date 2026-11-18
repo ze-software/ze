@@ -109,10 +109,11 @@ type Server struct {
 
 	eventRing *EventRing // Global event history ring (diag-2)
 
-	running     atomic.Bool
-	lifecycleMu sync.Mutex  // Serializes Start, final startup publication and terminal Stop admission.
-	stopEntered atomic.Bool // Reentrant Stop never waits for its own engine.
-	stopping    atomic.Bool // Full teardown only; a drain still records real plugin exits.
+	running            atomic.Bool
+	lifecycleMu        sync.Mutex  // Serializes Start, final startup publication and terminal Stop admission.
+	stopEntered        atomic.Bool // Reentrant Stop never waits for its own engine.
+	releaseReplayFence func()      // Owned runtime lookup; Stop MUST release it. Guarded by lifecycleMu.
+	stopping           atomic.Bool // Full teardown only; a drain still records real plugin exits.
 
 	loadedPlugins   map[string]bool // tracks all plugins loaded across startup phases
 	loadedPluginsMu sync.Mutex      // protects loadedPlugins
@@ -367,7 +368,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		if cliPath == "" {
 			continue // Skip RPCs without YANG path (no authz possible)
 		}
-		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, cliPath, IsReadOnlyPath(cliPath))); err != nil {
+		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, cliPath, IsReadOnlyPath(cliPath) && !reg.NotReadOnly)); err != nil {
 			return nil, fmt.Errorf("builtin wire methods: %w", err)
 		}
 	}
@@ -881,6 +882,7 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// so this server is the only thing that can answer for it
 	// (declaresSessionReady, events.go).
 	registry.SetRuntimeSessionReady(s.declaresSessionReady)
+	s.releaseReplayFence = registry.SetRuntimeReplayFence(s.declaresReplayFence)
 	// The replay fence asks the same alias question (registry.FencesLiveForwards).
 	registry.SetRuntimeRegistryNames(s.processRegistryNames)
 	// A config reload judges a chain naming an external filter against what
@@ -989,7 +991,12 @@ func (s *Server) Stop() {
 		s.lifecycleMu.Unlock()
 		return
 	}
+	releaseReplayFence := s.releaseReplayFence
+	s.releaseReplayFence = nil
 	s.lifecycleMu.Unlock()
+	if releaseReplayFence != nil {
+		releaseReplayFence()
+	}
 	finishProcessLifetime := s.sealProcessAdmission()
 	defer finishProcessLifetime()
 	s.running.Store(false)

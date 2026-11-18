@@ -54,10 +54,10 @@ func (w *TranscriptWriter) writeHeader(t time.Time, username, remoteHost string)
 // Errors are silently ignored (best-effort).
 //
 // The output is whatever the caller passes, and the two callers differ. A `-c`
-// run records what the operator saw: the daemon renders the answer in the
-// configured format before it reaches the client (internal/component/ssh/ssh.go,
-// execMiddleware). An interactive session records the dispatcher's JSON, because
-// WrapExecutorWithTranscript sits under the Model and the Model renders after
+// run records what the operator saw: a local command renders in the caller's
+// process, and a daemon answer arrives rendered by execMiddleware
+// (internal/component/ssh/ssh.go). An interactive session records the dispatcher's
+// JSON, because WrapExecutorWithTranscript sits under the Model and the Model renders after
 // the executor returns (model_mode.go, executeOperationalCommand). The command
 // is recorded with its pipe operators either way, so the two lines together say
 // what was asked and what came back.

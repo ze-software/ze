@@ -200,7 +200,7 @@ func (selected *suppliedInspectionCommand) invocation(r *http.Request) (string, 
 		total += len(data)
 		if len(selected.input.Fields) > 0 {
 			if !utf8.Valid(data) {
-				return "", suppliedInspectionRefusal("Comparison inputs must contain valid UTF-8 text.", nil)
+				return "", suppliedInspectionRefusal("Each text input must contain valid UTF-8 text.", nil)
 			}
 			sources[source.Field] = string(data)
 		} else {
@@ -236,11 +236,18 @@ func (selected *suppliedInspectionCommand) invocation(r *http.Request) (string, 
 				}
 			}
 		}
+		if value == "" {
+			if !def.Mandatory() {
+				continue
+			}
+		}
 		values[def.Name()] = value
 	}
 	if selected.input.NameArg != "" {
 		if values[selected.input.NameArg] == "" {
-			values[selected.input.NameArg] = label
+			if label != "" {
+				values[selected.input.NameArg] = label
+			}
 		}
 	}
 	values[selected.input.ContentArg] = encoded
@@ -263,9 +270,11 @@ func (selected *suppliedInspectionCommand) readSource(r *http.Request, source Gr
 	pasted := r.PostForm.Get(source.Field)
 	var headerName string
 	var data []byte
+	provided := r.PostForm.Has(source.Field)
 	if r.MultipartForm != nil {
 		files := r.MultipartForm.File[source.FileField]
 		if len(files) > 0 {
+			provided = true
 			if pasted != "" {
 				return nil, "", suppliedInspectionRefusal("Choose a file or paste text for each input, without combining both.", nil)
 			}
@@ -294,8 +303,24 @@ func (selected *suppliedInspectionCommand) readSource(r *http.Request, source Gr
 	if len(data) > selected.decodedMax {
 		return nil, "", selected.sizeRefusal()
 	}
-	if strings.TrimSpace(string(data)) == "" {
-		return nil, "", suppliedInspectionRefusal("Each inspection input needs a selected file or pasted configuration.", nil)
+	if !provided {
+		return nil, "", suppliedInspectionRefusal("Each input needs a selected file or pasted text.", nil)
+	}
+	// Empty bytes are an input to some registered operations. The native
+	// content definition, rather than a configuration-only trim, decides
+	// whether that operation accepts them. Multi-source owners judge their
+	// composed envelope and each source themselves.
+	if len(selected.input.Fields) == 0 {
+		if len(data) == 0 {
+			for index := range selected.defs {
+				def := &selected.defs[index]
+				if def.Name() == selected.input.ContentArg {
+					if err := command.ValidateArgString("", def); err != nil {
+						return nil, "", suppliedInspectionRefusal("Each input needs a selected file or pasted text.", err)
+					}
+				}
+			}
+		}
 	}
 	return data, headerName, nil
 }
@@ -322,7 +347,7 @@ func suppliedInspectionErrorStatus(err error) int {
 
 func suppliedInspectionRefusal(problem string, cause error) *opererr.Error {
 	return opererr.Wrap(cause, problem, "The supplied inspection did not change the candidate or running configuration.",
-		"Open Inspect supplied configuration, choose the registered inspection and select a smaller valid file or paste its configuration, then inspect again")
+		"Open Inspect or edit local files, choose an operation and select a valid file or paste its text, then run it again")
 }
 
 func writeSuppliedInspectionAnswer(w http.ResponseWriter, renderer *Renderer, output string, failed bool, status int) bool {

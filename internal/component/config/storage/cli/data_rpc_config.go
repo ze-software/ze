@@ -109,7 +109,7 @@ const fixAddHubClient = "ze config edit"
 // a hub serves to one managed client, when this daemon serves no such client:
 // the version would be committed and no client would ever fetch it, which is
 // why `request data restore ... client` refuses the same case
-// (restoreClientConfig). It answers nil when the hub serves the client: the
+// (restoreConfigFromSource). It answers nil when the hub serves the client: the
 // write observer then pushes config-changed to it.
 func unservedClientRefusal(target *DataRPCTarget, name, client string) *opererr.Error {
 	problem := pathUpdateDataConfig + ": " + name + " was not imported"

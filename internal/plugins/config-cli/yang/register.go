@@ -7,5 +7,7 @@ import (
 )
 
 func init() {
+	configyang.RegisterModule("ze-config-artifact-cmd.yang", ZeConfigArtifactCmdYANG)
 	configyang.RegisterModule("ze-config-cli-cmd.yang", ZeConfigCliCmdYANG)
+	configyang.RegisterModule("ze-config-utilities-cmd.yang", ZeConfigUtilitiesCmdYANG)
 }

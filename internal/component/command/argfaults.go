@@ -5,7 +5,8 @@
 // Related: argvalue.go -- ValueArgumentError, the fault of a value its leaf refuses
 //
 // argfaults.go holds the refusal of a command line that breaks its definitions
-// in more than one place, or whose one fault is a value its leaf refuses. The
+// in more than one place, or whose one fault is a value its leaf refuses or a
+// missing mandatory argument. The
 // validator reads the whole line and names every fault it holds, so an
 // operator who fixes the first one is not refused again for the next.
 
@@ -31,11 +32,12 @@ const argumentFaultsMax = 16
 // ArgumentFaults is ValidateArgs's refusal of a call whose line holds two or
 // more faults (a keyword with no value, a value its leaf refuses, a keyword
 // typed twice, a token no definition takes, a missing mandatory argument), or
-// whose one fault is a value its leaf refuses (*ValueArgumentError). A line
+// whose one fault is a value its leaf refuses (*ValueArgumentError) or a
+// missing mandatory argument (*MissingArgumentError). A line
 // with one fault of another kind is refused with that fault alone.
 //
-// A refusal of one value fault is that fault: its problem, then its why, with
-// no count of faults. A refusal of several counts them, and its why holds one
+// A refusal of one value or missing fault is that fault: its problem, then its
+// why, with no count of faults. A refusal of several counts them, and its why holds one
 // `- ` entry per fault.
 //
 // Unwrap answers each fault, so errors.Is and errors.As reach every one of
@@ -50,9 +52,8 @@ const argumentFaultsMax = 16
 // Each fault reads in the list as its own text, except a missing argument,
 // which also names the words that supply it (`required argument missing: asn,
 // as in 'asn <asn>'`), and a value fault, which reads as its problem with its
-// why indented under it and never carries a fix of its own; alone, a missing
-// argument keeps its own text. Every route that knows the command path
-// restates the refusal (RestatedForLine), so it reads the same on all of
+// why indented under it and never carries a fix of its own. Every route that
+// knows the command path restates the refusal (RestatedForLine), so it reads the same on all of
 // them, with the whole command as its fix when every fault is a missing
 // argument or a value typed in the line: the daemon dispatcher, which also
 // names the line that supplies a missing selector, and every route that
@@ -94,30 +95,42 @@ func oneValueFix(fault *ValueArgumentError) string {
 	return tb.String()
 }
 
+// oneArgumentRefusal preserves a lone fault's own problem and explanation,
+// while a route that knows the invocation supplies the complete fix.
+func oneArgumentRefusal(fault error, fix string) *opererr.Error {
+	if value, ok := errors.AsType[*ValueArgumentError](fault); ok {
+		if fix == "" {
+			fix = oneValueFix(value)
+		}
+		return opererr.New(value.Problem(), value.Why(), fix)
+	}
+	if missing, ok := errors.AsType[*MissingArgumentError](fault); ok {
+		if fix == "" {
+			fix = missing.fix()
+		}
+		return opererr.New(missing.problem(), missing.why(), fix)
+	}
+	panic("BUG: lone argument refusal is neither a value fault nor a missing argument")
+}
+
 // newArgumentFaults builds the refusal of faults, in the order the line was
 // read, each named by the line at the same index of lines. omitted counts the
 // faults past argumentFaultsMax that were not kept, and rest where the words
 // of a rest-of-line leaf begin. fix is the fix line, the general correction
 // when empty. faults MUST hold two or more errors, or one *ValueArgumentError
-// with none omitted (a lone fault of another kind is refused as itself), and
+// or *MissingArgumentError with none omitted (a lone fault of another kind is
+// refused as itself), and
 // lines MUST hold one line per fault.
 func newArgumentFaults(faults []error, lines []string, omitted int, rest restPosition, fix string) *ArgumentFaults {
 	if len(lines) != len(faults) {
 		panic("BUG: newArgumentFaults called with a line count that differs from the fault count")
 	}
 	if len(faults) == 1 && omitted == 0 {
-		lone, ok := errors.AsType[*ValueArgumentError](faults[0])
-		if !ok {
-			panic("BUG: newArgumentFaults called with one fault that is not a value fault")
-		}
-		if fix == "" {
-			fix = oneValueFix(lone)
-		}
 		return &ArgumentFaults{
 			faults:  faults,
 			lines:   lines,
 			rest:    rest,
-			refusal: opererr.New(lone.Problem(), lone.Why(), fix),
+			refusal: oneArgumentRefusal(faults[0], fix),
 		}
 	}
 	if len(faults) < 2 {
@@ -362,13 +375,19 @@ func faultLine(fault error) string {
 	if value, ok := errors.AsType[*ValueArgumentError](fault); ok {
 		return value.listEntry()
 	}
+	// The missing cause's own Error has three parts. A list keeps only its
+	// compact problem and usage; wrapped selector refusals retain their form.
+	if missing, ok := fault.(*MissingArgumentError); ok {
+		var line textbuf.Buffer
+		return line.Str(missing.problem()).Str(", as in '").Str(missing.Usage()).Byte('\'').String()
+	}
 	return fault.Error()
 }
 
 // addMissing keeps a missing argument, named with the words that supply it.
 func (l *faultList) addMissing(missing *MissingArgumentError) {
 	var line textbuf.Buffer
-	line.Str(missing.Error()).Str(", as in '").Str(missing.Usage()).Byte('\'')
+	line.Str(missing.problem()).Str(", as in '").Str(missing.Usage()).Byte('\'')
 	l.keep(missing, line.String())
 }
 
@@ -383,7 +402,8 @@ func (l *faultList) keep(fault error, line string) {
 }
 
 // verdict answers nil for a line with no fault, an *ArgumentFaults of one for
-// a line whose one fault is a value its leaf refuses, so every route restates
+// a line whose one fault is a value its leaf refuses or a missing mandatory
+// argument, so every route restates
 // it with the whole command as its fix, the fault itself for a line with one
 // fault of another kind, and an *ArgumentFaults for a line with more.
 func (l *faultList) verdict() error {
@@ -391,7 +411,10 @@ func (l *faultList) verdict() error {
 		return nil
 	}
 	if len(l.faults) == 1 {
-		if _, value := errors.AsType[*ValueArgumentError](l.faults[0]); !value {
+		switch l.faults[0].(type) {
+		case *ValueArgumentError, *MissingArgumentError:
+			// Both variants carry a correction every route can complete.
+		default:
 			return l.faults[0]
 		}
 	}

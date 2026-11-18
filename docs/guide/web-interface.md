@@ -82,6 +82,21 @@ because the artifact can contain credentials.
 <!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP -->
 <!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
 
+The backup workspace also runs with `ze start --web-only`. It uses the same
+artifact commands as the configured daemon; opening it starts no routing
+protocol. Stop the web process only after downloading the changes you need.
+<!-- source: cmd/ze/hub/service_web.go -- runWebOnly, webOnlyDispatcher -->
+
+Full-store restore also uses the normal recovery lifecycle in web-only mode.
+It waits for web requests and the original store owner to finish before
+replacing the store. A cleanup failure prevents replacement and returns a
+failure with the recovery instructions. Applying only the running configuration
+requires a loaded daemon; web-only mode refuses that operation before staging
+any configuration candidate.
+<!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, shutdownWebOnly, webOnlyExitStatus -->
+<!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
+
 1. Select a backup file and choose **Open backup**.
 2. Choose its **Configuration**, then **Open configuration**. The editor starts
    with the committed configuration. Existing saved drafts and pending
@@ -95,8 +110,9 @@ because the artifact can contain credentials.
 5. Choose **Download saved backup**. The download is a complete artifact with
    the edited configuration, its history and the original backup's other keys.
    Unsaved text is not included.
-<!-- source: internal/component/web/backup_edit.go -- edit, backupPrepare, publish -->
-<!-- source: internal/component/web/backup_transfer.go -- receive, download -->
+<!-- source: internal/component/web/backup_edit.go -- edit -->
+<!-- source: internal/component/config/artifact/edit.go -- Edit, prepare, publish -->
+<!-- source: internal/component/web/backup_transfer.go -- upload, download -->
 <!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig -->
 
 6. Before opening the downloaded backup in the Ze CLI on Unix, restrict access to your account:
@@ -115,13 +131,91 @@ uploaded it. Uploaded copies are private temporary files; the original file on
 your computer is unchanged. An artifact can be at most 64 MiB, and configuration
 text can be at most 4 MiB. The server retains at most 32 workspaces, eight per
 account, with a shared 256 MiB artifact allowance. Workspaces expire after one
-hour without use and are removed when the web service stops. Download the edited
-backup before closing the workspace or stopping the service.
+hour without use and are removed when the daemon stops. Download the edited
+backup before closing the workspace or stopping the daemon.
+
+The same private artifact can be used from the command surface. The artifact
+identity comes from upload completion and belongs to your authenticated account.
+The browser's **Admin Commands** forms derive these commands and their fields
+from the command model:
+
+| Operation | Command |
+|-----------|---------|
+| Stored configurations | `show config artifact config list artifact <id>` |
+| Masked committed source | `show config artifact source artifact <id> name <config>` |
+| Resolved comparison | `show config artifact diff artifact <id> name <config> other <config>` |
+| Compare a revision | `show config artifact diff artifact <id> name <config> revision <number>` |
+| Stored history and draft state | `show config artifact history artifact <id> name <config>` |
+| Set, activate or deactivate | `request config artifact <operation> artifact <id> name <config> text <transfer>` |
+| Complete replacement | `request config artifact replace artifact <id> name <config> text <transfer>` |
+| Publish a history revision | `request config artifact rollback artifact <id> name <config> revision <number>` |
+
+For a statement or replacement, upload the text with `request config artifact
+text begin`, the declared upload append operation and upload finish. Keep the
+returned text-transfer identity until the operation ends, then abort it. A set
+transfer contains one complete `set` statement; activation transfers similarly
+contain one `activate` or `deactivate` statement. A replacement contains the
+configuration. Adding `dry-run` returns a masked preview without changing the
+retained artifact. These operations preserve saved drafts and unrelated keys.
+<!-- source: internal/component/config/cli/artifact_config.go -- artifactConfigMutation, artifactReplace, artifactRollback -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- native-change, revision -->
+
+To check a damaged backup in the browser, open **Check or repair a data file**
+on `/backups/`. Select the file, or expand **Paste base64 data instead**, then
+open the source. Both forms accept up to 64 MiB after decoding. The data need
+not be a valid ZeFS container to upload.
+
+Choose **Check source** to see the native integrity result. A failed check keeps
+its finding report and the complete uploaded source available. **Create separate
+salvage** produces an independent artifact; skipped keys or history entries stay
+visible as warnings, and an unresolved failure remains a failure even when a
+salvage can be downloaded. Inspect the report before using that download.
+**Download original source** preserves the uploaded bytes, including after
+repair. **Close source** removes only the uploaded copy. Sources expire after
+two minutes without use, so download what you need before closing or leaving.
+<!-- source: internal/component/web/backup_source.go -- uploadSource, source, downloadSource -->
+<!-- source: internal/component/web/component_backup_source.templ -- componentBackupSourceUpload, componentBackupSource -->
+
+For raw maintenance from a command surface, `show config artifact key list artifact <id>` lists keys.
+`request config artifact key read artifact <id> key <key>` returns a private
+download transfer; read its chunks and abort it afterward. To write a key, begin
+a `request config artifact bytes begin name <label>` transfer, append and finish
+its bytes, then use `request config artifact key write artifact <id> key <key>
+transfer <source>`. Binary and empty values are retained without text conversion.
+Explicit `request config artifact key delete artifact <id> key <key>` removes
+only that key.
+
+`show config artifact check transfer <source>` checks complete source bytes,
+including a corrupt backup. `request config artifact repair transfer <source>`
+returns a separate downloadable salvage. Keep the source until you have checked
+the salvage: skipped or dropped keys produce warnings, and unresolved history
+is a failed repair even though recovered keys remain available. A normal
+workspace can be checked with `show config artifact check artifact <id>`.
+<!-- source: internal/component/config/cli/artifact_raw.go -- artifactCheck, artifactRepair -->
+
+To reopen saved offline CLI edits deliberately, use `request config artifact
+session resume artifact <id> name <config>`. This resumes your account's saved
+`local` editing origin and keeps other accounts' pending work separate. The
+`session set`, `activate`, `deactivate` and `delete` operations take a text
+transfer containing one matching editing statement. `session replace` and
+`merge` take configuration text. `session save` retains your draft; `session
+diff`, `changes` and `history` inspect it. `session commit` validates and
+publishes your changes; `session discard` removes your pending intent. The
+ordinary configuration page continues to open committed content.
+<!-- source: internal/component/config/cli/artifact_session.go -- artifactSessionOperation -->
+
+`request config artifact restore full artifact <id>` requests a complete device
+store recovery. An accepted response confirms that independent recovery bytes
+are retained; the running configuration remains in place through the response.
+The daemon then restarts, and its outer owner imports the source only after a
+successful shutdown and store close. Download the backup before the restart if
+you also need to retain your own copy.
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreFull -->
 Saving and downloading also need temporary disk space for a complete working
 copy. If private-file cleanup fails, new uploads, saves and downloads wait until that
 cleanup succeeds; existing workspace inspection remains available.
-<!-- source: internal/component/web/backup_workspace.go -- backupWorkspaces, expire, Close -->
-<!-- source: internal/component/web/backup_transfer.go -- upload, receive, export, removeStage -->
+<!-- source: internal/component/config/artifact/owner.go -- Owner, expire, Close -->
+<!-- source: internal/component/config/artifact/transfer.go -- Begin, Append, Finish, Snapshot, Abort -->
 
 ## Authentication
 

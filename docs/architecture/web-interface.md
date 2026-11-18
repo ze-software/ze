@@ -18,7 +18,7 @@ All source files in `internal/component/web/` reference this document via `// De
 | `handler_config.go` | Config set/delete/commit/discard handlers, `ConfigViewData`, `HandleConfigView` |
 | `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
 | `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `configViewComponent`, breadcrumbs |
-| `handler_admin.go` | Admin command tree navigation and execution. `HandleAdminView` takes a per-request tree source (`AdminCommandTree`). The hub's source, `adminCommandTrees` (`cmd/ze/hub/service_web.go`), answers for each request the YANG command tree (every builtin, local and local-data command under its YANG path) with the plugin commands the registry lists overlaid on a copy (`command.OverlayCommandPaths` of `VisibleCommandEntries()`, which asks the surface predicate `command.ListedOnDaemonSurfaces`), so a plugin command with no YANG node is offered, a hidden one is not, and a plugin that exits is gone on the next request; the shared tree is never written. The command still runs through the dispatcher with the caller's identity, and the route keeps its edit authorization, so an overlaid command is authorized exactly as a builtin is. The finder columns read the tree shape. The command form reads the two help texts of the node it shows: the `ze:help` summary as the lede, the `description` explanation as the body, and one text input for each argument the node declares, each carrying that leaf's two texts. `HandleAdminExecute` takes the same source: it builds the command from the URL path and the posted argument values the node declares (`commandArguments`), through `command.WriteInvocation`, the one declaration of argument placement the MCP tool call shares (`docs/architecture/mcp/overview.md`). A value whose `ArgDef.Anchor()` names a path keyword goes bare after that keyword, inside the path, which is where `anchoredDef` binds a peer selector; every other value is appended after the command as `name value`, in declaration order. An empty value is left out, so the dispatcher's own mandatory check names a missing argument. When the YANG loader fails at hub startup the tree is nil. The admin nav is then empty, and the failure is logged to stderr, rather than a stale static map taking its place. An empty admin nav tells the operator that the hub did not load its command modules. |
+| `handler_admin.go` | Admin command tree navigation and execution. `HandleAdminView` takes a per-request tree source (`AdminCommandTree`). The hub's source, `adminCommandTrees` (`cmd/ze/hub/service_web.go`), answers for each request the YANG command tree (every builtin, local and local-data command under its YANG path) with the plugin commands the registry lists overlaid on a copy (`command.OverlayCommandPaths` of `VisibleCommandEntries()`, which asks the surface predicate `command.ListedOnDaemonSurfaces`), so a plugin command with no YANG node is offered, a hidden one is not, and a plugin that exits is gone on the next request; the shared tree is never written. The command still runs through the dispatcher with the caller's identity, and the route keeps its edit authorization, so an overlaid command is authorized exactly as a builtin is. The finder columns read the tree shape. The command form reads the two help texts of the node it shows: the `ze:help` summary as the lede, the `description` explanation as the body, and one text input for each argument the node declares, each carrying that leaf's two texts. `HandleAdminExecute` takes the same source: it builds the command from the URL path and the posted argument values the node declares (`commandArguments`), through `command.WriteInvocation`, the one declaration of argument placement the MCP tool call shares (`docs/architecture/mcp/overview.md`). A value whose `ArgDef.Anchor()` names a path keyword goes bare after that keyword, inside the path, which is where `anchoredDef` binds a peer selector; every other value is appended after the command as `name value`, in declaration order. Blank optional controls are omitted. A blank mandatory control is retained only when the argument's shared validator accepts an empty value, so zero-byte supplied content survives while an empty numeric control reaches the dispatcher's missing-argument check. When the YANG loader fails at hub startup the tree is nil. The admin nav is then empty, and the failure is logged to stderr, rather than a stale static map taking its place. An empty admin nav tells the operator that the hub did not load its command modules. |
 | `cli.go` | Legacy `POST /cli` response adapter and browser CLI completion; the adapter and dedicated CLI page share the terminal executor |
 | `cli_editor.go` | Adapts editor commands to the shared CLI model through `EditorManager.ConfigCommand` |
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
@@ -109,87 +109,203 @@ candidate editing. Labels and CLI commands continue to show the literal key.
 
 ## Offline backup workspace
 
-The registered `/backups/` subtree builds one `backupWorkspaces` owner per web
-server. Its registered Services entry opens the native page directly, without
-live editor chrome. Every request requires the authenticated account's edit
-authorization; mutating requests also use `RequireSameOrigin`. An opaque URL
-identifier selects a workspace only after its account ownership is checked.
-There is no selection cookie, live editor manager or daemon publication callback
-in this handler.
-<!-- source: internal/component/web/register_backup_workspace.go -- init -->
-<!-- source: internal/component/web/handler_portal.go -- PortalService.NavigationURL, HandlePortal -->
+The registered `/backups/` subtree is an authenticated rendering and streaming
+adapter. `config/artifact.Owner` owns the private files, account-bound identities,
+quotas, immutable transfer snapshots, cleanup debt and expiry. The config CLI
+registers the daemon operations and binds one owner to each actual plugin Server;
+its error-returning OnStop hook seals admission, joins the worker and cleans up.
+An embedding host may attach a constructed owner with `AttachArtifactOwner`;
+the same publication path refuses replacement and registers cleanup before
+exposing it. Attachment transfers lifetime only on success, so a refused owner
+that was newly constructed remains the caller's cleanup obligation. The same
+owner cannot attach to two servers: a refused caller must retain its original
+server's ownership instead of closing that shared owner. The registry retains
+the binding until Close finishes, including an active operation's final join.
+Every cached-owner lookup also checks shared Server.CheckAdmission, which refuses
+new work as soon as Stop enters; the owner lock still serializes active work
+with final cleanup.
+No web listener is needed for command access to an artifact.
+<!-- source: internal/component/config/artifact/owner.go -- Owner, Close -->
+<!-- source: internal/component/config/cli/artifact_rpc.go -- serverArtifacts, AttachArtifactOwner, attachServerArtifactsLocked, artifactHandler -->
+
+The artifact command family also exposes the native stored configuration
+inventory, history, resolved comparisons, one-statement set and activation,
+replacement, and indexed rollback. `show config artifact diff` selects exactly
+one other configuration or one revision. Mutation commands consume a completed
+private text transfer; their `dry-run` form returns a masked preview without
+publishing. They reuse the local config producers and the same complete-artifact
+staging boundary as the full-text form. A store handle supplied to that boundary
+belongs only to its callback and closes before the owner accepts the result.
+The modeled leaves make the operations available to the browser's existing
+administrative forms without a separate list of browser operations.
+<!-- source: internal/component/config/cli/artifact_config.go -- artifactConfigs, artifactDiff, artifactHistory, artifactConfigMutation, artifactReplace, artifactRollback -->
+<!-- source: internal/component/config/artifact/store.go -- ViewStore, ChangeStore, Text, changeStore -->
+
+`request config artifact import artifact <id> name <name> transfer <token>`
+imports complete private source bytes under one configuration basename. It
+uses the standalone data import producer: new names retain their raw bytes;
+existing configurations gain a native version and active publication. This
+does not parse or validate the imported configuration as an editor replacement
+does. The complete artifact staging boundary retains unrelated keys and drafts.
+<!-- source: internal/component/config/cli/artifact_import.go -- artifactImport -->
+<!-- source: internal/component/config/storage/cli/main.go -- ImportConfig -->
+
+`request config artifact restore config artifact <id> [name <source-name>]
+[client <client-name>]` reads one checked active configuration from the private
+artifact. Selection uses the same native source reader as path-based restore.
+It finishes reading and releases the artifact owner's lock before entering the
+live target's candidate, confirmed-commit and reload lifecycle. A managed-client
+target uses the same served-client policy as ordinary data restore. A server
+without a reload owner refuses its own live restore before staging a candidate.
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreConfig -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- RestoreConfigFromSource, restoreDaemonConfig -->
+
+`request config artifact restore full` hands a complete export to the daemon's
+outer recovery owner. Acceptance retains independent bytes before the response
+can trigger restart. Expiry or removal of the uploaded workspace cannot change
+that accepted source. The outer owner still requires successful shutdown and
+store closure before importing it; this command never replaces a live store.
+<!-- source: internal/component/config/cli/artifact_restore.go -- artifactRestoreFull -->
+
+Every native form and download uses RouteDeps.Dispatch with the authenticated
+account and request context. All artifact operations require edit authorization,
+including `show`, because full artifacts and raw configuration sources carry
+credentials. Mutations also use the existing same-origin guard. The HTTP adapter
+holds no workspace inventory or domain worker.
+Opening the upload page also asks the shared owner for admission, so a closed
+owner refuses the page through the same command result as other operations.
+The page checks that native list response's outcome without decoding its
+successful array as a form document. Refusals use the forms' shared decoder,
+preserving the native account, cancellation and closed-service HTTP status.
+Received operator-error text passes through the shared checked wire decoder;
+a complete native refusal keeps its original text and correction. Incomplete
+wire errors receive an actionable refusal in the same HTTP category, and an
+authorization refusal names the sign-in page and the required account access.
+An operation joined with an independent transfer-abort failure retains both
+causes and reports HTTP 500; a singleton join retains the native refusal.
+Source uploads apply this verdict before choosing an input-error category:
+malformed base64 remains 400 and an HTTP body-limit refusal remains 413 when
+abort succeeds. If abort also fails, the response keeps the input and cleanup
+evidence, reports 500, and makes no claim that the source was removed.
+The deletion form is `delete config artifact <id>`: its terminal `artifact`
+keyword already introduces the identity. Artifact operations refuse undeclared
+trailing words before looking up their private owner; ownership always comes
+from the authenticated account rather than an input argument.
 <!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP, serve -->
+<!-- source: internal/component/web/backup_command.go -- response, decodeBackupAnswer, backupCommandFailure, backupSingleCommandError -->
+<!-- source: internal/component/config/cli/artifact_rpc.go -- artifactHandler -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- workspace, delete config artifact -->
 
-| Request | Result |
-|---------|--------|
-| `GET /backups/` | Native artifact upload form |
-| `POST /backups/`, multipart field `backup` | Verify one binary artifact, retain a private copy and redirect to its opaque workspace URL |
-| `GET /backups/<id>/?config=<name>` | Configuration selection and the committed configuration's full text |
-| `POST /backups/<id>/`, form `action`, `config`, `content`, `base`, `review` | Validate, review or save the supplied text; `action=close` removes the workspace |
-| `GET /backups/<id>/download` | Complete binary snapshot of the last saved artifact |
-<!-- source: internal/component/web/backup_workspace.go -- serve -->
-<!-- source: internal/component/web/backup_edit.go -- edit -->
-<!-- source: internal/component/web/backup_transfer.go -- upload, download -->
+`request config artifact upload begin` admits an optional exact total. Omitting
+total selects bounded unknown-length streaming for multipart uploads. Append
+requires the expected offset and at most 195,840 decoded content bytes. Finish
+checks exact declared length when supplied, complete integrity, and the existing
+configuration census before exposing an artifact identity. Text transfers use
+the same authority with a 4 MiB bound, so full browser edits do not depend on one
+SSH command packet. Complete artifact uploads retain the 64 MiB allowance.
+Arbitrary binary inputs use `request config artifact bytes begin` and the same
+append, finish and abort operations. They share the completed-source inventory,
+quota and cleanup owner with text and downloads, with a 64 MiB byte limit;
+they are never misclassified as UTF-8 text or a complete ZeFS artifact. Native
+raw-key operations read their independent bytes only after transfer completion.
+The text allowance remains 4 MiB even when a binary source token is supplied.
+<!-- source: internal/component/config/artifact/transfer.go -- Begin, Append, Finish, inspectUpload -->
+<!-- source: internal/component/config/artifact/transfer.go -- BeginBytes, Bytes, uploadKind -->
 
-Upload is streamed into a private 0600 file beneath an owner-created 0700
-temporary directory. Upload creation and snapshot download open constant
-basenames through a directory descriptor rooted in that workspace; each request
-closes its file and directory handles before cleanup can remove their paths.
-The filename is a label, never a storage path. Artifact
-integrity checking precedes opening; `ArtifactConfigNames` supplies the
-pointer-and-mirror census with saved editor siblings excluded. Explicit active
-pointers remain authoritative, including names that resemble editor records;
-standalone mirror names are accepted regardless of extension. Editing reads
-`ReadActiveConfig`, creates a
-content-only shared CLI editor, and uses its parser, replacement operation,
-transition validation and masked diff. A save revalidates the submitted text,
-checks its committed-source digest and review digest, and runs the editor's
-normal save serializer, including secret hashing and schema stamping.
-The actual serialized bytes are validated again before publication. Successful
-save feedback retains both input-validation advisories and serializer warnings.
-<!-- source: internal/component/web/backup_transfer.go -- receive -->
-<!-- source: internal/component/web/backup_edit.go -- backupReadConfig, backupPrepare, backupPrepared.serialize, edit -->
-<!-- source: internal/component/cli/editor_commands.go -- Editor.Save -->
+The native page opens committed bytes through ReadActiveConfig. Existing drafts,
+per-user changes, pending pointers and unrelated raw keys remain separate.
+Validation, review and serialization use the shared CLI Editor. Save checks the
+committed digest and reviewed-text digest, stages a complete artifact, and uses
+PublishArtifactConfig before replacing the retained artifact. Input validation
+and serializer warnings remain visible after a successful save.
+<!-- source: internal/component/config/artifact/edit.go -- Edit, prepare, publish -->
 
-Publication copies the complete artifact into an owned staging artifact and
-calls `PublishArtifactConfig`. The resulting artifact replaces the workspace
-copy only after successful publication, close and size checks. Existing drafts,
-pending candidate pointers, other configurations and unrelated binary keys are
-preserved. Download uses the same complete guarded key copy, not a configuration
-text export. The owner mutex serializes upload, edit, export and removal;
-retained files are bounded to 64 MiB per artifact, 256 MiB in total, 32 workspaces
-and eight per account. Configuration text is bounded to 4 MiB. Transfers have a
-two-minute socket deadline, reset before the connection is reused.
-<!-- source: internal/component/web/backup_edit.go -- publish -->
-<!-- source: internal/component/web/backup_transfer.go -- export, download -->
-<!-- source: internal/component/web/backup_workspace.go -- ServeHTTP, backupWorkspaces -->
-<!-- source: internal/component/config/storage/artifact_workspace.go -- PublishArtifactConfig -->
+Native raw-key operations use the same private artifact authority. Binary
+sources begin with `request config artifact bytes begin`; ordinary append,
+finish and abort retain arbitrary bytes up to 64 MiB in the existing transfer
+inventory. They require neither UTF-8 nor a valid ZeFS container. This lets the
+native checker and salvage inspect corrupt inputs without admitting those bytes
+as an editable workspace. Raw key reads return immutable chunk transfers;
+writes and explicit deletion use the native store methods inside the same
+complete-artifact staging transaction. Source bytes never leave the owner
+between their read and mutation admission.
+<!-- source: internal/component/config/artifact/raw.go -- SnapshotKey, WriteKeyFromSource, ViewSource, ProduceArtifact -->
+<!-- source: internal/component/config/cli/artifact_raw.go -- artifactBytesBegin, artifactKeyRead, artifactKeyWrite, artifactCheck, artifactRepair -->
 
-The 256 MiB allowance covers retained artifacts, not the additional working
-snapshot or the storage layer's temporary atomic replacement during a save.
-Those copies use the bounded 64 MiB source artifact and at most 4 MiB of saved
-configuration text. A failed partial-upload or snapshot removal occupies one
-cleanup-debt slot. New uploads and exports must remove that debt before
-allocating another copy; ordinary inspection of existing workspaces remains
-available. Failed-upload debt also retains its conservative byte charge until
-removal succeeds, so repeated failures cannot evade the allowance.
-<!-- source: internal/component/web/backup_transfer.go -- upload, export, removeStage -->
-<!-- source: internal/component/web/backup_workspace.go -- retryCleanupDebt -->
-<!-- source: internal/component/web/backup_edit.go -- backupPrepared.serialize, publish -->
+Check and repair call the standalone frame/history producers. A failed check
+retains its finding document. Repair writes a separate private salvage and
+keeps the complete original source; skipped keys and dropped history remain
+warnings, unresolved history remains failure, and the existing 8 MiB report
+bound retains an explicit counts-only refusal. Even a salvage with no remaining
+configuration stays downloadable. All opened storage handles close before the
+owner publishes that artifact.
+<!-- source: internal/component/config/storage/cli/artifact_tools.go -- CheckSourceAnswer, RepairSourceToArtifact, ArtifactRepairAnswer -->
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairAnswerWithFix, repairReportRefusalWithFix -->
 
-One cleanup worker starts after the first accepted upload and checks the
-one-hour idle expiry each minute. Requests also remove expired workspaces before
-admission. `Close` seals admission, joins that worker and removes only the owner's
-temporary directory. The production hub registers each unwrapped handler with
-`WebServer.OwnHandler` before applying authentication wrappers. Server shutdown
-joins admitted requests before closing owned route handlers and before the
-service drains command history. Cleanup errors remain in the returned shutdown
-error. Storage failures also raise the registered
-`doctor-backup-workspace-storage` event without content, account or filename.
-<!-- source: internal/component/web/backup_workspace.go -- cleanupWorker, expire, Close -->
-<!-- source: internal/component/web/server.go -- OwnHandler, Shutdown -->
-<!-- source: cmd/ze/hub/service_web.go -- startWebServer, webService.Shutdown -->
-<!-- source: internal/component/web/backup_diagnostic.go -- reportBackupStorageFailure -->
+The same backup subtree provides browser entry for raw sources. Its file form
+and base64 paste form stream through the declared bytes-begin, append and finish
+commands; neither form requires a valid ZeFS container. Both retain the native
+64 MiB decoded allowance. Multipart completion is checked before source
+publication, and canceled, malformed or multi-part input aborts its native
+transfer. The HTTP adapter owns no source inventory.
+
+`/backups/sources/<transfer>/` renders native check and salvage responses with
+their complete finding document, warning lines and failure verdict. A failed
+check remains an HTTP failure with its report visible. A repair response can
+retain a separately downloadable artifact even when its status is a warning
+or an unresolved failure. Downloading the original source does not consume it;
+the source form's explicit close owns its final abort. Ordinary immutable
+artifact download transfers still abort after their last read. Source admission,
+account isolation, expiry and cleanup all remain with the shared command owner.
+Both download routes send the native immutable total as HTTP Content-Length.
+If a later chunk read fails, the short body is an incomplete HTTP transfer,
+so a browser cannot accept its truncated bytes as a completed download. The
+original source remains retained; an artifact download still aborts only its
+temporary snapshot after the final read or failure.
+<!-- source: internal/component/web/backup_source.go -- uploadSource, source, downloadSource -->
+<!-- source: internal/component/web/backup_command.go -- response, read, copyTransfer -->
+<!-- source: internal/component/web/component_backup_source.templ -- componentBackupSourceUpload, componentBackupSource -->
+
+Saved-session operations are explicit `request config artifact session`
+commands. Each operation reconstructs an isolated native Editor, assigns the
+authenticated account with the offline CLI's `local` origin, and calls native
+ResumeSession. Persisted draft and change records own the session state; there
+is no retained Editor map. Ordinary committed sources never take this path.
+Set, activation, load, delete, save, discard and commit use the existing Editor
+methods. Native candidate staging, promotion and committed-session cleanup
+preserve other accounts and origins. Validation advisories require explicit
+`force`, and successful commit warnings remain visible. Editor close and native
+store close finish before the complete artifact replaces its prior version.
+<!-- source: internal/component/config/cli/artifact_session.go -- artifactSessionOperation, boundedArtifactSession -->
+
+Downloads and raw source reads create immutable private snapshots. Committed
+configuration snapshots stay in bounded owner memory so ordinary inspection
+remains available while a failed disk cleanup blocks new files. Bounded chunk
+reads return total, next offset, completion and byte-preserving Blob content;
+callers explicitly abort after the last read, including canceled HTTP transfers.
+Chunks cannot mix revisions during a concurrent edit. Transfers expire after two
+minutes idle, workspaces after one hour, and the worker checks each minute.
+<!-- source: internal/component/config/artifact/transfer.go -- Snapshot, Read, Abort -->
+<!-- source: internal/component/config/artifact/owner.go -- cleanupWorker, expire -->
+
+Retained artifacts are bounded to 64 MiB each, 32 in total and eight per account;
+configuration text is bounded to 4 MiB. Retained transfers and snapshots count
+against the shared 256 MiB byte allowance. Partial cleanup failure retains one
+conservative debt charge and seals further allocation until removal succeeds.
+An upload blocked by cleanup debt returns unavailable (503); a disk snapshot
+that cannot clean its staging area reports a storage failure (500). Both use
+the same debt inventory and allowance checks.
+Storage failures raise the existing doctor-backup-workspace-storage event without
+content, account or filename. Cleanup errors remain observable in daemon StopFailure.
+<!-- source: internal/component/config/artifact/owner.go -- capacity, checkCapacity, retryCleanupDebt, removeStage, Close -->
+<!-- source: internal/component/config/artifact/diagnostic.go -- ReportStorageFailure -->
+
+## Admin command visibility
+
+Admin command discovery omits schema-hidden nodes and their descendants.
+Navigation treats a grouping with only hidden children as having no visible
+children. Hidden nodes stay in the execution tree for explicitly typed paths.
+<!-- source: internal/component/web/handler_admin.go -- adminChildNames, adminHasChildren -->
 
 ## Authentication
 
@@ -277,7 +393,8 @@ An exact owner with no stored intent may return an empty detail. When an active
 editor is cached, the snapshot takes its user lock after releasing the manager
 lock, so it also serializes with that user's edits.
 <!-- source: internal/component/cli/editor_pending_snapshot.go -- PendingDiscardChanges, readPendingDiscardChanges -->
-<!-- source: internal/component/web/editor.go -- discardDiff, diffChanges -->
+<!-- source: internal/component/web/editor.go -- discardDiff -->
+<!-- source: internal/component/cli/editor_pending_diff.go -- RenderPendingChanges -->
 <!-- source: internal/component/web/handler_config_commit.go -- HandleConfigDiscardWithAuthorizerAndAudit -->
 <!-- source: internal/component/config/change_file.go -- PendingChangeFromSessionEntry, StructuralOp.PendingChange -->
 
@@ -293,9 +410,11 @@ The recovery producer checks the file's content fingerprint under the storage
 guard before removing it, so a stale confirmation cannot delete replacement
 changes. Readable candidates, including invalid leaf values that remain
 editable, are refused. The page and audit record never include raw file contents.
+The editor's recovery notice names only the authenticated account's retained
+change-file basename, without displaying the host path or the parser error.
 <!-- source: internal/component/cli/editor_change_recovery.go -- InspectCorruptChangeFile, CorruptChangeFile.Discard -->
 <!-- source: internal/component/cli/editor_draft.go -- SaveDraft -->
-<!-- source: internal/component/web/handler_config_recovery.go -- recovery form and confirmation -->
+<!-- source: internal/component/web/handler_config_recovery.go -- recovery form and confirmation, writeConfigRecoveryError -->
 
 Recovery refuses while the account has an active editor request. If removal is
 uncertain or cached candidate reconstruction fails, already-admitted requests receive
@@ -318,6 +437,33 @@ cached editor. Idle eviction preserves those persisted changes.
 <!-- source: internal/component/web/handler_workbench.go -- HandleWorkbench -->
 
 A workbench form save (`/config/form/`) is one edit: `ApplyFormEdits` holds the per-user mutex across every field the form posts, so the review diff and a commit see the whole save or none of it, and two overlapping saves never leave one save's value beside the other's. The fields apply in path order (`parseConfigFormFields` sorts them). A field the editor refuses stops the save there, and the fields sorted before it stay applied, because the editor holds no rollback.
+
+Graphical pending review and default session `show | compare` share the editor's
+path-qualified renderer, including structural kinds and schema-based masking.
+The editor snapshots current committed values and only its own session's intent
+under one storage guard. Review leaves candidate content and the original stale
+conflict metadata unchanged. A snapshot failure is a refusal; commit and discard
+audit preparation stop before acting. Explicit comparison targets, sources and
+formats continue through the parsed-tree comparison owner.
+The shared renderer returns an error for an invalid pending record, including
+an unknown change kind or an unresolved address. The browser manager's `Diff`
+returns an actionable operator error separately from review text. A direct
+native refusal keeps its original parts; other failures retain every joined
+cause. An unreadable saved change file uses the private recovery notice and
+names `/config/recover`, without exposing parser evidence. A failed review
+never becomes an empty review or a successful audit detail.
+The active session's pending count and review collect the same typed records:
+in-memory metadata plus that account's saved change-file metadata and structural
+operations, selected by session identity and deduplicated before sorting.
+Counting one's own intent reads its known change file directly; it does not
+depend on listing other accounts' files. The inventory API remains best effort
+when a pending file cannot be read, whereas review reports that failure and
+stops commit audit preparation. The count is a logical change count: replacing
+one scalar has two review lines but counts once, and an empty-entry creation
+also counts once.
+<!-- source: internal/component/cli/editor_pending_diff.go -- PendingReview, RenderPendingChanges -->
+<!-- source: internal/component/cli/editor.go -- pendingChanges, pendingSessionChanges -->
+<!-- source: internal/component/web/editor.go -- Diff, editorReviewRefusal, discardDiff -->
 
 <!-- source: internal/component/web/editor.go -- ApplyFormEdits -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigFormWithAuthorizer, parseConfigFormFields -->
@@ -577,7 +723,14 @@ previous result, and downloading never dispatches a second command.
 The finite JSON answer keeps display text separate from export bytes.
 `output-byte-count` measures only the final selected format before JSON encoding.
 Operational warnings remain above the displayed answer and do not enter the
-export bytes or consume its size budget. A complete result of at most 4 MiB
+export bytes or consume its size budget. The terminal, tool pages and related
+tools show `Warning` when the command's status or completed record outcome
+states a warning without diagnostic lines. This label gives no cause or fix
+that the command did not supply. Explicit warning lines remain unchanged, and
+an authorization refusal hides attached warnings.
+<!-- source: internal/component/web/cli_terminal.go -- operationalWarningOutput, executeTerminalOperationalResult -->
+
+A complete result of at most 4 MiB
 also carries `output-bytes`, using the command owner's Blob document with `utf-8` or `base64`
 encoding. A successful empty answer has a zero count and a complete empty Blob.
 The terminal response stores that owner-encoded document as raw JSON,
@@ -623,11 +776,10 @@ position returned by the previous line, and a quoted `?` stays part of its value
 <!-- source: internal/component/cli/model_load.go -- applyLoad -->
 <!-- source: internal/component/web/editor.go -- ConfigCommand -->
 
-Read-only inspection of caller-held configuration is separate from candidate
-loading. The config owner registers `show config supplied` operations with
-generic `registry.Meta.SuppliedInput` metadata and YANG-bounded `content`
-arguments. The primary Finder's **Inspect supplied configuration** disclosure
-derives its choices, input count and comparison composition from those
+Supplied-file operations are separate from candidate loading. Operation owners
+register `registry.Meta.SuppliedInput` metadata and YANG-bounded `content`
+arguments. The primary Finder's **Inspect or edit local files** disclosure
+derives its choices, input count and multi-source composition from those
 descriptors, and its help, selections and limits from the actual command tree.
 It sits outside **Edit**, so a read-only account can inspect when its command
 policy allows the selected operation. `GET /config/inspect/form` updates the
@@ -636,12 +788,28 @@ dispatches exactly one currently offered registered command.
 
 Each source accepts a native file selection or pasted text. The adapter refuses
 duplicate or unknown fields, conflicting file/paste input and invalid UTF-8 in
-comparison sources before JSON composition. Files stay in memory within the
+multi-source text before JSON composition. Files stay in memory within the
 4 MiB form-body limit. The single encoded command has the owner's smaller
-shared input bound, including both comparison sources and their JSON framing.
+shared input bound, including all sources and their JSON framing.
 An uploaded filename becomes a basename diagnostic label, never a daemon path.
 Neither endpoint records CLI history or opens an editing session. The current
 display preference is read without creating a candidate.
+
+Single-source inputs preserve binary and whitespace bytes. Empty bytes reach
+operations whose native content model permits them, such as `show data encode`.
+Configuration owners retain their own input refusals. Multiple text inputs form
+one UTF-8 JSON object. An operation can use these fields for a before/after
+comparison, an editing statement or a complete replacement.
+Completion uses the same composition for its configuration and literal editing
+input, with modeled context and ghost controls. Secret encode/decode uses one
+raw operand input and a modeled option to drop one trailing line ending. Their
+owner registrations supply these choices without browser command switches or
+browser codecs. Completion input and secret operands remain inside the masked
+content argument; the result is returned to the requesting caller.
+<!-- source: internal/component/web/graphical_supplied.go -- invocation, readSource -->
+<!-- source: internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang -- show data encode -->
+<!-- source: internal/component/config/cli/config_detached.go -- suppliedMutation, suppliedReplace -->
+<!-- source: internal/component/config/cli/register_supplied_utilities.go -- init -->
 
 Answers use the browser CLI's existing operational formatter with the original
 request context and accepted authorizer. A failed validation retains its typed
@@ -839,9 +1007,21 @@ header above is unchanged by it, and Ze sends no `Server` header.
 | Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui-mode=workbench` (explicit experimental Workbench selection) |
 
 Configured and web-only startup call `startWebServer` in
-`cmd/ze/hub/service_web.go`. Web-only mode starts the server without a BGP
-config for initial setup.
-<!-- source: cmd/ze/hub/service_web.go -- startWebServer -->
+`cmd/ze/hub/service_web.go`. Web-only mode constructs the native command server
+and dispatcher without starting plugins, a protocol engine or a loaded
+configuration. Supplied-input tools and the backup workspace therefore use
+their normal registered producers and account-bound owners. Event pages read
+the command server's own event ring. A command that needs an absent daemon
+provider still reports that it cannot run.
+<!-- source: cmd/ze/hub/service_web.go -- runWebOnly, webOnlyDispatcher, startWebServer -->
+
+The BGP decode tool also reaches the native command dispatcher. Its registered
+local-data producer returns the same `bgp-decode` envelope on the CLI and web,
+including the input form and decoded messages. The web layer validates the
+form's hexadecimal input but owns no decoder or decode-command bypass.
+<!-- source: internal/component/web/page_tools.go -- handleBGPDecodeSubmit -->
+<!-- source: internal/component/bgp/cli/register.go -- init -->
+<!-- source: internal/component/bgp/cli/decode_answer.go -- dataDecode, decodeAnswer -->
 
 With no config path, `startWebServer` takes the config name from `resolve.DefaultConfig`. When that call errors (the instance name exists but cannot be read), the server is not started: it prints `warning: web server disabled:` and the error to stderr and returns no server, rather than serving `ze.conf`.
 
@@ -859,6 +1039,11 @@ graceful test times the stop against the 3 s deadline.
 
 After the network grace period, shutdown cancels request contexts and closes
 remaining connections, including POST streams, then joins admitted handlers.
+Expiration of this network allowance alone is not a cleanup failure: a
+successful forced close and completed joins fulfill it. Only the exact
+deadline error from the supplied context's own expiration takes this path;
+earlier cancellation, a transport deadline error before that context expires,
+and forced-close failures remain errors.
 Only after that join does the server close its owned route resources, then the
 service drains command history. After a separate
 teardown allowance, a stuck handler or storage call produces an ERROR diagnostic
@@ -882,8 +1067,9 @@ A network shutdown failure separately raises `doctor-web-network-cleanup`
 before history cleanup starts. Its fixed subject is `web-network-cleanup`,
 and its next command is `ze show log recent level err component web.server`.
 It uses the same minute bound. The returned shutdown error still includes
-both network and history failures. Startup cleanup and web-only shutdown
-rely on each failure's producer instead of logging the joined error again.
+both network and history failures. Startup cleanup relies on each failure's
+producer. Web-only shutdown returns failure if web cleanup or command-owned
+cleanup fails.
 Owned-route cleanup failures propagate in the same shutdown result, but
 `ShutdownNetworkError` selects only the original transport cause for this
 network diagnostic. A route-only failure is not reported as a network failure.
@@ -896,6 +1082,31 @@ The same owner handles startup failure and normal/web-only shutdown.
 <!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown -->
 <!-- source: cmd/ze/hub/service_web.go -- runWebOnly, forceExitOnSignal -->
 <!-- source: internal/test/fixture/web_interrupt_fixture.go -- webInterrupt, webInterruptHold -->
+
+Web-only cleanup joins web requests and command-history writes before stopping
+its command server. That stop seals account-bound artifact admission and joins
+the artifact owner's cleanup. Startup failures follow the same ownership order.
+The borrowed configuration store remains owned until both finish; an error
+returns exit status 1 and retains its cleanup cause.
+<!-- source: cmd/ze/hub/web_only_owner.go -- shutdownWebOnly -->
+<!-- source: cmd/ze/hub/service_web.go -- runWebOnly -->
+
+The web-only command server binds the same outer recovery owner as configured
+startup. It publishes a store-only data target and installs the native
+response-bound restart action before opening its listener. An accepted full
+restore requests the existing stop loop only after its response completes.
+Clean cleanup returns restart status 75; a cleanup failure returns 1, so the
+outer owner discards the accepted source instead of applying it. The data
+target is withdrawn after web requests finish. Live-config restore, import and
+rollback refuse before staging when no reload owner is installed.
+<!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, webOnlyExitStatus, shutdownWebOnly -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
+
+The existing second-signal worker ignores command-requested stops. After web
+requests and their response callbacks finish, cleanup stops OS signal delivery,
+closes the channel and joins that worker before returning the store.
+<!-- source: cmd/ze/hub/service_web.go -- runWebOnly, forceExitOnSignal -->
+<!-- source: cmd/ze/hub/drain.go -- releaseForceSignals -->
 
 ## Web modes
 

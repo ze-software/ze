@@ -84,6 +84,8 @@ func TestRestartCommandLineRefusalsAndCompletion(t *testing.T) {
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status)
 		assert.Contains(t, resp.Error, "required argument missing: name", "the refusal names the leaf the line left out")
+		assert.Contains(t, resp.Error, "This command needs name: The plugin's configured name, as ze doctor and show health name it.")
+		assert.Contains(t, resp.Error, "\nfix: request plugin restart name <name>")
 		assert.NotContains(t, resp.Error, "selector", "the command has no selector keyword to name")
 		assert.NotContains(t, resp.Error, "needs exactly one plugin name", "the handler must not run on a line the model refuses")
 	})

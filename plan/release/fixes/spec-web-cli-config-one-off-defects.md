@@ -7,9 +7,9 @@
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | existing web correctness before parity gaps |
+| Phase | full-spec audit resumed: remaining correctness, original journal obligations and parity acceptance |
 | Handoff | verify |
-| Updated | 2026-11-17 |
+| Updated | 2026-11-18 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -24,6 +24,11 @@ at HEAD.
 The current correctness pass also owns read-only discard audit snapshots and
 discarding saved leaf changes. Inspection must preserve durable bytes, and an
 explicit discard must not let saved ownership reappear after reopening.
+
+The instruction to implement this spec covers the whole agreed scope. Stopping
+after the backup amendment did not satisfy that instruction. Following the
+owner's correction on 2026-11-17, resume the remaining acceptance criteria and
+owned journal rows; retain completed work and the explicit P6e release exception.
 
 Left to root-cause specs: `yangTypeToValueType` and `validateYangType` (S1);
 the `website/AI.md` checklist and the stranded-documentation rows (T2, T4).
@@ -883,6 +888,42 @@ error for a bare list name, so the 2026-10-10 `show <list>` row is present.
 - [ ] `cmd/ze/ze_core_usage.go` - `zeUsage`
 - [ ] `internal/le/site/commands.go` - `markdownCell`
 - [ ] `vendor/github.com/openconfig/goyang/pkg/yang/entry.go` - `ToEntry`, `ApplyDeviate`
+
+### Standalone command equivalence amendment (2026-11-17)
+
+Owner request after the standalone CLI audit, verbatim:
+
+> Okay, resolve the problem you identified.
+
+This amendment completes the standalone root and flag census under AC-45. It
+retains the parent's other acceptance criteria and its verification handoff.
+Each operation has one producer behind local and daemon entry points; web forms
+derive from the registered operation and its modeled inputs.
+
+| Phase | Work and positive acceptance |
+|-------|------------------------------|
+| S1 | Store registration lookup, repair and encode share typed results. An unknown registered-key pattern fails on both routes; unresolved repair history errors cannot report success; successful repairs retain recovered keys and finding severity. Prefix and pattern selections are declared in YANG. Empty, whitespace-only and binary encoder input remains valid on the web, MCP, REST and gRPC as it is locally; explicit empty values are distinct from absent arguments. Environment-only validation uses the existing registered environment validation authority rather than unconditional success. |
+| S2 | Current-config conversion, fix-plan generation, masked source-subtree inspection and ExaBGP config/environment conversion are registered supplied-input operations. Their file/stdin entry points use the same byte producers. Both valid inputs and refused inputs retain their useful output and diagnostics. List and history root adapters consume typed producers instead of repeating traversal. |
+| S3 | Detached-file set/activate/deactivate, pending validation, rollback and stored-config rename have daemon forms for their actual source and publication target. File/paste controls return detached results without editing the live candidate. Local writes remain local adapters; formatting shares its producer and returns bytes for download remotely. |
+| S4 | Backup artifact list/show/diff/set and explicit draft-session editing are reachable through owner-held daemon operations and browser adapters. Artifact identity, ownership, bounds, history and cleanup are shared. Committed content remains the default browser source; draft resumption is explicit. Full-store restore uses a verified shutdown/recovery lifecycle, never replacement beneath an active owner. Retained private recovery resumes through the same importer with a durable source/target ownership proof and exact target `--path`; successful imported-owner close precedes private cleanup. Generic `RestoreBlob` keeps caller artifacts. Unknown or partially cleaned recovery-looking directories remain preserved with explicit owner handling that resolves admission debt. |
+| S5 | Independent review checks the complete standalone census against local, dispatcher and browser entry points, including failure verdicts and artifact preservation. Focused main-thread tests prove the reached behavior; registered-path enumeration alone is insufficient. |
+
+| Existing mechanism | Extension and preservation |
+|--------------------|----------------------------|
+| `command.MustRegisterLocalData`, `plugin/server` `loadLocalData` | Serve the same typed handler locally and through the daemon; retain route authorization, cancellation, secret masking and answer shapes. |
+| `registry.Meta.SuppliedInput`, `web.HandleSuppliedInspection` | Discover new file/paste operations from owner metadata and real YANG leaves; no web-owned operation inventory. |
+| `config/cli` byte producers and `cli.Editor` | Share parsing, validation, serialization and tree edits; preserve detached-file versus candidate publication. |
+| `storage.Backup`, `RestoreConfig`, `PublishArtifactConfig`, `RepairHistory` | Keep storage locking and pointer commit boundaries; preserve unrelated artifact keys, pending intent and saved drafts. |
+| `env.InvalidValues` | Use the registered environment authority for environment-only validation; retain explicit invalid-value and range findings. |
+| Daemon restart and service shutdown owners | Establish a recovery handoff only after active store users have drained; keep the prior store recoverable on failure. |
+
+The main thread owns test execution and commits. Each phase's implementation
+agent writes its failing regression or wiring tests first and supplies exact
+commands. New commands declare bounded inputs, useful successful answers and
+actionable refusals. No RFC behavior changes are planned. The command reference,
+API command architecture, web architecture and operation-specific guides change
+with their producers. Temporary evidence and phase handoffs are owned by this
+session's state record; obsolete logs are removed after results are recorded.
 
 ## Existing Mechanisms
 

@@ -11,9 +11,11 @@ import (
 	"os"
 
 	editor "github.com/ze-software/ze/internal/component/cli"
-	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -21,7 +23,7 @@ import (
 // config from stdin when configFile is "-" (via cliio) and otherwise from the
 // file. `ze config show` opens no live store (AC-24): the file is the loose
 // config. With --backup, configFile names a config inside that artifact and
-// the bytes are its file/active entry, read under the artifact's shared lock.
+// the bytes are its verified active version, read under the artifact's shared lock.
 func openShowEditor(configFile, backupPath string) (*editor.Editor, error) {
 	if backupPath != "" {
 		return openBackupShowEditor(configFile, backupPath)
@@ -41,7 +43,11 @@ func openBackupShowEditor(configName, backupPath string) (*editor.Editor, error)
 	if err != nil {
 		return nil, err
 	}
-	data, err := store.ReadFile(configName)
+	name, err := storage.StoredConfigName(store, configName)
+	var data []byte
+	if err == nil {
+		data, err = storage.ReadActiveConfig(store, name)
+	}
 	if closeErr := store.Close(); err == nil {
 		err = closeErr
 	}
@@ -111,44 +117,42 @@ func showConfig(out io.Writer, args []string) int {
 	}
 	defer ed.Close() //nolint:errcheck // read-only inspection, nothing to flush
 
-	// The text form of the whole configuration still answers the raw file when
-	// the parse failed: the operator must read the broken line to repair it.
-	// Every other shape reports the failure, which is what showTree does.
-	if ed.DisplayTreeAtPath(nil) == nil && len(path) == 0 {
-		return writeText(out, ed.DisplayContentAtPath(nil))
-	}
-
-	// Resolve the tree first so a parse failure and a path miss are two
-	// answers, and so a bad path is an explicit error rather than the silent
-	// fall-back to the whole tree that DisplayContentAtPath does.
-	if _, code := showTree(ed, configFile, path); code != exitOK {
-		return code
-	}
-	return writeText(out, ed.DisplayContentAtPath(path))
+	answer := sourceEditorAnswer(ed, configFile, path)
+	return command.PrintLocalAnswerWith("show config source", answer, func(_ string, payload any) int {
+		blob, ok := payload.(command.Blob)
+		if !ok {
+			panic("BUG: source display answered something other than its bytes")
+		}
+		return writeText(out, string(blob))
+	})
 }
 
-// showTree resolves the masked display tree of an open config at a path, and
-// names on stderr which of the two failures it met: a configuration that parses
-// nowhere, or a path that resolves to nothing.
-//
-// It is the one resolution both spellings of this command run: the text form
-// above.
-func showTree(ed *editor.Editor, configFile string, path []string) (*config.Tree, int) {
+// sourceEditorAnswer is the source display shared by local files and supplied
+// bytes. A whole source that cannot parse is returned verbatim for repair; a
+// parsed source is masked, and a missing subtree is never the whole source.
+func sourceEditorAnswer(ed *editor.Editor, name string, path []string) command.LocalAnswer {
 	whole := ed.DisplayTreeAtPath(nil)
 	if whole == nil {
-		helpfmt.WriteError(os.Stderr, false, "%s: the configuration does not parse", configFile)
-		return nil, exitError
+		if len(path) == 0 {
+			return command.LocalAnswer{Payload: command.Blob(ed.DisplayContentAtPath(nil))}
+		}
+		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.New(
+			name+": the configuration does not parse",
+			"A subtree cannot be selected until the source can be parsed.",
+			"ze show config supplied validation help")))
 	}
 	if len(path) == 0 {
-		return whole, exitOK
+		return command.LocalAnswer{Payload: command.Blob(ed.DisplayContentAtPath(nil))}
 	}
 	subtree := ed.DisplayTreeAtPath(path)
 	if subtree == nil {
 		var b textbuf.Buffer
-		helpfmt.WriteError(os.Stderr, false, "path not found: %s", b.Join(path, " ").String())
-		return nil, exitError
+		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.New(
+			b.Str("path not found: ").Join(path, " ").String(),
+			"No subtree at that path exists in the supplied configuration.",
+			"ze show config supplied source help")))
 	}
-	return subtree, exitOK
+	return command.LocalAnswer{Payload: command.Blob(ed.DisplayContentAtPath(path))}
 }
 
 // writeText writes s to w and maps a write error (e.g. a closed pipe) to a

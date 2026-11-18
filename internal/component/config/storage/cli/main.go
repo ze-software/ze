@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/confirm"
@@ -325,7 +324,7 @@ func importConfigs(storePath string, paths []string, ask daemonroute.Ask, stdout
 			continue
 		}
 		key := filePathToKey(path)
-		if writeErr := importConfig(s, path, data); writeErr != nil {
+		if writeErr := ImportConfig(s, path, data); writeErr != nil {
 			var line textbuf.Buffer
 			writeText(stderr, line.Str("error: write ").Str(key).Str(": ").Err(writeErr).Byte('\n').String())
 			continue
@@ -336,7 +335,7 @@ func importConfigs(storePath string, paths []string, ask daemonroute.Ask, stdout
 	return importedSummary(stdout, storePath, imported)
 }
 
-// importConfig lands data in the config named by the base name of path, on
+// ImportConfig lands data in the config named by the base name of path, on
 // the store the caller owns: a new active version of a config the store holds,
 // the previous one kept as rollback, or the key of a config it does not hold.
 //
@@ -350,29 +349,13 @@ func importConfigs(storePath string, paths []string, ask daemonroute.Ask, stdout
 // daemon that stopped during that window. Its next start reverts the window,
 // which would undo the import, so the import is refused with the window's own
 // refusal (confirm.WriteOutsideRecorded), as `ze config rollback` is.
-func importConfig(s storage.Storage, path string, data []byte) error {
+// The caller MUST own this store for the call and MUST use the daemon's reload
+// path instead for its live configuration.
+func ImportConfig(s storage.Storage, path string, data []byte) error {
 	name := filepath.Base(path)
 	return confirm.WriteOutsideRecorded(s, name, func() error {
-		return importConfigOwned(s, name, path, data)
+		return storage.ImportConfig(s, name, data)
 	})
-}
-
-// importConfigOwned is the write of importConfig, once no window stands in
-// its way.
-func importConfigOwned(s storage.Storage, name, path string, data []byte) error {
-	pointed, err := storage.HasActivePointer(s, name)
-	if err != nil {
-		return err
-	}
-	if pointed {
-		_, err := storage.RestoreConfig(s, name, data)
-		return err
-	}
-	if s.Exists(name) {
-		_, err := storage.RestoreConfig(s, name, data)
-		return err
-	}
-	return s.WriteKey(filePathToKey(path), data)
 }
 
 // importConfigsThroughDaemon sends each file to the daemon that owns the
@@ -609,44 +592,11 @@ func cmdCat(storePath string, args []string) int {
 }
 
 func cmdRegistered(_ string, args []string) int {
-	if len(args) > 0 {
-		return showRegisteredKey(args[0])
+	validated, err := command.ValidateModelArgs("show data registered", args, nil)
+	if err != nil {
+		return command.PrintLocalAnswer("show data registered", storageRefusal(err))
 	}
-	return listRegisteredKeys()
-}
-
-func listRegisteredKeys() int {
-	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	printKeyRow(w, "PATTERN", "DESCRIPTION")
-	printKeyRow(w, "-------", "-----------")
-	for _, e := range zefs.Entries() {
-		printKeyRow(w, e.Pattern, e.Description)
-	}
-	if err := w.Flush(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
-func showRegisteredKey(key string) int {
-	for _, e := range zefs.Entries() {
-		if e.Pattern != key {
-			continue
-		}
-		fmt.Printf("Pattern:     %s\n", e.Pattern)
-		fmt.Printf("Description: %s\n", e.Description)
-		return 0
-	}
-	fmt.Fprintf(os.Stderr, "error: unknown key %q\n", key)
-	return 1
-}
-
-// printKeyRow writes a tab-separated row to w.
-func printKeyRow(w *tabwriter.Writer, cols ...string) {
-	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil { //nolint:errcheck // output
-		return
-	}
+	return command.PrintLocalAnswer("show data registered", dataRegistered(validated))
 }
 
 func usage() {

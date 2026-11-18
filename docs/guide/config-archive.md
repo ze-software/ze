@@ -98,6 +98,12 @@ replaced by `30s`.
 Time-based triggers (`daily`, `hourly`) always fire once on daemon boot regardless of `on-change`, establishing a baseline. Subsequent ticks respect the `on-change` flag.
 <!-- source: internal/component/config/archive/archive.go -- TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly -->
 
+Shutdown and reload cancel future scheduled runs, then wait for the current
+configuration read or archive to finish before releasing or replacing its
+store. An upload already running retains its configured archive timeout.
+<!-- source: cmd/ze/hub/main_system.go -- archiveSchedulerRun.stop, startArchiveScheduler, stopArchiveScheduler -->
+<!-- source: internal/component/config/archive/scheduler.go -- Scheduler.Run -->
+
 A scheduled archive has no command to answer, so its failure is reported in two
 places: a warning in the log, and an error event in `ze show errors` that the
 recent-events row of `ze show doctor` also lists. Both carry the code

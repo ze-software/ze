@@ -811,7 +811,7 @@ func (e *Editor) pruneCreationMaterializations(guard storage.WriteGuard, changeP
 	if len(oldPaths) == 0 {
 		return false, nil
 	}
-	committedData, err := guard.ReadFile(e.originalPath)
+	committedData, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return false, err
 	}
@@ -924,7 +924,7 @@ func (e *Editor) structuralPreSaveConflicts() ([]Conflict, error) {
 		return nil, nil // No rename needs a committed source before materialization.
 	}
 	ops = filterStructuralOps(ops, e.session.ID)
-	data, err := guard.ReadFile(e.originalPath)
+	data, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return nil, err
 	}

@@ -105,7 +105,7 @@ func MustRegisterLocalMeta(path string, handler LocalHandler, meta registry.Meta
 // nil handler if no match. The caller MUST run the handler through
 // InvokeLocal, with the registered path, so the remaining words are judged.
 //
-// Caller joins words with spaces to form the match key; iteration tries
+// Lookup matches whole decoded words against registered path segments,
 // longest first, so "show bgp decode" is preferred over "show bgp" or "show".
 //
 // THE MATCH IS REFUSED WHEN THE ARGV REACHES A DECLARED COMMAND FURTHER DOWN.
@@ -160,7 +160,11 @@ func longestLocalPrefix(words []string) (LocalHandler, int) {
 	local.RLock()
 	defer local.RUnlock()
 	for i := len(words); i > 0; i-- {
-		if handler, ok := local.handlers[textbuf.Join(words[:i], " ")]; ok {
+		path := textbuf.Join(words[:i], " ")
+		if handler, ok := local.handlers[path]; ok {
+			if !invocationMatchesPathPrefix(words[:i], path) {
+				continue
+			}
 			return handler, i
 		}
 	}

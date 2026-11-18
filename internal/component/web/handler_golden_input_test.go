@@ -140,7 +140,7 @@ func webGoldenInspectionParts(t *testing.T) (AdminCommandTree, CommandDispatcher
 	require.NoError(t, err)
 	dispatcher := pluginserver.NewDispatcher()
 	require.NoError(t, pluginserver.LoadBuiltins(dispatcher, yangloader.WireMethodToPath(resolved),
-		yangloader.PathToDescription(resolved), yangloader.PathToHelp(resolved), yangloader.PathToArgDefs(resolved)))
+		yangloader.PathToDescription(resolved), yangloader.PathToHelp(resolved), yangloader.PathToArgDefs(resolved), yangloader.BuildCommandTree(resolved)))
 	return StaticCommandTree(yangloader.BuildCommandTree(resolved)),
 		func(ctx context.Context, caller plugin.CallerIdentity, line string) (*plugin.Response, error) {
 			return dispatcher.Dispatch(&pluginserver.CommandContext{
@@ -244,7 +244,11 @@ func webGoldenDiffHandler(renderer *Renderer, mgr *EditorManager) http.Handler {
 			return
 		}
 
-		diff := mgr.Diff(username)
+		diff, err := mgr.Diff(username)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		count := mgr.ChangeCount(username)
 
 		html, renderErr := renderer.RenderDiffModalOpen(diff, count)

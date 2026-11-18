@@ -91,6 +91,9 @@ func (a *editorAdapter) DisconnectSession(sessionID string) error {
 	return a.ed.DisconnectSession(sessionID)
 }
 func (a *editorAdapter) Diff() string     { return a.ed.Diff() }
+func (a *editorAdapter) PendingReview(path []string) (string, error) {
+	return a.ed.PendingReview(path)
+}
 func (a *editorAdapter) SaveDraft() error { return a.ed.SaveDraft() }
 func (a *editorAdapter) SetPreCommitValidate(fn func(candidate string) error) {
 	a.ed.SetPreCommitValidate(fn)

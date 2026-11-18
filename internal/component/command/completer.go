@@ -210,6 +210,9 @@ func pipeSuggestionExists(items []Suggestion, text string) bool {
 // for and the path an explanation is answered for cannot drift apart.
 func (c *TreeCompleter) resolve(words []string) (*Node, []string) {
 	current := c.root
+	if current.Hidden {
+		return nil, nil
+	}
 	for i, word := range words {
 		child, ok := current.Children[word]
 		if !ok {
@@ -222,6 +225,9 @@ func (c *TreeCompleter) resolve(words []string) (*Node, []string) {
 			if current.acceptsArgumentTail() {
 				return current, words[i:]
 			}
+			return nil, nil
+		}
+		if child.Hidden {
 			return nil, nil
 		}
 		current = child
@@ -471,6 +477,9 @@ func (c *TreeCompleter) oneOfSuggestions(node *Node, prefix string) []Suggestion
 		if member == nil || !c.backendAllowed(member) {
 			continue
 		}
+		if member.Hidden {
+			continue
+		}
 		if prefix != "" && !strings.HasPrefix(name, prefix) {
 			continue
 		}
@@ -483,6 +492,9 @@ func (c *TreeCompleter) oneOfSuggestions(node *Node, prefix string) []Suggestion
 // Includes both static children and dynamic suggestions from DynamicChildren callback.
 func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 	if node == nil {
+		return nil
+	}
+	if node.Hidden {
 		return nil
 	}
 
@@ -498,6 +510,9 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 
 		for _, name := range keys {
 			child := node.Children[name]
+			if child.Hidden {
+				continue
+			}
 			if !c.backendAllowed(child) {
 				continue
 			}

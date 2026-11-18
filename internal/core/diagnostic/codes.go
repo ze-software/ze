@@ -41,6 +41,8 @@ const exampleShowSystemDNS = "ze show system dns"
 // Only the codes another package emits are exported. The three under them are
 // named for a RelatedCodes cross-reference inside this file.
 const (
+	CodeDoctorBGPLearnedExportNoPolicy             = "doctor-bgp-learned-export-no-policy"
+	CodeDoctorBGPRFC8212NoPolicy                   = "doctor-bgp-rfc8212-no-policy"
 	CodeConfigNodeOtherOS                          = "config-node-other-os"
 	CodeConfigHostBackend                          = "config-host-backend"
 	CodeConfigYANGCardinality                      = "config-yang-cardinality"
@@ -201,6 +203,17 @@ const (
 // builtinCodes is every code RegisterBuiltinCodes registers: the table below,
 // followed by the plugin infrastructure and core codes (codes_plugin_infra.go).
 var builtinCodes = append([]CodeMeta{
+	{
+		Code:        CodeDoctorBGPLearnedExportNoPolicy,
+		Title:       "An internal BGP destination has no learned-route export policy",
+		Description: "An internal peer has an eligible ordinary selecting owner and no explicit export policy. Ze withholds routes learned from other peers while local announcements remain permitted. The finding names the peer and its editor command. Configure the intended export policy and commit it; an explicit rejecting policy also clears this absence. The config-phase doctor result describes its supplied saved configuration, not live OPEN or external declaration state.",
+		Examples:    []string{exampleDoctorJSON, "ze show bgp peer list"},
+	}, {
+		Code:        CodeDoctorBGPRFC8212NoPolicy,
+		Title:       "An external BGP direction has no explicit policy",
+		Description: "RFC8212 Section3 prevents an external peer's unconfigured import direction from contributing learned routes or its unconfigured export direction from sending routes. Configure an explicit policy with the peer or group's editor command and commit it. An explicit rejecting final also resolves the absence. The doctor result describes its supplied saved configuration.",
+		Examples:    []string{exampleDoctorJSON, "ze show bgp peer list"},
+	},
 	{
 		Code:        "config-parse",
 		Title:       "Config syntax error",
@@ -368,10 +381,10 @@ var builtinCodes = append([]CodeMeta{
 		Examples: []string{exampleDoctorJSON},
 	},
 	{
-		Code: CodeDoctorStorageRecoveryPending,
-		Title: "Full-store recovery source remains unresolved",
+		Code:        CodeDoctorStorageRecoveryPending,
+		Title:       "Full-store recovery source remains unresolved",
 		Description: "A private full-store recovery staging directory remains, or the store's retained directory authority could not be inspected. Another recovery source is refused until the retained source is resolved. The diagnostic names the source and its inspection command; no doctor check consumes it.",
-		Examples: []string{exampleDoctorJSON},
+		Examples:    []string{exampleDoctorJSON},
 	},
 	{
 		Code:        CodeDoctorStorePermissions,

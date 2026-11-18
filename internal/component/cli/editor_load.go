@@ -13,6 +13,8 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -25,18 +27,45 @@ func (e *Editor) ParseLoad(content string, contextPath []string) (*config.Tree, 
 	if len(contextPath) == 0 {
 		tree, _, err := parseConfigWithFormat(content, e.schema)
 		if err != nil {
-			return nil, fmt.Errorf("load: %w", err)
+			return nil, loadParseRefusal(err)
 		}
 		return tree, nil
 	}
 	if config.DetectFormat(content) != config.FormatHierarchical {
-		return nil, errors.New("load: a relative load takes a hierarchical body; load set lines with 'absolute'")
+		return nil, opererr.New("load: a relative load takes a hierarchical body",
+			"Set lines name paths from the root; load them with absolute positioning.",
+			"load terminal absolute merge")
 	}
 	tree, err := config.NewParser(e.schema).ParseAt(content, contextPath)
 	if err != nil {
-		return nil, fmt.Errorf("load: %w", err)
+		return nil, loadParseRefusal(err)
 	}
 	return tree, nil
+}
+
+// loadParseRefusal adds the load context at its producer. Only the parser's
+// own unary line and value wrappers are projected; an unknown or joined cause
+// remains whole evidence of a complete refusal.
+func loadParseRefusal(err error) *opererr.Error {
+	var prefix textbuf.Buffer
+	prefix.Str("load: ")
+	inner := err
+	if line, known := inner.(*config.LineError); known { //nolint:errorlint // Read this parser-owned wrapper, never the first child of a join.
+		prefix.Str("line ").Int(int64(line.Line())).Str(": ")
+		inner = line.Unwrap()
+	}
+	if value, known := inner.(*configyang.ValidationError); known { //nolint:errorlint // This exact value wrapper owns its displayed line and native refusal.
+		if value.LineNumber > 0 {
+			prefix.Str("line ").Int(int64(value.LineNumber)).Str(": ")
+		}
+		inner = value.Unwrap()
+	}
+	if native, known := inner.(*opererr.Error); known { //nolint:errorlint // A direct native cause carries every rendered refusal part.
+		return opererr.Wrap(native.Unwrap(), prefix.Str(native.Problem()).String(), native.Why(), native.Fix())
+	}
+	return opererr.Wrap(err, "load: the configuration input could not be parsed",
+		"The input was refused before any load was applied. Correct its syntax before loading it again.",
+		"load terminal absolute replace")
 }
 
 // LoadMerge merges loaded, a parsed tree rooted at contextPath, into the

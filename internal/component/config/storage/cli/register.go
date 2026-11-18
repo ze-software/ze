@@ -61,6 +61,16 @@ func init() {
 		ShortHelp: "Check every entry and the config history of the store.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show data encode", dataEncode, registry.Meta{
+		ShortHelp:     "Encode supplied bytes as a ZeFS frame, its header or its checksum.",
+		Mode:          modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: "content"},
+	}, command.RenderLocalAnswer)
+	registry.RegisterCommandFlags("data encode", []registry.FlagSpec{
+		{Name: "--crc", Description: "show the CRC32c checksum", ValueHint: registry.FlagValueNone},
+		{Name: "--header", Description: "show the frame header", ValueHint: registry.FlagValueNone},
+		{Name: "--cap", Description: "frame capacity in bytes", ValueHint: registry.FlagValueNone},
+	})
 
 	command.RegisterShape([]string{"show data list", "show data registered"}, command.ShapeTab)
 	// The verdict is ONE document, its rows inside it, as the config
@@ -69,7 +79,7 @@ func init() {
 	command.RegisterColumns([]string{"show data check"},
 		command.ColumnOrder{"path", "entries", "corrupt-entries", "vanished-entries", "history-checked", "findings"},
 		command.ColumnOrder{findingSeverity, findingCheck, findingKind, keywordKey, findingDetail})
-	command.RegisterShape([]string{"show data cat"}, command.ShapeBlob)
+	command.RegisterShape([]string{"show data cat", "show data encode"}, command.ShapeBlob)
 	command.RegisterColumns([]string{"show data list"}, command.ColumnOrder{keywordKey})
 	command.RegisterColumns([]string{"show data registered"},
 		command.ColumnOrder{"pattern", "description"})

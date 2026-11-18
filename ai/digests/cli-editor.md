@@ -76,6 +76,17 @@ to in-process registry handlers.
    or a config-file path → `hub.Run`.
 
 ## Key files
+
+Stored editors and backup show/diff read committed configuration through
+`storage.ReadActiveConfig`; guarded session reads use
+`storage.ReadActiveConfigWithGuard`. Both follow the verified active version,
+refuse an unresolved pointer and leave raw draft/change-file reads separate.
+`NewLooseFileEditor` still reads its explicit filesystem source.
+Default discovery uses `ArtifactConfigNames` so a pointer-only configuration
+does not trigger empty-mirror creation. Direct versioned `Save` requires its
+owning `SetCommitWriter` and otherwise refuses before serialization or writes;
+the editor does not infer live reload versus offline promotion from a store.
+
 | File | Role |
 |------|------|
 | `internal/component/cli/model.go` | Bubble Tea `Model`, `Update` loop, `commandResult`, `cmd*`/mode/format name constants |

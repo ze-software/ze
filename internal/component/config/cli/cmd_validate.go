@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/infra"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/kernelcap"
@@ -325,22 +326,27 @@ func cmdValidate(args []string) int {
 	return outputValidateText(result, *verbose, *quiet)
 }
 
-// validateEnvironment reports "valid" when invoked with --limit environment.
-// Per-value strict validation lived in the deleted Environment struct; env vars
-// are now validated lazily at consumer call sites (env.GetInt/GetDuration
-// return the default for unparseable values; YANG restrictions on the
-// `environment/` block are enforced at config parse time).
+// validateEnvironment retains the quiet local form while sharing the daemon's
+// actual environment verdict. Only the process answering the command is judged.
 func validateEnvironment(quiet bool) int {
-	if !quiet {
-		fmt.Println("Environment variables valid")
+	answer := environmentValidationAnswer(command.ValidatedArgs{})
+	if quiet {
+		return answer.Code
 	}
-	return 0
+	return command.PrintLocalAnswerWith("show config environment-validation", answer, func(_ string, payload any) int {
+		result, ok := payload.(diagnostic.ValidateResult)
+		if !ok {
+			panic("BUG: environment validation answered something other than its verdict")
+		}
+		if result.Valid {
+			fmt.Println("Environment variables valid")
+		}
+		return exitOK
+	})
 }
 
 func validatePending(configPath, user string, verbose, quiet bool) int {
-	var tb textbuf.Buffer
-	draftPath := tb.Str(configPath).Str(".draft").String()
-	data, err := os.ReadFile(draftPath) //nolint:gosec // Config path from CLI args
+	data, selected, err := readValidationSource(command.RouteLocal, nil, configPath, true)
 	if err != nil {
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "error: no pending config: %v\n", err)
@@ -348,7 +354,7 @@ func validatePending(configPath, user string, verbose, quiet bool) int {
 		return 2
 	}
 
-	result := judgeConfig(string(data), configPath, user, askOverSSH)
+	result := judgeConfig(string(data), selected, user, askOverSSH)
 	return outputValidateText(result, verbose, quiet)
 }
 
@@ -602,10 +608,9 @@ func runValidationUnanswered(input, path string, unanswered *config.DaemonUnansw
 			return result
 		}
 
-		// The peer walk also names each EBGP session RFC 8212 closes for want
-		// of an explicit policy. The config is valid and the session comes
-		// up, yet it carries no routes in that direction, which is the silence
-		// an operator otherwise meets only as the establishment warning.
+		// The peer walk explains both external RFC8212 rejection and ordinary
+		// internal learned-export rejection. The graph, not a plugin name,
+		// determines the internal recipient whose missing policy is reported.
 		absences, peersErr := infra.ValidateBGPPeersWithPolicy(tree)
 		if peersErr != nil {
 			result.addErrorWithRepair("config-bgp-peer", peersErr.Error(),
@@ -809,18 +814,23 @@ func yangErrorCode(t configyang.ErrorType) string {
 // rfc8212WarningCode is the diagnostic code of an RFC 8212 policy absence.
 const rfc8212WarningCode = "config-bgp-rfc8212-no-policy"
 
-// addRFC8212Warning reports one RFC 8212 policy absence as a warning: what
-// RFC 8212 stops, worded as the daemon's establishment warning, and the editor
-// command that gives the direction an explicit policy. `final accept` in that
-// command is an example: which routes to accept is the operator's decision.
+// addRFC8212Warning reports one policy absence in the daemon's words. The
+// code distinguishes ordinary learned export from RFC8212 rejection. The editor
+// command gives the direction an explicit policy. `final accept` is only an
+// example: which routes to accept is the operator's decision.
 func addRFC8212Warning(result *validationResult, a infra.BGPPolicyAbsence) {
+	code := rfc8212WarningCode
+	if a.Code == diagnostic.CodeDoctorBGPLearnedExportNoPolicy {
+		code = a.Code
+	}
 	var tb textbuf.Buffer
 	tb.Str(a.Owner).Str(": ").Str(a.Message).Str("; to exchange routes, run `").Str(a.Fix).Str("`, then `commit now`")
 	result.Diagnostics = append(result.Diagnostics, diagnostic.Diagnostic{
-		Code:      rfc8212WarningCode,
+		Code:      code,
 		Severity:  diagnostic.SeverityWarning,
 		Message:   tb.String(),
 		Help:      a.Fix,
+		Fix:       a.Fix,
 		Repair:    &diagnostic.Repair{ID: "configure-" + a.Direction + "-policy", Summary: "Give the " + a.Direction + " direction an explicit policy"},
 		FixSafety: diagnostic.SafetyRequiresHumanReview,
 	})

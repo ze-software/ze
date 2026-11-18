@@ -340,10 +340,13 @@ const (
 // Help text comes from YANG descriptions. Read-only classification comes from
 // the verb position in the command tree (show/validate/monitor = read-only).
 type RPCRegistration struct {
-	WireMethod       string  // "module:rpc-name" format (e.g., "ze-bgp:peer-list")
-	Handler          Handler // Handler function
-	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
-	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
+	WireMethod string  // "module:rpc-name" format (e.g., "ze-bgp:peer-list")
+	Handler    Handler // Handler function
+	// NotReadOnly requires edit authorization even for a show command whose
+	// private answer grants access equivalent to changing configuration.
+	NotReadOnly      bool
+	RequiresSelector bool   // True if peer commands must have explicit selector (not default "*")
+	PluginCommand    string // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
 	// Complete answers values at the position after the completed arguments,
 	// read from daemon runtime state for tab completion (arg_completion.go).
 	// Nil means the argument completes from its YANG leaves alone.

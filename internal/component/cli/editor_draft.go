@@ -1481,7 +1481,7 @@ func (e *Editor) readCommittedTree(guard storage.WriteGuard) *config.Tree {
 // readCommittedTreeFrom reads and parses the committed config through guard,
 // answering nil when it does not read or parse.
 func (e *Editor) readCommittedTreeFrom(guard storage.WriteGuard) *config.Tree {
-	data, err := guard.ReadFile(e.originalPath)
+	data, err := storage.ReadActiveConfigWithGuard(e.store, guard, e.originalPath)
 	if err != nil {
 		return nil
 	}

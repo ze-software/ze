@@ -25,7 +25,7 @@ func ribClearDispatcher(t *testing.T) (*pluginserver.Dispatcher, map[string][]co
 	defs := yang.PathToArgDefs(loader)
 	d := pluginserver.NewDispatcher()
 	require.NoError(t, pluginserver.LoadBuiltins(d, yang.WireMethodToPath(loader),
-		yang.PathToDescription(loader), yang.PathToHelp(loader), defs))
+		yang.PathToDescription(loader), yang.PathToHelp(loader), defs, yang.BuildCommandTree(loader)))
 	return d, defs
 }
 

@@ -160,7 +160,7 @@ func secretRenders(t *testing.T, schema *config.Schema, tree *config.Tree) map[s
 	out["cli-terminal-show"] = terminalShowOutput(t, transportSchema)
 	out["cli-terminal-compare"] = terminalCompareOutput(t, transportSchema)
 	out["cli-bar-show"] = cliBarShowMarkup(t, transportSchema, renderer)
-	out["commit-review"] = commitReviewMarkup(t, schema, renderer)
+	out["commit-review"] = commitReviewMarkup(t, transportSchema, renderer)
 
 	return out
 }
@@ -299,12 +299,10 @@ func cliBarShowMarkup(t *testing.T, schema *config.Schema, renderer *Renderer) s
 func commitReviewMarkup(t *testing.T, schema *config.Schema, renderer *Renderer) string {
 	t.Helper()
 
-	mgr := secretEditorManager(t, schema)
-	// the ephemeral leaf is not set here. The editor parses against
-	// the shipped YANG schema, which holds no ephemeral leaf under this path, so
-	// the set would fail on the fixture rather than prove anything. The ephemeral
-	// leaf is covered by the render paths that take the fixture schema.
-	require.NoError(t, mgr.SetValue(secretUser, secretPath, "token", replacementSecret))
+	mgr := secretTransportManager(t, schema)
+	require.NoError(t, mgr.SetValue(secretUser, []string{"web-render-secret", "api-server"}, "token", replacementSecret))
+	require.Equal(t, replacementSecret, getConfigValue(mgr.Tree(secretUser), "web-render-secret/api-server/token"),
+		"the replacement must reach the real editor tree before the review is rendered")
 
 	handler := HandleConfigCommitWithAuthorizerAndAudit(mgr, renderer, nil, nil, nil)
 
@@ -313,7 +311,7 @@ func commitReviewMarkup(t *testing.T, schema *config.Schema, renderer *Renderer)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code, "commit page: %s", rec.Body.String())
-	require.Contains(t, rec.Body.String(), "environment api-server token",
+	require.Contains(t, rec.Body.String(), "web-render-secret api-server token",
 		"the commit page listed no change, so this case would prove nothing")
 
 	return rec.Body.String()
@@ -451,14 +449,14 @@ func TestCompareNamesARotatedSecretAndPublishesNeitherValue(t *testing.T) {
 		"the mask must hide the rotation from the text, or this test proves nothing")
 
 	out := terminalAsUser(t, mgr, secretUser, nil, "compare").Output
-	assert.Contains(t, out, "web-render-secret.api-server.token", "compare must name the leaf that changed")
+	assert.Contains(t, out, "- web-render-secret api-server token "+config.SecretDataPlaceholder+"\n+ web-render-secret api-server token "+config.SecretDataPlaceholder, "compare must name the leaf that changed")
 	assert.Contains(t, out, config.SecretDataPlaceholder, "the value must read as the display placeholder")
 	for _, value := range secretValues {
 		assert.NotContains(t, out, value, "compare published a stored secret")
 	}
 
 	sub := terminalAsUser(t, mgr, secretUser, []string{"web-render-secret", "api-server"}, "compare").Output
-	assert.Contains(t, sub, "~ token ", "a compare at a context path names the leaf under that path")
+	assert.Contains(t, sub, "- web-render-secret api-server token "+config.SecretDataPlaceholder+"\n+ web-render-secret api-server token "+config.SecretDataPlaceholder, "a compare at a context path names the leaf under that path")
 	assert.NotContains(t, sub, storedSecret)
 	assert.NotContains(t, sub, replacementSecret)
 }

@@ -38,3 +38,46 @@ func TestCommandRegistryLookupUsesDecodedPathSegments(t *testing.T) {
 		})
 	}
 }
+
+// TestCommandRegistryQuotedChildBoundaryPreservesTokenRules keeps one accepted
+// argument distinct from a child branch, including when that argument has spaces.
+func TestCommandRegistryQuotedChildBoundaryPreservesTokenRules(t *testing.T) {
+	registry := newCommandRegistry[string]()
+	registry.register([]string{"show probe"}, "parent")
+	registry.registerChildBoundary("show probe", func(argument string) bool {
+		switch argument {
+		case "all", "all groups":
+			return true
+		default:
+			return false
+		}
+	})
+	registry.register([]string{"show probe own"}, "child")
+	for _, test := range []struct {
+		command, value, path string
+		found                bool
+	}{
+		{`show "probe"`, "parent", "show probe", true},
+		{`show "probe" "ALL"`, "parent", "show probe", true},
+		{`show "probe" "ALL GROUPS"`, "parent", "show probe", true},
+		{`show "probe" all detail`, "", "show probe all", true},
+		{`show "probe" "other thing"`, "", `show probe "other thing"`, true},
+		{`show "probe" "all groups" detail`, "", `show probe "all groups"`, true},
+		{`show "probe" own`, "child", "show probe own", true},
+		{`show "probe" own 192.0.2.1 detail`, "child", "show probe own", true},
+		{`"show probe" all`, "", "", false},
+	} {
+		t.Run(test.command, func(t *testing.T) {
+			value, path, found := registry.lookupPath(test.command)
+			if found != test.found {
+				t.Errorf("found=%t, want %t", found, test.found)
+			}
+			if value != test.value {
+				t.Errorf("value=%q, want %q", value, test.value)
+			}
+			if path != test.path {
+				t.Errorf("path=%q, want %q", path, test.path)
+			}
+		})
+	}
+}

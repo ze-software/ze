@@ -169,6 +169,37 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 	if err != nil {
 		return "", nil, err
 	}
+	converted, err := configMigrateBytes(data, inputPath, outputForm)
+	if err != nil {
+		return "", nil, err
+	}
+	printPasswordWeaknesses(converted.weaknesses)
+	if outputPath != "" {
+		if err := cliio.WriteFile(outputPath, []byte(converted.output), 0o600); err != nil {
+			return "", converted.warnings, fmt.Errorf("write output: %w", err)
+		}
+		return "", converted.warnings, nil
+	}
+	return converted.output, converted.warnings, nil
+}
+
+// migratedConfig is the conversion result before a caller chooses its output
+// destination. Warnings stay with the answer and never reach daemon stderr.
+type migratedConfig struct {
+	output     string
+	warnings   []string
+	weaknesses []string
+}
+
+func configMigrateBytes(data []byte, inputPath, outputForm string) (migratedConfig, error) {
+	if outputForm == "" {
+		outputForm = formSet
+	}
+	if outputForm != formSet {
+		if outputForm != formHierarchical {
+			return migratedConfig{}, fmt.Errorf("unknown output form %q: use set or hierarchical", outputForm)
+		}
+	}
 
 	content := string(data)
 
@@ -178,7 +209,7 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 	// that reaches a running ze (config.SchemaWithDeclaredPlugins).
 	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: content, Path: inputPath})
 	if err != nil {
-		return "", nil, fmt.Errorf("YANG schema: %w", err)
+		return migratedConfig{}, fmt.Errorf("YANG schema: %w", err)
 	}
 
 	sourceFormat := config.DetectFormat(content)
@@ -192,7 +223,7 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 		panic("BUG: unknown detected config format")
 	}
 	if err != nil {
-		return "", nil, fmt.Errorf("parse error: %w", declared.Explain(err))
+		return migratedConfig{}, fmt.Errorf("parse error: %w", declared.Explain(err))
 	}
 
 	warnings := findUnsupportedFeatures(tree)
@@ -202,9 +233,8 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 	// credential, and the set form prints the password in clear.
 	weaknesses, err := hashPlaintextPasswords(tree, schema)
 	if err != nil {
-		return "", nil, err
+		return migratedConfig{}, err
 	}
-	printPasswordWeaknesses(weaknesses)
 
 	// Serialize in the requested output form (default: set).
 	// Both printers write each ze:sensitive key in the $9$ form, as fmt does.
@@ -215,14 +245,5 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 		output = config.SerializeSet(tree, schema)
 	}
 
-	if outputPath != "" {
-		// "-o -" writes the migrated config to stdout (warnings go to
-		// stderr); an omitted -o already prints to stdout via the caller.
-		if err := cliio.WriteFile(outputPath, []byte(output), 0o600); err != nil {
-			return "", warnings, fmt.Errorf("write output: %w", err)
-		}
-		return "", warnings, nil
-	}
-
-	return output, warnings, nil
+	return migratedConfig{output: output, warnings: warnings, weaknesses: weaknesses}, nil
 }

@@ -103,7 +103,7 @@ func TestSessionPingAnswersTheDeclaredOutputLeaves(t *testing.T) {
 
 	dispatcher := pluginserver.NewDispatcher()
 	if err := pluginserver.LoadBuiltins(dispatcher, yang.WireMethodToPath(loader),
-		yang.PathToDescription(loader), yang.PathToHelp(loader), yang.PathToArgDefs(loader)); err != nil {
+		yang.PathToDescription(loader), yang.PathToHelp(loader), yang.PathToArgDefs(loader), yang.BuildCommandTree(loader)); err != nil {
 		t.Fatal(err)
 	}
 
