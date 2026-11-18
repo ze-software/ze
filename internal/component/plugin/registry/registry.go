@@ -43,6 +43,10 @@ type Registration struct {
 	Description string                  // Human-readable description for help text
 	RunEngine   func(conn net.Conn) int // Engine mode handler (single-conn RPC)
 	CLIHandler  func(args []string) int // CLI handler for `ze plugin <name>`
+	// ExitConfirmsCleanup declares that exit zero follows confirmed cleanup of
+	// this engine's resources. It grants no authority over another lifetime.
+	// An undeclared engine's exit status carries no cleanup guarantee.
+	ExitConfirmsCleanup bool
 
 	// Optional metadata.
 	// HideFromSelection omits a registration from plugin-name completion.
