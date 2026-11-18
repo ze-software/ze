@@ -57,12 +57,12 @@
         {
           "title": "Install",
           "slug": "install",
-          "summary": "You build Ze from source."
+          "summary": "Build Ze from source or use a privately supplied preview bundle (how to verify and install one)."
         },
         {
           "title": "Docker",
           "slug": "docker",
-          "summary": "Run Ze in a Docker container for evaluation, lab testing, or lightweight deployments where you don't need interface configuration or kernel-level features (VPP, L2TP, nftables)."
+          "summary": "Run Ze in Docker for BGP evaluation or a daemon deployment where the host owns the network interfaces."
         },
         {
           "title": "netlab",
@@ -72,12 +72,17 @@
         {
           "title": "Appliance",
           "slug": "appliance",
-          "summary": "Ze ships a bootable VM appliance image: a minimal Linux system built with gokrazy that runs Ze as its only application."
+          "summary": "Build a bootable appliance image from source with gokrazy."
         },
         {
           "title": "Quick Start",
           "slug": "quick-start",
-          "summary": "You have a built ze binary."
+          "summary": "Start with the local two-peer lab to exchange routes without another router."
+        },
+        {
+          "title": "Use Ze with an AI agent",
+          "slug": "ai-agent",
+          "summary": "If you want an AI coding agent to test Ze for you, one command sets it up."
         },
         {
           "title": "ExaBGP Migration",
@@ -237,7 +242,7 @@
         {
           "title": "TACACS+ AAA",
           "slug": "tacacs",
-          "summary": "Ze authenticates SSH logins against TACACS+ servers (RFC 8907) when the system.authentication.tacacs block is present."
+          "summary": "Ze authenticates SSH and web logins against TACACS+ servers (RFC 8907) when the system.authentication.tacacs block is present."
         },
         {
           "title": "RADIUS AAA",
@@ -278,6 +283,11 @@
           "title": "Policies",
           "slug": "policies",
           "summary": "Ze does not have a built-in filter language in the style of BIRD's filter DSL or FRR's route-map."
+        },
+        {
+          "title": "Route Policy",
+          "slug": "route-policy",
+          "summary": "Ze holds one Loc-RIB for every route source."
         },
         {
           "title": "Community Filters",
@@ -402,7 +412,7 @@
         {
           "title": "Zero-Touch Provisioning",
           "slug": "ze-install",
-          "summary": "ze install remote is a one-command, zero-touch provisioning (ZTP) server that PXE-boots target machines with a gokrazy appliance image containing Ze."
+          "summary": "For an existing Linux distribution, use sudo ./ze install from a built checkout or preview: it installs the binary, initializes absent state and starts the systemd service."
         },
         {
           "title": "MRT Analysis",
@@ -422,7 +432,7 @@
         {
           "title": "Interfaces",
           "slug": "interfaces",
-          "summary": "Ze exposes the same engine through five different surfaces."
+          "summary": "Ze exposes the same engine through several surfaces."
         },
         {
           "title": "CLI",
@@ -442,7 +452,7 @@
         {
           "title": "MCP",
           "slug": "mcp",
-          "summary": "The MCP server is the surface you use when an AI assistant should drive Ze."
+          "summary": "The MCP server lets an assistant invoke Ze's daemon commands through the Model Context Protocol."
         },
         {
           "title": "REST API",
@@ -462,7 +472,7 @@
         {
           "title": "Introspection",
           "slug": "introspection",
-          "summary": "Ze is self-documenting."
+          "summary": "Ze uses shared registrations to describe commands, plugins, environment variables and YANG schemas."
         }
       ]
     },
@@ -667,7 +677,7 @@
         {
           "title": "sysctl",
           "slug": "sysctl",
-          "summary": "Ze includes a sysctl plugin that manages kernel parameters with named profiles."
+          "summary": "Ze manages kernel tunables (sysctls) from config."
         },
         {
           "title": "dhcp-server",
@@ -702,7 +712,7 @@
         {
           "title": "host",
           "slug": "host-inventory",
-          "summary": "The host inventory plugin provides hardware detection, SMART health monitoring, and a hardware tuning engine."
+          "summary": "The host inventory provides hardware detection, SMART health data for block devices, and a hardware tuning engine."
         }
       ]
     },
@@ -757,17 +767,17 @@
         {
           "title": "Scenarios",
           "slug": "scenarios",
-          "summary": "A chaos scenario in Ze is a configuration of ze-chaos: the number of mock peers, the address families they negotiate, the duration, the chaos seed and rate, and any explicit fault triggers."
+          "summary": "A chaos scenario in Ze is a configuration of the chaos orchestrator, ./le chaos run: the number of mock peers, the address families they negotiate, the duration, the chaos seed and rate, and any..."
         },
         {
           "title": "Dashboard",
           "slug": "dashboard",
-          "summary": "The chaos dashboard is a live web UI for ze-chaos."
+          "summary": "The chaos dashboard is a live web UI for the chaos orchestrator (./le chaos run)."
         },
         {
           "title": "Property Verification",
           "slug": "property-verification",
-          "summary": "Property verification is the part of ze-chaos that turns \"did the run finish without crashing\" into something useful."
+          "summary": "Property verification is the part of the chaos orchestrator (./le chaos run) that turns \"did the run finish without crashing\" into something useful."
         }
       ]
     },
@@ -827,7 +837,7 @@
         {
           "title": "Building",
           "slug": "building",
-          "summary": "Building Ze from source is a single command if you have Go 1.26 and a working toolchain on the path."
+          "summary": "Building Ze from source is a single command if you have Go and a working toolchain on the path."
         },
         {
           "title": "Repo Layout",
@@ -867,17 +877,17 @@
         {
           "title": "Claude Code",
           "slug": "claude-code",
-          "summary": "Ze is developed with Claude Code, and the repo ships a set of project-specific slash commands under .claude/skills/."
+          "summary": "Ze is developed with Claude Code, and the repo ships a set of project-specific slash commands under ai/skills/."
         },
         {
           "title": "Performance",
           "slug": "performance",
-          "summary": "ze-perf is a BGP propagation latency benchmark tool."
+          "summary": "./le perf is the BGP propagation latency benchmark tool."
         },
         {
           "title": "Mock Servers",
           "slug": "mock-servers",
-          "summary": "ze-test is the test harness for Ze."
+          "summary": "The functional test harness and its mock servers live in le, the development launcher (they were the separate ze-test program)."
         }
       ]
     },
@@ -912,7 +922,7 @@
         {
           "title": "Deprecated Options",
           "slug": "deprecated-options",
-          "summary": "Configuration syntax that used to work and no longer does, with the migration path for each."
+          "summary": "Ze has not shipped a release, so there is no deprecation lifecycle for its config syntax and no tool that rewrites an older form of it."
         },
         {
           "title": "Glossary",
