@@ -11,3 +11,8 @@ func (f *fakeDispatcher) UpdateRouteResult(ctx context.Context, peer, command st
 	a, w, err := f.UpdateRoute(ctx, peer, command)
 	return &rpc.UpdateRouteOutput{Announced: a, Withdrawn: w}, err
 }
+
+func (f *fakeDispatcher) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
+	return f.UpdateRouteResult(ctx, input.PeerSelector, input.Command)
+}
+func (f *fakeDispatcher) OnOriginAdmissionLookup(rpc.OriginAdmissionLookupHandler) {}

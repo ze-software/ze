@@ -5293,7 +5293,18 @@ Exact source withdrawal marks only that source's records as retiring. Such a
 record may answer its exact withdrawal while that operation joins; it cannot
 authorize an announcement. Completed records leave no withdrawal history.
 The adapter mutation gate orders record replacement with the actual route
-results. An admitted loser retains the existing full-result receipt and is
+results. A failed replacement preserves its original predecessor IDs as
+withdraw-only records, including scopes no longer in the current group. RPC
+errors, missing results, failed or partial answers, and zero counts without
+retained admission do not confirm replacement. The new immutable record still
+describes the current accepted input; it does not claim successful engine
+output. An identical retry reuses that original ID and snapshot. A successful
+retry does not erase an earlier unresolved predecessor: exact source cleanup
+visits every surviving ID, removes only confirmed withdrawals, and retries
+failed withdrawals even after the current group has gone. Independent source
+instances, tables and peer scopes remain separate. These live cleanup
+obligations share the existing accepted-record bound and leave no completed
+history. An admitted loser retains the existing full-result receipt and is
 not reported as a zero-peer failure. When the accepting Process ends, the
 engine retires its redistributed contributions through the live deciding
 connection. Ordinary local/API keep-and-reoffer behavior is unchanged.

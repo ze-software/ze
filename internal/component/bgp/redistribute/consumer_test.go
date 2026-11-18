@@ -63,7 +63,7 @@ func TestBGPConsumerInjectRoute(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix:  "10.0.0.1/32",
 		NextHop: "",
 	})
@@ -82,7 +82,7 @@ func TestBGPConsumerInjectRouteExplicitNextHop(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix:  "10.0.0.0/24",
 		NextHop: "192.0.2.1",
 	})
@@ -100,7 +100,7 @@ func TestBGPConsumerInjectRouteIPv6(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.InjectRoute(context.Background(), family.IPv6Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv6Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix:  "2001:db8::1/128",
 		NextHop: "",
 	})
@@ -118,7 +118,9 @@ func TestBGPConsumerWithdrawRoute(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.WithdrawRoute(context.Background(), family.IPv4Unicast, "10.0.0.1/32")
+	seedBGPAcceptedRemoval(t, c, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.1/32"))
+
+	c.WithdrawRoute(context.Background(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.1/32"))
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
@@ -139,7 +141,7 @@ func TestBGPConsumerInjectRouteOriginASN(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix:    "192.175.48.0/24",
 		OriginASN: 112,
 	})
@@ -159,7 +161,7 @@ func TestBGPConsumerInjectRouteCommunity(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix:    "192.175.48.0/24",
 		OriginASN: 112,
 		Community: []uint32{0xFFFFFF01, 0x00010002}, // no-export, then 1:2
@@ -180,7 +182,7 @@ func TestBGPConsumerInjectRouteCommunityNoOrigin(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix:    "10.0.0.0/24",
 		Community: []uint32{0x00010002},
 	})
@@ -198,7 +200,9 @@ func TestBGPConsumerWithdrawRouteIPv6(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.WithdrawRoute(context.Background(), family.IPv6Unicast, "2001:db8::/64")
+	seedBGPAcceptedRemoval(t, c, family.IPv6Unicast, bgpAcceptedRemoval(t, "2001:db8::/64"))
+
+	c.WithdrawRoute(context.Background(), family.IPv6Unicast, bgpAcceptedRemoval(t, "2001:db8::/64"))
 
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
@@ -218,7 +222,7 @@ func TestBGPConsumerAnnounceReachingNoPeerWarns(t *testing.T) {
 	logger = func() *slog.Logger { return captured }
 
 	c := NewBGPConsumer(&fakeDispatcher{noPeer: true})
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.0.0.0/24", NextHop: "192.0.2.1"})
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t), Prefix: "10.0.0.0/24", NextHop: "192.0.2.1"})
 
 	out := buf.String()
 	for _, want := range []string{"level=WARN", "reached no BGP peer", "10.0.0.0/24", "ze show bgp peer"} {
@@ -237,10 +241,10 @@ func TestBGPConsumerInjectRouteSetMetricIsMED(t *testing.T) {
 	disp := &fakeDispatcher{}
 	c := NewBGPConsumer(disp)
 
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix: "10.0.0.0/24", Metric: 50, HasMetric: true,
 	})
-	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t),
 		Prefix: "10.0.1.0/24", Metric: 70,
 	})
 

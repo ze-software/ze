@@ -55,7 +55,6 @@ func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry 
 		c.reportFailure(ctx, "announce", entry.Peer, entry.Prefix, fam, "", err)
 		return
 	}
-	defer c.accepted.finish(replaced)
 	cmd := formatAnnounce(fam.String(), &entry)
 	// Peer targets a single peer (replay-on-peer-up); empty is the normal
 	// fan-out to all peers.
@@ -85,6 +84,9 @@ func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry 
 			return
 		}
 	}
+	// Only a successful joined result retires this replacement's predecessors.
+	// A failure may leave original admitted scopes that still need exact cleanup.
+	c.accepted.finish(replaced)
 	logger().Debug("bgp consumer: update-route ok", "added", result.Announced, "withdrawn", result.Withdrawn)
 }
 

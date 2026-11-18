@@ -51,9 +51,10 @@ func TestBGPConsumerFailureReachesOwningReportBus(t *testing.T) {
 			dispatcher := &consumerDiagnosticDispatcher{cause: cause}
 			consumer := NewBGPConsumer(dispatcher)
 			if withdraw {
-				consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, "10.0.0.0/24")
+				seedBGPAcceptedRemoval(t, consumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+				consumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
 			} else {
-				consumer.InjectRoute(t.Context(), family.IPv4Unicast, redistribute.RouteEntry{Prefix: "10.0.0.0/24", Peer: "192.0.2.7"})
+				consumer.InjectRoute(t.Context(), family.IPv4Unicast, redistribute.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t), Prefix: "10.0.0.0/24", Peer: "192.0.2.7"})
 			}
 			if len(dispatcher.issues) != 1 {
 				t.Fatalf("failed operation raised %d reports, want one owning diagnostic", len(dispatcher.issues))
@@ -74,7 +75,7 @@ func TestBGPConsumerFailureReachesOwningReportBus(t *testing.T) {
 
 func TestBGPConsumerResultFailureUsesSameDiagnostic(t *testing.T) {
 	dispatcher := &consumerDiagnosticDispatcher{output: &rpc.UpdateRouteOutput{Failure: "origin admission refused"}}
-	NewBGPConsumer(dispatcher).InjectRoute(t.Context(), family.IPv4Unicast, redistribute.RouteEntry{Prefix: "10.0.0.0/24"})
+	NewBGPConsumer(dispatcher).InjectRoute(t.Context(), family.IPv4Unicast, redistribute.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t), Prefix: "10.0.0.0/24"})
 	if len(dispatcher.issues) != 1 || !strings.Contains(dispatcher.issues[0].Message, "origin admission refused") {
 		t.Fatalf("full-result cause did not reach report bus: %+v", dispatcher.issues)
 	}
@@ -82,12 +83,14 @@ func TestBGPConsumerResultFailureUsesSameDiagnostic(t *testing.T) {
 
 func TestBGPConsumerRetainedLoserDoesNotRaiseFailure(t *testing.T) {
 	dispatcher := &consumerDiagnosticDispatcher{output: &rpc.UpdateRouteOutput{Admissions: []rpc.RouteAdmission{{Family: "ipv4/unicast", KeyNLRI: []byte{24, 10, 0, 0}, Destination: "192.0.2.7", PeerOwner: 17, Generation: 3, Outcome: rpc.RouteAdmissionRetained, Disposition: rpc.RouteAdmissionSuppressedSelection}}}}
-	NewBGPConsumer(dispatcher).InjectRoute(t.Context(), family.IPv4Unicast, redistribute.RouteEntry{Prefix: "10.0.0.0/24"})
+	NewBGPConsumer(dispatcher).InjectRoute(t.Context(), family.IPv4Unicast, redistribute.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t), Prefix: "10.0.0.0/24"})
 	if len(dispatcher.issues) != 0 {
 		t.Fatalf("accepted retained loser was reported as failure: %+v", dispatcher.issues)
 	}
 	dispatcher.output = &rpc.UpdateRouteOutput{Withdrawn: 1}
-	NewBGPConsumer(dispatcher).WithdrawRoute(t.Context(), family.IPv4Unicast, "10.0.0.0/24")
+	withdrawConsumer := NewBGPConsumer(dispatcher)
+	seedBGPAcceptedRemoval(t, withdrawConsumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+	withdrawConsumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
 	if len(dispatcher.issues) != 0 {
 		t.Fatalf("completed withdrawal was reported as failure: %+v", dispatcher.issues)
 	}
@@ -174,7 +177,9 @@ func TestBGPConsumerDiagnosticUsesActualSDKConnection(t *testing.T) {
 					t.Error("diagnostic engine responder did not join")
 				}
 			})
-			NewBGPConsumer(updater).WithdrawRoute(ctx, family.IPv4Unicast, "10.0.0.0/24")
+			withdrawConsumer := NewBGPConsumer(updater)
+			seedBGPAcceptedRemoval(t, withdrawConsumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+			withdrawConsumer.WithdrawRoute(ctx, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
 			select {
 			case issue := <-reported:
 				if issue.Action != rpc.ReportRaise || issue.Severity != rpc.ReportError || issue.Code != "doctor-bgp-redistribution" || !strings.Contains(issue.Message, cause.Error()) || issue.Fix != "ze show bgp peers" {
@@ -196,9 +201,16 @@ func TestBGPConsumerReportRefusalKeepsOriginalFailureVisible(t *testing.T) {
 	cause := errors.New("original withdrawal refused")
 	reportCause := errors.New("report connection unavailable")
 	dispatcher := &consumerDiagnosticDispatcher{cause: cause, reportCause: reportCause}
-	NewBGPConsumer(dispatcher).WithdrawRoute(t.Context(), family.IPv4Unicast, "10.0.0.0/24")
+	withdrawConsumer := NewBGPConsumer(dispatcher)
+	seedBGPAcceptedRemoval(t, withdrawConsumer, family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
+	withdrawConsumer.WithdrawRoute(t.Context(), family.IPv4Unicast, bgpAcceptedRemoval(t, "10.0.0.0/24"))
 	output := buffer.String()
 	if len(dispatcher.issues) != 1 || !strings.Contains(output, cause.Error()) || !strings.Contains(output, reportCause.Error()) || strings.Count(output, "code=doctor-bgp-redistribution") != 2 {
 		t.Fatalf("route/report refusal was hidden or lost its doctor owner: %s", output)
 	}
 }
+
+func (d *consumerDiagnosticDispatcher) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
+	return d.UpdateRouteResult(ctx, input.PeerSelector, input.Command)
+}
+func (d *consumerDiagnosticDispatcher) OnOriginAdmissionLookup(rpc.OriginAdmissionLookupHandler) {}

@@ -54,7 +54,7 @@ func TestBGPConsumerRetainedResultIsNotNoPeerFailure(t *testing.T) {
 			capture := slog.New(slog.NewTextHandler(&buffer, &slog.HandlerOptions{Level: slog.LevelInfo}))
 			logger = func() *slog.Logger { return capture }
 			consumer := NewBGPConsumer(&retainedResultDispatcher{output: test.output, cause: test.cause})
-			consumer.InjectRoute(t.Context(), family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.0.0.0/24"})
+			consumer.InjectRoute(t.Context(), family.IPv4Unicast, configredist.RouteEntry{Protocol: bgpAcceptedFixtureProtocol(t), Prefix: "10.0.0.0/24"})
 			got := buffer.String()
 			if test.want == "" {
 				if got != "" {
@@ -69,3 +69,8 @@ func TestBGPConsumerRetainedResultIsNotNoPeerFailure(t *testing.T) {
 		})
 	}
 }
+
+func (d *retainedResultDispatcher) UpdateRouteRequestResult(ctx context.Context, input rpc.UpdateRouteInput) (*rpc.UpdateRouteOutput, error) {
+	return d.UpdateRouteResult(ctx, input.PeerSelector, input.Command)
+}
+func (d *retainedResultDispatcher) OnOriginAdmissionLookup(rpc.OriginAdmissionLookupHandler) {}

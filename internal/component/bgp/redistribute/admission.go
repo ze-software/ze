@@ -43,8 +43,8 @@ type bgpAcceptedRecord struct {
 // This is the BGP adapter's accepted input, not another candidate RIB. One
 // mutation gate orders the existing update-route calls and is cancellable.
 // The separate leaf mutex protects only published accepted data, never RPC.
-// Bounds: current accepted source/scope records plus their actual in-flight
-// predecessor, capped at bgpAcceptedRecordsMax. Completed records leave no history.
+// Bounds: current accepted source/scope records plus unresolved original
+// predecessors, capped at bgpAcceptedRecordsMax. Completed records leave no history.
 // Each factory constructs exactly once before SDK.Run and publishes at Started;
 // its ID clock never resets during that authenticated connection's lifetime.
 type bgpAcceptedRecords struct {
@@ -110,7 +110,9 @@ func bgpAcceptedSource(fam family.Family, entry configredist.RouteEntry) (bgpAcc
 }
 
 // offer publishes before engine RPC so the independent callback can read it.
-// Its caller MUST hold begin through the result, then finish replaced records.
+// Its caller MUST hold begin through the result and finish replaced records
+// only after a successful joined replacement result. Failed predecessors remain
+// withdraw-only under their original IDs until exact cleanup completes.
 func (records *bgpAcceptedRecords) offer(fam family.Family, entry configredist.RouteEntry) (*bgpAcceptedRecord, []*bgpAcceptedRecord, error) {
 	key, snapshot, err := bgpAcceptedSource(fam, entry)
 	if err != nil {
@@ -184,8 +186,9 @@ func (records *bgpAcceptedRecords) offer(fam family.Family, entry configredist.R
 	return record, replaced, nil
 }
 
-// finish MUST follow the actual joined result for this replacement. The old
-// exact IDs were withdraw-only while that call owned them; no history remains.
+// finish MUST follow a successful joined result for this replacement. An RPC
+// error, failed/partial receipt or zero unretained answer MUST NOT call it. Old
+// exact IDs stay withdraw-only until confirmed replacement or exact cleanup.
 func (records *bgpAcceptedRecords) finish(replaced []*bgpAcceptedRecord) {
 	records.mu.Lock()
 	defer records.mu.Unlock()
@@ -205,9 +208,13 @@ func (records *bgpAcceptedRecords) retiring(fam family.Family, removal configred
 	key := bgpAcceptedKey{family: fam, protocol: removal.Protocol, instance: removal.SourceInstance, table: removal.Table, prefix: prefix}
 	records.mu.Lock()
 	defer records.mu.Unlock()
-	group := records.groups[key]
-	out := make([]*bgpAcceptedRecord, 0, len(group))
-	for _, record := range group {
+	// A failed replacement can leave original withdraw-only IDs outside the
+	// current group. Cleanup MUST join each surviving ID of this exact source.
+	var out []*bgpAcceptedRecord
+	for _, record := range records.ids {
+		if record.key != key {
+			continue
+		}
 		record.state = rpc.OriginAdmissionRetiring
 		out = append(out, record)
 	}
