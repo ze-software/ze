@@ -353,13 +353,14 @@ func (c *forwardabilityWire) Write(data []byte) (int, error) {
 	c.pending = pending
 	revision := c.loc.Revision()
 	comparable := observed[:0]
-	for _, sample := range observed {
+	for sampleIndex := range observed {
+		sample := &observed[sampleIndex]
 		if sample.revision != revision {
 			c.fail(fmt.Errorf("fixture-indeterminate recipient %s write crossed Routing-Table revisions %d to %d",
 				sample.prefix, sample.revision, revision))
 			continue
 		}
-		comparable = append(comparable, sample)
+		comparable = append(comparable, *sample)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -498,7 +499,8 @@ func (c *forwardabilityWire) check(t *testing.T) {
 	if failure != nil {
 		t.Errorf("forwardability observation failed: %v", failure)
 	}
-	for _, sample := range observed {
+	for sampleIndex := range observed {
+		sample := &observed[sampleIndex]
 		if !sample.destinationResolved {
 			t.Errorf("successful recipient announcement %s at Routing-Table revision %d has unforwardable destination: cover=%s via=%s NEXT_HOP=%s frame=%x",
 				sample.prefix, sample.revision, sample.destinationCover, sample.destinationVia, sample.nextHop, sample.frame)
@@ -518,7 +520,8 @@ func (c *forwardabilityWire) checkHistory(t *testing.T, view ownershipLiveProjec
 	c.check(t)
 	c.mu.Lock()
 	counts := [2]int{}
-	for _, sample := range c.observed {
+	for sampleIndex := range c.observed {
+		sample := &c.observed[sampleIndex]
 		for index, prefix := range c.prefixes {
 			if sample.prefix == prefix {
 				counts[index]++
