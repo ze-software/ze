@@ -186,9 +186,9 @@ func TestAStrayPathInThePrivateIndexIsRefused(t *testing.T) {
 
 // runScriptWithGit runs a generated script with wrapper installed as the `git`
 // first on its PATH, the real git named by ZE_TEST_REAL_GIT and the checkout by
-// ZE_TEST_ROOT, plus env. It answers the combined output and whether the
+// ZE_TEST_ROOT. It answers the combined output and whether the
 // script succeeded.
-func runScriptWithGit(t *testing.T, root, script, wrapper string, env ...string) (string, error) {
+func runScriptWithGit(t *testing.T, root, script, wrapper string) (string, error) {
 	t.Helper()
 	realGit, err := exec.LookPath("git")
 	if err != nil {
@@ -200,11 +200,11 @@ func runScriptWithGit(t *testing.T, root, script, wrapper string, env ...string)
 	}
 	command := exec.CommandContext(t.Context(), "bash", filepath.Join(root, filepath.FromSlash(script)))
 	command.Dir = root
-	command.Env = append(append(os.Environ(),
+	command.Env = append(os.Environ(),
 		"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"ZE_TEST_REAL_GIT="+realGit,
 		"ZE_TEST_ROOT="+root,
-	), env...)
+	)
 	output, err := command.CombinedOutput()
 	return string(output), err
 }
