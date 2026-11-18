@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
@@ -50,7 +51,9 @@ func runCLI(t *testing.T, args []string, stdin []byte) (int, string, string) {
 
 	oldIn, oldOut, oldErr := os.Stdin, os.Stdout, os.Stderr
 	os.Stdin, os.Stdout, os.Stderr = inFile, wOut, wErr
+	restoreStreams := cliio.SwapStreams(inFile, wOut)
 	code := Run(args)
+	restoreStreams()
 	os.Stdin, os.Stdout, os.Stderr = oldIn, oldOut, oldErr
 
 	if err := wOut.Close(); err != nil {

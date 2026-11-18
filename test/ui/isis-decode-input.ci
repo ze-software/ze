@@ -1,0 +1,23 @@
+# Test: The shipped IS-IS decoder selects its file operand and accepts explicit stdin
+# VALIDATES: spec-web-cli-config-one-off-defects AC-1 through the registered root
+# command. Unit subprocesses call cmdDecode directly and cannot prove that root
+# dispatch preserves the new input operand in the built ze executable.
+# PREVENTS: root dispatch dropping a capture path or refusing the dash input.
+
+tmpfs=isis.hex:terminator=EOF_ISIS
+831b01060f01000003000000000001001e002c40000000000002010104034900018101cc0606001122334455
+EOF_ISIS
+stdin=wrong:terminator=EOF_WRONG
+invalid stdin must not replace the file
+EOF_WRONG
+stdin=packet:hex=831b01060f01000003000000000001001e002c40000000000002010104034900018101cc0606001122334455
+
+cmd=foreground:seq=1:exec=ze isis decode isis.hex:stdin=wrong
+expect=exit:code=0
+expect=stdout:contains="type":"l1-lan-hello"
+expect=stdout:contains="system-id":"0000.0000.0001"
+
+cmd=foreground:seq=2:exec=ze isis decode -:stdin=packet
+expect=exit:code=0
+expect=stdout:contains="type":"l1-lan-hello"
+expect=stdout:contains="system-id":"0000.0000.0001"

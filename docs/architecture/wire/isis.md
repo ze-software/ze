@@ -512,16 +512,23 @@ the `isis` component (`auth_keystore.go`, `auth_wiring.go`).
 
 ## Offline decode tool
 
-`ze isis decode` reads one IS-IS PDU from stdin and prints a JSON view on
-stdout. It accepts both ASCII hex (a pasted/captured `831b...` string) and raw
+`ze isis decode [--pretty] [<path> | -]` reads one IS-IS PDU from a file or
+stdin and prints a JSON view on stdout. Use `-` for stdin; an omitted input
+also accepts a pipe, but at a terminal it prints usage instead of waiting.
+Input is limited to 256 KiB for both sources. It accepts both ASCII hex (a
+pasted/captured `831b...` string) and raw
 PDU bytes (an IS-IS PDU starts with `0x83`, which is not an ASCII hex digit, so
 the two are unambiguous). This is a thin caller over `packet.DecodePDU` +
 `PDU.ToJSON` that proves the codec wires end-to-end; the running-daemon CLI
 surface (`show isis ...`) is owned by isis-13.
 
+Flags precede the input operand. A file literally named `-` is addressed as
+`./-`; a supplied `-` consumes stdin once per process.
+
 ```
 $ printf '831b01060f...' | ze isis decode --pretty
 { "type": "l1-lan-hello", "lan-hello": { "system-id": "0000.0000.0001", ... } }
+$ ze isis decode --pretty capture.hex
 ```
 
 Functional coverage: `test/isis-wire/isis-pdu-1.ci` (a captured LAN L1 Hello)

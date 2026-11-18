@@ -35,6 +35,18 @@ behind them.
   together to match the advertised count.
   <!-- source: internal/plugins/ospf/packet/lsupdate.go -- DecodeLSUpdate -->
 
+## Offline decode input
+
+`ze ospf decode [--pretty] [--opaque | --v3] [<path> | -]` reads a file or
+stdin through `cliio.OpenReader`. An omitted operand preserves piped input;
+at a terminal it prints usage before reading. A supplied `-` explicitly reads
+stdin, once per process. Both sources are limited to 256 KiB and the input
+handle is closed after reading. ASCII hex and raw wire bytes use the same
+packet/LSA decoders. `--opaque` and `--v3` keep their existing rendering paths.
+Flags precede the input operand.
+
+<!-- source: internal/plugins/ospf/cli/decode.go -- cmdDecode, readWire -->
+
 ## Traps
 
 - **Two durable bug classes for OSPF parsers**, both found by fuzzing and

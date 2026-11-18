@@ -8,17 +8,24 @@ package cli
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"os"
 	"unicode"
 
+	"golang.org/x/term"
+
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	ospfv3packet "github.com/ze-software/ze/internal/plugins/ospf/v3/packet"
 	ospfv3types "github.com/ze-software/ze/internal/plugins/ospf/v3/types"
 )
 
+// maxStdinBytes bounds both file and stdin buffering to 256 KiB, ample for
+// one OSPF packet or LSA and its whitespace-separated hex representation.
 const maxStdinBytes = 256 * 1024
 
 func errln(msg string) {
@@ -33,16 +40,22 @@ func cmdDecode(args []string) int {
 	pretty := fs.Bool("pretty", false, "indent JSON output")
 	opaque := fs.Bool("opaque", false, "decode an IPv4 opaque LSA (Opaque Type/ID + TLVs)")
 	v3 := fs.Bool("v3", false, "decode an OSPFv3 (IPv6) LSA (scope-aware type + header + body)")
-	fs.Usage = func() {
-		errln("usage: ze ospf decode [--pretty] [--opaque | --v3] < hex")
-		errln("  reads a hex OSPF packet/LSA from stdin, emits JSON on stdout")
-		errln("  --opaque: interpret input as an IPv4 opaque LSA (RFC 5250)")
-		errln("  --v3:     interpret input as an OSPFv3 LSA (RFC 5340)")
-	}
+	fs.Usage = usage
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
-	wire, ok := readWire()
+	if fs.NArg() > 1 {
+		fs.Usage()
+		return 1
+	}
+	path := cliio.StdinToken
+	if fs.NArg() == 1 {
+		path = fs.Arg(0)
+	} else if term.IsTerminal(int(os.Stdin.Fd())) {
+		fs.Usage()
+		return 1
+	}
+	wire, ok := readWire(path)
 	if !ok {
 		return 1
 	}
@@ -56,11 +69,22 @@ func cmdDecode(args []string) int {
 	}
 }
 
-func readWire() ([]byte, bool) {
-	raw, err := io.ReadAll(io.LimitReader(os.Stdin, maxStdinBytes+1))
+func readWire(path string) ([]byte, bool) {
+	input, err := cliio.OpenReader(path)
 	if err != nil {
-		var b textbuf.Buffer
-		errln(b.Str("error: read stdin: ").Err(err).String())
+		errln(opererr.Wrap(err,
+			"error: cannot open OSPF packet input",
+			"The packet cannot be decoded without readable input",
+			"ze ospf decode --help").Error())
+		return nil, false
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(input, maxStdinBytes+1))
+	// Close both after success and after a read failure; stdin's closer is a no-op.
+	if err := errors.Join(readErr, input.Close()); err != nil {
+		errln(opererr.Wrap(err,
+			"error: cannot read OSPF packet input",
+			"The packet input was not read completely",
+			"ze ospf decode --help").Error())
 		return nil, false
 	}
 	if len(raw) > maxStdinBytes {

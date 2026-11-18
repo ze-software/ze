@@ -1515,10 +1515,12 @@ IS-IS protocol tools that run without a daemon, mirroring `ze bgp decode`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `isis decode [--pretty]` | offline | Decode a hex IS-IS PDU on stdin and emit JSON on stdout |
+| `isis decode [--pretty] [<path> \| -]` | offline | Decode an IS-IS PDU from a file or stdin and emit JSON on stdout |
 
-`ze isis decode` runs without a daemon. Input is ASCII hex (whitespace and
-newlines allowed); raw PDU bytes piped straight from a capture also work (an
+`ze isis decode` runs without a daemon. Supply a file path or `-` for stdin.
+With no input operand, a pipe is accepted and a terminal prints usage without
+waiting. Both file and stdin input are limited to 256 KiB. Input is ASCII hex
+(whitespace and newlines allowed); raw PDU bytes piped straight from a capture also work (an
 IS-IS PDU starts with the protocol discriminator `0x83`, which is not an ASCII
 hex digit, so the two encodings are never confused). Output is the JSON view of
 the decoded PDU (common header, body, and decoded TLVs). Use `--pretty` for
@@ -1529,6 +1531,7 @@ Example:
 
 ```
 echo 831b0100... | ze isis decode --pretty
+ze isis decode --pretty capture.hex
 ```
 
 Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
@@ -1536,6 +1539,27 @@ a malformed PDU; stderr carries the reason.
 
 <!-- source: internal/plugins/isis/cli/decode.go -- cmdDecode, toWire -->
 <!-- source: internal/plugins/isis/cli/register.go -- isis root namespace, decode member -->
+
+### OSPF (Offline Tools)
+
+`ze ospf decode [--pretty] [--opaque | --v3] [<path> | -]` reads an OSPFv2
+packet from a file or stdin and emits JSON without a daemon. Use `--opaque`
+for an IPv4 opaque LSA, or `--v3` for an OSPFv3 LSA. ASCII hex and raw packet
+bytes are accepted. Flags precede the input operand.
+
+Use `-` for stdin. Omitting the input accepts a pipe; at a terminal it prints
+usage without waiting. Both sources are limited to 256 KiB. Unreadable,
+oversized or malformed input exits 1 with the reason on stderr; a successful
+decode exits 0. A file literally named `-` is addressed as `./-`.
+
+```
+ze ospf decode --pretty capture.hex
+ze ospf decode --opaque opaque-lsa.hex
+cat router-lsa.hex | ze ospf decode --v3 -
+```
+
+<!-- source: internal/plugins/ospf/cli/decode.go -- cmdDecode, readWire -->
+<!-- source: internal/plugins/ospf/cli/run.go -- usage -->
 
 ### show pki
 

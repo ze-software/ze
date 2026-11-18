@@ -31,7 +31,7 @@ func init() {
 		ShortHelp: "Offline OSPF wire tools",
 		Mode:      "offline",
 		Section:   registry.SectionConfiguration,
-		Subs:      "decode [--pretty]",
+		Subs:      "decode [--pretty] [--opaque | --v3] [<path> | -]",
 	})
 }
 
@@ -63,7 +63,7 @@ func dispatchOSPF(_ *registry.RuntimeContext, args []string) int {
 }
 
 func ospfUsage(w io.Writer) {
-	fmt.Fprintln(w, "usage: ze ospf <command>")                                            //nolint:errcheck // CLI usage output
-	fmt.Fprintln(w, "commands:")                                                           //nolint:errcheck // CLI usage output
-	fmt.Fprintln(w, "  decode [--pretty]   Decode a hex OSPFv2 packet from stdin to JSON") //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "usage: ze ospf <command>")                                                                                    //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "commands:")                                                                                                   //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "  decode [--pretty] [--opaque | --v3] [<path> | -]   Decode an OSPF packet/LSA from a file or stdin to JSON") //nolint:errcheck // CLI usage output
 }

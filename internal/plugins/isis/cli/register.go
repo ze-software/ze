@@ -35,7 +35,7 @@ func init() {
 		ShortHelp: "Offline IS-IS wire tools",
 		Mode:      "offline",
 		Section:   registry.SectionConfiguration,
-		Subs:      "decode [--pretty]",
+		Subs:      "decode [--pretty] [<path> | -]",
 	})
 }
 
@@ -67,7 +67,7 @@ func dispatchISIS(_ *registry.RuntimeContext, args []string) int {
 }
 
 func isisUsage(w io.Writer) {
-	fmt.Fprintln(w, "usage: ze isis <command>")                                        //nolint:errcheck // CLI usage output
-	fmt.Fprintln(w, "commands:")                                                       //nolint:errcheck // CLI usage output
-	fmt.Fprintln(w, "  decode [--pretty]   Decode a hex IS-IS PDU from stdin to JSON") //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "usage: ze isis <command>")                                                            //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "commands:")                                                                           //nolint:errcheck // CLI usage output
+	fmt.Fprintln(w, "  decode [--pretty] [<path> | -]   Decode an IS-IS PDU from a file or stdin to JSON") //nolint:errcheck // CLI usage output
 }

@@ -1,0 +1,23 @@
+# Test: The shipped OSPF decoder selects its file operand and accepts explicit stdin
+# VALIDATES: spec-web-cli-config-one-off-defects AC-1 through the registered root
+# command. Unit subprocesses call cmdDecode directly and cannot prove that root
+# dispatch preserves the new input operand in the built ze executable.
+# PREVENTS: root dispatch dropping a capture path or refusing the dash input.
+
+tmpfs=ospf.hex:terminator=EOF_OSPF
+020100300a00000100000000949300000000000000000000ffffff00000a4201000000280a0000010a0000020a000003
+EOF_OSPF
+stdin=wrong:terminator=EOF_WRONG
+invalid stdin must not replace the file
+EOF_WRONG
+stdin=packet:hex=020100300a00000100000000949300000000000000000000ffffff00000a4201000000280a0000010a0000020a000003
+
+cmd=foreground:seq=1:exec=ze ospf decode ospf.hex:stdin=wrong
+expect=exit:code=0
+expect=stdout:contains="type":"hello"
+expect=stdout:contains="router-id":"10.0.0.1"
+
+cmd=foreground:seq=2:exec=ze ospf decode -:stdin=packet
+expect=exit:code=0
+expect=stdout:contains="type":"hello"
+expect=stdout:contains="router-id":"10.0.0.1"

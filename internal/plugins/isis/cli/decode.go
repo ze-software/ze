@@ -1,6 +1,6 @@
 // Design: docs/architecture/wire/isis.md -- offline IS-IS PDU decode CLI (wiring proof)
 //
-// Offline IS-IS PDU decoder. Reads a hex blob from stdin (ASCII hex, any
+// Offline IS-IS PDU decoder. Reads a file or stdin (ASCII hex, any
 // whitespace or newlines allowed), parses it with
 // internal/plugins/isis/packet, and emits a JSON view on stdout. This is the
 // thin caller proving the codec wires end-to-end (test/isis-wire/isis-pdu-1.ci);
@@ -11,16 +11,21 @@ package cli
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"os"
 	"unicode"
 
+	"golang.org/x/term"
+
+	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/plugins/isis/packet"
 )
 
-// maxStdinBytes caps the hex input. A single IS-IS PDU is bounded by the link
+// maxStdinBytes caps file and stdin input. A single IS-IS PDU is bounded by the link
 // MTU (a few thousand bytes); the hex encoding doubles that. 256 KiB is ample
 // and bounds allocation so a malformed pipe cannot exhaust memory.
 const maxStdinBytes = 256 * 1024
@@ -38,18 +43,37 @@ func errln(msg string) {
 func cmdDecode(args []string) int {
 	fs := flag.NewFlagSet("decode", flag.ContinueOnError)
 	pretty := fs.Bool("pretty", false, "indent JSON output")
-	fs.Usage = func() {
-		errln("usage: ze isis decode [--pretty] < hex")
-		errln("  reads a hex IS-IS PDU from stdin, emits JSON on stdout")
-	}
+	fs.Usage = usage
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
 
-	raw, err := io.ReadAll(io.LimitReader(os.Stdin, maxStdinBytes+1))
+	if fs.NArg() > 1 {
+		fs.Usage()
+		return 1
+	}
+	path := cliio.StdinToken
+	if fs.NArg() == 1 {
+		path = fs.Arg(0)
+	} else if term.IsTerminal(int(os.Stdin.Fd())) {
+		fs.Usage()
+		return 1
+	}
+	input, err := cliio.OpenReader(path)
 	if err != nil {
-		var b textbuf.Buffer
-		errln(b.Str("error: read stdin: ").Err(err).String())
+		errln(opererr.Wrap(err,
+			"error: cannot open IS-IS packet input",
+			"The packet cannot be decoded without readable input",
+			"ze isis decode --help").Error())
+		return 1
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(input, maxStdinBytes+1))
+	// Close both after success and after a read failure; stdin's closer is a no-op.
+	if err := errors.Join(readErr, input.Close()); err != nil {
+		errln(opererr.Wrap(err,
+			"error: cannot read IS-IS packet input",
+			"The packet input was not read completely",
+			"ze isis decode --help").Error())
 		return 1
 	}
 	if len(raw) > maxStdinBytes {
@@ -79,7 +103,7 @@ func cmdDecode(args []string) int {
 	return 0
 }
 
-// toWire turns the stdin bytes into the raw IS-IS PDU. The offline decoder
+// toWire turns the supplied bytes into the raw IS-IS PDU. The offline decoder
 // accepts BOTH encodings so it is robust to how the bytes arrive:
 //   - ASCII hex (e.g. a human pasting "831c..." or a test fixture): after
 //     stripping whitespace, if the input is non-empty, even-length, and all hex

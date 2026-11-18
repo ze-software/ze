@@ -2,7 +2,7 @@
 //
 // Package cli provides the offline IS-IS tooling that ships with the
 // internal/plugins/isis codec. In the isis-2 (wire codec) slice the only verb
-// is decode: it reads a hex IS-IS PDU from stdin and prints a JSON view. The
+// is decode: it reads an IS-IS PDU from a file or stdin and prints a JSON view. The
 // running-daemon CLI surface (show isis neighbor/database/route, clear isis) is
 // owned by isis-13 and lives separately; this command is a thin offline caller
 // that proves the codec wires end-to-end (test/isis-wire/isis-pdu-1.ci).
@@ -12,7 +12,7 @@ package cli
 import "slices"
 
 // Run executes the isis decode subcommand. With a help flag it prints usage;
-// otherwise it decodes a hex IS-IS PDU from stdin to JSON. There is a single
+// otherwise it decodes an IS-IS PDU from a file or stdin to JSON. There is a single
 // verb (no sub-command switch). Returns the process exit code.
 func Run(args []string) int {
 	if slices.ContainsFunc(args, isHelpArg) {
@@ -27,6 +27,7 @@ func isHelpArg(a string) bool { return a == "-h" || a == "--help" || a == "help"
 
 // usage prints the isis decode usage to stderr.
 func usage() {
-	errln("usage: ze isis decode [--pretty] < hex")
-	errln("  decode a hex IS-IS PDU from stdin to JSON")
+	errln("usage: ze isis decode [--pretty] [<path> | -]")
+	errln("  reads one IS-IS PDU from a file or stdin, emits JSON on stdout")
+	errln("  omit the input only when piping a packet into the command")
 }
