@@ -1805,10 +1805,13 @@ blank line and in module-name order. A module that declares no help can no longe
 erase one that does.
 
 The join carries no module NAME, so the operator reads N paragraphs and cannot
-tell which module wrote each one. The `?` box also draws what fits and no more:
-`renderExplanationBox` wraps to the rows the box has, prints `... N more`, and
-no key scrolls it. A node several modules explain can therefore hold more text
-than the box will ever show.
+tell which module wrote each one. The `?` box wraps the joined text into pages
+inside the current terminal frame. PgUp and PgDn reach the remaining rows; the
+box shows these keys and its current row range when paging is needed. The
+declaration allowance is unchanged, so a node explained by several modules can
+retain its full text without pushing the prompt off screen.
+<!-- source: internal/component/cli/model_explanation.go -- explanationPage, scrollExplanation -->
+<!-- source: internal/component/cli/model_render.go -- renderExplanationBox -->
 
 The one-line `ze:help` of every declaration is joined the same way, onto the one
 line the completion row draws, because nothing in the schema says which module

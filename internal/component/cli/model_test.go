@@ -32,7 +32,7 @@ var knownModelFields = map[string]bool{
 	"viewport": true, "contextPath": true, "isTemplate": true, "dispatch": true,
 	"completions": true, "selected": true, "ghostText": true, "showDropdown": true,
 	"completionHint": true, "completionHintDim": true,
-	"explanation": true, "explanationSubject": true,
+	"explanation": true, "explanationSubject": true, "explanationOffset": true,
 	"searchCache":      true,
 	"validationErrors": true, "validationWarnings": true, "validationID": true,
 	"validationDeferred": true,

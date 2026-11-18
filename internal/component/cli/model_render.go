@@ -423,11 +423,12 @@ func (m Model) View() tea.View {
 		}
 	}
 
+	// A context or mode change can alter the prompt after the last resize.
+	// Fit this view's input and cursor together, leaving its stored value intact.
+	m.fitPromptInput()
+
 	// Use fixed height to prevent scrolling when dropdown appears
-	viewHeight := m.height
-	if viewHeight < 10 {
-		viewHeight = 24 // Default fallback
-	}
+	viewHeight := m.screenHeight()
 
 	// Layout: viewport at top (filling available space), message area + prompt at bottom.
 	// 3 = message area (2 lines) + prompt
@@ -938,40 +939,37 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 // command the operator typed. availableHeight is the number of screen rows the
 // whole box can use, borders included, exactly as renderDropdownBox is bounded.
 //
-// A plugin declares this text, so two bounds are applied here, at the render
-// boundary. sanitizeForDisplay strips its C0, DEL, C1 and ANSI bytes. The wrap
-// reads no more rows than the box can draw. Neither bound depends on the 4096
-// bytes the declaration gate allows, so a longer declaration that reaches this
-// surface by another route is bounded too.
+// A plugin declares this text, so the shared page projection sanitizes it and
+// wraps at most its input byte count into rows. Only the current terminal-sized
+// page is drawn. Neither bound changes the 4096-byte declaration allowance.
 func (m Model) renderExplanationBox(availableHeight int) string {
 	innerWidth := m.overlayInnerWidth()
-
-	// 2 rows go to the borders. One more goes to the indicator that says text
-	// remains, and only when there is a row to spare for it.
-	rows := max(availableHeight-2, 1)
-	wrapped := wrapForBox(sanitizeForDisplay(m.explanation), innerWidth, rows+1)
-
-	shown := len(wrapped)
-	overflow := shown > rows
-	indicator := overflow && rows > 1
-	if overflow {
-		shown = rows
-		if indicator {
-			shown = rows - 1
-		}
-	}
-
-	lines := make([]string, 0, shown+3)
+	page := m.explanationPage(availableHeight)
+	lines := make([]string, 0, len(page.lines)+3)
 	lines = append(lines, boxTopBorder(m.explanationSubject, innerWidth))
-	for _, line := range wrapped[:shown] {
+	for _, line := range page.lines {
 		lines = append(lines, boxContentRow(line, innerWidth))
 	}
-	if indicator {
-		lines = append(lines, boxContentRow("  ... more", innerWidth))
+	if page.footer {
+		var hint textbuf.Buffer
+		hint.Str("PgUp/PgDn  rows ").Int(int64(page.offset + 1)).Byte('-').Int(int64(page.offset + len(page.lines))).Str(" of ").Int(int64(page.total))
+		if page.offset < page.maxOffset {
+			hint.Str("  ... more")
+		}
+		lines = append(lines, boxContentRow(hint.String(), innerWidth))
 	}
 	lines = append(lines, boxBottomBorder(innerWidth))
 
 	return textbuf.Join(lines, "\n")
+}
+
+// screenHeight is the frame's row authority before and after the first resize.
+// Paging and View MUST use it together so their available rows agree.
+func (m Model) screenHeight() int {
+	if m.height < 10 {
+		return 24
+	}
+	return m.height
 }
 
 // overlayInnerWidth is the width inside an overlay box, between the space each
@@ -1018,8 +1016,8 @@ func boxBottomBorder(innerWidth int) string {
 }
 
 // wrapForBox splits text into rows of at most width runes, and reads no further
-// once linesMax rows are ready. The caller states that bound, so the work here
-// is bounded by the screen rather than by the length of the text.
+// once linesMax rows are ready. The caller states that bound: the current screen
+// for a clipped region, or the input byte count for a scrollable explanation.
 //
 // It keeps the line breaks the author wrote, and breaks a longer line at its
 // last space, or mid-word when one word fills the row. A tab becomes a space and
@@ -1175,8 +1173,10 @@ func (m Model) buildPrompt() string {
 	// The breadcrumb keeps the context color in every state. It says WHERE the
 	// operator is, which a failed command does not change.
 	contextStr := textbuf.Join(m.contextPath, " ")
+	var context textbuf.Buffer
+	label := context.Byte('[').Str(contextStr).Byte(']').String()
 	var tb textbuf.Buffer
-	return tb.Str(style.Render("ze")).Str(contextStyle.Render(tb.Reset().Byte('[').Str(contextStr).Byte(']').String())).Str(style.Render("# ")).String()
+	return tb.Str(style.Render("ze")).Str(contextStyle.Render(label)).Str(style.Render("# ")).String()
 }
 
 // renderInputWithGhost renders the text input.

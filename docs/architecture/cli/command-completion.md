@@ -153,6 +153,30 @@ left, which is the state that exhausts Tab. Tab then calls `revealExplanation`,
 which asks the command completer for the long explanation the typed command
 declares. A second Tab reveals the same text, so the level stops at two.
 
+PgUp and PgDn page through a revealed explanation. The box shows the available
+keys and current row range when the text needs more than one page. Page keys
+leave the prompt, candidate selection and underlying output viewport alone.
+They clamp at the beginning and end; reopening an explanation, explaining a
+different candidate or dismissing the reveal resets its position. Page size and
+offset clamping use the current terminal frame, including after a resize. The
+4096-byte declaration allowance stays unchanged, and every wrapped row remains
+reachable on an 80x24 terminal.
+<!-- source: internal/component/cli/model_explanation.go -- explanationPage, scrollExplanation -->
+<!-- source: internal/component/cli/model_render.go -- renderExplanationBox, screenHeight -->
+
+The input width follows the current rendered prompt, including after entering a
+configuration context without resizing the terminal. `fitPromptInput` reserves
+the prompt and textinput's extra cursor cell, then reflows its horizontal window
+without changing the input or cursor position. Resize, ordinary key handling and
+the composed view share this sizing producer; navigation handlers carry no
+separate width calculation.
+<!-- source: internal/component/cli/model_input.go -- fitPromptInput -->
+
+The bracketed context label is assembled separately from the full prompt, so
+formatting it preserves the `ze` prefix, context styling and final `# ` marker.
+Input sizing measures that complete styled prompt.
+<!-- source: internal/component/cli/model_render.go -- buildPrompt -->
+
 `?` explains the CANDIDATE, so an operator reads what a name does before they
 take it. With the menu open it explains the selected candidate, and with the
 menu closed it explains the one match ghost text offers. With neither it falls
@@ -195,6 +219,7 @@ explanation in one place. The table below says what each key does at each level.
 | Enter | accepts the highlighted candidate | dismisses the reveal, then runs the command as typed |
 | Ctrl-C | dismisses the reveal, then asks to quit | the same |
 | an arrow key | moves the selection, and the summary follows it | recalls a command, and the reveal goes with the input it replaced |
+| PgUp / PgDn | leaves candidate selection unchanged | scrolls the explanation one visible page without dismissing it |
 
 Escape descends one level for each press. `handleKeyMsg` tests the level before
 the arm that clears the whole input. So the words the operator typed to reach an
@@ -226,11 +251,12 @@ of its own would be a second copy of that sentence.
 <!-- source: internal/component/cli/model_commands.go -- quoteOpen, tokenizeCommand -->
 
 The explanation region is bounded at the render boundary, not at the
-declaration. `renderExplanationBox` wraps the text at the box width, reads no
-more rows than the box can draw, and says `... more` when text remains. It also
-passes the text through `sanitizeForDisplay`, which strips C0, DEL, C1 and ANSI
-escape sequences. A plugin declares this text, so both bounds hold whatever the
-declaration says.
+declaration. `renderExplanationBox` draws one page of the text wrapped at the box
+width, and says `... more` when later rows remain. Wrapping reads at most the
+sanitized input's byte count into rows, while the drawn page stays inside the
+terminal frame. `sanitizeForDisplay` removes terminal escape sequences and
+replaces unsafe controls. A plugin declares this text, so these bounds hold
+whatever route supplied the declaration.
 
 <!-- source: internal/component/cli/model_help_level.go -- revealLevel, dismissReveal -->
 <!-- source: internal/component/cli/model_keys.go -- handleKeyMsg, handleTab, revealExplanation, selectedCandidate, revealCandidateExplanation, revealExplanationOf -->
@@ -333,3 +359,22 @@ value, flag and command completion resume at the command path. The same parser
 removes separate and equals-form flag values for both completion queries.
 <!-- source: internal/plugins/completion/flags.go -- flagContext, flagValue, writeFlags -->
 <!-- source: internal/plugins/completion/words.go -- completionTree -->
+
+## Interactive output retention
+
+Both editor-backed and command-only models own the same bounded display
+scrollback. `outputBuffer` retains at most 512 KiB of source bytes in a lazy
+session-owned ring. An overflowing append evicts the oldest text and reserves
+space for one `[earlier output omitted]` notice. Its immutable `String` snapshot
+uses the existing terminal sanitizer and bounds the resulting display text to
+the same allowance, since replacing a control byte can expand it. Eviction
+preserves UTF-8 boundaries. The viewport can sanitize that projection again
+without changing it. `Reset` clears the text and notice while retaining only the
+bounded allocation for reuse.
+
+Monitor events, command answers, command echoes and ping/traceroute log views
+write this display owner. Raw stream, download and pipe-save producers retain
+their own output and never read the scrollback. The ring has no worker or lock;
+the model update loop owns its mutation, and model copies share its pointer.
+<!-- source: internal/component/cli/model_output.go -- outputBuffer, WriteString, String, Reset -->
+<!-- source: internal/component/cli/model.go -- NewModel, NewCommandModel, handleCommandResult -->

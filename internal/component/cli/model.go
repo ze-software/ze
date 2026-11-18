@@ -5,6 +5,8 @@
 // Detail: model_search.go — config search and prefix-token matching
 // Detail: history.go — command history persistence to zefs
 // Detail: model_dashboard.go — dashboard session lifecycle
+// Detail: model_output.go — bounded interactive display retention
+// Detail: model_input.go — current prompt and input frame sizing
 
 package cli
 
@@ -163,7 +165,10 @@ type Model struct {
 	// the text, and never derived from the prompt at render time. The title
 	// then names the command whose words are on the screen.
 	explanationSubject string
-	searchCache        string // Cached SetView() output for / search (invalidated on tree change)
+	// explanationOffset is a wrapped-row position, clamped against the current
+	// terminal geometry when read. Each reveal/dismiss transition resets it.
+	explanationOffset int
+	searchCache       string // Cached SetView() output for / search (invalidated on tree change)
 
 	// Validation state
 	validationErrors   []ConfigValidationError
@@ -219,8 +224,8 @@ type Model struct {
 	history *History
 
 	// Accumulating output buffer (command-only mode)
-	outputBuf   *strings.Builder // Scroll-back buffer for command-only mode
-	lastCommand string           // Most recently dispatched command (for echo in output buffer)
+	outputBuf   *outputBuffer // Bounded display scrollback shared by command and log views
+	lastCommand string        // Most recently dispatched command (for echo in output buffer)
 
 	// Mode state
 	mode                  EditorMode               // Current editor mode (config or operational)
@@ -472,7 +477,7 @@ func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error
 		modeStates:          make(map[EditorMode]modeState),
 		statusMessage:       welcome,
 		pasteBuffer:         &strings.Builder{},
-		outputBuf:           &strings.Builder{},
+		outputBuf:           &outputBuffer{},
 		viewFactories:       make(map[string]any),
 	}, nil
 }
@@ -511,7 +516,7 @@ func NewCommandModel(filesystemAuthority FilesystemAuthority) Model {
 		modeStates:          make(map[EditorMode]modeState),
 		statusMessage:       "welcome to ze!",
 		pasteBuffer:         &strings.Builder{},
-		outputBuf:           &strings.Builder{},
+		outputBuf:           &outputBuffer{},
 		viewFactories:       make(map[string]any),
 	}
 }
@@ -579,7 +584,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		// PTY shutdown and early resize messages can report zero columns.
 		contentWidth := max(msg.Width-4, 1)
-		m.textInput.SetWidth(contentWidth)
+		m.fitPromptInput()
 		m.viewport.SetWidth(contentWidth)
 		m.viewport.SetHeight(max(msg.Height-10, 5))
 		// Show config on first size event (startup)

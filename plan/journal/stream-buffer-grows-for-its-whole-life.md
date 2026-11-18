@@ -11,4 +11,4 @@ an update that touches only what changed.
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
-| 2026-09-27 | - | CLI live views, `outputBuf` (`internal/component/cli/model.go`) with monitor, ping and traceroute | Each batch appends to an unbounded strings.Builder, then `setViewportText(outputBuf.String())` sanitizes and sets the whole buffer again. Only `clear` resets it. A long `monitor event` session grows memory and per-batch CPU with no limit. Found by reading the code while comparing Ze with tuios, which caps scrollback at 10000 lines | open: not fixed |
+| 2026-09-27 | spec-web-cli-config-one-off-defects (AC-22) | CLI monitor/command output and ping/traceroute log views | outputBuf kept every event and rendered the whole growing transcript | open: model_output.go bounds raw and sanitized display to 512 KiB with UTF-8-safe eviction, visible omission and clear. All four retention roots and full CLI race pass; monitor/save UI controls pass. Measured coverage and final lint/docs acceptance pending. |

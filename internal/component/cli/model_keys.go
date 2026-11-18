@@ -41,6 +41,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	m.fitPromptInput()
 
 	// Lifecycle confirmation takes highest priority (quit, stop, restart).
 	if m.confirmQuit || m.confirmStop || m.confirmRestart {
@@ -101,6 +102,19 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if keyStr == keyEsc && m.revealLevel() == revealExplanation {
 		m.dismissReveal()
 		return m, nil
+	}
+
+	// Page keys belong to the revealed explanation, including when a candidate
+	// menu waits beneath it. They must not scroll output or dismiss the reveal.
+	if m.revealLevel() == revealExplanation {
+		switch key.Code {
+		case tea.KeyPgUp:
+			m.scrollExplanation(-1)
+			return m, nil
+		case tea.KeyPgDown:
+			m.scrollExplanation(1)
+			return m, nil
+		}
 	}
 
 	// Dropdown navigation takes priority
@@ -406,6 +420,7 @@ func (m *Model) revealDeclared(subject, text string) {
 	}
 	m.explanation = text
 	m.explanationSubject = subject
+	m.explanationOffset = 0
 }
 
 // revealExplanationOf puts the long explanation of one command on the screen.

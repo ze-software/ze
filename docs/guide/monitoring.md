@@ -31,6 +31,19 @@ account for its reads and detail requests.
 ze cli -c "monitor event"
 ```
 
+In an interactive CLI session, command output and log-style monitors retain the
+most recent 512 KiB of display text. When older output is removed, the view starts
+with `[earlier output omitted]`. The limit includes that notice and the text
+produced by terminal sanitization. `clear` empties the scrollback and removes the
+notice. Ping and traceroute log views use the same allowance.
+
+This limits the interactive display. Streaming output from `ze cli -c` and the
+bytes written by a supported `| save` pipe keep their existing complete-output
+behavior. Save the output when you need a record longer than the visible tail.
+<!-- source: internal/component/cli/model_output.go -- outputBuffer -->
+<!-- source: internal/component/cli/model_ping.go -- handlePingPipedPoll -->
+<!-- source: internal/component/cli/model_traceroute.go -- handleTraceroutePipedPoll -->
+
 ### Filters
 
 | Filter | Example | Description |

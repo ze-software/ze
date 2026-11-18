@@ -58,4 +58,5 @@ func (m *Model) dismissReveal() {
 	m.completionHintDim = false
 	m.explanation = ""
 	m.explanationSubject = ""
+	m.explanationOffset = 0
 }
