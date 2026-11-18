@@ -1,0 +1,53 @@
+# Test: Empty OSPF area survives SSH load merge and commit
+# VALIDATES: spec-web-cli-config-one-off-defects AC-21 -- an empty declared
+# area commits with its referring interface and adjacent nonempty area.
+# PREVENTS: load merge accepting the syntax but dropping a leafless area from
+# the session candidate or durable commit. Removing that area must be refused.
+
+tmpfs=test.conf:terminator=EOF_CONF
+ospf { router-id 192.0.2.1; }
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+session=alice:user=alice,origin=ssh
+
+input=type:text=load terminal absolute merge
+input=enter
+input=type:text=ospf { areas { area 0.0.0.0 { } area 0.0.0.1 { area-type normal; default-cost 17; } } interfaces { interface ac21-empty { area 0.0.0.0; network-type point-to-point; } interface ac21-other { area 0.0.0.1; network-type point-to-point; cost 23; } } }
+input=ctrl:key=d
+expect=error:none
+expect=dirty:true
+
+input=type:text=commit now
+input=enter
+expect=error:none
+expect=status:contains=committed
+expect=dirty:false
+expect=key:path=file/active/test.conf:contains=ospf areas area 0.0.0.0
+expect=key:path=file/active/test.conf:contains=default-cost 17
+expect=key:path=file/active/test.conf:contains=ac21-empty area 0.0.0.0
+expect=key:path=file/active/test.conf:contains=ac21-other area 0.0.0.1
+
+# Reopening must retain the declaration, not just the pre-commit working tree.
+restart=editor
+session=alice:user=alice,origin=ssh
+input=type:text=commit verify
+input=enter
+expect=error:none
+expect=status:contains=commit verify: the candidate is valid; nothing was applied
+expect=dirty:false
+
+# An absent declaration cannot satisfy the interface reference. This control
+# also proves the successful empty-area commit reached the OSPF verifier.
+input=type:text=delete ospf areas area 0.0.0.0
+input=enter
+expect=error:none
+expect=dirty:true
+input=type:text=commit now
+input=enter
+expect=status:contains=commit blocked:
+expect=viewport:contains=interface references undeclared area
+expect=dirty:true
+expect=key:path=file/active/test.conf:contains=ospf areas area 0.0.0.0
+expect=key:path=file/active/test.conf:contains=default-cost 17
