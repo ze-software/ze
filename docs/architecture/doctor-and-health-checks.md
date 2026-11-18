@@ -1108,8 +1108,10 @@ delete or replace the original cause, subject, fix or first-raised time.
 
 The owner retains one `ResourceWarningEpisode` before publishing. The episode
 keeps bounded first and latest actual failure causes, its original fix and
-first-raised time. `Update` changes only that same episode's latest cause;
-domain cleanup counts remain independent. Retrying its publication changes no
+first-raised time. `Update` changes only that same episode's latest cause.
+Optional structured details preserve the original resource identity. Ze copies
+the first map. Callers MUST keep mutable values inside that map unchanged.
+Domain cleanup counts remain independent. Retrying its publication changes no
 native state. Only its original resource's recovery proof or acknowledgement
 permits `Clear`; the bus does not establish that domain fact. An old episode's
 repeated clear never clears a later failure. An owner with no failure closes

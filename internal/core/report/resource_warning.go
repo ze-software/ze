@@ -99,14 +99,17 @@ func NewResourceWarning(source, subject string) (*ResourceWarning, error) {
 // keep and retry this same episode after an unknown publish outcome. It MUST
 // NOT repeat any native mutation to retry a diagnostic. At most one pending or
 // published episode belongs to a reservation at once.
-func (owner *ResourceWarning) NewEpisode(code, message, fix string) (*ResourceWarningEpisode, error) {
+// Optional detail follows RaiseWarningFix: only the first map is used and
+// shallow-cloned. Mutable values inside that map MUST NOT change afterward.
+func (owner *ResourceWarning) NewEpisode(code, message, fix string, detail ...map[string]any) (*ResourceWarningEpisode, error) {
 	if owner == nil {
 		return nil, errors.New("resource warning owner is absent")
 	}
 	if owner.store == nil {
 		return nil, errors.New("resource warning owner is uninitialized")
 	}
-	if !validFields(owner.key.source, code, owner.key.subject, message, fix, nil) {
+	fields := firstDetail(detail)
+	if !validFields(owner.key.source, code, owner.key.subject, message, fix, fields) {
 		return nil, errors.New("resource warning fields exceed their bounds: shorten the original explanation before publication")
 	}
 	if len(message) > ResourceWarningCauseMax {
@@ -125,7 +128,7 @@ func (owner *ResourceWarning) NewEpisode(code, message, fix string) (*ResourceWa
 		return nil, errors.New("resource warning already has an unresolved episode: retain and finish its original recovery")
 	}
 	now := time.Now()
-	episode := &ResourceWarningEpisode{owner: owner, firstCause: message, issue: Issue{Source: owner.key.source, Code: code, Severity: SeverityWarning, Subject: owner.key.subject, Message: message, Fix: fix, Raised: now, Updated: now}}
+	episode := &ResourceWarningEpisode{owner: owner, firstCause: message, issue: Issue{Source: owner.key.source, Code: code, Severity: SeverityWarning, Subject: owner.key.subject, Message: message, Fix: fix, Raised: now, Updated: now, Detail: copyDetail(fields)}}
 	owner.episode = episode
 	return episode, nil
 }
