@@ -109,7 +109,10 @@ type Server struct {
 
 	eventRing *EventRing // Global event history ring (diag-2)
 
-	running atomic.Bool
+	running     atomic.Bool
+	lifecycleMu sync.Mutex  // Serializes Start, final startup publication and terminal Stop admission.
+	stopEntered atomic.Bool // Reentrant Stop never waits for its own engine.
+	stopping    atomic.Bool // Full teardown only; a drain still records real plugin exits.
 
 	loadedPlugins   map[string]bool // tracks all plugins loaded across startup phases
 	loadedPluginsMu sync.Mutex      // protects loadedPlugins
@@ -127,15 +130,15 @@ type Server struct {
 	// lastStopRecorded is true once this server wrote the last-stop record
 	// (last_stop.go), so its own startup end does not delete it as a clean start.
 	lastStopRecorded atomic.Bool
-	// stopFailure is the operator error of the first plugin failure that
-	// stopped the daemon (stopDaemonForPlugin), nil while none has. The daemon
+	// stopFailure retains the first fatal plugin cause and any resource cleanup
+	// failures (recordStopFailure), nil while neither occurred. The daemon
 	// exits 1 and prints it when it is set (StopFailure, cmd/ze/hub/main.go).
 	stopFailure atomic.Pointer[opererr.Error]
 	// stopCauseClaimed is won, once, by the first plugin failure that stops
 	// the daemon (stopDaemonForPlugin), so a second plugin failing at the same
 	// time overwrites neither the last-stop record nor the stop failure.
 	stopCauseClaimed atomic.Bool
-	startupErr       error // non-nil when a config-path plugin fails during startup
+	startupErr       error // Outcome published before startupDone closes; nil for a successful live completion.
 
 	configLoader          ConfigLoader           // Loads new config tree for ReloadFromDisk
 	fullReload            FullReloadFunc         // Runs hub-level reload for daemon-reload RPC
@@ -861,6 +864,11 @@ func (s *Server) Start() error {
 // StartWithContext begins accepting connections with the given context.
 // External access is via SSH; the plugin server handles only in-process dispatch.
 func (s *Server) StartWithContext(ctx context.Context) error {
+	s.lifecycleMu.Lock()
+	if s.stopEntered.Load() {
+		s.lifecycleMu.Unlock()
+		return errServerStopped
+	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.running.Store(true)
 	// The runtime doctor checks read plugin state through this publication
@@ -895,13 +903,16 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredPaths) > 0 || len(s.config.ConfiguredFamilies) > 0 || len(s.config.ConfiguredCustomEvents) > 0 || len(s.config.ConfiguredCustomSendTypes) > 0 {
 		s.wg.Add(1)
 		go s.runPluginStartup()
-	} else {
-		// No plugins to start -- signal immediately so WaitForPluginStartupComplete
-		// does not block. A standalone reactor arms the startupComplete channel
-		// (SetAPIProcessCount) before starting this server, and without
-		// runPluginStartup nothing would close it.
-		s.signalStartupComplete()
+		s.lifecycleMu.Unlock()
+		return nil
 	}
+	s.lifecycleMu.Unlock()
+	// No plugins to start -- signal immediately so WaitForStartupComplete
+	// does not block. A standalone reactor arms the startupComplete channel
+	// (SetAPIProcessCount) before starting this server, and without
+	// runPluginStartup nothing would close it. Completion takes lifecycleMu
+	// only for final publication; callbacks run without it and may call Stop.
+	s.signalStartupComplete()
 
 	return nil
 }
@@ -956,10 +967,10 @@ func (s *Server) stopUnderWay() bool {
 	}
 }
 
-// StopFailure answers the operator error of the plugin failure that stopped
-// the daemon (stopDaemonForPlugin), or nil when no plugin failure caused the
-// stop. The daemon prints it and exits 1 when it is set (runYANGConfig,
-// cmd/ze/hub/main.go), so a service manager and an operator's script can tell
+// StopFailure answers the operator error of the first fatal plugin cause and
+// any resource cleanup failures, or nil when neither occurred. The daemon
+// prints it and exits 1 when it is set (runYANGConfig, cmd/ze/hub/main.go),
+// so a service manager and an operator's script can tell
 // this stop from a clean one. Safe for concurrent use.
 func (s *Server) StopFailure() *opererr.Error {
 	return s.stopFailure.Load()
@@ -973,15 +984,31 @@ func (s *Server) StopFailure() *opererr.Error {
 // bridge reads each connection as a crashed plugin. That elects a rollback,
 // which restarts plugins the next line is about to kill.
 func (s *Server) Stop() {
+	s.lifecycleMu.Lock()
+	if s.stopEntered.Swap(true) {
+		s.lifecycleMu.Unlock()
+		return
+	}
+	s.lifecycleMu.Unlock()
+	finishProcessLifetime := s.sealProcessAdmission()
+	defer finishProcessLifetime()
 	s.running.Store(false)
 	withdrawDoctorSnapshot(s)
 	s.stopTransaction(txShutdownGrace)
+	s.stopping.Store(true)
+	// Engine finalizers can still call their dependencies. Canceling the server
+	// first also closes every provider's dispatch lifetime and process parent.
+	s.cleanup()
 	if s.cancel != nil {
 		s.cancel()
 	}
 	// Work a command started under the server ends with it, and Stop waits.
-	s.stopHooks.run()
-	s.cleanup()
+	if err := s.stopHooks.run(); err != nil {
+		s.recordStopFailure(opererr.Wrap(err,
+			"the daemon could not finish resource cleanup",
+			"daemon-owned resources can remain after this stop",
+			"ze doctor"))
+	}
 }
 
 // Wait reports an accepted explicit shutdown request after its response
@@ -1023,7 +1050,12 @@ func (s *Server) Wait(ctx context.Context) error {
 func (s *Server) cleanup() {
 	// Stop processes
 	if pm := s.procManager.Load(); pm != nil {
-		pm.Stop()
+		pm.StopInOrder(shutdownPluginTiers(pm))
+		if failure := pm.ShutdownOrderFailure(); failure != nil {
+			s.recordStop(LastStopEntry{
+				Reason: LastStopShutdownOrder, Detail: failure.Error(), Fix: failure.Fix(),
+			})
+		}
 		// An engine that missed its shutdown grace may leave what it
 		// installed behind; the next local `ze doctor` names it.
 		recordLateEngines(pm.CleanupLate())

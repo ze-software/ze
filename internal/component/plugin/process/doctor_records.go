@@ -379,8 +379,9 @@ const restartOverlapRelayLogFix = "ze show log recent component plugin.relay"
 // registered in register.go.
 //
 // A second restart is no fix, because it replaces the NEW process, and ze
-// takes no further step to end the previous one, so the fix is the command
-// that shows what is left (restartOverlapText).
+// takes no further step during this restart to end the previous one, so the
+// fix is the command that shows what is left (restartOverlapText). Terminal
+// shutdown retains the obligation to join that outgoing generation.
 func recordRestartOverlap(proc *Process, bound time.Duration, cause error) {
 	name := proc.Name()
 	messageLine, fixLine := restartOverlapText(proc, bound)
@@ -425,6 +426,7 @@ func restartOverlapText(proc *Process, bound time.Duration) (message, fix string
 			text.Str(" was restarted before ze finished stopping its previous process: its engine had returned, but its event delivery had not finished ").
 				Str(bound.String()).Str(" after ze stopped it; ze takes no further step to end it")
 		}
+		text.Str(" during this restart")
 		return text.String(), restartOverlapGoroutinesFix
 	}
 	if proc.Running() {
@@ -436,6 +438,7 @@ func restartOverlapText(proc *Process, bound time.Duration) (message, fix string
 			Str(bound.String()).
 			Str(" after ze stopped it, and that stderr stays open while a process the plugin started still holds it; ze takes no further step to end them")
 	}
+	text.Str(" during this restart")
 	return text.String(), restartOverlapRelayLogFix
 }
 

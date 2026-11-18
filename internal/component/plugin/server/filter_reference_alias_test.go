@@ -136,7 +136,7 @@ func TestFilterReferenceReachesTheAliasedBlock(t *testing.T) {
 	pm := process.NewProcessManager(nil)
 	s.procManager.Store(pm)
 	var calls atomic.Int32
-	pm.AddProcess("gr", aliasedSlotProcess(t, "gr", aliasTestRegistration, rpc.FilterReject, &calls))
+	require.NoError(t, pm.AddProcess("gr", aliasedSlotProcess(t, "gr", aliasTestRegistration, rpc.FilterReject, &calls)))
 
 	input := rpc.FilterUpdateInput{Filter: "ingress"}
 	route := rpc.InputFilterRoute(&input)

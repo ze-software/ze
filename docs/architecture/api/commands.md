@@ -145,7 +145,11 @@ returns only once each has ended its work, goroutines included. `OnStop`
 answers a withdrawal the owner calls when the work ends first (an operator's
 `update serve stop`), and it refuses once `Stop` has started, so a command that
 arrives while the daemon stops starts nothing.
+Each `fn` returns an error when its cleanup fails. `StopFailure` retains every
+hook error alongside any fatal plugin error, so the daemon exits with failure
+after it has joined all cleanup work.
 <!-- source: internal/component/plugin/server/stop_hooks.go -- Server.OnStop, stopHooks.run -->
+<!-- source: internal/component/plugin/server/server.go -- Server.Stop, Server.StopFailure -->
 <!-- source: internal/plugins/update-cmd/cmd/serve_daemon.go -- updateServeOwner.start, updateServeOwner.endWithDaemon -->
 
 ### Offline fallback (read-only commands without a daemon)

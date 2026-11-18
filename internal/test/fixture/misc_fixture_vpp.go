@@ -17,6 +17,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	testpeer "github.com/ze-software/ze/internal/test/peer"
 )
 
 func init() {
@@ -131,8 +133,8 @@ func startVPPStub(ctx context.Context, socket, log string, deadline int) (*fixtu
 	return startFixtureProcess(ctx, os.Environ(), "", "le", "test", "vpp", "stub", "--socket", socket, "--log", log, "--deadline", strconv.Itoa(deadline), "-v")
 }
 
-func startVPPPeer(ctx context.Context, port int, script string) (*fixtureProcess, error) {
-	process, err := startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer", "--port", strconv.Itoa(port), script)
+func startVPPPeer(ctx context.Context, port int, script string, mode testpeer.Mode) (*fixtureProcess, error) {
+	process, err := startFixtureProcess(ctx, os.Environ(), "", "le", "test", "peer", "--mode", mode.String(), "--port", strconv.Itoa(port), script)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +146,18 @@ func startVPPPeer(ctx context.Context, port int, script string) (*fixtureProcess
 }
 
 func startVPPZe(ctx context.Context, config string, values map[string]string) (*fixtureProcess, error) {
-	return startFixtureProcess(ctx, miscEnvironment(values), config, "ze", "-")
+	dir := values[envConfigDir]
+	if dir == "" {
+		return nil, errors.New("VPP fixture requires its owned config directory")
+	}
+	configPath := filepath.Join(dir, "vpp.conf")
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+		return nil, fmt.Errorf("write VPP fixture config: %w", err)
+	}
+	// Explicit-file start creates the DUT's normal store when absent.
+	// The FIB restores ownership before processing IP routes.
+	// The driver's owned directory cleanup removes the config after stop.
+	return startFixtureProcess(ctx, miscEnvironment(values), "", "ze", "start", configPath)
 }
 
 // vppLogMatches reports whether any line of the stub log satisfies the
@@ -232,10 +245,20 @@ func vppRouteConfig(socket string, mpls, observer bool) string {
 		process += " attach process lookup-test { }"
 	}
 	fib := "\nfib { vpp { enabled true; } }\n"
+	access := "interface { backend vpp; }"
+	vppExtra := ""
+	// Both programming scripts advertise next-hop 10.0.0.1. Selection needs
+	// an actual connected prefix before it can emit that BGP best-change.
+	// Use the existing VPP create/address replies and connected event owner;
+	// the fixture never inserts a synthetic selected BGP route itself.
+	if !observer {
+		access = "connected {}\ninterface { backend vpp; dummy vpp-route0 { unit 0 { ipv4 { address [ 10.0.0.2/24 ]; } } } }"
+		vppExtra = " lcp { enabled false; }"
+	}
 	if observer {
 		fib = ""
 	}
-	return fmt.Sprintf("environment {\n}\n%sbgp { peer peer1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } } session { asn { local 1; remote 1; } router-id 1.2.3.4; family { %s } capability { graceful-restart disable; } } behavior { group-updates disable; } %s } }\nvpp { enabled true; external true; api-socket %s; }%s", plugin, families, process, socket, fib)
+	return fmt.Sprintf("environment {\n}\n%sbgp { peer peer1 { connection { remote { ip 127.0.0.1; } local { ip 127.0.0.1; accept false; } } session { asn { local 1; remote 1; } router-id 1.2.3.4; family { %s } capability { graceful-restart disable; } } behavior { group-updates disable; } %s } }\nvpp { enabled true; external true; api-socket %s;%s }\n%s%s", plugin, families, process, socket, vppExtra, access, fib)
 }
 
 func vppRouteDriver(ctx context.Context, args []string) error {
@@ -268,7 +291,13 @@ func runVPPRouteProgramming(ctx context.Context, args []string, mpls bool) error
 		return errors.New("stub socket did not appear")
 	}
 	cwd, _ := os.Getwd()
-	peer, err := startVPPPeer(ctx, port, filepath.Join(cwd, "peer-script"))
+	// The MPLS script supplies an UPDATE only; its oracle is the actual stub
+	// route+label readback below. Check-mode route scripts still assert EOR.
+	mode := testpeer.ModeCheck
+	if mpls {
+		mode = testpeer.ModeSink
+	}
+	peer, err := startVPPPeer(ctx, port, filepath.Join(cwd, "peer-script"), mode)
 	if err != nil {
 		return err
 	}
@@ -347,7 +376,7 @@ func vppLookupDriver(ctx context.Context, args []string) error {
 		return errors.New("stub socket did not appear")
 	}
 	cwd, _ := os.Getwd()
-	peer, err := startVPPPeer(ctx, port, filepath.Join(cwd, "peer-script"))
+	peer, err := startVPPPeer(ctx, port, filepath.Join(cwd, "peer-script"), testpeer.ModeCheck)
 	if err != nil {
 		return err
 	}

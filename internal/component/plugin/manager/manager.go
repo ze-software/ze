@@ -67,6 +67,11 @@ type Manager struct {
 	// of which phase started it. Created on the first spawnProcesses call.
 	procManager *process.ProcessManager
 
+	// admissionMu protects terminal admission and every procManager publication.
+	// It is never held across process Start, connect-back, Stop or a handshake.
+	admissionMu     sync.Mutex
+	admissionClosed bool
+
 	// TLS acceptor for external plugin connect-back (shared across phases).
 	acceptor *pluginipc.PluginAcceptor
 
@@ -157,6 +162,9 @@ func (m *Manager) StartAll(ctx context.Context, eventBus ze.EventBus, config ze.
 func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if err := m.processAdmissionError(); err != nil {
+		return err
+	}
 
 	if !m.started {
 		return errNotStarted
@@ -204,6 +212,9 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 func (m *Manager) StartDeclared(ctx context.Context, configs []parent.PluginConfig, environment []string) (map[string]error, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if err := m.processAdmissionError(); err != nil {
+		return nil, err
+	}
 
 	if m.started {
 		return nil, errAlreadyStarted
@@ -217,17 +228,12 @@ func (m *Manager) StartDeclared(ctx context.Context, configs []parent.PluginConf
 	if err := m.ensureAcceptor(configs); err != nil {
 		return nil, err
 	}
-	if m.procManager == nil {
-		m.procManager = process.NewProcessManager(nil)
-		if m.metricsRegistry != nil {
-			m.procManager.SetMetricsRegistry(m.metricsRegistry)
-		}
-	}
-	if m.acceptor != nil {
-		m.procManager.SetAcceptor(m.acceptor)
+	pm, _, err := m.prepareProcessManager(nil)
+	if err != nil {
+		return nil, err
 	}
 
-	failures := m.procManager.StartEach(ctx, configs, environment)
+	failures := pm.StartEach(ctx, configs, environment)
 	m.declared = make(map[string]error, len(configs))
 	for _, cfg := range configs {
 		failure := failures[cfg.Name]
@@ -388,29 +394,21 @@ func (m *Manager) stopHeldLocked(ctx context.Context, name string) {
 // so AllProcesses returns every plugin from every phase. Must be called with
 // m.mu held.
 func (m *Manager) spawnProcesses(configs []parent.PluginConfig) error {
-	first := m.procManager == nil
-	if first {
-		m.procManager = process.NewProcessManager(configs)
-
-		if m.metricsRegistry != nil {
-			m.procManager.SetMetricsRegistry(m.metricsRegistry)
-		}
-	}
-
 	// Set up TLS acceptor for external plugins (shared across all spawn phases).
 	if err := m.ensureAcceptor(configs); err != nil {
 		return err
 	}
-	if m.acceptor != nil {
-		m.procManager.SetAcceptor(m.acceptor)
+	pm, first, err := m.prepareProcessManager(configs)
+	if err != nil {
+		return err
 	}
 
 	if first {
-		if err := m.procManager.StartWithContext(m.ctx); err != nil {
+		if err := pm.StartWithContext(m.ctx); err != nil {
 			return fmt.Errorf("start processes: %w", err)
 		}
 	} else {
-		if err := m.procManager.StartMore(configs); err != nil {
+		if err := pm.StartMore(configs); err != nil {
 			return fmt.Errorf("start more processes: %w", err)
 		}
 	}
@@ -475,9 +473,11 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 // process from every spawn phase.
 // Returns nil if no processes have been spawned.
 // Returns any to satisfy plugin.ProcessSpawner interface (Server type-asserts).
+// Safe for concurrent use, including while SpawnMore waits for connect-back.
+// A terminal seal keeps this owner stable until its ordered cleanup completes.
 func (m *Manager) GetProcessManager() any {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.admissionMu.Lock()
+	defer m.admissionMu.Unlock()
 
 	if m.procManager == nil {
 		return nil

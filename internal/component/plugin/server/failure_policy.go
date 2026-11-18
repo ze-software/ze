@@ -135,6 +135,12 @@ func declaredPolicyName(declared rpc.FailurePolicy) string {
 //   - Another path already replaced it. The name then holds a different process,
 //     which is the live one.
 func (s *Server) applyFailurePolicy(proc *process.Process) {
+	// Full teardown closes generations in dependency order while the server
+	// context still serves their dependencies. A drain is distinct: genuine
+	// exits during it retain their crash report and existing policy handling.
+	if s.stopping.Load() {
+		return
+	}
 	if s.ctx.Err() != nil {
 		return
 	}
@@ -336,7 +342,7 @@ func (s *Server) stopDaemonForPlugin(name string, cause pluginStopCause, reason 
 		return
 	}
 	recorded := s.recordStop(LastStopEntry{Reason: LastStopFatalPolicy, Plugin: name, Detail: reason})
-	s.stopFailure.Store(pluginStopFailure(name, cause, reason, recorded))
+	s.recordStopFailure(pluginStopFailure(name, cause, reason, recorded))
 	logger().Error("stopping ze because a plugin failed; run ze doctor after the restart for the recorded cause",
 		"plugin", name, "reason", reason, "code", diagnostic.CodeDoctorPluginFatalStop)
 	if s.shutdownFunc != nil {

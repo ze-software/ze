@@ -1,3 +1,6 @@
+// Design: docs/functional-tests.md -- the GoVPP socket stub used by VPP tests.
+// Related: cmd_vpp_stub_interfaces.go -- acknowledged interface state readback.
+
 package cli
 
 import (
@@ -53,7 +56,7 @@ type vppStubState struct {
 	verbose       bool
 	mu            sync.Mutex
 	classifyIndex uint32
-	loopbackIndex uint32
+	interfaces    vppStubInterfaceTable
 	// labels holds the MPLS routes clients added, so mpls_route_dump answers them.
 	labels vppStubLabelTable
 }
@@ -117,7 +120,7 @@ func newVPPStubState(logPath string, verbose bool) (*vppStubState, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &vppStubState{messages: messages, names: byID, log: logFile, verbose: verbose, loopbackIndex: 1}, nil
+	return &vppStubState{messages: messages, names: byID, log: logFile, verbose: verbose}, nil
 }
 
 func runVPPStub(socketPath, logPath string, deadline time.Duration, verbose bool) error {
@@ -285,6 +288,13 @@ func serveVPPClient(state *vppStubState, connection net.Conn) error {
 			}
 			continue
 		}
+		switch name {
+		case "sw_interface_dump", "ip_address_dump":
+			if err := state.serveInterfaceDump(connection, name, contextID, frame[headerLength:]); err != nil {
+				return err
+			}
+			continue
+		}
 		body, closeConnection, handled, err := state.handle(name, contextID, frame[headerLength:])
 		if err != nil {
 			return err
@@ -380,26 +390,12 @@ func (state *vppStubState) handle(name string, contextID uint32, body []byte) ([
 		fields = map[string]any{"is_add": isAdd, "new_table_index": index}
 		replyBody = make([]byte, 8)
 		binary.BigEndian.PutUint32(replyBody[4:8], index)
-	case "create_loopback":
-		index := state.loopbackIndex
-		state.loopbackIndex++
-		mac := ""
-		if len(body) >= 6 {
-			mac = strings.Join(hexBytePairs(body[:6]), ":")
+	case "create_loopback", "delete_loopback", "sw_interface_set_flags", "sw_interface_add_del_address":
+		var err error
+		fields, replyBody, err = state.interfaces.mutate(name, body)
+		if err != nil {
+			return nil, false, true, err
 		}
-		fields = map[string]any{"mac_address": mac, "sw_if_index": index}
-		replyBody = make([]byte, 8)
-		binary.BigEndian.PutUint32(replyBody[4:8], index)
-	case "sw_interface_add_del_address":
-		index := uint32(0)
-		isAdd := false
-		if len(body) >= 4 {
-			index = binary.BigEndian.Uint32(body)
-		}
-		if len(body) >= 5 {
-			isAdd = body[4] != 0
-		}
-		fields = map[string]any{"sw_if_index": index, "is_add": isAdd}
 	default:
 		return nil, false, false, nil
 	}

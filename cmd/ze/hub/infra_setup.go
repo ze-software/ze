@@ -5,6 +5,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -88,10 +89,14 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, mutations *configMutationOwner, liveUsers func() ([]aaa.UserCredential, error), lm *listenerMigrator) {
 	var builders sync.Mutex
 	var stopped bool
-	if _, err := owner.OnStop(func() {
+	// builders protects the result of cleanup refused by OnStop. The seal
+	// callback joins that builder and returns its failure to the same stop.
+	var refusedCleanup error
+	if _, err := owner.OnStop(func() error {
 		builders.Lock()
+		defer builders.Unlock()
 		stopped = true
-		builders.Unlock()
+		return refusedCleanup
 	}); err != nil {
 		panic("BUG: infrastructure hook registered after daemon stop")
 	}
@@ -111,16 +116,16 @@ func setupInfraHook(owner *pluginserver.Server, recorder audit.Recorder, mutatio
 		if lm != nil {
 			lm.attachSSH(sshSrv)
 		}
-		stop := func() {
+		stop := func() error {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			_ = sshSrv.Stop(shutdownCtx)
+			return sshSrv.Stop(shutdownCtx)
 		}
 		if _, err := owner.OnStop(stop); err != nil {
 			// Stop snapshots unordered hooks before invoking them. A builder
 			// already admitted must close its refused resource before releasing
 			// the gate, so the seal callback joins it in either callback order.
-			stop()
+			refusedCleanup = errors.Join(refusedCleanup, stop())
 		}
 	})
 }

@@ -1,0 +1,16 @@
+# Question: does the normal Ze hub finish SIGTERM cleanup and exit zero
+# without forced termination or cleanup failure diagnostics?
+# A unit cannot decide the real ready-file, plugin graph, interface API,
+# Server.Stop and daemon signal path together.
+#
+# The compiled fixture owns a fresh stub socket and normal config/store. It
+# waits for the hub's real ready file and acknowledged interface setup, then
+# checks the daemon's raw exit, normal completion, cleanup diagnostics and the
+# stub's final raw exit. Best-effort child cleanup
+# stays active on every failed assertion.
+
+option=needs-linux
+
+cmd=foreground:seq=1:exec=le test fixture vpp/vpp-shutdown:timeout=45s
+expect=exit:code=0
+expect=stderr:pattern=OK: VPP daemon and stub exited cleanly after normal hub shutdown

@@ -394,7 +394,7 @@ func TestReloadSectionFailureStopsItsAutoLoadedPlugin(t *testing.T) {
 	require.NoError(t, pm.StartWithContext(s.ctx))
 	wanting := process.NewProcess(plugin.PluginConfig{Name: "section-failure-wanter"})
 	wanting.SetRegistration(&plugin.PluginRegistration{WantsConfigRoots: []string{"sectionbadroot"}})
-	pm.AddProcess("section-failure-wanter", wanting)
+	require.NoError(t, pm.AddProcess("section-failure-wanter", wanting))
 	s.procManager.Store(pm)
 	spawner.pm = pm
 

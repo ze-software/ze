@@ -421,7 +421,7 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 		proc.SetConn(engineConn)
 		proc.SetRunning(true)
 
-		pm.AddProcess(pd.name, proc)
+		require.NoError(t, pm.AddProcess(pd.name, proc))
 
 		// Start mock plugin responder
 		resp := &mockPluginResponder{
@@ -555,7 +555,7 @@ func TestReloadFailureStopsAutoLoadedPluginByName(t *testing.T) {
 	rejector.SetRegistration(&plugin.PluginRegistration{WantsConfigRoots: []string{"other"}})
 	rejector.SetConn(ipc.NewPluginConn(engineEnd, engineEnd))
 	rejector.SetRunning(true)
-	pm.AddProcess("reload-rejector", rejector)
+	require.NoError(t, pm.AddProcess("reload-rejector", rejector))
 	(&mockPluginResponder{
 		pluginConn: ipc.NewPluginConn(pluginEnd, pluginEnd),
 		pluginName: "reload-rejector",
@@ -634,7 +634,7 @@ func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
 	require.NoError(t, pm.StartWithContext(s.ctx))
 	depProc := process.NewProcess(plugin.PluginConfig{Name: depName})
 	depProc.SetRunning(true)
-	pm.AddProcess(depName, depProc)
+	require.NoError(t, pm.AddProcess(depName, depProc))
 
 	engineEnd, pluginEnd := net.Pipe()
 	t.Cleanup(func() {
@@ -645,7 +645,7 @@ func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
 	rejector.SetRegistration(&plugin.PluginRegistration{WantsConfigRoots: []string{"other"}})
 	rejector.SetConn(ipc.NewPluginConn(engineEnd, engineEnd))
 	rejector.SetRunning(true)
-	pm.AddProcess("reload-rejector", rejector)
+	require.NoError(t, pm.AddProcess("reload-rejector", rejector))
 	(&mockPluginResponder{
 		pluginConn: ipc.NewPluginConn(pluginEnd, pluginEnd),
 		pluginName: "reload-rejector",

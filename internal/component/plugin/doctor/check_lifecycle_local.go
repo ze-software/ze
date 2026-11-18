@@ -29,6 +29,9 @@ import (
 // doctor-plugin-stop-cleanup-late warning (AC-32), written by the server when
 // the config transaction or a plugin engine ran late (stop_cleanup_late.go).
 //
+// A shutdown ordering refusal is retained separately as
+// doctor-plugin-shutdown-order: it does not imply cleanup ran late.
+//
 // A start refused for a YANG module an external plugin declared is reported from the
 // same record under its own code: doctor-plugin-schema-refused for a module
 // the join refused, doctor-plugin-schema-undeclared for a config name no
@@ -66,6 +69,8 @@ func fatalStopRows(record *server.LastStop) []diagnostic.Diagnostic {
 			rows = append(rows, fatalStopRow(entry))
 		case server.LastStopCleanupLate:
 			rows = append(rows, cleanupLateRow(entry))
+		case server.LastStopShutdownOrder:
+			rows = append(rows, shutdownOrderRow(entry))
 		case server.LastStopSchemaRefused:
 			rows = append(rows, schemaRefusedRow(entry))
 		case server.LastStopSchemaUndeclared:
@@ -139,6 +144,25 @@ func cleanupLateRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
 		Severity: diagnostic.SeverityWarning,
 		Message:  message.String(),
 		Fix:      fix.String(),
+	}
+}
+
+// shutdownOrderRow names the distinct historical loss of dependency ordering.
+// It does not claim that cleanup ran late or that installed state remains.
+func shutdownOrderRow(entry *server.LastStopEntry) diagnostic.Diagnostic {
+	at := entry.Time.UTC().Format(time.RFC3339)
+	var message textbuf.Buffer
+	message.Str("the stop at ").Str(at).
+		Str(" could not preserve plugin dependency order, so providers may have stopped before consumers finished cleanup: ").
+		Str(entry.Detail)
+	fix := entry.Fix
+	if fix == "" {
+		fix = "journalctl -u ze --until " + at
+	}
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorPluginShutdownOrder,
+		Severity: diagnostic.SeverityWarning,
+		Message:  message.String(), Fix: fix,
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/netip"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,19 +23,42 @@ import (
 )
 
 type openObserverSpawner struct {
-	ctx context.Context
-	pm  *process.ProcessManager
+	admissionMu sync.Mutex
+	sealed      bool
+	ctx         context.Context
+	pm          *process.ProcessManager
 }
 
 func (s *openObserverSpawner) SpawnMore(configs []plugin.PluginConfig) error {
-	if s.pm == nil {
-		s.pm = process.NewProcessManager(configs)
-		return s.pm.StartWithContext(s.ctx)
+	s.admissionMu.Lock()
+	if s.sealed {
+		s.admissionMu.Unlock()
+		return process.ErrDaemonStopping
 	}
-	return s.pm.StartMore(configs)
+	first := s.pm == nil
+	if first {
+		s.pm = process.NewProcessManager(configs)
+	}
+	pm := s.pm
+	s.admissionMu.Unlock()
+	if first {
+		return pm.StartWithContext(s.ctx)
+	}
+	return pm.StartMore(configs)
 }
 
-func (s *openObserverSpawner) GetProcessManager() any { return s.pm }
+func (s *openObserverSpawner) GetProcessManager() any {
+	s.admissionMu.Lock()
+	defer s.admissionMu.Unlock()
+	return s.pm
+}
+
+func (s *openObserverSpawner) SealProcessAdmission() func() {
+	s.admissionMu.Lock()
+	defer s.admissionMu.Unlock()
+	s.sealed = true
+	return func() {}
+}
 
 // TestOpenObserversReceiveRemovalWithoutFilterBindings drives both producers
 // through real SDK startup and event delivery. Validators see OPENs regardless

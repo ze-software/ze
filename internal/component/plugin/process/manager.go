@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -107,18 +108,29 @@ type ProcessManager struct {
 	// Plugin health metrics (nil when metrics disabled).
 	pmetrics *pluginMetrics
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.RWMutex
+	ctx       context.Context
+	cancel    context.CancelFunc
+	mu        sync.RWMutex
+	respawnMu sync.Mutex // Serializes replacements without blocking shutdown admission.
 
 	// stopping is true from the moment Stop signals until the next spawn clears it
 	// (startConfigs). A second entry to Stop returns at once instead of waiting for
 	// the engines a first entry is already waiting for. See Stop for why.
-	stopping atomic.Bool
+	stopping   atomic.Bool
+	stopActive bool // mu fences admission while either stop owner is joining.
+
+	// Terminal admission and unpublished owners share mu with stop ownership.
+	shutdown atomic.Pointer[managerShutdown]
+	spawns   sync.WaitGroup        // Add is fenced under mu before shutdown joins it.
+	starting map[*Process]struct{} // Unpublished owners, protected by mu.
 
 	// cleanupLate names the plugins whose engine did not return within
 	// pluginStopGrace at the last Stop, sorted. Protected by mu.
 	cleanupLate []string
+
+	// shutdownOrderFailure retains only the first ordering refusal of this
+	// terminal stop. Its bounded operator message is protected by mu.
+	shutdownOrderFailure *opererr.Error
 
 	// respawnRefused is set once by RefuseRespawns when the daemon's stop
 	// drain begins, and never cleared: the stop is terminal.
@@ -208,10 +220,18 @@ func (pm *ProcessManager) Start() error {
 // Subsequent calls re-spawn pm.configs (legacy single-shot behavior); use
 // StartMore to add additional configs while keeping the originals running.
 func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
+	pm.mu.Lock()
+	if pm.shutdown.Load() != nil {
+		pm.mu.Unlock()
+		return ErrDaemonStopping
+	}
+	if pm.stopActive {
+		pm.mu.Unlock()
+		return ErrDaemonStopping
+	}
 	pm.ctx, pm.cancel = context.WithCancel(ctx)
-	pm.mu.RLock()
 	configs := slices.Clone(pm.configs)
-	pm.mu.RUnlock()
+	pm.mu.Unlock()
 	return pm.startConfigs(configs)
 }
 
@@ -223,13 +243,23 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 // place: a plugin a reload removed and added back runs, and is restarted
 // (Respawn), with the config it was added back with, never the stale one.
 func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
+	pm.mu.Lock()
+	if pm.shutdown.Load() != nil {
+		pm.mu.Unlock()
+		return ErrDaemonStopping
+	}
+	if pm.stopActive {
+		pm.mu.Unlock()
+		return ErrDaemonStopping
+	}
 	if pm.ctx == nil {
+		pm.mu.Unlock()
 		return errProcessmanagerStartmoreCalledBeforeStartwithcontext
 	}
 	if len(configs) == 0 {
+		pm.mu.Unlock()
 		return nil
 	}
-	pm.mu.Lock()
 	for i := range configs {
 		index := slices.IndexFunc(pm.configs, func(held plugin.PluginConfig) bool {
 			return held.Name == configs[i].Name
@@ -265,10 +295,26 @@ func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
 // a Respawn of the same plugin forks from the daemon's environment alone,
 // which by then holds the block.
 func (pm *ProcessManager) StartEach(ctx context.Context, configs []plugin.PluginConfig, environment []string) map[string]error {
+	pm.mu.Lock()
+	if pm.shutdown.Load() != nil {
+		pm.mu.Unlock()
+		failures := make(map[string]error, len(configs))
+		for _, cfg := range configs {
+			failures[cfg.Name] = ErrDaemonStopping
+		}
+		return failures
+	}
+	if pm.stopActive {
+		pm.mu.Unlock()
+		failures := make(map[string]error, len(configs))
+		for _, cfg := range configs {
+			failures[cfg.Name] = ErrDaemonStopping
+		}
+		return failures
+	}
 	if pm.ctx == nil {
 		pm.ctx, pm.cancel = context.WithCancel(ctx)
 	}
-	pm.mu.Lock()
 	for i := range configs {
 		held := slices.ContainsFunc(pm.configs, func(config plugin.PluginConfig) bool {
 			return config.Name == configs[i].Name
@@ -279,23 +325,11 @@ func (pm *ProcessManager) StartEach(ctx context.Context, configs []plugin.Plugin
 	}
 	pm.mu.Unlock()
 
-	// Every spawn clears the re-entry guard Stop sets (startConfigs says why).
-	pm.stopping.Store(false)
 	failures := make(map[string]error)
 	for _, cfg := range configs {
-		proc := NewProcess(cfg)
-		pm.wireMetrics(proc)
-		if pm.acceptor != nil && !cfg.Internal {
-			proc.SetAcceptor(pm.acceptor)
-		}
-		proc.SetConfigEnvironment(environment)
-		if err := proc.StartWithContext(pm.ctx); err != nil {
+		if err := pm.startProcess(cfg, environment); err != nil {
 			failures[cfg.Name] = err
-			continue
 		}
-		pm.mu.Lock()
-		pm.processes[cfg.Name] = proc
-		pm.mu.Unlock()
 	}
 	return failures
 }
@@ -305,32 +339,14 @@ func (pm *ProcessManager) StartEach(ctx context.Context, configs []plugin.Plugin
 // (incremental spawn). The shared map lets AllProcesses return every process
 // regardless of which spawn phase created it.
 func (pm *ProcessManager) startConfigs(configs []plugin.PluginConfig) error {
-	// A manager holding live processes MUST have a Stop that waits for them, so
-	// every spawn clears the re-entry guard Stop sets. Leaving it set after a spawn
-	// gives the next Stop the second-entry path and skips the engine wait, which is
-	// the release that wait exists to land.
-	//
-	// This is one of THREE spawn sites, not the only one: Respawn and AddProcess also
-	// put a process in pm.processes and each clears the flag itself. Stop cancels
-	// pm.ctx, but Process.startInternal (process.go) never reads that context, so a
-	// respawn racing a shutdown starts a live engine under a canceled context.
-	pm.stopping.Store(false)
+	// Every spawn is admitted and owned before Start; a failure remains owned
+	// through its real process/engine join, including a terminal stop racing it.
 	for _, cfg := range configs {
-		proc := NewProcess(cfg)
-		pm.wireMetrics(proc)
-		// Pass TLS acceptor to external plugins for connect-back.
-		if pm.acceptor != nil && !cfg.Internal {
-			proc.SetAcceptor(pm.acceptor)
-		}
-		if err := proc.StartWithContext(pm.ctx); err != nil {
+		if err := pm.startProcess(cfg, nil); err != nil {
 			// Stop already started processes
 			pm.Stop()
 			return err
 		}
-
-		pm.mu.Lock()
-		pm.processes[cfg.Name] = proc
-		pm.mu.Unlock()
 	}
 
 	return nil
@@ -345,29 +361,78 @@ func (pm *ProcessManager) startConfigs(configs []plugin.PluginConfig) error {
 // still running pluginExitGrace later; elsewhere the canceled context kills the
 // group at once (newPluginShell, exitwait_*.go).
 func (pm *ProcessManager) Stop() {
-	// One entry owns the engine wait below. A second entry returns at once: the
-	// first has already canceled the context and closed every connection, which is
-	// the whole shutdown signal, and waiting again for the same engines would only
-	// pile one grace on top of another.
+	pm.stop(nil, false)
+}
+
+// StopInOrder seals process admission and reverses the tiers resolved from the
+// sealed process snapshot. order MUST return every name once in startup order;
+// nil tiers request simultaneous forced stop after its diagnostic. No Bye is
+// sent. One pluginStopGrace bounds all cleanup tiers. Unlike reusable Stop,
+// this operation is terminal. Reentrant calls do not wait for themselves.
+// The daemon owner MUST inspect ShutdownOrderFailure after this returns and
+// persist any failure before its store closes. Safe for concurrent use.
+func (pm *ProcessManager) StopInOrder(order func([]plugin.PluginConfig) [][]string) {
+	pm.stop(order, true)
+}
+
+func (pm *ProcessManager) stop(order func([]plugin.PluginConfig) [][]string, terminal bool) {
+	engineCtx, engineCancel := context.WithTimeout(context.Background(), pluginStopGrace)
+	defer engineCancel()
+	// One entry owns cleanup. Reentrant calls cannot wait for their own engine;
+	// during ordered stop they also MUST leave still-needed providers live.
 	//
 	// This is a guard, not the cure. The known re-entrant caller was a plugin engine
 	// whose own shutdown reached back here (Reactor.cleanup stopping the server that
 	// hosts it), and Reactor.cleanup now stops only a server it owns. The guard stays
 	// because a second entry can only ever cost time: a plugin engine calling Stop on
 	// its way out would otherwise wait for itself.
-	if pm.stopping.Swap(true) {
+	// Publish the owner BEFORE any side effect can wake a failed start. That
+	// start calls ordinary Stop; it must find this fence, never cancel providers.
+	// No Start, process join or connect-back holds mu across a blocking operation.
+	pm.mu.Lock()
+	if pm.shutdown.Load() != nil {
+		pm.mu.Unlock()
 		return
 	}
+	entered := pm.stopping.Swap(true)
+	if terminal {
+		pm.shutdown.Store(&managerShutdown{ctx: engineCtx})
+		pm.respawnRefused.Store(true)
+	}
+	managerCancel := pm.cancel
+	if !entered {
+		pm.stopActive = true
+	}
+	pm.mu.Unlock()
+	// The terminal fence precedes diagnostics too. A reusable stop may
+	// already own cleanup and never invoke this entry's resolver, but a
+	// missing terminal resolver is still a real loss of dependency ordering.
+	if terminal {
+		if order == nil {
+			pm.RecordShutdownOrderFailure(errors.New("no plugin dependency resolver was supplied"))
+		}
+	}
+	if entered {
+		return
+	}
+	defer func() {
+		pm.mu.Lock()
+		pm.stopActive = false
+		pm.mu.Unlock()
+	}()
 
-	// Cancel context and close all connections immediately.
+	// Reusable Stop cancels the shared parent immediately. A terminal stop
+	// keeps it live until every dependent has finished using its providers.
 	// For internal plugins: closing engine-side net.Pipe unblocks the plugin's
 	// ReadRequest, causing it to return an error and exit the event loop.
 	// For external plugins: the same closed connection ends the plugin's SDK Run,
 	// and on Linux its superviseExit kills the process group only when the plugin is
 	// still running pluginExitGrace later (process.go); elsewhere this cancel kills
 	// the group at once.
-	if pm.cancel != nil {
-		pm.cancel()
+	if !terminal {
+		if managerCancel != nil {
+			managerCancel()
+		}
 	}
 
 	// Stop TLS acceptor if running (closes listener, cancels accept loop).
@@ -375,13 +440,14 @@ func (pm *ProcessManager) Stop() {
 		pm.acceptor.Stop()
 	}
 
-	pm.mu.Lock()
-	for _, proc := range pm.processes {
-		proc.Stop()
+	late := pm.joinStarting(engineCtx)
+	processes := pm.AllProcesses()
+	late = append(late, pm.stopEngines(engineCtx, processes, order, terminal)...)
+	if managerCancel != nil {
+		managerCancel()
 	}
-	pm.mu.Unlock()
 
-	// Wait for each plugin ENGINE to return, and SAY SO when one does not.
+	// Report cleanup that missed the shared deadline; never imply it finished.
 	//
 	// Closing the connection unblocks a plugin's read loop at once, but the read loop
 	// is not the whole engine: an engine releases what it installed AFTER its loop
@@ -397,36 +463,17 @@ func (pm *ProcessManager) Stop() {
 	// same way in the QEMU VM at the real speed of that release
 	// (test/ipsec/ipsec-teardown-leaves-nothing.ci).
 	//
-	// It waits on the ENGINE and not on the group, because the group also holds the
-	// event delivery loop, which can still be draining a batch when the engine has
-	// long finished: in the QEMU VM the bgp plugin's group needed more than 3s while
-	// its engine did not, so waiting on the group would charge every daemon stop for a
-	// signal that says nothing about released resources.
+	// Internal plugins wait on the engine, not their delivery group: the QEMU
+	// bgp delivery loop could take over 3s after its engine released everything.
+	// An external consumer instead owes its real process and stderr-relay join
+	// before providers close. Both waits use the same deadline, never a new grace.
 	//
 	// The bound is the daemon's own shutdown budget, so there is one number to reason
 	// about rather than two: cmd/ze/hub/main.go gives eng.Stop 3s and warns when it is
 	// missed. An engine that returns promptly costs nothing here.
-	pm.mu.RLock()
-	engineCtx, engineCancel := context.WithTimeout(context.Background(), pluginStopGrace)
-	var waitWg sync.WaitGroup
-	var lateMu sync.Mutex
-	var late []string
-	for _, proc := range pm.processes {
-		waitWg.Add(1)
-		go func(p *Process) {
-			defer waitWg.Done()
-			if err := p.WaitEngine(engineCtx); err != nil {
-				lateMu.Lock()
-				late = append(late, p.config.Name)
-				lateMu.Unlock()
-			}
-		}(proc)
-	}
-	pm.mu.RUnlock()
-	waitWg.Wait()
-	engineCancel()
 	if len(late) > 0 {
 		slices.Sort(late)
+		late = slices.Compact(late)
 		logger().Warn("plugin engine did not finish its shutdown cleanup in time, resources it installed may be left behind",
 			"code", diagnostic.CodeDoctorPluginStopCleanupLate, "plugins", strings.Join(late, ","), "grace", pluginStopGrace)
 	}
@@ -440,9 +487,8 @@ func (pm *ProcessManager) Stop() {
 	// 500ms past its own exit grace: the monitor of an external plugin that ignores its
 	// closed connection returns only once pluginExitGrace has killed it, and an
 	// internal plugin has no such grace to wait out (stopExitGrace).
-	pm.mu.RLock()
 	var groupWg sync.WaitGroup
-	for _, proc := range pm.processes {
+	for _, proc := range processes {
 		groupWg.Add(1)
 		go func(p *Process) {
 			defer groupWg.Done()
@@ -451,7 +497,6 @@ func (pm *ProcessManager) Stop() {
 			_ = p.Wait(waitCtx)
 		}(proc)
 	}
-	pm.mu.RUnlock()
 	groupWg.Wait()
 
 	pm.mu.Lock()
@@ -582,14 +627,23 @@ func (pm *ProcessManager) RemoveProcess(name string) {
 
 // AddProcess registers a process by name. Used by tests to inject mock processes.
 // Wires metrics callbacks if a metrics registry is configured.
-func (pm *ProcessManager) AddProcess(name string, proc *Process) {
-	pm.wireMetrics(proc)
+// A successful call transfers cleanup ownership to the manager. On refusal the
+// caller retains ownership and MUST call Stop and Wait. Safe for concurrent use.
+func (pm *ProcessManager) AddProcess(name string, proc *Process) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
+	if pm.shutdown.Load() != nil {
+		return ErrDaemonStopping
+	}
+	if pm.stopActive {
+		return ErrDaemonStopping
+	}
+	pm.wireMetrics(proc)
 	// The third spawn site, and it clears the re-entry guard for the same reason as
 	// the other two: the manager now holds a process whose engine a Stop must wait for.
 	pm.stopping.Store(false)
 	pm.processes[name] = proc
+	return nil
 }
 
 // AllProcesses returns a snapshot of all processes.
@@ -725,8 +779,17 @@ func (pm *ProcessManager) ReportCrash(name string, exit ProcessExit, policy stri
 // Returns ErrDaemonStopping once RefuseRespawns has been called.
 // Returns error if ProcessManager was not started (ctx is nil).
 func (pm *ProcessManager) Respawn(name string) (*Process, error) {
+	pm.respawnMu.Lock()
+	defer pm.respawnMu.Unlock()
 	pm.mu.Lock()
-	defer pm.mu.Unlock()
+	pmLocked := true
+	// Only rate/config bookkeeping and admission hold mu. Every early return
+	// below precedes ownership transfer and releases that lock.
+	defer func() {
+		if pmLocked {
+			pm.mu.Unlock()
+		}
+	}()
 
 	// Check if ProcessManager was started
 	if pm.ctx == nil {
@@ -734,6 +797,12 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	}
 
 	if pm.respawnRefused.Load() {
+		return nil, ErrDaemonStopping
+	}
+	if pm.shutdown.Load() != nil {
+		return nil, ErrDaemonStopping
+	}
+	if pm.stopActive {
 		return nil, ErrDaemonStopping
 	}
 
@@ -793,57 +862,45 @@ func (pm *ProcessManager) Respawn(name string) (*Process, error) {
 	validTimes = append(validTimes, now)
 	pm.respawnTimes[name] = validTimes
 
-	// Stop the process this respawn replaces and JOIN its goroutines, whether or not
-	// its engine is still running. The line further down overwrites pm.processes[name],
-	// and that map entry is the only handle anything holds on the old process, so this
-	// is the last moment it can be joined.
-	//
-	// Running() reports the ENGINE, and the engine is not the only goroutine a Process
-	// owns: StartWithContext starts the event delivery loop first (process.go), and
-	// that loop ends only when Stop closes the event channel (delivery.go, deliveryLoop
-	// ranges over it). A respawn follows a crash, so an engine that has already
-	// returned is the COMMON case here and was the one the old Running() guard skipped.
-	// Every such cycle left a delivery loop blocked on a channel nobody could reach,
-	// and ProcessManager.Stop walks pm.processes, so nothing ever joined it.
-	//
-	// Take the metrics callbacks back first, so the dying process cannot re-create
-	// deleted status labels via SetStage during shutdown. The process may be live
-	// (request plugin restart restarts a running plugin), so its delivery and
-	// stage goroutines read the callbacks while this runs: clearMetricHooks is the
-	// atomic swap they read through (metric_hooks.go).
-	if proc, ok := pm.processes[name]; ok {
-		proc.clearMetricHooks()
-		proc.Stop()
-		// An external plugin that does not exit on its closed connection is killed
-		// only once pluginExitGrace has passed, so the join waits past its grace
-		// (StopJoinBound). A join that still expires means the replacement starts
-		// before the old process finished stopping: that is said, never dropped,
-		// because nothing else records it.
-		joinBound := proc.StopJoinBound()
-		ctx, cancel := context.WithTimeout(context.Background(), joinBound)
-		joinErr := proc.Wait(ctx)
+	// Own the replacement before releasing mu. Ordered stop can now publish its
+	// fence and wake connect-back without waiting for this caller's process join.
+	newProc := pm.admitSpawnLocked(*cfg)
+	ctx := pm.ctx
+	old := pm.processes[name]
+	if old != nil {
+		// Intentional retirement MUST withdraw the exact outgoing generation
+		// before Stop wakes its failure-policy supervisor. It stays physically
+		// owned by this admitted spawn until its real join below succeeds.
+		delete(pm.processes, name)
+		pm.starting[old] = struct{}{}
+	}
+	pmLocked = false
+	pm.mu.Unlock()
+	defer pm.spawns.Done()
+	if old != nil {
+		old.clearMetricHooks()
+		old.Stop()
+		joinBound := old.StopJoinBound()
+		joinCtx, cancel := context.WithTimeout(context.Background(), joinBound)
+		joinErr := old.Wait(joinCtx)
 		cancel()
 		if joinErr != nil {
-			recordRestartOverlap(proc, joinBound, joinErr)
+			// A timed-out outgoing generation MUST remain owned for terminal
+			// shutdown's join, even after the replacement occupies its name.
+			recordRestartOverlap(old, joinBound, joinErr)
+		} else {
+			pm.mu.Lock()
+			delete(pm.starting, old)
+			pm.mu.Unlock()
 		}
 	}
-
-	// Start new process with acceptor if configured.
-	newProc := NewProcess(*cfg)
-	pm.wireMetrics(newProc)
-	if pm.acceptor != nil && !cfg.Internal {
-		newProc.SetAcceptor(pm.acceptor)
+	if pm.shutdown.Load() != nil {
+		pm.retireRejectedStart(newProc)
+		return nil, ErrDaemonStopping
 	}
-	if err := newProc.StartWithContext(pm.ctx); err != nil {
+	if err := pm.startAdmitted(newProc, ctx); err != nil {
 		return nil, err
 	}
-	// A spawn clears the re-entry guard, exactly as startConfigs does. Stop cancels
-	// pm.ctx before it waits, and startInternal (process.go) does not read that
-	// context, so a Respawn landing after a Stop's engine wait leaves a LIVE engine
-	// behind a flag that would send the next Stop down the second-entry path and
-	// skip its release.
-	pm.stopping.Store(false)
-	pm.processes[name] = newProc
 
 	// A respawned process has not run its handshake yet, so the stop record
 	// stays until that generation reaches running (Server.superviseProcess

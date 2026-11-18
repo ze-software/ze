@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,18 +27,42 @@ import (
 type selectedRefreshSocketConn struct{ net.Conn }
 
 type selectedRefreshSpawner struct {
-	ctx     context.Context
-	manager *process.ProcessManager
+	admissionMu sync.Mutex
+	sealed      bool
+	ctx         context.Context
+	manager     *process.ProcessManager
 }
 
 func (spawner *selectedRefreshSpawner) SpawnMore(configs []plugin.PluginConfig) error {
-	if spawner.manager != nil {
-		return spawner.manager.StartMore(configs)
+	spawner.admissionMu.Lock()
+	if spawner.sealed {
+		spawner.admissionMu.Unlock()
+		return process.ErrDaemonStopping
 	}
-	spawner.manager = process.NewProcessManager(configs)
-	return spawner.manager.StartWithContext(spawner.ctx)
+	first := spawner.manager == nil
+	if first {
+		spawner.manager = process.NewProcessManager(configs)
+	}
+	pm := spawner.manager
+	spawner.admissionMu.Unlock()
+	if first {
+		return pm.StartWithContext(spawner.ctx)
+	}
+	return pm.StartMore(configs)
 }
-func (spawner *selectedRefreshSpawner) GetProcessManager() any { return spawner.manager }
+
+func (spawner *selectedRefreshSpawner) GetProcessManager() any {
+	spawner.admissionMu.Lock()
+	defer spawner.admissionMu.Unlock()
+	return spawner.manager
+}
+
+func (spawner *selectedRefreshSpawner) SealProcessAdmission() func() {
+	spawner.admissionMu.Lock()
+	defer spawner.admissionMu.Unlock()
+	spawner.sealed = true
+	return func() {}
+}
 
 // The real net.Pipe write returns on its request-bound deadline, then the test
 // holds that final writer before it can report completion to the evaluator.

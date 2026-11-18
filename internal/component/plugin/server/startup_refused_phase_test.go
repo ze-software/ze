@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,11 +16,22 @@ import (
 // manager it recorded the refused plugin down in, as the plugin manager does
 // for a plugin that sent no declaration before the config was parsed.
 type refusingPhaseSpawner struct {
-	pm    *process.ProcessManager
-	cause error
+	pm     *process.ProcessManager
+	cause  error
+	sealed atomic.Bool
 }
 
-func (s *refusingPhaseSpawner) SpawnMore([]plugin.PluginConfig) error { return s.cause }
+func (s *refusingPhaseSpawner) SpawnMore([]plugin.PluginConfig) error {
+	if s.sealed.Load() {
+		return process.ErrDaemonStopping
+	}
+	return s.cause
+}
+
+func (s *refusingPhaseSpawner) SealProcessAdmission() func() {
+	s.sealed.Store(true)
+	return func() {}
+}
 
 func (s *refusingPhaseSpawner) GetProcessManager() any { return s.pm }
 

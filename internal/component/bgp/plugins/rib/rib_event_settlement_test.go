@@ -38,7 +38,7 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 	proc.StartDelivery(ctx)
 	proc.SetRunning(true)
 	manager := process.NewProcessManager(nil)
-	manager.AddProcess(proc.Name(), proc)
+	require.NoError(t, manager.AddProcess(proc.Name(), proc))
 	runtimeCtx, stopRuntime := context.WithCancel(ctx)
 	pluginConnection := pluginEnd
 	var bridge *rpc.DirectBridge

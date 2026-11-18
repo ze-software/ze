@@ -14,7 +14,7 @@ func TestDeclaredFiltersWaitsForStageOne(t *testing.T) {
 
 	t.Run("before-registration", func(t *testing.T) {
 		s := sessionReadyTestServer()
-		proc := runningProcess(s, name, name)
+		proc := runningProcess(t, s, name, name)
 		if proc.Registration() == nil {
 			t.Fatal("NewProcess must supply the initial registration this regression exercises")
 		}
@@ -32,7 +32,7 @@ func TestDeclaredFiltersWaitsForStageOne(t *testing.T) {
 
 	t.Run("completed-empty-registration", func(t *testing.T) {
 		s := sessionReadyTestServer()
-		proc := runningProcess(s, name, name)
+		proc := runningProcess(t, s, name, name)
 		proc.SetRegistration(registrationFromRPC(&rpc.DeclareRegistrationInput{}))
 		declared, known := s.declaredFilters(name)
 		if !known {
@@ -45,7 +45,7 @@ func TestDeclaredFiltersWaitsForStageOne(t *testing.T) {
 
 	t.Run("completed-filter-registration", func(t *testing.T) {
 		s := sessionReadyTestServer()
-		proc := runningProcess(s, name, name)
+		proc := runningProcess(t, s, name, name)
 		proc.SetRegistration(registrationFromRPC(&rpc.DeclareRegistrationInput{
 			Filters: []rpc.FilterDecl{{Name: "egress", Direction: rpc.FilterExport}},
 		}))

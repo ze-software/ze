@@ -319,7 +319,7 @@ func installAutoloadTeardownClaims(
 	t.Helper()
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
 	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: commands})
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)
 }
@@ -334,7 +334,7 @@ func registerAutoloadReplacement(
 	t.Helper()
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
 	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: commands})
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 }
 
@@ -458,7 +458,7 @@ func TestRollbackStartupProcessCleansRuntimeStateOnce(t *testing.T) {
 	}
 	s.recordInstalled(pluginName, []routeKey{replacementRoute})
 	replacement := process.NewProcess(plugin.PluginConfig{Name: pluginName})
-	pm.AddProcess(pluginName, replacement)
+	require.NoError(t, pm.AddProcess(pluginName, replacement))
 
 	s.cleanupProcess(oldProc)
 
@@ -509,7 +509,7 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 	proc.SetConn(ipc.NewMuxPluginConn(rpc.NewMuxConn(rpc.NewConn(engineSide, engineSide))))
 	proc.SetStage(plugin.StageRunning)
 	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)
 
@@ -584,7 +584,7 @@ func TestRollbackStartupProcessWaitsForRuntimeDrain(t *testing.T) {
 	}
 
 	require.NoError(t, s.registry.Register(replacement.Registration()))
-	pm.AddProcess(replacementName, replacement)
+	require.NoError(t, pm.AddProcess(replacementName, replacement))
 	assert.Equal(t, replacementName, s.registry.LookupCommand(commandName))
 }
 
@@ -634,7 +634,7 @@ func TestSocketReloadRefusesToStopCallingProcess(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)
 
@@ -708,7 +708,7 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	require.NoError(t, proc.InitConns())
 	proc.SetStage(plugin.StageRunning)
 	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)
 
@@ -810,7 +810,7 @@ func TestBridgeRollbackWaitsForDirectDispatch(t *testing.T) {
 	require.NoError(t, proc.Wait(waitCtx))
 
 	require.NoError(t, s.registry.Register(replacement.Registration()))
-	pm.AddProcess(replacementName, replacement)
+	require.NoError(t, pm.AddProcess(replacementName, replacement))
 	assert.Equal(t, replacementName, s.registry.LookupCommand(commandName))
 }
 
@@ -863,7 +863,7 @@ func TestBridgeReloadRefusesToStopCallingProcess(t *testing.T) {
 	require.NoError(t, proc.InitConns())
 	proc.SetStage(plugin.StageRunning)
 	proc.SetRegistration(&plugin.PluginRegistration{Name: pluginName, Commands: []string{commandName}})
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 	require.NoError(t, s.registry.Register(proc.Registration()))
 	s.markPluginLoaded(pluginName)
 
@@ -971,8 +971,8 @@ func TestReloadKeepsSharedDependencyForNewConfigOwner(t *testing.T) {
 
 	oldOwner := process.NewProcess(plugin.PluginConfig{Name: oldOwnerName})
 	dependency := process.NewProcess(plugin.PluginConfig{Name: dependencyName})
-	pm.AddProcess(oldOwnerName, oldOwner)
-	pm.AddProcess(dependencyName, dependency)
+	require.NoError(t, pm.AddProcess(oldOwnerName, oldOwner))
+	require.NoError(t, pm.AddProcess(dependencyName, dependency))
 	s.markPluginLoaded(oldOwnerName)
 	s.markPluginLoaded(dependencyName)
 
@@ -1021,7 +1021,7 @@ func TestRemovingLastConfigPluginDoesNotStopServer(t *testing.T) {
 
 	pm := process.NewProcessManager(nil)
 	proc := process.NewProcess(plugin.PluginConfig{Name: pluginName})
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 	s.procManager.Store(pm)
 	s.markPluginLoaded(pluginName)
 
@@ -1072,7 +1072,7 @@ func TestExplicitShutdownReleasesWaitBeforeRuntimeHandlerDrain(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "shutdown-runtime-handler"})
 	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 	pm := process.NewProcessManager(nil)
-	pm.AddProcess(proc.Name(), proc)
+	require.NoError(t, pm.AddProcess(proc.Name(), proc))
 	s.procManager.Store(pm)
 
 	handlerStarted := make(chan struct{})
@@ -1161,7 +1161,7 @@ func TestRuntimeHandlerDrainsBridgeWhenConnectionIsAlreadyClosed(t *testing.T) {
 	require.NoError(t, proc.StartWithContext(s.ctx))
 	require.NoError(t, proc.InitConns())
 	proc.SetStage(plugin.StageRunning)
-	pm.AddProcess(pluginName, proc)
+	require.NoError(t, pm.AddProcess(pluginName, proc))
 
 	bridge := proc.Bridge()
 	require.NotNil(t, bridge)

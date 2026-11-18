@@ -38,7 +38,7 @@ func TestPluginEventQuiescerWaitsForDeclaredSettlement(t *testing.T) {
 	proc.SetRegistration(&plugin.PluginRegistration{EventSettlement: true})
 	proc.StartDelivery(ctx)
 	proc.SetRunning(true)
-	manager.AddProcess(proc.Name(), proc)
+	require.NoError(t, manager.AddProcess(proc.Name(), proc))
 	entered, release, joined := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(joined)
@@ -111,7 +111,7 @@ func TestPluginEventQuiescerSkipsStoppedProcesses(t *testing.T) {
 	stopped := process.NewProcess(plugin.PluginConfig{Name: "ended-observer"})
 	stopped.StartDelivery(ctx)
 	stopped.Stop()
-	manager.AddProcess(stopped.Name(), stopped)
+	require.NoError(t, manager.AddProcess(stopped.Name(), stopped))
 	s := &Server{}
 	s.procManager.Store(manager)
 	registerPluginEventQuiescer(s)

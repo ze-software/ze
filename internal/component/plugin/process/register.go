@@ -13,12 +13,14 @@ import (
 // events, which the recent-events doctor check reports: a plugin process that
 // ended unasked, a stderr relay that stopped while its plugin ran, a respawn
 // whose replacement started before the process it replaces ended, and a
-// plugin stopped at boot that had not finished stopping when ze went on.
+// plugin stopped at boot that had not finished stopping when ze went on,
+// and a terminal stop that could not resolve plugin dependency order.
 var processEventCodes = []diagnostic.EventCode{
 	{Code: diagnostic.CodeDoctorPluginCrashed},
 	{Code: diagnostic.CodeDoctorPluginStderrRelayStopped},
 	{Code: diagnostic.CodeDoctorPluginRestartOverlap},
 	{Code: diagnostic.CodeDoctorPluginStopUnfinished},
+	{Code: diagnostic.CodeDoctorPluginShutdownOrder},
 }
 
 func init() {

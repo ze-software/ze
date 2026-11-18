@@ -41,7 +41,7 @@ func TestSelectedCurrentUsesExactConnection(t *testing.T) {
 	host := &Server{ctx: t.Context()}
 	first := selectedCurrentProcess(t, host)
 	manager := process.NewProcessManager(nil)
-	manager.AddProcess(first.Name(), first)
+	require.NoError(t, manager.AddProcess(first.Name(), first))
 	host.procManager.Store(manager)
 	owner, err := plugin.NewSelectedOwner(plugin.ProcessSender(first.Name()), first.Done(), first.EngineDone())
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestSelectedCurrentUsesExactConnection(t *testing.T) {
 	require.Equal(t, 1, calls)
 
 	replacement := selectedCurrentProcess(t, host)
-	manager.AddProcess(first.Name(), replacement)
+	require.NoError(t, manager.AddProcess(first.Name(), replacement))
 	replacementCalls := 0
 	replacement.Bridge().SetCurrentSelection(func(_ context.Context, input rpc.CurrentSelectionInput) (*rpc.CurrentSelectionOutput, error) {
 		replacementCalls++
@@ -76,12 +76,14 @@ func TestSelectedCurrentRechecksIncarnationAfterAnswer(t *testing.T) {
 	host := &Server{ctx: t.Context()}
 	proc := selectedCurrentProcess(t, host)
 	manager := process.NewProcessManager(nil)
-	manager.AddProcess(proc.Name(), proc)
+	require.NoError(t, manager.AddProcess(proc.Name(), proc))
 	host.procManager.Store(manager)
 	owner, err := plugin.NewSelectedOwner(plugin.ProcessSender(proc.Name()), proc.Done(), proc.EngineDone())
 	require.NoError(t, err)
 	proc.Bridge().SetCurrentSelection(func(_ context.Context, input rpc.CurrentSelectionInput) (*rpc.CurrentSelectionOutput, error) {
-		manager.AddProcess(proc.Name(), process.NewProcess(proc.Config()))
+		if err := manager.AddProcess(proc.Name(), process.NewProcess(proc.Config())); err != nil {
+			return nil, err
+		}
 		return selectedCurrentAnswer(input), nil
 	})
 	proc.Bridge().SetReady()

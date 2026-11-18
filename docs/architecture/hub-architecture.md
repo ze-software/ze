@@ -229,6 +229,16 @@ Configuration changes go through two phases:
 
 ## Startup Sequence
 
+The hub constructs the plugin server and binds its complete startup as the
+plugin manager's runner before Engine.Start. StartAll joins configuration,
+dependency tiers and any declared post-ready initialization; only then does
+the engine start registered subsystems. Ordinary handshake waits follow the
+tier's existing progress bound, and initialization honors the accepted apply
+allowance. There is no competing fixed thirty-second deadline around that
+runner. Cancellation still ends its manager lifetime.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/component/plugin/manager/startup_runner.go -- startAll -->
+
 ### Store ownership and configuration authority
 
 The daemon owns one writable tree at `<config-folder>/database/` until exit.
@@ -347,12 +357,14 @@ Every stop enters the hub the same way. `request shutdown`, `quit`, SSH `stop`
 and a plugin failure under the `fatal` policy stop nothing themselves: they
 hand the stop to the hub through the daemon shutdown function, so BGP sends
 its Cease from teardown, after the drain. Those stops, and SIGTERM, carry kind
-`stop`. When teardown completes, `run` returns 1 if the plugin server caused
-the stop because a plugin failed (`Server.StopFailure`), 75 for an intentional
-in-place restart, and 0 for an ordinary clean stop. The supervisor restarts
-exit 75; the generated systemd unit marks it successful and forces restart,
+`stop`. When teardown completes, `run` returns 1 if the plugin server retains
+a fatal plugin error or a registered resource cleanup failure (`Server.StopFailure`).
+It returns 75 for an intentional in-place restart and 0 for an ordinary clean
+stop. The supervisor restarts exit 75; the generated systemd unit marks it
+successful and forces restart,
 and gokrazy's normal supervision loop retries nonzero exits other than 125.
 A foreground process exits 75 and needs its caller to start it again.
+<!-- source: internal/component/plugin/server/server.go -- Server.Stop, Server.StopFailure -->
 `request restart`, `request reboot`, SSH `restart` and SSH `reboot`
 record kind `restart` with the cause `in-place` (daemon restart) or `reboot`
 before they stop BGP in silence for graceful restart. From the start of the drain the stop is
@@ -707,6 +719,12 @@ daemon rather than carry on without a plugin. A plugin that declares `fatal` and
 fails a startup stage after declaring stops ze, and so does a `respawn true`
 leaf against a plugin that declares it must not be restarted. Every other
 startup failure leaves the daemon running without that plugin, as before.
+That policy applies while the server lifetime remains live. If Stop enters
+before final startup publication, or parent cancellation is observed before
+that publication, startup completion reports the terminal outcome and skips
+the remaining readiness steps and last-stop settlement. Success is decided
+at the final lifetime check. Stop admission is serialized with publication;
+parent cancellation after that check does not change the historical result.
 `docs/architecture/api/process-protocol.md` carries the three values and the
 bounds a restart runs under.
 <!-- source: internal/component/plugin/server/startup.go -- (*Server).runPluginPhase, engineStartupSink.onRegistration -->

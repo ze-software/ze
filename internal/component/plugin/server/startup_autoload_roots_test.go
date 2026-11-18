@@ -41,7 +41,7 @@ func TestRemovedRootStopsOwnerOnlyWhenNoRootRemains(t *testing.T) {
 
 	s := &Server{config: &ServerConfig{}}
 	pm := process.NewProcessManager(nil)
-	pm.AddProcess(pluginName, process.NewProcess(plugin.PluginConfig{Name: pluginName}))
+	require.NoError(t, pm.AddProcess(pluginName, process.NewProcess(plugin.PluginConfig{Name: pluginName})))
 	s.procManager.Store(pm)
 
 	tests := []struct {

@@ -2852,6 +2852,18 @@ so it needs no DPDK, vfio, root, or Python helper.
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- CmdVPPStub, runVPPStub -->
 <!-- source: internal/test/cli/cmd_vpp.go -- CmdVpp -->
 
+The shutdown question, at
+`test/vpp/vpp-shutdown.ci`, starts the normal hub with the stub and waits
+for the hub's ready file after interface configuration. It requests SIGTERM,
+requires the daemon's raw zero exit and normal completion message, rejects
+declared cleanup failures, and checks the stub's final exit. A forced kill
+fails acceptance while best-effort cleanup still owns both children. Run the
+test through `./le test qemu ci test test/vpp/vpp-shutdown.ci`; this checks
+the normal daemon lifecycle in Ze's system, not physical VPP forwarding or
+deletion of configured interfaces.
+<!-- source: internal/test/fixture/misc_fixture_vpp_shutdown.go -- vppShutdownDriver, vppShutdownReady, vppShutdownStopZe, vppShutdownCleanup -->
+<!-- source: cmd/ze/hub/main.go -- writeReadyFile, runYANGConfig -->
+
 Real-daemon evidence uses `./le test deployment vpp`. It starts VPP in Docker
 and checks FIB, traffic, MPLS, and IKE/IPsec dataplane behavior.
 `./le test deployment vpp-iface` covers GRE and WireGuard interface behavior.

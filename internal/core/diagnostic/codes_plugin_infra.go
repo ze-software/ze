@@ -23,6 +23,7 @@ const (
 	CodeDoctorAuditRecordFailed             = "doctor-audit-record-failed"
 	CodeDoctorPluginRequestRefused          = "doctor-plugin-request-refused"
 	CodeDoctorPluginStopCleanupLate         = "doctor-plugin-stop-cleanup-late"
+	CodeDoctorPluginShutdownOrder           = "doctor-plugin-shutdown-order"
 	CodeDoctorPluginAnswerUndelivered       = "doctor-plugin-answer-undelivered"
 	CodeDoctorPluginDrainIncomplete         = "doctor-plugin-drain-incomplete"
 	CodeDoctorReportBusFull                 = "doctor-report-bus-full"
@@ -147,6 +148,15 @@ var pluginInfraCodes = []CodeMeta{
 		Description: "When ze last stopped, a plugin engine or the config transaction did not finish its cleanup in time, so state it installed may still be present. " +
 			"The reason is recorded before the stop and reported on the next run. Each owner's own doctor check reports the state that was left behind.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-plugin-stop-cleanup-late"},
+	},
+
+	{
+		Code:  CodeDoctorPluginShutdownOrder,
+		Title: "Shutdown dependency order could not be preserved",
+		Description: "The stop could not resolve the selected plugins' dependency order, or was given no resolver, so it stopped the remaining plugins together. " +
+			"A provider may therefore have stopped before its consumers finished cleanup. This does not mean cleanup ran late or installed state was left behind. " +
+			"The report event names the cause, and the daemon writes it to its last-stop record so local doctor can report it after the stop. Read journalctl -u ze before correcting the plugin declarations or server wiring.",
+		Examples: []string{exampleDoctorJSON, exampleShowErrors, "ze show diagnostic doctor-plugin-shutdown-order"},
 	},
 
 	// The plugin infrastructure classes.

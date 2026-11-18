@@ -312,9 +312,7 @@ var stage1Checks = []stage1Check{
 		// other plugins; a checker joins the declared modules itself and knows
 		// no other plugin, so it judges the declaration alone.
 		name: "command-nodes-served", section: sectionStage1, phase: stage1PhaseSink,
-		isolated: func(plugin string, input *rpc.DeclareRegistrationInput, site stage1Site) error {
-			return refuseUnservedCommandNodes(plugin, input, site)
-		},
+		isolated:   refuseUnservedCommandNodes,
 		refusalLog: "plugin command module refused",
 	},
 	{

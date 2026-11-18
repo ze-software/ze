@@ -45,11 +45,11 @@ func TestThirdPartyFilterInsertionsAnswerProcessesWithNoCompiledRegistration(t *
 	registerSessionReadyPlugin(t, compiled, false)
 
 	s := sessionReadyTestServer()
-	external := runningProcess(s, "third-party", "/usr/local/bin/third-party-filter")
+	external := runningProcess(t, s, "third-party", "/usr/local/bin/third-party-filter")
 	external.SetRegistration(&plugin.PluginRegistration{FilterInsertions: []rpc.FilterInsertion{thirdPartyInsertion}})
-	aliased := runningProcess(s, "aliased", compiled)
+	aliased := runningProcess(t, s, "aliased", compiled)
 	aliased.SetRegistration(&plugin.PluginRegistration{FilterInsertions: []rpc.FilterInsertion{thirdPartyInsertion}})
-	runningProcess(s, "not-declared-yet", "/usr/local/bin/other")
+	runningProcess(t, s, "not-declared-yet", "/usr/local/bin/other")
 
 	got := s.thirdPartyFilterInsertions()
 	require.Len(t, got, 1, "only the process with no compiled registration answers")

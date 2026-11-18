@@ -194,7 +194,7 @@ func TestDisseminationOwnerDeclarationTransports(t *testing.T) {
 			owner := process.NewProcess(configuration)
 			owner.SetRegistration(registrationFromRPC(&decoded))
 			manager := process.NewProcessManager(nil)
-			manager.AddProcess(name, owner)
+			require.NoError(t, manager.AddProcess(name, owner))
 			server.procManager.Store(manager)
 		}
 		server.deliveryGraph.Store(newDeliveryGraph(disseminationTestNamespace, []DeliveryPeer{

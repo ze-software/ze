@@ -49,7 +49,9 @@ func heldPlugin(t *testing.T, manager *process.ProcessManager, cfg plugin.Plugin
 	t.Cleanup(func() { _ = engineSide.Close() })
 	proc = process.NewProcess(cfg)
 	proc.SetConn(muxPluginConn(t, engineSide))
-	manager.AddProcess(cfg.Name, proc)
+	if err := manager.AddProcess(cfg.Name, proc); err != nil {
+		t.Fatal(err)
+	}
 	return proc, pluginSide
 }
 

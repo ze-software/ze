@@ -43,7 +43,7 @@ func TestPluginMetricsRegistered(t *testing.T) {
 
 	// Create a process and trigger all three metric types.
 	proc := NewProcess(plugin.PluginConfig{Name: "test-plugin"})
-	pm.AddProcess("test-plugin", proc)
+	require.NoError(t, pm.AddProcess("test-plugin", proc))
 
 	// Trigger status gauge via stage change.
 	proc.SetStage(plugin.StageRunning)
@@ -70,7 +70,7 @@ func TestPluginStatusMetric(t *testing.T) {
 	pm.SetMetricsRegistry(reg)
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-status"})
-	pm.AddProcess("test-status", proc)
+	require.NoError(t, pm.AddProcess("test-status", proc))
 
 	// Stage transitions: Init (0) -> Registration (1) -> Running (6)
 	proc.SetStage(plugin.StageRegistration)
@@ -139,7 +139,7 @@ func TestPluginEventDeliveryMetric(t *testing.T) {
 	pm.SetMetricsRegistry(reg)
 
 	proc := NewProcess(plugin.PluginConfig{Name: "deliver-test"})
-	pm.AddProcess("deliver-test", proc)
+	require.NoError(t, pm.AddProcess("deliver-test", proc))
 
 	// Start delivery goroutine so Deliver() can enqueue.
 	proc.StartDelivery(t.Context())
@@ -166,7 +166,7 @@ func TestPluginMetricsNilRegistry(t *testing.T) {
 	// No SetMetricsRegistry call -- registry stays nil.
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-plugin"})
-	pm.AddProcess("test-plugin", proc)
+	require.NoError(t, pm.AddProcess("test-plugin", proc))
 
 	// Must not panic on stage change.
 	assert.NotPanics(t, func() {

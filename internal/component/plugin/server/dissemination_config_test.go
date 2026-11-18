@@ -58,7 +58,7 @@ func TestDisseminationStage1UsesCandidateScope(t *testing.T) {
 			s.config.Plugins = []plugin.PluginConfig{configuration}
 			proc := process.NewProcess(configuration)
 			manager := process.NewProcessManager(nil)
-			manager.AddProcess(name, proc)
+			require.NoError(t, manager.AddProcess(name, proc))
 			s.procManager.Store(manager)
 			active := newDeliveryGraph(disseminationTestNamespace, peers(!complete))
 			s.deliveryGraph.Store(active)
@@ -95,7 +95,7 @@ func TestDisseminationCandidateNeedsNamespaceResolver(t *testing.T) {
 	proc := process.NewProcess(configuration)
 	proc.SetRegistration(&plugin.PluginRegistration{Dissemination: []rpc.DisseminationDecl{disseminationTestDeclaration()}})
 	manager := process.NewProcessManager(nil)
-	manager.AddProcess(name, proc)
+	require.NoError(t, manager.AddProcess(name, proc))
 	s.procManager.Store(manager)
 	require.NoError(t, s.bindConfigureConfig([]*process.Process{proc}, configureConfig{tree: map[string]any{}}))
 	defer s.clearConfigureConfig([]*process.Process{proc})

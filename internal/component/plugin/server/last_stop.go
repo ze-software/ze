@@ -4,8 +4,8 @@
 //
 // The last-stop record is why ze last stopped itself: a plugin whose failure
 // policy is fatal failed, the boot refused a plugin, the start was refused for
-// an external plugin's config schema (external_schema_report.go), or a
-// stop-time cleanup ran late. Nothing else survives the stop, so the next `ze doctor` reads this
+// an external plugin's config schema (external_schema_report.go), dependency
+// ordering failed during shutdown, or a stop-time cleanup ran late. Nothing else survives the stop, so the next `ze doctor` reads this
 // record to name the cause. It is written to the daemon's store before the
 // stop, and deleted when the next start completes cleanly, so it never names a
 // stale reason after a clean restart. It names the run that wrote it, so a
@@ -51,6 +51,9 @@ const (
 	// schema defines while ze held no config schema of a declared external
 	// plugin, so ze did not start (RecordUndeclaredSchemaStop).
 	LastStopSchemaUndeclared
+	// LastStopShutdownOrder: the stop could not resolve dependency order and
+	// therefore had to stop all remaining plugins together.
+	LastStopShutdownOrder
 	// LastStopBuildRegistrationUnheld: a module compiled into ze names a
 	// ze:validate function or a ze:reference source this ze does not hold, so
 	// ze did not start (RecordUnheldRegistrationStop).
@@ -80,6 +83,8 @@ func (r LastStopReason) Code() string {
 		return diagnostic.CodeDoctorPluginSchemaRefused
 	case LastStopSchemaUndeclared:
 		return diagnostic.CodeDoctorPluginSchemaUndeclared
+	case LastStopShutdownOrder:
+		return diagnostic.CodeDoctorPluginShutdownOrder
 	case LastStopBuildRegistrationUnheld:
 		return diagnostic.CodeDoctorBuildRegistrationUnheld
 	case LastStopUnspecified:
@@ -101,6 +106,8 @@ func (r LastStopReason) MarshalText() ([]byte, error) {
 		return []byte("schema-refused"), nil
 	case LastStopSchemaUndeclared:
 		return []byte("schema-undeclared"), nil
+	case LastStopShutdownOrder:
+		return []byte("shutdown-order-failed"), nil
 	case LastStopBuildRegistrationUnheld:
 		return []byte("build-registration-unheld"), nil
 	case LastStopUnspecified:
@@ -123,6 +130,8 @@ func (r *LastStopReason) UnmarshalText(text []byte) error {
 		*r = LastStopSchemaRefused
 	case "schema-undeclared":
 		*r = LastStopSchemaUndeclared
+	case "shutdown-order-failed":
+		*r = LastStopShutdownOrder
 	case "build-registration-unheld":
 		*r = LastStopBuildRegistrationUnheld
 	default:
@@ -276,6 +285,15 @@ func recordLastStopLogged(entry LastStopEntry) bool {
 	if entry.Reason == LastStopCleanupLate {
 		logger().Warn("could not record why ze is stopping, so the next ze doctor cannot name it; run ze init if this daemon has no store",
 			"plugin", entry.Plugin, "detail", entry.Detail, "error", err, "code", diagnostic.CodeDoctorPluginStopCleanupLate)
+		return false
+	}
+	if entry.Reason == LastStopShutdownOrder {
+		logger().Warn("could not record the shutdown ordering failure, so local doctor cannot name it after the stop; inspect the store with ze data list",
+			"plugin", entry.Plugin, "detail", entry.Detail, "error", err,
+			"fix", "ze data list", "code", diagnostic.CodeDoctorPluginShutdownOrder)
+		report.RaiseErrorFix(serverEventSource, diagnostic.CodeDoctorPluginShutdownOrder, "last-stop-record",
+			report.FitMessage("shutdown ordering failure could not be recorded, so local doctor cannot report it after the stop: "+err.Error()),
+			"ze data list")
 		return false
 	}
 	if entry.Reason == LastStopSchemaRefused {

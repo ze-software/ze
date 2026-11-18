@@ -164,7 +164,9 @@ func TestDoctorSnapshotCarriesRecords(t *testing.T) {
 	}
 	pm := process.NewProcessManager([]plugin.PluginConfig{{Name: "recorded", Internal: true}})
 	proc := process.NewProcess(plugin.PluginConfig{Name: "recorded", Internal: true})
-	pm.AddProcess("recorded", proc)
+	if err := pm.AddProcess("recorded", proc); err != nil {
+		t.Fatal(err)
+	}
 	s.procManager.Store(pm)
 	publishDoctorSnapshot(s)
 

@@ -90,7 +90,7 @@ func TestStopKeepsTheLineAPluginWroteJustBeforeIt(t *testing.T) {
 
 	proc, pid := startExitGraceChild(t, exitChildFlushes)
 	proc.Stop()
-	waitStopped(t, proc, pluginExitGrace+processStopBudget)
+	waitStopped(t, proc)
 
 	if !strings.Contains(relayed.String(), exitChildLastLine) {
 		t.Fatalf("the plugin's last stderr line never reached the daemon log; relayed:\n%s", relayed.String())
@@ -120,7 +120,7 @@ func TestStopKeepsTheLineAPluginWroteJustBeforeIt(t *testing.T) {
 func TestStopKillsAPluginThatIgnoresTheClosedConnection(t *testing.T) {
 	proc, pid := startExitGraceChild(t, exitChildIgnores)
 	proc.Stop()
-	waitStopped(t, proc, pluginExitGrace+processStopBudget)
+	waitStopped(t, proc)
 
 	if processAlive(pid, processStopBudget) {
 		t.Fatalf("the plugin at pid %d ignored its closed connection and is still running after the exit grace", pid)
@@ -150,7 +150,7 @@ func TestStopReachesWhatAPluginThatExitedOnItsOwnLeftBehind(t *testing.T) {
 	proc, _ := startExitGraceChild(t, exitChildLeavesDescendant)
 	descendant := waitForPluginPid(t, descendantPath)
 	proc.Stop()
-	waitStopped(t, proc, pluginExitGrace+processStopBudget)
+	waitStopped(t, proc)
 
 	// The branch under test runs only for a plugin that exited on its own; a
 	// plugin killed by the grace takes its group with it on another path.
@@ -316,8 +316,9 @@ func startExitGraceChild(t *testing.T, mode string) (*Process, int) {
 
 // waitStopped joins the process goroutines after Stop and fails the test when
 // they do not finish within budget.
-func waitStopped(t *testing.T, proc *Process, budget time.Duration) {
+func waitStopped(t *testing.T, proc *Process) {
 	t.Helper()
+	const budget = pluginExitGrace + processStopBudget
 	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 	if err := proc.Wait(ctx); err != nil {

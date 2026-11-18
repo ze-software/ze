@@ -1,47 +1,68 @@
-# Plugin Manager Wiring: Two-Phase Startup
+# Plugin Startup and Subsystem Readiness
 
-This document describes the decomposition of plugin startup into two phases:
-process spawning (PluginManager) and protocol handshake (Server).
+The plugin manager owns process lifetime; the plugin server owns discovery and
+the protocol handshake. The hub connects them before starting the engine, so
+the engine joins complete plugin initialization before starting its subsystems.
 
 ## Problem
 
-`pluginserver.Server` is a god object owning both process lifecycle AND protocol
-wiring. The Engine expects PluginManager to own lifecycle, but Server is created
-inside the reactor (a subsystem) — after Engine.Start calls PluginManager.StartAll.
+Preparing process management alone does not make plugin resources usable. A
+subsystem may need interfaces or another resource that a plugin creates. Its
+Start must follow that plugin's configuration and declared initialization.
 
 ## Solution: Two-Phase Startup
 
-Split plugin startup at the natural seam: process spawning vs protocol handshake.
+The server is constructed in the hub before Engine.Start. The hub binds
+Manager.SetStartupRunner to start that server and join WaitForStartupComplete.
+StartAll first prepares the shared manager context, then invokes this runner
+without holding the manager lock, allowing the server to call SpawnMore.
 
 ```mermaid
 sequenceDiagram
     participant ENG as Engine
     participant PM as PluginManager
     participant SUB as BGPSubsystem
-    participant R as Reactor
     participant S as Server
 
     ENG->>PM: StartAll(ctx, bus, config)
-    Note over PM: Phase 1: Spawn processes<br/>Create ProcessManager + TLS<br/>Fork/goroutine all plugins
-    PM-->>ENG: processes running
-
-    ENG->>SUB: Start(ctx, bus, config)
-    SUB->>R: StartWithContext(ctx)
-    R->>S: NewServer + StartWithContext
-    S->>PM: GetProcesses()
-    PM-->>S: spawned processes
+    Note over PM: Prepare process lifetime
+    PM->>S: Bound startup runner
+    S->>PM: SpawnMore(selected plugins)
+    PM-->>S: Shared process owner
     Note over S: Phase 2: Handshake<br/>5-stage protocol per tier<br/>Auto-load → PM.SpawnMore()<br/>Wire subs, commands, bridge
-    S-->>R: plugins ready
+    S-->>PM: Handshakes and initialization complete
+    PM-->>ENG: plugins initialized
+    ENG->>SUB: Start(ctx, bus, config)
 ```
 
-### Phase 1: Process Spawning (PluginManager owns)
+### Process Lifetime (PluginManager owns)
 
-PluginManager.StartAll does real work:
-- Reads explicit plugin configs from the reactor config
-- Creates ProcessManager for all explicit plugins
-- Sets up TLS acceptor for external plugin connect-back
-- Forks external processes / starts internal goroutines
-- Returns with processes running but not yet handshaked
+PluginManager.StartAll prepares the context and shared references, then joins
+its bound startup runner. SpawnMore creates the single ProcessManager on its
+first call and reuses it thereafter, supplies the TLS acceptor, and starts the
+selected processes. The hub MUST bind its runner before Engine.Start.
+
+Outside terminal server teardown, StopAll cancels an in-flight runner and joins
+its actual return. A failed start
+stops its process resources before permitting a retry. A runner receives the
+manager's context and MUST honor cancellation; it must never wait for StopAll
+from inside its own startup call.
+
+For whole-daemon stop, the internal `ProcessSpawner` interface requires
+`SealProcessAdmission() func()`. The spawner MUST be bound before server startup.
+The server seals admission, then reads the stable owner through the existing
+`GetProcessManager` method, including when a first phase is still preparing to
+publish its owner. Both methods use the short admission lock, so connect-back
+cannot delay the seal or owner capture. The server selects the reverse
+selected startup graph; the process manager still owns process cleanup and its
+single deadline. The outer manager cancels its parent only after that cleanup.
+A failed startup cannot cancel providers behind the terminal owner's back.
+<!-- source: internal/component/plugin/types.go -- ProcessSpawner -->
+<!-- source: internal/component/plugin/manager/shutdown.go -- SealProcessAdmission, prepareProcessManager -->
+<!-- source: internal/component/plugin/manager/manager.go -- GetProcessManager -->
+<!-- source: internal/component/plugin/server/shutdown.go -- sealProcessAdmission -->
+<!-- source: internal/component/plugin/manager/startup_runner.go -- SetStartupRunner, startAll -->
+<!-- source: internal/component/plugin/manager/manager.go -- SpawnMore, StopAll -->
 
 PluginManager does NOT:
 - Run the 5-stage protocol (needs Server)
@@ -53,16 +74,23 @@ PluginManager does NOT:
 Server receives spawned processes from PluginManager and runs the handshake:
 - Computes dependency tiers
 - Runs 5-stage protocol per tier (registration → config → capabilities → registry → ready)
-- After explicit plugins complete: discovers auto-load plugins
+- Resolves configured and explicit plugin selections, then discovers later auto-load sets
 - Calls PluginManager.SpawnMore() for auto-loaded plugins
 - Runs 5-stage for auto-loaded plugins
 - Starts async RPC handlers after all tiers
 - Signals reactor ready
 
+For a plugin declaring started-handler, Stage 5 also joins the ordinary
+runtime-ready callback after ready is acknowledged. The callback cannot run
+until OnStarted succeeds. Existing dependency tiers therefore order initialized
+resources: an interface plugin ordered after a data-plane owner configures its
+interfaces only after that owner's initialization receipt.
+<!-- source: internal/component/plugin/server/startup_driver.go -- runStartupHandshake -->
+
 Server does NOT:
 - Create ProcessManager (PluginManager owns it)
 - Fork processes (PluginManager does it)
-- Own process lifecycle (stop/wait — PluginManager does it)
+- Join processes itself (the process manager owns cleanup and the deadline)
 
 ## Component Ownership
 
@@ -96,16 +124,18 @@ PluginManager gains process-management methods:
 
 | Method | Purpose |
 |--------|---------|
-| `StartAll(ctx, bus, config)` | Phase 1: spawn explicit plugins |
+| `SetStartupRunner(fn)` | Bind complete protocol startup before StartAll |
+| `StartAll(ctx, bus, config)` | Prepare process management and join the bound runner |
 | `SpawnMore(configs) error` | Spawn additional plugins (auto-load) |
-| `GetProcessManager() *ProcessManager` | Server reads spawned processes |
-| `StopAll(ctx)` | Kill all processes |
+| `GetProcessManager()` | Server reads the shared process owner |
+| `StopAll(ctx)` | Cancel startup, stop process resources and join the runner |
 
 Server gains a handshake entry point:
 
 | Method | Purpose |
 |--------|---------|
-| `RunHandshake(pm) error` | Phase 2: 5-stage protocol with PM's processes |
+| `StartWithContext(ctx)` | Begin discovery and the tiered protocol |
+| `WaitForStartupComplete(ctx)` | Join the actual handshake and initialization outcome |
 
 ## Auto-Load Flow
 
@@ -124,7 +154,7 @@ sequenceDiagram
     S->>S: Discover unclaimed → auto-load list
 
     S->>PM: SpawnMore(autoLoadConfigs)
-    PM->>PM: Create new ProcessManager
+    PM->>PM: Reuse shared ProcessManager
     PM-->>S: new processes
 
     Note over S: Auto-loaded plugins run Stage 1-5
@@ -134,17 +164,17 @@ sequenceDiagram
 
 | Component | Before | After |
 |-----------|--------|-------|
-| ProcessManager creation | Server.runPluginPhase | PluginManager.StartAll |
-| TLS acceptor setup | Server.runPluginPhase | PluginManager.StartAll |
-| Process fork/goroutine | Server.runPluginPhase | PluginManager.StartAll |
-| Tier computation | Server.runPluginPhase | Server.RunHandshake (unchanged) |
-| 5-stage protocol | Server.handleProcessStartupRPC | Server.RunHandshake (unchanged) |
-| Auto-load discovery | Server.runPluginStartup | Server.RunHandshake (unchanged) |
+| ProcessManager creation | Server.runPluginPhase | PluginManager.SpawnMore, first call |
+| TLS acceptor setup | Server.runPluginPhase | PluginManager.SpawnMore |
+| Process fork/goroutine | Server.runPluginPhase | PluginManager.SpawnMore |
+| Tier computation | Server.runPluginPhase | Server.runPluginPhase |
+| 5-stage protocol | Server.handleProcessStartupRPC | shared runStartupHandshake |
+| Auto-load discovery | Server.runPluginStartup | Server.runPluginStartup |
 | Auto-load spawning | Server.runPluginPhase | PluginManager.SpawnMore |
 | Subscription wiring | Server | Server (unchanged) |
 | Command registration | Server | Server (unchanged) |
 | DirectBridge wiring | Server | Server (unchanged) |
-| Process stop/cleanup | Server.cleanup | PluginManager.StopAll |
+| Process stop/cleanup | Server.cleanup | ProcessManager, with graph order selected by Server.cleanup |
 
 ## Stage 1 Registration: Config Transaction Fields
 

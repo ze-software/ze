@@ -190,9 +190,13 @@ func TestProxyEnricherFailureOfEndedProcessNotRecorded(t *testing.T) {
 func TestConfigCommittedWithNoConnectionRecorded(t *testing.T) {
 	pm := process.NewProcessManager(nil)
 	connless := process.NewProcess(plugin.PluginConfig{Name: "connless"})
-	pm.AddProcess("connless", connless)
+	if err := pm.AddProcess("connless", connless); err != nil {
+		t.Fatal(err)
+	}
 	replaced := process.NewProcess(plugin.PluginConfig{Name: "replaced"})
-	pm.AddProcess("replaced", process.NewProcess(plugin.PluginConfig{Name: "replaced"}))
+	if err := pm.AddProcess("replaced", process.NewProcess(plugin.PluginConfig{Name: "replaced"})); err != nil {
+		t.Fatal(err)
+	}
 	s := &Server{}
 	s.procManager.Store(pm)
 	b := &configTxBridge{server: s, participants: map[string]reloadParticipant{

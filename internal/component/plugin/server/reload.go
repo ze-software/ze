@@ -61,6 +61,7 @@ func reloadCallerFromContext(ctx context.Context) *process.Process {
 type txLock struct {
 	mu         sync.Mutex
 	locked     bool
+	closed     bool // Terminal admission fence, captured with the in-flight owner.
 	cancel     context.CancelCauseFunc
 	done       chan struct{}
 	acceptance *reloadAcceptance
@@ -80,6 +81,9 @@ type txLock struct {
 func (l *txLock) tryAcquire() bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.closed {
+		return false
+	}
 	if l.locked {
 		return false
 	}
@@ -92,11 +96,17 @@ func (l *txLock) tryAcquire() bool {
 // New operator reloads still use tryAcquire and report contention immediately.
 func (l *txLock) acquire(ctx context.Context) error {
 	for {
+		if errors.Is(l.admissionError(), transaction.ErrShutdown) {
+			return transaction.ErrShutdown
+		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if l.tryAcquire() {
 			return nil
+		}
+		if errors.Is(l.admissionError(), transaction.ErrShutdown) {
+			return transaction.ErrShutdown
 		}
 		_, done := l.inFlight()
 		if done == nil {
@@ -121,9 +131,15 @@ func (l *txLock) setCancel(cancel context.CancelCauseFunc, acceptance *reloadAcc
 		acceptance.mu.Unlock()
 	}
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	l.cancel = cancel
 	l.acceptance = acceptance
+	closed := l.closed
+	l.mu.Unlock()
+	if closed {
+		// Stop may have captured the acquired lock before this handle existed.
+		// Cancel outside the lock: cancellation can release the transaction.
+		cancel(transaction.ErrShutdown)
+	}
 }
 
 // inFlight returns the running transaction's cancel function and its done
@@ -309,7 +325,7 @@ const txShutdownGrace = 3 * time.Second
 // canceledByShutdown). Cancellation alone would not: an apply interrupted for
 // any other reason must still roll back.
 func (s *Server) stopTransaction(grace time.Duration) {
-	cancel, done := s.txLock.inFlight()
+	cancel, done := s.txLock.closeAdmission()
 	if done == nil {
 		return
 	}
@@ -330,7 +346,7 @@ func (s *Server) stopTransaction(grace time.Duration) {
 func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (result error) {
 	// Prevent concurrent reloads via transaction lock.
 	if !s.txLock.tryAcquire() {
-		return ErrReloadInProgress
+		return s.txLock.admissionError()
 	}
 	// A direct server reload accepts at return. The hub supplies an outer
 	// scope that keeps this transaction pending through its later steps.
@@ -349,6 +365,9 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 		s.txLock.release()
 		result = errors.Join(result, acceptReload(result == nil))
 	}()
+	if err := context.Cause(ctx); err != nil {
+		return err
+	}
 
 	if s.reactor == nil {
 		return errNoReactorConfigured

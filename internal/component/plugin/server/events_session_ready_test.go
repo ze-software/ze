@@ -29,10 +29,11 @@ func registerSessionReadyPlugin(t *testing.T, name string, declares bool) {
 
 // runningProcess puts one process under the name the operator gave it, with the
 // run/use spelling the config carried.
-func runningProcess(s *Server, name, run string) *process.Process {
+func runningProcess(t *testing.T, s *Server, name, run string) *process.Process {
+	t.Helper()
 	pm := s.procManager.Load()
 	proc := process.NewProcess(plugin.PluginConfig{Name: name, Internal: true, Run: run})
-	pm.AddProcess(name, proc)
+	require.NoError(t, pm.AddProcess(name, proc))
 	return proc
 }
 
@@ -68,9 +69,9 @@ func TestDeclaresSessionReadyResolvesTheProcessAlias(t *testing.T) {
 	registerSessionReadyPlugin(t, silent, false)
 
 	s := sessionReadyTestServer()
-	runningProcess(s, "aliased-declarer", declaring)
-	runningProcess(s, "aliased-silent", silent)
-	runningProcess(s, declaring, declaring)
+	runningProcess(t, s, "aliased-declarer", declaring)
+	runningProcess(t, s, "aliased-silent", silent)
+	runningProcess(t, s, declaring, declaring)
 
 	assert.True(t, s.declaresSessionReady("aliased-declarer"),
 		"the alias must be answered from the registration its use spelling names")
@@ -92,7 +93,7 @@ func TestDeclaresSessionReadyResolvesTheProcessAlias(t *testing.T) {
 func TestDeclaresSessionReadyReadsTheStageOneDeclaration(t *testing.T) {
 	s := sessionReadyTestServer()
 
-	external := runningProcess(s, "external-reporter", "le test fixture plugin/initial-sync-barrier-raw")
+	external := runningProcess(t, s, "external-reporter", "le test fixture plugin/initial-sync-barrier-raw")
 	assert.False(t, s.declaresSessionReady("external-reporter"),
 		"an external process that declared nothing is not waited for")
 
@@ -122,8 +123,8 @@ func TestDeclaresSessionReadyResolvesEveryInternalSpelling(t *testing.T) {
 	registerSessionReadyPlugin(t, declaring, true)
 
 	s := sessionReadyTestServer()
-	runningProcess(s, "dotted", "ze."+declaring)
-	runningProcess(s, "verbed", "ze plugin "+declaring)
+	runningProcess(t, s, "dotted", "ze."+declaring)
+	runningProcess(t, s, "verbed", "ze plugin "+declaring)
 
 	assert.True(t, s.declaresSessionReady("dotted"),
 		"the ze. prefix names an in-tree implementation and must resolve to its registration")
@@ -156,8 +157,8 @@ func TestFencesLiveForwardsResolvesTheProcessAlias(t *testing.T) {
 	}
 
 	s := sessionReadyTestServer()
-	runningProcess(s, "aliased-fence", fencing)
-	runningProcess(s, "aliased-silent", silent)
+	runningProcess(t, s, "aliased-fence", fencing)
+	runningProcess(t, s, "aliased-silent", silent)
 	registry.SetRuntimeRegistryNames(s.processRegistryNames)
 	t.Cleanup(func() { registry.SetRuntimeRegistryNames(nil) })
 

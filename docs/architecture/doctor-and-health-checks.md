@@ -1195,22 +1195,31 @@ expires, the replacement starts anyway, and `recordRestartOverlap` logs it at
 WARN and raises `doctor-plugin-restart-overlap` (`plugin` source), with the
 plugin as its subject.
 
-The message says what was left, from the one fact the process holds
-(`Running`, which the engine clears when it returns and the reaper clears once
-the forked process is reaped). An engine that had not returned, or a forked
-process that had not exited, may hold the same resources as the replacement.
-Otherwise only the delivery loop was left, or for a forked plugin the
-delivery loop or the stderr relay, which reads until every holder of the
-plugin's stderr closes it; nothing tells those two apart, and the message
-claims no shared resources for them. ze takes no further step to end what is
-left, and a second restart is no fix, because it replaces the new process. So
-the fix is the ze command that shows what is left:
-`ze show system goroutines full` for a plugin that runs in the daemon, whose
-stacks show the unfinished engine or delivery loop, and
-`ze show log recent component plugin.relay` for a forked plugin, which shows
-what its processes still write to the relayed stderr. Neither names a pid:
-the group id of a forked plugin is its reaped leader's pid, which the kernel
-may already have given to another program.
+The message says what was left, from the process's `Running` value. The engine
+clears `Running` when it returns, and the reaper clears it once the forked
+process is reaped. An unfinished engine or a forked process that had not exited
+can hold the same resources as the replacement.
+<!-- source: internal/component/plugin/process/doctor_records.go -- recordRestartOverlap, restartOverlapText -->
+
+Otherwise only the delivery loop was left, or for a forked plugin the delivery
+loop or stderr relay. The relay reads until every holder of the plugin's stderr
+closes it. Nothing distinguishes those two forked-plugin cases, so the message
+claims no shared resources for them.
+<!-- source: internal/component/plugin/process/doctor_records.go -- restartOverlapText -->
+<!-- source: internal/component/plugin/process/process.go -- Wait -->
+
+During this restart, ze takes no further step to end what is left. A second
+restart is no fix, because it replaces the new process. Terminal shutdown
+retains the outgoing physical owner for its bounded join before providers stop.
+<!-- source: internal/component/plugin/process/manager.go -- Respawn -->
+<!-- source: internal/component/plugin/process/manager_shutdown.go -- waitShutdownProcess -->
+
+The fix is the ze command that shows what is left. For a plugin in the daemon,
+`ze show system goroutines full` shows the unfinished engine or delivery-loop
+stacks. For a forked plugin, `ze show log recent component plugin.relay` shows
+what its processes still write to relayed stderr. Neither command names a PID.
+A forked plugin's group ID is its reaped leader's PID. The kernel can already
+have assigned that PID to another program.
 <!-- source: internal/component/plugin/process/manager.go -- Respawn, respawnJoinMargin -->
 <!-- source: internal/component/plugin/process/process.go -- StopJoinBound, Wait -->
 <!-- source: internal/component/plugin/process/doctor_records.go -- recordRestartOverlap, restartOverlapText -->
@@ -1306,19 +1315,44 @@ being fine.
 
 Why ze last stopped itself survives the stop in the `meta/plugin/last-stop`
 key (`docs/architecture/zefs-format.md`). `stopDaemonForPlugin` writes a
-`fatal-policy` entry before it stops ze, and `RecordStopCleanupLate` writes
-`stop-cleanup-late` for an owner whose stop-time cleanup ran late. A startup
-that ends with an error writes `boot-refused`, unless the server already
-recorded a `fatal-policy` stop during it: that stop is the cause and the
-startup error its effect, so one fault gives one entry. Each entry carries the
-reason, the plugin, a detail and the time. The record names the run that wrote
-it (`Run`, the start time of the ze process) and keeps that run's first 16
-entries, counting the rest. A later run's first entry replaces the previous
-run's record rather than appending to it. A start that completes cleanly
-deletes the record, unless that same run recorded a stop. The daemon reads it with `ReadLastStop`; the local checks, whose
-process registers no statestore, read it from the store they are handed with
-`ReadLastStopFrom`.
+`fatal-policy` entry before it stops ze. `RecordStopCleanupLate` writes
+`stop-cleanup-late` for an owner whose stop-time cleanup ran late.
+<!-- source: internal/component/plugin/server/last_stop.go -- RecordLastStop, RecordStopCleanupLate -->
+
+At final startup publication, a startup error writes `boot-refused` only if the
+server lifetime is still live and the server has recorded no stop. A stop
+already recorded during startup remains the cause, so one fault gives one
+entry. If Stop was admitted or parent cancellation was observed before final
+publication, completion skips last-stop settlement. Completion preserves an
+earlier live refusal, or records the terminal error if no earlier refusal exists.
+Stop or parent cancellation after final publication does not change the
+historical startup result.
+<!-- source: internal/component/plugin/server/last_stop.go -- settleLastStop -->
+<!-- source: internal/component/plugin/server/startup.go -- finishStartupCompletion, recordStartupFailure, startupCompletionStoppedLocked -->
+
+Each entry carries the reason, the plugin, a detail and the time. The record
+names the run that wrote it (`Run`, the start time of the ze process). It keeps
+that run's first 16 entries and counts the rest. A later run's first entry
+replaces the previous run's record. A start that completes cleanly deletes the
+record, unless that same run recorded a stop.
 <!-- source: internal/component/plugin/server/last_stop.go -- LastStop, lastStopRun, recordLastStopIn, RecordLastStop, RecordStopCleanupLate, ReadLastStop, ReadLastStopFrom, settleLastStop -->
+
+The daemon reads the record with `ReadLastStop`. The local checks' process
+registers no statestore, so those checks use `ReadLastStopFrom` with the store
+they are handed.
+<!-- source: internal/component/plugin/server/last_stop.go -- ReadLastStop, ReadLastStopFrom -->
+
+A terminal stop that cannot resolve plugin dependency order retains its first
+failure on the process manager and raises `doctor-plugin-shutdown-order` as an
+error event. This covers a missing resolver and a selected dependency cycle.
+The server persists that same failure as `shutdown-order-failed` before its
+store closes. Local doctor reports the reason after the stop, with the command
+that reads its cause. A valid order, including an empty resolved graph, creates
+no such record. This finding does not claim cleanup ran late or left installed
+state behind.
+<!-- source: internal/component/plugin/process/manager_shutdown.go -- RecordShutdownOrderFailure, ShutdownOrderFailure -->
+<!-- source: internal/component/plugin/server/server.go -- cleanup -->
+<!-- source: internal/component/plugin/doctor/check_lifecycle_local.go -- shutdownOrderRow -->
 
 ### Plugin lifecycle checks
 
@@ -1378,6 +1412,7 @@ remains owned by that original resource until its recovery is confirmed.
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-schema-refused` (error) | each `schema-refused` entry of the last-stop record: the start ended because ze refused the YANG module an external plugin declared, with the time and the refusal's own text | the command the refusal named (the conformance check of the plugin's run line); ze's log before that time when it named none |
 | `plugin-fatal-stop` | pre-config | `doctor-build-registration-unheld` (error) | each `build-registration-unheld` entry of the last-stop record: the start ended because a module compiled into ze names a registration this ze does not hold, with the time and the refusal's own text | the fix the refusal named (rebuild ze with the registering package); ze's log before that time when it named none |
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-schema-undeclared` (error) | each `schema-undeclared` entry of the last-stop record: the start ended on a configuration name no schema defines while ze held no config schema of that declared external plugin | the command the refusal named (the conformance check of the plugin's run line) |
+| `plugin-fatal-stop` | pre-config | `doctor-plugin-shutdown-order` (warning) | each `shutdown-order-failed` entry: dependency ordering failed, so providers can have stopped before consumers completed | `journalctl -u ze` |
 | `plugin-fatal-stop` | pre-config | `doctor-plugin-stop-cleanup-late` (warning) | each `stop-cleanup-late` entry of the last-stop record: the stop went on before that plugin finished its cleanup, so state it installs may remain | `journalctl -u ze --until <time> \| grep <plugin>` |
 | `plugin-autoload` | post-config | `doctor-plugin-autoload-unresolved` (error) | the config's auto-load set that `registry.ResolveDependencies` refuses, with the boot refusal's text | the fix the refusal names |
 | `plugin-setup` | pre-config | `doctor-plugin-setup-failed` (error for hard, warning for soft) | each `registry.SetupResults` failure, with the recorded reason | the remedy after the reason's last `; `, else `ze show plugin list` |

@@ -36,7 +36,9 @@ func TestRuntimeCleanupClearsReportRaisedAfterRemoval(t *testing.T) {
 			pm := process.NewProcessManager(nil)
 			s.procManager.Store(pm)
 			proc := reportingProcess("report-cleanup-" + name)
-			pm.AddProcess(proc.Name(), proc)
+			if err := pm.AddProcess(proc.Name(), proc); err != nil {
+				t.Fatal(err)
+			}
 			p := reportRPCClient(t, s, proc, direct)
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
@@ -94,7 +96,9 @@ func TestRuntimeCleanupClearsReportRaisedAfterRemoval(t *testing.T) {
 			// Replacement startup is allowed only after the old runtime cleanup.
 			// Repeating that cleanup must not clear the replacement's report.
 			replacement := reportingProcess(proc.Name())
-			pm.AddProcess(replacement.Name(), replacement)
+			if err := pm.AddProcess(replacement.Name(), replacement); err != nil {
+				t.Fatal(err)
+			}
 			fresh := reportRPCClient(t, s, replacement, direct)
 			if err := fresh.RaiseIssue(ctx, sdk.Issue{
 				Severity: rpc.ReportWarning, Code: diagnostic.CodeDoctorInternalDefect,

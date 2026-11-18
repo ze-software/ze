@@ -28,6 +28,7 @@ type metricsTestSpawner struct {
 func (s *metricsTestSpawner) SetMetricsRegistry(reg coremetrics.Registry) { s.reg = reg }
 func (s *metricsTestSpawner) SpawnMore([]plugin.PluginConfig) error       { return nil }
 func (s *metricsTestSpawner) GetProcessManager() any                      { return nil }
+func (s *metricsTestSpawner) SealProcessAdmission() func()                { return func() {} }
 
 func TestLateMetricsRegistryReachesProcessSpawner(t *testing.T) {
 	server, err := NewServer(&ServerConfig{}, nil)

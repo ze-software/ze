@@ -464,6 +464,12 @@ type ProcessSpawner interface {
 	// SpawnMore spawns additional plugin processes (for auto-load).
 	SpawnMore(configs []PluginConfig) error
 
+	// SealProcessAdmission permanently closes process creation without waiting
+	// for SpawnMore. The caller MUST read GetProcessManager after sealing, join
+	// that owner, then invoke the returned function to cancel its parent.
+	// GetProcessManager MUST remain available while SpawnMore is blocked.
+	SealProcessAdmission() func()
+
 	// GetProcessManager returns the most recent ProcessManager.
 	// Returns nil if no processes have been spawned.
 	GetProcessManager() any

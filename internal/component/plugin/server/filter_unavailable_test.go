@@ -54,7 +54,9 @@ func TestCallFilterUpdateUnavailable(t *testing.T) {
 
 	var oldCalls, newCalls atomic.Int32
 	old, oldBridge := slotProcess(t, name, rpc.FilterReject, &oldCalls)
-	pm.AddProcess(name, old)
+	if err := pm.AddProcess(name, old); err != nil {
+		t.Fatal(err)
+	}
 
 	input := rpc.FilterUpdateInput{Filter: "f"}
 	route := rpc.InputFilterRoute(&input)
@@ -76,7 +78,9 @@ func TestCallFilterUpdateUnavailable(t *testing.T) {
 	}
 
 	respawned, _ := slotProcess(t, name, rpc.FilterAccept, &newCalls)
-	pm.AddProcess(name, respawned)
+	if err := pm.AddProcess(name, respawned); err != nil {
+		t.Fatal(err)
+	}
 	out, err = s.CallFilterUpdate(context.Background(), name, &route)
 	if err != nil || out.Action != rpc.FilterAccept {
 		t.Fatalf("respawned slot answered %+v, %v; want its accept", out, err)

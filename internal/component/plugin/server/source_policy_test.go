@@ -195,8 +195,14 @@ func TestSourcePolicyOwnerFailures(t *testing.T) {
 					}
 					if fault == "process" {
 						pm := s.procManager.Load()
-						pm.AddProcess(owner.Name(), process.NewProcess(plugin.PluginConfig{Name: owner.Name()}))
-						defer pm.AddProcess(owner.Name(), owner.proc)
+						if err := pm.AddProcess(owner.Name(), process.NewProcess(plugin.PluginConfig{Name: owner.Name()})); err != nil {
+							t.Fatal(err)
+						}
+						defer func() {
+							if err := pm.AddProcess(owner.Name(), owner.proc); err != nil {
+								t.Fatal(err)
+							}
+						}()
 					} else {
 						owner.proc.SetConn(nil)
 						defer owner.proc.SetConn(owner.conn)
@@ -234,10 +240,14 @@ func TestSourcePolicyOwnerPreflight(t *testing.T) {
 	pm := s.procManager.Load()
 	observer := process.NewProcess(plugin.PluginConfig{Name: "observer"})
 	observer.SetRegistration(&plugin.PluginRegistration{})
-	pm.AddProcess("observer", observer)
+	if err := pm.AddProcess("observer", observer); err != nil {
+		t.Fatal(err)
+	}
 	unsupported := process.NewProcess(plugin.PluginConfig{Name: "unsupported"})
 	unsupported.SetRegistration(&plugin.PluginRegistration{SourcePolicyOwner: true})
-	pm.AddProcess("unsupported", unsupported)
+	if err := pm.AddProcess("unsupported", unsupported); err != nil {
+		t.Fatal(err)
+	}
 	owners, err := s.CaptureSourcePolicyOwners([]string{"observer", owner.Name()})
 	if err != nil || len(owners) != 1 {
 		t.Fatalf("observer affected selection: %v, %d owners", err, len(owners))

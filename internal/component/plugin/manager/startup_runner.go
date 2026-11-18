@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -46,7 +47,14 @@ func (m *Manager) startAll(ctx context.Context, eventBus ze.EventBus, config ze.
 		m.mu.Unlock()
 		return errAlreadyStarted
 	}
+	m.admissionMu.Lock()
+	if m.admissionClosed {
+		m.admissionMu.Unlock()
+		m.mu.Unlock()
+		return process.ErrDaemonStopping
+	}
 	m.ctx, m.cancel = context.WithCancel(ctx)
+	m.admissionMu.Unlock()
 	m.eventBus, m.config = eventBus, config
 	m.started = true
 	for _, state := range m.plugins {
@@ -85,14 +93,30 @@ func (m *Manager) startAll(ctx context.Context, eventBus ze.EventBus, config ze.
 }
 
 func (m *Manager) stopAllLocked() {
+	m.admissionMu.Lock()
+	if m.admissionClosed {
+		// The server has selected an ordered terminal join. Canceling this parent
+		// here would close providers before dependents finish their cleanup.
+		m.admissionMu.Unlock()
+		return
+	}
 	// Cancellation must precede the process drain: a startup runner may itself
 	// be waiting for the process whose shutdown the drain joins.
 	if m.cancel != nil {
 		m.cancel()
 	}
+	m.admissionMu.Unlock()
 	if m.procManager != nil {
 		m.procManager.Stop()
+		m.admissionMu.Lock()
+		if m.admissionClosed {
+			// A terminal seal may have captured this owner while reusable Stop
+			// was joining it. Keep the captured pointer available to its caller.
+			m.admissionMu.Unlock()
+			return
+		}
 		m.procManager = nil
+		m.admissionMu.Unlock()
 	}
 	// The held plugins went with the process manager, so their record goes too.
 	m.declared = nil

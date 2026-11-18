@@ -457,12 +457,12 @@ func TestReloadOriginalJournalAcrossAcceptance(t *testing.T) {
 				case "replacement":
 					original := spawner.pm.GetProcess(first)
 					replacement := process.NewProcess(plugin.PluginConfig{Name: first})
-					spawner.pm.AddProcess(first, replacement)
+					require.NoError(t, spawner.pm.AddProcess(first, replacement))
 					err := finish(true)
 					require.ErrorContains(t, err, "captured process lifetime ended")
 					require.Zero(t, a.completions.Load())
 					require.Equal(t, candidate, r.GetConfigTree())
-					spawner.pm.AddProcess(first, original)
+					require.NoError(t, spawner.pm.AddProcess(first, original))
 				}
 			})
 		}
@@ -571,7 +571,7 @@ func TestReloadCompletionRejectsInFlightReplacement(t *testing.T) {
 			conn := &ipc.PluginConn{}
 			conn.SetBridge(bridge)
 			original.SetConn(conn)
-			spawner.pm.AddProcess(name, original)
+			require.NoError(t, spawner.pm.AddProcess(name, original))
 			successorBridge := rpc.NewDirectBridge()
 			t.Cleanup(successorBridge.CloseCallbacks)
 			successorConn := &ipc.PluginConn{}
@@ -600,7 +600,7 @@ func TestReloadCompletionRejectsInFlightReplacement(t *testing.T) {
 			if replaceProcess {
 				successor := process.NewProcess(plugin.PluginConfig{Name: name})
 				successor.SetConn(successorConn)
-				spawner.pm.AddProcess(name, successor)
+				require.NoError(t, spawner.pm.AddProcess(name, successor))
 				t.Cleanup(func() { successor.SetConn(nil) })
 			} else {
 				original.SetConn(successorConn)

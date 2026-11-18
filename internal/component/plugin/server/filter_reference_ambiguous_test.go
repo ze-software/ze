@@ -53,8 +53,8 @@ func TestTwoBlocksRunningOneFilterPluginAreRefused(t *testing.T) {
 	s.procManager.Store(pm)
 	var calls atomic.Int32
 	first := aliasedSlotProcess(t, "gr", aliasTestRegistration, rpc.FilterAccept, &calls)
-	pm.AddProcess("gr", first)
-	pm.AddProcess("gr-two", aliasedSlotProcess(t, "gr-two", aliasTestRegistration, rpc.FilterAccept, &calls))
+	require.NoError(t, pm.AddProcess("gr", first))
+	require.NoError(t, pm.AddProcess("gr-two", aliasedSlotProcess(t, "gr-two", aliasTestRegistration, rpc.FilterAccept, &calls)))
 
 	declaring := &rpc.DeclareRegistrationInput{Filters: []rpc.FilterDecl{{Name: "ingress", Direction: rpc.FilterImport}}}
 	err = s.refuseAmbiguousRegistration(first, declaring)

@@ -273,6 +273,16 @@ refuses the same config. A daemon never runs on with its peers held.
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete -->
 <!-- source: internal/component/bgp/reactor/reload_tree.go -- RebuildRunningPeers -->
 
+Startup completion also checks whether the server lifetime has ended before
+each remaining readiness step. Stop admitted before final publication, or
+parent cancellation observed before that publication, produces a terminal
+startup error and skips last-stop settlement. The final lifetime check decides
+success: Stop admission is serialized with settlement and completion, while
+parent cancellation after that check leaves the historical result unchanged.
+Plugin and reactor callbacks run outside that lock and can themselves stop
+the server. Ordinary live plugin failures still follow their failure policy.
+<!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, finishStartupCompletion, startupCompletionStopped, WaitForStartupComplete -->
+
 `StartPeers` refuses when a configured family has no decoder, and the daemon
 keeps running after it. The barrier then never lifts for that run, so each peer
 it holds, and each peer added or accepted later, is named in an error log
@@ -1035,6 +1045,14 @@ the current generation or remove its registrations.
 <!-- source: internal/component/plugin/server/reload_tx.go -- restartPlugin, restartPluginAfterExit, restartPluginWithin -->
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- pluginRestartFailure -->
 
+Before an intentional restart stops its outgoing process, the manager withdraws
+that exact generation from the current slot. Its shutdown is not classified as
+an unexpected fatal exit. The admitted replacement call retains physical
+ownership of the outgoing process through its actual join. If the join expires,
+that owner remains responsible for terminal shutdown before providers close.
+The replacement becomes current only after its own process start succeeds.
+<!-- source: internal/component/plugin/process/manager.go -- Respawn -->
+
 The operator's restart and a reload rollback's restart hold the config
 transaction lock, so each of their waits has a bound. The replacement's
 startup handshake gets five ordinary stage windows (25s by default). When no
@@ -1432,33 +1450,71 @@ It does not publish a restored tree or repeat completed inverse phases on failur
 <!-- source: internal/component/plugin/server/reload_compensation.go -- compensateReload -->
 <!-- source: internal/component/plugin/server/reload.go -- txLock.configOwner, reloadConfig -->
 
-When one removal also takes out dependencies, the server reverses the same
-hard- and optional-dependency tiers used at startup. Each producer must acknowledge
+When one removal also removes dependencies, the server reverses the selected
+dependency graph used at startup. That graph includes hard dependencies,
+optional dependencies and `StartAfter` edges. Each producer must acknowledge
 successful cleanup before the server stops the next dependency tier. Failed
-auto-load rollback and orphan cleanup use this order too; a callback or ordering
-error stops the sequence and is returned to the caller.
+auto-load rollback and orphan cleanup use this order too. A callback or ordering
+error stops the sequence, and the caller receives that error.
 <!-- source: internal/component/plugin/server/startup_autoload.go -- stopCollectedProcesses -->
 
-Whole-daemon shutdown instead closes plugin connections without `bye`.
+Whole-daemon shutdown closes plugin connections without `bye`. The server
+selects the reverse of the existing selected startup dependency graph. The process
+manager stops and joins each tier under one 3-second cleanup deadline.
+A missing resolver or a dependency cycle forces a simultaneous stop of the
+remaining processes.
+<!-- source: internal/component/plugin/server/shutdown.go -- shutdownPluginTiers -->
+<!-- source: internal/component/plugin/process/manager.go -- StopInOrder -->
+
+The manager retains the first ordering refusal and raises
+`doctor-plugin-shutdown-order`. The server persists that distinct stop reason
+before the store closes. Local doctor can still name it after the daemon exits.
+This refusal is separate from cleanup that exceeds its deadline.
+<!-- source: internal/component/plugin/process/manager_shutdown.go -- RecordShutdownOrderFailure, ShutdownOrderFailure -->
+<!-- source: internal/component/plugin/server/server.go -- cleanup -->
+
+Joins within a signaled tier run concurrently, so one slow consumer does not
+consume another consumer's opportunity to finish before that shared deadline.
+The manager joins an internal consumer's engine finalizers before it stops that
+consumer's providers. For an external consumer, it first joins reaping and the
+stderr relay. Admission is sealed before the acceptor is stopped, so failed
+starts and replacements cannot take
+another stop's ownership or publish an unjoined generation. All admitted but
+unpublished starts remain owned through their failed-start cleanup.
+<!-- source: internal/component/plugin/process/manager.go -- StopInOrder -->
+<!-- source: internal/component/plugin/process/manager_shutdown.go -- joinStarting, stopEngines, waitShutdownProcess -->
+
+The normal daemon stop keeps server dispatch and process parents live during
+that ordered cleanup. It cancels server dispatch afterwards, then runs `OnStop`
+hooks. An already-canceled parent or an expired cleanup deadline cannot promise
+dependency order. The manager still stops every remaining process and reports
+unfinished cleanup. Standalone `ProcessManager.Stop` remains reusable and simultaneous.
 Plugins must distinguish live removal from connection closure: subsystem owners
 retain their daemon-shutdown policy, including firewall rule retention.
-<!-- source: internal/component/plugin/process/manager.go -- Stop -->
+<!-- source: internal/component/plugin/server/shutdown.go -- shutdownPluginTiers -->
+<!-- source: internal/component/plugin/process/manager.go -- Stop, StopInOrder -->
+<!-- source: internal/component/plugin/process/manager_shutdown.go -- joinStarting, stopEngines, waitShutdownProcess -->
 
-A runtime request that the stop itself cancelled gets no answer. The daemon's
-stop cancels the server context before it closes the connections, and a stop
-of one process generation (a plugin restart, a removal after `bye`) cancels
+A runtime request that the stop itself canceled gets no answer. Whole-daemon
+stop cancels each process generation before it closes its connection, while server
+dispatch remains available to the generations still cleaning up. A stop of one
+process generation (a plugin restart, a removal after `bye`) likewise cancels
 that generation's context before it closes its connection. A handler waiting
 on either context returns the cancellation while the connection is still
 open. The engine leaves that request unanswered, so the close answers it: the
 plugin's pending call ends with the connection's terminal error, like every
 other call still pending then, and never with an error line that the plugin
-would have to tell apart from a live engine's refusal by its text. In process
-the rule is the same, and the fenced bridge answers: a native or JSON-shaped
-direct call that the stop cancelled returns `rpc.ErrBridgeClosed`, the answer
+would have to tell apart from a live engine's refusal by its text.
+<!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded -->
+<!-- source: internal/component/plugin/server/server.go -- Stop -->
+<!-- source: internal/component/plugin/process/process.go -- Stop, monitorCmd -->
+
+In process the rule is the same, and the fenced bridge answers: a native or
+JSON-shaped direct call that the stop canceled returns `rpc.ErrBridgeClosed`, the answer
 every call gets once `Process.Stop` fences the bridge's dispatch. A call
-already admitted can meet the cancellation before that fence, because a daemon
-stop cancels the server context before `ProcessManager.Stop` reaches each
-process. Every other failure is answered, a refusal during the stop included,
+already admitted can meet the cancellation before that fence through parent
+cancellation or the end of its process generation. Every other failure is
+answered, a refusal during the stop included,
 on both transports. A startup request answers every failure.
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, engineSessionEnded, serveEngineOpDirect -->
 <!-- source: internal/component/plugin/server/dispatch_native.go -- dispatchPluginRPCNative, directCallError -->

@@ -36,8 +36,8 @@ func TestRelaysOnRSFastPathResolvesTheProcessAlias(t *testing.T) {
 	}
 
 	s := sessionReadyTestServer()
-	runningProcess(s, "aliased-relay", relaying)
-	runningProcess(s, "aliased-silent", silent)
+	runningProcess(t, s, "aliased-relay", relaying)
+	runningProcess(t, s, "aliased-silent", silent)
 	registry.SetRuntimeRegistryNames(s.processRegistryNames)
 	t.Cleanup(func() { registry.SetRuntimeRegistryNames(nil) })
 

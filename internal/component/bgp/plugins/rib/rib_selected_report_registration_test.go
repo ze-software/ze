@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -129,16 +130,39 @@ func selectedReportClient(t *testing.T, ctx context.Context, native bool) (*sdk.
 }
 
 type selectedReportSpawner struct {
-	ctx     context.Context
-	manager *process.ProcessManager
+	admissionMu sync.Mutex
+	sealed      bool
+	ctx         context.Context
+	manager     *process.ProcessManager
 }
 
 func (s *selectedReportSpawner) SpawnMore(configs []plugin.PluginConfig) error {
-	if s.manager == nil {
-		s.manager = process.NewProcessManager(configs)
-		return s.manager.StartWithContext(s.ctx)
+	s.admissionMu.Lock()
+	if s.sealed {
+		s.admissionMu.Unlock()
+		return process.ErrDaemonStopping
 	}
-	return s.manager.StartMore(configs)
+	first := s.manager == nil
+	if first {
+		s.manager = process.NewProcessManager(configs)
+	}
+	pm := s.manager
+	s.admissionMu.Unlock()
+	if first {
+		return pm.StartWithContext(s.ctx)
+	}
+	return pm.StartMore(configs)
 }
 
-func (s *selectedReportSpawner) GetProcessManager() any { return s.manager }
+func (s *selectedReportSpawner) GetProcessManager() any {
+	s.admissionMu.Lock()
+	defer s.admissionMu.Unlock()
+	return s.manager
+}
+
+func (s *selectedReportSpawner) SealProcessAdmission() func() {
+	s.admissionMu.Lock()
+	defer s.admissionMu.Unlock()
+	s.sealed = true
+	return func() {}
+}

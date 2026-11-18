@@ -56,6 +56,7 @@ func init() {
 			Codes: []string{
 				diagnostic.CodeDoctorPluginFatalStop, diagnostic.CodeDoctorPluginStopCleanupLate,
 				diagnostic.CodeDoctorPluginSchemaRefused, diagnostic.CodeDoctorPluginSchemaUndeclared,
+				diagnostic.CodeDoctorPluginShutdownOrder,
 				diagnostic.CodeDoctorBuildRegistrationUnheld,
 			},
 			Check: checkPluginFatalStop,

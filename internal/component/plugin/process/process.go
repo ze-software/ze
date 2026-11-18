@@ -153,16 +153,24 @@ type Process struct {
 	// Process only becomes reachable from ProcessManager.processes after its Start has
 	// returned (startConfigs, manager.go), so no reader can see the field being
 	// assigned. Nil means "no engine goroutine here", which is every external plugin.
-	engineDone              chan struct{}
-	mu                      sync.Mutex
-	started                 bool                  // One Process owns one attempt and one cleanup lifetime.
-	selectedOwner           *plugin.SelectedOwner // Captured once while this exact connection is live.
-	selectedCancel          context.CancelFunc    // Cancels only selected work; engine exit is distinct from operator Stop.
-	peerDeclarationsPending atomic.Bool           // Exact replacement output waits for its runtime peer authority.
-	postStartupStarted      atomic.Bool           // One callback belongs to one exact Process, across racing fan-outs.
-	cleanupOnce             sync.Once             // ensures connection cleanup runs exactly once
-	runtimeCleanupOnce      sync.Once             // ensures server runtime cleanup runs exactly once
-	runtimeCleanupDone      chan struct{}
+	engineDone chan struct{}
+	// externalDone closes only after the actual external monitor has reaped
+	// the child and drained its stderr. It is separate from wg: a fresh
+	// WaitGroupWait can select an expired context before its waiter runs.
+	// Allocated only after StartChild succeeds, before the monitor starts;
+	// nil means no fork/monitor was created. A failed TLS connect-back still
+	// owns that monitor. Start returns before shutdown readers see the field,
+	// and the one-attempt Process never replaces the channel.
+	externalDone              chan struct{}
+	mu                        sync.Mutex
+	started                   bool                  // One Process owns one attempt and one cleanup lifetime.
+	selectedOwner             *plugin.SelectedOwner // Captured once while this exact connection is live.
+	selectedCancel            context.CancelFunc    // Cancels only selected work; engine exit is distinct from operator Stop.
+	peerDeclarationsPending   atomic.Bool           // Exact replacement output waits for its runtime peer authority.
+	postStartupStarted        atomic.Bool           // One callback belongs to one exact Process, across racing fan-outs.
+	cleanupOnce               sync.Once             // ensures connection cleanup runs exactly once
+	runtimeCleanupOnce        sync.Once             // ensures server runtime cleanup runs exactly once
+	runtimeCleanupDone        chan struct{}
 }
 
 // NewProcess creates a new process with the given configuration.
@@ -860,6 +868,7 @@ func (p *Process) startExternal() error {
 	p.running.Store(true)
 
 	cmd := p.cmd
+	p.externalDone = make(chan struct{})
 	relayDone := make(chan struct{})
 	reaped := make(chan struct{})
 	relayRead := newStderrRelayReader(stderrRead, stderrDrainGrace)
@@ -1306,7 +1315,8 @@ func (g *pluginGroup) signalLocked() {
 // relayDone closes when relayStderrFrom returns, and stderr is the read end that
 // goroutine is reading. Both are parameters for the same reason cmd is. reaped
 // is closed once cmd.Wait has returned, which is what ends superviseExit, and
-// group is where the exit is recorded before the reap.
+// group is where the exit is recorded before the reap. externalDone closes
+// only after this monitor has also joined the actual stderr relay.
 func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *stderrRelayReader, reaped chan<- struct{}, group *pluginGroup) {
 	// The exit is recorded with the plugin still unreaped, so no kill can be
 	// sent past the reap (pluginGroup), and a stopped plugin that exited on its
@@ -1337,6 +1347,7 @@ func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *s
 	// out. Release the descriptor only once the relay has read them, which is
 	// what keeps a plugin's last line -- its verdict, or its panic block.
 	drainStderrRelay(relayDone, stderr)
+	close(p.externalDone)
 }
 
 // forkExitStatus names how a forked plugin ended: the reaped process state

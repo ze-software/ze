@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/transaction"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -152,7 +153,7 @@ func (s *Server) runPluginStartup() {
 	autoCount := len(autoLoadConfigPaths)
 	configPhase, explicitPhase, err := startupSelectedPhases(autoLoadConfigPaths, s.config.Plugins)
 	if err != nil {
-		s.startupErr = fmt.Errorf("selected plugin startup ordering failed: %w", err)
+		s.recordStartupFailure(fmt.Errorf("selected plugin startup ordering failed: %w", err))
 		s.signalStartupComplete()
 		return
 	}
@@ -169,7 +170,7 @@ func (s *Server) runPluginStartup() {
 			if s.reactor != nil {
 				s.reactor.AddAPIProcessCount(-autoCount)
 			}
-			s.startupErr = fmt.Errorf("config-path plugin startup failed: %w", err)
+			s.recordStartupFailure(fmt.Errorf("config-path plugin startup failed: %w", err))
 			s.signalStartupComplete()
 			return
 		}
@@ -181,6 +182,7 @@ func (s *Server) runPluginStartup() {
 		logger().Debug("starting explicit plugins", "count", len(explicitPhase))
 		if err := s.runPluginPhase(explicitPhase); err != nil {
 			logger().Error("explicit plugin startup failed", "error", err)
+			s.recordStartupFailure(fmt.Errorf("explicit plugin startup failed: %w", err))
 			s.signalStartupComplete()
 			return
 		}
@@ -274,7 +276,7 @@ func (s *Server) runPluginStartup() {
 func (s *Server) refuseBootAutoLoad(trigger string, err error) {
 	logger().Error("boot auto-load refused: its plugin dependencies do not resolve",
 		"trigger", trigger, "error", err)
-	s.startupErr = err
+	s.recordStartupFailure(err)
 	s.signalStartupComplete()
 }
 
@@ -292,15 +294,9 @@ func (s *Server) refuseStartupOnLoadedChain(err error) {
 	if !errors.Is(err, registry.ErrLoadedChainRefused) {
 		return
 	}
-	if s.startupComplete() {
-		return
-	}
-	if s.startupErr != nil {
-		return
-	}
-	s.startupErr = fmt.Errorf("%w; ze does not start with a config whose filter chain names a filter "+
+	s.recordStartupFailure(fmt.Errorf("%w; ze does not start with a config whose filter chain names a filter "+
 		"its plugin refuses: correct the chain reference in the config, or the plugin's filter declaration, "+
-		"then start ze again", err)
+		"then start ze again", err))
 }
 
 // selectedPluginGraph resolves registration edges (implementation names) to
@@ -380,8 +376,14 @@ func startupSelectedPhases(configPaths, explicit []plugin.PluginConfig) ([]plugi
 }
 
 // signalStartupComplete freezes registries for lock-free dispatch and
-// notifies reactor that plugin startup is done.
+// notifies reactor that plugin startup is done. A terminal lifetime observed
+// before final publication closes the completion channel with an error instead.
 func (s *Server) signalStartupComplete() {
+	defer s.finishStartupCompletion()
+	if s.startupCompletionStopped() {
+		return
+	}
+
 	// Freeze registries: all registrations are complete, no writers after this point.
 	if s.dispatcher != nil {
 		if sm := s.dispatcher.Subsystems(); sm != nil {
@@ -398,6 +400,9 @@ func (s *Server) signalStartupComplete() {
 	// Stage 2 has a live claimant; a plugin that stood down for a claimant which
 	// never came up would silently perform nothing (startup_claims.go).
 	s.verifyAdvertisedClaims()
+	if s.startupCompletionStopped() {
+		return
+	}
 
 	// Fan out the post-startup callback to every running plugin so that
 	// OnAllPluginsReady handlers (e.g., bgp-rpki enabling the adj-rib-in
@@ -410,6 +415,9 @@ func (s *Server) signalStartupComplete() {
 	// declared instead and delivered on the Stage-2 configure callback -- see
 	// sendPostStartupToAll's doc comment and startup_claims.go.
 	s.sendPostStartupToAll()
+	if s.startupCompletionStopped() {
+		return
+	}
 
 	// A reactor's post-startup step can refuse the loaded config: the bgp
 	// plugin places the filter insertions every running plugin declared
@@ -422,20 +430,92 @@ func (s *Server) signalStartupComplete() {
 	if s.reactor != nil {
 		if err := s.reactor.SignalPluginStartupComplete(); err != nil {
 			logger().Error("plugin startup: the reactor refused the loaded config after every plugin phase", "error", err)
-			if s.startupErr == nil {
-				s.startupErr = err
-			}
+			s.recordStartupFailure(err)
 		}
 	}
-	// Startup's outcome is now final: a refusal is recorded as the reason ze
-	// does not start, and a clean start deletes the previous stop's record.
+	// The reactor callback can itself stop the daemon. It MUST run without
+	// lifecycleMu held, and its return cannot turn that stop into a clean boot.
+	if s.startupCompletionStopped() {
+		return
+	}
+}
+
+// finishStartupCompletion orders the historical startup result with Stop's
+// terminal admission. The final recheck, last-stop settlement and channel close
+// share lifecycleMu with refusal recording; no plugin or reactor callback runs
+// under it.
+// Success linearizes at the final lifetime check. Parent cancellation does not
+// take lifecycleMu: one observed after that check does not rewrite the result.
+// StartWithContext MUST release lifecycleMu before synchronous completion.
+func (s *Server) finishStartupCompletion() {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	defer s.startupDoneOnce.Do(func() { close(s.startupDone) })
+	if s.startupCompletionStoppedLocked() {
+		return
+	}
+	// A refusal records why ze does not start; a clean start clears the prior
+	// stop. Stop cannot enter between this settlement and publishing the result.
 	s.settleLastStop()
-	s.startupDoneOnce.Do(func() { close(s.startupDone) })
+}
+
+// recordStartupFailure keeps the first startup refusal admitted while live.
+// Stop admission, refusal recording and final publication share lifecycleMu:
+// a phase returning after Stop cannot displace the terminal startup outcome,
+// and no late refusal changes an outcome startupDone already published.
+func (s *Server) recordStartupFailure(err error) {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	if s.startupCompletionStoppedLocked() {
+		return
+	}
+	if s.startupErr != nil {
+		return
+	}
+	s.startupErr = err
+}
+
+// startupCompletionStopped refuses further completion steps after publication
+// or once the server lifetime is observed to have ended. The phase failure
+// policy still decides whether an ordinary live plugin failure is fatal.
+// Callbacks MUST run after this method releases lifecycleMu.
+func (s *Server) startupCompletionStopped() bool {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	return s.startupCompletionStoppedLocked()
+}
+
+// startupCompletionStoppedLocked orders terminal result recording against Stop
+// and final publication. The caller MUST hold lifecycleMu. An earlier live
+// refusal survives Stop, and an already published result is never rewritten.
+func (s *Server) startupCompletionStoppedLocked() bool {
+	if s.startupComplete() {
+		return true
+	}
+	if s.stopEntered.Load() {
+		if s.startupErr == nil {
+			s.startupErr = errServerStopped
+		}
+		return true
+	}
+	if s.ctx == nil {
+		return false
+	}
+	if err := context.Cause(s.ctx); err != nil {
+		if s.startupErr == nil {
+			s.startupErr = err
+		}
+		return true
+	}
+	return false
 }
 
 // WaitForStartupComplete blocks until all plugin startup phases are done.
 // Returns a non-nil error if a config-path plugin failed during startup
-// (e.g., invalid BGP config) or if the context deadline is exceeded.
+// (e.g., invalid BGP config), the reactor refused the final configuration, Stop
+// entered or parent cancellation was observed before final publication, or the
+// caller's context expired. Success linearizes at the final lifetime check;
+// parent cancellation after that check does not change the historical result.
 func (s *Server) WaitForStartupComplete(ctx context.Context) error {
 	select {
 	case <-s.startupDone:
@@ -504,6 +584,9 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 	}
 
 	// Step (a): Spawn processes via PluginManager (ProcessSpawner).
+	if s.stopEntered.Load() {
+		return transaction.ErrShutdown
+	}
 	if s.spawner == nil {
 		return errNoProcessspawnerSetCallSetprocessspawner
 	}
@@ -1054,7 +1137,7 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 		}
 		proc.Stop()
 		if configRefusalIsFatal(proc.Name(), err) && !recovering {
-			s.startupErr = fmt.Errorf("%s: %w", proc.Name(), err)
+			s.recordStartupFailure(fmt.Errorf("%s: %w", proc.Name(), err))
 		}
 		return err
 	}

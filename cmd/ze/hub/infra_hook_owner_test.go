@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -67,7 +68,7 @@ func waitInfraHookStopSnapshot(ctx context.Context, owner *pluginserver.Server, 
 // Server.OnStop does only once Stop has started: the refusal is the snapshot
 // the caller waits for, not a failure. An accepted probe hook is withdrawn.
 func infraHookStopRefused(owner *pluginserver.Server) bool {
-	withdraw, err := owner.OnStop(func() {})
+	withdraw, err := owner.OnStop(func() error { return nil })
 	if err != nil {
 		return true
 	}
@@ -230,5 +231,56 @@ func TestInfraHookRefusesFirstConstructionAfterStop(t *testing.T) {
 	}
 	if built != 0 {
 		t.Errorf("SSH constructions after stop = %d, want 0", built)
+	}
+}
+
+// infraHookFailedSSH exposes a resource cleanup failure without a listener.
+type infraHookFailedSSH struct {
+	cause error
+	stops int
+}
+
+func (*infraHookFailedSSH) Address() string { return "test" }
+
+func (s *infraHookFailedSSH) Stop(context.Context) error {
+	s.stops++
+	return s.cause
+}
+
+// TestInfraHookReportsSSHCleanupFailure proves the real infrastructure hook
+// passes its resource failure through Server.StopFailure for the daemon exit.
+func TestInfraHookReportsSSHCleanupFailure(t *testing.T) {
+	resetAAABundleForTest(t)
+	originalBuild := sshBuild
+	t.Cleanup(func() {
+		sshBuild = originalBuild
+		infra.SetHook(nil)
+	})
+	owner, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(owner.Stop)
+	cause := errors.New("SSH cleanup failed")
+	resource := &infraHookFailedSSH{cause: cause}
+	sshBuild = func(*sshBuildInputs) sshServer { return resource }
+	operator := authWiringBcryptUser(t, "operator", "owner-secret", "admin")
+	setupInfraHook(owner, nil, &configMutationOwner{}, func() ([]aaa.UserCredential, error) {
+		return []aaa.UserCredential{operator}, nil
+	}, nil)
+	infra.Run(infra.HookParams{
+		Reactor:   &authWiringReactor{},
+		SSHConfig: infra.SSHExtractedConfig{HasConfig: true},
+	})
+	owner.Stop()
+	if resource.stops != 1 {
+		t.Errorf("SSH cleanup calls = %d, want 1", resource.stops)
+	}
+	failure := owner.StopFailure()
+	if failure == nil {
+		t.Fatal("SSH cleanup failure was reported as a clean daemon stop")
+	}
+	if !errors.Is(failure, cause) {
+		t.Errorf("StopFailure = %v, want SSH cleanup cause %v", failure, cause)
 	}
 }

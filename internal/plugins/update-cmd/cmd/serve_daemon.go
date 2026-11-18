@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -52,7 +53,7 @@ type updateServeListener struct {
 // daemonStop registers fn to run when the daemon stops, and answers the
 // function that withdraws it. The daemon's is (*pluginserver.Server).OnStop,
 // which runs fn inside the daemon's ordered shutdown and waits for it.
-type daemonStop func(fn func()) (func(), error)
+type daemonStop func(fn func() error) (func(), error)
 
 // serve runs the server until Shutdown or Close ends it, then closes done.
 // It MUST be the only goroutine started for the listener (start does).
@@ -113,10 +114,9 @@ func (o *updateServeOwner) start(ctx context.Context, listen string, onStop daem
 		Handler:           content.handler(l.paused.Load),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	withdraw, err := onStop(func() { o.endWithDaemon(l) })
+	withdraw, err := onStop(func() error { return o.endWithDaemon(l) })
 	if err != nil {
-		ln.Close() //nolint:errcheck // the listener never served; the refusal below is the answer
-		return updateServeState{}, err
+		return updateServeState{}, errors.Join(err, ln.Close())
 	}
 	l.withdraw = withdraw
 	go l.serve(ln)
@@ -133,36 +133,43 @@ func (o *updateServeOwner) stop() (updateServeState, error) {
 	if l == nil {
 		return updateServeState{}, errNoUpdateServer
 	}
-	o.shutdown(l)
-	return updateServeState{Listen: l.addr, Paused: l.paused.Load(), Stopped: l.ended()}, nil
+	err := o.shutdown(l)
+	return updateServeState{Listen: l.addr, Paused: l.paused.Load(), Stopped: l.ended()}, err
 }
 
 // endWithDaemon is the daemon-stop hook start registers: it ends l when l is
 // still the running server, and returns once l's goroutine has ended. An
 // operator's stop that ran first already ended l and withdrew this hook, so
 // finding another server (or none) means there is nothing of l's left to end.
-func (o *updateServeOwner) endWithDaemon(l *updateServeListener) {
+func (o *updateServeOwner) endWithDaemon(l *updateServeListener) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
 	if o.running != l {
-		return
+		return nil
 	}
-	o.shutdown(l)
+	return o.shutdown(l)
 }
 
 // shutdown ends l, waits for its goroutine, withdraws its daemon-stop hook
-// and clears the running slot. The caller MUST hold o.mu.
-func (o *updateServeOwner) shutdown(l *updateServeListener) {
+// and clears the running slot. It retains graceful and forced-close failures.
+// The caller MUST hold o.mu.
+func (o *updateServeOwner) shutdown(l *updateServeListener) error {
 	ctx, cancel := context.WithTimeout(context.Background(), updateServeShutdownMax)
 	defer cancel()
-	if err := l.srv.Shutdown(ctx); err != nil {
+	err := l.srv.Shutdown(ctx)
+	if err != nil {
 		// Requests still in flight at the bound: their connections are closed.
-		l.srv.Close() //nolint:errcheck // Close after a failed Shutdown has no further remedy; done below proves the end
+		err = errors.Join(err, l.srv.Close())
 	}
 	<-l.done
 	l.withdraw()
 	o.running = nil
+	if err != nil {
+		return opererr.Wrap(err, "the update server could not stop cleanly",
+			"a listener or download failed to finish cleanup", "ze doctor")
+	}
+	return nil
 }
 
 // pause toggles the held pause, as SIGUSR1 does for the foreground server.

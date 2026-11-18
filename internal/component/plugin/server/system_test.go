@@ -286,7 +286,9 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 			proc := process.NewProcess(plugin.PluginConfig{Name: "daemon-termination-caller"})
 			proc.SetConn(plugipc.NewPluginConn(engineSide, engineSide))
 			pm := process.NewProcessManager(nil)
-			pm.AddProcess(proc.Name(), proc)
+			if err := pm.AddProcess(proc.Name(), proc); err != nil {
+				t.Fatal(err)
+			}
 			s.procManager.Store(pm)
 			s.wg.Go(func() {
 				s.handleSingleProcessCommandsRPC(proc)

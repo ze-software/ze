@@ -17,18 +17,25 @@ func TestServerStopRunsOnStopHooks(t *testing.T) {
 	}
 
 	var ran, withdrawnRan, selfRan int
-	if _, err := s.OnStop(func() { ran++ }); err != nil {
+	if _, err := s.OnStop(func() error {
+		ran++
+		return nil
+	}); err != nil {
 		t.Fatalf("OnStop: %v", err)
 	}
-	withdraw, err := s.OnStop(func() { withdrawnRan++ })
+	withdraw, err := s.OnStop(func() error {
+		withdrawnRan++
+		return nil
+	})
 	if err != nil {
 		t.Fatalf("OnStop: %v", err)
 	}
 	withdraw()
 	var self func()
-	self, err = s.OnStop(func() {
+	self, err = s.OnStop(func() error {
 		selfRan++
 		self()
+		return nil
 	})
 	if err != nil {
 		t.Fatalf("OnStop: %v", err)
@@ -47,7 +54,10 @@ func TestServerStopRunsOnStopHooks(t *testing.T) {
 		t.Errorf("a self-withdrawing hook ran %d times, want 1", selfRan)
 	}
 
-	late, err := s.OnStop(func() { t.Error("a hook offered after Stop ran") })
+	late, err := s.OnStop(func() error {
+		t.Error("a hook offered after Stop ran")
+		return nil
+	})
 	if !errors.Is(err, errServerStopped) {
 		t.Fatalf("OnStop after Stop: got %v, want errServerStopped", err)
 	}
