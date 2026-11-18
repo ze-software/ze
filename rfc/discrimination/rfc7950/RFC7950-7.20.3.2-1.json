@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-7.20.3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_uses_deviation_test.go::TestLoaderDeviateAddExistingSingletonProperty",
+    "unit-sha": "e92e9c9d7f0c9cac",
+    "claim-sha": "e655aee9906ae530",
+    "route": "mutant",
+    "producer": "vendor/github.com/openconfig/goyang/pkg/yang/entry.go::ApplyDeviate",
+    "producer-sha": "386a4c2deafd840d",
+    "break": "line 1260: \"if err := deviatedNode.checkDeviationAdd(devSpec); err != nil {\" -\u003e \"if err := error(nil); err != nil {\""
+  },
+  {
+    "rid": "RFC7950-7.20.3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_uses_deviation_test.go::TestLoaderDeviateAddMissingSingletonProperty",
+    "unit-sha": "d9d96b0a96cb4355",
+    "claim-sha": "d2694e584064ff48",
+    "route": "mutant",
+    "producer": "vendor/github.com/openconfig/goyang/pkg/yang/entry.go::ApplyDeviate",
+    "producer-sha": "386a4c2deafd840d",
+    "break": "line 1249: \"for _, d := range e.Deviations {\" -\u003e \"for _, d := range e.Deviations[:0] {\""
+  }
+]

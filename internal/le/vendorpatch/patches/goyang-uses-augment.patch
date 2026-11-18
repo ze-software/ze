@@ -1,0 +1,143 @@
+Ze-Reviewed-Against: github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
+
+RFC 7950 Section 7.13.1 gives augment cardinality 0..n under uses, but Uses
+stores one pointer. ToEntry copies the grouping and ignores that augment.
+Section 7.13: "The effect of a "uses" reference to a grouping is that the
+nodes defined by the grouping are copied into the current schema tree and
+are then updated according to the "refine" and "augment" statements."
+
+Keep every augment and apply each to the independent grouping copy, using
+the existing augment engine and retrying dependent targets. A relative target
+starts at that copy. Retain the augment's declaring namespace as provenance
+before parenting it to a grouping that may be imported. When the uses is
+inside a grouping, defer data-node namespace binding until instantiation,
+as Section 7.13 requires. Augments outside a grouping retain their declaring
+namespace under Section 7.17.2. An unresolved target is an error instead of
+a silently ignored augment.
+Section 14 requires a definition in the body. Count AST definitions rather
+than resulting nodes, so a use of an empty grouping is still permitted.
+
+No upstream pull request is opened yet. Remove this patch when the pinned
+upstream release includes the correction. The existing entry-dup-rpc patch
+remains separate and is applied earlier in the module's patch stack.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored
+module".
+
+diff --git a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+--- a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
++++ b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+@@ -660,6 +696,43 @@ func ToEntry(n Node) (e *Entry) {
+ 		// when the group is used in multiple locations and the
+ 		// grouping has a leafref that references outside the group.
+ 		e = ToEntry(g).dup()
++		// RFC 7950 Section 7.13: "The effect of a "uses" reference to a
++		// grouping is that the nodes defined by the grouping are copied into
++		// the current schema tree and are then updated according to the
++		// "refine" and "augment" statements."
++		for _, augment := range s.Augment {
++			// RFC 7950 Section 14 requires at least one data-def-stmt,
++			// case-stmt, action-stmt or notification-stmt. A uses of an empty
++			// grouping counts even though it produces no effective child.
++			definitions := len(augment.Action) + len(augment.Anydata) + len(augment.Anyxml) +
++				len(augment.Case) + len(augment.Choice) + len(augment.Container) +
++				len(augment.Leaf) + len(augment.LeafList) + len(augment.List) +
++				len(augment.Notification) + len(augment.Uses)
++			if definitions == 0 {
++				e.errorf("%s: augment %s has no data definitions; add a data definition, case, action or notification",
++					Source(augment), augment.Name)
++				continue
++			}
++			a := ToEntry(augment).dup()
++			// Retain the declaring namespace as provenance before parenting the
++			// augment to a possibly imported grouping copy. Augment decides
++			// whether this also binds the resulting data nodes.
++			a.namespace = a.Namespace()
++			a.Parent = e
++			e.Augments = append(e.Augments, a)
++		}
++		// Each successful pass removes at least one of these finite augments.
++		for len(e.Augments) > 0 {
++			// RFC 7950 Section 7.17.
++			processed, skipped := e.Augment(false)
++			if skipped == 0 {
++				break
++			}
++			if processed == 0 {
++				e.Augment(true)
++				break
++			}
++		}
+ 		addExtraKeywordsToLeafEntry(n, e)
+ 		return e
+ 	}
+@@ -1103,7 +1176,15 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
+ 	// progress)
+ 	var unapplied []*Entry
+ 	for _, a := range e.Augments {
+-		target := a.Find(a.Name)
++		var target *Entry
++		uses, local := a.Node.ParentNode().(*Uses)
++		// RFC 7950 Section 7.17 requires the descendant form under uses.
++		// Its starting point is the grouping copy, not the augment's body.
++		if local {
++			target = e.Find(a.Name)
++		} else {
++			target = a.Find(a.Name)
++		}
+ 		if target == nil {
+ 			if addErrors {
+ 				e.errorf("%s: augment %s not found", Source(a.Node), a.Name)
+@@ -1115,7 +1196,24 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
+ 		// Augments do not have a prefix we merge in, just a node.
+-		// We retain the namespace from the original context of the
+-		// augment since the nodes have this namespace even though they
+-		// are merged into another entry.
++		// RFC 7950 Section 7.17.2: "All data nodes defined in the "augment"
++		// statement are defined as XML elements in the XML namespace of the
++		// module where the "augment" is specified."
++		namespace := a.Namespace()
++		// RFC 7950 Section 7.13: "The identifiers defined in the grouping are
++		// not bound to a namespace until the contents of the grouping are added
++		// to the schema tree via a "uses" statement that does not appear inside
++		// a "grouping" statement, at which point they are bound to the namespace
++		// of the current module."
++		if local {
++			// The parsed AST's finite lexical parent chain ends at its module.
++			for parent := uses.ParentNode(); parent != nil; parent = parent.ParentNode() {
++				if _, grouping := parent.(*Grouping); grouping {
++					// Nil deliberately defers data-node binding; the augment's
++					// own namespace remains its declaration provenance.
++					namespace = nil
++					break
++				}
++			}
++		}
+ 		processed++
+-		target.merge(nil, a.Namespace(), a)
++		target.merge(nil, namespace, a)
+ 		target.Augmented = append(target.Augmented, a.shallowDup())
+diff --git a/vendor/github.com/openconfig/goyang/pkg/yang/yang.go b/vendor/github.com/openconfig/goyang/pkg/yang/yang.go
+--- a/vendor/github.com/openconfig/goyang/pkg/yang/yang.go
++++ b/vendor/github.com/openconfig/goyang/pkg/yang/yang.go
+@@ -624,13 +624,13 @@ type Uses struct {
+ 	Parent     Node         `yang:"Parent,nomerge" json:"-"`
+ 	Extensions []*Statement `yang:"Ext" json:"-"`
+ 
+-	Augment     *Augment  `yang:"augment" json:",omitempty"`
+-	Description *Value    `yang:"description" json:",omitempty"`
+-	IfFeature   []*Value  `yang:"if-feature" json:"-"`
+-	Refine      []*Refine `yang:"refine" json:"-"`
+-	Reference   *Value    `yang:"reference" json:"-"`
+-	Status      *Value    `yang:"status" json:"-"`
+-	When        *Value    `yang:"when" json:",omitempty"`
++	Augment     []*Augment `yang:"augment" json:",omitempty"`
++	Description *Value     `yang:"description" json:",omitempty"`
++	IfFeature   []*Value   `yang:"if-feature" json:"-"`
++	Refine      []*Refine  `yang:"refine" json:"-"`
++	Reference   *Value     `yang:"reference" json:"-"`
++	Status      *Value     `yang:"status" json:"-"`
++	When        *Value     `yang:"when" json:",omitempty"`
+ }
+ 
+ func (Uses) Kind() string             { return "uses" }

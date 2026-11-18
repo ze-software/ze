@@ -1,0 +1,16 @@
+{
+  "code": {
+    "vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate": "3e46c3691cccd29d"
+  },
+  "note": "Tested: \"If a property can only appear once, the property MUST NOT exist in the target node.\" Gap: \"The properties to replace MUST exist in the target node.\" Producer: vendor/github.com/openconfig/goyang/pkg/yang/entry.go::Entry.ApplyDeviate. The tagged negative test requires Loader.Resolve to refuse an explicitly present built-in config, mandatory, units, leaf default, min-elements or max-elements property, including explicit false, empty, zero and unbounded values. The tagged positive test requires acceptance of the corresponding absent property and its exact specified effective value. The hand-written negative break bypasses only checkDeviationAdd while retaining assignments; its config, mandatory, units and bound cases must fail on erroneous acceptance, while the separate existing-default guard may still refuse defaults. The hand-written positive break omits deviation application and must fail on the exact missing effective values. Neither break adds a parsing error or a test-only failure. This is bounded singleton-add evidence, not whole-row enforcement: replace-presence, delete keyword/value matching, extension-defined deviations and complete deviation-order validity remain unmet or unproven.",
+  "requirement_sha": "acce678661e6513f",
+  "tests": {
+    "internal/component/config/yang/rfc7950_uses_deviation_test.go::TestLoaderDeviateAddExistingSingletonProperty": "486af0ac773e3679",
+    "internal/component/config/yang/rfc7950_uses_deviation_test.go::TestLoaderDeviateAddMissingSingletonProperty": "486af0ac773e3679"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_uses_deviation_test.go::TestLoaderDeviateAddExistingSingletonProperty": "8adf04387d6f7c28",
+    "internal/component/config/yang/rfc7950_uses_deviation_test.go::TestLoaderDeviateAddMissingSingletonProperty": "15b641332d7b6809"
+  },
+  "verdict": "partial"
+}

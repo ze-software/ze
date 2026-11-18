@@ -1,0 +1,258 @@
+Ze-Reviewed-Against: github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
+
+RFC 7950 Section 7.20.3.2: "If a property can only appear once, the property
+MUST NOT exist in the target node." ApplyDeviate shared assignments for add
+and replace, so add overwrote config, mandatory, units and list bounds.
+The existing default guard is retained.
+
+Keep explicit AST property presence separately from values, including false,
+empty units, zero min-elements and unbounded max-elements. Check every
+singleton before applying an add, then update presence after each applied
+deviation so a second add cannot overwrite a property the first added.
+Inherited config alone is not an explicit property. Section 14 permits no
+type statement in deviate add, so type changes require deviate replace.
+
+No upstream pull request is opened yet. Remove this patch when the pinned
+upstream release includes the correction. Other goyang patches remain
+separate; this diff changes neither the module dependency nor its source URL.
+
+Design: docs/contributing/patching-the-standard-library.md, "Patching a vendored
+module".
+
+diff --git a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+--- a/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
++++ b/vendor/github.com/openconfig/goyang/pkg/yang/entry.go
+@@ -63,12 +63,48 @@ func (t TriState) String() string {
+ 	}
+ }
+ 
+-// deviationPresence stores whether certain attributes for a DeviateEntry-type
+-// Entry have been given deviation values. This is useful when the attribute
+-// doesn't have a presence indicator (e.g. non-pointers).
++// deviationPresence records explicit properties on an entry, including values
++// equal to their defaults. Inherited properties are not explicit statements.
+ type deviationPresence struct {
++	hasConfig      bool
++	hasDefault     bool
++	hasMandatory   bool
+ 	hasMinElements bool
+ 	hasMaxElements bool
++	hasUnits       bool
++}
++
++// deviationPresenceFor reads statement presence from the AST, before its
++// pointer-valued properties become scalar Entry values. This distinguishes
++// absent units from units "", and absent bounds from 0 and unbounded.
++// RFC 7950 Section 7.20.3.2: "The properties to add are identified by
++// substatements to the "deviate" statement."
++func deviationPresenceFor(n Node) deviationPresence {
++	var presence deviationPresence
++	value := reflect.ValueOf(n).Elem()
++	fields := value.Type()
++	for i := 0; i < fields.NumField(); i++ {
++		keyword := strings.Split(fields.Field(i).Tag.Get("yang"), ",")[0]
++		switch keyword {
++		case "config":
++			presence.hasConfig = !value.Field(i).IsNil()
++		case "default":
++			if value.Field(i).Kind() == reflect.Slice {
++				presence.hasDefault = value.Field(i).Len() > 0
++			} else {
++				presence.hasDefault = !value.Field(i).IsNil()
++			}
++		case "mandatory":
++			presence.hasMandatory = !value.Field(i).IsNil()
++		case "min-elements":
++			presence.hasMinElements = !value.Field(i).IsNil()
++		case "max-elements":
++			presence.hasMaxElements = !value.Field(i).IsNil()
++		case "units":
++			presence.hasUnits = !value.Field(i).IsNil()
++		}
++	}
++	return presence
+ }
+ 
+ // Entry represents a single schema tree node, which can be a directory
+@@ -117,8 +153,7 @@ type Entry struct {
+ 	Augmented  []*Entry                   `json:",omitempty"` // Augments merged into this entry.
+ 	Deviations []*DeviatedEntry           `json:"-"`          // Deviations associated with this entry.
+ 	Deviate    map[deviationType][]*Entry `json:"-"`
+-	// deviationPresence tracks whether certain attributes for a DeviateEntry-type
+-	// Entry have been given deviation values.
++	// deviatePresence keeps explicit property presence through deviations.
+ 	deviatePresence deviationPresence
+ 	Uses            []*UsesStmt `json:",omitempty"` // Uses merged into this entry.
+ 
+@@ -563,6 +598,7 @@ func ToEntry(n Node) (e *Entry) {
+ 		return e
+ 	}
+ 	defer func() {
++		e.deviatePresence = deviationPresenceFor(n)
+ 		ms.setEntryCache(n, e)
+ 	}()
+ 
+@@ -1124,24 +1203,70 @@ func (e *Entry) Augment(addErrors bool) (processed, skipped int) {
+ 	return processed, skipped
+ }
+ 
++// checkDeviationAdd refuses an add that would overwrite an explicit singleton.
++// RFC 7950 Section 7.20.3.2: "If a property can only appear once, the property
++// MUST NOT exist in the target node."
++func (e *Entry) checkDeviationAdd(spec *Entry) error {
++	// RFC 7950 Section 14's deviate-add-stmt admits no type-stmt.
++	if spec.Type != nil {
++		return fmt.Errorf("%s: type is not permitted in deviate add; use deviate replace on a leaf or leaf-list with an existing type",
++			Source(spec.Node))
++	}
++	properties := [...]struct {
++		name    string
++		added   bool
++		present bool
++	}{
++		{"config", spec.deviatePresence.hasConfig, e.deviatePresence.hasConfig},
++		{"default", spec.deviatePresence.hasDefault, e.deviatePresence.hasDefault},
++		{"mandatory", spec.deviatePresence.hasMandatory, e.deviatePresence.hasMandatory},
++		{"min-elements", spec.deviatePresence.hasMinElements, e.deviatePresence.hasMinElements},
++		{"max-elements", spec.deviatePresence.hasMaxElements, e.deviatePresence.hasMaxElements},
++		{"units", spec.deviatePresence.hasUnits, e.deviatePresence.hasUnits},
++	}
++	for _, property := range properties {
++		if !property.added {
++			continue
++		}
++		if property.name == "default" {
++			if e.IsLeafList() {
++				continue
++			}
++		}
++		if property.present {
++			return fmt.Errorf("%s: cannot deviate add %s: target %s already has that property; use deviate replace instead",
++				Source(spec.Node), property.name, e.Path())
++		}
++	}
++	return nil
++}
++
+ // ApplyDeviate walks the deviations within the supplied entry, and applies them to the
+ // schema.
+ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
+ 	var errs []error
+ 	appendErr := func(err error) { errs = append(errs, err) }
+ 	for _, d := range e.Deviations {
+ 		deviatedNode := e.Find(d.DeviatedPath)
+ 		if deviatedNode == nil {
+ 			appendErr(fmt.Errorf("cannot find target node to deviate, %s", d.DeviatedPath))
+ 			continue
+ 		}
+ 
+ 		for dt, dv := range d.Deviate {
+ 			for _, devSpec := range dv {
++				if dt == DeviationAdd {
++					// RFC 7950 Section 7.20.3.2.
++					if err := deviatedNode.checkDeviationAdd(devSpec); err != nil {
++						appendErr(err)
++						continue
++					}
++				}
+ 				switch dt {
+ 				case DeviationAdd, DeviationReplace:
+ 					if devSpec.Config != TSUnset {
+ 						deviatedNode.Config = devSpec.Config
++						deviatedNode.deviatePresence.hasConfig = true
+ 					}
+ 
+ 					if len(devSpec.Default) > 0 {
+@@ -1160,30 +1285,35 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
+ 						case DeviationReplace:
+ 							deviatedNode.Default = append([]string{}, devSpec.Default...)
+ 						}
++						deviatedNode.deviatePresence.hasDefault = len(deviatedNode.Default) > 0
+ 					}
+ 
+ 					if devSpec.Mandatory != TSUnset {
+ 						deviatedNode.Mandatory = devSpec.Mandatory
++						deviatedNode.deviatePresence.hasMandatory = true
+ 					}
+ 
+ 					if devSpec.deviatePresence.hasMinElements {
+ 						if !deviatedNode.IsList() && !deviatedNode.IsLeafList() {
+ 							appendErr(fmt.Errorf("tried to deviate min-elements on a non-list type %s", deviatedNode.Kind))
+ 							continue
+ 						}
+ 						deviatedNode.ListAttr.MinElements = devSpec.ListAttr.MinElements
++						deviatedNode.deviatePresence.hasMinElements = true
+ 					}
+ 
+ 					if devSpec.deviatePresence.hasMaxElements {
+ 						if !deviatedNode.IsList() && !deviatedNode.IsLeafList() {
+ 							appendErr(fmt.Errorf("tried to deviate max-elements on a non-list type %s", deviatedNode.Kind))
+ 							continue
+ 						}
+ 						deviatedNode.ListAttr.MaxElements = devSpec.ListAttr.MaxElements
++						deviatedNode.deviatePresence.hasMaxElements = true
+ 					}
+ 
+-					if devSpec.Units != "" {
++					if devSpec.deviatePresence.hasUnits {
+ 						deviatedNode.Units = devSpec.Units
++						deviatedNode.deviatePresence.hasUnits = true
+ 					}
+ 
+ 					if devSpec.Type != nil {
+@@ -1206,50 +1336,55 @@ func (e *Entry) ApplyDeviate(deviateOpts ...DeviateOpt) []error {
+ 				case DeviationDelete:
+ 					if devSpec.Config != TSUnset {
+ 						deviatedNode.Config = TSUnset
++						deviatedNode.deviatePresence.hasConfig = false
+ 					}
+ 
+ 					if len(devSpec.Default) > 0 {
+ 						switch {
+ 						case deviatedNode.IsLeafList():
+ 							// It is unclear from RFC7950 on how deviate delete works
+ 							// when there are duplicate leaf-list values in config-false leafs.
+ 							// TODO(wenbli): Add support for deleting default values when the leaf-list is a config leaf (duplicates are not allowed).
+ 							appendErr(fmt.Errorf("%s: deviate delete on default statements unsupported for leaf-lists, please use replace instead", Source(e.Node)))
+ 						case len(deviatedNode.Default) == 0:
+ 							appendErr(fmt.Errorf("%s: tried to deviate delete a default statement that doesn't exist", Source(e.Node)))
+ 						case devSpec.Default[0] != deviatedNode.Default[0]:
+ 							appendErr(fmt.Errorf("%s: tried to deviate delete a default statement with a non-matching keyword", Source(e.Node)))
+ 						default:
+ 							deviatedNode.Default = nil
++							deviatedNode.deviatePresence.hasDefault = false
+ 						}
+ 					}
+ 
+ 					if devSpec.Mandatory != TSUnset {
+ 						deviatedNode.Mandatory = TSUnset
++						deviatedNode.deviatePresence.hasMandatory = false
+ 					}
+ 
+ 					if devSpec.deviatePresence.hasMinElements {
+ 						if !deviatedNode.IsList() && !deviatedNode.IsLeafList() {
+ 							appendErr(fmt.Errorf("tried to deviate min-elements on a non-list type %s", deviatedNode.Kind))
+ 							continue
+ 						}
+ 						if deviatedNode.ListAttr.MinElements != devSpec.ListAttr.MinElements {
+ 							// Argument value must match:
+ 							// https://tools.ietf.org/html/rfc7950#section-7.20.3.2
+ 							appendErr(fmt.Errorf("min-element value %d differs from deviation's min-element value %d for entry %v", devSpec.ListAttr.MinElements, deviatedNode.ListAttr.MinElements, d.DeviatedPath))
+ 						}
+ 						deviatedNode.ListAttr.MinElements = 0
++						deviatedNode.deviatePresence.hasMinElements = false
+ 					}
+ 
+ 					if devSpec.deviatePresence.hasMaxElements {
+ 						if !deviatedNode.IsList() && !deviatedNode.IsLeafList() {
+ 							appendErr(fmt.Errorf("tried to deviate max-elements on a non-list type %s", deviatedNode.Kind))
+ 							continue
+ 						}
+ 						if deviatedNode.ListAttr.MaxElements != devSpec.ListAttr.MaxElements {
+ 							appendErr(fmt.Errorf("max-element value %d differs from deviation's max-element value %d for entry %v", devSpec.ListAttr.MaxElements, deviatedNode.ListAttr.MaxElements, d.DeviatedPath))
+ 						}
+ 						deviatedNode.ListAttr.MaxElements = math.MaxUint64
++						deviatedNode.deviatePresence.hasMaxElements = false
+ 					}
+ 
+ 					if musts, exists := devSpec.Extra["must"]; exists {

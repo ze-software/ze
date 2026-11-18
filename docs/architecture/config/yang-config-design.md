@@ -19,6 +19,37 @@ Standard YANG tools see valid schemas. Ze additionally executes custom extension
 
 Ze uses [goyang](https://github.com/openconfig/goyang) (pure Go) for schema parsing and validation.
 
+A `uses` statement can hold several `augment` statements. Each is applied to
+that use's copy of the grouping, before the copy joins its parent. The loader
+retries dependent augment targets until no progress is possible, then refuses
+an unresolved target. A uses-local augment inside a grouping leaves its
+added identifiers unbound until a use outside every grouping instantiates
+the grouping. Those identifiers and the grouping's original nodes then take
+the instantiating module's namespace (RFC 7950 Section 7.13). An augment outside
+a grouping retains its declaring module's namespace (Section 7.17.2). The
+declaration's provenance does not pre-bind the copied data nodes.
+An empty augment body is refused. A body containing a use of an empty grouping
+remains valid: Section 14 requires a data-definition statement, which need
+not produce an effective child. `anydata` and `anyxml` are permitted children,
+as verified erratum 4916 clarifies.
+This correction is retained in the goyang vendor patch
+`internal/le/vendorpatch/patches/goyang-uses-augment.patch`.
+<!-- source: vendor/github.com/openconfig/goyang/pkg/yang/yang.go -- Uses -->
+<!-- source: vendor/github.com/openconfig/goyang/pkg/yang/entry.go -- ToEntry, Augment -->
+
+`deviate add` refuses a singleton property already on its target, including
+one added by an earlier deviation. Explicit statement presence is retained
+separately from the value, so `config false`, `mandatory false`, `units ""`,
+`min-elements 0` and `max-elements unbounded` each count as present. A child's
+inherited config value does not count as its own statement. Adding a missing
+property and replacing an existing one remain permitted. `type` is not admitted
+by the Section 14 add grammar; a type change uses `deviate replace`.
+This correction is retained in
+`internal/le/vendorpatch/patches/goyang-deviate-add-presence.patch`. These
+checks do not establish complete deviation support; replace-presence and
+delete keyword/value matching remain outside their proof.
+<!-- source: vendor/github.com/openconfig/goyang/pkg/yang/entry.go -- deviationPresenceFor, checkDeviationAdd, ApplyDeviate -->
+
 ---
 
 ## 2. YANG Module Architecture
