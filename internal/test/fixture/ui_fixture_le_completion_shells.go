@@ -208,12 +208,12 @@ func leCompletionShellsInteractive(ctx context.Context, checkout string, env []s
 		{"./le yang migration path-refactor operation ren\t", "./le yang migration path-refactor operation rename "},
 		{"le sp\t", "le spec "},
 	} {
-		_, line, err := session.line(ctx, check.typed)
+		screen, line, err := session.line(ctx, check.typed)
 		if err != nil {
 			return fmt.Errorf("%s: %w", shell.name, err)
 		}
 		if line != check.want {
-			return fmt.Errorf("%s: Tab after %q left %q, want %q", shell.name, strings.TrimSuffix(check.typed, "\t"), line, check.want)
+			return fmt.Errorf("%s: Tab after %q left %q, want %q; terminal output:\n%s", shell.name, strings.TrimSuffix(check.typed, "\t"), line, check.want, screen)
 		}
 	}
 	screen, _, err := session.line(ctx, "./le commit create "+shell.list)

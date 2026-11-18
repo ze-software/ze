@@ -163,7 +163,8 @@ func dnsCheckAnswer(command string, data map[string]any, records []string, statu
 // JSON null for no records and an absent status field for NOERROR -- so a
 // needle never has to match on the spelling of a missing value.
 func dnsAnswerLine(data map[string]any) string {
-	records := "none"
+	const noRecords = "none"
+	records := noRecords
 	if got, ok := fixture06StringSlice(data["records"]); ok && len(got) > 0 {
 		records = strings.Join(got, ",")
 	}

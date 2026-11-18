@@ -276,19 +276,19 @@ func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin, endpo
 	session := "/config/sessions/" + sessionID
 
 	keyText, err := plugin01RESTRefusalAt(ctx, endpoint, http.MethodPut, session,
-		map[string]string{fieldPath: "ospf.redistribute.bogus.nssa-propagate", fieldValue: "true"})
+		map[string]string{fieldPath: "ospf.redistribute.bogus.nssa-propagate", fieldValue: valueTrue})
 	if err != nil {
 		return err
 	}
 	if err := plugin01RefusalHolds("key", keyText,
 		[]string{`"bogus" is not an accepted value`, configKeyRefusalFix},
-		[]string{"line "}); err != nil {
+		[]string{configRefusalLinePrefix}); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: REST session set refused the list key bogus with HTTP 400 and the set fix")
 
 	if _, err := plugin01RESTAt(ctx, endpoint, http.MethodPut, session,
-		map[string]string{fieldPath: "bgp.peer.peer1.session.capability.route-refresh", fieldValue: "requre"}); err != nil {
+		map[string]string{fieldPath: configRefusalRouteRefreshPath, fieldValue: configRefusalInvalidRequire}); err != nil {
 		return err
 	}
 	valueText, err := plugin01RESTRefusalAt(ctx, endpoint, http.MethodPost, session+"/commit", nil)
@@ -301,7 +301,7 @@ func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin, endpo
 			"route-refresh accepts only these values:",
 			"fix: set bgp peer peer1 session capability route-refresh require",
 		},
-		[]string{"line ", "route-refresh require;"}); err != nil {
+		[]string{configRefusalLinePrefix, "route-refresh require;"}); err != nil {
 		return err
 	}
 	if !strings.HasSuffix(strings.TrimRight(valueText, "\n"), "fix: set bgp peer peer1 session capability route-refresh require") {
@@ -319,8 +319,8 @@ func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin, endpo
 	}
 	session = "/config/sessions/" + sessionID
 	for path, value := range map[string]string{
-		"bgp.peer.peer1.session.capability.route-refresh": "requre",
-		"ospf.interfaces.interface.eth0.cost":             "0",
+		configRefusalRouteRefreshPath:         configRefusalInvalidRequire,
+		"ospf.interfaces.interface.eth0.cost": "0",
 	} {
 		if _, err := plugin01RESTAt(ctx, endpoint, http.MethodPut, session,
 			map[string]string{fieldPath: path, fieldValue: value}); err != nil {
@@ -337,7 +337,7 @@ func plugin01APIConfigEnumRefusal(ctx context.Context, plugin *sdk.Plugin, endpo
 		`ospf interfaces interface eth0 cost: "0" is outside the accepted range`,
 		"  fix: set bgp peer peer1 session capability route-refresh require",
 		"  fix: set ospf interfaces interface eth0 cost <1..65535>",
-	}, []string{"line "}); err != nil {
+	}, []string{configRefusalLinePrefix}); err != nil {
 		return err
 	}
 	if strings.Count(multiple, "\n  fix: ") != 2 {

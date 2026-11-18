@@ -185,7 +185,7 @@ func p12LateJoinTrigger(ctx context.Context, _ []string) error {
 	if err := p12CopyFile("config2.conf", "ze-bgp.conf"); err != nil {
 		return err
 	}
-	return p12SignalDaemon("daemon.pid")
+	return p12SignalDaemon()
 }
 
 func p12RelayWithdraw(reflector bool) p12Scenario {

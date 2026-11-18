@@ -26,7 +26,7 @@ import (
 )
 
 const credentialDoctorInputMarker = "INVALID-PRIVATE-PAYLOAD"
-const credentialDoctorConfig = "set system dns resolv-conf-path \"\"\n"
+const doctorLocalDNSConfig = "set system dns resolv-conf-path \"\"\n"
 
 func init() {
 	Register("storage/bootstrap-credential-doctor", bootstrapCredentialDoctorScenario)
@@ -114,7 +114,7 @@ func bootstrapCredentialDoctorScenario(ctx context.Context, args []string) error
 func bootstrapCredentialDoctorJSON(ctx context.Context, want bool) error {
 	// Standard input is explicitly local: askDaemonDoctor refuses to forward
 	// "-", so this fixture never probes or answers from another running daemon.
-	output, err := storageCommand(ctx, credentialDoctorConfig, "doctor", "--json", sourceConfig, "-")
+	output, err := storageCommand(ctx, doctorLocalDNSConfig, "doctor", "--json", sourceConfig, "-")
 	if err != nil {
 		var exited *exec.ExitError
 		if !errors.As(err, &exited) {
@@ -139,7 +139,8 @@ func bootstrapCredentialDoctorJSON(ctx context.Context, want bool) error {
 		return fmt.Errorf("credential doctor schema = %d, want %d", result.SchemaVersion, diagnostic.SchemaVersion)
 	}
 	found := 0
-	for _, diag := range result.Diagnostics {
+	for index := range result.Diagnostics {
+		diag := &result.Diagnostics[index]
 		if diag.Code != diagnostic.CodeDoctorLocalAdminCredentials {
 			continue
 		}

@@ -96,7 +96,7 @@ func vrrpAcceptConfig(group, acceptMode bool) string {
 	if group {
 		accept := valueFalse
 		if acceptMode {
-			accept = "true"
+			accept = valueTrue
 		}
 		tb.Str("\t\t\t\tvrrp {\n\t\t\t\t\tgroup lab {\n\t\t\t\t\t\tvrid 11;\n").
 			Str("\t\t\t\t\t\tvirtual-address [ ").Str(vrrpAcceptVIP).Str(" ];\n").

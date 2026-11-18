@@ -312,7 +312,7 @@ func leInventoryTree(ctx context.Context, root string) ([]string, error) {
 		"internal/widget/widget.go":                      source.String(),
 		"internal/widget/yang/fixture.yang":              schema,
 		"internal/component/plugin/registry/registry.go": "package registry\ntype Registration struct { Name, YANG string; RunEngine func() }\nfunc Register(Registration) error { return nil }\n",
-		"cmd/ze/main.go":                                 "package main\nimport _ \"github.com/ze-software/ze/internal/widget\"\nfunc main() {}\n",
+		fileZeMain:                                       "package main\nimport _ \"github.com/ze-software/ze/internal/widget\"\nfunc main() {}\n",
 		"test/widget/show.ci":                            "cmd=foreground:exec=ze show widget\nexpect=exit:code=0\n",
 	}
 	for relative, body := range files {
@@ -332,15 +332,15 @@ func leInventoryTree(ctx context.Context, root string) ([]string, error) {
 		}
 	}
 	childEnv := childEnvironment(base, map[string]string{
-		envRepoRoot:          root,
-		envGitConfigGlobal:   os.DevNull,
-		envGitConfigSystem:   "1",
-		envGitAuthorName:     gitFixtureName,
-		envGitAuthorEmail:    gitFixtureEmail,
-		envGitCommitName:     gitFixtureName,
-		envGitCommitEmail:    gitFixtureEmail,
-		"GIT_AUTHOR_DATE":    "2000-01-02T12:00:00Z",
-		"GIT_COMMITTER_DATE": "2000-01-02T12:00:00Z",
+		envRepoRoot:        root,
+		envGitConfigGlobal: os.DevNull,
+		envGitConfigSystem: "1",
+		envGitAuthorName:   gitFixtureName,
+		envGitAuthorEmail:  gitFixtureEmail,
+		envGitCommitName:   gitFixtureName,
+		envGitCommitEmail:  gitFixtureEmail,
+		envGitAuthorDate:   gitFixtureTimestamp,
+		envGitCommitDate:   gitFixtureTimestamp,
 	})
 	for _, args := range [][]string{
 		{argInit, argQuiet, gitInitNoTemplate, gitInitFixtureBranch},

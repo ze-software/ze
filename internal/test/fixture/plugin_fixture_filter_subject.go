@@ -32,7 +32,7 @@ var filterSubjectFields = []filterSubjectField{
 	{name: fieldOrigin, value: `"incomplete"`},
 	{name: fieldMED, value: `100`},
 	{name: fieldLocalPreference, value: `150`},
-	{name: "atomic-aggregate", value: `true`},
+	{name: "atomic-aggregate", value: valueTrue},
 	{name: "cluster-list", value: `["1.1.1.1","2.2.2.2"]`},
 }
 

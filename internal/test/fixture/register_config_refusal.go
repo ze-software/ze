@@ -43,7 +43,7 @@ func configRefusalTLS(_ context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(args[0], pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: pair.Certificate[0]}), 0o600); err != nil {
+	if err := os.WriteFile(args[0], pem.EncodeToMemory(&pem.Block{Type: pemCertificate, Bytes: pair.Certificate[0]}), 0o600); err != nil {
 		return err
 	}
 	return os.WriteFile(args[1], pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: key}), 0o600)

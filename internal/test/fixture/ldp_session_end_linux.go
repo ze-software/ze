@@ -72,12 +72,17 @@ const (
 	ldpSessionEventDown
 )
 
+const (
+	ldpSessionEventNameUp   = "session-up"
+	ldpSessionEventNameDown = "session-down"
+)
+
 func (k ldpSessionEventKind) String() string {
 	switch k {
 	case ldpSessionEventUp:
-		return "session-up"
+		return ldpSessionEventNameUp
 	case ldpSessionEventDown:
-		return "session-down"
+		return ldpSessionEventNameDown
 	case ldpSessionEventUnspecified:
 		return "unspecified"
 	}
@@ -104,7 +109,7 @@ type ldpSessionEventLog struct {
 // setup subscribes the observer to session-up and session-down, enveloped so
 // each delivery names its event, before the plugin's first stage.
 func (l *ldpSessionEventLog) setup(plugin *sdk.Plugin) error {
-	plugin.SetStartupSubscriptionsIn("ldp", []string{"session-up", "session-down"}, nil, "")
+	plugin.SetStartupSubscriptionsIn("ldp", []string{ldpSessionEventNameUp, ldpSessionEventNameDown}, nil, "")
 	plugin.SetEnvelope(true)
 	plugin.OnEvent(l.observe)
 	return nil
@@ -134,9 +139,9 @@ func decodeLDPSessionEvent(event string) (ldpSessionEventRecord, error) {
 		return record, fmt.Errorf("event %q from namespace %q, subscribed to ldp only", envelope.Event, envelope.Namespace)
 	}
 	switch envelope.Event {
-	case "session-up":
+	case ldpSessionEventNameUp:
 		record.kind = ldpSessionEventUp
-	case "session-down":
+	case ldpSessionEventNameDown:
 		record.kind = ldpSessionEventDown
 	default:
 		return record, fmt.Errorf("event ldp/%s, subscribed to session-up and session-down only", envelope.Event)

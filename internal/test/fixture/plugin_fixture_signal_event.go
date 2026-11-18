@@ -79,7 +79,7 @@ func p12SignalEvent(plugin *sdk.Plugin, encoding string, sendSignal bool, matche
 			if err := p12AwaitDaemonReady(ctx); err != nil {
 				return err
 			}
-			if err := p12SignalDaemon(fileDaemonPID); err != nil {
+			if err := p12SignalDaemon(); err != nil {
 				return err
 			}
 		}

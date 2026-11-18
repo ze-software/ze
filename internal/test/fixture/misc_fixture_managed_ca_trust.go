@@ -364,7 +364,7 @@ func caTrustForeignRootPEM() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), nil
+	return pem.EncodeToMemory(&pem.Block{Type: pemCertificate, Bytes: der}), nil
 }
 
 // managedHubCAExportDriver runs inside the hub as an ordinary external plugin

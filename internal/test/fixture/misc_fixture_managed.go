@@ -350,7 +350,7 @@ func managedSelfSignedCert() (tls.Certificate, error) {
 	if err != nil {
 		return tls.Certificate{}, err
 	}
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: pemCertificate, Bytes: der})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
 	return tls.X509KeyPair(certPEM, keyPEM)
 }

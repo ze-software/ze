@@ -123,7 +123,7 @@ func plugin01SaveDeletesAPeer(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	if removed := plugin01Strings(data["removed"]); len(removed) != 1 || removed[0] != "peer1" {
+	if removed := plugin01Strings(data["removed"]); len(removed) != 1 || removed[0] != peerNameOne {
 		return fmt.Errorf("update bgp config removed %v, want [peer1]", removed)
 	}
 

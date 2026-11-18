@@ -393,15 +393,15 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 		}
 	}
 	childEnv := childEnvironment(baseEnv, map[string]string{
-		envRepoRoot:          root,
-		envGitConfigGlobal:   os.DevNull,
-		envGitConfigSystem:   "1",
-		envGitAuthorName:     gitFixtureName,
-		envGitAuthorEmail:    gitFixtureEmail,
-		envGitCommitName:     gitFixtureName,
-		envGitCommitEmail:    gitFixtureEmail,
-		"GIT_AUTHOR_DATE":    committed + "T12:00:00Z",
-		"GIT_COMMITTER_DATE": committed + "T12:00:00Z",
+		envRepoRoot:        root,
+		envGitConfigGlobal: os.DevNull,
+		envGitConfigSystem: "1",
+		envGitAuthorName:   gitFixtureName,
+		envGitAuthorEmail:  gitFixtureEmail,
+		envGitCommitName:   gitFixtureName,
+		envGitCommitEmail:  gitFixtureEmail,
+		envGitAuthorDate:   committed + "T12:00:00Z",
+		envGitCommitDate:   committed + "T12:00:00Z",
 	})
 	for _, spec := range expected {
 		dir := filepath.Join(root, spec.dir)

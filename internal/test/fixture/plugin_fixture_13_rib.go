@@ -309,7 +309,7 @@ func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
 		}
 		const bestPathStepMED = "med" // The best-path explanation step, not an attribute field.
 		for step, want := range [2]struct{ name, winner, loser string }{
-			{bestPathStepMED, addrPeerThree, "10.0.0.1"},
+			{bestPathStepMED, addrPeerThree, addrPeerOne},
 			{"peer-address", addrPeerTwo, addrPeerThree},
 		} {
 			got := entry.Steps[step]
@@ -330,7 +330,7 @@ func ribWholeSetMED13(ctx context.Context, plugin *sdk.Plugin) error {
 		if err := requireDone13("whole-set MED earlier-criterion best", best); err != nil {
 			return err
 		}
-		if row := bestPathFor13(best, prefix); row == nil || row["best-peer"] != "10.0.0.1" {
+		if row := bestPathFor13(best, prefix); row == nil || row["best-peer"] != addrPeerOne {
 			return fmt.Errorf("MED earlier-criterion order %v: best=%v, want 10.0.0.1", order, row)
 		}
 	}

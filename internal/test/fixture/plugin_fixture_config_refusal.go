@@ -26,9 +26,13 @@ import (
 
 const configRefusalFix = "fix: set bgp peer peer1 session capability route-refresh require"
 const configKeyRefusalFix = "fix: set ospf redistribute <connected|static|kernel|bgp|isis> nssa-propagate true"
+const configRefusalLinePrefix = "line "
+const configRefusalRouteRefreshPath = "bgp.peer.peer1.session.capability.route-refresh"
+const configRefusalInvalidRequire = "requre"
+const configRefusalRouteRefreshLeaf = "route-refresh"
 
 func configRefusalClient(address, certificate string) (*grpc.ClientConn, error) {
-	cert, err := os.ReadFile(certificate)
+	cert, err := os.ReadFile(certificate) //nolint:gosec // config-refusal/tls generated this fixture's pinned trust anchor
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +55,7 @@ func configEnumStatus(err error, code codes.Code) error {
 		`bgp peer peer1 session capability route-refresh: "requre" is not an accepted value (did you mean require?)`,
 		"route-refresh accepts only these values:",
 		"  enable", "  disable", "  require", "  refuse", configRefusalFix,
-	}, []string{"line ", "route-refresh require;", "invalid enum"}); err != nil {
+	}, []string{configRefusalLinePrefix, "route-refresh require;", "invalid enum"}); err != nil {
 		return err
 	}
 	if !strings.HasSuffix(strings.TrimSpace(text), configRefusalFix) {
@@ -69,7 +73,7 @@ func configKeyStatus(err error) error {
 		`ospf redistribute bogus: "bogus" is not an accepted value`,
 		"source accepts only these values:",
 		"  connected", "  static", "  kernel", "  bgp", "  isis", configKeyRefusalFix,
-	}, []string{"line ", "invalid key for"}); err != nil {
+	}, []string{configRefusalLinePrefix, "invalid key for"}); err != nil {
 		return err
 	}
 	if !strings.HasSuffix(strings.TrimSpace(text), configKeyRefusalFix) {
@@ -105,7 +109,7 @@ func grpcConfigEnumRefusal(ctx context.Context, address, certificate string) err
 	_, err = client.SetConfig(ctx, &zepb.ConfigSetRequest{
 		SessionId: created.GetSessionId(),
 		Path:      "ospf.redistribute.bogus.nssa-propagate",
-		Value:     "true",
+		Value:     valueTrue,
 	})
 	if err := configKeyStatus(err); err != nil {
 		return err
@@ -113,8 +117,8 @@ func grpcConfigEnumRefusal(ctx context.Context, address, certificate string) err
 	fmt.Fprintln(os.Stderr, "OK: gRPC enum key refused with InvalidArgument and the complete set fix")
 	set, err := client.SetConfig(ctx, &zepb.ConfigSetRequest{
 		SessionId: created.GetSessionId(),
-		Path:      "bgp.peer.peer1.session.capability.route-refresh",
-		Value:     "requre",
+		Path:      configRefusalRouteRefreshPath,
+		Value:     configRefusalInvalidRequire,
 	})
 	if err != nil {
 		return err
@@ -138,7 +142,7 @@ func grpcConfigEnumRefusal(ctx context.Context, address, certificate string) err
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(diff.GetDiff(), "requre") {
+	if !strings.Contains(diff.GetDiff(), configRefusalInvalidRequire) {
 		return fmt.Errorf("refused gRPC candidate was lost: %q", diff.GetDiff())
 	}
 	if _, err := client.DiscardSession(ctx, &zepb.SessionRequest{SessionId: created.GetSessionId()}); err != nil {
@@ -150,8 +154,8 @@ func grpcConfigEnumRefusal(ctx context.Context, address, certificate string) err
 
 func configRefusalPath() *gpb.Path {
 	return &gpb.Path{Elem: []*gpb.PathElem{
-		{Name: "bgp"}, {Name: "peer", Key: map[string]string{"name": "peer1"}},
-		{Name: "session"}, {Name: "capability"}, {Name: "route-refresh"},
+		{Name: namespaceBGP}, {Name: fieldPeer, Key: map[string]string{"name": "peer1"}},
+		{Name: "session"}, {Name: "capability"}, {Name: configRefusalRouteRefreshLeaf},
 	}}
 }
 
@@ -210,7 +214,7 @@ func gnmiSetEnumRefusal(ctx context.Context, plugin *sdk.Plugin, address, certif
 	fmt.Fprintln(os.Stderr, "OK: gNMI enum key refused with InvalidArgument and the complete set fix")
 	_, err = client.Set(ctx, &gpb.SetRequest{Update: []*gpb.Update{{
 		Path: configRefusalPath(),
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: "requre"}},
+		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_StringVal{StringVal: configRefusalInvalidRequire}},
 	}}})
 	if err := configEnumStatus(err, codes.Aborted); err != nil {
 		return err

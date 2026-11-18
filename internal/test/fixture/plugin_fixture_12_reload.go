@@ -21,7 +21,7 @@ func p12ReloadTrigger(ctx context.Context, _ []string) error {
 	if err := p12CopyFile("config2.conf", "ze-bgp.conf"); err != nil {
 		return err
 	}
-	if err := p12SignalDaemon("daemon.pid"); err != nil {
+	if err := p12SignalDaemon(); err != nil {
 		return err
 	}
 	return os.WriteFile("reload.done", nil, 0o600)
@@ -53,14 +53,14 @@ func p12CopyFile(source, destination string) error {
 	return nil
 }
 
-func p12SignalDaemon(path string) error {
-	data, err := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
+func p12SignalDaemon() error {
+	data, err := os.ReadFile(fileDaemonPID)
 	if err != nil {
 		return err
 	}
 	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
 	if err != nil {
-		return fmt.Errorf("parse %s: %w", path, err)
+		return fmt.Errorf("parse %s: %w", fileDaemonPID, err)
 	}
 	if err := syscall.Kill(pid, syscall.SIGHUP); err != nil {
 		return fmt.Errorf("signal daemon %d: %w", pid, err)

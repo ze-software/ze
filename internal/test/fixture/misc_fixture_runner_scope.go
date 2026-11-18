@@ -29,10 +29,10 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	defer os.RemoveAll(repo) //nolint:errcheck // fixture cleanup
-	if err := gitFixture(ctx, repo, map[string]string{fileGoMod: "module fixture/freshness\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate, fileGitIgnore: contentGitIgnoreTmp, "mine.txt": "mine\n", "theirs.txt": "theirs\n"}); err != nil {
+	if err := gitFixture(ctx, repo, map[string]string{fileGoMod: "module fixture/freshness\n\ngo 1.24\n", fileFeatureGates: contentFeatureGate, fileGitIgnore: contentGitIgnoreTmp, fileRunnerMine: "mine\n", "theirs.txt": "theirs\n"}); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(repo, "mine.txt"), []byte("mine\nmy edit\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, fileRunnerMine), []byte("mine\nmy edit\n"), 0o600); err != nil {
 		return err
 	}
 	le, err := nativeLEBinary()
@@ -48,8 +48,15 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 	if err := os.WriteFile(filepath.Join(repo, "theirs.txt"), []byte("theirs\ntheir edit\n"), 0o600); err != nil {
 		return err
 	}
-	if out, code, err := run("verify status", "check", "path", "mine.txt"); err != nil || code != 0 || !strings.Contains(out, "FRESH") {
-		return fmt.Errorf("scoped mine check exit=%d: %w %s", code, err, out)
+	mineOut, mineCode, mineErr := run("verify status", "check", "path", fileRunnerMine)
+	if mineErr != nil {
+		return fmt.Errorf("scoped mine check exit=%d: %w %s", mineCode, mineErr, mineOut)
+	}
+	if mineCode != 0 {
+		return fmt.Errorf("scoped mine check exit=%d: %w %s", mineCode, mineErr, mineOut)
+	}
+	if !strings.Contains(mineOut, "FRESH") {
+		return fmt.Errorf("scoped mine check exit=%d: %w %s", mineCode, mineErr, mineOut)
 	}
 	fmt.Fprintln(os.Stdout, "scoped-fresh-for-my-path") //nolint:errcheck // progress output
 	if _, code, err := run("verify status", "check"); err != nil || code == 0 {
@@ -60,18 +67,26 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 		return fmt.Errorf("theirs scoped check exit=%d: %w", code, err)
 	}
 	fmt.Fprintln(os.Stdout, "scoped-stale-for-their-path") //nolint:errcheck // progress output
-	if err := os.WriteFile(filepath.Join(repo, "mine.txt"), []byte("mine\nmy second edit\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, fileRunnerMine), []byte("mine\nmy second edit\n"), 0o600); err != nil {
 		return err
 	}
-	if _, code, err := run("verify status", "check", "path", "mine.txt"); err != nil || code == 0 {
-		return fmt.Errorf("own edit check exit=%d: %w", code, err)
+	_, ownCode, ownErr := run("verify status", "check", "path", fileRunnerMine)
+	if ownErr != nil {
+		return fmt.Errorf("own edit check exit=%d: %w", ownCode, ownErr)
+	}
+	if ownCode == 0 {
+		return fmt.Errorf("own edit check exit=%d: %w", ownCode, ownErr)
 	}
 	fmt.Fprintln(os.Stdout, "scoped-stale-for-my-own-edit") //nolint:errcheck // progress output
-	if err := os.WriteFile(filepath.Join(repo, "mine.txt"), []byte("mine\nmy edit\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, fileRunnerMine), []byte("mine\nmy edit\n"), 0o600); err != nil {
 		return err
 	}
-	if _, code, err := run("verify status", "check", "path", "mine.txt"); err != nil || code != 0 {
-		return fmt.Errorf("reverted edit check exit=%d: %w", code, err)
+	_, revertedCode, revertedErr := run("verify status", "check", "path", fileRunnerMine)
+	if revertedErr != nil {
+		return fmt.Errorf("reverted edit check exit=%d: %w", revertedCode, revertedErr)
+	}
+	if revertedCode != 0 {
+		return fmt.Errorf("reverted edit check exit=%d: %w", revertedCode, revertedErr)
 	}
 	manifest := filepath.Join(repo, "tmp", "ze-verify-manifest.txt")
 	body, err := os.ReadFile(manifest) //nolint:gosec // the path is the fixture's own scratch file
@@ -92,7 +107,7 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 	if err := os.WriteFile(manifest, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
 		return err
 	}
-	out, code, err := run("verify status", "check", "path", "mine.txt")
+	out, code, err := run("verify status", "check", "path", fileRunnerMine)
 	if err != nil || code == 0 || !strings.Contains(out, "moved while the run was in flight") {
 		return fmt.Errorf("moved check exit=%d: %w %s", code, err, out)
 	}
@@ -100,8 +115,12 @@ func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 	if out, code, err := run("verify status", "record", "exit-code", "1", "mode", "full"); err != nil || code != 0 {
 		return fmt.Errorf("record red status exit=%d: %w %s", code, err, out)
 	}
-	if _, code, err := run("verify status", "check", "path", "mine.txt"); err != nil || code == 0 {
-		return fmt.Errorf("red run scoped check exit=%d: %w", code, err)
+	_, redCode, redErr := run("verify status", "check", "path", fileRunnerMine)
+	if redErr != nil {
+		return fmt.Errorf("red run scoped check exit=%d: %w", redCode, redErr)
+	}
+	if redCode == 0 {
+		return fmt.Errorf("red run scoped check exit=%d: %w", redCode, redErr)
 	}
 	fmt.Fprintln(os.Stdout, "red-run-stale-for-every-scope") //nolint:errcheck // progress output
 	return nil

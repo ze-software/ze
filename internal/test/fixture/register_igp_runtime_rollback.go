@@ -66,7 +66,7 @@ func runIGPRuntimeRollback(ctx context.Context) error {
 		if err := p12CopyFile("config2.conf", "ze-bgp.conf"); err != nil {
 			return err
 		}
-		if err := p12SignalDaemon(fileDaemonPID); err != nil {
+		if err := p12SignalDaemon(); err != nil {
 			return err
 		}
 		select {
