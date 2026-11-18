@@ -360,15 +360,24 @@ func (r *PeerRIB) IterateFamilySorted(fam family.Family, fn func(nlriBytes []byt
 // grows on this RIB; a larger set still works and costs one allocation.
 const coveringFamiliesMax = 4
 
-// IterateCovering calls fn for every stored path whose prefix contains addr:
-// family by family in family order, and within a family the most specific
-// prefix first, with every ADD-PATH path of each prefix. Stops if fn returns
-// false.
+// IterateCovering calls fn for every stored path whose prefix contains addr,
+// the most specific prefix first across all of this peer's families, with
+// every ADD-PATH path of each prefix. Two families holding a prefix of the
+// same length answer it in family order. Stops if fn returns false.
 //
-// It reads only the trie entries on the path to addr (FamilyRIB.iterateCovering),
-// never the whole table, which is what lets a looking glass on a full table
-// answer an address lookup. Families with no prefixes (the non-CIDR ones) and
-// families of the other IP version contribute nothing.
+// The order is one order for the peer, not one per family, because that is
+// what the looking glass and the CLI reference promise: a peer holding
+// 10.0.0.0/8 as unicast and 10.1.0.0/16 as multicast answers the /16 first,
+// and a default route comes last whatever its family.
+//
+// It reads only the trie entries on the path to addr, never the whole table,
+// which is what lets a looking glass on a full table answer an address lookup.
+// With one family, that family's trie walk (FamilyRIB.iterateCovering) already
+// yields the order. With several, each prefix length from the longest down is
+// asked of each family (FamilyRIB.iterateExact): a length names the one prefix
+// of it that contains addr, so the read is bounded by 33 or 129 lengths per
+// family, never by the table size. Families with no prefixes (the non-CIDR
+// ones) and families of the other IP version contribute nothing.
 //
 // fn runs with this type's read lock held, and owes it the same obligation
 // Iterate states.
@@ -377,12 +386,32 @@ func (r *PeerRIB) IterateCovering(addr netip.Addr, fn func(fam family.Family, nl
 	defer r.mu.RUnlock()
 
 	var buf [coveringFamiliesMax]family.Family
-	for _, fam := range r.appendAddressFamilies(buf[:0], addr) {
-		keepGoing := r.families[fam].iterateCovering(addr, func(nlriBytes []byte, entry RouteEntry) bool {
+	families := r.appendAddressFamilies(buf[:0], addr)
+	if len(families) == 1 {
+		fam := families[0]
+		r.families[fam].iterateCovering(addr, func(nlriBytes []byte, entry RouteEntry) bool {
 			return fn(fam, nlriBytes, entry)
 		})
-		if !keepGoing {
-			return
+		return
+	}
+	// An invalid address contains no prefix, as store.Store.Covering answers
+	// for the one-family case: an empty answer, not a lookup of the zero prefix.
+	if !addr.IsValid() {
+		return
+	}
+	// A route prefix carries no zone, so the lengths are asked of the address
+	// without one. Bounded by the address length: bits runs from 32 or 128 down
+	// to 0.
+	host := addr.WithZone("")
+	for bits := host.BitLen(); bits >= 0; bits-- {
+		pfx := netip.PrefixFrom(host, bits).Masked()
+		for _, fam := range families {
+			keepGoing := r.families[fam].iterateExact(pfx, func(nlriBytes []byte, entry RouteEntry) bool {
+				return fn(fam, nlriBytes, entry)
+			})
+			if !keepGoing {
+				return
+			}
 		}
 	}
 }

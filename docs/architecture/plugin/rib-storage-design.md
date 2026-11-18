@@ -2604,8 +2604,9 @@ oversized graph, use the same refusal path.
 ### The covering read
 
 `show bgp rib received covering <address>` answers every received route whose
-prefix contains one IPv4 or IPv6 address: within each peer, family by family,
-the most specific prefix first, with every ADD-PATH path of each prefix. It is
+prefix contains one IPv4 or IPv6 address: within each peer the most specific
+prefix first, across the peer's families (two families holding a prefix of one
+length answer it in family order), with every ADD-PATH path of each prefix. It is
 the read a looking glass needs when a user types a host address, and it must
 not cost a full-table scan, because that endpoint is public.
 
@@ -2613,9 +2614,14 @@ The read follows the trie, never the table. `store.Store.Covering` walks the
 BART nodes on the path from the root to the address (`bart.Table.Supernets`),
 so its cost follows the address length, at most one entry per prefix length,
 whatever the table holds. `FamilyRIB.iterateCovering` runs it over `direct`, or
-over `multi` with every path of each `pathSet`, and `PeerRIB.IterateCovering`
-runs it over the peer's CIDR families of the address's IP version, in family
-order, under the PeerRIB read lock. A non-CIDR family holds no prefix to
+over `multi` with every path of each `pathSet`. `PeerRIB.IterateCovering`
+runs it, under the PeerRIB read lock, when the peer holds one CIDR family of
+the address's IP version. When it holds several (unicast with multicast or
+labeled unicast), each family's walk would order only its own prefixes, so
+`PeerRIB.IterateCovering` asks each prefix length from the longest down of
+every family in family order (`FamilyRIB.iterateExact`): a length names the
+one prefix of it that contains the address, so the read stays bounded by the
+address length. A non-CIDR family holds no prefix to
 contain an address and contributes nothing. The `maprib` build has no trie, so
 its `Store.Covering` scans the map and sorts the matches; the cost bound belongs
 to the default backend.
@@ -2638,8 +2644,8 @@ too: its source collects prefixes with a whole-table walk of every peer.
 <!-- source: internal/core/rib/store/store_bart.go -- Store.Covering -->
 <!-- source: internal/core/rib/store/store_map.go -- Store.Covering -->
 <!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- iterateCovering, familyHoldsAddress -->
-<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- IterateCovering -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseCoveringAddress, refuseCoveringScope, coveringOnBestRefusal -->
+<!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- IterateCovering, iterateExact over several families -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, coveringRead, parseCoveringAddress, refuseCoveringScope, coveringOnBestRefusal -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- parsePipelineArgs, showPipeline, inboundSource -->
 
 ### The exact read
@@ -2661,9 +2667,12 @@ under the PeerRIB read lock; `PeerRIB.appendAddressFamilies` picks and orders
 those families for both the covering and the exact read. A non-CIDR family, and
 a family of the other IP version, contribute nothing.
 
-`exact` is the second kind of `receivedWalk`: the zero value reads the whole
-table, `coveringWalk` the routes containing an address, `exactWalk` the routes
-of one prefix. `parsePipelineArgs` reads the value once. It refuses a bare
+`receivedWalk` is a sealed interface of three variants, each holding only its
+own payload, so no walk can name both an address and a prefix:
+`wholeTableRead` reads the whole table, `coveringRead` the routes containing an
+address, `exactRead` the routes of one prefix. `parsePipelineArgs` answers
+`wholeTableRead` when neither keyword is given, and no walk at all beside a
+refusal. It reads the value once. It refuses a bare
 address (naming the `covering` form), a value that is not a prefix, a zone, and
 a prefix with host bits set (naming the masked form, `10.0.0.1/8` gives
 `10.0.0.0/8`), because the store keys its entries by the masked prefix and
@@ -2674,7 +2683,7 @@ scopes holding sent routes and `show bgp rib best` refuse with the received
 form, since neither the sent sources nor the best-path source take a walk.
 <!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go -- iterateExact -->
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- IterateExact, appendAddressFamilies -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, exactWalk, parseExactPrefix, exactValueRefusal, walkConflictRefusal, refuseExactScope, exactOnBestRefusal -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, wholeTableRead, coveringRead, exactRead, parseExactPrefix, exactValueRefusal, walkConflictRefusal, refuseExactScope, exactOnBestRefusal -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- prefixFilter, parsePipelineArgs, showPipeline -->
 
 ### Example: IPv4 Unicast

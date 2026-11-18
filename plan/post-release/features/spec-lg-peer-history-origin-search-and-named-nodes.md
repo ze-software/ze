@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | New looking glass capabilities for a route collector: session history, origin and exact AS path search, route age, and operator names on peers and next hops. None repairs shipped behavior; the repairs are in the companion fix spec |
 | RFC gaps | - |
-| Depends | spec-lg-search-matches-what-the-pages-promise.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-11-18 |
@@ -16,7 +16,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 The design below is a proposal. It was written without an approval gate and
 waits for the owner's review before the status moves to `ready`. The companion
-fix spec is `plan/release/fixes/spec-lg-search-matches-what-the-pages-promise.md`.
+fix spec, spec-lg-search-matches-what-the-pages-promise, closed on 2026-11-18:
+the looking glass now sends `covering` for a bare address and `exact` for a
+prefix with its length, and its AS path field takes AS numbers separated by
+spaces with an optional leading `^` (`docs/guide/looking-glass.md`,
+`docs/architecture/api/birdwatcher-compat.md` Section 3.3).
 
 ## Task
 

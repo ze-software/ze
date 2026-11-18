@@ -452,7 +452,7 @@ type combinedSource struct {
 // routes (refuseCoveringScope, refuseExactScope).
 func newCombinedSource(r *RIBManager, selector string) *combinedSource {
 	return &combinedSource{
-		inbound:  newInboundSource(r, selector, receivedWalk{}),
+		inbound:  newInboundSource(r, selector, wholeTableRead{}),
 		outbound: newOutboundSource(r, selector),
 	}
 }
@@ -1292,15 +1292,18 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 	if errMsg != "" {
 		return refusePipelineArgs(errMsg, "show bgp rib count")
 	}
-	if walk.isCovering() {
+	// A covering or exact walk reads the received routes' tries, so a scope
+	// that holds sent routes refuses it rather than answering half the scope.
+	switch held := walk.(type) {
+	case coveringRead:
 		if scope != scopeReceived {
-			return refuseCoveringScope(walk.covering)
+			return refuseCoveringScope(held.address)
 		}
-	}
-	if walk.isExact() {
+	case exactRead:
 		if scope != scopeReceived {
-			return refuseExactScope(walk.exact)
+			return refuseExactScope(held.prefix)
 		}
+	case wholeTableRead:
 	}
 	if pipeSelector != "" {
 		selector = pipeSelector
@@ -1496,7 +1499,7 @@ var scopeKeywords = map[string]string{
 func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineStage, string) {
 	scope := scopeSentReceived
 	selector := ""
-	var walk receivedWalk
+	var walk receivedWalk = wholeTableRead{}
 	var stages []pipelineStage
 
 	i := 0
@@ -1518,11 +1521,11 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 		if _, ok := scopeKeywords[keyword]; ok {
 			if sawTerminal {
 				var tb textbuf.Buffer
-				return "", "", receivedWalk{}, nil, tb.Str("filter after terminal: ").Str(keyword).String()
+				return "", "", nil, nil, tb.Str("filter after terminal: ").Str(keyword).String()
 			}
 			if scopeName != "" {
 				var tb textbuf.Buffer
-				return "", "", receivedWalk{}, nil, tb.Str("multiple route direction filters: ").Str(scopeName).Str(" and ").Str(keyword).String()
+				return "", "", nil, nil, tb.Str("multiple route direction filters: ").Str(scopeName).Str(" and ").Str(keyword).String()
 			}
 			scope = scopeKeywords[keyword]
 			scopeName = keyword
@@ -1531,14 +1534,14 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 		}
 		if keyword == rowKeyPeer {
 			if sawTerminal {
-				return "", "", receivedWalk{}, nil, "filter after terminal: peer"
+				return "", "", nil, nil, "filter after terminal: peer"
 			}
 			if selector != "" {
-				return "", "", receivedWalk{}, nil, "duplicate peer filter"
+				return "", "", nil, nil, "duplicate peer filter"
 			}
 			i++
 			if i >= len(args) {
-				return "", "", receivedWalk{}, nil, "peer requires a value"
+				return "", "", nil, nil, "peer requires a value"
 			}
 			selector = args[i]
 			i++
@@ -1546,45 +1549,45 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 		}
 		if keyword == filterCovering {
 			if sawTerminal {
-				return "", "", receivedWalk{}, nil, "filter after terminal: covering"
+				return "", "", nil, nil, "filter after terminal: covering"
 			}
-			if walk.isCovering() {
-				return "", "", receivedWalk{}, nil, "duplicate covering filter: one address per lookup"
+			if _, held := walk.(coveringRead); held {
+				return "", "", nil, nil, "duplicate covering filter: one address per lookup"
 			}
 			i++
 			if i >= len(args) {
-				return "", "", receivedWalk{}, nil, "covering requires a value: an IP address such as 192.0.2.1"
+				return "", "", nil, nil, "covering requires a value: an IP address such as 192.0.2.1"
 			}
 			addr, errMsg := parseCoveringAddress(args[i])
 			if errMsg != "" {
-				return "", "", receivedWalk{}, nil, errMsg
+				return "", "", nil, nil, errMsg
 			}
-			if walk.isExact() {
-				return "", "", receivedWalk{}, nil, walkConflictRefusal(addr, walk.exact)
+			if held, isExact := walk.(exactRead); isExact {
+				return "", "", nil, nil, walkConflictRefusal(addr, held.prefix)
 			}
-			walk = coveringWalk(addr)
+			walk = coveringRead{address: addr}
 			i++
 			continue
 		}
 		if keyword == filterExact {
 			if sawTerminal {
-				return "", "", receivedWalk{}, nil, "filter after terminal: exact"
+				return "", "", nil, nil, "filter after terminal: exact"
 			}
-			if walk.isExact() {
-				return "", "", receivedWalk{}, nil, "duplicate exact filter: one prefix per lookup"
+			if _, held := walk.(exactRead); held {
+				return "", "", nil, nil, "duplicate exact filter: one prefix per lookup"
 			}
 			i++
 			if i >= len(args) {
-				return "", "", receivedWalk{}, nil, "exact requires a value: a prefix with its mask such as 10.0.0.0/8"
+				return "", "", nil, nil, "exact requires a value: a prefix with its mask such as 10.0.0.0/8"
 			}
 			pfx, errMsg := parseExactPrefix(args[i])
 			if errMsg != "" {
-				return "", "", receivedWalk{}, nil, errMsg
+				return "", "", nil, nil, errMsg
 			}
-			if walk.isCovering() {
-				return "", "", receivedWalk{}, nil, walkConflictRefusal(walk.covering, pfx)
+			if held, isCovering := walk.(coveringRead); isCovering {
+				return "", "", nil, nil, walkConflictRefusal(held.address, pfx)
 			}
-			walk = exactWalk(pfx)
+			walk = exactRead{prefix: pfx}
 			i++
 			continue
 		}
@@ -1592,16 +1595,16 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 		if filterKeywords[keyword] {
 			if sawTerminal {
 				var tb textbuf.Buffer
-				return "", "", receivedWalk{}, nil, tb.Str("filter after terminal: ").Str(keyword).String()
+				return "", "", nil, nil, tb.Str("filter after terminal: ").Str(keyword).String()
 			}
 			i++
 			if i >= len(args) {
 				var tb textbuf.Buffer
-				return "", "", receivedWalk{}, nil, tb.Str(keyword).Str(" requires a value").String()
+				return "", "", nil, nil, tb.Str(keyword).Str(" requires a value").String()
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
-					return "", "", receivedWalk{}, nil, errMsg
+					return "", "", nil, nil, errMsg
 				}
 			}
 			// first/last take a positive count. The client-side ValidatePipes
@@ -1611,7 +1614,7 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 			if keyword == filterFirst || keyword == filterLast {
 				if n, err := strconv.Atoi(args[i]); err != nil || n <= 0 {
 					var tb textbuf.Buffer
-					return "", "", receivedWalk{}, nil, tb.Str(keyword).Str(" requires a positive number").String()
+					return "", "", nil, nil, tb.Str(keyword).Str(" requires a positive number").String()
 				}
 			}
 			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
@@ -1621,7 +1624,7 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 
 		if terminalKeywords[keyword] {
 			if sawTerminal {
-				return "", "", receivedWalk{}, nil, "multiple terminals not allowed"
+				return "", "", nil, nil, "multiple terminals not allowed"
 			}
 			sawTerminal = true
 			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
@@ -1630,7 +1633,7 @@ func parsePipelineArgs(args []string) (string, string, receivedWalk, []pipelineS
 		}
 
 		var tb textbuf.Buffer
-		return "", "", receivedWalk{}, nil, tb.Str("unknown keyword: ").Str(keyword).String()
+		return "", "", nil, nil, tb.Str("unknown keyword: ").Str(keyword).String()
 	}
 
 	return scope, selector, walk, stages, ""

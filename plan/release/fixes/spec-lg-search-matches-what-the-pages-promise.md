@@ -164,10 +164,10 @@ through the birdwatcher API, and each page states exactly what the search does.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The trie type behind `FamilyRIB.direct` can enumerate the stored prefixes that contain an address | `familyrib.go` names it a BART; such a trie supports that walk | The walk is added to the store type first, in this spec | Reading the store type's methods before phase 2 | broken: `store.Store` (`internal/core/rib/store/store_bart.go`) offered only `LookupLPM`, the most specific covering prefix. The BART beneath it has the walk, `bart.Table.Supernets` (v0.30.0, reverse-CIDR order), so it was added as `store.Store.Covering` (map variant in `store_map.go`), then `FamilyRIB.iterateCovering` and `PeerRIB.IterateCovering` |
-| A-2 | A value with a mask and a bare address can be told apart by parsing alone | `isValidPrefix` already limits the characters | An ambiguous form needs a rule of its own | Unit test over IPv4 and IPv6 inputs, with and without a mask | unvalidated |
-| A-3 | The dispatcher passes the command line to `bgp-rib` split on spaces, with no quoting the page could use to send a spaced AS path as one value | `parsePipelineArgs` takes `args[i]` as the whole value | The page could send the spaced form unchanged and the engine would learn it | Reading the dispatcher's tokenizer | unvalidated |
-| A-4 | No caller relies on the page accepting `$`, `\|`, brackets or repetition characters | The engine refuses every one of them today | A user who typed them got an error before and gets a clearer one now | The search in the census found no such writer | unvalidated |
-| A-5 | The companion spec, not this one, adds the end anchor | The split of fix from feature in `plan/README.md` | If the owner wants origin search in the release, that row moves here | Owner review of both specs | unvalidated |
+| A-2 | A value with a mask and a bare address can be told apart by parsing alone | `isValidPrefix` already limits the characters | An ambiguous form needs a rule of its own | Unit test over IPv4 and IPv6 inputs, with and without a mask | confirmed: `parsePrefixLookup` (`internal/component/lg/prefix_lookup.go`) tells them apart by `/` and `netip` parsing alone; `TestParsePrefixLookup` |
+| A-3 | The dispatcher passes the command line to `bgp-rib` split on spaces, with no quoting the page could use to send a spaced AS path as one value | `parsePipelineArgs` takes `args[i]` as the whole value | The page could send the spaced form unchanged and the engine would learn it | Reading the dispatcher's tokenizer | broken: `command.ScanInvocation` keeps a double-quoted value as one token, but `validatePathPattern` splits on commas only, so a quoted spaced path is refused anyway; the design stands, the page sends the comma form |
+| A-4 | No caller relies on the page accepting `$`, `\|`, brackets or repetition characters | The engine refuses every one of them today | A user who typed them got an error before and gets a clearer one now | The search in the census found no such writer | confirmed: no writer in the tree sends those characters; `lg-aspath-search.ci` shows the page refusal for `65001$` |
+| A-5 | The companion spec, not this one, adds the end anchor | The split of fix from feature in `plan/README.md` | If the owner wants origin search in the release, that row moves here | Owner review of both specs | confirmed: Thomas ordered this spec implemented on 2026-11-18 as written; the end anchor stays in `plan/post-release/features/spec-lg-peer-history-origin-search-and-named-nodes.md` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -448,3 +448,158 @@ through the birdwatcher API, and each page states exactly what the search does.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `bgp-rib`: `covering <address>` and `exact <prefix>` source selectors on the `received` scope and `show bgp rib protocol`, read from the per-peer prefix trie (`receivedWalk` and its three variants, `rib_pipeline_covering.go`; `PeerRIB.IterateCovering`, `PeerRIB.IterateExact`, `FamilyRIB.iterateCovering`, `FamilyRIB.iterateExact`; `store.Store.Covering` in both backends). Refused on sent scopes, on `show bgp rib best`, together, and with a value that is not the address or masked prefix each takes. Declared as pipe filters in `cmd/rib/rib.go`, described in the YANG and the AI help.
+- Looking glass: `parsePrefixLookup` (`prefix_lookup.go`) sends `exact` for a prefix with its length (host bits cleared) and `covering` for a bare address, from the search, the graph, the route detail (`parseExactPrefixLookup`) and both API endpoints; `parseASPathPattern` (`aspath_pattern.go`) writes the engine's comma grammar and refuses every other pattern character. `engineRefusal` (`server.go`) gives every engine failure a three-line operator error; the stylesheet keeps its line breaks.
+- Functional runner: `--pattern` matches a test's id and name only and refuses a pattern that matches nothing (`patternMatches`, `errNoPatternMatch`, `internal/test/runner/selection.go`); `--list` and `--short-list` list what the selectors on the line select (`Tests.Listed`).
+
+### Bugs Found/Fixed
+- Text `prefix` filter answered longer prefixes for a prefix with a mask (Task row 3): `exact`, `TestExactAnswersOnlyThatPrefix`, `lg-covering-lookup.ci` 192.0.0.0/2 questions.
+- `lg-ui-pages.ci` posted values with a trailing newline, so its search step passed on the page title alone: it posts exact bytes and expects the route.
+- `--pattern` matched the absolute `.ci` path (commit `356464c835`): `cmd_bgp_selection_test.go`.
+- Closure review: covering order per family, not per peer (finding 1), and the walk value holding an incompatible pair (finding 2): see Review Gate.
+
+### Documentation Updates
+- `docs/guide/looking-glass.md`, `docs/guide/looking-glass-howto.md`, `docs/features/looking-glass.md`, `features/looking-glass.md`, `docs/architecture/api/birdwatcher-compat.md` (endpoint table, 3.1, dispatch table, 3.3, 9), `docs/architecture/web-interface.md`, `ai/digests/web.md`, `docs/guide/cli.md`, `docs/guide/command-reference.md`, `docs/architecture/plugin/rib-storage-design.md` ("The covering read", "The exact read"), `docs/functional-tests.md`, `docs/contributing/running-commands.md`, `docs/contributing/testing.md`. Each claim carries a `<!-- source: -->` anchor to the producer.
+- `./le doc check all` (closure run): fails on `show data encode` missing a description and two stale references in `docs/research/l2tpv2-ze-integration.md`, none in a page this spec touches.
+
+### Deviations from Plan
+- `covering` and `exact` are source selectors, not filter stages (Design Insights): a filter cannot meet AC-5.
+- `exact` (AC-14..AC-18) widened the scope; A-1 and A-3 broken (Mistake Log).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: the store offered a covering walk | `store.Store` had only `LookupLPM`; `bart.Table.Supernets` was wrapped as `Store.Covering` | Reading the store before phase 2 | Added in this spec |
+| assumption | A-3: no quoting could carry a spaced AS path | The dispatcher keeps a quoted token whole, but `validatePathPattern` splits on commas only | Reading `command.ScanInvocation` | Design unchanged: the page sends the comma form |
+| approach | The covering read ran each family's trie walk in turn | The pages promise one most-specific-first order per peer | Closure review, finding 1 | `PeerRIB.IterateCovering` sweeps lengths across families |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Row 1: a host address finds its covering routes | Done | `prefix_lookup.go` `parsePrefixLookup`; `rib_pipeline_covering.go` `coveringRead` | |
+| Row 2: a multi-AS path search reaches the engine | Done | `aspath_pattern.go` `parseASPathPattern`; `handler_ui.go` `handleUISearch` | |
+| Row 3: a prefix with a mask is an exact lookup | Done | `exactRead`, `parsePrefixLookup`, `parseExactPrefixLookup` | Scope widened 2026-11-18 |
+| Each page states what the search does | Done | the pages in Documentation Updates, `help.templ` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `lg-covering-lookup.ci`; `TestCoveringOrdersMostSpecificFirst`, `TestCoveringOrdersAcrossFamilies` | |
+| AC-2 | Done | `lg-covering-lookup.ci` (10.0.0.0/8); `TestSearchSendsCoveringForBareAddress` | |
+| AC-3 | Done | `lg-covering-lookup.ci` both endpoints; `TestAPIPrefixSendsCoveringForBareAddress` | |
+| AC-4 | Done | `TestGraphSendsCoveringForBareAddress` | Graph and table share `prefixLookup.receivedCommand` |
+| AC-5 | Done | `TestCoveringReadsOnlyThePath` (4 walked of 4100) | |
+| AC-6 | Done | `TestCoveringIPv6` | |
+| AC-7 | Done | `TestCoveringListsEveryAddPathPath` | |
+| AC-8, AC-9 | Done | `lg-aspath-search.ci`; `TestSearchSendsEnginePathGrammar`, `TestParseASPathPattern` | |
+| AC-10 | Done | `lg-aspath-search.ci` (65001$); `TestSearchRefusesUnsupportedPathCharacters` | |
+| AC-11 | Done | `TestPrefixTextFilterUnchanged` | |
+| AC-12 | Done | `TestPipelineCoveringKeyword` refusal table | |
+| AC-13 | Done | `help.templ`, the four pages | |
+| AC-14 | Done | `lg-covering-lookup.ci` (192.0.0.0/2); `TestExactAnswersOnlyThatPrefix` | |
+| AC-15 | Done | `lg-covering-lookup.ci` (192.0.0.1/2); `TestParsePrefixLookup` | |
+| AC-16 | Done | `TestExactReadsOneEntry`, `TestExactListsEveryAddPathPath` | |
+| AC-17 | Done | `TestPipelineExactKeyword`, `TestExactRefusedOnSentScope`, `TestExactRefusedOnBestScope`, `TestExactAndCoveringTogetherRefused` | |
+| AC-18 | Done | `TestRouteDetailAsksForExactlyThePrefix`; `lg-ui-pages.ci` route detail through a real `bgp-rib` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the TDD table | Done | `rib_pipeline_covering_test.go`, `handler_ui_test.go`, `handler_api_test.go`, `graph_test.go` | The RIB tests live in `rib_pipeline_covering_test.go`, not `rib_pipeline_test.go` |
+| `lg-covering-lookup`, `lg-aspath-search` | Done | `test/plugin/` | Red with the old behavior restored; 80 runs under load |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify and Create | Done | `register.go` needed no edit: the pipes are declared in `cmd/rib/rib.go`. New: `rib_pipeline_covering.go`, `prefix_lookup.go`, `aspath_pattern.go`, two fixtures |
+
+### Audit Summary
+- **Total items:** 4 requirements, 18 AC, 12 tests, 2 functional tests
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** filter stage became a source selector; `exact` added (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A bare address returns its covering routes, most specific first, through the page and the API | functional | `test/plugin/lg-covering-lookup.ci` against a real `bgp-rib`: rows and order per peer on `/lg/search`, `routes/prefix`, `routes/search`; red with `prefix <address>` restored |
+| A prefix with its length returns exactly that prefix | functional | Same test, 192.0.0.0/2 and 192.0.0.1/2 against a /24 sharing the text |
+| A multi-AS path search returns the run it names | functional | `test/plugin/lg-aspath-search.ci`: run, reverse and anchor; red with the spaced path restored |
+| Each page states what the search does | review | AC-13 pages read against `parsePrefixLookup` and `parseASPathPattern` at closure |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| End anchor and exact AS path search | New capability, out of this fix by A-5 | `plan/post-release/features/spec-lg-peer-history-origin-search-and-named-nodes.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/lg-search-matches-what-the-pages-promise-05079015-9baf-49e5-a192-eadef2dba94c.md` |
+| `./le spec review check` | clean (57 code files of the whole change set, hashes match; recorded by the continuation reviewer after the first record covered only the two fixes) |
+| Rounds | 2 |
+| Reviewer lenses used | wiring and functional coverage; logic, edge cases and security; docs against producers; style pass (`ze-go-style.md`) over every changed Go file |
+
+Round 1 covered the whole change set (`git diff refs/laptop/main..HEAD`). Round 2 covered the two fixes and what they touch: no finding.
+
+NOTEs (no block): the pipeline's parse refusals carry the generic recovery `show bgp rib count` on their fix line, as every parse refusal did before; the covering and exact reasons name a working form on line 1. `isValidPrefix`'s 50-character bound went with it; the value never reaches the command line (netip's rendering does) and every refusal surface escapes it. The graph with a bare address is proven by `TestGraphSendsCoveringForBareAddress` over the engine-following fake; `lg-graph-lab.ci` needs a capability the closure host lacks.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A peer holding covering routes in two families of one IP version (unicast with multicast or labeled unicast) answered family by family, so a unicast /8 and default came before a multicast /16, while the help page, guide, feature page, CLI reference and birdwatcher contract promise the most specific first for each peer | `storage/peerrib.go` `PeerRIB.IterateCovering` | With several families it asks each prefix length from the longest down of every family in family order (`FamilyRIB.iterateExact`), bounded by the address length; one family keeps the trie walk. `TestCoveringOrdersAcrossFamilies` (red before: per-family order). `rib-storage-design.md` updated |
+| 2 | ISSUE | `receivedWalk` was a struct whose `covering` and `exact` fields could both be set, an incompatible payload combination the construction directive forbids in new code (`preserve-validity-from-construction-through-use`, style "One state, one variant") | `rib_pipeline_covering.go` `receivedWalk` | A sealed interface of `wholeTableRead`, `coveringRead` and `exactRead`; `showPipeline` and `parsePipelineArgs` branch on the variant; a refused parse answers no walk. Tests assert the variant and its payload, and a refused parse's nil walk |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/lg-covering-lookup.ci` | Yes | `ls` at closure |
+| `test/plugin/lg-aspath-search.ci` | Yes | `ls` at closure |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-18 | Every test named in the audit exists | grep at closure found each `func Test...` in the file named |
+| AC-1, AC-3, AC-14, AC-15 | Real `bgp-rib` answers | main thread: `lg-covering-lookup` pass on the rebased branch, red with the old filter |
+| AC-8..AC-10 | Real `bgp-rib` answers | main thread: `lg-aspath-search` pass on the rebased branch, red with the spaced path |
+| AC-1 (two families), receivedWalk | Closure fixes | owed: `./le test unit pkg path ./internal/component/bgp/plugins/rib/ run 'Covering|Exact|TestPrefixTextFilterUnchanged'` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `POST /lg/search`, `routes/prefix`, `routes/search` with a bare address | `lg-covering-lookup.ci` | Fixture `lgCoveringLookup` posts and gets each, read at closure |
+| `POST /lg/search` with two AS numbers | `lg-aspath-search.ci` | Fixture drives the page against a real `bgp-rib` |
+| `show bgp rib received covering` from the CLI | `TestPipelineCoveringKeyword` | Runs `handleCommand` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | `store.Store.Covering` added |
+| A-2 | confirmed | `TestParsePrefixLookup` |
+| A-3 | broken | `command.ScanInvocation`, `validatePathPattern` |
+| A-4 | confirmed | census search; `lg-aspath-search.ci` |
+| A-5 | confirmed | companion spec carries the end anchor |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Covering order, most specific first for each peer | `PeerRIB.IterateCovering` after finding 1 | Yes |
+| Three-line engine failure and its fix command | `engineRefusal`, `engineLogFix`; `show log recent` declared in `internal/plugins/log/yang/ze-log-cmd.yang` | Yes |
+| `docs/comparison.md` makes no lookup claim (checklist 11) | grep at closure | Yes |
+
+The owner ordered, for this one branch, that it be brought onto his laptop's `main` and this spec closed (2026-11-18). That one-off permission is recorded in the closure commit body.

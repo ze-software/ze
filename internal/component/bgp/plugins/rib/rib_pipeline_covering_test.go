@@ -89,14 +89,15 @@ func TestPipelineCoveringKeyword(t *testing.T) {
 		scope, _, walk, stages, errMsg := parsePipelineArgs([]string{"received", "covering", "10.1.2.3", "count"})
 		require.Empty(t, errMsg)
 		assert.Equal(t, scopeReceived, scope)
-		require.True(t, walk.isCovering(), "covering builds a covering walk")
-		assert.Equal(t, netip.MustParseAddr("10.1.2.3"), walk.covering)
+		covering, isCovering := walk.(coveringRead)
+		require.True(t, isCovering, "covering builds a covering walk, got %T", walk)
+		assert.Equal(t, netip.MustParseAddr("10.1.2.3"), covering.address)
 		require.Len(t, stages, 1, "covering is a source selector, not a stage")
 		assert.Equal(t, terminalCount, stages[0].kind)
 
 		_, _, whole, _, errMsg := parsePipelineArgs([]string{"received", "count"})
 		require.Empty(t, errMsg)
-		assert.False(t, whole.isCovering(), "no covering keyword is the whole-table walk")
+		assert.Equal(t, receivedWalk(wholeTableRead{}), whole, "no covering keyword is the whole-table walk")
 	})
 
 	t.Run("answers through the handler with a terminal", func(t *testing.T) {
@@ -145,7 +146,7 @@ func TestPipelineCoveringKeyword(t *testing.T) {
 		t.Run("refuses "+bad.name, func(t *testing.T) {
 			_, _, walk, stages, errMsg := parsePipelineArgs(bad.args)
 			require.NotEmpty(t, errMsg, "%v must be refused", bad.args)
-			assert.False(t, walk.isCovering(), "a refused parse carries no walk")
+			assert.Nil(t, walk, "a refused parse carries no walk")
 			assert.Nil(t, stages)
 			for _, want := range bad.wants {
 				assert.Contains(t, errMsg, want)
@@ -227,13 +228,13 @@ func TestCoveringReadsOnlyThePath(t *testing.T) {
 	}
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
-	covering := newInboundSource(r, "*", coveringWalk(netip.MustParseAddr("10.1.2.3")))
+	covering := newInboundSource(r, "*", coveringRead{address: netip.MustParseAddr("10.1.2.3")})
 	items := drainSource(covering)
 	covering.release()
 	assert.Len(t, items, 4, "the four covering routes are answered")
 	assert.Equal(t, 4, covering.walked, "the covering read visits the path to the address only")
 
-	whole := newInboundSource(r, "*", receivedWalk{})
+	whole := newInboundSource(r, "*", wholeTableRead{})
 	all := drainSource(whole)
 	whole.release()
 	assert.Len(t, all, unrelated+4)
@@ -288,6 +289,52 @@ func TestCoveringIPv6(t *testing.T) {
 	got = coveringRowKeys(t, r, "received", "covering", "10.1.2.3")
 	assert.Equal(t, []string{"192.0.2.1 10.0.0.0/8", "192.0.2.1 0.0.0.0/0"}, got,
 		"an IPv4 address reads the IPv4 routes only")
+}
+
+// TestCoveringOrdersAcrossFamilies proves a peer holding covering routes in
+// several families of one IP version answers them in one order, the most
+// specific prefix first whatever its family, with two families holding one
+// length answered in family order, and that the read still hands over the
+// covering entries only.
+//
+// VALIDATES: AC-1's order on a peer whose covering routes are split between
+// IPv4 unicast and IPv4 multicast, the order the looking glass help, guide and
+// birdwatcher contract state for each peer.
+// PREVENTS: the covering read running each family's trie walk in turn, which
+// answers the unicast /8 and the unicast default route before the multicast
+// /16 and /24, so a default route is no longer last.
+func TestCoveringOrdersAcrossFamilies(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	unicast, multicast := family.IPv4Unicast, family.IPv4Multicast
+	const unrelated = 1024
+	for i := range unrelated {
+		peerRIB.Insert(unicast, coveringTestAttrs(), []byte{32, 172, 16, byte(i >> 8), byte(i)})
+		peerRIB.Insert(multicast, coveringTestAttrs(), []byte{32, 172, 17, byte(i >> 8), byte(i)})
+	}
+	for _, nlri := range [][]byte{{0}, {8, 10}, {16, 10, 1}} {
+		peerRIB.Insert(unicast, coveringTestAttrs(), nlri)
+	}
+	for _, nlri := range [][]byte{{16, 10, 1}, {24, 10, 1, 2}} {
+		peerRIB.Insert(multicast, coveringTestAttrs(), nlri)
+	}
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
+
+	source := newInboundSource(r, "*", coveringRead{address: netip.MustParseAddr("10.1.2.3")})
+	items := drainSource(source)
+	source.release()
+	got := make([]string, 0, len(items))
+	for _, item := range items {
+		got = append(got, item.Family.String()+" "+item.Prefix)
+	}
+	assert.Equal(t, []string{
+		"ipv4/multicast 10.1.2.0/24",
+		"ipv4/unicast 10.1.0.0/16",
+		"ipv4/multicast 10.1.0.0/16",
+		"ipv4/unicast 10.0.0.0/8",
+		"ipv4/unicast 0.0.0.0/0",
+	}, got)
+	assert.Equal(t, 5, source.walked, "the read hands over the covering entries only, never the 2048 others")
 }
 
 // TestCoveringListsEveryAddPathPath proves every ADD-PATH path of a covering

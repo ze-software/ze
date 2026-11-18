@@ -71,7 +71,7 @@ func TestRouteItemFromInbound(t *testing.T) {
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Use the source iterator
-	src := newInboundSource(r, "*", receivedWalk{})
+	src := newInboundSource(r, "*", wholeTableRead{})
 	item, ok := src.Next()
 	require.True(t, ok, "expected at least one item")
 	assert.Equal(t, "192.0.2.1", item.Peer)

@@ -12,9 +12,12 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// receivedWalk names which of a peer's received routes a source reads: every
-// route, only the routes whose prefix contains one address (covering), or only
-// the routes of one prefix (exact).
+// receivedWalk names which of a peer's received routes a source reads. It is
+// one of three variants, each holding only its own payload: wholeTableRead
+// (every route), coveringRead (the routes whose prefix contains one address)
+// and exactRead (the routes of one prefix). The unexported method seals it, so
+// no type outside these three is one, and no value can name both an address
+// and a prefix.
 //
 // `covering <address>` and `exact <prefix>` select the routes a source reads,
 // the way `peer <selector>` selects the peers, so they are parsed into the walk
@@ -23,64 +26,46 @@ import (
 // whole table to keep a handful of rows, on a looking glass endpoint anyone
 // can reach.
 //
-// The zero value is the whole-table walk. That zero is a guard: isCovering
-// and isExact read it, and coveringWalk and exactWalk are the only ways to
-// build the other two walks, from a value parseCoveringAddress or
-// parseExactPrefix has already accepted. At most one of the two fields is
-// valid: each constructor sets one, and parsePipelineArgs refuses a command
-// that names both keywords (walkConflictRefusal).
-type receivedWalk struct {
-	// covering is the address a covering walk reads the routes of. It is
-	// valid only in a covering walk.
-	covering netip.Addr
-	// exact is the masked prefix an exact walk reads the routes of. It is
-	// valid only in an exact walk.
-	exact netip.Prefix
+// A nil receivedWalk is no walk: parsePipelineArgs answers nil only beside a
+// refusal, and a source MUST be built with a non-nil one (wholeTableRead{}
+// when no keyword selects).
+type receivedWalk interface {
+	// read hands one peer's selected routes to fn. fn runs under the PeerRIB
+	// read lock, so it MUST NOT call a PeerRIB method that takes it again
+	// (PeerRIB.IsAddPath states the deadlock).
+	read(peerRIB *storage.PeerRIB, fn func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool)
 }
 
-// coveringWalk builds the walk that reads, from each peer's prefix trie, only
-// the routes whose prefix contains addr. addr MUST come from
-// parseCoveringAddress.
-func coveringWalk(addr netip.Addr) receivedWalk {
-	return receivedWalk{covering: addr}
-}
+// wholeTableRead reads every received route of a peer, in sorted prefix order
+// (PeerRIB.IterateSorted). It is the walk of a command that names neither
+// covering nor exact.
+type wholeTableRead struct{}
 
-// exactWalk builds the walk that reads, from each peer's prefix trie, only the
-// routes of pfx itself. pfx MUST come from parseExactPrefix, which refuses a
-// prefix with host bits set.
-func exactWalk(pfx netip.Prefix) receivedWalk {
-	return receivedWalk{exact: pfx}
-}
-
-// isCovering reports whether the walk reads covering routes only.
-func (w receivedWalk) isCovering() bool {
-	return w.covering.IsValid()
-}
-
-// isExact reports whether the walk reads the routes of one prefix only.
-func (w receivedWalk) isExact() bool {
-	return w.exact.IsValid()
-}
-
-// read hands one peer's selected routes to fn. A whole-table walk visits every
-// route in sorted prefix order. A covering walk visits only the trie entries on
-// the path to the address, most specific prefix first within each family, with
-// every ADD-PATH path of each prefix (PeerRIB.IterateCovering). An exact walk
-// visits only the entry keyed by the prefix, with every ADD-PATH path of it
-// (PeerRIB.IterateExact).
-//
-// fn runs under the PeerRIB read lock, so it MUST NOT call a PeerRIB method
-// that takes it again (PeerRIB.IsAddPath states the deadlock).
-func (w receivedWalk) read(peerRIB *storage.PeerRIB, fn func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool) {
-	if w.isCovering() {
-		peerRIB.IterateCovering(w.covering, fn)
-		return
-	}
-	if w.isExact() {
-		peerRIB.IterateExact(w.exact, fn)
-		return
-	}
+func (wholeTableRead) read(peerRIB *storage.PeerRIB, fn func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool) {
 	peerRIB.IterateSorted(fn)
+}
+
+// coveringRead reads only the trie entries on the path to address, the most
+// specific prefix first across the peer's families, with every ADD-PATH path
+// of each prefix (PeerRIB.IterateCovering). address is what
+// parseCoveringAddress accepted: an IP address with no mask and no zone.
+type coveringRead struct {
+	address netip.Addr
+}
+
+func (w coveringRead) read(peerRIB *storage.PeerRIB, fn func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool) {
+	peerRIB.IterateCovering(w.address, fn)
+}
+
+// exactRead reads only the trie entry keyed by prefix, with every ADD-PATH
+// path of it (PeerRIB.IterateExact). prefix is what parseExactPrefix accepted:
+// a prefix with its mask, no host bits set and no zone.
+type exactRead struct {
+	prefix netip.Prefix
+}
+
+func (w exactRead) read(peerRIB *storage.PeerRIB, fn func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool) {
+	peerRIB.IterateExact(w.prefix, fn)
 }
 
 // parseCoveringAddress reads the value of `covering`: one IP address, IPv4 or

@@ -1,7 +1,7 @@
 # Handover 46: looking glass search fix, in a worktree
 
 Written 2026-11-18 by the session that implemented
-`plan/release/fixes/spec-lg-search-matches-what-the-pages-promise.md`. It passed
+spec-lg-search-matches-what-the-pages-promise, closed the same day. It passed
 the context threshold before the last commits landed.
 
 ## Where the work is
@@ -12,7 +12,7 @@ the context threshold before the last commits landed.
 | Worktree | `.claude/worktrees/lg-search-matches-pages`, inside the main checkout |
 | Branch | `lg-search-matches-pages`, no upstream |
 | Based on | `c49fd96ac6`. `main` has since moved to `89d8dd6a9c` or later (laptop commits plus the amended feature spec) |
-| Spec | `plan/release/fixes/spec-lg-search-matches-what-the-pages-promise.md`, status `in-progress`, phase 4/4, claimed by the writing session (`./le spec release` it or claim it anew) |
+| Spec | spec-lg-search-matches-what-the-pages-promise, closed on 2026-11-18 by its closure commits |
 | Owner order | Thomas ordered the implementation done in a worktree, so edits and test runs happen there |
 | Companion spec | `plan/post-release/features/spec-lg-peer-history-origin-search-and-named-nodes.md` on `main`, status `design`, with three choices waiting for Thomas |
 

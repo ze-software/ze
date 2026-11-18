@@ -28,19 +28,21 @@ func TestPipelineExactKeyword(t *testing.T) {
 		scope, _, walk, stages, errMsg := parsePipelineArgs([]string{"received", "exact", "10.0.0.0/8", "count"})
 		require.Empty(t, errMsg)
 		assert.Equal(t, scopeReceived, scope)
-		require.True(t, walk.isExact(), "exact builds an exact walk")
-		assert.False(t, walk.isCovering(), "an exact walk is not a covering walk")
-		assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), walk.exact)
+		exact, isExact := walk.(exactRead)
+		require.True(t, isExact, "exact builds an exact walk, got %T", walk)
+		_, isCovering := walk.(coveringRead)
+		assert.False(t, isCovering, "an exact walk is not a covering walk")
+		assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), exact.prefix)
 		require.Len(t, stages, 1, "exact is a source selector, not a stage")
 		assert.Equal(t, terminalCount, stages[0].kind)
 
 		_, _, v6, _, errMsg := parsePipelineArgs([]string{"received", "exact", "2001:db8::/32"})
 		require.Empty(t, errMsg)
-		assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), v6.exact)
+		assert.Equal(t, receivedWalk(exactRead{prefix: netip.MustParsePrefix("2001:db8::/32")}), v6)
 
 		_, _, whole, _, errMsg := parsePipelineArgs([]string{"received", "count"})
 		require.Empty(t, errMsg)
-		assert.False(t, whole.isExact(), "no exact keyword is the whole-table walk")
+		assert.Equal(t, receivedWalk(wholeTableRead{}), whole, "no exact keyword is the whole-table walk")
 	})
 
 	t.Run("answers through the handler with a terminal", func(t *testing.T) {
@@ -89,7 +91,7 @@ func TestPipelineExactKeyword(t *testing.T) {
 		t.Run("refuses "+bad.name, func(t *testing.T) {
 			_, _, walk, stages, errMsg := parsePipelineArgs(bad.args)
 			require.NotEmpty(t, errMsg, "%v must be refused", bad.args)
-			assert.False(t, walk.isExact(), "a refused parse carries no walk")
+			assert.Nil(t, walk, "a refused parse carries no walk")
 			assert.Nil(t, stages)
 			for _, want := range bad.wants {
 				assert.Contains(t, errMsg, want)
@@ -155,13 +157,13 @@ func TestExactReadsOneEntry(t *testing.T) {
 	peerRIB.Insert(fam, coveringTestAttrs(), []byte{16, 10, 1})
 	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
-	exact := newInboundSource(r, "*", exactWalk(netip.MustParsePrefix("10.1.0.0/16")))
+	exact := newInboundSource(r, "*", exactRead{prefix: netip.MustParsePrefix("10.1.0.0/16")})
 	items := drainSource(exact)
 	exact.release()
 	require.Len(t, items, 1, "the one route of 10.1.0.0/16 is answered")
 	assert.Equal(t, 1, exact.walked, "the exact read visits the entry of the prefix only")
 
-	whole := newInboundSource(r, "*", receivedWalk{})
+	whole := newInboundSource(r, "*", wholeTableRead{})
 	all := drainSource(whole)
 	whole.release()
 	assert.Len(t, all, unrelated+2)
@@ -285,8 +287,11 @@ func TestExactAndCoveringTogetherRefused(t *testing.T) {
 	} {
 		_, _, walk, stages, errMsg := parsePipelineArgs(args)
 		require.NotEmpty(t, errMsg, "%v must be refused", args)
-		assert.False(t, walk.isCovering(), "%v: a refused parse carries no walk", args)
-		assert.False(t, walk.isExact(), "%v: a refused parse carries no walk", args)
+		_, isCovering := walk.(coveringRead)
+		assert.False(t, isCovering, "%v: a refused parse carries no covering walk", args)
+		_, isExact := walk.(exactRead)
+		assert.False(t, isExact, "%v: a refused parse carries no exact walk", args)
+		assert.Nil(t, walk, "%v: a refused parse carries no walk at all", args)
 		assert.Nil(t, stages, "%v", args)
 		assert.Contains(t, errMsg, "covering and exact select different routes", "%v", args)
 		assert.Contains(t, errMsg, "drop exact to list the routes containing 10.1.2.3", "%v", args)
