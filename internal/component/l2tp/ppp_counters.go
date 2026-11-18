@@ -32,6 +32,10 @@ func kernelPPPCounters(backend pppkernel.InterfaceOperations) func(string) (ppp.
 			TxBytes:   stats.TxBytes,
 			RxPackets: stats.RxPackets,
 			TxPackets: stats.TxPackets,
+			RxErrors:  ppp.MeasuredCounter(stats.RxErrors),
+			TxErrors:  ppp.MeasuredCounter(stats.TxErrors),
+			RxDropped: ppp.MeasuredCounter(stats.RxDropped),
+			TxDropped: ppp.MeasuredCounter(stats.TxDropped),
 		}, nil
 	}
 }

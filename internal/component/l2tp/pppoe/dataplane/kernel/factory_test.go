@@ -265,7 +265,11 @@ func TestFactoryCountersUseRawBackend(t *testing.T) {
 		}
 	})
 	counters, err := f.cfg.ReadCounters("ppp7")
-	if err != nil || counters != (ppp.SessionCounters{RxBytes: 11, TxBytes: 13, RxPackets: 17, TxPackets: 19}) {
+	if err != nil || counters != (ppp.SessionCounters{
+		RxBytes: 11, TxBytes: 13, RxPackets: 17, TxPackets: 19,
+		RxErrors: ppp.MeasuredCounter(0), TxErrors: ppp.MeasuredCounter(0),
+		RxDropped: ppp.MeasuredCounter(0), TxDropped: ppp.MeasuredCounter(0),
+	}) {
 		t.Fatalf("raw counters=%+v error=%v", counters, err)
 	}
 	if f.backend.statsName != "ppp7" {
@@ -284,11 +288,11 @@ func TestFactoryCountersUseRawBackend(t *testing.T) {
 }
 
 type factoryFixture struct {
-	ops factoryOps
-	calls []string
-	cfg pppkernel.SessionConfig
-	backend *factoryBackend
-	handle *factoryHandle
+	ops             factoryOps
+	calls           []string
+	cfg             pppkernel.SessionConfig
+	backend         *factoryBackend
+	handle          *factoryHandle
 	transportCloses int
 }
 
@@ -298,12 +302,16 @@ func newFactoryFixture() *factoryFixture {
 		backend: func() (sessionBackend, error) { f.calls = append(f.calls, "backend"); return f.backend, nil },
 		openTransport: func(_ context.Context, request dataplane.Request) (*pppoxTransport, error) {
 			f.calls = append(f.calls, "socket")
-			if request != factoryRequest() { return nil, errors.New("request changed before socket creation") }
+			if request != factoryRequest() {
+				return nil, errors.New("request changed before socket creation")
+			}
 			return &pppoxTransport{fd: 41, closeFD: func(int) error { f.transportCloses++; return nil }}, nil
 		},
 		setup: func(fd int, name string) (int, int, int, error) {
 			f.calls = append(f.calls, "setup")
-			if fd != 41 || name != "" { return -1, -1, -1, errors.New("wrong PPP setup binding") }
+			if fd != 41 || name != "" {
+				return -1, -1, -1, errors.New("wrong PPP setup binding")
+			}
 			return 42, 43, 7, nil
 		},
 		newSession: func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
@@ -321,8 +329,8 @@ func factoryRequest() dataplane.Request {
 
 type factoryBackend struct {
 	pppkernel.InterfaceOperations
-	stats *iface.InterfaceStats
-	statsErr error
+	stats     *iface.InterfaceStats
+	statsErr  error
 	statsName string
 }
 
@@ -331,10 +339,15 @@ func (b *factoryBackend) GetStats(name string) (*iface.InterfaceStats, error) {
 	return b.stats, b.statsErr
 }
 
-type factoryHandle struct { ppp.SessionHandle; closes int }
+type factoryHandle struct {
+	ppp.SessionHandle
+	closes int
+}
+
 func (h *factoryHandle) Close() error { h.closes++; return nil }
 
-type factoryFrames struct { buffer bytes.Buffer }
+type factoryFrames struct{ buffer bytes.Buffer }
+
 func (f *factoryFrames) Control() io.ReadWriter { return &f.buffer }
-func (*factoryFrames) Opened() io.Reader { return nil }
-func (*factoryFrames) InterruptRead() error { return nil }
+func (*factoryFrames) Opened() io.Reader        { return nil }
+func (*factoryFrames) InterruptRead() error     { return nil }

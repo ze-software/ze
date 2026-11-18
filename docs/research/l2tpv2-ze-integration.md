@@ -1164,6 +1164,12 @@ alone do not establish a backend counter reader.
 <!-- source: internal/component/l2tp/ppp/session_handle.go -- SessionCounters -->
 <!-- source: internal/component/l2tp/ppp/counter_reading.go -- CounterReading.Value -->
 
+The kernel L2TP and PPPoE adapters copy all eight native traffic, error and drop
+totals from a successful raw snapshot. Error and drop totals use measured
+readings, including zero. A failed read or missing snapshot returns an error
+without a counter sample.
+<!-- source: internal/component/l2tp/ppp_counters.go -- kernelPPPCounters -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/factory.go -- rawCounters -->
 
 The reactor constructs a kernel session through its own factory binding, fixed
 before the reactor starts. Production binds `kernel.NewSession`, which consumes
