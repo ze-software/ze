@@ -99,7 +99,7 @@ func TestParserNonFirstKeyRefusalAtEntryPoint(t *testing.T) {
 			assert.Contains(t, err.Error(), "Red routing table")
 			assert.Equal(t, "fix: "+tc.fix, err.Error()[strings.LastIndex(err.Error(), "\n")+1:])
 			assert.NotContains(t, err.Error(), "invalid vrf for session")
-			corrected := strings.Replace(tc.input, "vrf blu", "vrf blue", 1)
+			var corrected string
 			if tc.name == "set file" {
 				corrected = tc.fix + "\n"
 			} else {
@@ -134,7 +134,7 @@ func TestParserRefusalQuotesAcceptedPathWords(t *testing.T) {
 			require.True(t, errors.As(err, &refusal), "typed value refusal: %v", err)
 			assert.Equal(t, []string{"multikey-probe", "target", key, "mode"}, refusal.Segments())
 			problem := `line 1: multikey-probe target ` + configtext.QuoteToken(key) + ` mode: "blu" is not an accepted value (did you mean blue?)`
-			problemLine := strings.SplitN(err.Error(), "\n", 2)[0]
+			problemLine, _, _ := strings.Cut(err.Error(), "\n")
 			assert.Equal(t, problem, problemLine)
 			assert.NotContains(t, problemLine, "\r", "a path value must not overwrite its displayed problem line")
 			fix := err.Error()[strings.LastIndex(err.Error(), "\n")+1:]

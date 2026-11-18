@@ -179,8 +179,7 @@ func TestParseSetDiagnosticsStopsAtStructuralErrors(t *testing.T) {
 		if len(failures) != 2 {
 			t.Fatalf("format %v: got %d failures, want 2: %v", format, len(failures), failures)
 		}
-		var refusal *configyang.ValidationError
-		if errors.As(failures[1], &refusal) {
+		if _, ok := errors.AsType[*configyang.ValidationError](failures[1]); ok {
 			t.Fatalf("structural error was skipped for a later value failure: %v", failures)
 		}
 		if !strings.Contains(failures[1].Error(), "unknown") {

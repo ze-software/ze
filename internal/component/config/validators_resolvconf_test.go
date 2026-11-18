@@ -1,7 +1,7 @@
 // VALIDATES: `system dns resolv-conf-path` refuses a relative path and a path
 //            that is not in clean form, names the path refused and the fix,
 //            and keeps "" (write no file) and an absolute path valid.
-// PREVENTS:  the old silent sanitising, where such a path committed, Ze wrote
+// PREVENTS:  the old silent sanitizing, where such a path committed, Ze wrote
 //            no resolv.conf, and no line anywhere said why.
 
 package config
