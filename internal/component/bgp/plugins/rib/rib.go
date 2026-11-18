@@ -1384,6 +1384,9 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 		return
 	}
 	state := se.State
+	if r.consumeExportPolicy(peerAddr, state == rpc.SessionStateUp, se.SelectedDestination, se.DestinationSession, se.Reason) {
+		return
+	}
 	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == rpc.SessionStateUp, se.SelectedDestination, se.DestinationSession)
 	if state == rpc.SessionStateDown {
 		if se.Reason != rpc.ReasonPeerRemoved {
@@ -1472,6 +1475,9 @@ func (r *RIBManager) handleState(event *Event) {
 		return
 	}
 	state := event.GetPeerState()
+	if r.consumeExportPolicy(peerAddr, state == "up", event.SelectedDestination, event.DestinationSession, event.Reason) {
+		return
+	}
 	ordinaryDestination := r.updateSelectedDestination(peerAddr, state == "up", event.SelectedDestination, event.DestinationSession)
 	if state == "down" {
 		if event.Reason != rpc.ReasonPeerRemoved {

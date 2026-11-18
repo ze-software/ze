@@ -98,29 +98,38 @@ variable (`loop:AUTO-$remote_as`) is known only when a peer connects, so it is
 refused then: that peer rejects every route it would send, and the log names
 the peer and the reference to remove or deactivate.
 
-A reload compares the whole effective policy. Changing only the export `final`
-therefore reconciles advertisements on the existing session without a source
-UPDATE. Rejecting withdraws prior advertisements. Returning to acceptance
-regenerates configured static, default and plugin routes and replays retained
-received routes through the configured replay
-owner. Ordinary received-route restoration requires the receive store and that
-owner's existing send permission. FlowSpec instead restores the selecting RIB's
-currently authorized paths through the same owner. A destination negotiating only
-FlowSpec does not require the optional receive store; negotiated ordinary families
-still require their retained source.
-Removing the last explicit export policy rejects on EBGP. On IBGP, explicit
-local and role output keep their default; removing an accepting policy does
-not reset their static-route state. Routes removed in the same reload are still
-withdrawn.
-If required restoration fails, reload returns the error and rolls back the policy
-instead of committing an accepting configuration with stale rejected state.
+A reload compares the whole effective policy. Changing the export `final`
+reconciles the affected route kinds on the existing session without a source
+UPDATE. For an ordinary destination, the configured selecting owner reoffers
+its current learned selections and waits for their final output receipts.
+This uses neither optional receive-store replay nor losing received candidates.
+On IBGP, adding an accepting policy restores learned selections; removing it
+withdraws the recorded learned output. A learned-only transition neither
+withdraws nor resends local/API/static/default/plugin origins.
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds -->
 
-One-shot API announcements have no retained desired source. They are withdrawn
-on rejection, but their producer must reannounce them after acceptance returns.
-This preserves the existing API ownership contract rather than introducing a
-second route store. Explicit withdrawals remain effective under `final reject`.
-Reloading a filter definition without changing the final is a separate operation.
-<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal -->
+When the local disposition also changes, rejection withdraws the session's
+recorded advertisements and acceptance regenerates configured static, default
+and plugin routes. An API original retained by an opted-in selecting provider
+keeps its receipt. A direct one-shot API producer must announce again if
+rejection removed its output, because sent state retains no original input.
+Removing the last explicit export policy rejects on EBGP. Routes removed in
+the same reload are still withdrawn.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds -->
+<!-- source: internal/component/bgp/reactor/origin_grants.go -- replayPeerOrigins -->
+
+Explicit RS/RR destinations keep the legacy authorized replay path, as does
+Adj-RIB-In self-replay when it has the destination's send grant. Non-FlowSpec
+families on that path require `bgp-adj-rib-in` attached to their sources.
+FlowSpec restoration reads the selecting RIB's currently authorized paths
+through the same owner's grant, so a FlowSpec-only destination needs no optional
+receive store. A failed required reconciliation returns an error and rolls back
+the policy. Explicit withdrawals remain effective under `final reject`.
+Arbitrary filter-definition changes do not generally re-evaluate existing routes.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds, policyReplayOwner -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- exportFinalDisposition, reconcileSelectedExport -->
+<!-- source: internal/component/bgp/reactor/origin_grants.go -- replayPeerOrigins -->
 
 ## A chain that names a plugin filter
 
@@ -646,7 +655,8 @@ session applies when the chain ends:
 |--------------------|---------|----------------|
 | Configured policy | the configured `accept` or `reject` | omitted |
 | No policy, EBGP session | `reject` | `rfc8212` |
-| No policy, IBGP session | omitted; the direction is omitted when it has no automatic filters | omitted |
+| No policy, ordinary learned export on IBGP | `reject` | `learned-export-policy` |
+| No policy, other IBGP direction or explicit role output | omitted; the direction is omitted when it has no automatic filters | omitted |
 | No policy, dynamic peer not yet established | `undetermined` | omitted |
 
 `final-source: rfc8212` marks the reject RFC 8212 Section 3 applies to an EBGP
@@ -670,13 +680,25 @@ gets `set bgp group <group> ...`, because it exists only through its group.
 `final accept` passes every route: write the filters you want in front of it,
 or use `final reject` when that direction must stay closed, which also stops
 the warning. Every new session warns again while the direction stays absent.
-An IBGP session and a configured direction never warn.
+An internal peer with an eligible ordinary selecting owner and no export policy
+gets a distinct warning: Ze sends it no routes learned from other peers, while
+local announcements remain permitted. Its code is
+`doctor-bgp-learned-export-no-policy`, separate from RFC8212. An eligible explicit
+role, an unattached internal peer and a configured direction raise no such warning.
 `ze config validate` reports the same directions before the daemon starts,
 as warnings with the same words and the same fix command, so a config whose
-EBGP sessions would carry nothing is visible without bringing one up
+sessions would withhold routes is visible without bringing one up
 ([`ze config validate`](command-reference.md#ze-config-validate)).
 <!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- warnRFC8212AbsentPolicy, RFC8212Absences, rfc8212Fix -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
+<!-- source: internal/component/bgp/reactor/policy_absence.go -- PolicyAbsences, learnedExportAbsences, learnedExportAbsencesForWarning -->
+
+`ze doctor` reports the same absences for the saved configuration supplied to
+its config phase. It names each peer or group and its editor fix. Repeating it
+with a configuration that has an explicit policy clears the finding, including
+an explicit rejecting policy. This check reports configuration, not live
+OPEN state or external declarations.
+<!-- source: internal/component/bgp/config/policy_absence_doctor.go -- doctorCheckBGPPolicyAbsences -->
 An export dry-run simulates a learned route by default. Add `route-kind local`
 to predict a local announcement instead, or `route-kind learned` to state the
 default explicitly. This choice changes only the prediction: it installs no

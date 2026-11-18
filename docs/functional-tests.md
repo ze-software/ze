@@ -689,6 +689,20 @@ not treat a read timeout as an acknowledgement or a message boundary.
 
 ### Final-policy wire probes
 
+`bgp-best-route-transit-default.ci` exercises ordinary transit with explicit
+RIB attachments and export policy, in both internal and forked placements.
+It establishes the original source and destination sockets, proves local API
+output, then requires an elected iBGP route and its withdrawal to reach the
+external destination. A final API fence and established-session checks detect
+damage to unrelated output.
+
+`bgp-best-route-needs-export-policy.ci` uses the same two placements with an
+internal destination. With export policy absent, an elected learned route must
+remain unsent while local API output survives. Adding policy by parsed-config
+reload must release that retained selection on the original socket, without a
+new source announcement. The final withdrawal and API fence must still arrive.
+<!-- source: internal/test/fixture/bgp_best_route_transit.go -- bgpBestRouteTransit, bgpBestRouteExportPolicy -->
+
 The fixture `plugin/policy-final-disposition` exercises import and export decisions
 separately. Its API-originated export probes name `nhop set` even when the raw
 attribute block already contains NEXT_HOP: the command's next-hop policy is a
@@ -2740,6 +2754,28 @@ separately checks automatic loading. These permitted modes share the daemon's
 allocator, so external refusal cannot hide a refusal of every placement.
 <!-- source: test/plugin/l2tp-pool-internal-reloads.ci -- explicit internal pool -->
 <!-- source: test/reload/l2tp-pool-range-reload.ci -- automatically loaded pool -->
+
+### BGP learned-export diagnostics and explicit roles
+
+`bgp-policy-diagnostics-internal.ci` and its forked twin each start a real
+ordinary RIB, reflector and route server. The driver asks the actual
+`ze config validate` and `ze doctor` commands about supplied saved configurations:
+C has no export policy, then an accepting policy, then a rejecting policy,
+then the original absence again. C's learned-only finding clears for either
+explicit policy, D's genuine reflector role is exempt and E retains its
+external RFC8212 finding. Doctor uses supplied standard input, so it cannot
+borrow a running daemon's different saved file.
+<!-- source: internal/test/fixture/bgp_policy_diagnostics.go -- bgpPolicyDiagnosticsConfigs, bgpPolicyDiagnosticsReports, bgpPolicyDiagnosticsDoctor -->
+
+Each carrier independently requires the daemon's Established C and E warnings,
+including the editor fixes, and rejects a D warning. Actual sockets prove
+ordinary output to B, local API output to C, external-source non-reflection at
+D and a distinct genuine iBGP reflection at D with its originator and cluster
+attributes. C's API fence and E's explicit End-of-RIB fence detect forbidden
+routes on the same sockets after quiescence. No elapsed-time assertion decides
+the absence. The two carriers keep a warning in one placement from satisfying
+the other placement's log assertion.
+<!-- source: internal/test/fixture/bgp_policy_diagnostics.go -- bgpPolicyDiagnosticsWire, bgpPolicyDiagnosticsRouteValue -->
 
 ### 4. Reload Tests (`test/reload/`)
 

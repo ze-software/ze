@@ -474,6 +474,12 @@ const ReasonPeerRemoved = "removed"
 // through the plugin server's targeted up, to the attached processes alone.
 const ReasonAttached = "attached"
 
+// ReasonExportPolicy requests a learned-only reoffer from an existing ordinary
+// selected destination. It carries the same captured Session and arms no new
+// peer-up barrier. The recipient MUST NOT treat it as a connection transition,
+// replay local origins, or emit ROUTE-REFRESH markers.
+const ReasonExportPolicy = "export-policy"
+
 // The four SessionStateDown reasons below say why an Established session
 // closed. The reactor derives one from what the session observed
 // (internal/component/bgp/reactor/peer_close.go, sessionCloseFor), and every

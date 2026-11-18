@@ -122,7 +122,7 @@ func (d *selectedDispatch) barrierDestinations(ctx context.Context, active []*se
 }
 
 func (d *selectedDispatch) settledLocked(destination *selectedDestination) bool {
-	if len(destination.inFlight) > 0 {
+	if destination.reofferLearned || len(destination.inFlight) > 0 {
 		return false
 	}
 	if destination.failure != nil {

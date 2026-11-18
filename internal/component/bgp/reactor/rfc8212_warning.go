@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -67,12 +68,11 @@ func rfc8212AbsenceOf(settings *PeerSettings, direction rfc8212Direction) RFC821
 	}
 }
 
-// warnRFC8212AbsentPolicy logs one warning for each direction that RFC 8212
-// closes on the session that just reached Established. It MUST run once per
-// establishment, after resolveDynamicPeerSettings, so a dynamic peer is judged
-// on the AS its OPEN carried. An IBGP session and a configured direction log
-// nothing. Every input comes from one settings snapshot, so the session type
-// and the two policies cannot come from different reloads.
+// warnRFC8212AbsentPolicy logs RFC8212 absences and the distinct ordinary
+// learned-export absence. It MUST run once per establishment, after dynamic
+// settings and the destination owner are resolved. An eligible explicit role,
+// an unattached IBGP peer and a configured direction raise no internal absence.
+// The session type and both policies come from one settings snapshot.
 //
 // The warning keeps no state: a new session warns again, because the operator
 // who missed the first line meets the same silence on the next session.
@@ -83,6 +83,16 @@ func (p *Peer) warnRFC8212AbsentPolicy() {
 			"peer", settings.Name,
 			"address", settings.Address,
 			"direction", absence.Direction,
+			"code", diagnostic.CodeDoctorBGPRFC8212NoPolicy,
+			"fix", absence.Fix,
+			"then", "commit now")
+	}
+	for _, absence := range p.learnedExportAbsencesForWarning(settings) {
+		peerLogger().Warn(absence.Message,
+			"peer", settings.Name,
+			"address", settings.Address,
+			"direction", absence.Direction,
+			"code", diagnostic.CodeDoctorBGPLearnedExportNoPolicy,
 			"fix", absence.Fix,
 			"then", "commit now")
 	}

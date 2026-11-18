@@ -181,6 +181,9 @@ func (s *Session) selectedRetirement(work *selectedWrite) (adjOutKey, adjOutPath
 			continue
 		}
 		if work.cleanup != nil {
+			if work.cleanup.kind.Known() && entry.selection.kind != work.cleanup.kind {
+				continue
+			}
 			if work.cleanup.source != nil {
 				if entry.owner.source != work.cleanup.source {
 					continue

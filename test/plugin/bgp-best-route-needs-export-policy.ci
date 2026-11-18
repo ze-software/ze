@@ -1,0 +1,84 @@
+# Test: does export policy release retained learned output to an internal
+# destination, while absent policy continues to allow explicit local output?
+# A unit cannot decide whether ordinary election, configured grants, the live
+# export-policy reload and the original destination TCP session are connected.
+# The driver first proves an API route, receives and elects an external source
+# route, quiesces, and requires the next wire UPDATE to be a local API fence.
+# It adds export policy by parsed-config reload and requires the retained
+# learned route without reannouncing the source or reconnecting either peer.
+# The final withdrawal and a fresh API fence must survive on the same socket.
+option=timeout:value=180s
+
+stdin=config-internal:terminator=CONFIG_INTERNAL
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ internal rib { use bgp-rib; }
+ external bgp-selected-test {
+  run "le test fixture plugin/bgp-best-route-needs-export-policy internal 127.0.0.1:$PORT ze-bgp.conf";
+  encoder json;
+ }
+}
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rib { receive [ update-received state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process rib { send [ update ]; receive [ state refresh update-sent ]; }
+  attach process bgp-selected-test { send [ update ]; }
+ }
+}
+CONFIG_INTERNAL
+
+cmd=foreground:seq=1:exec=ze -:stdin=config-internal:timeout=85s
+expect=exit:code=0
+expect=stderr:contains=OK: selected-route internal wiring and API survivor
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=peer restart required
+reject=stderr:contains=panic recovered
+cmd=foreground:seq=2:exec=le test fixture daemon/await-exit:timeout=20s
+expect=stderr:contains=OK: the first daemon exited
+
+stdin=config-forked:terminator=CONFIG_FORKED
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external rib { run "ze plugin bgp-rib"; }
+ external bgp-selected-test {
+  run "le test fixture plugin/bgp-best-route-needs-export-policy forked 127.0.0.1:$PORT ze-config-forked.conf";
+  encoder json;
+ }
+}
+bgp {
+ router-id 1.1.1.1;
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rib { receive [ update-received state ]; }
+ }
+ peer destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  attach process rib { send [ update ]; receive [ state refresh update-sent ]; }
+  attach process bgp-selected-test { send [ update ]; }
+ }
+}
+CONFIG_FORKED
+
+cmd=foreground:seq=3:exec=ze -:stdin=config-forked:timeout=85s
+expect=exit:code=0
+expect=stderr:contains=OK: selected-route forked wiring and API survivor
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=peer restart required
+reject=stderr:contains=panic recovered

@@ -221,6 +221,18 @@ connection token, even when delivery no longer marks that process eligible.
 The worker never discovers authority by trying a selected RPC; the engine's
 final writer independently checks permission on every operation.
 
+A targeted `state` up with reason `export-policy` asks only the existing ordinary
+owner to re-evaluate current learned selections on the same captured Session.
+Both JSON and structured handlers consume it before connection/source bookkeeping.
+It arms no initial readiness fence and sends no refresh markers. One coalesced
+bit per destination survives any older in-flight answer; the existing worker
+consumes it after that answer settles and adds only current received selections
+to its pending keys. Local selected origins keep their acknowledged output.
+The event-settlement barrier includes the bit and the resulting final receipts.
+A late old-Session event cannot create a replacement destination.
+<!-- source: internal/component/bgp/plugins/rib/rib_selected_policy.go -- reofferLearned, consumeExportPolicy -->
+<!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
+
 Ordinary Route Refresh still requires the receiving Session's captured facts
 on its public event and current-selection replay before its end marker. The
 legacy refresh handlers presently read SENT history; they do not establish

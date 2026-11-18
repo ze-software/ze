@@ -438,7 +438,10 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	// RFC 8212 Section 3: a dynamic candidate can still carry an unresolved AS.
 	// The captured live session's classification governs this hot policy swap.
 	external := p.settings.IsEBGP()
-	restoreFinal := !p.settings.ExportPolicy.AcceptsAtEnd(external) && next.ExportPolicy.AcceptsAtEnd(external)
+	ordinary := p.ordinarySelectedExport()
+	beforeFinal := exportFinalDisposition(p.settings.ExportPolicy, external, ordinary)
+	nextFinal := exportFinalDisposition(next.ExportPolicy, external, ordinary)
+	restoreFinal := beforeFinal.restores(nextFinal)
 	announced := p.upPhaseLocked(session)
 	p.mu.RUnlock()
 	stateUp := p.State() == PeerStateEstablished
@@ -510,7 +513,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	closing := announcedAtWrite == sessionUpClosing || (session != nil && current != session && successorUnannounced)
 	before := p.settings.StaticRoutes
 	// RFC 8212 Section 3.
-	acceptedBefore := p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	acceptedBefore := exportFinalDisposition(p.settings.ExportPolicy, p.settings.IsEBGP(), ordinary)
 	exportBefore := p.settings.ExportPolicy
 	bfd := bfdOptInChange{before: p.settings.BFD, requestBefore: bfdRequestFor(p.settings)}
 	copy(p.settings, next)
@@ -518,7 +521,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 		p.writeDynamicTemplateLocked(next)
 	}
 	after := p.settings.StaticRoutes
-	finalChanged := acceptedBefore != p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	finalChanged := acceptedBefore.changed(exportFinalDisposition(p.settings.ExportPolicy, p.settings.IsEBGP(), ordinary))
 	// A reload rebuilds every chain, so this asks what the chain decides and not
 	// whether it is the same value (filterapi.Policy.SameDecisions).
 	if !exportBefore.SameDecisions(p.settings.ExportPolicy) {
@@ -586,8 +589,8 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	p.refreshForwardFactsIfLive()
 	originErr := p.replayPeerOrigins(r)
 	var reconcileErr error
-	if finalChanged {
-		reconcileErr = p.reconcileExportFinal()
+	if finalChanged.local || finalChanged.learned {
+		reconcileErr = p.reconcileExportFinalKinds(finalChanged)
 	}
 	p.refreshPrefixStale()
 	if !sameStaticRouteSet(before, after) {

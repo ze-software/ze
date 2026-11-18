@@ -4,7 +4,7 @@
 // Related: internal/component/doctor/doctor.go -- the runner that reads the registry
 //
 // A doctor check belongs to the package that owns the runtime dependency it
-// probes (ai/patterns/registration.md, "Doctor Check Registry"). These three
+// probes (ai/patterns/registration.md, "Doctor Check Registry"). These checks
 // probe BGP configuration, so dropping the BGP engine from a build drops them
 // with it rather than leaving `ze doctor` calling into a component that is not
 // there.
@@ -62,6 +62,14 @@ const captureDirPerm = 0o750
 // bgpDoctorChecks are the readiness checks this package owns, in the order the
 // doctor runner ran them.
 var bgpDoctorChecks = []diagnostic.DoctorCheck{{
+	Name:  "bgp-policy-absence",
+	Phase: diagnostic.DoctorPhasePostConfig,
+	Order: 112, Component: doctorComponentBGP,
+	Dependencies: []string{doctorDependencyConfigTree},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorBGPLearnedExportNoPolicy, diagnostic.CodeDoctorBGPRFC8212NoPolicy},
+	Check:        doctorCheckBGPPolicyAbsences,
+}, {
 	Name:         "bgp-peer-config",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        110,

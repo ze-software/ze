@@ -1,0 +1,89 @@
+# Test: do actual config validation, supplied-file doctor and Established logs
+# distinguish an ordinary internal learned-export absence from real RR and RS
+# ownership, while useful ordinary/reflected wire and C local output survive?
+# A unit cannot decide the actual ze CLI, declared process placements, real
+# daemon grants, OPEN-derived session type and final BGP TCP output together.
+# C absent/accept/reject/absent-again reports use parsed saved configurations.
+# A is external: its route is useful at B and RR-served D without reflection
+# attributes. A separate internal S gives D a genuinely reflected route with
+# exact ORIGINATOR_ID and CLUSTER_LIST. E remains empty through a real EOR
+# socket fence, and a C API fence detects learned-route leakage without sleeps.
+# MUTATION: omit the shared learned-only absence; actual reports fail.
+# MUTATION: erase live warning ownership; actual commands and wire survive,
+# but the required live C warning is missing. No RFC support claim is made.
+option=timeout:value=130s
+
+stdin=ze-bgp:terminator=CONFIG_INTERNAL
+plugin {
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ internal rib { use bgp-rib; }
+ internal rr { use bgp-rr; }
+ internal rs { use bgp-rs; }
+ external bgp-policy-diagnostics {
+  run "le test fixture plugin/bgp-policy-diagnostics internal 127.0.0.1:$PORT ze-bgp.conf";
+  encoder json;
+ }
+}
+bgp {
+ router-id 1.1.1.1;
+ peer A {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rib { receive [ update-received state ]; }
+  attach process rr { receive [ update-received state open-received ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; }
+ }
+ peer B {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } export { final accept; } }
+  attach process rib { receive [ state refresh update-sent ]; send [ update ]; }
+ }
+ peer C {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } }
+  attach process rib { receive [ state refresh update-sent ]; send [ update ]; }
+  attach process bgp-policy-diagnostics { send [ update ]; }
+ }
+ peer D {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.5; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } route-reflector-client true; cluster-id 10.0.0.1; }
+  behavior { group-updates disable; }
+  filter { import { final reject; } }
+  attach process rr { receive [ state open-received ]; send [ update ]; }
+ }
+ peer E {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.6; connect false; } }
+  session { asn { local 65000; remote 65002; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final reject; } }
+  attach process rs { receive [ state open-received refresh ]; send [ update ]; }
+  attach process bgp-policy-diagnostics { send [ update ]; }
+ }
+ peer S {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.7; connect false; } }
+  session { asn { local 65000; remote 65000; } aigp { enabled false; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { final accept; } export { final reject; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process rib { receive [ update-received state ]; }
+  attach process rr { receive [ update-received state open-received ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; }
+ }
+}
+CONFIG_INTERNAL
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=120s
+expect=exit:code=0
+expect=stderr:contains=OK: BGP policy diagnostics internal commands, role wire and API survivor
+expect=stderr:pattern=msg="This IBGP peer has no export policy[^\n]*no routes learned from other peers[^\n]*Local announcements remain permitted"[^\n]*peer=C[^\n]*code=doctor-bgp-learned-export-no-policy[^\n]*fix="set bgp peer C filter export final accept"
+expect=stderr:pattern=msg="RFC 8212:[^\n]*no export policy[^\n]*"[^\n]*peer=E[^\n]*code=doctor-bgp-rfc8212-no-policy[^\n]*fix="set bgp peer E filter export final accept"
+reject=stderr:pattern=fix="set bgp peer (A|B|D|S) filter
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

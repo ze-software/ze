@@ -64,19 +64,20 @@ type selectedDispatchItem struct {
 // is uninitialized. The dispatch mutex protects all fields except its channels
 // and immutable lifetime/identity. One worker owns each RPC through settlement.
 type selectedDestination struct {
-	peer         netip.Addr
-	address      string
-	session      uint64
-	ctx          context.Context
-	cancel       context.CancelFunc
-	done         chan struct{}
-	wake         chan struct{}
-	acknowledged map[advertiseKey]selectedAcknowledgment
-	pending      map[advertiseKey]struct{}
-	inFlight     []selectedDispatchItem
-	ready        bool
-	failure      error
-	envelope     selectedItemBudget
+	peer           netip.Addr
+	address        string
+	session        uint64
+	ctx            context.Context
+	cancel         context.CancelFunc
+	done           chan struct{}
+	wake           chan struct{}
+	acknowledged   map[advertiseKey]selectedAcknowledgment
+	pending        map[advertiseKey]struct{}
+	inFlight       []selectedDispatchItem
+	ready          bool
+	reofferLearned bool
+	failure        error
+	envelope       selectedItemBudget
 }
 
 // selectedDispatch holds only current desired selections and the output
@@ -386,6 +387,16 @@ func (d *selectedDispatch) run(destination *selectedDestination) {
 			if destination.ctx.Err() != nil {
 				d.mu.Unlock()
 				return
+			}
+			if destination.reofferLearned {
+				// Consume only after any predecessor request completed. Its
+				// suppressed receipt cannot erase this newer policy request.
+				for key, current := range d.current {
+					if current.wire.Kind == rpc.SelectedRouteReceived {
+						destination.pending[key] = struct{}{}
+					}
+				}
+				destination.reofferLearned = false
 			}
 			batch, items, buildError := d.batchLocked(destination)
 			if len(items) == 0 {

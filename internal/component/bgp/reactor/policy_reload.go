@@ -12,6 +12,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -26,6 +28,10 @@ import (
 // joins the writer: every old accepting decision has then reached adjOut, and
 // every later managed write reads the rejecting final.
 func (p *Peer) reconcileExportFinal() error {
+	return p.reconcileExportFinalKinds(exportFinalKinds{local: true, learned: true})
+}
+
+func (p *Peer) reconcileExportFinalKinds(changed exportFinalKinds) error {
 	if p.State() != PeerStateEstablished {
 		return nil
 	}
@@ -42,9 +48,20 @@ func (p *Peer) reconcileExportFinal() error {
 	adapter := &reactorAPIAdapter{r: r}
 	p.mu.RLock()
 	// RFC 8212 Section 3.
-	accepts := p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	accepts := p.settings.ExportPolicy.AcceptsExportAtEnd(p.settings.IsEBGP(), filterapi.ExportExplicit)
 	p.mu.RUnlock()
-	if !accepts {
+	ordinarySelected := p.ordinarySelectedExport()
+	if ordinarySelected && changed.learned && !changed.local {
+		p.mu.RLock()
+		learnedAccepts := p.settings.ExportPolicy.AcceptsExportAtEnd(p.settings.IsEBGP(), filterapi.ExportOrdinaryLearned)
+		p.mu.RUnlock()
+		if !learnedAccepts {
+			if err := p.retireOrdinaryLearned(ctx, session); err != nil {
+				return err
+			}
+		}
+	}
+	if changed.local && !accepts {
 		if r.fwdPool != nil {
 			if err := r.fwdPool.barrierPeer(ctx, p.Settings().PeerKey()); err != nil {
 				return fmt.Errorf("export final withdrawal: %w", err)
@@ -57,22 +74,33 @@ func (p *Peer) reconcileExportFinal() error {
 		session.writeMu.Lock()
 		session.writeMu.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: the empty critical section is the barrier
 		_, err := adapter.withdrawPeerAdvertised(ctx, p, family.Family{}, plugin.OperatorSender())
+		if ordinarySelected && changed.learned {
+			return errors.Join(err, p.reconcileSelectedExport(ctx, session))
+		}
 		return err
 	}
 
 	// Only a denied-to-accepted transition reaches restoration. An initially
 	// denied static set may still have been recorded as delivered by its sender.
-	p.staticMu.Lock()
-	if p.staticWire.session == session {
-		p.staticWire.routes = nil
+	if changed.local {
+		p.staticMu.Lock()
+		if p.staticWire.session == session {
+			p.staticWire.routes = nil
+		}
+		p.staticMu.Unlock()
+		p.deliverStaticRouteDelta(p.staticRoutes())
+		if negotiated := p.negotiated.Load(); negotiated != nil {
+			previous := p.sendingConfigStatic.Swap(true)
+			p.sendDefaultOriginateRoutes(session, negotiated)
+			p.sendPluginRoutesVia(session, session.SendUpdate)
+			p.sendingConfigStatic.Store(previous)
+		}
 	}
-	p.staticMu.Unlock()
-	p.deliverStaticRouteDelta(p.staticRoutes())
-	if negotiated := p.negotiated.Load(); negotiated != nil {
-		previous := p.sendingConfigStatic.Swap(true)
-		p.sendDefaultOriginateRoutes(session, negotiated)
-		p.sendPluginRoutesVia(session, session.SendUpdate)
-		p.sendingConfigStatic.Store(previous)
+	if ordinarySelected {
+		if changed.learned {
+			return p.reconcileSelectedExport(ctx, session)
+		}
+		return nil
 	}
 	if r.api == nil {
 		return nil

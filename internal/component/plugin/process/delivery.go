@@ -71,14 +71,23 @@ const (
 // Returns true if the event was enqueued, false if the process is stopping.
 // Thread-safe: uses RLock to allow parallel sends from multiple callers.
 func (p *Process) Deliver(d EventDelivery) bool {
+	return p.DeliverContext(context.Background(), d)
+}
+
+// DeliverContext preserves the existing FIFO delivery rail while allowing a
+// bounded cold caller to cancel queue admission. A refused structured delivery
+// remains owned by its caller; an admitted delivery belongs to the worker.
+func (p *Process) DeliverContext(ctx context.Context, d EventDelivery) bool {
 	p.eventMu.RLock()
 	defer p.eventMu.RUnlock()
 
-	if p.eventClosed || p.eventChan == nil {
+	if ctx.Err() != nil || p.eventClosed || p.eventChan == nil {
 		return false
 	}
 
 	select {
+	case <-ctx.Done():
+		return false
 	case p.eventChan <- d:
 		p.noteDelivered()
 		return true

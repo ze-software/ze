@@ -141,8 +141,9 @@ func validatePeersFromTree(tree *zeconfig.Tree) error {
 
 // policyAbsencesFromTree adapts peersAndDynamicGroups to the
 // infra.BGPPolicyValidator seam: the same walk validatePeersFromTree gates on,
-// plus each RFC 8212 absence on the peers and dynamic groups it built, worded
-// by reactor.RFC8212Absences exactly as the establishment warning words it.
+// plus each policy absence on the peers and dynamic groups it built, worded
+// by reactor.PolicyAbsences exactly as the establishment warning words it.
+// The validated graph supplies the owner for the same configured process.
 //
 // A dynamic group with no remote AS is not judged: its members are EBGP or
 // IBGP by the AS each OPEN carries, so only the session can tell, and the
@@ -166,10 +167,10 @@ func policyAbsencesFromTree(tree *zeconfig.Tree) ([]infra.BGPPolicyAbsence, erro
 	return absences, nil
 }
 
-// appendPolicyAbsences appends the RFC 8212 absences of one session template.
+// appendPolicyAbsences appends the policy absences of one resolved session template.
 func appendPolicyAbsences(absences []infra.BGPPolicyAbsence, owner string, ps *reactor.PeerSettings) []infra.BGPPolicyAbsence {
-	for _, a := range reactor.RFC8212Absences(ps) {
-		absences = append(absences, infra.BGPPolicyAbsence{Owner: owner, Direction: a.Direction, Message: a.Message, Fix: a.Fix})
+	for _, a := range reactor.PolicyAbsences(ps, ps.DisseminationOwner) {
+		absences = append(absences, infra.BGPPolicyAbsence{Owner: owner, Direction: a.Direction, Message: a.Message, Fix: a.Fix, Code: a.Code})
 	}
 	return absences
 }

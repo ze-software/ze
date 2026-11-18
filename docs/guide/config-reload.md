@@ -62,12 +62,20 @@ kill -HUP $(pidof ze)               # Direct signal
 <!-- source: cmd/ze/hub/listener_migrate.go -- updateLGCertificate -->
 
 Changing the export final decision reconciles advertisements without a new source UPDATE.
-Restoration uses retained received routes, configured static and default routes, and plugin routes.
-Restoring negotiated ordinary route families requires `bgp-adj-rib-in` attached
-to their sources and an authorized forwarding owner. FlowSpec uses the selecting
-RIB's currently authorized paths through that same owner's send grant. A
-FlowSpec-only destination does not require the optional receive store.
-One-shot API announcements have no retained desired source, so their producer must announce them again after acceptance returns.
+For ordinary destinations, the configured selecting owner reoffers its current
+learned selections on the same session and waits for final writer receipts.
+It uses no optional receive-store replay and never sends losing candidates.
+Internal sessions distinguish learned and local routes: adding an accepting
+export policy restores the retained learned selections, and removing it withdraws
+those learned advertisements. The existing local/API/static/default/plugin
+routes are neither withdrawn nor resent by that learned-only change.
+A change to the local route disposition also reconciles configured static,
+default and plugin routes. An original API input retained by an opted-in selecting
+provider keeps its existing receipt; a direct one-shot API producer must announce
+its input again if rejection removed it. Explicit RS/RR forwarding keeps its
+legacy authorized retained-source replay; ordinary families on that path need
+`bgp-adj-rib-in` attached to their sources, while FlowSpec uses its currently
+authorized selecting RIB paths and does not require the receive store.
 This does not re-evaluate existing routes for arbitrary filter-definition changes.
 Removing an accepting final does not reset the delivered static-route set; a
 simultaneous static-route removal still sends its withdrawal. Only a transition

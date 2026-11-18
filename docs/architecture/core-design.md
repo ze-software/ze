@@ -1347,13 +1347,27 @@ frontier becomes committed at flush; a write/flush failure invalidates it and
 seals only the failing Session. The asynchronous sent RIB remains a projection;
 cold source-DOWN recovery retains its existing drain and session/sequence fences.
 
-An export-final rejection publishes the new forwarding facts before joining the
+Export-final reconciliation derives separate local and learned dispositions from
+the authenticated dissemination role and the same `AcceptsExportAtEnd` decision
+as final output. An internal absent-to-accept change affects ordinary learned
+routes alone: it does not reset, withdraw or replay local origins. The ordinary
+owner receives a targeted `state` observation with reason `export-policy` and
+the unchanged destination Session, then reoffers current learned selections on
+its existing bounded output worker. The delivery settlement joins final receipts,
+not optional Adj-RIB-In candidates. Removing accepting internal policy first
+joins the selected stream and final writer, then retires only entries recorded
+as ordinary learned output. The same owner's local entries survive even if a
+current local replacement shares the former learned route's native key. The
+owner reoffer settles its pending/acknowledged output under the new disposition.
+
+A local export-final rejection publishes the new forwarding facts before joining the
 session writer and snapshotting its advertisements. This includes direct API
 writes, not only the forwarding pool: an old accepting decision must reach
 ownership admission before the rejection takes its withdrawal snapshot.
-Restoration raises the replay-order gate before publishing accepting facts and holds
-work admitted before the hold was raised. That work returns to overflow in its
-original order. A replay-only completion marker reaches the writer before the
+Legacy retained-source restoration for explicit RS/RR forwarding or authorized
+Adj-RIB-In self-replay raises the replay-order gate before publishing accepting
+facts and holds work admitted before the hold was raised. That work returns to
+overflow in its original order. A replay-only completion marker reaches the writer before the
 hold is released, so a same-session withdrawal follows, rather than precedes,
 a retained page that still contains its route.
 The withdrawal snapshot reconstructs native framing from semantic route keys;
@@ -1850,24 +1864,37 @@ before any export chain runs.
 
 
 Reload compares and replaces whole policies. An export-final change publishes
-the new forwarding snapshot before reconciling advertisements on the existing
-session. Rejection drains queued forwards and withdraws the session's recorded
-advertisements through the normal serialized writer; its last admission check
-also rejects announcements evaluated before the swap. Returning to acceptance
-regenerates configured static, default and plugin routes and replays retained
-received routes under the configured replay owner's send permission. Removing
-the last explicit export policy rejects on EBGP. On internal sessions, the
-final writer rejects ordinary learned announcements while explicit local and
-role output keep their default.
-Dynamic variable resolution retains the final.
+the new forwarding snapshot before reconciling the affected route kinds on the
+existing session. For an ordinary destination, the captured selecting owner
+reoffers its current learned selections and settles their final output receipts.
+It does not replay optional receive-store candidates or losing received routes.
+A learned-only rejection joins the selected stream and final writer, then
+withdraws only recorded ordinary learned output. Local/API/static/default/plugin
+origins are neither withdrawn nor resent by a learned-only transition.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds -->
+<!-- source: internal/component/bgp/reactor/policy_selected_retire.go -- retireOrdinaryLearned -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
 
-This does not add desired-state storage for one-shot API announcements. Those
-announcements are withdrawn on rejection, but their producer must reannounce
-after acceptance returns: consumed operations and sent-state withdrawals retain
-no original desired source. Import-final rejection preserves received withdrawal
-sections, and export-final rejection preserves API withdrawals. Broad filter
-definition reload is separate from this final-transition reconciliation.
-<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal, policyReplayOwner -->
+When the local disposition changes, rejection drains queued forwards and joins
+the writer before withdrawing recorded advertisements. Acceptance regenerates
+configured static, default and plugin routes. Explicit RS/RR forwarding and
+authorized Adj-RIB-In self-replay retain their legacy restoration path:
+non-FlowSpec families replay retained received routes under the actual owner's
+send permission, while FlowSpec reads currently authorized selecting-RIB paths.
+Removing the last explicit export policy rejects on EBGP. On IBGP, ordinary
+learned announcements require export policy while explicit local and role output
+keep their default. Dynamic variable resolution retains the final.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds, policyReplayOwner -->
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- UnconfiguredExportAccepts -->
+
+An API original retained by an opted-in selecting provider keeps its receipt.
+A direct one-shot API producer must reannounce if rejection removed its output,
+because consumed operations and sent state retain no original desired input.
+Import-final rejection preserves received withdrawal sections, and export-final
+rejection preserves API withdrawals. Arbitrary filter-definition changes do not
+generally re-evaluate existing routes.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds, policyReplayOwner -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
 <!-- source: internal/component/bgp/reactor/filter_ordered.go -- policyWithdrawals -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 
@@ -3833,11 +3860,16 @@ candidate cannot silently become the selected offer after the reload.
 
 An import-policy change applies to routes received AFTER the swap; it does not
 re-run policy over already-imported routes. An export-final transition also
-reconciles existing advertisements through `reconcileExportFinal`: rejection
-withdraws them, and acceptance restores eligible retained sources. Re-evaluation
-for arbitrary filter-definition changes remains separate.
+reconciles affected route kinds through `reconcileExportFinalKinds`. The ordinary
+selecting owner reoffers current learned selections and settles final receipts;
+a learned-only rejection retires recorded learned output while local origins
+remain untouched. A local disposition change also reconciles configured routes.
+Explicit RS/RR and authorized Adj-RIB-In self-replay keep their retained-source
+restoration path. Arbitrary filter-definition changes do not generally
+re-evaluate existing routes.
 <!-- source: internal/component/bgp/reactor/peer_settings_apply.go -- applyHotSwappableSettings -->
-<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinal -->
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
 
 ## 19. Component Boundaries
 

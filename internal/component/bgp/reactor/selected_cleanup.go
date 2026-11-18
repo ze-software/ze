@@ -8,6 +8,8 @@ import (
 	"errors"
 	"math"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
@@ -15,10 +17,12 @@ import (
 // selectedCleanupPermit is engine-owned removal authority after revocation.
 // Its zero value and nil pointer are invalid. Only retireSelectedOwner creates
 // one for a captured destination session; it grants no announcement authority.
-// source nil retires the exact deciding incarnation's whole current frontier.
+// source nil retires the exact deciding incarnation's whole current frontier,
+// unless a known kind restricts cleanup to that recorded output class.
 type selectedCleanupPermit struct {
 	session *Session
 	source  *Peer
+	kind    filterapi.ExportKind // Known restricts retirement to recorded output kind.
 }
 
 // RetireSelectedOwner is the process-generation cleanup seam. The server that
@@ -84,10 +88,14 @@ func (table *adjRIBOut) hasSelectedOwner(session *Session, owner plugin.Selected
 }
 
 func (s *Session) retireSelectedOwner(ctx context.Context, peer *Peer, owner plugin.SelectedOwner, source *Peer) error {
+	return s.retireSelectedOwnerKind(ctx, peer, owner, source, filterapi.ExportUnknown)
+}
+
+func (s *Session) retireSelectedOwnerKind(ctx context.Context, peer *Peer, owner plugin.SelectedOwner, source *Peer, kind filterapi.ExportKind) error {
 	var overdue *selectedRefreshPending
 	lockErr := s.selectedMu.LockContext(ctx)
 	if lockErr != nil {
-		if source != nil {
+		if source != nil || kind.Known() {
 			return lockErr
 		}
 		overdue = s.pendingSelectedRefreshOwner(owner)
@@ -101,7 +109,7 @@ func (s *Session) retireSelectedOwner(ctx context.Context, peer *Peer, owner plu
 		s.selectedMu.Lock()
 	}
 	defer s.selectedMu.Unlock()
-	if source == nil {
+	if source == nil && !kind.Known() {
 		pending := s.pendingSelectedRefreshOwner(owner)
 		if pending == nil {
 			pending = overdue
@@ -120,7 +128,7 @@ func (s *Session) retireSelectedOwner(ctx context.Context, peer *Peer, owner plu
 			return errors.Join(lockErr, closeErr, writerErr)
 		}
 	}
-	permit := selectedCleanupPermit{session: s, source: source}
+	permit := selectedCleanupPermit{session: s, source: source, kind: kind}
 	work := selectedWrite{output: selectedOutput{owner: owner, revision: math.MaxUint64},
 		session: s, destinationSession: s.initialReplay.Load(), absent: true, cleanup: &permit}
 	item := fwdItem{peer: peer, session: s, authority: adjOutSelected, selected: &work}

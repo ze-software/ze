@@ -773,8 +773,10 @@ Config references filters as `<plugin>:<filter>` in nested direction policies:
 Each configured direction requires `final accept` or `final reject`. References
 accumulate global, group, then peer; the most-specific direction supplies the
 final. An absent direction keeps automatic filters but has no operator policy.
-It rejects on EBGP under RFC 8212 Section 3 and preserves acceptance on IBGP.
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
+It rejects on EBGP under RFC 8212 Section 3. On IBGP, import and explicit local
+or role output keep their accepting default; ordinary learned export requires
+operator policy.
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.AcceptsExportAtEnd -->
 
 The runtime uses the declaration to choose raw payload delivery, validate modify
 deltas against declared attributes, and pick fail-open or fail-closed behavior
@@ -782,15 +784,28 @@ on filter RPC errors. Accept continues to the next filter. Exhaustion applies
 the policy final, including empty and inactive-only chains. A raw full-UPDATE
 rewrite stops later filters but still receives the final. Earlier reject,
 fail-closed error and teardown remain terminal. A final-only export change
-reconciles the current session: rejection withdraws recorded advertisements;
-acceptance regenerates configured routes and replays retained received routes
-under the actual configured replay owner's send grant. The replay waits until
-the receive store has applied every UPDATE event queued for it, so a route the
-store had not yet taken in is not left out for good. Runtime claims take
-precedence over compiled claims, including aliased plugins. No new persistence
-is added for one-shot API announcements: their producer must reannounce after
-acceptance returns. API withdrawal sections are not swallowed by final rejection.
-<!-- source: internal/component/bgp/reactor/policy_reload.go -- policyReplayOwner, reconcileExportFinal, drainReceiveStore -->
+reconciles the affected route kinds on the current session. For an ordinary
+destination, the captured selecting owner reoffers only current learned
+selections, and event settlement joins their final output receipts. Optional
+receive-store candidates are not replayed. A learned-only transition neither
+withdraws nor resends local/API/static/default/plugin origins. A change to the
+local disposition withdraws recorded advertisements on rejection and regenerates
+configured local routes on acceptance. Retained API originals keep their
+receipts; a direct one-shot API producer must reannounce if rejection removed
+its output.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- reconcileExportFinalKinds -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
+
+Explicit RS/RR forwarding and authorized Adj-RIB-In self-replay preserve the
+legacy restoration path. Before non-FlowSpec replay, the receive store must apply
+every UPDATE event already queued for it. FlowSpec restoration reads currently
+authorized selecting-RIB paths instead, through the actual owner's send grant.
+Runtime claims take precedence over compiled claims, including aliased plugins.
+API withdrawal sections remain effective under final rejection. Arbitrary
+filter-definition changes do not generally re-evaluate existing routes.
+<!-- source: internal/component/bgp/reactor/policy_reload.go -- policyReplayOwner, reconcileExportFinalKinds, drainReceiveStore -->
+<!-- source: internal/component/bgp/reactor/policy_final_kinds.go -- reconcileSelectedExport -->
+<!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
 
 Operational `PeerInfo` carries `ImportPolicy` and `ExportPolicy` as optional
 `PolicyInfo` values rather than bare reference lists. Each carries `filters`
@@ -1855,6 +1870,22 @@ an existing retrieval path for omitted live details; the SDK refuses an
 oversized failure instead of silently truncating it. The RIB names whole
 destination identities, states omitted counts and points to the current
 `selected-output` list in `ze show bgp rib status`.
+
+A live export-final transition uses a targeted `state` event with state `up`,
+reason `export-policy`, the existing `destination-session` and the recipient's
+`selected-destination` authority. It reaches only the captured ordinary owner;
+it announces no connection transition and carries no initial-replay token.
+The owner MUST reoffer its current received selections under the new policy,
+MUST preserve local selected origins, and MUST NOT replay received losers or
+emit ROUTE-REFRESH markers. Its existing event-settlement callback joins this
+work through final output receipts. The caller captures an authenticated
+`SelectedOwner`, not only its configured name. Delivery verifies that exact
+current, ready Process and its granted destination-state subscription before
+queueing and after settlement. A same-name replacement cannot receive or
+acknowledge the old owner's reoffer. The engine bounds queue admission with
+`DeliverContext` and reports application or settlement failure to reload.
+<!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
+<!-- source: pkg/plugin/rpc/enums.go -- ReasonExportPolicy -->
 <!-- source: pkg/plugin/rpc/event_settlement.go -- EventSettlementInput, EventSettlementOutput -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_failure.go -- selectedBarrierError -->
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_status.go -- unsettledStatus -->
@@ -4489,8 +4520,8 @@ retains the progress it already read and cannot report completed evaluation.
 
 The daemon retains the same original outcome in its typed command response.
 A buffered document keeps the original produced and refused counts, including
-an empty collection or an explicitly absent document. The shared text projection
-retains completed and rejected records when it reports the command's final failure.
+an empty collection or an explicitly absent document. Text surfaces render the
+completed and rejected records before they report the command's final failure.
 A streamed response opens before completion and publishes its outcome only
 after the record walk ends. The daemon's wire writer reads that final message
 and warning at the same point, so a late failure or warning reaches the next
