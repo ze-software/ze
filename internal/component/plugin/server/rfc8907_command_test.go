@@ -622,6 +622,8 @@ func TestDispatchTypedSelectorMissingValue(t *testing.T) {
 	_, err := d.Dispatch(ctx, "show demo name detail")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required argument missing: name")
+	assert.Contains(t, err.Error(), "The command definition makes name mandatory and supplies no further explanation")
+	assert.Contains(t, err.Error(), "\nfix: show demo name detail name <name>")
 }
 
 // TestDispatchTypedSelectorExtractsValue verifies generic typed selectors populate
@@ -1493,6 +1495,9 @@ func TestDispatcherMandatoryMissing(t *testing.T) {
 	_, err := d.Dispatch(nil, "show tcp-check")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required argument missing")
+	assert.Contains(t, err.Error(), "required argument missing: host")
+	assert.Contains(t, err.Error(), "required argument missing: port")
+	assert.Contains(t, err.Error(), "\nfix: show tcp-check host <host> port <port>")
 }
 
 // TestDispatcherNoArgDefsPassthrough verifies commands without ArgDefs skip validation.
@@ -1680,6 +1685,8 @@ func TestMissingMandatoryOutranksAnUnplaceableToken(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Contains(t, resp.Error, "required argument missing: direction")
+	assert.Contains(t, resp.Error, "The command definition makes direction mandatory and supplies no further explanation")
+	assert.Contains(t, resp.Error, "\nfix: show policy test peer")
 	assert.NotContains(t, resp.Error, "invalid value", "the handler's own keyword is not a refused value")
 	assert.NotContains(t, resp.Error, "is not an accepted value", "the handler's own keyword is not a refused value")
 	assert.NotContains(t, resp.Error, "is not in the accepted format", "the handler's own keyword is not a refused value")
@@ -1948,6 +1955,8 @@ func TestDispatcherPositionalTypedLeaf(t *testing.T) {
 	_, err = d.Dispatch(nil, "show tcp-check 127.0.0.1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required argument missing: port")
+	assert.Contains(t, err.Error(), "The command definition makes port mandatory and supplies no further explanation")
+	assert.Contains(t, err.Error(), "\nfix: show tcp-check 127.0.0.1 port <port>")
 	assert.Nil(t, receivedArgs)
 
 	// Out-of-range values are still rejected by the leaf's own type.
@@ -2073,7 +2082,9 @@ func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
 
 		_, err := d.Dispatch(&CommandContext{}, "delete bgp peer")
 		require.Error(t, err)
-		assert.Equal(t, "delete bgp peer requires a selector: delete bgp peer <selector>", err.Error())
+		assert.Equal(t, "required argument missing: selector\n"+
+			"The command definition makes selector mandatory and supplies no further explanation\n"+
+			"fix: delete bgp peer <selector>", err.Error())
 	})
 
 	t.Run("an out-of-band selector wins over the trailing token", func(t *testing.T) {

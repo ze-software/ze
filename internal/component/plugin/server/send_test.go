@@ -234,7 +234,11 @@ func TestSendArgumentsAreDeclared(t *testing.T) {
 		// It cannot say which token was typed for which leaf, so it names the
 		// declaration instead (command.ValidateArgs). The refusal is still the
 		// model's, and the handler still does not run.
-		{command: "send bgp 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: []string{"required argument missing: encoding"}},
+		{command: "send bgp 192.0.2.1 update json nlri ipv4/unicast add 10.0.0.0/24", says: []string{
+			"required argument missing: encoding",
+			"This command needs encoding: The word is required and any other word there is refused before the",
+			"\nfix: send bgp 192.0.2.1 update",
+		}},
 	}
 	for _, refusal := range refusals {
 		t.Run(refusal.command, func(t *testing.T) {

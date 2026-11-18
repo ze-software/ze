@@ -131,7 +131,7 @@ func cleanupAnswerInterruptedDocument(t *testing.T, document json.RawMessage) *S
 		}
 		select {
 		case err := <-writeResult:
-			assert.ErrorIs(t, err, cleanupAnswerDocumentEndLost)
+			assert.ErrorIs(t, err, errCleanupAnswerDocumentEndLost)
 		default:
 			t.Error("recipient did not reach its deliberately withheld terminator")
 		}
@@ -143,7 +143,7 @@ func cleanupAnswerInterruptedDocument(t *testing.T, document json.RawMessage) *S
 	return s
 }
 
-var cleanupAnswerDocumentEndLost = errors.New("private reader cause: deliberate missing terminator")
+var errCleanupAnswerDocumentEndLost = errors.New("private reader cause: deliberate missing terminator")
 
 // Reject only the actual end frame, after the same writer sent head and data.
 // No invented count or process-admission state enters the fixture.
@@ -155,7 +155,7 @@ func (writer cleanupAnswerDocumentDisconnect) Write(line []byte) (int, error) {
 		return 0, err
 	}
 	if kind == rpc.AnswerKindTerminator {
-		return 0, cleanupAnswerDocumentEndLost
+		return 0, errCleanupAnswerDocumentEndLost
 	}
 	return writer.writer.Write(line)
 }
