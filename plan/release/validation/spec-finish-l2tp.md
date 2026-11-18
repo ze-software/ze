@@ -682,5 +682,7 @@ after its intended RED. Reached YANG/external-schema packages pass. The new
 daemon selector test passes its first run and all 80 load repetitions; it is
 promoted, and its native clean-versus-broken proof catches a false flag causing
 an extra action. Remaining reached API checks and scoped lint are owed.
-Current-API accounting and PPP counter regressions are being proved before
-their producer changes. These checks do not replace the full 48/47/46 lab proof.
+Five current-API accounting and PPP counter regressions reached their intended
+failures before producer changes: missing early sampling, overlapping Births,
+premature Stop during Start/Interim and a changed terminal endpoint. Their
+implementation and the full 48/47/46 lab proof remain open.
