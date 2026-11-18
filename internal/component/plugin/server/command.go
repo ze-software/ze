@@ -1746,24 +1746,7 @@ func (d *Dispatcher) routeToProcessWithEvents(cmdCtx *CommandContext, cmd *Regis
 	}
 
 	defer cancel()
-	rpcOut, valueErr := pluginipc.ExecuteCommandValue(answer)
-	if valueErr != nil {
-		var tb textbuf.Buffer
-		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("failed to read answer: ").Err(valueErr).String()}, nil
-	}
-	if rpcOut.Status == plugin.StatusError {
-		return &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)}, nil
-	}
-	// An answer that carried no document leaves Data ABSENT rather than empty.
-	// RawJSON("") marshals to `null` (plugin.RawJSON.MarshalJSON), and
-	// ResponseJSON only reports "nothing" for a nil Data, so wrapping an empty
-	// document here would print `null` to an operator where they previously read
-	// nothing. The owner ruled on that spelling directly: returning nil is fine,
-	// printing it is not.
-	if len(rpcOut.Data) == 0 {
-		return &plugin.Response{Status: rpcOut.Status}, nil
-	}
-	return &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}, nil
+	return documentPluginResponse(cmd.Name, answer)
 }
 
 // drainCommandEvents never substitutes a replacement process or connection for
@@ -1798,14 +1781,13 @@ func (d *Dispatcher) drainCommandEvents(ctx context.Context, cmd *RegisteredComm
 // walk (rpc.Verdict), exactly as it does for the engine's own answer to a
 // failing command (WriteAnswer, internal/component/plugin/dispatch.go).
 func streamedPluginResponse(command string, answer *rpc.Answer, release func()) *plugin.Response {
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Records{
-			Key:    answer.Key,
-			Fields: answer.Fields,
-			Rows:   pluginAnswerRows(command, answer, release),
-		},
+	response := &plugin.Response{Status: plugin.StatusDone}
+	response.Data = plugin.Records{
+		Key:    answer.Key,
+		Fields: answer.Fields,
+		Rows:   pluginAnswerRows(command, answer, release, response),
 	}
+	return response
 }
 
 // pluginAnswerRows yields the rows of a plugin's streamed answer and releases
@@ -1832,7 +1814,7 @@ func streamedPluginResponse(command string, answer *rpc.Answer, release func()) 
 // sentence and the count: the cause is a Go error and goes to the daemon log,
 // because a fault payload reaches an operator (Security Review of
 // spec-record-answers-1-sdk-path).
-func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.Seq[rpc.RowRecord] {
+func pluginAnswerRows(command string, answer *rpc.Answer, release func(), response *plugin.Response) iter.Seq[rpc.RowRecord] {
 	return func(yield func(rpc.RowRecord) bool) {
 		defer release()
 
@@ -1843,24 +1825,46 @@ func pluginAnswerRows(command string, answer *rpc.Answer, release func()) iter.S
 		// them.
 		var forwarded rpc.RawRow
 
-		var produced uint64
+		var produced, count, faults uint64
 		for record := range answer.Records {
 			produced++
-			if !yield(forwardedRow(&forwarded, checkedRecord(produced, record))) {
+			checked := checkedRecord(produced, record)
+			if len(checked.Fault) > 0 {
+				faults++
+			} else {
+				count++
+			}
+			if !yield(forwardedRow(&forwarded, checked)) {
 				return
 			}
 		}
 		// Read after the range, never before: the range is what fills it.
 		err := answer.Err()
+		var metadata *rpc.ExecuteCommandRecordAnswer
 		if err == nil {
-			return
+			metadata, err = answer.RecordAnswerMetadata()
 		}
-		logger().Warn("plugin answer ended before its terminator",
-			"command", command, "records", produced, "error", err,
-			"code", diagnostic.CodeDoctorPluginAnswerUndelivered)
-		raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, command, "plugin answer ended before its terminator: "+err.Error())
-		forwarded = rpc.RawRow(answerTruncatedFault(produced))
-		yield(rpc.RowRecord{Fault: &forwarded})
+		if err != nil {
+			reportTruncatedPluginAnswer(command, produced, err)
+			forwarded = rpc.RawRow(answerTruncatedFault(produced))
+			if !yield(rpc.RowRecord{Fault: &forwarded}) {
+				return
+			}
+			faults++
+			metadata = &rpc.ExecuteCommandRecordAnswer{}
+		}
+		// Counts describe the validated rows forwarded above. An invalid row
+		// became a refused row, and a missing end added one sanitized fault.
+		metadata.Count, metadata.Faults = count, faults
+		if err := response.CompleteRecordAnswer(metadata); err != nil {
+			response.Status = plugin.StatusError
+			response.Error = opererr.New("Cannot read the outcome of "+command,
+				"The plugin returned inconsistent record metadata, so completion cannot be confirmed",
+				"ze show errors").Error()
+			logger().Warn("plugin answer outcome is invalid",
+				"command", command, "error", err, "code", diagnostic.CodeDoctorPluginAnswerUndelivered)
+			raiseServerEvent(diagnostic.CodeDoctorPluginAnswerUndelivered, command, "plugin answer outcome is invalid: "+err.Error())
+		}
 	}
 }
 

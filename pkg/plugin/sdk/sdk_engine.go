@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/selector"
@@ -338,13 +339,14 @@ func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status st
 
 // DispatchResult is the whole value a dispatched command answered with: the
 // status, the document its records carry, and the lines it stated about that
-// answer. Warnings is set only when Status is "warning", one line each without
-// the newline, and they are the text the operator's own surface prints beside
-// the same answer (the parse warnings of `show config dump`, for one).
+// answer. Warning lines remain beside partial or failed record outcomes.
+// RecordAnswer carries the original completed terminator when available;
+// an interrupted answer has no completed metadata. Counts never come from JSON.
 type DispatchResult struct {
-	Status   string
-	Data     json.RawMessage
-	Warnings []string
+	Status       string                          `json:"status"`
+	Data         json.RawMessage                 `json:"data,omitempty"`
+	Warnings     []string                        `json:"warnings,omitempty"`
+	RecordAnswer *rpc.ExecuteCommandRecordAnswer `json:"record-answer,omitempty"`
 }
 
 // DispatchCommandResult is DispatchCommand with the warning text: it
@@ -459,6 +461,12 @@ func answerValue(answer *rpc.Answer, label string) (DispatchResult, error) {
 	// The completed record data survives failure. The terminator's actual
 	// verdict, including rejected rows, decides success on both transports.
 	result := DispatchResult{Status: answer.Verdict(), Data: document, Warnings: answer.Warnings()}
+	metadata, metadataErr := answer.RecordAnswerMetadata()
+	if metadataErr != nil {
+		return result, metadataErr
+	}
+	metadata.DocumentAbsent = len(document) == 0
+	result.RecordAnswer = metadata
 	return result, answer.Failure()
 }
 
@@ -475,13 +483,46 @@ func dispatchDirectCommandResult(out *rpc.DispatchCommandOutput, err error) (Dis
 // dispatchCommandResult reads the {status, data, error, warnings} projection
 // into the value a caller receives, the command's failure as its Go error.
 func dispatchCommandResult(out *rpc.DispatchCommandOutput, err error) (DispatchResult, error) {
+	var result DispatchResult
+	if out != nil {
+		if metadata := out.RecordAnswer; metadata != nil {
+			if validationErr := metadata.Validate(out.Status); validationErr != nil {
+				return DispatchResult{}, fmt.Errorf("dispatch-command record metadata: %w", validationErr)
+			}
+			if metadata.DocumentAbsent {
+				if len(out.Data) != 0 {
+					return DispatchResult{}, errors.New("dispatch-command record metadata declares absent data beside a document")
+				}
+			} else {
+				if !json.Valid(out.Data) {
+					return DispatchResult{}, errors.New("dispatch-command record metadata has no valid document")
+				}
+			}
+			if out.Error != metadata.Message {
+				return DispatchResult{}, errors.New("dispatch-command record metadata contradicts its error message")
+			}
+			if !slices.Equal(out.Warnings, metadata.Warnings) {
+				return DispatchResult{}, errors.New("dispatch-command record metadata contradicts its warning lines")
+			}
+		}
+		result = DispatchResult{Status: out.Status, Data: out.Data, Warnings: out.Warnings, RecordAnswer: out.RecordAnswer}
+	}
 	if err != nil {
-		return DispatchResult{}, err
+		return result, err
+	}
+	if out == nil {
+		return result, errors.New("dispatch-command output is absent")
+	}
+	if out.RecordAnswer != nil {
+		return result, out.RecordAnswer.Failure()
 	}
 	if out.Error != "" {
-		return DispatchResult{Status: out.Status, Data: out.Data, Warnings: out.Warnings}, errors.New(out.Error)
+		return result, errors.New(out.Error)
 	}
-	return DispatchResult{Status: out.Status, Data: out.Data, Warnings: out.Warnings}, nil
+	if out.Status == rpc.StatusError {
+		return result, errors.New(rpc.AnswerFailureUnstated)
+	}
+	return result, nil
 }
 
 // EmitEvent pushes an event into the engine's delivery pipeline.

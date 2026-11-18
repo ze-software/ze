@@ -649,6 +649,13 @@ p.OnStarted(func(ctx context.Context) error {
 The engine routes the command by longest-match registry lookup and returns the full `{status, data}` response from the target handler.
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
 
+Use `DispatchCommandResult` or `DispatchCommandArgsResult` to retain warning
+lines and the optional original `RecordAnswer` counts. A partial or failed
+record answer returns a Go error and keeps its completed data and refused
+records in `result.Data`. Check that data even when the command failed. Counts
+come from the original terminator, rather than from the document's keys.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchResult, DispatchCommandResult, DispatchCommandArgsResult -->
+
 ## Help Text
 
 Write the help in the `-cmd` module: `ze:help` for the one-line summary and

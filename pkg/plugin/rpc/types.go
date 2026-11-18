@@ -354,8 +354,9 @@ type DeclareRegistrationInput struct {
 	SourcePolicyOwner bool `json:"source-policy-owner,omitempty"`
 	// SourcePolicy declares the acknowledged source-policy lifecycle handler.
 	SourcePolicy bool `json:"source-policy,omitempty"`
+	// OriginIntake declares the acknowledged ordinary local-origin mutation handler.
+	OriginIntake bool `json:"origin-intake,omitempty"`
 	// CurrentSelection declares the independent desired-selection snapshot handler.
-	OriginIntake     bool `json:"origin-intake,omitempty"`
 	CurrentSelection bool `json:"current-selection,omitempty"`
 	// EventSettlement declares acknowledged completion of asynchronous event work.
 	EventSettlement bool `json:"event-settlement,omitempty"`
@@ -1387,16 +1388,17 @@ type DispatchCommandArgsInput struct {
 // the receiving process decodes the result without the concrete Go type, so the
 // raw-JSON field is mandatory. This is deliberately NOT merged into
 // plugin.Response -- it is a distinct transport layer at the process boundary,
-// sharing the "done"/"error" status vocabulary. Unlike update-route (which
+// sharing the final command verdict vocabulary. Unlike update-route (which
 // extracts only route counters), it preserves the complete response.
 type DispatchCommandOutput struct {
-	Status string          `json:"status"`         // "done", "warning" or "error" (plugin.StatusDone, StatusWarning, StatusError)
+	Status string          `json:"status"`         // Final command verdict, including partial or aborted evaluation.
 	Data   json.RawMessage `json:"data,omitempty"` // raw JSON response data (single-decode)
 	Error  string          `json:"error,omitempty"`
-	// Warnings are the lines the command stated about the answer it still
-	// gave, set beside Status "warning" (plugin.Response.Warnings). A caller
-	// that reads only Status and Data loses nothing it read before.
+	// Warnings remain beside a partial or failed completed record answer.
 	Warnings []string `json:"warnings,omitempty"`
+	// RecordAnswer retains the original walk's terminator after collapse.
+	// It is untrusted boundary metadata and MUST be validated before use.
+	RecordAnswer *ExecuteCommandRecordAnswer `json:"record-answer,omitempty"`
 
 	transportComplete func()
 }

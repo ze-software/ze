@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -142,15 +143,15 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 		return output
 	}
 	output.OnTransportComplete(resp.TakeTransportComplete())
-	output.Status = resp.Status
 	if resp.Error != "" {
-		output.Error = resp.Error
-		return output
-	}
-	// The warning lines ride beside a completed answer, as the warning
-	// terminator carries them on the socket (plugin.WriteAnswer).
-	if resp.Status == plugin.StatusWarning {
-		output.Warnings = resp.Warnings
+		// Ordinary failed built values keep their no-render behavior. A
+		// completed record answer already owns its data and final outcome.
+		if _, completed := resp.RecordAnswerMetadata(); !completed {
+			output.Status = resp.Status
+			output.Error = resp.Error
+			output.Warnings = slices.Clone(resp.Warnings)
+			return output
+		}
 	}
 	if resp.Data != nil {
 		encoded, err := json.Marshal(resp.Data)
@@ -158,10 +159,17 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 			output.Status = plugin.StatusError
 			var tb textbuf.Buffer
 			output.Error = tb.Str("marshal response data: ").Err(err).String()
-		} else {
-			output.Data = encoded
+			output.Warnings = slices.Clone(resp.Warnings)
+			return output
 		}
+		output.Data = encoded
 	}
+	// Marshaling consumes a streamed answer once and publishes its outcome.
+	// Read the final fields only after that walk, including outranked warnings.
+	output.Status = resp.Status
+	output.Error = resp.Error
+	output.Warnings = slices.Clone(resp.Warnings)
+	output.RecordAnswer, _ = resp.RecordAnswerMetadata()
 	return output
 }
 

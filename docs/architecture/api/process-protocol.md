@@ -4227,6 +4227,34 @@ A failure carried only by refused records gets a bounded explanation; all
 individual causes stay in the structured data. An interrupted record reader
 retains the progress it already read and cannot report completed evaluation.
 
+The daemon retains the same original outcome in its typed command response.
+A buffered document keeps the original produced and refused counts, including
+an empty collection or an explicitly absent document. The shared text projection
+retains completed and rejected records when it reports the command's final failure.
+A streamed response opens before completion and publishes its outcome only
+after the record walk ends. The daemon's wire writer reads that final message
+and warning at the same point, so a late failure or warning reaches the next
+socket hop as well as in-process consumers. Warning lines remain beside a
+partial answer, whose refused records still determine its verdict.
+Transport readers obtain an owned metadata snapshot through
+`Response.RecordAnswerMetadata` after consuming the walk; an unfinished walk
+has no completed original outcome to supply.
+
+The forwarded writer counts the validated records it actually sends. Its
+existing line-width check can replace an unsendable buffered document with one
+refused record, which then states zero produced and one refused. A transport
+that ends before its terminator still adds the existing fixed public fault;
+the underlying transport cause stays in the daemon's diagnostic log.
+When a bounded document arrived before that interruption, it remains one
+observed document beside the fault. The missing terminator supplied no original
+walk counts, so this interrupted response counts the received document once
+and the fault once; it never derives original counts from that document's keys.
+<!-- source: internal/component/plugin/record_answer.go -- CompleteRecordAnswer, RecordAnswerMetadata -->
+<!-- source: internal/component/plugin/dispatch.go -- ResponseJSON, AnswerFor, WriteAnswer -->
+<!-- source: internal/component/plugin/server/command.go -- routeToProcessWithEvents, pluginAnswerRows -->
+<!-- source: internal/component/plugin/server/command_answer.go -- documentPluginResponse, interruptedDocumentResponse -->
+<!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswerFinal, WriteCountedDocumentAnswer -->
+
 <!-- source: pkg/plugin/rpc/execute_record_answer.go -- ExecuteCommandRecordAnswer, RecordAnswerMetadata, Failure -->
 <!-- source: pkg/plugin/sdk/execute_record_answer.go -- executeCommandRecordOutput -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- answerValue, dispatchCommandResult -->
@@ -4273,25 +4301,30 @@ Both APIs answer with a head, records, and a terminator. See
 <!-- source: internal/component/plugin/dispatch.go -- WriteAnswer -->
 
 A caller that reads that answer as one value gets `DispatchCommandOutput`. Its
-`data` field carries raw JSON (single-decode) and holds the document a bounded
-answer puts in its one record. On error the value uses a separate `error`
-field: `{"status":"error","error":"message"}`. A command that completed and
-stated a warning answers `{"status":"warning","data":...,"warnings":["line"]}`:
-the `warnings` lines are the text the operator's own surface prints beside the
-same answer, such as the parse warnings of `show config dump`. On the socket
-they ride in the `wrn` terminator to every plugin (ipc_protocol.md, "Answer
-Protocol"). The in-process `DirectBridge` carries that value directly, because
-it has no line to put a record on.
+`data` field carries raw JSON (single-decode). A completed record answer keeps
+its document, original `record-answer` metadata and warning lines beside a
+partial or failed verdict. The server consumes a streamed document once before
+it copies that final outcome. An ordinary failed built value keeps its
+error-only shape: `{"status":"error","error":"message"}`. Warning lines are
+the text the operator's own surface prints beside the same answer. On the
+socket they ride in the `wrn` terminator (ipc_protocol.md, "Answer Protocol").
+The in-process `DirectBridge` carries the value directly.
+<!-- source: internal/component/plugin/server/dispatch.go -- responseToDispatchOutput -->
+<!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
 
 The Go SDK keeps `DispatchCommand` and `DispatchCommandArgs` answering
 `(status, data, err)`, so a plugin that reads only the status loses nothing it
 read before. `DispatchCommandResult` and `DispatchCommandArgsResult` answer a
-`DispatchResult` holding the status, the data and the warning lines, and a
-plugin reading the answer row by row through `DispatchCommandAnswer` reads
-`Answer.Warnings` after the range.
+`DispatchResult` holding the status, data, warning lines and optional original
+`RecordAnswer` metadata. The SDK validates supplied metadata, document presence,
+error text and warning lines before relying on that outcome. Both socket and
+bridge readers return a Go error for refused records or incomplete evaluation
+while retaining completed data. A plugin reading the answer row by row through
+`DispatchCommandAnswer` reads `Answer.Warnings` after the range.
 <!-- source: internal/component/plugin/server/dispatch.go -- responseToDispatchOutput -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchResult, DispatchCommandResult, DispatchCommandArgsResult -->
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandOutput -->
+<!-- source: pkg/plugin/rpc/dispatch_record_answer.go -- UnmarshalJSON -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.dispatchCommandValue, answerValue -->
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpDirect -->
 

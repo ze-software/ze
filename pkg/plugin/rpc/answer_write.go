@@ -5,7 +5,7 @@
 //          types.go -- NewAnswer, the in-process sibling of this writer
 //
 // answer_write.go writes one answer to the wire: a head line carrying the
-// verdict and the type, one line for each record, and a terminator carrying the
+// item type and envelope, one line for each record, and a terminator carrying the
 // counts. A reader never branches on how many records arrive, and nothing
 // states a count the records can contradict.
 //
@@ -71,6 +71,18 @@ import (
 // columns the head declares, a collapse that fails, and the transport dying
 // under any line.
 func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[RowRecord]) error {
+	return WriteRecordAnswerFinal(w, id, head, rows, nil)
+}
+
+// WriteRecordAnswerFinal reads final only after exhausting rows, because a
+// forwarded answer learns its outcome from the terminator arriving after its
+// last row. Only Message, Warning and Warnings are read from that result: counts
+// remain the rows this writer actually sent, including its width refusals.
+// A nil final keeps head's static outcome. A write that stops an active walk
+// never calls final. Final is a read-only snapshot of the completed producer;
+// a bounded answer may still fail its later document or terminator write.
+// The header/schema checks and buffering are WriteRecordAnswer's.
+func WriteRecordAnswerFinal(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[RowRecord], final func() AnswerTail) error {
 	// The reserved envelope is refused before the first line, so a producer
 	// that names it is told rather than half-answered. The collapse refuses the
 	// same name (CollapseRecords), and a streamed answer never reaches it.
@@ -148,6 +160,13 @@ func WriteRecordAnswer(w io.Writer, id uint64, head AnswerTail, rows iter.Seq[Ro
 		streaming = true
 	}
 
+	if final != nil {
+		completion := final()
+		head.Message = completion.Message
+		head.Warning = completion.Warning
+		head.Warnings = completion.Warnings
+	}
+
 	if !streaming {
 		document, collapseErr := CollapseRecords(head.Key, head.Fields, slices.Values(held))
 		if collapseErr != nil {
@@ -181,10 +200,18 @@ func WriteDocumentAnswer(w io.Writer, id uint64, head AnswerTail, document json.
 		count = 1
 	}
 
+	return WriteCountedDocumentAnswer(w, id, head, document, count, 0)
+}
+
+// WriteCountedDocumentAnswer forwards a document whose original record walk
+// has already been collapsed. Count and faults describe that walk, not the one
+// container. The existing width check still replaces an unsendable document
+// with the actual one refused record and counts zero produced, one refused.
+func WriteCountedDocumentAnswer(w io.Writer, id uint64, head AnswerTail, document json.RawMessage, count, faults uint64) error {
 	line := AnswerLineBuffer()
 	defer ReleaseAnswerLineBuffer(line)
 
-	return writeDocumentLines(w, line, id, head, document, count, 0)
+	return writeDocumentLines(w, line, id, head, document, count, faults)
 }
 
 // writeDocumentLines writes the head, the one item line and the terminator of

@@ -111,10 +111,10 @@ func (d CommandDispatcher) JSON(ctx context.Context, caller CallerIdentity, comm
 // render an answer of no rows. Output is empty for such a payload and Response
 // carries the generator.
 //
-// A generator that FAILED still reports its failure, through the same
-// projection JSON applies (responseFailure): a command that reported an error
-// has no rows to write, and handing the generator back would let the surface
-// answer done over an empty walk.
+// A generator that FAILED before publishing a completed original outcome
+// still reports its failure through responseFailure. A completed forwarded
+// answer retains its progress for the socket writer, which states that
+// answer's actual outcome on the terminator.
 //
 // Every other payload takes the same flatten JSON takes, so a surface that
 // calls this reads what it always read for every command that builds its answer
@@ -125,6 +125,9 @@ func (d CommandDispatcher) Answer(ctx context.Context, caller CallerIdentity, co
 		return &RenderedResponse{Response: resp}, err
 	}
 	if _, generated := RecordRows(resp); generated {
+		if resp.recordAnswer != nil {
+			return &RenderedResponse{Response: resp}, nil
+		}
 		return &RenderedResponse{Response: resp}, responseFailure(resp)
 	}
 	output, renderErr := ResponseJSON(resp, nil)
@@ -143,6 +146,14 @@ func responseFailure(resp *Response) error {
 	}
 	if resp.Error != "" {
 		return errors.New(resp.Error)
+	}
+	if resp.recordAnswer != nil {
+		tail := resp.recordAnswer.Tail()
+		verdict := rpc.Verdict(&tail)
+		if tail.Faults != 0 {
+			return fmt.Errorf("command answer is %s; its structured data retains the completed and rejected records", verdict)
+		}
+		return nil
 	}
 	if resp.Status == StatusError {
 		return errStatusErrorNoMessage
@@ -169,17 +180,22 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if failure := responseFailure(resp); failure != nil {
-		return "", failure
-	}
 	if resp == nil || resp.Data == nil {
-		return "", nil
+		return "", responseFailure(resp)
+	}
+	// An ordinary handler failure keeps its established no-render route. A
+	// completed record answer retains progress, and a streaming answer must
+	// be consumed before its final outcome is knowable.
+	if resp.recordAnswer == nil {
+		if failure := responseFailure(resp); failure != nil {
+			return "", failure
+		}
 	}
 	b, jsonErr := json.Marshal(resp.Data)
 	if jsonErr != nil {
 		return "", fmt.Errorf("marshal response: %w", jsonErr)
 	}
-	return string(b), nil
+	return string(b), responseFailure(resp)
 }
 
 // WriteAnswer writes resp to w as the answer sequence every consumer reads the
@@ -196,9 +212,10 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 // pkg/plugin/records.go). What this file still owns is the projection -- what a
 // built payload renders to, and what the terminator says about a failure.
 //
-// A generator answers through rpc.WriteRecordAnswer, which decides the head's
-// item type from the walk. A payload the handler built before the answer opened
-// is one document and answers through rpc.WriteDocumentAnswer.
+// A generator answers through rpc.WriteRecordAnswerFinal, which decides the
+// head's item type from the walk and reads its outcome after the walk ends.
+// A payload built before the answer opened is one document. A document which
+// collapsed a prior walk retains that walk's original counts.
 //
 // It is the record-path sibling of ResponseJSON, which stays the path for a
 // surface that takes the whole answer as one string (REST, gRPC, web, MCP, the
@@ -220,12 +237,19 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 	if generated {
 		head.Key = records.Key
 		head.Fields = records.Fields
-		return rpc.WriteRecordAnswer(w, id, head, records.rows())
+		return rpc.WriteRecordAnswerFinal(w, id, head, records.rows(), func() rpc.AnswerTail {
+			return rpc.AnswerTail{Message: answerMessage(resp), Warning: answerWarning(resp), Warnings: answerWarnings(resp)}
+		})
 	}
 
 	document, err := builtDocument(resp)
 	if err != nil {
 		return writeUnbuiltAnswer(w, id, err)
+	}
+	if resp != nil {
+		if metadata := resp.recordAnswer; metadata != nil {
+			return rpc.WriteCountedDocumentAnswer(w, id, head, document, metadata.Count, metadata.Faults)
+		}
 	}
 	return rpc.WriteDocumentAnswer(w, id, head, document)
 }
@@ -285,10 +309,16 @@ func AnswerFor(resp *Response) (*rpc.Answer, error) {
 		// A payload the handler built before the answer opened is one row, and
 		// a response carrying no data at all is none.
 		var count uint64
+		var faults uint64
 		if len(document) > 0 {
 			count = 1
 		}
-		return documentAnswer(resp, document, count, 0), nil
+		if resp != nil {
+			if metadata := resp.recordAnswer; metadata != nil {
+				count, faults = metadata.Count, metadata.Faults
+			}
+		}
+		return documentAnswer(resp, document, count, faults), nil
 	}
 
 	held, count, faults, walkErr := heldRecords(records)
@@ -402,7 +432,9 @@ func noRecords(func(rpc.RowRecord) bool) {}
 // produced fewer records than it set out to, why it produced none at all, or
 // nothing when it ran to its end.
 //
-// A response that FAILED always states one. The terminator is the one line an
+// An original record outcome keeps its exact message, including no message
+// when rejected rows alone state the failure. A built response that FAILED
+// always states one. The terminator is the one line an
 // answer states its outcome on, and a terminator carrying no message and no
 // counts derives to done (rpc.Verdict), so a failure that named no reason would
 // reach a consumer as a success. That state is reachable rather than
@@ -413,6 +445,9 @@ func noRecords(func(rpc.RowRecord) bool) {}
 func answerMessage(resp *Response) string {
 	if resp == nil {
 		return "no response"
+	}
+	if resp.recordAnswer != nil {
+		return resp.recordAnswer.Message
 	}
 	if resp.Error != "" {
 		return resp.Error
@@ -429,6 +464,11 @@ func answerMessage(resp *Response) string {
 // nothing, and an answer that dropped the status would read done on every
 // socket while the in-process caller read warning.
 func answerWarning(resp *Response) bool {
+	if resp != nil {
+		if resp.recordAnswer != nil {
+			return resp.recordAnswer.Warning
+		}
+	}
 	return resp != nil && resp.Status == StatusWarning
 }
 
@@ -437,6 +477,11 @@ func answerWarning(resp *Response) bool {
 // operator's own surface prints (Response.Warnings). A response that did not
 // complete with a warning states none.
 func answerWarnings(resp *Response) []string {
+	if resp != nil {
+		if resp.recordAnswer != nil {
+			return resp.recordAnswer.Warnings
+		}
+	}
 	if !answerWarning(resp) {
 		return nil
 	}

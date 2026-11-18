@@ -206,10 +206,26 @@ func (answer *Answer) Failure() error {
 	if err := answer.Err(); err != nil {
 		return err
 	}
-	if message := answer.Message(); message != "" {
+	return answerFailure(answer.Verdict(), answer.Message())
+}
+
+// Failure reports the original command's outcome without walking its document.
+// The caller MUST first Validate this boundary metadata against its status.
+// Nil metadata reports an absent answer, as Answer.Failure does.
+func (metadata *ExecuteCommandRecordAnswer) Failure() error {
+	if metadata == nil {
+		return errors.New("command answer is absent")
+	}
+	tail := metadata.Tail()
+	return answerFailure(Verdict(&tail), tail.Message)
+}
+
+// Both buffered and streamed readers retain one public command failure policy.
+func answerFailure(verdict, message string) error {
+	if message != "" {
 		return errors.New(message)
 	}
-	switch verdict := answer.Verdict(); verdict {
+	switch verdict {
 	case VerdictDone, VerdictWarning:
 		return nil
 	case VerdictPartial, VerdictError, VerdictAborted, VerdictTruncated:

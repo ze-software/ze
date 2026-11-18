@@ -312,8 +312,13 @@ type Response struct {
 	// dump` reports for a config it resolved. The local route prints them on
 	// stderr before the answer, so every surface that renders a response
 	// shows them beside its data; a dropped warning is a silently wrong
-	// answer. Status is StatusWarning when they are set.
+	// answer. A failure or refused record outranks a warning's status while
+	// these lines still accompany the structured answer.
 	Warnings []string `json:"warnings,omitempty"`
+
+	// recordAnswer retains a consumed plugin walk's original outcome beside
+	// its document. Only CompleteRecordAnswer publishes an owned snapshot.
+	recordAnswer *rpc.ExecuteCommandRecordAnswer
 
 	transportComplete func()
 }
