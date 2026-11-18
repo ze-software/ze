@@ -38,8 +38,11 @@ func TestOriginalSupportDeclaredCapabilities(t *testing.T) {
 		{"full-missing-bridge", 1407, 448, originalAttachmentUnavailable},
 		{"exact-pair-required", 1535, 1024, originalAttachmentSupported},
 		{"exact-pair-missing", 511, 1024, originalAttachmentUnavailable},
-		{"reserved-9", 2047, 320, originalAttachmentUnknown},
-		{"undeclared-11", 3583, 320, originalAttachmentUnknown},
+		{"full-2047", 2047, 320, originalAttachmentSupported},
+		{"optional-control-socket", 832, 320, originalAttachmentSupported},
+		{"control-socket-required", 2047, 512, originalAttachmentSupported},
+		{"control-socket-missing", 1535, 512, originalAttachmentUnavailable},
+		{"undeclared-11", 4095, 320, originalAttachmentUnknown},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			file, err := os.CreateTemp(t.TempDir(), "support-capabilities-")

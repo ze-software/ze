@@ -19,15 +19,16 @@ import (
 )
 
 const (
-	pppSupportQuery                   = 0xc010742a // PPPIOCGSUPPORT: _IOWR('t', 42, struct ppp_support).
-	pppSupportABI                     = 1
-	pppSupportConnect          uint32 = 1 << 6
-	pppSupportBridge           uint32 = 1 << 7
-	pppSupportCapture          uint32 = 1 << 8
-	pppSupportSession                 = pppSupportCapture | pppSupportConnect
-	pppSupportExactAddressPair uint32 = 1 << 10
-	// Root0011c declares bits0..8 and10. Bit9 remains reserved.
-	pppSupportKnown uint32 = ((1 << 9) - 1) | pppSupportExactAddressPair
+	pppSupportQuery                    = 0xc010742a // PPPIOCGSUPPORT: _IOWR('t', 42, struct ppp_support).
+	pppSupportABI                      = 1
+	pppSupportConnect           uint32 = 1 << 6
+	pppSupportBridge            uint32 = 1 << 7
+	pppSupportCapture           uint32 = 1 << 8
+	pppSupportSession                  = pppSupportCapture | pppSupportConnect
+	pppSupportIPv6ControlSocket uint32 = 1 << 9
+	pppSupportExactAddressPair  uint32 = 1 << 10
+	// The complete control-socket ABI declares bits 0 through 10.
+	pppSupportKnown uint32 = ((1 << 9) - 1) | pppSupportIPv6ControlSocket | pppSupportExactAddressPair
 )
 
 // This is a raw native DTO, never a resource grant. Input is ABI1 and all zero

@@ -1272,9 +1272,11 @@ The required compiled original-resource PPP ABI is inspected with
 `PPPIOCGSUPPORT`, query42, on one freshly opened, unbound `/dev/ppp` file.
 The 16-byte ABI1 request has zero features and reserved fields. A positive
 reply must preserve the ABI and zero reserved fields, contain only the declared
-bits0 through8 or bit10, and include capture8 and connect6. An actual bridge role
-also requires bridge7. Bit10 declares exact address-pair deletion; these roles
-do not require it. Reserved bit9 is refused.
+bits 0 through 10, and include capture8 and connect6. An actual bridge role
+also requires bridge7. Bit9 declares original-unit IPv6 control sockets, and
+bit10 declares exact address-pair deletion; these roles do not require either
+optional bit. Unknown bits, including bit11, are refused. This compiled-ABI
+declaration does not grant original-resource ownership.
 The file stays retained through the actual ioctl and is then closed exactly
 once. The query allocates no PPP unit/channel and changes no forwarding mode,
 attachment or bridge. `ENOTTY` or a valid reply missing a required bit is

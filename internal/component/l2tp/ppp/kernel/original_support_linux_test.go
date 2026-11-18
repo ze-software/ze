@@ -56,7 +56,8 @@ func TestOriginalSupportProbeExactReply(t *testing.T) {
 		{"empty-success", pppSupportReply{}, nil, pppSupportSession, originalAttachmentUnknown},
 		{"reserved0", pppSupportReply{abi: 1, features: pppSupportKnown, reserved0: 1}, nil, pppSupportSession, originalAttachmentUnknown},
 		{"reserved1", pppSupportReply{abi: 1, features: pppSupportKnown, reserved1: 1}, nil, pppSupportSession, originalAttachmentUnknown},
-		{"unfinished-ipv6", pppSupportReply{abi: 1, features: pppSupportKnown | 1<<9}, nil, pppSupportSession, originalAttachmentUnknown},
+		{"known-ipv6-control", pppSupportReply{abi: 1, features: pppSupportKnown}, nil, pppSupportSession, originalAttachmentSupported},
+		{"undeclared-11", pppSupportReply{abi: 1, features: pppSupportKnown | 1<<11}, nil, pppSupportSession, originalAttachmentUnknown},
 		{"mixed-error", pppSupportReply{abi: 1, features: pppSupportKnown}, errors.Join(unix.ENOTTY, unix.EPERM), pppSupportSession, originalAttachmentUnknown},
 	} {
 		t.Run(test.name, func(t *testing.T) {
