@@ -274,9 +274,9 @@ func recordsCountedByLine(records iter.Seq[rpc.Record], faultsAreLines bool) ite
 
 // recordsFirst answers the first n results and then stops the walk.
 //
-// Stopping is the point: returning from the range makes the yield that produced
-// the record report false, and the daemon's generator ends there rather than
-// walking rows nobody reads.
+// Returning from the range makes the source yield report false. A consumer
+// that also owns the original completion can keep draining that source outside
+// this selected view, as the SSH exec adapter does, without retaining its rows.
 //
 // A fault is forwarded and is not one of the n, so `| first 10` answers ten
 // results whether or not a row was rejected on the way. ValidatePipes refuses a

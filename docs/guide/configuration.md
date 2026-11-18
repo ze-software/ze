@@ -3890,8 +3890,13 @@ daemon owns the editor, `docs/guide/config-editor.md`), so the file is on the
 daemon host, one per session, named `transcript-<stamp>-<pid>-<n>.log`; the
 client, for `ze cli -c <command>` and for a loose-file `ze config edit`, named
 `transcript-<stamp>-<pid>.log`. Transcripts include a header with timestamp,
-username, and remote host. Transcript writes are best-effort and never block
-CLI operation. Default is `disabled`.
+username, and remote host. A locally served `ze cli -c` command also records its
+command with its pipe operators and the rendered answer, without loading SSH
+credentials or contacting a daemon. Its transcript host is `local`.
+<!-- source: internal/component/cli/client/main.go -- runBGP, openOneShotTranscript, emitLocalResult -->
+
+Transcript writes are best-effort and never block CLI operation. Default is
+`disabled`.
 
 A credential typed at the prompt is not written. The command line goes through
 the same redaction the SSH command log uses, so a bcrypt-shaped token, the

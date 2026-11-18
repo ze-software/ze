@@ -41,6 +41,7 @@ import (
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -347,7 +348,9 @@ func runBGP(args []string) int {
 	if *runCmd != "" {
 		input := commandWithFormat(*runCmd, *format)
 		if answer, code, served := cmd.ServeLocal(input, ""); served {
-			return emitLocalResult(input, answer, code, nil)
+			tw := openOneShotTranscript("local")
+			defer tw.Close() //nolint:errcheck // best-effort transcript; nil is a no-op
+			return emitLocalResult(input, answer, code, tw)
 		}
 	}
 
@@ -457,12 +460,17 @@ func (c *cliClient) runOne(command, format string) int {
 	if isMonitorCommand(command) {
 		return c.StreamMonitor(command)
 	}
-	if tf := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
-		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), c.creds.Host+":"+c.creds.Port)
-		defer tw.Close() //nolint:errcheck // best-effort transcript
-		return c.executeWithTranscript(command, format, tw)
-	}
-	return c.Execute(command, format)
+	tw := openOneShotTranscript(c.creds.Host + ":" + c.creds.Port)
+	defer tw.Close() //nolint:errcheck // best-effort transcript; nil is a no-op
+	return c.executeWithTranscript(command, format, tw)
+}
+
+// openOneShotTranscript gives local and daemon-answered commands the same file
+// ownership. The caller MUST close the writer; disabled recording returns nil,
+// whose Record and Close methods are no-ops.
+func openOneShotTranscript(host string) *unicli.TranscriptWriter {
+	file := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid()))
+	return unicli.NewTranscriptWriter(file, os.Getenv("USER"), host)
 }
 
 // Execute sends a command to the daemon and prints the answer.
@@ -520,13 +528,30 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 		if answer.NotUnderstood && c.notUnderstood != nil {
 			return c.notUnderstood(answer.Message)
 		}
+		if tw != nil {
+			tw.Record(command, out.Transcript())
+		}
+		closeErr := out.CloseFailure()
+		writeLocalDiagnostic(answer.Warnings)
 		var failure textbuf.Buffer
+		if closeErr != nil {
+			// A destination failure is evidence beside the command's failure,
+			// not a new remedy. Keep the producer's exact error and fix last.
+			failure.Str("command output could not be completed: ").Err(closeErr).Byte('\n')
+		}
 		failure.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr
 		return 1
 	}
 	// A warning about the answer goes to stderr, where `ze <command>` prints
 	// the same lines, so the payload on stdout stays what a pipe reads.
 	writeLocalDiagnostic(answer.Warnings)
+	// A warning verdict need not carry diagnostic text. Show its label without
+	// inventing a producer warning or changing the completed command's result.
+	if answer.Warnings == "" {
+		if answer.Verdict == rpc.VerdictWarning {
+			writeLocalDiagnostic("Warning")
+		}
+	}
 	// The transcript is taken before Close, so it holds the rendering and not
 	// the newline that ends the terminal line, nor the OK that stands in for an
 	// answer of nothing. That is what a transcript has always recorded.

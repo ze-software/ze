@@ -189,12 +189,24 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 		if dispatchErr != nil {
 			data := errorOverlay(toolID, contextPath, tool, dispatchErr.Error())
 			data.Command = res.Command
+			if !operationalPermissionDenied(dispatchErr) {
+				if output != "" {
+					output = formatFn(output)
+				}
+				progress, truncated := normalizeOutput(operationalWarningOutput(rendered, output))
+				if progress != "" {
+					data.ErrorMessage += "\n" + progress
+					if truncated {
+						data.ErrorMessage += "\n[Output truncated at 4 MiB]"
+					}
+				}
+			}
 			renderToolOverlay(w, renderer, data, http.StatusOK)
 			return
 		}
 
 		// Strip ANSI, cap at 4 MiB, split inline / overflow.
-		cleaned, truncated := normalizeOutput(formatFn(output))
+		cleaned, truncated := normalizeOutput(operationalWarningOutput(rendered, formatFn(output)))
 		data := toolOverlayData{
 			ID:          overlayID(toolID, contextPath),
 			State:       ToolOverlayResult,

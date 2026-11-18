@@ -1,6 +1,10 @@
-# Test: gRPC Execute uses domain request types
-# VALIDATES: gRPC transport constructs domain request, engine returns same result
-# PREVENTS: gRPC handler broken after domain type refactor
+# Test: SDK command dispatch completes version and BGP summary commands
+# VALIDATES: both commands return done, and the summary contains its peer fields
+#            and configured peer.
+# PREVENTS: missing BGP summary data in the SDK dispatch route.
+#
+# The fixture name is historical. The gRPC listener is enabled, but the fixture
+# sends commands through the plugin SDK. This test does not call gRPC Execute.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,7 +13,7 @@ option=timeout:value=20s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# compiled Go test plugin: starts, waits for gRPC API, issues Execute RPC
+# Compiled Go test plugin: waits for the BGP peer's EOR, then uses SDK dispatch.
 
 # ze bgp configuration with gRPC API enabled
 stdin=ze-bgp:terminator=EOF_CONF

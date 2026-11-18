@@ -58,7 +58,8 @@ message CommandRequest {
 // CommandResponse carries the result of a command execution.
 // Data is JSON-encoded bytes to ensure identical content with REST.
 message CommandResponse {
-  string status = 1;  // "done" or "error"
+  // Command outcome, including "done", "warning", "partial", "error", or "aborted".
+  string status = 1;
   bytes data = 2;     // JSON-encoded payload
   string error = 3;
   // Lines the command warned about an answer it still gave, one per entry,

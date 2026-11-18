@@ -1,0 +1,37 @@
+# Question: does actual ze cli -c show a status-only warning while keeping
+# completed external records, a zero exit status and the original transcript?
+# A unit stream seam cannot prove the external provider, daemon SSH listener
+# and real CLI process together. Healthy answers at 2/259 rows are controls.
+# A selected long-answer row must also retain the warning label and transcript.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external answer-outcome-provider {
+        run "le test fixture plugin/command-outcome-provider"
+        encoder json
+    }
+    external answer-outcome-observer {
+        run "le test fixture plugin/command-outcome-cli $PORT warning"
+        encoder json
+    }
+}
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+environment {
+    ssh {
+        enabled true
+        server main { ip 127.0.0.1; port $PORT; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: CLI warning outcome retained rows, exit status and transcript across the record threshold
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

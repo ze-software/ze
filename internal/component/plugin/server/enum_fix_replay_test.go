@@ -135,11 +135,19 @@ func TestOperationalInvalidEscapeCannotReachHandler(t *testing.T) {
 	}}))
 	for _, suffix := range []string{` mode a\b | count`, ` mode "a\q" | count`, ` mode "a\`} {
 		t.Run(suffix, func(t *testing.T) {
-			line, _, message := command.ProcessPipesDefaultFormatChecked(path+suffix, "text")
-			require.Empty(t, message)
-			_, err := d.Dispatch(&CommandContext{}, line)
-			require.True(t, errors.Is(err, errBackslashInCommand), "lexical refusal = %v", err)
-			require.Zero(t, calls)
+			input := path + suffix
+			t.Run("checked pipeline", func(t *testing.T) {
+				line, format, message := command.ProcessPipesDefaultFormatChecked(input, "text")
+				require.Equal(t, errBackslashInCommand.Error(), message)
+				require.Empty(t, line, "malformed input must not yield a dispatchable command")
+				require.Nil(t, format, "malformed input must not yield an executable pipeline")
+				require.Zero(t, calls)
+			})
+			t.Run("raw dispatcher", func(t *testing.T) {
+				_, err := d.Dispatch(&CommandContext{}, input)
+				require.True(t, errors.Is(err, errBackslashInCommand), "lexical refusal = %v", err)
+				require.Zero(t, calls)
+			})
 		})
 	}
 }

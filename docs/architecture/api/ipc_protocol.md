@@ -798,6 +798,39 @@ takes the rendering and ignores it.
 The head is written after the body, because the type is read from the walk. The
 two streams are read independently, so no reader can order them anyway.
 
+The exec writer reads a forwarded record outcome after its finite source walk
+ends. A selection such as `| first 1` stops rendering further rows, then drains
+the unselected suffix without retaining or rendering it. The existing command
+deadline and session cancellation bound that drain, and a failed transport
+write stops it. Late failure text and warning lines reach stderr before the frame.
+The frame keeps the renderer's pipe-selected counts for a generated answer.
+Refused records in the unselected suffix remain refused beside those counts.
+Presentation preserves a completed document's original counts. Selection and
+count pipes report their actual selected output before final presentation.
+A failed command keeps its completed data on stdout and exits with status 1.
+<!-- source: internal/component/ssh/answer.go -- writeExecAnswer, writeExecRecords, writeExecDocument, execAnswerCompletion -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<!-- source: internal/component/command/render_counted_document.go -- RenderCountedDocument -->
+
+A counted document is rendered before transport writes start. A pipe refusal
+therefore receives a complete failure frame with its reason. A failed transport
+write still leaves the answer incomplete, without an invented terminator.
+<!-- source: internal/component/ssh/answer.go -- writeExecDocumentRefusal, writeExecErrorLine -->
+
+The SSH clients retain observed output when the command fails. The streaming
+client keeps warnings beside a partial or failed verdict, and the collected
+helper returns its output together with the failure. `ze cli -c` flushes a
+short held rendering, prints warnings and records the transcript before
+returning failure. An empty failed answer prints no `OK` placeholder.
+For a completed warning verdict with no diagnostic text, `ze cli -c` prints
+`Warning` on stderr and still exits zero. This is a display label: the original
+warning lines and failure message stay empty, and the payload and transcript
+keep their original contents. Explicit warning text is printed on its own.
+<!-- source: internal/component/cli/sshclient/answer.go -- ExecCommandStream, readAnswerFrame, answerText -->
+<!-- source: internal/component/cli/sshclient/client.go -- ExecCommand -->
+<!-- source: internal/component/cli/client/main.go -- cliClient.execute -->
+<!-- source: internal/component/cli/client/answer.go -- daemonOutput.CloseFailure -->
+
 Exit codes are unchanged: 0 for success, 1 for failure. The verdict is on the
 frame, never in the exit status.
 <!-- source: internal/component/cli/client/main.go -- runBGP -->

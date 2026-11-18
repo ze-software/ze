@@ -63,7 +63,7 @@ type Credentials struct {
 }
 
 // ExecCommand connects to the daemon via SSH and runs a command.
-// Returns the command output or an error.
+// Returns the command output and any error, retaining output on failure.
 //
 // The two streams are read apart rather than merged. stdout is the answer, and
 // stderr carries the answer frame the daemon writes for every session, plus any
@@ -88,21 +88,19 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 	var frame textbuf.Buffer
 	session.Stderr = &frame
 	output, err := session.Output(command)
+	rendered := strings.TrimSpace(string(output))
 	if err != nil {
 		answer, text := readAnswerFrame(strings.NewReader(frame.String()))
 		if answer.Message != "" {
-			return "", errors.New(answer.Message)
+			return rendered, errors.New(answer.Message)
 		}
 		if text != "" {
-			return "", errors.New(trimErrorPrefix(text))
+			return rendered, errors.New(trimErrorPrefix(text))
 		}
-		if len(output) > 0 {
-			return "", errors.New(trimErrorPrefix(strings.TrimSpace(string(output))))
-		}
-		return "", err
+		return rendered, err
 	}
 
-	return strings.TrimSpace(string(output)), nil
+	return rendered, nil
 }
 
 // rawPipe is the pipe operator that asks the daemon to answer with the

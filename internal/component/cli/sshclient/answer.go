@@ -36,10 +36,10 @@ import (
 // Verdict is one of the rpc.Verdict* values, derived from the terminator rather
 // than stated by it. Count and Faults are the records the daemon wrote and the
 // rows it rejected. Message is the operational text an aborted or failed
-// command carries. Warnings is the text a command that completed with a
-// warning wrote for the operator before its frame (the parse warnings of
-// `show config dump`), which the caller prints on stderr as the local route
-// does. NotUnderstood is true when the daemon answered that the command text
+// command carries. Warnings is the warning text the command wrote before its
+// frame, including when faults or a failure outrank the warning in Verdict.
+// The caller prints it on stderr as the local route does. NotUnderstood is
+// true when the daemon answered that the command text
 // names no command it holds (the nay answer); Verdict is then
 // rpc.VerdictError, and Message is the daemon's text.
 type Answer struct {
@@ -107,12 +107,6 @@ func ExecCommandStream(creds Credentials, command string, body io.Writer) (Answe
 	copyErr := <-copied
 	waitErr := session.Wait()
 
-	// A warning terminator says the command completed, so the plain text
-	// before it is what the command warned about, not why it failed.
-	if answer.Verdict == rpc.VerdictWarning {
-		answer.Warnings = text
-		text = ""
-	}
 	return answer, answerError(answer, text, copyErr, waitErr)
 }
 
@@ -127,6 +121,7 @@ func ExecCommandStream(creds Credentials, command string, body io.Writer) (Answe
 func readAnswerFrame(stderr io.Reader) (Answer, string) {
 	answer := Answer{Verdict: rpc.VerdictTruncated}
 	var text textbuf.Buffer
+	var warning bool
 
 	scanner := bufio.NewScanner(stderr)
 	scanner.Buffer(make([]byte, 0, answerScanInitial), answerScanMax)
@@ -138,11 +133,12 @@ func readAnswerFrame(stderr io.Reader) (Answer, string) {
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 {
+			text.Byte('\n')
 			continue
 		}
 		kind, tail, err := rpc.ParseAnswerLine(line)
 		if err != nil {
-			text.Str(strings.TrimSpace(string(line)))
+			text.Str(string(line))
 			text.Byte('\n')
 			continue
 		}
@@ -163,8 +159,35 @@ func readAnswerFrame(stderr io.Reader) (Answer, string) {
 		answer.Faults = tail.Faults
 		answer.Message = tail.Message
 		answer.Verdict = rpc.Verdict(&tail)
+		warning = tail.Warning
 	}
-	return answer, strings.TrimSpace(text.String())
+	// Remove only the writer's final line ending before matching the framed
+	// message. Its trailing spaces or newlines belong to the failure itself.
+	return answerText(answer, strings.TrimSuffix(text.String(), "\n"), warning)
+}
+
+// answerText classifies only text whose role the completion proves. A warning
+// terminator remains a warning even when rejected rows derive a partial verdict.
+// With a failure, the server's exact final error line separates prior warnings;
+// an unrelated diagnostic must remain failure evidence rather than gain a label.
+func answerText(answer Answer, text string, warning bool) (Answer, string) {
+	if warning {
+		answer.Warnings = strings.TrimSpace(text)
+		return answer, ""
+	}
+	if answer.Message == "" {
+		return answer, strings.TrimSpace(text)
+	}
+	failure := errorPrefix + answer.Message
+	if text == failure {
+		return answer, text
+	}
+	suffix := "\n" + failure
+	if strings.HasSuffix(text, suffix) {
+		answer.Warnings = strings.TrimSpace(strings.TrimSuffix(text, suffix))
+		return answer, failure
+	}
+	return answer, strings.TrimSpace(text)
 }
 
 // answerScanInitial and answerScanMax bound one frame line. A head naming every

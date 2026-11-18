@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"strings"
 
 	"charm.land/ssh"
@@ -126,18 +127,14 @@ func (f *answerFrame) write(line []byte) error {
 // decides the rendering. formatOutput renders a payload the handler built
 // before the answer opened; a payload that is a row generator is rendered by
 // command.RenderRecords instead, which pulls the rows as it writes them.
-func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatOutput func(string) string, result *plugin.RenderedResponse) error {
+func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatOutput func(string) string, result *plugin.RenderedResponse) (rpc.AnswerTail, error) {
 	if result == nil {
-		return writeExecDocument(sess, frame, formatOutput, "", false)
-	}
-	warning := result.Response != nil && result.Response.Status == plugin.StatusWarning
-	if err := writeExecWarnings(sess, result.Response); err != nil {
-		return err
+		return writeExecDocument(sess, frame, input, formatOutput, "", nil)
 	}
 	if records, generated := plugin.RecordRows(result.Response); generated {
-		return writeExecRecords(sess, frame, input, records, warning)
+		return writeExecRecords(sess, frame, input, records, result.Response)
 	}
-	return writeExecDocument(sess, frame, formatOutput, result.Output, warning)
+	return writeExecDocument(sess, frame, input, formatOutput, result.Output, result.Response)
 }
 
 // writeExecWarnings writes the warnings a response states on the session's
@@ -145,8 +142,8 @@ func writeExecAnswer(sess ssh.Session, frame *answerFrame, input string, formatO
 // one line each. `ssh <host> <command>` then reads as `ze <command>` does, and
 // the client keeps them as the daemon talking to a person
 // (sshclient.readAnswerFrame), which a warning terminator says is no failure.
-func writeExecWarnings(sess ssh.Session, resp *plugin.Response) error {
-	text := resp.WarningText()
+func writeExecWarnings(sess ssh.Session, warnings []string) error {
+	text := strings.Join(warnings, "\n")
 	if text == "" {
 		return nil
 	}
@@ -169,12 +166,27 @@ func writeExecWarnings(sess ssh.Session, resp *plugin.Response) error {
 // RenderRecords decides whether the threshold permits streaming and returns the
 // schema left by every selection and enrichment. The frame must use that schema
 // instead of the producer's original fields or it labels values incorrectly.
-func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, records plugin.Records, warning bool) error {
+func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, records plugin.Records, response *plugin.Response) (rpc.AnswerTail, error) {
 	// An exec channel holds no per-session `set cli format` override, so the
 	// session format is empty and the configured default applies.
-	answer, err := command.RenderRecords(sess, input, "", records.Key, records.Fields, rpc.HeldRecords(records.Rows))
+	walk := &execRecordWalk{Session: sess}
+	answer, err := command.RenderRecords(walk, input, "", records.Key, records.Fields, rpc.HeldRecords(walk.rows(records.Rows)))
 	if err != nil {
-		return err
+		return rpc.AnswerTail{}, err
+	}
+	if walk.err != nil {
+		return rpc.AnswerTail{}, walk.err
+	}
+	if err := sess.Context().Err(); err != nil {
+		return rpc.AnswerTail{}, err
+	}
+	// The original walk has ended even if selection stopped the pipe view.
+	// Keep its late outcome and the faults in the unselected suffix beside
+	// the renderer's actual selected rows and any pipe-generated faults.
+	completion := execAnswerCompletion(response)
+	completion.Count, completion.Faults = answer.Count, answer.Faults+walk.faults
+	if err := writeExecCompletionText(sess, completion); err != nil {
+		return rpc.AnswerTail{}, err
 	}
 
 	key := records.Key
@@ -184,9 +196,68 @@ func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, record
 		fields = nil
 	}
 	if headErr := frame.head(answer.Type, key, fields); headErr != nil {
-		return headErr
+		return rpc.AnswerTail{}, headErr
 	}
-	return frame.terminator(answer.Count, answer.Faults, warning, "")
+	return completion, frame.terminator(completion.Count, completion.Faults, completion.Warning && completion.Message == "", completion.Message)
+}
+
+// execRecordWalk keeps a finite command's source alive after its pipe view
+// stops selecting rows, so the original producer can publish its completion.
+// It holds no row or buffer. The existing command deadline and SSH session
+// cancellation bound the drain; a failed writer stops it immediately.
+// One exec handler owns this value; it is not safe for concurrent use.
+type execRecordWalk struct {
+	ssh.Session
+	faults uint64
+	err    error
+}
+
+func (walk *execRecordWalk) Write(data []byte) (int, error) {
+	if err := walk.Context().Err(); err != nil {
+		walk.err = err
+		return 0, err
+	}
+	n, err := walk.Session.Write(data)
+	if err != nil {
+		walk.err = err
+		return n, err
+	}
+	if n != len(data) {
+		walk.err = io.ErrShortWrite
+		return n, walk.err
+	}
+	return n, nil
+}
+
+// rows MUST be ranged once. Suppression happens before HeldRecords so rows
+// outside the selection require no retained copy or rendered representation.
+func (walk *execRecordWalk) rows(rows iter.Seq[rpc.RowRecord]) iter.Seq[rpc.RowRecord] {
+	return func(yield func(rpc.RowRecord) bool) {
+		if err := walk.Context().Err(); err != nil {
+			walk.err = err
+			return
+		}
+		if rows == nil {
+			return
+		}
+		selected := true
+		for row := range rows {
+			if err := walk.Context().Err(); err != nil {
+				walk.err = err
+				return
+			}
+			if !selected {
+				if row.Fault != nil {
+					walk.faults++
+				}
+				continue
+			}
+			selected = yield(row)
+			if walk.err != nil {
+				return
+			}
+		}
+	}
 }
 
 // writeExecDocument renders a payload the handler built whole and frames it as
@@ -197,23 +268,91 @@ func writeExecRecords(sess ssh.Session, frame *answerFrame, input string, record
 // says which by counting zero records. The client is what turns that into the OK an
 // operator reads, because only the client knows whether the chain named a
 // format.
-func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(string) string, output string, warning bool) error {
-	if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
-		return err
+func writeExecDocument(sess ssh.Session, frame *answerFrame, input string, formatOutput func(string) string, output string, response *plugin.Response) (rpc.AnswerTail, error) {
+	completion := execAnswerCompletion(response)
+	var rendered string
+	if metadata, completed := response.RecordAnswerMetadata(); completed {
+		var answer command.RecordAnswer
+		var err error
+		rendered, answer, err = command.RenderCountedDocument(input, "", output, metadata.Count, metadata.Faults)
+		if err != nil {
+			return writeExecDocumentRefusal(sess, frame, completion, err)
+		}
+		completion.Count, completion.Faults = answer.Count, answer.Faults
+	} else {
+		rendered = formatOutput(output)
+		if output != "" {
+			completion.Count = 1
+		}
 	}
-
-	var count uint64
-	if output != "" {
-		count = 1
+	if err := writeExecCompletionText(sess, completion); err != nil {
+		return rpc.AnswerTail{}, err
+	}
+	if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
+		return rpc.AnswerTail{}, err
 	}
 	// The formatter can end its rendering with a newline; Fprintln adds the
 	// only one the caller needs.
-	if rendered := strings.TrimRight(formatOutput(output), "\n"); rendered != "" {
-		if _, err := fmt.Fprintln(sess, rendered); err != nil {
-			return err
+	if body := strings.TrimRight(rendered, "\n"); body != "" {
+		if _, err := fmt.Fprintln(sess, body); err != nil {
+			return rpc.AnswerTail{}, err
 		}
 	}
-	return frame.terminator(count, 0, warning, "")
+	return completion, frame.terminator(completion.Count, completion.Faults, completion.Warning && completion.Message == "", completion.Message)
+}
+
+// A counted document is rendered before any bytes are written. Its pipe
+// refusal therefore earns a complete failed frame, while a later I/O failure
+// still returns without a fabricated terminator. Source warnings remain plain
+// stderr text, and the failure message stays authoritative on the frame.
+func writeExecDocumentRefusal(sess ssh.Session, frame *answerFrame, original rpc.AnswerTail, cause error) (rpc.AnswerTail, error) {
+	if original.Message != "" {
+		cause = errors.Join(errors.New(original.Message), cause)
+	}
+	if err := writeExecWarnings(sess, original.Warnings); err != nil {
+		return rpc.AnswerTail{}, err
+	}
+	if err := writeExecErrorLine(sess, cause); err != nil {
+		return rpc.AnswerTail{}, err
+	}
+	if err := frame.head(rpc.AnswerTypeDocument, "", nil); err != nil {
+		return rpc.AnswerTail{}, err
+	}
+	completion := rpc.AnswerTail{Kind: rpc.AnswerKindTerminator, Message: cause.Error()}
+	return completion, frame.terminator(0, 0, false, completion.Message)
+}
+
+// execAnswerCompletion reads the producer's owned outcome after its walk.
+// Ordinary built answers keep their existing status-derived completion.
+func execAnswerCompletion(response *plugin.Response) rpc.AnswerTail {
+	if metadata, completed := response.RecordAnswerMetadata(); completed {
+		return metadata.Tail()
+	}
+	tail := rpc.AnswerTail{Kind: rpc.AnswerKindTerminator}
+	if response == nil {
+		return tail
+	}
+	tail.Message = response.Error
+	tail.Warning = response.Status == plugin.StatusWarning
+	tail.Warnings = response.Warnings
+	if response.Status == plugin.StatusError {
+		if tail.Message == "" {
+			tail.Message = rpc.AnswerFailureUnstated
+		}
+	}
+	return tail
+}
+
+// Completion text precedes the frame even when the producer learned it after
+// streaming its rows. Nothing can follow the terminator on the error stream.
+func writeExecCompletionText(sess ssh.Session, completion rpc.AnswerTail) error {
+	if err := writeExecWarnings(sess, completion.Warnings); err != nil {
+		return err
+	}
+	if completion.Message != "" {
+		return writeExecErrorLine(sess, errors.New(completion.Message))
+	}
+	return nil
 }
 
 // writeExecFailure reports a command that did not produce an answer.
@@ -300,13 +439,20 @@ func writeExecRefusedAnswer(sess ssh.Session, formatOutput func(string) string, 
 // as it stands, the bytes `ze <command>` prints on stderr; every other error
 // is "error: " and its text.
 func writeExecError(sess ssh.Session, err error) {
+	writeExecErrorLine(sess, err) //nolint:errcheck // best-effort while the session is ending
+}
+
+// writeExecErrorLine is the checked write for a refusal whose complete frame
+// is still to be sent. A failed write must stop that frame rather than claim it.
+func writeExecErrorLine(sess ssh.Session, err error) error {
 	var tb textbuf.Buffer
 	if line, refused := plugin.RefusalLine(err); refused {
 		tb.Str(line)
 	} else {
 		tb.Str("error: ").Err(err)
 	}
-	io.WriteString(sess.Stderr(), tb.Byte('\n').String()) //nolint:errcheck // best-effort
+	_, writeErr := io.WriteString(sess.Stderr(), tb.Byte('\n').String())
+	return writeErr
 }
 
 // marshalAnswerFields encodes the column names a streamed answer's head

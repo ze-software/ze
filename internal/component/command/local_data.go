@@ -217,7 +217,11 @@ func LookupLocalData(words []string) (LocalDataHandler, []string) {
 	localData.RLock()
 	defer localData.RUnlock()
 	for i := len(words); i > 0; i-- {
-		if handler, ok := localData.handlers[textbuf.Join(words[:i], " ")]; ok {
+		path := textbuf.Join(words[:i], " ")
+		if handler, ok := localData.handlers[path]; ok {
+			if !invocationMatchesPathPrefix(words[:i], path) {
+				continue
+			}
 			return handler, words[i:]
 		}
 	}
@@ -264,8 +268,18 @@ func ResetLocalDataForTest() {
 // The chain is expanded LOCALLY, so `| save` is allowed: this is the operator's
 // own process writing as the operator.
 func ServeLocal(input, sessionFormat string) (answer string, code int, served bool) {
-	path, _ := parsePipeChain(input)
-	words := strings.Fields(path)
+	words, _, scanErr := ScanExecution(input)
+	if scanErr != nil {
+		// A malformed invocation still belongs to its registered local prefix.
+		// Raw words are used only to attribute this refusal, never as values
+		// passed to argument validation or a producer.
+		path, _ := parsePipeChain(input)
+		handler, _ := LookupLocalData(strings.Fields(path))
+		if handler == nil {
+			return "", 0, false
+		}
+		return pipeError(scanErr.Error()), 1, true
+	}
 	handler, args := LookupLocalData(words)
 	if handler == nil {
 		return "", 0, false
@@ -373,8 +387,8 @@ func validateLocalArgs(words, args []string) (ValidatedArgs, error) {
 // its registration declares as its daemon form (ModelPath), since no node can
 // sit at the root itself.
 //
-// A line refused with an *ArgumentFaults (several faults, or one value its
-// leaf refuses) is restated as every route restates it
+// A line refused with an *ArgumentFaults (several faults, one value its leaf
+// refuses, or one missing mandatory argument) is restated as every route restates it
 // (ArgumentFaults.RestatedForLine), with path as the command the operator
 // types, so a line missing only arguments, or holding a refused value, is
 // given the whole command as its fix here as on the daemon dispatcher.

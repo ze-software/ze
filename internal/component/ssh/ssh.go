@@ -447,7 +447,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		// to tell a live ze daemon apart from a generic SSH server (host
 		// OpenSSH) or a bare TCP listener. See internal/component/cli/sshclient.
 		wish.WithVersion(sshclient.ServerSoftwareVersion),
-		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout)*time.Second),
+		wish.WithIdleTimeout(time.Duration(s.config.IdleTimeout)*time.Second),
 		// Wish composes middleware from first to last: last = outermost = runs first.
 		// Order: panic → maxSessions → exec → sessionClose → bubbletea → activeterm (innermost).
 		// The panic boundary is outermost so a Ze defect anywhere in a session's
@@ -994,6 +994,22 @@ func (s *Server) execMiddleware() wish.Middleware {
 			executor := factory(sess.Context(), sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 			result, err := executor(dispatched)
 			if err != nil {
+				if result != nil {
+					if metadata, completed := result.Response.RecordAnswerMetadata(); completed {
+						completion := metadata.Tail()
+						switch rpc.Verdict(&completion) {
+						case rpc.VerdictError, rpc.VerdictAborted, rpc.VerdictPartial:
+							// A completed record outcome owns its progress and its
+							// failure. Render both through the ordinary frame path.
+							if _, writeErr := writeExecAnswer(sess, frame, input, formatOutput, result); writeErr != nil {
+								writeExecError(sess, writeErr)
+							}
+							sess.Exit(1) //nolint:errcheck // best-effort
+							result.TransportComplete()
+							return
+						}
+					}
+				}
 				// A command that refused and still answered a document has it
 				// written on stdout first, as the local route prints it.
 				documents := writeExecRefusedAnswer(sess, formatOutput, result, err)
@@ -1003,7 +1019,8 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			if writeErr := writeExecAnswer(sess, frame, input, formatOutput, result); writeErr != nil {
+			completion, writeErr := writeExecAnswer(sess, frame, input, formatOutput, result)
+			if writeErr != nil {
 				// No terminator is written now, which is what states a short
 				// answer to a client reading the frame. The text says why, for
 				// an operator reading the session.
@@ -1011,6 +1028,13 @@ func (s *Server) execMiddleware() wish.Middleware {
 				sess.Exit(1) //nolint:errcheck // best-effort
 				result.TransportComplete()
 				return
+			}
+			// A late failure can be known only after the rows and terminator
+			// were written. Its exit status agrees with that completed frame.
+			switch rpc.Verdict(&completion) {
+			case rpc.VerdictDone, rpc.VerdictWarning:
+			default:
+				sess.Exit(1) //nolint:errcheck // best-effort
 			}
 			result.TransportComplete()
 		}

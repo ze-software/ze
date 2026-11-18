@@ -10,9 +10,9 @@
 // on the operator's machine.
 //
 // What the operator sees is unchanged. A rendering has its surrounding
-// whitespace trimmed and ends in exactly one newline, and a command that
-// reported nothing prints OK unless the chain named a format. daemonOutput does
-// both while streaming, which is what the collected form did in one pass.
+// whitespace trimmed and ends in exactly one newline, and a successful command
+// that reported nothing prints OK unless the chain named a format. daemonOutput
+// does both while streaming, which is what the collected form did in one pass.
 
 package client
 
@@ -32,8 +32,8 @@ import (
 // cmd/ze/ze_core_pipe.go, emitLocalResult in main.go).
 const headBytes = len(cmd.PipeErrorPrefix)
 
-// okAnswerLine is what a command reporting no data prints, so silence never
-// reads as a failure.
+// okAnswerLine is what a successful command reporting no data prints, so its
+// silence never reads as a failure.
 const okAnswerLine = "OK\n"
 
 // answerNewline ends a rendering. The daemon's formatters may or may not end
@@ -60,8 +60,8 @@ const answerNewline = "\n"
 // refusal as data and read exit 0 (plan/journal/silent-fall-through.md,
 // 2026-09-05).
 //
-// A caller MUST call Close exactly once, after the answer ends. Close is what
-// writes the final newline and the OK.
+// A caller MUST call Close or CloseFailure exactly once after the answer ends.
+// Both flush the rendering; only a successful empty answer can print OK.
 type daemonOutput struct {
 	w       io.Writer
 	errw    io.Writer
@@ -88,13 +88,14 @@ type daemonOutput struct {
 // newDaemonOutput returns the writer for one command's answer. command is the
 // operator's text, which decides whether an empty answer prints OK. w takes the
 // answer and errw takes a refusal, which is the stdout/stderr split every
-// command owes (ai/rules/cli.md).
+// command owes (ai/rules/cli.md). The caller MUST call Close or CloseFailure
+// exactly once when the answer ends.
 func newDaemonOutput(w, errw io.Writer, command string, transcript *textbuf.Buffer) *daemonOutput {
 	return &daemonOutput{w: w, errw: errw, command: command, transcript: transcript}
 }
 
 // Refused reports whether the daemon answered with a pipe refusal rather than
-// data, so the caller exits non-zero. It is valid after Close.
+// data, so the caller exits non-zero. It is valid after Close or CloseFailure.
 func (d *daemonOutput) Refused() bool {
 	return d.refused
 }
@@ -129,12 +130,25 @@ func (d *daemonOutput) Write(p []byte) (int, error) {
 //
 // A command that names a format gets nothing at all, because OK is not valid
 // JSON and a caller that asked for JSON is parsing what it receives.
+// The caller MUST call Close exactly once after success, in place of CloseFailure.
 func (d *daemonOutput) Close() error {
 	if err := d.end(); err != nil {
 		return err
 	}
 	// An answer shorter than headBytes is still held at this point, and this
 	// is the last chance to write it.
+	return d.flushHead()
+}
+
+// CloseFailure ends an unsuccessful answer without inventing an empty success.
+// The caller MUST call it exactly once after failure, in place of Close. Short
+// held output and a nonempty rendering's final newline still reach their sink.
+func (d *daemonOutput) CloseFailure() error {
+	if d.kept {
+		if err := d.emit([]byte(answerNewline)); err != nil {
+			return err
+		}
+	}
 	return d.flushHead()
 }
 
@@ -163,7 +177,7 @@ func (d *daemonOutput) Transcript() string {
 //
 // The transcript is written first and never waits for the destination: a
 // session recording holds the answer whatever it turns out to be, and a caller
-// reads it before Close.
+// reads it before Close or CloseFailure.
 func (d *daemonOutput) emit(piece []byte) error {
 	if len(piece) == 0 {
 		return nil

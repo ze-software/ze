@@ -1,0 +1,36 @@
+# Question: does an actual TLS ZeService.Execute request retain completed and
+# refused external records with their partial status at both record sizes?
+# A unit or SDK DispatchCommand call cannot prove the gRPC transport path.
+# A healthy answer at each size is the successful control.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external answer-outcome-provider {
+        run "le test fixture plugin/command-outcome-provider"
+        encoder json
+    }
+    external answer-outcome-observer {
+        run "le test fixture plugin/command-outcome-grpc $PORT command-outcome.pem partial"
+        encoder json
+    }
+}
+environment {
+    api-server {
+        token "command-outcome-token";
+        grpc {
+            enabled true;
+            tls-cert "command-outcome.pem";
+            tls-key "command-outcome.key";
+            server main { ip 127.0.0.1; port $PORT; }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=le test fixture config-refusal/tls command-outcome.pem command-outcome.key
+expect=exit:code=0
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK: TLS gRPC partial outcome and healthy control preserved rows across the record threshold
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

@@ -1,0 +1,31 @@
+# Question: does authenticated MCP tools/call retain completed external rows
+# beside their failure text and isError true for short and streamed answers?
+# The protocol driver supplies MCP's current metadata and headers.
+# Healthy controls at both sizes must retain data without an error flag.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external answer-outcome-provider {
+        run "le test fixture plugin/command-outcome-provider"
+        encoder json
+    }
+    external answer-outcome-observer {
+        run "le test fixture plugin/command-outcome-mcp $PORT failed"
+        encoder json
+    }
+}
+environment {
+    mcp {
+        enabled true;
+        auth-mode bearer;
+        token "command-outcome-token";
+        server main { ip 127.0.0.1; port $PORT; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK: MCP failed outcome and healthy control preserved rows across the record threshold
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

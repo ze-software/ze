@@ -1,0 +1,32 @@
+# Question: does authenticated tools/call preserve a status-only external warning
+# with its original 2/259 rows, the literal Warning label, and isError false?
+# A unit cannot prove the real external SDK provider and live MCP process together.
+# The provider supplies warning status without original diagnostic lines.
+# Healthy controls must keep one data item and no warning label.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external answer-outcome-provider {
+        run "le test fixture plugin/command-outcome-provider"
+        encoder json
+    }
+    external answer-outcome-observer {
+        run "le test fixture plugin/command-outcome-mcp $PORT warning"
+        encoder json
+    }
+}
+environment {
+    mcp {
+        enabled true;
+        auth-mode bearer;
+        token "command-outcome-token";
+        server main { ip 127.0.0.1; port $PORT; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK: MCP warning outcome and healthy control preserved rows across the record threshold
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

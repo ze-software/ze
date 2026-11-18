@@ -1,0 +1,23 @@
+# Question: does a real daemon preserve original item/fault counts and both
+# collections when it forwards a short or streamed external command answer?
+# A unit cannot prove external declaration, authenticated startup and the two
+# live SDK connections. Healthy answers are the permitted successful control.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external answer-outcome-provider {
+		run "le test fixture plugin/command-outcome-provider"
+		encoder json
+	}
+	external answer-outcome-observer {
+		run "le test fixture plugin/command-outcome-observer partial"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: partial outcome and healthy control survived external daemon dispatch
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

@@ -689,6 +689,25 @@ Monitor supports filtering by peer address, event type, and direction. Pipe oper
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 <!-- source: internal/component/ssh/ssh.go -- StreamingExecutorFactory -->
 
+SSH's `environment ssh idle-timeout` limits connection inactivity, including a
+monitor channel. `Server.Start` sets Wish's idle timeout: both reads and writes
+restart the period. It sets no absolute connection lifetime, so a monitor that
+continues delivering events remains connected.
+<!-- source: internal/component/ssh/ssh.go -- Server.Start -->
+
+## Buffered command outcomes
+
+REST and gRPC buffer command responses. `APIEngine.Execute` consumes a record
+walk once before either transport reads its status, failure text or warnings.
+The completed document replaces the generator in the same response envelope;
+ordinary built payloads remain typed and unchanged. This keeps late command
+outcomes with their data without decoding the document into a second model.
+The transport still completes the response only after delivery. An answer that
+cannot be encoded becomes a refusal carrying that same delivery action.
+<!-- source: internal/component/api/engine.go -- APIEngine.Execute -->
+<!-- source: internal/component/api/rest/server.go -- writeExecResult -->
+<!-- source: internal/component/api/grpc/server.go -- zeServiceImpl.Execute -->
+
 ## Identity and Authorization
 
 ### REST and gRPC authentication flow

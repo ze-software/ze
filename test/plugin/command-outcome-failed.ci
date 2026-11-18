@@ -1,0 +1,25 @@
+# Question: does a real daemon preserve an external command's incomplete
+# evaluation after its completed rows, for short and streamed answers?
+# A unit cannot prove both live external SDK connections and actual startup.
+# Healthy answers are the permitted successful control. This drives the SDK's
+# StatusError plus Records API, whose tail says AnswerFailureUnstated; a Go
+# callback error would stop the SDK before it writes any rows.
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external answer-outcome-provider {
+		run "le test fixture plugin/command-outcome-provider"
+		encoder json
+	}
+	external answer-outcome-observer {
+		run "le test fixture plugin/command-outcome-observer failed"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: failed outcome and healthy control survived external daemon dispatch
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

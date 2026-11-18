@@ -95,6 +95,12 @@ const (
 // Input "show bgp peer list | match established | count" returns ("show bgp peer list", [{match,"established"}, {count,""}]).
 func ParsePipe(input string) (command string, ops []pipeOp) {
 	_, pipeAt, _, _ := ScanInvocation(input)
+	return splitPipeAt(input, pipeAt)
+}
+
+// splitPipeAt uses the invocation scanner's boundary without rescanning it.
+// The scanner owns command quotes; the operator parser owns the rest.
+func splitPipeAt(input string, pipeAt int) (command string, ops []pipeOp) {
 	if pipeAt == -1 {
 		// Keep malformed input whole: the dispatcher refuses its lexical fault,
 		// rather than running a prefix cut out of an invalid command.
@@ -150,6 +156,22 @@ func parsePipeOps(rest string) []pipeOp {
 // The ops that reach classification are therefore ops the parser already knows.
 func parsePipeChain(input string) (command string, ops []pipeOp) {
 	command, ops = ParsePipe(input)
+	return expandPipeChain(command, ops)
+}
+
+// parseExecutionPipeChain refuses incomplete command input before aliases,
+// filters, source work or stream-save files can turn it into an execution.
+func parseExecutionPipeChain(input string) (command string, ops []pipeOp, err error) {
+	_, pipeAt, err := ScanExecution(input)
+	if err != nil {
+		return "", nil, err
+	}
+	command, ops = splitPipeAt(input, pipeAt)
+	command, ops = expandPipeChain(command, ops)
+	return command, ops, nil
+}
+
+func expandPipeChain(command string, ops []pipeOp) (string, []pipeOp) {
 	ops = expandAliases(command, ops)
 	return command, bindAddressFields(command, ops)
 }
@@ -440,7 +462,12 @@ func appendFilter(args []string, filter PipeFilter, value string) []string {
 // because which fields to answer with is a question the operator asked out
 // loud rather than a rendering choice.
 func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder) (string, string) {
-	request := columnsInChain(ops)
+	return applyPipesWithRequest(output, ops, meta, columns, columnsInChain(ops))
+}
+
+// applyPipesWithRequest retains the whole chain's column request when a counted
+// document captures a selection result before its final presentation.
+func applyPipesWithRequest(output string, ops []pipeOp, meta pipeChainMeta, columns []ColumnOrder, request columnRequest) (string, string) {
 	formatCount := 0
 	lastTransform := -1
 	for i, op := range ops {
@@ -1522,7 +1549,10 @@ func pipeError(msg string) string {
 // the formatter returns raw JSON unchanged. Returns a non-empty errMsg (and a nil
 // format) if the pipe chain is invalid.
 func processPipesChecked(input string) (command string, format func(string) string, errMsg string) {
-	command, ops := parsePipeChain(input)
+	command, ops, err := parseExecutionPipeChain(input)
+	if err != nil {
+		return command, nil, err.Error()
+	}
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 	if msg := validatePipesForSurface(command, ops, pipeSurfaceOneShot, true); msg != "" {
@@ -1604,7 +1634,10 @@ func ProcessRemoteStreamPipes(input, sessionFormat string) (cmd string, format f
 }
 
 func processStreamPipes(input, sessionFormat string, saveAllowed bool) (cmd string, format func(string) string, flags PipeFlags, saves *StreamSaves, errMsg string) {
-	cmd, ops := parsePipeChain(input)
+	cmd, ops, err := parseExecutionPipeChain(input)
+	if err != nil {
+		return cmd, nil, PipeFlags{}, nil, err.Error()
+	}
 	columns := ColumnsForCommand(cmd)
 	cmd, ops, meta := foldFilters(cmd, ops)
 
@@ -1749,19 +1782,13 @@ func ProcessPipesDefaultFormatResult(input, sessionFormat string) (command strin
 }
 
 func processPipesDefaultFormatResult(input, sessionFormat string, saveAllowed bool) (command string, format func(string) (string, string), errMsg string) {
-	command, ops := parsePipeChain(input)
-	columns := ColumnsForCommand(command)
-	command, ops, meta := foldFilters(command, ops)
-	if msg := validatePipesForSurface(command, ops, pipeSurfaceOneShot, saveAllowed); msg != "" {
-		return command, nil, msg
+	plan, problem := prepareDocumentPipes(input, sessionFormat, saveAllowed)
+	if problem != "" {
+		return plan.command, nil, problem
 	}
 
-	if !hasFormatOp(ops) {
-		ops = append(ops, pipeOp{kind: defaultFormatFor(command, sessionFormat)})
-	}
-
-	return command, func(rawJSON string) (string, string) {
-		return ApplyPipes(rawJSON, ops, meta, columns)
+	return plan.command, func(rawJSON string) (string, string) {
+		return ApplyPipes(rawJSON, plan.ops, plan.meta, plan.columns)
 	}, ""
 }
 
@@ -1770,7 +1797,10 @@ func processPipesDefaultFormatResult(input, sessionFormat string, saveAllowed bo
 // owns any `| save` temporary files. The caller MUST write exactly the displayed
 // bytes to it, then call Commit after stream success or Abort after any failure.
 func ProcessStreamPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string, saves *StreamSaves, errMsg string) {
-	command, ops := parsePipeChain(input)
+	command, ops, err := parseExecutionPipeChain(input)
+	if err != nil {
+		return command, nil, nil, err.Error()
+	}
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
 	if msg := validatePipesForSurface(command, ops, pipeSurfaceStream, true); msg != "" {

@@ -6,7 +6,9 @@ import (
 	"errors"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -24,16 +26,54 @@ var ErrBackslashInInvocation = errors.New("backslash is not allowed in commands"
 // On error an earlier pipe offset remains available: the operator surface owns
 // the filter grammar after that boundary, which need not use invocation escapes.
 func ScanInvocation(input string) (tokens []string, pipeAt int, quoteOpen bool, err error) {
+	result, err := scanInvocation(input, false)
+	return result.tokens, result.pipeAt, result.quoteAt >= 0, err
+}
+
+// ScanExecution reads a complete operational invocation. An unfinished quoted
+// value is refused before execution, with its one-based opening column. It
+// stops at the first unquoted pipe: the caller owns the filter grammar beyond
+// that boundary, including escapes that invocation values do not support.
+// Completion MUST use ScanInvocation instead, because its input is incomplete.
+func ScanExecution(input string) (tokens []string, pipeAt int, err error) {
+	result, err := scanInvocation(input, true)
+	if err != nil {
+		return nil, result.pipeAt, err
+	}
+	if result.quoteAt >= 0 {
+		var problem textbuf.Buffer
+		problem.Str("The command has an unfinished quote at column ").
+			Int(int64(utf8.RuneCountInString(input[:result.quoteAt]) + 1)).Byte('.')
+		return nil, result.pipeAt, opererr.New(problem.String(),
+			"No command ran. Add the closing double quote before trying again.", "help")
+	}
+	return result.tokens, result.pipeAt, nil
+}
+
+// invocationScan keeps source offsets beside decoded tokens. A quote offset
+// of -1 means no value is open; both public readers use this one grammar.
+type invocationScan struct {
+	tokens  []string
+	pipeAt  int
+	quoteAt int
+}
+
+func scanInvocation(input string, stopAtPipe bool) (invocationScan, error) {
 	trimmed := strings.TrimLeftFunc(input, unicode.IsSpace)
 	lead := len(input) - len(trimmed)
-	pipeAt = -1
+	result := invocationScan{pipeAt: -1, quoteAt: -1}
 	var current textbuf.Buffer
 	wordStarted := false
 	for i := 0; i < len(trimmed); i++ {
 		c := trimmed[i]
 		if c == '\\' {
-			if !quoteOpen || i+1 == len(trimmed) {
-				return nil, pipeAt, quoteOpen, ErrBackslashInInvocation
+			if result.quoteAt < 0 {
+				result.tokens = nil
+				return result, ErrBackslashInInvocation
+			}
+			if i+1 == len(trimmed) {
+				result.tokens = nil
+				return result, ErrBackslashInInvocation
 			}
 			i++
 			switch trimmed[i] {
@@ -46,21 +86,32 @@ func ScanInvocation(input string) (tokens []string, pipeAt int, quoteOpen bool, 
 			case 't':
 				current.Byte('\t')
 			default:
-				return nil, pipeAt, quoteOpen, ErrBackslashInInvocation
+				result.tokens = nil
+				return result, ErrBackslashInInvocation
 			}
 			continue
 		}
 		if c == '"' {
 			wordStarted = true
-			quoteOpen = !quoteOpen
+			if result.quoteAt < 0 {
+				result.quoteAt = lead + i
+			} else {
+				result.quoteAt = -1
+			}
 			continue
 		}
-		if c == '|' && !quoteOpen && pipeAt == -1 {
-			pipeAt = lead + i
+		if c == '|' && result.quoteAt < 0 && result.pipeAt == -1 {
+			result.pipeAt = lead + i
+			if stopAtPipe {
+				if wordStarted {
+					result.tokens = append(result.tokens, current.String())
+				}
+				return result, nil
+			}
 		}
-		if (c == ' ' || c == '\t') && !quoteOpen {
+		if (c == ' ' || c == '\t') && result.quoteAt < 0 {
 			if wordStarted {
-				tokens = append(tokens, current.String())
+				result.tokens = append(result.tokens, current.String())
 				wordStarted = false
 			}
 			continue
@@ -69,7 +120,7 @@ func ScanInvocation(input string) (tokens []string, pipeAt int, quoteOpen bool, 
 		wordStarted = true
 	}
 	if wordStarted {
-		tokens = append(tokens, current.String())
+		result.tokens = append(result.tokens, current.String())
 	}
-	return tokens, pipeAt, quoteOpen, nil
+	return result, nil
 }

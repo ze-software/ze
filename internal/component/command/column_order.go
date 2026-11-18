@@ -166,7 +166,14 @@ func (r *commandRegistry[T]) lookup(command string) (T, bool) {
 // inherited from a grandparent are both a hit here, and only the path tells
 // them apart (declared.go, DeclaredForCommand).
 func (r *commandRegistry[T]) lookupPath(command string) (T, string, bool) {
-	command = normalizeCommand(command)
+	words, _, err := ScanExecution(command)
+	if err != nil {
+		var empty T
+		return empty, "", false
+	}
+	for index, word := range words {
+		words[index] = strings.ToLower(word)
+	}
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -176,7 +183,7 @@ func (r *commandRegistry[T]) lookupPath(command string) (T, string, bool) {
 	bestLen := -1
 	found := false
 	for prefix, value := range r.byCommand {
-		if !commandMatchesPrefix(command, prefix) {
+		if !invocationMatchesPathPrefix(words, prefix) {
 			continue
 		}
 		if len(prefix) > bestLen {
@@ -252,10 +259,12 @@ type priorDeclaration[T any] struct {
 
 func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *declarationRegistry[T] {
 	return &declarationRegistry[T]{
-		byCommand: make(map[string]T),
-		name:      name,
-		isEmpty:   isEmpty,
-		byOwner:   make(map[string]map[string]priorDeclaration[T]),
+		commandRegistry: commandRegistry[T]{
+			byCommand: make(map[string]T),
+		},
+		name:    name,
+		isEmpty: isEmpty,
+		byOwner: make(map[string]map[string]priorDeclaration[T]),
 	}
 }
 

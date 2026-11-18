@@ -452,25 +452,22 @@ func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispa
 			output = line
 		}
 		if !operationalPermissionDenied(executionErr) {
-			if rendered.Response != nil {
-				if rendered.Response.Data != nil {
-					payload, encodeErr := json.Marshal(rendered.Response.Data)
-					if encodeErr != nil {
-						output += "\nerror: diagnostic payload cannot be encoded: " + encodeErr.Error()
-						executionErr = errors.Join(executionErr, encodeErr)
-					} else {
-						data, applyErr := formatFn(string(payload))
-						if applyErr == "" {
-							output += "\n" + data
-						} else {
-							output += "\n" + command.PipeErrorPrefix + applyErr
-							executionErr = errors.Join(executionErr, errors.New(applyErr))
-						}
-					}
+			payload, encodeErr := operationalDiagnosticPayload(rendered)
+			if encodeErr != nil {
+				output += "\nerror: diagnostic payload cannot be encoded: " + encodeErr.Error()
+				executionErr = errors.Join(executionErr, encodeErr)
+			} else if payload != "" {
+				data, applyErr := formatFn(payload)
+				if applyErr == "" {
+					output += "\n" + data
+				} else {
+					output += "\n" + command.PipeErrorPrefix + applyErr
+					executionErr = errors.Join(executionErr, errors.New(applyErr))
 				}
 			}
+			return operationalWarningOutput(rendered, output), rendered, nil, false, executionErr
 		}
-		return operationalWarningOutput(rendered, output), rendered, nil, false, executionErr
+		return output, rendered, nil, false, executionErr
 	}
 	output, applyErr := formatFn(rendered.Output)
 	if applyErr != "" {
@@ -478,6 +475,29 @@ func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispa
 	}
 	selected := terminalSelectedOutput(output)
 	return operationalWarningOutput(rendered, output), rendered, &selected, true, nil
+}
+
+// operationalDiagnosticPayload keeps the rendering a failed walk already
+// produced. An ordinary built diagnostic payload retains its prior fallback;
+// a one-shot record walk is never entered again after its render failed.
+func operationalDiagnosticPayload(rendered *plugin.RenderedResponse) (string, error) {
+	if rendered == nil {
+		return "", nil
+	}
+	if rendered.Output != "" {
+		return rendered.Output, nil
+	}
+	if rendered.Response == nil {
+		return "", nil
+	}
+	if rendered.Response.Data == nil {
+		return "", nil
+	}
+	if _, generated := plugin.RecordRows(rendered.Response); generated {
+		return "", nil
+	}
+	payload, err := json.Marshal(rendered.Response.Data)
+	return string(payload), err
 }
 
 func operationalPermissionDenied(err error) bool {
@@ -491,7 +511,22 @@ func operationalPermissionDenied(err error) bool {
 func operationalWarningOutput(rendered *plugin.RenderedResponse, output string) string {
 	// A warning reads above the answer, where the local command prints it
 	// first on stderr, including when a failed answer retains useful data.
-	if warning := rendered.Response.WarningText(); warning != "" {
+	warning := rendered.Response.WarningText()
+	if warning == "" {
+		if response := rendered.Response; response != nil {
+			warned := response.Status == plugin.StatusWarning
+			if !warned {
+				if metadata, ok := response.RecordAnswerMetadata(); ok {
+					warned = metadata.Warning
+				}
+			}
+			if warned {
+				// This is a verdict label, not a diagnostic the producer supplied.
+				warning = "Warning"
+			}
+		}
+	}
+	if warning != "" {
 		var tb textbuf.Buffer
 		return tb.Str(warning).Byte('\n').Str(output).String()
 	}

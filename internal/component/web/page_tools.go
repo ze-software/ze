@@ -314,14 +314,22 @@ func dispatchToolCommand(r *http.Request, dispatch CommandDispatcher, cmd string
 	defer rendered.TransportComplete()
 	output := rendered.Output
 	if err != nil {
-		errMsg := err.Error()
-		if output != "" {
-			errMsg = output
+		data := toolPageData{Error: err.Error()}
+		if operationalPermissionDenied(err) {
+			return data
 		}
-		return toolPageData{Error: errMsg}
+		if output != "" {
+			output = formatFn(output)
+		}
+		var truncated bool
+		data.Output, truncated = normalizeOutput(operationalWarningOutput(rendered, output))
+		if truncated {
+			data.Output += "\n\n[Output truncated at 4 MiB]"
+		}
+		return data
 	}
 
-	cleaned, truncated := normalizeOutput(formatFn(output))
+	cleaned, truncated := normalizeOutput(operationalWarningOutput(rendered, formatFn(output)))
 	if truncated {
 		cleaned += "\n\n[Output truncated at 4 MiB]"
 	}

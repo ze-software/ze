@@ -1,0 +1,31 @@
+# Question: does authenticated tools/call preserve all external item and fault
+# records with isError true for short and streamed partial answers?
+# A unit cannot prove MCP's live HTTP adapter and external provider together.
+# Healthy controls must have one data content item and isError false.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external answer-outcome-provider {
+        run "le test fixture plugin/command-outcome-provider"
+        encoder json
+    }
+    external answer-outcome-observer {
+        run "le test fixture plugin/command-outcome-mcp $PORT partial"
+        encoder json
+    }
+}
+environment {
+    mcp {
+        enabled true;
+        auth-mode bearer;
+        token "command-outcome-token";
+        server main { ip 127.0.0.1; port $PORT; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK: MCP partial outcome and healthy control preserved rows across the record threshold
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

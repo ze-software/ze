@@ -1,0 +1,38 @@
+# Question: does actual ze cli -c keep every completed and refused external
+# record, a failing exit status and its recorded transcript for partial answers?
+# A unit stream seam cannot prove the external provider, daemon SSH listener
+# and real CLI process together. Healthy answers at 2/259 rows are controls.
+# Selecting one long-answer row must also retain the original failure; its
+# healthy selected row is a separate control. The original four checks stay.
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external answer-outcome-provider {
+        run "le test fixture plugin/command-outcome-provider"
+        encoder json
+    }
+    external answer-outcome-observer {
+        run "le test fixture plugin/command-outcome-cli $PORT partial"
+        encoder json
+    }
+}
+system {
+    authentication {
+        user admin {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+        }
+    }
+}
+environment {
+    ssh {
+        enabled true
+        server main { ip 127.0.0.1; port $PORT; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: CLI partial outcome retained rows, exit status and transcript across the record threshold
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

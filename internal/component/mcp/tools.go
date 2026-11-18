@@ -806,9 +806,6 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 			continue
 		}
 		sval := fmt.Sprint(val)
-		if sval == "" {
-			continue
-		}
 		if strings.ContainsAny(sval, "\n\r\t") {
 			var tb textbuf.Buffer
 			return ErrResult(tb.Str("parameter ").Quoted(key).Str(" must not contain newlines or tabs").String())
@@ -965,9 +962,15 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 		rendered, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 		s.completion = rendered
 		if err != nil {
+			if warning := rendered.Response.WarningText(); warning != "" {
+				return failedAnswerResult(rendered.Output, warning, err)
+			}
+			if rendered.Output != "" {
+				return failedAnswerResult(rendered.Output, rendered.Response.WarningText(), err)
+			}
 			return ErrResult(err.Error())
 		}
-		return TextResult(rendered.Output)
+		return answerResult(rendered.Output, rendered.Response)
 	},
 	// ze_reference returns the full machine-readable AI reference, assembled
 	// from the same source as `ze help ai --json` (internal/component/aihelp),
@@ -1016,6 +1019,12 @@ func (s *server) run(command string) map[string]any {
 	rendered, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 	s.completion = rendered
 	if err != nil {
+		if warning := rendered.Response.WarningText(); warning != "" {
+			return failedAnswerResult(rendered.Output, warning, err)
+		}
+		if rendered.Output != "" {
+			return failedAnswerResult(rendered.Output, rendered.Response.WarningText(), err)
+		}
 		// A refusal a command wrote whole reads as `ze <command>` prints it,
 		// with no "Error: " of MCP's own in front.
 		if line, refused := plugin.RefusalLine(err); refused {
@@ -1023,7 +1032,28 @@ func (s *server) run(command string) map[string]any {
 		}
 		return ErrResult(err.Error())
 	}
-	return answerResult(rendered.Output, rendered.Response.WarningText())
+	return answerResult(rendered.Output, rendered.Response)
+}
+
+// failedAnswerResult keeps completed command data when present, followed by
+// warnings and the failure. Warnings do not require a document. The error flag
+// remains true: useful progress does not mean successful completion.
+func failedAnswerResult(answer, warning string, failure error) map[string]any {
+	var content []map[string]any
+	if answer != "" {
+		content = append(content, map[string]any{schemaKeyType: contentTypeText, contentTypeText: answer})
+	}
+	if warning != "" {
+		content = append(content, map[string]any{schemaKeyType: contentTypeText, contentTypeText: "Warning: " + warning})
+	}
+	message := failure.Error()
+	if line, refused := plugin.RefusalLine(failure); refused {
+		message = line
+	} else {
+		message = "Error: " + message
+	}
+	content = append(content, map[string]any{schemaKeyType: contentTypeText, contentTypeText: message})
+	return map[string]any{toolResultKeyContent: content, "isError": true}
 }
 
 // toolResultKeyContent names the content items in a tool result envelope.
@@ -1031,18 +1061,26 @@ const toolResultKeyContent = "content"
 
 // answerResult is the tool result of a command that answered: the answer as
 // the first text item and, when the command warned about it, the warning as a
-// second, so an AI reads the same warning `ze <command>` prints on stderr
-// while the first item stays the bare answer it parses. A command that warned
-// of nothing answers one item, as TextResult does.
-func answerResult(answer, warning string) map[string]any {
-	if warning == "" {
-		return TextResult(answer)
+// second, while the first item stays the bare answer it parses. A warning
+// verdict without diagnostic lines keeps its label without inventing a cause.
+// A command that warned of nothing answers one item, as TextResult does.
+func answerResult(answer string, response *plugin.Response) map[string]any {
+	warning := response.WarningText()
+	if warning != "" {
+		warning = "Warning: " + warning
+	} else {
+		if response == nil {
+			return TextResult(answer)
+		}
+		if response.Status != plugin.StatusWarning {
+			return TextResult(answer)
+		}
+		warning = "Warning"
 	}
-	var tb textbuf.Buffer
 	return map[string]any{
 		toolResultKeyContent: []map[string]any{
 			{schemaKeyType: contentTypeText, contentTypeText: answer},
-			{schemaKeyType: contentTypeText, contentTypeText: tb.Str("Warning: ").Str(warning).String()},
+			{schemaKeyType: contentTypeText, contentTypeText: warning},
 		},
 	}
 }

@@ -1,0 +1,70 @@
+# Question: does the native BGP decode tool render a healthy KEEPALIVE and the actual producer refusal for a malformed BGP body, while denied accounts see no decode data?
+# Why not unit: only a real daemon joins the HTTPS route, actual cookie login,
+# login-resolved authorization, external SDK command provider and final markup.
+# Healthy provider answers at both 2/259 rows are controls on the record routes.
+# Anonymous and denied accounts may see refusal details, never completed data.
+# Cross-origin terminal/related requests must stop before command dispatch.
+# The native decode page is read-only and has no same-origin route wrapper.
+
+option=storage:value=disk
+option=env:var=ze.config.dir:value=.
+option=env:var=ze.web.ui-mode:value=workbench
+option=timeout:value=60s
+
+stdin=init-answers:terminator=EOF_INIT
+outcome-recovery
+outcome-recovery-password
+127.0.0.1
+2222
+
+EOF_INIT
+
+tmpfs=command-outcome-web.conf:terminator=EOF_CONF
+plugin {
+    external answer-outcome-provider {
+        run "le test fixture plugin/command-outcome-provider web"
+        encoder json
+    }
+    external answer-outcome-observer {
+        run "le test fixture plugin/command-outcome-web $PORT decode failed"
+        encoder json
+    }
+}
+system {
+    authentication {
+        user web-outcome-allowed {
+            # Synthetic bcrypt cost-4 hash of testpass.
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile outcome-allowed
+        }
+        user web-outcome-denied {
+            password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+            profile outcome-denied
+        }
+    }
+    authorization {
+        profile outcome-allowed {
+            run { default-action allow; }
+            edit { default-action allow; }
+        }
+        profile outcome-denied {
+            run { default-action deny; }
+            edit { default-action deny; }
+        }
+    }
+}
+environment {
+    web {
+        enabled true
+        server main { ip 127.0.0.1; port $PORT; }
+    }
+}
+answer-outcome-web { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=foreground:seq=2:exec=ze start command-outcome-web.conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: web decode failed retained native outcomes and authenticated controls
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered

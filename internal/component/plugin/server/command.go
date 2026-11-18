@@ -1155,14 +1155,14 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	if strings.TrimSpace(input) != "" {
 		defer d.BeginAccounting(ctx, input)()
 	}
-	tokens, pipeAt, err := scanCommand(input)
+	tokens, pipeAt, err := command.ScanExecution(input)
 	if err != nil {
+		refusal, operatorError := errors.AsType[*opererr.Error](err)
+		if operatorError {
+			return plugin.OperatorErrorResponse(refusal), refusal
+		}
 		return nil, err
 	}
-	if len(tokens) == 0 {
-		return nil, ErrEmptyCommand
-	}
-
 	// A pipe outside quotes is the operator's spelling of a chain that the
 	// surface rendering the answer applies (ssh execMiddleware, the web CLI,
 	// ze cli). The dispatcher answers data, so a chain that reached it would
@@ -1173,6 +1173,9 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	if pipeAt != noPipe {
 		refusal := pipeChainRefusal(input[:pipeAt], input[pipeAt+1:], input)
 		return plugin.OperatorErrorResponse(refusal), refusal
+	}
+	if len(tokens) == 0 {
+		return nil, ErrEmptyCommand
 	}
 
 	if ctx != nil {

@@ -2395,11 +2395,27 @@ quotes, or an unknown quoted escape, is refused. `WriteInvocationValue` writes
 this same grammar for client values and concrete enum corrections.
 An empty value is written as `""` and retained as one empty token. Spaces
 inside a quoted value remain part of that value, including its trailing spaces.
+The local-data route decodes these words before registry lookup and model
+validation, preserving the same quoted values as daemon dispatch.
+Execution requires the closing quote. `ScanExecution` refuses an unfinished
+value before any handler runs and names the opening quote's one-based character
+column in the original line. The refusal does not echo the value, which may
+contain a credential. Local command execution and one-shot or streaming
+pipeline preparation use that same strict reader before source work or file
+creation. The operator grammar after the first unquoted pipe remains the
+pipeline parser's responsibility.
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+
+Completion keeps using the permissive `ScanInvocation` reader while the
+operator types an unfinished value. Both readers use one scanner, retaining
+source offsets beside decoded tokens; completion does not need a second escape
+grammar, and execution does not infer a column from stripped tokens.
 Accounting and authorization read the same tokens as for any other line.
 `dispatch-command-args` never reaches the tokenizer, so a pipe in its `args`
 is data.
 <!-- source: internal/component/plugin/server/command.go -- tokenize -->
-<!-- source: internal/component/command/invocation_scan.go -- ScanInvocation -->
+<!-- source: internal/component/command/invocation_scan.go -- ScanInvocation, ScanExecution, scanInvocation -->
+<!-- source: internal/component/command/pipe.go -- parseExecutionPipeChain -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocationValue -->
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
 
@@ -3142,6 +3158,9 @@ answers, and that is the trap all five registries exist in.
 | `RegisterAliases` | a name an operator types in the operator slot, standing for a chain (see "Pipe aliases" below) | `lookupAlias` |
 
 One implementation resolves all five: `commandRegistry[T]` in `column_order.go`.
+Runtime lookup reads the shared execution grammar and matches each registered
+path segment to one decoded word. Quoting one keyword preserves its identity;
+one quoted value containing spaces cannot stand for several path keywords.
 
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
 <!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->

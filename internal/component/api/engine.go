@@ -6,10 +6,12 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -141,11 +143,23 @@ func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResu
 			Error:  err.Error(),
 		}, err
 	}
-	// The executor is the unified command dispatcher: it already returns the
-	// typed envelope with typed Data. Carry it straight to the transport edge
-	// (finding 3) -- no marshal-to-string then unmarshal-to-any round trip.
 	if resp == nil {
 		return &ExecResult{Status: StatusDone}, nil
+	}
+	// Both transports buffer their result. Finish a record walk before either
+	// snapshots Status/Error/Warnings: the final row can publish its outcome.
+	// Keep the original envelope and completion owner. Built payloads still
+	// travel unchanged, and no JSON value is decoded into an intermediate map.
+	if records, generated := plugin.RecordRows(resp); generated {
+		data, encodeErr := json.Marshal(records)
+		if encodeErr != nil {
+			failure := opererr.Wrap(encodeErr, "Cannot return the result of "+req.Command,
+				"The command produced a record answer that cannot be encoded", "ze show errors")
+			refused := plugin.OperatorErrorResponse(failure)
+			refused.OnTransportComplete(resp.TakeTransportComplete())
+			return refused, failure
+		}
+		resp.Data = plugin.RawJSON(data)
 	}
 	return resp, nil
 }

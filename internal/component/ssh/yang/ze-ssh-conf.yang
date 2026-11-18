@@ -116,8 +116,10 @@ module ze-ssh-conf {
 
             leaf idle-timeout {
                 type uint32;
-                description "Ze passes the value to the SSH server as the maximum
-                             duration of one session. The default is 600 seconds.";
+                description "Ze closes an SSH connection after this many seconds
+                             without traffic. Receiving or sending data restarts the
+                             idle period, so an active session can stay connected.
+                             The default is 600 seconds.";
                 ze:help "Idle timeout in seconds. The default is 600.";
             }
 

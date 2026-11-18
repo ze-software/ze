@@ -252,7 +252,7 @@ func forwardMPReach08(ctx context.Context, p *sdk.Plugin) error {
 	if err := waitPeersEOR08(ctx, p, "peer1", "peer2"); err != nil {
 		return err
 	}
-	peers := []string{"peer1", "peer2"}
+	peers := []string{peerNameOne, "peer2"}
 	before := make(map[string]float64, len(peers))
 	for _, peer := range peers {
 		sent, ok := peerCounter08(ctx, p, peer, "updates-sent")
@@ -416,7 +416,7 @@ func grpcExecute08(ctx context.Context, p *sdk.Plugin) error {
 	if _, err := requireDone08(ctx, p, "show version"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: gRPC-path execute returned status=done")
+	fmt.Fprintln(os.Stderr, "OK: SDK dispatch returned status=done")
 	raw, err := requireDone08(ctx, p, "show bgp")
 	if err != nil {
 		return err
@@ -439,7 +439,7 @@ func grpcExecute08(ctx context.Context, p *sdk.Plugin) error {
 	if !found {
 		return fmt.Errorf("show bgp does not list peer 127.0.0.1: %v", obj)
 	}
-	fmt.Fprintln(os.Stderr, "OK: gRPC-path summary returned peer data")
+	fmt.Fprintln(os.Stderr, "OK: SDK dispatch summary returned peer data")
 	return nil
 }
 

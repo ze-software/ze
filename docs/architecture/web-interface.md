@@ -932,6 +932,17 @@ an operator's explicit selection; the retired `ze-ui` cookie is ignored.
 
 See `spec-web-2-operator-workbench.md` (Argument Wire Format, Resolved-Value Validation, Day-One BGP Related Tools) for the full descriptor grammar and the BGP YANG annotations that ship with the experiment.
 
+Failed commands retain both their failure explanation and any completed or
+rejected records. The terminal uses the dispatcher's retained rendering instead
+of walking a consumed record answer again. Tool pages show separate failure and
+output fields; related-tool overlays retain the failure state and show the
+formatted progress with its explanation. Warning lines remain beside the
+answer. These tool outputs retain their existing normalization and size caps,
+and an authorization refusal does not expose attached diagnostic data.
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalOperationalResult, operationalDiagnosticPayload -->
+<!-- source: internal/component/web/page_tools.go -- dispatchToolCommand -->
+<!-- source: internal/component/web/handler_tools.go -- HandleRelatedToolRun -->
+
 
 ## Looking Glass
 
