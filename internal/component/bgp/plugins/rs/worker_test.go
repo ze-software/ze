@@ -28,7 +28,7 @@ func TestWorkerPool_LazyCreation(t *testing.T) {
 	}
 
 	// First dispatch creates the worker.
-	wp.Dispatch(workerKey{sourcePeer: "10.0.0.1"}, workItem{msgID: 1})
+	wp.Dispatch(rsFixtureKey("10.0.0.1", 1, 101), workItem{msgID: 1})
 
 	// Wait for processing.
 	waitForCount(&count, 1, t)
@@ -54,7 +54,7 @@ func TestWorkerPool_IdleCooldown(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
@@ -88,8 +88,8 @@ func TestWorkerPool_PeerDown(t *testing.T) {
 	defer wp.Stop()
 
 	// Create workers for 3 source peers.
-	for _, p := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"} {
-		wp.Dispatch(workerKey{sourcePeer: p}, workItem{msgID: 1})
+	for index, p := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3"} {
+		wp.Dispatch(rsFixtureKey(p, uint64(index+1), uint64(index+101)), workItem{msgID: 1})
 	}
 	waitForCount(&count, 3, t)
 
@@ -98,7 +98,7 @@ func TestWorkerPool_PeerDown(t *testing.T) {
 	}
 
 	// Peer down for 10.0.0.1: only that worker should drain and exit.
-	wp.PeerDown("10.0.0.1")
+	wp.PeerDown(rsFixtureKey("10.0.0.1", 1, 101))
 
 	// Wait for one worker to exit.
 	waitForWorkerCount(wp, 2, t)
@@ -124,7 +124,7 @@ func TestWorkerPool_BackpressureWarning(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// Send first item — worker starts and blocks on it.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -157,12 +157,12 @@ func TestWorkerPool_ParallelProcessing(t *testing.T) {
 
 	// 6 source peers = 6 workers processing in parallel.
 	keys := []workerKey{
-		{sourcePeer: "10.0.0.1"},
-		{sourcePeer: "10.0.0.2"},
-		{sourcePeer: "10.0.0.3"},
-		{sourcePeer: "10.0.0.4"},
-		{sourcePeer: "10.0.0.5"},
-		{sourcePeer: "10.0.0.6"},
+		rsFixtureKey("10.0.0.1", 1, 101),
+		rsFixtureKey("10.0.0.2", 2, 102),
+		rsFixtureKey("10.0.0.3", 3, 103),
+		rsFixtureKey("10.0.0.4", 4, 104),
+		rsFixtureKey("10.0.0.5", 5, 105),
+		rsFixtureKey("10.0.0.6", 6, 106),
 	}
 	atBarrier.Add(len(keys))
 
@@ -212,7 +212,7 @@ func TestWorkerPool_FIFOWithinKey(t *testing.T) {
 	wp := newWorkerPool(handler, testPoolConfig())
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 	const n = 100
 	for i := uint64(1); i <= n; i++ {
 		wp.Dispatch(key, workItem{msgID: i})
@@ -245,14 +245,14 @@ func TestWorkerPool_NoSendOnClosedChannel(t *testing.T) {
 	wp := newWorkerPool(handler, testPoolConfig())
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 	wp.Dispatch(key, workItem{msgID: 1})
 
 	// Wait for worker to be created.
 	waitForWorkerCount(wp, 1, t)
 
 	// Close all workers for this peer.
-	wp.PeerDown("10.0.0.1")
+	wp.PeerDown(rsFixtureKey("10.0.0.1", 1, 101))
 
 	// Wait for workers to exit.
 	waitForWorkerCount(wp, 0, t)
@@ -276,8 +276,8 @@ func TestWorkerPool_StopDrains(t *testing.T) {
 	wp := newWorkerPool(handler, testPoolConfig())
 
 	// Create workers for multiple source peers.
-	for _, p := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5"} {
-		wp.Dispatch(workerKey{sourcePeer: p}, workItem{msgID: 1})
+	for index, p := range []string{"10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5"} {
+		wp.Dispatch(rsFixtureKey(p, uint64(index+1), uint64(index+101)), workItem{msgID: 1})
 	}
 
 	// Wait for all items to process.
@@ -310,7 +310,7 @@ func TestWorkerPool_HandlerPanicRecovery(t *testing.T) {
 	wp := newWorkerPool(handler, testPoolConfig())
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First dispatch: handler panics.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -351,7 +351,7 @@ func TestWorkerPool_BackpressureClearedAfterRead(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First item blocks the worker.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -398,7 +398,7 @@ func TestWorkerPoolLowWater(t *testing.T) {
 	}
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First item blocks the worker.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -447,7 +447,7 @@ func TestWorkerPoolHighLowCycle(t *testing.T) {
 	}
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First item blocks the worker.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -568,7 +568,7 @@ func TestWorkerPool_OverflowNonBlocking(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First dispatch: worker blocks on handler.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -622,7 +622,7 @@ func TestWorkerPool_OverflowFIFO(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First dispatch: worker blocks.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -685,7 +685,7 @@ func TestWorkerPool_OverflowDrains(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First dispatch: worker blocks.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -733,7 +733,7 @@ func TestWorkerPool_DepthIncludesOverflow(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
@@ -761,135 +761,152 @@ func TestWorkerPool_DepthIncludesOverflow(t *testing.T) {
 	close(block)
 }
 
-// TestWorkerPool_StopDropsOverflow verifies Stop calls onItemDrop for overflow items.
+// TestWorkerPool_StopDropsOverflow retains its historical name: Stop now joins
+// all admitted work rather than discarding overflow. Hold the first handler,
+// fill channel and overflow, then verify the complete handled FIFO after joining.
 //
-// VALIDATES: Overflow items are cleaned up via onItemDrop when pool is stopped.
-// PREVENTS: Resource leak (fwdCtx, cache entries) when pool stops with overflow items.
+// VALIDATES: Every admitted original item finishes exactly once and in order.
+// PREVENTS: Retirement losing admitted work or acknowledging a held handler.
 func TestWorkerPool_StopDropsOverflow(t *testing.T) {
 	block := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(block) }) }
 	var count atomic.Int32
-	handler := func(_ workerKey, _ workItem) {
+	handled := make(chan uint64, 8)
+	handler := func(_ workerKey, item workItem) {
 		if count.Add(1) == 1 {
 			<-block
 		}
+		handled <- item.msgID
 	}
-
-	var mu sync.Mutex
-	var dropped []uint64
-
 	cfg := testPoolConfig()
 	cfg.chanSize = 4
-	cfg.onItemDrop = func(item workItem) {
-		mu.Lock()
-		dropped = append(dropped, item.msgID)
-		mu.Unlock()
-	}
-
 	wp := newWorkerPool(handler, cfg)
-
-	key := workerKey{sourcePeer: "10.0.0.1"}
-
-	// First dispatch: worker blocks.
-	wp.Dispatch(key, workItem{msgID: 1})
+	defer func() { release(); wp.Stop() }()
+	key := rsFixtureKey("10.0.0.1", 1, 101)
+	if !wp.Dispatch(key, workItem{msgID: 1}) {
+		t.Fatal("first original item was not admitted")
+	}
 	waitForCount(&count, 1, t)
-
-	// Fill channel (4) + overflow (3).
 	dispatched := make(chan struct{})
 	go func() {
 		for i := uint64(2); i <= 8; i++ {
-			wp.Dispatch(key, workItem{msgID: i})
+			if !wp.Dispatch(key, workItem{msgID: i}) {
+				t.Errorf("original item %d was not admitted", i)
+			}
 		}
 		close(dispatched)
 	}()
-
 	select {
 	case <-dispatched:
 	case <-time.After(2 * time.Second):
-		close(block)
 		t.Fatal("Dispatch blocked")
 	}
-
-	// Stop while overflow items exist. Unblock handler so Stop completes.
-	stopDone := make(chan struct{})
-	go func() {
-		wp.Stop()
-		close(stopDone)
-	}()
-
-	// Wait for Stop to begin draining overflow (calls onItemDrop).
+	completed := make(chan struct{})
+	go func() { wp.Stop(); close(completed) }()
 	require.Eventually(t, func() bool {
-		mu.Lock()
-		defer mu.Unlock()
-		return len(dropped) > 0
-	}, 2*time.Second, time.Millisecond, "Stop never called onItemDrop for overflow items")
-	close(block)
-	<-stopDone
+		wp.mu.Lock()
+		defer wp.mu.Unlock()
+		original := wp.workers[key]
+		if original == nil {
+			return false
+		}
+		select {
+		case <-original.closeCh:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "original retirement never sealed its admitted overflow")
+	select {
+	case <-completed:
+		t.Fatal("retirement acknowledged the held original handler")
+	default:
+	}
+	release()
+	<-completed
+	if count.Load() != 8 {
+		t.Fatalf("retirement lost admitted original work: handled=%d want=8", count.Load())
+	}
+	require.Len(t, handled, 8, "every admitted item must finish before retirement returns")
+	for expected := uint64(1); expected <= 8; expected++ {
+		require.Equal(t, expected, <-handled, "retirement must preserve the full admitted FIFO")
+	}
+	require.Empty(t, handled, "every admitted item must be handled exactly once")
 }
 
-// TestWorkerPool_PeerDownDropsOverflow verifies PeerDown calls onItemDrop for overflow items.
+// TestWorkerPool_PeerDownDropsOverflow retains its historical name: PeerDown now joins
+// all admitted work rather than discarding overflow. Hold the first handler,
+// fill channel and overflow, then verify the complete handled FIFO after joining.
 //
-// VALIDATES: Overflow items are cleaned up via onItemDrop when peer goes down.
-// PREVENTS: Resource leak (fwdCtx, cache entries) when peer disconnects with overflow items.
+// VALIDATES: Every admitted original item finishes exactly once and in order.
+// PREVENTS: Retirement losing admitted work or acknowledging a held handler.
 func TestWorkerPool_PeerDownDropsOverflow(t *testing.T) {
 	block := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(block) }) }
 	var count atomic.Int32
-	handler := func(_ workerKey, _ workItem) {
+	handled := make(chan uint64, 8)
+	handler := func(_ workerKey, item workItem) {
 		if count.Add(1) == 1 {
 			<-block
 		}
+		handled <- item.msgID
 	}
-
-	var mu sync.Mutex
-	var dropped []uint64
-
 	cfg := testPoolConfig()
 	cfg.chanSize = 4
-	cfg.onItemDrop = func(item workItem) {
-		mu.Lock()
-		dropped = append(dropped, item.msgID)
-		mu.Unlock()
-	}
-
 	wp := newWorkerPool(handler, cfg)
-	defer wp.Stop()
-
-	key := workerKey{sourcePeer: "10.0.0.1"}
-
-	// First dispatch: worker blocks.
-	wp.Dispatch(key, workItem{msgID: 1})
+	defer func() { release(); wp.Stop() }()
+	key := rsFixtureKey("10.0.0.1", 1, 101)
+	if !wp.Dispatch(key, workItem{msgID: 1}) {
+		t.Fatal("first original item was not admitted")
+	}
 	waitForCount(&count, 1, t)
-
-	// Fill channel (4) + overflow (3).
 	dispatched := make(chan struct{})
 	go func() {
 		for i := uint64(2); i <= 8; i++ {
-			wp.Dispatch(key, workItem{msgID: i})
+			if !wp.Dispatch(key, workItem{msgID: i}) {
+				t.Errorf("original item %d was not admitted", i)
+			}
 		}
 		close(dispatched)
 	}()
-
 	select {
 	case <-dispatched:
 	case <-time.After(2 * time.Second):
-		close(block)
 		t.Fatal("Dispatch blocked")
 	}
-
-	// PeerDown while overflow items exist. Unblock handler so PeerDown completes.
-	peerDownDone := make(chan struct{})
-	go func() {
-		wp.PeerDown("10.0.0.1")
-		close(peerDownDone)
-	}()
-
-	// Wait for PeerDown to begin draining overflow (calls onItemDrop).
+	completed := make(chan struct{})
+	go func() { wp.PeerDown(key); close(completed) }()
 	require.Eventually(t, func() bool {
-		mu.Lock()
-		defer mu.Unlock()
-		return len(dropped) > 0
-	}, 2*time.Second, time.Millisecond, "PeerDown never called onItemDrop for overflow items")
-	close(block)
-	<-peerDownDone
+		wp.mu.Lock()
+		defer wp.mu.Unlock()
+		original := wp.workers[key]
+		if original == nil {
+			return false
+		}
+		select {
+		case <-original.closeCh:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "original retirement never sealed its admitted overflow")
+	select {
+	case <-completed:
+		t.Fatal("retirement acknowledged the held original handler")
+	default:
+	}
+	release()
+	<-completed
+	if count.Load() != 8 {
+		t.Fatalf("retirement lost admitted original work: handled=%d want=8", count.Load())
+	}
+	require.Len(t, handled, 8, "every admitted item must finish before retirement returns")
+	for expected := uint64(1); expected <= 8; expected++ {
+		require.Equal(t, expected, <-handled, "retirement must preserve the full admitted FIFO")
+	}
+	require.Empty(t, handled, "every admitted item must be handled exactly once")
 }
 
 // TestDefaultChannelCapacity4096 verifies that the default channel capacity is 4096.
@@ -926,7 +943,7 @@ func TestBackpressureHighWaterFull(t *testing.T) {
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First item blocks the worker.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -973,7 +990,7 @@ func TestBackpressureLowWater10Percent(t *testing.T) {
 	}
 	defer wp.Stop()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// First item blocks the worker.
 	wp.Dispatch(key, workItem{msgID: 1})
@@ -1025,7 +1042,7 @@ func TestBackpressureThresholdOscillation(t *testing.T) {
 	wp.onLowWater = func(_ workerKey) {}
 	defer func() { close(block); wp.Stop() }()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
@@ -1087,7 +1104,7 @@ func TestBackpressureNoResumeAbove10Percent(t *testing.T) {
 		wp.Stop()
 	}()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// Dispatch 11 items. Item 1 is parked in handler (stuck on gate1) so the
 	// remaining 10 dispatches fill the channel to capacity; the 11th item
@@ -1142,7 +1159,7 @@ func TestBackpressureReminder(t *testing.T) {
 	wp.onLowWater = func(_ workerKey) {}
 	defer func() { close(block); wp.Stop() }()
 
-	key := workerKey{sourcePeer: "10.0.0.1"}
+	key := rsFixtureKey("10.0.0.1", 1, 101)
 
 	// Fill to capacity: item 1 blocks in handler, items 2-11 fill channel.
 	// depth=10 >= cap=10 → first WARN fires, bpLastLog stored.
