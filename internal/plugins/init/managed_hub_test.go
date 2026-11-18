@@ -1,6 +1,7 @@
 package init
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,7 +77,7 @@ func TestInitManagedStoresHubAddressAndToken(t *testing.T) {
 }
 
 // TestInitManagedWithoutHubLines: the five lines every existing script feeds
-// still initialise a managed client, which then names its hub at the first
+// still initialize a managed client, which then names its hub at the first
 // start. Nothing about a hub is stored.
 func TestInitManagedWithoutHubLines(t *testing.T) {
 	dir := t.TempDir()
@@ -177,7 +178,7 @@ func TestManagedInitFromFlags(t *testing.T) {
 		if err != nil {
 			t.Fatalf("managedInitFromFlags: %v", err)
 		}
-		if !fleet.enabled || string(fleet.hubCA) != string(rootPEM) || fleet.trustFirstUse {
+		if !fleet.enabled || !bytes.Equal(fleet.hubCA, rootPEM) || fleet.trustFirstUse {
 			t.Errorf("fleet = %+v", fleet)
 		}
 		firstUse, err := managedInitFromFlags(true, "", true)
