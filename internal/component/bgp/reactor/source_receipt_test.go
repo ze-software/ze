@@ -28,7 +28,7 @@ func sourceReceiptFixture(t *testing.T) (*Peer, *sourceReceiptFacts) {
 		info: forwardSourceInfo{resolved: true, peer: peer, remoteRouterID: 71, globalLocalAS: 65000,
 			filterInfo: filterapi.PeerFilterInfo{Address: address, PeerAS: 65001, LocalAS: 65000,
 				Name: "original", GroupName: "sources", LLGRAdvertised: true}},
-		ctxID: bgpctx.ContextID(73), srcID: peer.SourceID(), generation: peer.forwardGeneration.Load(), ok: true})
+		ctxID: bgpctx.ContextID(73), srcID: peer.SourceID(), generation: peer.forwardGeneration.Load(), ok: true}, peer.newSession().connectionID)
 	require.NoError(t, err)
 	return peer, facts
 }
@@ -51,7 +51,7 @@ func TestSourceReceiptFactsExcludeOperationAuthority(t *testing.T) {
 	operation.info.initialUpdate = true
 	operation.info.flowSpecRedirectRefused = true
 	operation.info.recovery = &recoveryAdmission{}
-	captured, err := newSourceReceiptFacts(operation)
+	captured, err := newSourceReceiptFacts(operation, facts.connectionID)
 	require.NoError(t, err)
 	require.False(t, captured.source.info.sender.IsSet())
 	require.False(t, captured.source.info.trackDelivery)
@@ -80,7 +80,7 @@ func TestSourceReceiptRetainedFactsSurviveReconnect(t *testing.T) {
 		info: forwardSourceInfo{resolved: true, peer: peer, remoteRouterID: 72, globalLocalAS: 65000,
 			filterInfo: filterapi.PeerFilterInfo{Address: facts.source.addr, PeerAS: 65002, LocalAS: 65000,
 				Name: "replacement", GroupName: "new-sources"}},
-		ctxID: bgpctx.ContextID(74), srcID: peer.SourceID(), generation: peer.forwardGeneration.Load(), ok: true})
+		ctxID: bgpctx.ContextID(74), srcID: peer.SourceID(), generation: peer.forwardGeneration.Load(), ok: true}, peer.newSession().connectionID)
 	require.NoError(t, err)
 	replacement, err := receipts.issue(newFacts)
 	require.NoError(t, err)

@@ -18,6 +18,15 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// capturedMessageReceiver adapts a Session callback without a configured Peer.
+// Direct notifier callers remain explicitly unrecorded; Session emitters MUST
+// preserve their original pointer through this callback instead of substituting
+// a replacement connection found by address.
+func (r *Reactor) capturedMessageReceiver(captured *Session, address netip.Addr, kind msgtype.MessageType, body []byte, update *wireu.WireUpdate, context bgpctx.ContextID,
+	direction rpc.MessageDirection, buffer BufHandle, meta map[string]any, source string, id uint64) bool {
+	return r.notifyMessageReceiverFrom(nil, captured, address, kind, body, update, context, direction, buffer, meta, source, id)
+}
+
 // sourceSessionFixture installs an exact established session without opening TCP.
 // Its context and LLGR facts differ from any successor the test may install.
 func sourceSessionFixture(t *testing.T, peer *Peer) *Session {
@@ -87,7 +96,7 @@ func TestSourceSessionCallbackCarriesOriginalReceipt(t *testing.T) {
 	t.Cleanup(session.closeSourceReceipt)
 	body := []byte{0, 0, 0, 0} // A genuine empty UPDATE exercises event and cache without prefix validation.
 	update := wireu.NewWireUpdate(body, session.recvCtxID)
-	kept := session.onMessageReceived(address, msgtype.TypeUPDATE, body, update, session.recvCtxID,
+	kept := session.onMessageReceived(session, address, msgtype.TypeUPDATE, body, update, session.recvCtxID,
 		rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0)
 	require.True(t, kept)
 	require.Equal(t, "original", observedPeer.Name)
