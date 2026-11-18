@@ -200,19 +200,19 @@ func TestEngineOpInjectWireRouteJSONFallback(t *testing.T) {
 }
 
 // TestEngineOpBatchValidateJSONFallback exercises the batch-validate JSON codec
-// fallback end-to-end (AC-6): dispatch the wire method through the Direct path,
-// prove opBatchValidate unmarshals rpc.BatchValidateInput, forwards the decisions
-// to the registered batch validator, and marshals the *BatchValidateResult back;
-// and that an unregistered validator fails closed.
+// end-to-end (AC-6): dispatch the wire method through the Direct path, prove
+// opBatchValidate unmarshals rpc.BatchValidateInput, forwards its decisions to
+// the registered framed receive-store command and returns BatchValidateResult;
+// an unregistered receive-store owner still fails closed.
 //
 // VALIDATES: AC-6 -- batch-validate has a working non-typed (JSON codec) path.
 // PREVENTS: a silent regression in the BatchValidateInput/Result round-trip, the
 //
-//	GetBatchValidator wiring, or the "no batch validator registered" guard.
+//	registered owner wiring, or the missing receive-store refusal.
 //
 // Not parallel: mutates the process-global batch validator (saved/restored).
 func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
-	s := &Server{}
+	s := &Server{dispatcher: NewDispatcher()}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "batch-json"})
@@ -224,16 +224,23 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 	rpc.RegisterBatchValidator(nil)
 	_, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodBatchValidate, json.RawMessage(`{"decisions":[]}`))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no batch validator registered")
+	assert.Contains(t, err.Error(), "not registered")
 
 	// Registered: the validator receives the round-tripped decision and its
-	// result marshals back through directResultResponse. ValidationDecision has
-	// no JSON tags, so keys are the Go field names.
+	// result marshals back through directResultResponse. Existing verdict keys
+	// use Go field names; original source fields use explicit decimal-string tags.
 	var got []rpc.ValidationDecision
-	rpc.RegisterBatchValidator(func(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
-		got = decisions
-		return &rpc.BatchValidateResult{Accepted: 2, Rejected: 1, Early: 0}, nil
-	})
+	done := registerExecuteCommandTarget(t, s.dispatcher, "request bgp adj-rib-in batch-validate", 1,
+		func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+			if len(input.Args) != 9 {
+				return nil, fmt.Errorf("batch has %d fields, want9", len(input.Args))
+			}
+			got = []rpc.ValidationDecision{{Accept: input.Args[0] == "a", PeerAddr: input.Args[1], PathID: 7, ValState: 1}}
+			if input.Args[4] != "7" || input.Args[5] != "1" {
+				return nil, fmt.Errorf("original verdict fields changed: %v", input.Args)
+			}
+			return &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: json.RawMessage(`{"accepted":2,"rejected":1,"early":0}`)}, nil
+		})
 	res, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodBatchValidate, json.RawMessage(`{"decisions":[{"Accept":true,"PeerAddr":"10.0.0.1","Family":"ipv4/unicast","Prefix":"10.0.0.0/24","PathID":7,"ValState":1}]}`))
 	require.NoError(t, err)
 
@@ -247,6 +254,7 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 	require.NoError(t, json.Unmarshal(res, &out))
 	assert.Equal(t, 2, out.Accepted)
 	assert.Equal(t, 1, out.Rejected)
+	require.NoError(t, <-done)
 }
 
 // TestDispatchCommandAlwaysAnswersRecords drives both dispatch ops with a peer
