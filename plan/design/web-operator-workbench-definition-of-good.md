@@ -81,6 +81,17 @@ The mode boundary matters because it prevents the workbench from becoming both a
 partial schema editor and an awkward terminal. Each mode should be excellent at
 its job and share the same auth, audit, commit, and dispatcher foundations.
 
+**A hub has a fourth mode (owner decision, 2026-11-18).** A daemon that manages
+other devices also offers a Fleet mode, for the estate as a whole: a sidebar
+tree of the estate, and for each object a header, a row of tabs and their
+content. It is offered only on a hub, is compiled out without the `ze_fleet_ui`
+tag, and replaces none of the three modes above, which remain the interface to
+any single device. It shares their auth, audit, commit and dispatcher
+foundations, the same theme variables and the same table, detail and overlay
+components, at the same density. Every other rule of this document binds it.
+Its contract is
+[`spec-fleet-ui-0-umbrella.md`](../post-release/features/spec-fleet-ui-0-umbrella.md).
+
 ### 1. Optimize the Operator Loop
 
 **Decision rule:** every page and interaction MUST support the observe ->

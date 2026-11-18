@@ -155,6 +155,32 @@ both the device-side and hub-side guards, so a determined operator can still cre
 divergence. The persisted baseline keeps even that case safe (the device holds rather than
 stomps); guarding the blob write path is possible future work.
 
+### Direction Update (2026-11-18): Fleet Web Interface, Command Relay, Metric History
+
+The owner asked for a web interface to manage the estate and settled its scope.
+The interface is a spec set of its own, `fleet-ui`
+(`plan/post-release/features/spec-fleet-ui-0-umbrella.md`). Two rows of the
+Out of Scope table above are superseded, and two children are added to this set.
+
+| Topic | Decision |
+|-------|----------|
+| Web views | Every fleet web view is specified in the `fleet-ui` set. Where a child of this set names a web page or web view (`fleet-1` the `/fleet` page, `fleet-3` and `fleet-4` their web views, `fleet-5` and `fleet-7` their dashboard surfaces), that page is owned by `fleet-ui`; the child keeps the data, the protocol and the CLI commands the page reads |
+| Web per-device command routing | Now in scope, as `fleet-9`. The mechanism is a relay of commands over the managed channel, not HTTP proxying |
+| Relay identity | A relayed command runs under an authorization profile the device's own configuration names. No grant, no relay |
+| External metrics aggregation | Now in scope for one bounded purpose, as `fleet-8`: the hub keeps about a week of a fixed sample set, persisted and bounded, for its own dashboards. The hub is still not a metrics store, and Prometheus stays the detailed source |
+| Hierarchy | Unchanged: labels stay flat key=value pairs. The interface builds its tree by grouping on labels, and `group` stays the unit that assigns a template |
+| Scale | The hub holds each managed connection under a cap of 128 for its life (`managedMaxConns`, `internal/component/plugin/server/managed_serve.go`). An estate of the size this umbrella targets cannot connect under it. Lifting it is owed by `fleet-1` |
+
+| Phase | Spec | Scope | Depends |
+|-------|------|-------|---------|
+| 8 | `plan/post-release/features/spec-fleet-8-metric-history.md` | Devices report a fixed sample set; the hub keeps a bounded, persisted history and answers series, latest-value and ranking queries | fleet-4 |
+| 9 | `plan/post-release/features/spec-fleet-9-device-command-relay.md` | The hub relays an operator's command to a device over the managed channel, under a profile the device grants, with streaming, deadline, cancellation and audit on both sides | fleet-1 |
+
+The command answers the interface reads are proposed by the sample answers of
+`plan/post-release/features/spec-fleet-ui-1-interactive-prototype.md`. They are
+input to the design of `fleet-1`, `fleet-4`, `fleet-8` and `fleet-9`: a child
+that settles a different answer shape changes the samples in the same work.
+
 ### Relationship to Existing Specs
 
 | Spec | Relationship |
@@ -239,6 +265,29 @@ frame bound (`pkg/plugin/rpc/framing.go`, enforced at write time in conn.go).
 - Config fetch extended to support template rendering (fleet-2)
 - New CLI commands under `show fleet` and `fleet rollout` (fleet-1, fleet-5)
 - New web pages for fleet dashboard (fleet-1)
+
+## Existing Mechanisms (MANDATORY)
+
+Added 2026-11-18, when the direction update above touched this spec. The rows
+restate the Existing Foundation table of the Task section against the code as
+it stands today; where that table names an older symbol or path, this one is
+current.
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Managed channel, hub side | `internal/component/plugin/server/managed_serve.go`, `ManagedServer` | Accepts managed devices over TLS, authenticates each by its per-client secret, serves `config-fetch`, pushes `config-changed`, and holds the connected set in memory under a cap of 128 | Extends: the registry (`fleet-1`), reports (`fleet-4`, `fleet-8`) and the relay (`fleet-9`) are added on this server, not on a second one |
+| Managed channel, device side | `internal/component/managed/client.go`, `RunManagedClient` | Connects, fetches and caches its configuration, answers hub requests in one loop, heartbeats and reconnects | Extends: reporting (`fleet-4`, `fleet-8`), the freeze and baseline (`fleet-6`), the push-up verb (`fleet-7`) and relay workers (`fleet-9`) |
+| Verbs and envelopes | `pkg/fleet/envelope.go` | Four verbs: `config-fetch`, `config-changed`, `config-ack`, `ping` | Extends: new verbs on the same framing; public API, changed with `docs/architecture/fleet-config.md` |
+| RPC transport | `pkg/plugin/rpc`, `MuxConn` | Multiplexed requests with streamed answers, a 16 MiB frame bound and a write deadline | Extends: used as it is by every new verb |
+| Hub-held device configuration | Store key `file/active/client-<name>.conf`, read by `ManagedServer` | One configuration per device, served on fetch | Extends: templates (`fleet-2`) render into it; the audit trail (`fleet-3`) records changes to it |
+| Health registry | `internal/core/health` | Per-component state on each device, shown by `show health` | Extends: `fleet-4` reports it to the hub |
+| Hardware inventory | `internal/component/host` | CPU, memory, interfaces, storage and platform facts on each device | Extends: `fleet-4` reports a summary to the hub |
+| Bounded time series | `internal/component/l2tp/cqm.go`, the sample ring | Fixed buckets with configured retention, for L2TP quality | Extends: `fleet-8` uses the same shape for the hub's history |
+| Command dispatcher | `internal/component/plugin/dispatch.go`, `CommandDispatcher` | Runs a command for a caller with authorization and audit on every surface | Extends: `fleet-9` supplies one bound to a device; every `show fleet` command registers into the same registry |
+| Config transactions and archive | `internal/component/config/transaction`, `internal/component/config/archive` | Verify, apply and rollback of a configuration; archived versions | Extends: a pushed configuration is applied through it, and rollouts (`fleet-5`) rely on its refusal |
+| State store | `internal/core/statestore` with keys in `pkg/zefs/keys.go` | The daemon's one persistent store | Extends: the registry, audit log, rollout state and history are stored through it |
+| Appliance push over SSH | `internal/appliance`, `cmd_push.go` and `cmd_config_push.go` | Software and configuration push from a build machine | Does not apply: an offline toolchain, kept as it is beside the runtime channel |
+| Web selector of other devices | `internal/component/web/page_system.go`, `CollectFleetPeers` | Links to other devices' own addresses | Does not apply: it holds no state; the fleet web interface is `fleet-ui` |
 
 ## Data Flow (MANDATORY)
 
