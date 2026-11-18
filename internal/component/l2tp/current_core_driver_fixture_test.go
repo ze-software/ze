@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,7 +22,9 @@ import (
 // The embedded pipe owner is idempotent; callers never close borrowed streams.
 type currentCoreHandle struct {
 	net.Conn
-	identity ppp.SessionIdentity
+	identity    ppp.SessionIdentity
+	counterMu   sync.Mutex
+	counterRead func() (ppp.SessionCounters, error)
 }
 
 func (h *currentCoreHandle) Control() io.ReadWriter                                       { return h.Conn }
@@ -37,7 +40,27 @@ func (*currentCoreHandle) AddAddressP2P(netip.Prefix, netip.Prefix) error       
 func (*currentCoreHandle) RemoveAddress(netip.Prefix) error                               { return nil }
 func (*currentCoreHandle) AddRoute(netip.Prefix, netip.Addr, int, rtproto.Proto) error    { return nil }
 func (*currentCoreHandle) RemoveRoute(netip.Prefix, netip.Addr, int, rtproto.Proto) error { return nil }
-func (*currentCoreHandle) Counters() (ppp.SessionCounters, error)                         { return ppp.SessionCounters{}, nil }
+
+// Counters keeps the existing explicit modeled zero unless the question installs
+// a controlled native read. The gate is copied under its own mutex and invoked
+// outside it, so no fixture lock can hide the actor/Driver lock behavior.
+func (handle *currentCoreHandle) Counters() (ppp.SessionCounters, error) {
+	handle.counterMu.Lock()
+	read := handle.counterRead
+	handle.counterMu.Unlock()
+	if read != nil {
+		return read()
+	}
+	return ppp.SessionCounters{}, nil
+}
+
+// setCounterRead is test-only native I/O control. It grants no admission or
+// physical authority; the existing Driver still mints the actual Control.
+func (handle *currentCoreHandle) setCounterRead(read func() (ppp.SessionCounters, error)) {
+	handle.counterMu.Lock()
+	handle.counterRead = read
+	handle.counterMu.Unlock()
+}
 func (*currentCoreHandle) OpenIPv6Carrier(context.Context) (ppp.IPv6Carrier, error) {
 	return currentCoreIPv6Carrier{}, nil
 }
