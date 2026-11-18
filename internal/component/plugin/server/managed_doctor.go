@@ -42,11 +42,13 @@ func notifyDropped(client, cause string) {
 
 // authRefused records and logs a managed connection whose auth was refused,
 // so `show doctor` names the name it claimed (never the token it sent). A
-// claimed configured client is recorded under its name with
-// ManagedRejectBadToken; any other claim goes to the bounded unknown record.
+// claimed client that lookup knows, which is one the accepting listener's
+// server block declares, is recorded under its name with
+// ManagedRejectBadToken; any other claim goes to the bounded unknown record,
+// a client declared only under another server block included.
 // A connection that failed before it named a client is logged only: there is
 // no name to report it under.
-func (s *ManagedServer) authRefused(remote string, err error) {
+func (s *ManagedServer) authRefused(remote string, err error, lookup func(name string) (string, bool)) {
 	refusal, named := errors.AsType[*pluginipc.AuthRefusal](err)
 	if !named {
 		managedLogger().Warn("managed connection refused before it named a client",
@@ -54,7 +56,7 @@ func (s *ManagedServer) authRefused(remote string, err error) {
 		return
 	}
 	claimed := refusal.ShownClaim()
-	if _, known := s.lookup(refusal.Claimed); known {
+	if _, known := lookup(refusal.Claimed); known {
 		s.doctor.recordRejected(claimed, ManagedRejectBadToken, refusal.Error())
 	} else {
 		s.doctor.recordUnknown(claimed, refusal.Error())

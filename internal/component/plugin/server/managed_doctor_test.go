@@ -1,8 +1,12 @@
 package server
 
 import (
+	"context"
 	"errors"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -62,26 +66,72 @@ func TestManagedClientRejectionRecorded(t *testing.T) {
 	}
 }
 
-// TestManagedNotifyDroppedRaises is AC-27: a config-changed notification
-// dropped on a full queue raises doctor-managed-client-notify-dropped on the
-// report bus, naming the client and the cause, with a fix. Before, it was a
-// Warn line with no code that doctor never saw.
+// TestManagedNotifyDroppedRaises is AC-27: a config-changed notification a
+// connected client is not given raises doctor-managed-client-notify-dropped on
+// the report bus, naming the client and the cause, with a fix. Before, it was
+// a Warn line with no code that doctor never saw.
+//
+// Method: a real server and a connected client; the hub's read of that
+// client's config is made to fail, so the notification cannot be built, and
+// the change is announced. A full queue was the cause this test used to
+// provoke: the queue is gone, a change is now held until it is pushed
+// (TestManagedServeNotifyBurstDoesNotStarve), so the cause left to provoke on
+// the hub's own side is the build.
 func TestManagedNotifyDroppedRaises(t *testing.T) {
 	report.ResetForTest()
 	t.Cleanup(report.ResetForTest)
 
-	s := &ManagedServer{notifyCh: make(chan string)} // No reader: every notify is dropped.
-	s.NotifyConfigChanged("edge-1")
-
-	issues := report.Errors(0)
-	if len(issues) != 1 {
-		t.Fatalf("issues = %+v, want one", issues)
+	var unreadable atomic.Bool
+	srv, err := NewManagedServer(ManagedServerConfig{
+		Authority: newTestCA(t),
+		Listeners: []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+		ReadConfig: func(string) ([]byte, error) {
+			if unreadable.Load() {
+				return nil, errors.New("the store is unreadable")
+			}
+			return []byte(testClientConfig), nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewManagedServer: %v", err)
 	}
-	got := issues[0]
-	if got.Code != diagnostic.CodeDoctorManagedClientNotifyDropped || got.Subject != "edge-1" {
-		t.Errorf("issue = %+v", got)
+	if startErr := srv.Start(context.Background()); startErr != nil {
+		t.Fatalf("Start: %v", startErr)
+	}
+	t.Cleanup(srv.Stop)
+	mc := dialTestClient(t, srv.Addrs()[0].String(), testClientName, testClientSecret)
+	_ = fetch(t, mc, "")
+	waitForConnected(t, srv, testClientName, true)
+
+	unreadable.Store(true)
+	srv.NotifyConfigChanged(testClientName)
+
+	got := waitForNotifyDropped(t, testClientName)
+	if issues := report.Errors(0); len(issues) != 1 {
+		t.Errorf("issues = %+v, want one", issues)
 	}
 	if got.Fix == "" {
 		t.Error("the event carries no fix")
 	}
+	if !strings.Contains(got.Message, "building the notification failed") {
+		t.Errorf("message %q does not name the cause", got.Message)
+	}
+}
+
+// waitForNotifyDropped polls the report bus until it holds a notify-dropped
+// event for client, and returns it. The notify worker raises it on its own
+// goroutine, so the test waits for the state rather than for a time.
+func waitForNotifyDropped(t *testing.T, client string) report.Issue {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		for _, issue := range report.Errors(0) {
+			if issue.Code == diagnostic.CodeDoctorManagedClientNotifyDropped && issue.Subject == client {
+				return issue
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("no notify-dropped event for %q on the report bus: %+v", client, report.Errors(0))
+	return report.Issue{}
 }

@@ -1,0 +1,34 @@
+# Test: a managed client whose hub is unreachable starts from its cached config
+#
+# QUESTION: does a real `ze start`, on a store `ze init --managed` seeded and
+#           that holds a cached config, start while the hub that config names
+#           is unreachable, and does its managed client keep trying that hub in
+#           the background?
+#           (docs/architecture/fleet-config.md, "Startup Matrix": hub
+#           unreachable, cached config exists.)
+# WHY NOT A UNIT TEST: the answer is the order `ze start` runs things in. The
+#           hub writes its ready file after the plugins the cached config
+#           declares have started, and only then starts the managed client
+#           (cmd/ze/hub/main.go). A unit test over RunManagedClient proves the
+#           retry loop and nothing about a daemon that would wait for its hub
+#           before it serves.
+#
+# VALIDATES: the daemon publishes its ready file with its hub unreachable, then
+#            reports two failed connections to the hub address its cached
+#            config names, and is still running after both.
+# PREVENTS: a managed client that refuses to start, or blocks its start, while
+#           its hub is down; and one that tries its hub once and gives up.
+#
+# $PORT is the client's own plugin transport. $PORT2 is the hub port the cached
+# config names: the runner hands it to this test alone and nothing binds it, so
+# every connection to it is refused.
+#
+# test/managed/client-cached-boot.ci validates the cached config and starts no
+# daemon. test/managed/client-first-boot.ci holds the opposite row of the
+# matrix: no cached config and no hub address, where `ze start` exits non-zero.
+
+option=timeout:value=90s
+
+cmd=foreground:seq=1:exec=le test fixture managed/client-cached-boot-hub-down -plugin-port $PORT -hub-port $PORT2:timeout=90s
+expect=exit:code=0
+expect=stderr:contains=OK: the managed client started from its cached config with its hub unreachable and retried the hub in the background

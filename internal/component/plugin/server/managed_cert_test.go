@@ -152,10 +152,9 @@ func TestManagedServerServesConfiguredCertificate(t *testing.T) {
 	certPEM, keyPEM := hubCertMaterial(t)
 
 	srv, err := NewManagedServer(ManagedServerConfig{
-		Addrs:         []string{"127.0.0.1:0"},
-		ClientSecrets: map[string]string{testClientName: testClientSecret},
-		ReadConfig:    func(string) ([]byte, error) { return []byte(testClientConfig), nil },
-		Certificate:   "fleet-hub",
+		Listeners:   []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+		ReadConfig:  func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+		Certificate: "fleet-hub",
 		TLSMaterialResolver: func(name string) ([]byte, []byte, error) {
 			if name != "fleet-hub" {
 				return nil, nil, errors.New("unexpected certificate name " + name)
@@ -186,10 +185,9 @@ func TestNamedCertificateOutranksIssuance(t *testing.T) {
 	t.Run("named-certificate-is-served", func(t *testing.T) {
 		ca := newTestCA(t)
 		srv, err := NewManagedServer(ManagedServerConfig{
-			Addrs:         []string{"127.0.0.1:0"},
-			ClientSecrets: map[string]string{testClientName: testClientSecret},
-			ReadConfig:    func(string) ([]byte, error) { return []byte(testClientConfig), nil },
-			Certificate:   "fleet-hub",
+			Listeners:   []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+			ReadConfig:  func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+			Certificate: "fleet-hub",
 			TLSMaterialResolver: func(string) ([]byte, []byte, error) {
 				return certPEM, keyPEM, nil
 			},
@@ -216,10 +214,9 @@ func TestNamedCertificateOutranksIssuance(t *testing.T) {
 		clk := sim.NewFakeClock(time.Now())
 		ca := newTestCA(t)
 		srv, err := NewManagedServer(ManagedServerConfig{
-			Addrs:         []string{"127.0.0.1:0"},
-			ClientSecrets: map[string]string{testClientName: testClientSecret},
-			ReadConfig:    func(string) ([]byte, error) { return []byte(testClientConfig), nil },
-			Certificate:   "fleet-hub",
+			Listeners:   []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+			ReadConfig:  func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+			Certificate: "fleet-hub",
 			TLSMaterialResolver: func(string) ([]byte, []byte, error) {
 				return certPEM, keyPEM, nil
 			},
@@ -251,11 +248,10 @@ func TestNamedCertificateOutranksIssuance(t *testing.T) {
 		clk := sim.NewFakeClock(time.Now())
 		ca := newTestCA(t)
 		srv, err := NewManagedServer(ManagedServerConfig{
-			Addrs:         []string{"127.0.0.1:0"},
-			ClientSecrets: map[string]string{testClientName: testClientSecret},
-			ReadConfig:    func(string) ([]byte, error) { return []byte(testClientConfig), nil },
-			Authority:     ca,
-			Clock:         clk,
+			Listeners:  []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+			ReadConfig: func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+			Authority:  ca,
+			Clock:      clk,
 		})
 		if err != nil {
 			t.Fatalf("NewManagedServer: %v", err)
@@ -281,10 +277,9 @@ func TestNamedCertificateOutranksIssuance(t *testing.T) {
 	t.Run("broken-name-errors-rather-than-issuing", func(t *testing.T) {
 		ca := newTestCA(t)
 		srv, err := NewManagedServer(ManagedServerConfig{
-			Addrs:         []string{"127.0.0.1:0"},
-			ClientSecrets: map[string]string{testClientName: testClientSecret},
-			ReadConfig:    func(string) ([]byte, error) { return []byte(testClientConfig), nil },
-			Certificate:   "missing",
+			Listeners:   []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+			ReadConfig:  func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+			Certificate: "missing",
 			TLSMaterialResolver: func(string) ([]byte, []byte, error) {
 				return nil, nil, errors.New("certificate missing not found")
 			},
@@ -310,10 +305,9 @@ func TestManagedServerIssuesFromTheAuthority(t *testing.T) {
 	ca := newTestCA(t)
 
 	srv, err := NewManagedServer(ManagedServerConfig{
-		Addrs:         []string{"127.0.0.1:0"},
-		ClientSecrets: map[string]string{testClientName: testClientSecret},
-		ReadConfig:    func(string) ([]byte, error) { return []byte(testClientConfig), nil },
-		Authority:     ca,
+		Listeners:  []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+		ReadConfig: func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+		Authority:  ca,
 	})
 	if err != nil {
 		t.Fatalf("NewManagedServer: %v", err)
@@ -341,10 +335,9 @@ func TestManagedServerIssuesFromTheAuthority(t *testing.T) {
 // case fails.
 func TestManagedServerFailsClosedOnCertificate(t *testing.T) {
 	base := ManagedServerConfig{
-		Addrs:         []string{"127.0.0.1:0"},
-		ClientSecrets: map[string]string{testClientName: testClientSecret},
-		ReadConfig:    func(string) ([]byte, error) { return []byte(testClientConfig), nil },
-		Certificate:   "missing",
+		Listeners:   []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}}},
+		ReadConfig:  func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+		Certificate: "missing",
 	}
 
 	t.Run("resolver-error", func(t *testing.T) {

@@ -52,20 +52,30 @@ plugin {
         server local {
             ip 127.0.0.1;
             port 1790;
-            secret "local-plugin-secret";
+            secret "local-plugin-secret-of-32-characters";
         }
         server central {
             ip 0.0.0.0;
             port 1791;
-            secret "remote-plugin-secret";
-            client edge-01 { secret "client-1-token"; }
-            client edge-02 { secret "client-2-token"; }
+            secret "remote-plugin-secret-of-32-character";
+            client edge-01 { secret "edge-01-secret-of-at-least-32-chars"; }
+            client edge-02 { secret "edge-02-secret-of-at-least-32-chars"; }
         }
     }
 }
 ```
 
-Each client authenticates with its unique secret token.
+Each client authenticates with its own secret, which is bound to its name: one
+client's secret is refused under another client's name. Every secret is at
+least 32 characters, and a shorter one is refused when the config loads.
+
+A client is admitted only on the address of the `server` block that declares
+it. With two blocks that accept managed clients, a client declared under one is
+refused on the other's address. Declare it under both if it must reach both.
+
+The block that accepts managed clients needs its own port. The first `server`
+block is the one local plugins connect to, and one address cannot serve both.
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedListener, handleConn -->
 
 ## Client Configuration
 
@@ -77,16 +87,72 @@ plugin {
         server local {
             ip 127.0.0.1;
             port 1790;
-            secret "local-secret";
+            secret "local-secret-of-at-least-32-characters";
         }
         client edge-01 {
             host 10.0.0.1;
             port 1791;
-            secret "client-1-token";
+            secret "edge-01-secret-of-at-least-32-chars";
+            ca fleet-hub-root;
         }
     }
 }
 ```
+
+The hub pushes this block with the rest of the config. When a pushed config
+changes it (another hub address, a new secret, another `ca`), the running
+client reconnects with the new values as soon as it has applied the config. No
+restart is needed. A pushed config with no `client` block makes the client stop
+following its hub.
+<!-- source: internal/component/managed/client.go -- adoptEndpoint -->
+
+## Trusting the Hub
+
+The client authenticates the hub before it sends its secret. Unless the hub's
+certificate comes from a public certificate authority, the client must hold the
+root that issued it. By default the hub serves a certificate from its own
+authority, so:
+
+1. On the hub, print the root: `ze show pki local-ca pem`
+2. In that client's config (the one the hub stores for it), paste it into a
+   `pki ca` block and name that block from the client's `ca` leaf:
+
+```
+pki {
+    ca fleet-hub-root {
+        certificate "-----BEGIN CERTIFICATE-----
+MIIB...
+-----END CERTIFICATE-----";
+    }
+}
+```
+
+The root outlives a hub restart, so the client needs no change when the hub
+renews its certificate.
+
+A first start has no config yet, so it has no `ca` to name. It verifies the hub
+against the system's certificate authorities. Against a hub that serves a
+certificate from its own authority, that first start fails unless
+`ze.managed.tls.insecure` is set, which sends the secret to a hub the client
+has not authenticated. Use it only on a network you trust, and only for the
+first start: every connection after the first fetch is verified against `ca`.
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig -->
+<!-- source: cmd/ze/ze_core_start.go -- fetchInitialConfig -->
+
+## First Start
+
+`ze init --managed` marks the instance as managed. It does not record where the
+hub is. The first start names the hub, the client and its secret:
+
+```bash
+ze --server 10.0.0.1:1791 --name edge-01 --token "edge-01-secret-of-at-least-32-chars" start
+```
+
+The client fetches its config, checks it, caches it and starts. Every later
+start is a plain `ze start`: the cached config carries the `client` block.
+Without a cached config and without `--server` and `--name`, `ze start` exits
+with an error that names what is missing.
+<!-- source: cmd/ze/ze_core_start.go -- cmdStartManaged -->
 
 ## Config Management
 
@@ -134,9 +200,11 @@ reports a second ze connecting under a name already connected, and a client
 that refused to apply the config the hub serves it.
 
 `show doctor` also reports a managed listen address the hub could not bind
-(`doctor-managed-listener-unbound`), and a `config-changed` the hub could not
-deliver (`doctor-managed-client-notify-dropped`): that client runs its
-previous config until it fetches again, which it does each time it connects.
+(`doctor-managed-listener-unbound`), and a `config-changed` a connected client
+was not given (`doctor-managed-client-notify-dropped`). The hub disconnects a
+client that does not accept the notice, so that it reconnects and fetches: a
+client fetches its config each time it connects. Until then it runs its
+previous config.
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, managedRejectedRow, checkManagedListenerUnbound -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
 
@@ -148,9 +216,18 @@ previous config until it fetches again, which it does each time it connects.
 
 ## CLI Overrides
 
-| Flag | Description |
-|------|-------------|
-| `--server <addr>` | Override hub address |
-| `--name <name>` | Override instance name |
-| `--token <secret>` | Override auth token |
-<!-- source: internal/component/managed/ -- fleet TLS and client auth -->
+The flags go before the command: `ze --server 10.0.0.1:1791 start`.
+
+| Flag | Environment | Description |
+|------|-------------|-------------|
+| `--server <host:port>` | `ze.managed.server` | Hub address |
+| `--name <name>` | `ze.managed.name` | Client name |
+| `--token <secret>` | `ze.managed.token` | Client secret |
+| `--connect-timeout <duration>` | `ze.managed.connect.timeout` | Bound on reaching the hub, per attempt (default `5s`) |
+| (none) | `ze.managed.tls.insecure` | Skip verification of the hub's certificate. See "Trusting the Hub" |
+
+`--server`, `--name` and `--token` name the hub on a first start. On a client
+that holds a cached config they replace the matching value of its `client`
+block for as long as the daemon runs, which is for troubleshooting.
+<!-- source: cmd/ze/ze_core_dispatch.go -- zeParseGlobalFlags -->
+<!-- source: cmd/ze/ze_core_start.go -- hubClientEndpoint -->

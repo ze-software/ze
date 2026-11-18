@@ -740,7 +740,7 @@ func DaemonConfigArg(args []string) int {
 			continue
 		case "-d", "--debug", "--insecure-web", "--color", "--no-color":
 			continue
-		case "-f", "--server", "--name", "--token", flagPlugin, "--pprof", "--chaos-seed", "--chaos-rate", "--mcp", "--mcp-token", "--web":
+		case "-f", "--server", "--name", "--token", "--connect-timeout", flagPlugin, "--pprof", "--chaos-seed", "--chaos-rate", "--mcp", "--mcp-token", "--web":
 			i++
 			continue
 		}

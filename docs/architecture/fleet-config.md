@@ -151,13 +151,15 @@ first fetch, the cached config carries its own `client` block. CLI flags
 
 ### Per-Client Secrets
 
-At `#0 auth`, the hub looks up the token against the `client` entries nested under the relevant `server` block. A client cannot use another client's token.
+At `#0 auth`, the hub looks up the token against the `client` entries nested under the `server` block whose listener accepted the connection. A client cannot use another client's token, and a client is admitted only on the address of the block that declares it: on any other managed listener it is an unknown name, whatever token it sends. A client that must be reachable through two blocks is declared under both.
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedListener, handleConn -->
 
 | Server config | Client config | Effect |
 |--------------|--------------|--------|
 | `server central { client edge-01 { secret "abc"; } }` | `client edge-01 { secret "abc"; }` | Match, accepted |
 | `server central { client edge-01 { secret "abc"; } }` | `client edge-01 { secret "xyz"; }` | Mismatch, rejected |
 | No `client edge-01` in any server | Any | Rejected: unknown client |
+| `server central { client edge-01 { secret "abc"; } }`, and the client dials `server other` | `client edge-01 { secret "abc"; }` | Rejected: unknown client on that listener |
 
 The managed listener authenticates with the per-client secrets alone and no
 shared secret, so a name with no `client` entry has no expected token.
@@ -188,7 +190,7 @@ checks report nothing.
 | A `config-ack` with an error | that client's last refusal, cleared by the next successful ack | `doctor-managed-client-rejected` (warning) |
 | A configured name with a token that is not its secret | that client's last refusal | `doctor-managed-client-rejected` (warning) |
 | A name with no `client` entry | the 16 most recent such names, the oldest forgotten first | `doctor-managed-client-rejected` (warning) |
-| A `config-changed` not delivered (queue full, build or push failure) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
+| A `config-changed` a connected client was not given (the notification could not be built, or the client did not accept it) | an event on the report bus naming the client and the cause | `doctor-managed-client-notify-dropped` |
 
 ### Config Storage (Hub Side)
 
@@ -212,11 +214,26 @@ block names, because that key would be written and never served.
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
 
 The hub's `Storage.SetWriteObserver` callback maps a written client-config key
-back to the client's name and queues `config-changed` without blocking the
-storage writer. A client fetches the updated configuration after the notification
-or on its next connection.
+back to the client's name and marks that client as owed `config-changed`,
+without blocking the storage writer. A client fetches the updated configuration
+after the notification or on its next connection.
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
 <!-- source: internal/component/config/storage/storage.go -- Storage -->
+
+A change is never lost between the write and the push. The mark is held per
+connected client until a notify worker takes it, so a burst of writes cannot
+overflow anything, and several writes for one client before a worker reaches
+it become one push. One worker pushes to a given client at a time: a client
+that does not answer holds that one worker for the push timeout (10 seconds)
+and never the pool, so every other client is still told at once.
+
+A connected client that does not accept the notification is disconnected. It
+would otherwise stay connected on its previous config with nothing left to
+tell it. Closing the connection makes it reconnect under "Reconnect" below,
+and a client fetches its config each time it connects. The event
+`doctor-managed-client-notify-dropped` records that it happened. A client that
+is not connected is owed nothing: it fetches when it connects.
+<!-- source: internal/component/plugin/server/managed_serve.go -- NotifyConfigChanged, takePending, pushConfigChanged -->
 
 The managed listener exposes Prometheus metrics: `ze_managed_clients_connected` (gauge),
 `ze_managed_config_fetch_total{result}`, and `ze_managed_config_changed_pushed_total`.
@@ -236,6 +253,18 @@ The managed client's local tree caches the config received from the hub. The con
 | Managed mode toggle | `meta/instance/managed` in the live store |
 
 The `meta/instance/managed` flag controls whether the client actually connects to the hub. Toggling it severs or establishes the hub connection without changing the config.
+
+The running client follows the hub block of each config it applies. After a
+pushed or fetched config is committed and acknowledged, the client reads that
+config's hub-level `client` block again. When the name, `host`, `port`,
+`secret`, `ca` or source address differ from the connection in use, it closes
+that connection and reconnects at once with the new values, with no restart. A
+config that leaves the block alone keeps the connection, and a config the
+daemon refused changes nothing. A config with no hub-level `client` block asks
+for no hub connection: the client stops following its hub and logs that it did,
+which is what a restart on that config would do.
+<!-- source: internal/component/managed/client.go -- adoptEndpoint, RunManagedClient -->
+<!-- source: cmd/ze/ze_core_start.go -- hubClientEndpoint -->
 
 ---
 
@@ -378,14 +407,21 @@ Two sources of hub connection info, used at different stages:
 
 The cached config takes over once fetched. Metadata from `ze init` bootstraps the first fetch.
 
-CLI flag overrides (optional, for troubleshooting):
+CLI flag overrides (optional, for troubleshooting). `--server`, `--name` and
+`--token` replace the matching value of the hub-level `client` block, on a
+first boot and on a client that holds a cached config alike, and they keep
+replacing it in every config the hub pushes while the daemon runs. They replace
+a value and never stand in for the block: a config with no hub-level `client`
+block connects to no hub whatever the flags say.
+<!-- source: cmd/ze/ze_core_start.go -- hubClientEndpoint -->
+<!-- source: cmd/ze/ze_core_dispatch.go -- zeParseGlobalFlags -->
 
 | Flag | Env var | Description |
 |------|---------|-------------|
 | `--server <host:port>` | `ze.managed.server` | Override hub address |
 | `--name <name>` | `ze.managed.name` | Override client name |
 | `--token <token>` | `ze.managed.token` | Override auth token |
-| `--connect-timeout <dur>` | `ze.managed.connect.timeout` | Connection timeout (default: 5s) |
+| `--connect-timeout <dur>` | `ze.managed.connect.timeout` | Bound on the dial and TLS handshake of each connection to the hub, the first fetch included (default: 5s). A value that is not a duration is refused |
 | (none) | `ze.managed.tls.insecure` | Skip server certificate verification (development only) |
 
 First boot has no config, so it can name no `pki ca` entry. `fetchInitialConfig`

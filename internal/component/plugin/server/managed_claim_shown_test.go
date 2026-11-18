@@ -42,8 +42,10 @@ func TestManagedRefusedClaimIsSafeToPrint(t *testing.T) {
 	srv, addr := startTestManagedServer(t)
 
 	hostile := "\x1b[2J" + "evil\nrow" + "\xff\xfe" + strings.Repeat("a", 40) + "日本語" + strings.Repeat("b", 40)
-	srv.authRefused("192.0.2.1:4000", &pluginipc.AuthRefusal{Claimed: hostile, Cause: pluginipc.AuthRefusedNoSecret})
-	srv.authRefused("192.0.2.1:4001", &pluginipc.AuthRefusal{Claimed: "x" + hostile, Cause: pluginipc.AuthRefusedName})
+	// Neither claim is a client the accepting listener declares.
+	noClient := func(string) (string, bool) { return "", false }
+	srv.authRefused("192.0.2.1:4000", &pluginipc.AuthRefusal{Claimed: hostile, Cause: pluginipc.AuthRefusedNoSecret}, noClient)
+	srv.authRefused("192.0.2.1:4001", &pluginipc.AuthRefusal{Claimed: "x" + hostile, Cause: pluginipc.AuthRefusedName}, noClient)
 	rejected := srv.doctor.snapshot().Rejected
 	if len(rejected) != 2 {
 		t.Fatalf("recorded %d refusals, want 2: %+v", len(rejected), rejected)

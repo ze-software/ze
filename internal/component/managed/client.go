@@ -15,6 +15,7 @@ import (
 	"time"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/fleet"
@@ -25,13 +26,25 @@ var (
 	errAuthRejected     = errors.New("auth rejected")
 	errConnectionClosed = errors.New("connection closed")
 	errHeartbeatTimeout = errors.New("heartbeat timeout")
+	// errEndpointChanged ends a connection whose applied config names other
+	// hub settings than the ones it was made with, so the next one uses them.
+	errEndpointChanged = errors.New("the applied config changed the hub connection")
+	// errHubClientRemoved ends the client: the applied config has no hub
+	// client block, which is a config that asks for no hub connection.
+	errHubClientRemoved = errors.New("the applied config has no plugin hub client block")
 )
+
+// ErrNoHubClient is what ClientConfig.Endpoint answers for a config that
+// declares no hub client block.
+var ErrNoHubClient = errors.New("no plugin hub client block")
 
 const (
 	heartbeatInterval = 30 * time.Second
 	heartbeatMissed   = 3
-	connectTimeout    = 5 * time.Second
-	maxAuthResponse   = 512
+	// connectTimeoutDefault bounds the dial and the TLS handshake when
+	// ClientConfig.ConnectTimeout is zero.
+	connectTimeoutDefault = 5 * time.Second
+	maxAuthResponse       = 512
 )
 
 var logger = slogutil.LazyLogger("hub.managed")
@@ -50,9 +63,79 @@ type ClientConfig struct {
 	// trust anchor comes from the system CA pool. See clientTLSConfig.
 	CA            string
 	SourceAddress string // Optional source IP for outbound connection
-	Handler       *Handler
-	OnCommit      func([]byte) error // Called to transactionally commit fetched config
-	CheckManaged  func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
+	// ConnectTimeout bounds the dial and the TLS handshake of each connection.
+	// Zero means connectTimeoutDefault.
+	ConnectTimeout time.Duration
+	Handler        *Handler
+	OnCommit       func([]byte) error // Called to transactionally commit fetched config
+	CheckManaged   func() bool        // Returns false when meta/instance/managed is disabled; nil = always managed
+	// Endpoint reads the hub connection a config declares. The client calls it
+	// with each config it has applied, so a push that changes the hub address,
+	// the secret, the certificate authority, the source address or the client
+	// name takes effect on the running client and not only at the next start.
+	// It answers ErrNoHubClient for a config with no hub client block. nil
+	// means the connection settings are fixed for the life of the client.
+	Endpoint func(config []byte) (Endpoint, error)
+}
+
+// Endpoint is the hub connection a config declares: who the client is and
+// where and how it reaches its hub.
+type Endpoint struct {
+	Name          string // Client identity (hub client block name).
+	Server        string // Hub address (host:port).
+	Token         string // Auth token.
+	CA            string // pki ca entry holding the hub's root; empty means the system pool.
+	SourceAddress string // Optional source IP for the outbound connection.
+}
+
+// endpoint returns the hub connection cfg holds now.
+func (cfg *ClientConfig) endpoint() Endpoint {
+	return Endpoint{
+		Name:          cfg.Name,
+		Server:        cfg.Server,
+		Token:         cfg.Token,
+		CA:            cfg.CA,
+		SourceAddress: cfg.SourceAddress,
+	}
+}
+
+// adoptEndpoint reads the hub connection the applied config declares and
+// takes it for the next connection. It returns errEndpointChanged when that
+// differs from the connection in use, errHubClientRemoved when the config
+// declares none, and nil when nothing changed or cfg.Endpoint is nil. A
+// config whose hub block cannot be read leaves the settings as they are: the
+// daemon already applied that config, and the connection in use still works.
+func (cfg *ClientConfig) adoptEndpoint(applied []byte) error {
+	if cfg.Endpoint == nil {
+		return nil
+	}
+	next, err := cfg.Endpoint(applied)
+	if errors.Is(err, ErrNoHubClient) {
+		return errHubClientRemoved
+	}
+	if err != nil {
+		logger().Warn("the applied config's hub client block could not be read, "+
+			"so this client keeps the hub connection it has; check the block with: ze config validate",
+			"code", diagnostic.CodeConfigHubInvalid, "error", err)
+		return nil
+	}
+	if next == cfg.endpoint() {
+		return nil
+	}
+	cfg.Name = next.Name
+	cfg.Server = next.Server
+	cfg.Token = next.Token
+	cfg.CA = next.CA
+	cfg.SourceAddress = next.SourceAddress
+	return errEndpointChanged
+}
+
+// connectTimeout returns the bound on the dial and the TLS handshake.
+func (cfg *ClientConfig) connectTimeout() time.Duration {
+	if cfg.ConnectTimeout > 0 {
+		return cfg.ConnectTimeout
+	}
+	return connectTimeoutDefault
 }
 
 // RunManagedClient connects to the hub and maintains the connection with
@@ -73,6 +156,20 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 		err := runConnection(ctx, &cfg, backoff)
 		if ctx.Err() != nil {
 			return // shutdown
+		}
+		if errors.Is(err, errHubClientRemoved) {
+			// Info, like the managed flag above: the config asks for no hub
+			// connection, and the daemon does what the config says.
+			logger().Info("the applied config has no plugin hub client block, stopping hub connection",
+				"name", cfg.Name)
+			return
+		}
+		if errors.Is(err, errEndpointChanged) {
+			// Each turn here follows a config the hub sent and the daemon
+			// applied, so the hub's own writes bound this path.
+			logger().Info("the applied config changed the hub connection, reconnecting with it",
+				"server", cfg.Server, "name", cfg.Name)
+			continue
 		}
 
 		delay := backoff.Next()
@@ -114,7 +211,7 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 		return err
 	}
 
-	connectCtx, connectCancel := context.WithTimeout(ctx, connectTimeout)
+	connectCtx, connectCancel := context.WithTimeout(ctx, cfg.connectTimeout())
 	defer connectCancel()
 
 	dialer := &network.RealDialer{}
@@ -204,6 +301,9 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) err
 }
 
 // fetchAndProcess fetches config from hub, validates, commits, and ACKs the result.
+// It returns errEndpointChanged or errHubClientRemoved when the config it
+// applied changes or removes the hub connection: the ACK is already sent, and
+// the caller MUST end the connection.
 func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) error {
 	resp, err := FetchConfig(ctx, mc, cfg.Version)
 	if err != nil {
@@ -228,14 +328,13 @@ func fetchAndProcess(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig) er
 	if ackErr := SendConfigAck(ctx, mc, ack); ackErr != nil {
 		logger().Warn("send ack failed", "error", ackErr)
 	}
-	if ack.OK {
-		cfg.Version = resp.Version
-		logger().Info("config updated", "version", resp.Version)
-	} else {
+	if !ack.OK {
 		logger().Warn("config rejected", "error", ack.Error)
+		return nil
 	}
-
-	return nil
+	cfg.Version = resp.Version
+	logger().Info("config updated", "version", resp.Version)
+	return cfg.adoptEndpoint(data)
 }
 
 // notificationLoop reads hub-initiated RPCs until disconnect or shutdown.
@@ -246,7 +345,9 @@ func notificationLoop(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, h
 			if !ok {
 				return errConnectionClosed
 			}
-			handleHubRequest(ctx, mc, req, cfg)
+			if err := handleHubRequest(ctx, mc, req, cfg); err != nil {
+				return err
+			}
 
 		case <-hbDone:
 			return errHeartbeatTimeout
@@ -260,32 +361,46 @@ func notificationLoop(ctx context.Context, mc *rpc.MuxConn, cfg *ClientConfig, h
 	}
 }
 
-// handleHubRequest dispatches an inbound request from the hub.
-func handleHubRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) {
+// handleHubRequest dispatches an inbound request from the hub. A non-nil
+// error means the connection MUST end (handleConfigChangedRequest).
+func handleHubRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) error {
 	switch req.Method {
 	case fleet.VerbConfigChanged:
-		handleConfigChangedRequest(ctx, mc, req, cfg)
+		return handleConfigChangedRequest(ctx, mc, req, cfg)
 
 	case fleet.VerbPing:
 		_ = mc.SendOK(ctx, req.ID)
 	}
 	// Unknown methods silently dropped for forward compatibility.
+	return nil
 }
 
-// handleConfigChangedRequest processes a config-changed notification.
-func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) {
+// handleConfigChangedRequest processes a config-changed notification. It
+// returns errEndpointChanged or errHubClientRemoved when the config it
+// applied changes or removes the hub connection, and the caller MUST then end
+// the connection. A fetch that fails is logged and the connection is kept: the
+// next notification or connection fetches again.
+func handleConfigChangedRequest(ctx context.Context, mc *rpc.MuxConn, req *rpc.Request, cfg *ClientConfig) error {
 	var n fleet.ConfigChanged
 	if err := json.Unmarshal(req.Params, &n); err != nil {
 		logger().Warn("bad config-changed payload", "error", err)
 		_ = mc.SendError(ctx, req.ID, "bad payload")
-		return
+		return nil
 	}
 	_ = mc.SendOK(ctx, req.ID)
 
 	// Fetch the new config.
-	if err := fetchAndProcess(ctx, mc, cfg); err != nil {
+	err := fetchAndProcess(ctx, mc, cfg)
+	if errors.Is(err, errEndpointChanged) {
+		return err
+	}
+	if errors.Is(err, errHubClientRemoved) {
+		return err
+	}
+	if err != nil {
 		logger().Warn("fetch after notification failed", "error", err)
 	}
+	return nil
 }
 
 // FetchConfig sends a config-fetch RPC to the hub and returns the response.
@@ -329,7 +444,7 @@ func setAuthDeadline(ctx context.Context, conn net.Conn) error {
 	if deadline, ok := ctx.Deadline(); ok {
 		return conn.SetReadDeadline(deadline)
 	}
-	return conn.SetReadDeadline(time.Now().Add(connectTimeout))
+	return conn.SetReadDeadline(time.Now().Add(connectTimeoutDefault))
 }
 
 // readLine reads from conn byte-by-byte until newline or maxSize.

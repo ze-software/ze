@@ -414,35 +414,32 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		return nil
 	}
 
-	// The hub client block is under `plugin`, which the first pass reads on
-	// its own. A full parse here would refuse a config that holds a section
-	// of an external plugin, whose schema the daemon learns only at boot, and
-	// would build values that keep the module set before boot publishes it.
-	firstPass, err := config.FirstPass(string(data), "", nil)
+	endpoint, err := hubClientEndpoint(data)
+	if errors.Is(err, managed.ErrNoHubClient) {
+		return nil
+	}
 	if err != nil {
 		slog.Warn("managed: cannot read the plugin hub block of the config, so this daemon runs with no managed client; "+
 			"correct the block, then check it with: ze config validate",
 			"config", configName, "error", err, "code", diagnostic.CodeConfigHubInvalid)
 		return nil
 	}
-	hubCfg := firstPass.Hub
-	if len(hubCfg.Clients) == 0 {
-		return nil
-	}
-
-	cli := hubCfg.Clients[0]
 
 	return &managed.ClientConfig{
-		Name:          cli.Name,
-		Server:        cli.Address(),
-		Token:         cli.Secret,
+		Name:          endpoint.Name,
+		Server:        endpoint.Server,
+		Token:         endpoint.Token,
 		TLSInsecure:   env.GetBool("ze.managed.tls.insecure", false),
-		SourceAddress: cli.SourceAddress,
+		SourceAddress: endpoint.SourceAddress,
 		// Without this the configured leaf reaches nothing, so a client
 		// configured through its config file falls through to the system CA it
 		// cannot satisfy.
-		CA:      cli.CA,
-		Version: fleet.VersionHash(data),
+		CA:             endpoint.CA,
+		ConnectTimeout: env.GetDuration("ze.managed.connect.timeout", 5*time.Second),
+		// The same reading for every config the hub pushes later, so a push
+		// that changes the hub block changes the running client.
+		Endpoint: hubClientEndpoint,
+		Version:  fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
 				_, parseErr := config.ReadConfig(string(cfgData), "", nil)
@@ -453,6 +450,44 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 			return isManaged(store)
 		},
 	}
+}
+
+// hubClientEndpoint reads the hub connection the config in data declares: its
+// first hub-level client block, with the troubleshooting overrides applied on
+// top (ze.managed.server, ze.managed.name and ze.managed.token, which
+// --server, --name and --token set). It answers managed.ErrNoHubClient for a
+// config with no such block: an override replaces a value and never stands in
+// for the block.
+func hubClientEndpoint(data []byte) (managed.Endpoint, error) {
+	// The hub client block is under `plugin`, which the first pass reads on
+	// its own. A full parse here would refuse a config that holds a section
+	// of an external plugin, whose schema the daemon learns only at boot, and
+	// would build values that keep the module set before boot publishes it.
+	firstPass, err := config.FirstPass(string(data), "", nil)
+	if err != nil {
+		return managed.Endpoint{}, err
+	}
+	if len(firstPass.Hub.Clients) == 0 {
+		return managed.Endpoint{}, managed.ErrNoHubClient
+	}
+	cli := firstPass.Hub.Clients[0]
+	endpoint := managed.Endpoint{
+		Name:          cli.Name,
+		Server:        cli.Address(),
+		Token:         cli.Secret,
+		CA:            cli.CA,
+		SourceAddress: cli.SourceAddress,
+	}
+	if server := env.Get("ze.managed.server"); server != "" {
+		endpoint.Server = server
+	}
+	if name := env.Get("ze.managed.name"); name != "" {
+		endpoint.Name = name
+	}
+	if token := env.Get("ze.managed.token"); token != "" {
+		endpoint.Token = token
+	}
+	return endpoint, nil
 }
 
 // fetchInitialConfig connects to the hub, authenticates, and fetches the initial config.

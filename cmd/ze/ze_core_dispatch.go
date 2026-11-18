@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ze-software/ze/cmd/ze/hub"
 	"github.com/ze-software/ze/cmd/ze/internal/cmdutil"
@@ -26,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
 
@@ -168,6 +170,19 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 				return nil, 1
 			}
 			_ = env.Set("ze.managed.token", args[1])
+			args = args[2:]
+		case "--connect-timeout":
+			if len(args) < 2 {
+				fmt.Fprintln(os.Stderr, opererr.New("--connect-timeout has no value",
+					"the flag takes the time allowed to reach the hub", "ze --connect-timeout 5s start").Error())
+				return nil, 1
+			}
+			if _, err := time.ParseDuration(args[1]); err != nil {
+				fmt.Fprintln(os.Stderr, opererr.New("--connect-timeout "+strconv.Quote(args[1])+" is not a duration",
+					"the value needs a number and a time unit", "ze --connect-timeout 5s start").Error())
+				return nil, 1
+			}
+			_ = env.Set("ze.managed.connect.timeout", args[1])
 			args = args[2:]
 		case "-d", "--debug":
 			_ = env.Set("ze.log", "debug")

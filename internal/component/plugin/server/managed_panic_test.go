@@ -45,11 +45,10 @@ func TestManagedServerPanicContained(t *testing.T) {
 
 	srv, err := NewManagedServer(ManagedServerConfig{
 		Authority: newTestCA(t),
-		Addrs:     []string{"127.0.0.1:0"},
-		ClientSecrets: map[string]string{
+		Listeners: []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{
 			testClientName:  testClientSecret,
 			testClient2Name: testClient2Secret,
-		},
+		}}},
 		ReadConfig: func(name string) ([]byte, error) {
 			if name == testClientName {
 				panic("boom: config reader defect")

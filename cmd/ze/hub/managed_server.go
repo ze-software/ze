@@ -4,7 +4,6 @@ package hub
 
 import (
 	"context"
-	"maps"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zepki "github.com/ze-software/ze/internal/component/pki"
@@ -34,15 +33,17 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		return nil
 	}
 
-	var addrs []string
+	var listeners []pluginserver.ManagedListener
 	var certificate string
-	secrets := map[string]string{}
+	clients := 0
 	for _, blk := range hubConfig.Servers {
 		if len(blk.Clients) == 0 {
 			continue // Not a managed-client-serving block.
 		}
-		addrs = append(addrs, blk.Address())
-		maps.Copy(secrets, blk.Clients)
+		// Each block keeps its own clients: a client is admitted on the
+		// address of the block that declares it and on no other.
+		listeners = append(listeners, pluginserver.ManagedListener{Addr: blk.Address(), Clients: blk.Clients})
+		clients += len(blk.Clients)
 		// One certificate across every serving block. The extraction refuses two
 		// blocks that name different ones (internal/component/config/loader_extract.go),
 		// so the last non-empty name is the only name.
@@ -50,7 +51,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 			certificate = blk.Certificate
 		}
 	}
-	if len(addrs) == 0 {
+	if len(listeners) == 0 {
 		return nil // No managed clients configured on any server block.
 	}
 
@@ -64,8 +65,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 	}
 
 	srv, err := pluginserver.NewManagedServer(pluginserver.ManagedServerConfig{
-		Addrs:         addrs,
-		ClientSecrets: secrets,
+		Listeners: listeners,
 		ReadConfig: func(name string) ([]byte, error) {
 			return store.ReadFile(pluginserver.ClientConfigKey(name))
 		},
@@ -101,6 +101,6 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 		}
 	})
 
-	managedServerLog().Info("managed config server started", "addrs", addrs, "clients", len(secrets))
+	managedServerLog().Info("managed config server started", "listeners", len(listeners), "clients", clients)
 	return srv
 }

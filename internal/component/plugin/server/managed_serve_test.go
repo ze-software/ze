@@ -12,10 +12,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/pkg/fleet"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -46,11 +49,10 @@ func startTestManagedServer(t *testing.T) (*ManagedServer, string) {
 	}
 	srv, err := NewManagedServer(ManagedServerConfig{
 		Authority: newTestCA(t),
-		Addrs:     []string{"127.0.0.1:0"},
-		ClientSecrets: map[string]string{
+		Listeners: []ManagedListener{{Addr: "127.0.0.1:0", Clients: map[string]string{
 			testClientName:  testClientSecret,
 			testClient2Name: testClient2Secret,
-		},
+		}}},
 		ReadConfig: readConfig,
 	})
 	if err != nil {
@@ -312,10 +314,12 @@ func TestManagedServeResilientBinding(t *testing.T) {
 
 	readConfig := func(name string) ([]byte, error) { return []byte(testClientConfig), nil }
 	srv2, err := NewManagedServer(ManagedServerConfig{
-		Authority:     newTestCA(t),
-		Addrs:         []string{occupied, "127.0.0.1:0"}, // one colliding, one free
-		ClientSecrets: map[string]string{testClientName: testClientSecret},
-		ReadConfig:    readConfig,
+		Authority: newTestCA(t),
+		Listeners: []ManagedListener{ // one colliding, one free
+			{Addr: occupied, Clients: map[string]string{testClientName: testClientSecret}},
+			{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}},
+		},
+		ReadConfig: readConfig,
 	})
 	if err != nil {
 		t.Fatalf("NewManagedServer: %v", err)
@@ -341,10 +345,10 @@ func TestManagedServeAllAddressesUnavailable(t *testing.T) {
 	_ = srv1
 
 	srv2, err := NewManagedServer(ManagedServerConfig{
-		Authority:     newTestCA(t),
-		Addrs:         []string{occupied}, // only address is already in use
-		ClientSecrets: map[string]string{testClientName: testClientSecret},
-		ReadConfig:    func(name string) ([]byte, error) { return []byte(testClientConfig), nil },
+		Authority: newTestCA(t),
+		// The only address is already in use.
+		Listeners:  []ManagedListener{{Addr: occupied, Clients: map[string]string{testClientName: testClientSecret}}},
+		ReadConfig: func(name string) ([]byte, error) { return []byte(testClientConfig), nil },
 	})
 	if err != nil {
 		t.Fatalf("NewManagedServer: %v", err)
@@ -423,4 +427,159 @@ func waitForConnected(t *testing.T, srv *ManagedServer, name string, want bool) 
 
 func connectedHas(srv *ManagedServer, name string) bool {
 	return slices.Contains(srv.connectedClients(), name)
+}
+
+// TestManagedServeUnansweredPushDisconnects: a connected client that does not
+// answer config-changed is disconnected and reported. Before, the push timed
+// out and the client stayed connected on its previous config with nothing
+// left to tell it, until something else made it reconnect.
+//
+// Method: shorten the push timeout, announce a change, read the push and never
+// answer it, then wait for the hub to close the connection, release the name
+// and raise the event that names the client.
+func TestManagedServeUnansweredPushDisconnects(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	srv, addr := startTestManagedServer(t)
+	srv.pushTimeout = 200 * time.Millisecond // Before any push: a worker reads it only once woken.
+	mc := dialTestClient(t, addr, testClientName, testClientSecret)
+	_ = fetch(t, mc, "")
+	waitForConnected(t, srv, testClientName, true)
+
+	srv.NotifyConfigChanged(testClientName)
+	waitForPushed(t, mc) // Read, never answered.
+
+	select {
+	case <-mc.Done():
+	case <-time.After(3 * time.Second):
+		t.Fatal("the hub kept a client that never answered config-changed connected")
+	}
+	waitForConnected(t, srv, testClientName, false)
+
+	got := waitForNotifyDropped(t, testClientName)
+	if !strings.Contains(got.Message, "the hub closed its connection") {
+		t.Errorf("message %q does not say the client was disconnected", got.Message)
+	}
+
+	// The name is free again: the client reconnects and fetches.
+	again := dialTestClient(t, addr, testClientName, testClientSecret)
+	if resp := fetch(t, again, ""); resp.Config == "" {
+		t.Error("the reconnected client was served no config")
+	}
+}
+
+// TestManagedServeNotifyBurstDoesNotStarve: a burst of changes for one client
+// that does not answer costs one notify worker and one push, so another
+// client is still told at once. Before, each write was a queue entry: four of
+// them held every worker on the silent client, the rest filled the queue, and
+// a change for another client was dropped.
+//
+// Method: client A reads its push and never answers; A is then announced far
+// more often than the old queue held; B is announced once and MUST receive its
+// push. A MUST have received no second push while the first is unanswered.
+func TestManagedServeNotifyBurstDoesNotStarve(t *testing.T) {
+	report.ResetForTest()
+	t.Cleanup(report.ResetForTest)
+
+	srv, addr := startTestManagedServer(t)
+	mcA := dialTestClient(t, addr, testClientName, testClientSecret)
+	mcB := dialTestClient(t, addr, testClient2Name, testClient2Secret)
+	_ = fetch(t, mcA, "")
+	_ = fetch(t, mcB, "")
+	waitForConnected(t, srv, testClientName, true)
+	waitForConnected(t, srv, testClient2Name, true)
+
+	srv.NotifyConfigChanged(testClientName)
+	waitForPushed(t, mcA) // In flight and unanswered: one worker is now held.
+	for range 500 {
+		srv.NotifyConfigChanged(testClientName)
+	}
+
+	srv.NotifyConfigChanged(testClient2Name)
+	select {
+	case req, ok := <-mcB.Requests():
+		if !ok {
+			t.Fatal("B connection closed before its config-changed arrived")
+		}
+		if req.Method != fleet.VerbConfigChanged {
+			t.Fatalf("B method = %q, want %q", req.Method, fleet.VerbConfigChanged)
+		}
+		_ = mcB.SendOK(context.Background(), req.ID)
+	case <-time.After(3 * time.Second):
+		t.Fatal("a burst of changes for a silent client kept another client from being told")
+	}
+
+	select {
+	case req := <-mcA.Requests():
+		t.Fatalf("A was pushed %q again while its first push is unanswered", req.Method)
+	default:
+	}
+	for _, issue := range report.Errors(0) {
+		if issue.Code == diagnostic.CodeDoctorManagedClientNotifyDropped {
+			t.Errorf("a change was dropped: %+v", issue)
+		}
+	}
+}
+
+// startTwoListenerServer starts a ManagedServer with two listeners, edge-01
+// declared under the first and edge-02 under the second, and returns the
+// address of each.
+func startTwoListenerServer(t *testing.T) (first, second string) {
+	t.Helper()
+	srv, err := NewManagedServer(ManagedServerConfig{
+		Authority: newTestCA(t),
+		Listeners: []ManagedListener{
+			{Addr: "127.0.0.1:0", Clients: map[string]string{testClientName: testClientSecret}},
+			{Addr: "127.0.0.1:0", Clients: map[string]string{testClient2Name: testClient2Secret}},
+		},
+		ReadConfig: func(string) ([]byte, error) { return []byte(testClientConfig), nil },
+	})
+	if err != nil {
+		t.Fatalf("NewManagedServer: %v", err)
+	}
+	if startErr := srv.Start(context.Background()); startErr != nil {
+		t.Fatalf("Start: %v", startErr)
+	}
+	t.Cleanup(srv.Stop)
+	addrs := srv.Addrs()
+	if len(addrs) != 2 {
+		t.Fatalf("expected 2 listeners, got %d", len(addrs))
+	}
+	return addrs[0].String(), addrs[1].String()
+}
+
+// TestManagedServeClientAdmittedOnItsOwnListenerOnly: a client is admitted on
+// the listener of the server block that declares it and refused on any other,
+// with its own correct secret. Before, the clients of every block were one
+// set, so a secret configured for one listener opened them all.
+func TestManagedServeClientAdmittedOnItsOwnListenerOnly(t *testing.T) {
+	first, second := startTwoListenerServer(t)
+
+	if authAs(t, second, testClientName, testClientSecret) {
+		t.Error("edge-01 was admitted on the listener of a block that does not declare it")
+	}
+	if authAs(t, first, testClient2Name, testClient2Secret) {
+		t.Error("edge-02 was admitted on the listener of a block that does not declare it")
+	}
+	if !authAs(t, first, testClientName, testClientSecret) {
+		t.Error("edge-01 was refused on its own listener")
+	}
+	if !authAs(t, second, testClient2Name, testClient2Secret) {
+		t.Error("edge-02 was refused on its own listener")
+	}
+}
+
+// TestManagedServeAnotherClientsSecretRefused: a secret is bound to its
+// client's name, so one client's valid secret under another client's name is
+// refused. The control is the same secret under its own name, admitted.
+func TestManagedServeAnotherClientsSecretRefused(t *testing.T) {
+	_, addr := startTestManagedServer(t)
+
+	if authAs(t, addr, testClient2Name, testClientSecret) {
+		t.Error("edge-01's secret authenticated as edge-02")
+	}
+	if !authAs(t, addr, testClientName, testClientSecret) {
+		t.Error("edge-01's secret was refused under its own name")
+	}
 }

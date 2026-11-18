@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"strconv"
 	"strings"
@@ -39,11 +40,6 @@ var managedLogger = slogutil.LazyLogger("hub.managed-server")
 
 const managedAuthTimeout = 10 * time.Second
 
-// managedNotifyBuffer bounds queued config-changed pushes. Config writes are rare
-// (admin edits), so a modest buffer absorbs bursts; on overflow a notify is dropped
-// and the client picks up the change on its next fetch/reconnect.
-const managedNotifyBuffer = 64
-
 // managedMaxConns bounds concurrent connection handlers so an unauthenticated
 // connection flood cannot exhaust goroutines/memory (each handler must authenticate
 // within managedAuthTimeout or is dropped). Mirrors the plugin acceptor's cap.
@@ -59,17 +55,25 @@ const managedPushTimeout = 10 * time.Second
 // to other clients.
 const managedNotifyWorkers = 4
 
+// ManagedListener is one hub server block that accepts managed clients: the
+// address it listens on and the clients it admits there. A client is admitted
+// only on the address of the block that declares it, so a secret configured
+// for one listener opens no other.
+type ManagedListener struct {
+	Addr    string            // Listen address of the server block.
+	Clients map[string]string // Client name -> secret, admitted on Addr only.
+}
+
 // ManagedServerConfig configures the dedicated managed-config TLS server.
 type ManagedServerConfig struct {
-	Addrs         []string          // Listen addresses (server blocks that declare client entries).
-	ClientSecrets map[string]string // Per-client name -> secret (authoritative for managed clients).
-	ReadConfig    ConfigReader      // Reads a client's config by name (over the hub blob store).
-	Metrics       metrics.Registry  // Optional; nil installs no-op counters.
+	Listeners  []ManagedListener // One per server block that declares client entries.
+	ReadConfig ConfigReader      // Reads a client's config by name (over the hub blob store).
+	Metrics    metrics.Registry  // Optional; nil installs no-op counters.
 
 	// Certificate names the pki store certificate the listener serves
-	// (plugin/hub/server/certificate). An empty name generates an ephemeral
-	// self-signed certificate. A client can verify that one only by pinning its
-	// fingerprint, and the fingerprint changes on every hub restart.
+	// (plugin/hub/server/certificate). An empty name serves a leaf that
+	// Authority issues, which a client validates against the daemon root it
+	// holds in a pki ca block.
 	Certificate string
 
 	// TLSMaterialResolver resolves a certificate NAME into serving PEM material
@@ -117,9 +121,13 @@ const managedLoopbackHost = "127.0.0.1"
 // config-fetch/config-ack/ping over MuxConn, and pushes config-changed to connected
 // clients. It owns its listeners and one goroutine per connection.
 type ManagedServer struct {
-	svc    *ManagedConfigService
-	lookup func(name string) (string, bool)
-	addrs  []string
+	svc *ManagedConfigService
+	// listens is ManagedServerConfig.Listeners, each with its own copy of the
+	// client map. Fixed at construction and never written after, so it is read
+	// without a lock.
+	listens []ManagedListener
+	// served names every client some listener admits. Fixed at construction.
+	served map[string]struct{}
 
 	// getCertificate answers the served certificate for each handshake. It is
 	// tls.Config.GetCertificate, so an issued leaf is reissued as it ages
@@ -136,9 +144,21 @@ type ManagedServer struct {
 
 	mu    sync.Mutex
 	conns map[string]*rpc.MuxConn // Connected client name -> mux, for config-changed push.
+	// pending names the connected clients whose config changed and who have
+	// not been told yet. It holds connected names only, so managedMaxConns
+	// bounds it and a change is never dropped for want of room. Guarded by mu.
+	pending map[string]struct{}
+	// pushing names the clients a notifyWorker is pushing to right now. A
+	// client in it is left in pending for later, so a client that does not
+	// answer holds one worker and never the whole pool. Guarded by mu.
+	pushing map[string]struct{}
 
-	notifyCh chan string   // Client names whose config changed; drained by notifyWorker.
-	sem      chan struct{} // Bounds concurrent connection handlers (managedMaxConns).
+	// notifyWake tells a notifyWorker that pending is not empty. One token is
+	// enough: a worker that takes a name and leaves others puts the token back.
+	notifyWake chan struct{}
+	// pushTimeout is managedPushTimeout. A test shortens it.
+	pushTimeout time.Duration
+	sem         chan struct{} // Bounds concurrent connection handlers (managedMaxConns).
 
 	// Metrics handles (no-op unless a registry was supplied). Set once at construction,
 	// so they are read without a lock.
@@ -146,10 +166,16 @@ type ManagedServer struct {
 	mFetch     metrics.CounterVec // ze_managed_config_fetch_total{result}
 	mPushed    metrics.Counter    // ze_managed_config_changed_pushed_total
 
-	listeners []net.Listener
+	listeners []managedBound
 	ctx       context.Context
 	cancel    context.CancelFunc
 	wg        sync.WaitGroup
+}
+
+// managedBound is one bound listener and the clients its server block admits.
+type managedBound struct {
+	listener net.Listener
+	clients  map[string]string
 }
 
 // NewManagedServer builds a managed server. ReadConfig is required.
@@ -168,7 +194,16 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	secrets := cfg.ClientSecrets
+	listens := make([]ManagedListener, 0, len(cfg.Listeners))
+	served := make(map[string]struct{})
+	for _, listen := range cfg.Listeners {
+		// A copy, so a caller that later changes its map cannot change who
+		// this server admits.
+		listens = append(listens, ManagedListener{Addr: listen.Addr, Clients: maps.Clone(listen.Clients)})
+		for name := range listen.Clients {
+			served[name] = struct{}{}
+		}
+	}
 	reg := cfg.Metrics
 	if reg == nil {
 		reg = metrics.NopRegistry{}
@@ -176,17 +211,17 @@ func NewManagedServer(cfg ManagedServerConfig) (*ManagedServer, error) {
 		managedPanics().guard.SetMetricsRegistry(reg)
 	}
 	return &ManagedServer{
-		svc: newManagedConfigService(cfg.ReadConfig),
-		lookup: func(name string) (string, bool) {
-			s, ok := secrets[name]
-			return s, ok
-		},
-		addrs:          cfg.Addrs,
+		svc:            newManagedConfigService(cfg.ReadConfig),
+		listens:        listens,
+		served:         served,
 		getCertificate: getCertificate,
 		certName:       cfg.Certificate,
 		acceptor:       cfg.Acceptor,
 		conns:          make(map[string]*rpc.MuxConn),
-		notifyCh:       make(chan string, managedNotifyBuffer),
+		pending:        make(map[string]struct{}),
+		pushing:        make(map[string]struct{}),
+		notifyWake:     make(chan struct{}, 1),
+		pushTimeout:    managedPushTimeout,
 		sem:            make(chan struct{}, managedMaxConns),
 		mConnected: reg.Gauge("ze_managed_clients_connected",
 			"Number of managed fleet clients currently connected to the hub."),
@@ -237,7 +272,11 @@ func managedCertificate(cfg ManagedServerConfig) (func(*tls.ClientHelloInfo) (*t
 	if cfg.Authority == nil {
 		return nil, errors.New("managed server: no certificate name and no certificate authority")
 	}
-	leaf, err := plugin.NewServingLeaf(cfg.Authority, managedLeafCommonName, managedLeafHosts(cfg.Addrs), cfg.Clock)
+	addrs := make([]string, 0, len(cfg.Listeners))
+	for _, listen := range cfg.Listeners {
+		addrs = append(addrs, listen.Addr)
+	}
+	leaf, err := plugin.NewServingLeaf(cfg.Authority, managedLeafCommonName, managedLeafHosts(addrs), cfg.Clock)
 	if err != nil {
 		return nil, fmt.Errorf("managed server: %w", err)
 	}
@@ -268,8 +307,8 @@ func managedLeafHosts(addrs []string) []string {
 // and for tests to discover the ephemeral port).
 func (s *ManagedServer) Addrs() []net.Addr {
 	out := make([]net.Addr, 0, len(s.listeners))
-	for _, ln := range s.listeners {
-		out = append(out, ln.Addr())
+	for _, bound := range s.listeners {
+		out = append(out, bound.listener.Addr())
 	}
 	return out
 }
@@ -277,7 +316,7 @@ func (s *ManagedServer) Addrs() []net.Addr {
 // Start binds the listeners and begins serving in background goroutines. It returns
 // once binding succeeds; serving continues until Stop or ctx cancellation.
 func (s *ManagedServer) Start(ctx context.Context) error {
-	if len(s.addrs) == 0 {
+	if len(s.listens) == 0 {
 		return errors.New("managed server: no listen addresses")
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
@@ -287,20 +326,22 @@ func (s *ManagedServer) Start(ctx context.Context) error {
 	// Bind each address independently so one unavailable address (e.g. a server block
 	// whose port collides with the plugin acceptor's listener) disables only that block,
 	// not the whole managed server.
-	for _, addr := range s.addrs {
-		lns, err := pluginipc.StartListeners([]string{addr}, s.getCertificate)
+	for _, listen := range s.listens {
+		lns, err := pluginipc.StartListeners([]string{listen.Addr}, s.getCertificate)
 		if err != nil {
-			s.bindFailed(addr, err)
+			s.bindFailed(listen.Addr, err)
 			continue
 		}
-		s.listeners = append(s.listeners, lns...)
+		for _, ln := range lns {
+			s.listeners = append(s.listeners, managedBound{listener: ln, clients: listen.Clients})
+		}
 	}
 	if len(s.listeners) == 0 {
 		s.cancel() // Release the context: no listeners bound, nothing to serve.
 		return errors.New("managed server: no listeners could bind")
 	}
-	for _, ln := range s.listeners {
-		s.wg.Go(func() { s.acceptLoop(ln) })
+	for _, bound := range s.listeners {
+		s.wg.Go(func() { s.acceptLoop(bound) })
 	}
 	for range managedNotifyWorkers {
 		s.wg.Go(s.notifyWorker) // long-lived pool: drains config-changed pushes
@@ -347,9 +388,9 @@ func (s *ManagedServer) collidesWithAcceptor(addr string) bool {
 	return plugin.HubAddressesCollide(s.acceptor, plugin.HubServerConfig{Host: host, Port: uint16(port)})
 }
 
-func (s *ManagedServer) acceptLoop(ln net.Listener) {
+func (s *ManagedServer) acceptLoop(bound managedBound) {
 	for {
-		conn, err := ln.Accept()
+		conn, err := bound.listener.Accept()
 		if err != nil {
 			if s.ctx.Err() != nil {
 				return // Server stopped.
@@ -367,17 +408,18 @@ func (s *ManagedServer) acceptLoop(ln net.Listener) {
 		}
 		s.wg.Go(func() {
 			defer func() { <-s.sem }()
-			s.handleConn(conn)
+			s.handleConn(conn, bound.clients)
 		})
 	}
 }
 
-// handleConn authenticates one managed client and serves its RPCs until it
+// handleConn authenticates one managed client against clients, the entries of
+// the server block whose listener accepted it, and serves its RPCs until it
 // disconnects. A panic while it does so is contained here: the deferred
 // cleanup below has already closed the connection and released the client's
 // name when the boundary runs, and the server keeps serving every other
 // client.
-func (s *ManagedServer) handleConn(conn net.Conn) {
+func (s *ManagedServer) handleConn(conn net.Conn, clients map[string]string) {
 	defer managedPanics().client.Contain(
 		func() taskguard.Context {
 			return taskguard.Context{Unit: "managed client connection from " + conn.RemoteAddr().String()}
@@ -392,12 +434,17 @@ func (s *ManagedServer) handleConn(conn net.Conn) {
 
 	// Per-client secret only: no shared-secret fallback (empty sharedSecret), so an
 	// unknown name cannot connect: AuthenticateWithLookup refuses an empty
-	// expected token. The name is taken ONLY from the authenticated session,
-	// never from a later request payload (config isolation: a client can only
-	// fetch its own config).
-	name, err := pluginipc.AuthenticateWithLookup(authCtx, conn, "", s.lookup)
+	// expected token. The secret is looked up among THIS listener's clients, so
+	// a client another server block declares is unknown here. The name is taken
+	// ONLY from the authenticated session, never from a later request payload
+	// (config isolation: a client can only fetch its own config).
+	lookup := func(name string) (string, bool) {
+		secret, ok := clients[name]
+		return secret, ok
+	}
+	name, err := pluginipc.AuthenticateWithLookup(authCtx, conn, "", lookup)
 	if err != nil {
-		s.authRefused(conn.RemoteAddr().String(), err)
+		s.authRefused(conn.RemoteAddr().String(), err, lookup)
 		return // AuthenticateWithLookup already closed conn on failure.
 	}
 
@@ -423,6 +470,9 @@ func (s *ManagedServer) handleConn(conn net.Conn) {
 	defer func() {
 		s.mu.Lock()
 		delete(s.conns, name)
+		// A change it was never told about needs no push: it fetches the
+		// config when it connects again.
+		delete(s.pending, name)
 		s.mu.Unlock()
 	}()
 
@@ -499,34 +549,103 @@ func (s *ManagedServer) handleRequest(name string, mc *rpc.MuxConn, req *rpc.Req
 	}
 }
 
-// NotifyConfigChanged enqueues a config-changed push for the named client. It is
-// non-blocking and safe to call from the storage write path: the round-trip runs on
-// notifyWorker. On a full queue the notify is dropped (the client picks up the change
-// on its next fetch/reconnect).
+// NotifyConfigChanged marks the named client as owed a config-changed push. It
+// is non-blocking and safe to call from the storage write path: the round-trip
+// runs on a notifyWorker. The mark is kept until a worker takes it, so a burst
+// of writes never loses one, and several writes for one client before a worker
+// reaches it become one push. A client that is not connected is not marked: it
+// fetches the latest config when it connects.
 func (s *ManagedServer) NotifyConfigChanged(name string) {
-	select {
-	case s.notifyCh <- name:
-	default:
-		notifyDropped(name, "the notify queue is full")
+	s.mu.Lock()
+	_, connected := s.conns[name]
+	if connected {
+		s.pending[name] = struct{}{}
+	}
+	s.mu.Unlock()
+	if connected {
+		s.wakeNotifyWorker()
 	}
 }
 
-// notifyWorker drains queued config-changed pushes and delivers them one at a time.
-// A single long-lived goroutine started by Start.
+// wakeNotifyWorker leaves the one wake token for a notifyWorker. A token
+// already there means a worker is about to look at pending, which is enough.
+func (s *ManagedServer) wakeNotifyWorker() {
+	select {
+	case s.notifyWake <- struct{}{}:
+	default: // A wake is already waiting to be read.
+	}
+}
+
+// takePending removes and returns one client owed a push that no worker is
+// pushing to, and marks it as being pushed to. The caller MUST call pushDone
+// with that name after the push. When others remain it puts the wake token
+// back, so another worker starts on them while this one is busy with the
+// client it took.
+func (s *ManagedServer) takePending() (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for name := range s.pending {
+		if _, busy := s.pushing[name]; busy {
+			continue // pushDone wakes a worker for it once that push ends.
+		}
+		delete(s.pending, name)
+		s.pushing[name] = struct{}{}
+		if len(s.pending) > 0 {
+			s.wakeNotifyWorker()
+		}
+		return name, true
+	}
+	return "", false
+}
+
+// pushDone ends the push takePending started for name. It MUST be called
+// after takePending returned that name. A change written while the push was
+// in flight left the client in pending, so a worker is woken for what remains.
+func (s *ManagedServer) pushDone(name string) {
+	s.mu.Lock()
+	delete(s.pushing, name)
+	remaining := len(s.pending)
+	s.mu.Unlock()
+	if remaining > 0 {
+		s.wakeNotifyWorker()
+	}
+}
+
+// notifyWorker delivers the pushes owed to connected clients, one at a time.
+// A long-lived goroutine started by Start; Stop ends it through the context.
 func (s *ManagedServer) notifyWorker() {
 	for {
 		select {
-		case name := <-s.notifyCh:
-			s.pushConfigChanged(name)
+		case <-s.notifyWake:
+			s.pushPending()
 		case <-s.ctx.Done():
 			return
 		}
 	}
 }
 
+// pushPending pushes to every client owed a push that no other worker is
+// busy with, until none is left. The loop ends because each turn removes one
+// name from pending, which holds connected clients only.
+func (s *ManagedServer) pushPending() {
+	for {
+		name, owed := s.takePending()
+		if !owed {
+			return
+		}
+		s.pushConfigChanged(name)
+		s.pushDone(name)
+	}
+}
+
 // pushConfigChanged sends a config-changed notification to the named client if it is
 // currently connected. A no-op for a client that is not connected (it will fetch the
 // latest config on its next connect).
+//
+// A connected client that does not accept the notification is disconnected. It
+// would otherwise stay connected on its previous config with nothing left to
+// tell it: closing the connection makes it reconnect, and a client fetches its
+// config each time it connects.
 func (s *ManagedServer) pushConfigChanged(name string) {
 	s.mu.Lock()
 	mc, ok := s.conns[name]
@@ -544,23 +663,33 @@ func (s *ManagedServer) pushConfigChanged(name string) {
 	// Bound the round-trip: a client that accepts the notification but never replies
 	// must not stall this worker indefinitely (mux.CallRPC returns ctx.Err() on
 	// deadline). The worker pool means one stalled client does not delay others.
-	pushCtx, cancel := context.WithTimeout(s.ctx, managedPushTimeout)
+	pushCtx, cancel := context.WithTimeout(s.ctx, s.pushTimeout)
 	defer cancel()
-	if _, err := mc.CallRPC(pushCtx, fleet.VerbConfigChanged, changed); err != nil {
-		var cause textbuf.Buffer
-		cause.Str("the push failed: ").Err(err)
-		notifyDropped(name, cause.String())
+	_, err = mc.CallRPC(pushCtx, fleet.VerbConfigChanged, changed)
+	if err == nil {
+		s.mPushed.Inc()
 		return
 	}
-	s.mPushed.Inc()
+	if s.ctx.Err() != nil {
+		return // The server is stopping, which is not a fault of this client.
+	}
+	var cause textbuf.Buffer
+	cause.Str("the push failed: ").Err(err)
+	closeErr := mc.Close()
+	if closeErr == nil {
+		cause.Str("; the hub closed its connection, so it fetches the config when it reconnects")
+	} else {
+		cause.Str("; the hub could not close its connection: ").Err(closeErr)
+	}
+	notifyDropped(name, cause.String())
 }
 
 // closeOnDone closes all listeners when the server context is canceled, unblocking
 // the accept loops. A single long-lived goroutine started by Start.
 func (s *ManagedServer) closeOnDone() {
 	<-s.ctx.Done()
-	for _, ln := range s.listeners {
-		ln.Close() //nolint:errcheck,gosec // shutdown cleanup
+	for _, bound := range s.listeners {
+		bound.listener.Close() //nolint:errcheck,gosec // shutdown cleanup
 	}
 }
 
@@ -601,7 +730,7 @@ const (
 // a client entry in one of the hub's serving blocks. The client set is fixed at
 // construction, so Serves is safe for concurrent use.
 func (s *ManagedServer) Serves(name string) bool {
-	_, ok := s.lookup(name)
+	_, ok := s.served[name]
 	return ok
 }
 

@@ -358,8 +358,9 @@ var pluginInfraCodes = []CodeMeta{
 	{
 		Code:  CodeDoctorManagedClientNotifyDropped,
 		Title: "Managed client not told of a config change",
-		Description: "The daemon could not tell a managed client that its configuration changed, because the notice queue was full or the notice could not be built, " +
-			"so the client keeps the configuration it had. The event names the client and the cause.",
+		Description: "The daemon could not tell a connected managed client that its configuration changed, because the notice could not be built or the client did not accept it, " +
+			"so the client keeps the configuration it had until it fetches again. A client that did not accept the notice is disconnected, and it fetches when it reconnects. " +
+			"The event names the client and the cause.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-managed-client-notify-dropped"},
 	},
 	{
