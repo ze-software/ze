@@ -772,6 +772,15 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 		// handleState's reason: no replay on an attached up.
 		return
 	}
+	// RFC 4271 Section 9.1.3: "A route SHALL NOT be installed in the Adj-Rib-Out
+	// unless the destination, and NEXT_HOP described by this route, may be
+	// forwarded appropriately by the Routing Table."
+	if se.OrdinaryReplayOwned {
+		// The ordinary owner replays current selection, including FlowSpec.
+		// Received input retained here can be ineligible for local forwarding.
+		r.signalSessionReady(se.PeerAddress, initialReplay)
+		return
+	}
 	if !r.replayDrivenElsewhere(se.UnheldRoles) {
 		// No other plugin drives peer-up replay for THIS peer, so nothing else
 		// tracks a cut and nothing else forwards these routes: replay all of them.
@@ -1038,6 +1047,13 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		// A reload attached this plugin to a session already up: the peer's
 		// initial routing update went out without it, so there is nothing of
 		// this plugin's to replay toward the peer.
+		return
+	}
+	// RFC 4271 Section 9.1.3: apply the quoted forwarding constraint above on
+	// JSON delivery too; retained input must not bypass ordinary selection.
+	if event.OrdinaryReplayOwned {
+		// Match typed delivery without changing explicit replay commands.
+		r.signalSessionReady(event.GetPeerAddress(), initialReplay)
 		return
 	}
 	if !r.replayDrivenElsewhere(event.UnheldRoles) {

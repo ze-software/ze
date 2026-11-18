@@ -233,6 +233,16 @@ A late old-Session event cannot create a replacement destination.
 <!-- source: internal/component/bgp/plugins/rib/rib_selected_policy.go -- reofferLearned, consumeExportPolicy -->
 <!-- source: internal/component/bgp/server/export_policy_event.go -- OnPeerExportPolicy -->
 
+The engine also sends `ordinary-replay-owned` to state observers of that
+captured UP. Adj-RIB-In records the peer state and reports readiness, but skips
+both received-route and FlowSpec automatic replay while ordinary selection owns
+the connection. This prevents retained but unresolved input from bypassing the
+current selection on reconnect. With no ordinary owner, existing RS/RR claims
+and per-peer unheld-role fallback still decide auxiliary replay. Explicit replay
+commands are unchanged.
+<!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleStructuredState, handleState -->
+
 Ordinary Route Refresh still requires the receiving Session's captured facts
 on its public event and current-selection replay before its end marker. The
 legacy refresh handlers presently read SENT history; they do not establish

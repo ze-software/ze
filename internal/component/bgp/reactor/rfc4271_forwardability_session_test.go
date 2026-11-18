@@ -157,6 +157,186 @@ func TestRFC4271OrdinaryOutputRequiresForwardableRoute(t *testing.T) {
 	observer.checkHistory(t, view)
 }
 
+// TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute replaces an
+// ordinary recipient while a previously advertised subject remains received
+// but unresolved. Its new Session must replay useful K without resurrecting P.
+// RFC 4271 Section 9.1.3 invokes Phase 3 when "a new BGP speaker connection has
+// been established" and states: "A route SHALL NOT be installed in the Adj-Rib-Out
+// unless the destination, and NEXT_HOP described by this route, may be forwarded
+// appropriately by the Routing Table."
+// RFC requirement: RFC4271-9.2-2 negative -- Under default Routing-Table policy, after useful original P/K output, P's reachability-loss withdrawal and a distinct replacement ordinary recipient Session, retained unresolved P produces zero replacement announcements while K remains useful; every captured subject/control announcement is checked at a stable successful-write revision.
+func TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute(t *testing.T) {
+	if ribpolicy.Current() != nil {
+		t.Fatal("replacement witness requires the default Routing-Table import policy")
+	}
+	settings := []*PeerSettings{
+		acceptingLiveSettings(t, "192.0.2.234", 65000, 65001),
+		acceptingLiveSettings(t, "192.0.2.235", 65000, 65002),
+		acceptingLiveSettings(t, "192.0.2.236", 65000, 65000),
+	}
+	for _, setting := range settings {
+		setting.NextHopMode = NextHopAuto
+	}
+	peers := lowLiveStart(t, lowLiveOptions{withoutRS: true}, settings...)
+	loc := locrib.Default()
+	if loc == nil {
+		t.Fatal("running replacement witness has no daemon Routing Table")
+	}
+	subject := netip.MustParsePrefix("198.19.251.0/24")
+	control := netip.MustParsePrefix("198.19.252.0/24")
+	forwardabilityNoCover(t, loc, subject)
+	forwardabilityNoCover(t, loc, control)
+	nextHop := settings[0].Address
+	controlHop := settings[1].Address
+	host := netip.PrefixFrom(nextHop, 32)
+	controlHost := netip.PrefixFrom(controlHop, 32)
+	protocol := redistevents.RegisterProtocol("forwardability-replacement-test")
+	loc.Insert(family.IPv4Unicast, host, locrib.Path{Source: protocol, Metric: 7})
+	loc.Insert(family.IPv4Unicast, controlHost, locrib.Path{Source: protocol, Metric: 7})
+	t.Cleanup(func() {
+		loc.Remove(family.IPv4Unicast, host, protocol, 0)
+		loc.Remove(family.IPv4Unicast, controlHost, protocol, 0)
+	})
+	if !igpcost.Resolve(loc, nextHop).Resolved {
+		t.Fatal("initial subject NEXT_HOP does not resolve")
+	}
+	if !igpcost.Resolve(loc, controlHop).Resolved {
+		t.Fatal("initial control NEXT_HOP does not resolve independently")
+	}
+	a := lowLiveConnect(t, peers[0], 0x0a00fb01)
+	d := lowLiveConnect(t, peers[1], 0x0a00fb02)
+	cold, oldObserver := forwardabilityConnect(t, peers[2], loc, [2]netip.Prefix{subject, control})
+	oldSession := peers[2].currentSession()
+	if oldSession == nil {
+		t.Fatal("initial recipient has no live Session")
+	}
+	oldToken, oldOwner := peers[2].selectedStateDestination()
+	if oldToken == 0 {
+		t.Fatal("initial recipient has no authenticated destination Session token")
+	}
+	if oldOwner == "" {
+		t.Fatal("initial recipient has no ordinary selected owner")
+	}
+	// Separate useful sends avoid deliberately overlapping independent Routing-Table
+	// changes with the observer's before/after transport revision interval.
+	ownershipLiveSend(t, d, nil, synthesizedNextHopAttrs(controlHop, 65002), control)
+	ordinarySelectedStored(t, d, control)
+	forwardabilityWaitRoute(t, cold, control, controlHop)
+	forwardabilitySettle(t, d, cold)
+	view := ownershipLiveRead(t, cold)
+	forwardabilityAssertRoute(t, view, control, controlHop, 65002)
+	oldObserver.checkHistory(t, view)
+	ownershipLiveSend(t, a, nil, synthesizedNextHopAttrs(nextHop, 65001), subject)
+	ordinarySelectedStored(t, a, subject)
+	forwardabilityWaitRoute(t, cold, subject, nextHop)
+	forwardabilitySettle(t, a, cold)
+	view = ownershipLiveRead(t, cold)
+	forwardabilityAssertRoute(t, view, subject, nextHop, 65001)
+	forwardabilityAssertRoute(t, view, control, controlHop, 65002)
+	oldObserver.checkHistory(t, view)
+	beforeLoss := len(view.announcements[subject])
+	sourceUpdates := a.peer.Stats().UpdatesReceived
+	controlUpdates := d.peer.Stats().UpdatesReceived
+
+	if _, removed := loc.Remove(family.IPv4Unicast, host, protocol, 0); !removed {
+		t.Fatal("replacement subject interior route was not removed")
+	}
+	lowEventually(t, func() bool {
+		_, found := loc.Best(family.IPv4Unicast, subject)
+		return !found
+	}, "replacement subject removed from Routing Table before recipient departure")
+	forwardabilitySettle(t, a, cold)
+	view = ownershipLiveRead(t, cold)
+	ownershipLiveAbsent(t, view, subject)
+	if got := view.withdrawals[subject]; got < 1 {
+		t.Errorf("old recipient subject withdrawals=%d, want service withdrawal", got)
+	}
+	if got := len(view.announcements[subject]); got != beforeLoss {
+		t.Errorf("old recipient subject announcements changed during loss from %d to %d", beforeLoss, got)
+	}
+	forwardabilityNoCover(t, loc, subject)
+	forwardabilityAssertAnnouncements(t, view, subject, nextHop, 65001)
+	forwardabilityAssertRoute(t, view, control, controlHop, 65002)
+	ownershipLiveWithdrawals(t, view, control, 0)
+	oldObserver.checkHistory(t, view)
+	ordinarySelectedStored(t, a, subject)
+
+	// Close and join the old capture before admitting another transport. The
+	// peer's real run loop joins DOWN/recovery/initial sync before its fresh Active
+	// Session; neither the test nor the replacement manufactures that epoch.
+	lowLiveDepart(t, cold)
+	joined, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	select {
+	case <-cold.stopped:
+	case <-joined.Done():
+		t.Fatal("old recipient capture did not stop after transport departure")
+	}
+	lowEventually(t, func() bool {
+		current := peers[2].currentSession()
+		if current == nil {
+			return false
+		}
+		if current == oldSession {
+			return false
+		}
+		return peers[2].SessionState() == fsm.StateActive
+	}, "replacement recipient has a fresh Active Session")
+	oldObserver.check(t)
+	cnew, newObserver := forwardabilityConnect(t, peers[2], loc, [2]netip.Prefix{subject, control})
+	if peers[2].currentSession() == oldSession {
+		t.Fatal("replacement reused the old recipient Session")
+	}
+	newToken, newOwner := peers[2].selectedStateDestination()
+	if newToken == 0 {
+		t.Fatal("replacement has no authenticated destination Session token")
+	}
+	if newToken == oldToken {
+		t.Fatal("replacement reused the old authenticated destination Session token")
+	}
+	if newOwner != oldOwner {
+		t.Fatalf("replacement ordinary selected owner=%q, want %q", newOwner, oldOwner)
+	}
+	forwardabilityWaitRoute(t, cnew, control, controlHop)
+	forwardabilitySettle(t, a, cnew)
+	view = ownershipLiveRead(t, cnew)
+	forwardabilityAssertRoute(t, view, control, controlHop, 65002)
+	ownershipLiveWithdrawals(t, view, control, 0)
+	ownershipLiveAbsent(t, view, subject)
+	if got := len(view.announcements[subject]); got != 0 {
+		t.Errorf("replacement replay advertised unresolved retained subject %d times", got)
+	}
+	forwardabilityNoCover(t, loc, subject)
+	if igpcost.Resolve(loc, nextHop).Resolved {
+		t.Error("subject NEXT_HOP unexpectedly resolves during replacement replay")
+	}
+	ordinarySelectedStored(t, a, subject)
+	newObserver.checkHistory(t, view)
+	if got := a.peer.Stats().UpdatesReceived; got != sourceUpdates {
+		t.Errorf("replacement replay received %d subject UPDATEs, started at %d", got, sourceUpdates)
+	}
+	beforeRecovery := len(view.announcements[subject])
+
+	loc.Insert(family.IPv4Unicast, host, locrib.Path{Source: protocol, Metric: 7})
+	lowEventually(t, func() bool {
+		return len(ownershipLiveRead(t, cnew).announcements[subject]) > beforeRecovery
+	}, "retained subject recovered to replacement without another source UPDATE")
+	forwardabilitySettle(t, a, cnew)
+	view = ownershipLiveRead(t, cnew)
+	forwardabilityAssertRoute(t, view, subject, nextHop, 65001)
+	forwardabilityAssertRoute(t, view, control, controlHop, 65002)
+	ownershipLiveWithdrawals(t, view, control, 0)
+	newObserver.checkHistory(t, view)
+	ordinarySelectedStored(t, a, subject)
+	if got := a.peer.Stats().UpdatesReceived; got != sourceUpdates {
+		t.Errorf("replacement recovery received %d subject UPDATEs, started at %d", got, sourceUpdates)
+	}
+	if got := d.peer.Stats().UpdatesReceived; got != controlUpdates {
+		t.Errorf("replacement lifecycle received %d control UPDATEs, started at %d", got, controlUpdates)
+	}
+	ownershipLiveEstablished(t, []*lowLivePeer{a, d, cnew})
+}
+
 func forwardabilityNoCover(t *testing.T, loc *locrib.RIB, prefix netip.Prefix) {
 	t.Helper()
 	host := prefix.Addr().Next()

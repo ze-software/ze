@@ -169,6 +169,16 @@ events carry the same destination-session and selected-destination fields.
 <!-- source: internal/component/bgp/server/events.go -- deliverPeerState, getStructuredStateEvent -->
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent, PutStructuredEvent -->
 
+On UP, `ordinary-replay-owned: true` tells every state recipient that the
+captured connection has an ordinary selected-output owner. Auxiliary stores
+then skip automatic peer-up replay and still report readiness for that connection.
+This advisory grants no output eligibility or RPC permission. DOWN, a missing
+connection token, and destinations served by explicit roles carry false.
+Typed, JSON and text events carry the same advisory. Explicit replay commands
+keep their existing behavior.
+<!-- source: internal/component/bgp/server/selected_state.go -- selectedStatePeer -->
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleStructuredState, handleState -->
+
 Ze uses a synchronized 5-stage startup protocol with barriers between stages.
 Within each dependency tier, all plugins must complete each stage before any
 can proceed to the next. Tiers are sequenced by dependency order (see

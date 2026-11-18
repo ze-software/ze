@@ -20,5 +20,16 @@
     "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved",
     "producer-sha": "b84de229617e04b3",
     "break": "line 49: \"return igpcost.ResolveProspective(r.locRIB.Load(), nextHop, fam, prefix, path).Resolved\" -\u003e \"return true /* MUTATION-APPLIED: bypass local CIDR next-hop admission */\""
+  },
+  {
+    "rid": "RFC4271-9.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_forwardability_session_test.go::TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute",
+    "unit-sha": "19a989d3113c3f1c",
+    "claim-sha": "f30af29fe3ecdb73",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::handleStructuredState",
+    "producer-sha": "73179d9aed37668b",
+    "break": "line 778: \"if se.OrdinaryReplayOwned {\" -\u003e \"if false \u0026\u0026 se.OrdinaryReplayOwned { // MUTATION-APPLIED: permit auxiliary replay for ordinary destination\""
   }
 ]

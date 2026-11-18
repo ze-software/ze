@@ -14,6 +14,7 @@ import (
 func selectedStatePeer(peer *plugin.PeerInfo, recipient string, state rpc.SessionState, reason string) plugin.PeerInfo {
 	projected := *peer
 	projected.SelectedDestination = false
+	projected.OrdinaryReplayOwned = false
 	if state != rpc.SessionStateUp {
 		return projected
 	}
@@ -23,6 +24,9 @@ func selectedStatePeer(peer *plugin.PeerInfo, recipient string, state rpc.Sessio
 	if peer.SelectedOwner == "" {
 		return projected
 	}
+	// This destination-common advisory does not make an observer an owner.
+	// It suppresses auxiliary automatic replay of received losers on this UP.
+	projected.OrdinaryReplayOwned = true
 	if peer.SelectedOwner != recipient {
 		return projected
 	}
