@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze verified 282, Tests awaiting verification 42, OS testing gap 94, Not built 41
-- **Overview bar**: Ze MUST verified 282, SHOULD verified 9, Tests awaiting verification 43, OS testing gap 94, Not assessed 151, Not built 41
+- **MUST bar**: Ze verified 260, Tests awaiting verification 64, OS testing gap 94, Not built 41
+- **Overview bar**: Ze MUST verified 260, SHOULD verified 9, Tests awaiting verification 65, OS testing gap 94, Not assessed 151, Not built 41
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 459 |
 | MUST rows kept (the MUST bar) | 459 |
-| Ze verified | 282 |
+| Ze verified | 260 |
 | OS verified | 0 |
-| Tests awaiting verification | 42 |
+| Tests awaiting verification | 64 |
 | OS testing gap | 94 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -60,7 +60,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|---|
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze verified 11, Tests awaiting verification 3, Not built 2 | Ze MUST verified 11, SHOULD verified 2, Tests awaiting verification 3, Not assessed 9, Not built 2 | lns: required by rfc/short/rfc1994.md |
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze verified 27, Tests awaiting verification 4 | Ze MUST verified 27, Tests awaiting verification 4, Not assessed 1 | lns: required by rfc/short/rfc2865.md |
-| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze verified 8, Tests awaiting verification 7 | Ze MUST verified 8, Tests awaiting verification 7, Not assessed 1 | lns: required by rfc/short/rfc2866.md |
+| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze verified 7, Tests awaiting verification 8 | Ze MUST verified 7, Tests awaiting verification 8, Not assessed 1 | lns: required by rfc/short/rfc2866.md |
 
 ### Level 2
 
@@ -99,13 +99,13 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 3162](../../rfc3162/) | RADIUS and IPv6 | Ze verified 3, Not built 3 | Ze MUST verified 3, Not assessed 7, Not built 3 | lns: required by rfc/short/rfc3162.md |
+| [RFC 3162](../../rfc3162/) | RADIUS and IPv6 | Ze verified 2, Tests awaiting verification 1, Not built 3 | Ze MUST verified 2, Tests awaiting verification 1, Not assessed 7, Not built 3 | lns: required by rfc/short/rfc3162.md |
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | Ze verified 26, Tests awaiting verification 4 | Ze MUST verified 26, SHOULD verified 1, Tests awaiting verification 4 | lns: required by rfc/short/rfc5176.md |
+| [RFC 5176](../../rfc5176/) (cycle with rfc3579) | Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS) | Ze verified 6, Tests awaiting verification 24 | Ze MUST verified 6, SHOULD verified 1, Tests awaiting verification 24 | lns: required by rfc/short/rfc5176.md |
 
 ## Optional (not counted)
 

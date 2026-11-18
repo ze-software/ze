@@ -10,7 +10,7 @@ Show recent events for a session \(debug aid\)\.
 - Wire method: `ze-l2tp:observer`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
-- Subcommands: none: this command takes no subcommand
+- Subcommands: `all`, `id`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none

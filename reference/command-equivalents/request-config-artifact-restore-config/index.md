@@ -7,7 +7,7 @@ Restore one selected artifact configuration\.
 - Registry path: `request config artifact restore config`
 - Usage: `request config artifact <artifact> restore config [name <name>] [client <client>]`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-restore-config`
+- Wire method: `ze-config:artifact-restore-config`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

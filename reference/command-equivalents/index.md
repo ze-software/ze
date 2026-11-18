@@ -1,6 +1,6 @@
 # Command Equivalents
 
-604 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+616 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -68,6 +68,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear bgp rib advertised` | Daemon | - | - | - | - | [details](clear-bgp-rib-advertised/) |
 | `clear bgp rib in` | Daemon | - | - | - | - | [details](clear-bgp-rib-in/) |
 | `clear bgp rib out` | Daemon | - | - | - | - | [details](clear-bgp-rib-out/) |
+| `clear bgp rib out-excluding-owner` | Daemon | - | - | - | - | [details](clear-bgp-rib-out-excluding-owner/) |
 | `clear container layer` | Daemon | - | - | - | - | [details](clear-container-layer/) |
 | `clear container layer name` | Daemon | - | - | - | - | [details](clear-container-layer-name/) |
 | `clear cymru cache address` | Daemon | - | - | - | - | [details](clear-cymru-cache-address/) |
@@ -207,6 +208,12 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request bgp rib purge-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-purge-stale/) |
 | `request bgp rib release-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-release-routes/) |
 | `request bgp rib retain-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-retain-routes/) |
+| `request bgp rib source attach-community` | Daemon | - | - | - | - | [details](request-bgp-rib-source-attach-community/) |
+| `request bgp rib source delete-with-community` | Daemon | - | - | - | - | [details](request-bgp-rib-source-delete-with-community/) |
+| `request bgp rib source mark-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-source-mark-stale/) |
+| `request bgp rib source purge-stale` | Daemon | - | - | - | - | [details](request-bgp-rib-source-purge-stale/) |
+| `request bgp rib source release-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-source-release-routes/) |
+| `request bgp rib source retain-routes` | Daemon | - | - | - | - | [details](request-bgp-rib-source-retain-routes/) |
 | `request bgp rib withdraw` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw/) |
 | `request bgp rib withdraw-protocol` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw-protocol/) |
 | `request bgp rib withdraw-router` | Daemon | - | - | - | - | [details](request-bgp-rib-withdraw-router/) |
@@ -218,6 +225,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request cache expire` | Daemon | - | - | - | - | [details](request-cache-expire/) |
 | `request cache release` | Daemon | - | - | - | - | [details](request-cache-release/) |
 | `request cache retain` | Daemon | - | - | - | - | [details](request-cache-retain/) |
+| `request class-of-service cleanup` | Daemon | - | - | - | - | [details](request-class-of-service-cleanup/) |
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
 | `request config archive` | Daemon | - | - | - | - | [details](request-config-archive/) |
 | `request config artifact activate` | Daemon | - | - | - | - | [details](request-config-artifact-activate/) |
@@ -250,6 +258,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request config artifact session set` | Daemon | - | - | - | - | [details](request-config-artifact-session-set/) |
 | `request config artifact set` | Daemon | - | - | - | - | [details](request-config-artifact-set/) |
 | `request config artifact source begin` | Daemon | - | - | - | - | [details](request-config-artifact-source-begin/) |
+| `request config artifact system snapshot` | Daemon | - | - | - | - | [details](request-config-artifact-system-snapshot/) |
 | `request config artifact text begin` | Daemon | - | - | - | - | [details](request-config-artifact-text-begin/) |
 | `request config artifact upload abort` | Daemon | - | - | - | - | [details](request-config-artifact-upload-abort/) |
 | `request config artifact upload append` | Daemon | - | - | - | - | [details](request-config-artifact-upload-append/) |
@@ -529,11 +538,14 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show l2tp health` | Read-only | - | - | - | - | [details](show-l2tp-health/) |
 | `show l2tp listeners` | Read-only | - | - | - | - | [details](show-l2tp-listeners/) |
 | `show l2tp observer` | Read-only | - | - | - | - | [details](show-l2tp-observer/) |
+| `show l2tp observer all` | Read-only | - | - | - | - | [details](show-l2tp-observer-all/) |
+| `show l2tp observer id` | Read-only | - | - | - | - | [details](show-l2tp-observer-id/) |
 | `show l2tp pool` | Read-only | - | - | - | - | [details](show-l2tp-pool/) |
 | `show l2tp reliable` | Read-only | - | - | - | - | [details](show-l2tp-reliable/) |
-| `show l2tp session history` | Read-only | - | - | - | - | [details](show-l2tp-session-history/) |
+| `show l2tp session history id` | Read-only | - | - | - | - | [details](show-l2tp-session-history-id/) |
 | `show l2tp session id` | Read-only | - | - | - | - | [details](show-l2tp-session-id/) |
 | `show l2tp session traffic` | Read-only | - | - | - | - | [details](show-l2tp-session-traffic/) |
+| `show l2tp session traffic id` | Read-only | - | - | - | - | [details](show-l2tp-session-traffic-id/) |
 | `show l2tp sessions` | Read-only | - | - | - | - | [details](show-l2tp-sessions/) |
 | `show l2tp shaper` | Read-only | - | - | - | - | [details](show-l2tp-shaper/) |
 | `show l2tp statistics` | Read-only | - | - | - | - | [details](show-l2tp-statistics/) |

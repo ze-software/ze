@@ -7,7 +7,7 @@ Restore the whole store after clean shutdown\.
 - Registry path: `request config artifact restore full`
 - Usage: `request config artifact <artifact> restore full`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-restore-full`
+- Wire method: `ze-config:artifact-restore-full`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

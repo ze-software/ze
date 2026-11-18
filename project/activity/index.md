@@ -6,22 +6,22 @@ How many lines each part of the repository held on every recorded day, and up to
 
 ## Repository size
 
-**8,561,321** lines on **2026-11-18**
+**8,682,438** lines on **2026-11-18**
 
 The figures count the files committed as of that day. Lines include comments and blank lines, and a binary file counts as a file with no lines. Each day is a UTC day by author date, measured at the last commit of that day.
 
-- Third-party Go:** 2,062,971:**
+- Third-party Go:** 2,063,133:**
 - Third-party other:** 329,117:**
-- Go tests:** 2,169,551:**
-- Go production:** 1,797,969:**
-- Functional tests:** 302,799:**
-- RFC corpus:** 966,439:**
-- Plans:** 469,817:**
-- Agent rules:** 26,848:**
-- Documentation:** 236,802:**
-- Website:** 45,670:**
-- Schemas:** 44,265:**
-- Other:** 109,073:**
+- Go tests:** 2,230,312:**
+- Go production:** 1,841,348:**
+- Functional tests:** 304,173:**
+- RFC corpus:** 966,498:**
+- Plans:** 473,833:**
+- Agent rules:** 26,911:**
+- Documentation:** 242,446:**
+- Website:** 45,728:**
+- Schemas:** 45,931:**
+- Other:** 113,008:**
 
 ### Lines per section
 
@@ -31,14 +31,14 @@ The figures count the files committed as of that day. Lines include comments and
 
 ## Commit calendar
 
-- Total commits:** 17,852:**
+- Total commits:** 17,986:**
 - Days with commits:** 334:**
 - Peak commit day:** 337:**
 - Days shown:** 353:**
 
 The lines count every file committed outside the third-party trees (vendor/, third_party/, website/assets/vendor/): the files the Repository size view counts in every section but its third-party ones. Lines include comments and blank lines. A change to a binary file, or one that turns a file between text and binary, counts no lines. A renamed file counts its lines as deleted under the old name and added under the new one. A merge commit counts as a commit, and the lines it changes itself are not counted. Each commit counts on the UTC day of its author date. Under Added Lines, the cumulative curve also draws every committed file, the third-party trees included, as a second line.
 
-Commits in this window added 12,626,307 lines and deleted 6,454,853 lines, a net change of 6,171,454 lines. Under Added Lines, a day's color counts only the lines it added. The window reaches back to the first commit, so the net change is the number of lines these files hold at the newest commit the calendar reads, apart from the lines of a file that turned between text and binary and the lines a merge commit changed itself.
+Commits in this window added 12,759,621 lines and deleted 6,468,771 lines, a net change of 6,290,850 lines. Under Added Lines, a day's color counts only the lines it added. The window reaches back to the first commit, so the net change is the number of lines these files hold at the newest commit the calendar reads, apart from the lines of a file that turned between text and binary and the lines a merge commit changed itself.
 
  2025-12-01 to 2026-11-18 LessMore
 
@@ -46,41 +46,41 @@ Commits in this window added 12,626,307 lines and deleted 6,454,853 lines, a net
 
 As committed on 2026-11-18.
 
-All Go files, third-party included, hold **6,030,491** lines.
+All Go files, third-party included, hold **6,134,793** lines.
 
 No line is counted twice. In each group, total lines include its code, blank and comment lines, which add up to it. Go production and Go tests is the sum of the two groups after it, and with third-party Go it makes the figure above.
 
 ### Go production and Go tests
 
-- Files:** 18,447:**
-- Total lines:** 3,967,520:**
-- of which code:** 2,894,059:**
-- of which blank:** 326,398:**
-- of which comments:** 747,063:**
+- Files:** 19,050:**
+- Total lines:** 4,071,660:**
+- of which code:** 2,982,753:**
+- of which blank:** 331,941:**
+- of which comments:** 756,966:**
 
 ### Go production
 
-- Files:** 8,288:**
-- Total lines:** 1,797,969:**
-- of which code:** 1,262,725:**
-- of which blank:** 141,050:**
-- of which comments:** 394,194:**
+- Files:** 8,525:**
+- Total lines:** 1,841,348:**
+- of which code:** 1,299,291:**
+- of which blank:** 143,232:**
+- of which comments:** 398,825:**
 
 ### Go tests
 
-- Files:** 10,159:**
-- Total lines:** 2,169,551:**
-- of which code:** 1,631,334:**
-- of which blank:** 185,348:**
-- of which comments:** 352,869:**
+- Files:** 10,525:**
+- Total lines:** 2,230,312:**
+- of which code:** 1,683,462:**
+- of which blank:** 188,709:**
+- of which comments:** 358,141:**
 
 ### Third-party Go
 
 - Files:** 6,872:**
-- Total lines:** 2,062,971:**
-- of which code:** 1,597,000:**
-- of which blank:** 183,716:**
-- of which comments:** 282,255:**
+- Total lines:** 2,063,133:**
+- of which code:** 1,597,128:**
+- of which blank:** 183,718:**
+- of which comments:** 282,287:**
 - Modules:** 302:**
 
 Commits accumulated since the calendar's first day.

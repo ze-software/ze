@@ -267,7 +267,7 @@ commands expose decoded values, never the tree's framing bytes.</p>
 </tr>
 <tr>
 <td><code>ze data restore &lt;file&gt; full</code></td>
-<td>Replace the whole tree with the artifact's keys; the previous tree is kept as <code>database.replaced-&lt;stamp&gt;</code> and the artifact is unchanged; offline only</td>
+<td>Offline, replace the whole tree with the artifact's keys, keeping the previous tree as <code>database.replaced-&lt;stamp&gt;</code> and the artifact unchanged. While a daemon owns the selected store, request verified recovery through that owner; replacement follows clean teardown.</td>
 </tr>
 <tr>
 <td><code>request data backup path &lt;absolute-file&gt; [spare &lt;n&gt;] [force]</code></td>
@@ -1146,7 +1146,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

@@ -224,7 +224,7 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 <tr>
 <td>Search tab</td>
 <td><code>/lg/search</code></td>
-<td>Unified search: prefix, AS path pattern, or community. Type selector.</td>
+<td>Unified search: prefix, AS path, or community. Type selector.</td>
 </tr>
 <tr>
 <td>Per-peer routes</td>
@@ -243,14 +243,87 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 </tr>
 </tbody>
 </table>
+<p>The prefix field of the search, the graph and the API's <code>prefix</code> parameter
+read the value the same way:</p>
+<table>
+<thead>
+<tr>
+<th>You type</th>
+<th>The looking glass lists</th>
+<th>Sent to <code>bgp-rib</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A prefix with its length, such as. <span class="ev-src"><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
+<td>The routes of exactly that prefix, never a longer prefix inside it. Host bits are cleared first, so. <span class="ev-src"><span class="ev-ref"><code>10.0.0.1/8</code></span><span class="ev-ref"><code>10.0.0.0/8</code></span></span></td>
+<td><code>show bgp rib received exact 10.0.0.0/8</code></td>
+</tr>
+<tr>
+<td>A bare address, such as <code>10.1.2.3</code> or. <span class="ev-src"><span class="ev-ref"><code>2001:db8::1</code></span></span></td>
+<td>Every route whose prefix contains the address, the most specific prefix first for each peer, so a default route comes last</td>
+<td><code>show bgp rib received covering 10.1.2.3</code></td>
+</tr>
+<tr>
+<td>Anything else, or a length past 32 (IPv4) or 128 (IPv6)</td>
+<td>Nothing: the page shows the value, why it is refused, and a valid form</td>
+<td>Nothing</td>
+</tr>
+</tbody>
+</table>
+<p>An address finds IPv4 and IPv6 routes only. Routes keyed by a route
+distinguisher, such as VPN routes, are not searched this way.</p>
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup, prefixLookup.receivedCommand -->
+<p>The AS path field of the search takes AS numbers separated by spaces, as a
+router prints a path:</p>
+<table>
+<thead>
+<tr>
+<th>You type</th>
+<th>The looking glass lists</th>
+<th>Sent to <code>bgp-rib</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>65001 65002</code></td>
+<td>The routes whose path holds 65001 directly followed by 65002, anywhere in the path. A path holding 65002 then 65001 is not listed</td>
+<td><code>path 65001,65002</code></td>
+</tr>
+<tr>
+<td><code>^65001</code></td>
+<td>The routes whose path starts with 65001</td>
+<td><code>path ^65001</code></td>
+</tr>
+<tr>
+<td><code>^65001 65002</code></td>
+<td>The routes whose path starts with 65001 then 65002</td>
+<td><code>path ^65001,65002</code></td>
+</tr>
+<tr>
+<td><code>65001$</code>, <code>(65001|65002)</code>, or any other pattern character</td>
+<td>Nothing: the page names the value and says the field takes AS numbers separated by spaces, with an optional leading <code>^</code></td>
+<td>Nothing</td>
+</tr>
+</tbody>
+</table>
+<p>Commas work as separators too. An AS number may be written as <code>65546</code> or as
+<code>1.10</code>, and is sent as <code>65546</code>.</p>
+<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 <p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
 <p>When the engine cannot answer, a page says so. The peers and search pages show
 a banner. The per-peer page, its download, the route detail and the graph
 answer 502 (the command failed) or 503 (the engine answered nothing usable)
 instead of a "not found" or an empty result. The message names the command and
-the kind of failure. The full reason is in the daemon log.</p>
+the kind of failure on its first line, says why there is no answer on the
+second, and ends with the command that shows the full reason from the daemon
+log:</p>
+<pre><code>show bgp: engine error
+the engine failed or refused this command, so there is no answer to show
+fix: ze show log recent level warn component lg.server
+</code></pre>
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
-<!-- source: internal/component/lg/server.go -- ask, engineFailure -->
+<!-- source: internal/component/lg/server.go -- ask, engineFailure, engineRefusal -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
 <h2 id="birdwatcher-rest-api">Birdwatcher REST API</h2>
 <p>The looking glass exposes a birdwatcher-compatible JSON API for integration with tools like Alice-LG.</p>
@@ -284,16 +357,16 @@ the kind of failure. The full reason is in the daemon log.</p>
 </tr>
 <tr>
 <td><code>GET /api/looking-glass/routes/search?prefix=X</code></td>
-<td>Prefix lookup across all peers.</td>
+<td>Prefix lookup across all peers: the routes of exactly one prefix given with its length, or every route covering a bare address, the most specific first for each peer. <code>routes/prefix</code> answers the same.</td>
 </tr>
 </tbody>
 </table>
 <p>All API responses use <code>Content-Type: application/json</code> with birdwatcher-convention <code>snake_case</code> field names (not Ze's standard <code>kebab-case</code>).</p>
 <p>An endpoint whose command fails answers 502, or 503 when the engine answered
-nothing usable, with a JSON <code>error</code> naming the command, for example
-<code>{"error":"show bmp peers: engine error"}</code> from <code>/protocols/bmp</code> on a daemon
-that runs no BMP. It never answers 200 with an empty result. The full reason is
-in the daemon log.</p>
+nothing usable, with a JSON <code>error</code> that carries the same three lines as the
+pages, for example <code>show bmp peers: engine error</code> on the first line from
+<code>/protocols/bmp</code> on a daemon that runs no BMP. It never answers 200 with an
+empty result. The last line names the command that shows the full reason.</p>
 <!-- source: internal/component/lg/handler_api.go -- engineAnswer, writeEngineFailure -->
 <p>The per-peer route counts on <code>/protocols/bgp</code> come from the <code>bgp-rib</code> plugin's
 Adj-RIB-In and Adj-RIB-Out sizes, merged into <code>show bgp</code>:
@@ -386,7 +459,7 @@ serves a self-signed certificate when that leaf is unset.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

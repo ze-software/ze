@@ -518,6 +518,121 @@
     ]
   },
   {
+    "path": "clear bgp rib out-excluding-owner",
+    "short-help": "Replay while excluding one original destination owner",
+    "description": "Re-advertise to current destinations except one captured original\npeer owner. This narrows replay and grants no send permission. The ordinary out command\nand its literal peer selectors keep their existing grammar.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-clear-out-excluding-owner",
+    "task-support": "forbidden",
+    "usage": "clear bgp rib out-excluding-owner",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "out-excluding-owner",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
     "path": "clear container layer",
     "short-help": "Clear a writable layer: name <container>.",
     "description": "A clear needs the name of one container, after the name keyword:\nclear container layer name <container>.",
@@ -2807,7 +2922,7 @@
   {
     "path": "clear l2tp session id",
     "short-help": "Disconnect one subscriber session.",
-    "description": "Sends a CDN to gracefully close the session. Pass\nthe local session ID: clear l2tp session id <id> [reason <text>] [cause\n<code>].",
+    "description": "Captures one original session, sends its CDN and confirms its local\nphysical cleanup before reporting success. Pass the local session ID:\nclear l2tp session id <id> [expected-id <birth>] [tunnel-id <tid>]\n[listener <name-or-endpoint>] [actor <label>] [reason <text>] [cause <code>].\nThe optional expected-id is the canonical immutable reference from the displayed\nsession; a stale reference refuses before audit or mutation. A listener name\nresolves to its original bound endpoint. Unknown names and ambiguous selections\nare refused. Quote reasons that contain another keyword.",
     "mode": "daemon",
     "wire-method": "ze-l2tp:session-teardown",
     "usage": "clear l2tp session id",
@@ -6933,7 +7048,7 @@
     "short-help": "Remove one private artifact workspace.",
     "description": "Remove one private artifact workspace. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-delete",
+    "wire-method": "ze-config:artifact-delete",
     "args": [
       {
         "name": "artifact",
@@ -12312,6 +12427,720 @@
     ]
   },
   {
+    "path": "request bgp rib source attach-community",
+    "short-help": "Decorate stale routes of one original connection",
+    "description": "Decorate stale routes of one original connection.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-source-attach-community",
+    "task-support": "forbidden",
+    "usage": "request bgp rib source attach-community",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "source",
+        "kind": "keyword"
+      },
+      {
+        "text": "attach-community",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
+    "path": "request bgp rib source delete-with-community",
+    "short-help": "Delete matching stale routes of one original connection",
+    "description": "Delete matching stale routes of one original connection.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-source-delete-with-community",
+    "task-support": "forbidden",
+    "usage": "request bgp rib source delete-with-community",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "source",
+        "kind": "keyword"
+      },
+      {
+        "text": "delete-with-community",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
+    "path": "request bgp rib source mark-stale",
+    "short-help": "Mark one original retained connection stale",
+    "description": "Mark one original retained connection stale.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-source-mark-stale",
+    "task-support": "forbidden",
+    "usage": "request bgp rib source mark-stale",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "source",
+        "kind": "keyword"
+      },
+      {
+        "text": "mark-stale",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
+    "path": "request bgp rib source purge-stale",
+    "short-help": "Purge stale routes of one original connection",
+    "description": "Purge stale routes of one original connection.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-source-purge-stale",
+    "task-support": "forbidden",
+    "usage": "request bgp rib source purge-stale",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "source",
+        "kind": "keyword"
+      },
+      {
+        "text": "purge-stale",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
+    "path": "request bgp rib source release-routes",
+    "short-help": "Release one original retained connection",
+    "description": "Release one original retained connection.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-source-release-routes",
+    "task-support": "forbidden",
+    "usage": "request bgp rib source release-routes",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "source",
+        "kind": "keyword"
+      },
+      {
+        "text": "release-routes",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
+    "path": "request bgp rib source retain-routes",
+    "short-help": "Prepare retention of one original received connection",
+    "description": "Prepare retention of one original received connection.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:rib-source-retain-routes",
+    "task-support": "forbidden",
+    "usage": "request bgp rib source retain-routes",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "rib",
+        "kind": "keyword"
+      },
+      {
+        "text": "source",
+        "kind": "keyword"
+      },
+      {
+        "text": "retain-routes",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      }
+    ],
+    "answer-shape": "map"
+  },
+  {
     "path": "request bgp rib withdraw",
     "short-help": "Withdraw a route from the Adj-RIB-In.",
     "description": "Removes a previously injected or received route from a peer's\nAdj-RIB-In, triggering best-path recomputation.",
@@ -13682,6 +14511,86 @@
     ]
   },
   {
+    "path": "request class-of-service cleanup",
+    "short-help": "Retry failed cleanup with the original access owners.",
+    "description": "Retry retained failed cleanup once for each original access owner.\nLive users and live transaction tokens retain their policy.",
+    "mode": "daemon",
+    "wire-method": "ze-cos:cleanup",
+    "usage": "request class-of-service cleanup",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "class-of-service",
+        "kind": "keyword"
+      },
+      {
+        "text": "cleanup",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
     "path": "request commit",
     "short-help": "Group route changes into named atomic commits.",
     "description": "Actions: start (begin a commit), end (finalize), eor (signal end of\nRIB), rollback (undo), show (inspect), withdraw (remove all routes\nin a commit), list (show all commits). Grammar: request commit <action>\n<name> [args].",
@@ -13912,7 +14821,7 @@
     "short-help": "Activate an artifact configuration path.",
     "description": "Apply one native activate statement to an artifact configuration, preserving the complete surrounding artifact.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-activate",
+    "wire-method": "ze-config:artifact-activate",
     "args": [
       {
         "name": "artifact",
@@ -14041,7 +14950,7 @@
     "short-help": "Begin a private binary source transfer.",
     "description": "Begin a bounded binary source transfer. Unlike a workspace upload, finishing retains arbitrary bytes for raw-key writes or native check and repair.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-bytes-begin",
+    "wire-method": "ze-config:artifact-bytes-begin",
     "args": [
       {
         "name": "name",
@@ -14152,7 +15061,7 @@
     "short-help": "Deactivate an artifact configuration path.",
     "description": "Apply one native deactivate statement to an artifact configuration, preserving the complete surrounding artifact.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-deactivate",
+    "wire-method": "ze-config:artifact-deactivate",
     "args": [
       {
         "name": "artifact",
@@ -14281,7 +15190,7 @@
     "short-help": "Snapshot a complete private artifact.",
     "description": "Snapshot a complete private artifact. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-download-begin",
+    "wire-method": "ze-config:artifact-download-begin",
     "args": [
       {
         "name": "artifact",
@@ -14382,7 +15291,7 @@
     "short-help": "Import private bytes into an artifact configuration.",
     "description": "Import complete raw source bytes under one configuration basename through native data import, preserving other artifact keys and recorded publication fences. Input need not be valid configuration.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-import",
+    "wire-method": "ze-config:artifact-import",
     "args": [
       {
         "name": "artifact",
@@ -14501,7 +15410,7 @@
     "short-help": "Remove one raw artifact key.",
     "description": "Remove exactly the selected raw key through the native store operation, preserving every unrelated key.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-key-delete",
+    "wire-method": "ze-config:artifact-key-delete",
     "args": [
       {
         "name": "artifact",
@@ -14613,7 +15522,7 @@
     "short-help": "Snapshot one raw artifact key.",
     "description": "Retain an immutable chunked snapshot of one raw key, including empty and binary values. Abort the returned transfer after its final read.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-key-read",
+    "wire-method": "ze-config:artifact-key-read",
     "args": [
       {
         "name": "artifact",
@@ -14725,7 +15634,7 @@
     "short-help": "Write one raw artifact key.",
     "description": "Write complete private source bytes to one explicit key through the native store writer and complete artifact staging.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-key-write",
+    "wire-method": "ze-config:artifact-key-write",
     "args": [
       {
         "name": "artifact",
@@ -14848,7 +15757,7 @@
     "short-help": "Salvage a source into a new private artifact.",
     "description": "Salvage a completed binary source into a new independent private artifact. The original source stays retained; the native frame and history repair grade determines success, warning or error with complete finding rows.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-repair",
+    "wire-method": "ze-config:artifact-repair",
     "args": [
       {
         "name": "transfer",
@@ -14945,7 +15854,7 @@
     "short-help": "Replace an artifact configuration.",
     "description": "Validate and replace one committed configuration using a complete private text transfer. The native tree editor and serializer preserve warnings and validate the result.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-replace",
+    "wire-method": "ze-config:artifact-replace",
     "args": [
       {
         "name": "artifact",
@@ -15074,7 +15983,7 @@
     "short-help": "Restore one selected artifact configuration.",
     "description": "Read a checked active configuration from the private artifact and publish it through the current live reload or configured managed-client owner. Refuse ambiguous source selection and targets without a reload owner.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-restore-config",
+    "wire-method": "ze-config:artifact-restore-config",
     "args": [
       {
         "name": "name",
@@ -15195,7 +16104,7 @@
     "short-help": "Restore the whole store after clean shutdown.",
     "description": "Accept a complete independently retained recovery source, then restart only after the response transport completes. The outer owner replaces storage only after successful shutdown and store closure.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-restore-full",
+    "wire-method": "ze-config:artifact-restore-full",
     "args": [
       {
         "name": "artifact",
@@ -15296,7 +16205,7 @@
     "short-help": "Review a masked offline configuration difference.",
     "description": "Review a masked offline configuration difference. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-review",
+    "wire-method": "ze-config:artifact-review",
     "args": [
       {
         "name": "artifact",
@@ -15426,7 +16335,7 @@
     "short-help": "Roll back an artifact configuration.",
     "description": "Publish one verified native history revision inside the private artifact. Pending candidate and interrupted publication fences remain enforced.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-rollback",
+    "wire-method": "ze-config:artifact-rollback",
     "args": [
       {
         "name": "artifact",
@@ -15545,7 +16454,7 @@
     "short-help": "Save reviewed text into its private artifact.",
     "description": "Save reviewed text into its private artifact. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-save",
+    "wire-method": "ze-config:artifact-save",
     "args": [
       {
         "name": "review",
@@ -15686,7 +16595,7 @@
     "short-help": "Activate a saved artifact candidate path.",
     "description": "Apply one native activate statement to this account's resumed artifact candidate.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-activate",
+    "wire-method": "ze-config:artifact-session-activate",
     "args": [
       {
         "name": "artifact",
@@ -15809,7 +16718,7 @@
     "short-help": "Inspect this account's pending changes.",
     "description": "Resume this account's native session and inspect its pending change summaries with secret masking.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-changes",
+    "wire-method": "ze-config:artifact-session-changes",
     "args": [
       {
         "name": "artifact",
@@ -15921,7 +16830,7 @@
     "short-help": "Commit this account's artifact session.",
     "description": "Validate and publish this account's native saved session through candidate promotion, preserving other owners and reporting conflicts and warnings.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-commit",
+    "wire-method": "ze-config:artifact-session-commit",
     "args": [
       {
         "name": "force",
@@ -16043,7 +16952,7 @@
     "short-help": "Deactivate a saved artifact candidate path.",
     "description": "Apply one native deactivate statement to this account's resumed artifact candidate.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-deactivate",
+    "wire-method": "ze-config:artifact-session-deactivate",
     "args": [
       {
         "name": "artifact",
@@ -16166,7 +17075,7 @@
     "short-help": "Delete a saved artifact candidate path.",
     "description": "Apply one native delete statement to this account's resumed artifact candidate.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-delete",
+    "wire-method": "ze-config:artifact-session-delete",
     "args": [
       {
         "name": "artifact",
@@ -16289,7 +17198,7 @@
     "short-help": "Inspect this account's saved difference.",
     "description": "Resume this account's saved edits and return the native masked difference from committed configuration.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-diff",
+    "wire-method": "ze-config:artifact-session-diff",
     "args": [
       {
         "name": "artifact",
@@ -16401,7 +17310,7 @@
     "short-help": "Discard this account's artifact edits.",
     "description": "Discard only this account's resumed session intent, preserving every other account and origin.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-discard",
+    "wire-method": "ze-config:artifact-session-discard",
     "args": [
       {
         "name": "artifact",
@@ -16513,7 +17422,7 @@
     "short-help": "Inspect native artifact session history.",
     "description": "Resume this account's native session and inspect the existing indexed stored history.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-history",
+    "wire-method": "ze-config:artifact-session-history",
     "args": [
       {
         "name": "artifact",
@@ -16625,7 +17534,7 @@
     "short-help": "Merge into this account's artifact candidate.",
     "description": "Merge complete configuration input through the native session load producer, without committing it.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-merge",
+    "wire-method": "ze-config:artifact-session-merge",
     "args": [
       {
         "name": "artifact",
@@ -16748,7 +17657,7 @@
     "short-help": "Replace this account's artifact candidate.",
     "description": "Load complete replacement configuration through the native session load producer, without committing it.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-replace",
+    "wire-method": "ze-config:artifact-session-replace",
     "args": [
       {
         "name": "artifact",
@@ -16871,7 +17780,7 @@
     "short-help": "Resume this account's saved artifact edits.",
     "description": "Resume only the authenticated account's native local-origin records and inspect its isolated candidate.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-resume",
+    "wire-method": "ze-config:artifact-session-resume",
     "args": [
       {
         "name": "artifact",
@@ -16983,7 +17892,7 @@
     "short-help": "Save this account's artifact draft changes.",
     "description": "Save this account's pending native changes into the shared draft while retaining other owners' intent.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-save",
+    "wire-method": "ze-config:artifact-session-save",
     "args": [
       {
         "name": "artifact",
@@ -17095,7 +18004,7 @@
     "short-help": "Set this account's artifact candidate value.",
     "description": "Apply one native set statement to this account's resumed isolated candidate, leaving committed content unchanged.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-session-set",
+    "wire-method": "ze-config:artifact-session-set",
     "args": [
       {
         "name": "artifact",
@@ -17218,7 +18127,7 @@
     "short-help": "Set a value in an artifact configuration.",
     "description": "Apply one native set statement to a committed artifact configuration. Complete text comes from the authenticated account's private text transfer. Existing drafts and pending candidates remain separate.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-set",
+    "wire-method": "ze-config:artifact-set",
     "args": [
       {
         "name": "artifact",
@@ -17347,7 +18256,7 @@
     "short-help": "Snapshot raw committed configuration text.",
     "description": "Snapshot raw committed configuration text. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-source-begin",
+    "wire-method": "ze-config:artifact-source-begin",
     "args": [
       {
         "name": "artifact",
@@ -17455,11 +18364,99 @@
     "answer-shape": "doc"
   },
   {
+    "path": "request config artifact system snapshot",
+    "short-help": "Create a complete private system backup transfer.",
+    "description": "Create a complete immutable ZeFS transfer from the daemon-owned store, including credentials, history and saved drafts. Requires edit access; read the returned transfer and abort it afterward. No source configuration is changed.",
+    "mode": "daemon",
+    "wire-method": "ze-config:artifact-system-snapshot",
+    "usage": "request config artifact system snapshot",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "artifact",
+        "kind": "keyword"
+      },
+      {
+        "text": "system",
+        "kind": "keyword"
+      },
+      {
+        "text": "snapshot",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc"
+  },
+  {
     "path": "request config artifact text begin",
     "short-help": "Begin bounded configuration text upload.",
     "description": "Begin bounded configuration text upload. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-text-begin",
+    "wire-method": "ze-config:artifact-text-begin",
     "args": [
       {
         "name": "total",
@@ -17559,7 +18556,7 @@
     "short-help": "Remove a private transfer and its retained bytes.",
     "description": "Remove a private transfer and its retained bytes. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-upload-abort",
+    "wire-method": "ze-config:artifact-upload-abort",
     "args": [
       {
         "name": "transfer",
@@ -17660,7 +18657,7 @@
     "short-help": "Append bytes at the expected upload offset.",
     "description": "Append bytes at the expected upload offset. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-upload-append",
+    "wire-method": "ze-config:artifact-upload-append",
     "args": [
       {
         "name": "content",
@@ -17787,7 +18784,7 @@
     "short-help": "Begin a private artifact upload.",
     "description": "Begin a private artifact upload. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-upload-begin",
+    "wire-method": "ze-config:artifact-upload-begin",
     "args": [
       {
         "name": "name",
@@ -17898,7 +18895,7 @@
     "short-help": "Verify and retain a completed upload.",
     "description": "Verify and retain a completed upload. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-upload-finish",
+    "wire-method": "ze-config:artifact-upload-finish",
     "args": [
       {
         "name": "transfer",
@@ -17999,7 +18996,7 @@
     "short-help": "Validate supplied offline configuration text.",
     "description": "Validate supplied offline configuration text. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "daemon",
-    "wire-method": "ze-config-cli:artifact-validate",
+    "wire-method": "ze-config:artifact-validate",
     "args": [
       {
         "name": "artifact",
@@ -31641,7 +32638,7 @@
   {
     "path": "show bgp rib",
     "short-help": "Query routes in the BGP RIB.",
-    "description": "Look at received or advertised routes with flexible filters: peer,\nfamily, prefix, AS path regex, community, match expression. Pipe\noperators: | count, | histogram, | graph. This is the main\nroute inspection command.",
+    "description": "Look at received or advertised routes with flexible filters: peer,\nfamily, prefix (a text match that can also list longer prefixes),\nAS path regex, community, match expression, covering, which lists\nthe received routes whose prefix contains an IP address, and exact,\nwhich lists the received routes of one prefix. Pipe operators:\n| count, | histogram, | graph. This is the main route inspection\ncommand.",
     "mode": "read-only",
     "wire-method": "ze-bgp:rib-routes",
     "task-support": "required",
@@ -31673,6 +32670,16 @@
       {
         "name": "count",
         "description": "Count matching routes without serializing rows"
+      },
+      {
+        "name": "covering",
+        "description": "Received routes whose prefix contains an IP address",
+        "takes-arg": true
+      },
+      {
+        "name": "exact",
+        "description": "Received routes of exactly one prefix",
+        "takes-arg": true
       },
       {
         "name": "family",
@@ -31857,7 +32864,7 @@
   {
     "path": "show bgp rib best",
     "short-help": "Show the winning route for each prefix.",
-    "description": "Same filters as 'show bgp rib'. Use '| reason' to see why each\npath was selected (local-pref, AS path length, MED, etc.).",
+    "description": "Same filters as 'show bgp rib', except covering and exact,\nwhich read received routes only. Use '| reason' to see why each\npath was selected (local-pref, AS path length, MED, etc.).",
     "mode": "read-only",
     "wire-method": "ze-bgp:rib-best",
     "usage": "show bgp rib best",
@@ -32500,6 +33507,16 @@
       {
         "name": "count",
         "description": "Count matching routes without serializing rows"
+      },
+      {
+        "name": "covering",
+        "description": "Received routes whose prefix contains an IP address",
+        "takes-arg": true
+      },
+      {
+        "name": "exact",
+        "description": "Received routes of exactly one prefix",
+        "takes-arg": true
       },
       {
         "name": "family",
@@ -35686,7 +36703,7 @@
     "short-help": "Check a private artifact or binary source.",
     "description": "Run the native frame and history integrity checker on exactly one private artifact or completed binary source. Failed verdicts retain their finding rows.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-check",
+    "wire-method": "ze-config:artifact-check",
     "args": [
       {
         "name": "artifact",
@@ -35792,7 +36809,7 @@
     "short-help": "List artifact configuration records.",
     "description": "List stored active and draft configuration records through the native configuration inventory.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-configs",
+    "wire-method": "ze-config:artifact-configs",
     "args": [
       {
         "name": "artifact",
@@ -35929,7 +36946,7 @@
     "short-help": "Compare artifact configurations or a revision.",
     "description": "Compare resolved configurations or one history revision, with the native secret masking and ordered-list semantics. Select exactly one of other or revision.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-diff",
+    "wire-method": "ze-config:artifact-diff",
     "args": [
       {
         "name": "other",
@@ -36057,7 +37074,7 @@
     "short-help": "List artifact configuration history.",
     "description": "List native indexed configuration history and retained draft state in one artifact.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-history",
+    "wire-method": "ze-config:artifact-history",
     "args": [
       {
         "name": "artifact",
@@ -36201,7 +37218,7 @@
     "short-help": "Inspect one private artifact inventory.",
     "description": "Inspect one private artifact inventory. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-info",
+    "wire-method": "ze-config:artifact-info",
     "args": [
       {
         "name": "artifact",
@@ -36298,7 +37315,7 @@
     "short-help": "List raw artifact keys.",
     "description": "List literal-prefix raw keys from the existing native store inventory. This private answer requires edit authorization.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-key-list",
+    "wire-method": "ze-config:artifact-key-list",
     "args": [
       {
         "name": "prefix",
@@ -36445,7 +37462,7 @@
     "short-help": "List private uploaded artifacts.",
     "description": "List private uploaded artifacts. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-list",
+    "wire-method": "ze-config:artifact-list",
     "usage": "show config artifact list",
     "grammar": [
       {
@@ -36565,7 +37582,7 @@
     "short-help": "Inspect masked committed configuration source.",
     "description": "Inspect masked committed configuration source. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-source",
+    "wire-method": "ze-config:artifact-source",
     "args": [
       {
         "name": "path",
@@ -36683,7 +37700,7 @@
     "short-help": "Read one bounded immutable snapshot chunk.",
     "description": "Read one bounded immutable snapshot chunk. The private owner checks the authenticated account, cancellation and resource allowance.",
     "mode": "read-only",
-    "wire-method": "ze-config-cli:artifact-transfer-read",
+    "wire-method": "ze-config:artifact-transfer-read",
     "args": [
       {
         "name": "offset",
@@ -43758,7 +44775,7 @@
         "name": "dry-run",
         "type": "flag",
         "short-help": "Preview conversion diagnostics without returning converted bytes.",
-        "description": "Run the conversion and retain its warnings and process\ninformation, but answer no converted bytes, as ze exabgp migrate --dry-run does."
+        "description": "Run the conversion and retain its warnings and process\ninformation, but answer no converted bytes, matching a standalone configuration\nconversion preview."
       },
       {
         "name": "content",
@@ -43875,7 +44892,7 @@
         "name": "dry-run",
         "type": "flag",
         "short-help": "Report the unsupported dry-run choice and return the conversion.",
-        "description": "Retain the standalone --env behavior: report that dry-run\nis not supported for environment conversion and still return the converted bytes."
+        "description": "Retain the standalone environment conversion behavior: report\nthat dry-run is not supported for environment conversion and still return the\nconverted bytes."
       },
       {
         "name": "content",
@@ -49725,6 +50742,291 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "subcommands": [
+      "all",
+      "id"
+    ]
+  },
+  {
+    "path": "show l2tp observer all",
+    "short-help": "Summarize all current event rings.",
+    "description": "Return the summary of every current event ring with its original identity.",
+    "mode": "read-only",
+    "wire-method": "ze-l2tp:observer",
+    "usage": "show l2tp observer all",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "l2tp",
+        "kind": "keyword"
+      },
+      {
+        "text": "observer",
+        "kind": "keyword"
+      },
+      {
+        "text": "all",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "show l2tp observer id",
+    "short-help": "Select one original session's event history.",
+    "description": "Read the bounded event ring of one captured original.\nQualify a shared session ID with tunnel-id and listener.",
+    "mode": "read-only",
+    "wire-method": "ze-l2tp:observer",
+    "args": [
+      {
+        "name": "id",
+        "type": "uint",
+        "mandatory": true,
+        "short-help": "Local session ID.",
+        "description": "The local session ID whose original event ring is wanted."
+      },
+      {
+        "name": "expected-id",
+        "type": "string",
+        "short-help": "Require the displayed immutable session reference.",
+        "description": "Require the displayed immutable original reference. An ended\noriginal refuses instead of selecting a replacement with the same numeric IDs."
+      },
+      {
+        "name": "listener",
+        "type": "string",
+        "short-help": "Configured listener name or bound IP:port.",
+        "description": "Configured listener name or bound IP:port from the listener inventory.\nEqual session and tunnel IDs on different listeners require this qualifier."
+      },
+      {
+        "name": "tunnel-id",
+        "type": "uint",
+        "short-help": "Original local tunnel ID.",
+        "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
+      }
+    ],
+    "usage": "show l2tp observer id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "l2tp",
+        "kind": "keyword"
+      },
+      {
+        "text": "observer",
+        "kind": "keyword"
+      },
+      {
+        "text": "id",
+        "kind": "keyword"
+      },
+      {
+        "text": "id",
+        "kind": "value"
+      },
+      {
+        "text": "expected-id",
+        "kind": "option"
+      },
+      {
+        "text": "listener",
+        "kind": "option"
+      },
+      {
+        "text": "tunnel-id",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
     ]
   },
   {
@@ -49942,12 +51244,39 @@
     ]
   },
   {
-    "path": "show l2tp session history",
-    "short-help": "Show state transitions for a session over time.",
-    "description": "Timestamped FSM entries for session establishment.\nUse this when a subscriber's session fails to come up.",
+    "path": "show l2tp session history id",
+    "short-help": "Select one original session's transitions.",
+    "description": "Read the transition history of one captured original.\nQualify an ambiguous session ID with tunnel-id and listener.",
     "mode": "read-only",
     "wire-method": "ze-l2tp:session-history",
-    "usage": "show l2tp session history",
+    "args": [
+      {
+        "name": "id",
+        "type": "uint",
+        "mandatory": true,
+        "short-help": "Local session ID.",
+        "description": "The local session ID whose original FSM history is wanted."
+      },
+      {
+        "name": "expected-id",
+        "type": "string",
+        "short-help": "Require the displayed immutable session reference.",
+        "description": "Require the displayed immutable original reference. An ended\noriginal refuses instead of selecting a replacement with the same numeric IDs."
+      },
+      {
+        "name": "listener",
+        "type": "string",
+        "short-help": "Configured listener name or bound IP:port.",
+        "description": "Configured listener name or bound IP:port from the listener inventory.\nEqual session and tunnel IDs on different listeners require this qualifier."
+      },
+      {
+        "name": "tunnel-id",
+        "type": "uint",
+        "short-help": "Original local tunnel ID.",
+        "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
+      }
+    ],
+    "usage": "show l2tp session history id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]",
     "grammar": [
       {
         "text": "show",
@@ -49964,6 +51293,26 @@
       {
         "text": "history",
         "kind": "keyword"
+      },
+      {
+        "text": "id",
+        "kind": "keyword"
+      },
+      {
+        "text": "id",
+        "kind": "value"
+      },
+      {
+        "text": "expected-id",
+        "kind": "option"
+      },
+      {
+        "text": "listener",
+        "kind": "option"
+      },
+      {
+        "text": "tunnel-id",
+        "kind": "option"
       }
     ],
     "operators": [
@@ -50063,19 +51412,37 @@
   {
     "path": "show l2tp session id",
     "short-help": "Show full detail for one L2TP session.",
-    "description": "Pass the local session ID. Returns PPP state,\nassigned addresses, negotiated LCP/NCP options, and traffic counters.",
+    "description": "Capture one original by session ID, with tunnel-id and listener\nqualifiers when the ID is shared. Returns its PPP state and assigned addresses.",
     "mode": "read-only",
     "wire-method": "ze-l2tp:session",
     "args": [
       {
         "name": "id",
-        "type": "string",
+        "type": "uint",
         "mandatory": true,
         "short-help": "Local session ID.",
         "description": "The decimal local session ID from the show l2tp session table. Zero is\nrefused because RFC 2661 reserves it, and an unknown ID is refused with 'no session with\nlocal-sid'."
+      },
+      {
+        "name": "expected-id",
+        "type": "string",
+        "short-help": "Require the displayed immutable session reference.",
+        "description": "Require the displayed immutable original reference. An ended\noriginal refuses instead of selecting a replacement with the same numeric IDs."
+      },
+      {
+        "name": "listener",
+        "type": "string",
+        "short-help": "Configured listener name or bound IP:port.",
+        "description": "Configured listener name or bound IP:port from the listener inventory.\nEqual session and tunnel IDs on different listeners require this qualifier."
+      },
+      {
+        "name": "tunnel-id",
+        "type": "uint",
+        "short-help": "Original local tunnel ID.",
+        "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
       }
     ],
-    "usage": "show l2tp session id <id>",
+    "usage": "show l2tp session id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]",
     "grammar": [
       {
         "text": "show",
@@ -50096,6 +51463,18 @@
       {
         "text": "id",
         "kind": "value"
+      },
+      {
+        "text": "expected-id",
+        "kind": "option"
+      },
+      {
+        "text": "listener",
+        "kind": "option"
+      },
+      {
+        "text": "tunnel-id",
+        "kind": "option"
       }
     ],
     "operators": [
@@ -50215,6 +51594,175 @@
       {
         "text": "traffic",
         "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "subcommands": [
+      "id"
+    ]
+  },
+  {
+    "path": "show l2tp session traffic id",
+    "short-help": "Select one original session's traffic counters.",
+    "description": "Read counters from one captured original PPP control.\nQualify an ambiguous session ID with tunnel-id and listener.",
+    "mode": "read-only",
+    "wire-method": "ze-l2tp:session-traffic",
+    "args": [
+      {
+        "name": "id",
+        "type": "uint",
+        "mandatory": true,
+        "short-help": "Local session ID.",
+        "description": "The local session ID whose original counters are wanted."
+      },
+      {
+        "name": "expected-id",
+        "type": "string",
+        "short-help": "Require the displayed immutable session reference.",
+        "description": "Require the displayed immutable original reference. An ended\noriginal refuses instead of selecting a replacement with the same numeric IDs."
+      },
+      {
+        "name": "listener",
+        "type": "string",
+        "short-help": "Configured listener name or bound IP:port.",
+        "description": "Configured listener name or bound IP:port from the listener inventory.\nEqual session and tunnel IDs on different listeners require this qualifier."
+      },
+      {
+        "name": "tunnel-id",
+        "type": "uint",
+        "short-help": "Original local tunnel ID.",
+        "description": "Restrict selection to the local tunnel carrying the original session.\nA session ID shared by several tunnels requires this qualifier."
+      }
+    ],
+    "usage": "show l2tp session traffic id <id> [expected-id <expected-id>] [listener <listener>] [tunnel-id <tunnel-id>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "l2tp",
+        "kind": "keyword"
+      },
+      {
+        "text": "session",
+        "kind": "keyword"
+      },
+      {
+        "text": "traffic",
+        "kind": "keyword"
+      },
+      {
+        "text": "id",
+        "kind": "keyword"
+      },
+      {
+        "text": "id",
+        "kind": "value"
+      },
+      {
+        "text": "expected-id",
+        "kind": "option"
+      },
+      {
+        "text": "listener",
+        "kind": "option"
+      },
+      {
+        "text": "tunnel-id",
+        "kind": "option"
       }
     ],
     "operators": [

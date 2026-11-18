@@ -7,7 +7,7 @@ Inspect this account\'s pending changes\.
 - Registry path: `request config artifact session changes`
 - Usage: `request config artifact <artifact> session changes <name>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-changes`
+- Wire method: `ze-config:artifact-session-changes`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

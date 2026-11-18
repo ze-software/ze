@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 6 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 6 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 6 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>11</strong><b>11 of 27 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>4</strong><b>4 of 27 tests linked to requirements, 0 without a fault test and 9 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Route Refresh</p>
-<p><strong>Test verification:</strong> 4 of 6 MUST proven</p>
-<p><strong>Evidence:</strong> functional 1, unit 3</p>
+<p><strong>Test verification:</strong> 3 of 6 MUST proven</p>
+<p><strong>Evidence:</strong> unit 3</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2918:must">Ze verified 4, Tests awaiting verification 2</div>
+<div data-ze-rfc-bar="rfc2918:must">Ze verified 3, Tests awaiting verification 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2918:overview">Ze MUST verified 4, SHOULD verified 1, Tests awaiting verification 2, Not assessed 4</div>
+<div data-ze-rfc-bar="rfc2918:overview">Ze MUST verified 3, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2918:must.kept">6</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc2918:must.ze-proven">4</span></td>
+<td><span data-ze-rfc="rfc2918:must.ze-proven">3</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2918:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc2918:must.proof-pending">2</span></td>
+<td><span data-ze-rfc="rfc2918:must.proof-pending">3</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2918:must.os-gap">0</span></td>
@@ -479,12 +479,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2918-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1046" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918ConfigStaticRetainedForRefresh</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L68" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L32" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRefreshSentFeedbackRetainsReplayOrigin</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1084" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L87" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshDoesNotSendToDownPeer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1124" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L91" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshDoesNotSendToDownPeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10" title="test/plugin/refresh-config-static.ci" target="_blank" rel="noopener"><code>refresh-config-static.ci</code></a></span></div>
 </div></td>
@@ -646,7 +646,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2918-4-2"><code>RFC2918-4-2</code></a></h3>
 <p>If a BGP speaker receives from its peer a ROUTE-REFRESH message with the &lt;AFI, SAFI&gt; that the speaker didn&#39;t advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message. (S4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: acting on a ROUTE-REFRESH for an &lt;AFI, SAFI&gt; the speaker did not advertise. D-8 fix: Session.screenRouteRefresh now applies the family rule on the read path before onMessageReceived, for both call sites. TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored drives ReadAndProcess on an Established session that advertised IPv4/unicast only: positive, an IPv6/unicast refresh reaches no onMessageReceived consumer, draws no bytes on the unbuffered pipe and leaves the session Established; negative, an IPv4/unicast refresh is delivered exactly once with its body unchanged. Observed-red revert records on routeRefreshFamilyUnadvertised for both polarities. The check keys on the negotiated set, a subset of what the speaker advertised, so every unadvertised family is ignored; it additionally ignores a family advertised but not negotiated, which RFC 4760 already forbids acting on. The older positive TestHandleRouteRefresh_NonNegotiatedFamily (NoError only) adds nothing on its own. Independent companion-fixture rejudgment against RFC 2918 Section 4, all four tagged entries and the current pre-consumer family-screening producer. The changed handler fixture is now Established and negotiates IPv4-only Route Refresh before the same IPv6 request. Its narrowed claim correctly reports only NoError, making no standalone consumer-suppression claim. Full row enforcement continues to rest on the stronger real read-path carrier: the unadvertised family reaches no consumer, emits no reply and keeps Established, while the advertised family reaches the consumer once with its exact body. The separate valid-length delivery carrier continues to assert callback and refresh counts. All existing entries and the enforced verdict remain; the repaired supplementary unit does not acquire broader proof credit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored, internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored#2, internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered moved. Forbidden: acting on a ROUTE-REFRESH for an &lt;AFI, SAFI&gt; the speaker did not advertise. D-8 fix: Session.screenRouteRefresh now applies the family rule on the read path before onMessageReceived, for both call sites. TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored drives ReadAndProcess on an Established session that advertised IPv4/unicast only: positive, an IPv6/unicast refresh reaches no onMessageReceived consumer, draws no bytes on the unbuffered pipe and leaves the session Established; negative, an IPv4/unicast refresh is delivered exactly once with its body unchanged. Observed-red revert records on routeRefreshFamilyUnadvertised for both polarities. The check keys on the negotiated set, a subset of what the speaker advertised, so every unadvertised family is ignored; it additionally ignores a family advertised but not negotiated, which RFC 4760 already forbids acting on. The older positive TestHandleRouteRefresh_NonNegotiatedFamily (NoError only) adds nothing on its own. Independent companion-fixture rejudgment against RFC 2918 Section 4, all four tagged entries and the current pre-consumer family-screening producer. The changed handler fixture is now Established and negotiates IPv4-only Route Refresh before the same IPv6 request. Its narrowed claim correctly reports only NoError, making no standalone consumer-suppression claim. Full row enforcement continues to rest on the stronger real read-path carrier: the unadvertised family reaches no consumer, emits no reply and keeps Established, while the advertised family reaches the consumer once with its exact body. The separate valid-length delivery carrier continues to assert callback and refresh counts. All existing entries and the enforced verdict remain; the repaired supplementary unit does not acquire broader proof credit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -654,7 +654,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L41" title="internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2454" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></td>
@@ -664,7 +664,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go#L40" title="internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go" target="_blank" rel="noopener"><code>TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L560" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_NonNegotiatedFamily</code></a></td>
@@ -676,18 +676,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2918-4-3"><code>RFC2918-4-3</code></a></h3>
 <p>Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy. (S4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy, internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2 moved. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 2918 Section 4 read: &#34;Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy.&#34; Units read: TestRFC2918RefreshRunsCurrentExportPolicy (both tags) and TestRefreshSentFeedbackRetainsReplayOrigin; only their initial-sync call changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.&lt;flag&gt;.Store(v) with peer.testInitialSync().&lt;flag&gt;.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 2918 Section 4 read: &#34;Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy.&#34; The moved unit TestRFC2918RefreshRunsCurrentExportPolicy changed only the filter plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. It still answers accept, then reject once only the answer flips, and still requires one policy call with grown wire output on the accepting replay and identical wire bytes with a second call on the rejecting one, through exportFilterForBody on the session egress filter. The outbound policy decides the re-advertisement in both polarities; assertions unchanged. Other carriers byte-identical. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh, internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918RefreshDoesNotSendToDownPeer, internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState, internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_PeerNotUp, internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy, internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy#2, internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin moved. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 2918 Section 4 read: &#34;Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy.&#34; Units read: TestRFC2918RefreshRunsCurrentExportPolicy (both tags) and TestRefreshSentFeedbackRetainsReplayOrigin; only their initial-sync call changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.&lt;flag&gt;.Store(v) with peer.testInitialSync().&lt;flag&gt;.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 2918 Section 4 read: &#34;Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy.&#34; The moved unit TestRFC2918RefreshRunsCurrentExportPolicy changed only the filter plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. It still answers accept, then reject once only the answer flips, and still requires one policy call with grown wire output on the accepting replay and identical wire bytes with a second call on the rejecting one, through exportFilterForBody on the session egress filter. The outbound policy decides the re-advertisement in both polarities; assertions unchanged. Other carriers byte-identical. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L87" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshDoesNotSendToDownPeer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L91" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshDoesNotSendToDownPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1084" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1124" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
 <td>unit/verify</td>
 <td>not verified</td>
 </tr>
@@ -699,12 +699,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918ConfigStaticRetainedForRefresh</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1046" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L68" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></td>
@@ -714,19 +714,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L32" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRefreshSentFeedbackRetainsReplayOrigin</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10" title="test/plugin/refresh-config-static.ci" target="_blank" rel="noopener"><code>refresh-config-static.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2918-3-4"><code>RFC2918-3-4</code></a></h3>
 <p>Should be set to 0 by the sender and ignored by the receiver. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a sender writing a non-zero Reserved octet, or a receiver acting on it. Sender: TestRFC2918SentRequestReservedOctetIsZero reads the four body octets written by both request producers (sendRouteRefresh, SoftClearPeer) and asserts exactly 00 01 00 01. Receiver: TestRFC2918ReservedOctetIgnoredOnReceive asserts delivery, Established and no NOTIFICATION for octets 00/01/02/AA/FF; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. The sender half is single-polarity by nature (no violating input exists for an emitter).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetDoesNotExemptTheMessage, internal/component/bgp/reactor/rfc2918_reserved_field_test.go::TestRFC2918ReservedOctetIgnoredOnReceive moved. Forbidden: a sender writing a non-zero Reserved octet, or a receiver acting on it. Sender: TestRFC2918SentRequestReservedOctetIsZero reads the four body octets written by both request producers (sendRouteRefresh, SoftClearPeer) and asserts exactly 00 01 00 01. Receiver: TestRFC2918ReservedOctetIgnoredOnReceive asserts delivery, Established and no NOTIFICATION for octets 00/01/02/AA/FF; TestRFC2918ReservedOctetDoesNotExemptTheMessage asserts a 5-octet body is still refused. The sender half is single-polarity by nature (no violating input exists for an emitter).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -919,7 +919,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

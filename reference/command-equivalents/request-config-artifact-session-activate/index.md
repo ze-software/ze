@@ -7,7 +7,7 @@ Activate a saved artifact candidate path\.
 - Registry path: `request config artifact session activate`
 - Usage: `request config artifact <artifact> session activate <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-activate`
+- Wire method: `ze-config:artifact-session-activate`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

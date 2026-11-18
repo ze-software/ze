@@ -10,7 +10,7 @@ Show traffic counters for a subscriber\'s PPP interface\.
 - Wire method: `ze-l2tp:session-traffic`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
-- Subcommands: none: this command takes no subcommand
+- Subcommands: `id`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none

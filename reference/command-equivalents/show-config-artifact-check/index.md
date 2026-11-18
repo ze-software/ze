@@ -7,7 +7,7 @@ Check a private artifact or binary source\.
 - Registry path: `show config artifact check`
 - Usage: `show config artifact <artifact> check [transfer <transfer>]`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-check`
+- Wire method: `ze-config:artifact-check`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

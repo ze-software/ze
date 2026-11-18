@@ -72,6 +72,7 @@
 <ol>
 <li><a href="#syntax_1">Syntax</a></li>
 <li><a href="#parameters_1">Parameters</a></li>
+<li><a href="#exact-bytes-final-newline">Exact bytes: final-newline</a></li>
 <li><a href="#mode-defaults">Mode Defaults</a></li>
 <li><a href="#terminator-rules">Terminator Rules</a></li>
 <li><a href="#example">Example</a></li>
@@ -678,7 +679,7 @@ There is no special configuration meaning for a <code>.src</code> or <code>.conf
 For example, a peer's <code>action=rewrite</code> may copy a human-readable acknowledgment
 into a completion marker without making either file a daemon configuration.</p>
 <h3 id="syntax_1">Syntax</h3>
-<pre><code>tmpfs=&lt;path&gt;[:mode=&lt;octal&gt;][:encoding=&lt;type&gt;][:refused=&lt;code&gt;]:terminator=&lt;TERM&gt;
+<pre><code>tmpfs=&lt;path&gt;[:mode=&lt;octal&gt;][:encoding=&lt;type&gt;][:refused=&lt;code&gt;][:final-newline=&lt;bool&gt;]:terminator=&lt;TERM&gt;
 &lt;content&gt;
 &lt;TERM&gt;
 </code></pre>
@@ -723,6 +724,12 @@ into a completion marker without making either file a daemon configuration.</p>
 <td>-</td>
 <td>The diagnostic code <code>ze config validate</code> refuses this file with (<code>config-parse</code>, <code>config-yang-reference</code>, ...): the test feeds Ze a config it must refuse</td>
 </tr>
+<tr>
+<td><code>final-newline</code></td>
+<td class="cell-no">✕</td>
+<td><code>true</code></td>
+<td><code>false</code> ends a text block's file at the end of its last line, with no newline after it (see "Exact bytes" below). Text blocks only</td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/test/tmpfs/tmpfs.go -- File struct, Tmpfs.AddFile -->
@@ -759,6 +766,33 @@ unchanged. The fragment is
 not made standalone by adding settings that the running daemon already supplies.
 Unconsumed <code>.conf</code> files retain their standalone validation.</p>
 <!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences -->
+<h3 id="exact-bytes-final-newline">Exact bytes: <code>final-newline</code></h3>
+<p>A text block writes every line it holds followed by a newline, the last line
+included, so a one-line block is that line and a newline. A config file or a
+script expects that newline, and it is the default.</p>
+<p>A request body does not. A form POST read from a tmpfs file (<code>http=post</code> with
+<code>sendfile=</code>) reaches the server with that newline, and <code>url.ParseQuery</code> keeps
+it in the last field's value: <code>prefix=not-a-prefix</code> arrives as
+<code>not-a-prefix\n</code>, a value no browser sends from a one-line input. The server
+then answers for a value the test never meant to send, and an assertion that
+checks only a status code or a page title still passes. Declare
+<code>final-newline=false</code> and the file ends at the end of its last line:</p>
+<pre><code>tmpfs=lg-search.body:final-newline=false:terminator=EOF_BODY
+prefix=10.20.3.0/24
+EOF_BODY
+</code></pre>
+<p>The file holds <code>prefix=10.20.3.0/24</code>, 19 bytes. Only the newline after the
+last line is dropped: a block whose last line is empty keeps the newline that
+ends the line before it, and an empty block stays empty. The value is <code>true</code>
+or <code>false</code>; any other spelling is refused, so a misspelled <code>false</code> never keeps
+the newline in silence. The key is refused on an <code>encoding=base64</code> block,
+whose decoded bytes are already exact. Use base64 for bytes a text line cannot
+hold (binary data, a carriage return), and <code>final-newline=false</code> for a body a
+reader should be able to read.</p>
+<p>A JSON body needs neither: <code>json.Unmarshal</code> accepts trailing whitespace, so
+the newline changes nothing the server decodes.</p>
+<!-- source: internal/test/tmpfs/tmpfs.go -- parseTmpfsBlock, parseFinalNewline -->
+<!-- test: internal/test/tmpfs/tmpfs_test.go -- TestFinalNewline, TestFinalNewlineRefusals -->
 <h3 id="mode-defaults">Mode Defaults</h3>
 <p>A file with no <code>mode=</code> takes its mode from its extension: <code>0755</code> for <code>.py</code>,
 <code>.sh</code>, <code>.bash</code>, <code>.zsh</code>, <code>.pl</code>, <code>.rb</code> and <code>.run</code>, <code>0644</code> for anything else. Use
@@ -2682,7 +2716,7 @@ http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PA
 <tr>
 <td><code>sendfile</code></td>
 <td class="cell-no">✕</td>
-<td>Path to file sent as POST request body, resolved from tmpfs first</td>
+<td>Path to file sent as POST request body, resolved from tmpfs first. The file's bytes are sent unchanged, so a form body written as a text block declares <code>final-newline=false</code> (Tmpfs, "Exact bytes")</td>
 </tr>
 <tr>
 <td><code>content-type</code></td>
@@ -3477,6 +3511,11 @@ validation result and writes nothing to the active configuration.</p>
 <td><code>expect=completion:count=5</code></td>
 </tr>
 <tr>
+<td><code>expect=completion:order=&lt;list&gt;</code></td>
+<td>The listed items appear in the menu in this order, other items allowed around them; two items at least. <code>contains</code>, <code>excludes</code> and <code>exact</code> judge membership only</td>
+<td><code>expect=completion:order=peer,router-id,session</code></td>
+</tr>
+<tr>
 <td><code>expect=ghost:text=&lt;suffix&gt;</code></td>
 <td>Ghost text suggestion</td>
 <td><code>expect=ghost:text=-id</code></td>
@@ -3585,6 +3624,11 @@ validation result and writes nothing to the active configuration.</p>
 <td><code>expect=key:path=&lt;key&gt;:not-contains=&lt;text&gt;</code></td>
 <td>Decoded value excludes text</td>
 <td><span class="ev-src"><span class="ev-ref"><code>expect=key:path=file/active/test.conf:not-contains=old</code></span></span></td>
+</tr>
+<tr>
+<td><code>expect=key:path=&lt;key&gt;:pattern=&lt;regex&gt;</code></td>
+<td>Decoded value matches a Go regular expression, as <code>content:pattern</code>: the way to assert the line order of a stored file. Refused beside <code>glob</code></td>
+<td><code>expect=key:path=file/active/test.conf:pattern=(?s)router-id .*peer p1</code></td>
 </tr>
 <tr>
 <td><code>expect=key:path=&lt;key&gt;:absent</code></td>
@@ -3795,7 +3839,7 @@ expect=completion:contains=router-id,local-as,peer
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

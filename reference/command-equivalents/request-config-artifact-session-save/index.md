@@ -7,7 +7,7 @@ Save this account\'s artifact draft changes\.
 - Registry path: `request config artifact session save`
 - Usage: `request config artifact <artifact> session save <name>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-save`
+- Wire method: `ze-config:artifact-session-save`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

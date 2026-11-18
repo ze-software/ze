@@ -12,8 +12,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 
 ## Figures
 
-- **MUST bar**: Ze verified 261, Tests awaiting verification 57, Not built 29
-- **Overview bar**: Ze MUST verified 261, SHOULD verified 8, Not owed 1, Tests awaiting verification 59, Not assessed 104, Not built 29
+- **MUST bar**: Ze verified 243, Tests awaiting verification 75, Not built 29
+- **Overview bar**: Ze MUST verified 243, SHOULD verified 8, Not owed 1, Tests awaiting verification 77, Not assessed 104, Not built 29
 
 | Figure | Rows |
 |---|---|
@@ -22,9 +22,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-core.json](../../
 | Mandatory requirements complete | not complete |
 | MUST rows | 348 |
 | MUST rows kept (the MUST bar) | 347 |
-| Ze verified | 261 |
+| Ze verified | 243 |
 | OS verified | 0 |
-| Tests awaiting verification | 57 |
+| Tests awaiting verification | 75 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -56,7 +56,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 108, Tests awaiting verification 12, Not built 13 | Ze MUST verified 108, SHOULD verified 3, Tests awaiting verification 13, Not assessed 30, Not built 13 |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze verified 96, Tests awaiting verification 24, Not built 13 | Ze MUST verified 96, SHOULD verified 3, Tests awaiting verification 25, Not assessed 30, Not built 13 |
 
 ### Level 4
 
@@ -79,18 +79,18 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze verified 4, Tests awaiting verification 2 | Ze MUST verified 4, SHOULD verified 1, Tests awaiting verification 2, Not assessed 4 |
+| [RFC 2918](../../rfc2918/) | Route Refresh Capability for BGP-4 | Ze verified 3, Tests awaiting verification 3 | Ze MUST verified 3, SHOULD verified 1, Tests awaiting verification 3, Not assessed 4 |
 | [RFC 4486](../../rfc4486/) | Subcodes for BGP Cease NOTIFICATION Message | Tests awaiting verification 1 | Tests awaiting verification 2, Not assessed 9 |
 | [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze verified 30 | Ze MUST verified 30, Not assessed 6 |
-| [RFC 7311](../../rfc7311/) | The Accumulated IGP Metric Attribute for BGP | Ze verified 9, Tests awaiting verification 13 | Ze MUST verified 9, Tests awaiting verification 13, Not assessed 4 |
-| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze verified 9 | Ze MUST verified 9, Not assessed 4 |
+| [RFC 7311](../../rfc7311/) | The Accumulated IGP Metric Attribute for BGP | Ze verified 8, Tests awaiting verification 14 | Ze MUST verified 8, Tests awaiting verification 14, Not assessed 4 |
+| [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze verified 7, Tests awaiting verification 2 | Ze MUST verified 7, Tests awaiting verification 2, Not assessed 4 |
 
 ### Level 7
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Ze verified 4 | Ze MUST verified 4, SHOULD verified 1 |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 33, Tests awaiting verification 19, Not built 1 | Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1 |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze verified 32, Tests awaiting verification 20, Not built 1 | Ze MUST verified 32, Tests awaiting verification 20, Not assessed 4, Not built 1 |
 | [RFC 8950](../../rfc8950/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8277) | Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Ze verified 2, Tests awaiting verification 4 | Ze MUST verified 2, Tests awaiting verification 4, Not assessed 2 |
 
 ### Level 8
@@ -98,7 +98,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 5549](../../rfc5549/) | Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop | Ze verified 3, Tests awaiting verification 3 | Ze MUST verified 3, Tests awaiting verification 3, Not assessed 3 |
-| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze verified 5, Tests awaiting verification 1, Not built 5 | Ze MUST verified 5, Tests awaiting verification 1, Not assessed 6, Not built 5 |
+| [RFC 7313](../../rfc7313/) | Enhanced Route Refresh Capability for BGP-4 | Ze verified 4, Tests awaiting verification 2, Not built 5 | Ze MUST verified 4, Tests awaiting verification 2, Not assessed 6, Not built 5 |
 | [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Ze verified 5 | Ze MUST verified 5 |
 | [RFC 8654](../../rfc8654/) | Extended Message Support for BGP | Ze verified 8, Tests awaiting verification 1, Not built 2 | Ze MUST verified 8, SHOULD verified 1, Not owed 1, Tests awaiting verification 1, Not assessed 3, Not built 2 |
 | [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze verified 2, Not built 1 | Ze MUST verified 2, Not built 1 |

@@ -297,6 +297,13 @@ such a block under <code>doctor-plugin-external-unsupported</code>, with the <co
 block that runs it instead.</p>
 <!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, inProcessOnlyRegistration -->
 <h2 id="when-a-plugin-fails">When a Plugin Fails</h2>
+<p><code>doctor-plugin-cleanup</code> means a plugin's original resources have no confirmed
+release. Run <code>ze show warnings</code> to read the original cause and exit outcome.
+Repair the reported native condition and confirm the original resources are
+released before restarting service. A healthy replacement does not clear that
+old warning. Plugins without a terminal cleanup declaration keep their existing
+exit behavior.</p>
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- finishTerminalCleanup -->
 <p><strong>The plugin decides, not the configuration.</strong> Every plugin tells ze at startup
 what its own failure means, and ze does that.</p>
 <table>
@@ -2296,7 +2303,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

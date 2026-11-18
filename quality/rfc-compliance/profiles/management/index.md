@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/management.json](../.
 
 ## Figures
 
-- **MUST bar**: Ze verified 37, Not built 62
-- **Overview bar**: Ze MUST verified 37, Not built 62
+- **MUST bar**: Ze verified 36, Tests awaiting verification 1, Not built 62
+- **Overview bar**: Ze MUST verified 36, Tests awaiting verification 1, Not built 62
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/management.json](../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 99 |
 | MUST rows kept (the MUST bar) | 99 |
-| Ze verified | 37 |
+| Ze verified | 36 |
 | OS verified | 0 |
-| Tests awaiting verification | 0 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -52,7 +52,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7950](../../rfc7950/) | The YANG 1.1 Data Modeling Language | Ze verified 37, Not built 54 | Ze MUST verified 37, Not built 54 |
+| [RFC 7950](../../rfc7950/) | The YANG 1.1 Data Modeling Language | Ze verified 36, Tests awaiting verification 1, Not built 54 | Ze MUST verified 36, Tests awaiting verification 1, Not built 54 |
 
 ### Level 2
 

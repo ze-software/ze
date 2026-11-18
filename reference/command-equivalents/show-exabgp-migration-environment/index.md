@@ -27,7 +27,7 @@ Parse\, validate and map an ExaBGP INI environment file to Ze configuration\. Va
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `dry-run` | flag | no | any value of this type | Report the unsupported dry\-run choice and return the conversion\. | Retain the standalone \-\-env behavior\: report that dry\-run is not supported for environment conversion and still return the converted bytes\. |
+| `dry-run` | flag | no | any value of this type | Report the unsupported dry\-run choice and return the conversion\. | Retain the standalone environment conversion behavior\: report that dry\-run is not supported for environment conversion and still return the converted bytes\. |
 | `content` | string | yes | any value of this type | ExaBGP input bytes in padded base64\, at most 195\,840 bytes\. | ExaBGP source bytes in padded base64\, bounded to 195\,840 decoded bytes\. Content is withheld from command history and accounting\. No file is opened or written\. |
 | `name` | string | no | any value of this type | Filename label for diagnostics\; no file is opened\. | Optional filename label without a directory or control characters\. Used only in diagnostics\; it never selects a daemon file\. |
 

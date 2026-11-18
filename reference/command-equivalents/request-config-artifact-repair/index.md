@@ -7,7 +7,7 @@ Salvage a source into a new private artifact\.
 - Registry path: `request config artifact repair`
 - Usage: `request config artifact repair <transfer>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-repair`
+- Wire method: `ze-config:artifact-repair`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

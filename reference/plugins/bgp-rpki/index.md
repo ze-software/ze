@@ -25,6 +25,13 @@ RPKI origin validation via RTR protocol
 - Required dependency for: [`bgp-rpki-decorator`](../bgp-rpki-decorator/index.md)
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: None
+- Starts before: [`bgp-gr`](../bgp-gr/index.md)
+
 ## Repository artifacts
 
 Package: `internal/component/bgp/plugins/rpki`

@@ -7,7 +7,7 @@ Inspect one private artifact inventory\.
 - Registry path: `show config artifact info`
 - Usage: `show config artifact <artifact> info`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-info`
+- Wire method: `ze-config:artifact-info`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

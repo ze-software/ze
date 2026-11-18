@@ -7,7 +7,7 @@ Delete a saved artifact candidate path\.
 - Registry path: `request config artifact session delete`
 - Usage: `request config artifact <artifact> session delete <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-delete`
+- Wire method: `ze-config:artifact-session-delete`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

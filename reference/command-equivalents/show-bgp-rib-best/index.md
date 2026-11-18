@@ -21,7 +21,7 @@ Show the winning route for each prefix\.
 - Command pipes: `community <value>`: Filter by standard community; `count`: Count matching best paths without serializing rows; `family <value>`: Filter by AFI\/SAFI; `first <value>`: Take first N best paths; `graph`: Render AS\-path topology graph; `histogram`: Count routes by family and prefix length; `last <value>`: Take last N best paths; `match <value>`: Cross\-field structured match; `path <value>`: Filter by AS path; `peer <value>`: Filter by peer; `prefix <value>`: Filter by prefix; `reason`: Explain best\-path selection
 - Pipe aliases: none
 
-Same filters as \'show bgp rib\'\. Use \'\| reason\' to see why each path was selected \(local\-pref\, AS path length\, MED\, etc\.\)\.
+Same filters as \'show bgp rib\'\, except covering and exact\, which read received routes only\. Use \'\| reason\' to see why each path was selected \(local\-pref\, AS path length\, MED\, etc\.\)\.
 
 ## Arguments
 

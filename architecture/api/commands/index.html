@@ -390,6 +390,12 @@ another import, selection or publication algorithm.</p>
 <!-- source: internal/component/config/cli/register_artifact_import_restore.go -- init -->
 <!-- source: internal/component/config/storage/cli/main.go -- ImportConfig -->
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- RestoreConfigFromSource -->
+<p>A native artifact refusal retains its complete operator error and HTTP category
+through the command answer, including a singleton join created when cleanup
+succeeds. If the operation and an independent cleanup both fail, the answer
+keeps both causes and reports HTTP 500. Selecting the first refusal from that
+aggregate would hide the cleanup failure.</p>
+<!-- source: internal/component/config/cli/artifact_rpc.go -- artifactOperationFailure, artifactSingleRefusal -->
 <h3 id="a-parent-command-never-swallows-a-registered-child">A parent command never swallows a registered child</h3>
 <p>The daemon serves the LONGEST registered key that prefixes the input and hands the
 rest to that handler as arguments. A parent registered at a short path would
@@ -811,6 +817,9 @@ commands that read through it are <code>show config dump</code>, <code>validatio
 <code>history</code> (whose store is opened beside the resolved file, so a link placed
 outside the directories cannot choose the store), <code>graph</code> and <code>fmt</code>,
 <code>show plugin declarations config</code> and <code>show bgp decode pcap</code>.
+<code>CallerPath</code> owns a complete operator refusal for every rejected path. Its
+final fix is the local invocation, with each word quoted and private credential
+or <code>content</code> operands masked before presentation; adapters retain that refusal.
 <code>show config fmt -w</code> rewrites its file, so it is refused on the daemon route
 whatever the path.</p>
 <p>The dispatcher refuses a flag-shaped token before any handler runs, because a
@@ -1678,7 +1687,17 @@ controls remain omitted at the form boundary, while a required supplied-byte
 input can contain zero bytes when its shared argument validator permits an
 empty value. A blank required HTML control whose model rejects empty, such as
 an integer, remains omitted for the dispatcher's missing-argument check.
-Empty flag controls leave the flag unset.</p>
+Empty flag controls leave the flag unset.
+Structured API and MCP boolean flags use <code>true</code> for presence and <code>false</code> for
+omission; ordinary nonflag booleans remain values. REST and gRPC keep command
+and parameters separate until one engine metadata generation supplies typed
+placement and the original definitions for the shared invocation matcher.
+An already supplied raw invocation retains its text and selector values while
+extra parameters follow as keywords. Malformed flag values refuse before a
+handler runs and name the command's help.</p>
+<!-- source: internal/component/api/invocation.go -- prepareCommand, buildInvocation -->
+<!-- source: internal/component/command/invocation_match.go -- MatchInvocationPath -->
+<!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation, WriteInvocationValue -->
 <!-- source: internal/component/api/requests.go -- BuildCommand -->
 <!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
@@ -2154,7 +2173,7 @@ config. The value after
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data key, leaf content -->
 <!-- source: internal/component/config/storage/yang/ze-data-cmd.yang -- update data config, leaf content -->
 <!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, leaf content -->
-<!-- source: internal/component/config/cli/validate_route.go -- validationLine, sentLabel -->
+<!-- source: internal/component/config/cli/daemon_route.go -- suppliedQuestion.line, sentLabel -->
 <!-- source: internal/component/plugin/server/handler.go -- RPCRegistration.AuditAction -->
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
 <h4 id="caller-supplied-configuration-inspection">Caller-supplied configuration inspection</h4>
@@ -2193,8 +2212,17 @@ bytes. Both routes use the same Editor operations and Save serializer as the
 local file/stdin tools. Only the local adapters choose file publication.
 The shared validator's complete value refusal keeps its original problem,
 explanation and correction on both routes. The editor's schema mask applies to
-each part before it is returned; adapters add no second explanation or fix.</p>
+each part before it is returned; adapters add no second explanation or fix.
+Parse and activation failures are complete operator errors at their owning
+Editor calls. Parser line numbers and <code>load:</code> context, or the activation verb,
+remain in the problem; a native correction remains the final fix. Plain or
+joined failures retain their whole cause and receive the operation's recovery
+step before either route renders them.
+An activation refusal also retains a rejected key's typed schema facts, so an
+editor in a context can frame the same correction with its relative invocation.</p>
 <!-- source: internal/component/config/cli/config_detached.go -- suppliedMutation, detachedStatement, applyConfigSet, applyConfigActivation, detachedReplaceAnswer, detachedEditorAnswer -->
+<!-- source: internal/component/cli/editor_load.go -- ParseLoad, loadParseRefusal -->
+<!-- source: internal/component/cli/editor_activation.go -- ApplyActivation, activationRefusal -->
 <!-- source: internal/component/config/cli/cmd_set.go -- cmdSetImpl -->
 <!-- source: internal/component/config/cli/cmd_deactivate.go -- runDeactivateLike -->
 <p>Dump and graph refusals retain the parsing or resolution error and name a
@@ -2345,6 +2373,7 @@ show status              # Show process status
 request reload           # Reload the configuration
 request plugin restart &lt;name&gt;   # Restart a configured plugin, stopping it first if it runs (lifts a respawn-limit disable)
 request data backup path &lt;file&gt; [spare &lt;n&gt;] [force]   # Back up the store to a file on the daemon host
+request config artifact system snapshot             # Create a private full-store download transfer
 request data restore path &lt;file&gt; config [name &lt;n&gt;]    # Restore the config from a backup through the reload
 request data restore path &lt;file&gt; full                # Accept full recovery after clean shutdown and store close
 delete data key &lt;key&gt;    # Remove one runtime-state key (meta/ outside meta/config/) through the daemon's store
@@ -2362,6 +2391,18 @@ cleanly; a cleanup failure prevents replacement.</p>
 <!-- source: cmd/ze/hub/web_only_owner.go -- bindWebOnlyRecovery, shutdownWebOnly, webOnlyExitStatus -->
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreDaemonConfig -->
 <!-- source: cmd/ze/ze_core_start_recovery.go -- runOwnedDaemonStore -->
+<p><code>request config artifact system snapshot</code> requires edit access because its
+complete <code>.zefs</code> includes credentials and private keys. Its result is the
+existing private transfer document (<code>transfer</code>, <code>total</code>, <code>next</code>, <code>complete</code>).
+Read it with <code>show config artifact transfer read transfer &lt;id&gt; offset &lt;n&gt;</code> and
+finish with <code>request config artifact upload abort transfer &lt;id&gt;</code>, including
+after a failed read. A different account cannot read the transfer. Source
+history, drafts and pending changes are preserved as raw keys; creation invokes
+neither commit nor reload. The daemon must serve a store, and bounded snapshot
+admission may refuse before creating output. The browser creation form uses
+this command and downloads the resulting bytes directly.</p>
+<!-- source: internal/component/config/cli/artifact_system.go -- artifactSystemSnapshot -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-artifact-cmd.yang -- system, snapshot -->
 <h4 id="show-reload-status-the-reload-fence">show reload-status (the reload fence)</h4>
 <p>Returns the reload generation counter as JSON:</p>
 <pre><code class="language-json">{"generation": 3, "last-outcome": "applied", "last-reload-at": "2026-07-16T09:12:44Z"}
@@ -2485,14 +2526,16 @@ request cache release &lt;id1&gt;,&lt;id2&gt;,...,&lt;idN&gt;        # Batch rel
 <!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
 <h4 id="fast-path-typed-sdk-rs-fastpath-3">Fast-path typed SDK (rs-fastpath-3)</h4>
 <p>The text-RPC <code>send bgp &lt;sel&gt; cached &lt;id&gt;</code> path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:</p>
-<pre><code class="language-go">Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
+<pre><code class="language-go">Plugin.ForwardCached(ctx, input rpc.ForwardCachedInput) error
 Plugin.ReleaseCached(ctx, ids []uint64) error
 </code></pre>
 <p>Both methods round-trip via <code>DirectBridge</code> when the plugin is in-process (zero socket I/O, no tokenisation, no command-registry lookup) and fall back to the <code>ze-plugin-engine:forward-cached</code> / <code>:release-cached</code> methods over the newline-framed plugin RPC connection when the plugin is out-of-process. The engine handler is <code>reactorAPIAdapter.ForwardUpdatesDirect</code> / <code>ReleaseUpdates</code>.</p>
-<p>Destinations are peer addresses (<code>netip.AddrPort</code>). Port-0 entries match any peer
-instance with the same address. A call accepts up to 4096 destinations, configurable
-through <code>ze.fwd.dest.cap</code>, and returns an error if the list exceeds that limit.
-An empty destination list also returns an error to prevent an accidental broadcast.
+<p>An intentional unbound call uses <code>ForwardCachedInput.Destinations</code>. A bound
+call instead supplies the complete <code>Targets</code> set of original destination address,
+Peer owner and UP session, with a bounded deadline. The two forms are exclusive.
+The bound server joins every admitted target writer before acknowledging the
+unique cached IDs once. An exact positive completion receipt proves settlement;
+a transport error or generic cancellation receipt leaves the output unknown.
 Use <code>ReleaseCached</code> to acknowledge an UPDATE without forwarding it.</p>
 <!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
 <p>Per-source ordering, egress filter chains, AS-PATH prepend, next-hop policy, replay-on-new-peer, and every other forwarding invariant are preserved. Only the transport differs from the text-RPC path.</p>
@@ -2697,9 +2740,10 @@ show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in &lt;selector&gt;                  # Clear Adj-RIB-In (* for all peers)
 clear bgp rib out &lt;selector&gt; [family &lt;family&gt;] # Resend Adj-RIB-Out (* for all, optional family)
+clear bgp rib out-excluding-owner owner &lt;id&gt; [family &lt;family&gt;] # Replay except one exact configured owner
 clear bgp rib advertised &lt;selector&gt; [family &lt;family&gt;] # Withdraw Adj-RIB-Out (* for all, optional family)
-request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs] # Insert route into Adj-RIB-In (no session needed)
-request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;       # Remove route from Adj-RIB-In
+request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs] # Insert synthetic forwarding candidate (no session needed)
+request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;       # Remove matching synthetic forwarding candidate
 show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-prefix-match in Loc-RIB)
 </code></pre>
 <p>Generic pipes apply to the answer the command produced. The operator language has exactly one statement, <code>pipeCatalog</code>, and <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>docs/features/pipe-operators.generated.md</code></a> is that table published; naming the operators here again is the drift this catalog exists to end. What a given command owes is published per command by <code>ze help command --json</code>, derived from the shape it declares, and an operator the shape cannot support is refused by name before the command runs.</p>
@@ -4015,10 +4059,14 @@ value:</p>
 values or ranges are given, they all MUST be disjoint and MUST be in ascending
 order." Every refusal wraps <code>command.ErrArgDef</code>. <code>ArgOptions</code> carries what
 every kind shares: <code>Mandatory</code>, <code>ShortHelp</code> (the leaf's <code>ze:help</code> summary),
-<code>Description</code> (its <code>description</code>) and <code>Anchor</code> (the path keyword this value
-follows, empty for a trailing value). The constructors copy their input
-slices. The accessors (<code>Name</code>, <code>Kind</code>, <code>Mandatory</code>, <code>UintBits</code>, <code>ShortHelp</code>,
-<code>Description</code>, <code>Anchor</code>) return scalars, and <code>EnumValues</code>, <code>Ranges</code>,
+<code>Description</code> (its <code>description</code>), <code>Anchor</code> (an explicitly declared ancestor
+path keyword), and <code>TypeName</code> (the source YANG type or typedef name, without
+changing the constructor's validation kind). Without an explicit anchor, a
+nonflag leaf whose own name occurs in the selected path follows that keyword
+bare; every other leaf follows the command as a keyword argument. The
+constructors copy their input slices. The accessors (<code>Name</code>, <code>Kind</code>,
+<code>Mandatory</code>, <code>UintBits</code>, <code>ShortHelp</code>, <code>Description</code>, <code>Anchor</code>, <code>TypeName</code>)
+return scalars, and <code>EnumValues</code>, <code>Ranges</code>,
 <code>Lengths</code>, <code>Patterns</code> (the pattern source text) and <code>UnionDefs</code> return
 iterators, so no reader can write into a validated definition.
 <code>WithAnchor</code> returns an anchored copy. Tests outside the package build
@@ -4031,6 +4079,12 @@ definitions through <code>commandtest.Must</code>.</p>
 <p>ArgDefs are extracted from YANG by <code>BuildCommandTree</code> (<code>config/yang/command.go</code>)
 and stored on <code>command.Node.ArgDefs</code>. The dispatcher receives them via
 <code>RegisterOptions.ArgDefs</code> populated by <code>PathToArgDefs</code>.</p>
+<p>A <code>boolean</code> command leaf carries either <code>false</code> or <code>true</code>. The lowerer uses
+the enum validator for those two lexical values while retaining the source
+YANG type name in metadata. <code>empty</code> leaves use the presence-only flag
+constructor. Supplied <code>false</code> remains an argument value through validation
+and invocation writing.</p>
+<!-- source: internal/component/config/yang/command.go -- argDefFor, yangTypeToArgDef -->
 <p><code>yangTypeToArgDef</code> builds every definition through these constructors and
 assigns the internal <code>ArgKind</code>; raw argument strings never choose it. A
 constructor refusal there is a BUG: goyang's type resolution sorts, coalesces
@@ -5651,7 +5705,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 04:28 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

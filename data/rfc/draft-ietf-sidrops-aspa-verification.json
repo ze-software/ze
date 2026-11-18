@@ -8,10 +8,10 @@
   "must": {
     "total": 10,
     "kept": 10,
-    "ze-proven": 9,
+    "ze-proven": 8,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 0,
+    "proof-pending": 1,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 1,
@@ -31,7 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 9
+    "unit": 8
   },
   "unmet": [
     "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2"

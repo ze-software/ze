@@ -29,7 +29,7 @@ Graceful Restart capability and mechanism plugin
 
 Order only when both plugins are selected; never auto-loads a plugin.
 
-- Start after: [`bgp-rr`](../bgp-rr/index.md)
+- Start after: [`bgp-rr`](../bgp-rr/index.md), [`bgp-adj-rib-in`](../bgp-adj-rib-in/index.md), [`bgp-rpki`](../bgp-rpki/index.md)
 - Starts before: None
 
 ## Repository artifacts

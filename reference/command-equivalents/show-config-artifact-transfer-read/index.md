@@ -7,7 +7,7 @@ Read one bounded immutable snapshot chunk\.
 - Registry path: `show config artifact transfer read`
 - Usage: `show config artifact transfer <transfer> read <offset>`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-transfer-read`
+- Wire method: `ze-config:artifact-transfer-read`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

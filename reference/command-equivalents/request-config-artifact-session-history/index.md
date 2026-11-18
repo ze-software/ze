@@ -7,7 +7,7 @@ Inspect native artifact session history\.
 - Registry path: `request config artifact session history`
 - Usage: `request config artifact <artifact> session history <name>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-history`
+- Wire method: `ze-config:artifact-session-history`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

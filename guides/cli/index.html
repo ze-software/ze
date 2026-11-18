@@ -210,6 +210,14 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 <td>Show Adj-RIB-Out</td>
 </tr>
 <tr>
+<td><code>show bgp rib received covering &lt;address&gt;</code></td>
+<td>Show every received route whose prefix contains the address, most specific first within each peer (IPv4 and IPv6 prefix families)</td>
+</tr>
+<tr>
+<td><code>show bgp rib received exact &lt;prefix&gt;</code></td>
+<td>Show the received routes of exactly that prefix, every ADD-PATH path of it, from every selected peer (IPv4 and IPv6 prefix families)</td>
+</tr>
+<tr>
 <td><code>clear bgp rib in &lt;selector&gt;</code></td>
 <td>Clear Adj-RIB-In (<code>*</code> for all peers)</td>
 </tr>
@@ -220,6 +228,19 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseCoveringAddress, parseExactPrefix, walkConflictRefusal, refuseCoveringScope, refuseExactScope -->
+<p><code>covering</code> takes one address with no mask: <code>show bgp rib received covering 192.0.2.1</code> lists <code>192.0.2.0/24</code>, then <code>192.0.0.0/22</code>, then <code>0.0.0.0/0</code> when a
+peer holds all three. It reads received routes only, so on <code>sent</code> or on the
+default scope it is refused with the received form to type.</p>
+<p><code>exact</code> takes one prefix with its mask and answers that prefix alone: <code>show bgp rib received exact 192.0.0.0/2</code> lists the routes of <code>192.0.0.0/2</code> and not
+<code>192.0.0.0/24</code>. A bare address is refused with the <code>covering</code> form to type, and
+a prefix with host bits set is refused with its masked form (<code>10.0.0.1/8</code> names
+<code>10.0.0.0/8</code>). It reads received routes only, like <code>covering</code>, and one command
+takes <code>covering</code> or <code>exact</code>, never both.</p>
+<p><code>prefix</code> stays a text filter on the prefix string, so it can also match longer
+prefixes that share its leading text: <code>prefix 10.0</code> matches <code>10.0.0.0/24</code> and
+not <code>10.10.0.0/16</code>, and <code>prefix 192.0.0.0/2</code> matches <code>192.0.0.0/24</code> too. Use
+<code>exact</code> to ask for one prefix.</p>
 <p>See <a href="../route-injection/">Route Injection guide</a> for UPDATE syntax details.</p>
 <h2 id="cache-commands">Cache Commands</h2>
 <table>
@@ -624,7 +645,7 @@ none says so.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

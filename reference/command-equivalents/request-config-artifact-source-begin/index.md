@@ -7,7 +7,7 @@ Snapshot raw committed configuration text\.
 - Registry path: `request config artifact source begin`
 - Usage: `request config artifact <artifact> source begin <name>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-source-begin`
+- Wire method: `ze-config:artifact-source-begin`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

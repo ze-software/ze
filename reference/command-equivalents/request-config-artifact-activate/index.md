@@ -7,7 +7,7 @@ Activate an artifact configuration path\.
 - Registry path: `request config artifact activate`
 - Usage: `request config artifact <artifact> activate <name> <text> [dry-run]`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-activate`
+- Wire method: `ze-config:artifact-activate`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

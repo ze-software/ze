@@ -25,6 +25,13 @@ None
 - Required dependency for: [`bgp-rpki`](../bgp-rpki/index.md), [`bgp-rr`](../bgp-rr/index.md)
 - Optional dependency for: [`bgp-rs`](../bgp-rs/index.md)
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: None
+- Starts before: [`bgp-gr`](../bgp-gr/index.md)
+
 ## Repository artifacts
 
 Package: `internal/component/bgp/plugins/adj_rib_in`

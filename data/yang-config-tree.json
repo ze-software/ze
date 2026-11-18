@@ -9309,6 +9309,23 @@
       {
         "children": [
           {
+            "description": "Absolute parent folder for private backup workspaces and download snapshots.\nThe ze.backup.directory environment override takes priority. With no explicit setting,\nuse the platform data directory's backups folder: the Linux and appliance data paths\nare resolved by the shared platform policy. A development binary with no recognized\ndata directory keeps its operating-system temporary folder. Ze creates a missing\nparent folder and private children; it does not change an existing parent's mode or\nremove unrelated files. The daemon user must be able to create files here.\nA commit creates a missing folder and checks write permissions as the running daemon\naccount. A failed commit keeps the previous effective folder. Existing private roots\nremain owned until their contents close or expire; empty retired roots are removed.\nRemoving the leaf restores the platform default unless the OS override is set.",
+            "kind": "leaf",
+            "name": "directory",
+            "short-help": "Absolute backup folder; apply after a successful commit.",
+            "source": "config",
+            "type": "string"
+          }
+        ],
+        "description": "Private working copies for uploaded backups and complete system backup downloads.\nThe candidate directory is checked when the configuration is committed and becomes\neffective only after that commit succeeds. Existing workspaces and downloads remain\nin their original private folders until they close or expire.",
+        "kind": "container",
+        "name": "backup",
+        "short-help": "Backup workspace storage settings.",
+        "source": "config"
+      },
+      {
+        "children": [
+          {
             "description": "The environment variable ze.bgp.announce.delay overrides the leaf. Ze holds every peer\nstart for the delay after the reactor is otherwise Ready, which staggers route emission over a\nrestart.",
             "kind": "leaf",
             "name": "announce-delay",
@@ -32461,7 +32478,7 @@
             "type": "uint32"
           },
           {
-            "description": "The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and\nthe statseg section of startup.conf. For 2M Ze writes page-size default-hugepage instead,\nwhich takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when\nyou select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.",
+            "description": "For 1G Ze writes page-size 1G into both buffers and statseg. For 2M it writes default-hugepage,\nwhich uses the kernel default hugepage size. Explicit default writes page-size default and uses\nnative base pages, whose size is a kernel fact, without a hugepage reservation. The default\nremains 2M and no failed hugepage request falls back to base pages. The doctor check warns about\nan unsupported 1G CPU and reports missing or insufficient reservations for hugepage modes.",
             "kind": "leaf",
             "name": "hugepage-size",
             "short-help": "Hugepage size for VPP buffers.",
@@ -32475,11 +32492,15 @@
               {
                 "name": "2M",
                 "short-help": "Write page-size default-hugepage, which takes the kernel's default hugepage size."
+              },
+              {
+                "name": "default",
+                "short-help": "Use the native base-page size without a hugepage reservation."
               }
             ]
           },
           {
-            "description": "Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be\ndigits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check\ncounts this size toward the hugepage memory it expects the host to have reserved.",
+            "description": "Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be\ndigits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check\ncounts this size toward the reservation only when a hugepage mode is selected.",
             "kind": "leaf",
             "name": "main-heap",
             "short-help": "VPP main heap size (e.g. 512M, 1G, 1536M).\nProduction with full DFZ: 1536M.",
@@ -32487,7 +32508,7 @@
             "type": "string"
           }
         ],
-        "description": "These three leaves decide how much hugepage memory VPP asks the host for. The ze doctor check adds the\nmain heap, the buffer memory and the stats segment together. It warns when the host reserved less\nhugepage memory than that sum. The hugepage-size leaf decides which page size VPP asks for, and it\nalso governs the stats segment.",
+        "description": "These leaves select VPP memory sizing and the buffers and statistics page mode. In a hugepage\nmode the ze doctor check adds the main heap, buffer memory and stats segment together and warns\nwhen the reservation is insufficient. Explicit default selects native base pages and does not\nrequire a hugepage reservation. An omitted hugepage-size still selects 2M.",
         "kind": "container",
         "name": "memory",
         "short-help": "VPP memory and buffer configuration.",
@@ -32495,6 +32516,22 @@
       },
       {
         "children": [
+          {
+            "description": "Load af_packet_plugin.so so an explicitly configured AF_PACKET native access path can\nuse host interfaces. Omission leaves it disabled. This selection does not create an interface,\nchange the interface backend or provide the required Linux Control Plane pair.",
+            "kind": "leaf",
+            "name": "af-packet",
+            "short-help": "Load the AF_PACKET native plugin for a configured host-interface path.",
+            "source": "config",
+            "type": "boolean"
+          },
+          {
+            "description": "Load dpdk_plugin.so. The default preserves existing startup output. Explicit false is for\na configured non-DPDK access path and is refused while any DPDK interface is configured. A\nmissing installed plugin never changes this selection automatically.",
+            "kind": "leaf",
+            "name": "dpdk",
+            "short-help": "Load the DPDK native plugin, enabled by default.",
+            "source": "config",
+            "type": "boolean"
+          },
           {
             "description": "Load wireguard_plugin.so so the vpp interface backend can program WireGuard tunnels. The tunnels are\nconfigured as interface wireguard under backend vpp.",
             "kind": "leaf",
@@ -32504,11 +32541,19 @@
             "type": "boolean"
           }
         ],
-        "description": "Optional VPP plugin enablement. startup.conf uses 'plugin default { disable }', so Ze loads only the\nalways-on plugins and the plugins toggled on here. The always-on plugins are dpdk, plus linux-cp\nwhen lcp is enabled.",
+        "description": "Explicit VPP plugin enablement. startup.conf disables plugins by default. DPDK remains enabled\nby default and can be disabled only when no DPDK interfaces are configured. AF_PACKET is opt-in.\nuRPF always loads because configured IPv4 reverse-path checks depend on it. Linux Control Plane\nplugins load when lcp is enabled, and selected features register their own requirements.",
         "kind": "container",
         "name": "plugins",
         "short-help": "Optional VPP plugins to load.",
         "source": "config"
+      },
+      {
+        "description": "Optional original VPP CLI command file. After the retained API Unix peer matches the supervised\nchild's atomic process descriptor, Ze waits for synchronous native command completion on that same API\ngeneration before statistics and service readiness. The path must be absolute and contain no whitespace,\ncontrol characters, braces, quotes, backslashes, comment or command separators. Managed startup refuses a\nmissing, unreadable or nonregular file before starting the child; ze doctor names the original path and\nits repair. An empty or absent setting makes no request. The generated unix section omits asynchronous\nexec for this setting. Native command failure stops activation and kills and reaps the original child\nbefore runOnce returns. The independent retained process observer alone proves physical death.\nExternal supervision neither inspects nor executes this file. Native VPP owns its grammar.",
+        "kind": "leaf",
+        "name": "startup-cli-file",
+        "short-help": "Original CLI command file to execute during managed VPP startup.",
+        "source": "config",
+        "type": "string"
       },
       {
         "children": [
@@ -32521,7 +32566,7 @@
             "type": "uint16"
           },
           {
-            "description": "Ze writes this size into the statseg section of startup.conf as size. The value MUST be digits followed\nby M or G, so 512M and 1G are accepted and 512MB is refused at commit. The page size of the\nsegment comes from memory hugepage-size and not from this leaf. The ze doctor check counts this\nsize toward the hugepage memory it expects the host to have reserved.",
+            "description": "Ze writes this size into the statseg section of startup.conf as size. The value MUST be digits followed\nby M or G, so 512M and 1G are accepted and 512MB is refused at commit. The page size of the\nsegment comes from memory hugepage-size and not from this leaf. The ze doctor check counts this\nsize toward the reservation only when a hugepage mode is selected.",
             "kind": "leaf",
             "name": "segment-size",
             "short-help": "Stats segment shared memory size.",

@@ -289,10 +289,19 @@ ordinary engine requests while it waits, so an initializer can emit its startup
 events without waiting on the caller of <code>Start</code>.</p>
 <!-- source: internal/test/pluginengine/pluginengine.go -- Start -->
 <!-- test: internal/test/pluginengine/startup_ready_test.go TestStartJoinsRuntimeInitialization, TestStartFirstCommandUsesInitializedCallback -->
+<p>Ordinary command dispatch answers use the daemon's record-answer writer,
+including its warnings and completed record metadata. Physical and destination
+bound dispatch keeps the joined JSON receipt expected by the SDK's constrained
+command reader. A fake evaluator supplies the real answer value; the fixture
+selects the encoding from the request's bound identity.</p>
+<!-- source: internal/test/pluginengine/pluginengine.go -- answerWire -->
+<!-- test: internal/test/pluginengine/dispatch_answer_test.go TestDispatchAnswersUseActualSDKReaders -->
 <p>Use <code>ExecutePeer</code> when a command needs an explicit peer address. It forwards
 that value to the actual SDK callback on both transports; <code>Execute</code> keeps its
 empty-peer default. The fixture supplies context, not authentication or native
-authority, which the feature's own tests must establish.</p>
+authority, which the feature's own tests must establish.
+Both helpers return a document only for a final <code>done</code> verdict. A warning or
+failed verdict is an error on either transport.</p>
 <!-- source: internal/test/pluginengine/pluginengine.go -- Execute, ExecutePeer -->
 <!-- test: internal/test/pluginengine/execute_peer_test.go TestExecutePeerReachesActualSDKAndPreservesEmptyControl -->
 <p>A received route that requires a source lease must carry a receipt the fixture
@@ -476,6 +485,7 @@ needs no <code>./le job run</code> around it (<code>running-commands.md</code>, 
 time").</p>
 <pre><code class="language-sh">./le test bgp plugin 42              # test id 42
 ./le test bgp encode --list          # list N/TOTAL, id, and name
+./le test bgp plugin --pattern lg- --list  # list only the tests that pattern runs
 ./le test bgp plugin --start 42      # id 42 and every later test
 ./le test editor 7                   # editor test id 7
 ./le test editor -p nav              # editor tests matching "nav"
@@ -1296,7 +1306,7 @@ negotiated link-local address pair.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

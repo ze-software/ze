@@ -4,23 +4,23 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>show l2tp session history - Command Equivalents - Ze</title>
-        <meta name="description" content="Show state transitions for a session over time." />
-        <meta property="og:title" content="show l2tp session history - Command Equivalents - Ze" />
-        <meta property="og:description" content="Show state transitions for a session over time." />
+        <title>request config artifact system snapshot - Command Equivalents - Ze</title>
+        <meta name="description" content="Create a complete private system backup transfer." />
+        <meta property="og:title" content="request config artifact system snapshot - Command Equivalents - Ze" />
+        <meta property="og:description" content="Create a complete private system backup transfer." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="show l2tp session history - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Show state transitions for a session over time." />
+        <meta name="twitter:title" content="request config artifact system snapshot - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Create a complete private system backup transfer." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/show-l2tp-session-history/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/show-l2tp-session-history/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/request-config-artifact-system-snapshot/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/request-config-artifact-system-snapshot/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,25 +47,25 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">show l2tp session history</h1>
-    <p>Show state transitions for a session over time.</p>
+    <h1 id="command-equivalent-detail-title">request config artifact system snapshot</h1>
+    <p>Create a complete private system backup transfer.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>show l2tp session history</code></dd></div>
-<div><dt>Usage</dt><dd><code>show l2tp session history</code></dd></div>
-<div><dt>Mode</dt><dd>Read-only</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-l2tp:session-history</code></dd></div>
+<div><dt>Registry path</dt><dd><code>request config artifact system snapshot</code></dd></div>
+<div><dt>Usage</dt><dd><code>request config artifact system snapshot</code></dd></div>
+<div><dt>Mode</dt><dd>Daemon</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-config:artifact-system-snapshot</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
-<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Answer shape</dt><dd>doc</dd></div>
 </dl>
-<h3>Description</h3><p>Timestamped FSM entries for session establishment.<br>Use this when a subscriber&#39;s session fails to come up.</p>
+<h3>Description</h3><p>Create a complete immutable ZeFS transfer from the daemon-owned store, including credentials, history and saved drafts. Requires edit access; read the returned transfer and abort it afterward. No source configuration is changed.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -132,7 +132,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

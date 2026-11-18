@@ -301,12 +301,35 @@ datagram whose message type is not SCCRQ keeps its silent drop.
 | `show l2tp tunnels` | Array of tunnel summaries |
 | `show l2tp tunnel <id>` | One tunnel detail (AVPs, capabilities, session list) |
 | `show l2tp sessions` | Array of session summaries (flattened across tunnels) |
-| `show l2tp session id <id>` | One session detail (PPP state, negotiated MRU/auth method, `proxy-lcp` outcome, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
+| `show l2tp session id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | One captured original's detail (PPP state, negotiated MRU/auth method, `proxy-lcp` outcome, assigned IP, speeds; the realm relay keys on a realm-relayed LAC session) |
+| `show l2tp session history id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | The captured original's state transitions |
+| `show l2tp session traffic id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | The captured original's raw traffic counters |
+| `show l2tp session traffic` | Traffic for the current inventory, retaining an error row if an original ended |
+| `show l2tp observer id <id> [tunnel-id <tid>] [listener <name-or-endpoint>]` | The captured original's event history |
 | `show l2tp statistics` | Protocol counters (tunnel/session counts, per-message stats) |
 | `show l2tp listeners` | Bound UDP endpoints |
 | `show l2tp config` | Effective runtime config, including `mru` and `authentication-allow`; `shared-secret` redacted to `<set>`/`<unset>` |
 
 <!-- source: internal/component/l2tp/cmd/l2tp.go -->
+
+A bare session ID is useful only when it identifies one original. If the ID
+occurs on several tunnels, add `tunnel-id`; if those coordinates also occur
+on several listeners, add the configured listener name or its bound IP:port.
+An ambiguous request refuses and lists the available qualifying commands.
+Reads and clear capture one original before reading or acting. An optional
+`expected-id <birth>` on a single-session read requires the displayed immutable
+reference; an ended original refuses instead of reading a same-label successor.
+Malformed or duplicate qualifiers refuse before selection. Tab completion
+offers the current listener names after `listener`.
+<!-- source: internal/component/l2tp/cmd/session_read.go -- captureSessionRead, completeSessionRead -->
+
+Session traffic reads the captured original PPP control. The interface name
+in the result is a label, never a second counter lookup. All byte, packet,
+error and drop keys remain present. Each unavailable diagnostic is `null`;
+a measured zero is numeric zero. Aggregate traffic keeps the original row's
+identity and an error when that original can no longer be read, while other
+current originals remain useful.
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionTrafficRow, sessionTrafficAll -->
 
 `show l2tp config` reports the local requested `mru` (1500 when absent) and
 the effective `authentication-allow` list, including the method-dependent
@@ -335,13 +358,44 @@ of 1500; it does not remove the local transmit cap.
 |---------|--------|
 | `clear l2tp tunnel id <id>` | Sends StopCCN Result Code 6 (administrative) to the named tunnel |
 | `clear l2tp tunnel all` | Same, for every live tunnel |
-| `clear l2tp session id <id> [reason <text...>] [cause <code>]` | Sends CDN Result Code 3 (administrative) to the named session |
+| `clear l2tp session id <id> [expected-id <birth>] [tunnel-id <tid>] [listener <name-or-endpoint>] [reason <text...>] [cause <code>]` | Clears one captured original session and confirms its local physical cleanup |
 | `clear l2tp session all` | Same, for every live session (tunnels remain) |
 
 The `clear l2tp session id` command accepts optional keyword arguments:
 
 - `reason <text...>` -- free-text audit reason, recorded in the per-session event ring
-- `cause <code>` -- RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
+- `cause <code>` -- RADIUS Disconnect-Cause value (uint32), recorded alongside the reason
+- `expected-id <birth>` -- canonical `birth` value from `show l2tp sessions` or `show l2tp session id <id>`; a stale reference refuses the action
+- `tunnel-id <tid>` -- restrict selection to the original local tunnel
+- `listener <name-or-endpoint>` -- restrict selection to a configured listener name or bound IP:port endpoint
+
+Supplied `actor` and `reason` values contain 1–256 Unicode characters. A
+`listener` selector contains 1–253 Unicode characters.
+
+Session list and detail rows include `birth` only when their original snapshot
+has a valid immutable reference. Copy that complete value for `expected-id`;
+a numeric SID is not a substitute, and an absent reference is never invented.
+They include the original bound `listener` endpoint when available, alongside
+the local session and tunnel IDs, so the readable qualifiers can be copied.
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
+
+The listener inventory retains each original reactor's cached server name and
+bound endpoint, including closing reactors whose cleanup is still pending.
+`show l2tp listeners` includes `name` when the original has a configured key.
+Unknown and ambiguous names are refused. Tab completes actual names only after
+the `listener` keyword. Omitting `expected-id` remains valid at an interactive
+prompt; a bare SID matching several originals is refused. Quote a reason that
+contains another keyword. Missing values, duplicate keywords and invalid
+disconnect causes are refused before any audit or teardown.
+
+A clear waits for the captured original's PPP cleanup when that worker is
+already closing its resources. Success requires confirmed physical release
+without a cleanup error. Cancellation ends that wait; an unfinished native
+operation or a failed Close remains a refusal, and a retry uses the retained
+original rather than a replacement with the same SID.
+
+<!-- source: internal/component/l2tp/listener_inventory.go -- listenerSnapshotsLocked -->
+<!-- source: internal/component/l2tp/cmd/session_teardown_completion.go -- completeSessionTeardown -->
 
 RFC 2661 S4.4.2 / S5.4.2 define the Result Codes and teardown
 semantics. Teardown of unknown IDs returns an error naming the ID.
@@ -1071,6 +1125,12 @@ selects its live session after a registry miss. The boot tag and sequence are
 never discarded: an old ID cannot select a later incarnation merely because it
 reuses the tunnel and session numbers. When no authoritative full ID is known,
 an accounting-ID request gets NAK 503.
+The accounting owner binds its issued ID to the original Birth. A numeric
+tunnel/session pair cannot supply an accounting identity for a replacement.
+After matching, the listener captures that same Birth and its original row.
+CoA reads that captured row; Disconnect waits for its captured teardown with
+Admin-Reset cause before acknowledging it. A stale match gets CoA-NAK 503 or
+Disconnect-NAK 504 without selecting a replacement.
 
 <!-- source: internal/component/l2tp/plugins/authradius/coa.go -- findSessions, oneSession, findSubscriberSession, coaSupportedAttrs, disconnectSupportedAttrs -->
 <!-- source: internal/component/l2tp/subscriber/registry.go -- LookupByAcctSessionID -->
@@ -1377,7 +1437,10 @@ Observer records per-session events and per-login sample rings:
 **Per-session event ring** -- circular buffer of state transitions
 (tunnel-up, session-up, session-down, echo-rtt, disconnect-requested).
 Disconnect events include the actor, reason text, and optional cause
-code. Used for the event timeline in the web UI.
+code. Used for the event timeline in the web UI. Each admitted record carries
+the complete original `subscriber-id`; equal session numbers on different
+tunnels or listeners have independent histories. Summaries also expose the
+original `tunnel-id`.
 
 **Per-login CQM sample ring** -- 100-second aggregated buckets with:
 - Echo RTT statistics (min, avg, max)
@@ -1394,10 +1457,30 @@ Echo interval for CQM: `ze.l2tp.cqm.echo-interval` (env var, default
 `1s`). It applies only when CQM is enabled, where it overrides the PPP
 LCP echo interval used for sampling. An invalid or
 non-positive value logs a warning and falls back to `1s`.
+The echo state reports the exact accepted interval, including values that do
+not divide a 100-second bucket or are longer than one bucket.
+Loss ratio appears only when the bucket has a positive expected echo count.
+An interval longer than one bucket leaves loss unavailable; a computed zero
+remains present in the echo state.
 
 <!-- source: internal/component/l2tp/observer.go -->
 <!-- source: internal/component/l2tp/subsystem.go -- cqmEchoInterval -->
 <!-- source: internal/component/l2tp/cqm.go -->
+
+Quality state belongs to the login's selected original connection. A newer IP
+assignment selects that connection; ending an older one cannot mark the newer
+one down. Repeated Down does not renew an ended login's retention. Reconnection
+continues the login's sample history, while eviction forgets that bounded slot's
+old phase contributor.
+
+Each native Start has its own observation scope. Retired original roots keep
+their matching history until cleanup finishes; they do not accept a new
+connection's events. Stop rejects even a callback copied before unsubscribe.
+The existing pending-cleanup refusal remains in force before replacement Start.
+
+<!-- source: internal/component/l2tp/observer_events.go -- observeEvent -->
+<!-- source: internal/component/l2tp/subsystem.go -- Start, Stop -->
+<!-- source: internal/component/l2tp/session_retirement.go -- retireObserverLocked -->
 
 ## Prometheus metrics
 
@@ -1532,6 +1615,14 @@ The detail page renders a client-side CQM graph using uPlot. The
 chart loads 24h of historical data via JSON, then appends new
 100-second buckets in real time via SSE.
 
+Both session lists show listener, tunnel and session coordinates. Each detail
+link also retains the displayed original's immutable reference. The detail
+handler parses the link's `tunnel-id`, bound `listener` endpoint and optional
+`expected-id` once, then captures one original for snapshot and history.
+Malformed or duplicate filters refuse before reading any session. An ended
+original refuses instead of opening a replacement with the same numeric IDs.
+<!-- source: internal/component/web/handler_l2tp_selector.go -- l2tpDetailSelector, l2tpSessionDetailURL -->
+
 Chart colours are CSS custom properties (configurable via theme):
 - `--color-l2tp-established` (default: green #22c55e)
 - `--color-l2tp-negotiating` (default: amber #f59e0b)
@@ -1541,12 +1632,21 @@ Chart colours are CSS custom properties (configurable via theme):
 
 The disconnect button triggers a confirm dialog requiring a free-text
 reason (1-256 characters) and an optional Disconnect-Cause code. The
+workbench Disconnect link opens that original detail form, preserving the
+required reason and immutable guard. The form's
 POST dispatches through the CLI as `clear l2tp session id <sid>
-reason <text> [cause <code>]`, so authz is enforced at the CLI layer.
+expected-id <birth> actor <user> reason <text> [cause <code>]`, so authz is
+enforced at the CLI layer. The Birth belongs to the displayed original row;
+a stale page cannot clear a replacement that reused its numeric SID. A form
+without that reference is disabled and asks for a refresh. The command reports
+success only after the captured original's local physical cleanup is confirmed.
 Read-only profiles are denied by the existing `clear` prefix rule.
 
-The disconnect reason and actor are recorded in the per-session event
-ring for audit trail purposes.
+The disconnect reason and actor are recorded in the original session's bounded
+monitoring ring when CQM is enabled and space remains. Command audit is
+separate; this optional timeline is not a durable action receipt. Detail reads
+capture one original session for both its snapshot and history. An ambiguous
+numeric ID is refused rather than combining different subscribers' data.
 
 <!-- source: internal/component/web/handler_l2tp.go -->
 <!-- source: internal/component/web/assets/l2tp-chart.js -->
@@ -1593,11 +1693,39 @@ EventBus with the assigned peer IP as a /32 (IPv4) or /128 (IPv6)
 prefix. Session-down emits matching remove batches, one per address
 family that was up.
 
-The live record belongs to the full tunnel and session pair. Two tunnels can
-use the same session number and keep separate address and framed routes.
-Removing one pair leaves the other pair's
-routes available for replay. A Down for an unknown pair removes nothing.
+The live record belongs to the original session's complete Birth. Equal tunnel
+and session numbers, including on different listeners, keep separate address
+and framed routes. Removing one Birth leaves the other's routes available
+for replay. A Down for an unknown Birth removes nothing. Framed routes arrive
+from the original actor's captured authorization profile.
 <!-- source: internal/component/l2tp/route_observer.go -- records, OnSessionIPUp, OnSessionDown, reemitAll -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned -->
+
+One route update accepts at most 64 RADIUS framed routes. An oversized update
+is refused before any route, contribution token or counter changes, including
+when that Birth already has accepted routes. The earlier record and other
+Births remain available for replay. Ze refuses the whole update.
+<!-- source: internal/component/l2tp/route_observer.go -- OnSessionIPUp -->
+<!-- source: internal/component/l2tp/route_source.go -- framedRoutesMax -->
+
+The refusal logs `doctor-l2tp-framed-route-limit` and retains an error event
+with the original Birth, numeric tunnel and session IDs, observed minimum
+route count, cause and next command. The runtime doctor reports that history.
+Correct the affected subscriber's RADIUS profile to fit the limit. Before
+reconnecting that subscriber, inspect its current session and listener.
+The next command, `ze show l2tp sessions`, lists current numeric coordinates.
+It does not edit the RADIUS profile. Later updates do not erase the event.
+<!-- source: internal/component/l2tp/route_source.go -- reportFramedRouteRefusal -->
+<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents -->
+
+Each record also retains a separate native redistribution contribution token.
+Add, replay and remove carry that same nonzero token, so equal prefixes from
+different original sessions remain independent. Tokens are allocated once per
+route lifetime and never recycled within the process. Exhaustion refuses a
+new contribution and raises an internal-defect doctor warning with a restart
+command; it does not reuse another session's token.
+<!-- source: internal/component/l2tp/route_source.go -- routeSourceSequence, next, reportSourceRefusal -->
+<!-- source: internal/component/l2tp/route_observer.go -- routeRecord, OnSessionIPUp, reemitAll -->
 
 The redistribute orchestrator discovers L2TP as a producer at startup,
 subscribes to its events, and dispatches the prefixes to registered consumers

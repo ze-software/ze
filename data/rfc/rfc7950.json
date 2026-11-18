@@ -8,10 +8,10 @@
   "must": {
     "total": 91,
     "kept": 91,
-    "ze-proven": 37,
+    "ze-proven": 36,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 0,
+    "proof-pending": 1,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 54,
@@ -32,7 +32,7 @@
   },
   "proven-by-kind": {
     "functional": 1,
-    "unit": 36
+    "unit": 35
   },
   "unmet": [
     "RFC7950-11-1",

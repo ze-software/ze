@@ -7,7 +7,7 @@ Remove a private transfer and its retained bytes\.
 - Registry path: `request config artifact upload abort`
 - Usage: `request config artifact upload abort <transfer>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-upload-abort`
+- Wire method: `ze-config:artifact-upload-abort`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

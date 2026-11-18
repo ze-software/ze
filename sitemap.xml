@@ -1483,6 +1483,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-in/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-out-excluding-owner/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-out/</loc>
   </url>
   <url>
@@ -1783,6 +1786,24 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-retain-routes/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-attach-community/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-delete-with-community/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-mark-stale/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-purge-stale/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-release-routes/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-source-retain-routes/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-bgp-rib-withdraw-protocol/</loc>
   </url>
   <url>
@@ -1814,6 +1835,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-cache-retain/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-class-of-service-cleanup/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-commit/</loc>
@@ -1910,6 +1934,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-source-begin/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-system-snapshot/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-config-artifact-text-begin/</loc>
@@ -2683,6 +2710,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-listeners/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-observer-all/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-observer-id/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-observer/</loc>
   </url>
   <url>
@@ -2692,10 +2725,13 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-reliable/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-session-history/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-session-history-id/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-session-id/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-session-traffic-id/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-l2tp-session-traffic/</loc>

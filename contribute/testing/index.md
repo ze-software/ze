@@ -155,10 +155,20 @@ events without waiting on the caller of `Start`.
 <!-- source: internal/test/pluginengine/pluginengine.go -- Start -->
 <!-- test: internal/test/pluginengine/startup_ready_test.go TestStartJoinsRuntimeInitialization, TestStartFirstCommandUsesInitializedCallback -->
 
+Ordinary command dispatch answers use the daemon's record-answer writer,
+including its warnings and completed record metadata. Physical and destination
+bound dispatch keeps the joined JSON receipt expected by the SDK's constrained
+command reader. A fake evaluator supplies the real answer value; the fixture
+selects the encoding from the request's bound identity.
+<!-- source: internal/test/pluginengine/pluginengine.go -- answerWire -->
+<!-- test: internal/test/pluginengine/dispatch_answer_test.go TestDispatchAnswersUseActualSDKReaders -->
+
 Use `ExecutePeer` when a command needs an explicit peer address. It forwards
 that value to the actual SDK callback on both transports; `Execute` keeps its
 empty-peer default. The fixture supplies context, not authentication or native
 authority, which the feature's own tests must establish.
+Both helpers return a document only for a final `done` verdict. A warning or
+failed verdict is an error on either transport.
 <!-- source: internal/test/pluginengine/pluginengine.go -- Execute, ExecutePeer -->
 <!-- test: internal/test/pluginengine/execute_peer_test.go TestExecutePeerReachesActualSDKAndPreservesEmptyControl -->
 
@@ -297,6 +307,7 @@ time").
 ```sh
 ./le test bgp plugin 42              # test id 42
 ./le test bgp encode --list          # list N/TOTAL, id, and name
+./le test bgp plugin --pattern lg- --list  # list only the tests that pattern runs
 ./le test bgp plugin --start 42      # id 42 and every later test
 ./le test editor 7                   # editor test id 7
 ./le test editor -p nav              # editor tests matching "nav"

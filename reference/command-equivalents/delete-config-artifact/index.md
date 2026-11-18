@@ -7,7 +7,7 @@ Remove one private artifact workspace\.
 - Registry path: `delete config artifact`
 - Usage: `delete config artifact <artifact>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-delete`
+- Wire method: `ze-config:artifact-delete`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

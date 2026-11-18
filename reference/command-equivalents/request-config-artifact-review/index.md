@@ -7,7 +7,7 @@ Review a masked offline configuration difference\.
 - Registry path: `request config artifact review`
 - Usage: `request config artifact <artifact> review <base> <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-review`
+- Wire method: `ze-config:artifact-review`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

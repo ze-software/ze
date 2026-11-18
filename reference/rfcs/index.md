@@ -41,7 +41,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 | RFC 4360 | Extended communities | 2 of 5 MUST proven | unit 2 | RFC4360-6-1, RFC4360-7-1, RFC4360-7-2 |
 | RFC 5701 | IPv6 extended communities | 0 of 4 MUST proven | - | RFC5701-4-1 |
 | RFC 7611 | ACCEPT_OWN community | 2 of 5 MUST proven | unit 2 | RFC7611-2.3-1, RFC7611-3-1 |
-| RFC 7999 | BLACKHOLE community | 4 of 4 MUST proven | interop 2, unit 2 | - |
+| RFC 7999 | BLACKHOLE community | 2 of 4 MUST proven | unit 2 | - |
 | RFC 8092 | Large communities | 7 of 7 MUST proven | functional 1, unit 6 | - |
 | RFC 9234 | BGP Role and OTC | 8 of 19 MUST proven | interop 1, functional 5, unit 2 | RFC9234-5-7, RFC9234-5-8, RFC9234-6-1 |
 
@@ -49,7 +49,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
-| RFC 4271 | BGP-4 base protocol | 108 of 133 MUST proven | interop 4, functional 11, unit 93 | RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5 |
+| RFC 4271 | BGP-4 base protocol | 96 of 133 MUST proven | interop 4, functional 11, unit 81 | RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5 |
 | RFC 2545 | IPv6 next-hop handling | 3 of 5 MUST proven | interop 1, functional 2 | RFC2545-3-3, RFC2545-3-6 |
 | RFC 5492 | BGP capability advertisement | 8 of 9 MUST proven | unit 8 | RFC5492-4-3 |
 | RFC 6608 | BGP FSM Error subcodes | 3 of 3 MUST proven | unit 3 | - |
@@ -57,16 +57,16 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 | RFC 9072 | Extended Optional Parameters Length for BGP OPEN | 5 of 9 MUST proven | unit 5 | RFC9072-2-5, RFC9072-2-6, RFC9072-3-1, RFC9072-3-3 |
 | RFC 9687 | Send Hold Timer | 13 of 13 MUST proven | unit 13 | - |
 | RFC 4760 | Multiprotocol BGP | 5 of 6 MUST proven | unit 5 | - |
-| RFC 2918 | Route Refresh | 4 of 6 MUST proven | functional 1, unit 3 | - |
+| RFC 2918 | Route Refresh | 3 of 6 MUST proven | unit 3 | - |
 | RFC 4486 | BGP Cease subcodes and prefix maximum | 0 of 1 MUST proven | - | - |
 | RFC 6793 | 4-byte AS numbers | 30 of 30 MUST proven | functional 2, unit 28 | - |
-| RFC 7311 | AIGP attribute | 9 of 22 MUST proven | unit 9 | - |
-| RFC 7911 | ADD-PATH | 9 of 9 MUST proven | interop 1, functional 1, unit 7 | - |
+| RFC 7311 | AIGP attribute | 8 of 22 MUST proven | unit 8 | - |
+| RFC 7911 | ADD-PATH | 7 of 9 MUST proven | interop 1, unit 6 | - |
 | RFC 6286 | AS-wide unique BGP Identifier (default configuration) | 4 of 4 MUST proven | unit 4 | - |
-| RFC 7606 | Revised UPDATE error handling | 33 of 53 MUST proven | interop 2, functional 5, unit 26 | RFC7606-8-1 |
+| RFC 7606 | Revised UPDATE error handling | 32 of 53 MUST proven | interop 2, functional 5, unit 25 | RFC7606-8-1 |
 | RFC 8950 | Extended Next Hop | 2 of 6 MUST proven | unit 2 | - |
 | RFC 5549 | Legacy extended next-hop encoding | 3 of 6 MUST proven | unit 3 | - |
-| RFC 7313 | Enhanced Route Refresh | 5 of 11 MUST proven | unit 5 | RFC7313-4-13, RFC7313-4-4, RFC7313-4-5, RFC7313-4-6, RFC7313-4-7 |
+| RFC 7313 | Enhanced Route Refresh | 4 of 11 MUST proven | unit 4 | RFC7313-4-13, RFC7313-4-4, RFC7313-4-5, RFC7313-4-6, RFC7313-4-7 |
 | RFC 7607 | Codification of AS 0 processing | 5 of 5 MUST proven | unit 5 | - |
 | RFC 8654 | BGP Extended Message | 8 of 12 MUST proven | interop 2, unit 6 | RFC8654-5-3, RFC8654-5-4 |
 | RFC 9774 | Deprecation of AS_SET and AS_CONFED_SET | 2 of 3 MUST proven | unit 2 | RFC9774-5.2-1 |
@@ -75,10 +75,10 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
-| RFC 8955 | IPv4 FlowSpec | 14 of 29 MUST proven | unit 14 | RFC8955-12-2, RFC8955-4-3 |
+| RFC 8955 | IPv4 FlowSpec | 11 of 29 MUST proven | unit 11 | RFC8955-12-2, RFC8955-4-3 |
 | RFC 5575 | BGP Flowspec (obsoleted by RFC 8955) | 3 of 9 MUST proven | unit 3 | RFC5575-6-1 |
-| RFC 8956 | IPv6 FlowSpec | 7 of 9 MUST proven | unit 7 | - |
-| RFC 9117 | FlowSpec validation | 2 of 2 MUST proven | unit 2 | - |
+| RFC 8956 | IPv6 FlowSpec | 6 of 9 MUST proven | unit 6 | - |
+| RFC 9117 | FlowSpec validation | 0 of 2 MUST proven | - | - |
 
 ## BGP Link-State distribution
 
@@ -106,12 +106,12 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 | RFC 4456 | Route Reflection | 0 of 4 MUST proven | - | - |
 | RFC 5065 | BGP confederations | not walked | - | - |
 | RFC 7705 | AS migration: Local AS, No Prepend Inbound, Replace Old AS, Internal BGP AS Migration | 9 of 9 MUST proven | unit 9 | - |
-| RFC 4724 | Graceful Restart | 14 of 26 MUST proven | interop 1, unit 13 | RFC4724-3-5, RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2 |
+| RFC 4724 | Graceful Restart | 9 of 26 MUST proven | interop 1, unit 8 | RFC4724-3-5, RFC4724-4.1-1, RFC4724-4.1-2, RFC4724-4.1-3, RFC4724-4.1-5, RFC4724-4.1-6, RFC4724-4.1-8, RFC4724-4.2-1, RFC4724-4.2-2 |
 | RFC 7947 | BGP Route Server | 2 of 3 MUST proven | unit 2 | RFC7947-2.1-1 |
 | RFC 8203 | Administrative Shutdown Communication | 3 of 5 MUST proven | unit 3 | - |
 | RFC 9003 | Administrative Shutdown Communication update | 1 of 4 MUST proven | unit 1 | - |
 | RFC 8538 | Notification GR | not walked | - | - |
-| RFC 9494 | Long-Lived Graceful Restart | 8 of 25 MUST proven | functional 2, unit 6 | RFC9494-4.2-10, RFC9494-4.2-7, RFC9494-4.2-9, RFC9494-4.3-2, RFC9494-4.7.2-1, RFC9494-4.7.2-2, RFC9494-5-2 |
+| RFC 9494 | Long-Lived Graceful Restart | 2 of 25 MUST proven | functional 1, unit 1 | RFC9494-4.2-10, RFC9494-4.2-7, RFC9494-4.2-9, RFC9494-4.3-2, RFC9494-4.7.2-1, RFC9494-4.7.2-2, RFC9494-5-2 |
 
 ## BGP segment routing, SRv6, and tunnel encapsulation
 
@@ -137,7 +137,7 @@ A brief table (Internet-Drafts and other standards) carries Area, Proof and Unme
 |-----|------|-------|----------|-------|
 | RFC 4364 | BGP/MPLS IP VPNs | 0 of 8 MUST proven | - | RFC4364-13.1-1, RFC4364-13.1-2, RFC4364-4.3.1-1, RFC4364-4.3.1-2, RFC4364-4.3.2-1, RFC4364-4.3.2-2, RFC4364-4.3.2-3, RFC4364-6-1 |
 | RFC 4659 | VPNv6 | 3 of 18 MUST proven | interop 1, unit 2 | RFC4659-3.2.1.2-1, RFC4659-4-1, RFC4659-4-2, RFC4659-4-3, RFC4659-4-4, RFC4659-4-5, RFC4659-4-6, RFC4659-4-7, RFC4659-8-1, RFC4659-8-2, RFC4659-8-3, RFC4659-8-4, RFC4659-8-5 |
-| RFC 8277 | BGP Labeled Unicast | 11 of 35 MUST proven | unit 11 | RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3 |
+| RFC 8277 | BGP Labeled Unicast | 7 of 35 MUST proven | unit 7 | RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3 |
 | RFC 4684 | Route Target Constraint | 2 of 6 MUST proven | unit 2 | RFC4684-3.2-1, RFC4684-3.2-2, RFC4684-3.2-3, RFC4684-6-1 |
 | RFC 4761 | VPLS NLRI | 0 of 18 MUST proven | - | RFC4761-2.3-1, RFC4761-3.2.3-1, RFC4761-3.2.3-2, RFC4761-3.2.4-1, RFC4761-3.2.4-2, RFC4761-3.2.4-3, RFC4761-3.2.4-4, RFC4761-3.2.4-5, RFC4761-3.2.4-6, RFC4761-3.3-1, RFC4761-3.4.2-1, RFC4761-3.5-1, RFC4761-3.5-2, RFC4761-4.2.1-1, RFC4761-4.2.2-1, RFC4761-4.2.5-1, RFC4761-6-1, RFC4761-6-2 |
 | RFC 6514 | MVPN and PMSI Tunnel | not walked | - | - |
@@ -189,7 +189,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | draft-abraitis-idr-addpath-paths-limit | BGP PATHS-LIMIT | 1 of 4 MUST proven | - |
 | draft-ietf-bess-mup-safi | BGP Mobile User Plane SAFI 85 | 17 of 47 MUST proven | DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4, DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-3, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.10-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.10-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7, DRAFT-IETF-BESS-MUP-SAFI-3.3.2-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-3, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.5-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.6-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.9-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2 |
 | draft-ietf-idr-linklocal-capability | Link-local next-hop capability code 77 | 10 of 15 MUST proven | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15 |
-| draft-ietf-sidrops-aspa-verification | ASPA path verification | 9 of 10 MUST proven | DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2 |
+| draft-ietf-sidrops-aspa-verification | ASPA path verification | 8 of 10 MUST proven | DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2 |
 | draft-ietf-idr-bgp-bfd-strict-mode | BFD strict mode for BGP, capability code 74 | 4 of 4 MUST proven | - |
 
 ## EAP methods and their TLS and CHAP building blocks
@@ -260,7 +260,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
-| RFC 7950 | YANG 1.1 data modeling | 37 of 91 MUST proven | functional 1, unit 36 | RFC7950-11-1, RFC7950-11-2, RFC7950-11-3, RFC7950-12-1, RFC7950-5.1-1, RFC7950-5.3-1, RFC7950-5.5-1, RFC7950-5.6.5-1, RFC7950-6.2.1-1, RFC7950-6.3.1-1, RFC7950-6.4-1, RFC7950-6.4-2, RFC7950-7.1.4-1, RFC7950-7.12-1, RFC7950-7.14.2-1, RFC7950-7.14.3-1, RFC7950-7.15-1, RFC7950-7.16-1, RFC7950-7.17-1, RFC7950-7.18.2-1, RFC7950-7.20.1-1, RFC7950-7.20.2-1, RFC7950-7.20.3-1, RFC7950-7.20.3.2-1, RFC7950-7.21.2-1, RFC7950-7.21.5-1, RFC7950-7.21.5-2, RFC7950-7.3-1, RFC7950-7.5.3-1, RFC7950-7.6.1-4, RFC7950-7.6.5-1, RFC7950-7.7-1, RFC7950-7.7.2-1, RFC7950-7.8.2-1, RFC7950-7.8.3-1, RFC7950-7.9.2-1, RFC7950-7.9.3-1, RFC7950-7.9.4-1, RFC7950-8.1-1, RFC7950-8.1-4, RFC7950-8.3.1-2, RFC7950-8.3.2-1, RFC7950-8.3.3-2, RFC7950-9.10.2-1, RFC7950-9.12-2, RFC7950-9.2.4-1, RFC7950-9.2.4-2, RFC7950-9.4.5-1, RFC7950-9.6.4-1, RFC7950-9.7-1, RFC7950-9.7.4-1, RFC7950-9.7.4.2-1, RFC7950-x-1, RFC7950-x-2 |
+| RFC 7950 | YANG 1.1 data modeling | 36 of 91 MUST proven | functional 1, unit 35 | RFC7950-11-1, RFC7950-11-2, RFC7950-11-3, RFC7950-12-1, RFC7950-5.1-1, RFC7950-5.3-1, RFC7950-5.5-1, RFC7950-5.6.5-1, RFC7950-6.2.1-1, RFC7950-6.3.1-1, RFC7950-6.4-1, RFC7950-6.4-2, RFC7950-7.1.4-1, RFC7950-7.12-1, RFC7950-7.14.2-1, RFC7950-7.14.3-1, RFC7950-7.15-1, RFC7950-7.16-1, RFC7950-7.17-1, RFC7950-7.18.2-1, RFC7950-7.20.1-1, RFC7950-7.20.2-1, RFC7950-7.20.3-1, RFC7950-7.20.3.2-1, RFC7950-7.21.2-1, RFC7950-7.21.5-1, RFC7950-7.21.5-2, RFC7950-7.3-1, RFC7950-7.5.3-1, RFC7950-7.6.1-4, RFC7950-7.6.5-1, RFC7950-7.7-1, RFC7950-7.7.2-1, RFC7950-7.8.2-1, RFC7950-7.8.3-1, RFC7950-7.9.2-1, RFC7950-7.9.3-1, RFC7950-7.9.4-1, RFC7950-8.1-1, RFC7950-8.1-4, RFC7950-8.3.1-2, RFC7950-8.3.2-1, RFC7950-8.3.3-2, RFC7950-9.10.2-1, RFC7950-9.12-2, RFC7950-9.2.4-1, RFC7950-9.2.4-2, RFC7950-9.4.5-1, RFC7950-9.6.4-1, RFC7950-9.7-1, RFC7950-9.7.4-1, RFC7950-9.7.4.2-1, RFC7950-x-1, RFC7950-x-2 |
 | RFC 5905 | NTP client (SNTP subset) | 0 of 8 MUST proven | - | RFC5905-11.2.3-1, RFC5905-2-1, RFC5905-2-2, RFC5905-7.4-1, RFC5905-7.4-2, RFC5905-7.4-3, RFC5905-7.4-4, RFC5905-7.4-5 |
 
 ## MPLS, LDP, RSVP-TE, and fast reroute
@@ -340,16 +340,16 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
 | RFC 2865 | RADIUS authentication | 27 of 31 MUST proven | unit 27 | - |
-| RFC 2866 | RADIUS accounting | 8 of 15 MUST proven | functional 1, unit 7 | - |
+| RFC 2866 | RADIUS accounting | 7 of 15 MUST proven | functional 1, unit 6 | - |
 | RFC 2548 | Microsoft vendor-specific RADIUS attributes | 0 of 31 MUST proven | - | - |
 | RFC 6911 | RADIUS IPv6 access attributes | 0 of 3 MUST proven | - | - |
 | RFC 4818 | RADIUS DHCPv6 prefix delegation | 0 of 3 MUST proven | - | - |
 | RFC 2867 | RADIUS tunnel accounting | 0 of 1 MUST proven | - | - |
 | RFC 2868 | RADIUS tunnel attributes | 0 of 18 MUST proven | - | - |
 | RFC 2869 | RADIUS extensions | 6 of 8 MUST proven | unit 6 | - |
-| RFC 3162 | RADIUS IPv6 attributes | 3 of 6 MUST proven | unit 3 | RFC3162-2.3-1, RFC3162-3.2-1, RFC3162-5-1 |
+| RFC 3162 | RADIUS IPv6 attributes | 2 of 6 MUST proven | unit 2 | RFC3162-2.3-1, RFC3162-3.2-1, RFC3162-5-1 |
 | RFC 3579 | RADIUS/EAP | 17 of 31 MUST proven | unit 17 | RFC3579-1-2, RFC3579-1.2-2, RFC3579-2.1-2, RFC3579-2.2-2, RFC3579-2.6.3-3, RFC3579-2.6.5-1, RFC3579-4.2-1, RFC3579-4.2-2, RFC3579-4.2-3, RFC3579-4.3.4-1, RFC3579-4.3.6-1, RFC3579-4.3.6-3, RFC3579-4.3.6-4, RFC3579-4.3.6-5 |
-| RFC 5176 | RADIUS CoA and Disconnect Message | 26 of 30 MUST proven | unit 26 | - |
+| RFC 5176 | RADIUS CoA and Disconnect Message | 6 of 30 MUST proven | unit 6 | - |
 | RFC 8907 | TACACS+ | 38 of 56 MUST proven | unit 38 | RFC8907-5.4-1, RFC8907-5.4-2, RFC8907-5.4.2.3-1, RFC8907-5.4.2.4-1, RFC8907-5.4.2.5-1, RFC8907-5.4.2.6-1 |
 
 ## MRT routing information export
@@ -365,7 +365,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
 | RFC 9582 | A Profile for Route Origin Authorizations (ROAs) | 0 of 16 MUST proven | - | - |
-| RFC 6811 | RPKI origin validation | 5 of 5 MUST proven | functional 1, unit 4 | - |
+| RFC 6811 | RPKI origin validation | 3 of 5 MUST proven | functional 1, unit 2 | - |
 | RFC 6810 | RPKI-to-Router Protocol v0 (RPKI-RTR), not spoken: ze speaks versions 1 and 2 only (RFC 8210) | 0 of 40 MUST proven | - | RFC6810-2-1, RFC6810-3-1, RFC6810-4-1, RFC6810-4-2, RFC6810-5-1, RFC6810-5.1-1, RFC6810-5.1-2, RFC6810-5.1-3, RFC6810-5.10-1, RFC6810-5.10-2, RFC6810-5.10-3, RFC6810-5.10-4, RFC6810-5.5-1, RFC6810-5.6-1, RFC6810-5.8-1, RFC6810-6.1-1, RFC6810-6.3-1, RFC6810-6.4-1, RFC6810-7-1, RFC6810-7-2, RFC6810-7-3, RFC6810-7.1-2, RFC6810-7.2-1, RFC6810-7.2-2, RFC6810-7.2-3, RFC6810-7.2-4, RFC6810-7.2-5, RFC6810-7.2-6, RFC6810-7.2-7, RFC6810-7.2-8, RFC6810-7.3-1, RFC6810-7.3-2, RFC6810-7.4-1, RFC6810-7.4-2, RFC6810-7.4-3, RFC6810-7.4-4, RFC6810-8-1, RFC6810-8-2 |
 | RFC 8097 | RPKI origin validation state extended community | 0 of 5 MUST proven | - | RFC8097-2-1, RFC8097-2-2, RFC8097-2-3, RFC8097-2-4, RFC8097-2-5 |
 | RFC 8893 | RPKI origin validation on export | 0 of 4 MUST proven | - | RFC8893-1-1, RFC8893-1-2, RFC8893-3-1, RFC8893-3-2 |

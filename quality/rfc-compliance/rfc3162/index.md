@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 3 | of 6 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
-| Tests shown to detect a fault | 3 | 3 of 3 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 2 | 2 of 3 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: Ze is a RADIUS NAS for L2TP subscribers (internal/
 
 **Area:** RADIUS IPv6 attributes
 
-**Test verification:** 3 of 6 MUST proven
+**Test verification:** 2 of 6 MUST proven
 
-**Evidence:** unit 3
+**Evidence:** unit 2
 
 **Unmet:** RFC3162-2.3-1, RFC3162-3.2-1, RFC3162-5-1
 
@@ -117,8 +117,8 @@ Included in automatic checks: Ze is a RADIUS NAS for L2TP subscribers (internal/
 
 ## Figures
 
-- **MUST bar**: Ze verified 3, Not built 3
-- **Overview bar**: Ze MUST verified 3, Not assessed 7, Not built 3
+- **MUST bar**: Ze verified 2, Tests awaiting verification 1, Not built 3
+- **Overview bar**: Ze MUST verified 2, Tests awaiting verification 1, Not assessed 7, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -127,9 +127,9 @@ Included in automatic checks: Ze is a RADIUS NAS for L2TP subscribers (internal/
 | Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
-| Ze verified | 3 |
+| Ze verified | 2 |
 | OS verified | 0 |
-| Tests awaiting verification | 0 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -219,7 +219,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L59) | unit/verify | revert, verified |
+| negative | [`TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L59) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC3162-2.6-1`](#rfc3162-2.6-1)
 

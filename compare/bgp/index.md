@@ -308,7 +308,7 @@ It is also pre-release, with a first release planned for 2026. It sits beside im
 
 **Ze is pre-release. Why trust it yet?**
 
-Do not take that on faith: it is backed by 49,300+ Go test functions, 3,100+ end-to-end tests, 110+ fuzz targets, and 13 test images in the main shared suite’s recorded set. That set covers routing and network services; other labs and tools use additional images, including pmacct. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
+Do not take that on faith: it is backed by 50,400+ Go test functions, 3,100+ end-to-end tests, 110+ fuzz targets, and 13 test images in the main shared suite’s recorded set. That set covers routing and network services; other labs and tools use additional images, including pmacct. That evidence can be checked. It is not a promise. Ze does not have operational mileage yet: real deployments over real time, on real networks. Use it in labs first.
 
 **Why no BGP confederations yet?**
 

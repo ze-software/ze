@@ -199,7 +199,7 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 <td>buffers</td>
 <td>page-size</td>
 <td>default-hugepage</td>
-<td>Kernel default hugepage size, commonly 2M; Ze emits <code>1G</code> for that explicit selection.</td>
+<td>Omitted/explicit <code>2M</code> uses kernel default hugepages. Explicit <code>1G</code> uses <code>1G</code>; explicit <code>default</code> uses native base pages. <!-- source: internal/component/vpp/startupconf.go -- pageSize --></td>
 </tr>
 <tr>
 <td><a href="https://github.com/FDio/vpp/blob/v26.06/src/vpp/vnet/main.c" target="_blank" rel="noopener">memory</a></td>
@@ -217,7 +217,7 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 <td>statseg</td>
 <td>page-size</td>
 <td>default-hugepage</td>
-<td>Match hugepage size.</td>
+<td>Uses the same explicit page mode as buffers, including native base pages. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf --></td>
 </tr>
 <tr>
 <td>dpdk</td>
@@ -235,7 +235,13 @@ Europe and US. VPP replaces Linux kernel routing, achieving 8-35x forwarding per
 <td>plugins</td>
 <td>plugin dpdk_plugin.so { enable }</td>
 <td>(line)</td>
-<td>NIC driver. Always enabled.</td>
+<td>Enabled by default. Explicit <code>vpp.plugins.dpdk false</code> omits it and is refused with configured DPDK interfaces. <!-- source: internal/component/vpp/managed_startup.go -- VPPSettings.managedStartupPlugins --></td>
+</tr>
+<tr>
+<td>plugins</td>
+<td>plugin af_packet_plugin.so { enable }</td>
+<td>(line)</td>
+<td>Emitted only for explicit <code>vpp.plugins.af-packet true</code>; default false. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf --></td>
 </tr>
 <tr>
 <td>plugins</td>
@@ -349,8 +355,11 @@ directives. These links are release-pinned; they cover every section emitted by
 </table>
 <p>Both page-size directives use
 <a href="https://github.com/FDio/vpp/blob/v26.06/src/vppinfra/std-formats.c" target="_blank" rel="noopener"><code>unformat_log2_page_size</code></a>:
-Ze's <code>2M</code> setting emits <code>default-hugepage</code>, and <code>1G</code> emits <code>1G</code>.
-<code>default-hugepage-size</code> is a separate key in the <code>memory</code> section, not a
+Ze's <code>2M</code> setting emits <code>default-hugepage</code>, <code>1G</code> emits <code>1G</code>, and explicit
+<code>default</code> emits native base pages. The default remains <code>2M</code>; no failed allocation
+changes the requested mode.</p>
+<!-- source: internal/component/vpp/startupconf.go -- pageSize -->
+<p><code>default-hugepage-size</code> is a separate key in the <code>memory</code> section, not a
 page-size value. Ze does not emit that key or set the main heap's page size.
 VPP's main heap therefore retains the upstream OS-page default.</p>
 <p>The buffer directive has a space in <code>default data-size</code>; <code>default-data-size</code>
@@ -381,6 +390,17 @@ An answered API mismatch is an error. A connection that cannot be queried is
 a warning, because it does not prove a plugin is absent. The check opens and
 closes its own API client and never starts or stops the VPP process.</p>
 <!-- source: internal/component/vpp/startup_doctor.go -- registerStartupDoctor, checkStartupDoctor, probeStartupRuntime -->
+<p>When <code>vpp.startup-cli-file</code> is configured for managed VPP, the manager first
+compares the retained API Unix peer with the supervised child's atomic process descriptor, then
+executes that exact file once through a synchronous CLI request on the same
+connector generation. The native reply,
+stream close, caller context and generation must all succeed before statistics
+and readiness. Generated startup.conf omits asynchronous unix exec for this
+setting. Native failure kills and reaps the original child before runOnce
+returns. The independent retained pidfd observer alone proves physical death;
+notification may precede reap. External supervision owns its own bootstrap.</p>
+<!-- source: internal/component/vpp/startup_cli.go -- ExecuteStartupCLI, VPPManager.activateManagedRuntime -->
+<!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
 <p>The manager checks selected runtime requirements after publishing statistics
 and before announcing readiness. A refusal closes the statistics owner and
 the candidate API connection. The plugin's startup callback waits for this
@@ -414,7 +434,8 @@ are used during selection and do not make equal settings compare unequal.</p>
 (present = true); this is not a rule for every VPP option.
 Dev entries use PCI address as the key with a nested block for per-device options.</p>
 <h2 id="runtime-statistics">Runtime statistics</h2>
-<p>The VPP manager connects the statistics segment after the binary API handshake,
+<p>The VPP manager connects the statistics segment after the binary API handshake
+and the configured managed bootstrap's successful completion,
 even when no metrics exporter is configured. It reads interface statistics
 before publishing the connection and emitting <code>connected</code> or <code>reconnected</code>.
 Subscriber accounting therefore has the same counter source with or without
@@ -566,16 +587,45 @@ connection failure.</p>
 </tbody>
 </table>
 <h3 id="dpdk-bind-sequence-vfio-pci">DPDK Bind Sequence (vfio-pci)</h3>
-<p>Per configured PCI address:</p>
+<p>Ze loads <code>vfio</code>, <code>vfio_pci</code> and <code>vfio_iommu_type1</code>, then handles only the
+configured PCI addresses:</p>
 <ol>
-<li>Read current driver: <code>/sys/bus/pci/devices/&lt;addr&gt;/driver</code> symlink basename</li>
-<li>Save original driver to persistent state</li>
-<li>Load kernel modules: <code>vfio</code>, <code>vfio_pci</code>, <code>vfio_iommu_type1</code></li>
-<li>Unbind from current driver: write PCI address to <code>/sys/bus/pci/devices/&lt;addr&gt;/driver/unbind</code></li>
-<li>Bind to vfio-pci: write <code>vendor:device</code> to <code>/sys/bus/pci/drivers/vfio-pci/new_id</code></li>
+<li>Read the current <code>driver</code> symlink. An already-vfio device remains borrowed;
+Ze does not acquire custody of its existing attachment or override.</li>
+<li>Read <code>driver_override</code> and retain both original values in the binder's
+process-local receipt. An empty original driver is meaningful state.</li>
+<li>Unbind the original driver when present, select <code>vfio-pci</code> in that device's
+<code>driver_override</code>, then write that exact PCI address to
+<code>/sys/bus/pci/drivers/vfio-pci/bind</code>. Verify the resulting driver.</li>
+<li>On teardown, detach only the owned VFIO attachment. If an original driver
+existed, temporarily select it in <code>driver_override</code> and bind the exact
+address to it. Restore the original override after the driver is restored.
+An originally driverless device remains driverless.</li>
 </ol>
-<p>Reverse on teardown: unbind vfio-pci, PCI rescan (<code>/sys/bus/pci/rescan</code>), rebind original driver.</p>
-<p>Source: VyOS <code>control_host.py</code> (Python, ported to Go for ze).</p>
+<p>Every retry reads the same device's actual driver and override. A completed
+detach, driver bind or override write is not repeated. The receipt is removed
+only after complete restoration; failed native calls remain wrapped causes.
+A failed later input preserves both its primary error and any failed rollback.
+No on-disk recovery journal or native hardware restoration proof is implied by
+the portable operation-table tests.</p>
+<!-- source: internal/component/vpp/dpdk.go -- DPDKBinder, bindPCIWithOps, restoreDPDKDevice -->
+<p>The earlier vendor/device-wide <code>new_id</code> path could attach an unconfigured
+matching driverless NIC: Linux v7.3 <code>do_pci_add_dynid</code> calls <code>driver_attach</code>,
+which walks every bus device and attempts matching probes. Removing that ID
+does not detach those devices. Ze therefore uses per-device override and exact
+bind, with no <code>new_id</code>, <code>remove_id</code> or bus rescan. The pinned consumers are
+<a href="https://github.com/torvalds/linux/blob/v7.3/drivers/pci/pci-driver.c" target="_blank" rel="noopener">PCI dynamic IDs and override matching</a>,
+<a href="https://github.com/torvalds/linux/blob/v7.3/drivers/base/dd.c" target="_blank" rel="noopener">driver attachment</a>,
+<a href="https://github.com/torvalds/linux/blob/v7.3/drivers/base/bus.c" target="_blank" rel="noopener">exact-address bind and override attribute</a>,
+and the <a href="https://github.com/torvalds/linux/blob/v7.3/Documentation/ABI/testing/sysfs-bus-pci" target="_blank" rel="noopener">PCI sysfs ABI</a>.</p>
+<p>The manager classifies an expected kill from the original command's actual
+reaped <code>ProcessState</code>, never from an error string or cancellation alone. A
+separate failed native cleanup remains a typed cause and stops child restart.
+Deferred DPDK restoration errors are joined into the terminal manager result.
+The independent retained-pidfd observer still supplies physical process-exit
+proof; neither cancellation nor that proof alone confirms NIC restoration.</p>
+<!-- source: internal/component/vpp/cleanup_outcome.go -- nativeCleanupError, expectedVPPKill, managedChildCleanup -->
+<!-- source: internal/component/vpp/vpp.go -- runWithOps, runOnce, waitVPPConnection -->
 <h3 id="mellanox-rdma-exception">Mellanox RDMA Exception</h3>
 <p>mlx5 NICs use bifurcated driver mode. The kernel <code>mlx5_core</code> driver stays loaded. VPP creates
 the interface via <code>create interface rdma host-if &lt;pci-addr&gt;</code> instead of a DPDK dev entry.</p>
@@ -725,13 +775,40 @@ before claiming this native shutdown bound. The public-adapter tests in
 <code>govpp_socket_transport_test.go</code> exercise a real Unix peer that withholds reads,
 concurrent sends during disconnect, and the healthy client-delete request.</p>
 <p>On API loss, the manager kills and waits for the exact VPP child it supervised
-before restarting. It disconnects statistics before closing the API connection.
-Only a completed process wait records that the old process exited. The resulting
-sealed <code>ProcessExit</code> value covers one connector identity and connection
-generation, so resource owners can retire native obligations without sending
-cleanup to another VPP process. The server must first answer through that exact
-connection with the PID of the child Ze started. An ordinary connection close, an OS PID or the
-integer-second stats boot timestamp cannot supply that proof.</p>
+before returning or restarting. Managed startup obtains an owned process
+descriptor atomically with child creation (<code>SysProcAttr.PidFD</code>) and compares its
+pidfs identity with the actual API socket peer before the startup CLI barrier,
+statistics and readiness. Other process attributes remain intact. A claimed
+PID has no authority, including across PID namespaces.</p>
+<p>Statistics capture the actual Unix socket that transfers the mapped segment,
+disable automatic socket replacement, and retain that peer. API and statistics
+must name the same live pidfs device and 64-bit inode before any initial read,
+before atomic provider installation under the original connector lock, and
+before and after subsequent reads. A different statistics process refuses
+readiness. Unsupported or unknown physical identity refuses with a diagnostic;
+neither a pathname, integer PID nor boot timestamp repairs it.</p>
+<p>The manager disconnects statistics before closing its original API transport.
+A late old child wait cannot close a newer generation. A completed wait alone
+never publishes <code>ProcessExit</code>: the retained physical witness is the sole
+notifier and requires kernel-confirmed whole-process exit. Notification may
+precede the original child's reap; the manager still joins that child before
+runOnce returns. Retained <code>ProcessLease</code> owners validate the sealed exact
+physical proof before releasing obligations. <code>Covers</code> checks the logical epoch
+only and cannot replace that validation.</p>
+<p>One bounded worker covers each retained API lifetime, including after its
+manager disconnects. Owners retain a lease before their first native mutation
+and keep it through unresolved cleanup. Ordinary <code>Close</code> releases its mutex
+before joining final descriptor cleanup; a notification uses nonjoining
+<code>Retire</code>. A proof also covers other retained epochs of the same physical
+process, but cannot retire a live foreign peer. Observation failure remains
+unknown. At most 1,024 physical API lifetimes and 131,072 references per lifetime
+are retained; no reconnect history accumulates. <code>ze doctor</code> probes the actual
+socketpair/pidfs capability, and <code>doctor-vpp-process</code> retains observation and
+descriptor-close failures. The server must create its own listeners: inheriting
+another process's listener does not change its original kernel peer owner.</p>
+<!-- source: internal/component/vpp/process_peer.go -- ProcessLease, Connector.checkStatsProcessLocked -->
+<!-- source: internal/component/vpp/process_peer_linux.go -- captureProcessWitness -->
+<!-- source: internal/component/vpp/process_managed_linux.go -- startManagedProcess -->
 <!-- source: internal/component/vpp/vpp.go -- waitVPPConnection, VPPManager.runOnce -->
 <!-- source: internal/component/vpp/process_exit.go -- ProcessExit, Connector.bindManagedProcess, Connector.retireManagedConnection -->
 <p>External mode also observes API loss and retries its connection through the
@@ -960,7 +1037,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

@@ -136,7 +136,7 @@ commands expose decoded values, never the tree's framing bytes.
 | `ze data repair --output <path>` | Copy recoverable keys into a new destination; runs while ze runs, and installing the copy needs ze stopped |
 | `ze data backup <file> [spare <n>]` | Copy every key to one exact-fit 0600 blob artifact under the store lock; offline only |
 | `ze data restore <file> config [name <source-name>]` | Commit the artifact's config as a new active version; offline only |
-| `ze data restore <file> full` | Replace the whole tree with the artifact's keys; the previous tree is kept as `database.replaced-<stamp>` and the artifact is unchanged; offline only |
+| `ze data restore <file> full` | Offline, replace the whole tree with the artifact's keys, keeping the previous tree as `database.replaced-<stamp>` and the artifact unchanged. While a daemon owns the selected store, request verified recovery through that owner; replacement follows clean teardown. |
 | `request data backup path <absolute-file> [spare <n>] [force]` | Live backup of the daemon's store, written on the daemon's host |
 | `request data restore path <absolute-file> config [name <source-name>]` | Live config restore: staged as the candidate, active only when the reload accepts it; refused while a `commit confirmed` window is open |
 | `request data restore path <absolute-file> config [name <source-name>] client <name>` | On a hub: restore the config it serves to managed client `<name>`; the hub pushes `config-changed` and does not reload |

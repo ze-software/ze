@@ -7,7 +7,7 @@ Begin a private artifact upload\.
 - Registry path: `request config artifact upload begin`
 - Usage: `request config artifact upload begin <name> [total <total>]`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-upload-begin`
+- Wire method: `ze-config:artifact-upload-begin`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

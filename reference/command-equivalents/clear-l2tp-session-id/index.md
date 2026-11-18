@@ -21,7 +21,7 @@ Disconnect one subscriber session\.
 - Command pipes: none
 - Pipe aliases: none
 
-Sends a CDN to gracefully close the session\. Pass the local session ID\: clear l2tp session id \<id\> \[reason \<text\>\] \[cause \<code\>\]\.
+Captures one original session\, sends its CDN and confirms its local physical cleanup before reporting success\. Pass the local session ID\: clear l2tp session id \<id\> \[expected\-id \<birth\>\] \[tunnel\-id \<tid\>\] \[listener \<name\-or\-endpoint\>\] \[actor \<label\>\] \[reason \<text\>\] \[cause \<code\>\]\. The optional expected\-id is the canonical immutable reference from the displayed session\; a stale reference refuses before audit or mutation\. A listener name resolves to its original bound endpoint\. Unknown names and ambiguous selections are refused\. Quote reasons that contain another keyword\.
 
 ## Arguments
 

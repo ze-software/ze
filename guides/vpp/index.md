@@ -44,7 +44,7 @@ and gokrazy appliances on small hardware such as an N100 mini-PC. The
 control plane stays in ze (BGP, RIB, config, CLI, web UI).
 The forwarding plane becomes VPP. The two talk through a small, typed
 interface (GoVPP over a Unix socket).
-<!-- source: internal/component/vpp/conn.go -- GoVPP AsyncConnect -->
+<!-- source: internal/component/vpp/conn.go -- Connect -->
 
 ## How the two halves fit together
 
@@ -161,19 +161,37 @@ Ze does the following, in order, every time it starts or VPP crashes:
 | 2 | Validates PCI addresses, socket paths, netns names, size strings | `config.go: Validate` |
 | 3 | Renders `startup.conf` (unix, api-segment, socksvr, cpu, buffers, dpdk, plugins, linux-cp, linux-nl, memory, statseg sections, some conditional) | `startupconf.go: GenerateStartupConf` |
 | 4 | Loads `vfio`, `vfio_pci`, `vfio_iommu_type1` kernel modules | `dpdk.go: loadVFIOModules` |
-| 5 | For each configured PCI address: reads the current driver, saves it, unbinds, binds to vfio-pci | `dpdk.go: bindPCI` |
+| 5 | For each configured PCI address: saves its original driver and driver override, selects vfio-pci for that device and binds that exact address. A device already using vfio-pci keeps its existing ownership. | `dpdk.go: bindPCI` |
 | 6 | Execs the VPP binary with `-c <generated startup.conf>` | `vpp.go: runOnce` |
-| 7 | AsyncConnects GoVPP to `/run/vpp/api.sock` (10 attempts, 1 s apart) | `conn.go: Connect` |
-| 8 | Emits `("vpp", "connected")` on the EventBus | `vpp.go: emitEvent` |
-| 9 | Starts the stats poller (per-interface, per-node, system metrics) | `telemetry.go` |
+| 7 | Connects one non-reconnecting GoVPP transport to the configured API socket (10 attempts, 1 s apart), retaining its actual Unix peer. Managed mode matches that peer to the child's atomic process descriptor, then waits for the configured original startup CLI file on the same generation. | `conn.go: Connect`, `process_exit.go: bindManagedProcess`, `startup_cli.go: activateManagedRuntime` |
+| 8 | Opens the configured statistics mapping and checks that its actual Unix peer is the same live physical API process before reading or publishing counters. Starts optional telemetry. | `runtime_stats.go`, `process_peer.go` |
+| 9 | Checks selected plugin APIs, then emits `("vpp", "connected")` and completes service readiness. | `runtime_stats.go: activateRuntimeStatsGeneration` |
 | 10 | Waits for VPP to exit. On crash: emits `("vpp", "disconnected")`, backs off (1 s, 2 s, 4 s, capped at 30 s), restarts, emits `("vpp", "reconnected")`. `fib-vpp` replays the RIB on reconnect. | `vpp.go: Run loop`, `fibvpp.go: reconnect handler` |
-| 11 | On clean shutdown: SIGTERM VPP, triggers a PCI rescan, restores the original NIC drivers | `vpp.go: defer`, `dpdk.go: UnbindAll` |
+| 11 | On shutdown: kills the exact supervised VPP child and joins its wait, then restores each owned NIC's original driver and driver override. A NIC that originally had no driver returns to that state. | `vpp.go: waitVPPConnection`, `dpdk.go: UnbindAll` |
 
 The point is that VPP's system-level prerequisites (vfio module load,
-NIC unbind, driver save, rescan-on-teardown) are part of ze's job, not
+NIC unbind, original driver and override restoration) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.
 <!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
+
+Binding changes only the configured PCI device. Ze uses its `driver_override`
+and the driver's exact-address `bind` file, without adding a vendor/device-wide
+VFIO registration or rescanning the bus. Cleanup keeps the original state until
+both driver and override restoration succeed. Retrying the same binder resumes
+from the observed native state, so a confirmed detach or driver bind is not
+repeated. These receipts belong to the running manager; they are not an on-disk
+recovery journal.
+<!-- source: internal/component/vpp/dpdk.go -- bindPCIWithOps, restoreDPDKDevice, setDPDKOverride -->
+
+An ordinary requested child kill is clean only after the original command has
+been reaped with its expected exit status. A separate cleanup failure remains
+an error even when shutdown was requested. The manager returns that cause and
+stops before starting another child if native child cleanup is unresolved;
+failed NIC restoration is also returned, with its original receipt retained.
+Physical process-exit proof and successful NIC restoration are separate facts.
+<!-- source: internal/component/vpp/vpp.go -- runWithOps, runOnce, waitVPPConnection -->
+<!-- source: internal/component/vpp/cleanup_outcome.go -- expectedVPPKill, managedChildCleanup -->
 
 The generator targets upstream VPP v26.06 grammar. In particular, it writes
 `buffers { default data-size 2048 ... }`, `linux-nl { nl-rx-buffer-size 67108864 }`,
@@ -186,16 +204,61 @@ support the selected configuration.
 <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
 
 
+Managed VPP consumes the startup file Ze generates. To select an AF_PACKET
+profile, set `vpp.plugins.dpdk false` with no DPDK interfaces, explicitly enable
+`vpp.plugins.af-packet`, and select `vpp.memory.hugepage-size default` when the
+profile uses native base pages. uRPF remains enabled for configured IPv4 reverse
+path policy; the selected image must contain it. Omitted settings retain the
+existing DPDK-enabled, AF_PACKET-disabled, `2M` startup bytes. No unavailable
+plugin or failed hugepage allocation selects another configuration.
+<!-- source: internal/component/vpp/managed_startup.go -- startupPluginChoice, VPPSettings.managedStartupPlugins -->
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf, pageSize -->
+
+An optional `vpp.startup-cli-file` names the original command file. After the
+retained API socket peer matches the supervised child's atomic process descriptor, the manager sends one
+synchronous native `exec <path>` request on that exact connector generation. Statistics activation
+and service readiness wait for its correctly typed successful reply, stream
+close, live context and unchanged generation. A native command or transport
+failure follows the existing child kill, completed wait and original transport
+closure path. The independent retained pidfd observer alone proves physical
+death; its notification can precede the child's reap. The manager still joins
+the original child before returning or restarting.
+The generator omits asynchronous unix exec for this setting, which prevents a
+second execution. Pure configuration verification rejects a path that is
+relative or could escape its native token. Managed startup checks the
+original file before configuration/binding and before each child exec: it must
+be readable and regular. The check opens without waiting for a FIFO peer,
+reads one byte, and closes that same file while retaining original filesystem
+errors. It does not parse or rewrite the native command program. Empty files
+are permitted by the file preflight; native VPP still decides whether their
+command program can execute. External supervision owns its own startup and
+neither inspects nor executes this file. `doctor-vpp-startup-cli-file` reports the exact path and its repair.
+<!-- source: internal/component/vpp/managed_startup.go -- validateStartupCLIPath, checkManagedStartupCLI, managedStartupCLIDoctorCheck -->
+<!-- source: internal/component/vpp/managed_startup_file_unix.go -- openStartupCLIFile -->
+<!-- source: internal/component/vpp/startup_cli.go -- ExecuteStartupCLI, VPPManager.activateManagedRuntime -->
+<!-- source: internal/component/vpp/vpp.go -- VPPManager.Run, VPPManager.runOnce -->
+
+These controls do not create an AF_PACKET interface or its Linux Control Plane
+pair. The declared managed bootstrap must provide those before PPPoE accesses
+can prepare. The native acceptance scenario must observe the actual executable,
+its generated `-c` path and config hash, the declared image's loaded plugins,
+real API/statistics readiness and original connector/process identities. An exec
+wrapper that replaces the generated configuration, an external-mode run, or a
+unit rendering result cannot supply that managed-startup evidence. The complete
+restart, accounting, pool and productive fresh-session checks remain required.
+<!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
+<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- registerStartup, startupRequired -->
+
 ## Running against an externally supervised VPP
 
 Set `vpp.external true` when something other than ze owns the VPP
 process -- a systemd unit, a container sidecar, or the Python stub
 the functional tests use. In this mode ze skips steps 3, 4, 5, 6 and 11
 of the table above: no `startup.conf` generation, no vfio module load,
-no NIC unbind, no `exec vpp`, no PCI rescan on shutdown. Ze still
-connects via GoVPP at step 7, emits the same lifecycle events at step 8,
-runs the stats poller at step 9, and blocks on context cancellation
-instead of `cmd.Wait` at step 10.
+no NIC unbind, no `exec vpp`, no NIC restoration writes on shutdown. Ze still
+connects via GoVPP at step 7, opens statistics and optional telemetry at
+step 8, then emits lifecycle events and completes readiness at step 9.
+It blocks on context cancellation instead of `cmd.Wait` at step 10.
 <!-- source: internal/component/vpp/vpp.go -- External branch in Run and runOnce -->
 
 Typical configurations:
@@ -284,12 +347,13 @@ defaults do not fit the workload.
 | `vpp.enabled` | boolean | `false` | Master switch. `false` means ze does not start VPP at all. |
 | `vpp.external` | boolean | `false` | When `true`, ze connects to an existing VPP via `api-socket` but does NOT generate `startup.conf`, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the `le test vpp` stub harness. Default `false` preserves the ze-owned-lifecycle behaviour. |
 | `vpp.api-socket` | string | `/run/vpp/api.sock` | GoVPP Unix socket. Ze validates it is absolute, has no `..`, and fits in 108 characters. |
+| `vpp.startup-cli-file` | absolute path | unset | Optional original VPP CLI file. After the retained API Unix peer matches the supervised child's atomic process descriptor, Ze waits for native command completion on that same API generation before statistics and service readiness. Failure kills and reaps that child before runOnce returns; the independent retained pidfd observer alone proves physical death. The generator omits asynchronous unix exec for this setting. Invalid paths and missing/unreadable or nonregular files are refused before child startup; the doctor names the original path and repair. External mode neither inspects nor executes it. <!-- source: internal/component/vpp/startup_cli.go -- ExecuteStartupCLI, VPPManager.activateManagedRuntime --> <!-- source: internal/component/vpp/managed_startup.go -- checkManagedStartupCLI, managedStartupCLIDoctorCheck --> |
 | `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. The core is excluded from the worker set. Omit for VPP default. A core the host does not hold online is refused at commit. |
 | `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze takes the cores from the kernel's isolated set (`/sys/devices/system/cpu/isolated`), lowest first, `main-core` excluded and any CPU no longer online excluded, and writes them as `corelist-workers`. On a host that isolated nothing, the list falls back to `main-core+1 .. main-core+workers` and `ze doctor` reports `doctor-vpp-cpu-isolation`. A count the host cannot satisfy is refused at commit. <!-- source: internal/component/vpp/cpuset.go -- resolveWorkerCores --> |
 | `vpp.cpu.worker-cores` | CPU list | unset | Explicit worker cores in the kernel's `isolcpus` syntax (`2-4`, `2,4,6`). Names the cores instead of deriving them, and MUST NOT be set beside `workers`. A core off the host, a core that is also `main-core`, and a core listed twice are each refused at commit. <!-- source: internal/core/cpulist/cpulist.go -- Parse --> |
 | `vpp.cpu.poll-sleep` | `Nms` (0ms–100ms) | unset | Fixed sleep between VPP main-loop polls, expressed in whole milliseconds (`ms` is the only accepted unit, e.g. `10ms`), emitted as `unix { poll-sleep-usec N }` (1ms = 1000µs). Omit for lowest latency (workers busy-poll at 100% CPU); set a non-zero value on shared or dev hosts to trade latency for idle CPU. An explicit `0ms` is emitted and equals VPP's default. <!-- source: internal/component/vpp/config.go -- parsePollSleepMs --> |
 | `vpp.memory.main-heap` | size string | `1G` | Emitted as `memory { main-heap-size ... }`. Ze leaves the heap page size at VPP's OS-page default. Use `1536M` for a full DFZ (approximately 958k IPv4 + 198k IPv6 routes). |
-| `vpp.memory.hugepage-size` | `2M` or `1G` | `2M` | Sets the buffers and stats page-size directives: `2M` emits `default-hugepage` (the kernel default, commonly 2M); `1G` emits `1G`. Neither selects ordinary 4K pages. |
+| `vpp.memory.hugepage-size` | `2M`, `1G` or `default` | `2M` | `2M` emits `default-hugepage`; `1G` emits `1G`. Explicit `default` emits native base pages for buffers and statistics, without a hugepage reservation. The kernel determines the base-page size. Hugepage failure never changes this choice. <!-- source: internal/component/vpp/startupconf.go -- pageSize --> |
 | `vpp.memory.buffers` | uint32 | `128000` | `buffers-per-numa`, beside fixed `default data-size 2048`. 128k is proven for full DFZ at 10G; packet data needs 250 MiB per NUMA node plus metadata and alignment. |
 | `vpp.dpdk.interface[pci-address].name` | string | (required) | Short interface name used in ze (e.g. `xe0`). Must start with a letter, max 15 chars. |
 | `vpp.dpdk.interface[pci-address].rx-queues` | uint8 | VPP default | Receive queues. Omit unless the NIC needs more. |
@@ -301,6 +365,8 @@ defaults do not fit the workload.
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
 | `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear, also emitted as VPP's global `default netns`. Must be printable, carry no whitespace and no path separator, and stay under 256 characters. VPP resolves the value as a name under `/var/run/netns/`, so it must be a namespace that exists: `host` and `root` are not special to VPP and do **not** mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there. An EMPTY value is the exception: it clears VPP's global `default netns` and the TAPs stay in VPP's own namespace. `ze doctor` reports `doctor-vpp-lcp-netns` for every other value. See ["How the two halves fit together"](#how-the-two-halves-fit-together). |
+| `vpp.plugins.dpdk` | boolean | `true` | Load DPDK. Explicit false is refused with configured DPDK interfaces. An absent installed plugin never changes this selection. <!-- source: internal/component/vpp/managed_startup.go -- startupPluginChoice, VPPSettings.managedStartupPlugins --> |
+| `vpp.plugins.af-packet` | boolean | `false` | Load AF_PACKET for an explicitly configured host-interface access path. It does not create interfaces or their LCP pairs. uRPF remains enabled independently. <!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf --> |
 | `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above --> <!-- source: internal/component/vpp/config.go -- defaults and validation --> <!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-lcp-plugin, doctor-vpp-wireguard --> |
 
 ### Enabling FIB programming
@@ -412,7 +478,7 @@ a hugepage reservation still needs the actual booted kernel's
 <!-- source: internal/le/test/qemu/hugepages.go -- Hugepages.Run -->
 <!-- source: internal/le/test/qemu/boot.go -- Hugepages.bootAndAssert, boot, ask, ssh -->
 
-Before enabling VPP:
+Before enabling a DPDK profile with hugepages:
 
 | Requirement | How to provide it |
 |-------------|-------------------|

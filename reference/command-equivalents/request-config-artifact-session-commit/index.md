@@ -7,7 +7,7 @@ Commit this account\'s artifact session\.
 - Registry path: `request config artifact session commit`
 - Usage: `request config artifact <artifact> session commit <name> [force]`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-commit`
+- Wire method: `ze-config:artifact-session-commit`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

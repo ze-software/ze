@@ -7,7 +7,7 @@ Replace this account\'s artifact candidate\.
 - Registry path: `request config artifact session replace`
 - Usage: `request config artifact <artifact> session replace <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-replace`
+- Wire method: `ze-config:artifact-session-replace`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

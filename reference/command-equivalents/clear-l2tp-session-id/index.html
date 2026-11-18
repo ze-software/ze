@@ -65,7 +65,7 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Sends a CDN to gracefully close the session. Pass<br>the local session ID: clear l2tp session id &lt;id&gt; [reason &lt;text&gt;] [cause<br>&lt;code&gt;].</p>
+<h3>Description</h3><p>Captures one original session, sends its CDN and confirms its local<br>physical cleanup before reporting success. Pass the local session ID:<br>clear l2tp session id &lt;id&gt; [expected-id &lt;birth&gt;] [tunnel-id &lt;tid&gt;]<br>[listener &lt;name-or-endpoint&gt;] [actor &lt;label&gt;] [reason &lt;text&gt;] [cause &lt;code&gt;].<br>The optional expected-id is the canonical immutable reference from the displayed<br>session; a stale reference refuses before audit or mutation. A listener name<br>resolves to its original bound endpoint. Unknown names and ambiguous selections<br>are refused. Quote reasons that contain another keyword.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -136,7 +136,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

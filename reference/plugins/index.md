@@ -51,7 +51,7 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 | [`bgp-watchdog`](bgp-watchdog/index.md) | Watchdog route management plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/watchdog` |
 
 - [`bgp`](bgp/index.md): Start after `interface` (order only).
-- [`bgp-gr`](bgp-gr/index.md): Start after `bgp-rr` (order only).
+- [`bgp-gr`](bgp-gr/index.md): Start after `bgp-rr`, `bgp-adj-rib-in`, `bgp-rpki` (order only).
 ## BGP Filter
 
 Generated group for registry entries mapped to the BGP Filter area. Config roots: `bgp`. Source area: `internal/component/bgp`.

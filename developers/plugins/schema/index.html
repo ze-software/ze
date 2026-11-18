@@ -279,8 +279,10 @@ running Ze starts your program in declare mode when <code>show plugin declaratio
 module whose name ends in <code>-conf</code> adds config roots, one that augments another
 module extends it, one whose name ends in <code>-cmd</code> adds the commands its
 <code>ze:command</code> nodes declare, and the rpc statements of a module (an <code>-api</code>
-module, as compiled-in plugins pair them) describe the parameters of the
-commands whose <code>ze:rpc</code> names them. Ze judges each module by the rules the
+module, as compiled-in plugins pair them) supply the parameter metadata for a
+command without typed CLI leaves. A command path with typed CLI leaves publishes
+those names and types instead, including for each alias. Its <code>ze:rpc</code> still
+names the RPC contract. Ze judges each module by the rules the
 modules compiled into <code>ze</code> obey; it also refuses a command path or a wire
 method that another module already declares, and a <code>ze:rpc</code> that names an rpc
 no module defines. A plugin that answers a command also declares it in
@@ -720,7 +722,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

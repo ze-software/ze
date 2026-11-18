@@ -7,7 +7,7 @@ List private uploaded artifacts\.
 - Registry path: `show config artifact list`
 - Usage: `show config artifact list`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-list`
+- Wire method: `ze-config:artifact-list`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

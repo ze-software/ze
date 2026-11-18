@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 13 | 13 of 18 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
+| Tests shown to detect a fault | 11 | 11 of 18 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 
 **Area:** IPv6 FlowSpec
 
-**Test verification:** 7 of 9 MUST proven
+**Test verification:** 6 of 9 MUST proven
 
-**Evidence:** unit 7
+**Evidence:** unit 6
 
 **Unmet:** -
 
@@ -112,8 +112,8 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 
 ## Figures
 
-- **MUST bar**: Ze verified 7, Tests awaiting verification 2
-- **Overview bar**: Ze MUST verified 7, Tests awaiting verification 2, Not assessed 5
+- **MUST bar**: Ze verified 6, Tests awaiting verification 3
+- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 3, Not assessed 5
 
 | Figure | Rows |
 |---|---|
@@ -122,9 +122,9 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 | Mandatory requirements complete | not complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze verified | 7 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Tests awaiting verification | 2 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -162,7 +162,7 @@ Source: [data/rfc/rfc8956.json](../../../data/rfc/rfc8956.json).
 | `RFC8956-3.6-2` | 0: MUST be set to 0 on NLRI encoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L45). **negative:** `unit/verify` [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L46) |
 | `RFC8956-3.6-3` | 0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§3.6) | MUST | 3.6 | **positive:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L69). **negative:** `unit/verify` [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L70) |
 | `RFC8956-3.1-3` | If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12). **positive:** `unit/verify` [`TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26). **negative:** `unit/verify` [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13) |
-| `RFC8956-5-1` | item a) of the validation procedure should now read as follows: \| a) A destination prefix component with offset=0 is embedded in \| the Flow Specification (§5) | MUST | 5 | **positive:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L306). **negative:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307) |
+| `RFC8956-5-1` | item a) of the validation procedure should now read as follows: \| a) A destination prefix component with offset=0 is embedded in \| the Flow Specification (§5) | MUST | 5 | **positive:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L341). **negative:** `unit/verify` [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L342) |
 | `RFC8956-3.3-1` | Type 3 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.3) | SHOULD | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8956-3.4-1` | Type 7 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.4) | SHOULD | 3.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8956-3.5-1` | Type 8 component values SHOULD be encoded as a single octet (numeric_op len=00). (§3.5) | SHOULD | 3.5 | **positive:** no positive test. **negative:** no negative test |
@@ -269,12 +269,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 item a) of the validation procedure should now read as follows: | a) A destination prefix component with offset=0 is embedded in | the Flow Specification (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment: RFC8956 Section 5: "A destination prefix component with offset=0 is embedded in the Flow Specification." Section 5 retains RFC8955 validation but replaces item a with this offset-zero amendment. Current TestFlowSpecVPNValidationSeparatesAFIAndRD uses a legal /64 offset32 four-byte pattern, the same RD/default authorizing route, and unchanged wire input. It requires retained receipt but false generation-7 eligibility, zero candidates and no additional selected event; the zero-offset rule succeeds. Removing only the Offset()==0 gate now fails that consumer oracle and clean controls pass. The pattern shape is legal under Section 3.1 length-minus-offset; rejection is authorization, not malformed encoding. Enforcement is for this amendment, not blanket inherited-rule or dataplane compliance. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD, internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2 moved. Independent semantic rejudgment: RFC8956 Section 5: "A destination prefix component with offset=0 is embedded in the Flow Specification." Section 5 retains RFC8955 validation but replaces item a with this offset-zero amendment. Current TestFlowSpecVPNValidationSeparatesAFIAndRD uses a legal /64 offset32 four-byte pattern, the same RD/default authorizing route, and unchanged wire input. It requires retained receipt but false generation-7 eligibility, zero candidates and no additional selected event; the zero-offset rule succeeds. Removing only the Offset()==0 gate now fails that consumer oracle and clean controls pass. The pattern shape is legal under Section 3.1 length-minus-offset; rejection is authorization, not malformed encoding. Enforcement is for this amendment, not blanket inherited-rule or dataplane compliance. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307) | unit/verify | revert, verified |
-| positive | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L306) | unit/verify | revert, verified |
+| negative | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L342) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L341) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ## Requirement list review
 

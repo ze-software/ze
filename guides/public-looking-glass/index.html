@@ -151,7 +151,21 @@ http://198.51.100.10:8443/lg/graph?prefix=10.10.1.0/24&amp;mode=aspath
 <pre><code class="language-bash">curl -fsS http://127.0.0.1:8443/api/looking-glass/status
 curl -fsS http://127.0.0.1:8443/api/looking-glass/protocols/bgp
 curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.0/24'
+curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.1'
 </code></pre>
+<p>The third line asks for a prefix with its length and lists the routes of
+exactly that prefix, never a longer one inside it. The last asks for a bare
+address and lists every route whose prefix contains it, the most specific
+first for each peer, so a <code>10.0.0.0/24</code> route comes before a <code>10.0.0.0/8</code> route
+and a default route comes last. The search page and the graph read their
+prefix field the same way.</p>
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup -->
+<p>The search page's AS path field takes AS numbers separated by spaces, as a
+router prints them. <code>65001 65002</code> lists the routes whose path holds 65001
+directly followed by 65002, anywhere in the path. <code>^65001</code> lists the routes
+whose path starts with 65001. The page refuses any other pattern character,
+such as <code>$</code> or <code>|</code>, and says which form the field takes.</p>
+<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern -->
 <h2 id="4-birdwatcher-compatible-api-paths">4. Birdwatcher-compatible API paths</h2>
 <p>The looking glass exposes birdwatcher-style read-only endpoints under <code>/api/looking-glass/</code>.</p>
 <table>
@@ -188,11 +202,11 @@ curl -fsS 'http://127.0.0.1:8443/api/looking-glass/routes/prefix?prefix=10.0.0.0
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>/api/looking-glass/routes/prefix?prefix=10.0.0.0/24</code></span></span></td>
-<td>exact or containing prefix lookup</td>
+<td>the routes of exactly that prefix, its host bits cleared; given a bare address (<code>?prefix=10.0.0.1</code>), every route covering it, most specific first. <span class="ev-src"><span class="ev-ref"><code>192.0.0.0/2</code></span><span class="ev-ref"><code>192.0.0.0/24</code></span></span></td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>/api/looking-glass/routes/search?prefix=10.0.0.0/24</code></span></span></td>
-<td>prefix search</td>
+<td>the same lookup as <code>routes/prefix</code></td>
 </tr>
 </tbody>
 </table>
@@ -330,7 +344,7 @@ journalctl -u ze.service -n 100 --no-pager
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

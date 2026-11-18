@@ -67,11 +67,11 @@
 </tr>
 <tr>
 <td>Route lookup</td>
-<td>Prefix and IP containment search with full attribute display</td>
+<td>A prefix with its length lists the routes of exactly that prefix, its host bits cleared, sent to <code>bgp-rib</code> as <code>exact</code>. A bare address lists every route whose prefix contains it, the most specific first for each peer, sent as <code>covering</code>. Rows carry the full attributes</td>
 </tr>
 <tr>
 <td>AS path search</td>
-<td>Pattern-based AS path filtering</td>
+<td>AS numbers separated by spaces, matched as a run anywhere in the path; a leading <code>^</code> anchors the run at the start. Any other pattern character is refused with the form the field takes</td>
 </tr>
 <tr>
 <td>Community search</td>
@@ -114,6 +114,8 @@
 <!-- source: internal/component/lg/server.go -- LGServer, HTTP lifecycle -->
 <!-- source: internal/component/lg/handler_api.go -- Birdwatcher REST API handlers -->
 <!-- source: internal/component/lg/handler_ui.go -- HTMX UI handlers -->
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup: a prefix becomes the exact lookup, a bare address the covering lookup -->
+<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern: the AS path in the engine's comma grammar -->
 <!-- source: internal/component/lg/view.go -- typed view models: layoutView, searchView, peerRow -->
 <!-- source: internal/component/lg/markup_check_test.go -- lgMarkupExempt: the two exempt drawings -->
 <!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->
@@ -205,7 +207,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

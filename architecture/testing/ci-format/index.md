@@ -382,7 +382,7 @@ into a completion marker without making either file a daemon configuration.
 ### Syntax
 
 ```
-tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>]:terminator=<TERM>
+tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>][:final-newline=<bool>]:terminator=<TERM>
 <content>
 <TERM>
 ```
@@ -396,6 +396,7 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>][:refused=<code>]:terminator=<TERM>
 | `encoding` | No | `text` | Content encoding: `text` or `base64` |
 | `terminator` | Yes | - | End marker (alone on line) |
 | `refused` | No | - | The diagnostic code `ze config validate` refuses this file with (`config-parse`, `config-yang-reference`, ...): the test feeds Ze a config it must refuse |
+| `final-newline` | No | `true` | `false` ends a text block's file at the end of its last line, with no newline after it (see "Exact bytes" below). Text blocks only |
 <!-- source: internal/test/tmpfs/tmpfs.go -- File struct, Tmpfs.AddFile -->
 
 `refused=` changes nothing at run time: the runner writes the file like any
@@ -435,6 +436,40 @@ unchanged. The fragment is
 not made standalone by adding settings that the running daemon already supplies.
 Unconsumed `.conf` files retain their standalone validation.
 <!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences -->
+
+### Exact bytes: `final-newline`
+
+A text block writes every line it holds followed by a newline, the last line
+included, so a one-line block is that line and a newline. A config file or a
+script expects that newline, and it is the default.
+
+A request body does not. A form POST read from a tmpfs file (`http=post` with
+`sendfile=`) reaches the server with that newline, and `url.ParseQuery` keeps
+it in the last field's value: `prefix=not-a-prefix` arrives as
+`not-a-prefix\n`, a value no browser sends from a one-line input. The server
+then answers for a value the test never meant to send, and an assertion that
+checks only a status code or a page title still passes. Declare
+`final-newline=false` and the file ends at the end of its last line:
+
+```
+tmpfs=lg-search.body:final-newline=false:terminator=EOF_BODY
+prefix=10.20.3.0/24
+EOF_BODY
+```
+
+The file holds `prefix=10.20.3.0/24`, 19 bytes. Only the newline after the
+last line is dropped: a block whose last line is empty keeps the newline that
+ends the line before it, and an empty block stays empty. The value is `true`
+or `false`; any other spelling is refused, so a misspelled `false` never keeps
+the newline in silence. The key is refused on an `encoding=base64` block,
+whose decoded bytes are already exact. Use base64 for bytes a text line cannot
+hold (binary data, a carriage return), and `final-newline=false` for a body a
+reader should be able to read.
+
+A JSON body needs neither: `json.Unmarshal` accepts trailing whitespace, so
+the newline changes nothing the server decodes.
+<!-- source: internal/test/tmpfs/tmpfs.go -- parseTmpfsBlock, parseFinalNewline -->
+<!-- test: internal/test/tmpfs/tmpfs_test.go -- TestFinalNewline, TestFinalNewlineRefusals -->
 
 ### Mode Defaults
 
@@ -2150,7 +2185,7 @@ http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PA
 | `status` | Yes | Expected HTTP status code |
 | `contains` | No | Expected body substring |
 | `bodyfile` | No | Path to file with expected body (exact match, resolved relative to `.ci` file) |
-| `sendfile` | No | Path to file sent as POST request body, resolved from tmpfs first |
+| `sendfile` | No | Path to file sent as POST request body, resolved from tmpfs first. The file's bytes are sent unchanged, so a form body written as a text block declares `final-newline=false` (Tmpfs, "Exact bytes") |
 | `content-type` | No | Request body content type for `sendfile`, defaults to `application/json` |
 | `header` | No | Request header in `Name: Value` wire form. **Repeatable** -- the only key that can appear more than once on one line |
 | `insecure-tls` | No | Set `true` for self-signed local HTTPS endpoints |
@@ -2771,6 +2806,7 @@ validation result and writes nothing to the active configuration.
 | `expect=completion:contains=<list>` | Completions include all items | `expect=completion:contains=set,delete,edit` |
 | `expect=completion:excludes=<list>` | Completions must NOT include items | `expect=completion:excludes=vpp,kernel` |
 | `expect=completion:count=<N>` | Number of completions | `expect=completion:count=5` |
+| `expect=completion:order=<list>` | The listed items appear in the menu in this order, other items allowed around them; two items at least. `contains`, `excludes` and `exact` judge membership only | `expect=completion:order=peer,router-id,session` |
 | `expect=ghost:text=<suffix>` | Ghost text suggestion | `expect=ghost:text=-id` |
 | `expect=dirty:true` | Has unsaved changes | `expect=dirty:true` |
 | `expect=content:contains=<text>` | Config content includes text | `expect=content:contains=router-id` |
@@ -2793,6 +2829,7 @@ validation result and writes nothing to the active configuration.
 | `expect=file:path=<rel>:absent=true` | File does not exist | `expect=file:path=test.conf:absent=true` |
 | `expect=key:path=<key>:contains=<text>` | Decoded persistent value | `expect=key:path=file/active/test.conf:contains=bgp` |
 | `expect=key:path=<key>:not-contains=<text>` | Decoded value excludes text | `expect=key:path=file/active/test.conf:not-contains=old` |
+| `expect=key:path=<key>:pattern=<regex>` | Decoded value matches a Go regular expression, as `content:pattern`: the way to assert the line order of a stored file. Refused beside `glob` | `expect=key:path=file/active/test.conf:pattern=(?s)router-id .*peer p1` |
 | `expect=key:path=<key>:absent` | Key does not exist | `expect=key:path=file/active/test.conf.draft:absent` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->

@@ -7,7 +7,7 @@ List artifact configuration history\.
 - Registry path: `show config artifact history`
 - Usage: `show config artifact <artifact> history <name>`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-history`
+- Wire method: `ze-config:artifact-history`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

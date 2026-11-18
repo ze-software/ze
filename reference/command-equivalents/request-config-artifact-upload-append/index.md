@@ -7,7 +7,7 @@ Append bytes at the expected upload offset\.
 - Registry path: `request config artifact upload append`
 - Usage: `request config artifact upload append content <content> <offset> <transfer>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-upload-append`
+- Wire method: `ze-config:artifact-upload-append`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -99,8 +99,8 @@ way; they differ only in how they reach Ze (<code>docs/architecture/plugin/plugi
 </tr>
 <tr>
 <td>The parameters the API surfaces publish</td>
-<td>The <code>input</code> of an rpc, in an <code>-api</code> module, named by the command's <code>ze:rpc</code></td>
-<td>The parameter list MCP, REST and gRPC publish for the command</td>
+<td>The selected <code>-cmd</code> path's typed leaves; the named <code>-api</code> rpc input when that path has no typed CLI leaves</td>
+<td>The exact parameter names, types and placement MCP, REST and gRPC use for that command</td>
 </tr>
 <tr>
 <td>The route to your plugin</td>
@@ -111,6 +111,13 @@ way; they differ only in how they reach Ze (<code>docs/architecture/plugin/plugi
 </table>
 <!-- source: internal/component/config/yang/join_command.go -- refuseCommandConflicts, refuseRPCLinks -->
 <!-- source: internal/component/plugin/server/startup.go -- the Stage 1 commands registered for the process -->
+<p>Each command alias publishes its own typed CLI leaves. A command whose CLI
+leaf is named <code>id</code> publishes <code>id</code>, even when its named RPC uses <code>session-id</code>.
+The RPC input remains the fallback for a path without typed CLI leaves.
+An <code>empty</code> leaf is a presence-only flag: structured <code>false</code> omits it.
+A <code>boolean</code> leaf carries its explicit <code>true</code> or <code>false</code> value instead.</p>
+<!-- source: cmd/ze/hub/command_meta.go -- buildParamMeta -->
+<!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <h2 id="defining-a-command-in-yang">Defining a Command in YANG</h2>
 <p>This is the command module of the example plugin
 (<a href="https://github.com/ze-software/ze/blob/main/docs/../examples/plugin/python/acme_monitor.py" target="_blank" rel="noopener"><code>examples/plugin/python/acme_monitor.py</code></a>,
@@ -874,7 +881,7 @@ gRPC command lists. A text the module leaves empty is filled from the entry.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

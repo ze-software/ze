@@ -131,14 +131,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9</strong><b>of 26 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 26 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 26 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>17</strong><b>17 of 36 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>15</strong><b>15 of 36 tests linked to requirements, 0 without a fault test and 10 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>1</strong><b>of 26 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>15</strong><b>of 26 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 26 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>12</strong><b>of 26 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1242,7 +1242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7752-6.2.2-1, so there is no linked test.</p>
 <h3><a href="#rfc7752-6.2.2-2"><code>RFC7752-6.2.2-2</code></a></h3>
 <p>An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. o Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? o Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? o Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? o Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? o Does any fixed-length TLV correspond to the TLV Length field in this document? (Section 6.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e). RFC 7752 Section 6.2.2: &#34;An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.&#34; followed by the five length-sum questions (BGP-LS attribute, MP_REACH_NLRI, MP_UNREACH_NLRI, descriptor Total NLRI Length, fixed-length TLVs). TestRFC7752LinkStateLengthSumsOnReceive changed only the NOTIFICATION it requires for the outer NLRI overrun: across NLRI types 1, 2 and 3, in MP_REACH_NLRI and MP_UNREACH_NLRI, an NLRI length one octet too long must give SessionReset with the RFC 9552 Section 8.2.2 length-sum error and the exact frame 3/9 whose Data is the MP attribute alone (mpAttr = attrs[7:] after the 4-octet ORIGIN and 3-octet empty AS_PATH of mpReachAttrs, or the whole of mpUnreachAttrs, checked against both helpers), leaving the session Idle with nothing dispatched; descriptor over and underruns still discard exactly one NLRI with the diagnostic and no NOTIFICATION; exact-sum controls are dispatched unchanged. The assertion is as exact as before; only the expected subcode and Data moved, per RFC 4760 Section 7. TestRFC7752AttributeLengthSumsOnReceive and the ls plugin units are unchanged. Ran green. Verdict stands. Finding recorded outside this verdict: the four discrimination records on these reactor units no longer verify (producer-changed applyRFC7606, and unit-changed for TestRFC7752LinkStateLengthSumsOnReceive).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive, internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2 moved. Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e). RFC 7752 Section 6.2.2: &#34;An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.&#34; followed by the five length-sum questions (BGP-LS attribute, MP_REACH_NLRI, MP_UNREACH_NLRI, descriptor Total NLRI Length, fixed-length TLVs). TestRFC7752LinkStateLengthSumsOnReceive changed only the NOTIFICATION it requires for the outer NLRI overrun: across NLRI types 1, 2 and 3, in MP_REACH_NLRI and MP_UNREACH_NLRI, an NLRI length one octet too long must give SessionReset with the RFC 9552 Section 8.2.2 length-sum error and the exact frame 3/9 whose Data is the MP attribute alone (mpAttr = attrs[7:] after the 4-octet ORIGIN and 3-octet empty AS_PATH of mpReachAttrs, or the whole of mpUnreachAttrs, checked against both helpers), leaving the session Idle with nothing dispatched; descriptor over and underruns still discard exactly one NLRI with the diagnostic and no NOTIFICATION; exact-sum controls are dispatched unchanged. The assertion is as exact as before; only the expected subcode and Data moved, per RFC 4760 Section 7. TestRFC7752AttributeLengthSumsOnReceive and the ls plugin units are unchanged. Ran green. Verdict stands. Finding recorded outside this verdict: the four discrimination records on these reactor units no longer verify (producer-changed applyRFC7606, and unit-changed for TestRFC7752LinkStateLengthSumsOnReceive).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -1255,7 +1255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L101" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L26" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
@@ -1270,7 +1270,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L100" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L25" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
@@ -2140,7 +2140,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

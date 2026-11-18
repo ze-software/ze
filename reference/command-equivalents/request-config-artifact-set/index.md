@@ -7,7 +7,7 @@ Set a value in an artifact configuration\.
 - Registry path: `request config artifact set`
 - Usage: `request config artifact <artifact> set <name> <text> [dry-run]`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-set`
+- Wire method: `ze-config:artifact-set`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

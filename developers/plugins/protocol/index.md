@@ -171,6 +171,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | Field | Type | Description |
 |-------|------|-------------|
 | `protocol-version` | `int` | REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks `1`) |
+| `exit-confirms-cleanup` | `bool` | Declare only when exit zero confirms release of this original engine's native resources. The daemon reserves protected warning capacity at accepted Stage 1, before `OnStarted`. |
 | `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |
@@ -204,6 +205,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `drain-handler` | `bool` | Whether the plugin answers the stop drain. The Go SDK sets it from `OnDrain` |
 | `started-handler` | `bool` | You initialize local resources after ready; answer runtime-ready only after that initialization succeeds. The Go SDK derives it from OnStarted |
 | `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
+| `fences-live-forwards` | `bool` | Hold live changes behind initial replay until the session-ready report; requires `signals-session-ready` |
 
 **Ze reads every key of a declaration, and refuses one it does not know.** A
 key ze skipped would start your plugin without what the key declares, so a key
@@ -268,14 +270,21 @@ What the report does:
 | You report | ze credits the report to your process for that session, once. A second report is not credited again |
 | You report with a token from an older session, or for a session that is going down | ze refuses it with an error naming the problem |
 | You report for a peer ze does not have | ze credits it to nothing and logs a WARN naming the peer |
-| You never report | Nothing waits for you. ze never holds its End-of-RIB for a report: it sends the marker once its own table is out |
+| You never report | Ze sends its End-of-RIB marker once its own table is out. For a peer covered by your live-forward fence, live changes remain held until every fence owner reports for the captured session or that session ends |
 
-The report's effect inside ze is to lower the replay fence, which holds a
-peer's live forwarded changes while a route server or RIB plugin compiled into
-ze replays that peer's table. Only a plugin compiled into ze can own that
-fence, so today a report from an external plugin is credited and changes
-nothing on the wire. Declaring it still tells ze that your routes belong to the
-initial update.
+To hold live forwarded changes behind your initial replay, also declare
+`fences-live-forwards: true`. Stage 1 refuses that flag without
+`signals-session-ready: true`. Send the captured session-ready report after
+replay is out; it releases the hold for that session. End-of-RIB still waits
+for no report. Without the fence opt-in, your existing non-fencing behavior
+remains. Neither flag grants an attachment, a receive subscription or send
+permission. Removal or replacement ends the old process's declaration.
+<!-- source: internal/component/plugin/server/replay_fence.go -- validateReplayFenceDeclaration, declaresReplayFence -->
+Ze uses your current authenticated Stage-1 flags even when your process name
+also names a compiled plugin. Forked in-tree programs declare the flags too.
+Only an Internal runner can use its compiled defaults.
+<!-- source: internal/component/plugin/server/replay_fence.go -- sessionReplayDeclarations -->
+<!-- source: internal/component/plugin/registry/registry.go -- SignalsSessionReady, FencesLiveForwards -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, Peer.creditAPIReady -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters, Peer.replayFenceOwners -->
@@ -1180,7 +1189,7 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:report-issue` | `RaiseIssue`, `ClearIssue` | `ReportIssueInput` | None | Raise or clear a problem on the daemon's report bus, where `show doctor` reads it (`docs/architecture/api/process-protocol.md`, "Plugin problems") |
 | `ze-plugin-engine:dispatch-command` | `DispatchCommand` | `DispatchCommandInput` | `DispatchCommandOutput` | Dispatch a command string |
 | `ze-plugin-engine:dispatch-command-args` | `DispatchCommandArgs` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Dispatch a command and pre-tokenized arguments |
-| `ze-plugin-engine:emit-event` | `EmitEvent` | `EmitEventInput` | `EmitEventOutput` | Emit an event |
+| `ze-plugin-engine:emit-event` | `EmitEvent`, `EmitEventApplied` | `EmitEventInput` | `EmitEventOutput` | Queue an event or join captured subscribers |
 | `ze-plugin-engine:subscribe-events` | `SubscribeEvents` | `SubscribeEventsInput` | None | Subscribe to events |
 | `ze-plugin-engine:unsubscribe-events` | `UnsubscribeEvents` | None | None | Unsubscribe from events |
 | `ze-plugin-engine:decode-nlri` | `DecodeNLRI` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI through the registry |
@@ -1189,6 +1198,20 @@ Plugins call the engine during runtime through these SDK methods:
 | `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
 | `ze-plugin-engine:decode-update` | `DecodeUpdate` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode a BGP UPDATE |
 
+### Applied event completion
+
+Use `EmitEventApplied` for lifecycle coordination that requires subscriber
+application and declared deferred work. Supply a context deadline and release
+locks the recipients need. A matching subscription on the emitter refuses the
+operation before publication. Ordinary `EmitEvent` retains queue-only behavior.
+<!-- source: pkg/plugin/sdk/sdk_emit_applied.go -- EmitEventApplied -->
+
+The same `emit-event` RPC carries `await-applied: true` and `deadline-ms`.
+Success requires `applied: true` and the exact request deadline. A failed or
+canceled call can leave partial application. It cannot authorize source cleanup
+or confirm downstream output. Resolve the named failure before retrying.
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- emit-event -->
+<!-- source: internal/component/plugin/server/emit_event_applied.go -- emitEventApplied -->
 ### Selected output receipts
 
 <!-- source: pkg/plugin/sdk/sdk_selected.go -- SelectRoutes -->

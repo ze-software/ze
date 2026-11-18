@@ -7,7 +7,7 @@ List artifact configuration records\.
 - Registry path: `show config artifact config list`
 - Usage: `show config artifact <artifact> config list`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-configs`
+- Wire method: `ze-config:artifact-configs`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

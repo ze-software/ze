@@ -7,7 +7,7 @@ Begin a private binary source transfer\.
 - Registry path: `request config artifact bytes begin`
 - Usage: `request config artifact bytes begin <name> [total <total>]`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-bytes-begin`
+- Wire method: `ze-config:artifact-bytes-begin`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

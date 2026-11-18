@@ -7,7 +7,7 @@ Discard this account\'s artifact edits\.
 - Registry path: `request config artifact session discard`
 - Usage: `request config artifact <artifact> session discard <name>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-discard`
+- Wire method: `ze-config:artifact-session-discard`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

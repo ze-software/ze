@@ -188,6 +188,13 @@ A run that loads no `-api` module is an error rather than a pass, because it
 judged no declaration.
 <!-- source: internal/le/doc/yangcontract/contract.go -- contractSatisfied, publishedRPCs, unservedRPCs -->
 
+Local-handler discovery reads `cmd/ze/main.go`, the `register.go` and non-test
+`register_*.go` files in `cmd/ze/*/`, and those same registration filenames
+recursively under `internal/`. Test files, source backups and other Go
+filenames do not declare handlers for this census. A registration source that
+cannot be read or parsed fails the check.
+<!-- source: internal/le/doc/yangcontract/contract.go -- localCommandRegistryFiles, localCommandRegistrySource, scanLocalHandlers -->
+
 ### `./le doc yang-contract help-shape`
 
 ```

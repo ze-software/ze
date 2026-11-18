@@ -5,8 +5,8 @@ Ze includes a built-in looking glass that exposes BGP session state and route in
 | Feature | Description |
 |---------|-------------|
 | Peer dashboard | Live peer table with state, ASN, route counts, SSE updates |
-| Route lookup | Prefix and IP containment search with full attribute display |
-| AS path search | Pattern-based AS path filtering |
+| Route lookup | A prefix with its length lists the routes of exactly that prefix, its host bits cleared, sent to `bgp-rib` as `exact`. A bare address lists every route whose prefix contains it, the most specific first for each peer, sent as `covering`. Rows carry the full attributes |
+| AS path search | AS numbers separated by spaces, matched as a run anywhere in the path; a leading `^` anchors the run at the start. Any other pattern character is refused with the form the field takes |
 | Community search | Standard and large community filtering |
 | AS path topology graph | Server-side SVG visualization of AS path DAGs |
 | Birdwatcher REST API | Alice-LG compatible JSON endpoints under `/api/looking-glass/`. Specified in RFC 2119 terms in [Birdwatcher compatibility](https://github.com/ze-software/ze/blob/main/docs/architecture/api/birdwatcher-compat.md) |
@@ -20,6 +20,8 @@ Ze includes a built-in looking glass that exposes BGP session state and route in
 <!-- source: internal/component/lg/server.go -- LGServer, HTTP lifecycle -->
 <!-- source: internal/component/lg/handler_api.go -- Birdwatcher REST API handlers -->
 <!-- source: internal/component/lg/handler_ui.go -- HTMX UI handlers -->
+<!-- source: internal/component/lg/prefix_lookup.go -- parsePrefixLookup: a prefix becomes the exact lookup, a bare address the covering lookup -->
+<!-- source: internal/component/lg/aspath_pattern.go -- parseASPathPattern: the AS path in the engine's comma grammar -->
 <!-- source: internal/component/lg/view.go -- typed view models: layoutView, searchView, peerRow -->
 <!-- source: internal/component/lg/markup_check_test.go -- lgMarkupExempt: the two exempt drawings -->
 <!-- source: internal/component/lg/yang/ze-lg-conf.yang -- leaf certificate -->

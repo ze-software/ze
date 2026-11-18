@@ -177,6 +177,14 @@ close the active backend, change its generation, or start its monitor. The
 consumer MUST close its owner after its dependent resources stop. L2TP uses this
 for Linux PPP interfaces even when the interface configuration selects VPP.
 <!-- source: internal/component/iface/backend.go -- OpenBackend -->
+
+Kernel PPPoE preparation also owns an independent netlink backend. Each prepared
+access opens its sessions through `AccessOwner.Open` and shares that backend
+across them. The caller MUST stop admission and join its sessions. It MUST then
+close the access and its backend.
+<!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, preparedAccess.Open -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, kernelAccessOwner.Open, kernelAccessOwner.Close -->
+
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
@@ -1585,6 +1593,82 @@ backend users must do the same.
 <!-- source: internal/plugins/iface/netlink/backend_linux.go -- netlinkBackend.Close -->
 <!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.close -->
 
+Native callers can create a link exclusively and receive a raw-counter reader
+bound to the original creation echo's index and generation. The backend validates
+the current namespace, owns the subscribed socket, and copies the request before
+taking its lock. Callers MUST keep the request immutable until creation returns
+and MUST retain the backend until their last reader call; the backend owner MUST
+then call `Close`. Readers own no separate socket. A renamed original remains
+readable, including from another caller namespace. Deletion, movement, reuse,
+lost notification history or backend closure permanently refuses that reader.
+A current reply without statistics can recover on a later confirmed reply.
+Returned totals are the current native raw values, without the display-reset
+baseline. Callers MUST preserve the attempted flag and any partial link receipt
+on failure: an uncertain send can have created a link without returning an echo,
+and an echo followed by failure returns the original link with a permanently
+refused reader. The backend does not delete that link on the caller's behalf.
+<!-- source: internal/plugins/iface/netlink/counter_create_linux.go -- netlinkBackend.CreateLinkCounterReader, counterSource.finishCreate, counterSource.boundCounters -->
+<!-- source: internal/plugins/iface/netlink/counter_create_request_linux.go -- newCounterCreateRequest, validateCounterCreatePayload -->
+
+A failed creation grants a safe-retry receipt only when the original socket
+received one matched negative acknowledgment, validated its original exclusive
+creation request and consumed the complete batch without a transport or parser
+failure. No creation echo may have been received. The returned error preserves
+the native errno and exposes `NativeLinkCreationRejected`; the attempted flag
+alone does not prove rejection. The same errno from an uncertain send or receive,
+a partial echo, or an invalid later message grants no receipt. A caller retries
+a name collision only after that definitive rejection and successful closure of
+its original rejected resource. Other failures retain their original cleanup
+owner; no name or index lookup supplies deletion or retry authority.
+<!-- source: internal/plugins/iface/netlink/counter_create_rejection_linux.go -- counterCreateNegativeReply, completedCounterCreateRejection -->
+
+Native PPP callers can bind an optional `NativePPPWriter` through the backend
+retained at unit creation. Binding runs inside the original namespace helper:
+the provider captures its route socket and obtains a positive creator-only
+`PPPIOCGOWNER` receipt on the same retained original unit file, captured index
+and unit. It retains the supported feature mask from that receipt.
+<!-- source: internal/component/iface/native_ppp.go -- NativePPPBackend, NativePPPUnitOwner, NativePPPWriter -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- netlinkBackend.BindNativePPPUnit, nativePPPProbe -->
+
+The writer supports MTU, administrative state, alias, exact point-to-point
+address pairs and simple IPv4/IPv6 routes. It preserves peer masks, including
+IPv6 /64, and RouteReplace semantics. Address deletion additionally requires
+the kernel's EXACT_ADDR_PAIR capability; matching and sibling preservation
+happen under the native writer lock. An absent capability refuses the write.
+<!-- source: internal/plugins/iface/netlink/native_ppp_request_linux.go -- nativePPPWriter.RemoveAddressP2P, nativePPPAddressRequest, nativePPPRouteRequest -->
+
+The provider fills OWNER_FD during a short borrow of the original creator file,
+sends once, then erases that descriptor slot before releasing the borrow. ACK
+waiting happens afterward on the original socket. Unknown send, receive or
+parse outcomes retain the transaction and prevent another mutation. `Settle`
+receives the original ACK without resubmission. The writer can also observe
+its original owner's optional passive retirement capability. That capability
+must confirm successful closure of the original unit file, every short borrow
+and its tracked library duplicate; a failed close grants no retirement. The
+caller MUST finish accounting and disconnect and arrange original and seal
+closure before final writer settlement. Successful unit retirement can end
+uncertain transport custody, retaining the unknown outcome and its causes.
+<!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.mutate, nativePPPWriter.Settle, nativePPPResources.close -->
+<!-- source: internal/component/iface/native_ppp.go -- NativePPPUnitRetirementOwner, ErrNativePPPUnavailable -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_retirement_linux.go -- observeUnitRetirementLocked, settleRetiredUnitLocked -->
+
+A negative ACK validates the complete original request against its captured
+digest and preserves the native errno. It proves a terminal kernel response;
+an operation may have changed state before returning an error. The caller MUST
+retain its effect and cleanup receipts after transport settlement. Historical
+unknown-outcome errors remain available after successful physical socket Close
+and permit final backend cleanup. A failed physical socket Close retains the
+writer, backend resources and original cause. Close is attempted only once;
+neither a later `os.ErrClosed` nor the socket number authorizes another close
+or proves release.
+<!-- source: internal/plugins/iface/netlink/native_ppp_transport_linux.go -- nativePPPParseACK, nativePPPRejected -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.closeOriginal -->
+<!-- source: internal/plugins/iface/netlink/native_ppp_retirement_linux.go -- ClosePending -->
+<!-- source: internal/plugins/iface/netlink/backend_linux.go -- netlinkBackend.Close -->
+
+This provider does not itself establish that shared PPP session and client
+consumers use it. Their entry-point and replacement controls prove that wiring.
+
 Linux requires statistics to persist “across routine operations like bringing
 the interface down and up” ([networking statistics documentation](https://docs.kernel.org/networking/statistics.html)).
 Its generic statistics API provides no driver-reset epoch. A driver reset whose
@@ -1705,3 +1789,37 @@ under exact-or-reject.
 
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
 <!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface/GetLink via net.Interfaces -->
+
+
+## Original native VLAN custody
+
+A kernel VLAN created through Ze retains its original CREATE transaction,
+resource birth and transport. One backend-local initialization lock publishes
+that transport for both synchronous creator rollback and first worker admission.
+The route socket is opened on the caller before launching the worker, preserving
+its namespace. A failed open publishes no transport and permits a later retry;
+a successful open is never replaced by another admission. Close retains the
+original worker until its actual completion channel closes. A stopped admission
+with an unjoined worker returns a bounded pending result; a retry cannot reopen
+the transport or report successful release before that original worker returns.
+A cleanup operation that times out ends its current turn and retains its next
+resource cursor. A later Close starts with that next resource, so a repeatedly
+timing-out original cannot starve its retained siblings. The original failure,
+worker and transport remain owned until their cleanup is confirmed.
+<!-- source: internal/plugins/iface/netlink/native_access_linux.go -- initializeOps, beginLocked, close, closeWithContext -->
+<!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- loop, join -->
+<!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- run -->
+
+Capturing a native map lease requires that retained creator record; matching
+discovery labels cannot reconstruct it.
+While a map lease remains live, Ze refuses deletion of that VLAN or a parent
+whose deletion would remove it, conflicting name-based map writes, and closing
+or replacing its backend. An unknown original request retains its transaction
+and socket for a later bounded join; caller expiry does not publish another
+owner or authorize stamping a matching replacement. Preexisting VLANs remain
+available through ordinary interface discovery without gaining this lease.
+<!-- source: internal/component/iface/native_access.go -- ResolvePreparedAccess, NativeVLANProvider -->
+<!-- source: internal/plugins/iface/netlink/native_access_linux.go -- createDirect, captureNativeVLANDirect, legacyTargetLocked, closeDirect -->
+<!-- source: internal/plugins/iface/netlink/native_access_worker_linux.go -- JoinNativeVLAN -->
+<!-- source: internal/plugins/iface/netlink/native_access_transport_linux.go -- nativeVLANTransaction -->
+<!-- source: internal/plugins/iface/netlink/native_access_delete_linux.go -- deleteLinkOriginalLocked -->

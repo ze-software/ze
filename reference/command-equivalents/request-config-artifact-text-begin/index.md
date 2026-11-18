@@ -7,7 +7,7 @@ Begin bounded configuration text upload\.
 - Registry path: `request config artifact text begin`
 - Usage: `request config artifact text begin [total <total>]`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-text-begin`
+- Wire method: `ze-config:artifact-text-begin`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

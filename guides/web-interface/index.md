@@ -79,6 +79,52 @@ because the artifact can contain credentials.
 <!-- source: internal/component/web/backup_workspace.go -- HandleBackupWorkspace, ServeHTTP -->
 <!-- source: internal/component/web/page_backup_workspace.templ -- pageBackupWorkspace -->
 
+To make a new backup of the system serving this page, choose **Create backup of
+this system**. The browser downloads `system-backup.zefs`, containing the complete
+store: configurations, history, saved drafts, credentials and other stored keys.
+Creating the backup does not commit pending edits or change uploaded workspaces.
+The system must have an open device store, and the complete snapshot must fit
+the workspace's size and temporary-storage allowance. A refused creation returns
+an explanation instead of a partial backup.
+<!-- source: internal/component/web/backup_transfer.go -- downloadSystem -->
+<!-- source: internal/component/config/storage/cli/system_backup.go -- BackupSystemTo -->
+
+Before opening the new download in the Ze CLI on Unix, run
+`chmod 600 system-backup.zefs`. Keep the backup private because it contains
+credentials. You can upload it here to inspect or edit its configuration.
+
+The server keeps its private backup working copies under the platform data
+directory's `backups` folder: `/var/lib/ze/backups` on an installed Linux system
+and `/perm/var/lib/ze/backups` on the appliance. To choose a different folder:
+
+```text
+environment {
+    backup {
+        directory "/srv/ze-backups";
+    }
+}
+```
+
+Use an absolute path the daemon user can create or write to, then commit the change.
+Ze normalizes separators and `.` components to keep private roots stable and
+refuses any `..` component; name the intended absolute folder directly.
+The `ze.backup.directory` environment override takes priority over this leaf.
+The commit creates a missing folder and checks write access as the running
+daemon account. A successful commit selects it for new workspaces and downloads
+without restarting Ze. A failed commit keeps the previous folder. Existing
+workspaces and downloads keep their private files until they close or expire;
+empty retired roots are then removed. Removing the leaf restores the platform
+default unless the OS override is set. Ze preserves an existing parent's
+permissions and unrelated files and refuses an unusable explicit location.
+An unconfigured development
+binary whose platform data directory cannot be resolved keeps the operating
+system's temporary folder. Browser downloads go to the location chosen in the
+browser's download settings.
+<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment, backup, directory -->
+<!-- source: internal/component/config/artifact/directory.go -- configuredBackupParent, backupDirectory -->
+<!-- source: internal/component/config/artifact/directory.go -- PrepareDirectory, Complete -->
+<!-- source: internal/component/config/artifact/owner.go -- ensureRoot -->
+
 The backup workspace also runs with `ze start --web-only`. It uses the same
 artifact commands as the configured daemon; opening it starts no routing
 protocol. Stop the web process only after downloading the changes you need.

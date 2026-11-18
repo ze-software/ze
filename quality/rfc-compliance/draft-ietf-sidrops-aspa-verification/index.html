@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 10 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 10 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 10 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>21</strong><b>21 of 23 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 23 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -279,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> ASPA path verification</p>
-<p><strong>Test verification:</strong> 9 of 10 MUST proven</p>
-<p><strong>Evidence:</strong> unit 9</p>
+<p><strong>Test verification:</strong> 8 of 10 MUST proven</p>
+<p><strong>Evidence:</strong> unit 8</p>
 <p><strong>Unmet:</strong> DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2</p>
 
 </section>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:must">Ze verified 9, Not built 1</div>
+<div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:must">Ze verified 8, Tests awaiting verification 1, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:overview">Ze MUST verified 9, Not assessed 10, Not built 1</div>
+<div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:overview">Ze MUST verified 8, Tests awaiting verification 1, Not assessed 10, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="draft-ietf-sidrops-aspa-verification:must.kept">10</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="draft-ietf-sidrops-aspa-verification:must.ze-proven">9</span></td>
+<td><span data-ze-rfc="draft-ietf-sidrops-aspa-verification:must.ze-proven">8</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="draft-ietf-sidrops-aspa-verification:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="draft-ietf-sidrops-aspa-verification:must.proof-pending">0</span></td>
+<td><span data-ze-rfc="draft-ietf-sidrops-aspa-verification:must.proof-pending">1</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="draft-ietf-sidrops-aspa-verification:must.os-gap">0</span></td>
@@ -500,9 +500,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65" title="internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L248" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68" title="internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L257" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L295" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-sidrops-aspa-verification-6.2-1">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1</code></td><td colspan="3"><span class="rfc-subject">The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF]. (Section 6.2)</span></td></tr>
@@ -773,7 +773,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#draft-ietf-sidrops-aspa-verification-5.6-1"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1</code></a></h3>
 <p>If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery, internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2 moved. Independent rejudgment 2026-11-15 after only the two selecting-RIB retention fixture topology repairs. The canonical ASPA verification draft Section 5.7 says: &#39;If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]).&#39; The row&#39;s stable identifier remains 5.6-1 although the current draft section is 5.7. RFC 4271 Section 9.1.2 independently excludes an unresolvable NEXT_HOP before selection. TestASPARetentionReceiveRecovery now supplies only connected 192.0.2.9/32; all six typed/text by early/pending/installed cases still use the real registered Adj-RIB-In bridge and selecting RIB, retain exact attributes, NLRI and next-hop bytes after rejection, require absence from both Loc-RIB and best-path replay while Invalid, and recover the same received route on a later accepting decision without another UPDATE. TestASPARetentionReplacementWithdrawal supplies only connected 192.0.2.9/32 and 192.0.2.10/32, making both unchanged old and replacement next hops feasible independently of validation. It still rejects the newer message generation, removes the old selection, retains the replacement&#39;s new bytes, refuses a stale acceptance, and forbids resurrection after actual withdrawal, session removal and origin rejection. The topology cannot itself accept a validation-refused path; every generation and exclusion assertion remains. The unchanged Adj-RIB-In TestASPARetainedPathReplayRecovery supplies both tagged polarities: a retained Invalid ADD-PATH sibling survives expiry with complete bytes, stays out of ordinary replay, recovers after a cursor without another UPDATE, and its withdrawal preserves the eligible sibling while targeted replay reports an explicit withdrawal. No wire bytes, actions, message IDs, validation phases, assertions, negative controls, shared constructors or producers changed in this repair. Main&#39;s selected repaired RIB roots passed with race in 4d7e8db1 and no skips. I inspected both new normal-return semantic proof logs and native records against the current selecting-RIB bodies. In e8c69275 the clean TestASPARetentionReceiveRecovery baseline passed all six cases. The applyToInstalled mutant removed an installed route on an Ineligible decision: false/installed and true/installed then failed the exact retained-byte assertion with an empty stored list, while all four early/pending cases still passed. This observation proves discrimination for the installed-to-Invalid retention branch, not an observed mutant failure of every receive order. In 517807c4 the clean TestASPARetentionReplacementWithdrawal baseline passed all three branches. Changing the old-decision guard from d.MsgID &lt; route.MsgID to d.MsgID != route.MsgID wrongly ignored the newer Invalid decision; withdraw, session and origin-reject cases then each failed at Loc-RIB installed=true, want false, before their later removal assertions. These two native mutant records bind the current positive and negative claim bodies. Neither observation used a panic, skip or build failure, and no broader mutant coverage is inferred. Other tagged units, requirement quotes, levels and discrimination entries are unchanged. This pending file does not itself stamp or publish an audit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery, internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2, internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery, internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal moved. Independent rejudgment 2026-11-15 after only the two selecting-RIB retention fixture topology repairs. The canonical ASPA verification draft Section 5.7 says: &#39;If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]).&#39; The row&#39;s stable identifier remains 5.6-1 although the current draft section is 5.7. RFC 4271 Section 9.1.2 independently excludes an unresolvable NEXT_HOP before selection. TestASPARetentionReceiveRecovery now supplies only connected 192.0.2.9/32; all six typed/text by early/pending/installed cases still use the real registered Adj-RIB-In bridge and selecting RIB, retain exact attributes, NLRI and next-hop bytes after rejection, require absence from both Loc-RIB and best-path replay while Invalid, and recover the same received route on a later accepting decision without another UPDATE. TestASPARetentionReplacementWithdrawal supplies only connected 192.0.2.9/32 and 192.0.2.10/32, making both unchanged old and replacement next hops feasible independently of validation. It still rejects the newer message generation, removes the old selection, retains the replacement&#39;s new bytes, refuses a stale acceptance, and forbids resurrection after actual withdrawal, session removal and origin rejection. The topology cannot itself accept a validation-refused path; every generation and exclusion assertion remains. The unchanged Adj-RIB-In TestASPARetainedPathReplayRecovery supplies both tagged polarities: a retained Invalid ADD-PATH sibling survives expiry with complete bytes, stays out of ordinary replay, recovers after a cursor without another UPDATE, and its withdrawal preserves the eligible sibling while targeted replay reports an explicit withdrawal. No wire bytes, actions, message IDs, validation phases, assertions, negative controls, shared constructors or producers changed in this repair. Main&#39;s selected repaired RIB roots passed with race in 4d7e8db1 and no skips. I inspected both new normal-return semantic proof logs and native records against the current selecting-RIB bodies. In e8c69275 the clean TestASPARetentionReceiveRecovery baseline passed all six cases. The applyToInstalled mutant removed an installed route on an Ineligible decision: false/installed and true/installed then failed the exact retained-byte assertion with an empty stored list, while all four early/pending cases still passed. This observation proves discrimination for the installed-to-Invalid retention branch, not an observed mutant failure of every receive order. In 517807c4 the clean TestASPARetentionReplacementWithdrawal baseline passed all three branches. Changing the old-decision guard from d.MsgID &lt; route.MsgID to d.MsgID != route.MsgID wrongly ignored the newer Invalid decision; withdraw, session and origin-reject cases then each failed at Loc-RIB installed=true, want false, before their later removal assertions. These two native mutant records bind the current positive and negative claim bodies. Neither observation used a panic, skip or build failure, and no broader mutant coverage is inferred. Other tagged units, requirement quotes, levels and discrimination entries are unchanged. This pending file does not itself stamp or publish an audit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -784,9 +784,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L257" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L295" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReplacementWithdrawal</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65" title="internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetainedPathReplayRecovery</code></a></td>
@@ -794,9 +794,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>not verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L248" title="internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go" target="_blank" rel="noopener"><code>TestASPARetentionReceiveRecovery</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -1188,7 +1188,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

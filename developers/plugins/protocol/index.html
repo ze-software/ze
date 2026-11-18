@@ -78,6 +78,7 @@ plugins connect back via TLS.</p>
 </ol></li>
 <li><a href="#runtime-rpcs-plugin-to-engine">Runtime RPCs (Plugin to Engine)</a>
 <ol>
+<li><a href="#applied-event-completion">Applied event completion</a></li>
 <li><a href="#selected-output-receipts">Selected output receipts</a></li>
 <li><a href="#system-routing-views">System routing views</a></li>
 <li><a href="#owned-interface-devices-and-firewall-tables">Owned interface devices and firewall tables</a></li>
@@ -351,6 +352,11 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td>REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks <code>1</code>)</td>
 </tr>
 <tr>
+<td><code>exit-confirms-cleanup</code></td>
+<td><code>bool</code></td>
+<td>Declare only when exit zero confirms release of this original engine's native resources. The daemon reserves protected warning capacity at accepted Stage 1, before <code>OnStarted</code>.</td>
+</tr>
+<tr>
 <td><code>families</code></td>
 <td><code>[]FamilyDecl</code></td>
 <td>Address families the plugin handles (name, mode, AFI, and SAFI)</td>
@@ -515,6 +521,11 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <td><code>bool</code></td>
 <td>Your routes belong to a peer's initial routing update, and you report <code>plugin session ready</code> once they are out ("The session-ready report")</td>
 </tr>
+<tr>
+<td><code>fences-live-forwards</code></td>
+<td><code>bool</code></td>
+<td>Hold live changes behind initial replay until the session-ready report; requires <code>signals-session-ready</code></td>
+</tr>
 </tbody>
 </table>
 <p><strong>Ze reads every key of a declaration, and refuses one it does not know.</strong> A
@@ -606,16 +617,23 @@ even when you had nothing to send.</p>
 </tr>
 <tr>
 <td>You never report</td>
-<td>Nothing waits for you. ze never holds its End-of-RIB for a report: it sends the marker once its own table is out</td>
+<td>Ze sends its End-of-RIB marker once its own table is out. For a peer covered by your live-forward fence, live changes remain held until every fence owner reports for the captured session or that session ends</td>
 </tr>
 </tbody>
 </table>
-<p>The report's effect inside ze is to lower the replay fence, which holds a
-peer's live forwarded changes while a route server or RIB plugin compiled into
-ze replays that peer's table. Only a plugin compiled into ze can own that
-fence, so today a report from an external plugin is credited and changes
-nothing on the wire. Declaring it still tells ze that your routes belong to the
-initial update.</p>
+<p>To hold live forwarded changes behind your initial replay, also declare
+<code>fences-live-forwards: true</code>. Stage 1 refuses that flag without
+<code>signals-session-ready: true</code>. Send the captured session-ready report after
+replay is out; it releases the hold for that session. End-of-RIB still waits
+for no report. Without the fence opt-in, your existing non-fencing behavior
+remains. Neither flag grants an attachment, a receive subscription or send
+permission. Removal or replacement ends the old process's declaration.</p>
+<!-- source: internal/component/plugin/server/replay_fence.go -- validateReplayFenceDeclaration, declaresReplayFence -->
+<p>Ze uses your current authenticated Stage-1 flags even when your process name
+also names a compiled plugin. Forked in-tree programs declare the flags too.
+Only an Internal runner can use its compiled defaults.</p>
+<!-- source: internal/component/plugin/server/replay_fence.go -- sessionReplayDeclarations -->
+<!-- source: internal/component/plugin/registry/registry.go -- SignalsSessionReady, FencesLiveForwards -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady, Peer.creditAPIReady -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters, Peer.replayFenceOwners -->
@@ -2276,10 +2294,10 @@ for the numeric result fields and the separation from selected-output authority.
 </tr>
 <tr>
 <td><code>ze-plugin-engine:emit-event</code></td>
-<td><code>EmitEvent</code></td>
+<td><code>EmitEvent</code>, <code>EmitEventApplied</code></td>
 <td><code>EmitEventInput</code></td>
 <td><code>EmitEventOutput</code></td>
-<td>Emit an event</td>
+<td>Queue an event or join captured subscribers</td>
 </tr>
 <tr>
 <td><code>ze-plugin-engine:subscribe-events</code></td>
@@ -2332,6 +2350,18 @@ for the numeric result fields and the separation from selected-output authority.
 </tr>
 </tbody>
 </table>
+<h3 id="applied-event-completion">Applied event completion</h3>
+<p>Use <code>EmitEventApplied</code> for lifecycle coordination that requires subscriber
+application and declared deferred work. Supply a context deadline and release
+locks the recipients need. A matching subscription on the emitter refuses the
+operation before publication. Ordinary <code>EmitEvent</code> retains queue-only behavior.</p>
+<!-- source: pkg/plugin/sdk/sdk_emit_applied.go -- EmitEventApplied -->
+<p>The same <code>emit-event</code> RPC carries <code>await-applied: true</code> and <code>deadline-ms</code>.
+Success requires <code>applied: true</code> and the exact request deadline. A failed or
+canceled call can leave partial application. It cannot authorize source cleanup
+or confirm downstream output. Resolve the named failure before retrying.</p>
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- emit-event -->
+<!-- source: internal/component/plugin/server/emit_event_applied.go -- emitEventApplied -->
 <h3 id="selected-output-receipts">Selected output receipts</h3>
 <!-- source: pkg/plugin/sdk/sdk_selected.go -- SelectRoutes -->
 <!-- source: pkg/plugin/rpc/selected.go -- selected DTOs, outcomes and frame sizing -->
@@ -2772,7 +2802,7 @@ source provenance before Ze can advertise origin arbitration.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 03:14 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

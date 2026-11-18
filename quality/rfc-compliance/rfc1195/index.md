@@ -458,7 +458,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 However, the default metric must always be available. (Section 3.10)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reachability entry used with no default metric. The default metric octet has no S (unsupported) bit in the 12-octet TLV 128/130 layout, so an entry lacking it can only arrive as a short entry, and the length refusal is this rule's own refusal. TestRFC1195InternalEntryWithoutDefaultMetricRefused asserts DecodeNarrowIPReachTLV returns ErrLength for the entry with its first octet removed while the complete entry decodes with metric 9, and the full LSDB/SPF path keeps the competing route (3 then 2,160); a floor(len/12) decoder goes red. Positive TestRFC1195RouteForEachReachabilityEntry: SPF uses each entry's own default metric. Both units carry observed-red revert records.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reachability entry used with no default metric. The default metric octet has no S (unsupported) bit in the 12-octet TLV 128/130 layout, so an entry lacking it can only arrive as a short entry, and the length refusal is this rule's own refusal. TestRFC1195InternalEntryWithoutDefaultMetricRefused asserts DecodeNarrowIPReachTLV returns ErrLength for the entry with its first octet removed while the complete entry decodes with metric 9, and the full LSDB/SPF path keeps the competing route (3 then 2160); a floor(len/12) decoder goes red. Positive TestRFC1195RouteForEachReachabilityEntry: SPF uses each entry's own default metric. Both units carry observed-red revert records.
 
 | Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|

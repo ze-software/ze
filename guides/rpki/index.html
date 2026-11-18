@@ -95,7 +95,11 @@ received prefix.</p>
 </ol></li>
 <li><a href="#testing-rpki-locally">Testing RPKI Locally</a></li>
 <li><a href="#without-rpki">Without RPKI</a></li>
-<li><a href="#troubleshooting">Troubleshooting</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a>
+<ol>
+<li><a href="#decisions-queued-across-source-cleanup">Decisions queued across source cleanup</a></li>
+<li><a href="#driving-complete-mock-rtr-sets">Driving complete mock RTR sets</a></li>
+</ol></li>
 </ol></details></nav><div class="doc-body">
 <!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig; internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions; internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration -->
 <p>An UPDATE must name the negotiated peer AS before RPKI validates its routes.
@@ -479,6 +483,20 @@ never validated fails closed instead.</p>
 current action (RFC 6811 Section 4). A rejection marks the received route
 ineligible rather than deleting it. A later valid authorization can make that
 same received path eligible again, without another UPDATE or a route refresh.</p>
+<p>RPKI tracks received paths by their original engine Peer owner and physical
+connection, alongside their native route key and received message ID. Two peers
+sharing a remote address remain independent. Cache and configuration
+revalidation preserve those original facts and the source's configured name;
+they never look up a replacement session by address. A physical DOWN removes
+that connection's unretained tracker entries. GR's pre-DOWN verdict preserves
+only its retained families and their existing validation outcomes. Those inputs
+remain available to ROA/ASPA cache changes until the original GR lifetime is
+purged; a duplicate old DOWN cannot erase them or a fresh connection. Terminal
+Peer removal removes only that original owner's entries. An unowned observation stays separate and
+cannot acquire a received route's authority.</p>
+<!-- source: internal/component/bgp/plugins/rpki/aspa_tracker.go -- rpkiSource, routeKey, removePeer, removeOwner -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handlePeerDown, buildDecisions -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki_reload.go -- configRouteSnapshot, revalidateConfigSnapshot -->
 <p>RPKI events also report cache availability changes. A route received before a
 nonempty ROA load initially reports <code>unavailable</code>; synchronization publishes its
 current origin and ASPA verdicts even if both verdicts are unchanged. Cache
@@ -486,7 +504,10 @@ expiry publishes <code>unavailable</code> again. No second UPDATE is required.</
 <p>Changing validation policy re-evaluates retained received attributes while
 Adj-RIB-In holds the affected routes pending. Disabling RPKI removes only
 RPKI's denial, not another validator's decision or a newer UPDATE's generation
-fence. Rolling back the configuration re-applies the previous policy.
+fence. Rolling back the configuration re-applies the previous policy. The
+snapshot also preserves a current route's original GR retained mark and its
+effective NO_LLGR community. Those facts select cleanup scope, never acceptance
+or a replacement session's authority.
 The retained-route snapshot also publishes current RPKI verdicts. This covers
 an UPDATE that arrived before RPKI's asynchronous startup callback, without
 waiting for another UPDATE or a later cache change. Each event groups all
@@ -1097,6 +1118,47 @@ must succeed before this source is published as a recording.</code></pre>
 </tr>
 </tbody>
 </table>
+<h3 id="decisions-queued-across-source-cleanup">Decisions queued across source cleanup</h3>
+<p>RPKI's worker checks the original owner and connection again when it dispatches
+its copied batch. An admitted current UP-to-DOWN lifetime permits an initial
+decision, including one that could not acquire a tracker slot. Otherwise the
+decision must still match the current original route in the origin tracker.
+GR-retained routes remain revalidatable, while terminal removal, physical DOWN
+and GR expiry remove the inputs they actually retire. These transitions join
+an already admitted <code>BatchValidate</code> request before acknowledging cleanup.
+Cleanup does not increment the configuration generation or invalidate useful
+siblings. The existing lifetime ledger and route trackers supply the check;
+no completed-source registry or tombstone is kept. The socket and direct SDK <code>batch-validate</code> requests use the same admission and
+join. Their engine operation forwards the complete batch to the registered
+receive-store command owner, including when that owner runs forked under a
+configured alias. It refuses a missing owner or failed whole-batch answer
+rather than applying decisions to a daemon-local store.</p>
+<p>An empty validation batch still enters the receive store's normal mutation
+admission. It refuses a removed, stopped or terminally failed owner, and must
+settle older owed validation publication before it can acknowledge zero new
+decisions. Empty input does not bypass that lifecycle boundary.</p>
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_commands.go -- batchValidateCommand -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- dispatchBatch, handlePeerDown -->
+<!-- source: internal/component/bgp/plugins/rpki/retained_validation.go -- validationSourceAdmitted, handleRetainedValidationEvent -->
+<h3 id="driving-complete-mock-rtr-sets">Driving complete mock RTR sets</h3>
+<p>For tests which change ROAs while a BGP source is down, <code>le mock rtr --vrp-file retained-vrps.txt --refresh 1 --retry 1</code> reads a complete current
+snapshot. Its first line is a nonzero uint32 serial; each later line uses
+<code>prefix,maxlen,asn</code>. The file is limited to 64 KiB. Malformed ranges, duplicate
+records and a combination with <code>--vrp</code> or <code>--aspa</code> are refused. Write a new
+snapshot under a sibling name, then rename it over the current file so a query
+cannot read a partial write.</p>
+<p>File mode accepts only a 12-byte Serial Query or an 8-byte Reset Query.
+A malformed declared length closes that connection before reading a body or
+answering a query; a complete Serial Query carrying zero remains valid.
+Fixed mode keeps its whole-set responder for both normal query forms.</p>
+<!-- source: internal/test/mock/rtr/rtr.go -- rtrMockHandleConn -->
+<p>An unchanged Serial Query receives an empty delta. A changed serial receives
+Cache Reset, followed by the complete current set when the router sends Reset
+Query. This removes obsolete VRPs without keeping a second snapshot history.
+<code>--sync-release</code> still gates the first reply. Refresh and retry are the real
+protocol timers; the observer waits for <code>show bgp rpki cache</code> to publish the
+requested serial and checks the resulting received-route and socket state.</p>
+<!-- source: internal/test/mock/rtr/current_vrps.go -- rtrMockReadVRPs, rtrMockFileQuery -->
 </div>
 </div>
             </section>
@@ -1146,7 +1208,7 @@ must succeed before this source is published as a recording.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

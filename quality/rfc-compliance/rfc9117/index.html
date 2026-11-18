@@ -133,8 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 2 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 2 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 2 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>8</strong><b>8 of 8 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>2</strong><b>of 2 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 8 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -202,7 +201,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -276,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> FlowSpec validation</p>
-<p><strong>Test verification:</strong> 2 of 2 MUST proven</p>
-<p><strong>Evidence:</strong> unit 2</p>
+<p><strong>Test verification:</strong> 0 of 2 MUST proven</p>
+<p><strong>Evidence:</strong> -</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc9117:must">Ze verified 2</div>
+<div data-ze-rfc-bar="rfc9117:must">Tests awaiting verification 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc9117:overview">Ze MUST verified 2, Not assessed 3</div>
+<div data-ze-rfc-bar="rfc9117:overview">Tests awaiting verification 2, Not assessed 3</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -336,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9117:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc9117:register">complete</span></td>
+<td><span data-ze-rfc="rfc9117:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc9117:must.total">2</span></td>
@@ -345,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc9117:must.kept">2</span></td>
 </tr>
 <tr><td>Ze verified</td>
-<td><span data-ze-rfc="rfc9117:must.ze-proven">2</span></td>
+<td><span data-ze-rfc="rfc9117:must.ze-proven">0</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc9117:must.os-verified">0</span></td>
 </tr>
 <tr><td>Tests awaiting verification</td>
-<td><span data-ze-rfc="rfc9117:must.proof-pending">0</span></td>
+<td><span data-ze-rfc="rfc9117:must.proof-pending">2</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc9117:must.os-gap">0</span></td>
@@ -429,9 +428,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.1 - Revision of Route Feasibility</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9117-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L142" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L176" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L143" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L177" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
 </div></td>
 </tr>
@@ -440,9 +439,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.2 - Revision of AS_PATH Validation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9117-4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L144" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L178" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L145" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L179" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></span></div>
 </div></td>
 </tr>
@@ -484,7 +483,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc9117-4.1-1"><code>RFC9117-4.1-1</code></a></h3>
 <p>b) One of the following conditions MUST hold true: | | 1. The originator of the Flow Specification matches the | originator of the best-match unicast route for the | destination prefix embedded in the Flow Specification (this | is the unicast route with the longest possible prefix | length covering the destination prefix embedded in the Flow | Specification). | | 2. The AS_PATH attribute of the Flow Specification is empty or | contains only an AS_CONFED_SEQUENCE segment [RFC5065]. (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC9117 Section 4.1: &#39;b) One of the following conditions MUST hold true: 1. The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification). 2. The AS_PATH attribute of the Flow Specification is empty or contains only an AS_CONFED_SEQUENCE segment [RFC5065].&#39; Section 1 extends the considerations to AS_CONFED_SET. Both polarities of TestFlowSpecAuthorizationFromReceivedUpdates and TestRFC9117AuthorizationUsesLongestCoveringRoute assert current eligibility, retained presence, candidates and exact zero-or-one selected nonwithdraw NLRI/action events. Matching ORIGINATOR_ID, empty internal path and confed-only paths succeed; differing transports despite equal router IDs and unmatched ORIGINATOR_ID fail. The internal /8-/16 pair has ordinary nonempty AS_SEQUENCE and changes only originator, proving longest-cover selection without local-domain or external-AS masking. flowSpecOriginator and flowSpecASPath feed flowSpecAuthorized via handleReceivedStructured/reconcileFlowSpecs; candidate and FlowSpecChanged consumers observe its decision. All four audit questions and both polarities pass by independent source reading. Stored panic records prove producer reachability, not semantic mutation. Current execution and independent live-peer/VPP acceptance remain pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute, internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2, internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates, internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2 moved. RFC9117 Section 4.1: &#39;b) One of the following conditions MUST hold true: 1. The originator of the Flow Specification matches the originator of the best-match unicast route for the destination prefix embedded in the Flow Specification (this is the unicast route with the longest possible prefix length covering the destination prefix embedded in the Flow Specification). 2. The AS_PATH attribute of the Flow Specification is empty or contains only an AS_CONFED_SEQUENCE segment [RFC5065].&#39; Section 1 extends the considerations to AS_CONFED_SET. Both polarities of TestFlowSpecAuthorizationFromReceivedUpdates and TestRFC9117AuthorizationUsesLongestCoveringRoute assert current eligibility, retained presence, candidates and exact zero-or-one selected nonwithdraw NLRI/action events. Matching ORIGINATOR_ID, empty internal path and confed-only paths succeed; differing transports despite equal router IDs and unmatched ORIGINATOR_ID fail. The internal /8-/16 pair has ordinary nonempty AS_SEQUENCE and changes only originator, proving longest-cover selection without local-domain or external-AS masking. flowSpecOriginator and flowSpecASPath feed flowSpecAuthorized via handleReceivedStructured/reconcileFlowSpecs; candidate and FlowSpecChanged consumers observe its decision. All four audit questions and both polarities pass by independent source reading. Stored panic records prove producer reachability, not semantic mutation. Current execution and independent live-peer/VPP acceptance remain pending.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -492,29 +491,29 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L21" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L143" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L177" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L20" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L142" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L176" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc9117-4.2-1"><code>RFC9117-4.2-1</code></a></h3>
 <p>BGP Flow Specification implementations MUST enforce that the AS | in the left-most position of the AS_PATH attribute of a Flow | Specification route received via the External Border Gateway | Protocol (eBGP) matches the AS in the left-most position of the | AS_PATH attribute of the best-match unicast route for the | destination prefix embedded in the Flow Specification NLRI. (§4.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC9117 Section 4.2: &#39;BGP Flow Specification implementations MUST enforce that the AS in the left-most position of the AS_PATH attribute of a Flow Specification route received via the External Border Gateway Protocol (eBGP) matches the AS in the left-most position of the AS_PATH attribute of the best-match unicast route for the destination prefix embedded in the Flow Specification NLRI.&#39; The explanation defines this as the AS last added to AS_SEQUENCE and excludes same-Local-Domain validation from the new rule&#39;s scope. Both polarities of TestFlowSpecAuthorizationFromReceivedUpdates and TestRFC9117AuthorizationUsesLongestCoveringRoute were read. PeerAS65100 with matching path AS65001 succeeds, so obsolete peer-AS equality cannot pass; changed first AS and AS_SET-only path yield retained but ineligible routes with no candidates/events. The external /8-/16 cases keep the /16 originator and external peer constant while varying first AS65002 versus AS65001, requiring exactly one matching NLRI/action install versus zero. flowSpecASPath and flowSpecAuthorized compare first AS against the longest-cover route, with received-RIB eligibility, candidate and event consumers enforcing the result. All four questions pass and the polarities are genuine isolated cases. Native panic records show reachability only; no semantic mutation or test execution was observed in this audit, and independent live-peer/VPP acceptance remains pending.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute, internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2, internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates, internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2 moved. RFC9117 Section 4.2: &#39;BGP Flow Specification implementations MUST enforce that the AS in the left-most position of the AS_PATH attribute of a Flow Specification route received via the External Border Gateway Protocol (eBGP) matches the AS in the left-most position of the AS_PATH attribute of the best-match unicast route for the destination prefix embedded in the Flow Specification NLRI.&#39; The explanation defines this as the AS last added to AS_SEQUENCE and excludes same-Local-Domain validation from the new rule&#39;s scope. Both polarities of TestFlowSpecAuthorizationFromReceivedUpdates and TestRFC9117AuthorizationUsesLongestCoveringRoute were read. PeerAS65100 with matching path AS65001 succeeds, so obsolete peer-AS equality cannot pass; changed first AS and AS_SET-only path yield retained but ineligible routes with no candidates/events. The external /8-/16 cases keep the /16 originator and external peer constant while varying first AS65002 versus AS65001, requiring exactly one matching NLRI/action install versus zero. flowSpecASPath and flowSpecAuthorized compare first AS against the longest-cover route, with received-RIB eligibility, candidate and event consumers enforcing the result. All four questions pass and the polarities are genuine isolated cases. Native panic records show reachability only; no semantic mutation or test execution was observed in this audit, and independent live-peer/VPP acceptance remains pending.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
@@ -522,22 +521,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L23" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L145" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L179" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc9117_best_match_test.go#L22" title="internal/component/bgp/plugins/rib/rfc9117_best_match_test.go" target="_blank" rel="noopener"><code>TestRFC9117AuthorizationUsesLongestCoveringRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L144" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L178" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestFlowSpecAuthorizationFromReceivedUpdates</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -720,7 +719,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

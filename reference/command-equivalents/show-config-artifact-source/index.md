@@ -7,7 +7,7 @@ Inspect masked committed configuration source\.
 - Registry path: `show config artifact source`
 - Usage: `show config artifact <artifact> source <name> [path <path>]`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-source`
+- Wire method: `ze-config:artifact-source`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

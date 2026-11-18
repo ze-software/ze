@@ -7,7 +7,7 @@ Roll back an artifact configuration\.
 - Registry path: `request config artifact rollback`
 - Usage: `request config artifact <artifact> rollback <name> <revision>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-rollback`
+- Wire method: `ze-config:artifact-rollback`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

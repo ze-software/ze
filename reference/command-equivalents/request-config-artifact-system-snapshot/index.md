@@ -1,27 +1,27 @@
-# `show l2tp session history`
+# `request config artifact system snapshot`
 
-Show state transitions for a session over time\.
+Create a complete private system backup transfer\.
 
 ## Ze command
 
-- Registry path: `show l2tp session history`
-- Usage: `show l2tp session history`
-- Mode: Read\-only
-- Wire method: `ze-l2tp:session-history`
+- Registry path: `request config artifact system snapshot`
+- Usage: `request config artifact system snapshot`
+- Mode: Daemon
+- Wire method: `ze-config:artifact-system-snapshot`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
-- Answer shape: not declared
+- Answer shape: doc
 - Address fields: none
 - Column order: none
 - Pipes, always: json\, ndjson\, table\, text\, yaml\, raw\, no\-more\, save
-- Pipes, when the answer has rows: match\, count\, first\, last\, display\, fill
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Timestamped FSM entries for session establishment\. Use this when a subscriber\'s session fails to come up\.
+Create a complete immutable ZeFS transfer from the daemon\-owned store\, including credentials\, history and saved drafts\. Requires edit access\; read the returned transfer and abort it afterward\. No source configuration is changed\.
 
 ## Arguments
 

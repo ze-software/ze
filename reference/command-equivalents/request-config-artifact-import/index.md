@@ -7,7 +7,7 @@ Import private bytes into an artifact configuration\.
 - Registry path: `request config artifact import`
 - Usage: `request config artifact <artifact> import <name> <transfer>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-import`
+- Wire method: `ze-config:artifact-import`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -306,6 +306,12 @@ FAILED: 30 problem(s)
 <p>A run that loads no <code>-api</code> module is an error rather than a pass, because it
 judged no declaration.</p>
 <!-- source: internal/le/doc/yangcontract/contract.go -- contractSatisfied, publishedRPCs, unservedRPCs -->
+<p>Local-handler discovery reads <code>cmd/ze/main.go</code>, the <code>register.go</code> and non-test
+<code>register_*.go</code> files in <code>cmd/ze/*/</code>, and those same registration filenames
+recursively under <code>internal/</code>. Test files, source backups and other Go
+filenames do not declare handlers for this census. A registration source that
+cannot be read or parsed fails the check.</p>
+<!-- source: internal/le/doc/yangcontract/contract.go -- localCommandRegistryFiles, localCommandRegistrySource, scanLocalHandlers -->
 <h3 id="le-doc-yang-contract-help-shape"><code>./le doc yang-contract help-shape</code></h3>
 <pre><code># Command Help Shape
 
@@ -761,7 +767,7 @@ command validation, and changed-file wiring</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 17 November 2026 06:09 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

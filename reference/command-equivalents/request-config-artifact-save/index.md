@@ -7,7 +7,7 @@ Save reviewed text into its private artifact\.
 - Registry path: `request config artifact save`
 - Usage: `request config artifact <artifact> save <review> <base> <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-save`
+- Wire method: `ze-config:artifact-save`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -9,7 +9,7 @@
 | Registry area | Class of Service |
 | Kind | Runtime plugin |
 | Source path | `internal/plugins/cos` |
-| YANG modules | 1 |
+| YANG modules | 2 |
 
 ## Configuration
 
@@ -36,5 +36,5 @@ Order only when both plugins are selected; never auto-loads a plugin.
 
 Package: `internal/plugins/cos`
 
-YANG files: `internal/plugins/cos/yang/ze-cos-conf.yang`
+YANG files: `internal/plugins/cos/yang/ze-cos-cmd.yang`, `internal/plugins/cos/yang/ze-cos-conf.yang`
 Metadata source: `Registration`

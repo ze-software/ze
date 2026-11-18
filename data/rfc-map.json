@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "492956599e113208d7c236d7cb2222789a8bb37173ac3d8addd52eb411fb98e6"
+      "sha256": "340e37376d6d7d8168aadeb72703e14c52ddeea2462bd9a3294340893d9e709d"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "d1b8dc6c050b1f9786c276eed05589a83509691d0ea715834ef44f7e92067aa0",
-      "revision": "54032bbfd90cdc75789684ed225a4c87c9a2ff5b"
+      "sha256": "4e8fe231b1b3e93ea7cab92fd7292e7ee298d4a488d850826fddbe5f66e3a00c",
+      "revision": "d6459f74123eed522c288b5f7e6ba51b4cbfedc4"
     },
     {
       "label": "Proposed release layers",
@@ -28135,7 +28135,7 @@
         "section": "9.1.3",
         "annotation": {
           "kind": "partial",
-          "reason": "tested \"may be forwarded appropriately by the Routing Table\"; gap \"installed in the Adj-Rib-Out\"; the ordinary IPv4 internal-plugin witness checks sampled destination and emitted NEXT_HOP resolvability at stable successful recipient writes, initial unresolved-route exclusion, and reachability loss/recovery while the recipient remains connected. Competing received-route replay previously advertised retained unresolved input to a replacement Session. The ordinary-replay-owned advisory now stands that automatic replay down in internal/component/bgp/plugins/adj_rib_in/rib.go::AdjRIBInManager.handleStructuredState and AdjRIBInManager.handleState; the unchanged replacement-session witness passed one actual baseline rerun. Recorded replay discrimination proof remains pending. The corresponding ordinary-output behavior across remote prospective-resolution, routing-revision and publication boundaries also remains unproven. Section 9.1.3's explicit local-policy exception remains supported and is not exercised here.",
+          "reason": "tested \"may be forwarded appropriately by the Routing Table\"; gap \"installed in the Adj-Rib-Out\"; the ordinary IPv4 internal-plugin witness checks sampled destination and emitted NEXT_HOP resolvability at stable successful recipient writes, initial unresolved-route exclusion, and reachability loss/recovery while the recipient remains connected. Competing received-route replay previously advertised retained unresolved input to a replacement Session. The ordinary-replay-owned advisory now stands that automatic replay down in internal/component/bgp/plugins/adj_rib_in/rib.go::AdjRIBInManager.handleStructuredState and AdjRIBInManager.handleState. TestRFC4271OrdinaryReplacementRecipientSkipsUnresolvedRoute now has a recorded negative discrimination proof against the structured replay guard. The corresponding ordinary-output behavior across remote prospective-resolution, routing-revision and publication boundaries also remains unproven. Section 9.1.3's explicit local-policy exception remains supported and is not exercised here.",
           "tested": "may be forwarded appropriately by the Routing Table",
           "gap": "installed in the Adj-Rib-Out",
           "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::AdjRIBInManager.handleStructuredState"
@@ -28149,10 +28149,10 @@
         "section": "9.1.3",
         "annotation": {
           "kind": "partial",
-          "reason": "tested \"previously advertised route\"; gap \"a route in Loc-RIB is excluded from a particular Adj-RIB-Out\"; live general and route-server relays now withdraw the exact previously advertised IPv4 prefix after a newer received generation is rejected by export policy; accepted-generation controls carry the changed MED without withdrawal. Their shared-chain mutation can stop at the first general-rail failure, so it is not a separate observed route-server mutant red. Ordinary selected-route dissemination and its export-denial lifecycle remain unimplemented at internal/component/bgp/plugins/rib/rib_bestchange.go::publishBestChanges; the ordinary selected-route probes remain red under spec-bgp-best-route-advertised-to-peers, and refresh or stale replay has separate unresolved scope under spec-bgp-refresh-reapplies-export-policy",
+          "reason": "tested \"previously advertised route\"; gap \"a route in Loc-RIB is excluded from a particular Adj-RIB-Out\"; live general and route-server relays now withdraw the exact previously advertised IPv4 prefix after a newer received generation is rejected by export policy; accepted-generation controls carry the changed MED without withdrawal. Their shared-chain mutation can stop at the first general-rail failure, so it is not a separate observed route-server mutant red. Ordinary selected-route export exclusion is implemented through internal/component/bgp/reactor/reactor_api_selected.go::selectRoute and selected_flush.go::retireSelected. TestRFC4271OrdinarySelectedExportDenialWithdraws passes its live ordinary IPv4 control: the higher-LOCAL_PREF global winner is denied, the previously advertised lower path is withdrawn once, both received candidates remain stored, and a useful marker reaches the recipient without lower-candidate promotion. A recorded ordinary-specific discrimination proof remains pending; the existing general and route-server records do not supply it. Remote operation, mixed-origin boundaries, and refresh or stale replay remain separately unproven under the selected-advertiser and refresh specs",
           "tested": "previously advertised route",
           "gap": "a route in Loc-RIB is excluded from a particular Adj-RIB-Out",
-          "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::publishBestChanges"
+          "producer": "internal/component/bgp/reactor/reactor_api_selected.go::selectRoute"
         }
       },
       {
@@ -80587,5 +80587,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "54032bbfd90cdc75789684ed225a4c87c9a2ff5b"
+  "roadmap-revision": "d6459f74123eed522c288b5f7e6ba51b4cbfedc4"
 }

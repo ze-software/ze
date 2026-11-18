@@ -7,7 +7,7 @@ Merge into this account\'s artifact candidate\.
 - Registry path: `request config artifact session merge`
 - Usage: `request config artifact <artifact> session merge <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-merge`
+- Wire method: `ze-config:artifact-session-merge`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

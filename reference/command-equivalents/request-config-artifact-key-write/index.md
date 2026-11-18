@@ -7,7 +7,7 @@ Write one raw artifact key\.
 - Registry path: `request config artifact key write`
 - Usage: `request config artifact <artifact> key <key> write <transfer>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-key-write`
+- Wire method: `ze-config:artifact-key-write`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

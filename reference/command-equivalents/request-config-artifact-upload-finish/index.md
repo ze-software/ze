@@ -7,7 +7,7 @@ Verify and retain a completed upload\.
 - Registry path: `request config artifact upload finish`
 - Usage: `request config artifact upload finish <transfer>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-upload-finish`
+- Wire method: `ze-config:artifact-upload-finish`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -7,7 +7,7 @@ Set this account\'s artifact candidate value\.
 - Registry path: `request config artifact session set`
 - Usage: `request config artifact <artifact> session set <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-set`
+- Wire method: `ze-config:artifact-session-set`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

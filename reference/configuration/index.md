@@ -1986,7 +1986,7 @@ Export the running native IGP databases to BGP peers that attach this internal p
 
 ## class-of-service
 
-*Provided by `cos` ([ze-cos-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/cos/yang/ze-cos-conf.yang))*
+*Provided by `cos` ([ze-cos-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/cos/yang/ze-cos-cmd.yang), [ze-cos-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/cos/yang/ze-cos-conf.yang))*
 
 Named class-of-service profiles.
 
@@ -2285,6 +2285,10 @@ The api-server container under it is the shared parent of the REST and gRPC tran
         The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **token** `string`: Bearer token for API authentication.
     When the token is set, a client MUST send the header 'Authorization: Bearer <token>'. Leave the leaf empty to allow unauthenticated access.
+- **backup** `container`: Backup workspace storage settings.
+  Private working copies for uploaded backups and complete system backup downloads. The candidate directory is checked when the configuration is committed and becomes effective only after that commit succeeds. Existing workspaces and downloads remain in their original private folders until they close or expire.
+  - **directory** `string`: Absolute backup folder; apply after a successful commit.
+    Absolute parent folder for private backup workspaces and download snapshots. The ze.backup.directory environment override takes priority. With no explicit setting, use the platform data directory's backups folder: the Linux and appliance data paths are resolved by the shared platform policy. A development binary with no recognized data directory keeps its operating-system temporary folder. Ze creates a missing parent folder and private children; it does not change an existing parent's mode or remove unrelated files. The daemon user must be able to create files here. A commit creates a missing folder and checks write permissions as the running daemon account. A failed commit keeps the previous effective folder. Existing private roots remain owned until their contents close or expire; empty retired roots are removed. Removing the leaf restores the platform default unless the OS override is set.
 - **bgp** `container`: BGP protocol environment settings, applied before any peer-level config.
   The container controls the OPEN wait timeout and the initial announce delay.
   - **announce-delay** `string`: Delay between reactor Ready and first UPDATE (duration, 0s-1h)
@@ -8001,24 +8005,31 @@ Ze reads this subtree at startup and writes /etc/vpp/startup.conf from it, then 
   - **sync** `boolean`: Sync VPP state changes (link, MTU, IP) to Linux TAP mirrors.
     When this leaf is true, Ze writes lcp-sync into the linux-cp section of startup.conf. A link, MTU or address change made in VPP then reaches the Linux TAP mirror. When it is false, Ze omits the line and the two sides drift apart. The default is true, and lcp enabled MUST also be true before Ze writes the line.
 - **memory** `container`: VPP memory and buffer configuration.
-  These three leaves decide how much hugepage memory VPP asks the host for. The ze doctor check adds the main heap, the buffer memory and the stats segment together. It warns when the host reserved less hugepage memory than that sum. The hugepage-size leaf decides which page size VPP asks for, and it also governs the stats segment.
+  These leaves select VPP memory sizing and the buffers and statistics page mode. In a hugepage mode the ze doctor check adds the main heap, buffer memory and stats segment together and warns when the reservation is insufficient. Explicit default selects native base pages and does not require a hugepage reservation. An omitted hugepage-size still selects 2M.
   - **buffers** `uint32`: Number of packet buffers per NUMA node. 128000 is proven for full DFZ at 10G.
     Ze writes this count into the buffers section of startup.conf as buffers-per-numa, beside a fixed default data-size of 2048 bytes. The packet data alone costs the count multiplied by 2048 bytes on each NUMA node, so the default 128000 needs 250 MiB plus buffer metadata and alignment. A value of 0 is refused at commit with "vpp: memory buffers must be > 0".
   - **hugepage-size** `enumeration`: Hugepage size for VPP buffers.
-    The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and the statseg section of startup.conf. For 2M Ze writes page-size default-hugepage instead, which takes whatever the kernel holds as its default hugepage size. The ze doctor check warns when you select 1G on an amd64 CPU with no pdpe1gb flag, because the kernel then reserves no 1G page.
+    For 1G Ze writes page-size 1G into both buffers and statseg. For 2M it writes default-hugepage, which uses the kernel default hugepage size. Explicit default writes page-size default and uses native base pages, whose size is a kernel fact, without a hugepage reservation. The default remains 2M and no failed hugepage request falls back to base pages. The doctor check warns about an unsupported 1G CPU and reports missing or insufficient reservations for hugepage modes.
     - `1G`: Write page-size 1G into the buffers and statseg sections of startup.conf.
     - `2M`: Write page-size default-hugepage, which takes the kernel's default hugepage size.
+    - `default`: Use the native base-page size without a hugepage reservation.
   - **main-heap** `string`: VPP main heap size (e.g. 512M, 1G, 1536M). Production with full DFZ: 1536M.
-    Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be digits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check counts this size toward the hugepage memory it expects the host to have reserved.
+    Ze writes this size into the memory section of startup.conf as main-heap-size. The value MUST be digits followed by M or G, so 1536M is accepted and 1.5G is refused at commit. The ze doctor check counts this size toward the reservation only when a hugepage mode is selected.
 - **plugins** `container`: Optional VPP plugins to load.
-  Optional VPP plugin enablement. startup.conf uses 'plugin default { disable }', so Ze loads only the always-on plugins and the plugins toggled on here. The always-on plugins are dpdk, plus linux-cp when lcp is enabled.
+  Explicit VPP plugin enablement. startup.conf disables plugins by default. DPDK remains enabled by default and can be disabled only when no DPDK interfaces are configured. AF_PACKET is opt-in. uRPF always loads because configured IPv4 reverse-path checks depend on it. Linux Control Plane plugins load when lcp is enabled, and selected features register their own requirements.
+  - **af-packet** `boolean`: Load the AF_PACKET native plugin for a configured host-interface path.
+    Load af_packet_plugin.so so an explicitly configured AF_PACKET native access path can use host interfaces. Omission leaves it disabled. This selection does not create an interface, change the interface backend or provide the required Linux Control Plane pair.
+  - **dpdk** `boolean`: Load the DPDK native plugin, enabled by default.
+    Load dpdk_plugin.so. The default preserves existing startup output. Explicit false is for a configured non-DPDK access path and is refused while any DPDK interface is configured. A missing installed plugin never changes this selection automatically.
   - **wireguard** `boolean`: Load wireguard_plugin.so for the vpp interface backend.
     Load wireguard_plugin.so so the vpp interface backend can program WireGuard tunnels. The tunnels are configured as interface wireguard under backend vpp.
+- **startup-cli-file** `string`: Original CLI command file to execute during managed VPP startup.
+  Optional original VPP CLI command file. After the retained API Unix peer matches the supervised child's atomic process descriptor, Ze waits for synchronous native command completion on that same API generation before statistics and service readiness. The path must be absolute and contain no whitespace, control characters, braces, quotes, backslashes, comment or command separators. Managed startup refuses a missing, unreadable or nonregular file before starting the child; ze doctor names the original path and its repair. An empty or absent setting makes no request. The generated unix section omits asynchronous exec for this setting. Native command failure stops activation and kills and reaps the original child before runOnce returns. The independent retained process observer alone proves physical death. External supervision neither inspects nor executes this file. Native VPP owns its grammar.
 - **stats** `container`: VPP stats segment configuration.
   The stats segment is the shared memory area VPP writes its counters into. Ze connects to it separately from the binary API and reads it for Prometheus metrics, at the interval poll-interval sets. A failed stats connection logs "vpp: stats connection failed, telemetry disabled" and leaves the rest of the VPP integration running.
   - **poll-interval** `uint16`: Stats polling interval in seconds.
     Stats polling interval in seconds. The interval controls how often Ze reads VPP's stats segment for Prometheus metrics.
   - **segment-size** `string`: Stats segment shared memory size.
-    Ze writes this size into the statseg section of startup.conf as size. The value MUST be digits followed by M or G, so 512M and 1G are accepted and 512MB is refused at commit. The page size of the segment comes from memory hugepage-size and not from this leaf. The ze doctor check counts this size toward the hugepage memory it expects the host to have reserved.
+    Ze writes this size into the statseg section of startup.conf as size. The value MUST be digits followed by M or G, so 512M and 1G are accepted and 512MB is refused at commit. The page size of the segment comes from memory hugepage-size and not from this leaf. The ze doctor check counts this size toward the reservation only when a hugepage mode is selected.
   - **socket-path** `string`: Stats segment Unix socket path.
     Ze writes this path into the statseg section of startup.conf as socket-name, and the telemetry poller connects to it to read VPP's counters. The path MUST be absolute, MUST NOT contain "..", and MUST be 108 characters or less, which is the Unix socket path limit. This is a different socket from api-socket, which carries the binary API.

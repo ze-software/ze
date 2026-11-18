@@ -7,7 +7,7 @@ List raw artifact keys\.
 - Registry path: `show config artifact key list`
 - Usage: `show config artifact <artifact> key list [prefix <prefix>]`
 - Mode: Read\-only
-- Wire method: `ze-config-cli:artifact-key-list`
+- Wire method: `ze-config:artifact-key-list`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

@@ -346,7 +346,9 @@
       "bgp-rs"
     ],
     "start_after": [
-      "bgp-rr"
+      "bgp-rr",
+      "bgp-adj-rib-in",
+      "bgp-rpki"
     ],
     "source_dir": "internal/component/bgp/plugins/gr",
     "yang_files": [
@@ -735,6 +737,7 @@
     ],
     "source_dir": "internal/plugins/cos",
     "yang_files": [
+      "internal/plugins/cos/yang/ze-cos-cmd.yang",
       "internal/plugins/cos/yang/ze-cos-conf.yang"
     ]
   },

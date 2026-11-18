@@ -268,7 +268,7 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp-epe</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-gr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-gr Graceful Restart capability and mechanism plugin Graceful Restart capability and mechanism plugin internal/component/bgp/plugins/gr BGP   bgp bgp bgp-rib policy bgp-rs bgp-rr internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-gr" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-gr Graceful Restart capability and mechanism plugin Graceful Restart capability and mechanism plugin internal/component/bgp/plugins/gr BGP   bgp bgp bgp-rib policy bgp-rs bgp-rr bgp-adj-rib-in bgp-rpki internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-gr/"><code>bgp-gr</code></a></h3>
                         <p class="plugin-desc">Graceful Restart capability and mechanism plugin</p>
@@ -281,7 +281,7 @@
                             <span class="chip">Start after:bgp-rr</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-rib</code>, <code>policy</code></dd></div><div><dt>Optional</dt><dd><code>bgp-rs</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rr</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>bgp-rib</code>, <code>policy</code></dd></div><div><dt>Optional</dt><dd><code>bgp-rs</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rr</code>, <code>bgp-adj-rib-in</code>, <code>bgp-rpki</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-healthcheck" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-healthcheck Service healthcheck plugin with watchdog route control Service healthcheck plugin with watchdog route control internal/component/bgp/plugins/healthcheck BGP   bgp bgp bgp-watchdog   internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang">
@@ -710,16 +710,16 @@
                     <p>Generated group for registry entries mapped to the Class of Service area. Config roots: <code>class-of-service</code>. Source area: <code>internal/plugins/cos</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-cos" data-plugin-card data-family="class-of-service" data-category="services" data-search="cos 802.1p class-of-service profile definitions 802.1p class-of-service profile definitions internal/plugins/cos Class of Service   class-of-service   l2tp-auth-radius internal/plugins/cos/yang/ze-cos-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-cos" data-plugin-card data-family="class-of-service" data-category="services" data-search="cos 802.1p class-of-service profile definitions 802.1p class-of-service profile definitions internal/plugins/cos Class of Service   class-of-service   l2tp-auth-radius internal/plugins/cos/yang/ze-cos-cmd.yang internal/plugins/cos/yang/ze-cos-conf.yang">
                         <span class="cat">Class of Service</span>
                         <h3><a href="cos/"><code>cos</code></a></h3>
                         <p class="plugin-desc">802.1p class-of-service profile definitions</p>
                         <div class="chips">
                             <span class="chip mode">config:class-of-service</span>
                             <span class="chip">Start after:l2tp-auth-radius</span>
-                            <span class="chip">YANG:1</span>
+                            <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>class-of-service</code></dd></div><div><dt>Start after</dt><dd><code>l2tp-auth-radius</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>class-of-service</code></dd></div><div><dt>Start after</dt><dd><code>l2tp-auth-radius</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1764,7 +1764,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 00:39 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:27 UTC</span>
                 </div>
             </div>
         </footer>

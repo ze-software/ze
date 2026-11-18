@@ -7,7 +7,7 @@ Snapshot a complete private artifact\.
 - Registry path: `request config artifact download begin`
 - Usage: `request config artifact <artifact> download begin`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-download-begin`
+- Wire method: `ze-config:artifact-download-begin`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

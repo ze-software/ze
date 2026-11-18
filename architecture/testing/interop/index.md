@@ -166,6 +166,32 @@ and BIRD's [attribute code](https://gitlab.nic.cz/labs/bird/-/blob/v3.4.0/proto/
 and [packet sender](https://gitlab.nic.cz/labs/bird/-/blob/v3.4.0/proto/bgp/packets.c).
 <!-- source: internal/le/interoplab/bgp/register_role_export.go -- init -->
 
+### Ordinary selected BGP transit
+
+`bgp-best-route-transit-frr` and `bgp-best-route-transit-bird` put Ze between
+two native sources and a native recipient. Ze explicitly loads and attaches
+`bgp-rib` and its receive store, with no route-server or reflector process.
+Interface-only static host routes resolve the sources' actual next hops;
+no redistribution rule exports those system routes.
+
+The shorter source path must reach the recipient first. Its withdrawal must
+replace that output with the already retained backup's longer path. Removing
+the backup must withdraw the prefix. An independent native control remains
+useful through all three phases, and a third prefix remains selected in Ze
+while the recipient's export policy excludes it. The checker reads native
+tables and exact AS_PATHs, with FRR additionally reporting the next hop. It
+requires both original inputs before the first withdrawal and unchanged first
+BGP sessions with completed initial EORs at the end.
+
+The extra native peers are registered only for these scenario identities;
+their images, daemon arguments and readiness checks come from the lab's
+prepared native peer. No new role is inferred by the common dispatcher.
+These are scenario assertions; a source file or unit oracle alone is not a
+passing interop result.
+<!-- source: internal/le/interoplab/bgp/register_best_route_transit.go -- init -->
+<!-- source: internal/le/interoplab/bgp/check_best_route_transit.go -- checkBestRouteTransit -->
+<!-- source: internal/le/interoplab/bgp/prepare_best_route_transit.go -- bestRouteTransitCopyPeer -->
+
 ## Tested Daemons
 
 | Daemon | Version | Image | Query Method | What It Validates |

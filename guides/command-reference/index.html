@@ -525,9 +525,16 @@ level the peer is configured at
 Warnings:
   warning: peer transit-a: RFC 8212: this EBGP peer has no import policy, so Ze uses none of the routes it receives from it; to exchange routes, run `set bgp peer transit-a filter import final accept`, then `commit now`
 </code></pre>
-<p>An IBGP peer and a configured direction never warn. A dynamic group with no
-remote AS is judged only when each member's OPEN says whether it is EBGP.</p>
+<p>Validation also warns when an IBGP peer has an eligible ordinary selecting
+owner and no export policy. Ze sends that peer no routes learned from other
+peers, while local announcements remain permitted. This warning uses
+<code>doctor-bgp-learned-export-no-policy</code> and names the editor command that adds the
+policy. An eligible explicit role, an internal peer without an ordinary owner,
+and a configured accepting or rejecting export policy raise no internal absence.</p>
+<!-- source: internal/component/bgp/reactor/policy_absence.go -- PolicyAbsences -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- addRFC8212Warning -->
+<p>A dynamic group with no remote AS is judged only when each member's OPEN says
+whether it is EBGP. Its configuration alone cannot determine that session type.</p>
 <!-- source: internal/component/bgp/config/register.go -- policyAbsencesFromTree -->
 <!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
 <h3 id="ze-config">ze config</h3>
@@ -3190,12 +3197,15 @@ The populated tree becomes visible only after credentials and initial config
 are durable. An existing tree or blob refuses initialization.</p>
 <pre><code>ze init                          # Interactive setup
 ze init --managed                # Fleet mode
+ze init --managed --hub-ca hub-root.pem   # Fleet mode, with the hub's root
 ze init --force --yes             # Replace an unowned store with a backup
 ze init --from database.zefs      # Import a local blob into the live store
 ze init --from https://provision.example.net/install/database.zefs --sha256 &lt;hex&gt;
 ze init --from tftp://192.0.2.1/install/database.zefs --sha256 &lt;hex&gt;
 </code></pre>
-<p>Input fields are username, password, host, port, and instance name.
+<p>Input fields are username, password, host, port, and instance name. With
+<code>--managed</code> two more follow: the hub address as <code>host:port</code>, and this client's
+secret on the hub. Both may be empty (<a href="../fleet-config/">Fleet configuration</a>).
 The default host is <code>127.0.0.1</code>, the port is <code>2222</code>, and the name is the hostname.
 Normal initialization discovers interfaces and stores their initial config.</p>
 <table>
@@ -3209,6 +3219,14 @@ Normal initialization discovers interfaces and stores their initial config.</p>
 <tr>
 <td><code>--managed</code></td>
 <td>Enable managed configuration</td>
+</tr>
+<tr>
+<td><code>--hub-ca &lt;file&gt;</code></td>
+<td>With <code>--managed</code>: the hub's root, one PEM certificate of a certificate authority. The client checks its hub against it</td>
+</tr>
+<tr>
+<td><code>--hub-trust-first-use</code></td>
+<td>With <code>--managed</code>: keep the certificate authority the hub presents on the first connection. Cannot be given with <code>--hub-ca</code></td>
 </tr>
 <tr>
 <td><code>--force</code></td>
@@ -3743,7 +3761,8 @@ operator runs the same through the daemon, below: <code>show data check</code> a
 the rows <code>check</code> prints, and <code>request data repair path &lt;file&gt;</code> writes the
 salvage on the daemon's host. Installing a repaired store in place of the live
 one needs ze stopped.</p>
-<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, printVerdict, integrityVerdict, reportVerdict, cmdRepair, printRepair, salvageHistory, printHistoryFindings -->
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, printVerdict, integrityVerdict, reportVerdict, cmdRepair, printRepair, salvageHistory -->
+<!-- source: internal/component/config/storage/cli/repair_verdict.go -- newRepairVerdict, repairVerdict.printHistory, repairVerdict.exitCode -->
 <!-- source: internal/component/config/storage/history_check.go -- CheckHistory, RepairHistory -->
 <p><code>backup</code> copies every key of the store, at any depth and in any namespace, to
 one new blob artifact under one write lock, so a commit is in the backup whole
@@ -3886,7 +3905,7 @@ The live store is not changed; check the copy with
 fails with its path, counts, <code>salvage-written: true</code> and <code>details-omitted: true</code>.
 The saved salvage remains available. The answer names the command that checks
 it, instead of presenting a partial list as the complete report.</p>
-<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairDetailsTooLarge, repairReportRefusal -->
+<!-- source: internal/component/config/storage/cli/data_rpc_repair.go -- repairDetailsTooLarge, repairReportRefusalWithFix -->
 <!-- source: internal/component/command/blob.go -- BlobRemoteOctetsMax -->
 <p><code>show data check</code> answers the store's integrity verdict: <code>entries</code>,
 <code>corrupt-entries</code>, <code>vanished-entries</code>, <code>history-checked</code> and one <code>findings</code> row
@@ -3977,7 +3996,7 @@ carries <code>client</code>.</p>
 <!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
 <!-- source: internal/component/config/storage/cli/cmd_restore.go -- cmdRestore, parseRestoreArgs -->
 <!-- source: internal/component/config/storage/restore.go -- ReadRestoreSource, RestoreConfig -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreClientConfig, handleDataKeyDelete, configurationKeyError, removeKeyError -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataBackup, handleDataRestore, restoreConfigFromSource, handleDataKeyDelete, configurationKeyError, removeKeyError -->
 <!-- source: internal/component/config/storage/store.go -- RuntimeKey -->
 <!-- source: internal/component/config/storage/cli/cmd_backup.go -- cmdBackup, daemonAddress -->
 <!-- source: internal/component/config/storage/backup.go -- Backup, storeOwnedName -->
@@ -5020,6 +5039,16 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <td>Stream routes for one peer selector</td>
 </tr>
 <tr>
+<td><code>show bgp rib | received | covering &lt;address&gt;</code></td>
+<td>read-only</td>
+<td>Stream the received routes whose prefix contains the address, most specific first within each peer; refused on advertised routes and on <code>show bgp rib best</code> <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, refuseCoveringScope, coveringOnBestRefusal --></td>
+</tr>
+<tr>
+<td><code>show bgp rib | received | exact &lt;prefix&gt;</code></td>
+<td>read-only</td>
+<td>Stream the received routes of exactly that prefix, every ADD-PATH path of it, for example <code>show bgp rib received exact 10.0.0.0/8</code>; <code>prefix</code> is a text filter that also matches longer prefixes sharing its leading text. Refused on advertised routes, on <code>show bgp rib best</code>, and beside <code>covering</code> <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_covering.go -- receivedWalk, parseExactPrefix, refuseExactScope, exactOnBestRefusal, walkConflictRefusal --></td>
+</tr>
+<tr>
 <td><code>show bgp rib best</code></td>
 <td>read-only</td>
 <td>Best-path per prefix</td>
@@ -5040,14 +5069,49 @@ unicast; <code>mp &lt;family&gt; add &lt;prefixes&gt;</code>, <code>mp &lt;famil
 <td>Regenerate and re-advertise Adj-RIB-Out (<code>*</code> for all peers; the bare <code>clear bgp rib out</code> is refused). Each family is sent between a BoRR and an EoRR to a peer that negotiated Enhanced Route Refresh (RFC 7313). <code>family</code> limits the replay to one family, typed after its keyword: <code>clear bgp rib out * family ipv4/unicast</code>; a family with no keyword is refused</td>
 </tr>
 <tr>
+<td><code>clear bgp rib out-excluding-owner owner &lt;id&gt; [family &lt;family&gt;]</code></td>
+<td>write</td>
+<td>Replay to live destinations except one nonzero unsigned 64-bit configured owner. Same-address owners remain separate. Ordinary destinations use selected routes; auxiliary destinations use retained SENT attributes. Completion waits for the captured session's output; a replaced or unresolved destination is refused. Returns refreshed and refused destination counts. <!-- source: internal/component/bgp/plugins/rib/rib_resend_excluding_owner.go -- parseOwnerExcludedResend, resend --></td>
+</tr>
+<tr>
+<td><code>request bgp rib source retain-routes owner &lt;id&gt; connection &lt;id&gt; on-down families &lt;afi/safi&gt;...</code></td>
+<td>internal write</td>
+<td>Prepare only the original received connection's negotiated GR/LLGR families</td>
+</tr>
+<tr>
+<td><code>request bgp rib source mark-stale owner &lt;id&gt; connection &lt;id&gt; restart-time &lt;seconds&gt; [stale-level &lt;level&gt;] [family &lt;afi/safi&gt;]</code></td>
+<td>internal write</td>
+<td>Mark only the original retained received and sent provenance</td>
+</tr>
+<tr>
+<td><code>request bgp rib source purge-stale owner &lt;id&gt; connection &lt;id&gt; [family &lt;afi/safi&gt;]</code></td>
+<td>internal write</td>
+<td>Purge original stale routes and join their captured output</td>
+</tr>
+<tr>
+<td><code>request bgp rib source release-routes owner &lt;id&gt; connection &lt;id&gt;</code></td>
+<td>internal write</td>
+<td>Release the original retained physical connection and join its existing leases</td>
+</tr>
+<tr>
+<td><code>request bgp rib source attach-community owner &lt;id&gt; connection &lt;id&gt; family &lt;afi/safi&gt; community &lt;hex&gt;</code></td>
+<td>internal write</td>
+<td>Decorate the original stale routes; the community is exactly eight hexadecimal digits</td>
+</tr>
+<tr>
+<td><code>request bgp rib source delete-with-community owner &lt;id&gt; connection &lt;id&gt; family &lt;afi/safi&gt; community &lt;hex&gt;</code></td>
+<td>internal write</td>
+<td>Delete matching original stale routes and join their captured output</td>
+</tr>
+<tr>
 <td><code>request bgp rib inject &lt;peer&gt; &lt;family&gt; &lt;prefix&gt; [attrs...]</code></td>
 <td>write</td>
-<td>Insert route into Adj-RIB-In as if received from peer</td>
+<td>Insert a synthetic forwarding candidate; the supplied address grants no learned-source authority</td>
 </tr>
 <tr>
 <td><code>request bgp rib withdraw &lt;peer&gt; &lt;family&gt; &lt;prefix&gt;</code></td>
 <td>write</td>
-<td>Remove route from Adj-RIB-In</td>
+<td>Remove the matching synthetic candidate while preserving independently owned learned routes</td>
 </tr>
 <tr>
 <td><code>show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;</code></td>
@@ -5413,14 +5477,29 @@ a keyword.</p>
 <td>Effective runtime configuration</td>
 </tr>
 <tr>
-<td><code>show l2tp observer &lt;sid&gt;</code></td>
+<td><code>show l2tp observer id &lt;sid&gt; [tunnel-id &lt;tid&gt;] [listener &lt;name-or-endpoint&gt;]</code></td>
 <td>run</td>
-<td>Per-session event ring snapshot (timestamps, types, RTT, reasons)</td>
+<td>Capture one original session and read its event ring; ambiguous numeric IDs refuse</td>
+</tr>
+<tr>
+<td><code>show l2tp session history id &lt;sid&gt; [tunnel-id &lt;tid&gt;] [listener &lt;name-or-endpoint&gt;]</code></td>
+<td>run</td>
+<td>Read state transitions from the captured original</td>
+</tr>
+<tr>
+<td><code>show l2tp session traffic id &lt;sid&gt; [tunnel-id &lt;tid&gt;] [listener &lt;name-or-endpoint&gt;]</code></td>
+<td>run</td>
+<td>Read the captured original PPP counters; unavailable diagnostics are null</td>
+</tr>
+<tr>
+<td><code>show l2tp session traffic</code></td>
+<td>run</td>
+<td>Current inventory traffic; an ended original keeps an error row while survivors remain readable</td>
 </tr>
 <tr>
 <td><code>show l2tp observer all</code></td>
 <td>run</td>
-<td>Summary of all active session event rings</td>
+<td>Summary of current event rings, including complete subscriber references and original tunnel IDs</td>
 </tr>
 <tr>
 <td><code>show l2tp cqm &lt;login&gt;</code></td>
@@ -5453,9 +5532,9 @@ a keyword.</p>
 <td>Send StopCCN for every tunnel</td>
 </tr>
 <tr>
-<td><code>clear l2tp session id &lt;sid&gt; [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
+<td><code>clear l2tp session id &lt;sid&gt; [expected-id &lt;birth&gt;] [tunnel-id &lt;tid&gt;] [listener &lt;name-or-endpoint&gt;] [reason &lt;text...&gt;] [cause &lt;code&gt;]</code></td>
 <td>run</td>
-<td>Send CDN for one session with optional audit reason and disconnect cause</td>
+<td>Clear a captured original session after confirming local physical cleanup</td>
 </tr>
 <tr>
 <td><code>clear l2tp session all</code></td>
@@ -5467,8 +5546,30 @@ a keyword.</p>
 <p>The <code>clear l2tp session id</code> command accepts optional keyword arguments:</p>
 <ul>
 <li><code>reason &lt;text...&gt;</code>: free-text audit reason, recorded in the per-session event ring</li>
-<li><code>cause &lt;code&gt;</code>: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason</li>
+<li><code>cause &lt;code&gt;</code>: RADIUS Disconnect-Cause value (uint32), recorded alongside the reason</li>
+<li><code>expected-id &lt;birth&gt;</code>: require the complete canonical <code>birth</code> value from a session list or detail row</li>
+<li><code>tunnel-id &lt;tid&gt;</code>: restrict selection to one original local tunnel</li>
+<li><code>listener &lt;name-or-endpoint&gt;</code>: restrict selection to a configured listener name or bound IP:port</li>
 </ul>
+<p><code>show l2tp sessions</code> and <code>show l2tp session id &lt;sid&gt;</code> include <code>birth</code> when the
+original snapshot carries a valid reference; an absent reference is omitted.
+The rows also expose the original bound <code>listener</code> endpoint when available.
+Every single-session read accepts <code>tunnel-id</code>, <code>listener</code> and an optional
+<code>expected-id</code>. Names resolve through the current listener inventory. A shared
+SID requires enough readable qualifiers to identify one original; refusal
+lists qualifying commands. Reads retain that capture for snapshots, history
+and original PPP counter access, so reusable labels never trigger a second
+lookup. Duplicate, missing or malformed qualifiers refuse before capture.
+The guard is optional for interactive use. Stale guards, ambiguous selections,
+unknown listener names, duplicate keywords and missing values refuse before
+audit or mutation. Tab after <code>listener</code> offers current original listener names.
+A cleanup refusal retains the original reference for an exact retry; queued or
+logical removal alone does not report success.</p>
+<p>Observer event rows include <code>subscriber-id</code>. Summary rows also include
+<code>tunnel-id</code>, so equal numeric session IDs remain distinguishable. A detail
+history read uses its captured original rather than looking the ID up again.
+The existing bare and <code>all</code> observer summary forms remain available.</p>
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleObserver -->
 <!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
 <!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs, sessionJSON -->
 <!-- source: internal/component/l2tp/iccn_proxy.go -- proxyAuthReasonNoSharedSecret, proxyAuthReasonNoAuth, proxyAuthReasonTooLarge -->
@@ -6029,7 +6130,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 04:28 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>

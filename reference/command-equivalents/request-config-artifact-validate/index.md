@@ -7,7 +7,7 @@ Validate supplied offline configuration text\.
 - Registry path: `request config artifact validate`
 - Usage: `request config artifact <artifact> validate <base> <name> <text>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-validate`
+- Wire method: `ze-config:artifact-validate`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand

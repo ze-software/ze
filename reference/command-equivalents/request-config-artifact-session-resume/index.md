@@ -7,7 +7,7 @@ Resume this account\'s saved artifact edits\.
 - Registry path: `request config artifact session resume`
 - Usage: `request config artifact <artifact> session resume <name>`
 - Mode: Daemon
-- Wire method: `ze-config-cli:artifact-session-resume`
+- Wire method: `ze-config:artifact-session-resume`
 - Backends: any backend
 - Task support: optional\: the MCP call is synchronous\, which is the default
 - Subcommands: none: this command takes no subcommand
