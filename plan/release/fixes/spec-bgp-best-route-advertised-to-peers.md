@@ -95,9 +95,10 @@ Those commits do not close the spec or claim release readiness.
 | Source authority, ordinary selection, retained validation and RS/RR lifetimes | Combined source integrated; wiring and test repairs continue | The named launcher builds with the new drivers. RIB and RS/RR scoped tests now run, with the broader results below. GR and reactor fixture migrations still need execution, and missing GR command wiring is being implemented. Independent source reviews do not substitute for execution |
 | Mutable mock RTR snapshots and query framing | Committed in `f8ebbaf49b6bd0a1f5a65e7154f3c7dbf13490de` | All seven mock-package roots passed. Removing the producing length guard fails the real TCP query test; the same healthy root then passed with race detection. Repeated race runs and the remaining snapshot discrimination are owed |
 | Shared source-preference comparison | Committed in `559acf8707db9bdfca411f4a03d0c7f6983f8926` | Four selected ranking roots and then all 74 Loc-RIB package roots passed with race detection; this does not establish the full advertiser lifecycle |
+| Reusable accepted-source snapshot validation and comparison | Implemented; publishing the independent provider | All five existing lookup roots passed with race detection after the extraction. The outer reply still checks exact identity, state and frame bounds; these helpers grant no source authority |
 | Registered route/marker variants and recovery grammar | Implemented in the combined working tree | Three route/marker roots and four recovery roots passed after fixture repairs; final source-fault and integration checks remain owed |
-| Real GR/RTR/ordinary-recipient scenario | Driver implemented; four scenarios remain drafts | The missing explicit destination `update-sent` grants are corrected. The next run reached the observer: its stored-attribute expectation must use the engine's canonical ASN4 representation. Investigation also confirmed missing registered GR-to-RIB source commands and owner-excluded refresh. Their implementation and the real route-lifecycle proof remain in progress |
-| FRR and BIRD user-outcome scenarios | Both scenario implementations applied; publishing as a separate tooling chunk | Both checker branches and all three new oracle/preparation roots passed with race detection. Native source/backup/recipient configurations and ordered checkers are present. Both actual pinned-daemon scenarios, producing-code discrimination and final Review Gate remain owed |
+| Real GR/RTR/ordinary-recipient scenario | Driver implemented; four scenarios remain drafts | The missing explicit destination `update-sent` grants and canonical ASN4 attribute expectation are corrected. All six GR-to-RIB source commands, owner-excluded refresh and auxiliary withdrawal debt are implemented in the working tree after independent source review. Scoped execution and the real route-lifecycle proof remain in progress |
+| FRR and BIRD user-outcome scenarios | Committed in `865c3e6543f117a3f560f69f653a51a125616e33` | Both checker branches and all three new oracle/preparation roots passed with race detection. Native source/backup/recipient configurations and ordered checkers are present. Both actual pinned-daemon scenarios, producing-code discrimination and final Review Gate remain owed |
 
 The current execution evidence and exact source-review pins stay in the session
 state file named above. No acceptance criterion is marked complete solely
@@ -117,6 +118,15 @@ These failures remain part of this spec's work. Fixes must preserve their
 behavioral questions; passing counts are not RFC coverage percentages or
 acceptance-criterion completion. The native log and individual failures are
 retained in the owning session record.
+
+The next targeted RIB rerun passed fifteen of sixteen roots with race
+detection, including the original-source recovery selection repair. The
+remaining burst root retained all 180,000 pending paths but observed none of
+its pending-admission notifications. Both receive paths now propose the
+missing notification, with a focused regression awaiting execution; the
+original route population and assertions remain intact. The new GR
+source-command tests now reach their expected pre-implementation failure at
+the missing command registration, rather than failing to compile.
 
 ### Observed evidence
 

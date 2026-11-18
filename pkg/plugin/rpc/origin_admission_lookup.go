@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 )
@@ -279,57 +280,8 @@ func (output *OriginAdmissionLookupOutput) Validate(input OriginAdmissionLookupI
 	default:
 		return errors.New("origin-admission-lookup record state is unknown; return its current accepted or retiring state")
 	}
-	snapshot := &output.Snapshot
-	if snapshot.Protocol == "" {
-		return errors.New("origin-admission-lookup protocol is absent; return the original producer protocol")
-	}
-	if len(snapshot.Protocol) > 64 {
-		return errors.New("origin-admission-lookup protocol is too long; return the registered protocol name")
-	}
-	for _, value := range snapshot.Protocol {
-		if strings.ContainsRune("abcdefghijklmnopqrstuvwxyz0123456789-", value) {
-			continue
-		}
-		return errors.New("origin-admission-lookup protocol has invalid characters; return the registered lowercase protocol name")
-	}
-	// Class is external. The original protocol and BGP class are separate facts.
-	switch snapshot.BGPClass {
-	case OriginAdmissionBGPClassUnspecified:
-		if snapshot.Protocol == originAdmissionBGPProtocol {
-			return errors.New("origin-admission-lookup BGP class is unspecified; retain original internal or external source class")
-		}
-	case OriginAdmissionIBGP, OriginAdmissionEBGP:
-		if snapshot.Protocol != originAdmissionBGPProtocol {
-			return errors.New("origin-admission-lookup BGP class contradicts protocol; preserve the original protocol and class")
-		}
-	default:
-		return errors.New("origin-admission-lookup BGP class is unknown; return the original source class")
-	}
-	if snapshot.NextHop != "" {
-		if err := originAdmissionAddress(snapshot.NextHop); err != nil {
-			return err
-		}
-	}
-	// Peer scope is external; zero or an omitted peer cannot imply fan-out.
-	switch snapshot.PeerScope {
-	case OriginAdmissionAllPeers:
-		if snapshot.Peer != "" {
-			return errors.New("origin-admission-lookup all-peer scope contains a peer; return one consistent scope")
-		}
-	case OriginAdmissionExactPeer:
-		if err := originAdmissionAddress(snapshot.Peer); err != nil {
-			return err
-		}
-		if snapshot.Peer != input.Destination {
-			return errors.New("origin-admission-lookup accepted scope names another peer; use a record admitted for this peer")
-		}
-	case OriginAdmissionPeerScopeUnspecified:
-		return errors.New("origin-admission-lookup peer scope is unspecified; return explicit all or exact scope")
-	default:
-		return errors.New("origin-admission-lookup peer scope is unknown; return explicit all or exact scope")
-	}
-	if len(snapshot.Community) > OriginAdmissionCommunityMax {
-		return fmt.Errorf("origin-admission-lookup communities exceed %d; return a route within the declared callback cardinality", OriginAdmissionCommunityMax)
+	if err := output.Snapshot.Validate(input.Destination); err != nil {
+		return err
 	}
 	encoded, err := json.Marshal(output)
 	if err != nil {
@@ -376,4 +328,113 @@ func (mux *MuxConn) OriginAdmissionLookup(ctx context.Context, input OriginAdmis
 		return nil, err
 	}
 	return &output, nil
+}
+
+// Validate checks accepted source facts without inventing a query, peer owner
+// or permission. Exact scope is checked against destination; an all-peer
+// snapshot uses no destination at construction and is checked on each lookup.
+func (snapshot OriginAdmissionSnapshot) Validate(destination string) error {
+	if snapshot.Protocol == "" {
+		return errors.New("origin-admission-lookup protocol is absent; return the original producer protocol")
+	}
+	if len(snapshot.Protocol) > 64 {
+		return errors.New("origin-admission-lookup protocol is too long; return the registered protocol name")
+	}
+	for _, value := range snapshot.Protocol {
+		if strings.ContainsRune("abcdefghijklmnopqrstuvwxyz0123456789-", value) {
+			continue
+		}
+		return errors.New("origin-admission-lookup protocol has invalid characters; return the registered lowercase protocol name")
+	}
+	// Class is external. The original protocol and BGP class are separate facts.
+	switch snapshot.BGPClass {
+	case OriginAdmissionBGPClassUnspecified:
+		if snapshot.Protocol == originAdmissionBGPProtocol {
+			return errors.New("origin-admission-lookup BGP class is unspecified; retain original internal or external source class")
+		}
+	case OriginAdmissionIBGP, OriginAdmissionEBGP:
+		if snapshot.Protocol != originAdmissionBGPProtocol {
+			return errors.New("origin-admission-lookup BGP class contradicts protocol; preserve the original protocol and class")
+		}
+	default:
+		return errors.New("origin-admission-lookup BGP class is unknown; return the original source class")
+	}
+	if snapshot.NextHop != "" {
+		if err := originAdmissionAddress(snapshot.NextHop); err != nil {
+			return err
+		}
+	}
+	// Peer scope is external; zero or an omitted peer cannot imply fan-out.
+	switch snapshot.PeerScope {
+	case OriginAdmissionAllPeers:
+		if snapshot.Peer != "" {
+			return errors.New("origin-admission-lookup all-peer scope contains a peer; return one consistent scope")
+		}
+	case OriginAdmissionExactPeer:
+		if err := originAdmissionAddress(snapshot.Peer); err != nil {
+			return err
+		}
+		if snapshot.Peer != destination {
+			return errors.New("origin-admission-lookup accepted scope names another peer; use a record admitted for this peer")
+		}
+	case OriginAdmissionPeerScopeUnspecified:
+		return errors.New("origin-admission-lookup peer scope is unspecified; return explicit all or exact scope")
+	default:
+		return errors.New("origin-admission-lookup peer scope is unknown; return explicit all or exact scope")
+	}
+	if len(snapshot.Community) > OriginAdmissionCommunityMax {
+		return fmt.Errorf("origin-admission-lookup communities exceed %d; return a route within the declared callback cardinality", OriginAdmissionCommunityMax)
+	}
+	return nil
+}
+
+// Equal compares every immutable accepted fact, including ordered community
+// ownership. Equality is descriptive; it grants no process or peer authority.
+func (snapshot OriginAdmissionSnapshot) Equal(other OriginAdmissionSnapshot) bool {
+	if snapshot.Protocol != other.Protocol {
+		return false
+	}
+	if snapshot.BGPClass != other.BGPClass {
+		return false
+	}
+	if snapshot.SourceInstance != other.SourceInstance {
+		return false
+	}
+	if snapshot.Table != other.Table {
+		return false
+	}
+	if snapshot.SourceMetric != other.SourceMetric {
+		return false
+	}
+	if snapshot.DistanceOverride != other.DistanceOverride {
+		return false
+	}
+	if snapshot.HasDistanceOverride != other.HasDistanceOverride {
+		return false
+	}
+	if snapshot.NextHop != other.NextHop {
+		return false
+	}
+	if snapshot.OriginASN != other.OriginASN {
+		return false
+	}
+	if snapshot.Tag != other.Tag {
+		return false
+	}
+	if snapshot.Metric != other.Metric {
+		return false
+	}
+	if snapshot.HasMetric != other.HasMetric {
+		return false
+	}
+	if snapshot.RuleGeneration != other.RuleGeneration {
+		return false
+	}
+	if snapshot.PeerScope != other.PeerScope {
+		return false
+	}
+	if snapshot.Peer != other.Peer {
+		return false
+	}
+	return slices.Equal(snapshot.Community, other.Community)
 }
