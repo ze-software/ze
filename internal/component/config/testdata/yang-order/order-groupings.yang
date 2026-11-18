@@ -1,0 +1,11 @@
+// Fixture of yang_schema_order_test.go: a grouping another module imports,
+// declaring m2 before m1.
+module order-groupings {
+    namespace "urn:ze:test:order-groupings";
+    prefix og;
+
+    grouping imported {
+        leaf m2 { type string; }
+        leaf m1 { type string; }
+    }
+}

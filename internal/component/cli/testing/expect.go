@@ -25,7 +25,7 @@ var (
 	errExpectedDirtyFalseGotTrue                       = errors.New("expected dirty:false, got true")
 	errDirtyExpectationRequiresTrueOrFalse             = errors.New("dirty expectation requires 'true' or 'false' key")
 	errErrorExpectationRequiresNoneOrContains          = errors.New("error expectation requires 'none' or 'contains' key")
-	errCompletionExpectationRequiresEmptyCountContains = errors.New("completion expectation requires 'empty', 'count', 'contains', 'excludes', or 'exact' key")
+	errCompletionExpectationRequiresEmptyCountContains = errors.New("completion expectation requires 'empty', 'count', 'contains', 'excludes', 'exact', or 'order' key")
 	errGhostExpectationRequiresEmptyOrText             = errors.New("ghost expectation requires 'empty' or 'text' key")
 	errErrorsExpectationRequiresCountOrContains        = errors.New("errors expectation requires 'count' or 'contains' key")
 	errWarningsExpectationRequiresCountOrContains      = errors.New("warnings expectation requires 'count' or 'contains' key")
@@ -256,7 +256,36 @@ func checkCompletion(exp Expectation, state State) error {
 		return nil
 	}
 
+	if expected, hasOrder := exp.Values["order"]; hasOrder {
+		return checkCompletionOrder(expected, comps)
+	}
+
 	return errCompletionExpectationRequiresEmptyCountContains
+}
+
+// checkCompletionOrder asserts that the named items appear in the menu in the
+// order given, other items allowed before, between and after them. The menu's
+// order is part of what the editor promises (the alphabetical menu of
+// `getSortedChildren`), and contains, excludes and exact judge membership only,
+// so none of them would notice the menu taking the printer's order.
+func checkCompletionOrder(expected string, comps []cli.Completion) error {
+	items, _ := stringsx.SplitCount(expected, ",")
+	if len(items) < 2 {
+		return fmt.Errorf("expect=completion:order= needs two items or more to state an order, got %q", expected)
+	}
+	next := 0
+	for _, c := range comps {
+		if next == len(items) {
+			break
+		}
+		if c.Text == items[next] {
+			next++
+		}
+	}
+	if next < len(items) {
+		return fmt.Errorf("completion %q is missing or out of order: want %v in this order (have: %v)", items[next], items, completionTexts(comps))
+	}
+	return nil
 }
 
 // completionTexts extracts text values from completions for error messages.
@@ -676,12 +705,17 @@ func checkFile(exp Expectation, state State) error {
 func checkKey(exp Expectation, state State) error {
 	for name := range exp.Values {
 		switch name {
-		case "path", "glob", "count", "contains", "not-contains", "absent", "exists":
+		case "path", "glob", "count", "contains", "not-contains", "pattern", "absent", "exists":
 		default:
 			return fmt.Errorf("unknown key expectation field: %s", name)
 		}
 	}
 	if pattern, ok := exp.Values["glob"]; ok {
+		// checkKeyGlob judges count and containment only: a pattern it skipped
+		// would pass whatever the matched values hold.
+		if _, hasPattern := exp.Values["pattern"]; hasPattern {
+			return errors.New("expect=key:pattern= needs 'path', not 'glob': name the one key whose value it matches")
+		}
 		return checkKeyGlob(exp, state, pattern)
 	}
 	key := exp.Values["path"]
@@ -709,6 +743,17 @@ func checkKey(exp Expectation, state State) error {
 	if needle, ok := exp.Values["not-contains"]; ok {
 		if strings.Contains(string(data), needle) {
 			return fmt.Errorf("key %s contains forbidden %q", key, needle)
+		}
+	}
+	// A pattern states the order of lines in a stored file, which contains
+	// cannot: the committed config's line order is what a re-save must keep.
+	if pattern, ok := exp.Values["pattern"]; ok {
+		re, err := compileExpectPattern("key", pattern)
+		if err != nil {
+			return err
+		}
+		if !re.MatchString(string(data)) {
+			return fmt.Errorf("key %s does not match pattern %q (content: %s)", key, pattern, truncate(string(data), 400))
 		}
 	}
 	return nil

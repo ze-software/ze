@@ -120,6 +120,61 @@ func TestConfigFmtKeepsUserOrderedEntries(t *testing.T) {
 	}
 }
 
+// TestConfigFmtDefinitionOrder formats, through configFmtBytes (the whole of
+// `ze config fmt`), a firewall chain whose leaves are written in name order:
+// hook, policy, priority, type, then term. ze-firewall-conf.yang declares them
+// type, hook, priority, policy, term, so a block prints its children in YANG
+// definition order (docs/architecture/config/syntax.md, "Child order") only
+// when fmt answers that order, and a second fmt changes nothing. The firewall
+// needs no feature tag, so the test runs in every build.
+//
+// VALIDATES: AC-1 and AC-9 of spec-config-yang-definition-order through the
+// command an operator runs.
+// PREVENTS: fmt printing a block in name order, which puts type last although
+// the module declares it first.
+func TestConfigFmtDefinitionOrder(t *testing.T) {
+	input := `firewall {
+	table wan {
+		family inet
+		chain input {
+			hook input
+			policy accept
+			priority 0
+			type filter
+			term drop-all {
+				then {
+					drop
+				}
+			}
+		}
+	}
+}
+`
+	formatted, _, err := configFmtBytes("test.conf", []byte(input))
+	if err != nil {
+		t.Fatalf("fmt: %v", err)
+	}
+	previous := -1
+	for _, line := range []string{"type filter", "hook input", "priority 0", "policy accept", "term drop-all"} {
+		at := strings.Index(formatted, line)
+		if at < 0 {
+			t.Fatalf("output lacks %q:\n%s", line, formatted)
+		}
+		if at < previous {
+			t.Errorf("%q prints before the child the module declares ahead of it:\n%s", line, formatted)
+		}
+		previous = at
+	}
+
+	again, changed, err := configFmtBytes("test.conf", []byte(formatted))
+	if err != nil {
+		t.Fatalf("second fmt: %v", err)
+	}
+	if changed {
+		t.Errorf("second fmt changed the output:\n%s\nvs\n%s", formatted, again)
+	}
+}
+
 // operatorOrderPeers is a BGP config whose peers are written zulu, alpha,
 // mike: an order the operator chose, and not key order.
 const operatorOrderPeers = `bgp {

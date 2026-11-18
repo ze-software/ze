@@ -8,6 +8,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -167,9 +168,11 @@ var ErrLoaderResolved = errors.New("YANG loader already resolved")
 // Resolved to every caller in the process.
 type Resolved struct {
 	modules *sourcedModules
-	// patterns holds every pattern checkPatterns compiled, keyed by the
-	// pattern text, so the command lowering reads a checked pattern instead of
-	// compiling it again.
+	// patterns holds every pattern of the set's modules, compiled by
+	// checkPatterns, keyed by the pattern text, so the command lowering reads
+	// a checked pattern instead of compiling it again. For a joined set that
+	// is the patterns of the set it was joined to and of the external
+	// modules.
 	patterns compiledPatterns
 }
 
@@ -197,10 +200,32 @@ type sourcedModules struct {
 	// answer for the first. A module goyang read from disk itself, resolving
 	// an import, has no entry.
 	texts map[*yang.Module]string
+	// judged holds the modules that already passed checkExtensions,
+	// checkPatterns and checkStructure when another set holding the same text
+	// was resolved, and judgedPatterns every pattern that resolve compiled for
+	// them. The three checks skip a judged module (sourceModules), and
+	// checkPatterns starts from judgedPatterns, so the Resolved still holds
+	// every pattern of its modules. Only the join marks modules judged
+	// (markJudged), on the loader that reloads a resolved set beside external
+	// modules. Empty on a loader NewLoader built: nothing is judged, so every
+	// module is checked.
+	judged         map[*yang.Module]bool
+	judgedPatterns compiledPatterns
 	// resolved is set by the first Resolve, successful or not. Every load
 	// after it is refused, so a Resolved reading this set never sees a module
 	// that the checks did not.
 	resolved bool
+}
+
+// markJudged marks every module and submodule the set holds now as judged,
+// with patterns the compiled form of every pattern they declare. The caller
+// MUST hold the proof that each of them passed the per-module checks: it was
+// parsed from the text of a module of a Resolved, and patterns is that
+// Resolved's. A module added afterwards is not judged, so the checks judge
+// it.
+func (m *sourcedModules) markJudged(patterns compiledPatterns) {
+	m.judged = m.held()
+	m.judgedPatterns = patterns
 }
 
 // refuseLoad answers ErrLoaderResolved once Resolve has run.
@@ -351,6 +376,11 @@ func (l *Loader) AddModuleFromFile(path string) error {
 // require-instance config leaf refers to state, or whose chain of leafrefs
 // loops (ErrLeafrefPath, checkReferences).
 //
+// goyang's processing and checkReferences judge the whole set. The extension,
+// pattern and structure checks judge each module that is not judged already
+// (sourceModules): on a loader NewLoader built, every module; on the loader a
+// join builds, the external modules alone (markJudged).
+//
 // It answers the Resolved only when every check passed, and no value
 // otherwise. It runs once: afterwards, successful or not, every load and every
 // further Resolve on l returns ErrLoaderResolved.
@@ -376,10 +406,62 @@ func (l *Loader) Resolve() (*Resolved, error) {
 // process runs goyang's import and type resolution over every loaded module.
 func (l *Loader) process() error {
 	errs := l.modules.Process()
+	if len(errs) == 0 {
+		errs = l.modules.augmentErrors()
+	}
 	if len(errs) > 0 {
-		return fmt.Errorf("resolve YANG modules: %v", errs)
+		return &processError{text: fmt.Errorf("resolve YANG modules: %v", errs), errs: errs}
 	}
 	return nil
+}
+
+// processError is the errors goyang answered for one Process, kept one by one
+// so a join can read each (Join names the module an error begins in). Its text
+// is the one process always wrote, "resolve YANG modules: [<each error>]".
+type processError struct {
+	text error
+	errs []error
+}
+
+func (e *processError) Error() string { return e.text.Error() }
+
+// Unwrap answers each of goyang's errors.
+func (e *processError) Unwrap() []error { return e.errs }
+
+// augmentErrors answers the errors goyang recorded on an entry while it
+// applied the augments, which Modules.Process does not report: Entry.merge
+// records a node an augment adds that its target already holds on the
+// target's entry, and Process collects the entry errors only of a module that
+// still holds an augment it could not apply, so the added node was dropped in
+// silence. Called after a Process that reported nothing, when every entry tree
+// is built. Sorted by text and without repeats, as a module's errors are
+// reached through each of its keys.
+func (m *sourcedModules) augmentErrors() []error {
+	held := m.held()
+	perModule := make([][]error, 0, len(held))
+	for mod := range held {
+		perModule = append(perModule, yang.ToEntry(mod).GetErrors())
+	}
+	errs := slices.Concat(perModule...)
+	slices.SortFunc(errs, func(a, b error) int { return strings.Compare(a.Error(), b.Error()) })
+	return slices.CompactFunc(errs, func(a, b error) bool { return a.Error() == b.Error() })
+}
+
+// moduleCheckErrors answers what checkExtensions, checkPatterns and
+// checkStructure, the three per-module checks Resolve runs, refuse in mod
+// alone, over l's set as goyang processed it. A join reads it to name the
+// module a failed resolve's check refused without reading the errors' text.
+// l is not changed.
+func (l *Loader) moduleCheckErrors(mod *yang.Module) error {
+	judged := l.modules.held()
+	delete(judged, mod)
+	alone := &Loader{modules: &sourcedModules{
+		Modules: l.modules.Modules, texts: l.modules.texts, judged: judged, resolved: true,
+	}}
+	extensionErr := alone.checkExtensions()
+	_, patternErr := alone.checkPatterns()
+	structureErr := alone.checkStructure()
+	return errors.Join(extensionErr, patternErr, structureErr)
 }
 
 // ErrUncompilablePattern marks a `pattern` statement that compilePattern, the
@@ -423,9 +505,13 @@ func (l *Loader) checkExtensions() error {
 // Go"), so this is the only place an uncompilable one is refused. Without it
 // the config validator reported the pattern on every value and the command
 // argument builder dropped it, leaving the argument open to any string.
+//
+// The answer also holds the patterns of the judged modules (markJudged), which
+// the walk skips: a Resolved holds every pattern of its modules.
 func (l *Loader) checkPatterns() (compiledPatterns, error) {
 	mods := l.modules.sourceModules()
-	compiled := compiledPatterns{}
+	compiled := make(compiledPatterns, len(l.modules.judgedPatterns))
+	maps.Copy(compiled, l.modules.judgedPatterns)
 	errs := make([]error, 0, len(mods))
 	for _, mod := range mods {
 		errs = append(errs, modulePatternErrors(mod, compiled)...)
@@ -494,8 +580,12 @@ func patternOwnerName(owner *yang.Statement) string {
 	return owner.Keyword + " " + owner.Argument
 }
 
-// sourceModules answers every loaded module and submodule, sorted by name,
-// skipping the revision-qualified duplicate keys goyang also stores.
+// sourceModules answers the modules and submodules the per-module checks
+// (checkExtensions, checkPatterns, checkStructure) judge, sorted by name: every
+// loaded one except those markJudged marked, skipping the revision-qualified
+// duplicate keys goyang also stores. Each of those checks reads one module's
+// statements and the modules it imports or includes, never another module of
+// the set, so a judged module's verdict is the one it already had.
 func (m *sourcedModules) sourceModules() []*yang.Module {
 	names := make([]string, 0, len(m.Modules.Modules)+len(m.Modules.SubModules))
 	names = append(names, m.moduleNames()...)
@@ -511,6 +601,9 @@ func (m *sourcedModules) sourceModules() []*yang.Module {
 		mod := m.Modules.Modules[name]
 		if mod == nil {
 			mod = m.Modules.SubModules[name]
+		}
+		if m.judged[mod] {
+			continue
 		}
 		mods = append(mods, mod)
 	}

@@ -1210,12 +1210,14 @@ func runFileModeLoad(t *testing.T, tc fileModeLoadCase) string {
 
 // TestFileModeLoadTreeMergeMatchesPrevious verifies AC-7: in file mode, the
 // tree load gives the working content the deleted text merge gave. Each want
-// was produced by the text-merge functions (mergeAtContext, replaceAtContext,
-// and replace as a plain content swap) taken from the commit before their
-// deletion, run over the same base and input, and read back through the same
-// serializer. The cases cover replace and merge, at the root and at a
-// context; a merge that changes an existing leaf is included, since the text
-// merge took the loaded value there too.
+// holds the lines the text-merge functions (mergeAtContext, replaceAtContext,
+// and replace as a plain content swap) produced at the commit before their
+// deletion, over the same base and input. It is written in the order the
+// serializer prints: a block's children in YANG definition order
+// (docs/architecture/config/syntax.md, "Child order"). The cases cover
+// replace and merge, at the root and at a context; a merge that changes an
+// existing leaf is included, since the text merge took the loaded value there
+// too.
 func TestFileModeLoadTreeMergeMatchesPrevious(t *testing.T) {
 	peer1 := []string{"bgp", "peer", "peer1"}
 	cases := []fileModeLoadCase{
@@ -1227,21 +1229,22 @@ func TestFileModeLoadTreeMergeMatchesPrevious(t *testing.T) {
 		{
 			name: "relative merge at a peer", context: peer1, location: "relative", action: "merge",
 			input: "timer {\n\tconnect-retry 30\n}\nsession {\n\tasn {\n\t\tremote 65009\n\t}\n}\n",
-			want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65009\n\t\t}\n" +
-				"\t\ttimer {\n\t\t\tconnect-retry 30\n\t\t\treceive-hold-time 90\n\t\t}\n\t}\n\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+			want: "bgp {\n\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n" +
+				"\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65009\n\t\t}\n" +
+				"\t\ttimer {\n\t\t\treceive-hold-time 90\n\t\t\tconnect-retry 30\n\t\t}\n\t}\n}\n",
 		},
 		{
 			name: "relative replace at a peer", context: peer1, location: "relative", action: "replace",
 			input: "connection {\n\tremote {\n\t\tip 3.3.3.3\n\t}\n}\nsession {\n\tasn {\n\t\tremote 65003\n\t}\n}\n",
-			want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 3.3.3.3\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65003\n\t\t}\n\t}\n" +
-				"\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+			want: "bgp {\n\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n" +
+				"\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 3.3.3.3\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65003\n\t\t}\n\t}\n}\n",
 		},
 		{
 			name: "relative merge at bgp", context: []string{"bgp"}, location: "relative", action: "merge",
 			input: "peer peer2 {\n\tconnection {\n\t\tremote {\n\t\t\tip 2.2.2.2\n\t\t}\n\t}\n\tsession {\n\t\tasn {\n\t\t\tremote 65002\n\t\t}\n\t}\n}\n",
-			want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65001\n\t\t}\n\t\ttimer receive-hold-time 90\n\t}\n" +
-				"\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote ip 2.2.2.2\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65002\n\t\t}\n\t}\n" +
-				"\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+			want: "bgp {\n\trouter-id 1.2.3.4\n\tsession {\n\t\tasn local 65000\n\t}\n" +
+				"\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65001\n\t\t}\n\t\ttimer receive-hold-time 90\n\t}\n" +
+				"\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote ip 2.2.2.2\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65002\n\t\t}\n\t}\n}\n",
 		},
 	}
 	for _, tc := range cases {
@@ -1263,9 +1266,9 @@ func TestFileModeLoadAbsoluteMergeNestedBlocks(t *testing.T) {
 		location: "absolute", action: "merge",
 		input: "bgp {\n\trouter-id 5.6.7.8\n\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote {\n\t\t\t\tip 2.2.2.2\n\t\t\t}\n\t\t}\n" +
 			"\t\tsession {\n\t\t\tasn {\n\t\t\t\tremote 65002\n\t\t\t}\n\t\t}\n\t}\n\tpeer peer1 {\n\t\tdescription x\n\t}\n}\n",
-		want: "bgp {\n\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tdescription x\n\t\tsession {\n\t\t\tasn remote 65001\n\t\t}\n\t\ttimer receive-hold-time 90\n\t}\n" +
-			"\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote ip 2.2.2.2\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65002\n\t\t}\n\t}\n" +
-			"\trouter-id 5.6.7.8\n\tsession {\n\t\tasn local 65000\n\t}\n}\n",
+		want: "bgp {\n\trouter-id 5.6.7.8\n\tsession {\n\t\tasn local 65000\n\t}\n" +
+			"\tpeer peer1 {\n\t\tconnection {\n\t\t\tremote ip 1.1.1.1\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65001\n\t\t}\n\t\tdescription x\n\t\ttimer receive-hold-time 90\n\t}\n" +
+			"\tpeer peer2 {\n\t\tconnection {\n\t\t\tremote ip 2.2.2.2\n\t\t}\n\t\tsession {\n\t\t\tasn remote 65002\n\t\t}\n\t}\n}\n",
 	}
 	assert.Equal(t, tc.want, runFileModeLoad(t, tc))
 }

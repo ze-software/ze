@@ -262,6 +262,38 @@ comments. It is an assignment, not file replay.
 <!-- source: internal/component/config/serialize_set.go -- serializeSetFlex, writeFlexLines -->
 <!-- source: internal/component/config/list_key.go -- QuoteIfNeeded -->
 
+### Child order
+
+The children of a block print in YANG definition order, never in name order:
+the order the modules declare them in. Every printer follows it (the
+hierarchical form, the set form, the committed set-meta file, `ze config fmt`,
+the editor's `show` and the web editor), because each one lists a block's
+children in the order the schema holds them, and the schema takes that order
+from the module text when it is built.
+
+| Child's origin | Position it takes |
+|----------------|-------------------|
+| Declared directly in the block | Its statement's position in the YANG source |
+| From a `grouping` through `uses` | The `uses` statement's position, in the grouping's own order; a `uses` inside the grouping the same way |
+| A `choice` | The `choice` statement's position; its cases in source order; each case's data nodes in source order |
+| Added by another module through `augment` | After the block's own children, ordered by the augmenting module's name, then by the augment's position in that module, then by the augment's own statement order |
+| Contributed by a second `-conf` module to a top-level container both define | After the children of the module whose name sorts first, module by module in name order |
+
+The top level follows the same rule: the roots of each `-conf` module in
+definition order, the modules in name order. The order is built from module
+text alone (module names and statement positions), never from the order
+modules were registered or joined, so two builds with different feature tags,
+or a start that joins an external plugin's module, print the children they
+share in the same relative order. A child the order cannot place refuses the
+schema build, naming its path.
+
+Values no schema names, a free-form block's entries and the fields of a block
+that accepts unknown fields, still print sorted. Editor completion keeps its
+alphabetical menu: it lists what may be typed, and is not a print of the
+configuration.
+<!-- source: internal/component/config/yang_schema_order.go -- definitionOrder, augmentsInOrder, augmentKeyOf -->
+<!-- source: internal/component/config/yang_schema.go -- schemaFromResolved, yangToContainer, yangToList -->
+
 ### List (keyed entries)
 
 ```
@@ -274,8 +306,9 @@ keyword key2 {
 ```
 
 A list entry can also be written on one line, with the key first and the child
-values after it. The values are assigned positionally in YANG definition order,
-and the LAST child absorbs every remaining token:
+values after it. The values are assigned positionally in the list's child order
+("Child order" above), so a child a `uses` or an `augment` brings takes the
+value at its position there, and the LAST child absorbs every remaining token:
 
 ```
 nlri {
@@ -296,7 +329,7 @@ So `nth 2 [ 3491 ]` and `nth 2 { asn [ 3491 ]; }` produce one tree, and the NLRI
 entry above is untouched, because its last child is a plain leaf. A leaf-list
 before the last child takes its one value as a member the same way, and a
 value that falls on a container or a list (`peer A "x"` gives `x` to the
-peer's first child, the `attach` container) is refused, because no printer
+peer's first child, the `connection` container) is refused, because no printer
 could write it back (`refuseInlineSlot`).
 
 The serializer writes the one-line form back for a list whose schema has exactly

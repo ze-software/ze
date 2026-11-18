@@ -1,0 +1,98 @@
+# Test: the editor shows a block's children in YANG definition order
+#
+# QUESTION: does the editor's `show` and `show | format config`, over the full
+# set of YANG modules, print each block's children where the YANG declares
+# them, with an augmented child after the block's own, while the completion
+# menu stays alphabetical? A unit test pins each producer; only the editor
+# joins them, and the menu and the print are read from two different sources
+# (goyang for the menu, the schema's child order for the print).
+#
+# The file is written in name order, the order the printer used before.
+# Definition order, read from the YANG:
+#   bgp: router-id, then session, then peer (ze-bgp-conf.yang, container bgp);
+#     by name: peer, router-id, session.
+#   bgp peer: connection, session, then filter (grouping peer-fields), then
+#     rpki, which ze-rpki.yang adds by augment "/bgp:bgp/bgp:peer";
+#     by name: connection, filter, rpki, session.
+#   system: host, then domain (ze-system-conf.yang); by name: domain, host.
+#
+# VALIDATES: spec-config-yang-definition-order AC-1 (show and its set form),
+#   the augment row of D-1, AC-12 (the completion menu keeps name order, D-5).
+# PREVENTS: the converter ordering a block's children by name, and the menu
+#   taking the print order.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  peer zulu {
+    connection {
+      remote {
+        ip 192.0.2.26
+      }
+    }
+    filter {
+      import {
+        final accept
+      }
+      export {
+        final accept
+      }
+    }
+    rpki {
+      action {
+        invalid reject
+      }
+    }
+    session {
+      asn {
+        remote 65026
+      }
+    }
+  }
+  router-id 1.2.3.4
+  session {
+    asn {
+      local 65000
+    }
+  }
+}
+system {
+  domain example.net
+  host edge1
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Read the bare hierarchical serializer, without diff annotations.
+input=type:text=option changes disable
+input=enter
+expect=error:none
+
+# AC-1: show prints router-id, session, then the peer; inside the peer,
+# connection, session, filter, then the augmented rpki; host before domain.
+input=type:text=show
+input=enter
+expect=error:none
+expect=viewport:contains=peer zulu
+expect=viewport:pattern=(?ms)^[ \t]*router-id 1\.2\.3\.4.*^[ \t]*session\b.*^[ \t]*peer zulu\b
+expect=viewport:pattern=(?ms)^[ \t]*connection\b.*^[ \t]*session\b.*^[ \t]*filter\b.*^[ \t]*rpki\b
+expect=viewport:pattern=(?ms)^[ \t]*host edge1.*^[ \t]*domain example\.net
+
+# AC-1: the set form prints its lines in the same order.
+input=type:text=show | format config
+input=enter
+expect=error:none
+expect=viewport:pattern=(?s)set bgp router-id 1\.2\.3\.4.*set bgp session asn local 65000.*set bgp peer zulu connection .*set bgp peer zulu session .*set bgp peer zulu filter .*set bgp peer zulu rpki action invalid reject
+expect=viewport:pattern=(?s)set system host edge1.*set system domain example\.net
+
+# AC-12: the completion menu stays alphabetical (D-5), so it does not follow
+# the print order router-id, session, peer.
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+expect=error:none
+input=type:text=set
+input=space
+expect=completion:contains=peer,router-id,session
+expect=completion:order=peer,router-id,session

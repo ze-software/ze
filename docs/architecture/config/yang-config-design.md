@@ -356,8 +356,8 @@ answers a distinct type:
 
 | Type | Holds | Operations |
 |------|-------|------------|
-| `Loader` | Modules added, not yet checked | `LoadEmbedded`, `LoadRegistered`, `AddModuleFromText`, `AddModuleFromFile`, `Resolve` |
-| `Resolved` | A module set every check passed, and every pattern `checkPatterns` compiled, keyed by its text | `GetModule`, `GetEntry`, `ModuleNames`, `ConfModuleNames`, `APIModuleNames` |
+| `Loader` | Modules added, not yet checked | `LoadEmbedded`, `LoadRegistered`, `AddModuleFromText`, `AddModuleFromFile`, `Resolve`; `StageProcess` for the staged benchmark |
+| `Resolved` | A module set every check passed, and every pattern `checkPatterns` compiled, keyed by its text | `GetModule`, `GetEntry`, `ModuleNames`, `ConfModuleNames`, `APIModuleNames`; `RecheckExtensions`, `RecheckPatterns`, `RecheckStructure`, `RecheckReferences` for the staged benchmark |
 
 Only a successful `Resolve` (or `DefaultLoader`) produces a `Resolved`, and
 every reader of a checked module set takes one: `BuildCommandTree`, the
@@ -375,6 +375,29 @@ first, successful or not, returns `ErrLoaderResolved`. The zero value and nil
 of `Resolved` compile in any package; only Ze code can build one, and every
 accessor on one ends in a `BUG` panic rather than answering an empty module
 set.
+
+The build can also run one stage at a time, so the cost of each is measured
+alone (`loader_stages.go`). `StageLoad` performs the load `resolveDefault`
+performs, `Loader.StageProcess` runs goyang's `Process` and leaves the loader
+resolved as `Resolve` would, and the `Recheck` methods of a `Resolved` run one
+of `Resolve`'s checks again over its module set, which no check writes to.
+`ForgetCompiledPatterns` empties the process-wide pattern cache, so a pattern
+check compiles every pattern as a process's first `Resolve` does. A joined
+`Resolved` (`Join`) holds compiled-in modules the join marked judged, which
+the extension, pattern and structure checks skip, so their rechecks refuse
+such a set with `ErrRecheckJoinedSet` rather than measure the external
+modules under the whole check's name; the leafref recheck judges every module
+and runs on any `Resolved`. Each entry runs the stage function itself, never
+a copy of its body, and `TestStagesRunEveryStageOfResolve` refuses a call
+`Resolve` or `resolveDefault` gains on their `Loader`, or of a package
+function, that the file does not call. A stage added inside one of the
+functions they call is measured on that function's line. The one user is
+`BenchmarkSchemaBuildStages` (`internal/component/plugin/all`, where every
+module is registered), which prints one line per stage (load, process, each
+check, the whole `Resolve`, and the lowering to `config.Schema`) with its
+allocations and the module count it measured.
+<!-- source: internal/component/config/yang/loader_stages.go -- StageLoad, StageProcess, RecheckStructure, ErrRecheckJoinedSet, ForgetCompiledPatterns -->
+<!-- source: internal/component/plugin/all/schema_build_bench_test.go -- BenchmarkSchemaBuildStages -->
 
 `DefaultLoader()` runs both phases and `Resolve()`, and it is strict: nothing is
 best-effort. A registered module that does not parse, an import that no linked
@@ -464,9 +487,10 @@ This is not a second road beside the published set: both roads end in
 <!-- source: internal/component/bgp/config/loader.go -- loadReactorFile -->
 <!-- test: internal/component/bgp/config/loader_test.go TestReloadVerifierRetainsSelectedPluginSchema -->
 
-The join parses the text of every compiled-in module again and resolves the
-whole set with the declared modules (`resolveJoined`), so a start that declares
-an external plugin builds the module set twice.
+The join parses the text of every compiled-in module again and runs goyang's
+processing over the whole set with the declared modules (`resolveJoined`), so
+a start that declares an external plugin parses and processes the module set
+twice. Ze's per-module checks are not run twice: see the next paragraph.
 <!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
 <!-- source: internal/component/config/yang/join.go -- resolveJoined -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
@@ -482,18 +506,58 @@ answer is the shared compiled-in set and nothing is resolved. The rule does not
 apply to a module an external plugin declares: `JoinExternalModules` refuses a
 compiled-in name even when the text is identical.
 
-The joined set is resolved by a new `Loader` that holds every module text of
-the compiled-in set and the external ones, so every check `Resolve` runs is run
-over it. The compiled-in `Resolved` is not changed. With no external module the
-join answers the compiled-in `Resolved` itself and resolves nothing, so
+The joined set is resolved by one `Resolve` of a new `Loader` that holds every
+module text of the compiled-in set and the external ones
+(`Resolved.reloaded`). goyang's processing and the leafref check
+(`checkReferences`) judge the whole joined set, because a path or an augment
+can reach a node of another module. The extension, pattern and structure
+checks (`checkExtensions`, `checkPatterns`, `checkStructure`) judge the
+external modules only: the loader marks every reloaded module judged
+(`markJudged`), and the checks skip a judged one (`sourceModules`). That is
+sound because each of the three reads one module's statements and text and
+the modules its prefix, imports, includes and belongs-to name, every
+compiled-in module passed them when its set resolved, and the join refuses an
+external module that holds a compiled-in name or a submodule before it
+resolves anything, so no external module can change what those names reach.
+The joined `Resolved` holds the patterns the compiled-in set compiled beside
+the external ones, so the command lowering finds every pattern it reads. The
+compiled-in `Resolved` is not changed. With no external module the join
+answers the compiled-in `Resolved` itself and resolves nothing, so
 `YANGSchema` and `YANGValidator`, which are cached against that `Resolved`,
 build nothing twice.
+
+When the resolve of several external modules fails, the join names the first
+declared module an error belongs to, read where each producer records it and
+never from text an error quotes (`failingModule`). A goyang error belongs to
+the module whose file it begins with: goyang writes the location of the node
+it was building first, and a node an augment adds twice begins with the
+augment. Each module is parsed under its own file name
+(`<plugin>/<module>.yang`). A leafref error belongs to the module whose
+statement wrote the leaf. An extension, pattern or structure error belongs to
+the module those checks refuse when they judge it alone. Some goyang errors
+carry no location: an import or include of a module nothing loaded (`no such
+module: <name>`, `no such submodule: <name>`) and a deviation whose target or
+type it cannot find. For those alone each module is resolved again with the
+set, the first that fails is named, and when every one resolves alone the
+refusal names every plugin and says the modules are not valid together.
+
+goyang records a node an augment adds that its target already holds on the
+target's entry, and its `Process` reports entry errors only for a module that
+still holds an augment it could not apply. `Resolve` reads every entry tree
+again after a `Process` that reported nothing (`augmentErrors`), so such an
+augment is refused rather than dropped.
+<!-- source: internal/component/config/yang/join.go -- Resolved.reloaded, resolveJoined, failingModule, resolveErrorOrigins -->
+<!-- source: internal/component/config/yang/loader.go -- markJudged, sourceModules, checkPatterns, augmentErrors, moduleCheckErrors -->
+<!-- test: internal/component/config/yang/join_checks_test.go TestJoinDoesNotCheckCompiledInModulesAgain -->
+<!-- test: internal/component/config/yang/join_checks_test.go TestJoinNamesTheFailingModuleOfSeveral -->
+<!-- test: internal/component/config/yang/join_checks_test.go TestJoinedSetKeepsThePatternsOfCompiledInModules -->
+
 
 The join refuses each case below, and nothing is dropped in silence:
 
 | Case | The refusal names |
 |------|-------------------|
-| The text does not parse or resolve | The plugin, the module and the loader's error with its location |
+| The text does not parse or resolve | The plugin, the module and the loader's error with its location; of several modules, the first an error belongs to |
 | The text holds no module, several modules, or a submodule | The plugin |
 | The declared module name or namespace differs from the text | The plugin and both values |
 | The module name is held by a compiled-in module, at any revision, or by an earlier external module | The plugin, the module and the holder |
@@ -545,7 +609,10 @@ source is absent refuses every value.
 The schema and the validator of a joined set are built by the functions that
 build them for the compiled-in set (`schemaFromResolved`,
 `validatorFromResolved`), so a range or a pattern of an external module
-refuses a value as a compiled-in one does.
+refuses a value as a compiled-in one does. The same conversion orders every
+block's children in YANG definition order, a joined module's augments
+included, by the rule `docs/architecture/config/syntax.md` states in "Child
+order".
 <!-- source: internal/component/config/yang/join.go -- Join, ExternalModule, ExternalModuleFromText, declaredModules, resolveJoined, refuseIdleModules, refuseRedefinedRoots, refuseUnheldRegistrations -->
 <!-- source: internal/component/config/yang_schema.go -- JoinExternalModules, loadYANGModules, newValidatorRegistry, schemaFromResolved, validatorFromResolved -->
 <!-- source: internal/component/config/yang/join_test.go -- TestJoinWithNoExternalModuleAnswersTheCompiledSet, TestJoinRefusesModuleNameClash, TestJoinRefusesTopLevelRedefinition -->
@@ -832,6 +899,21 @@ command by running each external plugin of the file in declare mode
 <!-- source: internal/component/config/declared_schemas_test.go -- TestDeclaredSchemasStartsNoDeclaredProgram, TestParseRefusalSaysTheSectionIsNotAvailableOffline, TestDeclaredSchemasNoExternalPluginRunsNothing, TestDeclaredSchemasRunsNothingOnceTheSetIsFixed, TestDeclaredSchemasAnswersFromThePublishedSet, TestDeclaredSchemasTakesPluginsOfEverySource -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- readDiffSource, parseAndResolve -->
+
+### Decided, not built: modules compiled at build time
+
+Everything above describes the code today. The owner has decided where module
+loading goes next; it is designed in
+`plan/post-release/engineering/spec-config-yang-compiled-at-build-time.md` and
+not built.
+
+| Date | Decision (Thomas) | The decided design |
+|------|-------------------|--------------------|
+| 2026-10-16 | "compile [the YANG] at build time, use go:generate script and import" | A generator compiles each module and its checks run at build time, so a bad module fails the build and no compiled-in module is parsed or resolved at run time. The compiler stays in `ze` for the modules of external plugins |
+| 2026-11-18 | "Per module." | Each module's compiled form is a generated Go file committed beside its `.yang`, independent of the build tags; its augments are graft records linked when its package initializes |
+| 2026-11-18 | "No leaf ref must work cross module." | A leafref may name a node of any module the module where its path is written imports (RFC 7950 Section 6.4.1), compiled-in or external. Such a path never leaves the module's import closure, which every binary links with it, so it is checked once when the module compiles and never refused for crossing a module |
+| 2026-11-18 | "Yes, I keep the order of the definition." | Decision D-1 of 2026-10-28 holds for the compiled form: a block's own children in source order, then augmented children by module name, then augment order, whatever order the packages initialize in |
+| 2026-11-18 | "Okay, do what you need." (on the hand-over below) | The module-text hand-over of `--plugin` (`CollectPluginYANG`, `loadYANGModules`, "Joining a module that no `init()` registered") is deleted with the compiled form, because a compiled registration's module is always registered by its own package. The `--plugin` flag keeps starting the plugin it names |
 
 ### Registration Pattern
 
@@ -1339,7 +1421,7 @@ holds is type-checked like any other. `requireMandatoryChildren` checks each
 case that has a node present (`requireMandatoryInPresentCases`) and skips the
 others. A gre tunnel with no `remote ip` is refused with the path
 `interface/tunnel[<name>]/encapsulation/gre/remote/ip` and the `set` command
-that adds it. Defaults follow the same case. `flattenChoiceCases` yields the
+that adds it. Defaults follow the same case. `definitionOrder` (`yang_schema_order.go`) yields the
 data nodes of each case under the node that holds the choice, and the
 container or list records the goyang entry of each one, whose parent chain
 still names its case and choice. `ApplyDefaults` fills the default of such a
@@ -1450,7 +1532,10 @@ tree by goyang during module resolution.
 
 When the user presses Tab at a position in the config tree, the completer navigates to the current
 context path in the YANG tree and offers the valid child nodes (containers, lists, leaves) as
-completions. This is how config keyword names appear in autocomplete.
+completions. This is how config keyword names appear in autocomplete. The menu is sorted by
+name (`getSortedChildren`), where a printed block follows definition order: a menu is what may
+be typed, scanned for a name.
+<!-- test: internal/component/cli/completer_order_test.go TestCompletionOrderUnchanged -->
 
 ### Value Completion
 

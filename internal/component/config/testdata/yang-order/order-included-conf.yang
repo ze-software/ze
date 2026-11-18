@@ -1,0 +1,17 @@
+// Fixture of yang_schema_order_test.go: a module whose top level takes the
+// data nodes of a submodule at its include statement, between two roots
+// whose names sort the other way.
+module order-included-conf {
+    namespace "urn:ze:test:order-included";
+    prefix oi;
+
+    container zz-first {
+        leaf v { type string; }
+    }
+
+    include order-included-part;
+
+    container aa-last {
+        leaf v { type string; }
+    }
+}

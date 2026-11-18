@@ -1379,7 +1379,11 @@ reintroduces the spin this design removes.
 
 Both server transports parse `lcp` settings through the shared PPP YANG
 grouping. Its defaults are 3000 milliseconds, Max-Terminate 2, Max-Configure 10
-and Max-Failure 5. `ppp.NewLCPConfig` validates the immutable snapshot before a
+and Max-Failure 5. Each parse reads the grouping from the module set
+`yang.DefaultLoader` already resolved and builds no loader of its own, so the
+defaults cost no second resolve and follow the set the process published. A
+start whose config holds no `l2tp` and no `pppoe` block never reads them.
+`ppp.NewLCPConfig` validates the immutable snapshot before a
 transport places it in `StartSession.LCP`. `Driver.spawnSession` rejects a
 missing snapshot and copies an admitted one into the session. L2TP carries it
 through `reactorParams`, while PPPoE carries it through each interface-server
@@ -1387,6 +1391,9 @@ generation.
 <!-- source: internal/component/l2tp/ppp/lcp_config.go -- NewLCPConfig -->
 <!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession -->
 <!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP defaults -->
+<!-- source: internal/component/l2tp/pppconfig/lcp.go -- loadLCPDefaults -->
+<!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
+<!-- source: internal/component/l2tp/pppoe/config.go -- ExtractParameters -->
 
 Reload updates the next admission and preserves every running
 session's values, including across LCP renegotiation. No Go bootstrap defaults

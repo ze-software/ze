@@ -1,0 +1,95 @@
+// Fixture of yang_schema_order_test.go: blocks whose children are declared in
+// an order that is not their name order, so a converter that sorts by name
+// prints them in an order this text does not hold.
+module order-blocks-conf {
+    namespace "urn:ze:test:order-blocks";
+    prefix ob;
+
+    import order-groupings { prefix og; }
+
+    // A grouping that declares z before y.
+    grouping pair {
+        leaf z { type string; }
+        leaf y { type string; }
+    }
+
+    // A grouping that itself uses another grouping.
+    grouping inner {
+        leaf i2 { type string; }
+        leaf i1 { type string; }
+    }
+    grouping outer {
+        leaf o2 { type string; }
+        uses inner;
+        leaf o1 { type string; }
+    }
+
+    // The grouping that gives the positional list its first value.
+    grouping first-value {
+        leaf first { type string; }
+    }
+
+    container direct {
+        leaf remote { type string; }
+        leaf local { type string; }
+        container timers {
+            leaf hold { type uint16; }
+        }
+    }
+
+    container used {
+        leaf a { type string; }
+        uses pair;
+        leaf b { type string; }
+    }
+
+    container nested {
+        leaf a { type string; }
+        uses outer;
+        uses og:imported;
+        leaf b { type string; }
+    }
+
+    container chosen {
+        leaf a { type string; }
+        choice c {
+            case k2 { leaf q { type string; } }
+            case k1 { leaf p { type string; } }
+        }
+        leaf b { type string; }
+    }
+
+    list chosen-list {
+        key name;
+        leaf name { type string; }
+        leaf a { type string; }
+        choice c {
+            case k2 { leaf q { type string; } }
+            case k1 { leaf p { type string; } }
+        }
+        leaf b { type string; }
+    }
+
+    container shorthand {
+        leaf a { type string; }
+        choice c {
+            leaf s2 { type string; }
+            case k {
+                leaf k1 { type string; }
+                choice inner {
+                    case m2 { leaf n2 { type string; } }
+                    case m1 { leaf n1 { type string; } }
+                }
+            }
+            leaf s1 { type string; }
+        }
+        leaf b { type string; }
+    }
+
+    list positional {
+        key name;
+        leaf name { type string; }
+        uses first-value;
+        leaf after { type string; }
+    }
+}

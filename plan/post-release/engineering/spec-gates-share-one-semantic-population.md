@@ -231,7 +231,7 @@ with the reason, instead of being matched or missed by a pattern.
 2. P4 changed set; convert `Proposed`, `checkDiscoveryIndex`, `latestRun`, the weakened-row reader, approval trailers; close the `guard-blocks-its-own-authors-repair` rows
 3. P2 tag matrix; route `./le job run`, the observation runner, qemu, deployment builds and lint flavors through it; close the `feature-test-missing-build-tag` rows
 4. P3 registry reads; delete each hand list; close the hand-list rows of `gate-excludes-part-of-its-population` and `guard-enumerates-instead-of-subtracting`
-5. Parsed shell writes in the hooks; close the governed-write and `hook-existing-patterns-false-positive` rows
+5. Parsed shell writes in the hooks; close the governed-write and `hook-existing-patterns-false-positive` rows. Widened 2026-11-18: this includes a worktree write destination bound by a command substitution (`bashWorktreeCopy`), and the gated-read record (`hookSourceRead`), which must count a read of the session's own worktree copy of the page
 6. Run `./le test unit` over `internal/le/population` and each converted package, and `./le test ui` for the Wiring Test files
 
 ## Key Design Decisions
@@ -245,7 +245,7 @@ with the reason, instead of being matched or missed by a pattern.
 
 ## Owned journal rows
 
-135 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
+137 rows (two added 2026-11-18: a gated-read record and a worktree write destination, each judged on a path proxy). A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -384,6 +384,8 @@ with the reason, instead of being matched or missed by a pattern.
 | gate-excludes-part-of-its-population | 2026-09-07 | `deriveTaglessConfig`: four lint flavors run no gocritic |
 | unwired-feature | 2026-08-19 | `examples/plugin/go` separate module no gate compiles (`residue` in `internal/le/go/lint/verifylint.go`) |
 | unwired-feature | 2026-08-19 | netns `caps=net-admin` tests chosen by the hand list `netnsSelections` (`internal/le/test/qemu/netns_linux.go`) |
+| hook-existing-patterns-false-positive | 2026-11-18 | `hookSourceRead` keys a gated read on the path relative to `CLAUDE_PROJECT_DIR`, so a read of a nested worktree's own door or style guide is no read |
+| hook-existing-patterns-false-positive | 2026-11-18 | `bashWorktreeCopy` (`destinationOf`, `placingVariable`): a redirect to `"$dir/..."` bound by `$(./le session scratch ensure)` counts as the main tree |
 
 ## Rows found already fixed
 

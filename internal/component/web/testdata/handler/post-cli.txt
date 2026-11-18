@@ -7,11 +7,12 @@ header: X-Content-Type-Options: nosniff
 header: X-Frame-Options: DENY
 header: X-Ze-Version: <VERSION>
 
-<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML"><ol class="breadcrumb-list"></ol></nav><main class="content-area" id="content-area"><pre class="config-output">peer alpha {
+<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML"><ol class="breadcrumb-list"></ol></nav><main class="content-area" id="content-area"><pre class="config-output">router-id 1.2.3.4
+peer alpha {
 	connection {
 		local {
-			accept disable
 			ip 127.0.0.1
+			accept disable
 		}
 		remote ip 127.0.0.1
 	}
@@ -26,8 +27,8 @@ header: X-Ze-Version: <VERSION>
 peer beta {
 	connection {
 		local {
-			accept disable
 			ip 127.0.0.1
+			accept disable
 		}
 		remote ip 127.0.0.2
 	}
@@ -39,5 +40,4 @@ peer beta {
 		router-id 1.2.3.4
 	}
 }
-router-id 1.2.3.4
 </pre></main><span class="cli-prompt" id="cli-prompt" hx-swap-oob="innerHTML">ze# </span><div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML"><a class="cli-path-seg cli-path-root" href="/show/" hx-get="/fragment/detail" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/">/</a> </div><span id="cli-context-path" class="is-hidden" hx-swap-oob="true"></span>

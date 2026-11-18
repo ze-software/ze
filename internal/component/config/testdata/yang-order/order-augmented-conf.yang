@@ -1,0 +1,17 @@
+// Fixture of yang_schema_order_test.go: the blocks two other modules augment.
+module order-augmented-conf {
+    namespace "urn:ze:test:order-augmented";
+    prefix oa;
+
+    container x {
+        leaf x2 { type string; }
+        leaf x1 { type string; }
+    }
+
+    list xl {
+        key name;
+        leaf name { type string; }
+        leaf l2 { type string; }
+        leaf l1 { type string; }
+    }
+}

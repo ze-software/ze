@@ -1,0 +1,15 @@
+// Fixture of yang_schema_order_test.go: the first of two -conf modules that
+// both define the top-level container shared.
+module order-merge-alpha-conf {
+    namespace "urn:ze:test:order-merge-alpha";
+    prefix ma;
+
+    container zeta {
+        leaf v { type string; }
+    }
+
+    container shared {
+        leaf s9 { type string; }
+        leaf s8 { type string; }
+    }
+}

@@ -24,82 +24,6 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// sortedKeys returns the keys of a map[string]*gyang.Entry in sorted order.
-func sortedKeys(m map[string]*gyang.Entry) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-// namedChild pairs a child entry with its effective name as it should appear
-// under the parent container. Used by flattenChildren to expand choice/case
-// subtrees into their data nodes.
-type namedChild struct {
-	name  string
-	entry *gyang.Entry
-}
-
-// flattenChildren returns the effective children of a YANG entry, descending
-// through ChoiceEntry/CaseEntry layers. The YANG choice/case construct is
-// "transparent" at the data layer: the inner data nodes (leaves, containers,
-// lists) appear as if they were direct children of the parent. The base
-// yang_schema.go walker only handles LeafEntry and DirectoryEntry, so without
-// this helper any choice subtree would be silently dropped from the schema.
-//
-// The case wrapper layer is bypassed in the data names: the inner data
-// node's name is used directly, matching the YANG source. The case is not
-// lost: the entry keeps its parent chain through the case and the choice,
-// and the container records it (choiceMembers.record) so ApplyDefaults can
-// tell which case is in effect. Recursion handles nested choices (e.g. a
-// `choice local` inside a per-encap case container).
-func flattenChildren(entry *gyang.Entry) []namedChild {
-	out := make([]namedChild, 0, len(entry.Dir))
-	for _, name := range sortedKeys(entry.Dir) {
-		child := entry.Dir[name]
-		if child == nil {
-			continue
-		}
-		if child.IsChoice() {
-			out = append(out, flattenChoiceCases(child)...)
-			continue
-		}
-		out = append(out, namedChild{name: name, entry: child})
-	}
-	return out
-}
-
-// flattenChoiceCases walks a ChoiceEntry's case branches and yields the data
-// nodes contained within. Direct children of a case are yielded as-is.
-// Nested choices inside a case are recursively flattened.
-func flattenChoiceCases(choice *gyang.Entry) []namedChild {
-	out := make([]namedChild, 0, len(choice.Dir))
-	for _, caseName := range sortedKeys(choice.Dir) {
-		caseEntry := choice.Dir[caseName]
-		if caseEntry == nil {
-			continue
-		}
-		if !caseEntry.IsCase() {
-			out = append(out, namedChild{name: caseName, entry: caseEntry})
-			continue
-		}
-		for _, name := range sortedKeys(caseEntry.Dir) {
-			inner := caseEntry.Dir[name]
-			if inner == nil {
-				continue
-			}
-			if inner.IsChoice() {
-				out = append(out, flattenChoiceCases(inner)...)
-				continue
-			}
-			out = append(out, namedChild{name: name, entry: inner})
-		}
-	}
-	return out
-}
-
 // PluginOnlySchema answers the schema of the first pass (FirstPass): the roots
 // Ze reads to RUN a declared plugin, before that plugin's own module is known.
 // They are `plugin`, which holds the declarations and the hub listener a
@@ -417,10 +341,12 @@ func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 	// etc.) lack the suffix and produce no top-level nodes because
 	// their augments attach to the target module's entry tree.
 	//
-	// Schema.Define merges same-named top-level containers so
-	// modules that define children under a shared parent (e.g.,
-	// multiple -conf modules contributing to "environment")
-	// compose correctly regardless of iteration order.
+	// Schema.Define merges same-named top-level containers, appending
+	// the children a later module adds after the earlier module's.
+	// Modules are visited in name order and each module's top level in
+	// definition order, so the root and every shared container follow
+	// the child order of docs/architecture/config/syntax.md whatever
+	// order the modules were registered or joined in.
 	modNames := loader.ModuleNames()
 	slices.Sort(modNames)
 	for _, modName := range modNames {
@@ -431,11 +357,10 @@ func schemaFromResolved(loader *yang.Resolved) (*Schema, error) {
 		if entry == nil {
 			continue
 		}
-		for _, name := range sortedKeys(entry.Dir) {
-			child := entry.Dir[name]
-			node := yangToNode(child, name)
+		for _, child := range definitionOrder(entry, "") {
+			node := yangToNode(child.entry, child.name)
 			if node != nil {
-				schema.Define(name, node)
+				schema.Define(child.name, node)
 			}
 		}
 	}
@@ -1164,7 +1089,7 @@ func (l *ListNode) HasStructuralChildren() bool {
 
 // yangToContainer converts YANG container to ContainerNode.
 func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
-	children := flattenChildren(entry)
+	children := definitionOrder(entry, path)
 	fields := make([]FieldDef, 0, len(children)+1)
 	var cases choiceMembers
 	for _, c := range children {
@@ -1233,34 +1158,20 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 		}
 	}
 
-	fields := make([]FieldDef, 0, len(entry.Dir)+1)
+	// The children in definition order, which is also the order a positional
+	// one-line entry assigns its values in (parseListInlineEntry). Choice and
+	// case nodes are flattened, as in yangToContainer.
+	children := definitionOrder(entry, path)
+	fields := make([]FieldDef, 0, len(children)+1)
 	var cases choiceMembers
-	// Use YANG definition order for list children so inline positional
-	// assignment matches the schema author's intent. Fall back to
-	// alphabetical when the AST is unavailable (generated entries).
-	// Choice/case nodes are flattened: inner data nodes appear as
-	// direct children (same treatment as yangToContainer).
-	names := yangChildOrder(entry)
-	for _, name := range names {
-		if name == entry.Key {
+	for _, c := range children {
+		if c.name == entry.Key {
 			continue // Key is not a child field
 		}
-		child := entry.Dir[name]
-		if child != nil && child.IsChoice() {
-			for _, nc := range flattenChoiceCases(child) {
-				childPath := AppendPath(path, nc.name)
-				node := yangToNode(nc.entry, childPath)
-				if node != nil {
-					fields = append(fields, Field(nc.name, node))
-					cases.record(nc.name, nc.entry)
-				}
-			}
-			continue
-		}
-		childPath := AppendPath(path, name)
-		node := yangToNode(child, childPath)
+		node := yangToNode(c.entry, AppendPath(path, c.name))
 		if node != nil {
-			fields = append(fields, Field(name, node))
+			fields = append(fields, Field(c.name, node))
+			cases.record(c.name, c.entry)
 		}
 	}
 	l := List(keyType, fields...)
@@ -1283,9 +1194,9 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 
 	// Scan children for ze:display-key extension (keyless lists only).
 	if entry.Key == "" {
-		for _, name := range names {
-			if child, ok := entry.Dir[name]; ok && hasDisplayKeyExtension(child) {
-				l.DisplayKey = name
+		for _, c := range children {
+			if hasDisplayKeyExtension(c.entry) {
+				l.DisplayKey = c.name
 				break
 			}
 		}
@@ -1326,41 +1237,6 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	return l
 }
 
-// yangChildOrder returns child names in YANG definition order by
-// inspecting the AST sub-statements. Falls back to alphabetical
-// order when the AST is unavailable (e.g. programmatically created entries).
-// Definition order matters for inline list syntax where values are
-// assigned positionally to children fields.
-func yangChildOrder(entry *gyang.Entry) []string {
-	if entry.Node != nil {
-		var names []string
-		seen := make(map[string]bool)
-		dataKeywords := map[string]bool{
-			"leaf": true, "leaf-list": true,
-			"container": true, "list": true,
-			"choice": true, "anyxml": true,
-		}
-		for _, sub := range entry.Node.Statement().SubStatements() {
-			if !dataKeywords[sub.Keyword] {
-				continue
-			}
-			name := sub.Argument
-			if !seen[name] && entry.Dir[name] != nil {
-				seen[name] = true
-				names = append(names, name)
-			}
-		}
-		// Include any Dir entries not in the AST (from uses/augment).
-		for _, name := range sortedKeys(entry.Dir) {
-			if !seen[name] {
-				names = append(names, name)
-			}
-		}
-		return names
-	}
-	return sortedKeys(entry.Dir)
-}
-
 // yangToFlex converts YANG entry to FlexNode.
 func yangToFlex(entry *gyang.Entry, path string) *FlexNode {
 	if entry.Dir == nil {
@@ -1369,15 +1245,12 @@ func yangToFlex(entry *gyang.Entry, path string) *FlexNode {
 		return f
 	}
 
-	fields := make([]FieldDef, 0, len(entry.Dir))
-	// Sort keys for deterministic field order
-	names := sortedKeys(entry.Dir)
-	for _, name := range names {
-		child := entry.Dir[name]
-		childPath := AppendPath(path, name)
-		node := yangToNode(child, childPath)
+	children := definitionOrder(entry, path)
+	fields := make([]FieldDef, 0, len(children))
+	for _, c := range children {
+		node := yangToNode(c.entry, AppendPath(path, c.name))
 		if node != nil {
-			fields = append(fields, Field(name, node))
+			fields = append(fields, Field(c.name, node))
 		}
 	}
 	f := Flex(fields...)
@@ -1387,18 +1260,15 @@ func yangToFlex(entry *gyang.Entry, path string) *FlexNode {
 
 // yangToInlineListWithKey converts YANG entry to InlineListNode with specified key type.
 func yangToInlineListWithKey(entry *gyang.Entry, path string, keyType ValueType) *InlineListNode {
-	fields := make([]FieldDef, 0, len(entry.Dir))
-	// Sort keys for deterministic field order
-	names := sortedKeys(entry.Dir)
-	for _, name := range names {
-		if name == entry.Key {
+	children := definitionOrder(entry, path)
+	fields := make([]FieldDef, 0, len(children))
+	for _, c := range children {
+		if c.name == entry.Key {
 			continue
 		}
-		child := entry.Dir[name]
-		childPath := AppendPath(path, name)
-		node := yangToNode(child, childPath)
+		node := yangToNode(c.entry, AppendPath(path, c.name))
 		if node != nil {
-			fields = append(fields, Field(name, node))
+			fields = append(fields, Field(c.name, node))
 		}
 	}
 
@@ -1489,17 +1359,20 @@ func isASNType(name string) bool {
 	return asn.IsTypedef(name)
 }
 
-// LoadYANGModule loads a YANG module entry into a schema.
+// LoadYANGModule loads a YANG module entry into a schema, its top level in
+// definition order, and answers the schema build errors the conversion
+// recorded, as schemaFromResolved does for the config schema.
 // This is used by external packages to create schemas from their own YANG modules.
-func LoadYANGModule(schema *Schema, entry *gyang.Entry) {
+func LoadYANGModule(schema *Schema, entry *gyang.Entry) error {
 	if entry == nil {
-		return
+		return nil
 	}
-	for _, name := range sortedKeys(entry.Dir) {
-		child := entry.Dir[name]
-		node := yangToNode(child, name)
+	resetSchemaBuildErrors()
+	for _, child := range definitionOrder(entry, "") {
+		node := yangToNode(child.entry, child.name)
 		if node != nil {
-			schema.Define(name, node)
+			schema.Define(child.name, node)
 		}
 	}
+	return flushSchemaBuildErrors()
 }

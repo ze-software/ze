@@ -32,12 +32,17 @@ func checkReferences(resolved *Resolved) error {
 }
 
 // checkEntryReferences checks the leafrefs at and below e. The recursion is
-// bounded by the depth of the loaded modules.
+// bounded by the depth of the loaded modules. Each error names module, whose
+// entry tree holds the leaf, and the location of the statement that wrote the
+// leaf, which for a leaf another module augments in is in that module's text.
+// Each error is a leafrefError, which keeps the leaf, so a join names the
+// module that wrote it from the leaf and not from this text.
 func (v *Validator) checkEntryReferences(module string, e *yang.Entry, errs *[]error) {
 	if isLeafNode(e) && e.Type != nil {
 		for _, member := range referenceMembers(e.Type) {
 			if err := v.checkLeafrefSchema(e, member); err != nil {
-				*errs = append(*errs, fmt.Errorf("%w: module %s: %s: %w", ErrLeafrefPath, module, e.Path(), err))
+				*errs = append(*errs, &leafrefError{leaf: e, err: fmt.Errorf("%w: module %s: %s: %s: %w",
+					ErrLeafrefPath, module, yang.Source(e.Node), e.Path(), err)})
 			}
 		}
 	}
@@ -53,6 +58,20 @@ func (v *Validator) checkEntryReferences(module string, e *yang.Entry, errs *[]e
 		}
 	}
 }
+
+// leafrefError is one leafref checkEntryReferences refuses, with the leaf it
+// refuses, so a join names the module whose statement wrote the leaf
+// (yang.RootNode of its node) without reading the text. Its text and its
+// chain are those of err.
+type leafrefError struct {
+	leaf *yang.Entry
+	err  error
+}
+
+func (e *leafrefError) Error() string { return e.err.Error() }
+
+// Unwrap answers the error the leafref check gave.
+func (e *leafrefError) Unwrap() error { return e.err }
 
 // referenceMembers answers the leafref types a type is or holds as a union
 // member, at any union depth.

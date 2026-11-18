@@ -1,0 +1,16 @@
+// Fixture of yang_schema_order_test.go: the augmenting module whose name sorts
+// last, adding a leaf whose name sorts before every other child.
+module order-augmenting-zulu {
+    namespace "urn:ze:test:order-augmenting-zulu";
+    prefix az;
+
+    import order-augmented-conf { prefix oa; }
+
+    augment "/oa:x" {
+        leaf a0 { type string; }
+    }
+
+    augment "/oa:xl" {
+        leaf a0 { type string; }
+    }
+}

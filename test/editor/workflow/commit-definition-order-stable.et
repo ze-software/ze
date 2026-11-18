@@ -1,0 +1,81 @@
+# Test: a committed file written in name order is saved in definition order, and stays so
+#
+# QUESTION: when the editor loads a set-meta file committed before the change
+# (its lines in name order, as the old printer wrote them) and commits twice,
+# does the committed file take YANG definition order on the first save, keep
+# every statement it held, and keep that order on the second save? The unit
+# test TestSetMetaResaveStable proves the byte equality of a re-save over a
+# fixture schema; only the editor's commit writes the stored file from the
+# full schema.
+#
+# Definition order, read from the YANG:
+#   bgp: router-id, then session, then peer (ze-bgp-conf.yang, container bgp);
+#     by name: peer, router-id, session.
+#   bgp peer: connection, session, then filter (grouping peer-fields);
+#     by name: connection, filter, session.
+#   system: host, then domain (ze-system-conf.yang); by name: domain, host.
+#
+# VALIDATES: spec-config-yang-definition-order AC-7 through the editor: the
+#   first save reorders the lines to definition order and keeps each statement,
+#   the second save keeps that order.
+# PREVENTS: the commit writing the stored file (block form here) in name order, and a
+#   re-save that moves lines again.
+
+tmpfs=test.conf:terminator=EOF_CONF
+#thomas @local %2026-04-21T12:34:56Z set bgp peer zulu connection local ip 127.0.0.1
+#thomas @local %2026-04-21T12:34:56Z set bgp peer zulu connection remote ip 192.0.2.26
+#thomas @local %2026-04-21T12:34:56Z set bgp peer zulu filter export final accept
+#thomas @local %2026-04-21T12:34:56Z set bgp peer zulu filter import final accept
+#thomas @local %2026-04-21T12:34:56Z set bgp peer zulu session asn remote 65026
+#thomas @local %2026-04-21T12:34:56Z set bgp router-id 1.2.3.4
+#thomas @local %2026-04-21T12:34:56Z set bgp session asn local 65000
+#thomas @local %2026-04-21T12:34:56Z set system domain example.net
+#thomas @local %2026-04-21T12:34:56Z set system host edge1
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# The file loads: its statements are all present in the working config.
+input=type:text=option changes disable
+input=enter
+expect=error:none
+input=type:text=show | format config
+input=enter
+expect=error:none
+expect=viewport:contains=remote ip 192.0.2.26
+expect=viewport:contains=set system domain example.net
+
+# First save.
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=dirty:true
+expect=error:none
+input=type:text=commit now
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+expect=key:path=file/active/test.conf:pattern=(?s)bgp \{.*router-id 5\.6\.7\.8.*session \{.*asn local 65000.*peer zulu \{.*connection \{.*session \{.*asn remote 65026.*filter \{
+expect=key:path=file/active/test.conf:pattern=(?s)system \{.*host edge1.*domain example\.net
+expect=key:path=file/active/test.conf:contains=local ip 127.0.0.1
+expect=key:path=file/active/test.conf:contains=remote ip 192.0.2.26
+expect=key:path=file/active/test.conf:pattern=(?s)export \{\s+final accept
+expect=key:path=file/active/test.conf:pattern=(?s)import \{\s+final accept
+expect=key:path=file/active/test.conf:not-contains=router-id 1.2.3.4
+
+# Second save: the order the first save wrote holds.
+input=type:text=set bgp router-id 1.2.3.4
+input=enter
+expect=dirty:true
+expect=error:none
+input=type:text=commit now
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+expect=key:path=file/active/test.conf:pattern=(?s)bgp \{.*router-id 1\.2\.3\.4.*session \{.*asn local 65000.*peer zulu \{.*connection \{.*session \{.*asn remote 65026.*filter \{
+expect=key:path=file/active/test.conf:pattern=(?s)system \{.*host edge1.*domain example\.net
+expect=key:path=file/active/test.conf:not-contains=router-id 5.6.7.8

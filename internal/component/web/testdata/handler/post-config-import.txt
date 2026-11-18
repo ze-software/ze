@@ -10,15 +10,16 @@ header: X-Ze-Version: <VERSION>
 
 <div class="main-split"><div class="finder-columns" id="finder"><div class="finder-col"><a class="finder-item has-children" href="/show/anomaly/" hx-get="/fragment/detail?path=anomaly" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/anomaly/">anomaly </a>  <a class="finder-item has-children" href="/show/environment/" hx-get="/fragment/detail?path=environment" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/environment/">environment </a>  <a class="finder-item has-children" href="/show/service/" hx-get="/fragment/detail?path=service" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/service/">service </a>  <a class="finder-item has-children" href="/show/system/" hx-get="/fragment/detail?path=system" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/system/">system </a>  <a class="finder-item has-children" href="/show/bfd/" hx-get="/fragment/detail?path=bfd" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/bfd/">bfd </a>  <a class="finder-item has-children" href="/show/bgp/" hx-get="/fragment/detail?path=bgp" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/bgp/">bgp </a>  <a class="finder-item has-children" href="/show/bgp-epe/" hx-get="/fragment/detail?path=bgp-epe" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/bgp-epe/">bgp-epe </a>  <a class="finder-item has-children" href="/show/bgp-ls-export/" hx-get="/fragment/detail?path=bgp-ls-export" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/bgp-ls-export/">bgp-ls-export </a>  <a class="finder-item has-children" href="/show/connected/" hx-get="/fragment/detail?path=connected" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/connected/">connected </a>  <a class="finder-item has-children" href="/show/container/" hx-get="/fragment/detail?path=container" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/container/">container </a>  <a class="finder-item has-children" href="/show/control-plane-protection/" hx-get="/fragment/detail?path=control-plane-protection" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/control-plane-protection/">control-plane-protection </a>  <a class="finder-item has-children" href="/show/class-of-service/" hx-get="/fragment/detail?path=class-of-service" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/class-of-service/">class-of-service </a>  <a class="finder-item has-children" href="/show/interface/" hx-get="/fragment/detail?path=interface" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/interface/">interface </a>  <a class="finder-item has-children" href="/show/ddos/" hx-get="/fragment/detail?path=ddos" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/ddos/">ddos </a>  <a class="finder-item has-children" href="/show/exabgp/" hx-get="/fragment/detail?path=exabgp" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/exabgp/">exabgp </a>  <a class="finder-item has-children" href="/show/fib/" hx-get="/fragment/detail?path=fib" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/fib/">fib </a>  <a class="finder-item has-children" href="/show/firewall/" hx-get="/fragment/detail?path=firewall" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/firewall/">firewall </a>  <a class="finder-item has-children" href="/show/flow-export/" hx-get="/fragment/detail?path=flow-export" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/flow-export/">flow-export </a>  <a class="finder-item has-children" href="/show/vpn/" hx-get="/fragment/detail?path=vpn" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/vpn/">vpn </a>  <a class="finder-item has-children" href="/show/isis/" hx-get="/fragment/detail?path=isis" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/isis/">isis </a>  <a class="finder-item" href="/show/kernel/" hx-get="/fragment/detail?path=kernel" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/kernel/">kernel </a>  <a class="finder-item has-children" href="/show/l2tp/" hx-get="/fragment/detail?path=l2tp" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/l2tp/">l2tp </a>  <a class="finder-item" href="/show/ldp/" hx-get="/fragment/detail?path=ldp" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/ldp/">ldp </a>  <a class="finder-item has-children" href="/show/mrt/" hx-get="/fragment/detail?path=mrt" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/mrt/">mrt </a>  <a class="finder-item has-children" href="/show/ospf/" hx-get="/fragment/detail?path=ospf" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/ospf/">ospf </a>  <a class="finder-item has-children" href="/show/pki/" hx-get="/fragment/detail?path=pki" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/pki/">pki </a>  <a class="finder-item has-children" href="/show/plugin/" hx-get="/fragment/detail?path=plugin" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/plugin/">plugin </a>  <a class="finder-item has-children" href="/show/policy/" hx-get="/fragment/detail?path=policy" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/policy/">policy </a>  <a class="finder-item has-children" href="/show/pppoe/" hx-get="/fragment/detail?path=pppoe" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/pppoe/">pppoe </a>  <a class="finder-item has-children" href="/show/redistribute/" hx-get="/fragment/detail?path=redistribute" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/redistribute/">redistribute </a>  <a class="finder-item has-children" href="/show/rib/" hx-get="/fragment/detail?path=rib" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/rib/">rib </a>  <a class="finder-item has-children" href="/show/routing-table/" hx-get="/fragment/detail?path=routing-table" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/routing-table/">routing-table </a>  <a class="finder-item has-children" href="/show/rsvp-te/" hx-get="/fragment/detail?path=rsvp-te" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/rsvp-te/">rsvp-te </a>  <a class="finder-item has-children" href="/show/static/" hx-get="/fragment/detail?path=static" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/static/">static </a>  <a class="finder-item has-children" href="/show/storage/" hx-get="/fragment/detail?path=storage" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/storage/">storage </a>  <a class="finder-item has-children" href="/show/sysctl/" hx-get="/fragment/detail?path=sysctl" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/sysctl/">sysctl </a>  <a class="finder-item has-children" href="/show/telemetry/" hx-get="/fragment/detail?path=telemetry" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/telemetry/">telemetry </a>  <a class="finder-item has-children" href="/show/traffic/" hx-get="/fragment/detail?path=traffic" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/traffic/">traffic </a>  <a class="finder-item has-children" href="/show/vpp/" hx-get="/fragment/detail?path=vpp" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/vpp/">vpp </a>  </div></div><div class="detail-panel" id="detail"><details class="config-section graphical-actions" id="graphical-actions" open><summary id="graphical-actions-toggle">Configuration actions</summary> <pre id="graphical-action-result" role="status">Configuration merged from terminal
   system {
-  	domain example.net
 * 	host import-capture
+  	domain example.net
   }
   bgp {
+  	router-id 1.2.3.4
   	peer alpha {
   		connection {
   			local {
-  				accept disable
   				ip 127.0.0.1
+  				accept disable
   			}
   			remote ip 127.0.0.1
   		}
@@ -33,8 +34,8 @@ header: X-Ze-Version: <VERSION>
   	peer beta {
   		connection {
   			local {
-  				accept disable
   				ip 127.0.0.1
+  				accept disable
   			}
   			remote ip 127.0.0.2
   		}
@@ -46,15 +47,14 @@ header: X-Ze-Version: <VERSION>
   			router-id 1.2.3.4
   		}
   	}
-  	router-id 1.2.3.4
   }
   interface {
-  	bridge br0 {
-  		mac address 02:00:00:00:00:03
-  	}
   	ethernet eth0 {
   		description &#34;uplink to the exchange&#34;
   		mac address 00:11:22:33:44:55
+  	}
+  	bridge br0 {
+  		mac address 02:00:00:00:00:03
   	}
   	backend netlink
   }

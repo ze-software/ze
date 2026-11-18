@@ -1,0 +1,9 @@
+// Fixture of yang_schema_order_test.go: the submodule order-included-conf
+// includes.
+submodule order-included-part {
+    belongs-to order-included-conf { prefix oi; }
+
+    container mm-sub {
+        leaf v { type string; }
+    }
+}

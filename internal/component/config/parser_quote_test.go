@@ -46,7 +46,7 @@ func TestParserRefusesUnterminatedQuote(t *testing.T) {
 
 // TestParserRefusesInlineValueOnContainer checks the terminated form of the
 // fuzz finding. `peer A000 "x"` is a one-line list entry whose value fell on
-// peer's last child, `attach`, a container: the tree stored the text under
+// peer's first child, `connection`, a container: the tree stored the text under
 // the container's name, no printer read it, and the formatted config lowered
 // to another map. Method: each input must be refused naming the child and the
 // block form; an input the parser accepts must still round-trip.
@@ -55,10 +55,25 @@ func TestParserRefusesInlineValueOnContainer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("YANG schema: %v", err)
 	}
+	n, err := schema.Lookup("bgp/peer")
+	if err != nil {
+		t.Fatalf("bgp/peer: %v", err)
+	}
+	list, ok := n.(*ListNode)
+	if !ok {
+		t.Fatalf("bgp/peer is %T, want a list", n)
+	}
+	children := list.Children()
+	last := children[len(children)-1]
+	for _, s := range []string{children[0], last} {
+		if inlineSlotTakesValue(list.Get(s)) {
+			t.Fatalf("bgp peer slot %s takes a value; the test needs a container there", s)
+		}
+	}
 	for _, tc := range []struct{ input, child string }{
-		{"bgp peer A000\"000000000000\"", "attach"}, // first positional slot
-		{"bgp peer A000 \"000000000000\"", "attach"},
-		{"bgp peer A000 [ x ]", "update"}, // a bracket list goes to the last child
+		{"bgp peer A000\"000000000000\"", "connection"}, // first positional slot
+		{"bgp peer A000 \"000000000000\"", "connection"},
+		{"bgp peer A000 [ x ]", last}, // the last child: the last augmenter's, by module name
 	} {
 		input := tc.input
 		_, err := NewParser(schema).Parse(input)

@@ -31,6 +31,11 @@ func TestResolvedZeroValueIsABug(t *testing.T) {
 		"BuildCommandTree": func(r *yang.Resolved) { yang.BuildCommandTree(r) },
 		"PathToArgDefs":    func(r *yang.Resolved) { yang.PathToArgDefs(r) },
 		"PublishedRPCs":    func(r *yang.Resolved) { _, _ = yang.PublishedRPCs(r) },
+		// The staged benchmark's rechecks (loader_stages.go).
+		"RecheckExtensions": func(r *yang.Resolved) { _ = r.RecheckExtensions() },
+		"RecheckPatterns":   func(r *yang.Resolved) { _ = r.RecheckPatterns() },
+		"RecheckStructure":  func(r *yang.Resolved) { _ = r.RecheckStructure() },
+		"RecheckReferences": func(r *yang.Resolved) { _ = r.RecheckReferences() },
 	}
 	for valueName, value := range values {
 		for operationName, operation := range operations {

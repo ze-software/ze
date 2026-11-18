@@ -2763,6 +2763,7 @@ validation result and writes nothing to the active configuration.
 | `expect=completion:contains=<list>` | Completions include all items | `expect=completion:contains=set,delete,edit` |
 | `expect=completion:excludes=<list>` | Completions must NOT include items | `expect=completion:excludes=vpp,kernel` |
 | `expect=completion:count=<N>` | Number of completions | `expect=completion:count=5` |
+| `expect=completion:order=<list>` | The listed items appear in the menu in this order, other items allowed around them; two items at least. `contains`, `excludes` and `exact` judge membership only | `expect=completion:order=peer,router-id,session` |
 | `expect=ghost:text=<suffix>` | Ghost text suggestion | `expect=ghost:text=-id` |
 | `expect=dirty:true` | Has unsaved changes | `expect=dirty:true` |
 | `expect=content:contains=<text>` | Config content includes text | `expect=content:contains=router-id` |
@@ -2785,6 +2786,7 @@ validation result and writes nothing to the active configuration.
 | `expect=file:path=<rel>:absent=true` | File does not exist | `expect=file:path=test.conf:absent=true` |
 | `expect=key:path=<key>:contains=<text>` | Decoded persistent value | `expect=key:path=file/active/test.conf:contains=bgp` |
 | `expect=key:path=<key>:not-contains=<text>` | Decoded value excludes text | `expect=key:path=file/active/test.conf:not-contains=old` |
+| `expect=key:path=<key>:pattern=<regex>` | Decoded value matches a Go regular expression, as `content:pattern`: the way to assert the line order of a stored file. Refused beside `glob` | `expect=key:path=file/active/test.conf:pattern=(?s)router-id .*peer p1` |
 | `expect=key:path=<key>:absent` | Key does not exist | `expect=key:path=file/active/test.conf.draft:absent` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 <!-- source: internal/component/cli/testing/runner_store.go -- createRunnerStore -->

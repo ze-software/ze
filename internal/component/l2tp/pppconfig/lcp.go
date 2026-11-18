@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -20,7 +19,12 @@ import (
 	"github.com/ze-software/ze/internal/core/suggest"
 )
 
-var lcpDefaults = sync.OnceValues(loadLCPDefaults)
+// lcpDefaults is the seam a test replaces to stand for a build without the
+// grouping. It keeps no value: each parse reads the set DefaultLoader answers,
+// so the defaults follow a publish of external modules with no cache of their
+// own (docs/architecture/config/yang-config-design.md, "A value built from the
+// module set and kept longer than one call").
+var lcpDefaults = loadLCPDefaults
 
 // ParseLCP reads one transport's lcp container. Missing leaves take their
 // defaults from the shared YANG grouping, including when the block is absent.
@@ -109,27 +113,25 @@ func lcpLeafError(transport, name, problem string, repair int) error {
 }
 
 // lcpSchemaError distinguishes a missing or invalid build-time schema from
-// operator input. No config command can install the missing module.
+// operator input: the ze-ppp-lcp module is absent or wrong, or the module set
+// holding it does not resolve. No config command can install or repair a
+// module, so the fix is a correct build.
 func lcpSchemaError(cause error) error {
 	return opererr.Wrap(cause, "PPP LCP configuration schema is unavailable",
 		"This Ze build cannot supply valid negotiation defaults for new sessions",
-		"Install a Ze build containing the ze-ppp-lcp YANG module, then restart Ze")
+		"Install a Ze build whose YANG modules resolve and include ze-ppp-lcp, then restart Ze")
 }
 
 // loadLCPDefaults reads the grouping itself, so neither transport duplicates
 // a default and a missing module/default refuses startup instead of becoming 0.
+// It reads the module set yang.DefaultLoader already resolved and builds no
+// loader of its own, so no parse resolves the module set a second time. A
+// refusal of that set comes back wrapped, never as zero defaults.
 func loadLCPDefaults() ([4]int, error) {
 	var defaults [4]int
-	loader := configyang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return defaults, err
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return defaults, err
-	}
-	resolved, err := loader.Resolve()
+	resolved, err := configyang.DefaultLoader()
 	if err != nil {
-		return defaults, err
+		return defaults, fmt.Errorf("the YANG module set does not resolve: %w", err)
 	}
 	module := resolved.GetModule("ze-ppp-lcp")
 	if module == nil {

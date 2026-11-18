@@ -20,6 +20,10 @@ const (
 
 	// valueTypeASN is the ze-types typedef name TypeASN leaves carry.
 	valueTypeASN = "asn"
+
+	// yangStatementLeaf is the YANG statement keyword of a leaf, as goyang's
+	// Statement.Keyword spells it.
+	yangStatementLeaf = "leaf"
 )
 
 // extractSections lists environment sections consumed by ApplyEnvConfig

@@ -1,0 +1,78 @@
+# Test: ze config fmt prints a block's children in YANG definition order
+#
+# QUESTION: does the shipped `ze config fmt`, over the full set of YANG modules
+# the binary registers, print each block's children where the YANG declares
+# them, an augmented child after the block's own, and is its output already
+# formatted? The unit tests build the order over fixture modules and the config
+# test binary's modules; only the binary carries every plugin's augment, and
+# only the command reads and writes the file the operator owns.
+#
+# The input is written in name order, the order the printer used before.
+# Definition order, read from the YANG:
+#   bgp: router-id, then session, then peer (ze-bgp-conf.yang, container bgp);
+#     by name: peer, router-id, session.
+#   bgp peer: connection, session, then filter (grouping peer-fields), then
+#     rpki, which ze-rpki.yang adds by augment "/bgp:bgp/bgp:peer";
+#     by name: connection, filter, rpki, session.
+#   system: host, then domain (ze-system-conf.yang); by name: domain, host.
+#
+# VALIDATES: spec-config-yang-definition-order AC-1 (children in definition
+#   order through the command), the augment row of D-1 (rpki after the peer's
+#   own children, although it sorts before session), AC-9 (fmt of fmt changes
+#   no byte: --check after -w).
+# PREVENTS: the YANG-to-schema converter ordering a block's children by name,
+#   and a format that a second run changes again.
+tmpfs=order.conf:terminator=EOF_CONF
+bgp {
+	peer zulu {
+		connection {
+			remote {
+				ip 192.0.2.26
+			}
+		}
+		filter {
+			import {
+				final accept
+			}
+			export {
+				final accept
+			}
+		}
+		rpki {
+			action {
+				invalid reject
+			}
+		}
+		session {
+			asn {
+				remote 65026
+			}
+		}
+	}
+	router-id 10.0.0.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+}
+system {
+	domain example.net
+	host edge1
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config fmt order.conf:exit=0
+expect=stdout:pattern=(?s)\n\trouter-id 10\.0\.0\.1\n\tsession \{\n.*\n\tpeer zulu \{\n
+expect=stdout:pattern=(?s)\n\t\tconnection \{\n.*\n\t\tsession \{\n.*\n\t\tfilter \{\n.*\n\t\trpki \{\n
+expect=stdout:pattern=(?s)\n\thost edge1\n\tdomain example\.net\n
+
+# AC-9: the written file is a fixed point of the formatter.
+cmd=foreground:seq=2:exec=ze config fmt -w order.conf:exit=0
+expect=stderr:contains=Formatted: order.conf
+
+cmd=foreground:seq=3:exec=ze config fmt --check order.conf:exit=0
+
+cmd=foreground:seq=4:exec=ze config fmt order.conf:exit=0
+expect=stdout:pattern=(?s)\n\trouter-id 10\.0\.0\.1\n\tsession \{\n.*\n\tpeer zulu \{\n
+expect=stdout:pattern=(?s)\n\thost edge1\n\tdomain example\.net\n

@@ -1,0 +1,28 @@
+// Fixture of yang_schema_order_test.go: the augmenting module whose name sorts
+// first. It augments x twice, the second augment through a grouping too, and
+// its leaf names sort after the other module's.
+module order-augmenting-alpha {
+    namespace "urn:ze:test:order-augmenting-alpha";
+    prefix aa;
+
+    import order-augmented-conf { prefix oa; }
+
+    grouping more {
+        leaf m3 { type string; }
+    }
+
+    augment "/oa:x" {
+        leaf m9 { type string; }
+        leaf m8 { type string; }
+    }
+
+    augment "/oa:xl" {
+        leaf la { type string; }
+    }
+
+    augment "/oa:x" {
+        leaf m2 { type string; }
+        uses more;
+        leaf m1 { type string; }
+    }
+}

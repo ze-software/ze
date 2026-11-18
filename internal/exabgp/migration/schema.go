@@ -36,8 +36,8 @@ func exaBGPSchema() *config.Schema {
 
 	// Load exabgp module
 	entry := resolved.GetEntry("exabgp")
-	if entry != nil {
-		config.LoadYANGModule(schema, entry)
+	if err := config.LoadYANGModule(schema, entry); err != nil {
+		return nil
 	}
 
 	return schema

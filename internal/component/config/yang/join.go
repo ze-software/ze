@@ -43,9 +43,11 @@ type declaredModule struct {
 
 // Join answers the module set that holds every module of compiled and every
 // external module, resolved and checked, or an operator error that names the
-// plugin and the module it refuses. Every check Loader.Resolve runs is run
-// over the joined set, and the join adds the refusals a plugin's module owes
-// beyond them:
+// plugin and the module it refuses. One Loader.Resolve judges the joined set:
+// goyang's processing and the leafref check over every module, the extension,
+// pattern and structure checks over the external modules, because every module
+// of compiled passed them already (Resolved.reloaded). The join adds the
+// refusals a plugin's module owes beyond them:
 //
 //   - the text does not parse or resolve, or holds anything but one module
 //   - the declared module name or namespace differs from the text
@@ -97,7 +99,7 @@ func Join(compiled *Resolved, externals []ExternalModule, validators *ValidatorR
 	if err != nil {
 		return nil, err
 	}
-	joined, err := resolveJoined(set, declared)
+	joined, err := resolveJoined(compiled, declared)
 	if err != nil {
 		return nil, err
 	}
@@ -282,10 +284,30 @@ func (m *sourcedModules) namespaceHolders() map[string]string {
 	return holders
 }
 
-// reloaded answers a new Loader holding every module text of the set, so a
-// module can be added beside them and the whole resolved again: the set
-// itself refuses every load once Resolve ran.
-func (m *sourcedModules) reloaded() (*Loader, error) {
+// reloaded answers a new Loader holding every module text of r, so a module
+// can be added beside them and the whole resolved again: the set itself
+// refuses every load once Resolve ran. Every module it reloads is marked
+// judged with r's patterns, because each one passed checkExtensions,
+// checkPatterns and checkStructure when r was resolved: only a successful
+// Resolve builds a Resolved, and a joined one holds compiled-in modules that
+// passed them before and external modules its join judged. The Resolve of the
+// new loader then judges the modules added after this, the external ones.
+//
+// A judged module's verdict cannot change in the joined set. Each of the
+// three checks reads one module's statements, its text, and the modules its
+// prefix, imports, includes and belongs-to name, and goyang resolves a type
+// of the module from the same (types.go, Type.resolve, through RootNode and
+// the module's imports). declaredModules refuses an external module whose
+// name any module of r holds, at any revision, and parseExternal one that
+// holds a submodule, so none of those names reaches another module. goyang
+// resolves every type a module declares while it processes that module,
+// groupings included (entry.go, ToEntry: "We just want to parse the grouping
+// to collect errors"), so an external module that uses a grouping resolves no
+// type that was left unresolved. What does depend on the other modules, the
+// leafref paths, augments and every refusal the join adds, is judged over
+// the whole joined set.
+func (r *Resolved) reloaded() (*Loader, error) {
+	m := r.set()
 	held := m.held()
 	modules := make([]*gyang.Module, 0, len(held))
 	for module := range held {
@@ -309,16 +331,16 @@ func (m *sourcedModules) reloaded() (*Loader, error) {
 			return nil, fmt.Errorf("reload YANG module %s: %w", module.Name, err)
 		}
 	}
+	loader.modules.markJudged(r.patterns)
 	return loader, nil
 }
 
-// resolveJoined resolves the modules of set with the declared modules added,
-// and names the module a failure belongs to. The set resolved alone, so a
-// failure comes from an external module. When several were added, each is
-// resolved alone with the set to find the one that fails; that recursion is
-// one level deep, because a call with one module never recurses.
-func resolveJoined(set *sourcedModules, declared []declaredModule) (*Resolved, error) {
-	loader, err := set.reloaded()
+// resolveJoined resolves the modules of compiled with the declared modules
+// added, in one resolve, and names the module a failure belongs to
+// (failingModule). compiled resolved alone, so a failure comes from an
+// external module.
+func resolveJoined(compiled *Resolved, declared []declaredModule) (*Resolved, error) {
+	loader, err := compiled.reloaded()
 	if err != nil {
 		return nil, err
 	}
@@ -334,12 +356,90 @@ func resolveJoined(set *sourcedModules, declared []declaredModule) (*Resolved, e
 	if len(declared) == 1 {
 		return nil, invalidModuleRefusal(declared[0].external, resolveErr)
 	}
+	if failing, found := failingModule(loader, declared, resolveErr); found {
+		return nil, invalidModuleRefusal(failing.external, resolveErr)
+	}
+	// No error of the one resolve belongs to a declared module: goyang wrote
+	// it with no location (Modules.include: "no such module: <name>";
+	// Entry.ApplyDeviate: "cannot find target node to deviate"), or at a
+	// location in a compiled-in file. Only then is each module resolved alone
+	// with the set, the first that fails is named, and when none fails the
+	// modules are refused together. The recursion is one level deep, because a
+	// call with one module never reaches here.
 	for _, module := range declared {
-		if _, aloneErr := resolveJoined(set, []declaredModule{module}); aloneErr != nil {
+		if _, aloneErr := resolveJoined(compiled, []declaredModule{module}); aloneErr != nil {
 			return nil, aloneErr
 		}
 	}
 	return nil, invalidTogetherRefusal(declared, resolveErr)
+}
+
+// failingModule answers the first declared module, in the order declared, that
+// an error of the joined resolve belongs to, and whether there is one, reading
+// where each producer records the module at fault and never the text an error
+// quotes:
+//
+//   - a goyang error belongs to the module whose file it begins with: goyang
+//     writes the location of the node it was building first (entry.go
+//     newError and errorf; Entry.merge begins with the augment or uses that
+//     adds a node already held, then quotes the node it met). Each declared
+//     module is parsed under a file name of its own (externalFile);
+//   - a leafref error belongs to the module whose statement wrote the leaf
+//     (leafrefError, yang.RootNode), which for a leaf augmented into a
+//     compiled-in container is the augmenting module;
+//   - an extension, pattern or structure error belongs to the module those
+//     checks refuse when they judge it alone over the processed set
+//     (moduleCheckErrors), since they judged the declared modules only.
+func failingModule(loader *Loader, declared []declaredModule, resolveErr error) (declaredModule, bool) {
+	goyangErrs, leafOwners := resolveErrorOrigins(resolveErr)
+	for _, module := range declared {
+		if leafOwners[module.name] {
+			return module, true
+		}
+		file := externalFile(module.external) + ":"
+		for _, err := range goyangErrs {
+			if strings.HasPrefix(err.Error(), file) {
+				return module, true
+			}
+		}
+		parsed := loader.modules.Modules.Modules[module.name]
+		if parsed == nil {
+			panic("BUG: yang.failingModule: declared module " + module.name + " is not in the loader that parsed it")
+		}
+		if loader.moduleCheckErrors(parsed) != nil {
+			return module, true
+		}
+	}
+	return declaredModule{}, false
+}
+
+// resolveErrorOrigins walks the error tree of a resolve and answers goyang's
+// errors (processError) and the name of each module that wrote a leaf whose
+// leafref was refused (leafrefError). The walk is an explicit stack bounded by
+// the errors one resolve joins.
+func resolveErrorOrigins(resolveErr error) (goyangErrs []error, leafOwners map[string]bool) {
+	leafOwners = map[string]bool{}
+	pending := []error{resolveErr}
+	for len(pending) > 0 {
+		err := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		// The walk judges each node of the tree itself, so a type assertion and
+		// not errors.As, which would answer the first match of the whole tree.
+		if goyang, isGoyang := err.(*processError); isGoyang { //nolint:errorlint // one node of the walk, see above
+			goyangErrs = append(goyangErrs, goyang.errs...)
+			continue
+		}
+		if leafref, isLeafref := err.(*leafrefError); isLeafref { //nolint:errorlint // one node of the walk, see above
+			if leafref.leaf.Node != nil {
+				leafOwners[gyang.RootNode(leafref.leaf.Node).Name] = true
+			}
+			continue
+		}
+		if joined, isJoined := err.(interface{ Unwrap() []error }); isJoined {
+			pending = append(pending, joined.Unwrap()...)
+		}
+	}
+	return goyangErrs, leafOwners
 }
 
 // moduleUse is what one module of a set gives ze, by the one rule every

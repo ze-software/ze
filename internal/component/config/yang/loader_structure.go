@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/openconfig/goyang/pkg/yang"
@@ -44,18 +46,34 @@ var ErrExtensionSubstatement = errors.New("invalid YANG statement under an exten
 var ErrIncludeBelongsTo = errors.New("YANG submodule included outside the module it belongs to")
 
 // checkStructure joins the structural checks goyang does not perform over
-// every loaded module and submodule.
+// every loaded module and submodule, module by module in sourceModules order.
 func (l *Loader) checkStructure() error {
 	mods := l.modules.sourceModules()
 	errs := make([]error, 0, len(mods))
 	for _, mod := range mods {
-		// RFC 7950 Section 7.2.2
-		errs = append(errs, moduleIncludeErrors(mod)...)
-		errs = append(errs, moduleLengthErrors(mod)...)
-		errs = append(errs, moduleEnumErrors(mod)...)
-		errs = append(errs, moduleExtensionSubstatementErrors(l.modules.source(mod))...)
+		errs = append(errs, moduleStructureErrors(l.modules.source(mod))...)
 	}
 	return errors.Join(errs...)
+}
+
+// moduleStructureErrors answers the structural refusals of one module or
+// submodule, in the order a caller reads the joined error in: its includes,
+// its lengths, its enumerations, then the statements under its extensions.
+// The module's goyang AST is walked once (newModuleTypes), and the length and
+// the enum check both read that one walk.
+func moduleStructureErrors(source moduleSource) []error {
+	mod := source.module
+	types := newModuleTypes(mod)
+	return slices.Concat(
+		// RFC 7950 Section 7.2.2
+		moduleIncludeErrors(mod),
+		// RFC 7950 Section 9.4.4
+		types.lengthErrors(),
+		// RFC 7950 Sections 9.6.4 and 9.6.4.2
+		types.enumErrors(),
+		// RFC 7950 Section 7.19
+		moduleExtensionSubstatementErrors(source),
+	)
 }
 
 // moduleIncludeErrors returns one error for each `include` in mod, a module
@@ -111,21 +129,37 @@ func includedSubmodule(mod *yang.Module, include *yang.Include) *yang.Module {
 	return mod.Modules.SubModules[include.Name]
 }
 
-// moduleLengthErrors returns one error for each `length` statement in mod
+// moduleTypes is the `type` nodes of one module's goyang AST, in the order
+// moduleTypeNodes meets them, beside the module's name for the refusal text.
+// newModuleTypes is its only constructor, and the length and enum checks are
+// its methods: neither holds the module, so neither can walk it again. The
+// zero value is invalid; only newModuleTypes builds one.
+type moduleTypes struct {
+	module string
+	types  []*yang.Type
+}
+
+// newModuleTypes walks mod's goyang AST once and answers its `type` nodes.
+func newModuleTypes(mod *yang.Module) moduleTypes {
+	return moduleTypes{module: mod.Name, types: moduleTypeNodes(mod)}
+}
+
+// lengthErrors returns one error for each `length` statement of the module
 // whose parts, in the order written, are not disjoint and ascending over the
 // bounds of the type the statement restricts.
-func moduleLengthErrors(mod *yang.Module) []error {
+func (m moduleTypes) lengthErrors() []error {
 	var errs []error
-	for _, typ := range moduleTypeNodes(mod) {
+	for _, typ := range m.types {
 		if typ.Length == nil {
 			continue
 		}
+		// RFC 7950 Section 9.4.4
 		err := lengthOrderError(typ)
 		if err == nil {
 			continue
 		}
 		errs = append(errs, fmt.Errorf("%w: module %s: %s: length %q: %w",
-			ErrLengthOrder, mod.Name, yang.Source(typ.Length), typ.Length.Name, err))
+			ErrLengthOrder, m.module, yang.Source(typ.Length), typ.Length.Name, err))
 	}
 	return errs
 }
@@ -282,9 +316,9 @@ func lengthBound(text string, restricted lengthSpan) (uint64, error) {
 	return value, nil
 }
 
-// moduleEnumErrors returns one error for each enumeration of mod whose values
-// RFC 7950 Section 9.6.4.2 forbids, and for each `enum` statement in a
-// restricted enumeration of mod that departs from its base type.
+// enumErrors returns one error for each enumeration of the module whose
+// values RFC 7950 Section 9.6.4.2 forbids, and for each `enum` statement in a
+// restricted enumeration of the module that departs from its base type.
 //
 // goyang builds a restricted type's values afresh from the restricting
 // statements, so both checks read the values parseEnumAssignment computes
@@ -293,15 +327,16 @@ func lengthBound(text string, restricted lengthSpan) (uint64, error) {
 // grouping no schema node uses is still a statement the RFC binds. A
 // restriction goyang never resolved has no YangType: it restricts nothing
 // this loader can follow, and is skipped.
-func moduleEnumErrors(mod *yang.Module) []error {
+func (m moduleTypes) enumErrors() []error {
 	var errs []error
-	for _, typ := range moduleTypeNodes(mod) {
+	for _, typ := range m.types {
 		if len(typ.Enum) == 0 {
 			continue
 		}
 		if typ.Name == enumerationType {
+			// RFC 7950 Section 9.6.4.2
 			if _, err := assignEnumValues(typ); err != nil {
-				errs = append(errs, fmt.Errorf("module %s: %w", mod.Name, err))
+				errs = append(errs, fmt.Errorf("module %s: %w", m.module, err))
 			}
 			continue
 		}
@@ -311,13 +346,15 @@ func moduleEnumErrors(mod *yang.Module) []error {
 		if typ.YangType.Kind != yang.Yenum {
 			continue
 		}
-		errs = append(errs, enumRestrictionErrors(mod, typ)...)
+		// RFC 7950 Sections 9.6.4 and 9.6.4.2
+		errs = append(errs, enumRestrictionErrors(m.module, typ)...)
 	}
 	return errs
 }
 
 // enumRestrictionErrors checks each enum statement of typ, a restriction of a
-// derived enumeration, against the type it restricts.
+// derived enumeration in the module named module, against the type it
+// restricts.
 //
 // RFC 7950 Section 9.6.4: "When an existing enumeration type is restricted,
 // the set of assigned names in the new type MUST be a subset of the base
@@ -329,23 +366,23 @@ func moduleEnumErrors(mod *yang.Module) []error {
 // or not be present, in which case the value is the same as in the base type."
 // The base value is the one the root enumeration assigns (assignEnumValues),
 // which every restriction keeps.
-func enumRestrictionErrors(mod *yang.Module, typ *yang.Type) []error {
+func enumRestrictionErrors(module string, typ *yang.Type) []error {
 	base := nearestEnumBase(typ)
 	if base == nil {
 		return []error{fmt.Errorf("%w: module %s: %s: type %s restricts no enumeration",
-			ErrEnumRestriction, mod.Name, yang.Source(typ), typ.Name)}
+			ErrEnumRestriction, module, yang.Source(typ), typ.Name)}
 	}
 	assigned, err := parseEnumAssignment(base)
 	if err != nil {
 		return []error{fmt.Errorf("%w: module %s: %s: type %s: %w",
-			ErrEnumRestriction, mod.Name, yang.Source(typ), typ.Name, err)}
+			ErrEnumRestriction, module, yang.Source(typ), typ.Name, err)}
 	}
 	var errs []error
 	for _, enum := range typ.Enum {
 		baseValue, held := assigned.Value(enum.Name)
 		if !held {
 			errs = append(errs, fmt.Errorf("%w: module %s: %s: enum %q is not an assigned name of type %s",
-				ErrEnumRestriction, mod.Name, yang.Source(enum), enum.Name, typ.Name))
+				ErrEnumRestriction, module, yang.Source(enum), enum.Name, typ.Name))
 			continue
 		}
 		if enum.Value == nil {
@@ -354,12 +391,12 @@ func enumRestrictionErrors(mod *yang.Module, typ *yang.Type) []error {
 		value, err := strconv.ParseInt(strings.TrimSpace(enum.Value.Name), 10, 64)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%w: module %s: %s: enum %q: value %q is not an integer",
-				ErrEnumRestriction, mod.Name, yang.Source(enum), enum.Name, enum.Value.Name))
+				ErrEnumRestriction, module, yang.Source(enum), enum.Name, enum.Value.Name))
 			continue
 		}
 		if value != baseValue {
 			errs = append(errs, fmt.Errorf("%w: module %s: %s: enum %q: value %d, the base type assigns %d",
-				ErrEnumRestriction, mod.Name, yang.Source(enum), enum.Name, value, baseValue))
+				ErrEnumRestriction, module, yang.Source(enum), enum.Name, value, baseValue))
 		}
 	}
 	return errs
@@ -390,44 +427,118 @@ func resolvedBase(typ *yang.Type) *yang.Type {
 // moduleTypeNodes answers every `type` node of mod's goyang AST. The walk is
 // an explicit stack over the substatement fields goyang's own parser fills
 // (isSubstatementField), so it reaches each node the module text declares.
+// It reads a node's substatement fields from its type's entry in
+// substatementFieldTable, never from the struct tags. goyang's back
+// references (Parent, Include.Module, Type.YangType) are no substatement
+// fields, so the AST is a tree to the walk and each node is visited once.
 func moduleTypeNodes(mod *yang.Module) []*yang.Type {
+	if mod == nil {
+		return nil
+	}
+	table := substatementFieldTable()
 	var types []*yang.Type
 	pending := []reflect.Value{reflect.ValueOf(mod)}
 	for len(pending) > 0 {
 		node := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
-		if node.IsNil() {
-			continue
-		}
 		if typ, isType := reflect.TypeAssert[*yang.Type](node); isType {
 			types = append(types, typ)
 		}
-		pending = appendSubstatementNodes(pending, node.Elem())
+		pending = appendSubstatementNodes(pending, node.Elem(), table)
 	}
 	return types
 }
 
 // appendSubstatementNodes appends the AST nodes held in node's substatement
-// fields, each a pointer to a struct or a slice of them.
-func appendSubstatementNodes(pending []reflect.Value, node reflect.Value) []reflect.Value {
-	fields := node.Type()
-	for i := range fields.NumField() {
-		if !isSubstatementField(fields.Field(i)) {
-			continue
-		}
+// fields, each a pointer to a struct or a slice of them, skipping a nil
+// pointer, which holds no node. The order is the fields' order, then the
+// slice's, so the walk meets the nodes in the same order whatever the table.
+func appendSubstatementNodes(pending []reflect.Value, node reflect.Value, table substatementFields) []reflect.Value {
+	indexes, known := table[node.Type()]
+	if !known {
+		panic("BUG: goyang node type " + node.Type().String() + " is not reachable from yang.Module through substatement fields")
+	}
+	for _, i := range indexes {
 		value := node.Field(i)
-		// goyang's substatement fields are pointers or slices of pointers; nothing else holds a node
+		// goyang's substatement fields are pointers or slices of pointers (substatementNodeType); nothing else holds a node
 		//exhaustive:ignore
 		switch value.Kind() {
 		case reflect.Pointer:
-			pending = append(pending, value)
+			if !value.IsNil() {
+				pending = append(pending, value)
+			}
 		case reflect.Slice:
 			for j := range value.Len() {
-				pending = append(pending, value.Index(j))
+				element := value.Index(j)
+				if !element.IsNil() {
+					pending = append(pending, element)
+				}
 			}
 		}
 	}
 	return pending
+}
+
+// substatementFields maps a goyang AST node type, a struct type, to the
+// indexes of its substatement fields (isSubstatementField), ascending.
+type substatementFields map[reflect.Type][]int
+
+// substatementFieldTable answers the substatement fields of every goyang AST
+// node type a module's walk can meet, read from the struct tags once per
+// process rather than once per node. The tags are fixed when goyang is
+// compiled, so the answer never changes. Its entry count is bounded by the
+// struct types goyang's yang package declares, those yang.Module reaches
+// through substatement fields; nothing a module holds adds an entry. Built on
+// the first walk, not at package load. Safe for concurrent use: sync.OnceValue
+// builds the map once, and every caller only reads it.
+var substatementFieldTable = sync.OnceValue(func() substatementFields {
+	return buildSubstatementFields(reflect.TypeFor[yang.Module]())
+})
+
+// buildSubstatementFields answers the substatement fields of root, a struct
+// type, and of every struct type root reaches through them. The walk is an
+// explicit stack over types, each expanded once, so it ends within the
+// number of struct types goyang declares.
+func buildSubstatementFields(root reflect.Type) substatementFields {
+	table := substatementFields{}
+	pending := []reflect.Type{root}
+	for len(pending) > 0 {
+		node := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if _, built := table[node]; built {
+			continue
+		}
+		var indexes []int
+		for i := range node.NumField() {
+			field := node.Field(i)
+			if !isSubstatementField(field) {
+				continue
+			}
+			indexes = append(indexes, i)
+			pending = append(pending, substatementNodeType(field))
+		}
+		table[node] = indexes
+	}
+	return table
+}
+
+// substatementNodeType answers the struct type of the nodes field holds,
+// field being a pointer to one or a slice of such pointers. goyang declares
+// no other shape of substatement field and the walk could not read one, so
+// another shape is a Ze defect met on the first walk of any module, never the
+// fault of a module's text.
+func substatementNodeType(field reflect.StructField) reflect.Type {
+	holder := field.Type
+	if holder.Kind() == reflect.Slice {
+		holder = holder.Elem()
+	}
+	if holder.Kind() != reflect.Pointer {
+		panic("BUG: goyang substatement field " + field.Name + " is " + field.Type.String() + ", not a pointer to a node or a slice of them")
+	}
+	if holder.Elem().Kind() != reflect.Struct {
+		panic("BUG: goyang substatement field " + field.Name + " is " + field.Type.String() + ", whose nodes are not structs")
+	}
+	return holder.Elem()
 }
 
 // isSubstatementField reports whether f is a field goyang fills from a
