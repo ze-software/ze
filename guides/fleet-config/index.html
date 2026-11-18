@@ -47,159 +47,530 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="fleet-configuration">Fleet Configuration</h1>
-    <p>Ze supports centralized configuration management for multi-node deployments. A central hub serves configuration to remote ze instances over TLS.</p>
+    <p>One Ze, the hub, holds the full configuration of every other Ze, the managed
+clients. Each client connects to the hub over TLS, fetches its own
+configuration and applies it. When you change a client's configuration on the
+hub, the hub tells that client, and the client fetches and applies the change.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
-<li><a href="#architecture">Architecture</a></li>
-<li><a href="#bootstrap">Bootstrap</a>
+<li><a href="#1-set-up-the-hub">1. Set Up the Hub</a></li>
+<li><a href="#2-write-each-clients-configuration">2. Write Each Client&#39;s Configuration</a></li>
+<li><a href="#3-provision-a-client">3. Provision a Client</a></li>
+<li><a href="#4-start-the-client">4. Start the Client</a></li>
+<li><a href="#change-a-clients-configuration">Change a Client&#39;s Configuration</a></li>
+<li><a href="#when-the-hub-is-down">When the Hub Is Down</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+<li><a href="#reference">Reference</a>
 <ol>
-<li><a href="#non-interactive">Non-Interactive</a></li>
+<li><a href="#ze-init-options-for-a-managed-client">ze init Options for a Managed Client</a></li>
+<li><a href="#ze-start-flags">ze start Flags</a></li>
+<li><a href="#the-client-block-of-a-clients-configuration">The client Block of a Client&#39;s Configuration</a></li>
+<li><a href="#what-the-client-keeps-in-its-store">What the Client Keeps in Its Store</a></li>
 </ol></li>
-<li><a href="#hub-configuration">Hub Configuration</a></li>
-<li><a href="#client-configuration">Client Configuration</a></li>
-<li><a href="#config-management">Config Management</a></li>
-<li><a href="#when-a-client-cannot-connect">When a Client Cannot Connect</a></li>
-<li><a href="#resilience">Resilience</a></li>
-<li><a href="#cli-overrides">CLI Overrides</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: cmd/ze/hub/managed_server.go -- fleet hub server; internal/component/managed/ -- managed client and fleet protocol -->
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: internal/component/managed/client.go -- RunManagedClient -->
 <blockquote>
-<p><strong>Status:</strong> Implemented. Named hub blocks, per-client auth, managed client lifecycle (fetch, reconnect, heartbeat), and <code>ze start</code> managed mode are functional.</p>
+<p><strong>Status:</strong> Implemented. The hub serves each client its configuration, and
+a client fetches, applies, caches and reconnects.</p>
 </blockquote>
-<h2 id="architecture">Architecture</h2>
-<pre><code>    Central Hub                        Remote Nodes
-    ┌──────────┐                  ┌──────────┐
-    │  ze hub  │ ◄── TLS ────── │ ze edge-01│
-    │          │                  └──────────┘
-    │ configs/ │ ◄── TLS ────── ┌──────────┐
-    │ edge-01  │                  │ ze edge-02│
-    │ edge-02  │                  └──────────┘
-    └──────────┘
+<pre><code>        Hub                                Managed clients
+    ┌──────────────┐                    ┌─────────────┐
+    │ ze           │ ◄──── TLS ──────── │ ze  edge-01 │
+    │              │                    └─────────────┘
+    │ client-edge-01.conf               ┌─────────────┐
+    │ client-edge-02.conf ◄─── TLS ──── │ ze  edge-02 │
+    └──────────────┘                    └─────────────┘
 </code></pre>
-<p>The hub stores per-client configurations. Each remote node connects, authenticates, and receives its configuration.</p>
-<h2 id="bootstrap">Bootstrap</h2>
-<p>Initialize a new ze instance:</p>
-<pre><code class="language-bash">ze init                             # Interactive setup
-ze init --managed                   # Managed client (connects to hub)
-ze init --force                     # Replace existing database
-</code></pre>
-<!-- source: internal/plugins/init/main.go -- managedFlag, forceFlag -->
-<p><code>ze init</code> prompts for:</p>
-<ul>
-<li>SSH username and password</li>
-<li>Host and port for the SSH server</li>
-<li>Instance name (e.g., <code>edge-01</code>)</li>
-</ul>
-<h3 id="non-interactive">Non-Interactive</h3>
-<pre><code class="language-bash">echo -e "admin\nsecret\n10.0.0.1\n2222\nedge-01" | ze init --managed
-</code></pre>
-<h2 id="hub-configuration">Hub Configuration</h2>
-<p>The hub declares which clients can connect:</p>
-<pre><code>plugin {
-    hub {
-        server local {
-            ip 127.0.0.1;
-            port 1790;
-            secret "local-plugin-secret";
-        }
-        server central {
-            ip 0.0.0.0;
-            port 1791;
-            secret "remote-plugin-secret";
-            client edge-01 { secret "client-1-token"; }
-            client edge-02 { secret "client-2-token"; }
-        }
-    }
-}
-</code></pre>
-<p>Each client authenticates with its unique secret token.</p>
-<h2 id="client-configuration">Client Configuration</h2>
-<p>A managed client specifies its hub connection:</p>
-<pre><code>plugin {
-    hub {
-        server local {
-            ip 127.0.0.1;
-            port 1790;
-            secret "local-secret";
-        }
-        client edge-01 {
-            host 10.0.0.1;
-            port 1791;
-            secret "client-1-token";
-        }
-    }
-}
-</code></pre>
-<h2 id="config-management">Config Management</h2>
-<p>On the hub, manage client configurations through the config editor. Stop the hub daemon
-first. Each of these commands opens the <code>database/</code> store in its own process. A running hub
-answers every read from the tree it loaded at startup. An edit made behind it therefore
-changes nothing the hub serves.</p>
-<pre><code class="language-bash">ze config edit client-edge-01.conf         # Edit config for edge-01
-ze config archive backup client-edge-01.conf  # Archive to named destination
-ze config history client-edge-01.conf      # View rollback history
-</code></pre>
-<p>The blob key for a client carries a <code>client-</code> prefix. That prefix keeps a client's config
-from colliding with the hub's own config file.</p>
-<p>A running hub restores a client's config from a backup artifact on its own host, with no
-stop. The config becomes a new version of <code>client-&lt;name&gt;.conf</code>, the hub pushes
-<code>config-changed</code> to that client, and the client fetches and applies it. The hub's own
-config does not change and the hub does not reload.</p>
-<pre><code>request data restore path /var/backups/edge-01.zefs config client edge-01
-request data restore path /var/backups/fleet.zefs config name edge-01.conf client edge-01
-</code></pre>
-<p>The hub refuses <code>client &lt;name&gt;</code> when it has no <code>client &lt;name&gt;</code> entry under
-<code>plugin hub server</code>.</p>
-<!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey, Serves -->
-<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreClientConfig -->
-<!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
-<!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
-<!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
-<h2 id="when-a-client-cannot-connect">When a Client Cannot Connect</h2>
-<p>The hub admits only the names it has a <code>client</code> entry for, each with its own
-secret. A client that connects under any other name is refused whatever token
-it sends, and so is a configured name with the wrong secret. <code>show doctor</code> on
-the hub lists each refusal under <code>doctor-managed-client-rejected</code> with the
-name the client claimed and the fix; it never shows the token. The same check
-reports a second ze connecting under a name already connected, and a client
-that refused to apply the config the hub serves it.</p>
-<p><code>show doctor</code> also reports a managed listen address the hub could not bind
-(<code>doctor-managed-listener-unbound</code>), and a <code>config-changed</code> the hub could not
-deliver (<code>doctor-managed-client-notify-dropped</code>): that client runs its
-previous config until it fetches again, which it does each time it connects.</p>
-<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, managedRejectedRow, checkManagedListenerUnbound -->
-<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
-<h2 id="resilience">Resilience</h2>
-<ul>
-<li><strong>Partition tolerance:</strong> Clients cache their last known config locally</li>
-<li><strong>Fallback:</strong> If the hub is unreachable, the client starts with cached config</li>
-<li><strong>Reconnect:</strong> Clients automatically reconnect and receive updated config</li>
-</ul>
-<h2 id="cli-overrides">CLI Overrides</h2>
+<p>What you get, and what you do not:</p>
 <table>
 <thead>
 <tr>
-<th>Flag</th>
-<th>Description</th>
+<th>Fleet configuration does</th>
+<th>Fleet configuration does not</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>--server &lt;addr&gt;</code></td>
-<td>Override hub address</td>
+<td>Keep one full configuration for each client, on the hub</td>
+<td>Build a configuration from a template: each client has its own file</td>
 </tr>
 <tr>
-<td><code>--name &lt;name&gt;</code></td>
-<td>Override instance name</td>
+<td>Push a change to the one client it belongs to</td>
+<td>Roll a change out to a group of clients in stages</td>
 </tr>
 <tr>
-<td><code>--token &lt;secret&gt;</code></td>
-<td>Override auth token</td>
+<td>Keep a client running when the hub is down</td>
+<td>Record which version each client runs</td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/managed/ -- fleet TLS and client auth -->
+<p>This guide follows the order of a first deployment:</p>
+<ol>
+<li><a href="#1-set-up-the-hub">Set up the hub</a></li>
+<li><a href="#2-write-each-clients-configuration">Write each client's configuration</a></li>
+<li><a href="#3-provision-a-client">Provision a client</a></li>
+<li><a href="#4-start-the-client">Start the client</a></li>
+</ol>
+<p>Then the daily work: <a href="#change-a-clients-configuration">change a client's configuration</a>,
+<a href="#when-the-hub-is-down">what happens when the hub is down</a> and
+<a href="#troubleshooting">troubleshooting</a>. The <a href="#reference">reference</a> is at the end.</p>
+<h2 id="1-set-up-the-hub">1. Set Up the Hub</h2>
+<p>The hub is an ordinary Ze. It becomes a hub when one <code>server</code> block of its
+configuration lists the clients it accepts.</p>
+<pre><code>plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 1790;
+            secret "local-plugin-secret-of-32-characters";
+        }
+        server central {
+            ip 0.0.0.0;
+            port 1791;
+            secret "remote-plugin-secret-of-32-character";
+            client edge-01 { secret "edge-01-secret-of-at-least-32-chars"; }
+            client edge-02 { secret "edge-02-secret-of-at-least-32-chars"; }
+        }
+    }
+}
+</code></pre>
+<p>Three rules apply to this block:</p>
+<ul>
+<li><strong>One entry and one secret for each client.</strong> The name is the client's
+identity. The secret belongs to that name only: the hub refuses it under
+another client's name. A secret has 32 characters or more.</li>
+<li><strong>The clients need their own port.</strong> The first <code>server</code> block is the one the
+hub's local plugins use. The block that lists clients is a different block
+with a different port, <code>1791</code> here.</li>
+<li><strong>A client connects to the block that lists it.</strong> With two blocks that list
+clients, the hub refuses a client on the address of the other block. List a
+client under both blocks if it must reach both.</li>
+</ul>
+<!-- source: internal/component/plugin/server/managed_serve.go -- ManagedListener, handleConn -->
+<!-- source: internal/component/plugin/doctor/check_managed_listener.go -- diagnoseManagedListener -->
+<p>Start the hub with <code>ze start</code>. It also needs the root of its certificate
+authority later, in step 3. Print it now and save it to a file:</p>
+<pre><code class="language-bash">ze show pki local-ca pem &gt; hub-root.pem
+</code></pre>
+<p>The hub makes this authority at its first start and keeps it. The root is
+public: it holds no private key.</p>
+<!-- source: internal/component/pki/show.go -- handleShowPKILocalCAPEM -->
+<h2 id="2-write-each-clients-configuration">2. Write Each Client's Configuration</h2>
+<p>The hub stores one full configuration for each client, under the name
+<code>client-&lt;name&gt;.conf</code>. Write it as you write any Ze configuration, and add the
+<code>client</code> block that tells the client where its hub is:</p>
+<pre><code>plugin {
+    hub {
+        server local {
+            ip 127.0.0.1;
+            port 1790;
+            secret "local-secret-of-at-least-32-characters";
+        }
+        client edge-01 {
+            host 10.0.0.1;
+            port 1791;
+            secret "edge-01-secret-of-at-least-32-chars";
+        }
+    }
+}
+
+bgp {
+    ...
+}
+</code></pre>
+<p>The <code>client</code> block must be there. The name and the secret are the ones in the
+hub's <code>client edge-01</code> entry. A client that applies a configuration with no
+<code>client</code> block stops following its hub.</p>
+<!-- source: internal/component/managed/client.go -- adoptEndpoint -->
+<p>Give the file to a running hub, on the hub's own host:</p>
+<pre><code class="language-bash">ze data import client-edge-01.conf
+</code></pre>
+<p>The hub keeps it as a new version of that client's configuration. It refuses a
+name that has no <code>client</code> entry in step 1, because no client would fetch it.</p>
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
+<h2 id="3-provision-a-client">3. Provision a Client</h2>
+<p>On the new client, <code>ze init --managed</code> asks for what the first start needs.
+It asks for the usual SSH login, then for three things about the hub:</p>
+<table>
+<thead>
+<tr>
+<th>Prompt</th>
+<th>What to enter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>The client's name on the hub, <code>edge-01</code></td>
+</tr>
+<tr>
+<td><code>hub address</code></td>
+<td>The hub's address and port. <span class="ev-src"><span class="ev-ref"><code>10.0.0.1:1791</code></span></span></td>
+</tr>
+<tr>
+<td><code>hub token</code></td>
+<td>The secret of this client's entry on the hub</td>
+</tr>
+</tbody>
+</table>
+<p>You also choose how the client makes sure that it talks to your hub and not
+to something else. The client checks the hub before it sends its secret.
+Choose one of these:</p>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Command</th>
+<th>When to use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Give the hub's root</td>
+<td><code>ze init --managed --hub-ca hub-root.pem</code></td>
+<td>The safe choice. Copy <code>hub-root.pem</code> from step 1 to the client first</td>
+</tr>
+<tr>
+<td>Trust on first use</td>
+<td><code>ze init --managed --hub-trust-first-use</code></td>
+<td>When you cannot copy a file to each device, and you trust the network during provisioning</td>
+</tr>
+<tr>
+<td>Neither</td>
+<td><code>ze init --managed</code></td>
+<td>Only when a public certificate authority issued the hub's certificate</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Give the hub's root.</strong> The client checks every connection, the first one
+included, against that root. It refuses a hub that the root did not issue.</p>
+<p><strong>Trust on first use.</strong> The first start accepts the hub that answers, one
+time. It keeps the certificate authority that this hub presents and prints
+its SHA-256. It checks every later connection against the authority it kept.
+To be sure of what it kept, compare the printed SHA-256 with the hub's root.
+First use never happens a second time. To trust a different hub, run
+<code>ze init --managed --force</code> again.</p>
+<p>With either choice, the client keeps the root in its store. Its configuration
+then needs no certificate settings at all.</p>
+<!-- source: internal/plugins/init/main.go -- managedInitFromFlags, runInitPublishedProfile -->
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig, FirstUseTLSConfig -->
+<p>To provision with no prompt, give the seven answers on standard input:</p>
+<pre><code class="language-bash">echo -e "admin\nsecret\n127.0.0.1\n2222\nedge-01\n10.0.0.1:1791\nedge-01-secret-of-at-least-32-chars" \
+    | ze init --managed --hub-ca hub-root.pem
+</code></pre>
+<p>The seven lines are: SSH user, SSH password, SSH address, SSH port, client
+name, hub address, hub token.</p>
+<h2 id="4-start-the-client">4. Start the Client</h2>
+<pre><code class="language-bash">ze start
+</code></pre>
+<p>On this first start the client connects to the hub, checks it, fetches its
+configuration, checks the configuration, keeps a copy and starts. Every later
+start is the same command.</p>
+<p>You can leave the hub address and the token empty at <code>ze init</code>. Then give them
+at the first start. The flags go before <code>start</code>:</p>
+<pre><code class="language-bash">ze --server 10.0.0.1:1791 --token "edge-01-secret-of-at-least-32-chars" start
+</code></pre>
+<p>When the first start lacks a value, it stops and names the value and the flag
+that gives it.</p>
+<!-- source: cmd/ze/ze_core_start.go -- cmdStartManaged, readManagedBootstrap, fetchInitialConfig -->
+<h2 id="change-a-clients-configuration">Change a Client's Configuration</h2>
+<p>Edit the client's file and give it to the running hub again:</p>
+<pre><code class="language-bash">ze data import client-edge-01.conf
+</code></pre>
+<p>The hub tells <code>edge-01</code> at once. The client then does four things:</p>
+<ol>
+<li>It fetches the new configuration.</li>
+<li>It checks it with the same checks as <code>ze config validate</code>.</li>
+<li>It applies it.</li>
+<li>It tells the hub the result.</li>
+</ol>
+<p>A client that refuses the configuration keeps the one it runs. The hub shows
+the refusal and its reason in <code>show doctor</code>.</p>
+<p>A change reaches the client it belongs to and no other. To change ten
+clients, import ten files. A client that is not connected gets the change the
+next time it connects.</p>
+<!-- source: internal/component/plugin/server/managed_serve.go -- NotifyConfigChanged, pushConfigChanged -->
+<!-- source: internal/component/managed/client.go -- fetchAndProcess -->
+<p><strong>To move a client to another hub, or to change its secret,</strong> change the
+<code>client</code> block in its configuration. The client applies the configuration and
+reconnects with the new values. It needs no restart. Change the secret in the
+hub's <code>client</code> entry at the same time, or the client cannot come back.</p>
+<!-- source: internal/component/managed/client.go -- adoptEndpoint -->
+<p><strong>To restore a client's configuration from a backup,</strong> on a running hub:</p>
+<pre><code>request data restore path /var/backups/edge-01.zefs config client edge-01
+</code></pre>
+<p>The hub pushes the restored configuration as it pushes any change.</p>
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
+<p><strong>To edit with the configuration editor,</strong> stop the hub first. The editor
+opens the store in its own process, and a running hub does not see that edit.</p>
+<pre><code class="language-bash">ze config edit client-edge-01.conf
+ze config history client-edge-01.conf
+ze config archive backup client-edge-01.conf
+</code></pre>
+<!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
+<!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
+<!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
+<h2 id="when-the-hub-is-down">When the Hub Is Down</h2>
+<p>A client does not need its hub to run.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What the client does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The hub goes down while the client runs</td>
+<td>It keeps its configuration and tries the hub again</td>
+</tr>
+<tr>
+<td>The client starts and the hub is down</td>
+<td>It starts from the copy it kept, and tries the hub in the background</td>
+</tr>
+<tr>
+<td>The hub comes back</td>
+<td>The client reconnects and fetches the configuration if it changed</td>
+</tr>
+<tr>
+<td>The first start, with no copy yet, and the hub is down</td>
+<td>It stops with an error: it has no configuration to run</td>
+</tr>
+</tbody>
+</table>
+<p>The client waits 1 second before the first new attempt, then twice as long
+each time, up to 60 seconds.</p>
+<!-- source: internal/component/managed/reconnect.go -- newBackoff -->
+<!-- source: internal/component/managed/client.go -- RunManagedClient -->
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p>Start with <code>show doctor</code> on the hub, and <code>ze doctor</code> on the client.</p>
+<table>
+<thead>
+<tr>
+<th>What you see</th>
+<th>Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The first start stops and names a missing value</td>
+<td><code>ze init</code> did not get the hub address, the name or the token</td>
+<td>Give it with <code>--server</code>, <code>--name</code> or <code>--token</code></td>
+</tr>
+<tr>
+<td>The first start fails on the hub's certificate</td>
+<td>The client has no root for this hub</td>
+<td>Run <code>ze init --managed --force</code> with <code>--hub-ca</code> or <code>--hub-trust-first-use</code></td>
+</tr>
+<tr>
+<td>The client fails on the hub's certificate after a hub was replaced</td>
+<td>The client holds the root of the old hub</td>
+<td>Run <code>ze init --managed --force</code> with the new hub's root</td>
+</tr>
+<tr>
+<td><code>doctor-managed-client-rejected</code> on the hub, wrong secret or unknown name</td>
+<td>The client's name or secret does not match a <code>client</code> entry on the block it connects to</td>
+<td>Correct the <code>client</code> entry on the hub, or the <code>client</code> block in the client's configuration</td>
+</tr>
+<tr>
+<td><code>doctor-managed-client-rejected</code>, name already connected</td>
+<td>A second Ze uses the same client name</td>
+<td>Give each client its own name and entry</td>
+</tr>
+<tr>
+<td><code>doctor-managed-client-rejected</code>, the client refused its configuration</td>
+<td>The configuration does not pass the client's checks</td>
+<td>Read the reason in the row, correct the file, and import it again</td>
+</tr>
+<tr>
+<td><code>doctor-managed-listener-unbound</code> on the hub</td>
+<td>The hub cannot listen on the address of the clients' block</td>
+<td>Correct the address or free the port</td>
+</tr>
+<tr>
+<td><code>doctor-hub-managed-collision</code> on the hub</td>
+<td>The clients' block uses the address of the first <code>server</code> block</td>
+<td>Give the clients' block its own port</td>
+</tr>
+<tr>
+<td><code>doctor-managed-client-notify-dropped</code> on the hub</td>
+<td>A connected client did not accept the notice of a change</td>
+<td>Nothing in most cases: the hub disconnects that client, and it fetches when it reconnects</td>
+</tr>
+<tr>
+<td><code>doctor-hub-unreachable</code> on the client</td>
+<td>The client cannot reach the hub's address</td>
+<td>Check the address and the route. The client keeps running and retrying</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound -->
+<!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable -->
+<h2 id="reference">Reference</h2>
+<h3 id="ze-init-options-for-a-managed-client"><code>ze init</code> Options for a Managed Client</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--managed</code></td>
+<td>Make this Ze a managed client</td>
+</tr>
+<tr>
+<td><code>--hub-ca &lt;file&gt;</code></td>
+<td>The hub's root, one PEM certificate of a certificate authority. Needs <code>--managed</code></td>
+</tr>
+<tr>
+<td><code>--hub-trust-first-use</code></td>
+<td>Keep the certificate authority the hub presents on the first connection. Needs <code>--managed</code>, and cannot be given with <code>--hub-ca</code></td>
+</tr>
+<tr>
+<td><code>--force</code></td>
+<td>Replace an existing store, to provision again</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/init/main.go -- Run, managedInitFromFlags -->
+<h3 id="ze-start-flags"><code>ze start</code> Flags</h3>
+<p>The flags go before the command: <code>ze --server 10.0.0.1:1791 start</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Environment</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--server &lt;host:port&gt;</code></td>
+<td><code>ze.managed.server</code></td>
+<td>Hub address</td>
+</tr>
+<tr>
+<td><code>--name &lt;name&gt;</code></td>
+<td><code>ze.managed.name</code></td>
+<td>Client name</td>
+</tr>
+<tr>
+<td><code>--token &lt;secret&gt;</code></td>
+<td><code>ze.managed.token</code></td>
+<td>Client secret</td>
+</tr>
+<tr>
+<td><code>--connect-timeout &lt;duration&gt;</code></td>
+<td><code>ze.managed.connect.timeout</code></td>
+<td>Time allowed to reach the hub, for each attempt. Default <code>5s</code></td>
+</tr>
+<tr>
+<td>(none)</td>
+<td><code>ze.managed.tls.insecure</code></td>
+<td>Do not check the hub's certificate. For development only: the client then sends its secret to a hub it did not check</td>
+</tr>
+</tbody>
+</table>
+<p><code>--server</code>, <code>--name</code> and <code>--token</code> replace what <code>ze init</code> stored, and what the
+<code>client</code> block of the configuration says, for as long as that Ze runs. Use them
+for a first start and for troubleshooting.</p>
+<!-- source: cmd/ze/ze_core_dispatch.go -- zeParseGlobalFlags -->
+<!-- source: cmd/ze/ze_core_start.go -- hubClientEndpoint, readManagedBootstrap -->
+<h3 id="the-client-block-of-a-clients-configuration">The <code>client</code> Block of a Client's Configuration</h3>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>host</code>, <code>port</code></td>
+<td>The hub's address</td>
+</tr>
+<tr>
+<td><code>secret</code></td>
+<td>The client's secret on the hub</td>
+</tr>
+<tr>
+<td><code>ca &lt;name&gt;</code></td>
+<td>Optional. A <code>pki ca</code> entry that holds the hub's root. It replaces the root the client's store keeps</td>
+</tr>
+<tr>
+<td><code>source-address &lt;ip&gt;</code></td>
+<td>Optional. The local address the client connects from</td>
+</tr>
+</tbody>
+</table>
+<p>A client that was provisioned with <code>--hub-ca</code> or <code>--hub-trust-first-use</code> needs
+no <code>ca</code>. Use <code>ca</code> to put the hub's root in the configuration instead: paste
+what <code>ze show pki local-ca pem</code> prints into a <code>pki ca</code> block, and name that
+block.</p>
+<pre><code>pki {
+    ca fleet-hub-root {
+        certificate "-----BEGIN CERTIFICATE-----
+MIIB...
+-----END CERTIFICATE-----";
+    }
+}
+</code></pre>
+<!-- source: internal/component/config/loader_extract.go -- extractHubClientConfig -->
+<!-- source: internal/component/managed/tls.go -- clientTLSConfig -->
+<h3 id="what-the-client-keeps-in-its-store">What the Client Keeps in Its Store</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Holds</th>
+<th>Written by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>meta/instance/managed</code></td>
+<td><code>true</code> for a managed client</td>
+<td><code>ze init --managed</code></td>
+</tr>
+<tr>
+<td><code>meta/instance/name</code></td>
+<td>The client's name</td>
+<td><code>ze init</code></td>
+</tr>
+<tr>
+<td><code>meta/managed/hub/address</code></td>
+<td>The hub's address, for the first start</td>
+<td><code>ze init --managed</code></td>
+</tr>
+<tr>
+<td><code>meta/managed/hub/token</code></td>
+<td>The client's secret, for the first start</td>
+<td><code>ze init --managed</code></td>
+</tr>
+<tr>
+<td><code>meta/managed/hub/ca</code></td>
+<td>The hub's root</td>
+<td><code>ze init --hub-ca</code>, or the first start with first use</td>
+</tr>
+<tr>
+<td><code>meta/managed/hub/trust</code></td>
+<td><code>first-use</code> when first use was chosen</td>
+<td><code>ze init --hub-trust-first-use</code></td>
+</tr>
+</tbody>
+</table>
+<p>Set <code>meta/instance/managed</code> to <code>false</code> to make a client stop following its hub
+with no change to its configuration.</p>
+<!-- source: pkg/zefs/keys.go -- KeyManagedHubAddress, KeyManagedHubToken, KeyManagedHubCA, KeyManagedHubTrust -->
+<!-- source: cmd/ze/ze_core_start.go -- isManaged -->
+<p>The design, the protocol and the reasons are in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/fleet-config.md" target="_blank" rel="noopener">the architecture page</a>.</p>
 </div>
 </div>
             </section>
@@ -249,7 +620,7 @@ previous config until it fetches again, which it does each time it connects.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
                 </div>
             </div>
         </footer>
