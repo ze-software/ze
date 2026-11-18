@@ -287,6 +287,7 @@ const (
 	// revision it holds and a later election of that revision writes nothing.
 	InitialSourceMessageMeta = "initial-source-message"
 	SentPathSourcesMeta      = "sent-path-sources"
+	SourceConnectionMeta     = "source-connection-id"
 	SourceOwnerMeta          = "source-owner"
 	SourceLocalMeta          = "source-local"
 )
@@ -316,7 +317,8 @@ type NLRIBatch struct {
 	// RecoverySource marks source-DOWN reconciliation; zero source means
 	// ordinary API withdrawal. The RIB supplies replacement selection, and the
 	// writer owes a key only where the source's ended session owns it.
-	RecoverySource netip.Addr
+	RecoverySource      netip.Addr
+	RecoverySourceOwner uint64 // original configured Peer; address is metadata
 	// RecoveryGeneration is the forward generation (reactor Peer.forwardGeneration)
 	// of the source session whose end the departure answers, as the peer-down
 	// event carried it (session-generation). The writer owes only keys the
@@ -334,6 +336,9 @@ type NLRIBatch struct {
 	// exact advertisement captured by the RIB before dispatch. A replacement
 	// owner or destination session MUST NOT inherit that operation.
 	SentOwnerMessage uint64
+	// DestinationOwner optionally restricts an internal replay/lifecycle write
+	// to its captured configured Peer. Ordinary operator commands leave zero.
+	DestinationOwner uint64
 	// InitialReplay authorizes intentional peer-up replay on precisely the
 	// session whose state event issued this receipt. Exactly one origin form
 	// is required: explicit local, or the captured stable source and path.
@@ -350,6 +355,9 @@ type NLRIBatch struct {
 	// SourcePolicyEpoch retains original received admission on initial replay.
 	// Local-origin batches carry zero; received provenance never falls back to current.
 	SourcePolicyEpoch uint64
+	// OriginAdmissionID is an opaque accepted record, never source authority.
+	// It MUST remain bound to OriginOwner across queued operation drains.
+	OriginAdmissionID uint64
 	// NextHop is the next-hop policy. An announce resolves it per destination
 	// peer; a withdraw reads an EXPLICIT address only, to restate it as the RFC
 	// 4271 Section 5.1.3 NEXT_HOP attribute where the family carries one.
