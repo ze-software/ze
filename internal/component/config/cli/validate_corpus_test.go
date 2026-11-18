@@ -101,8 +101,8 @@ const (
 	// ruleStatementShape: a body is a Ze config only when its first statement
 	// has the shape its schema root declares.
 	ruleStatementShape
-	// ruleExternalModules: the YANG modules the external-yang test plugin
-	// declares when it runs (internal/test/externalyang) are joined to the
+	// ruleExternalModules: the YANG modules declared by registered external
+	// fixture metadata (internal/test/externalyang) are joined to the
 	// process's schema, as boot joins them from the plugin's Stage 1. The
 	// sweep runs no plugin, and a body with a section only such a module
 	// defines is then judged in full, like every other body.
@@ -256,22 +256,18 @@ func (k sweepKeep) keeps(path string, text []byte) bool {
 	return false
 }
 
-// sweepExternalModules answers the modules the external-yang test plugin is
-// expected to have accepted (externalyang.Accepted), as the declarations the
-// plugin makes when it runs. Each is declared by a plugin named after its
-// module, which is the name the external-yang-* bodies give the plugin; the
-// name decides only which plugin a refusal names, never what a body may hold.
-// The modules the plugin brings to be refused are not here: no schema holds
-// them, at boot either.
+// sweepExternalModules reads the accepted config declarations registered by
+// each fixture's pure metadata owner. The runtime provider and corpus share
+// their module values; publishing this set starts no external process.
 func sweepExternalModules() []configyang.ExternalModule {
-	accepted := externalyang.Accepted()
-	modules := make([]configyang.ExternalModule, 0, len(accepted))
-	for _, module := range accepted {
+	declarations := externalyang.ConfigDeclarations()
+	modules := make([]configyang.ExternalModule, 0, len(declarations))
+	for _, declaration := range declarations {
 		modules = append(modules, configyang.ExternalModule{
-			Plugin:    strings.TrimSuffix(module.Name, "-conf"),
-			Module:    module.Name,
-			Namespace: module.Namespace,
-			Text:      module.Text,
+			Plugin:    declaration.Plugin,
+			Module:    declaration.Module.Name,
+			Namespace: declaration.Module.Namespace,
+			Text:      declaration.Module.Text,
 		})
 	}
 	return modules
@@ -296,7 +292,7 @@ func publishSweepModules(t *testing.T, modules []configyang.ExternalModule) {
 	}
 	t.Cleanup(config.ResetDeclaredSchemasForTest())
 	if err := config.PublishExternalModules(modules); err != nil {
-		t.Fatalf("publish the modules of the external-yang test plugin: %v", err)
+		t.Fatalf("publish the registered external fixture modules: %v", err)
 	}
 }
 

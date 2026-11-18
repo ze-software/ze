@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/externalyang"
 )
 
 // Goal: failure status must mean that the real provider answered, not merely
@@ -37,7 +39,7 @@ func TestCommandOutcomeCLIVerdictDiscriminatesCompletedFailure(t *testing.T) {
 		{name: "healthy diagnostic", outcome: "healthy", result: fixture10ProcessResult{stdout: rows, stderr: "unexpected warning\n"}},
 	} {
 		t.Run(question.name, func(t *testing.T) {
-			err := commandOutcomeCLIVerdict(question.result, commandOutcomeQuestion{command: "show answer-outcome " + question.outcome + " short", outcome: question.outcome, count: 2})
+			err := commandOutcomeCLIVerdict(question.result, externalyang.OutcomeQuestion{Command: "show answer-outcome " + question.outcome + " short", Outcome: question.outcome, Count: 2})
 			if question.accept {
 				if err != nil {
 					t.Fatal(err)
@@ -128,8 +130,8 @@ func TestCommandOutcomeCLIFirstVerdictDiscriminatesLateFailure(t *testing.T) {
 		{name: "healthy diagnostic", outcome: "healthy", result: fixture10ProcessResult{stdout: row, stderr: "unexpected warning\n"}},
 	} {
 		t.Run(question.name, func(t *testing.T) {
-			err := commandOutcomeCLIFirstVerdict(question.result, commandOutcomeQuestion{
-				command: "show answer-outcome " + question.outcome + " long", outcome: question.outcome, count: 1,
+			err := commandOutcomeCLIFirstVerdict(question.result, externalyang.OutcomeQuestion{
+				Command: "show answer-outcome " + question.outcome + " long", Outcome: question.outcome, Count: 1,
 			})
 			if question.accept {
 				if err != nil {
@@ -165,12 +167,12 @@ func TestCommandOutcomeCLIWarningVerdictDiscriminatesInvisibleWarning(t *testing
 			{name: "duplicate label", stderr: "Warning\nWarning\n"},
 		} {
 			t.Run(fmt.Sprintf("%s/first=%t", test.name, first), func(t *testing.T) {
-				question := commandOutcomeQuestion{command: "show answer-outcome warning short", outcome: "warning", count: 2}
+				question := externalyang.OutcomeQuestion{Command: "show answer-outcome warning short", Outcome: "warning", Count: 2}
 				result := fixture10ProcessResult{code: test.code, stdout: rows, stderr: test.stderr}
 				var err error
 				if first {
-					question.command = "show answer-outcome warning long"
-					question.count = 1
+					question.Command = "show answer-outcome warning long"
+					question.Count = 1
 					result.stdout = selected
 					err = commandOutcomeCLIFirstVerdict(result, question)
 				} else {

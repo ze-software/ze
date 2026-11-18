@@ -13,8 +13,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/test/externalyang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
+)
+
+const (
+	commandOutcomeHealthy                = "healthy"
+	commandOutcomePartial                = "partial"
+	commandOutcomeShort                  = "short"
+	commandOutcomeLong                   = "long"
+	commandOutcomeAcknowledgementRefused = "fixture acknowledgement refused"
 )
 
 func init() {
@@ -34,19 +43,22 @@ func commandOutcomeProvider(ctx context.Context, args []string) error {
 			return errors.New("command-outcome-provider accepts only the optional web argument")
 		}
 	}
-	plugin, err := newObserver("answer-outcome-provider")
+	plugin, err := newObserver(externalyang.CommandOutcomePlugin)
 	if err != nil {
 		return err
 	}
 	defer plugin.Close() //nolint:errcheck // the run result owns transport failures
 	registration := &sdk.Registration{}
 	if len(args) == 1 {
-		registration.Schemas = commandOutcomeWebSchemas()
+		declaration := externalyang.CommandOutcomeWeb()
+		registration.Schemas = []sdk.SchemaDecl{{
+			Module: declaration.Module.Name, Namespace: declaration.Module.Namespace, YANGText: declaration.Module.Text,
+		}}
 	}
-	for _, outcome := range []string{"healthy", "partial", "failed", "warning"} {
-		for _, size := range []string{"short", "long"} {
+	for _, outcome := range []string{commandOutcomeHealthy, commandOutcomePartial, outcomeFailed, severityWarning} {
+		for _, size := range []string{commandOutcomeShort, commandOutcomeLong} {
 			registration.Commands = append(registration.Commands, sdk.CommandDecl{
-				Name:      "show answer-outcome " + outcome + " " + size,
+				Name:      externalyang.OutcomeCommand(outcome, size),
 				ShortHelp: "Show the external command outcome fixture",
 			})
 		}
@@ -61,22 +73,22 @@ func commandOutcomeProvider(ctx context.Context, args []string) error {
 		}
 		count := 2
 		switch parts[3] {
-		case "short":
-		case "long":
+		case commandOutcomeShort:
+		case commandOutcomeLong:
 			count = rpc.AnswerBufferThreshold + 3
 		default:
 			return rpc.StatusError, nil, fmt.Errorf("unknown command outcome size %q", parts[3])
 		}
 		status, faults := rpc.StatusDone, 0
 		switch parts[2] {
-		case "healthy":
-		case "partial":
+		case commandOutcomeHealthy:
+		case commandOutcomePartial:
 			faults = 1
-		case "failed":
+		case outcomeFailed:
 			// A Go callback error aborts before the SDK writes rows. StatusError
 			// beside Records is the public API for rows plus a failure tail.
 			status = rpc.StatusError
-		case "warning":
+		case severityWarning:
 			status = rpc.StatusWarning
 		default:
 			return rpc.StatusError, nil, fmt.Errorf("unknown command outcome %q", parts[2])
@@ -97,7 +109,7 @@ func commandOutcomeRows(count, faults int) iter.Seq[rpc.RowRecord] {
 			}
 		}
 		for range faults {
-			row := rpc.RawRow(`{"cause":"fixture acknowledgement refused"}`)
+			row := rpc.RawRow(`{"cause":"` + commandOutcomeAcknowledgementRefused + `"}`)
 			if !yield(rpc.RowRecord{Fault: &row}) {
 				return
 			}
@@ -114,13 +126,13 @@ func commandOutcomeObserver(ctx context.Context, args []string) error {
 	}
 	outcome := args[0]
 	switch outcome {
-	case "partial", "failed", "warning":
+	case commandOutcomePartial, outcomeFailed, severityWarning:
 	default:
 		return fmt.Errorf("unknown command outcome observer %q", outcome)
 	}
 	return Observe(ctx, "answer-outcome-observer", &sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
-		for _, size := range []string{"short", "long"} {
-			for _, current := range []string{"healthy", outcome} {
+		for _, size := range []string{commandOutcomeShort, commandOutcomeLong} {
+			for _, current := range []string{commandOutcomeHealthy, outcome} {
 				if err := commandOutcomeCheck(ctx, plugin, current, size); err != nil {
 					return err
 				}
@@ -152,7 +164,7 @@ func commandOutcomeCheck(ctx context.Context, plugin *sdk.Plugin, outcome, size 
 	}
 	count := uint64(2)
 	answerType := rpc.AnswerTypeDocument
-	if size == "long" {
+	if size == commandOutcomeLong {
 		count = rpc.AnswerBufferThreshold + 3
 		answerType = rpc.AnswerTypeMap
 	}
@@ -164,12 +176,12 @@ func commandOutcomeCheck(ctx context.Context, plugin *sdk.Plugin, outcome, size 
 	}
 	verdict, faults, message, warning := rpc.VerdictDone, uint64(0), "", false
 	switch outcome {
-	case "healthy":
-	case "partial":
+	case commandOutcomeHealthy:
+	case commandOutcomePartial:
 		verdict, faults = rpc.VerdictPartial, 1
-	case "failed":
+	case outcomeFailed:
 		verdict, message = rpc.VerdictAborted, rpc.AnswerFailureUnstated
-	case "warning":
+	case severityWarning:
 		verdict, warning = rpc.VerdictWarning, true
 	default:
 		return fmt.Errorf("unknown expected command outcome %q", outcome)
@@ -209,7 +221,7 @@ func commandOutcomeCheck(ctx context.Context, plugin *sdk.Plugin, outcome, size 
 		}
 	}
 	for _, row := range decoded.Faults {
-		if row.Cause != "fixture acknowledgement refused" {
+		if row.Cause != commandOutcomeAcknowledgementRefused {
 			return fmt.Errorf("%s: fault cause changed to %q", command, row.Cause)
 		}
 	}

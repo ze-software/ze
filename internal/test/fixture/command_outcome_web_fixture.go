@@ -21,45 +21,21 @@ import (
 	"golang.org/x/net/html"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/test/externalyang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// Native form fields, surface/mode selectors and the decoded BGP message marker.
+const (
+	commandOutcomeHexField        = "hex"
+	commandOutcomeTerminal        = "terminal"
+	commandOutcomeOperationalMode = "operational"
+	commandOutcomeKeepalive       = "keepalive"
+)
+
 func init() {
 	Register("plugin/command-outcome-web", commandOutcomeWeb, StopsDaemon)
-}
-
-// This module reaches the real startup schema loader, then the normal related
-// descriptor lookup. It adds no handler or alternate dispatcher. Literal pipe
-// text belongs to the trusted authored descriptor; no form supplies a command.
-func commandOutcomeWebSchemas() []sdk.SchemaDecl {
-	var module strings.Builder
-	module.WriteString(`module ze-answer-outcome-web-conf {
-    namespace "urn:ze:test:answer-outcome-web:conf";
-    prefix outcome;
-    import ze-extensions { prefix ze; }
-    description "External command outcome fixture metadata.";
-    revision 2026-11-18 { description "Declare related outcome tools."; }
-    container answer-outcome-web {
-        presence "Enable the command outcome fixture";
-        ze:help "External command outcome fixture.";
-        description "Related tools dispatch commands declared by the external fixture.";
-`)
-	declared := make(map[string]bool)
-	for _, outcome := range []string{"partial", "failed", "warning"} {
-		for _, question := range commandOutcomeQuestions(outcome) {
-			id := commandOutcomeWebToolID(question)
-			if declared[id] {
-				continue
-			}
-			declared[id] = true
-			fmt.Fprintf(&module, "        ze:related 'id=%s; label=\"Outcome %s\"; command=\"%s | raw\"; placement=detail; presentation=modal; class=inspect';\n", id, id, question.command)
-		}
-	}
-	module.WriteString("    }\n}\n")
-	return []sdk.SchemaDecl{{
-		Module: "ze-answer-outcome-web-conf", Namespace: "urn:ze:test:answer-outcome-web:conf", YANGText: module.String(),
-	}}
 }
 
 // commandOutcomeWeb runs inside a second external SDK process after all
@@ -74,7 +50,7 @@ func commandOutcomeWeb(ctx context.Context, args []string) error {
 	}
 	surface := args[1]
 	switch surface {
-	case "terminal", "related", "decode":
+	case commandOutcomeTerminal, "related", modeDecode:
 	default:
 		return fmt.Errorf("unknown command outcome web surface %q", surface)
 	}
@@ -101,7 +77,7 @@ func commandOutcomeWeb(ctx context.Context, args []string) error {
 		}) {
 			return errors.New("authenticated web listener did not become ready")
 		}
-		question := commandOutcomeQuestions(outcome)[1]
+		question := externalyang.OutcomeQuestions(outcome)[1]
 		path, form := commandOutcomeWebInvocation(surface, question)
 		if err := commandOutcomeWebRefused(ctx, client, base, path, form, base, http.StatusUnauthorized); err != nil {
 			return fmt.Errorf("anonymous %s: %w", surface, err)
@@ -112,17 +88,17 @@ func commandOutcomeWeb(ctx context.Context, args []string) error {
 		// Terminal and related-tool POSTs are mutation-wrapped routes even
 		// when this particular declared command only observes state. The
 		// read-only native decode page has no same-origin route wrapper.
-		if surface != "decode" {
+		if surface != modeDecode {
 			if err := commandOutcomeWebRefused(ctx, client, base, path, form, "https://untrusted.example.invalid", http.StatusForbidden); err != nil {
 				return fmt.Errorf("cross-origin %s: %w", surface, err)
 			}
 		}
-		if surface == "decode" {
+		if surface == modeDecode {
 			if err := commandOutcomeWebDecode(ctx, client, base); err != nil {
 				return err
 			}
 		} else {
-			for _, question := range commandOutcomeQuestions(outcome) {
+			for _, question := range externalyang.OutcomeQuestions(outcome) {
 				if err := commandOutcomeWebCheck(ctx, client, base, surface, question); err != nil {
 					return err
 				}
@@ -210,21 +186,17 @@ func commandOutcomeWebLogin(ctx context.Context, client *http.Client, base, user
 	return errors.New("web login returned no session cookie")
 }
 
-func commandOutcomeWebInvocation(surface string, question commandOutcomeQuestion) (string, url.Values) {
+func commandOutcomeWebInvocation(surface string, question externalyang.OutcomeQuestion) (string, url.Values) {
 	switch surface {
-	case "terminal":
-		return "/cli/terminal", url.Values{"command": {question.command + " | raw"}, "mode": {"operational"}, "path": {""}}
+	case commandOutcomeTerminal:
+		return "/cli/terminal", url.Values{fieldCommand: {question.Command + " | raw"}, "mode": {commandOutcomeOperationalMode}, "path": {""}}
 	case "related":
-		return "/tools/related/run", url.Values{"tool_id": {commandOutcomeWebToolID(question)}, "context_path": {"answer-outcome-web"}}
-	case "decode":
-		return "/show/tools/bgp-decode/", url.Values{"hex": {"FF"}}
+		return "/tools/related/run", url.Values{"tool_id": {externalyang.OutcomeToolID(question)}, "context_path": {"answer-outcome-web"}}
+	case modeDecode:
+		return "/show/tools/bgp-decode/", url.Values{commandOutcomeHexField: {"FF"}}
 	default:
 		panic("BUG: unvalidated web outcome fixture surface")
 	}
-}
-
-func commandOutcomeWebToolID(question commandOutcomeQuestion) string {
-	return strings.ReplaceAll(strings.TrimPrefix(question.command, "show answer-outcome "), " ", "-")
 }
 
 func commandOutcomeWebRefused(ctx context.Context, client *http.Client, base, path string, form url.Values, origin string, status int) error {
@@ -240,7 +212,7 @@ func commandOutcomeWebRefused(ctx context.Context, client *http.Client, base, pa
 
 func commandOutcomeWebNoProgress(body []byte) error {
 	text := strings.ToLower(string(body))
-	for _, private := range []string{"ordinal", "fixture acknowledgement refused", "keepalive"} {
+	for _, private := range []string{"ordinal", commandOutcomeAcknowledgementRefused, commandOutcomeKeepalive} {
 		if strings.Contains(text, private) {
 			return fmt.Errorf("refused web request exposed %q", private)
 		}
@@ -248,17 +220,17 @@ func commandOutcomeWebNoProgress(body []byte) error {
 	return nil
 }
 
-func commandOutcomeWebCheck(ctx context.Context, client *http.Client, base, surface string, question commandOutcomeQuestion) error {
+func commandOutcomeWebCheck(ctx context.Context, client *http.Client, base, surface string, question externalyang.OutcomeQuestion) error {
 	path, form := commandOutcomeWebInvocation(surface, question)
 	reply, err := commandOutcomeWebRequest(ctx, client, base, http.MethodPost, path, form, base)
 	if err != nil {
 		return err
 	}
 	if reply.status != http.StatusOK {
-		return fmt.Errorf("web %s %s HTTP %d: %s", surface, question.command, reply.status, reply.body)
+		return fmt.Errorf("web %s %s HTTP %d: %s", surface, question.Command, reply.status, reply.body)
 	}
 	var output string
-	if surface == "terminal" {
+	if surface == commandOutcomeTerminal {
 		var terminal struct {
 			Output   string `json:"output"`
 			Complete bool   `json:"output-complete"`
@@ -267,25 +239,25 @@ func commandOutcomeWebCheck(ctx context.Context, client *http.Client, base, surf
 			return err
 		}
 		wantComplete := false
-		switch question.outcome {
-		case "healthy", "warning":
+		switch question.Outcome {
+		case commandOutcomeHealthy, severityWarning:
 			wantComplete = true
-		case "partial", "failed":
+		case commandOutcomePartial, outcomeFailed:
 		default:
-			return fmt.Errorf("unknown web outcome %q", question.outcome)
+			return fmt.Errorf("unknown web outcome %q", question.Outcome)
 		}
 		if terminal.Complete != wantComplete {
-			return fmt.Errorf("web terminal %s completion=%t, want %t", question.command, terminal.Complete, wantComplete)
+			return fmt.Errorf("web terminal %s completion=%t, want %t", question.Command, terminal.Complete, wantComplete)
 		}
 		output = terminal.Output
 	} else {
 		class := "tool-overlay-output"
-		switch question.outcome {
-		case "partial", "failed":
+		switch question.Outcome {
+		case commandOutcomePartial, outcomeFailed:
 			class = "tool-overlay-error-message"
-		case "healthy", "warning":
+		case commandOutcomeHealthy, severityWarning:
 		default:
-			return fmt.Errorf("unknown web outcome %q", question.outcome)
+			return fmt.Errorf("unknown web outcome %q", question.Outcome)
 		}
 		output, err = commandOutcomeWebText(reply.body, "pre", class)
 		if err != nil {
@@ -294,34 +266,34 @@ func commandOutcomeWebCheck(ctx context.Context, client *http.Client, base, surf
 	}
 	start := strings.IndexByte(output, '{')
 	if start < 0 {
-		return fmt.Errorf("web %s %s lost the completed document: %s", surface, question.command, output)
+		return fmt.Errorf("web %s %s lost the completed document: %s", surface, question.Command, output)
 	}
 	if err := commandOutcomeSurfaceDocument(json.RawMessage(output[start:]), question); err != nil {
-		return fmt.Errorf("web %s %s: %w", surface, question.command, err)
+		return fmt.Errorf("web %s %s: %w", surface, question.Command, err)
 	}
 	indicator := strings.TrimSpace(output[:start])
-	switch question.outcome {
-	case "healthy":
+	switch question.Outcome {
+	case commandOutcomeHealthy:
 		if indicator != "" {
 			return fmt.Errorf("healthy web %s acquired a failure/warning indicator: %q", surface, indicator)
 		}
-	case "partial":
+	case commandOutcomePartial:
 		if strings.Count(indicator, string(rpc.VerdictPartial)) != 1 {
 			return fmt.Errorf("partial web %s lost its distinct verdict: %q", surface, indicator)
 		}
-	case "failed":
+	case outcomeFailed:
 		if strings.Count(indicator, rpc.AnswerFailureUnstated) != 1 {
 			return fmt.Errorf("failed web %s lost its original failure: %q", surface, indicator)
 		}
-	case "warning":
+	case severityWarning:
 		// A warning terminator need not supply warning lines. The operator
 		// must still see its warning verdict; no invented producer line can
 		// satisfy this test in place of preserving that actual verdict.
-		if !strings.Contains(strings.ToLower(indicator), "warning") {
+		if !strings.Contains(strings.ToLower(indicator), severityWarning) {
 			return fmt.Errorf("warning web %s appeared successful without its warning verdict: %q", surface, indicator)
 		}
 	default:
-		return fmt.Errorf("unknown web outcome %q", question.outcome)
+		return fmt.Errorf("unknown web outcome %q", question.Outcome)
 	}
 	return nil
 }
@@ -343,7 +315,7 @@ func commandOutcomeWebText(body []byte, element, class string) (string, error) {
 				if attr.Key != "class" {
 					continue
 				}
-				for _, field := range strings.Fields(attr.Val) {
+				for field := range strings.FieldsSeq(attr.Val) {
 					if field == class {
 						active = true
 					}
@@ -372,7 +344,7 @@ func commandOutcomeWebText(body []byte, element, class string) (string, error) {
 // plugin command. This is deliberately not claimed as record-partial proof.
 func commandOutcomeWebDecode(ctx context.Context, client *http.Client, base string) error {
 	const path = "/show/tools/bgp-decode/"
-	healthy, err := commandOutcomeWebRequest(ctx, client, base, http.MethodPost, path, url.Values{"hex": {"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"}}, base)
+	healthy, err := commandOutcomeWebRequest(ctx, client, base, http.MethodPost, path, url.Values{commandOutcomeHexField: {"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"}}, base)
 	if err != nil {
 		return err
 	}
@@ -383,13 +355,13 @@ func commandOutcomeWebDecode(ctx context.Context, client *http.Client, base stri
 	if err != nil {
 		return err
 	}
-	if !strings.Contains(strings.ToLower(output), "keepalive") {
+	if !strings.Contains(strings.ToLower(output), commandOutcomeKeepalive) {
 		return fmt.Errorf("native decode lost its healthy KEEPALIVE: %s", output)
 	}
 	if strings.Contains(string(healthy.body), "wb-tool-error") {
 		return fmt.Errorf("native decode healthy result acquired an error: %s", healthy.body)
 	}
-	failed, err := commandOutcomeWebRequest(ctx, client, base, http.MethodPost, path, url.Values{"hex": {"FF"}}, base)
+	failed, err := commandOutcomeWebRequest(ctx, client, base, http.MethodPost, path, url.Values{commandOutcomeHexField: {"FF"}}, base)
 	if err != nil {
 		return err
 	}

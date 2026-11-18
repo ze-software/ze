@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	zepb "github.com/ze-software/ze/api/proto"
+	"github.com/ze-software/ze/internal/test/externalyang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -36,32 +37,10 @@ func init() {
 
 // These credentials are synthetic fixture input, shared with each draft's
 // listener configuration. They never come from an operator's environment.
-const commandOutcomeSurfaceToken = "command-outcome-token"
-
-type commandOutcomeQuestion struct {
-	command string
-	outcome string
-	count   int
-}
-
-// Each adapter observes the same four bounded requests: a healthy control and
-// its requested outcome, below and above the actual record writer's threshold.
-func commandOutcomeQuestions(outcome string) []commandOutcomeQuestion {
-	questions := make([]commandOutcomeQuestion, 0, 4)
-	for _, size := range []struct {
-		name  string
-		count int
-	}{{name: "short", count: 2}, {name: "long", count: rpc.AnswerBufferThreshold + 3}} {
-		for _, current := range []string{"healthy", outcome} {
-			questions = append(questions, commandOutcomeQuestion{
-				command: "show answer-outcome " + current + " " + size.name,
-				outcome: current,
-				count:   size.count,
-			})
-		}
-	}
-	return questions
-}
+const (
+	commandOutcomeSurfaceToken        = "command-outcome-token"
+	commandOutcomeAuthorizationHeader = "Authorization"
+)
 
 func commandOutcomeSurfaceArgs(args []string) (string, string, error) {
 	if len(args) != 2 {
@@ -82,7 +61,7 @@ func commandOutcomeSurfaceArgs(args []string) (string, string, error) {
 
 func commandOutcomeExpected(outcome string) error {
 	switch outcome {
-	case "partial", "failed", "warning":
+	case commandOutcomePartial, outcomeFailed, severityWarning:
 		return nil
 	default:
 		return fmt.Errorf("unknown command outcome %q", outcome)
@@ -99,26 +78,26 @@ func commandOutcomeREST(ctx context.Context, args []string) error {
 	return Observe(ctx, "answer-outcome-observer", &sdk.Registration{}, func(ctx context.Context, _ *sdk.Plugin) error {
 		base := "http://" + address + "/api/v1"
 		headers := map[string]string{
-			headerContentType: mediaTypeJSON,
-			"Authorization":   "Bearer " + commandOutcomeSurfaceToken,
+			headerContentType:                 mediaTypeJSON,
+			commandOutcomeAuthorizationHeader: "Bearer " + commandOutcomeSurfaceToken,
 		}
 		if _, ready := waitHTTP13(ctx, base+"/commands", headers, 20, 100*time.Millisecond); !ready {
 			return errors.New("command outcome REST listener did not become ready")
 		}
-		for _, question := range commandOutcomeQuestions(outcome) {
-			result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]string{"command": question.command})
+		for _, question := range externalyang.OutcomeQuestions(outcome) {
+			result, err := httpRequest13(ctx, http.MethodPost, base+"/execute", headers, map[string]string{fieldCommand: question.Command})
 			if err != nil {
-				return fmt.Errorf("REST %s: %w", question.command, err)
+				return fmt.Errorf("REST %s: %w", question.Command, err)
 			}
 			if result.status != http.StatusOK {
-				return fmt.Errorf("REST %s: HTTP %d: %s", question.command, result.status, result.body)
+				return fmt.Errorf("REST %s: HTTP %d: %s", question.Command, result.status, result.body)
 			}
 			var reply commandOutcomeBufferedReply
 			if err := json.Unmarshal(result.body, &reply); err != nil {
-				return fmt.Errorf("REST %s: response: %w", question.command, err)
+				return fmt.Errorf("REST %s: response: %w", question.Command, err)
 			}
 			if err := reply.check(question); err != nil {
-				return fmt.Errorf("REST %s: %w", question.command, err)
+				return fmt.Errorf("REST %s: %w", question.Command, err)
 			}
 		}
 		fmt.Fprintf(os.Stderr, "OK: REST %s outcome and healthy control preserved rows across the record threshold\n", outcome)
@@ -144,14 +123,14 @@ func commandOutcomeGRPC(ctx context.Context, args []string) error {
 		defer connection.Close() //nolint:errcheck // Closing the client changes no completed assertion.
 		requestCtx := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+commandOutcomeSurfaceToken)
 		client := zepb.NewZeServiceClient(connection)
-		for _, question := range commandOutcomeQuestions(outcome) {
-			result, err := client.Execute(requestCtx, &zepb.CommandRequest{Command: question.command}, grpc.WaitForReady(true))
+		for _, question := range externalyang.OutcomeQuestions(outcome) {
+			result, err := client.Execute(requestCtx, &zepb.CommandRequest{Command: question.Command}, grpc.WaitForReady(true))
 			if err != nil {
-				return fmt.Errorf("TLS gRPC %s: %w", question.command, err)
+				return fmt.Errorf("TLS gRPC %s: %w", question.Command, err)
 			}
 			reply := commandOutcomeBufferedReply{Status: result.GetStatus(), Data: result.GetData(), Error: result.GetError(), Warnings: result.GetWarnings()}
 			if err := reply.check(question); err != nil {
-				return fmt.Errorf("TLS gRPC %s: %w", question.command, err)
+				return fmt.Errorf("TLS gRPC %s: %w", question.Command, err)
 			}
 		}
 		fmt.Fprintf(os.Stderr, "OK: TLS gRPC %s outcome and healthy control preserved rows across the record threshold\n", outcome)
@@ -168,18 +147,18 @@ type commandOutcomeBufferedReply struct {
 	Warnings []string        `json:"warnings"`
 }
 
-func (reply commandOutcomeBufferedReply) check(question commandOutcomeQuestion) error {
+func (reply commandOutcomeBufferedReply) check(question externalyang.OutcomeQuestion) error {
 	status, failure := rpc.VerdictDone, ""
-	switch question.outcome {
-	case "healthy":
-	case "partial":
+	switch question.Outcome {
+	case commandOutcomeHealthy:
+	case commandOutcomePartial:
 		status = rpc.VerdictPartial
-	case "failed":
+	case outcomeFailed:
 		status, failure = rpc.VerdictAborted, rpc.AnswerFailureUnstated
-	case "warning":
+	case severityWarning:
 		status = rpc.VerdictWarning
 	default:
-		return fmt.Errorf("unknown buffered outcome %q", question.outcome)
+		return fmt.Errorf("unknown buffered outcome %q", question.Outcome)
 	}
 	if reply.Status != status {
 		return fmt.Errorf("status %q, want %q", reply.Status, status)
@@ -206,11 +185,11 @@ func commandOutcomeMCP(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		questions := commandOutcomeQuestions(outcome)
+		questions := externalyang.OutcomeQuestions(outcome)
 		var script strings.Builder
 		script.WriteString("wait-tool ze_execute\n")
 		for _, question := range questions {
-			params, err := json.Marshal(map[string]any{"name": "ze_execute", "arguments": map[string]string{"command": question.command}})
+			params, err := json.Marshal(map[string]any{"name": "ze_execute", "arguments": map[string]string{fieldCommand: question.Command}})
 			if err != nil {
 				return err
 			}
@@ -237,7 +216,7 @@ func commandOutcomeMCP(ctx context.Context, args []string) error {
 				return errors.New("MCP outcome driver returned an unexpected extra result")
 			}
 			if err := commandOutcomeMCPResult(line, questions[index]); err != nil {
-				return fmt.Errorf("MCP %s: %w", questions[index].command, err)
+				return fmt.Errorf("MCP %s: %w", questions[index].Command, err)
 			}
 			index++
 		}
@@ -249,7 +228,7 @@ func commandOutcomeMCP(ctx context.Context, args []string) error {
 	})
 }
 
-func commandOutcomeMCPResult(line string, question commandOutcomeQuestion) error {
+func commandOutcomeMCPResult(line string, question externalyang.OutcomeQuestion) error {
 	const prefix = "probe status=200 code=ok result="
 	encoded, present := strings.CutPrefix(line, prefix)
 	if !present {
@@ -270,12 +249,12 @@ func commandOutcomeMCPResult(line string, question commandOutcomeQuestion) error
 		return fmt.Errorf("result type %q, want complete", result.ResultType)
 	}
 	wantError := false
-	switch question.outcome {
-	case "healthy", "warning":
-	case "partial", "failed":
+	switch question.Outcome {
+	case commandOutcomeHealthy, severityWarning:
+	case commandOutcomePartial, outcomeFailed:
 		wantError = true
 	default:
-		return fmt.Errorf("unknown MCP outcome %q", question.outcome)
+		return fmt.Errorf("unknown MCP outcome %q", question.Outcome)
 	}
 	if result.IsError != wantError {
 		return fmt.Errorf("isError %t, want %t", result.IsError, wantError)
@@ -284,7 +263,7 @@ func commandOutcomeMCPResult(line string, question commandOutcomeQuestion) error
 	if wantError {
 		wantContent = 2
 	}
-	if question.outcome == "warning" {
+	if question.Outcome == severityWarning {
 		wantContent = 2
 	}
 	if len(result.Content) != wantContent {
@@ -298,17 +277,17 @@ func commandOutcomeMCPResult(line string, question commandOutcomeQuestion) error
 	if err := commandOutcomeSurfaceDocument(json.RawMessage(result.Content[0].Text), question); err != nil {
 		return err
 	}
-	if question.outcome == "warning" {
+	if question.Outcome == severityWarning {
 		if result.Content[1].Text != "Warning" {
 			return fmt.Errorf("warning label changed: %q", result.Content[1].Text)
 		}
 	}
-	if question.outcome == "failed" {
+	if question.Outcome == outcomeFailed {
 		if result.Content[1].Text != "Error: "+rpc.AnswerFailureUnstated {
 			return fmt.Errorf("failure text changed: %q", result.Content[1].Text)
 		}
 	}
-	if question.outcome == "partial" {
+	if question.Outcome == commandOutcomePartial {
 		if !strings.Contains(result.Content[1].Text, rpc.VerdictPartial) {
 			return fmt.Errorf("refused rows have no partial explanation: %q", result.Content[1].Text)
 		}
@@ -318,7 +297,7 @@ func commandOutcomeMCPResult(line string, question commandOutcomeQuestion) error
 
 // Literal row and cause expectations are independent of the provider's writer.
 // Every received item is checked, including the last long-walk ordinal.
-func commandOutcomeSurfaceDocument(document json.RawMessage, question commandOutcomeQuestion) error {
+func commandOutcomeSurfaceDocument(document json.RawMessage, question externalyang.OutcomeQuestion) error {
 	var decoded struct {
 		Items []struct {
 			Ordinal *int `json:"ordinal"`
@@ -330,11 +309,11 @@ func commandOutcomeSurfaceDocument(document json.RawMessage, question commandOut
 	if err := json.Unmarshal(document, &decoded); err != nil {
 		return fmt.Errorf("data is not the original document: %w", err)
 	}
-	if len(decoded.Items) != question.count {
-		return fmt.Errorf("data has %d items, want %d", len(decoded.Items), question.count)
+	if len(decoded.Items) != question.Count {
+		return fmt.Errorf("data has %d items, want %d", len(decoded.Items), question.Count)
 	}
 	faults := 0
-	if question.outcome == "partial" {
+	if question.Outcome == commandOutcomePartial {
 		faults = 1
 	}
 	if len(decoded.Faults) != faults {
@@ -349,7 +328,7 @@ func commandOutcomeSurfaceDocument(document json.RawMessage, question commandOut
 		}
 	}
 	for _, fault := range decoded.Faults {
-		if fault.Cause != "fixture acknowledgement refused" {
+		if fault.Cause != commandOutcomeAcknowledgementRefused {
 			return fmt.Errorf("refused row cause changed to %q", fault.Cause)
 		}
 	}

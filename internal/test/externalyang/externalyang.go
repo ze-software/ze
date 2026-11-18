@@ -2,15 +2,13 @@
 // Related: ../fixture/plugin_fixture_external_yang.go -- the test plugin that declares these modules
 // Related: ../../component/config/cli/validate_corpus_test.go -- the config sweep publishes the accepted ones
 
-// Package externalyang declares the YANG modules the external-yang test
-// plugin can bring (internal/test/fixture, `le test fixture
-// plugin/external-yang <variant>`).
+// Package externalyang declares pure YANG and request metadata shared by
+// external fixture providers and the repository config corpus.
 //
-// The modules are declared once, here, so both readers hold the same text:
-// the plugin, which sends one at Stage 1, and the repository config sweep,
-// which runs no plugin and publishes the accepted ones to judge the configs
-// of the external-yang-* functional tests in full. The sweep cannot import
-// the plugin's package, which depends on the package the sweep tests.
+// Each fixture owns its module text and origin here. The provider sends that
+// text at Stage 1; the corpus publishes registered accepted declarations without
+// running a plugin. The corpus cannot import the runtime fixture package,
+// which depends on the package the corpus tests.
 package externalyang
 
 import (
@@ -346,8 +344,8 @@ func CommandClash() Module {
 	return Module{Name: "acme-clash-cmd", Namespace: "urn:acme:clash:cmd", Text: commandClashText, Refused: true}
 }
 
-// Accepted answers the config modules the daemon is expected to accept,
-// sorted by name: every config module of this package that is not Refused.
+// Accepted answers the acme variants' accepted config modules, sorted by
+// name. ConfigDeclarations also includes other registered fixture owners.
 // Commands is not one of them: it adds no config, so the config sweep that
 // reads this list has no use for it. RedeclaredText is not one of them: it is
 // a second text of Valid's module, which a process joins once.

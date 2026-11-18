@@ -3,7 +3,11 @@
 
 package fixture
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ze-software/ze/internal/test/externalyang"
+)
 
 // Goal: a status-only warning retains its original rows and visible label
 // without becoming an error. Method: literal results pair valid warning and
@@ -32,7 +36,7 @@ func TestCommandOutcomeMCPVerdictKeepsStatusOnlyWarning(t *testing.T) {
 		{name: "failed remains error", outcome: "failed", result: head + rows + `,{"type":"text","text":"Error: unknown error"}],"isError":true}`, accept: true},
 	} {
 		t.Run(question.name, func(t *testing.T) {
-			err := commandOutcomeMCPResult(prefix+question.result, commandOutcomeQuestion{outcome: question.outcome, count: 2})
+			err := commandOutcomeMCPResult(prefix+question.result, externalyang.OutcomeQuestion{Outcome: question.outcome, Count: 2})
 			if question.accept {
 				if err != nil {
 					t.Fatal(err)

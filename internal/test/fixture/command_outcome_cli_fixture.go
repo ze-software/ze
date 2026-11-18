@@ -18,9 +18,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/test/externalyang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+// The XDG config directory lives below each fixture-owned CLI home.
+const commandOutcomeConfigDirectory = "config"
 
 func init() {
 	Register("plugin/command-outcome-cli", commandOutcomeCLI, StopsDaemon)
@@ -55,16 +59,16 @@ func commandOutcomeCLI(ctx context.Context, args []string) error {
 		if err := commandOutcomeCLIReady(ctx, address); err != nil {
 			return err
 		}
-		for index, question := range commandOutcomeQuestions(outcome) {
+		for index, question := range externalyang.OutcomeQuestions(outcome) {
 			if err := commandOutcomeCLICheck(ctx, binary, root, address, index, question, false); err != nil {
 				return err
 			}
 		}
 		// Preserve every original short/long question, then exercise selection
 		// through the same actual external provider and CLI process.
-		for index, current := range []string{"healthy", outcome} {
-			question := commandOutcomeQuestion{
-				command: "show answer-outcome " + current + " long", outcome: current, count: 1,
+		for index, current := range []string{commandOutcomeHealthy, outcome} {
+			question := externalyang.OutcomeQuestion{
+				Command: externalyang.OutcomeCommand(current, commandOutcomeLong), Outcome: current, Count: 1,
 			}
 			if err := commandOutcomeCLICheck(ctx, binary, root, address, index+4, question, true); err != nil {
 				return err
@@ -95,12 +99,12 @@ func commandOutcomeCLIReady(ctx context.Context, address string) error {
 
 // Each of six fixed questions owns a distinct client home and data directory.
 // Its one transcript cannot be supplied by a readiness probe or another case.
-func commandOutcomeCLICheck(ctx context.Context, binary, root, address string, index int, question commandOutcomeQuestion, first bool) error {
+func commandOutcomeCLICheck(ctx context.Context, binary, root, address string, index int, question externalyang.OutcomeQuestion, first bool) error {
 	home := filepath.Join(root, fmt.Sprintf("client-%d", index))
 	if err := os.Mkdir(home, 0o700); err != nil {
 		return err
 	}
-	for _, name := range []string{"config", "runtime", "store"} {
+	for _, name := range []string{commandOutcomeConfigDirectory, "runtime", "store"} {
 		if err := os.Mkdir(filepath.Join(home, name), 0o700); err != nil {
 			return err
 		}
@@ -116,7 +120,7 @@ func commandOutcomeCLICheck(ctx context.Context, binary, root, address string, i
 	// Alias handling follows the existing standalone trust fixture.
 	environment := remoteTrustEnvironment(os.Environ(), map[string]string{
 		envHome:             home,
-		"XDG_CONFIG_HOME":   filepath.Join(home, "config"),
+		"XDG_CONFIG_HOME":   filepath.Join(home, commandOutcomeConfigDirectory),
 		"XDG_DATA_HOME":     dataHome,
 		envXDGRuntimeDir:    filepath.Join(home, "runtime"),
 		envConfigDir:        filepath.Join(home, "store"),
@@ -127,9 +131,9 @@ func commandOutcomeCLICheck(ctx context.Context, binary, root, address string, i
 		"ze.ssh.insecure":   "false",
 		"ze.cli.transcript": "true",
 	})
-	input := question.command + " | raw"
+	input := question.Command + " | raw"
 	if first {
-		input = question.command + " | first 1 | ndjson"
+		input = question.Command + " | first 1 | ndjson"
 	}
 	result, err := commandOutcomeCLIRun(ctx, binary, home, input, environment)
 	if err != nil {
@@ -150,13 +154,13 @@ func commandOutcomeCLICheck(ctx context.Context, binary, root, address string, i
 // A nonzero exit alone could be connection or authentication failure. The
 // independently decoded provider rows, fault causes and exact diagnostic must
 // also survive before the child can establish the command outcome.
-func commandOutcomeCLIVerdict(result fixture10ProcessResult, question commandOutcomeQuestion) error {
-	input := question.command + " | raw"
+func commandOutcomeCLIVerdict(result fixture10ProcessResult, question externalyang.OutcomeQuestion) error {
+	input := question.Command + " | raw"
 	wantExit := 1
-	if question.outcome == "healthy" {
+	if question.Outcome == commandOutcomeHealthy {
 		wantExit = 0
 	}
-	if question.outcome == "warning" {
+	if question.Outcome == severityWarning {
 		wantExit = 0
 	}
 	if result.code != wantExit {
@@ -165,17 +169,18 @@ func commandOutcomeCLIVerdict(result fixture10ProcessResult, question commandOut
 	if err := commandOutcomeSurfaceDocument([]byte(result.stdout), question); err != nil {
 		return fmt.Errorf("CLI %s: %w; stderr=%q", input, err, result.stderr)
 	}
-	if question.outcome == "healthy" {
+	switch question.Outcome {
+	case commandOutcomeHealthy:
 		if result.stderr != "" {
 			return fmt.Errorf("CLI %s: healthy answer has diagnostics %q", input, result.stderr)
 		}
-	} else if question.outcome == "warning" {
+	case severityWarning:
 		if result.stderr != "Warning\n" {
 			return fmt.Errorf("CLI %s: status-only warning diagnostic %q, want Warning", input, result.stderr)
 		}
-	} else {
+	default:
 		failure := "Process exited with status 1"
-		if question.outcome == "failed" {
+		if question.Outcome == outcomeFailed {
 			failure = rpc.AnswerFailureUnstated
 		}
 		if !strings.Contains(result.stderr, "error: "+failure+"\n") {
@@ -190,13 +195,13 @@ func commandOutcomeCLIVerdict(result fixture10ProcessResult, question commandOut
 
 // The selected body proves real dispatch; the exact exit and diagnostic prove
 // that an unselected failure tail was consumed rather than inferred healthy.
-func commandOutcomeCLIFirstVerdict(result fixture10ProcessResult, question commandOutcomeQuestion) error {
-	input := question.command + " | first 1 | ndjson"
+func commandOutcomeCLIFirstVerdict(result fixture10ProcessResult, question externalyang.OutcomeQuestion) error {
+	input := question.Command + " | first 1 | ndjson"
 	wantExit := 1
-	if question.outcome == "healthy" {
+	if question.Outcome == commandOutcomeHealthy {
 		wantExit = 0
 	}
-	if question.outcome == "warning" {
+	if question.Outcome == severityWarning {
 		wantExit = 0
 	}
 	if result.code != wantExit {
@@ -236,17 +241,18 @@ func commandOutcomeCLIFirstVerdict(result fixture10ProcessResult, question comma
 	if document.Pipe[0].Arg != "1" {
 		return fmt.Errorf("CLI %s: selected pipe argument %q, want 1", input, document.Pipe[0].Arg)
 	}
-	if question.outcome == "healthy" {
+	switch question.Outcome {
+	case commandOutcomeHealthy:
 		if result.stderr != "" {
 			return fmt.Errorf("CLI %s: selected healthy answer has diagnostics %q", input, result.stderr)
 		}
-	} else if question.outcome == "warning" {
+	case severityWarning:
 		if result.stderr != "Warning\n" {
 			return fmt.Errorf("CLI %s: status-only warning diagnostic %q, want Warning", input, result.stderr)
 		}
-	} else {
+	default:
 		failure := "Process exited with status 1"
-		if question.outcome == "failed" {
+		if question.Outcome == outcomeFailed {
 			failure = rpc.AnswerFailureUnstated
 		}
 		if !strings.Contains(result.stderr, "error: "+failure+"\n") {
@@ -294,7 +300,7 @@ func commandOutcomeCLITranscript(dataHome, input, body string) error {
 	if len(entries) != 1 {
 		return fmt.Errorf("CLI %s: %d transcript files, want one", input, len(entries))
 	}
-	content, err := os.ReadFile(filepath.Join(directory, entries[0].Name()))
+	content, err := os.ReadFile(filepath.Join(directory, entries[0].Name())) //nolint:gosec // ReadDir supplies the name under the caller's private CLI/test data directory.
 	if err != nil {
 		return err
 	}

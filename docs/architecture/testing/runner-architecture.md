@@ -625,6 +625,15 @@ store and web-only behavior.
 <!-- source: internal/test/labconfig/web_auth.go -- WebDaemonWithAuth, WebAuthNeedsDaemon -->
 <!-- source: internal/test/cli/cmd_web.go -- zeTestSeedWebUsers, zeTestPickAdmin -->
 
+The config corpus joins accepted external fixture modules from registered pure
+metadata. Each fixture owns its module text and origin; its runtime provider
+and the corpus read that same module. The outcome provider's origin is
+`answer-outcome-provider`, independent of its module name. The corpus starts no
+plugin, and a root absent from the joined schema still refuses validation.
+<!-- source: internal/test/externalyang/registry.go -- ConfigDeclaration, ConfigDeclarations -->
+<!-- source: internal/test/externalyang/command_outcome.go -- CommandOutcomeWeb -->
+<!-- source: internal/component/config/cli/validate_corpus_test.go -- sweepExternalModules, publishSweepModules -->
+
 The dummy peer explicitly
 rejects all imports and exports, retaining the closed routing behavior without
 leaving its policy unspecified. The corpus reads `.wb`
