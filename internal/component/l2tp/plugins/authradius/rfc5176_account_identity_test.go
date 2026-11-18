@@ -17,13 +17,15 @@ import (
 func coaIncarnationFixture(t *testing.T) (string, []byte, *coaApplyBackend) {
 	t.Helper()
 	addr, secret, backend := coaAppliedFixture(t)
-	session, found := subscriber.DefaultRegistry.Get("coa-apply-regression")
+	session, found := subscriber.DefaultRegistry.LookupByAcctSessionID("10-20-1")
 	if !found {
 		t.Fatal("fixture has no live subscriber")
 	}
 	session.AcctSessionID = "10-20-new"
 	subscriber.DefaultRegistry.Add(&session)
-	service := oneSessionService()
+	service := oneSessionService(t)
+	service.snap.Tunnels[0].Sessions[0].Birth = session.L2TPBirth
+	service.snap.Tunnels[0].Sessions[0].SubscriberID = session.ID
 	service.snap.Tunnels[0].Sessions[0].PppInterface = session.PppInterface
 	l2tp.PublishService(service)
 	return addr, secret, backend
@@ -110,6 +112,7 @@ func TestCoALiveAccountingIdentityStillApplies(t *testing.T) {
 func TestCoALiveAccountingOwnerIdentitySurvivesRegistryMiss(t *testing.T) {
 	addr, secret, backend := coaIncarnationFixture(t)
 	seedCoAAccountingIdentity(t, &acctSession{
+		birth:    l2tp.LookupService().Snapshot().Tunnels[0].Sessions[0].Birth,
 		tunnelID: 10, sessionID: 20, username: "alice",
 		acctSessID: "10-20-radius-current", pppInterface: "ppp-coa-apply",
 	})
@@ -173,6 +176,7 @@ func seedCoAServiceAccounting(t *testing.T) {
 			session := &snapshot.Tunnels[i].Sessions[j]
 			var id textbuf.Buffer
 			seedCoAAccountingIdentity(t, &acctSession{
+				birth:    session.Birth,
 				tunnelID: snapshot.Tunnels[i].LocalTID, sessionID: session.LocalSID,
 				username: session.Username, pppInterface: session.PppInterface,
 				acctSessID: id.Uint16(snapshot.Tunnels[i].LocalTID).Byte('-').Uint16(session.LocalSID).Str("-1").String(),

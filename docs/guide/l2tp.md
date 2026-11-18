@@ -1125,6 +1125,12 @@ selects its live session after a registry miss. The boot tag and sequence are
 never discarded: an old ID cannot select a later incarnation merely because it
 reuses the tunnel and session numbers. When no authoritative full ID is known,
 an accounting-ID request gets NAK 503.
+The accounting owner binds its issued ID to the original Birth. A numeric
+tunnel/session pair cannot supply an accounting identity for a replacement.
+After matching, the listener captures that same Birth and its original row.
+CoA reads that captured row; Disconnect waits for its captured teardown with
+Admin-Reset cause before acknowledging it. A stale match gets CoA-NAK 503 or
+Disconnect-NAK 504 without selecting a replacement.
 
 <!-- source: internal/component/l2tp/plugins/authradius/coa.go -- findSessions, oneSession, findSubscriberSession, coaSupportedAttrs, disconnectSupportedAttrs -->
 <!-- source: internal/component/l2tp/subscriber/registry.go -- LookupByAcctSessionID -->
@@ -1609,6 +1615,14 @@ The detail page renders a client-side CQM graph using uPlot. The
 chart loads 24h of historical data via JSON, then appends new
 100-second buckets in real time via SSE.
 
+Both session lists show listener, tunnel and session coordinates. Each detail
+link also retains the displayed original's immutable reference. The detail
+handler parses the link's `tunnel-id`, bound `listener` endpoint and optional
+`expected-id` once, then captures one original for snapshot and history.
+Malformed or duplicate filters refuse before reading any session. An ended
+original refuses instead of opening a replacement with the same numeric IDs.
+<!-- source: internal/component/web/handler_l2tp_selector.go -- l2tpDetailSelector, l2tpSessionDetailURL -->
+
 Chart colours are CSS custom properties (configurable via theme):
 - `--color-l2tp-established` (default: green #22c55e)
 - `--color-l2tp-negotiating` (default: amber #f59e0b)
@@ -1618,6 +1632,8 @@ Chart colours are CSS custom properties (configurable via theme):
 
 The disconnect button triggers a confirm dialog requiring a free-text
 reason (1-256 characters) and an optional Disconnect-Cause code. The
+workbench Disconnect link opens that original detail form, preserving the
+required reason and immutable guard. The form's
 POST dispatches through the CLI as `clear l2tp session id <sid>
 expected-id <birth> actor <user> reason <text> [cause <code>]`, so authz is
 enforced at the CLI layer. The Birth belongs to the displayed original row;

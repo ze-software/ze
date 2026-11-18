@@ -59,6 +59,8 @@ func (h *l2TPHandlers) handleL2TPList() http.HandlerFunc {
 				rows = append(rows, l2tpSessionRow{
 					LocalSID:     s.LocalSID,
 					TunnelTID:    t.LocalTID,
+					Listener:     l2tpSessionListener(*s),
+					DetailURL:    l2tpSessionDetailURL(*s),
 					Username:     s.Username,
 					AssignedAddr: addr,
 					PeerAddr:     t.PeerAddr.String(),
@@ -111,7 +113,12 @@ func (h *l2TPHandlers) handleL2TPDetail() http.HandlerFunc {
 			http.Error(w, "l2tp subsystem not running", http.StatusServiceUnavailable)
 			return
 		}
-		captured, err := svc.CaptureSession(l2tp.SessionSelector{SID: sid})
+		selector, refusal := l2tpDetailSelector(r, sid)
+		if refusal != nil {
+			http.Error(w, refusal.Error(), http.StatusBadRequest)
+			return
+		}
+		captured, err := svc.CaptureSession(selector)
 		if err != nil {
 			status := http.StatusNotFound
 			if errors.Is(err, l2tp.ErrSessionAmbiguous) {
@@ -545,6 +552,7 @@ func l2tpDetailViewOf(body l2tpDetailBody) l2tpDetailView {
 			AssignedAddr:   ss.AssignedAddr.String(),
 			PppInterface:   ss.PppInterface,
 			TunnelLocalTID: ss.TunnelLocalTID,
+			Listener:       l2tpSessionListener(ss),
 			Family:         ss.Family,
 		},
 		Login: body.Login,

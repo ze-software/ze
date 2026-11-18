@@ -32,6 +32,7 @@ templ l2tpDetail(v l2tpDetailView) {
 							<tr><th>Address</th><td>{ v.Session.AssignedAddr }</td></tr>
 							<tr><th>Interface</th><td>{ v.Session.PppInterface }</td></tr>
 							<tr><th>Tunnel</th><td>{ intText(int(v.Session.TunnelLocalTID)) }</td></tr>
+							<tr><th>Listener</th><td>{ v.Session.Listener }</td></tr>
 							<tr><th>Family</th><td>{ v.Session.Family }</td></tr>
 						</table>
 					</section>
@@ -71,7 +72,7 @@ templ l2tpDetail(v l2tpDetailView) {
 							<p>No events recorded.</p>
 						}
 					</section>
-					<section class="l2tp-disconnect">
+					<section class="l2tp-disconnect" id="disconnect">
 						<h3>Disconnect</h3>
 						<form
 							method="POST"

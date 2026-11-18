@@ -441,10 +441,11 @@ func TestRFC2866AcctSessionIDKeepsTunnelSessionPrefix(t *testing.T) {
 	}
 
 	secret := []byte("test-rfc2866-prefix-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 	id := newRADIUSAcct().genSessionID(10, 20)
 	seedCoAAccountingIdentity(t, &acctSession{
+		birth:    fake.snap.Tunnels[0].Sessions[0].Birth,
 		tunnelID: 10, sessionID: 20, username: "alice", acctSessID: id,
 		pppInterface: fake.snap.Tunnels[0].Sessions[0].PppInterface,
 	})

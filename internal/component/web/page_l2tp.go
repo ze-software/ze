@@ -1,5 +1,5 @@
 // Design: docs/architecture/web-workbench-pages.md -- L2TP workbench pages
-// Related: handler_l2tp.go -- Existing L2TP handlers (preserved, not modified)
+// Related: handler_l2tp.go -- the original-capture detail and guarded disconnect form
 // Related: workbench_table.go -- Table component
 // Related: workbench_form.go -- Form component
 
@@ -13,7 +13,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/l2tp"
-	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // --- L2TP > Sessions ---
@@ -23,6 +22,7 @@ import (
 // L2TP subsystem is not running, the table shows an empty state.
 func buildL2TPSessionsTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
+		{Key: "listener", Label: "Listener", Sortable: true},
 		{Key: "tunnel-id", Label: "Tunnel ID", Sortable: true},
 		{Key: colSessionID, Label: "Session ID", Sortable: true},
 		{Key: colUsername, Label: labelUsername, Sortable: true},
@@ -50,12 +50,12 @@ func buildL2TPSessionsTableData() WorkbenchTableData {
 		for j := range t.Sessions {
 			s := &t.Sessions[j]
 			sidStr := strconv.Itoa(int(s.LocalSID))
-			var tb textbuf.Buffer
-			sessionURL := tb.Str("/l2tp/").Str(sidStr).String()
+			sessionURL := l2tpSessionDetailURL(*s)
 			rows = append(rows, WorkbenchTableRow{
-				Key: tb.Reset().Int(int64(t.LocalTID)).Byte('/').Str(sidStr).String(),
+				Key: sessionURL,
 				URL: sessionURL,
 				Cells: []string{
+					l2tpSessionListener(*s),
 					strconv.Itoa(int(t.LocalTID)),
 					sidStr,
 					s.Username,
@@ -66,10 +66,9 @@ func buildL2TPSessionsTableData() WorkbenchTableData {
 				Actions: []WorkbenchRowAction{
 					{Label: labelDetail, URL: sessionURL},
 					{
-						Label:   "Disconnect",
-						HxPost:  tb.Reset().Str(sessionURL).Str("/disconnect").String(),
-						Class:   wbToolDanger,
-						Confirm: tb.Reset().Str("Disconnect session ").Str(sidStr).Str(" (user ").Str(s.Username).Str(")?").String(),
+						Label: "Disconnect",
+						URL:   sessionURL + "#disconnect",
+						Class: wbToolDanger,
 					},
 				},
 			})

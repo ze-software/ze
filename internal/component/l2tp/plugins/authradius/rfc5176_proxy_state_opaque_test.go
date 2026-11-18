@@ -40,7 +40,7 @@ var proxyStateLookingLikeASession = []byte{radius.AttrAcctSessionID, 9, '1', '0'
 // "depend on the content of Proxy-State attributes" (coa.go sendResponse).
 func TestRFC5176StateAndClassUnmodifiedProxyStateOpaque(t *testing.T) {
 	secret := []byte("test-rfc5176-opaque-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	bus := &recordingBus{}
 	addr := coaTestListener(t, secret, bus, fake)
 
@@ -108,7 +108,7 @@ func TestRFC5176StateAndClassUnmodifiedProxyStateOpaque(t *testing.T) {
 // which reads coaSupportedAttrs and disconnectSupportedAttrs for handlePacket).
 func TestRFC3579SubscriberNASRefusesEAPMessage(t *testing.T) {
 	secret := []byte("test-rfc3579-noeap-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	bus := &recordingBus{}
 	addr := coaTestListener(t, secret, bus, fake)
 	eapResponse := []byte{2, 1, 0, 6, 1, 'a'}
@@ -147,7 +147,7 @@ func TestRFC3579SubscriberNASRefusesEAPMessage(t *testing.T) {
 // Acct-Session-Id of a live one (coa.go handleDisconnect).
 func TestRFC5176ProxyStateContentIsNeverRead(t *testing.T) {
 	secret := []byte("test-rfc5176-unread-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	unknown := []radius.Attr{{Type: radius.AttrAcctSessionID, Value: radius.AttrString("99-99-1")}}

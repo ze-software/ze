@@ -29,6 +29,7 @@ templ l2tpList(v l2tpListView) {
 								<tr>
 									<th>SID</th>
 									<th>Tunnel</th>
+									<th>Listener</th>
 									<th>Username</th>
 									<th>Address</th>
 									<th>Peer</th>
@@ -39,8 +40,9 @@ templ l2tpList(v l2tpListView) {
 							<tbody>
 								for _, s := range v.Sessions {
 									<tr>
-										<td><a href={ "/l2tp/" + intText(int(s.LocalSID)) }>{ intText(int(s.LocalSID)) }</a></td>
+										<td><a href={ s.DetailURL }>{ intText(int(s.LocalSID)) }</a></td>
 										<td>{ intText(int(s.TunnelTID)) }</td>
+										<td>{ s.Listener }</td>
 										<td>{ s.Username }</td>
 										<td>{ s.AssignedAddr }</td>
 										<td>{ s.PeerAddr }</td>

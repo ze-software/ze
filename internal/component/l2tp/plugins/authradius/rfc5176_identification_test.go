@@ -49,6 +49,10 @@ func TestDynamicAuthorizationRefusesUnimplementedIdentification(t *testing.T) {
 				if !valid {
 					t.Fatal("fixture did not publish its session service")
 				}
+				originalID := service.snap.Tunnels[0].Sessions[0].SubscriberID
+				if _, found := subscriber.DefaultRegistry.Get(originalID); !found {
+					t.Fatal("fixture did not register its original subscriber")
+				}
 				attrs := []radius.Attr{
 					{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 					{Type: radius.AttrUserName, Value: radius.AttrString("alice")},
@@ -71,7 +75,7 @@ func TestDynamicAuthorizationRefusesUnimplementedIdentification(t *testing.T) {
 				if got := service.teardowns.Load(); got != 0 {
 					t.Errorf("unsupported selector terminated %d sessions", got)
 				}
-				if _, found := subscriber.DefaultRegistry.Get("coa-apply-regression"); !found {
+				if _, found := subscriber.DefaultRegistry.Get(originalID); !found {
 					t.Error("unsupported selector removed the registered subscriber")
 				}
 			})

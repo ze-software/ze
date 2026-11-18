@@ -166,6 +166,12 @@ The workbench L2TP tables at `/show/l2tp/` do not replace `handler_l2tp.go` at
 disconnect action. Both read `l2tp.LookupService().Snapshot()`, and the
 workbench session rows link to the original detail path because that page holds
 the richer view.
+Both lists display the bound listener beside the tunnel/session coordinates.
+Their detail links retain those coordinates and the snapshot's immutable
+reference as escaped `tunnel-id`, `listener` and `expected-id` query values.
+Workbench row keys use those complete links, keeping equal wire coordinates
+on different listeners distinct. Its Disconnect action opens that same
+original's reason/cause form, rather than posting an incomplete request.
 
 The detail handler captures one original session and uses that capture for
 both its snapshot and event history. It rejects an ambiguous numeric SID and
@@ -173,6 +179,11 @@ does not perform a second SID lookup that could select a replacement. Event
 JSON carries the complete original `subscriber-id`; an absent formatting
 reference remains omitted. Login sample/SSE views keep their existing login
 scope.
+Recognized detail filters are parsed once before capture: the local tunnel
+ID, bound listener endpoint and immutable original reference. Missing optional
+filters preserve a unique interactive SID lookup. Malformed, repeated and
+empty filters refuse before any capture or history read. An old list link
+naming an ended original refuses instead of displaying a same-label successor.
 
 <!-- source: internal/component/web/handler_l2tp.go -- handleL2TPDetail -->
 <!-- source: internal/component/l2tp/session_capture.go -- SessionEvents -->

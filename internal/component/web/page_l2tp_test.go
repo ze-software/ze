@@ -16,10 +16,11 @@ func TestBuildL2TPSessionsTableData_NoService(t *testing.T) {
 	assert.Equal(t, "L2TP Sessions", table.Title)
 	assert.Nil(t, table.Rows)
 	assert.Equal(t, "L2TP subsystem is not running.", table.EmptyMessage)
-	require.Len(t, table.Columns, 6)
-	assert.Equal(t, "tunnel-id", table.Columns[0].Key)
-	assert.Equal(t, "session-id", table.Columns[1].Key)
-	assert.Equal(t, "username", table.Columns[2].Key)
+	require.Len(t, table.Columns, 7)
+	assert.Equal(t, "listener", table.Columns[0].Key)
+	assert.Equal(t, "tunnel-id", table.Columns[1].Key)
+	assert.Equal(t, "session-id", table.Columns[2].Key)
+	assert.Equal(t, "username", table.Columns[3].Key)
 }
 
 func TestBuildL2TPConfigFormData_WithValues(t *testing.T) {

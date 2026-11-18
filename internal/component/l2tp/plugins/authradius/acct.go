@@ -26,6 +26,7 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/radius"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
@@ -65,6 +66,7 @@ var acctBootRandom = func(random []byte) {
 // system joins the Start, Interim and Stop records by. It is stored for the
 // same reason acctSessID is.
 type acctSession struct {
+	birth     subscriberid.L2TPBirth
 	tunnelID  uint16
 	sessionID uint16
 	username  string
@@ -272,15 +274,18 @@ func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
 // the missing value from a numeric tunnel/session tuple. Safe for concurrent use.
 // RFC 2866 Section 5.5: "This attribute is a unique Accounting ID to make it
 // easy to match start and stop records in a log file."
-func (a *radiusAcct) currentSessionIDs() map[sessionKey]string {
+func (a *radiusAcct) currentSessionIDs() map[subscriberid.L2TPBirth]string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	ids := make(map[sessionKey]string, len(a.sessions))
-	for key, session := range a.sessions {
+	ids := make(map[subscriberid.L2TPBirth]string, len(a.sessions))
+	for _, session := range a.sessions {
+		if !session.birth.IsValid() {
+			continue
+		}
 		if session.acctSessID == "" {
 			continue
 		}
-		ids[key] = session.acctSessID
+		ids[session.birth] = session.acctSessID
 	}
 	return ids
 }
@@ -353,6 +358,7 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sess := &acctSession{
+		birth:            payload.Birth,
 		tunnelID:         payload.TunnelID,
 		sessionID:        payload.SessionID,
 		username:         payload.Username,

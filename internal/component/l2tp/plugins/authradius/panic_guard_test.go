@@ -28,11 +28,12 @@ type teardownPanickingService struct {
 	armed atomic.Bool
 }
 
-func (s *teardownPanickingService) TeardownSession(localSID uint16) error {
-	if s.armed.CompareAndSwap(true, false) {
-		panic("boom")
+func (s *teardownPanickingService) CaptureSession(selector l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+	original, err := s.fakeL2TPService.CaptureSession(selector)
+	if err != nil {
+		return nil, err
 	}
-	return s.fakeL2TPService.TeardownSession(localSID)
+	return &coaPanickingCapture{CapturedSession: original, owner: s}, nil
 }
 
 // TestCoAPanicContained proves the CoA listener's request task contains a Ze
@@ -40,7 +41,7 @@ func (s *teardownPanickingService) TeardownSession(localSID uint16) error {
 // answered with a Disconnect-NAK carrying Error-Cause 506 (Resources
 // Unavailable), the listener answers the next request, and the panic is counted
 // and crash-recorded on the real guard.
-// METHOD: the published L2TP service panics on its first TeardownSession, which
+// METHOD: the captured original panics on its first Teardown, which
 // handleDisconnect calls on the listener's goroutine. Two Disconnect-Requests
 // for the same session follow: the first meets the panic, the second succeeds.
 // PREVENTS: a peer-reachable panic in the CoA listener killing the daemon, or
@@ -53,7 +54,7 @@ func TestCoAPanicContained(t *testing.T) {
 	t.Cleanup(crashlog.SetCrashDirForTest(t.TempDir()))
 
 	secret := []byte("test-coa-panic-secret")
-	svc := &teardownPanickingService{fakeL2TPService: oneSessionService()}
+	svc := &teardownPanickingService{fakeL2TPService: oneSessionService(t)}
 	svc.armed.Store(true)
 	l2tp.PublishService(svc)
 	t.Cleanup(func() { l2tp.PublishService(nil) })

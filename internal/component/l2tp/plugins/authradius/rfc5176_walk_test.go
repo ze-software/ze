@@ -72,6 +72,7 @@ var _ ze.EventBus = (*recordingBus)(nil)
 func coaTestListener(t *testing.T, secret []byte, bus ze.EventBus, fake *fakeL2TPService) string {
 	t.Helper()
 	if fake != nil {
+		admitCoAFixtureOriginals(t, fake)
 		l2tp.PublishService(fake)
 		t.Cleanup(func() { l2tp.PublishService(nil) })
 	}
@@ -94,8 +95,9 @@ func coaTestListener(t *testing.T, secret []byte, bus ze.EventBus, fake *fakeL2T
 
 // oneSessionService answers a service holding a single session: tunnel 10, session 20,
 // user alice. Its Acct-Session-Id prefix is "10-20-".
-func oneSessionService() *fakeL2TPService {
-	return &fakeL2TPService{snap: l2tp.Snapshot{
+func oneSessionService(t *testing.T) *fakeL2TPService {
+	t.Helper()
+	fixture := &fakeL2TPService{snap: l2tp.Snapshot{
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{{
@@ -107,6 +109,8 @@ func oneSessionService() *fakeL2TPService {
 			}},
 		}},
 	}}
+	admitCoAFixtureOriginals(t, fixture)
+	return fixture
 }
 
 // errorCause answers the Error-Cause value a response carries, and whether it carries
@@ -174,7 +178,7 @@ func TestRFC5176InvalidCodeDiscarded(t *testing.T) {
 // Identifier (RFC 2866 Section 3, which RFC 5176 Section 2.3 adopts).
 func TestRFC5176DuplicateRequestAnsweredFromCache(t *testing.T) {
 	secret := []byte("test-rfc5176-dup-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 	client := newCoAClientSocket(t, addr)
 
@@ -219,7 +223,7 @@ func TestRFC5176DuplicateRequestAnsweredFromCache(t *testing.T) {
 // and does not act a second time.
 func TestRFC5176DuplicateIsSameSourcePortAndIdentifier(t *testing.T) {
 	secret := []byte("test-rfc5176-port-dup-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 	client := newCoAClientSocket(t, addr)
 
@@ -249,7 +253,7 @@ func TestRFC5176DuplicateIsSameSourcePortAndIdentifier(t *testing.T) {
 // duplicate: it is processed afresh.
 func TestRFC5176DifferentSourcePortIsNotADuplicate(t *testing.T) {
 	secret := []byte("test-rfc5176-port-fresh-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret,
@@ -292,7 +296,7 @@ func TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh(t *testing.T) {
 	x := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(), now)
 	y := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(), now.Add(-2*time.Second))
 
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	client := newCoAClientSocket(t, coaTestListener(t, secret, nil, fake))
 	client.exchange(t, x)
 	client.exchange(t, y)
@@ -306,7 +310,7 @@ func TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh(t *testing.T) {
 
 	stale := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, attrs(),
 		now.Add(-(coaReplayWindow + replayWindowSlack)))
-	kept := oneSessionService()
+	kept := oneSessionService(t)
 	other := newCoAClientSocket(t, coaTestListener(t, secret, nil, kept))
 	first := other.exchangeRaw(t, x)
 	other.expectNoResponse(t, stale)
@@ -344,7 +348,7 @@ func TestReplayKeyCarriesSourcePort(t *testing.T) {
 // field is silently discarded rather than read to the end of what arrived.
 func TestRFC5176LengthFieldGovernsTheOctetsRead(t *testing.T) {
 	secret := []byte("test-rfc5176-length-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	wire := buildCoAPacket(t, radius.CodeDisconnectRequest, secret, []radius.Attr{
@@ -372,7 +376,7 @@ func TestRFC5176SharedSecretChosenBySourceAddress(t *testing.T) {
 	perSource := []byte("test-rfc5176-per-source-secret")
 	defaultSecret := []byte("test-rfc5176-default-secret")
 
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
 	seedCoAServiceAccounting(t)
@@ -410,7 +414,7 @@ func TestRFC5176SharedSecretChosenBySourceAddress(t *testing.T) {
 // attributes is not NAKed for an unsupported attribute; it is honored.
 func TestRFC5176UnsupportedAttributeNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-unsupported-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	coaResp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
@@ -447,7 +451,7 @@ func TestRFC5176UnsupportedAttributeNAKed(t *testing.T) {
 // failure rather than the shape of the request.
 func TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-atomic-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 
 	// No event bus: the rate change has no route to the shaper.
 	addr := coaTestListener(t, secret, nil, fake)
@@ -517,7 +521,7 @@ func TestRFC5176MultipleMatchingSessionsNAKed(t *testing.T) {
 // nothing.
 func TestRFC5176ProxyStateReturnedUnmodified(t *testing.T) {
 	secret := []byte("test-rfc5176-proxystate-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	first := []byte{0x01, 0x02, 0x03}
@@ -551,7 +555,7 @@ func TestRFC5176ProxyStateReturnedUnmodified(t *testing.T) {
 // Attribute is answered with a CoA-ACK, so the refusal is specific to that attribute.
 func TestRFC5176ServiceTypeNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-servicetype-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	bus := &recordingBus{}
 	addr := coaTestListener(t, secret, bus, fake)
 
@@ -580,7 +584,7 @@ func TestRFC5176ServiceTypeNAKed(t *testing.T) {
 // response carrying none, so the listener never invents or rewrites the value.
 func TestRFC5176StateReturnedUnmodified(t *testing.T) {
 	secret := []byte("test-rfc5176-state-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	state := []byte{0xde, 0xad, 0xbe, 0xef}
@@ -612,7 +616,7 @@ func TestRFC5176StateReturnedUnmodified(t *testing.T) {
 // silently discarded.
 func TestRFC5176MessageAuthenticatorZeroesBothFields(t *testing.T) {
 	secret := []byte("test-rfc5176-ma-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	attrs := func() []radius.Attr {
@@ -654,7 +658,7 @@ func TestRFC5176MessageAuthenticatorZeroesBothFields(t *testing.T) {
 // rfc5176_section_rows_test.go.
 func TestRFC5176ErrorCausePlacement(t *testing.T) {
 	secret := []byte("test-rfc5176-cause-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	cases := []struct {
@@ -762,7 +766,7 @@ func TestRFC5176ErrorCausePlacement(t *testing.T) {
 // change, so no identification attribute is ever taken for one.
 func TestRFC5176IdentificationAttributesIdentifyOnly(t *testing.T) {
 	secret := []byte("test-rfc5176-identify-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	bus := &recordingBus{}
 	addr := coaTestListener(t, secret, bus, fake)
 
@@ -808,7 +812,7 @@ func TestRFC5176IdentificationAttributesIdentifyOnly(t *testing.T) {
 // answered, so the discard is specific to the source address.
 func TestRFC5176UntrustedSourceDiscarded(t *testing.T) {
 	secret := []byte("test-rfc5176-source-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
 	seedCoAServiceAccounting(t)
@@ -868,7 +872,7 @@ func TestRFC5176UntrustedSourceDiscarded(t *testing.T) {
 // the silent discard is specific to the stale one.
 func TestRFC5176StaleEventTimestampDiscarded(t *testing.T) {
 	secret := []byte("test-rfc5176-timestamp-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	attrs := func() []radius.Attr {

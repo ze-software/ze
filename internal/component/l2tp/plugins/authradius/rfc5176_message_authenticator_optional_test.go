@@ -43,6 +43,7 @@ func TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault(t *testing.T) {
 			}},
 		}},
 	}}
+	admitCoAFixtureOriginals(t, fake)
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
 	seedCoAServiceAccounting(t)

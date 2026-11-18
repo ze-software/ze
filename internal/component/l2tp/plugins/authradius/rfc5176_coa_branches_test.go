@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"crypto/md5" //nolint:gosec // RFC 5176 Section 2.3 mandates MD5 for the Response Authenticator
 	"encoding/binary"
-	"errors"
 	"net"
 	"sync/atomic"
 	"testing"
@@ -24,8 +23,9 @@ import (
 
 // twoAliceSessions answers a service holding two sessions of user alice:
 // tunnel 10, sessions 20 and 21.
-func twoAliceSessions() *fakeL2TPService {
-	return &fakeL2TPService{snap: l2tp.Snapshot{
+func twoAliceSessions(t *testing.T) *fakeL2TPService {
+	t.Helper()
+	fixture := &fakeL2TPService{snap: l2tp.Snapshot{
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{
@@ -34,6 +34,8 @@ func twoAliceSessions() *fakeL2TPService {
 			},
 		}},
 	}}
+	admitCoAFixtureOriginals(t, fixture)
+	return fixture
 }
 
 // teardownRefusingService is the one-session service whose teardown fails, so
@@ -43,9 +45,12 @@ type teardownRefusingService struct {
 	attempts atomic.Int32
 }
 
-func (s *teardownRefusingService) TeardownSession(uint16) error {
-	s.attempts.Add(1)
-	return errors.New("teardown refused by the test")
+func (s *teardownRefusingService) CaptureSession(selector l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+	original, err := s.fakeL2TPService.CaptureSession(selector)
+	if err != nil {
+		return nil, err
+	}
+	return &coaRefusingCapture{CapturedSession: original, owner: s}, nil
 }
 
 // coaRawExchange sends one encoded request to the listener and answers the raw
@@ -87,7 +92,7 @@ func rateChange(identification ...radius.Attr) []radius.Attr {
 func TestRFC5176CoAMatchingSeveralSessionsIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-coa-multi-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, twoAliceSessions())
+	addr := coaTestListener(t, secret, bus, twoAliceSessions(t))
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret,
 		rateChange(radius.Attr{Type: radius.AttrUserName, Value: radius.AttrString("alice")}))
@@ -103,7 +108,7 @@ func TestRFC5176CoAMatchingSeveralSessionsIsNAKed(t *testing.T) {
 func TestRFC5176CoAMatchingOneSessionIsACKed(t *testing.T) {
 	secret := []byte("test-rfc5176-coa-single-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, twoAliceSessions())
+	addr := coaTestListener(t, secret, bus, twoAliceSessions(t))
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, rateChange(
 		radius.Attr{Type: radius.AttrUserName, Value: radius.AttrString("alice")},
@@ -124,7 +129,7 @@ func TestRFC5176CoAMatchingOneSessionIsACKed(t *testing.T) {
 func TestRFC5176UnmatchedIdentificationIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-nomatch-secret")
 	bus := &recordingBus{}
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, bus, fake)
 	unmatched := radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString("99-99-1")}
 
@@ -146,7 +151,7 @@ func TestRFC5176UnmatchedIdentificationIsNAKed(t *testing.T) {
 func TestRFC5176MatchedIdentificationSucceeds(t *testing.T) {
 	secret := []byte("test-rfc5176-match-secret")
 	bus := &recordingBus{}
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, bus, fake)
 	matched := radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}
 
@@ -170,7 +175,7 @@ func TestRFC5176MatchedIdentificationSucceeds(t *testing.T) {
 // each CoA-NAK.
 func TestRFC5176StateReturnedUnmodifiedInANAK(t *testing.T) {
 	secret := []byte("test-rfc5176-state-nak-secret")
-	addr := coaTestListener(t, secret, nil, oneSessionService())
+	addr := coaTestListener(t, secret, nil, oneSessionService(t))
 	state := []byte{0xde, 0xad, 0x00, 0xbe, 0xef}
 
 	for _, session := range []string{"10-20-1", "99-99-1"} {
@@ -191,7 +196,7 @@ func TestRFC5176StateReturnedUnmodifiedInANAK(t *testing.T) {
 // that is answered with a CoA-NAK gets a NAK carrying no State.
 func TestRFC5176NAKForARequestWithoutStateCarriesNone(t *testing.T) {
 	secret := []byte("test-rfc5176-nostate-nak-secret")
-	addr := coaTestListener(t, secret, nil, oneSessionService())
+	addr := coaTestListener(t, secret, nil, oneSessionService(t))
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret,
 		rateChange(radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}))
@@ -210,7 +215,7 @@ func TestRFC5176NAKForARequestWithoutStateCarriesNone(t *testing.T) {
 // the response attributes and the shared secret.
 func TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5(t *testing.T) {
 	secret := []byte("test-rfc5176-response-auth-secret")
-	addr := coaTestListener(t, secret, &recordingBus{}, oneSessionService())
+	addr := coaTestListener(t, secret, &recordingBus{}, oneSessionService(t))
 	matched := radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")}
 	unmatched := radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString("99-99-1")}
 
@@ -250,7 +255,7 @@ func TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5(t *testing.T) {
 func TestRFC5176CoANAKMakesNoPartialChange(t *testing.T) {
 	secret := []byte("test-rfc5176-partial-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
+	addr := coaTestListener(t, secret, bus, oneSessionService(t))
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
@@ -268,7 +273,7 @@ func TestRFC5176CoANAKMakesNoPartialChange(t *testing.T) {
 // termination attempt.
 func TestRFC5176DisconnectThatCannotTerminateIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-noterm-secret")
-	svc := &teardownRefusingService{fakeL2TPService: oneSessionService()}
+	svc := &teardownRefusingService{fakeL2TPService: oneSessionService(t)}
 	l2tp.PublishService(svc)
 	t.Cleanup(func() { l2tp.PublishService(nil) })
 	addr := coaTestListener(t, secret, nil, nil)
@@ -289,7 +294,7 @@ func TestRFC5176DisconnectThatCannotTerminateIsNAKed(t *testing.T) {
 // one teardown, so the NAK is specific to the failed termination.
 func TestRFC5176DisconnectThatTerminatesIsACKed(t *testing.T) {
 	secret := []byte("test-rfc5176-term-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, []radius.Attr{
@@ -311,7 +316,7 @@ func TestRFC5176DisconnectThatTerminatesIsACKed(t *testing.T) {
 func TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-badvalue-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
+	addr := coaTestListener(t, secret, bus, oneSessionService(t))
 
 	for _, value := range []string{"not-a-rate", "cos:"} {
 		resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{

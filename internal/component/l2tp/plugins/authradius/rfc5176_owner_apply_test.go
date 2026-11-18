@@ -105,15 +105,18 @@ func startCoARateOwner(t *testing.T) (*coaApplyBus, *coaApplyBackend, *rpc.Direc
 
 func coaAppliedFixture(t *testing.T) (string, []byte, *coaApplyBackend) {
 	t.Helper()
+	origin := oneSessionService(t)
+	original := &origin.snap.Tunnels[0].Sessions[0]
+	original.PppInterface = "ppp-coa-apply"
 	bus, backend, bridge := startCoARateOwner(t)
 	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
-		SubscriberID: "l2tp-10-20",
-		TunnelID:     10, SessionID: 20, Interface: "ppp-coa-apply",
+		Birth: original.Birth, SubscriberID: original.SubscriberID,
+		TunnelID: 10, SessionID: 20, Interface: "ppp-coa-apply",
 	}); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{TunnelID: 10, SessionID: 20}); err != nil {
+		if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{Birth: original.Birth, SubscriberID: original.SubscriberID, TunnelID: 10, SessionID: 20}); err != nil {
 			t.Error(err)
 		}
 	})
@@ -125,7 +128,7 @@ func coaAppliedFixture(t *testing.T) (string, []byte, *coaApplyBackend) {
 		t.Fatalf("fixture did not install the initial rate: %+v", qos)
 	}
 	session := &subscriber.Session{
-		ID: "coa-apply-regression", AccessType: subscriber.AccessL2TP,
+		ID: original.SubscriberID, L2TPBirth: original.Birth, AccessType: subscriber.AccessL2TP,
 		Username: "alice", TunnelID: 10, SessionID: 20,
 		PppInterface: "ppp-coa-apply", AcctSessionID: "10-20-1",
 		DownloadRate: 10_000_000, UploadRate: 5_000_000,
@@ -133,7 +136,7 @@ func coaAppliedFixture(t *testing.T) (string, []byte, *coaApplyBackend) {
 	subscriber.DefaultRegistry.Add(session)
 	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(session.ID) })
 	secret := []byte("test-coa-actual-apply")
-	l2tp.PublishService(oneSessionService())
+	l2tp.PublishService(origin)
 	t.Cleanup(func() { l2tp.PublishService(nil) })
 	cl, err := newCoAListener(coaListenerConfig{
 		AllowedSources: coaLoopbackSources(), DefaultSecret: secret, Bus: bus,
@@ -218,7 +221,7 @@ func TestCoAUnrepresentableRateDoesNotACK(t *testing.T) {
 // Found (503) from Session Context Not Removable (504).
 func TestDisconnectRegisteredSubscriberAllSelectorsMustMatch(t *testing.T) {
 	addr, secret, backend := coaAppliedFixture(t)
-	session, found := subscriber.DefaultRegistry.Get("coa-apply-regression")
+	session, found := subscriber.DefaultRegistry.LookupByAcctSessionID("10-20-1")
 	if !found {
 		t.Fatal("fixture subscriber is absent")
 	}

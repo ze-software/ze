@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/radius"
-	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // newCoASubscriberOrigin constructs this fixture's original session before
@@ -16,15 +15,7 @@ import (
 // No event reader reconstructs identity and no global identity map is added.
 func newCoASubscriberOrigin(t *testing.T) *fakeL2TPService {
 	t.Helper()
-	birth, err := subscriberid.NewL2TPBirth()
-	if err != nil {
-		t.Fatal(err)
-	}
-	origin := oneSessionService()
-	original := &origin.snap.Tunnels[0].Sessions[0]
-	original.Birth = birth
-	original.SubscriberID = birth.String()
-	return origin
+	return oneSessionService(t)
 }
 
 // Goal: a mixed-control refusal reaches its intended partial native write,

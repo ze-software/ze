@@ -50,8 +50,9 @@ func errorCauses(t *testing.T, resp *radius.Packet) []uint32 {
 
 // twoSessionService answers a service holding two sessions of user alice:
 // tunnel 10, sessions 20 and 21.
-func twoSessionService() *fakeL2TPService {
-	return &fakeL2TPService{snap: l2tp.Snapshot{
+func twoSessionService(t *testing.T) *fakeL2TPService {
+	t.Helper()
+	fixture := &fakeL2TPService{snap: l2tp.Snapshot{
 		Tunnels: []l2tp.TunnelSnapshot{{
 			LocalTID: 10,
 			Sessions: []l2tp.SessionSnapshot{
@@ -60,6 +61,8 @@ func twoSessionService() *fakeL2TPService {
 			},
 		}},
 	}}
+	admitCoAFixtureOriginals(t, fixture)
+	return fixture
 }
 
 // coaResponsePaths drives every response the listener can send, each through
@@ -83,21 +86,21 @@ func coaResponsePaths(t *testing.T) []coaPathResponse {
 		wantCode  uint8
 		wantCause uint32
 	}{
-		{"coa accepted", oneSessionService(), false, radius.CodeCoARequest, []radius.Attr{session, rate}, false, radius.CodeCoAACK, 0},
-		{"disconnect accepted", oneSessionService(), false, radius.CodeDisconnectRequest, []radius.Attr{session}, false, radius.CodeDisconnectACK, 0},
-		{"coa asking no change", oneSessionService(), false, radius.CodeCoARequest, []radius.Attr{session}, false, radius.CodeCoANAK, radius.ErrorCauseUnsupportedAttribute},
-		{"disconnect with filter-id", oneSessionService(), false, radius.CodeDisconnectRequest, []radius.Attr{session, rate}, false, radius.CodeDisconnectNAK, radius.ErrorCauseUnsupportedAttribute},
-		{"coa with service-type", oneSessionService(), false, radius.CodeCoARequest, []radius.Attr{session, rate, {Type: radius.AttrServiceType, Value: radius.AttrUint32(2)}}, false, radius.CodeCoANAK, radius.ErrorCauseUnsupportedService},
-		{"coa with an unknown filter-id", oneSessionService(), false, radius.CodeCoARequest, []radius.Attr{session, {Type: radius.AttrFilterID, Value: radius.AttrString("no-such-profile")}}, false, radius.CodeCoANAK, radius.ErrorCauseInvalidAttributeValue},
-		{"disconnect with a short nas-port", oneSessionService(), false, radius.CodeDisconnectRequest, []radius.Attr{session, {Type: radius.AttrNASPort, Value: []byte{0, 20}}}, false, radius.CodeDisconnectNAK, radius.ErrorCauseInvalidAttributeValue},
-		{"coa for an unknown session", oneSessionService(), false, radius.CodeCoARequest, []radius.Attr{unknown, rate}, false, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound},
-		{"disconnect for an unknown session", oneSessionService(), false, radius.CodeDisconnectRequest, []radius.Attr{unknown}, false, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotFound},
-		{"coa matching two sessions", twoSessionService(), false, radius.CodeCoARequest, []radius.Attr{alice, rate}, false, radius.CodeCoANAK, radius.ErrorCauseMultiSessionUnsupported},
-		{"disconnect matching two sessions", twoSessionService(), false, radius.CodeDisconnectRequest, []radius.Attr{alice}, false, radius.CodeDisconnectNAK, radius.ErrorCauseMultiSessionUnsupported},
-		{"coa that cannot be carried out", oneSessionService(), true, radius.CodeCoARequest, []radius.Attr{session, rate}, false, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable},
-		{"disconnect whose teardown fails", &teardownRefusingService{fakeL2TPService: oneSessionService()}, false, radius.CodeDisconnectRequest, []radius.Attr{session}, false, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotRemovable},
-		{"coa with no event-timestamp", oneSessionService(), false, radius.CodeCoARequest, []radius.Attr{session, rate}, true, radius.CodeCoANAK, radius.ErrorCauseInvalidRequest},
-		{"disconnect with no event-timestamp", oneSessionService(), false, radius.CodeDisconnectRequest, []radius.Attr{session}, true, radius.CodeDisconnectNAK, radius.ErrorCauseInvalidRequest},
+		{"coa accepted", oneSessionService(t), false, radius.CodeCoARequest, []radius.Attr{session, rate}, false, radius.CodeCoAACK, 0},
+		{"disconnect accepted", oneSessionService(t), false, radius.CodeDisconnectRequest, []radius.Attr{session}, false, radius.CodeDisconnectACK, 0},
+		{"coa asking no change", oneSessionService(t), false, radius.CodeCoARequest, []radius.Attr{session}, false, radius.CodeCoANAK, radius.ErrorCauseUnsupportedAttribute},
+		{"disconnect with filter-id", oneSessionService(t), false, radius.CodeDisconnectRequest, []radius.Attr{session, rate}, false, radius.CodeDisconnectNAK, radius.ErrorCauseUnsupportedAttribute},
+		{"coa with service-type", oneSessionService(t), false, radius.CodeCoARequest, []radius.Attr{session, rate, {Type: radius.AttrServiceType, Value: radius.AttrUint32(2)}}, false, radius.CodeCoANAK, radius.ErrorCauseUnsupportedService},
+		{"coa with an unknown filter-id", oneSessionService(t), false, radius.CodeCoARequest, []radius.Attr{session, {Type: radius.AttrFilterID, Value: radius.AttrString("no-such-profile")}}, false, radius.CodeCoANAK, radius.ErrorCauseInvalidAttributeValue},
+		{"disconnect with a short nas-port", oneSessionService(t), false, radius.CodeDisconnectRequest, []radius.Attr{session, {Type: radius.AttrNASPort, Value: []byte{0, 20}}}, false, radius.CodeDisconnectNAK, radius.ErrorCauseInvalidAttributeValue},
+		{"coa for an unknown session", oneSessionService(t), false, radius.CodeCoARequest, []radius.Attr{unknown, rate}, false, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound},
+		{"disconnect for an unknown session", oneSessionService(t), false, radius.CodeDisconnectRequest, []radius.Attr{unknown}, false, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotFound},
+		{"coa matching two sessions", twoSessionService(t), false, radius.CodeCoARequest, []radius.Attr{alice, rate}, false, radius.CodeCoANAK, radius.ErrorCauseMultiSessionUnsupported},
+		{"disconnect matching two sessions", twoSessionService(t), false, radius.CodeDisconnectRequest, []radius.Attr{alice}, false, radius.CodeDisconnectNAK, radius.ErrorCauseMultiSessionUnsupported},
+		{"coa that cannot be carried out", oneSessionService(t), true, radius.CodeCoARequest, []radius.Attr{session, rate}, false, radius.CodeCoANAK, radius.ErrorCauseResourcesUnavailable},
+		{"disconnect whose teardown fails", &teardownRefusingService{fakeL2TPService: oneSessionService(t)}, false, radius.CodeDisconnectRequest, []radius.Attr{session}, false, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotRemovable},
+		{"coa with no event-timestamp", oneSessionService(t), false, radius.CodeCoARequest, []radius.Attr{session, rate}, true, radius.CodeCoANAK, radius.ErrorCauseInvalidRequest},
+		{"disconnect with no event-timestamp", oneSessionService(t), false, radius.CodeDisconnectRequest, []radius.Attr{session}, true, radius.CodeDisconnectNAK, radius.ErrorCauseInvalidRequest},
 	}
 
 	var out []coaPathResponse
@@ -157,7 +160,7 @@ func wantCauseOnlyIn(t *testing.T, paths []coaPathResponse, cause uint32, allowe
 func wantForbiddenCauseNeverEchoed(t *testing.T, cause uint32) {
 	t.Helper()
 	secret := []byte("test-rfc5176-forbidden-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	var value [4]byte
@@ -192,7 +195,7 @@ func wantForbiddenCauseNeverEchoed(t *testing.T, cause uint32) {
 func TestRFC5176UnsupportedServiceTypeValueIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-2.2-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
+	addr := coaTestListener(t, secret, bus, oneSessionService(t))
 
 	for _, value := range []uint32{1, 2, 6, 8} {
 		resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
@@ -218,7 +221,7 @@ func TestRFC5176UnsupportedServiceTypeValueIsNAKed(t *testing.T) {
 func TestRFC5176CoAWithoutServiceTypeIsACKed(t *testing.T) {
 	secret := []byte("test-rfc5176-2.2-neg-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
+	addr := coaTestListener(t, secret, bus, oneSessionService(t))
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
@@ -248,7 +251,7 @@ func TestRFC5176CoAWithoutServiceTypeIsACKed(t *testing.T) {
 // NAS refuses it only because it offers no EAP service (Section 2.3).
 func TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-3-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	others := []struct {
@@ -286,7 +289,7 @@ func TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed(t *testing.T) {
 // Disconnect-NAK is owed to the other attribute alone.
 func TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed(t *testing.T) {
 	secret := []byte("test-rfc5176-3-neg-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, []radius.Attr{
@@ -313,7 +316,7 @@ func TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed(t *testing.T) {
 // one for every ACK.
 func TestRFC5176DisconnectAdmitsTheSection36TableAttributes(t *testing.T) {
 	secret := []byte("test-rfc5176-3-table-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, &recordingBus{}, fake)
 
 	replyMessage := radius.Attr{Type: radius.AttrReplyMessage, Value: radius.AttrString("session ended by operator")}
@@ -365,7 +368,7 @@ func TestRFC5176StateNeverChangesTheOutcome(t *testing.T) {
 	for _, tc := range states {
 		t.Run(tc.name, func(t *testing.T) {
 			bus := &recordingBus{}
-			addr := coaTestListener(t, secret, bus, oneSessionService())
+			addr := coaTestListener(t, secret, bus, oneSessionService(t))
 			attrs := []radius.Attr{
 				{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 				{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
@@ -406,7 +409,7 @@ func TestRFC5176StateNeverChangesTheOutcome(t *testing.T) {
 func TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity(t *testing.T) {
 	secret := []byte("test-rfc5176-3.3-neg-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
+	addr := coaTestListener(t, secret, bus, oneSessionService(t))
 
 	rateState := []byte("10mbit")
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
@@ -465,7 +468,7 @@ func TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest(t *testing.T) {
 	wantForbiddenCauseNeverEchoed(t, radius.ErrorCauseInvalidEAPPacket)
 
 	secret := []byte("test-rfc5176-3.5-7-secret")
-	addr := coaTestListener(t, secret, &recordingBus{}, oneSessionService())
+	addr := coaTestListener(t, secret, &recordingBus{}, oneSessionService(t))
 	resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 		{Type: 79, Value: []byte{2, 1, 0, 9, 1}},
@@ -490,7 +493,7 @@ func TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession(t *testing.T)
 	wantForbiddenCauseNeverEchoed(t, 502)
 
 	secret := []byte("test-rfc5176-3.5-8-secret")
-	addr := coaTestListener(t, secret, &recordingBus{}, oneSessionService())
+	addr := coaTestListener(t, secret, &recordingBus{}, oneSessionService(t))
 	resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, []radius.Attr{
 		{Type: radius.AttrUserName, Value: radius.AttrString("bob@elsewhere.example")},
 		{Type: radius.AttrNASIdentifier, Value: radius.AttrString("other-nas")},
@@ -526,7 +529,7 @@ func TestRFC5176SessionNotRemovableNeverInACoANAK(t *testing.T) {
 	wantForbiddenCauseNeverEchoed(t, radius.ErrorCauseSessionNotRemovable)
 
 	secret := []byte("test-rfc5176-3.5-9-secret")
-	addr := coaTestListener(t, secret, nil, oneSessionService())
+	addr := coaTestListener(t, secret, nil, oneSessionService(t))
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
 		{Type: radius.AttrFilterID, Value: radius.AttrString("10mbit")},
@@ -541,7 +544,7 @@ func TestRFC5176SessionNotRemovableNeverInACoANAK(t *testing.T) {
 func TestRFC5176VendorSpecificIsAChangeOnly(t *testing.T) {
 	secret := []byte("test-rfc5176-3.6-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
+	addr := coaTestListener(t, secret, bus, oneSessionService(t))
 
 	resp := sendCoAPacket(t, addr, radius.CodeCoARequest, secret, []radius.Attr{
 		{Type: radius.AttrAcctSessionID, Value: radius.AttrString("10-20-1")},
@@ -574,7 +577,7 @@ func TestRFC5176VendorSpecificIsAChangeOnly(t *testing.T) {
 func TestRFC5176VendorSpecificIsNeverAnIdentity(t *testing.T) {
 	secret := []byte("test-rfc5176-3.6-neg-secret")
 	bus := &recordingBus{}
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, bus, fake)
 	rate := vsa(t, radius.VendorMikrotik, radius.MikrotikRateLimit, "10M/10M")
 
@@ -640,7 +643,7 @@ func newWindowListener(t *testing.T, secret []byte, fake *fakeL2TPService) *coaL
 // and an Event-Timestamp that old is current (the request is answered).
 func TestRFC5176DuplicateAndTimestampWindowsBothHoldInside(t *testing.T) {
 	secret := []byte("test-rfc5176-6.3-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	cl := newWindowListener(t, secret, fake)
 	addr := cl.conn.LocalAddr().String()
 	attrs := func() []radius.Attr {
@@ -676,7 +679,7 @@ func TestRFC5176DuplicateAndTimestampWindowsBothHoldInside(t *testing.T) {
 // discarded, no teardown).
 func TestRFC5176DuplicateAndTimestampWindowsBothEndOutside(t *testing.T) {
 	secret := []byte("test-rfc5176-6.3-neg-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	cl := newWindowListener(t, secret, fake)
 	addr := cl.conn.LocalAddr().String()
 	attrs := func() []radius.Attr {

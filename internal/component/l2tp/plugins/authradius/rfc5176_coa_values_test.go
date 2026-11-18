@@ -61,7 +61,7 @@ func vsa(t *testing.T, vendorID uint32, vendorType uint8, value string) radius.A
 func TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-mixed-values-secret")
 	bus := &recordingBus{}
-	addr := coaTestListener(t, secret, bus, oneSessionService())
+	addr := coaTestListener(t, secret, bus, oneSessionService(t))
 
 	for _, tc := range []struct {
 		name  string
@@ -94,7 +94,7 @@ func TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed(t *testing.
 // Error-Cause 401. Neither tears the session down.
 func TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed(t *testing.T) {
 	secret := []byte("test-rfc5176-dm-values-secret")
-	fake := oneSessionService()
+	fake := oneSessionService(t)
 	addr := coaTestListener(t, secret, nil, fake)
 
 	resp := sendCoAPacket(t, addr, radius.CodeDisconnectRequest, secret, []radius.Attr{

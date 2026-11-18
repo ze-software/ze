@@ -133,11 +133,13 @@ func webL2TPListView(populated bool) l2tpListView {
 		Sessions: []l2tpSessionRow{
 			{
 				LocalSID: 1, TunnelTID: 7, Username: "alice", AssignedAddr: "192.0.2.10",
-				PeerAddr: "198.51.100.1", State: "established", Interface: "ppp0",
+				DetailURL: "/l2tp/1?tunnel-id=7",
+				PeerAddr:  "198.51.100.1", State: "established", Interface: "ppp0",
 			},
 			{
 				LocalSID: 2, TunnelTID: 7, Username: "bob", AssignedAddr: "192.0.2.11",
-				PeerAddr: "198.51.100.1", State: "establishing", Interface: "ppp1",
+				DetailURL: "/l2tp/2?tunnel-id=7",
+				PeerAddr:  "198.51.100.1", State: "establishing", Interface: "ppp1",
 			},
 		},
 	}

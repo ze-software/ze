@@ -6,6 +6,7 @@
 package l2tpauthradius
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -21,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/traffic"
 	coreCos "github.com/ze-software/ze/internal/core/cos"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/taskguard"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
@@ -430,26 +432,46 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 
 	// Try subscriber registry first (works for both PPPoE and L2TP).
 	if subSess, ok := cl.findSubscriberSession(pkt); ok {
+		if subSess.AccessType == subscriber.AccessL2TP {
+			original, err := captureCoASession(l2tp.SessionSnapshot{
+				Birth: subSess.L2TPBirth, LocalSID: subSess.SessionID, TunnelLocalTID: subSess.TunnelID,
+			})
+			if err != nil {
+				cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound)
+				return
+			}
+			snapshot, err := original.Snapshot()
+			if err != nil {
+				cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound)
+				return
+			}
+			if snapshot.SubscriberID != subSess.ID {
+				cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound)
+				return
+			}
+			subSess.PppInterface = snapshot.PppInterface
+		}
 		cl.applySubscriberCoA(pkt, from, &subSess, &change)
 		return
 	}
 
 	// Fallback: L2TP-only lookup.
-	sid, found := cl.oneSession(pkt, from, radius.CodeCoANAK)
+	matched, found := cl.oneSession(pkt, from, radius.CodeCoANAK)
 	if !found {
 		return
 	}
 
-	svc := l2tp.LookupService()
-	if svc == nil {
+	original, err := captureCoASession(matched)
+	if err != nil {
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound)
 		return
 	}
-	sess, sessOK := svc.LookupSession(sid)
-	if !sessOK {
+	sess, err := original.Snapshot()
+	if err != nil {
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseSessionNotFound)
 		return
 	}
+	sid := sess.LocalSID
 
 	// RFC 5176 Section 2.3: "If one or more authorization changes specified in a
 	// CoA-Request cannot be carried out, the NAS MUST send a CoA-NAK." The event
@@ -474,6 +496,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 
 	// RFC 5176 Section 2.3: the ACK follows confirmed backend application.
 	if err := cl.confirmCoA(&subscriber.Session{
+		ID: sess.SubscriberID, L2TPBirth: sess.Birth, AccessType: subscriber.AccessL2TP,
 		TunnelID: sess.TunnelLocalTID, SessionID: sid, PppInterface: sess.PppInterface,
 	}, &change, from.IP.String()); err != nil {
 		logger().Warn("Subscriber authorization failed; inspect shaping and repair the backend before retrying the request",
@@ -583,7 +606,7 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 		return
 	}
 
-	sid, found := cl.oneSession(pkt, from, radius.CodeDisconnectNAK)
+	matched, found := cl.oneSession(pkt, from, radius.CodeDisconnectNAK)
 	if !found {
 		return
 	}
@@ -594,11 +617,12 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 	// locate the session context, but could not remove it for some reason." 503
 	// (Session Context Not Found) is for a context that "does not exist on the
 	// NAS", which is not what the NAS saw.
-	svc := l2tp.LookupService()
-	if svc == nil {
+	original, err := captureCoASession(matched)
+	if err != nil {
 		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotRemovable)
 		return
 	}
+	sid := matched.LocalSID
 
 	// RFC 5176 Section 2.3: "a NAS MUST send a Disconnect-NAK in reply if any of
 	// the matching sessions cannot be successfully terminated."
@@ -607,7 +631,9 @@ func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
 	// session context, but could not remove it for some reason. It MUST NOT be
 	// sent within a CoA-ACK, CoA-NAK, or Disconnect-ACK, only within a
 	// Disconnect-NAK." The session was found, so 503 would misreport it.
-	if err := svc.TeardownSession(sid); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := original.Teardown(ctx, l2tpevents.TerminateCauseAdminReset, "RADIUS Disconnect-Request"); err != nil {
 		logger().Warn("coa: teardown failed", "session", sid, "error", err)
 		cl.sendResponse(from, pkt, radius.CodeDisconnectNAK, radius.ErrorCauseSessionNotRemovable)
 		return
@@ -689,17 +715,17 @@ func sessionSelectorsMatch(pkt *radius.Packet, username string, nasPort uint32, 
 // sessions MUST send a CoA-NAK or Disconnect-NAK in reply; an Error-Cause
 // Attribute with value 508 (Multiple Session Selection Unsupported) SHOULD be
 // included.".
-func (cl *coaListener) oneSession(pkt *radius.Packet, from *net.UDPAddr, nak uint8) (uint16, bool) {
+func (cl *coaListener) oneSession(pkt *radius.Packet, from *net.UDPAddr, nak uint8) (l2tp.SessionSnapshot, bool) {
 	sessions := cl.findSessions(pkt)
 	if len(sessions) == 0 {
 		cl.sendResponse(from, pkt, nak, radius.ErrorCauseSessionNotFound)
-		return 0, false
+		return l2tp.SessionSnapshot{}, false
 	}
 	if len(sessions) > 1 {
 		logger().Info("coa: identification attributes match more than one session",
 			"sessions", len(sessions), "from", from)
 		cl.sendResponse(from, pkt, nak, radius.ErrorCauseMultiSessionUnsupported)
-		return 0, false
+		return l2tp.SessionSnapshot{}, false
 	}
 	return sessions[0], true
 }
@@ -720,7 +746,7 @@ func (cl *coaListener) oneSession(pkt *radius.Packet, from *net.UDPAddr, nak uin
 // "tunnelID-sessionID-bootTag-counter" (acct.go genSessionID). The complete
 // value must equal the current accounting owner's id; an unknown accounting
 // context cannot be reconstructed from the numeric tuple in a snapshot.
-func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
+func (cl *coaListener) findSessions(pkt *radius.Packet) []l2tp.SessionSnapshot {
 	svc := l2tp.LookupService()
 	if svc == nil {
 		return nil
@@ -732,8 +758,8 @@ func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 		return nil
 	}
 
-	var out []uint16
-	var accountIDs map[sessionKey]string
+	var out []l2tp.SessionSnapshot
+	var accountIDs map[subscriberid.L2TPBirth]string
 	if acctSessID != nil {
 		// RFC 5176 Section 3: use the complete id this NAS actually issued.
 		accountIDs = acctInstance.currentSessionIDs()
@@ -742,10 +768,9 @@ func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 	for i := range snap.Tunnels {
 		for j := range snap.Tunnels[i].Sessions {
 			sess := &snap.Tunnels[i].Sessions[j]
-			key := sessionKey{tunnelID: snap.Tunnels[i].LocalTID, sessionID: sess.LocalSID}
 			// RFC 5176 Section 3: fallback obeys the same full selector guard.
 			if !sessionSelectorsMatch(pkt, sess.Username, uint32(sess.LocalSID), func(value []byte) bool {
-				id, found := accountIDs[key]
+				id, found := accountIDs[sess.Birth]
 				if !found {
 					return false
 				}
@@ -753,10 +778,26 @@ func (cl *coaListener) findSessions(pkt *radius.Packet) []uint16 {
 			}) {
 				continue
 			}
-			out = append(out, sess.LocalSID)
+			out = append(out, *sess)
 		}
 	}
 	return out
+}
+
+// captureCoASession binds the matched original before any authorization or
+// teardown operation. An absent Birth cannot become an unguarded SID lookup.
+func captureCoASession(matched l2tp.SessionSnapshot) (l2tp.CapturedSession, error) {
+	if !matched.Birth.IsValid() {
+		return nil, l2tp.ErrSessionNotFound
+	}
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return nil, l2tp.ErrSubsystemNotStarted
+	}
+	return svc.CaptureSession(l2tp.SessionSelector{
+		SID: matched.LocalSID, TID: matched.TunnelLocalTID,
+		Listener: matched.Listener, Birth: matched.Birth,
+	})
 }
 
 // coaChange is the authorization change a CoA-Request asks for. hasRate and a

@@ -27,6 +27,8 @@ import "time"
 type l2tpSessionRow struct {
 	LocalSID     uint16
 	TunnelTID    uint16
+	Listener     string `json:"listener,omitempty"`
+	DetailURL    string `json:"detail-url,omitempty"`
 	Username     string
 	AssignedAddr string
 	PeerAddr     string
@@ -51,6 +53,7 @@ type l2tpSessionView struct {
 	AssignedAddr   string
 	PppInterface   string
 	TunnelLocalTID uint16
+	Listener       string
 	Family         string
 }
 

@@ -672,5 +672,7 @@ web selection passes its three new roots. Applied exact CoA/Disconnect and
 issued-ID binding pass all four new roots, the preserved 22-case identification
 root and the full 338-group RADIUS race run. All nine new typed API/MCP roots
 also pass exact race reruns after intended REDs. Reached API package and daemon
-checks, web output comparisons, ordered accounting and native integration
-remain open. These checks do not replace the full 48/47/46 lab proof.
+checks, ordered accounting and native integration remain open. The six affected
+web outputs were captured, independently reviewed and refreshed byte-exactly;
+the full template comparison and three affected HTTP comparisons now pass.
+These checks do not replace the full 48/47/46 lab proof.
