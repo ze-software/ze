@@ -303,13 +303,20 @@ hub's <code>client</code> entry at the same time, or the client cannot come back
 </code></pre>
 <p>The hub pushes the restored configuration as it pushes any change.</p>
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
-<p><strong>To edit with the configuration editor,</strong> stop the hub first. The editor
-opens the store in its own process, and a running hub does not see that edit.</p>
+<p><strong>To edit with the configuration editor,</strong> on the hub's own host:</p>
 <pre><code class="language-bash">ze config edit client-edge-01.conf
-ze config history client-edge-01.conf
+</code></pre>
+<p>The editor runs inside the running hub. When you commit, the hub records a new
+version of that client's configuration and pushes it to the client, as it
+pushes an import. The file must exist first: give the hub the first version
+with <code>ze data import</code>.</p>
+<p>The history and the archive of a client's configuration use the same name:</p>
+<pre><code class="language-bash">ze config history client-edge-01.conf
 ze config archive backup client-edge-01.conf
 </code></pre>
-<!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- runStoredEditor -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+<!-- source: internal/component/cli/editor_commit.go -- publishCommitted -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
 <h2 id="when-the-hub-is-down">When the Hub Is Down</h2>
@@ -405,11 +412,16 @@ each time, up to 60 seconds.</p>
 <td>The client cannot reach the hub's address</td>
 <td>Check the address and the route. The client keeps running and retrying</td>
 </tr>
+<tr>
+<td><code>doctor-hub-client-missing</code> on the client</td>
+<td>The client applied a configuration with no <code>client</code> block, so it follows no hub</td>
+<td>Add the <code>client</code> block to its configuration on the hub. Then run <code>ze init --managed --force</code> on the client, and start it</td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable -->
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared -->
 <h2 id="reference">Reference</h2>
 <h3 id="ze-init-options-for-a-managed-client"><code>ze init</code> Options for a Managed Client</h3>
 <table>
@@ -620,7 +632,7 @@ with no change to its configuration.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 18 November 2026 22:01 UTC</span>
+                    <span class="footer-published">Published 18 November 2026 22:55 UTC</span>
                 </div>
             </div>
         </footer>

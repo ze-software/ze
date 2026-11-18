@@ -236,15 +236,26 @@ request data restore path /var/backups/edge-01.zefs config client edge-01
 The hub pushes the restored configuration as it pushes any change.
 <!-- source: internal/component/config/storage/cli/data_rpc.go -- restoreConfigFromSource -->
 
-**To edit with the configuration editor,** stop the hub first. The editor
-opens the store in its own process, and a running hub does not see that edit.
+**To edit with the configuration editor,** on the hub's own host:
 
 ```bash
 ze config edit client-edge-01.conf
+```
+
+The editor runs inside the running hub. When you commit, the hub records a new
+version of that client's configuration and pushes it to the client, as it
+pushes an import. The file must exist first: give the hub the first version
+with `ze data import`.
+
+The history and the archive of a client's configuration use the same name:
+
+```bash
 ze config history client-edge-01.conf
 ze config archive backup client-edge-01.conf
 ```
-<!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- runStoredEditor -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+<!-- source: internal/component/cli/editor_commit.go -- publishCommitted -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
 
@@ -280,9 +291,10 @@ Start with `show doctor` on the hub, and `ze doctor` on the client.
 | `doctor-hub-managed-collision` on the hub | The clients' block uses the address of the first `server` block | Give the clients' block its own port |
 | `doctor-managed-client-notify-dropped` on the hub | A connected client did not accept the notice of a change | Nothing in most cases: the hub disconnects that client, and it fetches when it reconnects |
 | `doctor-hub-unreachable` on the client | The client cannot reach the hub's address | Check the address and the route. The client keeps running and retrying |
+| `doctor-hub-client-missing` on the client | The client applied a configuration with no `client` block, so it follows no hub | Add the `client` block to its configuration on the hub. Then run `ze init --managed --force` on the client, and start it |
 <!-- source: internal/component/plugin/doctor/check_managed_runtime.go -- checkManagedClientRejected, checkManagedListenerUnbound -->
 <!-- source: internal/component/plugin/server/managed_doctor.go -- authRefused, notifyDropped -->
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable -->
+<!-- source: internal/component/managed/doctor.go -- checkHubReachable, checkHubClientDeclared -->
 
 ## Reference
 
