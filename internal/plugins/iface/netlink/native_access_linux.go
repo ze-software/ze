@@ -611,6 +611,18 @@ func (resources *nativeVLANResources) deleteLocked(name string) (bool, error) {
 	defer cancel()
 	return resources.deleteDirect(ctx, name)
 }
+
+// nativeVLANLinkAbsent accepts the native transport's original kernel cause
+// and the library's initialized missing-link wrapper. Other lookup failures
+// cannot authorize retirement or successful deletion.
+func nativeVLANLinkAbsent(err error) bool {
+	if errors.Is(err, unix.ENODEV) {
+		return true
+	}
+	_, absent := errors.AsType[netlink.LinkNotFoundError](err)
+	return absent
+}
+
 func (resources *nativeVLANResources) closeDirect(ctx context.Context) error {
 	if resources.ops != nil {
 		if resources.ops.resumeOriginal != nil {
@@ -650,7 +662,7 @@ func (resources *nativeVLANResources) closeDirect(ctx context.Context) error {
 		resources.retireNext = (at + 1) % len(births) // A timed-out resource cannot starve its siblings on retry.
 		link, err := record.readLocked(ctx)
 		if err != nil {
-			if _, absent := errors.AsType[netlink.LinkNotFoundError](err); absent {
+			if nativeVLANLinkAbsent(err) {
 				record.state = nativeVLANRetired{}
 				continue
 			}
@@ -801,7 +813,7 @@ func (resources *nativeVLANResources) deleteDirect(ctx context.Context, name str
 		link, err = resources.ops.byName(name)
 	}
 	if err != nil {
-		if _, absent := errors.AsType[netlink.LinkNotFoundError](err); absent {
+		if nativeVLANLinkAbsent(err) {
 			if record != nil {
 				record.state = nativeVLANRetired{}
 				delete(resources.records, record.identity.Birth)

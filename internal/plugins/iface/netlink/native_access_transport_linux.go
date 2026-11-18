@@ -512,9 +512,6 @@ func (transport *nativeVLANTransport) byIndex(index int) (netlink.Link, error) {
 }
 func (transport *nativeVLANTransport) one(request *nl.NetlinkRequest) (netlink.Link, error) {
 	links, err := transport.request(request, nativeVLANReplyLink)
-	if errors.Is(err, unix.ENODEV) {
-		return nil, netlink.LinkNotFoundError{}
-	}
 	if err != nil {
 		return nil, err
 	}

@@ -26,10 +26,10 @@ An implementation commit does not close an acceptance criterion by itself.
 |------|---------------|-----------------------------|
 | Original kernel PPP unit creation and counters | Committed in `1bd37283ed` | The reached kernel package passed with race detection; all 15 creation roots passed on Ze Linux 7.3, with no skips. The original file and creation-bound counter reader survive rename and refuse foreign or reused resources. Real session constructors and callers still require migration. |
 | Counter guard discrimination | Verified for the creation library | C01–C06 each produced its intended semantic failure and a restored pass. C02's two restored native roots passed. Suppressing the original reader error in C06 failed the backend-closure assertion; after removing the overlay, all 15 creation roots passed again on Ze Linux 7.3 with no skips. Canonical files stayed unchanged and the overlays were removed. |
-| Shared kernel CoS cleanup and diagnostics | Committed in `a8101579b4` | All 94 CoS package roots pass with race detection; the registered cleanup YANG tests pass. Four RFC fixture judgments are recorded. Native VLAN, functional, RFC proof, discrimination and lint obligations remain open. |
+| Shared kernel CoS cleanup and diagnostics | Committed in `a8101579b4`, with a native error repair | All 94 CoS package roots and the registered cleanup YANG tests passed with race detection. Four RFC fixture judgments are recorded. Native replacement cleanup exposed an invalid missing-link error that panicked during rendering; preserving the original ENODEV fixed the unchanged test, then all six reached native CoS controls passed without skips. Wider native VLAN, new producer regressions, functional, RFC proof, discrimination and lint obligations remain open. |
 | VPP process, socket and statistics ownership | Foundation implemented | Earlier reached race and Linux runs passed. Subsequent coordinated cleanup changes require their own current evidence; those earlier runs do not validate the newer changes. |
 | Captured channel and session ownership | Private proposals; integration repairs in progress | The typed channel/unit and setup proposals passed source review. Independent actor and factory reviews found constructor-fixture, cleanup-oracle and panic-propagation proof gaps; repairs remain private. Worker, factory, client and relay callers must form one coherent integration before activation. |
-| Atomic original-unit attachment | Required fix identified | Selected Linux 7.3 removes a unit from its numeric registry while its old file can remain open; channel connection looks up the unit number. A prior liveness check alone cannot prevent attachment to a replacement. The atomic attachment fix and native proof remain owed. |
+| Atomic attachment and channel capture | Kernel proposals under review; not activated | Selected Linux 7.3 can recycle unit or channel numbers while old files remain open. Original-file attachment, serialized channel unregister and capture from the original PPPoX socket are required. The final matching kernel, original-file Go callers, dependency doctor and native proofs remain owed; wrapping a descriptor or checking a number cannot supply this authority. |
 | Native original-file guard tests | Twenty-eight additive native tests implemented; capability baseline observed | The main-checkout Linux build passes. `TestNativeOwnerGuardProbe` fails on the current Ze7.3 kernel at the missing creator-file ioctl, after real PPP unit creation and before any guarded write (`job-ppp-original-owner-probe-old-kernel-red-772a14cf.log`). This establishes ABI absence only. All 28 guarded-operation roots and the 15 preserved creation roots still require a matching patched kernel and guest image; session-consumer acceptance remains separate. |
 | Full VPP subscriber service | Open | Forwarding, IPv6, policing, restart recovery, final accounting samples, release ordering, interoperability and scale acceptance are not complete. |
 
@@ -37,7 +37,8 @@ The creation-library results do not prove its pending session-constructor or
 subscriber integration. Commits record existing evidence and outstanding
 checks without claiming full support. The native CoS fixture retains its
 prior expected-device assertion at the original-target capture boundary;
-its native rerun remains owed.
+its survivor, initial-conflict and CoA-conflict roots passed in the six-control
+native rerun.
 
 ## Task
 

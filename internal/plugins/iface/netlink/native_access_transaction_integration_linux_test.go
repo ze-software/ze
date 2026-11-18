@@ -48,7 +48,7 @@ func TestNativeAccessTransactionIgnoresObsoleteNativeReplies(t *testing.T) {
 		if err == nil {
 			t.Fatal("obsolete native link answered an absent original query")
 		}
-		if _, absent := errors.AsType[netlink.LinkNotFoundError](err); !absent {
+		if !errors.Is(err, unix.ENODEV) {
 			t.Fatalf("original absent query cause: %v", err)
 		}
 		sendNativeTransactionTestRequest(t, transport, nativeVLANLinkRequest(unix.RTM_GETLINK, unix.NLM_F_ACK, nativeAccessIndexMax), 124)
