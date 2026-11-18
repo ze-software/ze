@@ -53,6 +53,16 @@ from numeric coordinates.
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, onSessionDown -->
 <!-- source: internal/component/l2tp/session_metadata.go -- StoreSessionMetadata -->
 
+When a transport supplies an L2TP birth in `StartSession`, PPP caches it with
+the original canonical subscriber ID. Its lifecycle emitters copy both cached
+values with the exact admitted `Control`. Admission refusal preserves the
+incoming birth, ID and `Attempt`. A zero birth remains absent, including for
+PPPoE. PPP copies the caller's metadata without parsing the ID or rebuilding it
+from numeric labels.
+<!-- source: internal/component/l2tp/ppp/manager.go -- spawnSession, sendRejection -->
+<!-- source: internal/component/l2tp/ppp/events.go -- bindEventControl -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- sendIPAssigned -->
+
 Both NAS authentication drains require the ID before provider lookup, realm
 selection or pending-authorization changes. A missing ID receives a refusal
 without a subscriber result event. Valid opaque IDs pass unchanged to the

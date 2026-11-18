@@ -508,6 +508,7 @@ func (d *Driver) spawnSession(start *StartSession) {
 	s := &pppSession{
 		lcpConfig:            start.LCP,
 		proxyCapture:         capture,
+		l2tpBirth:            start.L2TPBirth,
 		subscriberID:         start.SubscriberID,
 		attempt:              start.Attempt,
 		driver:               d,
@@ -627,6 +628,8 @@ func (d *Driver) emitRejection(start *StartSession, reason string) {
 func (d *Driver) sendRejection(start *StartSession, reason string, existingSession bool) {
 	select {
 	case d.eventsOut <- EventSessionRejected{
+		Birth:           start.L2TPBirth,
+		SubscriberID:    start.SubscriberID,
 		Attempt:         start.Attempt,
 		TunnelID:        start.TunnelID,
 		SessionID:       start.SessionID,

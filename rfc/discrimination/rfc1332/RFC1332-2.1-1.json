@@ -18,7 +18,7 @@
     "claim-sha": "129b9d614f6d559d",
     "route": "revert",
     "producer": "internal/component/l2tp/ppp/ncp.go::sendIPAssigned",
-    "producer-sha": "e0e40f2f25b09df4",
+    "producer-sha": "71c7af3b4c09a198",
     "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

@@ -13,6 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // pppSession is the per-session state owned by one goroutine in the
@@ -28,6 +30,7 @@ type pppSession struct {
 	// Identification (immutable after StartSession).
 	tunnelID     uint16
 	sessionID    uint16
+	l2tpBirth    subscriberid.L2TPBirth // zero means the transport supplied no L2TP birth
 	subscriberID string
 	attempt      SessionAttempt
 	control      SessionControl

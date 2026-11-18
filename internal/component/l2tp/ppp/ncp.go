@@ -1380,6 +1380,8 @@ func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
 	default:
 	}
 	ev.done = make(chan struct{})
+	ev.Birth = s.l2tpBirth
+	ev.SubscriberID = s.subscriberID
 	ev.Control = s.control
 	select {
 	case s.eventsOut <- ev:

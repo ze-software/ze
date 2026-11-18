@@ -9,6 +9,7 @@ import (
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // Event is the sealed sum type emitted on Manager.EventsOut. The transport
@@ -26,6 +27,8 @@ type Event interface {
 // Carries the peer's receive MRU and the actual acknowledged authentication
 // method. Authentication and NCPs run after this point.
 type EventLCPUp struct {
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control              SessionControl
 	TunnelID             uint16
@@ -78,6 +81,8 @@ func (EventLCPUp) isPPPEvent() {}
 // transport. Its consumer calls Acknowledge after that withdrawal; PPP waits
 // before processing replacement authentication or NCP packets.
 type EventLCPDown struct {
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control      SessionControl
 	TunnelID     uint16
@@ -110,6 +115,8 @@ func (e EventLCPDown) Acknowledge() {
 // so the transport does not declare the session usable until an IP
 // address is actually on pppN.
 type EventSessionUp struct {
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control   SessionControl
 	TunnelID  uint16
@@ -138,6 +145,8 @@ func (EventSessionUp) isPPPEvent() {}
 // identifier was never negotiated (session.go:
 // peerInterfaceIDNegotiated): there is no identifier to carry.
 type EventSessionIPAssigned struct {
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control   SessionControl
 	TunnelID  uint16
@@ -191,6 +200,8 @@ func (e EventSessionIPAssigned) Acknowledge() {
 // sets it; an exit ze cannot attribute names NAS Error rather than
 // guessing a more specific cause.
 type EventSessionDown struct {
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control   SessionControl
 	TunnelID  uint16
@@ -206,6 +217,8 @@ func (EventSessionDown) isPPPEvent() {}
 // Echo-Request. The L2TP reactor relays this to the EventBus
 // for CQM aggregation (spec-l2tp-9-observer).
 type EventEchoRTT struct {
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
 	// Control identifies this exact admitted worker; numeric fields are labels.
 	Control   SessionControl
 	TunnelID  uint16
@@ -228,6 +241,8 @@ func (EventEchoRTT) isPPPEvent() {}
 //
 // Reason is human-readable for logs.
 type EventSessionRejected struct {
+	Birth        subscriberid.L2TPBirth `json:",omitzero"`
+	SubscriberID string                 `json:",omitempty"`
 	// Attempt binds the refused transfer; no PPP worker was admitted for it.
 	Attempt   SessionAttempt
 	TunnelID  uint16
@@ -254,30 +269,43 @@ func (event EventLCPDown) Cancel() bool {
 	return event.Control.Cancel()
 }
 
-// bindEventControl stamps the admitted capability at the central producer.
-// Call-site literals cannot substitute a different admission's control.
+// bindEventControl stamps the admitted capability and cached identity at the
+// central producer. Call-site literals cannot substitute another admission's
+// control or metadata.
 func (session *pppSession) bindEventControl(event Event) Event {
 	switch value := event.(type) {
 	case EventLCPUp:
+		value.Birth = session.l2tpBirth
+		value.SubscriberID = session.subscriberID
 		value.Control = session.control
 		return value
 	case EventLCPDown:
+		value.Birth = session.l2tpBirth
+		value.SubscriberID = session.subscriberID
 		value.Control = session.control
 		return value
 	case EventSessionUp:
+		value.Birth = session.l2tpBirth
+		value.SubscriberID = session.subscriberID
 		value.Control = session.control
 		return value
 	case EventSessionIPAssigned:
+		value.Birth = session.l2tpBirth
+		value.SubscriberID = session.subscriberID
 		value.Control = session.control
 		return value
 	case EventSessionDown:
+		value.Birth = session.l2tpBirth
+		value.SubscriberID = session.subscriberID
 		value.Control = session.control
 		return value
 	case EventEchoRTT:
+		value.Birth = session.l2tpBirth
+		value.SubscriberID = session.subscriberID
 		value.Control = session.control
 		return value
 	case EventSessionRejected:
-		// A refusal has no admitted worker; preserve its incoming attempt.
+		// A refusal has no admitted worker; preserve its incoming facts.
 		return value
 	}
 	panic("BUG: unregistered PPP lifecycle event")

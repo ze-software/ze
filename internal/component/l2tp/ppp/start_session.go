@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // StartSession is the payload sent on Driver.SessionsIn to launch a PPP
@@ -30,6 +31,10 @@ type StartSession struct {
 	// The transport MUST compute it once and use the same value in Attempt and
 	// its retained admission. PPP MUST preserve it without parsing.
 	SubscriberID string
+	// L2TPBirth is the original L2TP admission's immutable logical identity.
+	// L2TP MUST carry it with SubscriberID; PPP MUST preserve both. PPPoE
+	// leaves this optional transport-specific value zero.
+	L2TPBirth subscriberid.L2TPBirth `json:",omitzero"`
 	// Attempt is minted once before queueing and retained by that transport
 	// admission. It MUST bind SubscriberID and Dataplane. A rejected transfer
 	// carries this exact binding; a successful admission mints a SessionControl.
