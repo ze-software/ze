@@ -1371,11 +1371,13 @@ type InjectWireRouteInput struct {
 	UpdateBody []byte `json:"update-body"`
 }
 
-// BatchValidateInput is the JSON-codec fallback input for
-// ze-plugin-engine:batch-validate. The typed DirectBridge slot
-// (BatchValidateHandler) is the hot path for in-process plugins; this shape
-// gives forked/external plugins a defined socket path instead of a hand-rolled
-// stride-6 string encoding through dispatch-command-args.
+// BatchValidateCommand is the existing receive-store command served by the
+// configured owner. It names a command, never a configured process instance.
+const BatchValidateCommand = "request bgp adj-rib-in batch-validate"
+
+// BatchValidateInput carries the same batch on socket and direct engine RPC.
+// The engine forwards it to the exact registered receive-store command owner;
+// a process-local manager callback cannot identify a forked receive store.
 type BatchValidateInput struct {
 	Decisions []ValidationDecision `json:"decisions"`
 }

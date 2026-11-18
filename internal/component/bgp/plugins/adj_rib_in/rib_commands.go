@@ -66,7 +66,7 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 		return r.acceptRoutesCommand(args)
 	case "request bgp adj-rib-in reject-routes":
 		return r.rejectRoutesCommand(args)
-	case "request bgp adj-rib-in batch-validate":
+	case rpc.BatchValidateCommand:
 		return r.batchValidateCommand(args)
 	case "request bgp adj-rib-in revalidate":
 		return r.revalidateCommand(args)
@@ -158,9 +158,6 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 // Pre-validates the entire args slice before mutating state so a parse error
 // mid-batch does not leave the RIB partially applied.
 func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, error) {
-	if len(args) == 0 {
-		return statusDone, map[string]any{"accepted": 0, "rejected": 0, jsonKeyEarly: 0}, nil
-	}
 	if len(args)%batchValidateStride != 0 {
 		return statusError, "", errBatchValidateStride
 	}

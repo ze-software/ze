@@ -403,7 +403,7 @@ func commandDecls() []sdk.CommandDecl {
 			ShortHelp: "Discard one pending route and do not install it.",
 		},
 		{
-			Name:      "request bgp adj-rib-in batch-validate",
+			Name:      rpc.BatchValidateCommand,
 			ShortHelp: "Apply up to 256 validation decisions in one call.",
 		},
 		{

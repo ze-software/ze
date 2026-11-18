@@ -983,9 +983,10 @@ type BatchValidateResult struct {
 // Skips string serialization for internal plugins.
 type BatchValidateHandler func(decisions []ValidationDecision) (*BatchValidateResult, error)
 
-// globalBatchValidator holds the process-wide BatchValidateHandler registered
-// by the bgp adj-rib-in plugin. The engine-side bridge handler reads this to dispatch
-// batch-validate calls from any plugin to bgp adj-rib-in.
+// globalBatchValidator holds the legacy process-local BatchValidateHandler.
+// Explicitly wired in-process clients may use it. The standard engine RPC
+// routes the registered command owner instead, because this pointer cannot
+// identify a receive store running forked or under another process lifetime.
 var globalBatchValidator atomic.Value
 
 // RegisterBatchValidator stores the batch validate handler (called by

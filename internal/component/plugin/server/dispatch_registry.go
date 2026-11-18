@@ -222,15 +222,8 @@ var engineOps = []engineOp{
 	{
 		method: rpc.MethodBatchValidate,
 		handle: (*Server).opBatchValidate,
-		typedWire: func(_ *Server, _ *process.Process, b *rpc.DirectBridge) {
-			b.SetBatchValidate(func(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
-				fn := rpc.GetBatchValidator()
-				if fn == nil {
-					return nil, errors.New("batch-validate: no batch validator registered")
-				}
-				return fn(decisions)
-			})
-		},
+		// No typed manager slot: the receive-store owner may be forked. Both
+		// SDK rails use this context-aware operation and the registered command.
 	},
 }
 
@@ -556,18 +549,14 @@ func (s *Server) opInjectWireRoute(ctx context.Context, proc *process.Process, p
 	return nil, nil //nolint:nilnil // no result payload; (nil,nil) is success-with-no-content
 }
 
-// opBatchValidate is the JSON-codec fallback for batch-validate (AC-6): a
-// forked/external plugin reaches the process-wide batch validator over the socket
-// instead of hand-rolling a stride-6 string through dispatch-command-args.
-func (s *Server) opBatchValidate(ctx context.Context, _ *process.Process, params json.RawMessage) (any, error) {
+// opBatchValidate applies the existing batch RPC through its registered
+// receive-store command owner. Both SDK transports reach the same handler;
+// a process-local manager cannot identify a store running in another process.
+func (s *Server) opBatchValidate(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.BatchValidateInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid batch-validate params: ").Err(err).String()}
 	}
-	fn := rpc.GetBatchValidator()
-	if fn == nil {
-		return nil, &rpc.RPCCallError{Message: "batch-validate: no batch validator registered"}
-	}
-	return fn(input.Decisions)
+	return s.dispatchBatchValidation(ctx, proc, input.Decisions)
 }

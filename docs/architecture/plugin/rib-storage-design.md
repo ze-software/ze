@@ -1559,6 +1559,19 @@ validation's ordinary rejection, which removes the stored route. A retained path
 does not enter the timeout queue and cannot become eligible through fail-open.
 It becomes usable when a later decision accepts the same received generation.
 
+The engine routes each complete RPKI validation batch to the actual process
+registered for `request bgp adj-rib-in batch-validate`, on socket and direct SDK
+rails. It preserves all nine fields per decision and fails the whole request
+if that registered owner is missing or refuses it; a process-local manager
+cannot substitute for a forked receive store.
+
+An empty validation batch still enters the receive store's normal mutation
+admission. It refuses a removed, stopped or terminally failed owner, and must
+settle older owed validation publication before it can acknowledge zero new
+decisions. Empty input does not bypass that lifecycle boundary.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_commands.go -- batchValidateCommand -->
+
+
 RPKI's origin and ASPA trackers retain the original numeric Peer owner and
 physical connection with every route key. Both UPDATE delivery rails, queued
 decisions, VRP/ASPA callbacks and configuration snapshots preserve that pair.

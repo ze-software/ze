@@ -3344,6 +3344,26 @@ state, received message ID, original peer owner and original connection ID. A re
 validation; `Accept` and `Ineligible` cannot both be true. A successful call
 returns `BatchValidateResult`, including for an empty batch; an empty or null
 result is an error at the SDK boundary.
+
+The engine sends each complete batch to the process that registered
+`request bgp adj-rib-in batch-validate`, using the existing nine-field command.
+The configured process name may be an alias. Command registration refuses a
+second owner of the same path; dispatch retains the registered process and
+connection for the call. Both socket and direct SDK requests use that route, so a forked receive store
+is never replaced by a process-local manager callback. Direct SDK dispatch
+preserves the supplied caller context. This ordinary socket operation runs
+under the server's runtime request context and the command timeout; it has no
+resource cancellation scope. A socket caller abandoning its wait does not
+prove that the receive-store command was canceled or joined. A missing owner, refused command, invalid JSON or null
+answer fails the whole request; there is no implicit receiver fallback.
+
+An empty validation batch still enters the receive store's normal mutation
+admission. It refuses a removed, stopped or terminally failed owner, and must
+settle older owed validation publication before it can acknowledge zero new
+decisions. Empty input does not bypass that lifecycle boundary.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_commands.go -- batchValidateCommand -->
+
+<!-- source: internal/component/plugin/server/dispatch_batch_validate.go -- dispatchBatchValidation -->
 <!-- source: pkg/plugin/rpc/bridge.go -- ValidationDecision -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- BatchValidate -->
 

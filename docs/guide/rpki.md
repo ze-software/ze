@@ -769,8 +769,18 @@ and GR expiry remove the inputs they actually retire. These transitions join
 an already admitted `BatchValidate` request before acknowledging cleanup.
 Cleanup does not increment the configuration generation or invalidate useful
 siblings. The existing lifetime ledger and route trackers supply the check;
-no completed-source registry or tombstone is kept. The typed SDK slot and the
-framed `batch-validate` request use the same admission and join.
+no completed-source registry or tombstone is kept. The socket and direct SDK `batch-validate` requests use the same admission and
+join. Their engine operation forwards the complete batch to the registered
+receive-store command owner, including when that owner runs forked under a
+configured alias. It refuses a missing owner or failed whole-batch answer
+rather than applying decisions to a daemon-local store.
+
+An empty validation batch still enters the receive store's normal mutation
+admission. It refuses a removed, stopped or terminally failed owner, and must
+settle older owed validation publication before it can acknowledge zero new
+decisions. Empty input does not bypass that lifecycle boundary.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_commands.go -- batchValidateCommand -->
+
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- dispatchBatch, handlePeerDown -->
 <!-- source: internal/component/bgp/plugins/rpki/retained_validation.go -- validationSourceAdmitted, handleRetainedValidationEvent -->
 
