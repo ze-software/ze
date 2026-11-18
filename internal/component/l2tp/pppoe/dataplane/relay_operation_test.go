@@ -18,6 +18,10 @@ func TestRelayOperationExcludesTransportClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	original, ok := opened.(*openedSession)
+	if !ok {
+		t.Fatalf("constructor returned %T, want *openedSession", opened)
+	}
 	entered := make(chan int, 1)
 	release := make(chan struct{})
 	operationDone := make(chan error, 1)
@@ -37,8 +41,8 @@ func TestRelayOperationExcludesTransportClose(t *testing.T) {
 	case err := <-operationDone:
 		t.Fatalf("operation returned without lending its descriptor: %v", err)
 	}
-	if opened.(*openedSession).transportMu.TryLock() {
-		opened.(*openedSession).transportMu.Unlock()
+	if original.transportMu.TryLock() {
+		original.transportMu.Unlock()
 		t.Error("descriptor operation did not exclude transport close")
 	}
 	closeDone := make(chan error, 1)

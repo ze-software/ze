@@ -76,12 +76,44 @@ admit a subscriber. Its immutable `Access` carries the Linux discovery index,
 control MAC, MTU and namespace alongside the session-side device name. The
 control MAC supplies discovery and cookie processing.
 `NewAccess`
-consumes the preparation owner on every outcome, and `Backend.Prepare`
-releases partial or canceled results. The
-caller retains each lease until its sessions stop and discovery detaches;
-failed preparation must release every unpublished lease.
+consumes the preparation owner on every outcome. `Backend.Prepare` closes
+partial or canceled results; if their cleanup fails, its error retains the
+original cleanup owner. The caller retains each usable lease until its sessions
+stop and discovery detaches, and retains failed preparation errors until their
+original cleanup is settled.
 <!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- Access, AccessInfo, NewAccess -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/registry.go -- sessionBackend.Prepare -->
+
+A provider may register an optional lifecycle subscription alongside its open
+and preparation factories. `Backend.WatchLifecycle` reports explicit absence
+for a stable provider. A changing provider's watch fences admission on loss,
+coalesces wakeups and preserves the loss sequence across readiness hints.
+Only actual preparation for an unchanged observation can admit a new permit;
+readiness notifications carry no native cleanup authority. The caller must
+close the watch before joining its worker.
+
+The first terminal observation keeps its original identity, loss sequence and
+cause. Normal Close or loss exhaustion uses live CAS to freeze its exact loss
+and cause, then binds that receipt before exposure; an already bound terminal
+receipt wins. Every snapshot, admitted-generation lookup and permit check uses
+the same terminal owner. A callback that exhausts its sixty-four live CAS
+attempts binds one contention refusal or observes an existing terminal winner;
+it cannot replace an earlier closed observation. A late live Admit CAS cannot
+reopen admission after that terminal receipt wins. The additional terminal work
+uses constant atomic operations, with no native I/O or subsystem lock.
+<!-- source: internal/component/l2tp/pppoe/dataplane/lifecycle.go -- LifecycleWatch, sessionBackend.WatchLifecycle -->
+
+`NewRecoverableAccess` binds settlement to the original preparation owner.
+`SettleAccess` requires that exact access's first `Close` to have returned;
+it never replays or rewrites the cached close result. Failed constructors and
+provider refusals can instead return an error-owned cleanup receipt through
+`RefuseAccess`. Transparent wrapping preserves it, and `SettleAccessFailure`
+validates the complete bounded error graph before settling every original
+receipt. Neither an embedded access, a replacement owner nor missing
+bookkeeping supplies settlement authority. Native work observes its bounded
+context; mandatory original physical-owner joins still complete before success.
+<!-- source: internal/component/l2tp/pppoe/dataplane/access_recovery.go -- NewRecoverableAccess, SettleAccess -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/access_refusal.go -- RefuseAccess, SettleAccessFailure -->
 
 The common original-tree gate checks the installed provider registry against
 the candidate's interface backend and its schema default; it never probes the

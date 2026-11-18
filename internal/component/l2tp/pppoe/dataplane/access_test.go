@@ -208,7 +208,7 @@ func TestBackendPrepareRefusesInvalidBoundary(t *testing.T) {
 	calls := 0
 	if err := registry.register("chosen", testUnusedOpen, func(context.Context, string) (Access, error) {
 		calls++
-		return nil, nil
+		return nil, nil //nolint:nilnil // Deliberately invalid provider result; this test must prove nil success is refused after exactly one call.
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestBackendPrepareRefusesInvalidBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := backend.Prepare(nil, "access0"); err == nil {
+	if _, err := backend.Prepare(nil, "access0"); err == nil { //nolint:staticcheck // SA1012: intentionally nil to prove refusal before the original preparer is invoked.
 		t.Fatal("accepted nil context")
 	}
 	if calls != 0 {

@@ -239,7 +239,7 @@ func TestSessionBackendRefusesNilContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := backend.Open(nil, Request{}); err == nil {
+	if _, err := backend.Open(nil, Request{}); err == nil { //nolint:staticcheck // SA1012: intentionally nil to prove refusal before the registered original factory is invoked.
 		t.Fatal("accepted nil context")
 	}
 }

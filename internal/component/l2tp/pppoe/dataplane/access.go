@@ -27,11 +27,12 @@ type AccessInfo struct {
 }
 
 // Access is an immutable resolution with an owned preparation lease. Nil is
-// invalid; only NewAccess constructs one. The caller MUST Close it after every
-// session using the access has stopped and discovery no longer dispatches to
-// it. A failed start/reload MUST close every unpublished access. Accessors and
-// Close are safe for concurrent use; Close invokes the owner once and returns
-// the same result to every caller. Closing does not mutate the snapshot.
+// invalid; NewAccess and NewRecoverableAccess construct one. The caller MUST
+// Close it after every session using the access has stopped and discovery no
+// longer dispatches to it. A failed start/reload MUST close every unpublished
+// access. Accessors and Close are safe for concurrent use; Close invokes the
+// owner once and returns the same result to every caller. Closing does not
+// mutate the snapshot.
 type Access interface {
 	Device() string
 	ControlDevice() string
@@ -47,14 +48,26 @@ type Access interface {
 // release MUST supply an explicit no-resource owner; a missing or typed-nil
 // owner is refused. A failed validation closes the owner before returning and
 // retains cleanup errors. On success the caller owns the returned lease.
+// On failure it MUST return a nil Access, not an interface holding a nil pointer.
 func NewAccess(info AccessInfo, owner io.Closer) (Access, error) {
+	access, err := newAccess(info, owner)
+	if err != nil {
+		return nil, err
+	}
+	return access, nil
+}
+
+// newAccess MUST own validation and owner consumption for both public constructors.
+// Its concrete success result lets recovery bind before interface publication.
+// A nil result always accompanies an error; no owner is published on failure.
+func newAccess(info AccessInfo, owner io.Closer) (*preparedAccess, error) {
 	if err := validateAccess(info); err != nil {
 		return nil, errors.Join(err, closeAccessOwner(owner))
 	}
 	if nilResource(owner) {
 		return nil, errors.New("PPPoE access has no preparation owner")
 	}
-	return &preparedAccess{info: info, owner: owner}, nil
+	return &preparedAccess{info: info, owner: owner, closed: make(chan struct{})}, nil
 }
 
 func validateAccess(info AccessInfo) error {
@@ -108,6 +121,8 @@ type preparedAccess struct {
 	owner     io.Closer
 	closeOnce sync.Once
 	closeErr  error
+	closed    chan struct{}  // completed first Close; publishes its immutable outcome
+	recovery  AccessRecovery // immutable original owner; nil for NewAccess
 }
 
 func (a *preparedAccess) Device() string        { return a.info.Device }
@@ -119,7 +134,7 @@ func (a *preparedAccess) MTU() int              { return a.info.MTU }
 func (*preparedAccess) preparedAccess()         {}
 
 func (a *preparedAccess) Close() error {
-	a.closeOnce.Do(func() { a.closeErr = closeAccessOwner(a.owner) })
+	a.closeOnce.Do(func() { a.closeErr = closeAccessOwner(a.owner); close(a.closed) })
 	return a.closeErr
 }
 

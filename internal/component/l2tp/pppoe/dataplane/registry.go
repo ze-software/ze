@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/naming"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Request is the raw admission request passed unchanged to the selected
@@ -53,6 +54,11 @@ type Backend interface {
 	// Open requires a nonnil context. A successful caller MUST close Dataplane
 	// and CloseTransport when their respective ownership lifetimes end.
 	Open(context.Context, Request) (OpenedSession, error)
+	// WatchLifecycle returns explicit absence for a stable provider. A changing
+	// provider's caller MUST subscribe before preparation and Close before
+	// joining its sole lifecycle worker. No notification proves native release.
+	WatchLifecycle(ze.EventBus) (*LifecycleWatch, bool, error)
+
 	sessionDataplane()
 }
 
@@ -60,10 +66,12 @@ var sessionDataplanes sessionRegistry
 
 // RegisterSessionDataplane registers a provider's factory, normally from its
 // register.go init. Names use the shared node-name syntax, bounded to 63 bytes.
-// Invalid names, nil factories/preparers and duplicates are refused. Safe for
-// concurrent use.
-func RegisterSessionDataplane(name string, open OpenFunc, prepare PrepareFunc) error {
-	return sessionDataplanes.register(name, open, prepare)
+// An optional fourth argument declares one changing provider's lifecycle
+// source; omission explicitly declares a stable provider. Explicit nil or
+// multiple lifecycle factories are refused, as are invalid names, nil native
+// factories/preparers and duplicate names. Safe for concurrent use.
+func RegisterSessionDataplane(name string, open OpenFunc, prepare PrepareFunc, lifecycle ...SubscribeLifecycleFunc) error {
+	return sessionDataplanes.register(name, open, prepare, lifecycle...)
 }
 
 // LookupSessionDataplane selects exactly name. An unavailable provider returns
@@ -86,11 +94,12 @@ type sessionRegistry struct {
 }
 
 type sessionProvider struct {
-	open    OpenFunc
-	prepare PrepareFunc
+	open      OpenFunc
+	prepare   PrepareFunc
+	subscribe SubscribeLifecycleFunc
 }
 
-func (r *sessionRegistry) register(name string, open OpenFunc, prepare PrepareFunc) error {
+func (r *sessionRegistry) register(name string, open OpenFunc, prepare PrepareFunc, lifecycle ...SubscribeLifecycleFunc) error {
 	const nameMax = 63
 	if err := naming.ValidateNodeName("PPPoE session backend", name, nameMax); err != nil {
 		return err
@@ -101,6 +110,17 @@ func (r *sessionRegistry) register(name string, open OpenFunc, prepare PrepareFu
 	if prepare == nil {
 		return fmt.Errorf("PPPoE session backend %q has no access preparer", name)
 	}
+	if len(lifecycle) > 1 {
+		return fmt.Errorf("PPPoE session backend %q declares multiple lifecycle factories", name)
+	}
+	var subscribe SubscribeLifecycleFunc
+	if len(lifecycle) == 1 {
+		if lifecycle[0] == nil {
+			return fmt.Errorf("PPPoE session backend %q has no lifecycle factory", name)
+		}
+		subscribe = lifecycle[0]
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, exists := r.providers[name]; exists {
@@ -109,7 +129,7 @@ func (r *sessionRegistry) register(name string, open OpenFunc, prepare PrepareFu
 	if r.providers == nil {
 		r.providers = make(map[string]sessionProvider)
 	}
-	r.providers[name] = sessionProvider{open: open, prepare: prepare}
+	r.providers[name] = sessionProvider{open: open, prepare: prepare, subscribe: subscribe}
 	return nil
 }
 
@@ -125,7 +145,7 @@ func (r *sessionRegistry) lookup(name string) (Backend, error) {
 		return nil, fmt.Errorf("PPPoE session backend %q is unavailable (registered: %s)",
 			name, strings.Join(names, ", "))
 	}
-	return &sessionBackend{name: name, open: provider.open, prepare: provider.prepare}, nil
+	return &sessionBackend{name: name, open: provider.open, prepare: provider.prepare, subscribe: provider.subscribe}, nil
 }
 
 func (r *sessionRegistry) names() []string {
@@ -142,9 +162,10 @@ func (r *sessionRegistry) names() []string {
 // sessionBackend is private so the registry alone can create a validated
 // selection. Its fields remain immutable after lookup.
 type sessionBackend struct {
-	name    string
-	open    OpenFunc
-	prepare PrepareFunc
+	name      string
+	open      OpenFunc
+	prepare   PrepareFunc
+	subscribe SubscribeLifecycleFunc
 }
 
 func (b *sessionBackend) Name() string { return b.name }
@@ -167,7 +188,7 @@ func (b *sessionBackend) Prepare(ctx context.Context, name string) (Access, erro
 	}
 	if err != nil {
 		if !nilResource(access) {
-			err = errors.Join(err, closeAccessOwner(access))
+			err = refusePreparedAccess(err, access)
 		}
 		return nil, fmt.Errorf("PPPoE session backend %q: %w", b.name, err)
 	}

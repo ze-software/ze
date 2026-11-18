@@ -243,12 +243,18 @@ func testOpenedSessionAccessorPanic(t *testing.T, openedAccessor bool) {
 			if !ok || !errors.Is(failure, cleanup) {
 				t.Fatalf("cleanup failure lost: %v", recovered)
 			}
-			if payload == primary {
+			if payload == primary { //nolint:errorlint // Select the exact original fixture error object; a wrapped match would change this identity branch.
 				if !errors.Is(failure, primary) {
 					t.Fatalf("original error panic lost: %v", failure)
 				}
-			} else if !strings.Contains(failure.Error(), payload.(string)) {
-				t.Fatalf("original panic payload lost: %v", failure)
+			} else {
+				message, ok := payload.(string)
+				if !ok {
+					t.Fatalf("unexpected panic fixture payload type %T", payload)
+				}
+				if !strings.Contains(failure.Error(), message) {
+					t.Fatalf("original panic payload lost: %v", failure)
+				}
 			}
 		}
 	}
@@ -470,14 +476,18 @@ func TestOpenedSessionRelaySerializesClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	original, ok := opened.(*openedSession)
+	if !ok {
+		t.Fatalf("constructor returned %T, want *openedSession", opened)
+	}
 	borrowDone := make(chan error, 1)
 	go func() {
 		_, err := opened.RelayDescriptor()
 		borrowDone <- err
 	}()
 	<-transport.entered
-	if opened.(*openedSession).transportMu.TryLock() {
-		opened.(*openedSession).transportMu.Unlock()
+	if original.transportMu.TryLock() {
+		original.transportMu.Unlock()
 		t.Error("descriptor borrowing did not exclude transport close")
 	}
 	closeDone := make(chan error, 1)
