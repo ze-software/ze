@@ -53,11 +53,16 @@ type nativePPPResources struct {
 	closed   atomic.Bool
 	writers  map[*nativePPPWriter]struct{}
 	closeErr error
+	// Observer sees the actual minted file before native Bind/name/probe. It
+	// supplies no descriptor, I/O result, feature receipt or cleanup authority.
+	afterSocket func(*os.File)
 }
 
-// nativePPPWriter retains one immutable positive original-file probe and one
-// original-namespace socket. Its mutex serializes writes, settlement and close;
-// it MUST NOT close the borrowed original unit. Nil/zero writers refuse use.
+// nativePPPWriter retains one original-namespace socket. Successful binding
+// alone grants features from its immutable positive original-file probe;
+// failed construction can retain cleanup custody with no mutation authority.
+// Its mutex serializes writes, settlement and close; it MUST NOT close the
+// borrowed original unit. Nil/zero writers refuse use.
 type nativePPPWriter struct {
 	mu       sync.Mutex
 	parent   *nativePPPResources
@@ -86,6 +91,8 @@ type nativePPPWriter struct {
 // The same thread creates the socket and probes the exact original creator.
 // Later callers may be in another namespace; only the captured socket and
 // retained original file reach the actual guarded native writer.
+// A constructor failure with failed socket Close returns a refused partial
+// writer; the caller MUST retain it for cleanup despite the returned error.
 func (b *netlinkBackend) BindNativePPPUnit(owner iface.NativePPPUnitOwner, index int, unit int32) (iface.NativePPPWriter, error) {
 	if owner == nil {
 		return nil, errors.Join(iface.ErrNativePPPUnavailable, errors.New("PPP original creator owner is absent"))
@@ -116,21 +123,33 @@ func (b *netlinkBackend) BindNativePPPUnit(owner iface.NativePPPUnitOwner, index
 	}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	file, socket, port, err := newNativePPPSocket()
-	if err != nil {
+	file, socket, port, err := newNativePPPSocket(resources.afterSocket)
+	if file == nil {
 		return nil, err
 	}
-	reply, err := nativePPPProbe(owner, index, unit)
-	if err != nil {
-		return nil, errors.Join(err, file.Close())
-	}
 	writer := &nativePPPWriter{parent: resources, owner: owner, file: file,
-		socket: socket, port: port, index: index, unit: unit, features: reply.features}
+		socket: socket, port: port, index: index, unit: unit}
+	var reply nativePPPOwnerReply
+	if err == nil {
+		reply, err = nativePPPProbe(owner, index, unit)
+	}
+	if err != nil {
+		// Only this caller closes a post-open constructor failure. os.File's
+		// logical retirement cannot prove the native socket was released.
+		writer.closed = true
+		writer.socketCloseErr = file.Close()
+		writer.closeErr = errors.Join(err, writer.socketCloseErr)
+		if writer.socketCloseErr == nil {
+			return nil, writer.closeErr
+		}
+	} else {
+		writer.features = reply.features
+	}
 	if resources.writers == nil {
 		resources.writers = make(map[*nativePPPWriter]struct{})
 	}
 	resources.writers[writer] = struct{}{}
-	return writer, nil
+	return writer, writer.closeErr
 }
 
 func nativePPPProbe(owner iface.NativePPPUnitOwner, index int, unit int32) (nativePPPOwnerReply, error) {
@@ -187,25 +206,27 @@ func nativePPPProbe(owner iface.NativePPPUnitOwner, index int, unit int32) (nati
 	return reply, nil
 }
 
-func newNativePPPSocket() (*os.File, int, uint32, error) {
+// newNativePPPSocket transfers every post-open file to the caller, including
+// failures. The caller MUST attempt its sole Close and retain failed custody.
+func newNativePPPSocket(afterSocket func(*os.File)) (*os.File, int, uint32, error) {
 	socket, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_RAW|unix.SOCK_CLOEXEC|unix.SOCK_NONBLOCK, unix.NETLINK_ROUTE)
 	if err != nil {
 		return nil, 0, 0, err
 	}
 	file := os.NewFile(uintptr(socket), "ze-original-ppp-netlink")
-	fail := func(cause error) (*os.File, int, uint32, error) {
-		return nil, 0, 0, errors.Join(cause, file.Close())
+	if afterSocket != nil {
+		afterSocket(file)
 	}
 	if err := unix.Bind(socket, &unix.SockaddrNetlink{Family: unix.AF_NETLINK}); err != nil {
-		return fail(err)
+		return file, socket, 0, err
 	}
 	address, err := unix.Getsockname(socket)
 	if err != nil {
-		return fail(err)
+		return file, socket, 0, err
 	}
 	native, ok := address.(*unix.SockaddrNetlink)
 	if !ok {
-		return fail(errors.New("PPP original socket has another address family"))
+		return file, socket, 0, errors.New("PPP original socket has another address family")
 	}
 	return file, socket, native.Pid, nil
 }

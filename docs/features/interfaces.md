@@ -1661,6 +1661,13 @@ and permit final backend cleanup. A failed physical socket Close retains the
 writer, backend resources and original cause. Close is attempted only once;
 neither a later `os.ErrClosed` nor the socket number authorizes another close
 or proves release.
+
+This custody rule also covers construction. A socket Bind, name query or
+original-unit probe failure attempts Close once. Successful physical Close
+returns no writer. Failed Close returns a refused partial writer with zero
+features, retaining the original socket and both failure causes in the backend
+registry. It grants no mutation authority; callers retain the partial result
+even when binding returns an error.
 <!-- source: internal/plugins/iface/netlink/native_ppp_transport_linux.go -- nativePPPParseACK, nativePPPRejected -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_linux.go -- nativePPPWriter.closeOriginal -->
 <!-- source: internal/plugins/iface/netlink/native_ppp_retirement_linux.go -- ClosePending -->
