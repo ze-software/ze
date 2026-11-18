@@ -5369,7 +5369,9 @@ A bound cache call dispatches its complete target set once. Every target uses
 the existing egress pipeline and its captured final writer. The evaluator
 attempts every target on the existing bounded per-peer worker queues before
 joining any writer; a held target cannot prevent a ready sibling from writing.
-A full queue leaves an explicit unsettled failure. No extra target goroutine
+A full queue leaves an explicit unsettled failure. Admission and completion
+use the worker's channel count exactly once: refusal adds no pending item, and
+a joined write leaves no channel debt for that carrier. No extra target goroutine
 or unbounded overflow queue is created. The existing cache
 consumer is acknowledged once for each unique ID, after all target writes
 have joined, also on partial refusal or cancellation. A target failure does not

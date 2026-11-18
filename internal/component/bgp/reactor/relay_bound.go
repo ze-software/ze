@@ -318,9 +318,7 @@ func (stage *boundForwardStage) flush() (result error) {
 			result = errors.Join(result, errBoundForwardUnsettled)
 			continue
 		}
-		carrier.countOnChannel()
 		if !pool.TryDispatch(fwdKey{peerAddr: item.peer.settings.PeerKey()}, &carrier) {
-			carrier.uncountOnChannel()
 			result = errors.Join(result, errBoundForwardUnsettled)
 			continue
 		}
