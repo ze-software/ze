@@ -364,7 +364,7 @@ func removalFixture(t *testing.T, session string) (string, Prepared) {
 
 // TestARemovalDeletesTheWorkingTreeCopyItCommitted is AC-1 of the closed
 // spec-remove-takes-the-working-tree-copy (contract: docs/contributing/committing.md,
-// "What the generated script contains", step 8): the file the
+// "What the generated script contains", step 9): the file the
 // commit removed, identical to what git held, is gone from disk afterwards.
 //
 // PREVENTS: plan/journal/removal-leaves-the-file-on-disk.md, a closed spec left

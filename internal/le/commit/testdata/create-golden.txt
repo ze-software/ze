@@ -128,7 +128,31 @@ fi
 _ze_attempt=$((_ze_attempt + 1))
 echo "NOTE: HEAD moved while commit golden was being published; building it again on the new HEAD." >&2
 done
-git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"
+_ze_failed=
+# Point the shared index at what was committed, before any step that can fail. Nothing else in it is touched.
+_ze_waited=0
+until _ze_said=$({ git --literal-pathspecs ls-tree -z HEAD -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | git update-index -z --index-info && git update-index --force-remove -- 'gone.txt'; } 2>&1); do
+  case "$_ze_said" in
+    *index.lock*)
+      if [ "$_ze_waited" -lt 30 ]; then
+        sleep 1
+        _ze_waited=$((_ze_waited + 1))
+        continue
+      fi
+      ;;
+  esac
+  echo "ERROR: commit $_ze_commit landed, but the shared index could not be pointed at it." >&2
+  echo "git said: $_ze_said" >&2
+  echo "These paths read as staged changes in every session until the repair runs:" >&2
+  printf '%s\n' 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' 'gone.txt' >&2
+  echo "Any later commit in this script did not run." >&2
+  printf 'Run this from %s once .git/index.lock is released:\n' "$PWD" >&2
+  echo 'git --literal-pathspecs ls-tree -z HEAD -- '"'"'mine.txt'"'"' '"'"'docs/listed.md'"'"' '"'"'pkg/shared.txt'"'"' | git update-index -z --index-info' >&2
+  echo 'git update-index --force-remove -- '"'"'gone.txt'"'"'' >&2
+  _ze_failed=1
+  break
+done
+if [ -z "$_ze_failed" ]; then git --no-pager -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit" || true; fi
 rm -f "$_ze_index.now"
 GIT_INDEX_FILE="$_ze_index.now" git add -f -- 'mine.txt' 'docs/listed.md' 2>/dev/null || true
 _ze_drift=$({ GIT_INDEX_FILE="$_ze_index.now" git ls-files -s -z -- 'mine.txt' 'docs/listed.md'; GIT_INDEX_FILE="$_ze_index" git ls-files -s -z -- 'mine.txt' 'docs/listed.md'; } | tr '\0' '\n' | sort | uniq -u | cut -f2- | sort -u)
@@ -161,27 +185,5 @@ for _ze_path in "${_ze_gone[@]}"; do
   fi
 done
 rm -f "$_ze_index.gone"
-# Point the shared index at what was committed. Nothing else in it is touched.
-_ze_waited=0
-until _ze_said=$({ git --literal-pathspecs ls-tree -z HEAD -- 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' | git update-index -z --index-info && git update-index --force-remove -- 'gone.txt'; } 2>&1); do
-  case "$_ze_said" in
-    *index.lock*)
-      if [ "$_ze_waited" -lt 30 ]; then
-        sleep 1
-        _ze_waited=$((_ze_waited + 1))
-        continue
-      fi
-      ;;
-  esac
-  echo "ERROR: commit $_ze_commit landed, but the shared index could not be pointed at it." >&2
-  echo "git said: $_ze_said" >&2
-  echo "These paths read as staged changes in every session until the repair runs:" >&2
-  printf '%s\n' 'mine.txt' 'docs/listed.md' 'pkg/shared.txt' 'gone.txt' >&2
-  echo "Any later commit in this script did not run." >&2
-  printf 'Run this from %s once .git/index.lock is released:\n' "$PWD" >&2
-  echo 'git --literal-pathspecs ls-tree -z HEAD -- '"'"'mine.txt'"'"' '"'"'docs/listed.md'"'"' '"'"'pkg/shared.txt'"'"' | git update-index -z --index-info' >&2
-  echo 'git update-index --force-remove -- '"'"'gone.txt'"'"'' >&2
-  echo 'rm -f '"'"'tmp/commit-0a1b2c3d-golden-<nonce>.index'"'"'' >&2
-  exit 1
-done
 rm -f 'tmp/commit-0a1b2c3d-golden-<nonce>.index'
+if [ -n "$_ze_failed" ]; then exit 1; fi

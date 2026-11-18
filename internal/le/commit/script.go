@@ -98,7 +98,20 @@ func renderBlock(block commitBlock, scriptPath string) string {
 		commentLine("Commit " + block.Tag + ": " + block.Subject),
 		blockMarker + " tag=" + block.Tag + " paths=" + quotePaths(all),
 	}
-	lines = append(lines, renderPublish(block, scriptPath))
+	// From here on the commit is on the branch. The shared-index repair and the
+	// approval cleanup, the two steps that wait on or run another process, report
+	// a failure with the command that redoes it and set _ze_failed rather than
+	// stop: the block runs its remaining steps and stops the script at its end.
+	// Any other failure stops the script under `set -e`, after the repair ran.
+	lines = append(lines, renderPublish(block, scriptPath), `_ze_failed=`)
+	// The shared-index repair is the first step after the publish, before any
+	// step that can fail. On 2026-11-18 the approval cleanup ran before it, its
+	// build failed on a peer's uncommitted edit, `set -e` stopped the script, and
+	// every session read the landed paths as staged reversals of the commit.
+	if repair := renderSharedIndexRepair(block); repair != "" {
+		lines = append(lines, repair)
+	}
+	lines = append(lines, renderLandedStat())
 	// An empty list must not reach renderDriftNote: ls-files with no pathspec
 	// lists the whole index.
 	if drifting := withoutSelectedPaths(block.Paths, block.Selected); len(drifting) != 0 {
@@ -112,24 +125,65 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	if len(block.Removed) != 0 {
 		lines = append(lines, renderWorkingTreeRemoval(block.Removed))
 	}
+	// The private index outlives the repair because the drift note reads it.
+	lines = append(lines, `rm -f `+shellQuote(indexFileFor(scriptPath)))
 	for _, approvals := range block.Approvals {
 		if len(approvals.Dropped) != 0 {
 			lines = append(lines, renderApprovalPrune(approvals))
 		}
 	}
-	// The shared-index repair is the block's last step: it is the one step that
-	// waits on another process, and when it gives up, everything else this
-	// block owes is already done.
-	lines = append(lines, renderSharedIndexRepair(block, scriptPath))
+	// Each failure already printed its own report, ending with the command
+	// that redoes it, so the stop adds no line after that command.
+	lines = append(lines, `if [ -n "$_ze_failed" ]; then exit 1; fi`)
 	return strings.Join(lines, "\n") + "\n"
+}
+
+// statusReset clears the exit status a step records with `|| _ze_status=$?`,
+// the form that keeps `set -e` from stopping the script on a failure the step
+// reports itself.
+const statusReset = `_ze_status=0`
+
+// renderLandedStat prints the landed commit, `[<short-sha>] <subject>` and its
+// stat. It runs after the shared-index repair because it can fail for a reason
+// outside the commit: a caller that reads the output through `| head` closes
+// the pipe, and git dies of SIGPIPE. Under `set -e` that stopped the script
+// between the publish and the repair. The display is not the commit, so its
+// failure stops nothing, and `--no-pager` keeps a terminal run from waiting in
+// a pager. A repair that gave up has already named the commit by SHA and ended
+// its report with the commands to run, so the display is left out then and
+// those commands stay the last lines of the output.
+func renderLandedStat() string {
+	return `if [ -z "$_ze_failed" ]; then git --no-pager -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit" || true; fi`
 }
 
 // renderApprovalPrune emits exact-row cleanup only after successful publish.
 // Kind and namespace were captured during preparation; runtime session state
 // cannot redirect the native transaction to a different approval ledger.
+//
+// The cleanup runs an le of its own, so it can fail for reasons this commit
+// does not hold: a working tree that does not compile (approvalCleanCommand
+// names a build of it), a launcher that cannot start, a ledger it cannot lock.
+// A failure leaves the rows in the file and the commit published, so the step
+// says the commit landed, that the rows were not dropped, why (the cleanup's
+// own error, printed above the report), and the command that drops them. It
+// runs after the shared-index repair, so its failure never leaves the shared
+// index behind HEAD.
 func renderApprovalPrune(approvals approvalPrune) string {
-	return "# Owner approvals this commit carries as trailers, dropped now that git holds them.\n" +
-		approvalCleanCommand(approvals.Kind, approvals.Session, approvals.Dropped)
+	command := approvalCleanCommand(approvals.Kind, approvals.Session, approvals.Dropped)
+	lines := []string{
+		"# Owner approvals this commit carries as trailers, dropped now that git holds them.",
+		statusReset,
+		command + ` || _ze_status=$?`,
+		`if [ "$_ze_status" -ne 0 ]; then`,
+		`  echo "ERROR: commit $_ze_commit landed, but the ` + approvals.Kind.name() + ` approval rows it carries as trailers were not dropped from approval namespace "` + shellQuote(approvals.Session) + `": the cleanup exited $_ze_status, and its error is above." >&2`,
+		`  echo "The rows stay in the approval file until the cleanup runs; the commit itself is unaffected." >&2`,
+		`  echo "Any later commit in this script did not run." >&2`,
+		`  printf 'Run this from %s to drop them, once the cause above is fixed:\n' "$PWD" >&2`,
+		`  echo ` + shellQuote(command) + ` >&2`,
+		`  _ze_failed=1`,
+		`fi`,
+	}
+	return strings.Join(lines, "\n")
 }
 
 // publishAttemptsMax bounds how many times a block builds its commit again on
@@ -215,7 +269,7 @@ func renderPublish(block commitBlock, scriptPath string) string {
 			`echo "Write the message into that file, then run this script again."`),
 		// git config answers 1 for an unset key and 128 for a value it cannot
 		// read as a boolean, where `git commit` stops rather than guess.
-		`_ze_status=0`,
+		statusReset,
 		`_ze_gpgsign=$(git config --type=bool --get commit.gpgsign) || _ze_status=$?`,
 		renderRefusal(`"$_ze_status" -gt 1`, notPublished,
 			`echo "git config could not read commit.gpgsign as a boolean (its error is above), so whether to sign is unknown; git commit refuses here too."`,
@@ -252,7 +306,7 @@ func renderPublish(block commitBlock, scriptPath string) string {
 	}
 	lines = append(lines,
 		treeStep,
-		`_ze_status=0`,
+		statusReset,
 		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree") || _ze_status=$?`,
 		renderRefusal(`"$_ze_status" -ne 0`, notPublished,
 			`echo "git commit-tree could not build the commit (its error is above). When commit.gpgsign is true, signing is the usual cause:"`,
@@ -294,8 +348,7 @@ func renderPublish(block commitBlock, scriptPath string) string {
 			`echo "Run this script again once the other sessions' commits have landed."`),
 		`_ze_attempt=$((_ze_attempt + 1))`,
 		`echo "NOTE: HEAD moved while commit `+block.Tag+` was being published; building it again on the new HEAD." >&2`,
-		`done`,
-		`git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"`)
+		`done`)
 	return strings.Join(lines, "\n")
 }
 
@@ -324,7 +377,7 @@ func renderEmptyPublish(block commitBlock, scriptPath string) string {
 		`_ze_text=$(git stripspace < "$_ze_message")`,
 		renderRefusal(`-z "$_ze_text"`, notPublished,
 			`echo "Its message file $_ze_message holds no message once blank lines are stripped."`),
-		`_ze_status=0`,
+		statusReset,
 		`_ze_gpgsign=$(git config --type=bool --get commit.gpgsign) || _ze_status=$?`,
 		renderRefusal(`"$_ze_status" -gt 1`, notPublished,
 			`echo "git config could not read commit.gpgsign as a boolean (its error is above); set it with: git config commit.gpgsign true (or false)."`),
@@ -336,7 +389,7 @@ func renderEmptyPublish(block commitBlock, scriptPath string) string {
 		`rm -f "$_ze_index"`,
 		`GIT_INDEX_FILE="$_ze_index" git read-tree "$_ze_parent"`,
 		treeStep,
-		`_ze_status=0`,
+		statusReset,
 		`_ze_commit=$(printf '%s\n' "$_ze_text" | git commit-tree ${_ze_sign:+-S} -p "$_ze_parent" "$_ze_tree") || _ze_status=$?`,
 		renderRefusal(`"$_ze_status" -ne 0`, notPublished,
 			`echo "git commit-tree could not build the commit (its error is above). When commit.gpgsign is true, signing is the usual cause."`),
@@ -354,7 +407,6 @@ func renderEmptyPublish(block commitBlock, scriptPath string) string {
 			`printf '%s\n' "$_ze_swap"`),
 		`_ze_attempt=$((_ze_attempt + 1))`,
 		`done`,
-		`git -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit"`,
 	}
 	return strings.Join(lines, "\n")
 }
@@ -532,11 +584,14 @@ func renderDriftNote(paths []string) string {
 // times in two days (plan/journal/concurrent-session-corruption.md, 2026-10-04
 // and 2026-10-05), each time after the commit had landed. So the step retries
 // while git names the lock, once a second, up to indexLockWaitSeconds. Any
-// other failure, or a lock still held at the bound, stops the script with the
-// commit landed, names the paths the shared index still holds stale, and
-// prints the repair to run once the lock is released, private index removal
-// included.
-func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
+// other failure, or a lock still held at the bound, reports the commit landed,
+// names the paths the shared index still holds stale, prints the repair to run
+// once the lock is released, and sets _ze_failed: the block's other steps
+// still run, and renderBlock stops the script at the block's end.
+//
+// A block that names no path and removes none, an approval-only publication,
+// has nothing to repair, and the answer is empty.
+func renderSharedIndexRepair(block commitBlock) string {
 	steps := make([]string, 0, 2)
 	if len(block.Paths) != 0 {
 		steps = append(steps, "git --literal-pathspecs ls-tree -z HEAD -- "+quotePaths(block.Paths)+" | git update-index -z --index-info")
@@ -544,13 +599,12 @@ func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
 	if len(block.Removed) != 0 {
 		steps = append(steps, "git update-index --force-remove -- "+quotePaths(block.Removed))
 	}
-	cleanup := `rm -f ` + shellQuote(indexFileFor(scriptPath))
 	if len(steps) == 0 {
-		return cleanup
+		return ""
 	}
 	stale := append(append([]string{}, block.Paths...), block.Removed...)
 	lines := []string{
-		"# Point the shared index at what was committed. Nothing else in it is touched.",
+		"# Point the shared index at what was committed, before any step that can fail. Nothing else in it is touched.",
 		`_ze_waited=0`,
 		`until _ze_said=$({ ` + strings.Join(steps, " && ") + `; } 2>&1); do`,
 		`  case "$_ze_said" in`,
@@ -571,10 +625,10 @@ func renderSharedIndexRepair(block commitBlock, scriptPath string) string {
 		`  echo "Any later commit in this script did not run." >&2`,
 		`  printf 'Run this from %s once .git/index.lock is released:\n' "$PWD" >&2`,
 	}
-	for _, step := range append(steps, cleanup) {
+	for _, step := range steps {
 		lines = append(lines, `  echo `+shellQuote(step)+` >&2`)
 	}
-	lines = append(lines, "  exit 1", "done", cleanup)
+	lines = append(lines, "  _ze_failed=1", "  break", "done")
 	return strings.Join(lines, "\n")
 }
 

@@ -139,6 +139,9 @@ func approvalCleanCommand(kind approvalKind, session string, rows []string) stri
 	// HEAD launcher can still serve its previous binary while rebuilding in
 	// the background, so this edge MUST select a synchronous working-tree build.
 	// The prepared eight-hex namespace is a safe, stable explicit build name.
+	// That build compiles the working tree, so it fails while a peer's
+	// uncommitted edit does not compile: renderApprovalPrune reports that
+	// failure after the shared-index repair, with this command to redo it.
 	prefix := [...]string{leLauncherPath, "--name", "commit-approval-" + session, area, actionApprovalCheck, approvalClean,
 		approvalKindKeyword, kind.name(), keywordSession, session}
 	words := make([]string, 0, len(prefix)+2*len(rows))

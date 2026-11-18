@@ -68,7 +68,7 @@ func TestAddAndRemoveValidationProtectExplicitStaging(t *testing.T) {
 
 // TestCreateAcceptsARemovalWhoseFileIsStillOnDisk is AC-11 of the closed
 // spec-remove-takes-the-working-tree-copy (contract: docs/contributing/committing.md,
-// "What the generated script contains", step 8): preparing a
+// "What the generated script contains", step 9): preparing a
 // removal puts no condition on the working tree, and leaves the file where it
 // is, because the generated script deletes it only after its commit succeeds.
 // PREVENTS: a `create` that refuses, or deletes early, unless the caller ran
@@ -1021,17 +1021,19 @@ func newSiteRepository(t *testing.T) string {
 
 // TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit asserts the order of
 // the rendered block for a removal: the captured entries before the private
-// `force-remove`, the commit, the working-tree deletion, and last the
-// shared-index repair, with a path holding a space and a quote quoted the way
-// every other path is. The repair is last because it is the one step that
-// waits on another process's `.git/index.lock`, and when it gives up the
-// deletion has already run.
+// `force-remove`, the commit, the shared-index repair, then the working-tree
+// deletion, with a path holding a space and a quote quoted the way every other
+// path is. The repair comes straight after the commit because every later step
+// can fail, and a failure before the repair left the shared index behind HEAD;
+// a repair that gives up no longer stops the block, so the deletion still runs.
 //
 // VALIDATES: AC-9 and the ordering AC-7 relies on in the closed
 // spec-remove-takes-the-working-tree-copy; the contract is
-// docs/contributing/committing.md, "What the generated script contains", step 8.
+// docs/contributing/committing.md, "What the generated script contains", steps
+// 7 and 9.
 // PREVENTS: a deletion rendered before `git commit`, which would delete a file
-// whose content no commit holds yet.
+// whose content no commit holds yet, and a deletion rendered before the repair,
+// whose failure would leave the removed path staged in reverse.
 func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
 	t.Parallel()
 	block := commitBlock{PreparedHead: preparedHeadFixture, Tag: "a", Subject: "remove", Removed: []string{"it's old.txt"}, MessagePath: "tmp/m.txt"}
@@ -1041,9 +1043,9 @@ func TestARemovalRendersTheWorkingTreeDeletionAfterTheCommit(t *testing.T) {
 		`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs ls-files -s -z -- ` + quoted + ` | tr '\0' '\n')`,
 		`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- ` + quoted,
 		`git update-ref -m `,
+		`until _ze_said=$({ git update-index --force-remove -- ` + quoted,
 		`_ze_gone=(` + quoted + `)`,
 		`rm -f -- "$_ze_path"`,
-		`until _ze_said=$({ git update-index --force-remove -- ` + quoted,
 	}
 	at := 0
 	for _, want := range order {

@@ -195,6 +195,132 @@ func TestGeneratedApprovalCleanupUsesNamedLauncher(t *testing.T) {
 	}
 }
 
+// Goal: a step after the publish that fails leaves the shared index equal to
+// HEAD for every path the block committed, keeps a peer's staged and unstaged
+// work exactly as it was, and reports the landed commit by SHA, the failure,
+// its cause and the command that redoes it. Method: the approval cleanup, the
+// step whose failed working-tree build on 2026-11-18 left the index behind
+// HEAD, fails with a cause the guard prints; then the shared index is compared
+// with HEAD, the peer's work is read back, and the printed command is run once
+// the cleanup can succeed. With the cleanup rendered before the shared-index
+// repair, `set -e` stops the script first and the committed path reads as a
+// staged reversal of the commit.
+func TestAFailedPostCommitStepLeavesTheSharedIndexAtTheCommit(t *testing.T) {
+	root := newLedgerRepository(t)
+	weakenLedgerTest(t, root, "pkg/two_test.go", "TestTwo")
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestTwo", "verdict the failed cleanup leaves pending"); err != nil {
+		t.Fatal(err)
+	}
+	// A peer's work in the shared checkout: one staged file, one unstaged edit.
+	writeCommitFixture(t, root, "peer.txt", "peer staged\n")
+	runCommitGit(t, root, "add", "--", "peer.txt")
+	writeCommitFixture(t, root, "pkg/one_test.go", ledgerTestBody("TestOne")+"// peer edit\n")
+	const cause = "le: the build failed: a peer's uncommitted edit does not compile"
+	bridge := installCleanupGuard(t, root, "_ze_call=(\"$@\")\n"+
+		"if [ \"${1:-}\" = --name ]; then shift 2; fi\n"+
+		"if [ \"${1:-}\" = commit ] && [ \"${2:-}\" = approval ] && [ \"${3:-}\" = clean ]; then\n"+
+		"  echo "+shellQuote(cause)+" >&2\n  exit 1\nfi\n"+
+		"set -- \"${_ze_call[@]}\"\n")
+	prepared, err := ledgerCreate(t, root, "pkg/two_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := approvalCleanupFixtureRow(t, readLedgerFile(t, root, testweakened.ApprovalPath(sessionOne)), "pkg.TestTwo")
+	beforeHead := headOf(t, root)
+
+	output, runErr := runScript(t, root, prepared.Script)
+
+	if runErr == nil {
+		t.Fatalf("the script succeeded although its approval cleanup failed:\n%s", output)
+	}
+	head := headOf(t, root)
+	if head == beforeHead {
+		t.Fatalf("the commit did not land before its cleanup:\n%s", output)
+	}
+	if behind := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--cached", "--name-only", "HEAD", "--", "pkg/two_test.go")); behind != "" {
+		t.Fatalf("the shared index is behind HEAD for the committed path %q after the cleanup failed:\n%s", behind, output)
+	}
+	if staged := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--cached", "--name-only")); staged != "peer.txt" {
+		t.Fatalf("the shared index stages %q, want only the peer's peer.txt:\n%s", staged, output)
+	}
+	if unstaged := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--name-only")); unstaged != "pkg/one_test.go" {
+		t.Fatalf("the unstaged changes are %q, want only the peer's pkg/one_test.go:\n%s", unstaged, output)
+	}
+	command := approvalCleanCommand(approvalKindWeakening, sessionOne, []string{row})
+	for _, want := range []string{"ERROR: commit " + head + " landed", cause, "once the cause above is fixed:\n" + command + "\n"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("the failure report lacks %q:\n%s", want, output)
+		}
+	}
+	if pending := readLedgerFile(t, root, testweakened.ApprovalPath(sessionOne)); !strings.Contains(pending, row) {
+		t.Fatalf("the failed cleanup consumed its row:\n%s", pending)
+	}
+	for _, gone := range []string{prepared.Message, indexFileFor(prepared.Script)} {
+		if _, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(gone))); !errors.Is(statErr, os.ErrNotExist) {
+			t.Errorf("the block left %s behind after its commit landed: %v", gone, statErr)
+		}
+	}
+
+	// The printed command redoes the step once its cause is gone.
+	if err := os.Rename(bridge, filepath.Join(root, "le")); err != nil {
+		t.Fatal(err)
+	}
+	redo := exec.CommandContext(t.Context(), "bash", "-c", command)
+	redo.Dir = root
+	if said, err := redo.CombinedOutput(); err != nil {
+		t.Fatalf("the printed cleanup %q failed: %v: %s", command, err, said)
+	}
+	if after := readLedgerFile(t, root, testweakened.ApprovalPath(sessionOne)); strings.Contains(after, "| pkg.TestTwo |") {
+		t.Fatalf("the printed cleanup left its row:\n%s", after)
+	}
+}
+
+// Goal: nothing that can fail runs between the publish and the shared-index
+// repair, and the landed-commit display, which a closed output pipe kills with
+// SIGPIPE, runs after the repair and stops nothing. Method: render a block that
+// names a path, a hunks path, a removal and approvals, and read the bytes after
+// the publish loop closes. Rendering the display back in renderPublish, or any
+// step between the publish and the repair, breaks the adjacency below.
+func TestNothingRunsBetweenThePublishAndTheSharedIndexRepair(t *testing.T) {
+	t.Parallel()
+	block := commitBlock{
+		PreparedHead: preparedHeadFixture, Tag: "a", Subject: "order", MessagePath: "tmp/m.txt",
+		Paths: []string{"mine.txt", "shared.txt"}, Selected: []string{"shared.txt"}, Removed: []string{"gone.txt"},
+		IndexEntries: []string{"100644 " + strings.Repeat("0", 40) + " 0\tmine.txt"},
+		Approvals:    []approvalPrune{{Kind: approvalKindWeakening, Session: sessionOne, Dropped: []string{"| pkg.TestOne | verdict |"}}},
+	}
+	script := renderBlock(block, "tmp/commit-order.sh")
+	const published = "\ndone\n_ze_failed=\n# Point the shared index at what was committed"
+	if count := strings.Count(script, published); count != 1 {
+		t.Fatalf("the publish loop is followed by the repair %d times, want exactly once:\n%s", count, script)
+	}
+	_, afterPublish, _ := strings.Cut(script, published)
+	const stat = `if [ -z "$_ze_failed" ]; then git --no-pager -c core.quotePath=false show --stat --format='[%h] %s' "$_ze_commit" || true; fi`
+	if !strings.Contains(afterPublish, "\n  break\ndone\n"+stat+"\n") {
+		t.Fatalf("the landed-commit display does not directly follow the repair, non-fatal and unpaged:\n%s", script)
+	}
+	if strings.Count(script, "show --stat") != 1 {
+		t.Fatalf("the block displays the landed commit more than once, or before the repair:\n%s", script)
+	}
+}
+
+// installCleanupGuard puts guard in front of the native bridge the ledger
+// fixture installs as ./le: guard runs first with the call's arguments, and
+// every call it lets through reaches the real Answer with those arguments. It
+// answers the bridge's path, so a test can put the bridge back as ./le.
+func installCleanupGuard(t *testing.T, root, guard string) string {
+	t.Helper()
+	bridge := filepath.Join(root, "native-approval-dispatch")
+	if err := os.Rename(filepath.Join(root, "le"), bridge); err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "le", "#!/bin/bash\n"+guard+"exec "+shellQuote(bridge)+" \"$@\"\n")
+	if err := os.Chmod(filepath.Join(root, "le"), 0o700); err != nil { //nolint:gosec // owned executable test bridge
+		t.Fatal(err)
+	}
+	return bridge
+}
+
 func approvalCleanupFixtureRow(t *testing.T, content, unit string) string {
 	t.Helper()
 	var found string

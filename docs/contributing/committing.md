@@ -122,6 +122,12 @@ The explicit named launcher builds synchronously from the working tree, so a
 commit that introduces cleanup can run it immediately while the shared HEAD
 launcher is still rebuilding its previous binary. A failed named build refuses
 cleanup and leaves its pending rows available for the same native command.
+Because that build compiles the working tree, it also fails while another
+session's uncommitted edit does not compile. The cleanup therefore runs after
+the shared-index repair, as the block's last step ("What the generated script
+contains", step 10): its failure never leaves the shared index behind HEAD,
+and it is reported with the landed commit's SHA and the command that drops the
+rows once the cause is fixed.
 <!-- source: internal/le/commit/approval_actions.go -- approvalTable, answerApprovalClean, approvalCleanCommand -->
 <!-- source: internal/le/rfc/approval_storage.go -- withApprovalLedgerLock, PruneApprovals -->
 <!-- source: internal/le/commit/script.go -- renderPublish, renderEmptyPublish -->
@@ -664,7 +670,7 @@ them. One commit block holds, in order:
 5. For any `remove` paths, their `git ls-files -s` lines captured from the
    private index into `_ze_removed`, then `git update-index --force-remove`.
    The captured lines are the entries the parent holds, mode included, and step
-   8 compares against them.
+   9 compares against them.
 6. The publish (`renderPublish`). `git write-tree`, then `git commit-tree -p
    "$_ze_parent"` with the stripped message. A failure there, signing as a
    rule, is refused with HEAD untouched. `git commit` is not used, because it reads HEAD a
@@ -693,8 +699,31 @@ them. One commit block holds, in order:
    unchanged by that block, never by the run, since an earlier block of the same
    script can have published in this run. The subject the refusal prints is
    quoted once as a whole, so no character in it is shell syntax.
-   The landed commit is printed as `[<short-sha>] <subject>` with its stat.
-7. A drift note, then the message file is deleted. The note stages the working
+7. The shared-index repair (`renderSharedIndexRepair`): `git ls-tree HEAD --
+   <paths> | git update-index --index-info`, and `git update-index
+   --force-remove` for the `remove` paths, which point the SHARED index at what
+   was just committed. Without it every other session reads those paths as
+   staged changes of yours that reverse the commit. It is the first step after
+   the publish, because every later one can fail: on 2026-11-18 the approval
+   cleanup of step 10, then rendered before the repair, failed twice on a
+   working-tree build another session's uncommitted edit had broken, `set -e`
+   stopped the script with the commit landed, and the shared index described
+   the tree before the commit until `git read-tree HEAD` repaired it. While git
+   refuses over a `.git/index.lock` that a peer holds, the repair retries once
+   a second for up to 30 seconds. Any other failure, or a lock still held after
+   that, prints `ERROR: commit <sha> landed, but the shared index could not be
+   pointed at it.`, the paths left stale, and the exact commands to run from
+   the checkout once the lock is released. The block's other steps still run,
+   so its message is deleted and its removals happen, and the script stops at
+   the end of the block: a later block in the same script has not run.
+   Only then is the landed commit printed, as `[<short-sha>] <subject>` with
+   its stat (`renderLandedStat`), through `git --no-pager` and never fatal: a
+   caller reading the output through `| head` closes the pipe, git dies of
+   SIGPIPE, and under `set -e` that display, printed before the repair, would
+   stop the script with the shared index behind HEAD. After a repair that
+   gave up the display is left out, so the repair commands stay the last
+   lines of the output.
+8. A drift note, then the message file is deleted. The note stages the working
    tree into a throwaway index and reports any named path, other than a `hunks`
    path, whose content, mode,
    or existence moved since preparation. It never refuses: the commit is safe,
@@ -706,7 +735,7 @@ them. One commit block holds, in order:
    it, so a kept file would never free its letter and a session would run out
    after 26 commits. `set -e` keeps a failed commit's message, whose script
    still runs.
-8. For a block with `remove` paths, the working-tree deletion
+9. For a block with `remove` paths, the working-tree deletion
    (`renderWorkingTreeRemoval`). Each removed path's copy is staged into a
    throwaway index, and the copy is deleted only when its entry line is one of
    the lines step 5 captured. The captured lines reach `grep -q` as a
@@ -726,20 +755,17 @@ them. One commit block holds, in order:
    failed commit deletes nothing, and a deleted copy is always one `git show`
    away. A spec closure therefore leaves no file behind: commit A carries the
    spec's final content with `file`, and commit B's `remove` finds the copy
-   equal to it. A commit carrying RFC approvals then drops the rows it used
-   from the session's approvals file.
-9. `git ls-tree HEAD -- <paths> | git update-index --index-info`, and
-   `git update-index --force-remove` for the `remove` paths, which point the
-   SHARED index at what was just committed, then the private index is deleted.
-   Without it every other session reads those paths as staged changes of yours.
-   It is the block's last step because it is the one that waits on another
-   process: while git refuses over a `.git/index.lock` that a peer holds, it
-   retries once a second for up to 30 seconds. Any other failure, or a lock
-   still held after that, stops the script with the commit landed and prints
-   `ERROR: commit <sha> landed, but the shared index could not be pointed at
-   it.`, the paths left stale, and the exact commands to run from the checkout
-   once the lock is released. A later block in the same script has not run.
-<!-- source: internal/le/commit/script.go -- renderPublish, renderPrivateIndex, renderLostBlobs, publishAttemptsMax, renderWorkingTreeRemoval, renderSharedIndexRepair, indexLockWaitSecondsMax -->
+   equal to it.
+10. The private index is deleted, then a commit carrying RFC or weakening
+    approvals drops the rows it used from the session's approval files
+    (`renderApprovalPrune`). The cleanup runs an `le` of its own, so it can
+    fail for a reason the commit does not hold. A failure prints `ERROR:
+    commit <sha> landed, but the <kind> approval rows it carries as trailers
+    were not dropped from approval namespace <namespace>`, below the cleanup's
+    own error, and the exact command that drops them once the cause is fixed.
+    The rows stay in the file, the shared-index repair of step 7 has already
+    run, and the script stops at the end of the block.
+<!-- source: internal/le/commit/script.go -- renderBlock, renderPublish, renderPrivateIndex, renderLostBlobs, publishAttemptsMax, renderWorkingTreeRemoval, renderSharedIndexRepair, renderLandedStat, renderApprovalPrune, indexLockWaitSecondsMax -->
 
 The script opens with `set -euo pipefail` and a `cd` to the checkout it was
 PREPARED for, named as an absolute path, so a failed step stops it and a script
