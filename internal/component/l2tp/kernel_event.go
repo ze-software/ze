@@ -57,6 +57,8 @@ type kernelSetupEvent struct {
 type kernelTeardownEvent struct {
 	localTID uint16
 	localSID uint16
+	// session is the original admission; numeric labels never authorize cleanup.
+	session *L2TPSession
 	// relay pins the call that owned this removal; nil is an ordinary call.
 	relay *relayCall
 }
@@ -67,6 +69,7 @@ type kernelTeardownEvent struct {
 type kernelSetupFailed struct {
 	localTID uint16
 	localSID uint16
+	session  *L2TPSession
 	// relay preserves the failed setup's owner across asynchronous reporting.
 	relay *relayCall
 	err   error

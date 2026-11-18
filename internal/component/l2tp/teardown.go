@@ -213,6 +213,7 @@ func (r *l2tpReactor) deliverSessionDowns(downs []sessionDown) {
 	if len(downs) == 0 {
 		return
 	}
+	r.retainRemovedSessions(downs)
 	batchLen := 1
 	for batchLen < len(downs) && downs[batchLen].ticket == downs[0].ticket {
 		batchLen++

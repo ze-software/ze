@@ -78,11 +78,15 @@ templ l2tpDetail(v l2tpDetailView) {
 							action={ "/l2tp/" + intText(int(v.Session.LocalSID)) + "/disconnect" }
 							data-confirm={ "Disconnect session " + intText(int(v.Session.LocalSID)) + "?" }
 						>
+							<input type="hidden" name="expected-id" value={ v.Session.ExpectedID }>
+							if v.Session.ExpectedID == "" {
+								<p>The session reference is unavailable. Refresh /l2tp before disconnecting.</p>
+							}
 							<label for="reason">Reason (required):</label>
 							<input type="text" id="reason" name="reason" required maxlength="256" placeholder="maintenance window">
 							<label for="cause">Disconnect Cause (optional):</label>
 							<input type="number" id="cause" name="cause" min="0" max="65535" placeholder="0">
-							<button type="submit" class="btn btn-danger">Disconnect</button>
+							<button type="submit" class="btn btn-danger" disabled?={ v.Session.ExpectedID == "" }>Disconnect</button>
 						</form>
 					</section>
 				</main>

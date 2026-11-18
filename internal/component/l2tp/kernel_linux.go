@@ -18,13 +18,13 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"golang.org/x/sys/unix"
 
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 var errRelayCallCancelled = errors.New("l2tp: relay call abandoned by the subscriber before the bridge completed")
@@ -68,7 +68,16 @@ func newKernelOps(genl *genlConn) kernelOps {
 
 // pppSetupReal performs the full PPPoL2TP socket + /dev/ppp setup sequence.
 func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
-	pppoxFD, err := pppoxCreate(ev.socketFD, ev.peerAddr,
+	return pppSetupWith(ev, pppoxCreate, pppkernel.DevPPPSetup, unix.Close)
+}
+
+// pppSetupWith supplies the existing syscall boundaries for fault injection;
+// production uses pppoxCreate, DevPPPSetup and unix.Close above.
+func pppSetupWith(ev kernelSetupEvent,
+	create func(int, netip.AddrPort, uint16, uint16, uint16, uint16) (int, error),
+	setup func(int, string) (int, int, int, error), closeFD func(int) error,
+) (pppSessionFDs, error) {
+	pppoxFD, err := create(ev.socketFD, ev.peerAddr,
 		ev.localTID, ev.localSID, ev.remoteTID, ev.remoteSID)
 	if err != nil {
 		return pppSessionFDs{}, err
@@ -76,28 +85,24 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 
 	if ev.lnsMode {
 		if serr := pppoxSetLNSMode(pppoxFD, true); serr != nil {
-			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is serr
-			return pppSessionFDs{}, fmt.Errorf("l2tp: pppox set LNS mode: %w", serr)
+			return pppSessionFDs{}, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox set LNS mode: %w", serr), closeFD(pppoxFD))
 		}
 	}
 	if ev.sequencing {
 		if serr := pppoxSetSendSeq(pppoxFD, true); serr != nil {
-			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is serr
-			return pppSessionFDs{}, fmt.Errorf("l2tp: pppox set send seq: %w", serr)
+			return pppSessionFDs{}, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox set send seq: %w", serr), closeFD(pppoxFD))
 		}
 		if serr := pppoxSetRecvSeq(pppoxFD, true); serr != nil {
-			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is serr
-			return pppSessionFDs{}, fmt.Errorf("l2tp: pppox set recv seq: %w", serr)
+			return pppSessionFDs{}, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox set recv seq: %w", serr), closeFD(pppoxFD))
 		}
 	}
 
 	// An L2TP LNS and LAC name their subscriber sessions pppN: the name is
 	// not set by config here, only the PPPoE client passes a configured
 	// name (plan child-1).
-	chanFD, unitFD, unitNum, err := prepareAndSetupPPP(ev, pppoxFD, pppkernel.DevPPPSetup)
+	chanFD, unitFD, unitNum, err := prepareAndSetupPPP(ev, pppoxFD, setup)
 	if err != nil {
-		unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is err
-		return pppSessionFDs{}, err
+		return pppSessionFDs{}, pppkernel.RecordSetupCleanup(err, closeFD(pppoxFD))
 	}
 
 	// spec-followup-l2tp-call A-4: a LAC-relayed incoming call bridges the
@@ -108,14 +113,14 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 	// bridge is the channel's only consumer, and is told the bridge result.
 	if ev.relay != nil {
 		if qerr := quiesceRelaySubscriber(ev.relay); qerr != nil {
-			return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, qerr, unix.Close)
+			return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, qerr, closeFD)
 		}
 	}
 	bridged, berr := maybeBridgePPPoE(ev, chanFD)
 	if ev.relay != nil {
 		if berr == nil {
 			if !ev.relay.markBridged(ev.localTID, ev.localSID) {
-				return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, errRelayCallCancelled, unix.Close)
+				return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, errRelayCallCancelled, closeFD)
 			}
 		}
 	}
@@ -135,7 +140,7 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 	if berr != nil {
 		// The kernel worker cannot close a local lease setup never published.
 		return pppSessionFDs{}, fmt.Errorf("l2tp: LAC channel bridge: %w",
-			rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, berr, unix.Close))
+			rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, berr, closeFD))
 	}
 
 	return pppSessionFDs{
@@ -159,7 +164,7 @@ func rollbackPPPBridge(fds [3]int, cause error, closeFD func(int) error) error {
 			continue
 		}
 		if err := closeFD(fd); err != nil {
-			cause = errors.Join(cause, err)
+			cause = pppkernel.RecordSetupCleanup(cause, err)
 		}
 	}
 	return cause
@@ -168,8 +173,14 @@ func rollbackPPPBridge(fds [3]int, cause error, closeFD func(int) error) error {
 // kernelTunnelState tracks kernel-side resources for one L2TP tunnel.
 type kernelTunnelState struct {
 	localTID     uint16
-	connFD       int // dup'd connected socket fd; closed on tunnel delete
-	sessionCount int // number of kernel sessions on this tunnel
+	birth        subscriberid.L2TPBirth // first admission identifies this native tunnel's diagnostics
+	connFD       int                    // dup'd connected socket fd; closed on tunnel delete
+	sessionCount int                    // number of kernel sessions on this tunnel
+	retiring     bool
+	deleted      bool
+	closeErr     error
+	deleteErr    error
+	released     bool
 }
 
 // sessionKey uniquely identifies a kernel session.
@@ -310,8 +321,6 @@ func (w *kernelWorker) teardownAll() {
 	for tid := range w.tunnels {
 		w.deleteTunnelLocked(tid)
 	}
-	w.sessions = make(map[sessionKey]*pppSessionFDs)
-	w.tunnels = make(map[uint16]*kernelTunnelState)
 }
 
 // run is the worker's main loop.
@@ -357,17 +366,36 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 			w.reportError(ev, setupError)
 		}
 	}()
+	if ev.session == nil {
+		setupError = errors.New("l2tp: kernel setup requires its original session")
+		return
+	}
+	if ev.session.removed.Load() {
+		setupError = ErrSessionNotFound
+		return
+	}
+	key := sessionKey{tunnelID: ev.localTID, sessionID: ev.localSID}
+	if w.sessions[key] != nil {
+		setupError = ErrSessionCleanupPending
+		return
+	}
+	if ev.session.nativeOwner.Load() != nil {
+		setupError = errors.New("l2tp: original session kernel setup was already consumed")
+		return
+	}
+	owned := &pppSessionFDs{session: ev.session, worker: w, relay: ev.relay, pppoxFD: -1, chanFD: -1, unitFD: -1, deleted: true}
+	ev.session.nativeOwner.Store(owned)
 
 	// Step 1: ensure kernel tunnel exists.
 	ts, tunnelExisted := w.tunnels[ev.localTID]
+	if tunnelExisted {
+		if ts.retiring {
+			setupError = ErrSessionCleanupPending
+			return
+		}
+	}
 	if !tunnelExisted {
 		connFD, err := w.ops.tunnelCreate(ev.localTID, ev.remoteTID, ev.socketFD, ev.peerAddr)
-		if errors.Is(err, syscall.EEXIST) {
-			w.logger.Warn("l2tp: stale kernel tunnel; deleting and retrying",
-				"local-tid", ev.localTID, "remote-tid", ev.remoteTID)
-			_ = w.ops.tunnelDelete(ev.localTID)
-			connFD, err = w.ops.tunnelCreate(ev.localTID, ev.remoteTID, ev.socketFD, ev.peerAddr)
-		}
 		if err != nil {
 			w.logger.Error("l2tp: kernel tunnel create failed",
 				"local-tid", ev.localTID, "remote-tid", ev.remoteTID,
@@ -375,7 +403,8 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 			setupError = err
 			return
 		}
-		ts = &kernelTunnelState{localTID: ev.localTID, connFD: connFD}
+		ts = &kernelTunnelState{localTID: ev.localTID, birth: ev.session.Birth(), connFD: connFD}
+		owned.tunnel = ts
 		w.tunnels[ev.localTID] = ts
 		w.logger.Info("l2tp: kernel tunnel created",
 			"local-tid", ev.localTID, "remote-tid", ev.remoteTID,
@@ -397,6 +426,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 			}
 		}
 	}
+	owned.tunnel = ts
 
 	// Step 2: create kernel session.
 	params := sessionCreateParams{
@@ -415,40 +445,29 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		return
 	}
 	ts.sessionCount++
+	owned.deleted = false
+	w.sessions[key] = owned
 
 	// Steps 3-4: PPPoL2TP socket + /dev/ppp setup.
 	fds, err := w.ops.pppSetup(ev)
 	if err != nil {
 		w.logger.Error("l2tp: ppp setup failed",
 			"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", err.Error())
-		// Rollback: delete kernel session, maybe delete tunnel.
-		// Only decrement sessionCount when the kernel delete actually
-		// succeeded. A failed delete means the kernel still holds the
-		// session, so leaving the counter high keeps our Go-side view
-		// conservative: cleanupTunnelIfNew then skips the tunnel delete
-		// and we leak loudly rather than silently producing an
-		// inconsistent "clean" state in Go while the kernel still has
-		// state.
-		if derr := w.ops.sessionDelete(ev.localTID, ev.localSID); derr != nil {
-			w.logger.Error("l2tp: rollback session delete FAILED; kernel state leaked",
-				"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", derr.Error())
-		} else {
-			ts.sessionCount--
-			w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
-		}
+		owned.closeErr = pppkernel.SetupCleanupFailure(err)
+		w.teardownSessionFDsLocked(key, owned)
+		w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
 		setupError = err
 		return
 	}
 
-	key := sessionKey{tunnelID: ev.localTID, sessionID: ev.localSID}
-	fds.relay = ev.relay
-	w.sessions[key] = &fds
+	owned.pppoxFD, owned.chanFD, owned.unitFD = fds.pppoxFD, fds.chanFD, fds.unitFD
+	owned.unitNum, owned.bridged = fds.unitNum, fds.bridged
 
 	w.logger.Info("l2tp: kernel session established",
 		"tunnel-id", ev.localTID, "session-id", ev.localSID,
 		"ppp-unit", fds.unitNum)
 
-	ready = &fds
+	ready = owned
 }
 
 // reportSuccess sends a setup success to the reactor via successCh.
@@ -481,6 +500,17 @@ func (w *kernelWorker) takePPPDescriptors(event kernelSetupSucceeded) (int, int,
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	fds := w.sessions[sessionKey{event.localTID, event.localSID}]
+	if event.session == nil {
+		return -1, -1, false
+	}
+	if event.session.removed.Load() {
+		return -1, -1, false
+	}
+	if fds != nil {
+		if fds.session != event.session {
+			return -1, -1, false
+		}
+	}
 	if fds == nil || fds != event.owner || fds.bridged || fds.chanFD < 0 || fds.unitFD < 0 {
 		return -1, -1, false
 	}
@@ -494,6 +524,10 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	if ev.session == nil {
+		return
+	}
+	ev.session.removed.Store(true)
 	key := sessionKey{tunnelID: ev.localTID, sessionID: ev.localSID}
 	fds, ok := w.sessions[key]
 	if !ok {
@@ -503,6 +537,9 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 	}
 
 	// A delayed removal cannot target a replacement using the same pair.
+	if fds.session != ev.session {
+		return
+	}
 	if fds.relay != ev.relay {
 		return
 	}
@@ -511,11 +548,103 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 	// If this was the last session, delete the kernel tunnel.
 	ts, ok := w.tunnels[ev.localTID]
 	if ok {
-		ts.sessionCount--
-		if ts.sessionCount <= 0 {
+		if ts.sessionCount == 0 {
 			w.deleteTunnelLocked(ev.localTID)
 		}
 	}
+}
+
+// originalCleanupStatus reads the immutable original receipt under its worker
+// lock. It never selects an owner from a reusable tunnel/session pair.
+func (w *kernelWorker) originalCleanupStatus(session *L2TPSession) error {
+	if !w.mu.TryLock() {
+		return ErrSessionCleanupPending
+	}
+	defer w.mu.Unlock()
+	return w.originalCleanupStatusLocked(session)
+}
+
+func (w *kernelWorker) pendingCleanup() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	var errs []error
+	for _, owned := range w.sessions {
+		errs = append(errs, owned.deleteErr, owned.closeErr)
+	}
+	for _, tunnel := range w.tunnels {
+		errs = append(errs, tunnel.deleteErr, tunnel.closeErr)
+	}
+	if len(w.sessions) != 0 {
+		errs = append(errs, ErrSessionCleanupPending)
+	}
+	if len(w.tunnels) != 0 {
+		errs = append(errs, ErrSessionCleanupPending)
+	}
+	return errors.Join(errs...)
+}
+
+func (w *kernelWorker) originalCleanupStatusLocked(session *L2TPSession) error {
+	owned := session.nativeOwner.Load()
+	if owned == nil {
+		// Removal revoked every future setup before this lock was acquired.
+		if session.removed.Load() {
+			return nil
+		}
+		return ErrSessionCleanupPending
+	}
+	if owned.worker != w {
+		return ErrSessionCleanupPending
+	}
+	if !owned.deleted {
+		return errors.Join(ErrSessionCleanupPending, owned.deleteErr, owned.closeErr)
+	}
+	if owned.closeErr != nil {
+		return owned.closeErr
+	}
+	ts := owned.tunnel
+	if ts != nil {
+		if ts.retiring {
+			if !ts.released {
+				return errors.Join(ErrSessionCleanupPending, ts.deleteErr, ts.closeErr)
+			}
+		}
+	}
+	return nil
+}
+
+// cleanupOriginal serializes against in-flight setup and retries only deletes
+// for its retained owner. A consumed raw descriptor number is never retried.
+func (w *kernelWorker) cleanupOriginal(ctx context.Context, tid uint16, session *L2TPSession) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !w.mu.TryLock() {
+		return ErrSessionCleanupPending
+	}
+	defer w.mu.Unlock()
+	if !session.removed.Load() {
+		return ErrSessionCleanupPending
+	}
+	owned := session.nativeOwner.Load()
+	if owned == nil {
+		return nil
+	}
+	if owned.worker != w {
+		return ErrSessionCleanupPending
+	}
+	key := sessionKey{tid, session.localSID}
+	if w.sessions[key] == owned {
+		w.teardownSessionFDsLocked(key, owned)
+	}
+	ts := owned.tunnel
+	if ts != nil {
+		if w.tunnels[tid] == ts {
+			if ts.sessionCount == 0 {
+				w.deleteTunnelLocked(tid)
+			}
+		}
+	}
+	return w.originalCleanupStatusLocked(session)
 }
 
 // teardownSessionFDsLocked releases the worker-owned descriptors and deletes
@@ -527,25 +656,30 @@ func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionF
 	// and PPPoE channels can be released independently.
 	if fds.bridged && fds.chanFD >= 0 {
 		if err := unbridgeChannel(fds.chanFD); err != nil {
-			w.logger.Warn("l2tp: unbridge channel", "fd", fds.chanFD, "error", err.Error())
+			w.reportKernelCleanupFailure(kernelCleanupChannelRelease,
+				key.tunnelID, key.sessionID, kernelCleanupBirth(fds), fds.chanFD, err)
+			fds.closeErr = errors.Join(fds.closeErr, err)
 		}
+		fds.bridged = false
 	}
 	// Reverse order: unit fd, channel fd, pppox socket, then genl delete.
-	// Close failures on teardown are logged warnings at most; they do not
-	// block the rest of the cleanup sequence.
-	if fds.unitFD >= 0 {
-		if err := w.ops.closeFD(fds.unitFD); err != nil {
-			w.logger.Warn("l2tp: close unit fd", "fd", fds.unitFD, "error", err.Error())
+	// A failed Close does not block the remaining cleanup operations, but its
+	// retained uncertainty prevents this original owner from being retired.
+	owned := [3]int{fds.unitFD, fds.chanFD, fds.pppoxFD}
+	// Consume recyclable numbers before calling Close. A failed Close is
+	// uncertainty, never permission to retry that number after reuse.
+	fds.unitFD, fds.chanFD, fds.pppoxFD = -1, -1, -1
+	for index, fd := range owned {
+		if fd < 0 {
+			continue
 		}
-	}
-	if fds.chanFD >= 0 {
-		if err := w.ops.closeFD(fds.chanFD); err != nil {
-			w.logger.Warn("l2tp: close chan fd", "fd", fds.chanFD, "error", err.Error())
+		if slices.Contains(owned[:index], fd) {
+			continue
 		}
-	}
-	if fds.pppoxFD >= 0 {
-		if err := w.ops.closeFD(fds.pppoxFD); err != nil {
-			w.logger.Warn("l2tp: close pppox fd", "fd", fds.pppoxFD, "error", err.Error())
+		if err := w.ops.closeFD(fd); err != nil {
+			w.reportKernelCleanupFailure(kernelCleanupSessionClose,
+				key.tunnelID, key.sessionID, kernelCleanupBirth(fds), fd, err)
+			fds.closeErr = errors.Join(fds.closeErr, err)
 		}
 	}
 	// Closing the pppox socket above already deletes the kernel session
@@ -553,14 +687,29 @@ func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionF
 	// that delete may finish before this request: genl then answers ENODEV,
 	// which is the end state this delete asks for, not a failure.
 	// TestLACRealmBridgeAfterLocalLCP met it on Ze's 7.3 kernel.
-	err := w.ops.sessionDelete(key.tunnelID, key.sessionID)
-	if err != nil && errors.Is(err, unix.ENODEV) && fds.pppoxFD >= 0 {
-		err = nil
+	if !fds.deleted {
+		err := w.ops.sessionDelete(key.tunnelID, key.sessionID)
+		if errors.Is(err, unix.ENODEV) {
+			err = nil
+		}
+		fds.deleteErr = err
+		if err != nil {
+			w.reportKernelCleanupFailure(kernelCleanupSessionDelete,
+				key.tunnelID, key.sessionID, kernelCleanupBirth(fds), -1, err)
+		} else {
+			fds.deleted = true
+			// Confirmed original deletion MUST clear only its own delete warning.
+			clearKernelSessionDeleteWarning(key, fds)
+			if ts := w.tunnels[key.tunnelID]; ts != nil {
+				ts.sessionCount--
+			}
+		}
 	}
-	if err != nil {
-		w.logger.Warn("l2tp: kernel session delete failed",
-			"tunnel-id", key.tunnelID, "session-id", key.sessionID,
-			"error", err.Error())
+	if fds.deleteErr != nil {
+		return
+	}
+	if fds.closeErr != nil {
+		return
 	}
 	delete(w.sessions, key)
 }
@@ -571,20 +720,48 @@ func (w *kernelWorker) deleteTunnelLocked(tid uint16) {
 	if !ok {
 		return
 	}
-	if err := w.ops.tunnelDelete(tid); err != nil {
-		w.logger.Warn("l2tp: kernel tunnel delete failed",
-			"tunnel-id", tid, "error", err.Error())
-	} else {
-		w.logger.Info("l2tp: kernel tunnel deleted", "tunnel-id", tid)
+	if ts.sessionCount != 0 {
+		return
 	}
-	// Stop the listener reading our dup BEFORE closing the original, so the
-	// reader goroutine exits on its own Close rather than on a stale descriptor.
-	if w.releaseSocket != nil {
-		w.releaseSocket(tid)
+	// A failed/unknown child Close still reserves this original tunnel.
+	for key := range w.sessions {
+		if key.tunnelID == tid {
+			return
+		}
+	}
+	ts.retiring = true
+	if !ts.deleted {
+		ts.deleteErr = w.ops.tunnelDelete(tid)
+		if errors.Is(ts.deleteErr, unix.ENODEV) {
+			ts.deleteErr = nil
+		}
+		if ts.deleteErr != nil {
+			w.reportKernelCleanupFailure(kernelCleanupTunnelDelete,
+				tid, 0, ts.birth, -1, ts.deleteErr)
+			return
+		}
+		ts.deleted = true
+		// Confirmed original deletion MUST clear only its own delete warning.
+		clearKernelTunnelDeleteWarning(ts)
+		w.logger.Info("l2tp: kernel tunnel deleted", "tunnel-id", tid)
+		// Stop the original listener reader before consuming its descriptor.
+		if w.releaseSocket != nil {
+			w.releaseSocket(tid)
+		}
 	}
 	if ts.connFD >= 0 {
-		w.ops.closeFD(ts.connFD) //nolint:errcheck // best-effort cleanup
+		fd := ts.connFD
+		ts.connFD = -1
+		ts.closeErr = w.ops.closeFD(fd)
+		if ts.closeErr != nil {
+			w.reportKernelCleanupFailure(kernelCleanupTunnelClose,
+				tid, 0, ts.birth, fd, ts.closeErr)
+		}
 	}
+	if ts.closeErr != nil {
+		return
+	}
+	ts.released = true
 	delete(w.tunnels, tid)
 }
 
@@ -609,6 +786,7 @@ func (w *kernelWorker) reportError(ev kernelSetupEvent, err error) {
 	case w.errCh <- kernelSetupFailed{
 		localTID: ev.localTID,
 		localSID: ev.localSID,
+		session:  ev.session,
 		relay:    ev.relay,
 		err:      err,
 	}:

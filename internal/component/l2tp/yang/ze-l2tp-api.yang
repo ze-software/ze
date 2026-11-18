@@ -92,7 +92,9 @@ the 'session' RPC returns the detail form.";
                 type string;
                 description "Each object carries local-sid, remote-sid, tunnel-local-tid, state, username,
 assigned-addr, family and created-at. assigned-addr is empty when the session
-holds no address. created-at is UTC in RFC 3339 form.";
+holds no address. created-at is UTC in RFC 3339 form. birth is present only when
+the original snapshot carries a valid immutable reference; copy that complete
+value as expected-id for a guarded disconnect.";
                 ze:help "JSON array of session summary objects.";
             }
         }
@@ -117,7 +119,8 @@ value of a 'sessions' row. Zero is refused because RFC 2661 reserves it.";
                 type string;
                 description "The object carries every field of a 'sessions' row plus tx-connect-speed,
 rx-connect-speed, framing-type, sequencing-required, lns-mode and
-kernel-setup-needed.";
+kernel-setup-needed. The optional birth field is omitted when no valid original
+reference is available; numeric session IDs never manufacture one.";
                 ze:help "JSON object with session detail.";
             }
         }
@@ -138,15 +141,16 @@ so they agree with each other and with 'summary'.";
     }
 
     rpc listeners {
-        description "Each row carries the bound address and the UDP port. An empty array means that
-no listener is bound, which is the state 'summary' reports as a listener-count
-of 0.";
+        description "Each row carries its original bound address and UDP port, with the configured
+server name when one exists. Retained closing roots stay visible for exact
+cleanup selection; their endpoint is not reconstructed from current config.";
         ze:help "List bound UDP listener endpoints.";
         output {
             leaf listeners {
                 type string;
-                description "Each object carries address and port. address is the bound IP address as
-text, and port is the UDP port number.";
+                description "Each object carries address and port. address is the original bound IP
+address as text, and port is the UDP port number. name is present when the
+original reactor has a configured server key.";
                 ze:help "JSON array of listener objects.";
             }
         }
@@ -366,27 +370,71 @@ and tunnels-cleared is a count that is 0 when no tunnel was live.";
     }
 
     rpc session-teardown {
-        description "The answer carries the session ID and a status of 'sent', which reports that the
-message left Ze and not that the peer answered. Optional actor, reason and cause
-keywords are recorded against the session before the CDN goes out, and they are
-echoed in the answer. The tunnel stays up.";
+        description "Captures one original session and confirms its local physical cleanup. The
+answer retains the session ID and status value 'sent'; it does not prove that
+the peer answered. The optional expected-id is parsed once into the immutable
+Birth filter. Stale references, unknown listeners and ambiguous selections refuse
+before audit or mutation. Optional actor, reason and cause are recorded against
+the captured original before teardown. The tunnel stays up.";
         ze:help "Send CDN Result Code 3 (administrative) for the session with the given local session ID.";
         input {
             leaf session-id {
-                type uint16;
+                type uint16 { range "1..65535"; }
                 mandatory true;
                 description "The ID Ze assigned to the session to stop, as a decimal number. It is the
 local-sid value of a 'sessions' row. Zero is refused because RFC 2661 reserves
-it. The 'actor', 'reason' and 'cause' keywords after the ID are optional.";
+it. Qualifiers and audit keywords after the ID are optional.";
                 ze:help "Local session ID (1..65535).";
+            }
+            leaf expected-id {
+                type string {
+                    length "37";
+                    pattern 'l2tp-[0-9a-f]{32}';
+                }
+                description "The complete canonical immutable Birth from the original session
+snapshot. Zero and malformed references are refused; a valid stale reference
+cannot select a replacement that reused the numeric session ID.";
+                ze:help "Require the displayed original session reference.";
+            }
+            leaf tunnel-id {
+                type uint16 { range "1..65535"; }
+                description "Restricts selection to the original local tunnel ID. Reusable numeric
+labels locate candidates but do not grant mutation authority.";
+                ze:help "Original local tunnel ID.";
+            }
+            leaf listener {
+                type string { length "1..253"; }
+                description "A configured listener name or bound IP:port endpoint. Names resolve
+through the original reactor inventory, including retained cleanup roots.
+Unknown and ambiguous names are refused.";
+                ze:help "Original listener name or bound IP:port endpoint.";
+            }
+            leaf actor {
+                type string { length "1..256"; }
+                description "The optional actor label recorded with the disconnect request on the
+captured original. Authorization continues to use the authenticated caller.";
+                ze:help "Audit actor label for this disconnect request.";
+            }
+            leaf reason {
+                type string { length "1..256"; }
+                description "The free-text disconnect reason. Quote text that contains another
+keyword. The command records it only against the captured original row.";
+                ze:help "Audit reason for clearing this session.";
+            }
+            leaf cause {
+                type uint32;
+                description "The optional RADIUS Disconnect-Cause audit value. It does not replace
+the administrative L2TP CDN result or authorize selection by numeric label.";
+                ze:help "RADIUS Disconnect-Cause audit value.";
             }
         }
         output {
             leaf result {
                 type string;
                 description "The keys are action, session-id and status. action is 'session-teardown',
-and status is 'sent' once the CDN has left Ze. reason and cause are present
-when the request carried them.";
+and status retains the value 'sent' after local physical cleanup is confirmed.
+This is not proof of the peer's receipt. reason and cause are present when the
+request carried them.";
                 ze:help "JSON object describing the teardown outcome.";
             }
         }

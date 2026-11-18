@@ -28,7 +28,12 @@ type sessionAttemptBinding struct {
 	leaseAcquired bool
 	owner         *pppSession
 	control       SessionControl
+	unusedCleanup *untransferredClose
 }
+
+// A nonnil untransferredClose records an actual producer Close. A nil cause is
+// a confirmed physical release, distinct from an absent observation.
+type untransferredClose struct{ cause error }
 
 // NewSessionAttempt validates identity before the transport queues StartSession.
 // It borrows the lease without transferring or closing it. The transport MUST
@@ -74,6 +79,33 @@ func (attempt SessionAttempt) Cancel() bool {
 		control.Cancel()
 	}
 	return true
+}
+
+// RecordUntransferredClose records the actual Close of this canceled handoff's
+// exact unused owner. The producer MUST call it only after closing that owner
+// and MUST NOT call it after delivering StartSession to the Driver. It records
+// no protocol admission, grants no close authority and never changes a claimed
+// binding or a previously recorded outcome. Safe for concurrent observation.
+func (attempt SessionAttempt) RecordUntransferredClose(owner SessionHandle, cause error) error {
+	if attempt.binding == nil {
+		return ErrSessionAttemptInvalid
+	}
+	binding := attempt.binding
+	binding.mu.Lock()
+	defer binding.mu.Unlock()
+	if binding.lease != owner {
+		return ErrSessionAttemptInvalid
+	}
+	if binding.claimed {
+		return ErrSessionAttemptUsed
+	}
+	if !binding.canceled {
+		return ErrSessionNotCanceled
+	}
+	binding.claimed = true
+	binding.finished = true
+	binding.unusedCleanup = &untransferredClose{cause: cause}
+	return nil
 }
 
 // Control returns only the once-bound admitted worker, including after it

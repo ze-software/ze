@@ -10,11 +10,13 @@ import (
 	"encoding/binary"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/callsink"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // L2TPSessionState enumerates the session FSM states from RFC 2661 S10.
@@ -61,6 +63,9 @@ func (s L2TPSessionState) String() string {
 // Fields are added incrementally as each FSM handler is implemented.
 // Phase 6 (PPP) consumes the proxy LCP/auth fields.
 type L2TPSession struct {
+	// birth is minted before publication and never changes with reusable IDs.
+	// Zero belongs only to an unadmitted fixture or incomplete raw value.
+	birth     subscriberid.L2TPBirth
 	localSID  uint16
 	remoteSID uint16
 	state     L2TPSessionState
@@ -129,6 +134,10 @@ type L2TPSession struct {
 	// this flag after Process() returns and enqueues a kernelSetupEvent.
 	// Phase 5 kernel integration.
 	kernelSetupNeeded bool
+	// removed revokes queued setup before an asynchronous native worker can
+	// acquire resources. nativeOwner retains this admission's cleanup receipt.
+	removed     atomic.Bool
+	nativeOwner atomic.Pointer[pppSessionFDs] //nolint:unused // read and written in kernel_linux.go
 
 	// lnsMode records whether this session was established via handleICCN
 	// (LNS side, true) or handleOCCN (LAC side, false). Used by the
@@ -150,6 +159,9 @@ type L2TPSession struct {
 	// pppAttempt identifies this exact local PPP handoff. Teardown MUST cancel
 	// it even before admission has delivered a worker Control.
 	pppAttempt ppp.SessionAttempt
+	// pppConstruction is published under tunnelsMu before the worker transfers
+	// descriptors. A zero attempt cannot certify release while it is pending.
+	pppConstruction *pppConstruction
 
 	// channel retains the relayed PPPoE transport owner until the worker
 	// borrows its descriptor for bridging. A departed subscriber refuses
@@ -219,6 +231,15 @@ func (s *L2TPSession) transition(to L2TPSessionState, trigger string) {
 // LocalSID returns the session ID we assigned. Immutable after creation.
 func (s *L2TPSession) LocalSID() uint16 { return s.localSID }
 
+// Birth returns the immutable logical identity minted at admission. A nil
+// session has no birth; it never manufactures one from its wire labels.
+func (s *L2TPSession) Birth() subscriberid.L2TPBirth {
+	if s == nil {
+		return subscriberid.L2TPBirth{}
+	}
+	return s.birth
+}
+
 // RemoteSID returns the peer's Assigned Session ID.
 func (s *L2TPSession) RemoteSID() uint16 { return s.remoteSID }
 
@@ -279,6 +300,9 @@ func (t *L2TPTunnel) addSession(s *L2TPSession) {
 // struct the removal drops: a read taken after the map is cleared returns an
 // empty string, which reaches RADIUS as a Stop record with no User-Name.
 type sessionDown struct {
+	// Original owners survive removal until physical cleanup is confirmed.
+	session *L2TPSession
+	tunnel  *L2TPTunnel
 	// localTID travels with the event because a single drain can carry
 	// sessions from more than one tunnel: a tie-breaker loss discards a
 	// tunnel whose local TID is not the one the inbound packet named.
@@ -428,6 +452,7 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		return
 	}
 	// Cancel only this admission; a reused wire SID cannot select a successor.
+	sess.removed.Store(true)
 	sess.pppAttempt.Cancel()
 	cancelSessionTimeouts(sess)
 	ClearSessionMetadata(l2tpSessionID(t.localTID, sid))
@@ -436,6 +461,7 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
 			localTID: t.localTID,
 			localSID: sid,
+			session:  sess,
 			relay:    sess.relay,
 		})
 	}
@@ -448,6 +474,8 @@ func (t *L2TPTunnel) removeSession(sid uint16, cause l2tpevents.TerminateCause) 
 		sess.relay.end("L2TP session to " + sess.relay.target() + " ended")
 	}
 	t.pendingSessionDowns = append(t.pendingSessionDowns, sessionDown{
+		session:     sess,
+		tunnel:      t,
 		localTID:    t.localTID,
 		localSID:    sid,
 		username:    sess.username,

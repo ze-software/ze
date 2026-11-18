@@ -44,6 +44,7 @@ type l2tpListView struct {
 
 // l2tpSessionView is the session the detail page describes.
 type l2tpSessionView struct {
+	ExpectedID     string
 	LocalSID       uint16
 	Username       string
 	State          string

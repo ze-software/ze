@@ -35,10 +35,13 @@ type fakeService struct {
 func (f *fakeService) Snapshot() l2tppkg.Snapshot              { return f.snapshot }
 func (f *fakeService) Listeners() []l2tppkg.ListenerSnapshot   { return f.listeners }
 func (f *fakeService) EffectiveConfig() l2tppkg.ConfigSnapshot { return f.config }
-func (f *fakeService) TeardownTunnel(_ uint16) error           { return f.teardownTunnelErr }
-func (f *fakeService) TeardownSession(_ uint16) error          { return f.teardownSessionErr }
-func (f *fakeService) TeardownAllTunnels() int                 { return f.teardownAllTunnelsN }
-func (f *fakeService) TeardownAllSessions() int                { return f.teardownAllSessionsN }
+func (f *fakeService) CaptureSession(l2tppkg.SessionSelector) (l2tppkg.CapturedSession, error) {
+	return nil, l2tppkg.ErrSessionNotFound
+}
+func (f *fakeService) TeardownTunnel(_ uint16) error  { return f.teardownTunnelErr }
+func (f *fakeService) TeardownSession(_ uint16) error { return f.teardownSessionErr }
+func (f *fakeService) TeardownAllTunnels() int        { return f.teardownAllTunnelsN }
+func (f *fakeService) TeardownAllSessions() int       { return f.teardownAllSessionsN }
 func (f *fakeService) LookupTunnel(id uint16) (l2tppkg.TunnelSnapshot, bool) {
 	if f.lookupTunnel != nil {
 		return f.lookupTunnel(id)
@@ -354,7 +357,8 @@ func TestSessionJSONMRUAndAuthMethod(t *testing.T) {
 
 func TestParseKeywordArgs_ReasonAndCause(t *testing.T) {
 	args := []string{"42", "reason", "maintenance", "window", "cause", "6"}
-	actor, reason, cause := parseKeywordArgs(args)
+	actor, reason, cause, err := parseKeywordArgs(args)
+	require.NoError(t, err)
 	require.Equal(t, "", actor)
 	require.Equal(t, "maintenance window", reason)
 	require.Equal(t, uint32(6), cause)
@@ -362,7 +366,8 @@ func TestParseKeywordArgs_ReasonAndCause(t *testing.T) {
 
 func TestParseKeywordArgs_ReasonOnly(t *testing.T) {
 	args := []string{"42", "reason", "scheduled"}
-	actor, reason, cause := parseKeywordArgs(args)
+	actor, reason, cause, err := parseKeywordArgs(args)
+	require.NoError(t, err)
 	require.Equal(t, "", actor)
 	require.Equal(t, "scheduled", reason)
 	require.Equal(t, uint32(0), cause)
@@ -370,7 +375,8 @@ func TestParseKeywordArgs_ReasonOnly(t *testing.T) {
 
 func TestParseKeywordArgs_Empty(t *testing.T) {
 	args := []string{"42"}
-	actor, reason, cause := parseKeywordArgs(args)
+	actor, reason, cause, err := parseKeywordArgs(args)
+	require.NoError(t, err)
 	require.Equal(t, "", actor)
 	require.Equal(t, "", reason)
 	require.Equal(t, uint32(0), cause)
@@ -378,7 +384,8 @@ func TestParseKeywordArgs_Empty(t *testing.T) {
 
 func TestParseKeywordArgs_ActorReasonCause(t *testing.T) {
 	args := []string{"42", "actor", "web", "reason", "maintenance", "cause", "6"}
-	actor, reason, cause := parseKeywordArgs(args)
+	actor, reason, cause, err := parseKeywordArgs(args)
+	require.NoError(t, err)
 	require.Equal(t, "web", actor)
 	require.Equal(t, "maintenance", reason)
 	require.Equal(t, uint32(6), cause)

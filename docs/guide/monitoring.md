@@ -171,7 +171,14 @@ Network-resource cleanup and session-owner release retain separate
 causes when both fail for the same interface. Repair the reported backend and confirm resource removal before
 restarting service. A later successful session does not clear this finding;
 report-bus eviction is reported as uncertainty rather than recovery.
+L2TP kernel cleanup warnings retain the original tunnel/session IDs, descriptor
+and valid session Birth when available. A confirmed retry of that same native
+Delete clears only its deletion warning. An unknown descriptor Close or channel
+release remains unconfirmed; another session's successful cleanup cannot clear
+it, even when the kernel reuses its descriptor number. Use `ze show warnings`
+to inspect the retained Linux cause.
 <!-- source: internal/component/l2tp/ppp/cleanup_health.go -- ReportCleanupFailure -->
+<!-- source: internal/component/l2tp/kernel_cleanup_report_linux.go -- reportKernelCleanupFailure, clearKernelSessionDeleteWarning, clearKernelTunnelDeleteWarning -->
 <!-- source: internal/component/l2tp/doctor_cleanup.go -- checkPPPCleanup -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- closeAdmitted, closeSession, closeTransport -->
 <!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run -->

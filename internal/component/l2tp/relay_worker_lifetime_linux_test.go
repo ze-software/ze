@@ -19,15 +19,15 @@ func TestRelayKernelTeardownRequiresExactOwner(t *testing.T) {
 	stale := &relayCall{handoff: &serviceLifetimeHandoff{}}
 	current := &relayCall{handoff: &serviceLifetimeHandoff{}}
 	sibling := &relayCall{handoff: &serviceLifetimeHandoff{}}
-	target := &pppSessionFDs{pppoxFD: 10, chanFD: 11, unitFD: 12, relay: current}
-	other := &pppSessionFDs{pppoxFD: 20, chanFD: 21, unitFD: 22, relay: sibling}
+	target := &pppSessionFDs{pppoxFD: 10, chanFD: 11, unitFD: 12, relay: current, session: &L2TPSession{localSID: 41}}
+	other := &pppSessionFDs{pppoxFD: 20, chanFD: 21, unitFD: 22, relay: sibling, session: &L2TPSession{localSID: 51}}
 	fake := &fakeKernelOps{}
 	worker := &kernelWorker{logger: discardLogger(), ops: fake.ops(), sessions: map[sessionKey]*pppSessionFDs{{100, 41}: target, {100, 51}: other}, tunnels: map[uint16]*kernelTunnelState{100: {localTID: 100, connFD: -1, sessionCount: 2}}}
-	worker.teardownSession(kernelTeardownEvent{localTID: 100, localSID: 41, relay: stale})
+	worker.teardownSession(kernelTeardownEvent{localTID: 100, localSID: 41, relay: stale, session: target.session})
 	require.Same(t, target, worker.sessions[sessionKey{100, 41}])
 	require.Empty(t, fake.closes)
 	require.Empty(t, fake.sessionGone)
-	worker.teardownSession(kernelTeardownEvent{localTID: 100, localSID: 41, relay: current})
+	worker.teardownSession(kernelTeardownEvent{localTID: 100, localSID: 41, relay: current, session: target.session})
 	require.NotContains(t, worker.sessions, sessionKey{100, 41})
 	require.Same(t, other, worker.sessions[sessionKey{100, 51}])
 	require.Equal(t, []int{12, 11, 10}, fake.closes)
@@ -43,7 +43,8 @@ func TestRelayKernelFailureRetainsSetupOwner(t *testing.T) {
 	owner := &relayCall{handoff: &serviceLifetimeHandoff{}}
 	errorsOut := make(chan kernelSetupFailed, 1)
 	worker := &kernelWorker{logger: discardLogger(), ops: fake.ops(), sessions: make(map[sessionKey]*pppSessionFDs), tunnels: make(map[uint16]*kernelTunnelState), errCh: errorsOut, stop: make(chan struct{})}
-	worker.setupSession(kernelSetupEvent{localTID: 100, localSID: 41, relay: owner})
+	session := &L2TPSession{localSID: 41}
+	worker.setupSession(kernelSetupEvent{localTID: 100, localSID: 41, relay: owner, session: session})
 	select {
 	case event := <-errorsOut:
 		require.Same(t, owner, event.relay)
@@ -65,7 +66,8 @@ func TestRelayKernelSetupRetainsOwner(t *testing.T) {
 	success := make(chan kernelSetupSucceeded, 1)
 	worker := &kernelWorker{logger: discardLogger(), ops: fake.ops(), sessions: make(map[sessionKey]*pppSessionFDs), tunnels: make(map[uint16]*kernelTunnelState), successCh: success, stop: make(chan struct{})}
 	// RFC 2661 Section 10.1: attach resources to the accepted incoming call.
-	worker.setupSession(kernelSetupEvent{localTID: 100, localSID: 41, relay: owner})
+	session := &L2TPSession{localSID: 41}
+	worker.setupSession(kernelSetupEvent{localTID: 100, localSID: 41, relay: owner, session: session})
 	require.Same(t, owner, worker.sessions[sessionKey{100, 41}].relay)
 	select {
 	case event := <-success:
@@ -73,7 +75,7 @@ func TestRelayKernelSetupRetainsOwner(t *testing.T) {
 	default:
 		t.Fatal("successful setup did not publish its receipt")
 	}
-	worker.teardownSession(kernelTeardownEvent{localTID: 100, localSID: 41, relay: owner})
+	worker.teardownSession(kernelTeardownEvent{localTID: 100, localSID: 41, relay: owner, session: session})
 	require.Empty(t, worker.sessions)
 	require.Empty(t, worker.tunnels)
 }

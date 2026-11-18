@@ -335,13 +335,42 @@ of 1500; it does not remove the local transmit cap.
 |---------|--------|
 | `clear l2tp tunnel id <id>` | Sends StopCCN Result Code 6 (administrative) to the named tunnel |
 | `clear l2tp tunnel all` | Same, for every live tunnel |
-| `clear l2tp session id <id> [reason <text...>] [cause <code>]` | Sends CDN Result Code 3 (administrative) to the named session |
+| `clear l2tp session id <id> [expected-id <birth>] [tunnel-id <tid>] [listener <name-or-endpoint>] [reason <text...>] [cause <code>]` | Clears one captured original session and confirms its local physical cleanup |
 | `clear l2tp session all` | Same, for every live session (tunnels remain) |
 
 The `clear l2tp session id` command accepts optional keyword arguments:
 
 - `reason <text...>` -- free-text audit reason, recorded in the per-session event ring
-- `cause <code>` -- RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
+- `cause <code>` -- RADIUS Disconnect-Cause value (uint32), recorded alongside the reason
+- `expected-id <birth>` -- canonical `birth` value from `show l2tp sessions` or `show l2tp session id <id>`; a stale reference refuses the action
+- `tunnel-id <tid>` -- restrict selection to the original local tunnel
+- `listener <name-or-endpoint>` -- restrict selection to a configured listener name or bound IP:port endpoint
+
+Supplied `actor` and `reason` values contain 1–256 Unicode characters. A
+`listener` selector contains 1–253 Unicode characters.
+
+Session list and detail rows include `birth` only when their original snapshot
+has a valid immutable reference. Copy that complete value for `expected-id`;
+a numeric SID is not a substitute, and an absent reference is never invented.
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
+
+The listener inventory retains each original reactor's cached server name and
+bound endpoint, including closing reactors whose cleanup is still pending.
+`show l2tp listeners` includes `name` when the original has a configured key.
+Unknown and ambiguous names are refused. Tab completes actual names only after
+the `listener` keyword. Omitting `expected-id` remains valid at an interactive
+prompt; a bare SID matching several originals is refused. Quote a reason that
+contains another keyword. Missing values, duplicate keywords and invalid
+disconnect causes are refused before any audit or teardown.
+
+A clear waits for the captured original's PPP cleanup when that worker is
+already closing its resources. Success requires confirmed physical release
+without a cleanup error. Cancellation ends that wait; an unfinished native
+operation or a failed Close remains a refusal, and a retry uses the retained
+original rather than a replacement with the same SID.
+
+<!-- source: internal/component/l2tp/listener_inventory.go -- listenerSnapshotsLocked -->
+<!-- source: internal/component/l2tp/cmd/session_teardown_completion.go -- completeSessionTeardown -->
 
 RFC 2661 S4.4.2 / S5.4.2 define the Result Codes and teardown
 semantics. Teardown of unknown IDs returns an error naming the ID.
@@ -1542,7 +1571,11 @@ Chart colours are CSS custom properties (configurable via theme):
 The disconnect button triggers a confirm dialog requiring a free-text
 reason (1-256 characters) and an optional Disconnect-Cause code. The
 POST dispatches through the CLI as `clear l2tp session id <sid>
-reason <text> [cause <code>]`, so authz is enforced at the CLI layer.
+expected-id <birth> actor <user> reason <text> [cause <code>]`, so authz is
+enforced at the CLI layer. The Birth belongs to the displayed original row;
+a stale page cannot clear a replacement that reused its numeric SID. A form
+without that reference is disabled and asks for a refresh. The command reports
+success only after the captured original's local physical cleanup is confirmed.
 Read-only profiles are denied by the existing `clear` prefix rule.
 
 The disconnect reason and actor are recorded in the per-session event

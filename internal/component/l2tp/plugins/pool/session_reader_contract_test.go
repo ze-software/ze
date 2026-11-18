@@ -62,6 +62,10 @@ func (w *reactorTripwire) EffectiveConfig() l2tp.ConfigSnapshot {
 	w.trip("EffectiveConfig")
 	return l2tp.ConfigSnapshot{}
 }
+func (w *reactorTripwire) CaptureSession(l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+	w.trip("CaptureSession")
+	return nil, l2tp.ErrSessionNotFound
+}
 func (w *reactorTripwire) TeardownTunnel(uint16) error  { w.trip("TeardownTunnel"); return nil }
 func (w *reactorTripwire) TeardownSession(uint16) error { w.trip("TeardownSession"); return nil }
 func (w *reactorTripwire) TeardownAllTunnels() int      { w.trip("TeardownAllTunnels"); return 0 }

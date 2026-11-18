@@ -195,7 +195,7 @@ func TestReactorHandleKernelErrorSendsCDN(t *testing.T) {
 	tun := mkTunnel(r, 103, 203, peer)
 	sess := addEstablishedSession(tun, 1001, 2001, true)
 
-	r.handleKernelError(kernelSetupFailed{localTID: 103, localSID: 1001})
+	r.handleKernelError(kernelSetupFailed{localTID: 103, localSID: 1001, session: sess})
 
 	r.tunnelsMu.Lock()
 	_, stillThere := tun.sessions[sess.localSID]

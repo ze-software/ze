@@ -118,11 +118,11 @@ func newSession(cfg SessionConfig, ops sessionOps) (frames ppp.FrameChannel, han
 		// owns rollback, including a panic before any error result was assigned.
 		if failure != nil {
 			if cleanupErr != nil {
-				panic(errors.Join(sessionPanicFailure(failure), cleanupErr))
+				panic(RecordSetupCleanup(sessionPanicFailure(failure), cleanupErr))
 			}
 			panic(failure)
 		}
-		err = errors.Join(err, cleanupErr)
+		err = RecordSetupCleanup(err, cleanupErr)
 	}()
 	if err := validateSessionConfig(cfg); err != nil {
 		return nil, nil, err

@@ -91,7 +91,7 @@ func TestKernelWorkerAdoptsAndReleasesTunnelSocket(t *testing.T) {
 	defer w.Stop()
 
 	w.Enqueue(kernelSetupEvent{
-		localTID: 77, remoteTID: 88, localSID: 1, remoteSID: 2,
+		localTID: 77, remoteTID: 88, localSID: 1, remoteSID: 2, session: &L2TPSession{localSID: 1},
 		peerAddr: netip.MustParseAddrPort("10.0.0.1:1701"), socketFD: 3, lnsMode: true,
 	})
 
@@ -151,7 +151,7 @@ func TestKernelWorkerRollsBackWhenAdoptFails(t *testing.T) {
 	defer w.Stop()
 
 	w.Enqueue(kernelSetupEvent{
-		localTID: 91, remoteTID: 92, localSID: 5, remoteSID: 6,
+		localTID: 91, remoteTID: 92, localSID: 5, remoteSID: 6, session: &L2TPSession{localSID: 5},
 		peerAddr: netip.MustParseAddrPort("10.0.0.2:1701"), socketFD: 3, lnsMode: true,
 	})
 

@@ -63,12 +63,15 @@ type Subsystem struct {
 	params Parameters
 	logger *slog.Logger
 
-	mu            sync.Mutex
-	started       bool
-	listeners     []*UDPListener
-	reactors      []*l2tpReactor
-	timers        []*tunnelTimer
-	kernelWorkers []*kernelWorker
+	mu        sync.Mutex
+	started   bool
+	listeners []*UDPListener
+	reactors  []*l2tpReactor
+	// Old generations remain owning roots until every original physical
+	// cleanup receipt is confirmed. Start refuses replacement while pending.
+	retiredReactors []*l2tpReactor
+	timers          []*tunnelTimer
+	kernelWorkers   []*kernelWorker
 	// dataPlaneFault is why a listener runs with no kernel worker, unset when
 	// every listener has one. Written in Start, cleared with kernelWorkers,
 	// read by kernelDataPlane for the l2tp health row. Atomic rather than
@@ -171,6 +174,9 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 
 	if s.started {
 		return errL2tpSubsystemAlreadyStarted
+	}
+	if err := s.cleanupRetiredReactorsLocked(ctx); err != nil {
+		return err
 	}
 
 	if !s.params.Enabled {
@@ -516,6 +522,7 @@ func (s *Subsystem) unwindLocked() {
 	// writes land on pppDriver.SessionsIn().
 	for _, r := range s.reactors {
 		r.Stop()
+		r.retireSessions()
 	}
 	// Kernel workers BEFORE the PPP drivers: see stopKernelWorkersLocked.
 	s.stopKernelWorkersLocked()
@@ -551,8 +558,13 @@ func (s *Subsystem) unwindLocked() {
 		s.subBridge.stop()
 		s.subBridge = nil
 	}
-	if err := s.closeKernelBackend(); err != nil {
-		errs = append(errs, err)
+	s.retainStoppedReactorsLocked()
+	if len(s.retiredReactors) == 0 {
+		if err := s.closeKernelBackend(); err != nil {
+			errs = append(errs, err)
+		}
+	} else {
+		errs = append(errs, ErrSessionCleanupPending)
 	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil
@@ -568,12 +580,12 @@ func (s *Subsystem) unwindLocked() {
 // Stop implements ze.Subsystem. Idempotent. Reactors are stopped first so
 // no more dispatch occurs, then listeners are closed to free the UDP
 // sockets.
-func (s *Subsystem) Stop(_ context.Context) error {
+func (s *Subsystem) Stop(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.started {
-		return nil
+		return s.cleanupRetiredReactorsLocked(ctx)
 	}
 	// Clear the Service publication BEFORE shutting down the reactors so
 	// concurrent CLI handlers observe nil instead of calling into a
@@ -594,6 +606,7 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	}
 	for _, r := range s.reactors {
 		r.Stop()
+		r.retireSessions()
 	}
 	// Kernel workers BEFORE the PPP drivers: see stopKernelWorkersLocked.
 	s.stopKernelWorkersLocked()
@@ -627,8 +640,13 @@ func (s *Subsystem) Stop(_ context.Context) error {
 		s.subBridge.stop()
 		s.subBridge = nil
 	}
-	if err := s.closeKernelBackend(); err != nil {
-		errs = append(errs, err)
+	s.retainStoppedReactorsLocked()
+	if len(s.retiredReactors) == 0 {
+		if err := s.closeKernelBackend(); err != nil {
+			errs = append(errs, err)
+		}
+	} else {
+		errs = append(errs, ErrSessionCleanupPending)
 	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil

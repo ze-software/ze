@@ -21,6 +21,7 @@ type Service interface {
 	Snapshot() Snapshot
 	LookupTunnel(localTID uint16) (TunnelSnapshot, bool)
 	LookupSession(localSID uint16) (SessionSnapshot, bool)
+	CaptureSession(SessionSelector) (CapturedSession, error)
 	Listeners() []ListenerSnapshot
 	EffectiveConfig() ConfigSnapshot
 	TeardownTunnel(localTID uint16) error

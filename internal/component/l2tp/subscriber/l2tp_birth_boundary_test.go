@@ -2,8 +2,9 @@
 package subscriber
 
 import (
-	"github.com/ze-software/ze/internal/core/subscriberid"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 func TestL2TPBirthPackedBoundaryRoundTrip(t *testing.T) {

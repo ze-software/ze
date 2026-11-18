@@ -123,6 +123,7 @@ func setupEvent(tid, sid uint16) kernelSetupEvent {
 		remoteTID: tid + 1000,
 		peerAddr:  netip.MustParseAddrPort("192.0.2.1:1701"),
 		localSID:  sid,
+		session:   &L2TPSession{localSID: sid},
 		remoteSID: sid + 1000,
 		socketFD:  7,
 		lnsMode:   true,
@@ -209,14 +210,15 @@ func TestKernelWorkerTeardownOrder(t *testing.T) {
 	fake := &fakeKernelOps{}
 	w, _ := newTestWorker(t, fake)
 
-	w.Enqueue(setupEvent(100, 1001))
+	first := setupEvent(100, 1001)
+	w.Enqueue(first)
 	waitFor(t, func() bool {
 		fake.mu.Lock()
 		defer fake.mu.Unlock()
 		return len(fake.pppSetups) == 1
 	}, "setup done")
 
-	w.Enqueue(kernelTeardownEvent{localTID: 100, localSID: 1001})
+	w.Enqueue(kernelTeardownEvent{localTID: 100, localSID: 1001, session: first.session})
 	waitFor(t, func() bool {
 		fake.mu.Lock()
 		defer fake.mu.Unlock()
@@ -241,15 +243,17 @@ func TestKernelWorkerTeardownLastSession(t *testing.T) {
 	fake := &fakeKernelOps{}
 	w, _ := newTestWorker(t, fake)
 
-	w.Enqueue(setupEvent(100, 1001))
-	w.Enqueue(setupEvent(100, 1002))
+	first := setupEvent(100, 1001)
+	w.Enqueue(first)
+	second := setupEvent(100, 1002)
+	w.Enqueue(second)
 	waitFor(t, func() bool {
 		fake.mu.Lock()
 		defer fake.mu.Unlock()
 		return len(fake.sessionAdded) == 2
 	}, "two sessions up")
 
-	w.Enqueue(kernelTeardownEvent{localTID: 100, localSID: 1001})
+	w.Enqueue(kernelTeardownEvent{localTID: 100, localSID: 1001, session: first.session})
 	// After one of two sessions tears down, tunnel must NOT be deleted.
 	time.Sleep(10 * time.Millisecond)
 	fake.mu.Lock()
@@ -259,7 +263,7 @@ func TestKernelWorkerTeardownLastSession(t *testing.T) {
 	}
 	fake.mu.Unlock()
 
-	w.Enqueue(kernelTeardownEvent{localTID: 100, localSID: 1002})
+	w.Enqueue(kernelTeardownEvent{localTID: 100, localSID: 1002, session: second.session})
 	waitFor(t, func() bool {
 		fake.mu.Lock()
 		defer fake.mu.Unlock()

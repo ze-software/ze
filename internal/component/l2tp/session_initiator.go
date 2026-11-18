@@ -200,7 +200,12 @@ func (t *L2TPTunnel) newInitiatorSession(now time.Time, lnsMode bool, p callPara
 		logger.Warn("l2tp: session ID space exhausted for call origination")
 		return nil, false
 	}
+	birth, birthErr := newSessionBirth(logger)
+	if birthErr != nil {
+		return nil, false
+	}
 	sess := &L2TPSession{
+		birth:          birth,
 		localSID:       localSID,
 		state:          L2TPSessionIdle,
 		createdAt:      now,

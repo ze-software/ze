@@ -146,7 +146,8 @@ func webL2TPListView(populated bool) l2tpListView {
 func webL2TPDetailView(events bool) l2tpDetailView {
 	view := l2tpDetailView{
 		Session: l2tpSessionView{
-			LocalSID: 1, Username: "alice", State: "established",
+			ExpectedID: "l2tp-00000000000000000000000000000001",
+			LocalSID:   1, Username: "alice", State: "established",
 			AssignedAddr: "192.0.2.10", PppInterface: "ppp0",
 			TunnelLocalTID: 7, Family: "ipv4",
 		},

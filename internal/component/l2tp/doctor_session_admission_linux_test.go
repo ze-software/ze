@@ -45,9 +45,20 @@ func testKernelPPPAdmissionDoctorOutcome(t *testing.T, outcome string, cause err
 	defer stop()
 	driver := newFakePPPDriver()
 	reactor.setPPPDriver(driver)
-	tunnel := mkTunnel(reactor, 100, 200, netip.MustParseAddrPort("192.0.2.7:1701"))
+	// Constructor refusal sends a real CDN. Keep that send on an owned
+	// loopback peer so routing failure cannot add an unrelated error event.
+	peer := newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), reactor.logger)
+	if err := peer.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := peer.Stop(); err != nil {
+			t.Error(err)
+		}
+	})
+	tunnel := mkTunnel(reactor, 100, 200, peer.Addr())
 	session := addEstablishedSession(tunnel, 1001, 2001, true)
-	fds := &pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}
+	fds := &pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7, session: session}
 	event := kernelSetupSucceeded{localTID: 100, localSID: 1001, session: session, owner: fds, fds: *fds}
 	reactor.kernelWorker = &kernelWorker{
 		sessions: map[sessionKey]*pppSessionFDs{{100, 1001}: fds},

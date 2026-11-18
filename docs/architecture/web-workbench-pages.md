@@ -170,8 +170,15 @@ the richer view.
 - The CQM chart feed is a per-connection `time.Ticker` at the bucket interval,
   not an EventBroker broadcast. A CQM feed is per login, so broadcasting it
   would leak one subscriber's data to another and waste bandwidth.
-- Disconnect runs `clear l2tp session teardown <sid> reason <text> cause
-  <code>` through the existing command dispatcher. Authorization is enforced
+- Disconnect submits `clear l2tp session id <sid> expected-id <birth> actor
+  <user> reason <text> cause <code>` through the existing command dispatcher.
+  The form retains its snapshot's canonical immutable Birth in `expected-id`;
+  a page without that reference disables its button and asks for a refresh.
+  The HTTP boundary refuses missing or malformed references before dispatch.
+  The command owner parses that reference into its typed Birth filter, captures
+  the original row, and uses it for both audit and physical teardown. A stale
+  guard refuses before either action; local success requires the original
+  cleanup receipt. Authorization is enforced
   once at the CLI layer, and the `clear` prefix is already denied to the
   read-only profile, so the web path needed no authorization change.
 - The destructive L2TP commands were moved from a top-level `l2tp` noun to an

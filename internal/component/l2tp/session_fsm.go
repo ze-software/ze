@@ -157,7 +157,12 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 		return t.sendCDNNoSession(info.assignedSessionID, cdnResultNoResources, now, logger)
 	}
 
+	birth, birthErr := newSessionBirth(logger)
+	if birthErr != nil {
+		return t.sendCDNNoSession(info.assignedSessionID, cdnResultNoResources, now, logger)
+	}
 	sess := &L2TPSession{
+		birth:         birth,
 		localSID:      localSID,
 		remoteSID:     info.assignedSessionID,
 		state:         L2TPSessionWaitConnect,
@@ -286,7 +291,12 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 		return t.sendCDNNoSession(info.assignedSessionID, cdnResultNoResources, now, logger)
 	}
 
+	birth, birthErr := newSessionBirth(logger)
+	if birthErr != nil {
+		return t.sendCDNNoSession(info.assignedSessionID, cdnResultNoResources, now, logger)
+	}
 	sess := &L2TPSession{
+		birth:      birth,
 		localSID:   localSID,
 		remoteSID:  info.assignedSessionID,
 		state:      L2TPSessionWaitCSAnswer,

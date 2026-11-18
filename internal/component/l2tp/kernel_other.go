@@ -6,6 +6,7 @@
 package l2tp
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 )
@@ -29,6 +30,13 @@ func (w *kernelWorker) setSocketHooks(_ func(tid uint16, fd int) error, _ func(t
 
 // teardownAll is a no-op on non-Linux.
 func (w *kernelWorker) teardownAll() {}
+
+// No native session can be acquired by this platform's worker.
+func (w *kernelWorker) originalCleanupStatus(_ *L2TPSession) error { return nil }
+func (w *kernelWorker) cleanupOriginal(ctx context.Context, _ uint16, _ *L2TPSession) error {
+	return ctx.Err()
+}
+func (w *kernelWorker) pendingCleanup() error { return nil }
 
 // Stop is a no-op on non-Linux.
 func (w *kernelWorker) Stop() {}

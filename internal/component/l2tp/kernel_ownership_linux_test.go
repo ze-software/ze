@@ -18,7 +18,8 @@ import (
 
 func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 	t.Helper()
-	fds := &pppSessionFDs{pppoxFD: -1, chanFD: -1, unitFD: -1}
+	session := &L2TPSession{localSID: 2}
+	fds := &pppSessionFDs{pppoxFD: -1, chanFD: -1, unitFD: -1, session: session}
 	worker := &kernelWorker{
 		logger:   discardLoggerForTest(),
 		sessions: map[sessionKey]*pppSessionFDs{{1, 2}: fds},
@@ -27,7 +28,7 @@ func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 			sessionDelete: func(uint16, uint16) error { return nil },
 		},
 	}
-	t.Cleanup(func() { worker.teardownSession(kernelTeardownEvent{localTID: 1, localSID: 2}) })
+	t.Cleanup(func() { worker.teardownSession(kernelTeardownEvent{localTID: 1, localSID: 2, session: session}) })
 	for _, target := range []*int{&fds.pppoxFD, &fds.chanFD, &fds.unitFD} {
 		fd, err := unix.Open(os.DevNull, unix.O_RDWR|unix.O_CLOEXEC, 0)
 		if err != nil {
@@ -35,7 +36,7 @@ func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 		}
 		*target = fd
 	}
-	return worker, kernelSetupSucceeded{localTID: 1, localSID: 2, fds: *fds, owner: fds, session: &L2TPSession{localSID: 2}}
+	return worker, kernelSetupSucceeded{localTID: 1, localSID: 2, fds: *fds, owner: fds, session: session}
 }
 
 // A natural PPP exit can recycle both descriptor numbers before kernel teardown.
@@ -70,7 +71,7 @@ func TestKernelTeardownDoesNotCloseTransferredDescriptors(t *testing.T) {
 		t.Cleanup(func() { _ = file.Close() })
 		replacements = append(replacements, file)
 	}
-	worker.teardownSession(kernelTeardownEvent{localTID: 1, localSID: 2})
+	worker.teardownSession(kernelTeardownEvent{localTID: 1, localSID: 2, session: event.session})
 	for _, file := range replacements {
 		if _, err := file.Write([]byte{1}); err != nil {
 			t.Fatalf("kernel teardown closed a recycled descriptor: %v", err)
@@ -125,7 +126,7 @@ func TestKernelSuccessForRemovedSessionRetainsWorkerOwnership(t *testing.T) {
 		t.Fatal("old setup was delivered to a replacement logical session")
 	default:
 	}
-	worker.teardownSession(kernelTeardownEvent{localTID: 1, localSID: 2})
+	worker.teardownSession(kernelTeardownEvent{localTID: 1, localSID: 2, session: event.session})
 	for _, fd := range []int{event.fds.chanFD, event.fds.unitFD} {
 		if _, err := unix.Write(fd, []byte{1}); !errors.Is(err, unix.EBADF) {
 			t.Fatalf("worker failed to release unclaimed descriptor %d: %v", fd, err)
@@ -163,7 +164,7 @@ func TestKernelClaimProceedsWhileReportingBlocked(t *testing.T) {
 			done := make(chan struct{})
 			go func() {
 				defer close(done)
-				worker.setupSession(kernelSetupEvent{localTID: 1, localSID: 3})
+				worker.setupSession(kernelSetupEvent{localTID: 1, localSID: 3, session: &L2TPSession{localSID: 3}})
 			}()
 			<-created
 			type claim struct {

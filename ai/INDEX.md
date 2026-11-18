@@ -648,6 +648,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | firewall, nftables, NAT, masquerade | `internal/component/firewall/` (component), `ze-firewall-conf.yang` |
 | PPPoE, pppoe-client, access concentrator | `internal/component/l2tp/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
 | L2TP interop, kl2tpd, many sessions per tunnel, ff 03, ACFC | `docs/labs/l2tp-interop.md`, `internal/le/interoplab/l2tp/scale.go`, `internal/le/interoplab/l2tp/scale_window.go`, `internal/le/interoplab/l2tp/ppp_framing.go` |
+| L2TP guarded disconnect, expected-id, immutable Birth, original listener name, retained cleanup retry | `docs/guide/l2tp.md` (Destructive commands; Disconnect), `docs/architecture/l2tp/subscriber-session-model.md`, `internal/component/l2tp/cmd/session_teardown.go`, `internal/component/l2tp/session_capture_audit.go`, `internal/component/l2tp/listener_inventory.go` |
 | PPP MRU, authentication-allow, authentication allow-list, CHAP-only, PAP fallback | `docs/guide/l2tp.md`, `docs/guide/pppoe.md`, `internal/component/l2tp/ppp/auth_policy.go` |
 | PPP cleanup, doctor-ppp-cleanup, unconfirmed session removal | `docs/guide/monitoring.md`, `internal/component/l2tp/ppp/cleanup_health.go`, `internal/component/l2tp/doctor_cleanup.go` |
 | wireguard, WireGuard, wg | `internal/component/iface/wireguard.go`, `ze-iface-conf.yang` |

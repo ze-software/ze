@@ -113,6 +113,7 @@ func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
 	session := &L2TPSession{localSID: event.localSID}
 	tunnel.addSession(session)
 	event.session = session
+	event.fds.session = session
 	event.owner = &event.fds
 	r.kernelWorker = &kernelWorker{
 		sessions: map[sessionKey]*pppSessionFDs{

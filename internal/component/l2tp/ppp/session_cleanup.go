@@ -135,7 +135,8 @@ func (control SessionControl) CloseCanceledOwner(ctx context.Context) error {
 
 // AttemptCleanupStatus distinguishes ownership refusal from deletion. No lease
 // acquired NEVER means another worker's resource was released. Finished means
-// rejection processing resolved, or the admitted protocol run returned.
+// rejection processing resolved, an actual unused Close was recorded, or the
+// admitted protocol run returned. Released observes only this exact owner.
 type AttemptCleanupStatus struct {
 	Admitted      bool
 	Finished      bool
@@ -154,6 +155,10 @@ func (attempt SessionAttempt) CleanupStatus() (AttemptCleanupStatus, error) {
 	binding.mu.Lock()
 	owner, control := binding.owner, binding.control
 	status := AttemptCleanupStatus{Admitted: control.worker != nil, Finished: binding.finished, LeaseAcquired: binding.leaseAcquired}
+	if binding.unusedCleanup != nil {
+		status.Released = binding.unusedCleanup.cause == nil
+		status.Err = binding.unusedCleanup.cause
+	}
 	binding.mu.Unlock()
 	if owner == nil {
 		return status, nil

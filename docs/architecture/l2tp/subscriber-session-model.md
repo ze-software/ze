@@ -90,6 +90,87 @@ index and session ID. A populated value round-trips without changing the
 packed identity or the snapshot's existing canonical ID and numeric labels.
 <!-- source: internal/core/subscriberid/l2tp_birth.go -- L2TPBirth, NewL2TPBirth, ParseL2TPBirth, IsValid, IsZero, MarshalText, UnmarshalText -->
 
+The three actual call admissions mint this value before inserting an
+`L2TPSession` in its tunnel: incoming ICRQ, incoming OCRQ and local call
+origination. An invalid entropy result refuses the call before publication
+and raises an internal-defect doctor warning. A later successful mint clears
+that transient warning. Wire SID allocation remains a separate operation.
+<!-- source: internal/component/l2tp/session_birth.go -- newSessionBirth -->
+<!-- source: internal/component/l2tp/session_fsm.go -- handleICRQ, handleOCRQ -->
+<!-- source: internal/component/l2tp/session_initiator.go -- newInitiatorSession -->
+
+`CaptureSession` resolves a readable selector while all selected reactor row
+locks are held in subsystem order. A second match is an ambiguity refusal.
+The returned private capture retains the original reactor, tunnel, row, bound
+listener and Birth. Its snapshot and history methods refuse once that exact
+row is gone, including when a replacement has the same numeric IDs. A counter
+read also retains and rechecks its original PPP attempt, control and network
+lifetime around the native read.
+<!-- source: internal/component/l2tp/session_capture.go -- CaptureSession, currentLocked, Snapshot, FSMHistory, Counters -->
+
+The clear-session command parses an optional canonical `expected-id` once into
+the typed Birth filter, then uses the captured original for audit and teardown.
+The CLI list and detail renderer exposes that reference as `birth` only when
+the original snapshot carries a valid Birth; a zero value omits the field.
+Audit retains the observer selected with that original and rechecks its row
+under the reactor lock. A retry of an already removed original records no new
+audit event and can still finish its retained cleanup. It never records against
+a replacement by looking its SID up again.
+<!-- source: internal/component/l2tp/session_capture_audit.go -- RecordDisconnect -->
+<!-- source: internal/component/l2tp/cmd/session_teardown.go -- parseSessionTeardownRequest, resolveSelector -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
+
+The capture's teardown contract requires the original physical owner to
+confirm release before success. Logical removal, session-down publication and
+a queued numeric kernel deletion do not establish that result. A pending
+physical release remains an explicit refusal.
+
+Session removal revokes queued native setup before releasing the row. Both
+queued cleanup and the worker's resource object retain that original row;
+reusable tunnel/session numbers locate resources but cannot authorize their
+deletion. The worker reserves an occupied pair until its original delete and
+descriptor outcomes are confirmed. Each distinct descriptor, including zero,
+is consumed once before Close. A failed raw Close retains uncertainty and is
+never retried by its recyclable number. An unconfirmed native delete retains
+its original owner for an exact retry.
+<!-- source: internal/component/l2tp/session.go -- removeSession -->
+<!-- source: internal/component/l2tp/kernel_linux.go -- setupSession, teardownSession, teardownSessionFDsLocked, deleteTunnelLocked -->
+
+The captured teardown removes the original row once, then checks that row's
+native receipt and original PPP attempt. It attempts native cleanup before
+queueing any still-needed copy of that original teardown. When its admitted
+PPP worker is already closing the owner, it waits for that exact worker's
+retirement within the command context, then requires confirmed physical release
+and no recorded cleanup error. Cancellation returns promptly without certifying
+release. A constructor or native operation whose completion remains unconfirmed
+returns an explicit pending result. A failed cleanup retains its original row outside
+the active SID map, allowing a Birth-qualified retry without selecting a
+replacement. Stopped reactors with unresolved owners remain attached to the
+subsystem; a new Start refuses until their exact cleanup is confirmed. Their
+kernel backend stays owned until those retained consumers release it.
+<!-- source: internal/component/l2tp/session_capture.go -- Teardown -->
+<!-- source: internal/component/l2tp/session_retirement.go -- cleanupCapturedOriginal, retainStoppedReactorsLocked, cleanupRetiredReactorsLocked -->
+
+Before channel/unit descriptors leave the kernel worker, the original row
+retains its PPP construction receipt. Removal during construction therefore
+remains pending even though no PPP attempt exists yet. A constructor refusal
+distinguishes its primary error from an unconfirmed rollback Close; the latter
+keeps the original cleanup root. An owner returned after removal remains with
+that same receipt until its unused Close is confirmed. A failed raw Close is
+retained as uncertainty rather than retried through a recycled descriptor.
+<!-- source: internal/component/l2tp/ppp_construction.go -- pppConstruction -->
+<!-- source: internal/component/l2tp/ppp/kernel/session.go -- newSession -->
+
+When a constructed owner never reaches the PPP driver's input channel, the
+transport records that exact unused owner's actual Close result on its
+canceled attempt. A confirmed Close finishes the unused handoff; a failure
+finishes its observation while preserving the error and original owner.
+Recording this result cannot rewrite an attempt the driver already claimed.
+Cleanup reads the row's immutable attempt under the reactor lock before
+calling the owner outside that lock, then rechecks the original row's receipts.
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess, closeUntransferredPPPAttempt -->
+<!-- source: internal/component/l2tp/ppp/session_control.go -- RecordUntransferredClose -->
+
 ## Subscriber transmit limit
 
 ### Owner requirement, 2026-11-04

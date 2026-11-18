@@ -79,19 +79,12 @@ func (s *Subsystem) LookupSession(localSID uint16) (SessionSnapshot, bool) {
 	return SessionSnapshot{}, false
 }
 
-// Listeners returns the bound endpoints in registration order. Used by
-// `show l2tp listeners`. Returns nil when the subsystem is stopped.
+// Listeners returns names and bound endpoints from active and retained original
+// reactors. A stopped subsystem with no retained root returns nil.
 func (s *Subsystem) Listeners() []ListenerSnapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.started {
-		return nil
-	}
-	out := make([]ListenerSnapshot, 0, len(s.listeners))
-	for _, l := range s.listeners {
-		out = append(out, ListenerSnapshot{Addr: l.Addr()})
-	}
-	return out
+	return s.listenerSnapshotsLocked()
 }
 
 // EffectiveConfig returns the Parameters the subsystem is currently

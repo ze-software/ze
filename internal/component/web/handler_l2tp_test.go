@@ -47,7 +47,10 @@ func (f *fakeL2TPService) LookupSession(_ uint16) (l2tp.SessionSnapshot, bool) {
 }
 func (f *fakeL2TPService) Listeners() []l2tp.ListenerSnapshot   { return nil }
 func (f *fakeL2TPService) EffectiveConfig() l2tp.ConfigSnapshot { return l2tp.ConfigSnapshot{} }
-func (f *fakeL2TPService) TeardownTunnel(_ uint16) error        { return nil }
+func (f *fakeL2TPService) CaptureSession(l2tp.SessionSelector) (l2tp.CapturedSession, error) {
+	return nil, l2tp.ErrSessionNotFound
+}
+func (f *fakeL2TPService) TeardownTunnel(_ uint16) error { return nil }
 func (f *fakeL2TPService) TeardownSession(sid uint16) error {
 	f.teardownSID = sid
 	return f.teardownErr
@@ -262,7 +265,7 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 		},
 	}
 
-	form := url.Values{"reason": {"maintenance"}, "cause": {"6"}}
+	form := url.Values{"expected-id": {"l2tp-00000000000000000000000000000001"}, "reason": {"maintenance"}, "cause": {"6"}}
 	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
@@ -271,19 +274,21 @@ func TestHandleL2TPDisconnect_DispatchesCommand(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200, body=%s", rec.Code, rec.Body.String())
 	}
-	want := `clear l2tp session id 42 actor web reason "maintenance" cause 6`
+	want := `clear l2tp session id 42 expected-id l2tp-00000000000000000000000000000001 actor web reason "maintenance" cause 6`
 	if dispatched != want {
 		t.Errorf("dispatched=%q, want %q", dispatched, want)
 	}
 }
 
 func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
+	dispatches := 0
 	h := &l2TPHandlers{
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			dispatches++
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		},
 	}
-	form := url.Values{"reason": {""}}
+	form := url.Values{"expected-id": {"l2tp-00000000000000000000000000000001"}, "reason": {""}}
 	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
@@ -291,16 +296,25 @@ func TestHandleL2TPDisconnect_ReasonRequired(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status=%d, want 400", rec.Code)
+	}
+
+	if dispatches != 0 {
+		t.Errorf("reason refusal dispatched %d commands, want zero", dispatches)
+	}
+	if !strings.Contains(rec.Body.String(), "reason is required") {
+		t.Errorf("reason validation was not reached: %s", rec.Body.String())
 	}
 }
 
 func TestHandleL2TPDisconnect_ReasonTooLong(t *testing.T) {
+	dispatches := 0
 	h := &l2TPHandlers{
 		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+			dispatches++
 			return plugin.NewResponse(plugin.StatusDone, nil), nil
 		},
 	}
-	form := url.Values{"reason": {strings.Repeat("x", 257)}}
+	form := url.Values{"expected-id": {"l2tp-00000000000000000000000000000001"}, "reason": {strings.Repeat("x", 257)}}
 	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
@@ -308,6 +322,13 @@ func TestHandleL2TPDisconnect_ReasonTooLong(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status=%d, want 400", rec.Code)
+	}
+
+	if dispatches != 0 {
+		t.Errorf("reason refusal dispatched %d commands, want zero", dispatches)
+	}
+	if !strings.Contains(rec.Body.String(), "reason too long") {
+		t.Errorf("reason validation was not reached: %s", rec.Body.String())
 	}
 }
 
@@ -320,7 +341,7 @@ func TestHandleL2TPDisconnect_DispatchFailureReturns500JSON(t *testing.T) {
 		},
 	}
 
-	form := url.Values{"reason": {"maintenance"}}
+	form := url.Values{"expected-id": {"l2tp-00000000000000000000000000000001"}, "reason": {"maintenance"}}
 	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
@@ -400,7 +421,7 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 		},
 	}
 
-	form := url.Values{"reason": {"maintenance cause 999"}}
+	form := url.Values{"expected-id": {"l2tp-00000000000000000000000000000001"}, "reason": {"maintenance cause 999"}}
 	req := httptest.NewRequestWithContext(t.Context(), "POST", "/l2tp/42/disconnect?format=json", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
@@ -409,7 +430,7 @@ func TestHandleL2TPDisconnect_ReasonQuoted(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200, body=%s", rec.Code, rec.Body.String())
 	}
-	want := `clear l2tp session id 42 actor web reason "maintenance cause 999"`
+	want := `clear l2tp session id 42 expected-id l2tp-00000000000000000000000000000001 actor web reason "maintenance cause 999"`
 	if dispatched != want {
 		t.Errorf("dispatched=%q, want %q", dispatched, want)
 	}

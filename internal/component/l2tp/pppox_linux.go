@@ -12,6 +12,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // sockaddrPPPoL2TPSize is the packed size of struct sockaddr_pppol2tp.
@@ -98,17 +100,30 @@ func pppoxCreate(
 	peerAddr netip.AddrPort,
 	localTID, localSID, remoteTID, remoteSID uint16,
 ) (int, error) {
-	fd, err := unix.Socket(afPPPOX, unix.SOCK_DGRAM, pxProtoOL2TP)
+	return pppoxCreateWith(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID,
+		func() (int, error) { return unix.Socket(afPPPOX, unix.SOCK_DGRAM, pxProtoOL2TP) }, connectPPPoL2TP, unix.Close)
+}
+
+func pppoxCreateWith(socketFD int, peerAddr netip.AddrPort, localTID, localSID, remoteTID, remoteSID uint16,
+	open func() (int, error), connect func(int, []byte) error, closeFD func(int) error,
+) (int, error) {
+	fd, err := open()
 	if err != nil {
 		return -1, fmt.Errorf("l2tp: pppox socket: %w", err)
 	}
 
 	sa, err := buildSockaddrPPPoL2TP(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID)
 	if err != nil {
-		unix.Close(fd) //nolint:errcheck // rollback path; primary error is err
-		return -1, err
+		return -1, pppkernel.RecordSetupCleanup(err, closeFD(fd))
 	}
 
+	if err := connect(fd, sa); err != nil {
+		return -1, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox connect: %w", err), closeFD(fd))
+	}
+	return fd, nil
+}
+
+func connectPPPoL2TP(fd int, sa []byte) error {
 	// connect() binds the PPPoL2TP socket to the kernel L2TP session.
 	// The kernel reads &sa[0] as a sockaddr_pppol2tp; unsafe.Pointer is
 	// the only way to pass an arbitrary-shape sockaddr to SYS_CONNECT.
@@ -119,10 +134,9 @@ func pppoxCreate(
 		uintptr(len(sa)),
 	)
 	if errno != 0 {
-		unix.Close(fd) //nolint:errcheck // rollback path; primary error is errno
-		return -1, fmt.Errorf("l2tp: pppox connect: %w", errno)
+		return errno
 	}
-	return fd, nil
+	return nil
 }
 
 // pppoxSetLNSMode sets the LNS mode socket option on a PPPoL2TP socket.
@@ -156,6 +170,14 @@ func pppoxSetRecvSeq(fd int, enabled bool) error {
 // and unit setup via /dev/ppp. All four fds must be closed during
 // teardown in reverse order (unitFD, chanFD, pppoxFD, then genl delete).
 type pppSessionFDs struct {
+	// session and tunnel are the original resource owners. Receipt fields
+	// remain reachable from session.nativeOwner after the map reservation ends.
+	session   *L2TPSession
+	worker    *kernelWorker
+	tunnel    *kernelTunnelState
+	deleted   bool
+	closeErr  error
+	deleteErr error
 	// relay pins the call that created these worker-owned resources.
 	relay   *relayCall
 	pppoxFD int // PPPoL2TP socket fd

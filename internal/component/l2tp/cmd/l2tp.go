@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
@@ -42,6 +43,13 @@ const (
 	argAll       = "all"
 	argSessionID = "session-id"
 	argTunnelID  = "tunnel-id"
+)
+
+// The disconnect audit keywords are shared by parsing and completion.
+const (
+	kwActor  = "actor"
+	kwReason = "reason"
+	kwCause  = "cause"
 )
 
 // The response payload keys. Two of them hold the same text as an argument
@@ -80,7 +88,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-history", Handler: handleSessionHistory},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel-teardown", Handler: handleTunnelTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:tunnel-teardown-all", Handler: handleTunnelTeardownAll},
-		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown", Handler: handleSessionTeardown},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown", Handler: handleSessionTeardown, Complete: completeSessionTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-teardown-all", Handler: handleSessionTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:session-traffic", Handler: handleSessionTraffic},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp:outgoing-call", Handler: handleOutgoingCall},
@@ -202,7 +210,7 @@ func handleStatistics(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (
 	return jsonResponse("l2tp statistics", payload)
 }
 
-// handleListeners returns the bound UDP endpoints.
+// handleListeners returns original names and bound UDP endpoints.
 func handleListeners(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
 	svc := l2tp.LookupService()
 	if svc == nil {
@@ -211,10 +219,14 @@ func handleListeners(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*
 	lns := svc.Listeners()
 	out := make([]map[string]any, 0, len(lns))
 	for _, ln := range lns {
-		out = append(out, map[string]any{
+		row := map[string]any{
 			"address": ln.Addr.Addr().String(),
 			"port":    int(ln.Addr.Port()),
-		})
+		}
+		if ln.Name != "" {
+			row["name"] = ln.Name
+		}
+		out = append(out, row)
 	}
 	return jsonResponse("l2tp listeners", out)
 }
@@ -525,35 +537,47 @@ func handleTunnelTeardownAll(_ *pluginserver.CommandContext, _ command.Validated
 	})
 }
 
-func handleSessionTeardown(_ *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
-	args := validated.Tokens()
-	sid, err := parseIDArg(args, argSessionID)
-	if err != nil {
-		return errResponse(err), nil
+func handleSessionTeardown(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+	request, refusal := parseSessionTeardownRequest(validated.Tokens())
+	if refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
 	}
 	svc := l2tp.LookupService()
 	if svc == nil {
-		return errResponse(errSubsystemUnavailable), nil
+		return sessionTeardownFailure(request.selector.SID, errSubsystemUnavailable), nil
 	}
-	actor, reason, cause := parseKeywordArgs(args)
-	if reason != "" || cause != 0 || actor != "" {
-		if _, exists := svc.LookupSession(sid); exists {
-			svc.RecordDisconnect(sid, actor, reason, cause)
+	selector, refusal := request.resolveSelector(svc)
+	if refusal != nil {
+		return plugin.OperatorErrorResponse(refusal), nil
+	}
+	captured, err := svc.CaptureSession(selector)
+	if err != nil {
+		return sessionTeardownFailure(selector.SID, err), nil
+	}
+	if captured == nil {
+		return sessionTeardownFailure(selector.SID, l2tp.ErrSessionNotFound), nil
+	}
+	if err := ctx.Context().Err(); err != nil {
+		return sessionTeardownFailure(selector.SID, err), nil
+	}
+	if request.hasAudit() {
+		if err := captured.RecordDisconnect(request.actor, request.reason, request.cause); err != nil {
+			return sessionTeardownFailure(selector.SID, err), nil
 		}
 	}
-	if err := svc.TeardownSession(sid); err != nil {
-		return errResponse(err), nil
+	if err := captured.Teardown(ctx.Context(), l2tpevents.TerminateCauseAdminReset, request.reason); err != nil {
+		return sessionTeardownCleanupFailure(selector.SID, captured.Birth(), err), nil
 	}
 	result := map[string]any{
 		keyAction:    "session-teardown",
-		keySessionID: int(sid),
+		keySessionID: int(selector.SID),
 		"status":     "sent",
 	}
-	if reason != "" {
-		result["reason"] = reason
+	if request.reason != "" {
+		result["reason"] = request.reason
 	}
-	if cause != 0 {
-		result["cause"] = int(cause)
+	if request.cause != 0 {
+		result["cause"] = int(request.cause)
 	}
 	return jsonResponse("l2tp session teardown", result)
 }
@@ -620,6 +644,9 @@ func sessionJSON(s *l2tp.SessionSnapshot, detail bool) map[string]any {
 		"assigned-addr":    assigned,
 		"family":           s.Family,
 		"created-at":       s.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+	}
+	if s.Birth.IsValid() {
+		m["birth"] = s.Birth.String()
 	}
 	// A session may exist before LCP opens or while it renegotiates. Keep
 	// unknown distinct from an agreed no-auth method and from local config.
@@ -707,45 +734,55 @@ func parseIDArg(args []string, fieldName string) (uint16, error) {
 // keyword-prefixed optional arguments: `actor <name>`, `reason <text...>`,
 // and `cause <code>`. Text after "reason" is collected until the next
 // keyword or end of args. "actor" and "cause" expect a single value each.
-func parseKeywordArgs(args []string) (actor, reason string, cause uint32) {
-	const (
-		kwActor  = "actor"
-		kwReason = "reason"
-		kwCause  = "cause"
-	)
-	// Skip the first positional arg (the ID).
-	started := false
-	var reasonParts []string
-	collecting := ""
-	for _, a := range args {
-		if a == "" || strings.HasPrefix(a, "-") {
-			continue
+func parseKeywordArgs(args []string) (actor, reason string, cause uint32, err error) {
+	seen := make(map[string]bool, 3)
+	// The first token is the separately validated SID. The token count bounds
+	// both this keyword walk and the nested reason-word walk.
+	for index := 1; index < len(args); {
+		keyword := args[index]
+		if !isDisconnectAuditKeyword(keyword) {
+			return "", "", 0, fmt.Errorf("unknown disconnect keyword %q", keyword)
 		}
-		if !started {
-			started = true
-			continue
+		if seen[keyword] {
+			return "", "", 0, fmt.Errorf("duplicate disconnect keyword %q", keyword)
 		}
-		switch {
-		case a == kwActor:
-			collecting = kwActor
-		case a == kwReason:
-			collecting = kwReason
-		case a == kwCause:
-			collecting = kwCause
-		case collecting == kwActor:
-			actor = a
-			collecting = ""
-		case collecting == kwReason:
-			reasonParts = append(reasonParts, a)
-		case collecting == kwCause:
-			if n, err := strconv.ParseUint(a, 10, 32); err == nil {
-				cause = uint32(n)
+		seen[keyword] = true
+		index++
+		if index == len(args) {
+			return "", "", 0, fmt.Errorf("disconnect keyword %q requires a value", keyword)
+		}
+		if isDisconnectAuditKeyword(args[index]) {
+			return "", "", 0, fmt.Errorf("disconnect keyword %q requires a value", keyword)
+		}
+		switch keyword {
+		case kwActor:
+			actor = args[index]
+			if err := validateDisconnectText(keyword, actor); err != nil {
+				return "", "", 0, err
 			}
-			collecting = ""
+			index++
+		case kwReason:
+			start := index
+			for index < len(args) {
+				if isDisconnectAuditKeyword(args[index]) {
+					break
+				}
+				index++
+			}
+			reason = textbuf.Join(args[start:index], " ")
+			if err := validateDisconnectText(keyword, reason); err != nil {
+				return "", "", 0, err
+			}
+		case kwCause:
+			number, parseErr := strconv.ParseUint(args[index], 10, 32)
+			if parseErr != nil {
+				return "", "", 0, fmt.Errorf("invalid disconnect cause %q: %w", args[index], parseErr)
+			}
+			cause = uint32(number)
+			index++
 		}
 	}
-	reason = textbuf.Join(reasonParts, " ")
-	return actor, reason, cause
+	return actor, reason, cause, nil
 }
 
 // -----------------------------------------------------------------

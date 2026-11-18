@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // The two cases below capture the L2TP session detail route with a subsystem
@@ -39,10 +40,15 @@ func publishGoldenL2TPSession(t *testing.T) {
 	t.Helper()
 
 	up := time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC)
+	birth, err := subscriberid.ParseL2TPBirth("l2tp-00000000000000000000000000000001")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	publishFakeL2TP(t, &fakeL2TPService{
 		sessionOK: true,
 		session: l2tp.SessionSnapshot{
+			Birth:          birth,
 			LocalSID:       42,
 			RemoteSID:      43,
 			TunnelLocalTID: 7,

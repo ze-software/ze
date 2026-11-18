@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -45,8 +46,10 @@ type TunnelSnapshot struct {
 	SessionCount   int
 }
 
-// ListenerSnapshot is the read-only view of one bound UDP endpoint.
+// ListenerSnapshot is the cold read-only view of one original bound endpoint.
+// Name is absent for a reactor constructed without a configured server key.
 type ListenerSnapshot struct {
+	Name string
 	Addr netip.AddrPort
 }
 
@@ -69,6 +72,7 @@ type ConfigSnapshot struct {
 
 // SessionSnapshot is the read-only view of one session.
 type SessionSnapshot struct {
+	Birth              subscriberid.L2TPBirth `json:"birth,omitzero"`
 	LocalSID           uint16
 	RemoteSID          uint16
 	TunnelLocalTID     uint16
@@ -185,6 +189,7 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 		authMethod = s.negotiatedAuthMethod.String()
 	}
 	return SessionSnapshot{
+		Birth:              s.Birth(),
 		LocalSID:           s.localSID,
 		RemoteSID:          s.remoteSID,
 		TunnelLocalTID:     tunnelTID,

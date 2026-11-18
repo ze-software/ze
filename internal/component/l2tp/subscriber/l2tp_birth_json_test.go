@@ -5,8 +5,9 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/json"
-	"github.com/ze-software/ze/internal/core/subscriberid"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 // This serial test changes only entropy consumed by the actual constructor.

@@ -74,44 +74,52 @@ func SetIPv4Mode(unitFD int, mode NPMode) error {
 //
 // PPPIOCCONNECT (step 4) is deferred to after LCP completes.
 func DevPPPSetup(pppoxFD int, name string) (chanFD, unitFD, unitNum int, err error) {
-	chanIdx, err := ioctlGetInt(pppoxFD, pppiocGChan)
+	return devPPPSetup(pppoxFD, name, devPPPSetupOps{
+		get: ioctlGetInt, set: ioctlSetInt, getSet: ioctlGetSetInt,
+		open: openDevPPP, createLink: createPPPLink, closeFD: unix.Close,
+	})
+}
+
+type devPPPSetupOps struct {
+	get        func(int, uint) (int, error)
+	set        func(int, uint, int) error
+	getSet     func(int, uint, int) (int, error)
+	open       func() (int, error)
+	createLink func(int, string) error
+	closeFD    func(int) error
+}
+
+func devPPPSetup(pppoxFD int, name string, ops devPPPSetupOps) (chanFD, unitFD, unitNum int, err error) {
+	chanIdx, err := ops.get(pppoxFD, pppiocGChan)
 	if err != nil {
 		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCGCHAN: %w", err)
 	}
 
-	chanFD, err = openDevPPP()
+	chanFD, err = ops.open()
 	if err != nil {
 		return -1, -1, -1, err
 	}
-	if err := ioctlSetInt(chanFD, pppiocAttChan, chanIdx); err != nil {
-		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCATTCHAN: %w", err)
+	if err := ops.set(chanFD, pppiocAttChan, chanIdx); err != nil {
+		return -1, -1, -1, RecordSetupCleanup(fmt.Errorf("ppp: PPPIOCATTCHAN: %w", err), ops.closeFD(chanFD))
 	}
 
-	unitFD, err = openDevPPP()
+	unitFD, err = ops.open()
 	if err != nil {
-		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, err
+		return -1, -1, -1, RecordSetupCleanup(err, ops.closeFD(chanFD))
 	}
 	if name == "" {
-		unitNum, err = ioctlGetSetInt(unitFD, pppiocNewUnit, -1)
+		unitNum, err = ops.getSet(unitFD, pppiocNewUnit, -1)
 		if err != nil {
-			unix.Close(unitFD) //nolint:errcheck // rollback
-			unix.Close(chanFD) //nolint:errcheck // rollback
-			return -1, -1, -1, fmt.Errorf("ppp: PPPIOCNEWUNIT: %w", err)
+			return -1, -1, -1, RecordSetupCleanup(fmt.Errorf("ppp: PPPIOCNEWUNIT: %w", err), errors.Join(ops.closeFD(unitFD), ops.closeFD(chanFD)))
 		}
 		return chanFD, unitFD, unitNum, nil
 	}
-	if err := createPPPLink(unitFD, name); err != nil {
-		unix.Close(unitFD) //nolint:errcheck // rollback
-		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, err
+	if err := ops.createLink(unitFD, name); err != nil {
+		return -1, -1, -1, RecordSetupCleanup(err, errors.Join(ops.closeFD(unitFD), ops.closeFD(chanFD)))
 	}
-	unitNum, err = ioctlGetInt(unitFD, pppiocGUnit)
+	unitNum, err = ops.get(unitFD, pppiocGUnit)
 	if err != nil {
-		unix.Close(unitFD) //nolint:errcheck // rollback
-		unix.Close(chanFD) //nolint:errcheck // rollback
-		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCGUNIT on %s: %w; the configured pppoe-client name matches a kernel device another program created, rename the entry so its key is unique", name, err)
+		return -1, -1, -1, RecordSetupCleanup(fmt.Errorf("ppp: PPPIOCGUNIT on %s: %w; the configured pppoe-client name matches a kernel device another program created, rename the entry so its key is unique", name, err), errors.Join(ops.closeFD(unitFD), ops.closeFD(chanFD)))
 	}
 	return chanFD, unitFD, unitNum, nil
 }

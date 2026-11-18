@@ -4,6 +4,7 @@
 package l2tp
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"reflect"
@@ -13,6 +14,8 @@ import (
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
+
+const reportFieldTunnelID = "tunnel-id"
 
 // collectKernelEventsLocked scans the tunnel for sessions that need
 // kernel setup and drains everything a session removal queued on it.
@@ -114,24 +117,50 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 			"ppp-unit", ksucc.fds.unitNum)
 		return
 	}
+	if r.kernelWorker == nil {
+		return
+	}
 
 	// A delayed setup may arrive after CDN or tunnel removal. Only the
 	// still-live session may claim the worker's descriptors.
 	var peerAddr netip.AddrPort
 	var policy reactorParams
+	var construction *pppConstruction
 	r.tunnelsMu.Lock()
 	tunnel := r.tunnelsByLocalID[ksucc.localTID]
-	live := tunnel != nil && ksucc.session != nil && tunnel.lookupSession(ksucc.localSID) == ksucc.session
+	live := tunnel != nil
+	if live {
+		live = ksucc.session != nil
+	}
+	if live {
+		live = tunnel.lookupSession(ksucc.localSID) == ksucc.session
+	}
+	if live {
+		live = ksucc.session.pppConstruction == nil
+	}
 	if live {
 		peerAddr = tunnel.peerAddr
 		policy = r.params
+		construction = newPPPConstruction()
+		ksucc.session.pppConstruction = construction
 	}
 	r.tunnelsMu.Unlock()
-	if !live || r.kernelWorker == nil {
+	if !live {
 		return
 	}
+	cleanupErr := ErrSessionCleanupPending
+	var unusedOwner ppp.SessionHandle
+	defer func() { construction.finish(cleanupErr, unusedOwner) }()
 	chanFD, unitFD, claimed := r.kernelWorker.takePPPDescriptors(ksucc)
 	if !claimed {
+		// Nothing left the worker. Do not consume a later valid receipt merely
+		// because a stale success event reached this live original first.
+		r.tunnelsMu.Lock()
+		if ksucc.session.pppConstruction == construction {
+			ksucc.session.pppConstruction = nil
+		}
+		r.tunnelsMu.Unlock()
+		cleanupErr = nil
 		return
 	}
 	backend := r.kernelBackend
@@ -140,20 +169,22 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		Backend: backend, ReadCounters: kernelPPPCounters(backend),
 	})
 	if err != nil {
+		cleanupErr = pppkernel.SetupCleanupFailure(err)
 		ppp.ReportAdmissionFailure(r.logger, fmt.Sprintf("tunnel %d session %d", ksucc.localTID, ksucc.localSID),
 			ppp.AdmissionSessionFactory, err, map[string]any{
-				"tunnel-id": ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum,
+				reportFieldTunnelID: ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum,
 			})
 		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
 		return
 	}
+	unusedOwner = dataplane
 
 	subscriberID := l2tpSessionID(ksucc.localTID, ksucc.localSID)
 	attempt, err := ppp.NewSessionAttempt(subscriberID, dataplane)
 	if err != nil {
 		ppp.ReportAdmissionFailure(r.logger, subscriberID, ppp.AdmissionOwnership, err,
-			map[string]any{"tunnel-id": ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum})
-		r.closeUntransferredPPPSession(dataplane)
+			map[string]any{reportFieldTunnelID: ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum})
+		cleanupErr = r.closeUntransferredPPPSession(dataplane)
 		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
 		return
 	}
@@ -201,7 +232,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	r.tunnelsMu.Unlock()
 	if !live {
 		attempt.Cancel()
-		r.closeUntransferredPPPSession(dataplane)
+		cleanupErr = r.closeUntransferredPPPAttempt(attempt, dataplane)
 		return
 	}
 
@@ -209,31 +240,50 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	// cancels it, so the Driver refuses a queued handoff before protocol I/O.
 	select {
 	case r.pppDriver.SessionsIn() <- start:
+		cleanupErr = nil
+		unusedOwner = nil
 	case <-r.stop:
 		attempt.Cancel()
-		r.closeUntransferredPPPSession(dataplane)
+		cleanupErr = r.closeUntransferredPPPAttempt(attempt, dataplane)
 	}
+}
+
+// closeUntransferredPPPAttempt MUST run only before channel delivery, after
+// canceling the exact attempt. Its actual Close result finishes this producer's
+// handoff observation; a logged failure is never a deletion receipt.
+func (r *l2tpReactor) closeUntransferredPPPAttempt(attempt ppp.SessionAttempt, owner ppp.SessionHandle) error {
+	cleanupErr := r.closeUntransferredPPPSession(owner)
+	if err := attempt.RecordUntransferredClose(owner, cleanupErr); err != nil {
+		ppp.ReportCleanupFailure(owner.Identity(), ppp.CleanupSession, err)
+		r.logger.Warn("l2tp: unused PPP handoff cleanup could not be recorded", "error", err,
+			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
+		return errors.Join(cleanupErr, err)
+	}
+	return cleanupErr
 }
 
 // closeUntransferredPPPSession releases only a factory result still owned by
 // this producer. Callers MUST NOT use it after the StartSession channel send.
-func (r *l2tpReactor) closeUntransferredPPPSession(owner ppp.SessionHandle) {
+// Its actual result MUST remain attached to the original construction/attempt.
+func (r *l2tpReactor) closeUntransferredPPPSession(owner ppp.SessionHandle) error {
 	if owner == nil {
-		return
+		return nil
 	}
 	value := reflect.ValueOf(owner)
 	//exhaustive:ignore // Only nil-capable kinds need the typed-nil check.
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		if value.IsNil() {
-			return
+			return nil
 		}
 	}
-	if err := owner.Close(); err != nil {
+	err := owner.Close()
+	if err != nil {
 		ppp.ReportCleanupFailure(owner.Identity(), ppp.CleanupSession, err)
 		r.logger.Warn("l2tp: untransferred PPP session cleanup failed", "error", err,
 			"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix)
 	}
+	return err
 }
 
 // handlePPPEvent reacts to a PPP lifecycle event. EventSessionDown and a
@@ -679,6 +729,10 @@ func (r *l2tpReactor) handleKernelError(kerr kernelSetupFailed) {
 		return
 	}
 	// A delayed setup refusal belongs only to its exact accepted relay.
+	if kerr.session != sess {
+		r.tunnelsMu.Unlock()
+		return
+	}
 	if sess.relay != kerr.relay {
 		r.tunnelsMu.Unlock()
 		return

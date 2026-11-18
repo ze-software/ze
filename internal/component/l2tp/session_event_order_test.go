@@ -652,6 +652,10 @@ func (w *reactorTripwire) EffectiveConfig() ConfigSnapshot {
 	w.trip("EffectiveConfig")
 	return ConfigSnapshot{}
 }
+func (w *reactorTripwire) CaptureSession(SessionSelector) (CapturedSession, error) {
+	w.trip("CaptureSession")
+	return nil, ErrSessionNotFound
+}
 func (w *reactorTripwire) TeardownTunnel(uint16) error  { w.trip("TeardownTunnel"); return nil }
 func (w *reactorTripwire) TeardownSession(uint16) error { w.trip("TeardownSession"); return nil }
 func (w *reactorTripwire) TeardownAllTunnels() int      { w.trip("TeardownAllTunnels"); return 0 }
@@ -828,8 +832,11 @@ func ticketPaths() []ticketPath {
 			r.handlePPPEvent(wire.peerDown(t))
 			return nil
 		}},
-		{name: "a kernel setup failure", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {
-			r.handleKernelError(kernelSetupFailed{localTID: orderTestTID, localSID: orderTestSID})
+		{name: "a kernel setup failure", drive: func(_ *testing.T, r *l2tpReactor, tun *L2TPTunnel) error {
+			r.tunnelsMu.Lock()
+			session := tun.lookupSession(orderTestSID)
+			r.tunnelsMu.Unlock()
+			r.handleKernelError(kernelSetupFailed{localTID: orderTestTID, localSID: orderTestSID, session: session})
 			return nil
 		}},
 		{name: "an operator tunnel teardown", drive: func(_ *testing.T, r *l2tpReactor, _ *L2TPTunnel) error {

@@ -19,7 +19,9 @@ import (
 
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/show"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -320,6 +322,13 @@ func (h *l2TPHandlers) handleL2TPDisconnect() http.HandlerFunc {
 			http.Error(w, bLen.Reset().Str("reason too long (max ").Int(int64(maxReasonLen)).Str(" chars)").String(), http.StatusBadRequest)
 			return
 		}
+		birth, err := subscriberid.ParseL2TPBirth(r.FormValue("expected-id"))
+		if err != nil {
+			refusal := opererr.Wrap(err, "the selected session reference is missing or invalid",
+				"the readable session ID may have been reused", "Open /l2tp")
+			http.Error(w, refusal.Error(), http.StatusBadRequest)
+			return
+		}
 		causeStr := r.FormValue("cause")
 		username := GetUsernameFromRequest(r)
 		actor := username
@@ -327,7 +336,7 @@ func (h *l2TPHandlers) handleL2TPDisconnect() http.HandlerFunc {
 			actor = "web"
 		}
 		var bCmd textbuf.Buffer
-		cmd := bCmd.Reset().Str("clear l2tp session id ").Int(int64(sid)).Byte(' ').Str("actor ").Str(actor).Str(" reason ").Str(quoteForDispatch(reason)).String()
+		cmd := bCmd.Reset().Str("clear l2tp session id ").Int(int64(sid)).Str(" expected-id ").Str(birth.String()).Str(" actor ").Str(actor).Str(" reason ").Str(quoteForDispatch(reason)).String()
 		if causeStr != "" {
 			causeVal, parseErr := strconv.ParseUint(causeStr, 10, 16)
 			if parseErr != nil || causeVal > maxCauseVal {
@@ -506,9 +515,10 @@ func l2tpDetailViewOf(body l2tpDetailBody) l2tpDetailView {
 
 	view := l2tpDetailView{
 		Session: l2tpSessionView{
-			LocalSID: ss.LocalSID,
-			Username: ss.Username,
-			State:    ss.State,
+			ExpectedID: ss.Birth.String(),
+			LocalSID:   ss.LocalSID,
+			Username:   ss.Username,
+			State:      ss.State,
 			// String() unconditionally, including for the zero address. The
 			// page used to read the snapshot's netip.Addr directly, and
 			// html/template printed "invalid IP" for a session with no NCP

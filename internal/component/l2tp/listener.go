@@ -199,9 +199,9 @@ func (u *UDPListener) Stop() error {
 // RX returns the inbound channel. Closed after Stop drains the read loop.
 func (u *UDPListener) RX() <-chan rxPacket { return u.rx }
 
-// Addr returns the locally bound address. Returns a zero-value AddrPort
-// if called before Start or after Stop. Useful for tests that bind to an
-// ephemeral port (port=0) and need to learn the kernel-assigned port.
+// Addr returns the original locally bound address, including after Stop for
+// retained cleanup selection. Before Start it returns a zero-value AddrPort.
+// An ephemeral listener reports its kernel-assigned port, not configured zero.
 func (u *UDPListener) Addr() netip.AddrPort {
 	u.mu.Lock()
 	defer u.mu.Unlock()
