@@ -115,7 +115,7 @@ func writePasswordWeaknesses(diag *textbuf.Buffer, weaknesses []string) {
 // setFormRefusal names the flat form fmt met, why fmt cannot format it, and
 // the command that converts it to the hierarchical form fmt formats.
 func setFormRefusal(source string, form config.ConfigFormat) error {
-	formName := "set"
+	formName := formSet
 	if form == config.FormatSetMeta {
 		formName = "set-meta"
 	}
@@ -170,7 +170,7 @@ func writeFmtUsage(diag *textbuf.Buffer) {
 // The leaves ze-config-cli-cmd.yang declares on show config fmt for the
 // choices the local --check and --diff options make. A flag never reaches the
 // daemon, so the leaves are how every other surface makes them.
-var fmtLeafOptions = []string{"check", "diff"}
+var fmtLeafOptions = []string{"check", configVerbDiff}
 
 // fmtLeafArgs answers the words fmtAnswer parses: each typed leaf becomes its
 // option in front of the words no leaf took. A choice made both ways is
@@ -206,7 +206,7 @@ func fmtAnswer(route command.Route, args []string) command.LocalAnswer {
 	fs.SetOutput(&diag)
 	write := fs.Bool("w", false, "write result to source file")
 	check := fs.Bool("check", false, "check if formatting needed (exit 1 if changes)")
-	diff := fs.Bool("diff", false, "show unified diff of changes")
+	diff := fs.Bool(configVerbDiff, false, "show unified diff of changes")
 	user := fs.String("user", "", "account that asks the running ze about a config that declares an external plugin")
 	fs.Usage = func() { writeFmtUsage(&diag) }
 

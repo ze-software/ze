@@ -4,7 +4,7 @@ package localdatacoverage
 
 import "testing"
 
-func doctorKernelReport(ready any, capabilities any) map[string]any {
+func doctorKernelReport(ready, capabilities any) map[string]any {
 	return map[string]any{"ready": ready, "capabilities": capabilities}
 }
 

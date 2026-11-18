@@ -7,6 +7,7 @@ package cli
 
 import (
 	"encoding/json"
+
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	zePlugin "github.com/ze-software/ze/internal/component/plugin"
@@ -206,17 +207,8 @@ func repairDetailsTooLarge(report *zefs.RepairReport, findings []storage.History
 	return false
 }
 
-// repairReportRefusal reports a completed write separately from a report
-// the transport cannot carry. It never discards the saved outcome or sends
-// a truncated list as though it were the complete repair document.
-func repairReportRefusal(output string, verdict repairVerdict, cause error) *zePlugin.Response {
-	var fix textbuf.Buffer
-	fix.Str("ze data --path ")
-	command.WriteInvocationValue(&fix, output)
-	fix.Str(" check")
-	return repairReportRefusalWithFix(output, fix.String(), verdict, cause)
-}
-
+// repairReportRefusalWithFix retains a completed salvage separately from a
+// report the transport cannot carry, with the caller's reachable correction.
 func repairReportRefusalWithFix(output, fix string, verdict repairVerdict, cause error) *zePlugin.Response {
 	var problem textbuf.Buffer
 	problem.Str("the salvage at ").Str(output).Str(" was written, but its complete repair report ")

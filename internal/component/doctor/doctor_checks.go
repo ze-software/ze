@@ -32,6 +32,7 @@ const (
 	// checks read.
 	doctorDependencyFilesystem = "filesystem"
 	doctorDependencyConfig     = "config"
+	doctorDependencyStorage    = "storage"
 
 	// doctorDependencyPersistentStorage is the persistent partition of an
 	// appliance, which the storage-grown check measures against its disk.
@@ -45,7 +46,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePreConfig,
 	Order:        100,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"storage"},
+	Dependencies: []string{doctorDependencyStorage},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorStoreIntegrity},
 	Check:        doctorCheckStoreIntegrity,
@@ -54,7 +55,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePreConfig,
 	Order:        110,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"storage"},
+	Dependencies: []string{doctorDependencyStorage},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorStorageRecoveryPending},
 	Check:        doctorCheckRecoveryPending,
@@ -63,7 +64,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePreConfig,
 	Order:        120,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"storage", doctorDependencyFilesystem},
+	Dependencies: []string{doctorDependencyStorage, doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorMachineIDMissing},
 	Check:        doctorCheckMachineID,

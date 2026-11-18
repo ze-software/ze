@@ -2,11 +2,11 @@
 package artifact
 
 import (
-	"github.com/ze-software/ze/internal/core/slogutil"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var artifactLog = slogutil.Logger("config.artifact")

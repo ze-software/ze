@@ -131,7 +131,7 @@ func testInfraSSHHistoryOwner(t *testing.T, startupFailure bool) {
 	// SourceMode deliberately recognizes only the outer explicit binding.
 	// Preserve Run's real source guard while intercepting writes and Close.
 	borrowed := storage.BindConfigSource(store, path, storage.ConfigSourceFile)
-	credential := authWiringBcryptUser(t, "operator", "history-password", "admin")
+	credential := authWiringBcryptUser(t, "history-password", "admin")
 	oldBuild, oldRegister := sshBuild, bngRegister
 	defer func() {
 		sshBuild, bngRegister = oldBuild, oldRegister

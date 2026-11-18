@@ -107,7 +107,7 @@ func (m *backupWorkspaces) response(ctx context.Context, r *http.Request, line s
 
 func backupCommandFailure(w http.ResponseWriter, err error) {
 	if refusal := backupSingleCommandError(err); refusal != nil {
-		var failure *opererr.Error = refusal.failure
+		var failure *opererr.Error = refusal.failure //nolint:modernize // inferdecl: Pin the complete native refusal type at the HTTP error boundary.
 		http.Error(w, failure.Error(), refusal.status)
 		return
 	}
@@ -120,7 +120,7 @@ func backupCommandFailure(w http.ResponseWriter, err error) {
 // the first command refusal's status and text.
 func backupSingleCommandError(err error) *backupCommandError {
 	for {
-		if refusal, ok := err.(*backupCommandError); ok {
+		if refusal, ok := err.(*backupCommandError); ok { //nolint:errorlint // Match this exact node; a separate joined cleanup cause must not disappear.
 			return refusal
 		}
 		joined, ok := err.(interface{ Unwrap() []error })

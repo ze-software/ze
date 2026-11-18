@@ -130,7 +130,8 @@ func newSSHIdleTimeoutServer(t *testing.T, active bool) *Server {
 // before Server.Stop runs; an already-expired connection can return EOF on close.
 func openSSHIdleTimeoutSession(t *testing.T, srv *Server) (*gossh.Session, io.Reader) {
 	t.Helper()
-	conn, err := net.DialTimeout("tcp", srv.Address(), time.Second)
+	dialer := net.Dialer{Timeout: time.Second}
+	conn, err := dialer.DialContext(t.Context(), "tcp", srv.Address())
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() }) //nolint:errcheck // the client may already have closed this connection
 	require.NoError(t, conn.SetDeadline(time.Now().Add(5*sshIdleTimeoutPeriod)))

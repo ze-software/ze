@@ -45,7 +45,7 @@ func TestRestoreFullRoutesBusyStoreAndChecksReceipt(t *testing.T) {
 			encoded, err := json.Marshal(body)
 			require.NoError(t, err)
 			calls := 0
-			ask := func(gotFolder, line string) ([]byte, error) {
+			ask := func(gotFolder, line string) ([]byte, error) { //nolint:unparam // daemonroute.Ask fixes both results; these controls exercise successful response identity.
 				calls++
 				require.Equal(t, folder, gotFolder)
 				require.Equal(t, "request data restore path "+configtext.QuoteCommandWord(source)+" full", line)

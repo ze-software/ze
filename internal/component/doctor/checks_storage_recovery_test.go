@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/configtext"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func recoveryDoctorCheck(t *testing.T) diagnostic.DoctorCheck {

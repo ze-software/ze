@@ -84,11 +84,11 @@ func (mutation detachedMutation) verb() string {
 	case detachedMutationUnspecified:
 		panic("BUG: unspecified detached mutation")
 	case detachedSet:
-		return "set"
+		return formSet
 	case detachedActivate:
-		return "activate"
+		return configVerbActivate
 	case detachedDeactivate:
-		return "deactivate"
+		return configVerbDeactivate
 	}
 	panic("BUG: unknown detached mutation")
 }
@@ -274,9 +274,9 @@ func applyConfigActivation(ed *editor.Editor, path []string, activate bool) (str
 			return "", native
 		}
 	}
-	verb := "deactivate"
+	verb := configVerbDeactivate
 	if activate {
-		verb = "activate"
+		verb = configVerbActivate
 	}
 	return "", opererr.Wrap(err, "the activation change could not finish",
 		"No successful change was confirmed. Inspect the target before retrying.", "ze show config supplied "+verb+" help")

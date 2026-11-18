@@ -17,7 +17,7 @@ import (
 )
 
 func artifactBytesBegin(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs) (plugin.ResponseData, error) {
-	total, err := artifactInteger(args, "total", -1)
+	total, err := artifactInteger(args, "total")
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func artifactKeyList(ctx context.Context, owner *artifact.Owner, user string, ar
 		}
 		rows = make([]map[string]any, 0, len(keys))
 		for _, key := range keys {
-			rows = append(rows, map[string]any{"key": key})
+			rows = append(rows, map[string]any{artifactFieldKey: key})
 		}
 		return nil
 	})
@@ -48,13 +48,13 @@ func artifactKeyRead(ctx context.Context, owner *artifact.Owner, user string, ar
 
 func artifactKeyWrite(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs) (plugin.ResponseData, error) {
 	count, err := owner.WriteKeyFromSource(ctx, user, artifactValue(args, "artifact"), artifactValue(args, "key"), artifactValue(args, "transfer"))
-	return plugin.Map{"key": artifactValue(args, "key"), "bytes": count}, err
+	return plugin.Map{artifactFieldKey: artifactValue(args, "key"), artifactFieldBytes: count}, err
 }
 
 func artifactKeyDelete(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs) (plugin.ResponseData, error) {
 	key := artifactValue(args, "key")
 	err := owner.ChangeStore(ctx, user, artifactValue(args, "artifact"), func(target storage.Storage) error { return target.RemoveKey(key) })
-	return plugin.Map{"key": key, "removed": err == nil}, err
+	return plugin.Map{artifactFieldKey: key, "removed": err == nil}, err
 }
 
 func artifactCheck(ctx *pluginserver.CommandContext, owner *artifact.Owner, args command.ValidatedArgs) (*plugin.Response, error) {

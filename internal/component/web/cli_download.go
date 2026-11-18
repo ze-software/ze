@@ -18,7 +18,7 @@ func cliLocalOutputControls() []cliLocalOutputControl {
 		if !operator.LocalOnly {
 			continue
 		}
-		if operator.Name != "save" {
+		if operator.Name != verbSave {
 			continue
 		}
 		controls = append(controls, cliLocalOutputControl{

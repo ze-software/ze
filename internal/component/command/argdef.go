@@ -315,56 +315,56 @@ func maxUint(bits int) uint64 {
 
 // WithAnchor answers a copy of d anchored to the keyword of the container
 // above the command that declares it. d itself is unchanged.
-func (d ArgDef) WithAnchor(anchor string) ArgDef {
+func (d ArgDef) WithAnchor(anchor string) ArgDef { //nolint:gocritic // hugeParam: this immutable value builder returns a copy and must not mutate its receiver.
 	d.anchor = anchor
 	return d
 }
 
 // Name answers the YANG leaf name, the keyword that introduces the value.
-func (d ArgDef) Name() string { return d.name }
+func (d ArgDef) Name() string { return d.name } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Kind answers the argument type category.
-func (d ArgDef) Kind() ArgKind { return d.kind }
+func (d ArgDef) Kind() ArgKind { return d.kind } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Mandatory reports whether the YANG leaf has mandatory true.
-func (d ArgDef) Mandatory() bool { return d.mandatory }
+func (d ArgDef) Mandatory() bool { return d.mandatory } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // UintBits answers the width of an ArgUint, and 0 for every other kind.
-func (d ArgDef) UintBits() int { return d.uintBits }
+func (d ArgDef) UintBits() int { return d.uintBits } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // ShortHelp answers the ze:help summary, empty when the leaf declares none.
-func (d ArgDef) ShortHelp() string { return d.shortHelp }
+func (d ArgDef) ShortHelp() string { return d.shortHelp } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Description answers the YANG description, empty when the leaf declares none.
-func (d ArgDef) Description() string { return d.description }
+func (d ArgDef) Description() string { return d.description } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Anchor answers the keyword this value follows, empty for a leaf the command
 // itself declares (see the anchor field).
-func (d ArgDef) Anchor() string { return d.anchor }
+func (d ArgDef) Anchor() string { return d.anchor } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Rest reports whether the leaf takes every word left on the line (see the
 // rest field).
-func (d ArgDef) Rest() bool { return d.rest }
+func (d ArgDef) Rest() bool { return d.rest } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // KeywordOnly reports whether the leaf is given only after its own keyword
 // (see the keywordOnly field).
-func (d ArgDef) KeywordOnly() bool { return d.keywordOnly }
+func (d ArgDef) KeywordOnly() bool { return d.keywordOnly } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // EnumValues yields the enum names, in declared order: an ArgEnum's own, or
 // the flattened names of an ArgUnion's enum members.
-func (d ArgDef) EnumValues() iter.Seq[string] { return slices.Values(d.enumValues) }
+func (d ArgDef) EnumValues() iter.Seq[string] { return slices.Values(d.enumValues) } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Ranges yields an ArgUint's value ranges, ascending; none means the whole
 // width.
-func (d ArgDef) Ranges() iter.Seq[UintRange] { return slices.Values(d.ranges) }
+func (d ArgDef) Ranges() iter.Seq[UintRange] { return slices.Values(d.ranges) } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Lengths yields an ArgString's character-count ranges, ascending; none means
 // any length.
-func (d ArgDef) Lengths() iter.Seq[UintRange] { return slices.Values(d.lengths) }
+func (d ArgDef) Lengths() iter.Seq[UintRange] { return slices.Values(d.lengths) } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // Patterns yields the source text of an ArgString's patterns. The compiled
 // expressions stay private: a *regexp.Regexp has a mutating method, Longest.
-func (d ArgDef) Patterns() iter.Seq[string] {
+func (d ArgDef) Patterns() iter.Seq[string] { //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 	return func(yield func(string) bool) {
 		for _, pattern := range d.patterns {
 			if !yield(pattern.String()) {
@@ -375,7 +375,7 @@ func (d ArgDef) Patterns() iter.Seq[string] {
 }
 
 // UnionDefs yields an ArgUnion's members, in the order they are tried.
-func (d ArgDef) UnionDefs() iter.Seq[ArgDef] { return slices.Values(d.unionDefs) }
+func (d ArgDef) UnionDefs() iter.Seq[ArgDef] { return slices.Values(d.unionDefs) } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
 // InvocationArg is what WriteInvocation reads of an argument: its name, the
 // keyword it is anchored to, and whether it is a flag, whose keyword is the

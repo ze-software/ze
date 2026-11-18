@@ -33,11 +33,12 @@ func TestStoredEditorReadsTheActiveVersion(t *testing.T) {
 			source := activeEditorStore(t)
 			stale := []byte(strings.ReplaceAll(activeEditorConfig, "1.2.3.4", "192.0.2.199"))
 			require.NoError(t, source.WriteFile("router.conf", stale, 0o600))
-			if state == "pointer-only" {
+			switch state {
+			case "pointer-only":
 				require.NoError(t, source.Remove("router.conf"))
-			} else if state == "unresolved" {
+			case "unresolved":
 				require.NoError(t, source.WriteKey(zefs.KeyConfigActive.Key("router.conf"), []byte("20000101-000000.000\n")))
-			} else if state == "corrupt-object" {
+			case "corrupt-object":
 				keys, err := source.ListKeys("object/")
 				require.NoError(t, err)
 				require.Len(t, keys, 1)

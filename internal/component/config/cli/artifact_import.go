@@ -26,5 +26,5 @@ func artifactImport(ctx context.Context, owner *artifact.Owner, user string, arg
 		}
 		return storagecli.ImportConfig(target, selected, content)
 	})
-	return plugin.Map{"name": name, "bytes": count}, err
+	return plugin.Map{"name": name, artifactFieldBytes: count}, err
 }

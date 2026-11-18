@@ -41,6 +41,7 @@ const (
 
 	helpFlagDryRun = "--dry-run"
 	helpFlagBackup = "--backup <file>"
+	helpFlagReload = "--reload"
 
 	helpDescSuccess = "Success"
 )
@@ -49,20 +50,29 @@ const (
 // running daemon. The help output groups commands by this tag.
 const modeOffline = "offline"
 
+const (
+	configVerbActivate   = "activate"
+	configVerbDeactivate = "deactivate"
+	configVerbDiff       = "diff"
+	configVerbHistory    = "history"
+	flagTokenBackup      = "--backup"
+	flagTokenUser        = "--user"
+)
+
 // storageHandlers maps subcommand names to handler functions that receive storage.
 var storageHandlers = map[string]func(storage.Storage, []string) int{
-	"edit":       cmdEditWithStorage,
-	"set":        cmdSetWithStorage,
-	"deactivate": cmdDeactivateWithStorage,
-	"activate":   cmdActivateWithStorage,
-	"history":    cmdHistoryWithStorage,
-	"rollback":   cmdRollbackWithStorage,
-	"archive":    cmdArchiveWithStorage,
-	"diff":       cmdDiffWithStorage,
-	"list":       cmdListWithStorage,
-	"cat":        cmdCatWithStorage,
-	"import":     cmdImportWithStorage,
-	"rename":     cmdRenameWithStorage,
+	"edit":               cmdEditWithStorage,
+	formSet:              cmdSetWithStorage,
+	configVerbDeactivate: cmdDeactivateWithStorage,
+	configVerbActivate:   cmdActivateWithStorage,
+	configVerbHistory:    cmdHistoryWithStorage,
+	"rollback":           cmdRollbackWithStorage,
+	"archive":            cmdArchiveWithStorage,
+	configVerbDiff:       cmdDiffWithStorage,
+	"list":               cmdListWithStorage,
+	"cat":                cmdCatWithStorage,
+	"import":             cmdImportWithStorage,
+	"rename":             cmdRenameWithStorage,
 }
 
 // subcommandHandlers maps subcommand names to their handler functions.

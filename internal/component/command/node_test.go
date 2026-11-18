@@ -13,7 +13,7 @@ import (
 // refused: a test's definition is literal data, so a refusal is a test defect.
 // commandtest.Must is the same helper for other packages; it cannot be
 // imported here, because it imports this package.
-func mustArgDef(def ArgDef, err error) ArgDef {
+func mustArgDef(def ArgDef, err error) ArgDef { //nolint:gocritic // hugeParam: preserve the constructors' value-and-error tuple and the immutable value API.
 	if err != nil {
 		panic("BUG: test argument definition refused: " + err.Error())
 	}

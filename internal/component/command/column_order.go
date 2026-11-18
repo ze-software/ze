@@ -328,15 +328,14 @@ type priorDeclaration[T any] struct {
 }
 
 func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *declarationRegistry[T] {
-	return &declarationRegistry[T]{
-		commandRegistry: commandRegistry[T]{
-			byCommand:       make(map[string]T),
-			childBoundaries: make(map[string]func(string) bool),
-		},
+	registry := &declarationRegistry[T]{
 		name:    name,
 		isEmpty: isEmpty,
 		byOwner: make(map[string]map[string]priorDeclaration[T]),
 	}
+	registry.byCommand = make(map[string]T)
+	registry.childBoundaries = make(map[string]func(string) bool)
+	return registry
 }
 
 // declare records what one package states a command path holds, and refuses two

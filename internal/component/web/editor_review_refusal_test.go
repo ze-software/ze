@@ -59,13 +59,13 @@ func TestPendingReviewFailureKeepsItsOperatorContract(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Empty(t, got, "a failed producer cannot publish a partial review")
-			refusal, typed := err.(*opererr.Error)
+			refusal, typed := err.(*opererr.Error) //nolint:errorlint // The boundary must return the typed outer refusal, not merely wrap one.
 			require.True(t, typed, "review failure has no typed problem, explanation and recovery: %v", err)
 			assert.NotEmpty(t, refusal.Problem())
 			assert.NotEmpty(t, refusal.Why())
 			assert.NotEmpty(t, refusal.Fix())
 			require.ErrorIs(t, err, cause)
-			if test.err == native {
+			if test.err == native { //nolint:errorlint // Exact input identity selects the direct native-refusal preservation check.
 				assert.Same(t, native, refusal, "the native refusal already owns its recovery")
 				assert.Equal(t, native.Error(), refusal.Error())
 			}

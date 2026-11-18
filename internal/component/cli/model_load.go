@@ -632,17 +632,17 @@ func ParsePipeFilters(words CommandWords) []PipeFilter {
 
 // ShowPipeOpts holds the classified result of show-specific pipe filters.
 type ShowPipeOpts struct {
-	Format        string       // "tree" (default) or "config"
-	FormatExplicit bool        // A format pipe explicitly selected the tree/set representation.
-	CompareTarget string       // "", "confirmed", "saved", "rollback N"
-	CompareDefault bool        // The compare pipe had no explicit target.
-	TreeFilter    string       // "", "active", "inactive"
-	Blame         bool         // show | blame
-	Changes       bool         // show | changes
-	ChangesAll    bool         // show | changes all
-	Errors        bool         // show | errors
-	History       bool         // show | history
-	TextFilters   []PipeFilter // remaining text filters (match, head, tail)
+	Format         string       // "tree" (default) or "config"
+	FormatExplicit bool         // A format pipe explicitly selected the tree/set representation.
+	CompareTarget  string       // "", "confirmed", "saved", "rollback N"
+	CompareDefault bool         // The compare pipe had no explicit target.
+	TreeFilter     string       // "", "active", "inactive"
+	Blame          bool         // show | blame
+	Changes        bool         // show | changes
+	ChangesAll     bool         // show | changes all
+	Errors         bool         // show | errors
+	History        bool         // show | history
+	TextFilters    []PipeFilter // remaining text filters (match, head, tail)
 }
 
 // ClassifyShowPipes separates show-specific pipes (format, compare, active/inactive)

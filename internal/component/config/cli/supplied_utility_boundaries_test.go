@@ -79,7 +79,7 @@ func TestSuppliedUtilityModeledBounds(t *testing.T) {
 	require.NotNil(t, root)
 	for _, path := range []string{"show config supplied completion", "show secret encode", "show secret decode"} {
 		entry := root
-		for _, keyword := range strings.Fields(path + " content") {
+		for keyword := range strings.FieldsSeq(path + " content") {
 			entry = entry.Dir[keyword]
 			require.NotNil(t, entry, keyword)
 		}

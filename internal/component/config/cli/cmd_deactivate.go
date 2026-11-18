@@ -35,9 +35,9 @@ func cmdActivateImpl(store storage.Storage, args []string) int {
 // only the Editor mutation method differs, so factoring keeps the diff
 // small and the help texts comparable.
 func runDeactivateLike(store storage.Storage, args []string, activate bool) int {
-	verb := "deactivate"
+	verb := configVerbDeactivate
 	if activate {
-		verb = "activate"
+		verb = configVerbActivate
 	}
 
 	fs := flag.NewFlagSet("config "+verb, flag.ExitOnError)
@@ -63,7 +63,7 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 				}},
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: helpFlagDryRun, Desc: "Show what would change without writing"},
-					{Name: "--reload", Desc: "Notify the running daemon to reload after save"},
+					{Name: helpFlagReload, Desc: "Notify the running daemon to reload after save"},
 				}},
 			},
 			Examples: []string{

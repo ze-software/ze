@@ -41,7 +41,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 				}},
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: helpFlagDryRun, Desc: "Show what would change without writing"},
-					{Name: "--reload", Desc: "Notify the running daemon to reload after save"},
+					{Name: helpFlagReload, Desc: "Notify the running daemon to reload after save"},
 					{Name: helpFlagBackup, Desc: "Set it in a config inside a backup artifact"},
 				}},
 			},

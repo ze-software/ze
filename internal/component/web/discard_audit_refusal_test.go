@@ -50,7 +50,7 @@ func TestDiscardAuditDetailKeepsItsTypedRefusal(t *testing.T) {
 			assert.NotEmpty(t, refusal.Why())
 			assert.NotEmpty(t, refusal.Fix())
 			assert.ErrorIs(t, refusal, cause)
-			if test.err == native {
+			if test.err == native { //nolint:errorlint // Exact input identity selects the direct native-refusal preservation check.
 				assert.Same(t, native, refusal)
 				assert.Equal(t, native.Error(), refusal.Error())
 			}

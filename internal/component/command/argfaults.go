@@ -377,7 +377,7 @@ func faultLine(fault error) string {
 	}
 	// The missing cause's own Error has three parts. A list keeps only its
 	// compact problem and usage; wrapped selector refusals retain their form.
-	if missing, ok := fault.(*MissingArgumentError); ok {
+	if missing, ok := fault.(*MissingArgumentError); ok { //nolint:errorlint // Only a direct missing fault uses compact text; a wrapped selector keeps its form.
 		var line textbuf.Buffer
 		return line.Str(missing.problem()).Str(", as in '").Str(missing.Usage()).Byte('\'').String()
 	}
@@ -411,7 +411,7 @@ func (l *faultList) verdict() error {
 		return nil
 	}
 	if len(l.faults) == 1 {
-		switch l.faults[0].(type) {
+		switch l.faults[0].(type) { //nolint:errorlint // Only the sole outer fault selects aggregation; a nested cause keeps its wrapper.
 		case *ValueArgumentError, *MissingArgumentError:
 			// Both variants carry a correction every route can complete.
 		default:

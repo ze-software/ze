@@ -98,7 +98,7 @@ func TestConfigRollbackRootRoutesBusyStoreAndChecksIdentity(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
-			ask := func(gotFolder, line string) ([]byte, error) {
+			ask := func(gotFolder, line string) ([]byte, error) { //nolint:unparam // daemonroute.Ask fixes both results; these controls exercise successful response identity.
 				calls++
 				if gotFolder != folder {
 					t.Fatalf("wrong daemon folder: %q, want %q", gotFolder, folder)

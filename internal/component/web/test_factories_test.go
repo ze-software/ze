@@ -153,7 +153,7 @@ func (a *testEditorAdapter) DiscardSessionPath(path []string) error {
 func (a *testEditorAdapter) DisconnectSession(sessionID string) error {
 	return a.ed.DisconnectSession(sessionID)
 }
-func (a *testEditorAdapter) Diff() string     { return a.ed.Diff() }
+func (a *testEditorAdapter) Diff() string { return a.ed.Diff() }
 func (a *testEditorAdapter) PendingReview(path []string) (string, error) {
 	return a.ed.PendingReview(path)
 }

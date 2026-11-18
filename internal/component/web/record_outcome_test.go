@@ -105,7 +105,7 @@ func TestWebRecordOutcomePermissionDenialKeepsPayloadPrivate(t *testing.T) {
 	data := dispatchToolCommand(request, dispatch, "show cleanup")
 	assert.Equal(t, denied, data.Error)
 	assert.Empty(t, data.Output)
-	assert.NotContains(t, strings.Join([]string{data.Error, data.Output}, "\n"), "sensitive-native-state")
+	assert.NotContains(t, data.Error+"\n"+data.Output, "sensitive-native-state")
 }
 
 // Both generic tool entry points preserve warning lines beside the data they

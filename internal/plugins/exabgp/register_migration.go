@@ -12,12 +12,12 @@ func init() {
 	command.MustRegisterLocalData("show exabgp migration config", migrationSupplied(
 		"show exabgp migration config", "supplied.conf", migrationConfigBytes), registry.Meta{
 		ShortHelp: "Convert supplied ExaBGP configuration bytes to Ze configuration.",
-		Mode:      "offline", SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+		Mode:      modeOffline, SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show exabgp migration environment", migrationSupplied(
 		"show exabgp migration environment", "supplied.env", migrationEnvironmentBytes), registry.Meta{
 		ShortHelp: "Convert supplied ExaBGP environment bytes to Ze configuration.",
-		Mode:      "offline", SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+		Mode:      modeOffline, SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
 	}, command.RenderLocalAnswer)
 	command.RegisterShape([]string{
 		"show exabgp migration config", "show exabgp migration environment",

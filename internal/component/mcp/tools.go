@@ -1053,11 +1053,14 @@ func failedAnswerResult(answer, warning string, failure error) map[string]any {
 		message = "Error: " + message
 	}
 	content = append(content, map[string]any{schemaKeyType: contentTypeText, contentTypeText: message})
-	return map[string]any{toolResultKeyContent: content, "isError": true}
+	return map[string]any{toolResultKeyContent: content, toolResultKeyIsError: true}
 }
 
-// toolResultKeyContent names the content items in a tool result envelope.
-const toolResultKeyContent = "content"
+// Tool result keys name the content items and failure marker in an envelope.
+const (
+	toolResultKeyContent = "content"
+	toolResultKeyIsError = "isError"
+)
 
 // answerResult is the tool result of a command that answered: the answer as
 // the first text item and, when the command warned about it, the warning as a
@@ -1066,9 +1069,7 @@ const toolResultKeyContent = "content"
 // A command that warned of nothing answers one item, as TextResult does.
 func answerResult(answer string, response *plugin.Response) map[string]any {
 	warning := response.WarningText()
-	if warning != "" {
-		warning = "Warning: " + warning
-	} else {
+	if warning == "" {
 		if response == nil {
 			return TextResult(answer)
 		}
@@ -1076,6 +1077,8 @@ func answerResult(answer string, response *plugin.Response) map[string]any {
 			return TextResult(answer)
 		}
 		warning = "Warning"
+	} else {
+		warning = "Warning: " + warning
 	}
 	return map[string]any{
 		toolResultKeyContent: []map[string]any{
@@ -1097,7 +1100,7 @@ func TextResult(s string) map[string]any {
 func refusalResult(line string) map[string]any {
 	return map[string]any{
 		toolResultKeyContent: []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: line}},
-		"isError":            true,
+		toolResultKeyIsError: true,
 	}
 }
 
@@ -1106,7 +1109,7 @@ func ErrResult(msg string) map[string]any {
 	var tb textbuf.Buffer
 	return map[string]any{
 		toolResultKeyContent: []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: tb.Str("Error: ").Str(msg).String()}},
-		"isError":            true,
+		toolResultKeyIsError: true,
 	}
 }
 

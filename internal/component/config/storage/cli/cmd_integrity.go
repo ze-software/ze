@@ -242,21 +242,6 @@ func printIntegrityFinding(finding integrityFinding) {
 	tb.StdErr() //nolint:errcheck // CLI output; the exit code carries the verdict
 }
 
-// printHistoryFindings prints one row per finding, `<kind>: <key>: <detail>`,
-// errors on stderr and warnings on stdout, and returns the error count.
-func printHistoryFindings(findings []storage.HistoryFinding) int {
-	errorCount := 0
-	for _, finding := range findings {
-		if finding.Severity == storage.HistorySeverityWarning {
-			fmt.Fprintf(os.Stdout, "warning: %s: %s: %s\n", finding.Kind, finding.Key, finding.Detail) //nolint:errcheck // CLI output
-			continue
-		}
-		errorCount++
-		fmt.Fprintf(os.Stderr, "error: %s: %s: %s\n", finding.Kind, finding.Key, finding.Detail) //nolint:errcheck // CLI output
-	}
-	return errorCount
-}
-
 func cmdRepair(storePath string, args []string) int {
 	outputPath := ""
 	for i := 0; i < len(args); i++ {

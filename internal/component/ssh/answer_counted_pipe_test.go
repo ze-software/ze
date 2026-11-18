@@ -33,7 +33,8 @@ func TestExecCountedDocumentKeepsPipeSelectedCounts(t *testing.T) {
 		t.Run(question.name, func(t *testing.T) {
 			srv := answerServer(t, func(string) (*plugin.Response, error) {
 				response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"cleanup":[{"id":1},{"id":2}]}`))
-				return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+				completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+				return response, completionError
 			})
 			var body strings.Builder
 			answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | "+question.chain, &body)
@@ -59,7 +60,8 @@ func TestExecCountedDocumentFormattingKeepsOriginalCounts(t *testing.T) {
 		t.Run(question.chain, func(t *testing.T) {
 			srv := answerServer(t, func(string) (*plugin.Response, error) {
 				response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"cleanup":[{"id":1},{"id":2}]}`))
-				return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 7})
+				completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 7})
+				return response, completionError
 			})
 			var body strings.Builder
 			answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | "+question.chain, &body)
@@ -79,7 +81,8 @@ func TestExecCountedDocumentConfiguredFormatKeepsSelectedCount(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"cleanup":[{"id":1},{"id":2}]}`))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+		return response, completionError
 	})
 	var body strings.Builder
 	answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | first 1", &body)
@@ -96,7 +99,8 @@ func TestExecCountedDocumentConfiguredFormatKeepsSelectedCount(t *testing.T) {
 func TestExecCountedDocumentKeepsWholeChainColumnRequest(t *testing.T) {
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"cleanup":[{"state":"up","address":"192.0.2.1","ignored":"drop me"}]}`))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+		return response, completionError
 	})
 	var body strings.Builder
 	answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | display state address | first 1 | text", &body)
@@ -105,7 +109,7 @@ func TestExecCountedDocumentKeepsWholeChainColumnRequest(t *testing.T) {
 	assert.Equal(t, uint64(1), answer.Count)
 	assert.Zero(t, answer.Faults)
 	foundHeader := false
-	for _, line := range strings.Split(body.String(), "\n") {
+	for line := range strings.SplitSeq(body.String(), "\n") {
 		state := strings.Index(line, "state")
 		address := strings.Index(line, "address")
 		if state >= 0 {
@@ -128,9 +132,10 @@ func TestExecCountedDocumentPipeRefusesAmbiguousPartialData(t *testing.T) {
 	const warning = "retry the cleanup retained by its original owner"
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"cleanup":[{"id":1},{"id":2}],"errors":[{"id":3,"cause":"acknowledgement missing"}]}`))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{
 			Count: 2, Faults: 1, Warning: true, Warnings: []string{warning},
 		})
+		return response, completionError
 	})
 	var body strings.Builder
 	answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | count", &body)
@@ -149,9 +154,10 @@ func TestExecCountedDocumentCountRetainsSourceFaults(t *testing.T) {
 	const warning = "retry the cleanup retained by its original owner"
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"cleanup":[{"id":1},{"id":2}],"errors":[{"id":3,"cause":"acknowledgement missing"}]}`))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{
 			Count: 2, Faults: 1, Warning: true, Warnings: []string{warning},
 		})
+		return response, completionError
 	})
 	var body strings.Builder
 	answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | ndjson | count", &body)
@@ -169,7 +175,8 @@ func TestExecCountedDocumentCountRetainsSourceFaults(t *testing.T) {
 func TestExecCountedDocumentKnownPipeFailureHasCompleteFrame(t *testing.T) {
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"label":"no row collection"}`))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 1})
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 1})
+		return response, completionError
 	})
 	credentials := answerCredentials(t, srv)
 	var body strings.Builder

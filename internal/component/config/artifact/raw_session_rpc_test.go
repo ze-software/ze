@@ -72,7 +72,7 @@ func TestArtifactRawKeysPreserveBinaryValues(t *testing.T) {
 	var exported bytes.Buffer
 	require.NoError(t, fixture.owner.ExportTo(t.Context(), "alice", id, &exported))
 	require.True(t, bytes.Contains(exported.Bytes(), []byte{0, 255, 128, 0, 1}))
-	require.Contains(t, string(exported.Bytes()), "credential-to-preserve")
+	require.Contains(t, exported.String(), "credential-to-preserve")
 }
 
 // TestArtifactRepairUsesAnIndependentSource reaches maintenance on bytes that
@@ -178,12 +178,16 @@ func TestArtifactSessionNativeEditingForms(t *testing.T) {
 	fixture := newPolicyHTTP(t, nil, false)
 	id := artifactOperationUpload(t, fixture)
 	require.NoError(t, fixture.owner.ChangeStore(t.Context(), "alice", id, func(target storage.Storage) error {
-		if err := target.Remove(editor.DraftPath("router.conf")); err != nil { return err }
-		if err := target.Remove(editor.ChangePath("router.conf", "alice")); err != nil { return err }
+		if err := target.Remove(editor.DraftPath("router.conf")); err != nil {
+			return err
+		}
+		if err := target.Remove(editor.ChangePath("router.conf", "alice")); err != nil {
+			return err
+		}
 		_, err := storage.RestoreConfig(target, "router.conf", []byte(policyConfig))
 		return err
 	}))
-	selection := " artifact "+id+" name router.conf"
+	selection := " artifact " + id + " name router.conf"
 	difference := func() string {
 		data := artifactOperationData(t, fixture, "request config artifact session diff"+selection)
 		value, ok := data["diff"].(string)
@@ -195,12 +199,17 @@ func TestArtifactSessionNativeEditingForms(t *testing.T) {
 	for _, verb := range []string{"deactivate", "activate"} {
 		text := artifactOperationText(t, fixture, verb+" bgp")
 		artifactOperationData(t, fixture, "request config artifact session "+verb+selection+" text "+text)
-		if verb == "deactivate" { require.Contains(t, difference(), "inactive:")
-		} else { require.Empty(t, difference(), "activation must reverse the pending deactivation") }
+		if verb == "deactivate" {
+			require.Contains(t, difference(), "inactive:")
+		} else {
+			require.Empty(t, difference(), "activation must reverse the pending deactivation")
+		}
 	}
 	for index, verb := range []string{"merge", "replace"} {
 		address := "192.0.2.72"
-		if index == 1 { address = "192.0.2.73" }
+		if index == 1 {
+			address = "192.0.2.73"
+		}
 		text := artifactOperationText(t, fixture, strings.ReplaceAll(policyConfig, "1.2.3.4", address))
 		artifactOperationData(t, fixture, "request config artifact session "+verb+selection+" text "+text)
 		require.Contains(t, difference(), address)

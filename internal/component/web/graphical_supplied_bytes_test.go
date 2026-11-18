@@ -24,7 +24,7 @@ func suppliedBytesRequest(t *testing.T, commandPath string, data []byte, file bo
 	t.Helper()
 	if !file {
 		form := url.Values{webCommandField: {commandPath}, "content": {string(data)}}
-		request := httptest.NewRequest(http.MethodPost, "/config/inspect", strings.NewReader(form.Encode()))
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/inspect", strings.NewReader(form.Encode()))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		require.NoError(t, readSuppliedInspectionForm(request))
 		return request
@@ -37,7 +37,7 @@ func suppliedBytesRequest(t *testing.T, commandPath string, data []byte, file bo
 	_, err = part.Write(data)
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
-	request := httptest.NewRequest(http.MethodPost, "/config/inspect", &body)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/inspect", &body)
 	request.Header.Set("Content-Type", writer.FormDataContentType())
 	require.NoError(t, readSuppliedInspectionForm(request))
 	return request

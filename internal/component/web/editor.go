@@ -553,7 +553,7 @@ func editorReviewRefusal(err error) *opererr.Error {
 	if cli.IsCorruptChangeFile(err) {
 		return editorSessionRefusal(err)
 	}
-	if refusal, ok := err.(*opererr.Error); ok {
+	if refusal, ok := err.(*opererr.Error); ok { //nolint:errorlint // Only a direct native refusal owns the whole recovery; joins retain all causes below.
 		return refusal
 	}
 	return opererr.Wrap(err,

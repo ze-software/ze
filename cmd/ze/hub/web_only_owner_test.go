@@ -32,9 +32,9 @@ func standaloneCommandFixture(t *testing.T) (*pluginserver.Server, zeweb.Command
 	return server, webOnlyDispatcher(server)
 }
 
-func standaloneCommandData(t *testing.T, dispatch zeweb.CommandDispatcher, user, line string) map[string]any {
+func standaloneCommandData(t *testing.T, dispatch zeweb.CommandDispatcher, line string) map[string]any {
 	t.Helper()
-	response, err := dispatch(t.Context(), plugin.CallerIdentity{Username: user}, line)
+	response, err := dispatch(t.Context(), plugin.CallerIdentity{Username: "alice"}, line)
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	require.Equal(t, plugin.StatusDone, response.Status, response.Error)
@@ -58,17 +58,17 @@ func TestWebOnlyCommandsUseTheSharedArtifactOwner(t *testing.T) {
 	require.NoError(t, store.Close())
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
-	begin := standaloneCommandData(t, dispatch, "alice", "request config artifact upload begin name standalone.zefs total "+strconv.Itoa(len(content)))
+	begin := standaloneCommandData(t, dispatch, "request config artifact upload begin name standalone.zefs total "+strconv.Itoa(len(content)))
 	transfer, ok := begin["transfer"].(string)
 	require.True(t, ok)
 	require.NotEmpty(t, transfer)
-	appended := standaloneCommandData(t, dispatch, "alice", "request config artifact upload append transfer "+transfer+" offset 0 content "+base64.StdEncoding.EncodeToString(content))
+	appended := standaloneCommandData(t, dispatch, "request config artifact upload append transfer "+transfer+" offset 0 content "+base64.StdEncoding.EncodeToString(content))
 	require.Equal(t, float64(len(content)), appended["next"])
-	finished := standaloneCommandData(t, dispatch, "alice", "request config artifact upload finish transfer "+transfer)
+	finished := standaloneCommandData(t, dispatch, "request config artifact upload finish transfer "+transfer)
 	id, ok := finished["artifact"].(string)
 	require.True(t, ok)
 	require.NotEmpty(t, id)
-	info := standaloneCommandData(t, dispatch, "alice", "show config artifact info artifact "+id)
+	info := standaloneCommandData(t, dispatch, "show config artifact info artifact "+id)
 	require.Equal(t, id, info["artifact"])
 	require.Equal(t, []any{"router.conf"}, info["names"])
 	require.Equal(t, float64(len(content)), info["bytes"])

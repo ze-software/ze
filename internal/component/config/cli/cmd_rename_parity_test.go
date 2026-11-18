@@ -60,7 +60,7 @@ func TestConfigRenameRootRoutesBusyStoreAndChecksIdentity(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
-			ask := func(gotFolder, line string) ([]byte, error) {
+			ask := func(gotFolder, line string) ([]byte, error) { //nolint:unparam // daemonroute.Ask fixes both results; these controls exercise successful response identity.
 				calls++
 				if gotFolder != folder || line != "request data config rename old router.conf new renamed.conf" {
 					t.Fatalf("wrong daemon target: %q: %s", gotFolder, line)

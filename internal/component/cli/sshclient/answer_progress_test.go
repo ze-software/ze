@@ -55,14 +55,15 @@ func TestSSHClientStreamKeepsCompletedProgress(t *testing.T) {
 			if answer.Message != test.message {
 				t.Errorf("message = %q, want %q", answer.Message, test.message)
 			}
-			if test.message != "" {
+			switch {
+			case test.message != "":
 				if err == nil {
 					t.Fatal("failed frame returned success")
 				}
 				if err.Error() != test.message {
 					t.Errorf("failure = %q, want %q", err, test.message)
 				}
-			} else if test.status != 0 {
+			case test.status != 0:
 				var exit *ssh.ExitError
 				if !errors.As(err, &exit) {
 					t.Fatalf("partial frame lost SSH status: %v", err)
@@ -70,7 +71,7 @@ func TestSSHClientStreamKeepsCompletedProgress(t *testing.T) {
 				if exit.ExitStatus() != int(test.status) {
 					t.Errorf("SSH status = %d, want %d", exit.ExitStatus(), test.status)
 				}
-			} else if err != nil {
+			case err != nil:
 				t.Errorf("completed warning failed: %v", err)
 			}
 		})
@@ -249,12 +250,13 @@ func sshClientProgressServe(listener net.Listener, signer ssh.Signer, body, warn
 	}
 	frame := rpc.AppendAnswerHead(nil, rpc.AnswerNoID, rpc.AnswerTypeDocument, "", nil)
 	frame = append(frame, '\n')
-	if message != "" {
+	switch {
+	case message != "":
 		frame = rpc.AppendAnswerTerminator(frame, rpc.AnswerNoID, count, faults, message)
-	} else if warning != "" {
-		frame = rpc.AppendAnswerWarning(frame, rpc.AnswerNoID, count, faults, "")
-	} else {
+	case warning == "":
 		frame = rpc.AppendAnswerTerminator(frame, rpc.AnswerNoID, count, faults, "")
+	default:
+		frame = rpc.AppendAnswerWarning(frame, rpc.AnswerNoID, count, faults, "")
 	}
 	frame = append(frame, '\n')
 	if _, err := channel.Stderr().Write(frame); err != nil {

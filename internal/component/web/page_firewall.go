@@ -676,7 +676,7 @@ func handleFirewallSetsPage(renderer *Renderer, r *http.Request) template.HTML {
 func buildFirewallConnectionsTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "protocol", Label: labelProtocol, Sortable: true},
-		{Key: "source", Label: "Source", Sortable: true},
+		{Key: keySource, Label: "Source", Sortable: true},
 		{Key: "destination", Label: "Destination", Sortable: true},
 		{Key: colState, Label: labelState, Sortable: true},
 		{Key: "timeout", Label: "Timeout", Sortable: true},

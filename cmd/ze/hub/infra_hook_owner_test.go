@@ -97,7 +97,7 @@ func TestInfraHookJoinsRefusedSSHOwner(t *testing.T) {
 		sshBuild = originalBuild
 		infra.SetHook(nil)
 	})
-	operator := authWiringBcryptUser(t, "operator", "owner-secret", "admin")
+	operator := authWiringBcryptUser(t, "owner-secret", "admin")
 	owner, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
@@ -264,7 +264,7 @@ func TestInfraHookReportsSSHCleanupFailure(t *testing.T) {
 	cause := errors.New("SSH cleanup failed")
 	resource := &infraHookFailedSSH{cause: cause}
 	sshBuild = func(*sshBuildInputs) sshServer { return resource }
-	operator := authWiringBcryptUser(t, "operator", "owner-secret", "admin")
+	operator := authWiringBcryptUser(t, "owner-secret", "admin")
 	setupInfraHook(owner, nil, &configMutationOwner{}, func() ([]aaa.UserCredential, error) {
 		return []aaa.UserCredential{operator}, nil
 	}, nil)

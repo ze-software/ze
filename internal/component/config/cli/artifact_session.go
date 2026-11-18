@@ -60,13 +60,13 @@ func artifactSessionOperation(action string) artifactOperation {
 				return ValidateContent(candidate, name)
 			})
 			switch action {
-			case "resume", "diff", "changes", "history":
-			case "set", "activate", "deactivate":
+			case "resume", configVerbDiff, "changes", configVerbHistory:
+			case formSet, configVerbActivate, configVerbDeactivate:
 				mutation := detachedSet
-				if action == "activate" {
+				if action == configVerbActivate {
 					mutation = detachedActivate
 				}
-				if action == "deactivate" {
+				if action == configVerbDeactivate {
 					mutation = detachedDeactivate
 				}
 				tokens, err := detachedStatement(text, mutation)
@@ -149,8 +149,8 @@ func artifactSessionOperation(action string) artifactOperation {
 			default:
 				panic("BUG: unregistered artifact session operation")
 			}
-			if action == "resume" || action == "diff" {
-				result["diff"] = ed.Diff()
+			if action == "resume" || action == configVerbDiff {
+				result[configVerbDiff] = ed.Diff()
 			}
 			if action == "changes" {
 				changes := ed.PendingChanges(ed.SessionID())
@@ -160,7 +160,7 @@ func artifactSessionOperation(action string) artifactOperation {
 				}
 				result["changes"] = rows
 			}
-			if action == "history" {
+			if action == configVerbHistory {
 				rows, err := configHistoryRows(target, name)
 				if err != nil {
 					return err

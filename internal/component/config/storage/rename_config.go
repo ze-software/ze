@@ -83,7 +83,7 @@ type configRenamePlan struct {
 }
 
 func prepareConfigRename(owned *store, held *guard, oldName, newName string) (*configRenamePlan, error) {
-	files, err := held.ListKeys(zefs.KeyFileVersion.Prefix())
+	keys, err := held.ListKeys(zefs.KeyFileVersion.Prefix())
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func prepareConfigRename(owned *store, held *guard, oldName, newName string) (*c
 	if err != nil {
 		return nil, err
 	}
-	keys := append(files, pointers...)
+	keys = append(keys, pointers...)
 	slices.Sort(keys)
 	present := make(map[string]bool, len(keys))
 	explicit := make(map[string]bool)

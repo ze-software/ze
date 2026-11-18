@@ -8,12 +8,14 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
+const modeOffline = "offline"
+
 func init() {
 	registry.MustRegisterRootHandler("exabgp", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
 		ShortHelp: "ExaBGP bridge tools",
-		Mode:      "offline",
+		Mode:      modeOffline,
 		Section:   registry.SectionConfiguration,
 		Subs:      "plugin, migrate",
 	})

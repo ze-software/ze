@@ -90,7 +90,7 @@ func (a *editorAdapter) DiscardSessionPath(path []string) error {
 func (a *editorAdapter) DisconnectSession(sessionID string) error {
 	return a.ed.DisconnectSession(sessionID)
 }
-func (a *editorAdapter) Diff() string     { return a.ed.Diff() }
+func (a *editorAdapter) Diff() string { return a.ed.Diff() }
 func (a *editorAdapter) PendingReview(path []string) (string, error) {
 	return a.ed.PendingReview(path)
 }

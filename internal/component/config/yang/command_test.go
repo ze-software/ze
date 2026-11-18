@@ -2150,6 +2150,6 @@ module texts-cmd {
 
 // enumValuesOf collects the enum names a definition yields, for assertions
 // that compare them as a slice.
-func enumValuesOf(def command.ArgDef) []string {
+func enumValuesOf(def command.ArgDef) []string { //nolint:gocritic // hugeParam: Keep the fixture's value-copy signature consistent with ArgDef's immutable value API.
 	return slices.Collect(def.EnumValues())
 }

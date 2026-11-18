@@ -49,9 +49,9 @@ func transferCall(t *testing.T, server *pluginserver.Server, ctx context.Context
 	return response
 }
 
-func transferMap(t *testing.T, server *pluginserver.Server, user, line string) plugin.Map {
+func transferMap(t *testing.T, server *pluginserver.Server, line string) plugin.Map {
 	t.Helper()
-	response := transferCall(t, server, t.Context(), user, line)
+	response := transferCall(t, server, t.Context(), "alice", line)
 	require.Equal(t, plugin.StatusDone, response.Status, response.Error)
 	data, ok := response.Data.(plugin.Map)
 	require.True(t, ok)
@@ -67,14 +67,14 @@ func transferString(t *testing.T, data plugin.Map, key string) string {
 
 func transferUpload(t *testing.T, server *pluginserver.Server, content []byte) string {
 	t.Helper()
-	begin := transferMap(t, server, "alice", "request config artifact upload begin name original.zefs total "+strconv.Itoa(len(content)))
+	begin := transferMap(t, server, "request config artifact upload begin name original.zefs total "+strconv.Itoa(len(content)))
 	token := transferString(t, begin, "transfer")
 	for offset := 0; offset < len(content); offset += command.ContentOctetsMax {
 		chunk := content[offset:min(offset+command.ContentOctetsMax, len(content))]
-		data := transferMap(t, server, "alice", "request config artifact upload append transfer "+token+" offset "+strconv.Itoa(offset)+" content "+base64.StdEncoding.EncodeToString(chunk))
+		data := transferMap(t, server, "request config artifact upload append transfer "+token+" offset "+strconv.Itoa(offset)+" content "+base64.StdEncoding.EncodeToString(chunk))
 		require.EqualValues(t, offset+len(chunk), data["next"])
 	}
-	finished := transferMap(t, server, "alice", "request config artifact upload finish transfer "+token)
+	finished := transferMap(t, server, "request config artifact upload finish transfer "+token)
 	return transferString(t, finished, "artifact")
 }
 
@@ -119,10 +119,10 @@ func TestArtifactStandaloneOwnerCannotBindTwoServers(t *testing.T) {
 	t.Cleanup(second.Stop)
 	require.Error(t, configcli.AttachArtifactOwner(second, owner))
 	second.Stop()
-	begin := transferMap(t, first, "alice", "request config artifact text begin total 0")
+	begin := transferMap(t, first, "request config artifact text begin total 0")
 	token := transferString(t, begin, "transfer")
-	transferMap(t, first, "alice", "request config artifact upload finish transfer "+token)
-	transferMap(t, first, "alice", "request config artifact upload abort transfer "+token)
+	transferMap(t, first, "request config artifact upload finish transfer "+token)
+	transferMap(t, first, "request config artifact upload abort transfer "+token)
 }
 
 // TestArtifactStandaloneFullArtifactBoundary exercises all 64 MiB through the
@@ -131,14 +131,14 @@ func TestArtifactStandaloneFullArtifactBoundary(t *testing.T) {
 	server, owner := transferServer(t)
 	content := transferFixture(t, artifact.ArtifactBytesMax)
 	id := transferUpload(t, server, content)
-	info := transferMap(t, server, "alice", "show config artifact info artifact "+id)
+	info := transferMap(t, server, "show config artifact info artifact "+id)
 	require.EqualValues(t, artifact.ArtifactBytesMax, info["bytes"])
-	begin := transferMap(t, server, "alice", "request config artifact download begin artifact "+id)
+	begin := transferMap(t, server, "request config artifact download begin artifact "+id)
 	token := transferString(t, begin, "transfer")
 	require.EqualValues(t, artifact.ArtifactBytesMax, begin["total"])
 	digest := sha256.New()
 	for offset := int64(0); offset < artifact.ArtifactBytesMax; {
-		data := transferMap(t, server, "alice", "show config artifact transfer read transfer "+token+" offset "+strconv.FormatInt(offset, 10))
+		data := transferMap(t, server, "show config artifact transfer read transfer "+token+" offset "+strconv.FormatInt(offset, 10))
 		chunk, ok := data["content"].(command.Blob)
 		require.True(t, ok)
 		require.NotEmpty(t, chunk)
@@ -151,10 +151,10 @@ func TestArtifactStandaloneFullArtifactBoundary(t *testing.T) {
 	}
 	want := sha256.Sum256(content)
 	require.Equal(t, want[:], digest.Sum(nil))
-	final := transferMap(t, server, "alice", "show config artifact transfer read transfer "+token+" offset "+strconv.FormatInt(artifact.ArtifactBytesMax, 10))
+	final := transferMap(t, server, "show config artifact transfer read transfer "+token+" offset "+strconv.FormatInt(artifact.ArtifactBytesMax, 10))
 	require.Empty(t, final["content"])
 	require.Equal(t, true, final["complete"])
-	transferMap(t, server, "alice", "request config artifact upload abort transfer "+token)
+	transferMap(t, server, "request config artifact upload abort transfer "+token)
 	_, err := owner.Begin(t.Context(), "alice", "too-large.zefs", artifact.ArtifactBytesMax+1, false)
 	require.Error(t, err)
 	var refusal *artifact.Refusal
@@ -167,9 +167,9 @@ func TestArtifactStandaloneFullArtifactBoundary(t *testing.T) {
 func TestArtifactStandaloneTextTransferBoundaries(t *testing.T) {
 	server, owner := transferServer(t)
 	for _, size := range []int{0, artifact.TextBytesMax} {
-		begin := transferMap(t, server, "alice", "request config artifact text begin total "+strconv.Itoa(size))
+		begin := transferMap(t, server, "request config artifact text begin total "+strconv.Itoa(size))
 		token := transferString(t, begin, "transfer")
-		empty := transferMap(t, server, "alice", "request config artifact upload append transfer "+token+" offset 0 content \"\"")
+		empty := transferMap(t, server, "request config artifact upload append transfer "+token+" offset 0 content \"\"")
 		require.EqualValues(t, 0, empty["next"])
 		refused := transferCall(t, server, t.Context(), "bob", "request config artifact upload append transfer "+token+" offset 0 content eA==")
 		require.Equal(t, plugin.StatusError, refused.Status)
@@ -182,17 +182,17 @@ func TestArtifactStandaloneTextTransferBoundaries(t *testing.T) {
 		}
 		for offset := 0; offset < size; offset += command.ContentOctetsMax {
 			chunk := text[offset:min(offset+command.ContentOctetsMax, size)]
-			transferMap(t, server, "alice", "request config artifact upload append transfer "+token+" offset "+strconv.Itoa(offset)+" content "+base64.StdEncoding.EncodeToString(chunk))
+			transferMap(t, server, "request config artifact upload append transfer "+token+" offset "+strconv.Itoa(offset)+" content "+base64.StdEncoding.EncodeToString(chunk))
 		}
 		overflow := transferCall(t, server, t.Context(), "alice", "request config artifact upload append transfer "+token+" offset "+strconv.Itoa(size)+" content eA==")
 		require.Equal(t, plugin.StatusError, overflow.Status)
-		finished := transferMap(t, server, "alice", "request config artifact upload finish transfer "+token)
+		finished := transferMap(t, server, "request config artifact upload finish transfer "+token)
 		require.EqualValues(t, size, finished["next"])
 		require.Equal(t, true, finished["complete"])
 		retained, err := owner.Text(t.Context(), "alice", token)
 		require.NoError(t, err)
 		require.Equal(t, text, retained)
-		transferMap(t, server, "alice", "request config artifact upload abort transfer "+token)
+		transferMap(t, server, "request config artifact upload abort transfer "+token)
 	}
 	before := owner.FixtureState()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -244,7 +244,7 @@ func TestArtifactStandaloneBinarySourceBoundary(t *testing.T) {
 // acknowledged offset and never exposes incomplete or canceled bytes as ready.
 func TestArtifactStandaloneIncompleteAndCanceledTransfers(t *testing.T) {
 	server, owner := transferServer(t)
-	begin := transferMap(t, server, "alice", "request config artifact text begin total 2")
+	begin := transferMap(t, server, "request config artifact text begin total 2")
 	token := transferString(t, begin, "transfer")
 	response := transferCall(t, server, t.Context(), "alice", "request config artifact upload finish transfer "+token)
 	require.Equal(t, plugin.StatusError, response.Status)
@@ -254,16 +254,16 @@ func TestArtifactStandaloneIncompleteAndCanceledTransfers(t *testing.T) {
 	cancel()
 	_, err = owner.Append(ctx, "alice", token, 0, []byte("bad"))
 	require.Error(t, err)
-	accepted := transferMap(t, server, "alice", "request config artifact upload append transfer "+token+" offset 0 content eA==")
+	accepted := transferMap(t, server, "request config artifact upload append transfer "+token+" offset 0 content eA==")
 	require.EqualValues(t, 1, accepted["next"])
 	response = transferCall(t, server, t.Context(), "alice", "request config artifact upload finish transfer "+token)
 	require.Equal(t, plugin.StatusError, response.Status)
-	transferMap(t, server, "alice", "request config artifact upload append transfer "+token+" offset 1 content eQ==")
-	transferMap(t, server, "alice", "request config artifact upload finish transfer "+token)
+	transferMap(t, server, "request config artifact upload append transfer "+token+" offset 1 content eQ==")
+	transferMap(t, server, "request config artifact upload finish transfer "+token)
 	content, err := owner.Text(t.Context(), "alice", token)
 	require.NoError(t, err)
 	require.Equal(t, "xy", string(content))
-	transferMap(t, server, "alice", "request config artifact upload abort transfer "+token)
+	transferMap(t, server, "request config artifact upload abort transfer "+token)
 }
 
 // TestArtifactStandaloneSnapshotsRemainImmutable covers both disk downloads
@@ -309,10 +309,10 @@ func TestArtifactStandaloneServerAndAccountIsolation(t *testing.T) {
 		response := transferCall(t, attempt.server, t.Context(), attempt.user, "show config artifact info artifact "+id)
 		require.Equal(t, plugin.StatusError, response.Status)
 	}
-	transferMap(t, first, "alice", "show config artifact info artifact "+id)
+	transferMap(t, first, "show config artifact info artifact "+id)
 	first.Stop()
-	begin := transferMap(t, second, "alice", "request config artifact text begin total 0")
-	transferMap(t, second, "alice", "request config artifact upload abort transfer "+transferString(t, begin, "transfer"))
+	begin := transferMap(t, second, "request config artifact text begin total 0")
+	transferMap(t, second, "request config artifact upload abort transfer "+transferString(t, begin, "transfer"))
 }
 
 type heldArtifactWriter struct {

@@ -22,6 +22,12 @@ const standaloneConfig = "bgp { router-id 203.0.113.11; session { asn { local 65
 const standaloneReplacement = "bgp { router-id 203.0.113.12; session { asn { local 65000; } } }\n"
 const standaloneInactive = "bgp { inactive: router-id 203.0.113.11; session { asn { local 65000; } } }\n"
 
+const (
+	standaloneRouterID    = "203.0.113.11"
+	standaloneRouterNext  = "203.0.113.12"
+	standaloneEnvironment = "environment"
+)
+
 func suppliedContent(content string) string {
 	return " content " + strconv.Quote(base64.StdEncoding.EncodeToString([]byte(content)))
 }
@@ -84,10 +90,10 @@ func runStandaloneTransformations(output io.Writer, work string) error {
 		operation, before, after, routerID string
 		inactive                           bool
 	}{
-		{"set", standaloneConfig, "set bgp router-id 203.0.113.12", "203.0.113.12", false},
-		{"activate", standaloneInactive, "activate bgp router-id", "203.0.113.11", false},
-		{"deactivate", standaloneConfig, "deactivate bgp router-id", "203.0.113.11", true},
-		{"replace", standaloneConfig, standaloneReplacement, "203.0.113.12", false},
+		{"set", standaloneConfig, "set bgp router-id 203.0.113.12", standaloneRouterNext, false},
+		{"activate", standaloneInactive, "activate bgp router-id", standaloneRouterID, false},
+		{"deactivate", standaloneConfig, "deactivate bgp router-id", standaloneRouterID, true},
+		{"replace", standaloneConfig, standaloneReplacement, standaloneRouterNext, false},
 	} {
 		file := filepath.Join(work, "standalone-"+test.operation+".conf")
 		if err := writeFixture(file, test.before); err != nil {
@@ -144,7 +150,7 @@ func runStandaloneInspections(output io.Writer, work string) error {
 			if err != nil {
 				return err
 			}
-			if err := requireStandaloneRouter(content, "203.0.113.11", false); err != nil {
+			if err := requireStandaloneRouter(content, standaloneRouterID, false); err != nil {
 				return fmt.Errorf("%s: %w", path, err)
 			}
 		}
@@ -197,7 +203,7 @@ func runStandaloneSuppliedReaders(output io.Writer, work string) error {
 	if !isObject {
 		return fmt.Errorf("supplied dump is not a document: %#v", payload)
 	}
-	if err := require(nested(document, "bgp", "router-id") == "203.0.113.11", "supplied dump ignored the caller's bytes: %#v", payload); err != nil {
+	if err := require(nested(document, "bgp", "router-id") == standaloneRouterID, "supplied dump ignored the caller's bytes: %#v", payload); err != nil {
 		return err
 	}
 	payload, err = localJSON("show config supplied validation"+input+" | json compact", "show config supplied validation", output)
@@ -215,7 +221,7 @@ func runStandaloneSuppliedReaders(output io.Writer, work string) error {
 	if err != nil {
 		return err
 	}
-	if err := requireStandaloneRouter(content, "203.0.113.11", false); err != nil {
+	if err := requireStandaloneRouter(content, standaloneRouterID, false); err != nil {
 		return err
 	}
 	content, err = blobContent("show config supplied graph"+input+" | json compact", "show config supplied graph", output)
@@ -247,7 +253,7 @@ func runStandaloneSuppliedReaders(output io.Writer, work string) error {
 	if err != nil {
 		return err
 	}
-	if err := require(nested(document, "changed", "router-id", "old") == "203.0.113.11" && nested(document, "changed", "router-id", "new") == "203.0.113.12",
+	if err := require(nested(document, "changed", "router-id", "old") == standaloneRouterID && nested(document, "changed", "router-id", "new") == standaloneRouterNext,
 		"supplied diff ignored one source: %#v", payload); err != nil {
 		return err
 	}
@@ -281,7 +287,7 @@ func runStandaloneSuppliedReaders(output io.Writer, work string) error {
 	if !isObject {
 		return fmt.Errorf("environment validation is not a document: %#v", payload)
 	}
-	if err := require(document["path"] == "environment" && document["valid"] == true,
+	if err := require(document["path"] == standaloneEnvironment && document["valid"] == true,
 		"environment validation lost its actual verdict: %#v", payload); err != nil {
 		return err
 	}
@@ -295,7 +301,7 @@ func runStandaloneSuppliedReaders(output io.Writer, work string) error {
 	if err := json.Unmarshal(result.stdout, &document); err != nil {
 		return fmt.Errorf("environment refusal lost its typed verdict: %w: %s%s", err, result.stdout, result.stderr)
 	}
-	if err := require(document["path"] == "environment" && document["valid"] == false,
+	if err := require(document["path"] == standaloneEnvironment && document["valid"] == false,
 		"environment validation did not refuse the actual bad setting: %#v", document); err != nil {
 		return err
 	}
@@ -362,7 +368,7 @@ func runStandaloneCodecs(output io.Writer) error {
 	}
 	for _, test := range []struct{ operation, content, path string }{
 		{"config", "neighbor 192.0.2.2 { router-id 203.0.113.11; local-address 192.0.2.1; local-as 65000; peer-as 65001; }\n", "bgp"},
-		{"environment", "[exabgp.daemon]\nuser = nobody\n", "environment"},
+		{standaloneEnvironment, "[exabgp.daemon]\nuser = nobody\n", standaloneEnvironment},
 	} {
 		path := "show exabgp migration " + test.operation
 		content, err := blobContent(path+suppliedContent(test.content)+" name caller-input.conf | json compact", path, output)
@@ -377,7 +383,7 @@ func runStandaloneCodecs(output io.Writer) error {
 		if section == nil {
 			return fmt.Errorf("%s lost its converted %s section", path, test.path)
 		}
-		if test.operation == "environment" {
+		if test.operation == standaloneEnvironment {
 			daemon := section.GetContainer("daemon")
 			if daemon == nil {
 				return fmt.Errorf("environment migration lost daemon settings")

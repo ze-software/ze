@@ -36,11 +36,11 @@ func (authWiringSSHServer) Stop(context.Context) error {
 	panic("BUG: auth wiring fixture unexpectedly acquired daemon-owned SSH lifetime")
 }
 
-func authWiringBcryptUser(t *testing.T, name, password string, profiles ...string) aaa.UserCredential {
+func authWiringBcryptUser(t *testing.T, password string, profiles ...string) aaa.UserCredential {
 	t.Helper()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 	require.NoError(t, err)
-	return aaa.UserCredential{Name: name, Hash: string(hash), Profiles: profiles}
+	return aaa.UserCredential{Name: "operator", Hash: string(hash), Profiles: profiles}
 }
 
 type infraBootAuthenticator struct {
@@ -125,7 +125,7 @@ func TestInfraSetupUsesLiveUsersWithoutSSHSnapshot(t *testing.T) {
 	originalSSHBuild := sshBuild
 	t.Cleanup(func() { sshBuild = originalSSHBuild })
 
-	operator := authWiringBcryptUser(t, "operator", "operator-secret", "readonly")
+	operator := authWiringBcryptUser(t, "operator-secret", "readonly")
 	liveCalls := 0
 	liveUsers := func() ([]aaa.UserCredential, error) {
 		liveCalls++

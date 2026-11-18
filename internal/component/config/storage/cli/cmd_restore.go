@@ -5,8 +5,8 @@
 package cli
 
 import (
-	"errors"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -14,9 +14,9 @@ import (
 	"github.com/ze-software/ze/internal/component/config/confirm"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/storage/daemonroute"
-	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -145,11 +145,11 @@ func restoreFullThroughDaemon(storePath, source string, busy error, ask daemonro
 }
 
 type fullRestoreAnswer struct {
-	Path string `json:"path"`
-	State string `json:"state"`
-	Bytes int64 `json:"bytes"`
-	Digest string `json:"digest"`
-	RestartExitStatus int `json:"restart-exit-status"`
+	Path              string `json:"path"`
+	State             string `json:"state"`
+	Bytes             int64  `json:"bytes"`
+	Digest            string `json:"digest"`
+	RestartExitStatus int    `json:"restart-exit-status"`
 }
 
 func (answer fullRestoreAnswer) matches(path string) error {

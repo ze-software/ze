@@ -38,7 +38,7 @@ func TestWebDecodeUsesTheNativeCommandProducer(t *testing.T) {
 		}
 		calls.Add(1)
 		if response == nil {
-			return response, err
+			return nil, err
 		}
 		content, marshalErr := json.Marshal(response.Data)
 		if marshalErr != nil {

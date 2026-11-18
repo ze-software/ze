@@ -24,7 +24,8 @@ func TestExecProgressKeepsBoundedOriginalCounts(t *testing.T) {
 	const document = `{"cleanup":[{"id":1},{"id":2}]}`
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(document))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2})
+		return response, completionError
 	})
 	var body strings.Builder
 	answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | json", &body)
@@ -42,7 +43,8 @@ func TestExecProgressKeepsBoundedFailedData(t *testing.T) {
 	const message = "evaluation stopped before the final acknowledgement"
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(document))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2, Message: message})
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 2, Message: message})
+		return response, completionError
 	})
 	var body strings.Builder
 	answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | json", &body)
@@ -60,7 +62,8 @@ func TestExecProgressKeepsBoundedPartialData(t *testing.T) {
 	const document = `{"cleanup":[{"id":1}],"errors":[{"id":2,"cause":"acknowledgement missing"}]}`
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
 		response := plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(document))
-		return response, response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 1, Faults: 1})
+		completionError := response.CompleteRecordAnswer(&rpc.ExecuteCommandRecordAnswer{Count: 1, Faults: 1})
+		return response, completionError
 	})
 	var body strings.Builder
 	answer, err := sshclient.ExecCommandStream(answerCredentials(t, srv), "show cleanup | json", &body)

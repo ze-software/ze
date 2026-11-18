@@ -16,11 +16,11 @@ import (
 
 // renameConfigUnderTest discovers the owner operation without needing a new
 // symbol to compile. Its absence is the behavioral RED before implementation.
-func renameConfigUnderTest(t *testing.T, source Storage, oldName, newName string) error {
+func renameConfigUnderTest(t *testing.T, source Storage) error {
 	t.Helper()
 	rename, found := source.(interface{ RenameConfig(string, string) error })
 	require.True(t, found, "the storage owner exposes no complete configuration rename")
-	return rename.RenameConfig(oldName, newName)
+	return rename.RenameConfig("router.conf", "renamed.conf")
 }
 
 func configRenameSnapshot(t *testing.T, source Storage) map[string][]byte {
@@ -73,7 +73,7 @@ func TestConfigRenamePreservesTheWholeConfiguration(t *testing.T) {
 			before := configRenameSnapshot(t, source)
 			mirrorMeta, err := source.Stat("router.conf")
 			require.NoError(t, err)
-			require.NoError(t, renameConfigUnderTest(t, source, "router.conf", "renamed.conf"))
+			require.NoError(t, renameConfigUnderTest(t, source))
 			want := make(map[string][]byte, len(before))
 			for key, data := range before {
 				switch key {
@@ -124,7 +124,7 @@ func TestConfigRenameRefusesDestinationOwnedState(t *testing.T) {
 			seedConfigRename(t, source)
 			require.NoError(t, source.WriteKey(collision, []byte("must survive")))
 			before := configRenameSnapshot(t, source)
-			require.ErrorIs(t, renameConfigUnderTest(t, source, "router.conf", "renamed.conf"), fs.ErrExist)
+			require.ErrorIs(t, renameConfigUnderTest(t, source), fs.ErrExist)
 			require.Equal(t, before, configRenameSnapshot(t, source))
 		})
 	}
@@ -137,7 +137,7 @@ func TestConfigRenamePreservesIndependentlyNamedEditorLikeConfigs(t *testing.T) 
 	seedConfigRename(t, source)
 	_, _, err := EnsureActiveVersion(source, "router.conf.draft", []byte("independent config"), historyStampC)
 	require.NoError(t, err)
-	require.NoError(t, renameConfigUnderTest(t, source, "router.conf", "renamed.conf"))
+	require.NoError(t, renameConfigUnderTest(t, source))
 	data, err := ReadActiveConfig(source, "router.conf.draft")
 	require.NoError(t, err)
 	require.Equal(t, "independent config", string(data))
@@ -152,7 +152,7 @@ func TestConfigRenamePreservesAnIndependentPendingEditorLikeConfig(t *testing.T)
 	seedConfigRename(t, source)
 	stamp, err := WriteCandidateVersion(source, "router.conf.draft", []byte("independent pending config"), historyStampC)
 	require.NoError(t, err)
-	require.NoError(t, renameConfigUnderTest(t, source, "router.conf", "renamed.conf"))
+	require.NoError(t, renameConfigUnderTest(t, source))
 	data, gotStamp, present, err := ReadCandidateConfig(source, "router.conf.draft")
 	require.NoError(t, err)
 	require.True(t, present)
@@ -218,7 +218,7 @@ func TestConfigRenameRestoresTheSourceAfterPublicationFailure(t *testing.T) {
 				key = "file/active/router.conf.draft"
 			}
 			owned.keys = &configRenameFault{keyEncoding: owned.keys, operation: operation, key: key, armed: true}
-			require.ErrorIs(t, renameConfigUnderTest(t, source, "router.conf", "renamed.conf"), errConfigRenameInjected)
+			require.ErrorIs(t, renameConfigUnderTest(t, source), errConfigRenameInjected)
 			require.Equal(t, before, configRenameSnapshot(t, source))
 		})
 	}
@@ -233,7 +233,7 @@ func TestConfigRenameRefusesUnfinishedIdentityTransactions(t *testing.T) {
 			seedConfigRename(t, source)
 			require.NoError(t, source.WriteKey(key, []byte("uncompleted transaction")))
 			before := configRenameSnapshot(t, source)
-			require.Error(t, renameConfigUnderTest(t, source, "router.conf", "renamed.conf"))
+			require.Error(t, renameConfigUnderTest(t, source))
 			require.Equal(t, before, configRenameSnapshot(t, source))
 		})
 	}
@@ -283,7 +283,7 @@ func TestConfigRenameKeepsTheCompleteDestinationWhenRestorationFails(t *testing.
 	owned, ok := ownedStore(source)
 	require.True(t, ok)
 	owned.keys = &configRenameRollbackFault{keyEncoding: owned.keys}
-	err := renameConfigUnderTest(t, source, "router.conf", "renamed.conf")
+	err := renameConfigUnderTest(t, source)
 	require.ErrorIs(t, err, errConfigRenameInjected)
 	require.ErrorIs(t, err, errConfigRenameRestore)
 	for _, key := range []string{

@@ -435,21 +435,22 @@ func ValidateArgs(args []string, defs []ArgDef, preMatched map[string]string) (V
 	var unplacedValues []string
 	missing := false
 	for i := range defs {
-		if defs[i].mandatory && !matched[defs[i].name] {
-			if unplacedValues == nil {
-				unplacedValues = make([]string, len(unplaced))
-				for i, at := range unplaced {
-					unplacedValues[i] = args[at]
-				}
-			}
-			purpose := defs[i].Description()
-			if purpose == "" {
-				purpose = defs[i].ShortHelp()
-			}
-			faults.addMissing(&MissingArgumentError{Leaf: defs[i].name, usage: keywordUsage(&defs[i]),
-				purpose: purpose, unplaced: unplacedValues, bound: bound, boundValue: boundValue})
-			missing = true
+		if !defs[i].mandatory || matched[defs[i].name] {
+			continue
 		}
+		if unplacedValues == nil {
+			unplacedValues = make([]string, len(unplaced))
+			for i, at := range unplaced {
+				unplacedValues[i] = args[at]
+			}
+		}
+		purpose := defs[i].Description()
+		if purpose == "" {
+			purpose = defs[i].ShortHelp()
+		}
+		faults.addMissing(&MissingArgumentError{Leaf: defs[i].name, usage: keywordUsage(&defs[i]),
+			purpose: purpose, unplaced: unplacedValues, bound: bound, boundValue: boundValue})
+		missing = true
 	}
 
 	// Every mandatory definition is filled, so each token left over is a

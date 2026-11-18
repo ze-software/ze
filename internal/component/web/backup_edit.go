@@ -108,7 +108,7 @@ func (m *backupWorkspaces) edit(w http.ResponseWriter, r *http.Request, id strin
 	action := r.PostForm.Get("action")
 	if action != "validate" {
 		if action != "review" {
-			if action != "save" {
+			if action != verbSave {
 				backupFormRefusal(w)
 				return
 			}

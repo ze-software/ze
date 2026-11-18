@@ -73,7 +73,7 @@ func openRecoverySnapshot(parent *os.File, path string) (_ *recoverySnapshot, re
 // PendingRecoveryCommand returns the safe completion command for the first
 // retained stage under the actual store directory authority. Invalid or
 // unowned stages return an error and remain untouched for owner inspection.
-func PendingRecoveryCommand(source Storage) (_ string, _ string, retErr error) {
+func PendingRecoveryCommand(source Storage) (_, _ string, retErr error) {
 	owned, ok := ownedStore(source)
 	if !ok {
 		return "", "", errors.ErrUnsupported

@@ -85,6 +85,12 @@ func attachServerArtifactsLocked(server *pluginserver.Server, owner *artifact.Ow
 
 type artifactOperation func(context.Context, *artifact.Owner, string, command.ValidatedArgs) (plugin.ResponseData, error)
 
+const (
+	artifactFieldID    = "artifact"
+	artifactFieldKey   = "key"
+	artifactFieldBytes = "bytes"
+)
+
 func artifactHandler(operation artifactOperation) pluginserver.Handler {
 	return func(ctx *pluginserver.CommandContext, args command.ValidatedArgs) (*plugin.Response, error) {
 		owner, err := artifactCommandOwner(ctx, args)
@@ -101,7 +107,7 @@ func artifactHandler(operation artifactOperation) pluginserver.Handler {
 
 func artifactOperationFailure(err error) *plugin.Response {
 	if refusal := artifactSingleRefusal(err); refusal != nil {
-		if failure, native := refusal.Cause.(*opererr.Error); native {
+		if failure, native := refusal.Cause.(*opererr.Error); native { //nolint:errorlint // Only the direct native cause owns the complete refusal context.
 			response := plugin.OperatorErrorResponse(failure)
 			response.Data = plugin.Map{"http-status": refusal.Status}
 			return response
@@ -117,7 +123,7 @@ func artifactOperationFailure(err error) *plugin.Response {
 // that evidence and mistake a server failure for the refusal's HTTP category.
 func artifactSingleRefusal(err error) *artifact.Refusal {
 	for {
-		if refusal, ok := err.(*artifact.Refusal); ok {
+		if refusal, ok := err.(*artifact.Refusal); ok { //nolint:errorlint // Nested refusals may hide cleanup; only direct or singleton-joined refusals retain their category.
 			return refusal
 		}
 		joined, ok := err.(interface{ Unwrap() []error })
@@ -163,10 +169,10 @@ func artifactValue(args command.ValidatedArgs, name string) string {
 	return value
 }
 
-func artifactInteger(args command.ValidatedArgs, name string, absent int64) (int64, error) {
+func artifactInteger(args command.ValidatedArgs, name string) (int64, error) {
 	value, found := args.Keyed(name)
 	if !found {
-		return absent, nil
+		return -1, nil
 	}
 	return strconv.ParseInt(value, 10, 64)
 }
@@ -176,7 +182,7 @@ func artifactTransfer(t artifact.Transfer) plugin.Map {
 }
 
 func artifactBegin(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs, text bool) (plugin.ResponseData, error) {
-	total, err := artifactInteger(args, "total", -1)
+	total, err := artifactInteger(args, "total")
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +204,7 @@ func artifactUploadAppend(ctx context.Context, owner *artifact.Owner, user strin
 	if err != nil {
 		return nil, err
 	}
-	offset, err := artifactInteger(args, "offset", -1)
+	offset, err := artifactInteger(args, "offset")
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +217,7 @@ func artifactUploadFinish(ctx context.Context, owner *artifact.Owner, user strin
 		return nil, err
 	}
 	if w.ID != "" {
-		return plugin.Map{"artifact": w.ID, "label": w.Label, "names": w.Names, "bytes": w.Bytes}, nil
+		return plugin.Map{artifactFieldID: w.ID, "label": w.Label, "names": w.Names, artifactFieldBytes: w.Bytes}, nil
 	}
 	return artifactTransfer(t), nil
 }
@@ -228,7 +234,7 @@ func artifactSourceBegin(ctx context.Context, owner *artifact.Owner, user string
 	return artifactTransfer(t), err
 }
 func artifactTransferRead(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs) (plugin.ResponseData, error) {
-	offset, err := artifactInteger(args, "offset", -1)
+	offset, err := artifactInteger(args, "offset")
 	if err != nil {
 		return nil, err
 	}
@@ -243,11 +249,11 @@ func artifactList(ctx context.Context, owner *artifact.Owner, user string, _ com
 }
 func artifactInfo(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs) (plugin.ResponseData, error) {
 	w, err := owner.Inspect(ctx, user, artifactValue(args, "artifact"))
-	return plugin.Map{"artifact": w.ID, "label": w.Label, "names": w.Names, "bytes": w.Bytes, "digest": w.Digest}, err
+	return plugin.Map{artifactFieldID: w.ID, "label": w.Label, "names": w.Names, artifactFieldBytes: w.Bytes, "digest": w.Digest}, err
 }
 func artifactDelete(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs) (plugin.ResponseData, error) {
 	id := artifactValue(args, "artifact")
-	return plugin.Map{"artifact": id}, owner.Remove(ctx, user, id)
+	return plugin.Map{artifactFieldID: id}, owner.Remove(ctx, user, id)
 }
 func artifactSource(ctx context.Context, owner *artifact.Owner, user string, args command.ValidatedArgs) (plugin.ResponseData, error) {
 	name := artifactValue(args, "name")

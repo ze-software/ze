@@ -23,7 +23,7 @@ func TestSuppliedCompletionHTTPInputs(t *testing.T) {
 	manager := &EditorManager{}
 	for _, file := range []bool{false, true} {
 		form := url.Values{webCommandField: {commandPath}, "configuration": {configuration}, "input": {"set router"}, "context": {"bgp"}, "ghost": {boolTrue}}
-		request := httptest.NewRequest(http.MethodPost, "/config/inspect", strings.NewReader(form.Encode()))
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/inspect", strings.NewReader(form.Encode()))
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		if file {
 			var body bytes.Buffer
@@ -38,7 +38,7 @@ func TestSuppliedCompletionHTTPInputs(t *testing.T) {
 			_, err = part.Write([]byte(configuration))
 			require.NoError(t, err)
 			require.NoError(t, writer.Close())
-			request = httptest.NewRequest(http.MethodPost, "/config/inspect", &body)
+			request = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/config/inspect", &body)
 			request.Header.Set("Content-Type", writer.FormDataContentType())
 		}
 		request = request.WithContext(withUsername(request.Context(), "completion-reader"))
@@ -56,7 +56,7 @@ func TestSuppliedCompletionGeneratedControls(t *testing.T) {
 	renderer, _, _, _ := webGoldenParts(t)
 	trees, _ := webGoldenInspectionParts(t)
 	query := url.Values{webCommandField: {"show config supplied completion"}}
-	request := httptest.NewRequest(http.MethodGet, "/config/inspect?"+query.Encode(), nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/inspect?"+query.Encode(), http.NoBody)
 	request = request.WithContext(withUsername(request.Context(), "completion-reader"))
 	response := httptest.NewRecorder()
 	HandleSuppliedInspectionForm(renderer, trees)(response, request)

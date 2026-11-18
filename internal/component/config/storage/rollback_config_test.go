@@ -20,13 +20,13 @@ func readRollbackRevisionUnderTest(t *testing.T, source Storage, name string, re
 	return reader.ReadRollbackRevision(name, revision)
 }
 
-func rollbackConfigUnderTest(t *testing.T, source Storage, name string, revision int) (VersionInfo, string, error) {
+func rollbackConfigUnderTest(t *testing.T, source Storage, revision int) (VersionInfo, string, error) {
 	t.Helper()
 	rollback, found := source.(interface {
 		RollbackConfig(string, int) (VersionInfo, string, error)
 	})
 	require.True(t, found, "the store exposes no versioned configuration rollback")
-	return rollback.RollbackConfig(name, revision)
+	return rollback.RollbackConfig("router.conf", revision)
 }
 
 func seedConfigRollback(t *testing.T, source Storage) {
@@ -69,7 +69,7 @@ func TestConfigRollbackPublishesANewActiveVersion(t *testing.T) {
 		t.Run(backend.name, func(t *testing.T) {
 			source := backend.newStore(t, t.TempDir())
 			seedConfigRollback(t, source)
-			selected, stamp, err := rollbackConfigUnderTest(t, source, "router.conf", 2)
+			selected, stamp, err := rollbackConfigUnderTest(t, source, 2)
 			require.NoError(t, err)
 			require.Equal(t, FormatVersionStamp(historyStampB), selected.Stamp)
 			require.NotEqual(t, selected.Stamp, stamp)
@@ -109,7 +109,7 @@ func TestConfigRollbackRefusesInvalidIndices(t *testing.T) {
 		source := newMemoryStorage(t, t.TempDir())
 		seedConfigRollback(t, source)
 		before := configRenameSnapshot(t, source)
-		_, _, err := rollbackConfigUnderTest(t, source, "router.conf", revision)
+		_, _, err := rollbackConfigUnderTest(t, source, revision)
 		require.ErrorIs(t, err, fs.ErrNotExist)
 		require.Equal(t, before, configRenameSnapshot(t, source))
 	}
@@ -123,7 +123,7 @@ func TestConfigRollbackPreservesAStagedCandidate(t *testing.T) {
 	_, err := WriteCandidateVersion(source, "router.conf", []byte("someone else's staged config"), historyStampC.AddDate(0, 0, 1))
 	require.NoError(t, err)
 	before := configRenameSnapshot(t, source)
-	_, _, err = rollbackConfigUnderTest(t, source, "router.conf", 2)
+	_, _, err = rollbackConfigUnderTest(t, source, 2)
 	require.ErrorIs(t, err, ErrCandidateExists)
 	require.Equal(t, before, configRenameSnapshot(t, source))
 }
@@ -135,7 +135,7 @@ func TestConfigRollbackRefusesCorruptHistory(t *testing.T) {
 	seedConfigRollback(t, source)
 	require.NoError(t, source.WriteKey(objectKey(contentDigest([]byte("second revision"))), []byte("wrong object bytes")))
 	before := configRenameSnapshot(t, source)
-	_, _, err := rollbackConfigUnderTest(t, source, "router.conf", 2)
+	_, _, err := rollbackConfigUnderTest(t, source, 2)
 	require.ErrorIs(t, err, ErrHistoryObject)
 	require.Equal(t, before, configRenameSnapshot(t, source))
 }
@@ -147,7 +147,7 @@ func TestConfigRollbackRefusesARecordedConfirmWindow(t *testing.T) {
 	seedConfigRollback(t, source)
 	require.NoError(t, source.WriteKey(zefs.KeyConfigConfirmPending.Key("router.conf"), []byte("pending window record")))
 	before := configRenameSnapshot(t, source)
-	_, _, err := rollbackConfigUnderTest(t, source, "router.conf", 2)
+	_, _, err := rollbackConfigUnderTest(t, source, 2)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "confirmed")
 	require.Equal(t, before, configRenameSnapshot(t, source))
@@ -160,7 +160,7 @@ func TestConfigRollbackPreservesAnUnfinishedFileCommit(t *testing.T) {
 	seedConfigRollback(t, source)
 	require.NoError(t, source.WriteKey(zefs.KeyConfigFileCommit.Key("router.conf"), []byte("pending file commit")))
 	before := configRenameSnapshot(t, source)
-	_, _, err := rollbackConfigUnderTest(t, source, "router.conf", 2)
+	_, _, err := rollbackConfigUnderTest(t, source, 2)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "file commit")
 	require.Equal(t, before, configRenameSnapshot(t, source))

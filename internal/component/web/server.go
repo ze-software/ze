@@ -491,7 +491,7 @@ func (s *WebServer) Shutdown(ctx context.Context) error {
 		// Capture the allowance's state before cancellation or Close can block.
 		// A transport may return the same sentinel before this context expires.
 		graceExpired := false
-		if err == context.DeadlineExceeded {
+		if err == context.DeadlineExceeded { //nolint:errorlint // Only the exact native sentinel is grace expiry; a joined transport cause must survive.
 			if ctx.Err() == context.DeadlineExceeded {
 				graceExpired = true
 			}

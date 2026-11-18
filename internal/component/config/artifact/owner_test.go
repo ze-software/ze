@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	_ "github.com/ze-software/ze/internal/component/doctor"

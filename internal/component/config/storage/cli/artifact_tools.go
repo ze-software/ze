@@ -59,12 +59,19 @@ func RepairSourceToArtifact(source, output string) (*zefs.RepairReport, []storag
 func ArtifactRepairAnswer(id string, report *zefs.RepairReport, findings []storage.HistoryFinding) *plugin.Response {
 	label, fix := "artifact "+id, "ze show config artifact check artifact "+id
 	response := repairAnswerWithFix(label, fix, report, findings)
-	data := response.Data.(plugin.Map)
+	data, ok := response.Data.(plugin.Map)
+	if !ok {
+		panic("BUG: native repair response payload is not a map")
+	}
 	data["artifact"] = id
 	encoded, err := json.Marshal(response)
 	if err != nil || len(encoded) > command.BlobRemoteOctetsMax {
 		response = repairReportRefusalWithFix(label, fix, newRepairVerdict(report, findings), err)
-		response.Data.(plugin.Map)["artifact"] = id
+		data, ok := response.Data.(plugin.Map)
+		if !ok {
+			panic("BUG: bounded repair refusal payload is not a map")
+		}
+		data["artifact"] = id
 	}
 	return response
 }

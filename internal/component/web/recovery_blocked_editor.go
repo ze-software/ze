@@ -96,6 +96,7 @@ func (e recoveryBlockedEditor) DiscardSessionPath([]string) error { return e.rea
 func (e recoveryBlockedEditor) DisconnectSession(string) error { return e.reason }
 
 func (e recoveryBlockedEditor) Diff() string { return e.reason.Error() }
+
 func (e recoveryBlockedEditor) PendingReview([]string) (string, error) { return "", e.reason }
 
 func (e recoveryBlockedEditor) SaveDraft() error { return e.reason }

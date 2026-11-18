@@ -107,7 +107,7 @@ func readGraphicalImport(r *http.Request, schema *config.Schema) (*graphicalCand
 	}
 	for name, values := range r.PostForm {
 		switch name {
-		case "source", "location", "action", "path", "content":
+		case keySource, "location", "action", "path", "content":
 		default:
 			return nil, graphicalImportRefusal("The import form contains an unknown field.")
 		}

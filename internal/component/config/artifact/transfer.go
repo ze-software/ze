@@ -183,7 +183,7 @@ func (m *Owner) begin(ctx context.Context, user, label string, total int64, kind
 		return Transfer{}, storageFailure(err)
 	}
 	path := filepath.Join(directory, "backup.zefs")
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) // #nosec G304 -- Private MkdirTemp root, random hex directory and fixed filename; the directory is 0700 and creation is exclusive.
 	if err != nil {
 		return Transfer{}, storageFailure(errors.Join(err, m.removeStage(directory, 0)))
 	}

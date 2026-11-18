@@ -28,7 +28,9 @@ func TestCommandProgressKeepsFailedData(t *testing.T) {
 			content, ok := result["content"].([]map[string]any)
 			require.True(t, ok)
 			require.Len(t, content, 2, "completed data and failure must both reach the tool caller")
-			assert.JSONEq(t, document, content[0][contentTypeText].(string))
+			text, ok := content[0][contentTypeText].(string)
+			require.True(t, ok)
+			assert.JSONEq(t, document, text)
 			assert.Equal(t, "Error: "+failure, content[1][contentTypeText])
 		})
 	}
@@ -50,7 +52,9 @@ func TestCommandProgressKeepsPartialDataAndWarnings(t *testing.T) {
 			content, ok := result["content"].([]map[string]any)
 			require.True(t, ok)
 			require.Len(t, content, 3)
-			assert.JSONEq(t, document, content[0][contentTypeText].(string))
+			text, ok := content[0][contentTypeText].(string)
+			require.True(t, ok)
+			assert.JSONEq(t, document, text)
 			assert.Equal(t, "Warning: "+warning, content[1][contentTypeText])
 			assert.Contains(t, content[2][contentTypeText], "partial")
 		})
@@ -84,7 +88,9 @@ func TestCommandProgressKeepsHealthyWarning(t *testing.T) {
 			content, ok := result["content"].([]map[string]any)
 			require.True(t, ok)
 			require.Len(t, content, 2)
-			assert.JSONEq(t, `{"answer":"kept"}`, content[0][contentTypeText].(string))
+			text, ok := content[0][contentTypeText].(string)
+			require.True(t, ok)
+			assert.JSONEq(t, `{"answer":"kept"}`, text)
 			assert.Equal(t, "Warning: the original warning", content[1][contentTypeText])
 		})
 	}
@@ -125,7 +131,9 @@ func TestCommandProgressKeepsStatusOnlyWarning(t *testing.T) {
 					wantContent++
 				}
 				require.Len(t, content, wantContent)
-				assert.JSONEq(t, document, content[0][contentTypeText].(string))
+				text, ok := content[0][contentTypeText].(string)
+				require.True(t, ok)
+				assert.JSONEq(t, document, text)
 				if test.label != "" {
 					assert.Equal(t, test.label, content[1][contentTypeText])
 				}

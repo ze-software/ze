@@ -183,8 +183,8 @@ func answerText(answer Answer, text string, warning bool) (Answer, string) {
 		return answer, text
 	}
 	suffix := "\n" + failure
-	if strings.HasSuffix(text, suffix) {
-		answer.Warnings = strings.TrimSpace(strings.TrimSuffix(text, suffix))
+	if prefix, found := strings.CutSuffix(text, suffix); found {
+		answer.Warnings = strings.TrimSpace(prefix)
 		return answer, failure
 	}
 	return answer, strings.TrimSpace(text)

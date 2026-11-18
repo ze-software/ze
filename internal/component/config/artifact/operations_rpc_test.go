@@ -150,7 +150,7 @@ func TestArtifactConfigOperationsShareNativeProducers(t *testing.T) {
 	require.NotContains(t, string(rolledBack), "192.0.2.10")
 	var download bytes.Buffer
 	require.NoError(t, fixture.owner.ExportTo(t.Context(), "alice", id, &download))
-	require.Contains(t, string(download.Bytes()), "credential-to-preserve")
+	require.Contains(t, download.String(), "credential-to-preserve")
 	require.True(t, bytes.Contains(download.Bytes(), []byte{0, 255, 128, 0, 1}))
 }
 

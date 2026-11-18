@@ -121,7 +121,7 @@ func graphicalValuesFromForm(r *http.Request, path []string, name string, node c
 		}
 		return v, validateGraphicalValues(node, path, v)
 	}
-	if operation == "save" {
+	if operation == verbSave {
 		return v, validateGraphicalValues(node, path, v)
 	}
 	action, position, hasPosition := strings.Cut(operation, ":")

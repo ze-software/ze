@@ -16,7 +16,10 @@ import (
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
-const backupSourcePath = backupWorkspacePath + "sources/"
+const (
+	backupSourcePath = backupWorkspacePath + "sources/"
+	keySource        = "source"
+)
 
 type backupSourcePageData struct {
 	Path     string
@@ -70,7 +73,7 @@ func (m *backupWorkspaces) uploadSource(w http.ResponseWriter, r *http.Request) 
 	var input io.Reader
 	var name string
 	switch part.FormName() {
-	case "source":
+	case keySource:
 		if part.FileName() == "" {
 			backupSourceUploadFailure(w, errors.New("no data file was selected"))
 			return

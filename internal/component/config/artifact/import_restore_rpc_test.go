@@ -37,10 +37,14 @@ func TestArtifactConfigImportSharesTheNativePublication(t *testing.T) {
 	require.NoError(t, fixture.owner.ViewStore(t.Context(), "alice", id, func(source storage.Storage) error {
 		var err error
 		priorVersions, err = source.ListVersions("router.conf")
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		for _, version := range priorVersions {
 			priorBytes[version.Stamp], err = source.ReadVersion("router.conf", version.Stamp)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	}))
@@ -65,7 +69,9 @@ func TestArtifactConfigImportSharesTheNativePublication(t *testing.T) {
 				for _, prior := range priorVersions {
 					require.Contains(t, versions, prior)
 					retained, err := source.ReadVersion(name, prior.Stamp)
-					if err != nil { return err }
+					if err != nil {
+						return err
+					}
 					require.Equal(t, priorBytes[prior.Stamp], retained)
 				}
 			}

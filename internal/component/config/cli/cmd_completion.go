@@ -130,8 +130,7 @@ func completionError(err error, problem string) error {
 	if line > 0 {
 		message.Str(" at line ").Int(int64(line))
 	}
-	var validation *configyang.ValidationError
-	if errors.As(err, &validation) {
+	if validation, found := errors.AsType[*configyang.ValidationError](err); found {
 		// Only these kinds carry a schema-derived constraint safe to show.
 		//exhaustive:ignore
 		switch validation.Type {

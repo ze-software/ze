@@ -233,7 +233,7 @@ func (m *Owner) capacity(user string, text bool) error {
 
 func (m *Owner) checkCapacity(user string, text bool) error {
 	owned := 0
-	count := 0
+	var count int
 	if text {
 		count = len(m.sources)
 		for _, s := range m.sources {
