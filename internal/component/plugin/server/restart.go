@@ -71,8 +71,9 @@ func (s *Server) awaitReplacedCleanup(old *process.Process) error {
 }
 
 // handshakeScope answers the context a restart runs its replacement's
-// startup handshake under, and the cancel that releases it. restartHandshake
-// cancels it once the handshake has returned.
+// startup handshake under, and the cancel that releases it. The restart owner
+// MUST retain it through immediate declaration admission and runtime restoration.
+// A transaction that defers admission owns a fresh bounded restoration context.
 type handshakeScope func(proc *process.Process, budget restartStartupBudget) (context.Context, context.CancelFunc)
 
 // restartHandshakeStages is the number of stages a replacement's handshake
@@ -276,14 +277,12 @@ func (s *Server) runUnbarrieredStartupHandshake(ctx context.Context, proc *proce
 // The runtime handler runs one goroutine per process lifecycle, which is the
 // same shape runPluginPhase step (d) uses (ai/rules/goroutine-lifecycle.md).
 //
-// handshake decides how long the handshake may take. A handshake that runs
-// out of it fails like any other: the replacement is stopped and released by
-// rollbackReplacement, and the error says the bound expired.
-func (s *Server) restartHandshake(proc *process.Process, budget restartStartupBudget, handshake handshakeScope) error {
-	ctx, cancel := handshake(proc, budget)
+// The caller MUST retain ctx through immediate admission and restoration. A
+// handshake whose context expires fails like any other: rollbackReplacement
+// stops and releases the replacement, and the error names the expired bound.
+func (s *Server) restartHandshake(ctx context.Context, proc *process.Process, budget restartStartupBudget) error {
 	s.runUnbarrieredStartupHandshake(ctx, proc)
 	expired := errors.Is(ctx.Err(), context.DeadlineExceeded)
-	cancel()
 
 	if proc.Stage() < plugin.StageRunning {
 		err := startupFailureError(proc)
@@ -296,33 +295,43 @@ func (s *Server) restartHandshake(proc *process.Process, budget restartStartupBu
 		return err
 	}
 
-	s.wg.Go(func() {
-		s.superviseProcess(proc)
-	})
-
+	s.wg.Go(func() { s.superviseProcess(proc) })
 	return nil
 }
 
 // admitPeerDeclarationReplacement MUST run with this name's restart controller
 // reserved. A deferred transaction owns pending replacements until its final
 // rebuild; only its current exact process may resume output and post-startup.
-func (s *Server) admitPeerDeclarationReplacement(proc *process.Process) {
+func (s *Server) admitPeerDeclarationReplacement(ctx context.Context, proc *process.Process) error {
 	s.txLock.mu.Lock()
 	_, pending := s.txLock.peerDeclarationReplacements[proc.Name()]
 	s.txLock.mu.Unlock()
 	if pending {
-		return
+		return nil
 	}
 	pm := s.procManager.Load()
 	if pm == nil {
-		return
+		return nil
 	}
 	if pm.GetProcess(proc.Name()) != proc {
-		return
+		return nil
 	}
 	if !proc.AdmitPeerDeclarations() {
-		return
+		return nil
 	}
+	// Output admission requires the reconciled graph. The restoration hold
+	// separately keeps racing global fan-outs from delivering post-startup
+	// while the joined hook still owns this exact replacement.
+	err := s.runProcessGenerationReady(ctx, proc)
+	if err == nil {
+		err = ctx.Err()
+	}
+	if err != nil {
+		proc.SetStartupError(err)
+		s.rollbackReplacement(proc)
+		return fmt.Errorf("plugin runtime restoration failed: %w", err)
+	}
+	proc.CompleteRuntimeRestoration()
 	// A replacement that joins after signalStartupComplete has run reaches no
 	// other delivery, because sendPostStartupToAll fans out once and no later
 	// phase calls it. Without this line its OnAllPluginsReady handler never
@@ -347,9 +356,10 @@ func (s *Server) admitPeerDeclarationReplacement(proc *process.Process) {
 	// runPluginPhase, so the window is real rather than theoretical.
 	if s.startupComplete() {
 		s.sendPostStartupTo(proc)
-		return
+		return nil
 	}
 	if s.postStartupStarted.Load() {
 		s.sendPostStartupTo(proc)
 	}
+	return nil
 }

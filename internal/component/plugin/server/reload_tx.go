@@ -1015,13 +1015,21 @@ func (s *Server) restartPluginFn() transaction.RestartFunc {
 // reload answer distinguishes a refused restart from a failed replacement
 // without claiming the old process runs.
 func (s *Server) restartPlugin(pluginName string) error {
+	_, err := s.restartPluginReplacement(pluginName)
+	return err
+}
+
+// restartPluginReplacement returns only the lifetime this operation created.
+// The operator MUST retain it through transaction release before checking its
+// restoration result. Transaction rollback uses restartPlugin's error adapter.
+func (s *Server) restartPluginReplacement(pluginName string) (*process.Process, error) {
 	controller, err := s.restartControllers.tryAcquire(pluginName)
 	if err != nil {
-		return fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
+		return nil, fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
 	}
 	defer controller.release()
 
-	return s.restartPluginWithin(pluginName, s.boundedRestartHandshake)
+	return s.restartReplacementWithin(pluginName, s.boundedRestartHandshake)
 }
 
 // restartPluginAfterExit is restartPlugin for the failure policy, which holds
@@ -1051,9 +1059,16 @@ func (s *Server) restartPluginAfterExit(outgoing *process.Process) error {
 // restartPluginWithin is the restart both entry points run, with the
 // handshake bounded by handshake.
 func (s *Server) restartPluginWithin(pluginName string, handshake handshakeScope) error {
-	err := s.restartPluginProcess(pluginName, handshake)
+	_, err := s.restartReplacementWithin(pluginName, handshake)
+	return err
+}
+
+// restartReplacementWithin retains the exact Process even when its later
+// restoration fails. Callers that need only a failure use restartPluginWithin.
+func (s *Server) restartReplacementWithin(pluginName string, handshake handshakeScope) (*process.Process, error) {
+	replacement, err := s.restartPluginProcess(pluginName, handshake)
 	if err == nil {
-		return nil
+		return replacement, nil
 	}
 	// A failed restart leaves the plugin down whatever asked for it (its
 	// failure policy, a reload rollback, `request plugin restart`), so it is
@@ -1061,25 +1076,25 @@ func (s *Server) restartPluginWithin(pluginName string, handshake handshakeScope
 	if pm := s.procManager.Load(); pm != nil {
 		pm.RecordStopped(pluginName, process.PluginStop{Cause: process.StopRestartFailed, Detail: err.Error()})
 	}
-	return err
+	return replacement, err
 }
 
-// restartPluginProcess is the restart itself, the three steps restartPlugin
-// describes.
-func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScope) error {
+// restartPluginProcess is the restart itself. Once Respawn succeeds, every
+// answer retains that exact lifetime, including an error after its disposal.
+func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScope) (*process.Process, error) {
 	if s.spawner == nil {
-		return fmt.Errorf("no plugin spawner available to restart %s", pluginName)
+		return nil, fmt.Errorf("no plugin spawner available to restart %s", pluginName)
 	}
 	pm := s.procManager.Load()
 	if pm == nil {
-		return fmt.Errorf("no process manager available to restart %s", pluginName)
+		return nil, fmt.Errorf("no process manager available to restart %s", pluginName)
 	}
 
 	// A process an earlier restart stopped and could not wait for still owes
 	// its cleanup, which removes what is keyed by the plugin's name. A new
 	// generation started now would lose its routes and hook state to it.
 	if s.lateCleanups.owed(pluginName) {
-		return fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, errReplacedCleanupLate)
+		return nil, fmt.Errorf("restart %s: %w: %w", pluginName, transaction.ErrRestartRefused, errReplacedCleanupLate)
 	}
 
 	old := pm.GetProcess(pluginName)
@@ -1087,10 +1102,10 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 	declarationsBefore := declaredPeerMetadata(old)
 	newProc, err := pm.Respawn(pluginName)
 	if respawnRefused(err) {
-		return fmt.Errorf("respawn %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
+		return nil, fmt.Errorf("respawn %s: %w: %w", pluginName, transaction.ErrRestartRefused, err)
 	}
 	if err != nil {
-		return fmt.Errorf("respawn %s: %w", pluginName, err)
+		return nil, fmt.Errorf("respawn %s: %w", pluginName, err)
 	}
 
 	if old != nil {
@@ -1098,22 +1113,27 @@ func (s *Server) restartPluginProcess(pluginName string, handshake handshakeScop
 			// The replacement has run no handshake, so it leaves the way a
 			// replacement whose handshake failed does (restartHandshake).
 			s.rollbackReplacement(newProc)
-			return fmt.Errorf("restart %s: %w", pluginName, err)
+			return newProc, fmt.Errorf("restart %s: %w", pluginName, err)
 		}
 		s.releasePluginRegistrations(old)
 	}
 	// Hold before Stage 5 exposes DirectBridge: supervision is not the only
 	// output rail, and OnStarted may already call into the engine.
 	newProc.HoldPeerDeclarations()
-	if err := s.restartHandshake(newProc, startupBudget, handshake); err != nil {
-		return fmt.Errorf("restart handshake %s: %w", pluginName, err)
+	newProc.HoldRuntimeRestoration()
+	ctx, cancel := handshake(newProc, startupBudget)
+	defer cancel()
+	if err := s.restartHandshake(ctx, newProc, startupBudget); err != nil {
+		return newProc, fmt.Errorf("restart handshake %s: %w", pluginName, err)
 	}
 	if err := s.announcePeerDeclarationChange(declarationsBefore, declaredPeerMetadata(newProc), newProc); err != nil {
 		s.rollbackReplacement(newProc)
-		return fmt.Errorf("restart %s: %w", pluginName, err)
+		return newProc, fmt.Errorf("restart %s: %w", pluginName, err)
 	}
-	s.admitPeerDeclarationReplacement(newProc)
-	return nil
+	if err := s.admitPeerDeclarationReplacement(ctx, newProc); err != nil {
+		return newProc, fmt.Errorf("restart %s: %w", pluginName, err)
+	}
+	return newProc, nil
 }
 
 // respawnRefused reports whether err is one of the refusals

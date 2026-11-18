@@ -104,9 +104,8 @@ type Process struct {
 	stageCh      chan struct{}                             // Signals stage completion
 	stageMu      sync.Mutex                                // Protects stage transitions
 
-	// startupFail records WHY the 5-stage handshake stopped before
-	// StageRunning, so the engine can report the cause instead of only the
-	// stage it stopped at. See SetStartupError.
+	// startupFail records the first handshake or runtime restoration failure
+	// for this exact lifetime. See SetStartupError.
 	startupFail atomic.Pointer[startupFailure]
 
 	// exit records how the process ended (stopped.go, ExitStatus): the
@@ -168,6 +167,7 @@ type Process struct {
 	selectedCancel            context.CancelFunc    // Cancels only selected work; engine exit is distinct from operator Stop.
 	peerDeclarationsPending   atomic.Bool           // Exact replacement output waits for its runtime peer authority.
 	postStartupStarted        atomic.Bool           // One callback belongs to one exact Process, across racing fan-outs.
+	runtimeRestorationPending atomic.Bool           // A replacement cannot deliver post-startup before joined restoration.
 	cleanupOnce               sync.Once             // ensures connection cleanup runs exactly once
 	runtimeCleanupOnce        sync.Once             // ensures server runtime cleanup runs exactly once
 	runtimeCleanupDone        chan struct{}
@@ -191,22 +191,22 @@ func (p *Process) Stage() plugin.PluginStage {
 	return plugin.PluginStage(p.stage.Load())
 }
 
-// startupFailure boxes the cause of a failed 5-stage handshake. The box exists
+// startupFailure boxes a handshake or runtime restoration cause. The box exists
 // because atomic.Value panics when successive Stores carry different concrete
 // types, and startup causes are arbitrary error implementations (*fmt.wrapError,
 // *errors.errorString, syscall.Errno, ...). An atomic.Pointer to this struct
 // stores any of them without that hazard.
 type startupFailure struct{ err error }
 
-// SetStartupError records why this plugin's 5-stage startup handshake ended
-// before StageRunning. The engine reports startup failure from proc.Stage(),
+// SetStartupError records why this lifetime's handshake or later runtime
+// restoration failed. The engine reports handshake failure from proc.Stage(),
 // which says WHERE the handshake stopped but not WHY; without this the cause
 // (e.g. `iface: create dummy "zdiag0": operation not permitted`) was logged at
 // Debug and dropped, and ze exited with only "plugin interface failed during
 // startup at stage Config" -- an error with no evidence and no corrective
 // action (ai/rules/cli.md).
 //
-// Only the FIRST cause is kept: it is the one that actually stopped startup,
+// Only the FIRST cause is kept: it stopped handshake or restoration,
 // and later errors are usually its consequences (a closed pipe, an aborted
 // stage). A nil err is ignored so a caller need not branch.
 //
@@ -219,7 +219,7 @@ func (p *Process) SetStartupError(err error) {
 }
 
 // StartupError returns the cause recorded by SetStartupError, or nil when the
-// handshake never failed or failed without a reported cause. Callers MUST treat
+// handshake and restoration have no reported cause. Callers MUST treat
 // nil as "no cause available" and still report the failure -- the absence of a
 // cause is not evidence of success (ai/rules/evidence.md).
 //

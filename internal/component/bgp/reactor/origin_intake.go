@@ -65,11 +65,16 @@ func originBatchEligible(batch bgptypes.NLRIBatch) bool {
 }
 
 func originBatchProducer(ctx context.Context, batch bgptypes.NLRIBatch, sender plugin.Sender) (originProducer, error) {
+	return originBatchProducerOperation(ctx, batch, sender, rpc.OriginIntakeAnnounce)
+}
+
+func originBatchProducerOperation(ctx context.Context, batch bgptypes.NLRIBatch, sender plugin.Sender, operation rpc.OriginIntakeOperation) (originProducer, error) {
 	if sender.IsOperator() {
 		return operatorOriginProducer(), nil
 	}
 	owner := batch.OriginOwner
 	if !owner.Sender().IsSet() {
+
 		var err error
 		owner, err = plugin.OriginProducerFromContext(ctx)
 		if err != nil {
@@ -78,6 +83,11 @@ func originBatchProducer(ctx context.Context, batch bgptypes.NLRIBatch, sender p
 	}
 	if owner.Sender() != sender {
 		return originProducer{}, errors.New("origin producer does not match the authenticated sender")
+	}
+	if operation == rpc.OriginIntakeWithdraw {
+		if originRetirementOwner(ctx, owner) {
+			return originProducer{kind: originProducerProcess, owner: owner}, nil
+		}
 	}
 	return newProcessOriginProducer(owner)
 }
@@ -126,6 +136,11 @@ func captureOriginBuild(batch bgptypes.NLRIBatch, n nlri.NLRI) (*originBuildValu
 // refuses before direct output. Known live legacy owners, explicit roles and
 // API-only/no-RIB peers preserve their rails. No daemon candidate election occurs.
 func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes.NLRIBatch, sender plugin.Sender, peers []*Peer, operation rpc.OriginIntakeOperation, output *rpc.UpdateRouteOutput) ([]*Peer, error) {
+	if operation == rpc.OriginIntakeWithdraw {
+		if retirement, tracked := plugin.OriginRetirementFromContext(ctx); tracked {
+			return a.retireTrackedOriginBatch(ctx, batch, sender, peers, retirement, output)
+		}
+	}
 	if !originBatchEligible(batch) {
 		return peers, nil
 	}
@@ -164,7 +179,7 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 			partitioned = true
 		}
 		if !prepared {
-			producer, err = originBatchProducer(ctx, batch, sender)
+			producer, err = originBatchProducerOperation(ctx, batch, sender, operation)
 			if err != nil {
 				return nil, err
 			}
@@ -172,6 +187,7 @@ func (a *reactorAPIAdapter) offerOriginBatch(ctx context.Context, batch bgptypes
 			if err != nil {
 				return nil, err
 			}
+
 			builds = make([]*originBuildValue, len(batch.NLRIs))
 			if operation == rpc.OriginIntakeAnnounce {
 				for i, n := range batch.NLRIs {
@@ -259,19 +275,29 @@ func (a *reactorAPIAdapter) offerOriginToPeer(ctx context.Context, producer orig
 	if err != nil {
 		return nil, err
 	}
-	// issue revokes a replaced receipt; join only real older writes for this
-	// exact contribution before offering its replacement. A newer generation
-	// admitted concurrently is never revoked by this operation.
-	key := originKey(producer, source, build.originIdentity, peer.sourceOwner)
-	if err := store.joinOriginPredecessors(ctx, key, receipt); err != nil {
-		cleanup := store.retireOriginReceipt(ctx, receipt)
-		return nil, errors.Join(err, cleanup)
+	return a.offerIssuedOrigin(ctx, receipt, peer, owner, false)
+}
+
+// offerIssuedOrigin MUST enroll before reaching any provider mutation and MUST
+// release only after postvalidation and any bounded compensation have joined.
+func (a *reactorAPIAdapter) offerIssuedOrigin(ctx context.Context, receipt uint64, peer *Peer, owner plugin.SelectedOwner, keep bool) (*rpc.UpdateRouteOutput, error) {
+	store := a.r.originReceipts
+	store.mu.Lock()
+	record := store.receipts[receipt]
+	store.mu.Unlock()
+	operation, release, err := store.beginOriginCall(ctx, record, owner, false)
+	if err != nil {
+		return nil, errors.Join(err, store.retireOriginReceipt(ctx, receipt))
+	}
+	defer release()
+	if err := store.joinOriginPredecessors(operation.ctx, record.key, receipt); err != nil {
+		return nil, errors.Join(err, store.retireOriginReceipt(ctx, receipt))
 	}
 	if err := store.validateOriginIntakeReceipt(receipt, peer, owner); err != nil {
 		return nil, errors.Join(err, store.retireOriginReceipt(ctx, receipt))
 	}
-	input := originIntakeValue(producer, source, build, peer, receipt, rpc.OriginIntakeAnnounce)
-	work, cancel := rpc.OriginIntakeCallContext(ctx, &input)
+	input := originIntakeValue(record.key.producer, record.source, record.build, peer, receipt, rpc.OriginIntakeAnnounce)
+	work, cancel := rpc.OriginIntakeCallContext(operation.ctx, &input)
 	defer cancel()
 	output, err := a.r.api.OriginIntake(work, owner, input)
 	if err == nil {
@@ -281,18 +307,23 @@ func (a *reactorAPIAdapter) offerOriginToPeer(ctx context.Context, producer orig
 		err = store.validateOriginIntakeReceipt(receipt, peer, owner)
 	}
 	if err == nil {
-		if validation := rpc.ValidateOriginIntakeOutput(input, output); validation != nil {
-			err = validation
-		}
+		err = rpc.ValidateOriginIntakeOutput(input, output)
 	}
-	if err != nil {
-		// The joined callback may have retained even when its reply is invalid,
-		// canceled or stale. Remove that exact provider member as well as issuer
-		// authority before returning; a newer replacement remains intact.
-		cleanup := a.compensateOriginIntake(ctx, owner, input)
-		return output, errors.Join(err, cleanup)
+	if err == nil {
+		return output, nil
 	}
-	return output, nil
+	if !keep {
+		return output, errors.Join(err, a.compensateOriginIntake(ctx, owner, input))
+	}
+	// Preserve only the still-current immutable original during failed replay.
+	// park cannot resurrect a concurrent withdrawal or a newer replacement.
+	store.mu.Lock()
+	store.park(record)
+	idle := record.idle
+	store.mu.Unlock()
+	cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), rpc.CancellableRequestTimeout)
+	defer stop()
+	return output, errors.Join(err, waitSourceReceiptWrites(cleanup, idle), withdrawOriginIntake(cleanup, owner, input))
 }
 
 func (a *reactorAPIAdapter) withdrawOriginFromPeer(ctx context.Context, producer originProducer, source *originSource, identity *originIdentity, peer *Peer, owner plugin.SelectedOwner) (*rpc.UpdateRouteOutput, error) {
@@ -300,28 +331,27 @@ func (a *reactorAPIAdapter) withdrawOriginFromPeer(ctx context.Context, producer
 	if store == nil {
 		return nil, errors.New("origin intake was declared but its engine domain has not started")
 	}
-	key := originKey(producer, source, identity, peer.sourceOwner)
-	store.mu.Lock()
-	if err := store.live(); err != nil {
-		store.mu.Unlock()
+	record, err := store.originWithdrawal(ctx, producer, source, identity, peer, owner)
+	if err != nil {
 		return nil, err
 	}
-	record := store.current[key]
 	if record == nil {
-		store.mu.Unlock()
 		return &rpc.UpdateRouteOutput{Withdrawn: 1}, nil
 	}
-	if record.peer != peer || !record.provider.SameIncarnation(owner) {
-		store.mu.Unlock()
-		return nil, errors.New("origin withdrawal deciding process or concrete peer changed")
-	}
-	store.mu.Unlock()
 	// Build/source values are immutable and retained by record. Registry lookup
 	// for portable encoding facts must happen outside the leaf issuer mutex.
 	input := originIntakeValue(producer, record.source, record.build, peer, record.id, rpc.OriginIntakeWithdraw)
-	work, cancel := rpc.OriginIntakeCallContext(ctx, &input)
+	operation, release, err := store.beginOriginCall(ctx, record, owner, true)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	work, cancel := rpc.OriginIntakeCallContext(operation.ctx, &input)
 	defer cancel()
 	output, err := a.r.api.OriginIntake(work, owner, input)
+	if err == nil {
+		err = work.Err()
+	}
 	if err != nil {
 		return output, err
 	}
@@ -329,6 +359,7 @@ func (a *reactorAPIAdapter) withdrawOriginFromPeer(ctx context.Context, producer
 		return nil, err
 	}
 	// A replacement admitted during the callback is a different obligation.
+
 	err = store.retireOriginReceipt(work, record.id)
 	if err != nil {
 		return output, fmt.Errorf("origin withdrawal did not join its final writers: %w", err)

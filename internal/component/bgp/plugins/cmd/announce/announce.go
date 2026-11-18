@@ -98,7 +98,7 @@ func getOrInitRegistry(ctx *pluginserver.CommandContext) *Registry {
 		lifetime = ctx.Server.Context()
 	}
 	globalRegistry = NewRegistry(func(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
-		return bgpReactor.WithdrawNLRIBatch(lifetime, sel, batch, sender)
+		return bgpReactor.WithdrawNLRIBatch(plugin.WithOriginRetirement(lifetime, batch.OriginRetirement), sel, batch, sender)
 	})
 	return globalRegistry
 }
@@ -299,6 +299,11 @@ func announceAndTrack(ctx context.Context, reg *Registry, bgpReactor bgptypes.BG
 		}, nil
 	}
 
+	retirement, err := plugin.CaptureOriginRetirement(sender, batch.OriginOwner, output)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+	}
+	batch.OriginRetirement = retirement
 	id, err := reg.Announce(opts.tagKey, opts.tagValue, sel, batch, source, sender, opts.duration)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err

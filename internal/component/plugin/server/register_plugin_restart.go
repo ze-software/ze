@@ -16,6 +16,7 @@ package server
 import (
 	"errors"
 	"slices"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -145,7 +146,8 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 			"a restart replaces the process the reload or commit is talking to, which would fail it",
 			process.RestartCommand(name)+", once the reload or commit in flight has answered")), nil
 	}
-	defer ctx.Server.txLock.release()
+	unlock := sync.OnceFunc(ctx.Server.txLock.release)
+	defer unlock()
 
 	if ctx.Server.removalPendingFor(name) {
 		return plugin.OperatorErrorResponse(opererr.New("plugin "+name+" was not restarted: its removal is still pending",
@@ -159,7 +161,14 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 		wasRunning = proc.Running()
 	}
 	pm.Reenable(name)
-	if err := ctx.Server.restartPlugin(name); err != nil {
+	replacement, err := ctx.Server.restartPluginReplacement(name)
+	// Reconciliation may have deferred this exact replacement to release.
+	// The caller MUST join release before reading its restoration outcome.
+	unlock()
+	if err != nil {
+		return plugin.OperatorErrorResponse(pluginRestartFailure(name, err)), nil
+	}
+	if err := pluginRestartCompletion(pm, name, replacement); err != nil {
 		return plugin.OperatorErrorResponse(pluginRestartFailure(name, err)), nil
 	}
 	message := "plugin " + name + " started again"
@@ -170,6 +179,28 @@ func handlePluginRestart(ctx *CommandContext, validated command.ValidatedArgs) (
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{fieldMessage: message, fieldRestartedPlugin: name, fieldRestartWasRunning: wasRunning},
 	}, nil
+}
+
+// pluginRestartCompletion MUST follow the owning transaction release. A
+// diagnostic row belongs to a name and can still describe the prior process;
+// only the captured lifetime's result and current admission establish success.
+func pluginRestartCompletion(pm *process.ProcessManager, name string, replacement *process.Process) error {
+	if replacement == nil {
+		return errors.New("restart returned no replacement process")
+	}
+	if err := replacement.StartupError(); err != nil {
+		return err
+	}
+	if pm.GetProcess(name) != replacement {
+		return errors.New("the replacement process is no longer current")
+	}
+	if !replacement.Running() {
+		return errors.New("the replacement process ended before restart completed")
+	}
+	if err := replacement.RequirePeerDeclarations(); err != nil {
+		return err
+	}
+	return replacement.RequireRuntimeRestoration()
 }
 
 // pluginRestartFailure is the operator error of a restart that failed. Its

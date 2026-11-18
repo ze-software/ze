@@ -4,6 +4,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -65,6 +66,8 @@ func (replacement peerDeclarationReplacement) refuse(err error) {
 	if pm == nil || pm.GetProcess(proc.Name()) != proc {
 		return
 	}
+	// The exact lifetime retains the refusal after rollback removes its slot.
+	proc.SetStartupError(err)
 	s.rollbackReplacement(proc)
 	pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopRestartFailed, Detail: err.Error()})
 	s.txLock.mu.Lock()
@@ -83,7 +86,15 @@ func (replacement peerDeclarationReplacement) admit() {
 		return
 	}
 	defer controller.release()
-	s.admitPeerDeclarationReplacement(proc)
+	// The restart that deferred this work has released its handshake context.
+	// The transaction owner MUST join restoration under its own bounded scope.
+	ctx, cancel := context.WithTimeout(s.Context(), restartStartupHandshakeBound(proc, previousStartupBudget(proc)))
+	defer cancel()
+	if err := s.admitPeerDeclarationReplacement(ctx, proc); err != nil {
+		if pm := s.procManager.Load(); pm != nil {
+			pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopRestartFailed, Detail: err.Error()})
+		}
+	}
 }
 
 // announcePeerDeclarationChange leaves identical declarations alone, while

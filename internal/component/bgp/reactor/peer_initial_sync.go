@@ -493,7 +493,11 @@ func (p *Peer) sendQueuedWithdrawal(session *Session, op peerOp, maxMsgSize int)
 	if err != nil {
 		return err
 	}
-	return session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath, false)
+	// Both opQueue drains retain the accepted-entry restriction through every
+	// split and the final socket/table lock. The background drain owns no
+	// caller context; the private shape retains only a restrictive fact.
+	owner := fwdItem{peer: p, session: session, originated: true, registryRetirement: op.Withdrawal.registryRetirement}
+	return session.sendUpdateOwnedWithSplit(context.Background(), update, maxMsgSize, addPath, false, &owner, (*Session).writeUpdate)
 }
 
 // drainAndCloseQueueGate writes every operation the opQueue still holds, then

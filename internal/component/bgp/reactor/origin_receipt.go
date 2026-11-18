@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -36,7 +37,8 @@ type originScope struct {
 // intakes cannot become either fresh receipts or historical scope tombstones.
 type originIssue struct {
 	originScope
-	revoked bool // store.mu
+	revoked  bool                 // store.mu
+	original *originReceiptRecord // trusted re-offer of this exact current original value
 }
 
 // originReceiptStore is an issuer, never a candidate RIB or selector. It keeps
@@ -52,24 +54,29 @@ type originIssue struct {
 // mu is a leaf: never hold it across I/O, peer locks, engine calls or waits.
 // Safe for concurrent use.
 type originReceiptStore struct {
-	mu       sync.Mutex
-	lifetime context.Context
-	next     uint64
-	closed   bool
-	current  map[originContributionKey]*originReceiptRecord
-	receipts map[uint64]*originReceiptRecord
-	intakes  map[*originIssue]struct{}
+	mu         sync.Mutex
+	lifetime   context.Context
+	cancel     context.CancelFunc
+	parentStop func() bool
+	calls      map[*originIntakeCall]struct{}
+	next       uint64
+	closed     bool
+	current    map[originContributionKey]*originReceiptRecord
+	receipts   map[uint64]*originReceiptRecord
+	intakes    map[*originIssue]struct{}
 }
 
 type originReceiptRecord struct {
 	originScope
 	store     *originReceiptStore
 	id        uint64
+	lineage   uint64 // First accepted receipt, preserved only by reissue.
 	source    *originSource
 	build     *originBuildValue
 	ctx       context.Context
 	cancel    context.CancelFunc
 	revoked   bool // store.mu
+	retained  bool // store.mu: only exact generation cleanup may retain original data
 	writes    map[uint64]struct{}
 	nextWrite uint64
 	idle      chan struct{} // allocated only while revoking actual outstanding work
@@ -85,7 +92,7 @@ func newOriginReceiptStore(lifetime context.Context) (*originReceiptStore, error
 	if err := lifetime.Err(); err != nil {
 		return nil, err
 	}
-	return &originReceiptStore{lifetime: lifetime, current: make(map[originContributionKey]*originReceiptRecord), receipts: make(map[uint64]*originReceiptRecord), intakes: make(map[*originIssue]struct{})}, nil
+	return &originReceiptStore{lifetime: lifetime, current: make(map[originContributionKey]*originReceiptRecord), receipts: make(map[uint64]*originReceiptRecord), intakes: make(map[*originIssue]struct{}), calls: make(map[*originIntakeCall]struct{})}, nil
 }
 
 func (store *originReceiptStore) live() error {
@@ -132,6 +139,12 @@ func (store *originReceiptStore) endIssue(intake *originIssue) {
 // commit. A matching revoke seals this exact call even if permission is later
 // restored; a fresh call under restored permission enrolls independently.
 func (store *originReceiptStore) issue(ctx context.Context, producer originProducer, source *originSource, build *originBuildValue, peer *Peer, provider plugin.SelectedOwner) (uint64, error) {
+	return store.issueOriginal(ctx, producer, source, build, peer, provider, nil)
+}
+
+// issueOriginal accepts an engine-owned original only when it is still current.
+// A retained original never turns an ended Process into an ingress authority.
+func (store *originReceiptStore) issueOriginal(ctx context.Context, producer originProducer, source *originSource, build *originBuildValue, peer *Peer, provider plugin.SelectedOwner, original *originReceiptRecord) (uint64, error) {
 	if store == nil {
 		return 0, errors.New("origin issuer is missing")
 	}
@@ -162,7 +175,11 @@ func (store *originReceiptStore) issue(ctx context.Context, producer originProdu
 		return 0, err
 	}
 	defer store.endIssue(intake)
-	if err := producer.current(); err != nil {
+	store.mu.Lock()
+	intake.original = original
+	producerErr := store.issueProducerCurrent(intake)
+	store.mu.Unlock()
+	if err := producerErr; err != nil {
 		return 0, err
 	}
 	if peer.stopping.Load() {
@@ -179,9 +196,15 @@ func (store *originReceiptStore) issue(ctx context.Context, producer originProdu
 	if len(permitted) != 1 {
 		return 0, errors.New("origin producer scope is not authorized")
 	}
-	snapshot := peer.selectedOwnerSnapshot()
+	publication := peer.selectedOwnerSnapshot()
+	snapshot := publication
 	if snapshot == nil {
-		return 0, errors.New("origin Peer has no live dissemination snapshot")
+		// A configured Peer is a valid admitted scope before TCP exists. Do not
+		// publish forwarding facts for it: final output still needs a real Session.
+		peer.mu.RLock()
+		bindings := slices.Clone(peer.settings.ProcessBindings)
+		peer.mu.RUnlock()
+		snapshot = peer.buildDisseminationSnapshot(nil, bindings)
 	}
 	if snapshot.owner.Explicit() {
 		return 0, errors.New("origin ordinary intake cannot replace an explicit dissemination role")
@@ -203,13 +226,13 @@ func (store *originReceiptStore) issue(ctx context.Context, producer originProdu
 	if peer.stopping.Load() {
 		return 0, errors.New("origin original Peer has been removed")
 	}
-	if err := producer.current(); err != nil {
+	if err := store.issueProducerCurrent(intake); err != nil {
 		return 0, err
 	}
 	if err := provider.Current(); err != nil {
 		return 0, err
 	}
-	if peer.selectedOwnerSnapshot() != snapshot {
+	if peer.selectedOwnerSnapshot() != publication {
 		return 0, errors.New("origin Peer ownership changed during admission")
 	}
 	if store.next == math.MaxUint64 {
@@ -217,10 +240,26 @@ func (store *originReceiptStore) issue(ctx context.Context, producer originProdu
 	}
 	store.next++
 	work, cancel := context.WithCancel(store.lifetime)
-	record := &originReceiptRecord{originScope: intake.originScope, store: store, id: store.next,
+	record := &originReceiptRecord{originScope: intake.originScope, store: store, id: store.next, lineage: store.next,
 		source: source, build: build, ctx: work, cancel: cancel}
+	if original != nil {
+		record.retained = original.retained
+	}
+	// An authenticated same-name successor replaces only an actual kept old
+	// contribution, never grants itself the predecessor's ingress token.
+	for _, old := range store.current {
+		if !old.retained {
+			continue
+		}
+		if sameOriginSource(old.key, key) {
+			store.invalidate(old)
+		}
+	}
 	if old := store.current[key]; old != nil {
 		store.invalidate(old)
+	}
+	if intake.original != nil {
+		record.lineage = intake.original.lineage
 	}
 	store.current[key], store.receipts[record.id] = record, record
 	return record.id, nil
@@ -234,6 +273,9 @@ func originKey(producer originProducer, source *originSource, identity *originId
 // invalidate requires store.mu. A retired record stays discoverable only while
 // real writes retain it; a new issuer record cannot inherit their completion.
 func (store *originReceiptStore) invalidate(record *originReceiptRecord) {
+	if store.current[record.key] == record {
+		delete(store.current, record.key)
+	}
 	if record.revoked {
 		return
 	}

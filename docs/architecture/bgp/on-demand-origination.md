@@ -9,11 +9,16 @@ what had been announced, so nothing could withdraw it by reference.
 
 ## The decisions
 
-**Announce is wire only. It reaches peers and it touches no RIB (owner
-directive, 2026-08-31).** The route is not inserted in the Loc-RIB, so it does
-not compete in cross-source best path and it does not reach the kernel FIB. That
-is deliberate: the verb exists for DDoS mitigation and maintenance, where the
-operator states what a peer must hear.
+**Announce uses the existing local build, export and socket path.** It does
+not install a forwarding route or program the kernel FIB. A destination with no
+ordinary deciding provider keeps direct origination, as does an explicit RS/RR
+destination. An ordinary provider that registers origin intake instead receives
+the exact scoped original and owns retention and candidate election before
+output. Its retained receipt can describe a selected loser with `Announced`
+zero. That records accepted retention rather than a socket announcement.
+
+The transport and issuer do not by themselves install an in-tree provider.
+
 
 Every other rail that reaches a peer works the same way.
 `(*BGPConsumer).InjectRoute` formats `update text ... nlri add <prefix>` (`mp <family> add` for any other family, and for IPv4 unicast with an IPv6 next hop)
@@ -77,10 +82,31 @@ end to end, so a `tag.` prefix inside `Meta` gives cross-path tracking with no
 new RPC field. The `config-static` key is the only other `Meta` consumer, so the
 prefix cannot collide with it.
 
-**The registry is in-memory and wraps the announce call. The reactor stays
-stateless.** Tracking inside the reactor was rejected. The registry is the only
-new state, and it is the shared code path for the CLI, for the plugin API
-(`tag.` meta) and for the future flowspec-egress bridge.
+**The registry owns in-memory tag and lifetime tracking around the announce
+call.** The reactor's separate current-origin issuer owns only admitted native
+data, provenance and exact receipt authority. It has no tag catalog or candidate
+election. The registry remains the shared tracking path for the CLI and plugin
+API (`tag.` meta). Its removal callback carries the successful result's captured
+Peer and generation, authenticated sender and, for a named producer, exact
+Process token. Operator entries need no Process.
+
+The engine preserves accepted lineage across its own reoffers. A new same-key
+input starts another lineage.
+Expiry or tag removal retires only that accepted original, including parked
+data while its provider is unavailable. Remote cleanup failure remains explicit.
+Provider restart cannot resurrect expired data or erase a newer replacement.
+
+An entry accepted on a direct rail has no ordinary candidate receipt. If the
+destination later adopts ordinary selection, that old entry can still retire
+current direct output. Its cleanup cannot withdraw a selected replacement,
+including a selected local route. The final writer checks the actual selected
+owner when the withdrawal reaches the socket. Queueing it earlier grants no
+right over a later selection. This includes an entry held in a down peer's
+operation queue and drained after Established publication.
+
+Explicit manual withdrawals keep their existing semantics.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow -->
+
 
 **Every withdraw starts with a keyword, and each keyword is its own command.**
 The three forms are `withdraw tag <key> [value <value>]`, `withdraw id <id>`

@@ -132,12 +132,17 @@ var errSendNoSender = errors.New("send refused: the command names no sender, so 
 // pointer and would read identically; the direct field is used because the
 // caller already holds r.mu and the intent is a field read, not a handle.
 func (p *Peer) maySend(origin sendOrigin) bool {
+	return bindingsMaySend(p.settings.ProcessBindings, origin)
+}
+
+// bindingsMaySend is the same cold grant evaluator for published old/new bindings.
+func bindingsMaySend(bindings []ProcessBinding, origin sendOrigin) bool {
 	process, ok := origin.sender.Process()
 	if !ok {
 		return false
 	}
-	for i := range p.settings.ProcessBindings {
-		b := &p.settings.ProcessBindings[i]
+	for i := range bindings {
+		b := &bindings[i]
 		if b.PluginName != process {
 			continue
 		}

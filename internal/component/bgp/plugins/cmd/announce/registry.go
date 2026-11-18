@@ -79,6 +79,8 @@ func (r *Registry) Announce(key, value string, sel *selector.Selector, batch typ
 		Sender:    sender,
 	}
 
+	r.mu.Lock()
+	r.entries[id] = entry
 	if duration > 0 {
 		expires := entry.CreatedAt.Add(duration)
 		entry.ExpiresAt = &expires
@@ -87,8 +89,6 @@ func (r *Registry) Announce(key, value string, sel *selector.Selector, batch typ
 		})
 	}
 
-	r.mu.Lock()
-	r.entries[id] = entry
 	r.mu.Unlock()
 
 	return id, nil

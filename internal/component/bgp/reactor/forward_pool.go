@@ -69,6 +69,10 @@ type fwdItem struct {
 	// ranked outside the peer's PATHS-LIMIT: its owner is current, and the
 	// recovery writer withdraws it anyway (session_paths_limit_elect.go).
 	pathsLimitDemotion bool
+	// registryRetirement is a restriction from a genuine accepted-entry registry
+	// context, never caller metadata or selection authority. Its old direct
+	// cleanup MUST spare output subsequently owned by a selecting process.
+	registryRetirement bool
 	// ownRouteWithdrawal limits an unowned withdrawal to what the key holds as this
 	// speaker's own route (adjOutWrite.allow), and ownRouteWithdrawn records that a
 	// path passed, so the caller can tell a withheld withdrawal from a sent one.

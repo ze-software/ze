@@ -179,8 +179,14 @@ The Go SDK derives this declaration from `OnStarted`. After acknowledging
 `ready`, the engine asks `runtime-ready` through the ordinary callback queue.
 The SDK can answer only after `OnStarted` has returned successfully and its
 event loop has begun. The startup tier waits for this receipt before starting
-a dependent tier. A plugin with no initializer declares none and owes no such
-receipt.
+a dependent tier. A socket plugin with no initializer declares none and owes no
+initializer receipt.
+
+Every negotiated internal bridge also owes this receipt, even with no
+initializer. The final ready response can reach the SDK reader before the SDK
+activates its typed slots. The queued `runtime-ready` answer joins that
+activation before startup exposes those slots. A completed pipe write alone
+cannot establish runtime readiness.
 
 Initialization failure, timeout or cancellation fails startup. The engine does
 not publish a ready dependency until initialization succeeds.
@@ -1059,14 +1065,19 @@ startup handshake gets five ordinary stage windows (25s by default). When no
 per-process `stage-timeout` is explicit and the environment timeout is positive,
 the configure window is the larger of the ordinary window and the outgoing
 process's accepted, capped `apply-budget`. The daemon captures that allowance
-before replacing the process; the replacement's declaration cannot change its
-own bound. The other four windows retain their ordinary duration. When the
-outgoing accepted declaration includes `started-handler`, the handshake also
+before it replaces the process. The replacement's declaration cannot change its
+own bound. The other four windows retain their ordinary duration.
+<!-- source: internal/component/plugin/server/restart.go -- restartHandshakeBound, boundedRestartHandshake -->
+<!-- source: internal/component/plugin/server/startup_budget.go -- previousStartupBudget, restartStartupHandshakeBound -->
+
+When the outgoing accepted declaration includes `started-handler`, the handshake also
 gets one initializer window: the accepted allowance, or the ordinary stage
 window when that is larger. An explicit process timeout sets each window,
 including that conditional initializer window. A missing or unaccepted
-initializer declaration adds no initializer window. Nonpositive environment
+initializer declaration adds no initializer window. A bridge activation receipt
+with no initializer uses the existing handshake scope. Nonpositive environment
 timeouts retain their immediate-expiry behavior.
+<!-- source: internal/component/plugin/server/startup_budget.go -- restartStartupHandshakeBound -->
 
 The daemon's context can end the handshake earlier. A handshake that runs out of its bound fails
 the restart the way a failed handshake does. The rollback that stops a
@@ -2262,11 +2273,12 @@ reconstructs its owned build and applies local export once. The caller's
 receipts refuse output.
 <!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
 
-Runtime issuer and candidate-provider instances do not yet activate this
-feature. Lifecycle adoption MUST preserve no-RIB direct origination,
-non-established-peer admission, explicit keep-on-exit behavior and RS/RR paths.
-Candidate mutation uses the registered intake and acknowledged cancellation.
-The `current-selection` callback remains read-only.
+The reactor constructs its issuer before ingress and owns joined runtime
+barriers. It does not itself install a candidate provider. Local admission
+preserves no-RIB direct origination, non-established-peer scopes, existing
+keep-on-exit behavior and RS/RR paths. Candidate mutation uses the registered
+intake and acknowledged cancellation. The `current-selection` callback remains
+read-only.
 <!-- source: internal/component/bgp/reactor/origin_build.go -- newOriginBuildValue, newOriginIdentity -->
 <!-- source: internal/component/bgp/reactor/origin_producer.go -- newProcessOriginProducer, newOriginSource -->
 <!-- source: internal/component/bgp/reactor/origin_receipt.go -- originReceiptStore, issue -->
@@ -2641,9 +2653,10 @@ the existing export and socket writer.
 <!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin -->
 <!-- source: internal/component/bgp/reactor/selected_flush.go -- writeSelected -->
 
-Runtime activation still requires a reactor-owned origin domain and joined
-producer, peer, grant, session and owner lifecycle barriers. A registered RIB
-candidate provider and shared cross-origin preference comparison remain required.
+The reactor constructs its origin domain before ingress and joins producer,
+Peer, grant, Session and provider lifecycle barriers. Its retained original
+lifecycle is described below. A registered RIB candidate provider and shared
+cross-origin preference comparison remain required.
 <!-- source: internal/component/bgp/reactor/reactor.go -- Reactor.originReceipts -->
 <!-- source: internal/component/bgp/reactor/origin_receipt.go -- newOriginReceiptStore -->
 <!-- source: internal/component/bgp/reactor/origin_write.go -- revokeOwner, revokePeer, revokeProducerPeer, close -->
@@ -2654,6 +2667,123 @@ redistribution still require exact original source provenance. SENT state suppli
 no candidate authority.
 <!-- source: internal/component/bgp/reactor/origin_intake.go -- originBatchProducer, offerOriginToPeer -->
 <!-- source: internal/component/bgp/reactor/origin_producer.go -- newOriginSource -->
+
+#### Original local output across process and Peer lifetimes
+
+<!-- source: internal/component/bgp/reactor/origin_runtime.go -- bindLifetime, endOwner, replayOrigin, EndOriginOwner, ReplayOriginOwner -->
+<!-- source: internal/component/bgp/reactor/origin_grants.go -- revokeRemovedOriginGrants, parkReboundOrigins, replayPeerOrigins, retireOriginCandidate -->
+<!-- source: internal/component/bgp/reactor/register_origin_runtime.go -- originGenerationReady -->
+<!-- source: internal/component/plugin/server/generation_ready.go -- ProcessGenerationReady, runProcessGenerationReady -->
+<!-- source: internal/component/plugin/origin_retirement.go -- CaptureOriginRetirement, MatchesOrigin, WithOriginRetirement -->
+
+The reactor owns one origin issuer before API admission. Stopping it cancels
+and joins actual intake callbacks and final selected writes before its current
+original data is released. A permanent Peer removal does the same for that
+exact Peer identity. A replacement at the same address cannot reuse a receipt.
+An admitted origin can belong to a configured Peer whose TCP session is down.
+This does not publish forwarding facts or authorize a write: output still needs
+the current captured destination Session and the selecting provider's grants.
+
+An ended producer cannot submit new data. Generic `update-route` announcements
+already survive their process's exit, so the engine keeps only their previously
+admitted original bytes, provenance and exact Peer scope.
+
+It cancels and joins
+the old receipt's work, then offers the same original data under a fresh receipt
+to the current deciding process. If that process also ended, the data stays
+parked until the configured provider completes its replacement handshake. A
+provider restart uses this generic registered generation hook, never a plugin
+name branch. Rejected or failed replay is an error. It does not grant direct
+output around the provider.
+
+The ExaBGP bridge still owns child-script `on-exit keep`/`withdraw`, including
+API-version defaults and restore-configured withdrawals. The bridge's child
+ledger is distinct from its long-lived plugin Process. No generic plugin
+`on-exit` leaf is introduced here.
+
+An existing accepted timer/tag entry can
+retire its exact accepted original, including an operator entry with no Process
+token. The registry captures the successful result's concrete Peer and accepted
+generation, together with the authenticated sender and named producer token.
+Engine-owned reoffers preserve that original lineage and issue fresh write
+receipts. Fresh ingress starts a new lineage even from the same Process/key.
+An old timer or tag cannot remove that newer input. The captured value never
+authorizes a new announcement or a successor's replacement data.
+
+A newly started producer can replace or withdraw a kept predecessor from the
+same configured source. It MUST use its own live Process token and current grant.
+
+An accepted direct entry carries no ordinary admission. Its trusted registry
+retirement is therefore restricted at the final writer. It cannot withdraw an
+entry now owned by a selecting process. This includes local selected routes
+that have no received source.
+
+The restriction survives synchronous and queued
+maintenance sends, down-peer opQueue entries and policy-removal children. Both
+opQueue drains restore the private restriction at the owned final writer.
+Established publication does not make old queued cleanup own a later selection.
+It supplies no retroactive
+receipt or new selection authority. Current direct withdrawals and explicit
+manual API withdrawals retain their existing behavior.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- initBatchOwner, queueBehindForwards -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow -->
+
+Published removal of a producer's send grant removes only that source's actual
+admitted scope. Loss of the deciding destination grants removes that destination
+scope. These barriers cancel and join affected callbacks and writes, then retire
+the actual candidate through the deciding plugin so eligible survivors can be
+selected. Unrelated scopes remain live.
+
+Transient TCP DOWN keeps admitted local originals for reconnect. Terminal Peer
+removal releases them.
+
+
+An origin operation remains enrolled after the callback reply until issuer
+postvalidation and any bounded captured-owner compensation have joined. Scope
+revocation cancels the original operation and waits for that composite
+completion. A withdrawal stays enrolled through its final receipt retirement.
+Its own invalidation does not cancel the context that joins its accepted writes.
+No issuer, Peer or reactor lock is held across these waits.
+
+Destination permission removal first joins affected issuer work, then retires
+only the captured Session/provider frontier using engine cleanup authority. The
+existing joined `ReasonPeerRemoved` DOWN drops that exact provider destination
+before the original candidate is withdrawn. No ordinary selected absence is
+authorized by a lost grant. A receive-only binding rebound parks surviving
+originals before its terminal DOWN. It re-offers them after the binding is
+published and reconciled, even when the provider's process token did not change.
+
+Managed generation-ready hooks run only after the full handshake and runtime
+request readers are live. A replacement first reconciles and admits its peer
+declarations, so restoration can call selected output through the normal guard.
+
+The owning startup or immediate restart goroutine joins restoration before it
+returns success. When a transaction defers admission, its completion goroutine
+owns a fresh bounded restoration join before it completes the transaction.
+The restart command reads that exact replacement's completed restoration and
+admission, not a name-level doctor record from an older process.
+
+A separate replacement hold blocks post-startup delivery from a racing global
+fan-out while restoration still runs. Only successful restoration releases
+that hold. A failed restoration stops and releases the exact replacement through
+the existing rollback path. A superseded process cannot run restoration.
+These steps permit a framed intake callback to call selected output with live
+readers, reconciled authority and no premature post-startup delivery.
+
+Trusted registry expiry removes its exact issuer original even while the
+configured provider is unavailable. Remote cleanup failure stays explicit.
+Later provider readiness cannot resurrect the expired data.
+
+For a bridge child's `restore-configured` withdrawal, the engine first removes
+its admitted API original through the current provider and joins that removal.
+Only then does the existing configured-route builder give back the configured
+route. The original cannot replay after that restoration. Direct/no-intake
+scopes retain their existing restoration path. Configuration and SENT state
+gain no candidate-election authority.
+
+<!-- source: internal/component/bgp/reactor/origin_registry.go -- retireTrackedOriginBatch, retireTrackedLineage -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- withdrawNLRIBatch -->
+<!-- source: internal/component/bgp/reactor/peer_static_restore.go -- restoreConfigured -->
 
 #### Update-route command and admission results
 
@@ -3660,6 +3790,7 @@ For Go plugins (`ze.pluginname`) -- runs in same process:
 | 4 | SDK | Receives OK, registers `DeliverEvents` handler on bridge |
 | 5 | SDK | Calls `bridge.SetReady()` -- bridge now active |
 | 6 | SDK | Closes pipe (`engineMux.Close()`), enters `bridgeEventLoop` |
+| 7 | Engine | Joins the queued `runtime-ready` answer before startup succeeds, including when no initializer was declared |
 
 The engine wires its handler and publishes the negotiated callback transport
 before acknowledging ready. Each callback selects one published bridge; it does
@@ -3668,6 +3799,13 @@ the SDK activates the bridge, then follows sticky activation even after shutdown
 If IPC closes while liveness is being read, the engine rechecks activation before
 reporting the IPC failure. The SDK publishes readiness before sticky activation,
 so an observer cannot confuse incomplete activation with shutdown.
+
+The startup owner MUST join the queued `runtime-ready` answer for every
+negotiated bridge. Its SDK default handler needs no `OnStarted` declaration.
+The SDK loop can answer only after bridge activation. This protects typed
+mutation and snapshot callbacks from a false closed-bridge result between the
+final response write and SDK activation. A stopped bridge still refuses calls
+and never falls back to the startup socket.
 
 This also applies to `deliver-batch` events queued between bridge publication
 and SDK activation. They wait on the negotiated callback channel, not the

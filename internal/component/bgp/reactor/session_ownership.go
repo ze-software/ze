@@ -471,7 +471,17 @@ func (w *adjOutWrite) allow(fam family.Family, raw []byte, withdraw, multiprotoc
 		}
 	}
 	if withdraw {
-		own := w.session.sentForward != nil && w.session.sentForward.ownRouteWithdrawal
+		// An accepted legacy registry entry has no candidate receipt. It may
+		// retire its direct output, but MUST NOT remove a later selected
+		// owner. source == nil alone cannot distinguish these: selected local
+		// output also has no received source. The actual selection owner is
+		// recorded under this same final socket/table lock. Manual API writes
+		// carry no registry restriction and keep their existing semantics.
+		item := w.session.sentForward
+		if item != nil && item.registryRetirement && entry != nil && entry.selection.owner.Done() != nil {
+			return false, nil
+		}
+		own := item != nil && item.ownRouteWithdrawal
 		if own && entry == nil {
 			return false, nil // Nothing under the key to withdraw.
 		}

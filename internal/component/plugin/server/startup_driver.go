@@ -289,7 +289,15 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 5 respond: %w", err)
 	}
-	if regInput.StartedHandler {
+	// A published bridge is not active until the SDK consumes the final ACK.
+	// Even without OnStarted, startup MUST join the queued runtime-ready
+	// receipt before callers can enter typed slots. The SDK loop answers only
+	// after SetReady; a false unready result must not become a failed process.
+	runtimeReceiptNeeded := regInput.StartedHandler
+	if conn.HasBridge() {
+		runtimeReceiptNeeded = true
+	}
+	if runtimeReceiptNeeded {
 		if err := joinStartupInitialization(ctx, sink, conn, regInput.ApplyBudget); err != nil {
 			return fmt.Errorf("stage 5 initialization: %w", err)
 		}

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
@@ -278,7 +279,7 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 		return target.queueBehindForwards(batch.SentOwnerMessage, batch.SourcePolicyEpoch, batch.Replay)(ctx, update, maxSize, addPath)
 	}
 	var owner fwdItem
-	if err := target.initBatchOwner(&owner, &batch); err != nil {
+	if err := target.initBatchOwner(ctx, &owner, &batch); err != nil {
 		return err
 	}
 	return target.session.sendUpdateOwnedWithSplit(ctx, update, maxSize, addPath, batch.Replay, &owner, (*Session).writeUpdate)
@@ -287,8 +288,9 @@ func (target announceTarget) sendBatchUpdate(ctx context.Context, update *messag
 // initBatchOwner preserves the same local or captured receipt authority for
 // ordinary and already-filtered batches. Policy completion does not change
 // originated ownership or waive initial-replay admission.
-func (target announceTarget) initBatchOwner(owner *fwdItem, batch *bgptypes.NLRIBatch) error {
-	*owner = fwdItem{peer: target.peer, session: target.session, originated: true, exportGeneration: target.exportGeneration}
+func (target announceTarget) initBatchOwner(ctx context.Context, owner *fwdItem, batch *bgptypes.NLRIBatch) error {
+	_, retirement := plugin.OriginRetirementFromContext(ctx)
+	*owner = fwdItem{peer: target.peer, session: target.session, originated: true, exportGeneration: target.exportGeneration, registryRetirement: retirement}
 	if batch.SentOwnerMessage != 0 {
 		owner.authority = adjOutExpected
 		owner.expectedMessage = batch.SentOwnerMessage
@@ -335,7 +337,7 @@ func (target announceTarget) initBatchOwner(owner *fwdItem, batch *bgptypes.NLRI
 // be withdrawn from service by means of an UPDATE message (see 9.2)."
 func (target announceTarget) sendOwnRouteWithdrawal(ctx context.Context, update *message.Update, maxSize int, addPath bool, batch *bgptypes.NLRIBatch) (bool, error) {
 	var owner fwdItem
-	if err := target.initBatchOwner(&owner, batch); err != nil {
+	if err := target.initBatchOwner(ctx, &owner, batch); err != nil {
 		return false, err
 	}
 	owner.ownRouteWithdrawal = true
@@ -351,7 +353,7 @@ func (target announceTarget) sendOwnRouteWithdrawal(ctx context.Context, update 
 // queued bytes before returning.
 func (target announceTarget) sendBatchUpdatePreFiltered(ctx context.Context, update *message.Update, body []byte, maxSize int, addPath bool, batch *bgptypes.NLRIBatch, removals [][]byte) error {
 	var owner fwdItem
-	if err := target.initBatchOwner(&owner, batch); err != nil {
+	if err := target.initBatchOwner(ctx, &owner, batch); err != nil {
 		return err
 	}
 	// An unowned stale decision cannot name a received source. Both explicit
@@ -980,12 +982,13 @@ var errForwardPoolStopped = errors.New("forward pool stopped: update not queued"
 // The write happens later on the worker, which logs a failure: a nil answer
 // means queued, as a forwarded UPDATE's does.
 func (target announceTarget) queueBehindForwards(expectedMessage, sourcePolicyEpoch uint64, replay bool) func(context.Context, *message.Update, int, bool) error {
-	return func(_ context.Context, update *message.Update, maxMsgSize int, addPath bool) error {
+	return func(ctx context.Context, update *message.Update, maxMsgSize int, addPath bool) error {
+		_, retirement := plugin.OriginRetirementFromContext(ctx)
 		key := fwdKey{peerAddr: target.peer.settings.PeerKey()}
 		s := message.GetSplitter()
 		defer message.PutSplitter(s)
 		return s.Split(update, maxMsgSize, func(family.Family) bool { return addPath }, func(chunk *message.Update) error {
-			item := fwdItem{updates: []*message.Update{chunk}, peer: target.peer, session: target.session, originated: true}
+			item := fwdItem{updates: []*message.Update{chunk}, peer: target.peer, session: target.session, originated: true, registryRetirement: retirement}
 			if expectedMessage != 0 {
 				item.authority = adjOutExpected
 				item.expectedMessage = expectedMessage
@@ -1113,9 +1116,25 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 		return err
 	}
 
-	peers, intakeErr := a.offerOriginBatch(ctx, batch, sender, peers, rpc.OriginIntakeWithdraw, output)
+	offered := batch
+	if batch.RestoreConfigured {
+		offered.RestoreConfigured = false
+	}
+	originalPeers := peers
+	peers, intakeErr := a.offerOriginBatch(ctx, offered, sender, peers, rpc.OriginIntakeWithdraw, output)
 	if intakeErr != nil {
 		return intakeErr
+	}
+	if batch.RestoreConfigured {
+		for _, peer := range originalPeers {
+			if slices.Contains(peers, peer) {
+				continue
+			}
+			// The deciding plugin already joined this origin's removal. Give
+			// back the configured route through its existing original builder;
+			// do not send a second unowned withdrawal after that restoration.
+			peer.restoreConfigured(batch.NLRIs)
+		}
 	}
 	if len(peers) == 0 {
 		return nil
@@ -1180,7 +1199,8 @@ func (a *reactorAPIAdapter) withdrawNLRIBatch(ctx context.Context, sel *selector
 			var queueErr error
 			// One shape for every NLRI this peer queues: the drain reads its
 			// attributes, never its NLRIs (queuedWithdrawal).
-			shape := &queuedWithdrawal{adapter: a, batch: peerBatch}
+			_, retirement := plugin.OriginRetirementFromContext(ctx)
+			shape := &queuedWithdrawal{adapter: a, batch: peerBatch, registryRetirement: retirement}
 			for k, n := range peerBatch.NLRIs {
 				if err := ctx.Err(); err != nil {
 					return err
@@ -2061,6 +2081,10 @@ var errQueuedWithdrawalShape = errors.New("BUG: a queued withdrawal names no com
 type queuedWithdrawal struct {
 	adapter *reactorAPIAdapter
 	batch   bgptypes.NLRIBatch
+	// registryRetirement is the same private restriction carried by direct
+	// sends, captured only from the accepted-entry context before queueing.
+	// The shared shape is immutable; each drained NLRI keeps this restriction.
+	registryRetirement bool
 }
 
 // update frames the withdrawal of n toward p into attrBuf and nlriBuf, the

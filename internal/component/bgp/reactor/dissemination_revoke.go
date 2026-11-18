@@ -4,6 +4,7 @@ package reactor
 
 import (
 	"context"
+	"errors"
 
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -16,12 +17,13 @@ func (p *Peer) revokeRemovedSourceGrants(r *Reactor, before, after []ProcessBind
 	if r == nil {
 		return nil
 	}
+	originErr := p.revokeRemovedOriginGrants(r, before, after)
 	if r.api == nil {
-		return nil
+		return originErr
 	}
 	manager := r.api.ProcessManager()
 	if manager == nil {
-		return nil
+		return originErr
 	}
 	old := deliveryPeersFromSettings([]*PeerSettings{{Address: p.settings.Address, Name: p.settings.Name, ProcessBindings: before}})[0]
 	next := deliveryPeersFromSettings([]*PeerSettings{{Address: p.settings.Address, Name: p.settings.Name, ProcessBindings: after}})[0]
@@ -43,8 +45,8 @@ func (p *Peer) revokeRemovedSourceGrants(r *Reactor, before, after []ProcessBind
 			continue
 		}
 		if err := sourceReceipts.revokePeerOwner(ctx, p, owner); err != nil {
-			return err
+			return errors.Join(originErr, err)
 		}
 	}
-	return nil
+	return originErr
 }

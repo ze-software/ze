@@ -723,9 +723,44 @@ absence use the existing selected-slot retirement.
 
 Native ADD-PATH presence stays separate from its identifier, including legal
 identifier zero. Opaque identities stay native. Local sent receipts carry no
-received-source owner, policy epoch or lease. Runtime issuer construction,
-lifecycle adoption and provider election remain open under the
-ordinary-advertiser release spec.
+received-source owner, policy epoch or lease.
+
+The Reactor owns the origin issuer before ingress and joins its actual intake
+and write work on revocation. Ended producers cannot submit new input.
+The engine can reoffer only their accepted original data under fresh receipts.
+Down-peer admission retains intent. It publishes no forwarding facts.
+
+Final output still needs the exact original Peer, current provider,
+destination Session, publication and selected revision. Provider election remains
+a separate plugin responsibility.
+
+Timer/tag retirement matches the captured accepted lineage, not just the current
+key or Process. A fresh same-key input is independent. Reoffers preserve the
+original lineage. Expiry removes parked local data before remote cleanup, so a
+provider restart cannot resurrect it. A restore-configured withdrawal first
+joins removal of its API original, then gives back the configured route through
+its existing builder. This creates no received source.
+
+A registry entry originally accepted through direct output has no ordinary
+receipt. Its retirement carries a private restriction through synchronous sends,
+queued chunks and policy-removal children. Under the final socket and Adj-RIB-Out
+locks, that cleanup cannot withdraw an entry owned by a selecting process. A
+selected local route has no received source, so its separate selection owner
+decides this boundary. Current direct output still retires, and explicit manual
+withdrawals retain their ordinary semantics.
+
+Peer opQueue entries capture
+the same restriction when accepted while down. Both initial-sync drains
+reattach it to an owned write for their actual Session, then split the write.
+A current selection can reach that Session after Established publication and
+before the queue drains. The queued cleanup MUST still check the final owner.
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendQueuedWithdrawal -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- initBatchOwner, queueBehindForwards -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- policyRemovalItem -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- allow -->
+<!-- source: internal/component/bgp/reactor/origin_runtime.go -- endOwner, replayOrigin -->
+<!-- source: internal/component/bgp/reactor/origin_registry.go -- retireTrackedLineage -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- withdrawNLRIBatch -->
 <!-- source: internal/component/bgp/reactor/selected_origin.go -- selectOrigin, writeContext -->
 
 #### Shared ownership admission

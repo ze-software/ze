@@ -580,7 +580,15 @@ func New(config *Config) *Reactor {
 	initBufMuxBudget(explicitMaxBytes)
 	initFwdWriteDeadline()
 
+	originLifetime, originCancel := context.WithCancel(context.Background())
+	origins, err := newOriginReceiptStore(originLifetime)
+	if err != nil {
+		originCancel()
+		panic("BUG: new origin issuer: " + err.Error())
+	}
+	origins.cancel = originCancel
 	r := &Reactor{
+		originReceipts:    origins,
 		attrModHandlers:   defaultAttrModHandlers,
 		config:            config,
 		clock:             clock.RealClock{},
@@ -1319,6 +1327,13 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	}
 
 	r.ctx, r.cancel = context.WithCancel(ctx)
+	if r.originReceipts == nil {
+		panic("BUG: reactor has no origin issuer")
+	}
+	if err := r.originReceipts.bindLifetime(r.ctx); err != nil {
+		r.cancel()
+		return err
+	}
 	r.startTime = r.clock.Now()
 
 	// Register BGP metrics into the injected registry (if set by caller).
@@ -1895,6 +1910,7 @@ func (r *Reactor) stop(notify bool) {
 	cancel := r.cancel
 	if cancel == nil {
 		r.mu.Unlock()
+		r.completeOriginClose()
 		return
 	}
 
@@ -1926,6 +1942,7 @@ func (r *Reactor) stop(notify bool) {
 	// Keep the existing Cease and cancellation ordering, then join revoked
 	// source guards before this stop can be reported as completed.
 	completeSourceLeaseRemoval(peers...)
+	r.completeOriginClose()
 }
 
 // notifyPeersShutdown sends Cease / Administrative Shutdown to every peer that

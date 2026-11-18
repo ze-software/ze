@@ -26,8 +26,8 @@ func init() {
 		panic("BUG: source lease cleanup registration failed: " + err.Error())
 	}
 	if err := diagnostic.Register(diagnostic.CodeMeta{Code: codeSourceLeaseCleanup,
-		Title:       "BGP source lease cleanup did not finish",
-		Description: "A stopped selecting process still has final writes which did not join within their bounded cleanup deadline. Its source authority is revoked. Restart Ze before relying on selected output from a replacement process.",
+		Title:       "BGP selected output cleanup did not finish",
+		Description: "A stopped process, removed Peer or reactor still has selected source or origin work which did not join within its bounded cleanup deadline. Its authority is revoked. Restart Ze before relying on selected output from a replacement process.",
 		Examples:    []string{"ze request restart"},
 	}); err != nil {
 		panic("BUG: source lease diagnostic registration failed: " + err.Error())
@@ -45,6 +45,18 @@ func sourceGenerationCleanup(server *pluginserver.Server, proc *process.Process)
 	owner, captured := proc.SelectedOwnerForCleanup()
 	if !captured {
 		return
+	}
+	if origins, ok := server.Reactor().(interface {
+		EndOriginOwner(context.Context, plugin.SelectedOwner) error
+	}); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), rpc.CancellableRequestTimeout+rpc.RequestCancelTimeout)
+		err := origins.EndOriginOwner(ctx, owner)
+		cancel()
+		if err != nil {
+			message := report.FitMessage("Origin cleanup for stopped process " + proc.Name() + " failed: " + err.Error())
+			report.RaiseErrorFix(reportSourceBGP, codeSourceLeaseCleanup, proc.Name(), message, "ze show bgp peers")
+			peerLogger().Error(message, "code", codeSourceLeaseCleanup, "plugin", proc.Name(), "fix", "ze show bgp peers")
+		}
 	}
 	retirement, supported := server.Reactor().(interface {
 		RetireSelectedOwner(context.Context, plugin.SelectedOwner) error

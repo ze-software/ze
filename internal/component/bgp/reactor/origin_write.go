@@ -75,7 +75,7 @@ func (write originWrite) accepts() error {
 	if err := record.store.live(); err != nil {
 		return err
 	}
-	if err := record.key.producer.current(); err != nil {
+	if err := record.producerCurrent(); err != nil {
 		return err
 	}
 	if err := record.provider.Current(); err != nil {
@@ -169,6 +169,17 @@ func (store *originReceiptStore) revoke(ctx context.Context, match func(originSc
 		}
 	}
 	var pending []<-chan struct{}
+	for call := range store.calls {
+		if match(call.scope) {
+			call.cancel()
+			pending = append(pending, call.done)
+		}
+	}
+	for _, record := range store.current {
+		if match(record.originScope) {
+			store.invalidate(record)
+		}
+	}
 	for _, record := range store.receipts {
 		if !match(record.originScope) {
 			continue
@@ -245,6 +256,13 @@ func (store *originReceiptStore) close(ctx context.Context) error {
 		return errors.New("origin issuer is uninitialized")
 	}
 	store.closed = true
+	if store.parentStop != nil {
+		store.parentStop()
+		store.parentStop = nil
+	}
+	if store.cancel != nil {
+		store.cancel()
+	}
 	store.mu.Unlock()
 	return store.revoke(ctx, func(originScope) bool { return true })
 }

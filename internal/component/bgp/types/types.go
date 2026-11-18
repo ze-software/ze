@@ -308,8 +308,11 @@ type NLRIBatch struct {
 	// internal authority, never decoded from API metadata or wire input. Stored
 	// tagged/lifetime batches retain it for exact later source withdrawal.
 	OriginOwner plugin.SelectedOwner `json:"-"`
-	Family      family.Family        // AFI/SAFI for all NLRIs
-	NLRIs       []nlri.NLRI          // NLRIs to announce or withdraw
+	// OriginRetirement belongs only to a genuine accepted timer/tag entry.
+	// It carries no wire input and cannot be supplied by request metadata.
+	OriginRetirement *plugin.OriginRetirement `json:"-"`
+	Family           family.Family            // AFI/SAFI for all NLRIs
+	NLRIs            []nlri.NLRI              // NLRIs to announce or withdraw
 	// RecoverySource marks source-DOWN reconciliation; zero source means
 	// ordinary API withdrawal. The RIB supplies replacement selection, and the
 	// writer owes a key only where the source's ended session owns it.

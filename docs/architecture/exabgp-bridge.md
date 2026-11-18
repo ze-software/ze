@@ -1216,7 +1216,16 @@ withdrawal its builder wrote beside the announce (`Command.Withdrawal`), then
 flushes. Each such withdrawal carries `restore-configured`, so a route that
 replaced one the peer's static config holds gives the configured route back
 rather than leaving the prefix unannounced, as ExaBGP's `withdraw_owner` does
-(`docs/architecture/api/update-syntax.md`); `api-on-exit-configured` is its
+(`docs/architecture/api/update-syntax.md`).
+
+On an ordinary origin-intake scope,
+the real parsed `restore-configured` command first removes its accepted API
+original through the provider and joins that removal, then gives back the
+configured route. That withdrawn original cannot replay after provider restart.
+Unrelated accepted origins remain eligible. Direct scopes keep their existing
+configured restoration path.
+
+`api-on-exit-configured` is its
 case. `api-on-exit` is the case for an API 6 script, and
 `api-on-exit-v4-keep` for an API 4 one, whose route is still standing when a
 sibling script announces after it exited. `ze exabgp migrate` carries the leaf as

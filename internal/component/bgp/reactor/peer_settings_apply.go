@@ -469,6 +469,9 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 		// snapshot taken before this apply, so a rollback never restores the
 		// intermediate list.
 		if len(rebound) > 0 {
+			if err := p.parkReboundOrigins(r, rebound); err != nil {
+				return err
+			}
 			p.writeBindings(r, withoutProcesses(bindingsBefore, rebound))
 			p.unbindProcesses(r, rebound)
 		}
@@ -581,6 +584,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	}
 
 	p.refreshForwardFactsIfLive()
+	originErr := p.replayPeerOrigins(r)
 	var reconcileErr error
 	if finalChanged {
 		reconcileErr = p.reconcileExportFinal()
@@ -595,7 +599,7 @@ func (p *Peer) applyHotSwappableSettings(next *PeerSettings, copy settingsCopier
 	p.applyBFDOptInChange(&bfd)
 	// Step 6: the administrative hold follows the shutdown container.
 	p.applyAdminShutdownChange(shutdownBefore, next.AdminShutdown)
-	return reconcileErr
+	return errors.Join(originErr, reconcileErr)
 }
 
 // restoreHotSwappableSettings is the inverse of a journaled apply. A failed

@@ -723,6 +723,21 @@ func (s *Server) runPluginPhaseWithin(ctx context.Context, plugins []plugin.Plug
 		})
 	}
 
+	// Runtime readers are now live on both transports. Ready work stays on the
+	// owning startup goroutine and MUST join before this phase reports success.
+	for _, proc := range allProcesses {
+		if proc.Stage() < plugin.StageRunning {
+			continue
+		}
+		if err := s.runProcessGenerationReady(ctx, proc); err != nil {
+			proc.SetStartupError(err)
+			s.rollbackReplacement(proc)
+			phaseErr = errors.Join(phaseErr, err)
+			pm.RecordStopped(proc.Name(), process.PluginStop{Cause: process.StopHandshakeFailed, Detail: err.Error()})
+			s.stopDaemonOnStartupFailure(ctx, proc, err)
+			s.refuseStartupOnLoadedChain(err)
+		}
+	}
 	return phaseErr
 }
 

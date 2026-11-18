@@ -49,6 +49,7 @@ func policyRemovalItem(parent *fwdItem, removal *fwdPolicyRemoval) fwdItem {
 		expectedMessage: parent.expectedMessage, initialReplay: parent.initialReplay,
 		initialLocal: parent.initialLocal, initialSourcePath: parent.initialSourcePath,
 		initialSourceAddPath: parent.initialSourceAddPath, initialSourceState: parent.initialSourceState,
+		registryRetirement: parent.registryRetirement,
 		ownRouteWithdrawal: parent.ownRouteWithdrawal || parent.authority == adjOutUnspecified,
 		originated:         parent.originated,
 		rawBodies:          removal.rawBodies, updates: removal.updates, provenance: removal.provenance,

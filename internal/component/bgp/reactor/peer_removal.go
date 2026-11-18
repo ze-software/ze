@@ -120,6 +120,7 @@ func (r *Reactor) completeRemovals(removals ...peerRemoval) {
 	for _, removal := range removals {
 		if removal.source != nil {
 			completeSourceLeaseRemoval(removal.source)
+			r.completeOriginPeerRemoval(removal.source)
 		}
 	}
 	for _, removal := range removals {

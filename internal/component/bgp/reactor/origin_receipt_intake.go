@@ -26,6 +26,14 @@ func (store *originReceiptStore) retireOriginReceipt(ctx context.Context, id uin
 		return errors.New("origin issuer is uninitialized")
 	}
 	record := store.receipts[id]
+	if record == nil {
+		for _, candidate := range store.current {
+			if candidate.id == id {
+				record = candidate
+				break
+			}
+		}
+	}
 	var idle <-chan struct{}
 	if record != nil {
 		store.invalidate(record)
@@ -48,13 +56,34 @@ func (store *originReceiptStore) joinOriginPredecessors(ctx context.Context, key
 		return errors.New("origin issuer is uninitialized")
 	}
 	var pending []<-chan struct{}
-	for _, record := range store.receipts {
-		if record.key != key || record.id >= before {
+	for call := range store.calls {
+		if call.receipt >= before {
 			continue
+		}
+		if call.scope.key != key {
+			if !sameOriginSource(call.scope.key, key) {
+				continue
+			}
+		}
+		call.cancel()
+		pending = append(pending, call.done)
+	}
+	for _, record := range store.receipts {
+		if record.id >= before {
+			continue
+		}
+		if record.key != key {
+			if !record.retained {
+				continue
+			}
+			if !sameOriginSource(record.key, key) {
+				continue
+			}
 		}
 		store.invalidate(record)
 		pending = append(pending, record.idle)
 	}
+
 	store.mu.Unlock()
 	for _, idle := range pending {
 		if err := waitSourceReceiptWrites(ctx, idle); err != nil {
@@ -93,7 +122,7 @@ func (store *originReceiptStore) validateOriginIntakeReceipt(id uint64, peer *Pe
 	if peer.stopping.Load() {
 		return errors.New("origin intake original peer has stopped")
 	}
-	if err := record.key.producer.current(); err != nil {
+	if err := record.producerCurrent(); err != nil {
 		return err
 	}
 	return owner.Current()

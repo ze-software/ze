@@ -578,6 +578,12 @@ loop. If Stage 1 declared `started-handler`, the engine sends the empty
 `ze-plugin-callback:runtime-ready` callback and waits for its answer before
 starting a dependent tier. The ordinary callback queue can answer only after
 initialization succeeds, including when the bridge already reports activated.
+
+For an internal bridge, the engine also joins this answer when no initializer
+was declared. The SDK default answers through its active bridge loop.
+The final ready response alone does not prove that the SDK activated its typed
+slots. This receipt joins activation before startup succeeds.
+
 An initializer may make ordinary engine calls during that wait; socket startup
 serves them through the same operation registry as the runtime connection.
 Cross-plugin commands still belong in `OnAllPluginsReady`.

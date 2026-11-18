@@ -1444,7 +1444,14 @@ replacement; the restart holds the config transaction lock, so one in flight
 refuses it, and an unknown name is refused. Every wait the restart makes under
 that lock has a bound, the replacement's handshake included, and a wait that
 runs out answers as a failed restart (`process-protocol.md`, the restart
-bounds). Tab after the command offers every
+bounds).
+
+The command joins any deferred peer reconstruction and runtime
+restoration when it releases that lock. It checks the exact replacement's
+completed restoration, current slot and admission. A doctor record from an
+older process cannot make a healthy replacement fail the command.
+
+Tab after the command offers every
 configured plugin, saying which run (`completePluginRestart`, served through
 `system command complete args`; `docs/architecture/cli/command-completion.md`).
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- handlePluginRestart, pluginRestartRefusal, completePluginRestart -->
