@@ -337,20 +337,31 @@ func formatNumericRanges(ranges []NumericRange) string {
 }
 
 // memberLeaf answers the restrictions each value of a multi-word leaf is
-// judged against, as a leaf of its type: its enumeration, its format and its
-// patterns.
+// judged against, with the same native type restrictions as a scalar leaf.
 func (n *MultiLeafNode) memberLeaf() *LeafNode {
-	return &LeafNode{Type: n.Type, Enums: n.Enums, EnumHelp: n.EnumHelp, Format: n.Format, Patterns: n.Patterns, Constraint: n.Constraint}
+	return &LeafNode{
+		Type: n.Type, Enums: n.Enums, EnumHelp: n.EnumHelp, Format: n.Format,
+		Patterns: n.Patterns, Ranges: n.Ranges, Lengths: n.Lengths,
+		Union: n.Union, FractionDigits: n.FractionDigits, Constraint: n.Constraint,
+	}
 }
 
 // memberLeaf answers the restrictions each member of a bracket leaf-list is
 // judged against, as a leaf of its type.
 func (n *BracketLeafListNode) memberLeaf() *LeafNode {
-	return &LeafNode{Type: n.Type, Enums: n.Enums, EnumHelp: n.EnumHelp, Format: n.Format, Patterns: n.Patterns, Constraint: n.Constraint}
+	return &LeafNode{
+		Type: n.Type, Enums: n.Enums, EnumHelp: n.EnumHelp, Format: n.Format,
+		Patterns: n.Patterns, Ranges: n.Ranges, Lengths: n.Lengths,
+		Union: n.Union, FractionDigits: n.FractionDigits, Constraint: n.Constraint,
+	}
 }
 
 // memberLeaf answers the restrictions each member of a leaf-list is judged
 // against, as a leaf of its type: ValidValues is its enumeration.
 func (n *ValueOrArrayNode) memberLeaf() *LeafNode {
-	return &LeafNode{Type: n.Type, Enums: n.ValidValues, EnumHelp: n.EnumHelp, Format: n.Format, Patterns: n.Patterns, Constraint: n.Constraint}
+	return &LeafNode{
+		Type: n.Type, Enums: n.ValidValues, EnumHelp: n.EnumHelp, Format: n.Format,
+		Patterns: n.Patterns, Ranges: n.Ranges, Lengths: n.Lengths,
+		Union: n.Union, FractionDigits: n.FractionDigits, Constraint: n.Constraint,
+	}
 }

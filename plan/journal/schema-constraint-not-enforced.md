@@ -6,4 +6,4 @@ later.
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
-| 2026-10-30 | route-policy-0-umbrella (found, not caused) | leaf-list `range` in `config.ParseTreeWithYANG` | `policy { match M { level [ 0 ]; } }` parses although the `level` leaf-list declares range 1..2; only the match plugin's own verify (`parseMatchLevel`) refuses it. A leaf-list with no consumer-side check would accept any value | open: apply the leaf-list's type constraints per value at parse, as for a leaf, with a test |
+| 2026-10-30 | spec-web-cli-config-one-off-defects (AC-8) | leaf-list ranges in `config.ParseTreeWithYANG` | A leaf-list accepts 0 despite range 1..2, leaving refusal to a consumer. | fixed: `yangValueLeaf` retains native restrictions for all multi-valued nodes; `memberLeaf` delegates to `ValidateLeafValue`. `TestYANGLeafListNativeRange` and length, union and decimal controls pass across four forms and boundaries. `leaf-list-native-range.ci` refuses shipped CoPP port 0 before save and accepts 65535. |

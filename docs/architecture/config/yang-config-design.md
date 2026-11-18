@@ -1026,6 +1026,23 @@ All three validators speak it:
 | The parsers and the `set` path, each member of a leaf-list, a multi-value leaf or a bracket leaf-list | the node's `Constraint` (`ValueOrArrayNode`, `MultiLeafNode`, `BracketLeafListNode`), filled in `yangToNodeOfAnyOS`, read through the node's `memberLeaf` by `ValidateLeafValue` |
 | Command arguments, through the RPC validator | `ArgOptions.RangeMessage`, `LengthMessage` and `PatternMessages`, filled by `yangTypeToArgDef` |
 
+The restriction and its message travel together. `yangValueLeaf` builds native
+type facts once for scalar leaves and all three multi-valued node forms:
+numeric ranges, string lengths and patterns, enumeration values, union members,
+and a decimal64's fraction digits. `memberLeaf` carries those facts unchanged
+into `ValidateLeafValue`, so hierarchical, set and annotated-set parsing and the
+editor's value guard refuse the same member before commit. A string length
+counts Unicode characters; a decimal range keeps decimal arithmetic and the
+declared precision. For example, the shipped
+`control-plane-protection bgp protected-port` leaf-list refuses port `0` at
+these boundaries while accepting `1` through `65535`.
+<!-- source: internal/component/config/yang_schema_leaflist.go -- yangValueLeaf, yangToMultiLeaf, yangToBracketLeafList, yangToValueOrArray -->
+<!-- source: internal/component/config/leaf_value.go -- memberLeaf, ValidateNodeValue, ValidateLeafValue -->
+<!-- test: internal/component/config/leaflist_native_restrictions_test.go TestYANGLeafListNativeRange -->
+<!-- test: internal/component/config/leaflist_native_restrictions_test.go TestYANGLeafListNativeLength -->
+<!-- test: internal/component/config/leaflist_native_restrictions_test.go TestYANGLeafListNativeUnion -->
+<!-- test: internal/component/config/leaflist_native_restrictions_test.go TestYANGLeafListNativeDecimal -->
+<!-- test: internal/component/config/leaflist_native_restrictions_test.go TestCoppProtectedPortNativeRange -->
 
 One input gets one guard. The constraint is the first check on every path, so
 its `error-message` is where the operator's message goes. A `ze:validate`

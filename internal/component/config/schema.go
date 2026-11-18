@@ -690,8 +690,12 @@ type MultiLeafNode struct {
 	// Format is the pattern's format in words (configyang.LeafValueFormat).
 	Format   configyang.ValueFormat
 	Patterns []string
-	// Constraint holds the error-message of each pattern (RFC 7950 Section
-	// 7.5.4.1), which a pattern refusal speaks.
+	// Native type restrictions mirror LeafNode and are judged by memberLeaf.
+	Ranges         []NumericRange
+	Lengths        []NumericRange
+	Union          []UnionMember
+	FractionDigits int
+	// Constraint holds the error-messages of the native restrictions.
 	Constraint configyang.ConstraintMessages
 }
 
@@ -713,8 +717,12 @@ type BracketLeafListNode struct {
 	// Format is the pattern's format in words (configyang.LeafValueFormat).
 	Format   configyang.ValueFormat
 	Patterns []string
-	// Constraint holds the error-message of each pattern (RFC 7950 Section
-	// 7.5.4.1), which a pattern refusal speaks.
+	// Native type restrictions mirror LeafNode and are judged by memberLeaf.
+	Ranges         []NumericRange
+	Lengths        []NumericRange
+	Union          []UnionMember
+	FractionDigits int
+	// Constraint holds the error-messages of the native restrictions.
 	Constraint configyang.ConstraintMessages
 	// Ordered marks this leaf-list as an ordered SEQUENCE whose duplicate values
 	// are meaningful rather than a set. Set from the ze:ordered YANG extension;
@@ -740,8 +748,12 @@ type ValueOrArrayNode struct {
 	// Format is the pattern's format in words (configyang.LeafValueFormat).
 	Format   configyang.ValueFormat
 	Patterns []string
-	// Constraint holds the error-message of each pattern (RFC 7950 Section
-	// 7.5.4.1), which a pattern refusal speaks.
+	// Native type restrictions mirror LeafNode and are judged by memberLeaf.
+	Ranges         []NumericRange
+	Lengths        []NumericRange
+	Union          []UnionMember
+	FractionDigits int
+	// Constraint holds the error-messages of the native restrictions.
 	Constraint configyang.ConstraintMessages
 	// Ordered marks this leaf-list as an ordered SEQUENCE whose duplicate values
 	// are meaningful (AS_PATH prepends, MPLS label stacks) rather than a set. Set
@@ -755,12 +767,6 @@ func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }
 // valueOrArray creates a node that accepts either a single value or bracketed list.
 func valueOrArray(typ ValueType) *ValueOrArrayNode {
 	return &ValueOrArrayNode{Type: typ}
-}
-
-// valueOrArrayEnum creates a node that accepts either a single value or bracketed list,
-// with validation against a fixed set of enum values.
-func valueOrArrayEnum(validValues []string) *ValueOrArrayNode {
-	return &ValueOrArrayNode{Type: TypeString, ValidValues: validValues}
 }
 
 // FlexNode can be a flag (;), value (word;), or block ({}).

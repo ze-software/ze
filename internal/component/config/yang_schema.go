@@ -482,27 +482,11 @@ func yangToNodeOfAnyOS(entry *gyang.Entry, path string) Node {
 		keyType := getKeyTypeExtension(entry)
 		return yangToInlineListWithKey(entry, path, keyType)
 	case "multi-leaf":
-		node := multiLeaf(yangTypeToValueType(entry.Type))
-		node.Enums, node.EnumHelp = enumFactsFromEntry(entry, path)
-		node.Format = yang.LeafValueFormat(entry, entry.Type)
-		node.Patterns = patternsFromType(entry.Type)
-		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
-		return node
+		return yangToMultiLeaf(entry, path)
 	case "bracket":
-		node := bracketLeafList(yangTypeToValueType(entry.Type))
-		node.Enums, node.EnumHelp = enumFactsFromEntry(entry, path)
-		node.Format = yang.LeafValueFormat(entry, entry.Type)
-		node.Patterns = patternsFromType(entry.Type)
-		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
-		node.Ordered = getOrderedExtension(entry)
-		return node
+		return yangToBracketLeafList(entry, path)
 	case "value-or-array":
-		node := valueOrArray(yangTypeToValueType(entry.Type))
-		node.Format = yang.LeafValueFormat(entry, entry.Type)
-		node.Patterns = patternsFromType(entry.Type)
-		node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
-		node.Ordered = getOrderedExtension(entry)
-		return node
+		return yangToValueOrArray(entry, path)
 	}
 
 	// Standard YANG node types
@@ -513,23 +497,7 @@ func yangToNodeOfAnyOS(entry *gyang.Entry, path string) Node {
 		// leaf-list without ze:syntax extension — accepts single value or bracket list
 		if entry.IsLeafList() {
 			validateLeafDefaults(entry, path)
-			if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
-				// The values in the module's order, as a refusal lists
-				// them; completion sorts its own copy.
-				values, help := enumFactsFromEntry(entry, path)
-				node := valueOrArrayEnum(values)
-				node.EnumHelp = help
-				node.Patterns = patternsFromType(entry.Type)
-				node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
-				node.Ordered = getOrderedExtension(entry)
-				return node
-			}
-			node := valueOrArray(yangTypeToValueType(entry.Type))
-			node.Format = yang.LeafValueFormat(entry, entry.Type)
-			node.Patterns = patternsFromType(entry.Type)
-			node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
-			node.Ordered = getOrderedExtension(entry)
-			return node
+			return yangToValueOrArray(entry, path)
 		}
 		return yangToLeaf(entry, path)
 	case gyang.DirectoryEntry:
@@ -776,8 +744,7 @@ func extractRelatedTools(entry *gyang.Entry, path string) []*RelatedTool {
 
 // yangToLeaf converts YANG leaf to LeafNode.
 func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
-	typ := yangTypeToValueType(entry.Type)
-	node := Leaf(typ)
+	node := yangValueLeaf(entry, path)
 	// RFC 7950 Section 7.3.4: "If the base type has a default value and the
 	// new derived type does not specify a new default value, the base type's
 	// default value is also the default value of the new derived type."
@@ -805,14 +772,6 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	node.Description = entry.Description               // the long explanation
 	node.Backend = getBackendExtension(entry)
 	node.Related = extractRelatedTools(entry, path)
-	node.Enums, node.EnumHelp = enumFactsFromEntry(entry, path)
-	node.Format = yang.LeafValueFormat(entry, entry.Type)
-	node.Ranges = numericRangesFromType(entry.Type, path)
-	node.Patterns = patternsFromType(entry.Type)
-	node.Lengths = lengthRangesFromType(entry.Type)
-	node.Constraint = yang.LeafConstraintMessages(entry, entry.Type)
-	node.Union = unionMembersFromType(entry, entry.Type)
-	markDecimal64(node, entry.Type)
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:required" || strings.HasSuffix(ext.Keyword, ":required") {
 			recordSchemaBuildError(fmt.Errorf("at %s: ze:required on a leaf is invalid (use mandatory true instead)", path))
@@ -1280,8 +1239,8 @@ func yangToInlineListWithKey(entry *gyang.Entry, path string, keyType ValueType)
 // markDecimal64 makes node, a leaf or a union member of type typ, a decimal64
 // number when typ is decimal64, so its range is compared as a decimal of the
 // type's fraction digits rather than refused as text (ValidateLeafValue). A
-// leaf-list and a list key keep the string type yangTypeToValueType answers:
-// no parser judged their decimal64 range before, and none is declared.
+// list key keeps the string type yangTypeToValueType answers. A multi-valued
+// node takes this type and its fraction digits through yangValueLeaf too.
 //
 // RFC 7950 Section 9.3.4: "The "fraction-digits" statement, which is a
 // substatement to the "type" statement, MUST be present if the type is

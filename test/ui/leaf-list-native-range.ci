@@ -1,0 +1,22 @@
+# Test: The shipped offline set command refuses a zero CoPP port before save
+# VALIDATES: spec-web-cli-config-one-off-defects AC-8 at the real config editor.
+# A parser unit cannot prove the registered CLI's dry-run reaches its value
+# guard before save-time validation, or that an accepted boundary still edits.
+# PREVENTS: dry-run accepting an invalid leaf-list member that only commit rejects.
+
+tmpfs=ports.conf:terminator=EOF_PORTS
+control-plane-protection {
+    bgp {
+        protected-port 179;
+    }
+}
+EOF_PORTS
+
+cmd=foreground:seq=1:exec=ze config set --dry-run ports.conf control-plane-protection bgp protected-port 0
+expect=exit:code=2
+expect=stderr:contains=is outside the accepted range
+expect=stderr:contains=1..65535
+
+cmd=foreground:seq=2:exec=ze config set --dry-run ports.conf control-plane-protection bgp protected-port 65535
+expect=exit:code=0
+expect=stderr:contains=dry-run: would set control-plane-protection bgp protected-port 65535
