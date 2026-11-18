@@ -15,6 +15,7 @@ import (
 func TestKernelSessionCloseChannelPanicReleasesUnit(t *testing.T) {
 	cfg := sessionTestConfig()
 	cfg.ChanFD = 0
+	sessionTestChannel(cfg).fd = cfg.ChanFD
 	handle, streams := runtimeClosePanicSession(t, cfg)
 	channelPanic := errors.New("channel close panicked")
 	unitFailure := errors.New("unit close failed")
@@ -120,7 +121,7 @@ func runtimeClosePanicSession(t *testing.T, cfg SessionConfig) (ppp.SessionHandl
 		cfg.UnitFD: {closed: make(chan struct{})},
 	}
 	var released []int
-	_, handle, err := newSession(cfg, sessionTestOps(streams, &released))
+	_, handle, err := sessionTestNewSession(cfg, sessionTestOps(streams, &released))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -64,6 +64,7 @@ func TestL2TPKernelHandoffUsesOriginalAdmittedBirth(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("real worker did not return its successful original receipt")
 	}
+	worker.ops.pppConfig = logicalPPPConfigForTest(success.owner)
 	driver := ppp.NewProductionDriver(reactor.logger)
 	require.NoError(t, driver.Start())
 	native, peer := net.Pipe()

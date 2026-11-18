@@ -66,7 +66,7 @@ func TestL2TPStartSessionCarriesLCPRestartConfig(t *testing.T) {
 	}
 	r.setLCPConfig(p.LCP)
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1001, fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}})
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1001, fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}}, protocolFixtureIdentity("ppp7", 0x80000007))
 	start := <-driver.sessionsIn
 	if start.LCP != p.LCP {
 		t.Fatalf("StartSession lost configured LCP values: %+v", start.LCP)
@@ -77,7 +77,7 @@ func TestL2TPStartSessionCarriesLCPRestartConfig(t *testing.T) {
 	if err := s.Reload(context.Background(), provider); err != nil {
 		t.Fatal(err)
 	}
-	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1002, fds: pppSessionFDs{pppoxFD: 40, chanFD: 41, unitFD: 42, unitNum: 8}})
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1002, fds: pppSessionFDs{pppoxFD: 40, chanFD: 41, unitFD: 42, unitNum: 8}}, protocolFixtureIdentity("ppp8", 0x80000008))
 	next := <-driver.sessionsIn
 	if start.LCP != p.LCP {
 		t.Fatal("reload changed the earlier session snapshot")

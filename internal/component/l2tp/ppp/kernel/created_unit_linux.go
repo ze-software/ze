@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
+	"runtime"
 	"strings"
 
 	"github.com/vishvananda/netlink"
@@ -31,16 +33,25 @@ func NewUnitCreator(backend InterfaceOperations) (*UnitCreator, error) {
 	if nilSessionDependency(backend) {
 		return nil, errors.New("ppp: missing original unit backend")
 	}
+	if !reflect.TypeOf(backend).Comparable() {
+		return nil, errors.New("ppp: original unit backend has no stable owner identity")
+	}
 	source, ok := backend.(linkCounterCreator)
 	if !ok {
 		return nil, errors.New("ppp: backend cannot bind counters to original unit creation")
 	}
 	return &UnitCreator{create: func(name string) (*CreatedUnit, error) {
-		return createOriginalPPPUnit(source, name)
+		unit, err := createOriginalPPPUnit(source, name)
+		if unit != nil {
+			unit.backend = backend
+		}
+		return unit, err
 	}}, nil
 }
 
 func createOriginalPPPUnit(source linkCounterCreator, name string) (unit *CreatedUnit, err error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if len(name) >= unix.IFNAMSIZ || strings.IndexByte(name, 0) >= 0 {
 		return nil, errors.New("ppp: original unit name is not a native interface name")
 	}
@@ -52,11 +63,17 @@ func createOriginalPPPUnit(source linkCounterCreator, name string) (unit *Create
 	// A timeout or missing echo may still have created its unit. The original
 	// file remains the cleanup authority even when no identity was received.
 	unit = &CreatedUnit{file: file, number: -1, poll: pollOriginalPPPUnit}
+	unit.self = unit
 	defer func() {
 		if failure := recover(); failure != nil {
+			unit.creationRejection = nil
 			err = fmt.Errorf("ppp: original unit creation panicked: %w", sessionPanicFailure(failure))
 		}
 	}()
+	unit.namespace, err = captureSessionNamespace()
+	if err != nil {
+		return unit, err
+	}
 	connection, err := file.SyscallConn()
 	if err != nil {
 		return unit, err
@@ -74,6 +91,7 @@ func createOriginalPPPUnit(source linkCounterCreator, name string) (unit *Create
 			}
 		}
 		if err != nil {
+			unit.creationRejection = retainOriginalCreationRejection(link, attempted, err)
 			createErr = fmt.Errorf("ppp: original unit creation: %w", err)
 			return
 		}
@@ -165,4 +183,23 @@ func pollOriginalPPPUnit(file *os.File) error {
 		return err
 	}
 	return pollErr
+}
+
+// Append ONLY retainOriginalCreationRejection to created_unit_linux.go.
+// errors and netlink already belong to that existing Linux file's imports.
+func retainOriginalCreationRejection(link netlink.Link, attempted bool, cause error) nativeLinkCreationRejection {
+	if !attempted {
+		return nil
+	}
+	if !nilSessionDependency(link) {
+		return nil
+	}
+	var rejection nativeLinkCreationRejection
+	if !errors.As(cause, &rejection) {
+		return nil
+	}
+	if !rejection.NativeLinkCreationRejected() {
+		return nil
+	}
+	return rejection
 }

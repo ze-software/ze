@@ -36,8 +36,8 @@ func TestNetworkReceiveFailureDiagnostic(t *testing.T) {
 				synctest.Test(t, func(t *testing.T) {
 					channel := newConnectedExchange()
 					transportCloses := 0
-					link := &sessionLink{channel: channel, stopped: make(chan struct{}),
-						closeTransport: func() { transportCloses++ }}
+					link := &sessionLink{client: testClientProtocol(channel), stopped: make(chan struct{}),
+						closeTransport: testClientTransportClose(func() { transportCloses++ })}
 					entered, release := make(chan struct{}), make(chan struct{})
 					reader, err := newFrameReader(func([]byte) (int, error) {
 						close(entered)

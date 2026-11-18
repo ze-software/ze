@@ -65,7 +65,9 @@ func newRouteOwnershipSession(t *testing.T) (ppp.SessionHandle, *routeOwnershipB
 	cfg := sessionTestConfig()
 	cfg.InterfaceName = "created-ppp"
 	cfg.Backend = backend
-	_, handle, err := newSession(cfg, sessionTestOps(streams, &released))
+	sessionTestUnit(cfg).info.backend = backend
+	sessionTestUnit(cfg).info.identity.InterfaceName = cfg.InterfaceName
+	_, handle, err := sessionTestNewSession(cfg, sessionTestOps(streams, &released))
 	if err != nil {
 		t.Fatal(err)
 	}

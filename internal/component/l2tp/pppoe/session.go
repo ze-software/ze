@@ -695,11 +695,24 @@ func (st *SessionTable) notePADS(expected *Session, publication PADSPublication)
 }
 
 // markSessionFor finishes only the captured admitting PADS, never a current
-// occupant found later by its wire SID.
+// occupant found later by its wire SID. A pending relay end wakes only after
+// this exact admission leaves discovery, so PADT follows its accepting PADS.
 func (st *SessionTable) markSessionFor(expected *Session) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if expected != nil && st.sessions[expected.SID] == expected && expected.State == StateDiscovery {
-		expected.State = StateSession
+	if expected == nil {
+		return
+	}
+	if st.sessions[expected.SID] != expected {
+		return
+	}
+	if expected.State != StateDiscovery {
+		return
+	}
+	expected.State = StateSession
+	if expected.relay != nil {
+		if _, pending := st.relayEnds[expected.SID]; pending {
+			expected.relay.notify()
+		}
 	}
 }

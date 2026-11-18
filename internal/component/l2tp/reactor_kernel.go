@@ -145,6 +145,37 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	if live {
 		peerAddr = tunnel.peerAddr
 		policy = r.params
+	}
+	r.tunnelsMu.Unlock()
+	if !live {
+		return
+	}
+	// Check the exact worker receipt before fallible creator/configuration
+	// preflight. A stale success must neither consume files nor publish a
+	// failure for the current subscriber using those numeric labels.
+	transfer, current, err := r.kernelWorker.preparePPPTransfer(ksucc, r.kernelBackend)
+	if !current {
+		return
+	}
+	if err != nil {
+		ppp.ReportAdmissionFailure(r.logger, fmt.Sprintf("tunnel %d session %d", ksucc.localTID, ksucc.localSID),
+			ppp.AdmissionSessionFactory, err, map[string]any{
+				reportFieldTunnelID: ksucc.localTID, "session-id": ksucc.localSID, "ppp-unit": ksucc.fds.unitNum,
+			})
+		r.teardownCapturedSession(tunnel, ksucc.session, nil, cdnResultGeneralError, l2tpevents.TerminateCauseNASError)
+		return
+	}
+	// Preflight ran outside tunnelsMu. Revalidate the admitted original
+	// before giving its construction a completion receipt.
+	r.tunnelsMu.Lock()
+	live = r.tunnelsByLocalID[ksucc.localTID] == tunnel
+	if live {
+		live = tunnel.lookupSession(ksucc.localSID) == ksucc.session
+	}
+	if live {
+		live = ksucc.session.pppConstruction == nil
+	}
+	if live {
 		construction = newPPPConstruction()
 		ksucc.session.pppConstruction = construction
 	}
@@ -155,7 +186,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	cleanupErr := ErrSessionCleanupPending
 	var unusedOwner ppp.SessionHandle
 	defer func() { construction.finish(cleanupErr, unusedOwner) }()
-	chanFD, unitFD, claimed := r.kernelWorker.takePPPDescriptors(ksucc)
+	config, claimed := r.kernelWorker.takePPPConfig(ksucc, transfer)
 	if !claimed {
 		// Nothing left the worker. Do not consume a later valid receipt merely
 		// because a stale success event reached this live original first.
@@ -167,11 +198,7 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		cleanupErr = nil
 		return
 	}
-	backend := r.kernelBackend
-	frames, dataplane, err := r.newPPPSession(pppkernel.SessionConfig{
-		ChanFD: chanFD, UnitFD: unitFD, UnitNum: ksucc.fds.unitNum,
-		Backend: backend, ReadCounters: kernelPPPCounters(backend),
-	})
+	frames, dataplane, err := r.newPPPSession(config)
 	if err != nil {
 		cleanupErr = pppkernel.SetupCleanupFailure(err)
 		ppp.ReportAdmissionFailure(r.logger, fmt.Sprintf("tunnel %d session %d", ksucc.localTID, ksucc.localSID),

@@ -1,5 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- native diagnostic counter measurements
-// Related: factory.go -- raw kernel PPPoE counter conversion
+// Related: factory_counter_created_integration_linux_test.go -- original reader measurement fault port
+
+//go:build integration && linux
 
 package kernel
 
@@ -9,24 +11,28 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/test/userns"
 )
 
 // TestKernelCounterMeasurements checks all eight supplied native totals at the
 // numeric adapter boundary. It does not establish native session identity.
 func TestKernelCounterMeasurements(t *testing.T) {
+	if !userns.Enter(t) {
+		return
+	}
 	native := &iface.InterfaceStats{
 		RxBytes: 1<<40 + 11, TxBytes: 1<<41 + 13,
 		RxPackets: 1<<42 + 17, TxPackets: 1<<43 + 19,
 		RxErrors: 1<<44 + 23, TxErrors: 1<<45 + 29,
 		RxDropped: 1<<46 + 31, TxDropped: 1<<47 + 37,
 	}
-	backend := &factoryBackend{stats: native}
-	counters, err := rawCounters(backend)("ppp73")
+	backend, opened := newFactoryCounterSession(t, native)
+	counters, err := opened.Dataplane().Counters()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if backend.statsName != "ppp73" {
-		t.Fatalf("counter device=%q, want ppp73", backend.statsName)
+	if backend.statsName != opened.Dataplane().Identity().InterfaceName {
+		t.Fatalf("counter creation device=%q, want original %q", backend.statsName, opened.Dataplane().Identity().InterfaceName)
 	}
 	for _, field := range []struct {
 		name string
@@ -66,8 +72,11 @@ func TestKernelCounterMeasurements(t *testing.T) {
 // TestKernelCounterZeroMeasurements distinguishes a supplied zero snapshot from
 // unavailable diagnostics by reading each counter through its public contract.
 func TestKernelCounterZeroMeasurements(t *testing.T) {
-	backend := &factoryBackend{stats: &iface.InterfaceStats{}}
-	counters, err := rawCounters(backend)("ppp73")
+	if !userns.Enter(t) {
+		return
+	}
+	_, opened := newFactoryCounterSession(t, &iface.InterfaceStats{})
+	counters, err := opened.Dataplane().Counters()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,12 +110,13 @@ func TestKernelCounterZeroMeasurements(t *testing.T) {
 // TestKernelCounterProviderError checks that a native read failure stays
 // identifiable and cannot publish the accompanying snapshot as a valid sample.
 func TestKernelCounterProviderError(t *testing.T) {
-	want := errors.New("native counter read failed")
-	backend := &factoryBackend{
-		stats:    &iface.InterfaceStats{RxBytes: 101, RxErrors: 103},
-		statsErr: want,
+	if !userns.Enter(t) {
+		return
 	}
-	counters, err := rawCounters(backend)("ppp73")
+	want := errors.New("native counter read failed")
+	backend, opened := newFactoryCounterSession(t, &iface.InterfaceStats{RxBytes: 101, RxErrors: 103})
+	backend.statsErr = want
+	counters, err := opened.Dataplane().Counters()
 	if !errors.Is(err, want) {
 		t.Fatalf("counter error=%v, want native provider failure %v", err, want)
 	}
@@ -118,7 +128,11 @@ func TestKernelCounterProviderError(t *testing.T) {
 // TestKernelCounterMissingSnapshot checks that a nil native snapshot is refused
 // rather than converted into a successful zero sample.
 func TestKernelCounterMissingSnapshot(t *testing.T) {
-	counters, err := rawCounters(&factoryBackend{})("ppp73")
+	if !userns.Enter(t) {
+		return
+	}
+	_, opened := newFactoryCounterSession(t, nil)
+	counters, err := opened.Dataplane().Counters()
 	if err == nil {
 		t.Fatal("missing native snapshot reported success")
 	}

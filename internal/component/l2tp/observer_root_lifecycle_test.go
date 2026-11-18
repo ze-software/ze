@@ -22,7 +22,7 @@ func cqmAPIRoot(t *testing.T, addresses []netip.AddrPort) *Subsystem {
 	t.Helper()
 	previousProbe, previousWorker := probeKernelModulesFn, newSubsystemKernelWorkerFn
 	probeKernelModulesFn = func() error { return nil }
-	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger) (*kernelWorker, error) {
+	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger, kernelBackendPreparation) (*kernelWorker, error) {
 		return nil, nil
 	}
 	t.Cleanup(func() { probeKernelModulesFn, newSubsystemKernelWorkerFn = previousProbe, previousWorker })

@@ -25,6 +25,7 @@ func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 		sessions: map[sessionKey]*pppSessionFDs{{1, 2}: fds},
 		ops: kernelOps{
 			closeFD:       unix.Close,
+			closePPP:      closeLogicalPPPForTest(unix.Close),
 			sessionDelete: func(uint16, uint16) error { return nil },
 		},
 	}
@@ -36,6 +37,7 @@ func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 		}
 		*target = fd
 	}
+	worker.ops.pppConfig = logicalPPPConfigForTest(fds)
 	return worker, kernelSetupSucceeded{localTID: 1, localSID: 2, fds: *fds, owner: fds, session: session}
 }
 
@@ -43,7 +45,7 @@ func ownedKernelResult(t *testing.T) (*kernelWorker, kernelSetupSucceeded) {
 // The worker must disconnect only the PPPoX transport, not the replacement files.
 func TestKernelTeardownDoesNotCloseTransferredDescriptors(t *testing.T) {
 	worker, event := ownedKernelResult(t)
-	channel, unit, ok := worker.takePPPDescriptors(event)
+	channel, unit, ok := takeLogicalPPPForTest(worker, event)
 	if !ok {
 		t.Fatal("live setup was not transferred")
 	}
@@ -77,7 +79,7 @@ func TestKernelTeardownDoesNotCloseTransferredDescriptors(t *testing.T) {
 			t.Fatalf("kernel teardown closed a recycled descriptor: %v", err)
 		}
 	}
-	if _, _, ok := worker.takePPPDescriptors(event); ok {
+	if _, _, ok := takeLogicalPPPForTest(worker, event); ok {
 		t.Fatal("a stale success transferred descriptors twice")
 	}
 }
@@ -86,7 +88,7 @@ func TestKernelTransferRejectsReplacedOwner(t *testing.T) {
 	worker, event := ownedKernelResult(t)
 	replacement := event.fds
 	worker.sessions[sessionKey{1, 2}] = &replacement
-	if _, _, ok := worker.takePPPDescriptors(event); ok {
+	if _, _, ok := takeLogicalPPPForTest(worker, event); ok {
 		t.Fatal("old setup claimed a replacement's descriptors")
 	}
 	if _, err := unix.Write(replacement.chanFD, []byte{1}); err != nil {
@@ -102,7 +104,9 @@ func TestKernelSuccessCancellationReleasesClaimedDescriptors(t *testing.T) {
 	fake.sessionsIn = make(chan ppp.StartSession)
 	reactor := &l2tpReactor{
 		logger: discardLoggerForTest(), kernelWorker: worker, pppDriver: fake, stop: stop,
-		newPPPSession:    ownedProtocolSessionFixture,
+		newPPPSession: func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
+			return ownedProtocolSessionFixture(cfg, protocolFixtureIdentity("ppp0", 0x80000000))
+		},
 		tunnelsByLocalID: map[uint16]*L2TPTunnel{1: {sessions: map[uint16]*L2TPSession{2: event.session}}},
 	}
 	reactor.handleKernelSuccess(event)
@@ -154,8 +158,10 @@ func TestKernelClaimProceedsWhileReportingBlocked(t *testing.T) {
 				}
 				return nil
 			}
-			worker.ops.pppSetup = func(kernelSetupEvent) (pppSessionFDs, error) {
-				return pppSessionFDs{pppoxFD: -1, chanFD: -1, unitFD: -1}, nil
+			worker.ops.pppSetup = func(kernelSetupEvent) (kernelPPPSetup, error) {
+				return func() (pppSessionFDs, error) {
+					return pppSessionFDs{pppoxFD: -1, chanFD: -1, unitFD: -1, ppp: &kernelPPPOwners{}}, nil
+				}, nil
 			}
 			worker.ops.tunnelDelete = func(uint16) error { return nil }
 			successes := make(chan kernelSetupSucceeded)
@@ -173,7 +179,7 @@ func TestKernelClaimProceedsWhileReportingBlocked(t *testing.T) {
 			}
 			claimed := make(chan claim, 1)
 			go func() {
-				channel, unit, ok := worker.takePPPDescriptors(event)
+				channel, unit, ok := takeLogicalPPPForTest(worker, event)
 				claimed <- claim{channel, unit, ok}
 			}()
 			var result claim

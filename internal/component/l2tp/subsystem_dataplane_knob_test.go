@@ -61,7 +61,7 @@ func withStubbedKernelWorker(t *testing.T) *int {
 	t.Helper()
 	calls := 0
 	saved := newSubsystemKernelWorkerFn
-	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger) (*kernelWorker, error) {
+	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger, kernelBackendPreparation) (*kernelWorker, error) {
 		calls++
 		return nil, errNoWorkerInTest
 	}

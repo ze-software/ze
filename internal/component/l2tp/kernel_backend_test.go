@@ -32,7 +32,7 @@ func (b *kernelBackendProbe) Close() error {
 // The worker is inert: this proves lifecycle order, not native kernel I/O.
 func TestKernelBackendOwnedThroughSubsystemStop(t *testing.T) {
 	previousWorker, previousProbe := newSubsystemKernelWorkerFn, probeKernelModulesFn
-	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger) (*kernelWorker, error) {
+	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger, kernelBackendPreparation) (*kernelWorker, error) {
 		return &kernelWorker{}, nil
 	}
 	probeKernelModulesFn = func() error { return nil }

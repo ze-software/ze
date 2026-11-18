@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp/bng-5-pppoe.md -- non-Linux stub for /dev/ppp setup
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- typed PPP setup unavailable off Linux
 
 //go:build !linux
 
@@ -6,15 +6,14 @@ package kernel
 
 import (
 	"errors"
+	"os"
 )
 
 var errPppDevPppNotAvailableOn = errors.New("ppp: /dev/ppp not available on this platform")
 
-// DevPPPSetup is not available on non-Linux platforms. The name parameter
-// mirrors the Linux signature so the two platforms stay in sync; it is
-// otherwise unused here.
-func DevPPPSetup(_ int, _ string) (int, int, int, error) {
-	return -1, -1, -1, errPppDevPppNotAvailableOn
+// DevPPPSetup mirrors the Linux typed-owner signature and allocates nothing.
+func DevPPPSetup(_ *UnitCreator, _ *os.File, _ string) (*CreatedChannel, *CreatedUnit, error) {
+	return nil, nil, errPppDevPppNotAvailableOn
 }
 
 // SetIPv4Mode is unavailable on non-Linux platforms. The caller MUST retain

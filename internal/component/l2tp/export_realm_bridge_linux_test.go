@@ -8,6 +8,7 @@ package l2tp
 import (
 	"errors"
 	"net/netip"
+	"os"
 	"testing"
 
 	"golang.org/x/sys/unix"
@@ -20,7 +21,7 @@ import (
 // (pppoxCreate). It returns the pppol2tp descriptor. Cleanup closes it, then
 // deletes the session and the tunnel. The package l2tp_test realm bridge tests
 // use it because the PPPoE package they also drive imports this package.
-func OpenKernelL2TPSession(t *testing.T, lacFD int, lns netip.AddrPort, localTID, localSID, remoteTID, remoteSID uint16) int {
+func OpenKernelL2TPSession(t *testing.T, lacFD int, lns netip.AddrPort, localTID, localSID, remoteTID, remoteSID uint16) *os.File {
 	t.Helper()
 	g, err := resolveGenlFamily()
 	if err != nil {
@@ -62,13 +63,9 @@ func OpenKernelL2TPSession(t *testing.T, lacFD int, lns netip.AddrPort, localTID
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if err := unix.Close(pppoxFD); err != nil {
+		if err := pppoxFD.Close(); err != nil {
 			t.Errorf("close the pppol2tp socket: %v", err)
 		}
 	})
 	return pppoxFD
 }
-
-// BridgeChannels is bridgeChannels, the PPPIOCBRIDGECHAN pppSetupReal issues
-// for a relayed call, for the package l2tp_test bridge tests.
-func BridgeChannels(l2tpChanFD, pppoxFD int) error { return bridgeChannels(l2tpChanFD, pppoxFD) }

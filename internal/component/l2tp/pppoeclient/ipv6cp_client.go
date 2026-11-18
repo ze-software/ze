@@ -617,11 +617,11 @@ func (s *connectedSession) applyIPv6CP(event ipv6cpEvent, logger *slog.Logger) e
 
 // setIPv6Mode serializes the unit ioctl with transport closure, as
 // setIPv4Mode does.
-func (s *sessionLink) setIPv6Mode(unitFD int, mode pppkernel.NPMode) error {
+func (s *sessionLink) setIPv6Mode(mode pppkernel.NPMode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return io.ErrClosedPipe
 	}
-	return pppkernel.SetIPv6Mode(unitFD, mode)
+	return s.client.SetIPv6Mode(mode)
 }

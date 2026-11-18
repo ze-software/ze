@@ -217,12 +217,12 @@ func networkPhase(t *testing.T) (*sessionLink, chan<- readFrame, *hostChannel, <
 	}
 	t.Cleanup(func() { _ = reader.Close(); _ = writer.Close() })
 	channel := &hostChannel{native: writer}
-	link := &sessionLink{channel: channel, stopped: make(chan struct{}), closeTransport: func() {
+	link := &sessionLink{client: testClientProtocol(channel), stopped: make(chan struct{}), closeTransport: testClientTransportClose(func() {
 		channel.nativeCloses++
 		if err := writer.Close(); err != nil {
 			t.Errorf("close original native transport: %v", err)
 		}
-	}}
+	})}
 	if _, err := writer.WriteString("live"); err != nil {
 		t.Fatalf("original native transport was not writable before LCP termination: %v", err)
 	}

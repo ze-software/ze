@@ -6,6 +6,8 @@ package l2tp
 import (
 	"net/netip"
 
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+
 	"github.com/ze-software/ze/internal/core/callsink"
 )
 
@@ -97,4 +99,13 @@ type kernelSetupSucceeded struct {
 	proxyInitialRecvLCPConfReq []byte
 	proxyLastSentLCPConfReq    []byte
 	proxyLastRecvLCPConfReq    []byte
+}
+
+// kernelPPPTransfer is the exact worker's non-consuming preparation. A later
+// take rechecks both original pointers under the same worker mutex before
+// releasing custody; the configuration's numeric fields grant no ownership.
+type kernelPPPTransfer struct {
+	owner     *pppSessionFDs
+	resources *kernelPPPOwners
+	config    pppkernel.SessionConfig
 }

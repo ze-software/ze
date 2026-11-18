@@ -136,7 +136,7 @@ func (p *serviceBridgePreparation) cancel() {
 }
 
 // takeServiceRelayEnds claims ready teardowns while keeping their SIDs reserved.
-// Discovery entries stay pending until markSession follows the PADS write.
+// Discovery entries stay pending until markSessionFor follows the PADS write.
 // The result is bounded by this access table's admission limit.
 func (st *SessionTable) takeServiceRelayEnds() []readyServiceRelayEnd {
 	st.mu.Lock()

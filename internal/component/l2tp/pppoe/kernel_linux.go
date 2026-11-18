@@ -7,6 +7,7 @@ package pppoe
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -88,11 +89,14 @@ func sendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 // pppoeCreate creates a PPPoE session socket (AF_PPPOX + PX_PROTO_OE)
 // and connects it to the subscriber.
 // RFC 2516 Section 4: after PADS, the kernel handles session framing.
-func pppoeCreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
+func pppoeCreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (*os.File, error) {
 	fd, err := unix.Socket(afPPPOX, unix.SOCK_DGRAM, pxProtoOE)
 	if err != nil {
-		return -1, fmt.Errorf("pppoe: socket(AF_PPPOX): %w", err)
+		return nil, fmt.Errorf("pppoe: socket(AF_PPPOX): %w", err)
 	}
+	// This is the sole wrapper of the descriptor just allocated here. Every
+	// later owner receives this same file; a received label cannot recreate it.
+	original := os.NewFile(uintptr(fd), "pppoe-transport")
 
 	sa := &unix.SockaddrPPPoE{
 		SID:    sid,
@@ -100,16 +104,9 @@ func pppoeCreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error
 		Dev:    ifname,
 	}
 	if err := unix.Connect(fd, sa); err != nil {
-		unix.Close(fd) //nolint:errcheck // rollback
-		return -1, fmt.Errorf("pppoe: connect(PPPoE sid=%d dev=%s): %w", sid, ifname, err)
+		return nil, errors.Join(fmt.Errorf("pppoe: connect(PPPoE sid=%d dev=%s): %w", sid, ifname, err), original.Close())
 	}
-	return fd, nil
-}
-
-func closePPPoxFD(fd int) {
-	if fd >= 0 {
-		unix.Close(fd) //nolint:errcheck // shutdown
-	}
+	return original, nil
 }
 
 func htons(v uint16) uint16 {
@@ -135,12 +132,9 @@ func SendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 // PPPoECreate creates a PPPoE session socket on the kernel device a
 // resolution named. It takes the binding rather than a name so a caller
 // cannot hand it the configured (logical) interface name.
-func PPPoECreate(source InterfaceBinding, sid uint16, remoteMAC [EthALen]byte) (int, error) {
+func PPPoECreate(source InterfaceBinding, sid uint16, remoteMAC [EthALen]byte) (*os.File, error) {
 	return pppoeCreate(source.Device, sid, remoteMAC)
 }
-
-// ClosePPPoxFD closes a PPPoX socket file descriptor.
-func ClosePPPoxFD(fd int) { closePPPoxFD(fd) }
 
 // SetRecvTimeout sets SO_RCVTIMEO on a socket so blocking reads return
 // periodically, allowing the caller to check stop signals.

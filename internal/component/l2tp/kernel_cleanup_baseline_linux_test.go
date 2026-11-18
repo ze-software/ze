@@ -71,6 +71,7 @@ func TestKernelCleanupRetainsFailedDescriptorOwnerWithoutRawRetry(t *testing.T) 
 		}
 		return nil
 	}
+	worker.ops.closePPP = closeLogicalPPPForTest(worker.ops.closeFD)
 	worker.setupSession(event)
 	key := sessionKey{event.localTID, event.localSID}
 	original := worker.sessions[key]
@@ -96,7 +97,11 @@ func TestKernelCleanupRetainsFailedSetupRollbackOwner(t *testing.T) {
 	worker, _, event := workerCleanupBaseline(t)
 	setupFailure := errors.New("native PPP setup refused")
 	fail := true
-	worker.ops.pppSetup = func(kernelSetupEvent) (pppSessionFDs, error) { return pppSessionFDs{}, setupFailure }
+	worker.ops.pppSetup = func(kernelSetupEvent) (kernelPPPSetup, error) {
+		return func() (pppSessionFDs, error) {
+			return pppSessionFDs{pppoxFD: -1, chanFD: -1, unitFD: -1}, setupFailure
+		}, nil
+	}
 	worker.ops.sessionDelete = func(uint16, uint16) error {
 		if fail {
 			return errWorkerDelete

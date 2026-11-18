@@ -49,7 +49,14 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			t.Error("auth drain did not stop")
 		}
 	})
-	for index, want := range []bool{true, false, true} {
+	for index, step := range []struct {
+		accept   bool
+		identity ppp.SessionIdentity
+	}{
+		{true, protocolFixtureIdentity("ppp0", 0x80000000)},
+		{false, protocolFixtureIdentity("ppp1", 0x80000001)},
+		{true, protocolFixtureIdentity("ppp2", 0x80000002)},
+	} {
 		if index == 1 {
 			RegisterAuthHandler(replacement)
 		} else {
@@ -75,7 +82,7 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			// Proxy LCP with only MRU reaches the production admission request
 			// without a kernel PPP device. NCP remains unconfigured.
 			options := []byte{1, 4, 5, 220}
-			frames, owner, err := ownedProtocolSessionFixture(pppkernel.SessionConfig{ChanFD: fds[0], UnitFD: unit, UnitNum: index})
+			frames, owner, err := ownedProtocolSessionFixture(pppkernel.SessionConfig{ChanFD: fds[0], UnitFD: unit, UnitNum: index}, step.identity)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -95,10 +102,10 @@ func TestL2TPAuthDrainFollowsProviderReplacement(t *testing.T) {
 			// Queue delivery transfers the factory-created stream owner to the driver.
 			select {
 			case decision := <-decisions:
-				if decision.Accept != want || decision.AccessType != subscriber.AccessL2TP ||
+				if decision.Accept != step.accept || decision.AccessType != subscriber.AccessL2TP ||
 					decision.SessionID != id {
 					t.Fatalf("request %d decision=%+v, want accept=%t via L2TP session %d/%d",
-						index, decision, want, tunnelID, sessionID)
+						index, decision, step.accept, tunnelID, sessionID)
 				}
 			case <-time.After(5 * time.Second):
 				t.Fatalf("request %d received no authentication decision", index)

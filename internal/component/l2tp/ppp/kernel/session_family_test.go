@@ -42,6 +42,7 @@ func newFamilyTestSession(t *testing.T) *familyTestSession {
 	f.backend = &familyTestBackend{sessionTestBackend: &sessionTestBackend{}, trace: &f.trace}
 	cfg := sessionTestConfig()
 	cfg.Backend = f.backend
+	sessionTestUnit(cfg).info.backend = f.backend
 	streams := map[int]*sessionTestStream{31: {closed: make(chan struct{})}, 32: {closed: make(chan struct{})}}
 	var released []int
 	ops := sessionTestOps(streams, &released)
@@ -70,7 +71,7 @@ func newFamilyTestSession(t *testing.T) *familyTestSession {
 		f.trace = append(f.trace, "detach")
 		return f.disconnectErr
 	}
-	_, handle, err := newSession(cfg, ops)
+	_, handle, err := sessionTestNewSession(cfg, ops)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,6 +242,8 @@ func TestKernelNCPMissingModeOperationsRefusesBeforeIO(t *testing.T) {
 		t.Run(family, func(t *testing.T) {
 			cfg := sessionTestConfig()
 			cfg.ChanFD, cfg.UnitFD = 0, 1
+			sessionTestChannel(cfg).fd = 0
+			sessionTestUnit(cfg).info.fd = 1
 			var released []int
 			ops := sessionTestOps(nil, &released)
 			ops.setIPv4Mode = func(int, NPMode) error { return nil }
@@ -250,8 +253,8 @@ func TestKernelNCPMissingModeOperationsRefusesBeforeIO(t *testing.T) {
 			} else {
 				ops.setIPv6Mode = nil
 			}
-			ops.interfaceIndex = func(string) (uint32, error) { t.Fatal("missing mode callbacks reached interface I/O"); return 0, nil }
-			if _, _, err := newSession(cfg, ops); err == nil {
+			sessionTestUnit(cfg).beforeDescribe = func() { t.Fatal("missing mode callbacks reached original-unit I/O") }
+			if _, _, err := sessionTestNewSession(cfg, ops); err == nil {
 				t.Fatal("missing mode callback admitted")
 			}
 			if !reflect.DeepEqual(released, []int{0, 1}) {

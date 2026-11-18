@@ -1175,8 +1175,11 @@ outcome without deleting another owner's address or discarding an error.
 
 L2TP owns a separate OS interface backend for its kernel PPP sessions. It opens
 that backend through the iface registry without changing the configured active
-backend, and passes the same owner to interface operations and raw counter
-reads. Reactors never reread the global backend when a session arrives. The
+backend before publishing a native worker. A local admission captures that
+original backend's unit creator before allocating a tunnel, session or PPPoX
+transport. The resulting unit retains its creation-bound counter reader;
+reactors never reread the global backend when a session arrives. A LAC bridge
+attaches only its original channel and requires no unused local unit creator. The
 subsystem closes this owner after workers, PPP drivers and their drains stop;
 changing the active backend to VPP cannot redirect a Linux `pppN` operation.
 <!-- source: internal/component/l2tp/subsystem.go -- Start, Stop, unwindLocked -->
@@ -1184,12 +1187,16 @@ changing the active backend to VPP cannot redirect a Linux `pppN` operation.
 
 PPPoE binds session admission to the original prepared access through
 `AccessOwner.Open`. Kernel preparation opens one independent netlink backend
-and shares it across that access's session handles and raw counter readers.
-VPP opens through its captured preparation and API connection generation.
-The caller MUST stop admission and join sessions. It MUST then close the access.
+and captures its original unit creator before publication. Child interface
+operations, ordered creation and creation-bound counter readers retain that
+original backend. Typed channel and unit owners transfer through the original
+unit's non-consuming `SessionConfig` and the consuming real PPP constructor;
+an active-backend replacement cannot redirect them. VPP opens through its
+captured preparation and API connection generation. The caller MUST stop
+admission and join sessions and reads. It MUST then close the access.
 <!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, preparedAccess.Open -->
-<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, kernelAccessOwner.Open, kernelAccessOwner.Close -->
-<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/factory.go -- openWithOps, rawCounters -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, prepareWithCreator, kernelAccessOwner.Open, kernelAccessOwner.Close -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/factory.go -- openWithOps, preparedFactoryOps -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/vpp/prepare.go -- accessPreparationLease.Open, accessPreparation.borrow -->
 
 `SessionCounters` keeps numeric receive/transmit bytes and packets. Its receive/
@@ -1212,24 +1219,142 @@ closure refuse the reader. Original-file POLLHUP checks and a final closed-state
 check discard a late snapshot without holding a descriptor lease or owner lock
 across a counter query. On creation failure, any returned unit still owns its
 original file, including a partial echo, uncertain reply or provider panic; it
-cannot supply counters until creation was confirmed. This creator is a library
-primitive; the existing transport setup and SessionConfig still require their
-separate consuming migration before it supplies session counters.
+cannot supply counters until creation was confirmed. Transport setup returns
+that original unit and its original attached channel as typed owners. The
+non-consuming SessionConfig snapshot preserves both originals until NewSession
+claims each fresh owner independently on every outcome. A copied, replayed,
+closed, substituted, wrong-backend or wrong-namespace owner is refused; checked
+numeric fields cannot replace either original file.
+
+The same original unit supplies a passive `WaitNativePPPUnitRetired` join. It
+never starts cleanup. The caller first arranges final accounting, disconnects
+PPP, interrupts readers and closes the exact original owner. A successful join
+requires the actual original unit-file Close, all short original-file borrows
+and the library's one retained original duplicate to finish successfully. The
+native-release seal can keep that duplicate alive after borrowed streams stop;
+the join remains pending until the same seal permits its exact close. Failed
+unit or duplicate closes remain errors and are never retried by numeric file
+descriptor. Namespace-file cleanup errors stay in Close's result independently
+of confirmed native-unit retirement. No name, index, snapshot or inaccessible
+query can prove retirement. The join holds no owner lock or descriptor lease
+while waiting, and a delayed counter reply does not delay original unit Close.
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_retirement.go -- CreatedUnit.WaitNativePPPUnitRetired, publishNativeUnitRetirementLocked -->
+<!-- source: internal/component/l2tp/ppp/kernel/session_unit_retention.go -- CreatedUnit.retainNativeUnit, nativePPPUnitHold.close -->
+
+The provider never closes the unit on the caller's behalf. Native withdrawal
+that needs retirement to settle must not block final exact-owner Close, and a
+native-release seal must not wait for that same retirement before releasing
+its duplicate. The caller retains uncertain writers and cleanup causes through
+this ordering; a passive join cannot resolve a cycle in its caller's ownership.
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_retirement.go -- CreatedUnit.WaitNativePPPUnitRetired -->
+
+The kernel session constructor consumes the original typed channel and unit
+owners. The channel producer proves the original PPPoX socket namespace and
+attaches its original file; the unit producer retains its actual ECHO identity,
+counter generation and creator backend. Both producers retain native namespace
+files, whose identity must agree before admission. The constructor claims both
+resources independently, so a fresh sibling is closed even if the other owner
+was copied or already consumed. Descriptor labels supply no resource custody.
+The interruptible streams keep those same original files. Original-file death
+refuses admission, and every partial wrapper or panic retains cleanup custody.
+Counter reads release the operation gate and discard a reply after Close or an
+identity, native birth or original lease change. Rename preservation concerns
+raw counter reads. Existing name-addressed interface operations retain their
+current contracts.
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit.go -- UnitCreator.Create, CreatedUnit.Counters, CreatedUnit.Close -->
 <!-- source: internal/component/l2tp/ppp/kernel/created_unit_linux.go -- NewUnitCreator, createOriginalPPPUnit, pollOriginalPPPUnit -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_channel_linux.go -- CreatePPPChannel, originalPPPChannelNamespace, captureOriginalPPPChannel -->
+<!-- source: internal/component/l2tp/ppp/kernel/session_unit_owned.go -- CreatedUnit.SessionConfig, claimedCreatedUnit.describe -->
+<!-- source: internal/component/l2tp/ppp/kernel/session_namespace.go -- capturedSessionNamespace.sameSessionNamespace -->
+<!-- source: internal/component/l2tp/ppp/kernel/relay_owned_unit_linux.go -- newInterruptibleSessionFile -->
 
-The kernel L2TP and PPPoE adapters copy all eight native traffic, error and drop
-totals from a successful raw snapshot. Error and drop totals use measured
+The required compiled original-resource PPP ABI is inspected with
+`PPPIOCGSUPPORT`, query42, on one freshly opened, unbound `/dev/ppp` file.
+The 16-byte ABI1 request has zero features and reserved fields. A positive
+reply must preserve the ABI and zero reserved fields, contain only the declared
+bits0 through8 or bit10, and include capture8 and connect6. An actual bridge role
+also requires bridge7. Bit10 declares exact address-pair deletion; these roles
+do not require it. Reserved bit9 is refused.
+The file stays retained through the actual ioctl and is then closed exactly
+once. The query allocates no PPP unit/channel and changes no forwarding mode,
+attachment or bridge. `ENOTTY` or a valid reply missing a required bit is
+Unavailable; permission, other refusal, malformed reply and failed inspection
+or cleanup are Unknown. Every original inspection and close cause is retained.
+No errno, including `EBADF`, is a positive declaration.
+<!-- source: internal/component/l2tp/ppp/kernel/original_attachment_linux.go -- inspectOriginalAttachmentWith, inspectOriginalAttachmentFile, validateOriginalSupportReply -->
+
+The existing doctor registry carries three disjoint configured scopes:
+`l2tp-original-ppp-support` for enabled L2TP, with bridge7 when its relay or
+relay-realm role needs bridging; `pppoe-original-ppp-support` for an enabled
+access concentrator with access interfaces and the actual schema-backed
+`netlink` session backend; and `pppoe-client-original-ppp-support` for active
+CPE entries. A VPP-only access concentrator, disabled client, or unrelated
+configuration does not acquire a native PPP dependency. L2TP registers in its
+own package, so its check remains reachable without importing PPPoE or the
+CPE. Findings use `doctor-ppp-original-unit-attachment`, with their own role
+path; the common kernel package owns that code's explanation and the single
+probe producer. No check publishes mutable global health state.
+<!-- source: internal/component/l2tp/register_original_ppp_support_linux.go -- l2tpOriginalPPPSupportScope -->
+<!-- source: internal/component/l2tp/pppoe/register_original_ppp_support_linux.go -- pppoeOriginalPPPSupportScope -->
+<!-- source: internal/component/l2tp/pppoeclient/register_original_ppp_support_linux.go -- clientOriginalPPPSupportScope -->
+
+The CPE prerequisite calls the same real probe before opening its independent
+backend or allocating a transport. Typed pair construction queries again in
+the retained original namespace before taking pair/owner locks or file leases.
+Bridge preparation performs the bridge-specific declaration in its retained
+original namespace. None of these declarations establishes a native permission
+grant or original resource authority: positive unit51, channel46 and
+transport44 receipts on the exact original files remain mandatory. Every
+actual operation still validates its original objects, namespace, lifetime
+and permission. A late `ENOTTY` remains a refusal with its original cause;
+there is no numeric attachment fallback and unit input remains disabled.
+<!-- source: internal/component/l2tp/pppoeclient/client_owner.go -- prepareClientDial -->
+<!-- source: internal/component/l2tp/ppp/kernel/session_pair_linux.go -- prepareOriginalSessionPair -->
+<!-- source: internal/component/l2tp/ppp/kernel/original_bridge_support_linux.go -- checkOriginalBridgeSupport -->
+
+An unavailable dependency names the native runtime kernel build commands:
+`./le build host-driver`, then
+`./ze-host appliance kernel --target runtime --arch <Ze binary architecture>`.
+Those commands do not install or boot the image. This platform's kernel image
+owner must install and boot the matching image; a firmware binary self-update
+does not replace the kernel. Unknown instead directs the operator to
+`ze show doctor` to inspect the daemon's own configured scope, device access
+and native capability grant. The answer includes actual uname release,
+version and machine. Those fields identify the answering kernel but certify
+neither the selected profile, patch series nor exact image bytes. A failure
+to obtain provenance also remains Unknown with its cause.
+<!-- source: internal/component/l2tp/ppp/kernel/original_attachment_linux.go -- originalAttachmentDoctorCheck, originalAttachmentKernel, originalAttachmentFix, originalAttachmentRefusal -->
+
+
+Kernel sessions obtain all eight native traffic, error and drop totals through
+the original unit's creation-bound reader. Error and drop totals use measured
 readings, including zero. A failed read or missing snapshot returns an error
-without a counter sample.
-<!-- source: internal/component/l2tp/ppp_counters.go -- kernelPPPCounters -->
-<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/factory.go -- rawCounters -->
+without a counter sample. No caller-supplied name callback establishes counter
+ownership. The session releases its mutex before the original-unit query and
+checks its closure and exact retained lease again before returning the sample;
+a sample arriving after Close is rejected.
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit.go -- CreatedUnit.Counters -->
+<!-- source: internal/component/l2tp/ppp/kernel/session.go -- session.Counters -->
+
+The worker keeps the original `CreatedChannel` and `CreatedUnit` pointers until
+the reactor claims the exact worker receipt. Preparing their `SessionConfig`
+is non-consuming on every outcome. The reactor checks that receipt before
+fallible capability or snapshot checks, then rechecks both the original owner
+and resource pair before transferring custody. A stale event cannot publish a
+failure for a replacement subscriber. Bridged calls and calls without a local
+PPP driver retain their resources in the worker.
 
 The reactor constructs a kernel session through its own factory binding, fixed
-before the reactor starts. Production binds `kernel.NewSession`, which consumes
-the transferred descriptors on every outcome. This boundary also lets protocol
-fixtures supply socket-owned streams without pretending a socket is `/dev/ppp`;
-descriptor-transfer assertions inspect the factory's actual input.
+before the reactor starts. Production binds `kernel.NewSession`, which claims
+each fresh original channel and unit independently on every outcome, including
+a malformed or replayed sibling. After the call, neither the worker nor reactor
+uses or closes those original files. Numeric descriptor fields are checked
+diagnostic labels and never establish ownership. Protocol fixtures can supply
+their own socket-owned streams through private fault seams; those seams do not
+grant a valid public kernel owner.
+<!-- source: internal/component/l2tp/kernel_ppp_owners.go -- kernelPPPOwners -->
+<!-- source: internal/component/l2tp/kernel_linux.go -- preparePPPTransfer, takePPPConfig -->
+<!-- source: internal/component/l2tp/ppp/kernel/session_unit_owned.go -- CreatedUnit.SessionConfig -->
 
 Factory refusals and ownership conflicts raise `doctor-ppp-session-admission`
 through the existing runtime `recent-events` check. The retained event names
@@ -1556,10 +1681,13 @@ Creation order:
    -> ioctl(PPPIOCGCHAN)  // on PPPoL2TP socket, get channel index
    -> ioctl(PPPIOCATTCHAN) // on /dev/ppp fd, attach to channel
 
-6. PPP unit fd
-   -> open("/dev/ppp", O_RDWR)
-   -> ioctl(PPPIOCNEWUNIT)  // allocate pppN interface
-   -> transfer channel/unit ownership to ppp/kernel.NewSession
+6. Original PPP unit owner
+   -> captured UnitCreator opens the original /dev/ppp file
+   -> ordered RTM_NEWLINK kind ppp, IFLA_PPP_DEV_FD, ECHO and ACK
+   -> query44 and capture45 on SAME original PPPoX *os.File, no numeric attach
+   -> retain actual SIOCGSKNS socket namespace; create unit there in joined worker
+   -> retain original channel/unit files and actual creation identity
+   -> unit.SessionConfig(channel), then ppp/kernel.NewSession consumes both
 
 7. After authentication and NCP complete
    -> SessionHandle.SetMTU
@@ -1579,8 +1707,8 @@ Transport teardown:
 4. Close UDP socket (only if tunnel being destroyed)
 ```
 
-The transport worker transfers both PPP descriptors to the kernel session
-constructor on every outcome; it never closes them again after that call.
+The transport worker transfers both original PPP file owners to the kernel
+session constructor on every outcome; it never closes them again after that call.
 The kernel handle closes each once. The PPPoL2TP socket has a separate owner,
 which permits a realm relay to release local PPP while retaining the transport.
 An abort initiated by the peer gates that transport before waiting for PPP

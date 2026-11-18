@@ -35,17 +35,23 @@ func (creator *UnitCreator) Create(name string) (*CreatedUnit, error) {
 // neither can establish a new reader. The file MUST NOT be closed by raw FD.
 // Safe for concurrent Counters and Close. This owner borrows its backend.
 type CreatedUnit struct {
-	mu           sync.Mutex
-	closeMu      sync.Mutex
-	closed       bool
-	closeErr     error
-	ready        bool
-	attempted    bool
-	file         *os.File
-	identity     ppp.SessionIdentity
-	number       int
-	readCounters func() (ppp.SessionCounters, error)
-	poll         func(*os.File) error
+	mu                sync.Mutex
+	closeMu           sync.Mutex
+	closed            bool
+	closeErr          error
+	retirement        nativePPPUnitRetirement
+	ready             bool
+	attempted         bool
+	file              *os.File
+	self              *CreatedUnit
+	backend           InterfaceOperations
+	namespace         *capturedSessionNamespace
+	sessionClaim      *claimedCreatedUnit
+	creationRejection nativeLinkCreationRejection
+	identity          ppp.SessionIdentity
+	number            int
+	readCounters      func() (ppp.SessionCounters, error)
+	poll              func(*os.File) error
 }
 
 func (unit *CreatedUnit) Identity() ppp.SessionIdentity { return unit.identity }
@@ -59,28 +65,18 @@ func (unit *CreatedUnit) Attempted() bool { return unit.attempted }
 // The operation MUST NOT close, retain, duplicate or publish the descriptor,
 // or wait for network I/O. This lease prevents descriptor-number reuse while
 // the operation runs. It is also usable to inspect an uncertain creation.
+// WaitNativePPPUnitRetired MUST join the completion of all such short borrows.
 func (unit *CreatedUnit) WithDescriptor(operation func(int) error) error {
-	if unit == nil || operation == nil {
+	if unit == nil {
 		return errors.New("ppp: missing original unit descriptor operation")
 	}
-	unit.mu.Lock()
-	if unit.closed || unit.file == nil {
-		unit.mu.Unlock()
-		return os.ErrClosed
+	if operation == nil {
+		return errors.New("ppp: missing original unit descriptor operation")
 	}
-	file := unit.file
-	unit.mu.Unlock()
-	connection, err := file.SyscallConn()
-	if err != nil {
-		return err
+	if unit.self != unit {
+		return errors.New("ppp: copied or unminted unit cannot lend its original descriptor")
 	}
-	var operationErr error
-	if err := connection.Control(func(fd uintptr) {
-		operationErr = operation(int(fd))
-	}); err != nil {
-		return err
-	}
-	return operationErr
+	return unit.withOriginalUnitDescriptor(operation)
 }
 
 // Counters takes only short original-file leases for liveness checks. It MUST
@@ -102,11 +98,11 @@ func (unit *CreatedUnit) Counters() (ppp.SessionCounters, error) {
 	}
 	file, poll, read := unit.file, unit.poll, unit.readCounters
 	unit.mu.Unlock()
-	if err := poll(file); err != nil {
+	if err := unit.pollNativeUnitFile(file, poll); err != nil {
 		return ppp.SessionCounters{}, err
 	}
 	counters, readErr := read()
-	liveErr := poll(file)
+	liveErr := unit.pollNativeUnitFile(file, poll)
 	unit.mu.Lock()
 	closed := unit.closed
 	unit.mu.Unlock()
@@ -121,6 +117,8 @@ func (unit *CreatedUnit) Counters() (ppp.SessionCounters, error) {
 
 // Close ends the original file's custody without waiting for a native counter
 // query. It never deletes a device by its current name or native index.
+// A caller settling native writes MUST join WaitNativePPPUnitRetired after
+// arranging Close and release of the same native-release seal's duplicate.
 func (unit *CreatedUnit) Close() error {
 	if unit == nil {
 		return nil
@@ -135,11 +133,14 @@ func (unit *CreatedUnit) Close() error {
 	}
 	unit.closed = true
 	file := unit.file
+	namespace := unit.namespace
 	unit.mu.Unlock()
 	var err error
 	if file != nil {
 		err = file.Close()
+		unit.finishNativeUnitFileClose(err)
 	}
+	err = errors.Join(err, namespace.Close())
 	unit.mu.Lock()
 	unit.closeErr = err
 	unit.mu.Unlock()

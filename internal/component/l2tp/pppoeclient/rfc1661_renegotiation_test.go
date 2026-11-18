@@ -298,9 +298,9 @@ func TestRFC1661ClientRenegotiationChangesAuthProto(t *testing.T) {
 // request: an Ack for our request alone must not reopen the rejected link.
 func TestClientRenegotiationNakNeedsPeerAcceptance(t *testing.T) {
 	w := &restartExchange{t: t, frames: make(chan readFrame, 32), zeroMagic: true, rejectOnly: true, auth: ppp.ProtoCHAP}
-	link := &sessionLink{channel: w}
-	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, -1,
-		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, chanFD: -1, username: "user", password: "pass"},
+	link := &sessionLink{client: testClientProtocol(w)}
+	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil),
+		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, username: "user", password: "pass"},
 		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 	if err == nil {
 		t.Fatal("uncorrected peer proposal opened LCP")
@@ -484,12 +484,12 @@ func (w *restartExchange) enqueueRestart() {
 func runRestartExchange(t *testing.T, duringIPCP, zeroMagic bool, auth uint16) *restartExchange {
 	t.Helper()
 	w := &restartExchange{t: t, frames: make(chan readFrame, 32), duringIPCP: duringIPCP, zeroMagic: zeroMagic, auth: auth}
-	link := &sessionLink{channel: w}
-	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, -1,
-		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, chanFD: -1, username: "user", password: "pass"},
+	link := &sessionLink{client: testClientProtocol(w)}
+	_, err := negotiateSession(link, testFrameReader(t, w.frames, nil),
+		sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, username: "user", password: "pass"},
 		make(chan struct{}), slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
-	// Invalid descriptors deliberately stop the real entry point only AFTER
-	// both protocol directions have opened. Kernel ownership is Phase 3/5 proof.
+	// The logical Connect deliberately refuses only AFTER both protocol
+	// directions have opened. Native ownership is proved by real Dial roots.
 	if err == nil {
 		t.Fatal("negotiation unexpectedly connected invalid descriptors")
 	}

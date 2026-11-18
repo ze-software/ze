@@ -116,16 +116,18 @@ event channels. Client mode reverses all of that. Adding client branches to
 every server-side handler would put the L2TP and BNG path at risk, so the client
 calls the ppp package's exported pure functions instead.
 
-**One receive worker for the whole session lifetime.** `Dial` creates the
-channel wrapper, sets both raw descriptors nonblocking, and starts `frameReader`.
-Each request reads the channel first, then the connected unit if the channel
-has no packet. The consumer dispatches that packet before requesting another.
-Once IPCP is Opened, negotiation connects the channel to the unit
-(`PPPIOCCONNECT`) and enables unit reads under the lifecycle lock.
-Linux then queues IPCP on the unit, not the channel (`ppp_input` and
+**One receive worker for the whole session lifetime.** Before `Dial` starts
+`frameReader`, the shared `kernel.NewClientSession` consumes the original channel
+and unit files. Its preparation sets both original files nonblocking. Each
+requested read attempts the channel first. If the channel has no packet, the
+reader attempts the unit only after IPCP opens and both `Connect` and
+`SetReceiveMRU` succeed. The consumer dispatches each packet before requesting
+another. Linux then queues IPCP on the unit, not the channel (`ppp_input` and
 `ppp_receive_nonmp_frame`, `drivers/net/ppp/ppp_generic.c`).
 <!-- source: internal/component/l2tp/pppoeclient/receive.go -- frameReader, next, run -->
-<!-- source: internal/component/l2tp/pppoeclient/receive_linux.go -- readPacket, prepareClientDescriptors -->
+<!-- source: internal/component/l2tp/pppoeclient/receive_linux.go -- readPacket -->
+<!-- source: internal/component/l2tp/ppp/kernel/client.go -- NewClientSession, Connect, SetReceiveMRU -->
+<!-- source: internal/component/l2tp/ppp/kernel/client_linux.go -- prepareOriginalClientPair -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateSession -->
 
 In the network phase, the consumer answers
@@ -145,9 +147,11 @@ Opened nor negotiating, as accel-ppp ends a link once every layer has finished
 (`accel-pppd/ppp/ppp.c`, `ppp_layer_finished`). An IPv4-only session therefore
 still ends on an IPCP Terminate-Request. An LCP Configure-Request starts
 in-session renegotiation of every phase. Cleanup stops transport,
-joins the phase worker, joins the receive worker, and closes the unit last.
-Cancellation releases request and delivery waits. Raw reads and each bounded
-poll hold the lifecycle lock, so Close cannot recycle a descriptor during a syscall.
+joins the phase worker, joins the discovery and receive workers, closes the
+original unit, then closes its independent backend. Cancellation releases
+request and delivery waits. Each bounded pair read holds the lifecycle lock
+for one attempt and releases it before retry. Original-file leases prevent
+descriptor reuse during native operations.
 Initial negotiation failures have no phase worker to join.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, cleanupConnected -->
 <!-- source: internal/component/l2tp/pppoeclient/network_phase.go -- keepaliveLoop -->
@@ -206,11 +210,16 @@ the network phase is reached again.
 
 The lifecycle lock remains held during each 100ms poll. Independently started
 writes, IPv4 mode changes and Close can wait for that poll to finish.
+The shared `kernel.ClientSession` owns the original files and performs one
+bounded channel-first attempt; `sessionLink.readPacket` owns EAGAIN/EINTR
+retry and releases the lifecycle lock between attempts. Unit input remains
+disabled until the delayed original-unit Connect and receive-MRU both succeed.
 This is the code-derived poll contribution, not a measured operation-latency bound:
 scheduling and lock contention can add delay. An idle outstanding read requests
 about ten timeout wakeups per second. Packet-triggered replies precede the next
 read request and do not incur this idle-poll wait.
 <!-- source: internal/component/l2tp/pppoeclient/receive_linux.go -- readPacket -->
+<!-- source: internal/component/l2tp/ppp/kernel/client.go -- ReadPacket, Connect, SetReceiveMRU -->
 <!-- source: internal/component/l2tp/pppoeclient/receive.go -- next, received, run -->
 
 Initial negotiation requires a non-nil `sessionLink` before its first LCP write.
@@ -241,33 +250,47 @@ the session MTU is the MRU the client proposes.
 <!-- source: internal/component/l2tp/pppoeclient/receive.go -- run -->
 <!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateSession -->
 
-**The session device carries the configured name.** `Dial` passes the
-`pppoe-client` list key to `kernel.DevPPPSetup`, which creates the unit with an
-rtnetlink `RTM_NEWLINK` of kind `ppp` carrying `IFLA_PPP_DEV_FD` on the opened
-`/dev/ppp` file. The kernel keeps the name the request carries
-(`ppp_nl_newlink` in `drivers/net/ppp/ppp_generic.c`), and `PPPIOCGUNIT` reads
-back the unit number that `PPPIOCCONNECT` needs. The client never calls
-`PPPIOCNEWUNIT`, so it never creates a `pppN` device. Every session and every
-reconnect gets `pppoe0` for `pppoe-client pppoe0`, whatever unit number the
-kernel picks. `runSession` and `show interface` use that name. A static route,
-a firewall match or a masquerade rule that names `pppoe0` therefore reaches the
-session. The creation retries `EBUSY` and `EEXIST` a bounded number of times:
-the kernel answers `EBUSY` when `ppp_mutex` is contended, and `EEXIST` while
-the previous session's device is still being released. A name another program
-holds fails with an error that names the device and the fix. The access
-concentrator and the LNS still use `PPPIOCNEWUNIT`, because a subscriber
-session has no configured name.
-<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink, sendPPPLinkCreate -->
+**The session device carries the configured name.** The client captures a
+creator from its original independently retained backend before allocating
+native resources. `Dial` passes its `pppoe-client` key to shared setup, which
+returns the original attached channel and unit owners. The unit is created by
+an exclusive rtnetlink `RTM_NEWLINK` of kind `ppp`, carrying the original
+`IFLA_PPP_DEV_FD`. Its creation echo supplies the actual interface identity;
+`PPPIOCGUNIT` reads the native unit number as an immutable label. Delayed
+Connect uses the original unit file; its number is never attachment authority.
+Every reconnect therefore gets `pppoe0` for `pppoe-client pppoe0`, whichever
+unit number the kernel selects. Static routes, firewall matches and masquerade
+rules naming `pppoe0` continue to reach that interface. Shared setup retries a
+named `EBUSY` or `EEXIST` collision at most five times, waiting20ms between
+attempts, only after the original socket's definite negative acknowledgment
+and successful closure of its rejected original file. An uncertain send,
+receive, partial echo or cleanup failure never authorizes another attempt.
+The LNS and access concentrator use the same creation route without a name,
+letting the kernel select `pppN`; they do not use a separate unobserved unit
+allocation path.
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, devPPPSetup -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_linux.go -- NewUnitCreator -->
+<!-- source: internal/component/l2tp/pppoeclient/client_owner.go -- prepareClientDial, createClientPair -->
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial -->
+
+Before allocating its native backend or transport, the client checks the
+[compiled original-resource PPP support](../../research/l2tpv2-ze-integration.md).
+An unavailable dependency names the runtime kernel build commands; an unknown
+result directs the operator to `ze show doctor` with its original cause.
+<!-- source: internal/component/l2tp/pppoeclient/client_owner.go -- prepareClientDial -->
 
 **Session loss stops transport, not unit ownership.** A PADT or keepalive failure
 stops PPP and closes `Done` immediately. The unit descriptor remains open until
 the caller invokes `Cleanup`, because interface setup may still be using the
 device. If the asynchronous watcher released that descriptor, the device would
 disappear while the old caller was still applying its MTU, address or route
-changes. Cleanup joins the readers and then releases the unit, which removes
-the device. The next session can then create the same name.
+changes. The pair's `CloseChannel` leaves the original unit reserved. Cleanup
+joins the phase worker, discovery worker and sole frameReader before
+`CloseUnit`, then closes the independent backend. The next session can then
+create the same name. Setup/config refusal closes every partial original;
+the consuming `NewClientSession` owns both originals on every later outcome.
 <!-- source: internal/component/l2tp/pppoeclient/dialer.go -- Dial, sessionLink.Close -->
+<!-- source: internal/component/l2tp/pppoeclient/client_owner.go -- createClientPair, releaseOwners -->
 <!-- source: internal/component/iface/pppoe_client.go -- PPPoEClient.runSession -->
 
 Before any phase ends, `requestLCPReentry` validates the option boundaries.

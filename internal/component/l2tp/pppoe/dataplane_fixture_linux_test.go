@@ -1,37 +1,96 @@
-// Design: docs/architecture/l2tp/bng-5-pppoe.md -- real descriptor fixture ownership
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- synthetic descriptor fixture ownership
 //go:build linux
 
 package pppoe
 
 import (
+	"context"
 	"errors"
+	"io"
+	"net/netip"
 	"os"
 	"sync"
 	"testing"
+	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
+	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
-// No interface operation is expected before these fixtures stop at LCP/auth.
-// Crossing that boundary still fails through the embedded nil dependency.
-type fixtureKernelBackend struct{ pppkernel.InterfaceOperations }
-
-func fixtureKernelSession(t *testing.T, channel, unit, unitNum int) (ppp.FrameChannel, ppp.SessionHandle) {
+// fixtureSyntheticSession owns socket-backed control and unit streams. It
+// preserves their separate descriptor lifetimes without claiming native PPP
+// creation. Callers supply identity explicitly. These protocol fixtures stop at
+// LCP/auth; every native operation is refused. No public typed owner is minted.
+func fixtureSyntheticSession(t *testing.T, channel, unit int, identity ppp.SessionIdentity) (ppp.FrameChannel, ppp.SessionHandle) {
 	t.Helper()
-	frames, handle, err := pppkernel.NewSession(pppkernel.SessionConfig{
-		ChanFD: channel, UnitFD: unit, UnitNum: unitNum, InterfaceName: "lo",
-		Backend: fixtureKernelBackend{},
-		ReadCounters: func(string) (ppp.SessionCounters, error) {
-			return ppp.SessionCounters{}, errors.New("fixture does not supply raw interface counters")
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
+	// Nonblocking sockets let os.File's runtime poller wake a borrowed read
+	// when this synthetic owner closes or interrupts it. No PPP ioctl is used.
+	if err := unix.SetNonblock(channel, true); err != nil {
+		t.Fatal(errors.Join(err, unix.Close(channel), unix.Close(unit)))
 	}
-	t.Cleanup(func() { _ = handle.Close() })
-	return frames, handle
+	if err := unix.SetNonblock(unit, true); err != nil {
+		t.Fatal(errors.Join(err, unix.Close(channel), unix.Close(unit)))
+	}
+	owner := &fixtureSyntheticOwner{
+		identity: identity,
+		channel:  os.NewFile(uintptr(channel), "pppoe.synthetic.control"),
+		unit:     os.NewFile(uintptr(unit), "pppoe.synthetic.unit"),
+	}
+	t.Cleanup(func() {
+		if err := owner.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	return owner, owner
+}
+
+// fixtureSyntheticOwner is a comparable test owner, never a native binding.
+// Files support one reader and concurrent writers. Close is idempotent and
+// wakes both borrowed streams; this fixture supports no native mutations.
+type fixtureSyntheticOwner struct {
+	identity  ppp.SessionIdentity
+	channel   *os.File
+	unit      *os.File
+	closeOnce sync.Once
+	closeErr  error
+}
+
+func (owner *fixtureSyntheticOwner) Control() io.ReadWriter { return owner.channel }
+func (owner *fixtureSyntheticOwner) Opened() io.Reader      { return owner.unit }
+func (owner *fixtureSyntheticOwner) InterruptRead() error {
+	return owner.channel.SetReadDeadline(time.Now())
+}
+func (owner *fixtureSyntheticOwner) Identity() ppp.SessionIdentity { return owner.identity }
+func (owner *fixtureSyntheticOwner) Close() error {
+	owner.closeOnce.Do(func() { owner.closeErr = errors.Join(owner.channel.Close(), owner.unit.Close()) })
+	return owner.closeErr
+}
+
+var errSyntheticNativeOperation = errors.New("synthetic PPP fixture supplies no native operation")
+
+func (*fixtureSyntheticOwner) SetMTU(int) error           { return errSyntheticNativeOperation }
+func (*fixtureSyntheticOwner) Connect() error             { return errSyntheticNativeOperation }
+func (*fixtureSyntheticOwner) Disconnect() error          { return errSyntheticNativeOperation }
+func (*fixtureSyntheticOwner) SetReceiveMRU(uint16) error { return errSyntheticNativeOperation }
+func (*fixtureSyntheticOwner) SetAdminUp() error          { return errSyntheticNativeOperation }
+func (*fixtureSyntheticOwner) AddAddressP2P(netip.Prefix, netip.Prefix) error {
+	return errSyntheticNativeOperation
+}
+func (*fixtureSyntheticOwner) RemoveAddress(netip.Prefix) error { return errSyntheticNativeOperation }
+func (*fixtureSyntheticOwner) AddRoute(netip.Prefix, netip.Addr, int, rtproto.Proto) error {
+	return errSyntheticNativeOperation
+}
+func (*fixtureSyntheticOwner) RemoveRoute(netip.Prefix, netip.Addr, int, rtproto.Proto) error {
+	return errSyntheticNativeOperation
+}
+func (*fixtureSyntheticOwner) Counters() (ppp.SessionCounters, error) {
+	return ppp.SessionCounters{}, errSyntheticNativeOperation
+}
+func (*fixtureSyntheticOwner) OpenIPv6Carrier(context.Context) (ppp.IPv6Carrier, error) {
+	return nil, errSyntheticNativeOperation
 }
 
 type fixtureFDTransport struct {
@@ -66,16 +125,23 @@ func fixtureFDOpened(t *testing.T, fd int, frames ppp.FrameChannel, handle ppp.S
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = opened.Dataplane().Close(); _ = opened.CloseTransport() })
+	t.Cleanup(func() {
+		if err := errors.Join(opened.Dataplane().Close(), opened.CloseTransport()); err != nil {
+			t.Error(err)
+		}
+	})
 	return opened
 }
 
-//nolint:unparam // Keep the admitted native unit explicit at each session-open fixture call.
-func fixtureKernelOpened(t *testing.T, transport, channel, unit, unitNum int) dataplane.OpenedSession {
+func fixtureSyntheticOpened(t *testing.T, transport, channel, unit int, identity ppp.SessionIdentity) dataplane.OpenedSession {
 	t.Helper()
 	owner := &fixtureFDTransport{file: os.NewFile(uintptr(transport), "pppoe.fixture")}
-	t.Cleanup(func() { _ = owner.Close() })
-	frames, handle := fixtureKernelSession(t, channel, unit, unitNum)
+	t.Cleanup(func() {
+		if err := owner.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	frames, handle := fixtureSyntheticSession(t, channel, unit, identity)
 	opened, err := dataplane.NewOpenedSession(frames, handle, owner)
 	if err != nil {
 		t.Fatal(err)

@@ -62,6 +62,7 @@ func testKernelPPPAdmissionDoctorOutcome(t *testing.T, outcome string, cause err
 	event := kernelSetupSucceeded{localTID: 100, localSID: 1001, session: session, owner: fds, fds: *fds}
 	reactor.kernelWorker = &kernelWorker{
 		sessions: map[sessionKey]*pppSessionFDs{{100, 1001}: fds},
+		ops:      kernelOps{pppConfig: logicalPPPConfigForTest(fds)},
 		eventCh:  make(chan any, 4), stop: make(chan struct{}),
 	}
 	if outcome == "stale" {
@@ -76,7 +77,7 @@ func testKernelPPPAdmissionDoctorOutcome(t *testing.T, outcome string, cause err
 		if outcome == "refused" {
 			return nil, nil, cause
 		}
-		return dispatchProtocolSessionFixture(cfg)
+		return dispatchProtocolSessionFixture(cfg, protocolFixtureIdentity("ppp7", 0x80000007))
 	}
 	reactor.handleKernelSuccess(event)
 	expectCalls := 1

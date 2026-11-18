@@ -6,10 +6,12 @@ package l2tp
 import (
 	"errors"
 	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/callsink"
 )
 
@@ -57,18 +59,17 @@ func TestServiceRelayPreparesBeforeWorkerAttachment(t *testing.T) {
 	events := reactor.kernelSetupsLocked(tunnel)
 	reactor.tunnelsMu.Unlock()
 	require.Len(t, events, 1)
-	channel, unit, number, err := prepareAndSetupPPP(events[0], 11,
-		func(fd int, name string) (int, int, int, error) {
-			require.Equal(t, 11, fd)
+	channel, unit, err := prepareAndSetupPPP(events[0], nil,
+		func(original *os.File, name string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+			require.Nil(t, original, "logical callback-order fixture owns no native file")
 			require.Empty(t, name)
 			trace = append(trace, "attach-worker")
-			return 21, 22, 23, nil
+			return nil, nil, nil
 		})
 	require.NoError(t, err)
 	require.Equal(t, []string{"release-local", "attach-worker"}, trace)
-	require.Equal(t, 21, channel)
-	require.Equal(t, 22, unit)
-	require.Equal(t, 23, number)
+	require.Nil(t, channel)
+	require.Nil(t, unit)
 }
 
 // A service with no relay binding retains its local owner for normal PPP.
@@ -98,27 +99,26 @@ func TestServiceRelayPreparationRefusalPreventsAttachment(t *testing.T) {
 		return want
 	}}
 	attached := false
-	channel, unit, number, err := prepareAndSetupPPP(kernelSetupEvent{beforeBridge: preparation}, 11,
-		func(int, string) (int, int, int, error) {
+	channel, unit, err := prepareAndSetupPPP(kernelSetupEvent{beforeBridge: preparation}, nil,
+		func(*os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
 			attached = true
-			return 21, 22, 23, nil
+			return nil, nil, nil
 		})
 	require.ErrorIs(t, err, want)
 	require.Equal(t, 1, calls)
 	require.False(t, attached, "failed preparation must not attach a new PPP channel")
-	require.Equal(t, -1, channel)
-	require.Equal(t, -1, unit)
-	require.Equal(t, -1, number)
+	require.Nil(t, channel)
+	require.Nil(t, unit)
 }
 
 // A non-PPPoE call has no preparation contract and still creates its local PPP
 // channel. Optional preparation must not become permission for all attachment.
 func TestServiceRelayWithoutPreparationStillAttaches(t *testing.T) {
 	attached := false
-	_, _, _, err := prepareAndSetupPPP(kernelSetupEvent{}, 11,
-		func(int, string) (int, int, int, error) {
+	_, _, err := prepareAndSetupPPP(kernelSetupEvent{}, nil,
+		func(*os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
 			attached = true
-			return 21, 22, 23, nil
+			return nil, nil, nil
 		})
 	require.NoError(t, err)
 	require.True(t, attached)

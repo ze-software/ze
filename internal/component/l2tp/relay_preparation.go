@@ -3,19 +3,24 @@
 
 package l2tp
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+)
 
 // prepareAndSetupPPP releases an accepted relay's unused local PPP ownership
 // immediately before attaching the worker's own channel. The caller MUST close
-// pppoxFD if this returns an error. A nil preparation deliberately means this
+// the original transport file if this returns an error. A nil preparation deliberately means this
 // call owns no unused local lease; it does not bypass the normal PPP setup.
-func prepareAndSetupPPP(ev kernelSetupEvent, pppoxFD int,
-	setup func(int, string) (int, int, int, error),
-) (int, int, int, error) {
+func prepareAndSetupPPP(ev kernelSetupEvent, transport *os.File,
+	setup func(*os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error),
+) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
 	if ev.beforeBridge != nil {
 		if err := ev.beforeBridge.PrepareBridge(); err != nil {
-			return -1, -1, -1, fmt.Errorf("l2tp: prepare relayed PPP channel: %w", err)
+			return nil, nil, fmt.Errorf("l2tp: prepare relayed PPP channel: %w", err)
 		}
 	}
-	return setup(pppoxFD, "")
+	return setup(transport, "")
 }

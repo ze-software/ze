@@ -57,9 +57,17 @@ func connFDOps(connFD int, closes *[]int, mu *sync.Mutex) kernelOps {
 			return nil
 		},
 		sessionDelete: func(uint16, uint16) error { return nil },
-		pppSetup: func(kernelSetupEvent) (pppSessionFDs, error) {
-			return pppSessionFDs{pppoxFD: 10, chanFD: 11, unitFD: 12}, nil
+		pppSetup: func(kernelSetupEvent) (kernelPPPSetup, error) {
+			return func() (pppSessionFDs, error) {
+				return pppSessionFDs{pppoxFD: 10, chanFD: 11, unitFD: 12, ppp: &kernelPPPOwners{}}, nil
+			}, nil
 		},
+		closePPP: closeLogicalPPPForTest(func(fd int) error {
+			mu.Lock()
+			defer mu.Unlock()
+			*closes = append(*closes, fd)
+			return nil
+		}),
 		closeFD: func(fd int) error {
 			mu.Lock()
 			defer mu.Unlock()

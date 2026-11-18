@@ -6,17 +6,13 @@
 package pppoe
 
 import (
-	"crypto/sha256"
 	"errors"
-	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/callsink"
-	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/report"
 )
 
 // errRealmHandoffOver is Quiesce's answer once the PPPoE side abandoned the
@@ -163,6 +159,7 @@ func (r *realmRelay) decide(req *ppp.EventAuthRequest) bool {
 		SubscriberMAC: sub.mac,
 		SessionID:     req.SessionID,
 		Channel:       sub.channel,
+		BeforeBridge:  h,
 		LCP: callsink.ProxyLCP{
 			InitialReceived: req.ProxyLCP.InitialReceived,
 			LastSent:        req.ProxyLCP.LastSent,
@@ -258,6 +255,12 @@ type realmHandoff struct {
 	callMu   sync.Mutex
 	call     callsink.RelayCall
 	canceled bool
+	// Preparation owns local retirement before fresh bridge channel capture.
+	// It runs outside any original-transport borrow and retains its exact result.
+	prepareMu     sync.Mutex
+	prepareDone   bool
+	prepareErr    error
+	localReleased bool
 
 	// goneOnce posts the one subscriber-gone event: PADT and the PPP
 	// session-down can both report the same session.
@@ -267,12 +270,56 @@ type realmHandoff struct {
 // Quiesce stops the PPP driver's reader on the subscriber's channel and
 // returns once it returned (callsink.RealmHandoff).
 func (h *realmHandoff) Quiesce() error {
+	h.prepareMu.Lock()
+	defer h.prepareMu.Unlock()
+	if h.localReleased {
+		return h.prepareErr
+	}
+	return h.quiesce()
+}
+
+func (h *realmHandoff) quiesce() error {
 	select {
 	case <-h.done:
 		return errRealmHandoffOver
 	default:
 	}
 	return h.relay.driver.QuiesceSession(h.request)
+}
+
+// PrepareBridge MUST finish before the sink attaches its fresh native peers.
+// The same Driver release path owns native seal confirmation and reporting;
+// no file callback or access-table mutex is held across it.
+func (h *realmHandoff) PrepareBridge() error {
+	h.prepareMu.Lock()
+	defer h.prepareMu.Unlock()
+	if h.prepareDone {
+		return h.prepareErr
+	}
+	h.prepareDone = true
+	if err := h.quiesce(); err != nil {
+		h.prepareErr = err
+		return err
+	}
+	if err := h.relay.driver.ReleaseSession(h.request); err != nil {
+		h.prepareErr = err
+		return err
+	}
+	h.localReleased = true
+	h.prepareErr = h.relay.released(h.request)
+	if h.prepareErr != nil {
+		h.reportBridgeReleaseFailure(h.prepareErr)
+	}
+	return h.prepareErr
+}
+
+func (h *realmHandoff) bridgePreparationResult() error {
+	h.prepareMu.Lock()
+	defer h.prepareMu.Unlock()
+	if !h.prepareDone {
+		return errors.New("pppoe: realm bridge bypassed local PPP release preparation")
+	}
+	return h.prepareErr
 }
 
 // Bridged queues the bridge result (callsink.RealmHandoff). Never blocks.
@@ -318,6 +365,15 @@ func (h *realmHandoff) cancelCall() {
 // realm and closes its link; the PPP session then ends and the server sends
 // PADT. A session already gone needs no answer.
 func (h *realmHandoff) refuse(why string) {
+	h.prepareMu.Lock()
+	released := h.localReleased
+	h.prepareMu.Unlock()
+	if released {
+		// Authentication has no local PPP owner after prepared retirement. The
+		// existing exact admission teardown sends PADT and retains native errors.
+		h.relay.endSession(h.request)
+		return
+	}
 	message := "realm " + h.realm + ": " + why
 	err := h.relay.driver.RefuseAuth(h.request, message)
 	if err == nil {
@@ -351,26 +407,11 @@ func (h *realmHandoff) run() {
 					h.refuse("the L2TP bridge failed")
 					return
 				}
-				if err := h.relay.driver.ReleaseSession(h.request); err != nil {
+				if err := h.bridgePreparationResult(); err != nil {
 					h.relay.logger.Warn("pppoe: realm relay bridged a session the PPP driver no longer held",
 						"realm", h.realm, "session", h.request.SessionID, "error", err)
 					h.cancelCall()
-					return
-				}
-				if err := h.relay.released(h.request); err != nil {
-					// This handback has only the retained admission identity, not
-					// a native interface identity. Hash its bounded report key so
-					// no subscriber text can exceed the report bus subject limit.
-					report.RaiseWarningFix(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
-						fmt.Sprintf("realm-admission/%x", sha256.Sum256([]byte(h.request.SubscriberID))),
-						report.FitMessage(fmt.Sprintf("PPPoE realm relay admission release failed for subscriber %s on access interface %d in realm %s; cleanup is unconfirmed",
-							h.request.SubscriberID, h.ifindex, h.realm)), ppp.CleanupFailureFix,
-						map[string]any{"subscriber-id": h.request.SubscriberID, "ifindex": h.ifindex,
-							"realm": h.realm, "error": err.Error()})
-					h.relay.logger.Warn("pppoe: realm relay admission release failed",
-						"code", diagnostic.CodeDoctorPPPCleanup, "fix", ppp.CleanupFailureFix,
-						"subscriber", h.request.SubscriberID, "error", err)
-					h.cancelCall()
+					h.refuse("the local PPP release was not confirmed")
 					return
 				}
 				bridged = true
@@ -397,6 +438,7 @@ func (h *realmHandoff) run() {
 }
 
 var _ callsink.RealmHandoff = (*realmHandoff)(nil)
+var _ callsink.BridgePreparation = (*realmHandoff)(nil)
 
 // realmSubscriber returns what a realm request needs about the PPPoE
 // exact admitted request, or false when its transport owner has departed.
@@ -466,6 +508,15 @@ func (s *Subsystem) releaseRelayedSession(request ppp.EventAuthRequest) error {
 	table.mu.Unlock()
 	if ending {
 		server.closeAdmitted(session)
+	}
+	// Protocol retirement is handed back even while native release is pending,
+	// so existing admission teardown can still run. Fresh channel capture needs
+	// the stricter physical receipt as well and refuses until it is confirmed.
+	if !status.Released {
+		return errors.New("pppoe: realm PPP native release remains unconfirmed")
+	}
+	if status.Err != nil {
+		return status.Err
 	}
 	return nil
 }

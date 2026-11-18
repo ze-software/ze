@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"reflect"
 
@@ -20,8 +19,14 @@ type sessionOps struct {
 	closeFD        func(int) error
 	duplicateFD    func(int) (int, error)
 	stampBirth     func(ppp.SessionIdentity, string) error
-	interfaceIndex func(string) (uint32, error)
+	wrapChannel    func(sessionChannelLease) (io.ReadWriteCloser, error)
+	closeChannel   func(sessionChannelLease, io.ReadWriteCloser) error
+	wrapUnit       func(sessionUnitLease) (io.ReadWriteCloser, error)
+	closeUnit      func(sessionUnitLease, io.ReadWriteCloser) error
 	connect        func(int, int) error
+	preparePair    func(*claimedSessionPair) error
+	connectPair    func(*claimedSessionPair) error
+	disconnectPair func(*claimedSessionPair) error
 	disconnect     func(int) error
 	setMRU         func(int, uint16) error
 	setIPv4Mode    func(int, NPMode) error
@@ -29,18 +34,12 @@ type sessionOps struct {
 }
 
 func productionSessionOps() sessionOps {
-	return sessionOps{wrap: newInterruptibleFDFile, closeFD: closeSessionDescriptor, duplicateFD: duplicateSessionDescriptor, stampBirth: stampSessionBirth, interfaceIndex: sessionInterfaceIndex, connect: realConnect, disconnect: realDisconnect, setMRU: realSetMRU, setIPv4Mode: SetIPv4Mode, setIPv6Mode: SetIPv6Mode}
-}
-
-func sessionInterfaceIndex(name string) (uint32, error) {
-	device, err := net.InterfaceByName(name)
-	if err != nil {
-		return 0, err
-	}
-	if device.Index <= 0 {
-		return 0, fmt.Errorf("ppp: interface %s has invalid index %d", name, device.Index)
-	}
-	return uint32(device.Index), nil
+	return sessionOps{wrap: newInterruptibleFDFile, closeFD: closeSessionDescriptor,
+		wrapChannel: wrapClaimedSessionChannel, closeChannel: closeClaimedSessionChannel,
+		wrapUnit: wrapClaimedSessionUnit, closeUnit: closeClaimedSessionUnit,
+		duplicateFD: duplicateSessionDescriptor, stampBirth: stampSessionBirth,
+		preparePair: prepareOriginalSessionPair, connectPair: connectOriginalSessionPair, disconnectPair: disconnectOriginalSessionPair, setMRU: realSetMRU,
+		setIPv4Mode: SetIPv4Mode, setIPv6Mode: SetIPv6Mode}
 }
 
 func closeSessionDescriptor(fd int) error {
@@ -51,24 +50,50 @@ func closeSessionDescriptor(fd int) error {
 	return file.Close()
 }
 
-func validateSessionConfig(cfg SessionConfig) error {
+func validateSessionConfig(cfg SessionConfig, unit sessionUnitDescription) error {
 	if cfg.ChanFD < 0 {
 		return errors.New("ppp: no kernel channel descriptor")
 	}
-	if cfg.UnitFD < 0 {
-		return errors.New("ppp: no kernel unit descriptor")
+	if unit.fd < 0 {
+		return errors.New("ppp: original unit has no descriptor")
 	}
-	if cfg.ChanFD == cfg.UnitFD {
-		return errors.New("ppp: kernel channel and unit descriptors must be distinct")
+	if cfg.ChanFD == unit.fd {
+		return errors.New("ppp: kernel channel and original unit descriptors must be distinct")
 	}
-	if cfg.UnitNum < 0 {
-		return errors.New("ppp: invalid kernel unit number")
+	if unit.number < 0 {
+		return errors.New("ppp: original created unit has no valid native identity")
+	}
+	if unit.identity.NativeIndex == 0 {
+		return errors.New("ppp: original created unit has no valid native identity")
+	}
+	if unit.identity.InterfaceName == "" {
+		return errors.New("ppp: original created unit has no valid native identity")
+	}
+	if cfg.UnitFD != unit.fd {
+		return errors.New("ppp: supplied unit labels disagree with original creation")
+	}
+	if cfg.UnitNum != unit.number {
+		return errors.New("ppp: supplied unit labels disagree with original creation")
+	}
+	if cfg.InterfaceName != "" {
+		if cfg.InterfaceName != unit.identity.InterfaceName {
+			return errors.New("ppp: supplied interface name disagrees with original creation")
+		}
 	}
 	if nilSessionDependency(cfg.Backend) {
 		return errors.New("ppp: missing kernel interface operations")
 	}
-	if cfg.ReadCounters == nil {
-		return errors.New("ppp: missing raw session counter reader")
+	if nilSessionDependency(unit.backend) {
+		return errors.New("ppp: session backend differs from original unit creator")
+	}
+	if !reflect.TypeOf(cfg.Backend).Comparable() {
+		return errors.New("ppp: session backend differs from original unit creator")
+	}
+	if !reflect.TypeOf(unit.backend).Comparable() {
+		return errors.New("ppp: session backend differs from original unit creator")
+	}
+	if cfg.Backend != unit.backend {
+		return errors.New("ppp: session backend differs from original unit creator")
 	}
 	return nil
 }

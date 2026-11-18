@@ -402,7 +402,7 @@ every reconnect, so `pppoe-client pppoe0` is the kernel device `pppoe0` and neve
 only while a session is up. A static route through it waits for the device and follows
 it across a reconnect (`docs/guide/static-routes.md`, "Interface-only next-hops").
 
-<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, devPPPSetup -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->

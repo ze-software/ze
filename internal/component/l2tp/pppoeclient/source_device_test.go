@@ -15,6 +15,7 @@ package pppoeclient
 import (
 	"errors"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
@@ -79,17 +80,29 @@ func TestDialSessionSocketUsesResolvedDevice(t *testing.T) {
 	}
 
 	var created []pppoe.InterfaceBinding
-	createSessionSocket = func(source pppoe.InterfaceBinding, sid uint16, _ [pppoe.EthALen]byte) (int, error) {
+	createSessionSocket = func(source pppoe.InterfaceBinding, sid uint16, _ [pppoe.EthALen]byte) (*os.File, error) {
 		created = append(created, source)
 		if sid != 0x002a {
 			t.Errorf("session socket SESSION_ID = 0x%04x, want 0x002a", sid)
 		}
-		return -1, errInjectedSessionSocket
+		return nil, errInjectedSessionSocket
 	}
 
 	stop := make(chan struct{})
 	t.Cleanup(func() { close(stop) })
-	_, err := (&Dialer{}).Dial(iface.PPPoEClientConfig{SourceInterface: "wan", Timing: testDialTiming}, stop, slog.Default())
+	preflightCloses := 0
+	_, err := (&Dialer{}).dialPrepared(iface.PPPoEClientConfig{SourceInterface: "wan", Timing: testDialTiming}, stop, slog.Default(), func() (*clientDialPreparation, error) {
+		return &clientDialPreparation{
+			setup: func(*os.File, string) (clientProtocol, error) {
+				t.Fatal("socket refusal reached PPP setup")
+				return nil, errInjectedSessionSocket
+			},
+			close: func() error { preflightCloses++; return nil },
+		}, nil
+	})
+	if preflightCloses != 1 {
+		t.Fatalf("independent preparation closes = %d", preflightCloses)
+	}
 	if !errors.Is(err, errInjectedSessionSocket) {
 		t.Fatalf("Dial error = %v, want the injected session socket refusal", err)
 	}

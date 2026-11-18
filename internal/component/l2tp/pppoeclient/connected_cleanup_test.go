@@ -15,7 +15,7 @@ import (
 func TestConnectedCleanupJoinsConsumer(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		transport := &cleanupTransport{}
-		link := &sessionLink{channel: transport, stopped: make(chan struct{}), closeTransport: func() {}}
+		link := &sessionLink{client: testClientProtocol(transport), stopped: make(chan struct{}), closeTransport: func() error { return nil }}
 		input := make(chan readFrame, 2)
 		input <- readFrame{data: []byte{0xc0, 0x21}}
 		input <- readFrame{data: []byte{0x80, 0x21}}

@@ -1,23 +1,6 @@
 //go:build integration && linux
 
-// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 / A-4 LAC bridge integration
-//
-// The test runs unprivileged: userns.Enter gives it a user and network
-// namespace of its own, in which root holds CAP_NET_ADMIN, the capability
-// PPPIOCGCHAN and PPPIOCUNBRIDGECHAN need. Opening /dev/ppp still needs the
-// host grant `./le setup install` applies (its `ppp-access` step puts the node
-// in group dip, mode 0660), so the file keeps the integration tag: a host
-// without that grant fails here on its setup rather than on Ze. The realm
-// relay tests in bridge_realm_integration_linux_test.go build the whole kernel
-// path the LAC bridges: a PPPoE session socket on a veth pair whose far end is
-// a raw subscriber, and a kernel L2TP tunnel and session over loopback UDP
-// with a pppol2tp socket. They live in package l2tp_test because the PPPoE
-// package they drive imports this one.
-// `./le test deployment l2tp-ppp` and `gokrazy-l2tp-ppp` carry no PPPoE
-// subscriber and no Ze LAC, so they prove none of this. The end-to-end proof
-// of the relay data path is the topology scenario access-up
-// (`./le test integration interop-topology scenario access-up`).
-
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- actual typed bridge consumer.
 package l2tp
 
 import (
@@ -26,47 +9,78 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/stretchr/testify/require"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+	"github.com/ze-software/ze/internal/core/callsink"
 	"github.com/ze-software/ze/internal/test/userns"
 )
 
-// openPPPChannel opens /dev/ppp and returns an fd. A refused open fails the
-// test: inside the namespace the only missing piece can be the host grant.
-func openPPPChannel(t *testing.T) int {
-	t.Helper()
-	fd, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
-	if err != nil {
-		t.Fatalf("open /dev/ppp read-write: %v; grant it with `./le setup install` "+
-			"(step ppp-access), then log in again so the group dip membership applies", err)
-	}
-	t.Cleanup(func() { _ = fd.Close() })
-	return int(fd.Fd())
+type originalBridgeTransport struct {
+	original *os.File
+	borrows  int
+	releases int
 }
 
-// TestLACChannelBridge exercises the LAC data-plane bridge helpers against a
-// real kernel: it opens a /dev/ppp channel fd and issues PPPIOCUNBRIDGECHAN
-// (idempotent when no bridge exists on a fresh channel). Establishing a full
-// PPPoE<->pppol2tp bridge requires two connected pppox sockets, and no test
-// drives that end-to-end path yet (neither deployment run carries PPPoE).
-//
-// VALIDATES: the PPPIOCBRIDGECHAN/PPPIOCGCHAN constants are the correct arch
-// values and the ioctl wrappers reach the kernel.
+func (transport *originalBridgeTransport) RetainOriginalFile() (callsink.RelayFileLease, error) {
+	return transport, nil
+}
+func (transport *originalBridgeTransport) Close() error { transport.releases++; return nil }
+func (*originalBridgeTransport) WithDescriptor(func(int) error) error {
+	panic("BUG: typed bridge requested raw transport")
+}
+func (transport *originalBridgeTransport) WithOriginalFile(use func(*os.File) error) error {
+	transport.borrows++
+	return use(transport.original)
+}
+
+// The actual worker bridge consumer captures its peer from the SAME genuine
+// PPPoX file, consumes both new attached channels, and closes both through its
+// retained exact bridge before either separate transport owner is released.
 func TestLACChannelBridge(t *testing.T) {
 	if !userns.Enter(t) {
 		return
 	}
-	chanFD := openPPPChannel(t)
-
-	// A fresh /dev/ppp fd is not attached to a channel, so PPPIOCGCHAN on it
-	// (via channelNumber) must fail cleanly rather than panic -- this proves
-	// the wrapper marshals the ioctl and surfaces the errno.
-	if _, err := channelNumber(chanFD); err == nil {
-		t.Fatal("channelNumber on an unattached /dev/ppp fd should error")
+	t.Run("unattached original refuses native capture", func(t *testing.T) {
+		original, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, original.Close()) })
+		partial, err := pppkernel.CreatePPPChannel(original)
+		if partial != nil {
+			t.Cleanup(func() { require.NoError(t, partial.Close()) })
+		}
+		require.ErrorIs(t, err, unix.ENOTTY, "unattached /dev/ppp MUST reach and fail the actual SIOCGSKNS capture boundary")
+		_, err = original.Stat()
+		require.NoError(t, err, "refused capture consumed the borrowed original")
+	})
+	local := kernelCounterTransport(t)
+	peer := kernelCounterTransport(t)
+	channel, err := pppkernel.CreatePPPChannel(local)
+	require.NoError(t, err)
+	owners := &kernelPPPOwners{channel: channel}
+	transport := &originalBridgeTransport{original: peer}
+	t.Cleanup(func() {
+		failures := closeOriginalKernelPPP(owners, nil, (*os.File).Close)
+		for _, failure := range failures {
+			require.NoError(t, failure)
+		}
+	})
+	requested, err := maybeBridgePPPoE(kernelSetupEvent{channel: transport}, owners)
+	require.NoError(t, err)
+	require.True(t, requested)
+	require.Equal(t, 1, transport.borrows)
+	require.Nil(t, owners.channel, "constructor-consumed owner must not remain independently closable")
+	require.NotNil(t, owners.bridge)
+	require.True(t, owners.bridge.ClosePending())
+	require.NoError(t, unbridgeOriginalKernelPPP(owners))
+	require.NoError(t, owners.bridge.Close())
+	require.False(t, owners.bridge.ClosePending())
+	failures := closeOriginalKernelPPP(owners, nil, (*os.File).Close)
+	for _, failure := range failures {
+		require.NoError(t, failure)
 	}
-
-	// unbridgeChannel on an unbridged channel returns an errno; the wrapper
-	// must surface it as a non-nil error without crashing.
-	if err := unbridgeChannel(chanFD); err == nil {
-		t.Log("unbridgeChannel returned nil on an unbridged channel (kernel-dependent)")
-	}
-	_ = unix.EINVAL // referenced to keep the unix import meaningful across kernels
+	require.Equal(t, 1, transport.releases)
+	_, err = local.Stat()
+	require.NoError(t, err, "channel cleanup must not close original PPPoX transport")
+	_, err = peer.Stat()
+	require.NoError(t, err)
 }

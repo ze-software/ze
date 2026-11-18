@@ -5,7 +5,6 @@ package l2tp
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 
@@ -32,10 +31,10 @@ type protocolSessionFixture struct {
 // ownedProtocolSessionFixture consumes real socket/file descriptors. Shutdown
 // wakes a blocked socket reader before Close joins its descriptor lease; a
 // /dev/null fixture has no blocked reader and needs only Close.
-func ownedProtocolSessionFixture(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
+func ownedProtocolSessionFixture(cfg pppkernel.SessionConfig, identity ppp.SessionIdentity) (ppp.FrameChannel, ppp.SessionHandle, error) {
 	owner := &protocolSessionFixture{
 		config:    cfg,
-		identity:  protocolFixtureIdentity(cfg),
+		identity:  identity,
 		channel:   pppkernel.NewFDFile(cfg.ChanFD, "fixture.ppp.channel"),
 		unit:      pppkernel.NewFDFile(cfg.UnitFD, "fixture.ppp.unit"),
 		channelFD: cfg.ChanFD,
@@ -45,24 +44,20 @@ func ownedProtocolSessionFixture(cfg pppkernel.SessionConfig) (ppp.FrameChannel,
 
 // dispatchProtocolSessionFixture captures the actual factory input. Its fd
 // numbers are recorder tokens, so this factory MUST NOT pass them to the OS.
-func dispatchProtocolSessionFixture(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
+func dispatchProtocolSessionFixture(cfg pppkernel.SessionConfig, identity ppp.SessionIdentity) (ppp.FrameChannel, ppp.SessionHandle, error) {
 	owner := &protocolSessionFixture{
 		config:    cfg,
-		identity:  protocolFixtureIdentity(cfg),
+		identity:  identity,
 		channel:   &protocolDispatchStream{},
 		channelFD: -1,
 	}
 	return owner, owner, nil
 }
 
-func protocolFixtureIdentity(cfg pppkernel.SessionConfig) ppp.SessionIdentity {
-	name := cfg.InterfaceName
-	if name == "" {
-		name = fmt.Sprintf("ppp%d", cfg.UnitNum)
-	}
-	// Deliberately distinct from UnitNum: this is the fixture factory's opaque
-	// index, never a claim about a real Linux interface.
-	return ppp.SessionIdentity{InterfaceName: name, NativeIndex: 0x80000000 + uint32(cfg.UnitNum)}
+// protocolFixtureIdentity records the test's explicit synthetic origin. Neither
+// field is inferred from a unit number or a native creation observation.
+func protocolFixtureIdentity(name string, index uint32) ppp.SessionIdentity {
+	return ppp.SessionIdentity{InterfaceName: name, NativeIndex: index}
 }
 
 type protocolDispatchStream struct{ bytes.Buffer }

@@ -64,7 +64,7 @@ func acPPPChannel(t *testing.T) int {
 			if err != nil {
 				return nil, err
 			}
-			return fixtureKernelOpened(t, transport, channel[0], unit[0], 1), nil
+			return fixtureSyntheticOpened(t, transport, channel[0], unit[0], ppp.SessionIdentity{InterfaceName: "lo", NativeIndex: 1}), nil
 		},
 	}
 	s.handlePADR(&Packet{

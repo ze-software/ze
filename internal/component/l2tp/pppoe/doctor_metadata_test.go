@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/core/callsink"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/report"
 )
@@ -38,12 +39,19 @@ func TestRealmAdmissionReleaseFailureReachesDoctor(t *testing.T) {
 				captured = request
 				return question.failure
 			}
-			h.handoff().Bridged(nil)
-			if question.failure != nil {
-				waitSignal(t, h.sink.canceled, "the failed admission call cancel")
-			} else {
-				h.handoff().Ended("the remote call ended")
-				waitSignal(t, h.ended, "the successfully relayed session end")
+			preparation, ok := h.handoff().(callsink.BridgePreparation)
+			if !ok {
+				t.Fatal("realm handoff has no original release preparation")
+			}
+			if err := preparation.PrepareBridge(); !errors.Is(err, question.failure) {
+				t.Fatalf("original admission release = %v, want %v", err, question.failure)
+			}
+			if question.failure == nil {
+				h.handoff().Bridged(nil)
+			}
+			h.handoff().Ended("the remote call ended")
+			if sid := waitSignal(t, h.ended, "the original relayed session end"); sid != 5 {
+				t.Fatalf("ended session = %d, want original session 5", sid)
 			}
 			h.relay.stopAll()
 			if captured.Control.Attempt() != h.attempt {

@@ -357,8 +357,14 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			s.recordDataPlaneFault(errKernelDataPlaneDisabled)
 		} else {
 			var workerErr error
-			worker, workerErr = newSubsystemKernelWorkerFn(errCh, successCh, s.logger)
+			worker, workerErr = newSubsystemKernelWorkerFn(errCh, successCh, s.logger, s.prepareKernelWorkerBackend)
 			if workerErr != nil {
+				var preparation *kernelBackendPreparationFailure
+				if errors.As(workerErr, &preparation) {
+					closeErr := ln.Stop()
+					s.unwindLocked()
+					return errors.Join(workerErr, closeErr)
+				}
 				s.logger.Warn("l2tp: kernel data plane unavailable; sessions will not be programmed into the kernel",
 					"listen", addr.String(), "error", workerErr.Error())
 				s.recordDataPlaneFault(fmt.Errorf("listener %s: %w", addr, workerErr))
@@ -366,9 +372,11 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		}
 		reactor.setKernelWorker(worker, errCh, successCh)
 
-		// Kernel PPP interfaces remain in the OS data plane even when the
-		// configured interface backend is VPP. Open a separate OS owner once;
-		// no active backend is loaded, replaced or borrowed here.
+		// Native worker construction already captures the independent OS
+		// backend before publication. The shared call also preserves the
+		// lifecycle seam for inert test workers; it never switches a global
+		// backend. Unit-specific capability is checked per local admission,
+		// so a transport-only LAC bridge needs no unused UnitCreator.
 		var pppDriver *ppp.Driver
 		if worker != nil {
 			if err := s.prepareKernelBackend(); err != nil {

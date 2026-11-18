@@ -29,8 +29,8 @@ func TestSessionNilTransports(t *testing.T) {
 				}()
 				frames := make(chan readFrame)
 				reader := testFrameReader(t, frames, nil)
-				_, err := negotiateSession(tc.transport, reader, -1, -1,
-					sessionConfig{mtu: 1492, chanFD: -1}, make(chan struct{}),
+				_, err := negotiateSession(tc.transport, reader,
+					sessionConfig{mtu: 1492}, make(chan struct{}),
 					slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 				if err == nil {
 					t.Fatal("nil transport admitted")

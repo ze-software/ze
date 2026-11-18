@@ -9,13 +9,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 	"golang.org/x/sys/unix"
 )
 
 type socketOps struct {
-	socket  func(int, int, int) (int, error)
+	socket func(int, int, int) (int, error)
+	// own is nil only for explicit logical syscall fixtures. Production wraps
+	// the descriptor just returned by socket exactly once, before connect.
+	own     func(int) *os.File
 	connect func(int, unix.Sockaddr) error
 	close   func(int) error
 }
@@ -26,6 +30,7 @@ func requirePlatform() error { return nil }
 func openTransport(ctx context.Context, request dataplane.Request) (*pppoxTransport, error) {
 	return openTransportWithOps(ctx, request, socketOps{
 		socket: unix.Socket, connect: unix.Connect, close: unix.Close,
+		own: func(fd int) *os.File { return os.NewFile(uintptr(fd), "pppoe-transport") },
 	})
 }
 
@@ -44,6 +49,9 @@ func openTransportWithOps(ctx context.Context, request dataplane.Request, ops so
 		return nil, fmt.Errorf("pppoe: socket(AF_PPPOX): %w", err)
 	}
 	owner := &pppoxTransport{fd: fd, closeFD: ops.close}
+	if ops.own != nil {
+		owner.file = ops.own(fd)
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, errors.Join(err, owner.Close())
 	}

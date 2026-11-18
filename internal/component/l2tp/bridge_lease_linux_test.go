@@ -1,5 +1,5 @@
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- relay transport lease at the native bridge
-// Related: bridge_linux.go -- maybeBridgePPPoE; kernel_linux.go -- rollbackPPPBridge
+// Related: bridge_linux.go -- maybeBridgePPPoE; kernel_ppp_owners_linux.go -- original-owner cleanup; kernel_ppp_model_linux_test.go -- logical FD model
 
 //go:build linux
 
@@ -7,32 +7,56 @@ package l2tp
 
 import (
 	"errors"
+	"os"
 	"testing"
+
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+	"github.com/ze-software/ze/internal/core/callsink"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
 
 type bridgeLeaseForTest struct {
-	borrow func(func(int) error) error
+	borrow   func(func(int) error) error
+	original func(func(*os.File) error) error
 }
+
+func (lease *bridgeLeaseForTest) WithOriginalFile(use func(*os.File) error) error {
+	return lease.original(use)
+}
+func (lease *bridgeLeaseForTest) RetainOriginalFile() (callsink.RelayFileLease, error) {
+	return lease, nil
+}
+func (*bridgeLeaseForTest) Close() error { return nil }
 
 func (lease *bridgeLeaseForTest) WithDescriptor(use func(int) error) error {
 	return lease.borrow(use)
 }
 
-// The bridge performs its actual native ioctl inside the owner's borrow.
-// An invalid descriptor produces EBADF through that callback; it cannot be
-// mistaken for permission to run a local PPP session instead.
-func TestMaybeBridgePPPoEBorrowsForNativeIoctl(t *testing.T) {
+// This private capture-failure model preserves the exact callback error and
+// original file identity. The integration test with the original name covers
+// the production capture and actual native refusal within the same borrow.
+func TestMaybeBridgePPPoECaptureFailureModel(t *testing.T) {
+	original, peer, err := os.Pipe()
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, errors.Join(original.Close(), peer.Close())) })
 	borrows := 0
-	lease := &bridgeLeaseForTest{borrow: func(use func(int) error) error {
+	lease := &bridgeLeaseForTest{original: func(use func(*os.File) error) error {
 		borrows++
-		err := use(-1)
-		require.ErrorIs(t, err, unix.EBADF, "the callback must execute the native bridge path")
+		err := use(original)
+		require.ErrorIs(t, err, unix.EBADF, "the callback must execute original-file capture")
 		return err
 	}}
-	bridged, err := maybeBridgePPPoE(kernelSetupEvent{channel: lease}, -1)
+	bridged, err := maybeBridgePPPoEWith(kernelSetupEvent{channel: lease}, &kernelPPPOwners{},
+		func(actual *os.File) (*pppkernel.CreatedChannel, error) {
+			require.Same(t, original, actual)
+			return nil, unix.EBADF
+		},
+		func(*pppkernel.CreatedChannel, *pppkernel.CreatedChannel) (kernelPPPBridge, error) {
+			t.Fatal("capture failure reached constructor")
+			return nil, nil
+		})
 	require.True(t, bridged)
 	require.ErrorIs(t, err, unix.EBADF)
 	require.Equal(t, 1, borrows)
@@ -43,11 +67,11 @@ func TestMaybeBridgePPPoEBorrowsForNativeIoctl(t *testing.T) {
 func TestMaybeBridgePPPoERefusesDepartedLease(t *testing.T) {
 	want := errors.New("subscriber transport closed")
 	borrows := 0
-	lease := &bridgeLeaseForTest{borrow: func(func(int) error) error {
+	lease := &bridgeLeaseForTest{original: func(func(*os.File) error) error {
 		borrows++
 		return want
 	}}
-	bridged, err := maybeBridgePPPoE(kernelSetupEvent{channel: lease}, -1)
+	bridged, err := maybeBridgePPPoE(kernelSetupEvent{channel: lease}, &kernelPPPOwners{})
 	require.True(t, bridged)
 	require.ErrorIs(t, err, want)
 	require.Equal(t, 1, borrows)
@@ -61,7 +85,7 @@ func TestMaybeBridgePPPoELeavesNonRelayCallsLocal(t *testing.T) {
 		return errors.New("unexpected borrow")
 	}}
 	for _, event := range []kernelSetupEvent{{}, {lnsMode: true, channel: lease}} {
-		bridged, err := maybeBridgePPPoE(event, -1)
+		bridged, err := maybeBridgePPPoE(event, nil)
 		require.NoError(t, err)
 		require.False(t, bridged)
 	}
@@ -98,7 +122,8 @@ func TestRollbackPPPBridgeClosesOwnedDescriptors(t *testing.T) {
 		})
 	}
 	want := errors.New("bridge borrow refused")
-	err = rollbackPPPBridge([3]int{pair[0], pair[1], third}, want, unix.Close)
+	failures := closeLogicalPPPForTest(unix.Close)(nil, nil, [3]int{pair[0], pair[1], third})
+	err = errors.Join(want, failures[0], failures[1], failures[2])
 	require.ErrorIs(t, err, want)
 	for _, fd := range []int{pair[0], pair[1], third} {
 		_, inspectErr := unix.FcntlInt(uintptr(fd), unix.F_GETFD, 0)
@@ -113,13 +138,14 @@ func TestRollbackPPPBridgeRetainsAllErrorsAndClosesAliasesOnce(t *testing.T) {
 	closeErr := errors.New("close failed")
 	otherCloseErr := errors.New("another close failed")
 	var closed []int
-	err := rollbackPPPBridge([3]int{0, 7, 0}, want, func(fd int) error {
+	failures := closeLogicalPPPForTest(func(fd int) error {
 		closed = append(closed, fd)
 		if fd == 0 {
 			return closeErr
 		}
 		return otherCloseErr
-	})
+	})(nil, nil, [3]int{0, 7, 0})
+	err := errors.Join(want, failures[0], failures[1], failures[2])
 	require.Equal(t, []int{0, 7}, closed)
 	require.ErrorIs(t, err, want)
 	require.ErrorIs(t, err, closeErr)
@@ -131,10 +157,11 @@ func TestRollbackPPPBridgeRetainsAllErrorsAndClosesAliasesOnce(t *testing.T) {
 func TestRollbackPPPBridgeSkipsUnallocatedDescriptors(t *testing.T) {
 	want := errors.New("bridge refused")
 	var closed []int
-	err := rollbackPPPBridge([3]int{-1, 0, -1}, want, func(fd int) error {
+	failures := closeLogicalPPPForTest(func(fd int) error {
 		closed = append(closed, fd)
 		return nil
-	})
+	})(nil, nil, [3]int{-1, 0, -1})
+	err := errors.Join(want, failures[0], failures[1], failures[2])
 	require.Equal(t, []int{0}, closed)
 	require.ErrorIs(t, err, want)
 }

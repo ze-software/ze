@@ -154,7 +154,7 @@ func (rs *relaySink) RelayRealm(req callsink.RealmRequest) (callsink.RelayCall, 
 		handoff: req.Handoff, teardown: reactor.teardownRelaySession,
 	}
 	target := DialTarget{Remote: rem.Address, SharedSecret: rem.SharedSecret}
-	params := callParams{callingNumber: req.SubscriberMAC, channel: req.Channel, relay: rc}
+	params := callParams{callingNumber: req.SubscriberMAC, channel: req.Channel, beforeBridge: req.BeforeBridge, relay: rc}
 	if _, err := reactor.placeIncomingCall(target, params); err != nil {
 		countRelay(relayKindRealm, relayOutcomeRefused)
 		return nil, false, err

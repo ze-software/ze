@@ -17,9 +17,10 @@ func TestKernelPPPConstructorClassifiesRollbackFailure(t *testing.T) {
 	cleanup := errors.New("original constructor raw close remains unknown")
 	var closed []int
 	ops := sessionTestOps(nil, &closed)
-	ops.interfaceIndex = func(string) (uint32, error) { return 0, primary }
+	cfg := sessionTestConfig()
+	sessionTestUnit(cfg).describeErr = primary
 	ops.closeFD = func(fd int) error { closed = append(closed, fd); return cleanup }
-	frames, owner, err := newSession(sessionTestConfig(), ops)
+	frames, owner, err := sessionTestNewSession(cfg, ops)
 	require.Nil(t, frames)
 	require.Nil(t, owner)
 	require.ErrorIs(t, err, primary)
@@ -36,8 +37,9 @@ func TestKernelPPPConstructorConfirmedRollbackHasNoPhysicalFailure(t *testing.T)
 	primary := errors.New("interface lookup refused with confirmed cleanup")
 	var closed []int
 	ops := sessionTestOps(nil, &closed)
-	ops.interfaceIndex = func(string) (uint32, error) { return 0, primary }
-	frames, owner, err := newSession(sessionTestConfig(), ops)
+	cfg := sessionTestConfig()
+	sessionTestUnit(cfg).describeErr = primary
+	frames, owner, err := sessionTestNewSession(cfg, ops)
 	require.Nil(t, frames)
 	require.Nil(t, owner)
 	require.ErrorIs(t, err, primary)

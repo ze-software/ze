@@ -100,7 +100,7 @@ func TestServiceNameRelayPrecedesRealm(t *testing.T) {
 		logger:      slog.Default(),
 		sendFrameFn: func([]byte) {},
 		openSession: func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
-			return fixtureKernelOpened(t, openNull(), openNull(), unit[0], 1), nil
+			return fixtureSyntheticOpened(t, openNull(), openNull(), unit[0], ppp.SessionIdentity{InterfaceName: "lo", NativeIndex: 1}), nil
 		},
 	}
 	applyInterfaceConfig(srv, ic, &p)
@@ -228,7 +228,7 @@ func newDriverlessFixture(t *testing.T, config string) *driverlessFixture {
 		logger:      slog.Default(),
 		sendFrameFn: func(frame []byte) { f.sent = append(f.sent, append([]byte(nil), frame...)) },
 		openSession: func(context.Context, dataplane.Request) (dataplane.OpenedSession, error) {
-			return fixtureKernelOpened(t, f.pppox.given, f.chann.given, f.unit.given, 1), nil
+			return fixtureSyntheticOpened(t, f.pppox.given, f.chann.given, f.unit.given, ppp.SessionIdentity{InterfaceName: "lo", NativeIndex: 1}), nil
 		},
 	}
 	applyInterfaceConfig(f.srv, ic, &p)

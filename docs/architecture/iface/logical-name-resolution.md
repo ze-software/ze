@@ -233,7 +233,10 @@ and namespace, so the netlink socket connects with the resolved device name.
 <!-- source: internal/component/l2tp/pppoe/dataplane/kernel/socket_linux.go -- openTransportWithOps -->
 
 Kernel preparation owns an independent netlink backend shared by its sessions.
-The caller MUST stop admission and join its sessions. It MUST then close that access.
+It captures that backend's original unit creator before publishing the access,
+and each child opens through the same original prepared owner even if the active
+backend changes. Creation-bound counters do not resolve the child's current name.
+The caller MUST stop admission and join its sessions and reads. It MUST then close that access.
 
 <!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, preparedAccess.Open -->
 <!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, prepareWithResolver -->

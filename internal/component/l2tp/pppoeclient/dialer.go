@@ -86,6 +86,12 @@ type Dialer struct{}
 // setup. Returns a PPPoESession with open file descriptors. The caller
 // must invoke Cleanup when the session is no longer needed.
 func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logger *slog.Logger) (iface.PPPoESession, error) { //nolint:gocritic // hugeParam: iface.PPPoEDialer fixes the value signature; one copy per dial, off the data plane
+	return d.dialPrepared(cfg, stopCh, logger, prepareClientDial)
+}
+
+// dialPrepared keeps the private logical preflight port separate from public
+// original-file grants. Production supplies only prepareClientDial.
+func (d *Dialer) dialPrepared(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logger *slog.Logger, prepare func() (*clientDialPreparation, error)) (session iface.PPPoESession, err error) { //nolint:gocritic // hugeParam: same owned snapshot as Dial.
 	// RFC 2516 Section 7: the session MTU bounds the MRU LCP negotiates.
 	mtu, err := pppoeSessionMTU(cfg.MTU)
 	if err != nil {
@@ -105,6 +111,18 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 	if err != nil {
 		return iface.PPPoESession{}, err
 	}
+	// Capture the independent backend and its creator before discovery or any
+	// PPPoX allocation. The active backend is never looked up during this dial.
+	prepared, err := prepare()
+	if err != nil {
+		return iface.PPPoESession{}, err
+	}
+	preparationTransferred := false
+	defer func() {
+		if !preparationTransferred {
+			err = errors.Join(err, prepared.close())
+		}
+	}()
 
 	discFD, err := openDiscoverySocket()
 	if err != nil {
@@ -166,44 +184,33 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 
 	// Kernel PPPoE session + /dev/ppp setup.
 	// RFC 2516 Section 4: after PADS, the kernel handles session framing.
-	pppoxFD, err := createSessionSocket(source, sessID, acMAC)
+	pppoxFile, err := createSessionSocket(source, sessID, acMAC)
 	if err != nil {
+		if pppoxFile != nil {
+			err = errors.Join(err, closeClientOwner(pppoxFile.Close))
+		}
 		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, nil)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
 
-	chanFD, unitFD, unitNum, err := pppkernel.DevPPPSetup(pppoxFD, cfg.Name)
+	client, err := prepared.setup(pppoxFile, cfg.Name)
 	if err != nil {
-		pppoe.ClosePPPoxFD(pppoxFD)
+		err = errors.Join(err, closeClientOwner(pppoxFile.Close))
 		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, nil)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
 	}
 
-	chanFile := pppkernel.NewFDFile(chanFD, "pppoe-client.chan")
 	link := &sessionLink{
-		channel:   chanFile,
-		channelFD: chanFD,
-		unitFD:    unitFD,
-		stopped:   make(chan struct{}),
-		closeTransport: func() {
-			pppoe.ClosePPPoxFD(pppoxFD)
-		},
+		client:         client,
+		stopped:        make(chan struct{}),
+		closeTransport: pppoxFile.Close,
 	}
-	// NewFDFile sets blocking mode. Prepare raw nonblocking reads only after
-	// creating that wrapper, and never wrap either descriptor again afterward.
-	if err := prepareClientDescriptors(chanFD, unitFD); err != nil {
-		_ = link.Close() //nolint:errcheck // preparation failed; release the transport once
-		pppoe.ClosePPPoxFD(unitFD)
-		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link)
-		pppoe.CloseDiscoveryFD(discFD)
-		return iface.PPPoESession{}, err
-	}
+	unitNum := client.UnitNumber()
 	reader, err := newFrameReader(link.readPacket, link.stopped)
 	if err != nil {
-		_ = link.Close() //nolint:errcheck // receive startup failed; release the transport once
-		pppoe.ClosePPPoxFD(unitFD)
+		err = errors.Join(err, link.Close(), closeClientOwner(client.CloseUnit))
 		sendPADT(discFD, source.Ifindex, source.HWAddr, acMAC, sessID, link)
 		pppoe.CloseDiscoveryFD(discFD)
 		return iface.PPPoESession{}, err
@@ -229,16 +236,17 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 			<-reader.done
 			// The caller may still be configuring ppp<unitNum> after Done
 			// closes. Reserve its identity until that owner invokes Cleanup.
-			pppoe.ClosePPPoxFD(unitFD)
+			link.releaseOwners(client.CloseUnit, prepared.close)
 		})
 	}
 
+	// The cleanup closure now owns the backend, including negotiation failure.
+	preparationTransferred = true
 	sessCfg := sessionConfig{
 		name:              cfg.Name,
 		mtu:               mtu,
 		username:          cfg.Username,
 		password:          cfg.AuthSecret,
-		chanFD:            chanFD,
 		keepaliveInterval: cfg.Timing.KeepaliveInterval,
 		keepaliveFailures: cfg.Timing.KeepaliveFailures,
 		lcpRestartTimer:   cfg.Timing.LCPRestartTimer,
@@ -252,43 +260,43 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		// received when the corresponding NCP is not in the Opened state MUST
 		// be silently discarded." IPv6CP negotiates during IPCP's
 		// negotiation, so IPv6 is held from before the first NCP request.
-		if err := link.setIPv6Mode(unitFD, pppkernel.NPModeDrop); err != nil {
+		if err := link.setIPv6Mode(pppkernel.NPModeDrop); err != nil {
 			cleanup()
-			return iface.PPPoESession{}, fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err)
+			return iface.PPPoESession{}, errors.Join(fmt.Errorf("pppoe-client: cannot hold IPv6 until IPv6CP opens: %w", err), link.Close())
 		}
 		// RFC 5072 Section 4.1: the tentative identifier comes from the
 		// source interface's EUI-48 (ppp.TentativeIPv6CPInterfaceID).
 		ipv6, err = newClientIPv6CP(source.HWAddr[:], 0, cfg.Timing.IPv6CPRestartTimer)
 		if err != nil {
 			cleanup()
-			return iface.PPPoESession{}, err
+			return iface.PPPoESession{}, errors.Join(err, link.Close())
 		}
 	}
-	result, negErr := negotiateSession(link, reader, unitFD, unitNum, sessCfg, link.stopped, logger, ipv6)
+	result, negErr := negotiateSession(link, reader, sessCfg, link.stopped, logger, ipv6)
 	if negErr != nil {
 		cleanup()
-		return iface.PPPoESession{}, negErr
+		return iface.PPPoESession{}, errors.Join(negErr, link.Close())
 	}
 
 	connected, err := newConnectedSession(link, result, sessCfg, func(mode pppkernel.NPMode) error {
 		// RFC 1661 Section 3.6: the unit retains ownership while mode changes.
-		return link.setIPv4Mode(unitFD, mode)
+		return link.setIPv4Mode(mode)
 	})
 	if err != nil {
 		cleanup()
-		return iface.PPPoESession{}, err
+		return iface.PPPoESession{}, errors.Join(err, link.Close())
 	}
 	if ipv6 != nil {
 		if err := connected.enableIPv6CP(ipv6, func(mode pppkernel.NPMode) error {
-			return link.setIPv6Mode(unitFD, mode)
+			return link.setIPv6Mode(mode)
 		}, logger); err != nil {
 			cleanup()
-			return iface.PPPoESession{}, err
+			return iface.PPPoESession{}, errors.Join(err, link.Close())
 		}
 	}
 	keepaliveDone := make(chan struct{})
 	// Snapshot every initial value before the connected worker can run.
-	session := iface.PPPoESession{
+	session = iface.PPPoESession{
 		SessionID: sessID,
 		UnitNum:   unitNum,
 		LocalIP:   result.localIP,
@@ -305,6 +313,7 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 		},
 	}
 	go superviseNetworkPhase(link, connected, keepaliveDone, logger)
+	preparationTransferred = true
 	return session, nil
 }
 
@@ -312,11 +321,8 @@ func (d *Dialer) Dial(cfg iface.PPPoEClientConfig, stopCh <-chan struct{}, logge
 // concurrent Write and Close. The owner MUST close it before sending PADT,
 // then wait for watchPADT before closing the discovery descriptor.
 type sessionLink struct {
-	channel        io.ReadWriteCloser
-	channelFD      int
-	unitFD         int
-	unitConnected  bool // Protected by mu; an unconnected unit reads EOF.
-	closeTransport func()
+	client         clientProtocol
+	closeTransport func() error
 	stopped        chan struct{}
 	mu             sync.Mutex
 	closed         bool
@@ -324,7 +330,7 @@ type sessionLink struct {
 }
 
 func (s *sessionLink) Read(buf []byte) (int, error) {
-	return s.channel.Read(buf)
+	return s.readPacket(buf)
 }
 
 // cleanupConnected joins the phase worker before receive and unit cleanup.
@@ -342,21 +348,21 @@ func (s *sessionLink) Write(buf []byte) (int, error) {
 	if s.closed {
 		return 0, io.ErrClosedPipe
 	}
-	return s.channel.Write(buf)
+	return s.client.WritePacket(buf)
 }
 
 // setIPv4Mode serializes the unit ioctl with transport closure. Cleanup MUST
-// call Close before releasing unitFD, so a late call refuses a reused fd.
+// call Close before releasing the original unit, so stopped calls refuse.
 // RFC 1661 Section 3.6: "Any supported network-layer protocol packets received
 // when the corresponding NCP is not in the Opened state MUST be silently discarded."
-func (s *sessionLink) setIPv4Mode(unitFD int, mode pppkernel.NPMode) error {
+func (s *sessionLink) setIPv4Mode(mode pppkernel.NPMode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return io.ErrClosedPipe
 	}
 	// RFC 1661 Section 3.6: apply the network-layer forwarding gate.
-	return pppkernel.SetIPv4Mode(unitFD, mode)
+	return s.client.SetIPv4Mode(mode)
 }
 
 // Close MUST precede outbound PADT and discovery-reader shutdown. It releases
@@ -372,8 +378,8 @@ func (s *sessionLink) Close() error {
 	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
 	// be sent after sending or receiving a PADT."
 	s.closed = true
-	s.closeErr = s.channel.Close()
-	s.closeTransport()
+	s.closeErr = closeClientOwner(s.client.CloseChannel)
+	s.closeErr = errors.Join(s.closeErr, closeClientOwner(s.closeTransport))
 	close(s.stopped)
 	return s.closeErr
 }

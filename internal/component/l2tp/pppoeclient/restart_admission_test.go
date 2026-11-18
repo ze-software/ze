@@ -21,7 +21,7 @@ import (
 
 // TestInitialMTUAdmission checks final result admission with valid config and
 // separately checks the wire boundary. MRU 66 receives Nak, then peer EOF ends
-// negotiation before Connect. MRU 68 completes IPCP and reaches the fake ioctl.
+// negotiation before Connect. MRU 68 completes IPCP and reaches the private logical Connect refusal.
 // TestNegotiatedResultMinimum supplies the independent guard-removal red proof.
 func TestInitialMTUAdmission(t *testing.T) {
 	for _, mtu := range []uint16{66, 68} {
@@ -32,10 +32,10 @@ func TestInitialMTUAdmission(t *testing.T) {
 				result := make(chan error, 1)
 				stop := make(chan struct{})
 				defer close(stop)
-				link := &sessionLink{channel: w}
+				link := &sessionLink{client: testClientProtocol(w)}
 				go func() {
-					_, err := negotiateSession(link, testFrameReader(t, w.frames, nil), -1, 0,
-						sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492, chanFD: -1}, stop,
+					_, err := negotiateSession(link, testFrameReader(t, w.frames, nil),
+						sessionConfig{lcpRestartTimer: lcpRestartInterval, lcpMaxConfigure: lcpConfigureMax, lcpMaxFailure: 5, mtu: 1492}, stop,
 						slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
 					result <- err
 				}()
@@ -132,7 +132,7 @@ func TestRestartMTUAdmission(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				w := newConnectedExchange()
 				seed, initial := w.session(t)
-				link := &sessionLink{channel: w, stopped: make(chan struct{}), closeTransport: func() {}}
+				link := &sessionLink{client: testClientProtocol(w), stopped: make(chan struct{}), closeTransport: func() error { return nil }}
 				s, err := newConnectedSession(link, initial, seed.cfg, w.setMode)
 				if err != nil {
 					t.Fatal(err)
@@ -218,7 +218,7 @@ func TestRestartConvergenceBound(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		w := newConnectedExchange()
 		seed, initial := w.session(t)
-		link := &sessionLink{channel: w, stopped: make(chan struct{}), closeTransport: func() {}}
+		link := &sessionLink{client: testClientProtocol(w), stopped: make(chan struct{}), closeTransport: func() error { return nil }}
 		s, err := newConnectedSession(link, initial, seed.cfg, w.setMode)
 		if err != nil {
 			t.Fatal(err)

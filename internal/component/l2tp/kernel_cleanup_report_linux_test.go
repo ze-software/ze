@@ -91,6 +91,7 @@ func TestKernelCleanupWarningPreservesAnotherOriginalCloseUncertainty(t *testing
 		}
 		return nil
 	}
+	worker.ops.closePPP = closeLogicalPPPForTest(worker.ops.closeFD)
 	worker.setupSession(original)
 	worker.teardownAll()
 	require.Len(t, report.Warnings(), 1)

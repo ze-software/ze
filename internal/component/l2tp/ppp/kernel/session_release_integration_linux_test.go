@@ -59,6 +59,14 @@ func TestKernelNativeReleasePinsRealUnitBirth(t *testing.T) {
 	cfg := sessionTestConfig()
 	cfg.ChanFD, cfg.UnitFD, cfg.UnitNum = channelFD, unitFD, unit
 	cfg.InterfaceName = fmt.Sprintf("ppp%d", unit)
+	created, err := netlink.LinkByName(cfg.InterfaceName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessionTestChannel(cfg).fd = cfg.ChanFD
+	sessionTestUnit(cfg).info.fd = cfg.UnitFD
+	sessionTestUnit(cfg).info.number = cfg.UnitNum
+	sessionTestUnit(cfg).info.identity = ppp.SessionIdentity{InterfaceName: cfg.InterfaceName, NativeIndex: uint32(created.Attrs().Index)}
 	// The control /dev/ppp file is deliberately unattached, as in the native
 	// quiesce proof. The unit is real; demand mode keeps its own read blocked.
 	entered := make(chan int, 2)
@@ -82,7 +90,7 @@ func TestKernelNativeReleasePinsRealUnitBirth(t *testing.T) {
 		return reader, nil
 	}
 	transferred = true
-	frames, handle, err := newSession(cfg, ops)
+	frames, handle, err := sessionTestNewSession(cfg, ops)
 	if err != nil {
 		t.Fatal(err)
 	}

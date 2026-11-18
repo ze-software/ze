@@ -8,13 +8,15 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
 )
 
 // TestPrepareKeepsResolvedLinuxDevice observes the shared resolver's input and
 // the actual OS identity exported to discovery and session construction.
 func TestPrepareKeepsResolvedLinuxDevice(t *testing.T) {
 	calls := 0
-	access, err := prepareWithResolver(context.Background(), "logical", func() error { return nil },
+	access, err := prepareModelWithResolver(context.Background(), "logical", func() (iface.Backend, error) { return &prepareBackend{}, nil },
 		func(name string) (iface.Binding, error) {
 			calls++
 			if name != "logical" {
@@ -63,13 +65,13 @@ func TestPrepareRefusesUnreadableBinding(t *testing.T) {
 		t.Run(stage, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			requireBackend := func() error {
+			acquireBackend := func() (iface.Backend, error) {
 				if stage == "backend" {
-					return want
+					return nil, want
 				}
-				return nil
+				return &prepareBackend{}, nil
 			}
-			access, err := prepareWithResolver(ctx, "logical", requireBackend, func(string) (iface.Binding, error) {
+			access, err := prepareModelWithResolver(ctx, "logical", acquireBackend, func(string) (iface.Binding, error) {
 				binding := iface.Binding{OsName: "eth0", Ifindex: 42, OperMAC: "02:03:04:05:06:07", MTU: 1500}
 				switch stage {
 				case "resolve":
@@ -114,4 +116,19 @@ func TestPrepareRefusesUnreadableBinding(t *testing.T) {
 			}
 		})
 	}
+}
+
+type prepareBackend struct{ iface.Backend }
+
+func (*prepareBackend) Close() error { return nil }
+
+// prepareModelWithResolver retains the original resolution/parent-close test
+// questions through the private preflight port. The uninitialized creator is
+// not a valid native grant and these models never admit a session.
+func prepareModelWithResolver(ctx context.Context, name string, acquire func() (iface.Backend, error),
+	resolve func(string) (iface.Binding, error)) (dataplane.Access, error) {
+	return prepareWithCreator(ctx, name, acquire, resolve,
+		func(pppkernel.InterfaceOperations) (*pppkernel.UnitCreator, error) {
+			return &pppkernel.UnitCreator{}, nil
+		})
 }

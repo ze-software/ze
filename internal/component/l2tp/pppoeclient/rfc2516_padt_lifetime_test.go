@@ -32,7 +32,7 @@ func (c *padtChannel) Close() error {
 func TestRFC2516ClientPADTStopsOnlyMatchingSession(t *testing.T) {
 	channel := &padtChannel{}
 	transportCloses := 0
-	link := &sessionLink{channel: channel, stopped: make(chan struct{}), closeTransport: func() { transportCloses++ }}
+	link := &sessionLink{client: testClientProtocol(channel), stopped: make(chan struct{}), closeTransport: testClientTransportClose(func() { transportCloses++ })}
 	var buf [pppoe.EthMaxLen]byte
 	valid := append([]byte(nil), pppoe.BuildPADT(buf[:], testACMAC, testHostMAC, 0x1234, "ze")...)
 	if valid == nil {
@@ -106,7 +106,7 @@ func TestRFC2516ClientPADTStopsOnlyMatchingSession(t *testing.T) {
 func TestRFC2516ClientLocalStopDisablesPPP(t *testing.T) {
 	channel := &padtChannel{}
 	transportClosed := false
-	link := &sessionLink{channel: channel, stopped: make(chan struct{}), closeTransport: func() { transportClosed = true }}
+	link := &sessionLink{client: testClientProtocol(channel), stopped: make(chan struct{}), closeTransport: testClientTransportClose(func() { transportClosed = true })}
 	if _, err := link.Write([]byte("before shutdown")); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestRFC2516ClientLocalStopDisablesPPP(t *testing.T) {
 func TestRFC2516ClientSentPADTStopsPPPBeforeSend(t *testing.T) {
 	channel := &padtChannel{}
 	transportClosed := false
-	link := &sessionLink{channel: channel, stopped: make(chan struct{}), closeTransport: func() { transportClosed = true }}
+	link := &sessionLink{client: testClientProtocol(channel), stopped: make(chan struct{}), closeTransport: testClientTransportClose(func() { transportClosed = true })}
 	previous := sendDiscoveryFrame
 	defer func() { sendDiscoveryFrame = previous }()
 	sent := 0

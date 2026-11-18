@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
-	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -37,7 +36,6 @@ type sessionConfig struct {
 	mtu               uint16
 	username          string
 	password          string
-	chanFD            int
 	keepaliveInterval time.Duration
 	keepaliveFailures int
 	lcpRestartTimer   time.Duration
@@ -116,7 +114,7 @@ func requestLCPReentry(pkt ppp.LCPPacket) (*lcpReentry, bool) {
 // channel fd. Returns the negotiated addresses and MTU. ipv6 is nil when no
 // ipv6 is configured; otherwise IPv6CP runs beside IPCP and the automaton
 // keeps the state it reached for the connected session.
-func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, unitNum int, cfg sessionConfig, stopCh <-chan struct{}, logger *slog.Logger, ipv6 *clientIPv6CP) (sessionResult, error) {
+func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, cfg sessionConfig, stopCh <-chan struct{}, logger *slog.Logger, ipv6 *clientIPv6CP) (sessionResult, error) {
 	// Admission precedes the first LCP write, including for a typed-nil link.
 	link, ok := chanFile.(*sessionLink)
 	if !ok {
@@ -140,18 +138,17 @@ func negotiateSession(chanFile io.ReadWriteCloser, reader *frameReader, unitFD, 
 	if link.closed {
 		return sessionResult{}, io.ErrClosedPipe
 	}
-	if err := pppkernel.Connect(cfg.chanFD, unitNum); err != nil {
-		return sessionResult{}, errors.New("pppoe-client: PPPIOCCONNECT: " + err.Error())
+	if err := link.client.Connect(); err != nil {
+		return sessionResult{}, fmt.Errorf("pppoe-client: PPPIOCCONNECT: %w", err)
 	}
 	// RFC 1661 Section 6.1 requires reception of the full 1500-octet
 	// Information field even after requesting a smaller MRU.
-	if err := pppkernel.SetMRU(unitFD, ppp.MaxFrameLen); err != nil {
-		return sessionResult{}, errors.New("pppoe-client: PPPIOCSMRU: " + err.Error())
+	if err := link.client.SetReceiveMRU(ppp.MaxFrameLen); err != nil {
+		return sessionResult{}, fmt.Errorf("pppoe-client: PPPIOCSMRU: %w", err)
 	}
 
-	// The unit now receives IPCP. Enable it under the same lifecycle lock
-	// before authorizing another read through the session's existing reader.
-	link.unitConnected = true
+	// The pair admits unit input only after both exact attachment and MRU
+	// succeed, under this same lifecycle lock. No caller-side cache can drift.
 	return connectedResult(state, reader, ipcpCodeRejectID, ipcpIdentifier, lcpIdentifier, papIdentifier), nil
 }
 

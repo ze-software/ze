@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // discardLoggerForTest returns a logger that drops every record.
@@ -61,7 +62,7 @@ func TestReactorReauthIntervalFromParams(t *testing.T) {
 			deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 				localTID: 100, localSID: 1001, lnsMode: true,
 				fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
-			})
+			}, protocolFixtureIdentity("ppp7", 0x80000007))
 
 			select {
 			case start := <-fake.sessionsIn:
@@ -105,9 +106,11 @@ func (f *fakePPPDriver) SessionsIn() chan<- ppp.StartSession { return f.sessions
 func (f *fakePPPDriver) EventsOut() <-chan ppp.Event         { return f.eventsOut }
 
 // deliverOwnedKernelSuccess models the worker's registered descriptor lease.
-func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
+func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded, identity ppp.SessionIdentity) {
 	if _, recorded := r.pppDriver.(*fakePPPDriver); recorded {
-		r.newPPPSession = dispatchProtocolSessionFixture
+		r.newPPPSession = func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
+			return dispatchProtocolSessionFixture(cfg, identity)
+		}
 	}
 	tunnel := r.tunnelsByLocalID[event.localTID]
 	session := &L2TPSession{localSID: event.localSID}
@@ -119,6 +122,7 @@ func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
 		sessions: map[sessionKey]*pppSessionFDs{
 			{event.localTID, event.localSID}: event.owner,
 		},
+		ops: kernelOps{pppConfig: logicalPPPConfigForTest(event.owner)},
 	}
 	r.handleKernelSuccess(event)
 }
@@ -146,7 +150,7 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
-	})
+	}, protocolFixtureIdentity("ppp7", 0x80000007))
 	first := <-fake.sessionsIn
 	s := newStartedSubsystem(t, &Parameters{
 		Enabled: true, MRU: 1492, AuthMethod: ppp.AuthMethodCHAPMD5,
@@ -162,7 +166,7 @@ func TestReactorPPPPolicyReloadIsolation(t *testing.T) {
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1002,
 		fds: pppSessionFDs{pppoxFD: 40, chanFD: 41, unitFD: 42, unitNum: 8},
-	})
+	}, protocolFixtureIdentity("ppp8", 0x80000008))
 	second := <-fake.sessionsIn
 	if first.MaxMRU != 1492 || len(first.AuthFallbackOrder) != 1 {
 		t.Fatalf("earlier session policy changed: %+v", first)
@@ -189,6 +193,7 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	peer := netip.MustParseAddrPort("10.0.0.7:1701")
 	mkTunnel(r, 100, 200, peer)
 
+	identity := protocolFixtureIdentity("ppp7", 0x80000007)
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID:                   100,
 		localSID:                   1001,
@@ -198,7 +203,7 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 		proxyInitialRecvLCPConfReq: []byte{0x01, 0x02},
 		proxyLastSentLCPConfReq:    []byte{0x03},
 		proxyLastRecvLCPConfReq:    []byte{0x04},
-	})
+	}, identity)
 
 	select {
 	case start := <-fake.sessionsIn:
@@ -210,7 +215,7 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 		require.Equal(t, 32, owner.config.UnitFD)
 		require.Equal(t, 7, owner.config.UnitNum)
 		require.Same(t, owner, start.Frames, "frames and data plane must share the factory owner")
-		require.Equal(t, protocolFixtureIdentity(owner.config), start.Dataplane.Identity())
+		require.Equal(t, identity, start.Dataplane.Identity())
 		require.True(t, start.LNSMode)
 		require.Equal(t, peer, start.PeerAddr)
 		require.Equal(t, []byte{0x01, 0x02}, start.ProxyLCPInitialRecv)
@@ -245,7 +250,7 @@ func TestL2TPReactorAuthTimeoutFromParams(t *testing.T) {
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
-	})
+	}, protocolFixtureIdentity("ppp7", 0x80000007))
 
 	select {
 	case start := <-fake.sessionsIn:
@@ -277,7 +282,7 @@ func TestL2TPReactorNCPToggleFromParams(t *testing.T) {
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
-	})
+	}, protocolFixtureIdentity("ppp7", 0x80000007))
 
 	select {
 	case start := <-fake.sessionsIn:
@@ -310,7 +315,7 @@ func TestL2TPReactorNCPTimeoutFromParams(t *testing.T) {
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
-	})
+	}, protocolFixtureIdentity("ppp7", 0x80000007))
 
 	select {
 	case start := <-fake.sessionsIn:
@@ -574,7 +579,6 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 	require.NoError(t, driver.Start())
 	t.Cleanup(driver.Stop)
 	r.setPPPDriver(driver)
-	r.newPPPSession = ownedProtocolSessionFixture
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("192.0.2.1:1701"))
 
 	s := newStartedSubsystem(t, &Parameters{
@@ -587,7 +591,7 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 	r.setLCPConfig(testLCPConfig())
 
 	t.Run("accept", func(t *testing.T) {
-		proto, payload := firstProxyLCPSessionFrame(t, r, 1001, 7)
+		proto, payload := firstProxyLCPSessionFrame(t, r, 1001, 7, protocolFixtureIdentity("ppp7", 0x80000007))
 		require.Equal(t, ppp.ProtoCHAP, proto,
 			"under proxy-lcp accept the proxy must short-circuit LCP and authentication start")
 		require.NotEmpty(t, payload)
@@ -598,7 +602,7 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 		cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"proxy-lcp": "renegotiate"}}}
 		require.NoError(t, s.Reload(context.Background(), cfg))
 
-		proto, payload := firstProxyLCPSessionFrame(t, r, 1002, 8)
+		proto, payload := firstProxyLCPSessionFrame(t, r, 1002, 8, protocolFixtureIdentity("ppp8", 0x80000008))
 		require.Equal(t, ppp.ProtoLCP, proto, "first frame must be LCP, not an auth challenge")
 		req, err := ppp.ParseLCPPacket(payload)
 		require.NoError(t, err)
@@ -624,8 +628,11 @@ func TestL2TPProxyLCPRenegotiateReachesDriver(t *testing.T) {
 // tunnel 100, carrying proxyLCPStreamForTest as all three proxy LCP AVPs, over
 // a fresh socketpair whose far end stands for the PPP channel. It returns the
 // protocol and payload of the first frame the PPP driver writes there.
-func firstProxyLCPSessionFrame(t *testing.T, r *l2tpReactor, sid uint16, unitNum int) (uint16, []byte) {
+func firstProxyLCPSessionFrame(t *testing.T, r *l2tpReactor, sid uint16, unitNum int, identity ppp.SessionIdentity) (uint16, []byte) {
 	t.Helper()
+	r.newPPPSession = func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
+		return ownedProtocolSessionFixture(cfg, identity)
+	}
 	fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_STREAM, 0)
 	require.NoError(t, err)
 	// Closing the peer releases the driver's blocking reader before
@@ -642,7 +649,7 @@ func firstProxyLCPSessionFrame(t *testing.T, r *l2tpReactor, sid uint16, unitNum
 		proxyInitialRecvLCPConfReq: proxyLCPStreamForTest,
 		proxyLastSentLCPConfReq:    proxyLCPStreamForTest,
 		proxyLastRecvLCPConfReq:    proxyLCPStreamForTest,
-	})
+	}, identity)
 
 	buf := make([]byte, ppp.MaxFrameLen)
 	n, err := unix.Read(fds[1], buf)
@@ -670,18 +677,22 @@ func TestReloadAppliesProxyLCPToNewSessions(t *testing.T) {
 	attachReactor(s, r)
 
 	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: 1001,
-		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}})
+		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7}}, protocolFixtureIdentity("ppp7", 0x80000007))
 	first := <-fake.sessionsIn
 
 	for i, step := range []struct {
-		leaf string
-		want bool
-	}{{"renegotiate", true}, {"accept", false}} {
+		leaf     string
+		want     bool
+		identity ppp.SessionIdentity
+	}{
+		{"renegotiate", true, protocolFixtureIdentity("ppp8", 0x80000008)},
+		{"accept", false, protocolFixtureIdentity("ppp9", 0x80000009)},
+	} {
 		cfg := &fakeConfigProvider{trees: map[string]map[string]any{"l2tp": {"proxy-lcp": step.leaf}}}
 		require.NoError(t, s.Reload(context.Background(), cfg))
 		base := 40 + 10*i
 		deliverOwnedKernelSuccess(r, kernelSetupSucceeded{localTID: 100, localSID: uint16(1002 + i),
-			fds: pppSessionFDs{pppoxFD: base, chanFD: base + 1, unitFD: base + 2, unitNum: 8 + i}})
+			fds: pppSessionFDs{pppoxFD: base, chanFD: base + 1, unitFD: base + 2, unitNum: 8 + i}}, step.identity)
 		next := <-fake.sessionsIn
 		require.Equal(t, step.want, next.RenegotiateProxyLCP, "proxy-lcp %s", step.leaf)
 	}

@@ -8,8 +8,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 
 	"golang.org/x/sys/unix"
 )
@@ -43,6 +46,13 @@ func TestKernelSessionCloseInterruptsReaders(t *testing.T) {
 	cfg.ChanFD = control[0]
 	cfg.UnitFD = opened[0]
 	cfg.InterfaceName = "lo"
+	identity, err := net.InterfaceByName("lo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessionTestChannel(cfg).fd = cfg.ChanFD
+	sessionTestUnit(cfg).info.fd = cfg.UnitFD
+	sessionTestUnit(cfg).info.identity = ppp.SessionIdentity{InterfaceName: cfg.InterfaceName, NativeIndex: uint32(identity.Index)}
 	started := make(chan struct{}, 2)
 	ops := productionSessionOps()
 	wrap := ops.wrap
@@ -61,7 +71,7 @@ func TestKernelSessionCloseInterruptsReaders(t *testing.T) {
 		}
 		return reader, nil
 	}
-	frames, handle, err := newSession(cfg, ops)
+	frames, handle, err := sessionTestNewSession(cfg, ops)
 	if err != nil {
 		t.Fatal(err)
 	}

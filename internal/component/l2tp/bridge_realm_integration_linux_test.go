@@ -1,7 +1,7 @@
 //go:build integration && linux
 
 // Design: docs/architecture/l2tp/followup-l2tp-call.md -- realm relay LAC bridge
-// Related: bridge_integration_linux_test.go -- TestLACChannelBridge, the ioctl wrappers alone
+// Related: bridge_integration_linux_test.go -- TestLACChannelBridge, original native consumer
 // Related: export_realm_bridge_linux_test.go -- the kernel L2TP session these tests open
 //
 // These tests run unprivileged inside userns.Enter's namespace, like
@@ -16,7 +16,11 @@ import (
 	"bytes"
 	"errors"
 	"net/netip"
+	"os"
 	"testing"
+	"time"
+
+	"github.com/ze-software/ze/internal/test/fixture"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -36,18 +40,21 @@ import (
 // channel (pppoe.PPPoECreate, pppkernel.DevPPPSetup), and the kernel L2TP
 // tunnel, session and pppol2tp channel (l2tp.OpenKernelL2TPSession,
 // pppkernel.DevPPPSetup, as setupSession and pppSetupReal do). Both local
-// channel/unit pairs transfer to pppkernel.NewSession; their handles own
-// closure while the separate PPPoX transports remain open. The far ends are a
+// channel/unit pairs transfer to pppkernel.NewSession; before bridging both
+// handles close and fresh channel owners are captured from the SAME retained
+// PPPoX files. The exact bridge then owns both new channels. The far ends are a
 // raw subscriber on the veth pair and a plain UDP socket standing for the
 // LNS, so a test sees exactly which frames the kernel delivers where.
 type realmBridgeRig struct {
-	subscriber   *pppoeac.Peer
-	acMAC        [pppoe.EthALen]byte
-	pppoeFD      int               // the subscriber's PPPoE session socket
-	driverChanFD int               // borrowed /dev/ppp channel for probes
-	driverOwner  ppp.SessionHandle // owns the driver's channel and unit
-	l2tpChanFD   int               // borrowed pppol2tp channel for bridging
-	lnsFD        int               // the LNS's end of the tunnel
+	subscriber    *pppoeac.Peer
+	acMAC         [pppoe.EthALen]byte
+	pppoeFile     *os.File                         // the original subscriber PPPoE session socket
+	driverChannel *pppkernel.CreatedChannel        // original channel for short probes
+	driverOwner   ppp.SessionHandle                // owns the driver's channel and unit
+	l2tpFile      *os.File                         // SAME original native transport, retained through bridge cleanup
+	l2tpOwner     ppp.SessionHandle                // original local owner, closed before fresh capture
+	bridgeOwner   *pppkernel.OriginalChannelBridge // consumes fresh peers, never replayed session claims
+	lnsFD         int                              // the LNS's end of the tunnel
 }
 
 const (
@@ -86,14 +93,23 @@ func newRealmBridgeRig(t *testing.T) *realmBridgeRig {
 		}
 	})
 
+	creator, err := pppkernel.NewUnitCreator(backend)
+	if err != nil {
+		t.Fatalf("capture original PPP unit creator: %v", err)
+	}
+
 	// The PPPoE side, as the kernel session factory builds it for a session
 	// that runs PPP locally first.
-	rig.pppoeFD, err = pppoe.PPPoECreate(pppoe.InterfaceBinding{Device: "zrl0"}, realmRigSessionID, subscriberMAC)
+	rig.pppoeFile, err = pppoe.PPPoECreate(pppoe.InterfaceBinding{Device: "zrl0"}, realmRigSessionID, subscriberMAC)
 	if err != nil {
 		t.Fatalf("PPPoE session socket: %v; the kernel needs pppoe (CONFIG_PPPOE)", err)
 	}
-	t.Cleanup(func() { pppoe.ClosePPPoxFD(rig.pppoeFD) })
-	rig.driverChanFD, rig.driverOwner = realmRigPPPSession(t, rig.pppoeFD, backend)
+	t.Cleanup(func() {
+		if err := rig.pppoeFile.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	rig.driverChannel, rig.driverOwner = realmRigPPPSession(t, rig.pppoeFile, creator)
 
 	// The L2TP side: the LAC's listener, the LNS's socket, and the kernel
 	// tunnel and session between them.
@@ -105,35 +121,43 @@ func newRealmBridgeRig(t *testing.T) *realmBridgeRig {
 	}
 	l2tpFD := l2tp.OpenKernelL2TPSession(t, lacFD, lnsAddr,
 		realmRigLocalTID, realmRigLocalSID, realmRigRemoteTID, realmRigRemoteSID)
-	rig.l2tpChanFD, _ = realmRigPPPSession(t, l2tpFD, backend)
+	rig.l2tpFile = l2tpFD
+	_, rig.l2tpOwner = realmRigPPPSession(t, l2tpFD, creator)
+	t.Cleanup(func() {
+		if rig.bridgeOwner != nil {
+			if err := rig.bridgeOwner.Close(); err != nil {
+				t.Errorf("close exact realm bridge: %v", err)
+			}
+		}
+	})
 	return rig
 }
 
-// realmRigPPPSession transfers a real attached channel and unit to the same
-// kernel owner used by both transports. Its returned descriptor is borrowed
-// only for native probes and bridge ioctls; cleanup closes the owner instead.
-func realmRigPPPSession(t *testing.T, pppoxFD int, backend iface.Backend) (int, ppp.SessionHandle) {
+// realmRigPPPSession transfers the genuine pair to the public kernel consumer.
+// The returned channel grants only short native probes. NewSession owns Close;
+// its t.Cleanup runs before the independently captured backend is closed.
+func realmRigPPPSession(t *testing.T, original *os.File, creator *pppkernel.UnitCreator) (*pppkernel.CreatedChannel, ppp.SessionHandle) {
 	t.Helper()
-	chanFD, unitFD, unitNum, err := pppkernel.DevPPPSetup(pppoxFD, "")
+	channel, unit, err := pppkernel.DevPPPSetup(creator, original, "")
 	if err != nil {
-		t.Fatalf("kernel PPP channel/unit setup: %v", err)
+		// Every nonnil partial owner remains accountable even after setup's
+		// rollback. The typed Close methods retain their original results.
+		var cleanup error
+		if unit != nil {
+			cleanup = unit.Close()
+		}
+		if channel != nil {
+			cleanup = errors.Join(cleanup, channel.Close())
+		}
+		t.Fatalf("kernel PPP channel/unit setup: %v", errors.Join(err, cleanup))
 	}
-	_, owner, err := pppkernel.NewSession(pppkernel.SessionConfig{
-		ChanFD: chanFD, UnitFD: unitFD, UnitNum: unitNum, Backend: backend,
-		ReadCounters: func(name string) (ppp.SessionCounters, error) {
-			stats, err := backend.GetStats(name)
-			if err != nil {
-				return ppp.SessionCounters{}, err
-			}
-			if stats == nil {
-				return ppp.SessionCounters{}, errors.New("kernel interface returned no raw counter snapshot")
-			}
-			return ppp.SessionCounters{
-				RxBytes: stats.RxBytes, TxBytes: stats.TxBytes,
-				RxPackets: stats.RxPackets, TxPackets: stats.TxPackets,
-			}, nil
-		},
-	})
+	cfg, err := unit.SessionConfig(channel)
+	if err != nil {
+		t.Fatalf("kernel PPP original configuration: %v", errors.Join(err, unit.Close(), channel.Close()))
+	}
+	_, owner, err := pppkernel.NewSession(cfg)
+	// The constructor consumes both owners on every outcome. It alone owns
+	// rollback; no raw descriptor or second wrapper is created here.
 	if err != nil {
 		t.Fatalf("kernel PPP session owner: %v", err)
 	}
@@ -142,7 +166,7 @@ func realmRigPPPSession(t *testing.T, pppoxFD int, backend iface.Backend) (int, 
 			t.Errorf("close the kernel PPP session: %v", err)
 		}
 	})
-	return chanFD, owner
+	return channel, owner
 }
 
 // realmRigUDP opens a UDP socket on 127.0.0.1 with a kernel-chosen port.
@@ -199,26 +223,49 @@ func (rig *realmBridgeRig) sendMarked(t *testing.T, id uint8, marker []byte) {
 	}
 }
 
-// waitDriverReadable waits until the driver's channel holds a frame, without
-// reading it: the state a quiesced driver leaves a frame in.
+// waitDriverReadable waits for the original channel to hold a frame without
+// consuming it. Each descriptor borrow is a nonblocking native probe. The
+// bounded fixture poll waits outside the borrow and never retains a raw label.
 func (rig *realmBridgeRig) waitDriverReadable(t *testing.T) {
 	t.Helper()
-	fds := []unix.PollFd{{Fd: int32(rig.driverChanFD), Events: unix.POLLIN}} //nolint:gosec // descriptors fit int32
-	n, err := unix.Poll(fds, 5000)
-	if err != nil {
-		t.Fatalf("poll the driver channel: %v", err)
+	var probeErr error
+	ready := fixture.Poll(t.Context(), 501, 10*time.Millisecond, func() bool {
+		readable := false
+		probeErr = rig.driverChannel.WithDescriptor(func(fd int) error {
+			fds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN}} //nolint:gosec // descriptors fit int32
+			n, err := unix.Poll(fds, 0)
+			if err != nil {
+				return err
+			}
+			if n == 1 {
+				readable = fds[0].Revents&unix.POLLIN != 0
+			}
+			return nil
+		})
+		if probeErr != nil {
+			return true
+		}
+		return readable
+	})
+	if probeErr != nil {
+		t.Fatalf("poll the driver channel: %v", probeErr)
 	}
-	if n != 1 || fds[0].Revents&unix.POLLIN == 0 {
+	if !ready {
 		t.Fatal("the subscriber's frame never reached the driver's channel")
 	}
 }
 
-// driverPending reads the driver's channel without blocking. It returns the
-// frame queued there, or nil when the channel is empty.
+// driverPending reads only the original channel's currently queued frame.
+// The borrow covers one nonblocking read and never exports a descriptor.
 func (rig *realmBridgeRig) driverPending(t *testing.T) []byte {
 	t.Helper()
 	buf := make([]byte, 2048)
-	n, err := unix.Read(rig.driverChanFD, buf)
+	n := 0
+	err := rig.driverChannel.WithDescriptor(func(fd int) error {
+		var err error
+		n, err = unix.Read(fd, buf)
+		return err
+	})
 	if errors.Is(err, unix.EAGAIN) {
 		return nil
 	}
@@ -262,10 +309,11 @@ func (rig *realmBridgeRig) lnsEmpty(t *testing.T) bool {
 // TestLACRealmBridgeAfterLocalLCP checks assumption A-1 of spec-home-cpe-14:
 // once PPPIOCBRIDGECHAN joins the subscriber's PPPoE channel to the pppol2tp
 // channel, the subscriber's frames go to the LNS and no longer reach the
-// /dev/ppp channel descriptor the LAC's PPP driver read during local LCP.
+// original channel the LAC's PPP driver read during local LCP. That original
+// is closed before fresh bridge attachment and cannot receive another frame.
 // Method: a frame before the bridge MUST arrive on the driver's channel (the
-// local LCP stage); after bridgeChannels, a second frame MUST arrive at the
-// LNS as an L2TP data message, and the driver's channel MUST then be empty.
+// local LCP stage); after exact original bridge attachment, a second frame
+// MUST arrive at the LNS, and the old driver's channel MUST be closed.
 // The emptiness check runs after the LNS saw the frame, so no timing decides
 // it: the one frame cannot be in both places.
 func TestLACRealmBridgeAfterLocalLCP(t *testing.T) {
@@ -273,7 +321,7 @@ func TestLACRealmBridgeAfterLocalLCP(t *testing.T) {
 		return
 	}
 	rig := newRealmBridgeRig(t)
-	if err := unix.SetNonblock(rig.driverChanFD, true); err != nil {
+	if err := rig.driverChannel.WithDescriptor(func(fd int) error { return unix.SetNonblock(fd, true) }); err != nil {
 		t.Fatal(err)
 	}
 
@@ -284,7 +332,7 @@ func TestLACRealmBridgeAfterLocalLCP(t *testing.T) {
 		t.Fatalf("before the bridge the driver read %x, want the subscriber's frame carrying %x", got, before)
 	}
 
-	if err := l2tp.BridgeChannels(rig.l2tpChanFD, rig.pppoeFD); err != nil {
+	if err := rig.bridgeOriginalPeers(); err != nil {
 		t.Fatalf("bridge: %v", err)
 	}
 
@@ -293,8 +341,8 @@ func TestLACRealmBridgeAfterLocalLCP(t *testing.T) {
 	if got := rig.lnsReceive(t); !bytes.Contains(got, after) {
 		t.Fatalf("after the bridge the LNS received %x, want the subscriber's frame carrying %x", got, after)
 	}
-	if got := rig.driverPending(t); got != nil {
-		t.Fatalf("after the bridge the driver's channel still received %x (A-1 broken)", got)
+	if err := rig.driverChannel.WithDescriptor(func(int) error { return nil }); !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("after local release the original driver channel must be closed, got %v", err)
 	}
 }
 
@@ -302,12 +350,12 @@ func TestLACRealmBridgeAfterLocalLCP(t *testing.T) {
 // real kernel path: a frame the subscriber sends while the driver is
 // quiesced (it no longer reads its channel, and the bridge is not yet set)
 // is not delivered to the LNS; the subscriber's retransmission after the
-// bridge is, and the bridge keeps carrying frames once the driver released
-// the session and closed its channel.
+// bridge is, and the bridge keeps carrying frames after repeated closure of
+// the released driver's original owner.
 // Method: send the "lost" frame and wait until the kernel queued it on the
 // driver's channel without reading it; bridge; send the retransmission and
 // require it to be the first message the LNS receives, with nothing else
-// behind it; close the driver's channel as ReleaseSession does, and require
+// behind it; close the same old driver owner again, and require
 // one more subscriber frame to reach the LNS.
 func TestLACRealmHandoffRetransmission(t *testing.T) {
 	if !userns.Enter(t) {
@@ -319,7 +367,7 @@ func TestLACRealmHandoffRetransmission(t *testing.T) {
 	rig.sendMarked(t, 7, lost)
 	rig.waitDriverReadable(t)
 
-	if err := l2tp.BridgeChannels(rig.l2tpChanFD, rig.pppoeFD); err != nil {
+	if err := rig.bridgeOriginalPeers(); err != nil {
 		t.Fatalf("bridge: %v", err)
 	}
 
@@ -336,8 +384,8 @@ func TestLACRealmHandoffRetransmission(t *testing.T) {
 		t.Fatal("the LNS received a second message: the frame sent while quiesced was delivered late")
 	}
 
-	// ReleaseSession closes the driver's local channel/unit owner; the queued
-	// frame goes with it, and the bridge, which the pppox sockets hold, stays.
+	// Preparation already released the old local owner and its queued frame.
+	// A repeated release cannot disturb the fresh bridge's independent claims.
 	rig.closeDriverChannel(t)
 	upstream := []byte{0xfe, 0x06, 'U', 'P', 'S', '1'}
 	rig.sendMarked(t, 8, upstream)

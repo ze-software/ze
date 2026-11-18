@@ -26,7 +26,7 @@ func TestKernelSessionCloseInterruptsBlockedControlWrite(t *testing.T) {
 		}
 		return unit, nil
 	}
-	frames, handle, err := newSession(sessionTestConfig(), ops)
+	frames, handle, err := sessionTestNewSession(sessionTestConfig(), ops)
 	if err != nil {
 		t.Fatal(err)
 	}

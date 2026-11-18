@@ -244,6 +244,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 	})
 	t.Run("bridged, LNS ends the call", func(t *testing.T) {
 		h := newRealmHarness(t)
+		prepareRealmBridgeForTest(t, h)
 		h.handoff().Bridged(nil)
 		h.handoff().Ended("StopCCN")
 		if sid := waitSignal(t, h.ended, "the PPPoE session end"); sid != 5 {
@@ -259,6 +260,7 @@ func TestRelayRealmHandoffCancelledInEachPhase(t *testing.T) {
 		// which tears the L2TP session down with CDN (callsink.RelayCall).
 		// Twice reported (PADT, then a PPP session-down) is one cancel.
 		h := newRealmHarness(t)
+		prepareRealmBridgeForTest(t, h)
 		h.handoff().Bridged(nil)
 		waitReleased(t, h)
 		h.relay.subscriberGone(h.attempt)

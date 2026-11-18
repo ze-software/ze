@@ -6,6 +6,7 @@ package pppoe
 
 import (
 	"errors"
+	"os"
 	"time"
 )
 
@@ -26,11 +27,9 @@ func sendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return errNotLinux
 }
 
-func pppoeCreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
-	return -1, errNotLinux
+func pppoeCreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (*os.File, error) {
+	return nil, errNotLinux
 }
-
-func closePPPoxFD(fd int) {}
 
 // Exported wrappers for cross-package use (PPPoE client in iface).
 
@@ -40,8 +39,7 @@ func ReadDiscoveryFrame(fd int, buf []byte) (int, int, error) { return readDisco
 func SendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return sendDiscoveryFrame(fd, ifindex, frame)
 }
-func PPPoECreate(source InterfaceBinding, sid uint16, remoteMAC [EthALen]byte) (int, error) {
+func PPPoECreate(source InterfaceBinding, sid uint16, remoteMAC [EthALen]byte) (*os.File, error) {
 	return pppoeCreate(source.Device, sid, remoteMAC)
 }
-func ClosePPPoxFD(fd int)                         { closePPPoxFD(fd) }
 func SetRecvTimeout(_ int, _ time.Duration) error { return errNotLinux }

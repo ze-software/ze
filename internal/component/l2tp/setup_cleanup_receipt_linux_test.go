@@ -6,9 +6,11 @@ package l2tp
 import (
 	"errors"
 	"net/netip"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 func TestPPPoXSetupRollbackRetainsCloseFailure(t *testing.T) {
@@ -28,10 +30,13 @@ func TestPPPTransportSetupRollbackRetainsCloseFailure(t *testing.T) {
 	setupFailure := errors.New("controlled PPP channel refusal")
 	closeFailure := errors.New("original PPPoX close unconfirmed")
 	closes := 0
-	_, err := pppSetupWith(kernelSetupEvent{},
-		func(int, netip.AddrPort, uint16, uint16, uint16, uint16) (int, error) { return 10, nil },
-		func(int, string) (int, int, int, error) { return -1, -1, -1, setupFailure },
-		func(fd int) error { require.Equal(t, 10, fd); closes++; return closeFailure })
+	_, err := pppSetupWith(kernelSetupEvent{}, nil, kernelPPPSetupOperations{
+		create: func(int, netip.AddrPort, uint16, uint16, uint16, uint16) (*os.File, int, error) { return nil, 10, nil },
+		setup: func(*pppkernel.UnitCreator, *os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+			return nil, nil, setupFailure
+		},
+		close: closeLogicalPPPForTest(func(fd int) error { require.Equal(t, 10, fd); closes++; return closeFailure }),
+	})
 	require.ErrorIs(t, err, setupFailure)
 	require.ErrorIs(t, err, closeFailure)
 	require.Equal(t, 1, closes)
@@ -42,11 +47,16 @@ func TestKernelSetupRetainsLowerRollbackCloseUncertainty(t *testing.T) {
 	setupFailure := errors.New("controlled PPP setup refusal")
 	closeFailure := errors.New("lower setup descriptor close unconfirmed")
 	closes := 0
-	worker.ops.pppSetup = func(setup kernelSetupEvent) (pppSessionFDs, error) {
-		return pppSetupWith(setup,
-			func(int, netip.AddrPort, uint16, uint16, uint16, uint16) (int, error) { return 10, nil },
-			func(int, string) (int, int, int, error) { return -1, -1, -1, setupFailure },
-			func(int) error { closes++; return closeFailure })
+	worker.ops.pppSetup = func(setup kernelSetupEvent) (kernelPPPSetup, error) {
+		return func() (pppSessionFDs, error) {
+			return pppSetupWith(setup, nil, kernelPPPSetupOperations{
+				create: func(int, netip.AddrPort, uint16, uint16, uint16, uint16) (*os.File, int, error) { return nil, 10, nil },
+				setup: func(*pppkernel.UnitCreator, *os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+					return nil, nil, setupFailure
+				},
+				close: closeLogicalPPPForTest(func(int) error { closes++; return closeFailure }),
+			})
+		}, nil
 	}
 	event.lnsMode = false
 	worker.setupSession(event)

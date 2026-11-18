@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
+	"os"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -99,9 +100,22 @@ func pppoxCreate(
 	socketFD int,
 	peerAddr netip.AddrPort,
 	localTID, localSID, remoteTID, remoteSID uint16,
-) (int, error) {
-	return pppoxCreateWith(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID,
-		func() (int, error) { return unix.Socket(afPPPOX, unix.SOCK_DGRAM, pxProtoOL2TP) }, connectPPPoL2TP, unix.Close)
+) (*os.File, error) {
+	var original *os.File
+	_, err := pppoxCreateWith(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID,
+		func() (int, error) {
+			fd, err := unix.Socket(afPPPOX, unix.SOCK_DGRAM, pxProtoOL2TP)
+			if err != nil {
+				return -1, err
+			}
+			// Allocate exactly one file at the original native socket creation.
+			original = os.NewFile(uintptr(fd), "l2tp-transport")
+			return fd, nil
+		}, connectPPPoL2TP, func(int) error { return original.Close() })
+	if err != nil {
+		return nil, err
+	}
+	return original, nil
 }
 
 func pppoxCreateWith(socketFD int, peerAddr netip.AddrPort, localTID, localSID, remoteTID, remoteSID uint16,
@@ -179,11 +193,22 @@ type pppSessionFDs struct {
 	closeErr  error
 	deleteErr error
 	// relay pins the call that created these worker-owned resources.
-	relay   *relayCall
-	pppoxFD int // PPPoL2TP socket fd
-	chanFD  int // /dev/ppp fd attached to channel
-	unitFD  int // /dev/ppp fd with allocated PPP unit
-	unitNum int // pppN unit number (the N in pppN)
+	relay *relayCall
+	// ppp is actual pending file custody; nil means no pair remains to transfer.
+	// retiredPPP retains original Close outcomes and never authorizes a retry
+	// of recyclable raw descriptor labels.
+	ppp        *kernelPPPOwners
+	retiredPPP *kernelPPPOwners
+	// transport is the actual file allocated by pppoxCreate. The worker
+	// retains it independently after the channel/unit pair transfers to PPP.
+	transport *os.File
+	// retiredTransport retains the original close receipt; it grants no retry.
+	retiredTransport *os.File
+	bridgeErr        error // exact bridge cleanup may be retried while both files remain open
+	pppoxFD          int   // PPPoL2TP socket fd
+	chanFD           int   // checked diagnostic label only
+	unitFD           int   // checked diagnostic label only
+	unitNum          int   // pppN unit number (the N in pppN)
 	// bridged is true when this is a LAC-relayed session whose pppol2tp
 	// channel was cross-connected to a PPPoE channel (PPPIOCBRIDGECHAN,
 	// spec-followup-l2tp-call A-4). No local PPP runs for a bridged session;

@@ -1,82 +1,80 @@
 //go:build integration && linux
 
-// Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- raw descriptor ordering.
-// Related: receive_linux.go -- production readPacket, not a channel priority fake.
+// Design: docs/architecture/l2tp/cpe-1-pppoe-client.md -- ordered delivery ownership.
+// Related: kernel/client_dispatch_integration_linux_test.go -- real sockets.
+
 package pppoeclient
 
 import (
 	"bytes"
+	"io"
 	"testing"
-	"time"
-
-	"golang.org/x/sys/unix"
+	"testing/synctest"
 )
 
-// TestOrderedDescriptorDispatch puts both packets on actual nonblocking kernel
-// descriptors before authorizing production input. The channel must win; the
-// unit packet must remain on its descriptor until dispatch authorizes another
-// read. Socket pairs preserve packet boundaries without requiring a PPP device.
-// TestDialAcknowledgesFirstEagerIPCP retains the separate real-PPP oracle.
+// TestOrderedDescriptorDispatch retains the CPE half of the old combined root:
+// one useful channel result, no second source read until dispatch acknowledges,
+// then the exact useful unit result. The same-name shared kernel native root
+// retains the original two actual socket descriptors, packet bytes, channel
+// priority and MSG_PEEK assertion. These two roots MUST be judged together;
+// this private logical protocol port grants no public original-file authority.
 func TestOrderedDescriptorDispatch(t *testing.T) {
-	control, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = unix.Close(control[0]) })
-	t.Cleanup(func() { _ = unix.Close(control[1]) })
-	unit, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = unix.Close(unit[0]) })
-	t.Cleanup(func() { _ = unix.Close(unit[1]) })
-	if err := prepareClientDescriptors(control[0], unit[0]); err != nil {
-		t.Fatal(err)
-	}
-	link := &sessionLink{channelFD: control[0], unitFD: unit[0], unitConnected: true}
-	stop := make(chan struct{})
-	reader, err := newFrameReader(link.readPacket, stop)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		close(stop)
-		link.mu.Lock()
-		link.closed = true
-		link.mu.Unlock()
-		<-reader.done
-	}()
-	controlPacket := []byte{0xc2, 0x23, 3, 63, 0, 4}
-	unitPacket := []byte{0x80, 0x21, 1, 71, 0, 10, 3, 6, 192, 0, 2, 1}
-	for _, item := range []struct {
-		fd     int
-		packet []byte
-	}{{unit[1], unitPacket}, {control[1], controlPacket}} {
-		if n, err := unix.Write(item.fd, item.packet); err != nil || n != len(item.packet) {
-			t.Fatalf("enqueue: %d %v", n, err)
+	synctest.Test(t, func(t *testing.T) {
+		controlPacket := []byte{0xc2, 0x23, 3, 63, 0, 4}
+		unitPacket := []byte{0x80, 0x21, 1, 71, 0, 10, 3, 6, 192, 0, 2, 1}
+		packets := [][]byte{controlPacket, unitPacket}
+		reads := 0
+		client := testClientProtocol(&recordingRWC{})
+		client.read = func(buffer []byte) (int, error) {
+			if reads >= len(packets) {
+				return 0, io.ErrUnexpectedEOF
+			}
+			packet := packets[reads]
+			reads++
+			return copy(buffer, packet), nil
 		}
-	}
-	select {
-	case frame := <-reader.next():
-		if frame.err != nil || !bytes.Equal(frame.data, controlPacket) {
-			t.Fatalf("channel did not precede unit: %+v", frame)
+		link := &sessionLink{client: client, stopped: make(chan struct{}), closeTransport: func() error { return nil }}
+		reader, err := newFrameReader(link.readPacket, link.stopped)
+		if err != nil {
+			t.Fatal(err)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("channel read blocked")
-	}
-	var peek [64]byte
-	n, _, err := unix.Recvfrom(unit[0], peek[:], unix.MSG_PEEK|unix.MSG_DONTWAIT)
-	if err != nil || !bytes.Equal(peek[:n], unitPacket) {
-		t.Fatalf("unit read ahead before dispatch: %d %v", n, err)
-	}
-	reader.received()
-	select {
-	case frame := <-reader.next():
+		t.Cleanup(func() {
+			if err := link.Close(); err != nil {
+				t.Error(err)
+			}
+			<-reader.done
+		})
+		delivery := reader.next()
+		frame := <-delivery
+		if frame.err != nil {
+			t.Fatal(frame.err)
+		}
+		if !bytes.Equal(frame.data, controlPacket) {
+			t.Fatalf("channel packet changed: %x", frame.data)
+		}
+		synctest.Wait()
+		if reads != 1 {
+			t.Fatalf("unit source read before dispatch: %d", reads)
+		}
+		if reader.next() != delivery {
+			t.Fatal("outstanding delivery acquired another receive owner")
+		}
+		synctest.Wait()
+		if reads != 1 {
+			t.Fatalf("repeated next read unit before acknowledgment: %d", reads)
+		}
 		reader.received()
-		if frame.err != nil || !bytes.Equal(frame.data, unitPacket) {
-			t.Fatalf("unit packet lost: %+v", frame)
+		frame = <-reader.next()
+		reader.received()
+		if frame.err != nil {
+			t.Fatal(frame.err)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("unit read blocked")
-	}
+		if !bytes.Equal(frame.data, unitPacket) {
+			t.Fatalf("unit packet lost: %x", frame.data)
+		}
+		synctest.Wait()
+		if reads != 2 {
+			t.Fatalf("second dispatch source reads = %d", reads)
+		}
+	})
 }

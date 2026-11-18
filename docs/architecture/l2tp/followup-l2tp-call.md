@@ -10,7 +10,7 @@ a PPPoE subscriber into an access-concentrator incoming call.
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
 <!-- source: internal/component/l2tp/relay_sink.go -- relaySink.Relay, relayTargetLocked -->
 <!-- source: internal/core/callsink/callsink.go -- Sink, Register, Unregister, Lookup -->
-<!-- source: internal/component/l2tp/bridge_linux.go -- bridgeChannels, unbridgeChannel, maybeBridgePPPoE -->
+<!-- source: internal/component/l2tp/bridge_linux.go -- maybeBridgePPPoE, maybeBridgePPPoEWith -->
 
 ## RFC obligations carried by this code
 
@@ -45,25 +45,46 @@ a WARN names the missing interface backend and the
 <!-- source: internal/component/l2tp/relay_preparation.go -- prepareAndSetupPPP -->
 <!-- source: internal/component/l2tp/kernel_linux.go -- pppSetupReal -->
 
-**The bridge borrows the transport for the complete descriptor operation.**
-Both relay requests carry `callsink.RelayChannel`. Its `WithDescriptor` callback
-keeps the PPPoX transport open through the bridge ioctl. Departure waits for an
-active callback, and a callback after departure receives an error. An asynchronous
-call therefore cannot use a closed descriptor that the operating system reused.
-If the borrow or native bridge fails, the worker closes its unpublished PPP
-channel, unit and transport before reporting refusal. Each distinct descriptor,
-including zero, closes once; cleanup failures remain beside the bridge error.
+**A native bridge owns both fresh original channels until cleanup settles.**
+Both relay requests carry the original transport owner through `callsink`.
+Native relay requires its original-file retention capability. The admitted
+session reserves one exact lifetime token, then lends the SAME PPPoX file for
+bounded local channel capture. No backend or network wait runs inside that
+borrow. Providers without the capability refuse native relay; VPP does not
+claim a Linux channel bridge through a fabricated descriptor.
+
+Service-Name preparation releases the unused local PPP lease. Realm preparation
+joins its reader, releases its original local PPP owner through the existing
+native seal path, and requires the exact attempt's finished, released, error-free
+receipt. Only then does the worker attach fresh channels and pass both to
+`NewOriginalChannelBridge`. The constructor consumes both new owners on every
+outcome. Channels already consumed by `NewSession` are never replayed.
+
+The worker retains the exact bridge through publication, cancellation, failure,
+retry and stop. `Close` first unbridges the retained native pair; uncertain
+unbridge retains BOTH files and the transport token for retry. After successful
+unbridge it closes both original claims. A terminal file-close error remains
+recorded while independent transport cleanup still runs. Transport departure
+refuses without physical close while its exact token is retained. Releasing
+the final exact token fulfills any already-requested physical close, even when
+the original departure caller never retries. Its result is retained by both
+the admitted transport and the worker cleanup receipt. Numeric labels appear only in diagnostics and
+private fault models, never as bridge or cleanup authority.
 
 <!-- source: internal/core/callsink/callsink.go -- RelayChannel, Request, RealmRequest -->
-<!-- source: internal/component/l2tp/pppoe/dataplane/session.go -- openedSession.WithDescriptor, openedSession.CloseTransport -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/session.go -- openedSession.WithOriginalFile, openedSession.CloseTransport -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/relay_file.go -- openedSession.RetainOriginalFile, relayFileLease.Close -->
+<!-- source: internal/component/l2tp/ppp/kernel/original_bridge_linux.go -- NewOriginalChannelBridge, OriginalChannelBridge.Close, OriginalChannelBridge.ClosePending -->
 <!-- source: internal/component/l2tp/bridge_linux.go -- maybeBridgePPPoE -->
-<!-- source: internal/component/l2tp/kernel_linux.go -- rollbackPPPBridge -->
+<!-- source: internal/component/l2tp/kernel_ppp_owners_linux.go -- bridgeOriginalKernelPPP, closeOriginalKernelPPP -->
 
 **A realm relay crosses the same sink, after local LCP.** `Sink.RelayRealm`
 takes a request the PPPoE auth drain makes once the subscriber's
 authentication arrived, before any credential check. The sink places the
 incoming call with the proxy AVPs; the kernel worker asks the PPPoE side to
-quiesce the subscriber's channel reader, bridges, then reports the result. The
+quiesce and release the local PPP owner, captures fresh original peers, bridges,
+then reports the result. If bridging fails after local release, access teardown
+ends the subscriber because the old PPP owner can no longer answer authentication. The
 returned `RelayCall.Cancel` is the PPPoE side's one report that the subscriber
 left: before the bridge it abandons the call, after it the sink tears the L2TP
 session down with CDN. A call to a remote whose tunnel is established or still
@@ -80,6 +101,8 @@ kernel setup refusal reports `Ended` once for either kind. Service-Name end
 notifications wait in the admitted session table until PADS publication, then
 wake the existing PPPoE event consumer; no extra per-call worker is created.
 The table drains before its access generation is released at stop.
+<!-- source: internal/component/l2tp/pppoe/session.go -- SessionTable.markSessionFor -->
+<!-- source: internal/component/l2tp/pppoe/service_relay.go -- serviceBridgePreparation.Ended, SessionTable.takeServiceRelayEnds, Subsystem.drainServiceRelayEnds -->
 
 Cancellation and every queued worker refusal or teardown carry the exact call
 owner. The reactor and worker compare that owner while holding their own map

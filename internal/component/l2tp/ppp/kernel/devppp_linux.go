@@ -1,4 +1,6 @@
-// Design: docs/architecture/l2tp/bng-5-pppoe.md -- shared /dev/ppp setup for L2TP and PPPoE
+// Design: docs/architecture/l2tp/bng-5-pppoe.md -- shared typed PPP setup
+// Related: created_channel_linux.go -- original channel file and namespace
+// Related: created_unit_linux.go -- original unit creation and counter receipt
 
 //go:build linux
 
@@ -11,27 +13,24 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 const (
 	pppiocGChan   = 0x80047437 // PPPIOCGCHAN: _IOR('t', 55, int)
 	pppiocAttChan = 0x40047438 // PPPIOCATTCHAN: _IOW('t', 56, int)
-	pppiocNewUnit = 0xc004743e // PPPIOCNEWUNIT: allocate PPP unit (creates pppN)
+	pppiocNewUnit = 0xc004743e // PPPIOCNEWUNIT: used by native release tests
 	pppiocGUnit   = 0x80047456 // PPPIOCGUNIT: _IOR('t', 86, int)
 	pppiocSNPMODE = 0x4008744b // PPPIOCSNPMODE: _IOW('t', 75, struct npioctl)
 )
 
-// namedUnitRetries bounds the EBUSY (ppp_mutex contention, ppp_nl_newlink uses
-// mutex_trylock to avoid lock inversion) and EEXIST (previous session's device
-// not yet released) retries a named RTM_NEWLINK survives. The budget is
-// deliberate: an operator misconfiguration that collides a configured name
-// with a persistent kernel device must surface quickly, so the error names the
-// device and the fix.
+// A collision retries only after the original ordered socket definitively
+// rejected it and the original rejected file closed. Uncertainty never retries.
 const (
-	namedUnitRetries = 5
-	namedUnitBackoff = 20 * time.Millisecond
+	unitCreationAttempts = 5
+	unitCreationBackoff  = 20 * time.Millisecond
 )
 
 // SetIPv4Mode controls IPv4 in both directions without detaching the PPP unit.
@@ -55,113 +54,147 @@ func SetIPv4Mode(unitFD int, mode NPMode) error {
 	return nil
 }
 
-// DevPPPSetup opens /dev/ppp, attaches the PPP channel from the PPPoX
-// socket (L2TP or PPPoE), allocates a PPP unit, and returns the channel fd,
-// unit fd, and unit number.
-//
-// When name is empty, the kernel names the device pppN through PPPIOCNEWUNIT:
-//  1. PPPIOCGCHAN on pppoxFD -> channel index
-//  2. open /dev/ppp, PPPIOCATTCHAN -> channel fd
-//  3. open /dev/ppp, PPPIOCNEWUNIT -> unit fd + pppN interface
-//
-// When name is non-empty, step 3 instead sends RTM_NEWLINK with kind "ppp"
-// and IFLA_PPP_DEV_FD on the opened /dev/ppp file so the kernel keeps the
-// name the request carries (Linux drivers/net/ppp/ppp_generic.c
-// ppp_nl_newlink, v6.18). PPPIOCGUNIT on the unit descriptor then reads back
-// the auto-assigned unit number PPPIOCCONNECT needs. EBUSY (ppp_mutex
-// contention, ppp_nl_newlink uses mutex_trylock) and EEXIST (previous
-// session's device still pending teardown) retry with a bounded backoff.
-//
-// PPPIOCCONNECT (step 4) is deferred to after LCP completes.
-func DevPPPSetup(pppoxFD int, name string) (chanFD, unitFD, unitNum int, err error) {
-	return devPPPSetup(pppoxFD, name, devPPPSetupOps{
-		get: ioctlGetInt, set: ioctlSetInt, getSet: ioctlGetSetInt,
-		open: openDevPPP, createLink: createPPPLink, closeFD: unix.Close,
+// DevPPPSetup attaches the original channel and creates the original unit using
+// the already captured creator. Both named and unnamed units use its ordered
+// creation socket and actual echo. PPPIOCCONNECT remains deferred until LCP.
+// The transport owner MUST retain and serialize the original socket file against Close for this
+// call. NewUnitCreator MUST be captured before transport/native allocation.
+// Every nonnil result remains the caller's owner on EVERY outcome. On failure
+// setup closes the original unit, then channel, and retains all close causes;
+// returned pointers retain those exact outcomes. Close is idempotent. A caller
+// MUST NOT reconstruct or close either file from a numeric descriptor label.
+// Transfer a successful pair with unit.SessionConfig(channel), then NewSession.
+func DevPPPSetup(creator *UnitCreator, pppox *os.File, name string) (*CreatedChannel, *CreatedUnit, error) {
+	return devPPPSetup(creator, pppox, name, devPPPSetupOps{
+		channel: CreatePPPChannel, createUnit: createPPPSetupUnit, closeChannel: (*CreatedChannel).Close,
+		closeUnit: (*CreatedUnit).Close, rejected: (*CreatedUnit).CreationRejected,
+		pause: time.Sleep,
 	})
 }
 
 type devPPPSetupOps struct {
-	get        func(int, uint) (int, error)
-	set        func(int, uint, int) error
-	getSet     func(int, uint, int) (int, error)
-	open       func() (int, error)
-	createLink func(int, string) error
-	closeFD    func(int) error
+	channel      func(*os.File) (*CreatedChannel, error)
+	createUnit   func(*UnitCreator, *CreatedChannel, string) (*CreatedUnit, error)
+	closeChannel func(*CreatedChannel) error
+	closeUnit    func(*CreatedUnit) error
+	rejected     func(*CreatedUnit) bool
+	pause        func(time.Duration)
 }
 
-func devPPPSetup(pppoxFD int, name string, ops devPPPSetupOps) (chanFD, unitFD, unitNum int, err error) {
-	chanIdx, err := ops.get(pppoxFD, pppiocGChan)
-	if err != nil {
-		return -1, -1, -1, fmt.Errorf("ppp: PPPIOCGCHAN: %w", err)
+func devPPPSetup(creator *UnitCreator, pppox *os.File, name string, ops devPPPSetupOps) (channel *CreatedChannel, unit *CreatedUnit, err error) {
+	if err := validateDevPPPSetup(creator, ops); err != nil {
+		return nil, nil, err
 	}
-
-	chanFD, err = ops.open()
-	if err != nil {
-		return -1, -1, -1, err
-	}
-	if err := ops.set(chanFD, pppiocAttChan, chanIdx); err != nil {
-		return -1, -1, -1, RecordSetupCleanup(fmt.Errorf("ppp: PPPIOCATTCHAN: %w", err), ops.closeFD(chanFD))
-	}
-
-	unitFD, err = ops.open()
-	if err != nil {
-		return -1, -1, -1, RecordSetupCleanup(err, ops.closeFD(chanFD))
-	}
-	if name == "" {
-		unitNum, err = ops.getSet(unitFD, pppiocNewUnit, -1)
-		if err != nil {
-			return -1, -1, -1, RecordSetupCleanup(fmt.Errorf("ppp: PPPIOCNEWUNIT: %w", err), errors.Join(ops.closeFD(unitFD), ops.closeFD(chanFD)))
+	unitNeedsClose := false
+	defer func() {
+		if failure := recover(); failure != nil {
+			err = opererr.Wrap(errors.Join(err, sessionPanicFailure(failure)), "PPP setup stopped unexpectedly",
+				"The original unpublished channel and unit are being closed.", "ze doctor")
 		}
-		return chanFD, unitFD, unitNum, nil
-	}
-	if err := ops.createLink(unitFD, name); err != nil {
-		return -1, -1, -1, RecordSetupCleanup(err, errors.Join(ops.closeFD(unitFD), ops.closeFD(chanFD)))
-	}
-	unitNum, err = ops.get(unitFD, pppiocGUnit)
-	if err != nil {
-		return -1, -1, -1, RecordSetupCleanup(fmt.Errorf("ppp: PPPIOCGUNIT on %s: %w; the configured pppoe-client name matches a kernel device another program created, rename the entry so its key is unique", name, err), errors.Join(ops.closeFD(unitFD), ops.closeFD(chanFD)))
-	}
-	return chanFD, unitFD, unitNum, nil
-}
-
-// createPPPLink sends RTM_NEWLINK kind "ppp" with IFLA_PPP_DEV_FD so the
-// kernel keeps the configured name. EBUSY and EEXIST retry with a bounded
-// backoff; any other error names the condition and the fix.
-func createPPPLink(unitFD int, name string) error {
-	for attempt := range namedUnitRetries {
-		err := sendPPPLinkCreate(unitFD, name)
 		if err == nil {
-			return nil
+			return
 		}
-		if !errors.Is(err, unix.EBUSY) && !errors.Is(err, unix.EEXIST) {
-			return fmt.Errorf("ppp: rtnetlink create kind=ppp name=%s: %w", name, err)
+		if unitNeedsClose {
+			err = RecordSetupCleanup(err, closeDevPPPSetup(func() error { return ops.closeUnit(unit) }))
 		}
-		if attempt == namedUnitRetries-1 {
-			return fmt.Errorf("ppp: rtnetlink create kind=ppp name=%s: %w after %d attempts; a previous session device with the same name is still being released, or another program holds the name, rename the pppoe-client entry or wait for the kernel to release it", name, err, namedUnitRetries)
+		if channel != nil {
+			err = RecordSetupCleanup(err, closeDevPPPSetup(func() error { return ops.closeChannel(channel) }))
 		}
-		time.Sleep(namedUnitBackoff)
+	}()
+	channel, err = ops.channel(pppox)
+	if err != nil {
+		return channel, nil, err
 	}
-	// Reached only if namedUnitRetries is not positive: no create was attempted,
-	// so the device does not exist and success would be a lie.
-	return fmt.Errorf("ppp: rtnetlink create kind=ppp name=%s: no attempt made (retry budget %d); this is a Ze defect, report it", name, namedUnitRetries)
+	if channel == nil {
+		return nil, nil, devPPPSetupFailure("PPP setup returned no original channel")
+	}
+	for attempt := range unitCreationAttempts {
+		unit, err = ops.createUnit(creator, channel, name)
+		unitNeedsClose = unit != nil
+		if err == nil {
+			if unit == nil {
+				return channel, nil, devPPPSetupFailure("PPP setup returned no original unit")
+			}
+			return channel, unit, nil
+		}
+		if unit == nil {
+			return channel, nil, err
+		}
+		if !ops.rejected(unit) {
+			return channel, unit, err
+		}
+		if !devPPPSetupCollision(err) {
+			return channel, unit, err
+		}
+		if attempt == unitCreationAttempts-1 {
+			return channel, unit, opererr.Wrap(err, fmt.Sprintf("PPP interface %q is still unavailable after %d creation attempts", name, unitCreationAttempts),
+				"The previous interface may still be closing, or another program holds its name.", "ze doctor")
+		}
+		closeErr := closeDevPPPSetup(func() error { return ops.closeUnit(unit) })
+		unitNeedsClose = false
+		if closeErr != nil {
+			return channel, unit, RecordSetupCleanup(err, closeErr)
+		}
+		// Only a definitively rejected, successfully closed unit is forgotten.
+		// The same live original channel stays reserved throughout the retries.
+		unit = nil
+		// sleep(no-signal): ppp_mutex release and a previous device's final name
+		// release have no waiter; only a fresh bounded exclusive create decides.
+		ops.pause(unitCreationBackoff)
+	}
+	return channel, unit, devPPPSetupFailure("PPP setup made no unit creation attempt")
 }
 
-// sendPPPLinkCreate issues one RTM_NEWLINK. Its body is IFLA_IFNAME and the
-// IFLA_LINKINFO{IFLA_INFO_KIND="ppp", IFLA_INFO_DATA{IFLA_PPP_DEV_FD=unitFD}}
-// nest the kernel's ppp_nl_newlink parser expects.
-func sendPPPLinkCreate(unitFD int, name string) error {
-	req := nl.NewNetlinkRequest(unix.RTM_NEWLINK, unix.NLM_F_CREATE|unix.NLM_F_EXCL|unix.NLM_F_ACK)
-	req.AddData(nl.NewIfInfomsg(unix.AF_UNSPEC))
-	req.AddData(nl.NewRtAttr(unix.IFLA_IFNAME, nl.ZeroTerminated(name)))
-	linkInfo := nl.NewRtAttr(unix.IFLA_LINKINFO, nil)
-	linkInfo.AddRtAttr(nl.IFLA_INFO_KIND, nl.NonZeroTerminated("ppp"))
-	infoData := linkInfo.AddRtAttr(nl.IFLA_INFO_DATA, nil)
-	infoData.AddRtAttr(unix.IFLA_PPP_DEV_FD, nl.Uint32Attr(uint32(unitFD)))
-	req.AddData(linkInfo)
-	_, err := req.Execute(unix.NETLINK_ROUTE, 0)
-	return err
+func validateDevPPPSetup(creator *UnitCreator, ops devPPPSetupOps) error {
+	if creator == nil {
+		return devPPPSetupFailure("PPP setup has no original interface creator")
+	}
+	if creator.create == nil {
+		return devPPPSetupFailure("PPP setup has an uninitialized interface creator")
+	}
+	if ops.createUnit == nil {
+		return devPPPSetupFailure("PPP setup has no original namespace unit creation operation")
+	}
+	if ops.channel == nil {
+		return devPPPSetupFailure("PPP setup has no original channel operation")
+	}
+	if ops.closeChannel == nil {
+		return devPPPSetupFailure("PPP setup has no original channel cleanup operation")
+	}
+	if ops.closeUnit == nil {
+		return devPPPSetupFailure("PPP setup has no original unit cleanup operation")
+	}
+	if ops.rejected == nil {
+		return devPPPSetupFailure("PPP setup has no native creation outcome reader")
+	}
+	if ops.pause == nil {
+		return devPPPSetupFailure("PPP setup has no bounded collision retry wait")
+	}
+	return nil
 }
 
+func devPPPSetupCollision(cause error) bool {
+	if errors.Is(cause, unix.EBUSY) {
+		return true
+	}
+	return errors.Is(cause, unix.EEXIST)
+}
+
+func devPPPSetupFailure(problem string) error {
+	return opererr.New(problem, "The subscriber cannot safely use its original PPP interface.", "ze doctor")
+}
+
+func closeDevPPPSetup(closeOwner func() error) (err error) {
+	defer func() {
+		if failure := recover(); failure != nil {
+			err = sessionPanicFailure(failure)
+		}
+	}()
+	return closeOwner()
+}
+
+// openDevPPP is retained for native release and family fixtures. Production
+// setup uses CreatePPPChannel and UnitCreator, which retain their original file.
 func openDevPPP() (int, error) {
 	f, err := os.OpenFile("/dev/ppp", os.O_RDWR, 0)
 	if err != nil {

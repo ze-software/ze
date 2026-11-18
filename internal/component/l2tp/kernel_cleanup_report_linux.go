@@ -59,6 +59,13 @@ func clearKernelSessionDeleteWarning(key sessionKey, owner *pppSessionFDs) {
 		kernelCleanupWarningSubject(kernelCleanupSessionDelete, key.tunnelID, key.sessionID, kernelCleanupBirth(owner), -1))
 }
 
+// clearKernelBridgeWarning clears only the exact settled original bridge.
+// Caller MUST hold worker.mu after ClosePending became false.
+func clearKernelBridgeWarning(key sessionKey, owner *pppSessionFDs, fd int) {
+	report.ClearWarning(ppp.CleanupReportSource, diagnostic.CodeDoctorPPPCleanup,
+		kernelCleanupWarningSubject(kernelCleanupChannelRelease, key.tunnelID, key.sessionID, kernelCleanupBirth(owner), fd))
+}
+
 // clearKernelTunnelDeleteWarning MUST be called under worker.mu only after
 // this original tunnel's Delete confirms removal. Close warnings remain.
 func clearKernelTunnelDeleteWarning(owner *kernelTunnelState) {

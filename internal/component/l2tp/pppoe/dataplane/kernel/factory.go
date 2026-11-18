@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -19,7 +20,6 @@ import (
 
 type sessionBackend interface {
 	pppkernel.InterfaceOperations
-	GetStats(string) (*iface.InterfaceStats, error)
 }
 
 // Name is the exact registry and interface-backend identity for this provider.
@@ -28,21 +28,25 @@ const Name = "netlink"
 type factoryOps struct {
 	backend       func() (sessionBackend, error)
 	openTransport func(context.Context, dataplane.Request) (*pppoxTransport, error)
-	setup         func(int, string) (int, int, int, error)
+	creator       func(sessionBackend) (*pppkernel.UnitCreator, error)
+	setup         func(*pppkernel.UnitCreator, *os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error)
+	config        func(*pppkernel.CreatedUnit, *pppkernel.CreatedChannel) (pppkernel.SessionConfig, error)
+	closeUnit     func(*pppkernel.CreatedUnit) error
+	closeChannel  func(*pppkernel.CreatedChannel) error
 	newSession    func(pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error)
 }
 
-// Open creates one kernel session. Its caller MUST supply a nonnil context and
-// close both returned owners. The registration wrapper passes it to the sealed
-// backend registry, which validates context before calling. Safe for concurrent use.
-func Open(ctx context.Context, request dataplane.Request) (dataplane.OpenedSession, error) {
-	if err := requirePlatform(); err != nil {
-		return nil, err
+// preparedFactoryOps borrows only the original independent prepared backend.
+// Its private fault ports never grant public ownership from descriptor labels.
+func preparedFactoryOps(backend sessionBackend, creator *pppkernel.UnitCreator) factoryOps {
+	return factoryOps{
+		backend:       func() (sessionBackend, error) { return backend, nil },
+		creator:       func(sessionBackend) (*pppkernel.UnitCreator, error) { return creator, nil },
+		openTransport: openTransport, setup: pppkernel.DevPPPSetup,
+		config:    (*pppkernel.CreatedUnit).SessionConfig,
+		closeUnit: (*pppkernel.CreatedUnit).Close, closeChannel: (*pppkernel.CreatedChannel).Close,
+		newSession: pppkernel.NewSession,
 	}
-	return openWithOps(ctx, request, factoryOps{
-		backend: activeBackend, openTransport: openTransport,
-		setup: pppkernel.DevPPPSetup, newSession: pppkernel.NewSession,
-	})
 }
 
 func openWithOps(ctx context.Context, request dataplane.Request, ops factoryOps) (
@@ -58,49 +62,68 @@ func openWithOps(ctx context.Context, request dataplane.Request, ops factoryOps)
 	if err != nil {
 		return nil, err
 	}
-	transport, err := ops.openTransport(ctx, request)
+	creator, err := ops.creator(backend)
 	if err != nil {
 		return nil, err
 	}
+	if creator == nil {
+		return nil, errors.New("pppoe: kernel factory has no original unit creator")
+	}
+	transport, err := ops.openTransport(ctx, request)
+	var channel *pppkernel.CreatedChannel
+	var unit *pppkernel.CreatedUnit
 	// Until NewOpenedSession takes it, this factory owns the transport even
 	// during a panic. The PPP constructor separately consumes channel/unit.
 	defer func() {
 		failure := recover()
-		if transport == nil {
-			if failure != nil {
-				panic(failure)
-			}
-			return
+		var cleanupErr error
+		if unit != nil {
+			cleanupErr = errors.Join(cleanupErr, closeFactoryOwner(func() error { return ops.closeUnit(unit) }))
 		}
-		closeErr := transport.Close()
+		if channel != nil {
+			cleanupErr = errors.Join(cleanupErr, closeFactoryOwner(func() error { return ops.closeChannel(channel) }))
+		}
+		if transport != nil {
+			cleanupErr = errors.Join(cleanupErr, closeFactoryOwner(transport.Close))
+		}
 		// The discovery guard owns panic containment. This allocation boundary
 		// only cleans its unpublished owner and adds a failed close to the panic.
 		if failure != nil {
-			if closeErr != nil {
+			if cleanupErr != nil {
 				cause, ok := failure.(error)
 				if !ok {
 					cause = fmt.Errorf("pppoe: kernel construction panicked: %v", failure)
 				}
-				panic(errors.Join(cause, closeErr))
+				panic(errors.Join(cause, cleanupErr))
 			}
 			panic(failure)
 		}
 		if err != nil {
-			err = errors.Join(err, closeErr)
+			err = errors.Join(err, cleanupErr)
 		}
 	}()
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	channel, unit, number, err := ops.setup(transport.fd, "")
 	if err != nil {
 		return nil, err
 	}
-	frames, handle, err := ops.newSession(pppkernel.SessionConfig{
-		ChanFD: channel, UnitFD: unit, UnitNum: number,
-		CaptureProxyLCP: request.CaptureProxyLCP, Backend: backend,
-		ReadCounters: rawCounters(backend),
-	})
+	if transport == nil {
+		return nil, errors.New("pppoe: kernel factory returned no original transport")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	channel, unit, err = ops.setup(creator, transport.file, "")
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := ops.config(unit, channel)
+	if err != nil {
+		return nil, err
+	}
+	cfg.CaptureProxyLCP = request.CaptureProxyLCP
+	// SessionConfig is non-consuming. NewSession alone consumes BOTH original
+	// owners on every outcome, including panic, so relinquish them before call.
+	channel, unit = nil, nil
+	frames, handle, err := ops.newSession(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +141,22 @@ func openWithOps(ctx context.Context, request dataplane.Request, ops factoryOps)
 		return nil, errors.Join(err, opened.Dataplane().Close(), opened.CloseTransport())
 	}
 	return opened, nil
+}
+
+// closeFactoryOwner retains each independent cleanup outcome even if one
+// private dependency panics; its sibling and original transport still close.
+func closeFactoryOwner(closeOwner func() error) (err error) {
+	defer func() {
+		if failure := recover(); failure != nil {
+			cause, ok := failure.(error)
+			if ok {
+				err = cause
+				return
+			}
+			err = fmt.Errorf("pppoe: kernel cleanup panicked: %v", failure)
+		}
+	}()
+	return closeOwner()
 }
 
 func validateRequest(request dataplane.Request) error {
@@ -158,24 +197,4 @@ func activeBackend() (sessionBackend, error) {
 		return nil, fmt.Errorf("pppoe: netlink session requires the netlink interface backend; configure interface backend netlink: %w", err)
 	}
 	return backend, nil
-}
-
-func rawCounters(backend sessionBackend) func(string) (ppp.SessionCounters, error) {
-	return func(name string) (ppp.SessionCounters, error) {
-		stats, err := backend.GetStats(name)
-		if err != nil {
-			return ppp.SessionCounters{}, err
-		}
-		if stats == nil {
-			return ppp.SessionCounters{}, fmt.Errorf("pppoe: raw counters for %s returned no snapshot", name)
-		}
-		return ppp.SessionCounters{
-			RxBytes: stats.RxBytes, TxBytes: stats.TxBytes,
-			RxPackets: stats.RxPackets, TxPackets: stats.TxPackets,
-			RxErrors:  ppp.MeasuredCounter(stats.RxErrors),
-			TxErrors:  ppp.MeasuredCounter(stats.TxErrors),
-			RxDropped: ppp.MeasuredCounter(stats.RxDropped),
-			TxDropped: ppp.MeasuredCounter(stats.TxDropped),
-		}, nil
-	}
 }

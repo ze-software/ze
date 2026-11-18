@@ -9,6 +9,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 )
 
 // kernelWorker is nil on non-Linux platforms. The reactor checks for nil
@@ -19,9 +21,12 @@ type kernelWorker struct{}
 // Enqueue is a no-op on non-Linux. Satisfies the reactor's call site.
 func (w *kernelWorker) Enqueue(_ any) {}
 
-// takePPPDescriptors cannot transfer a kernel session on non-Linux.
-func (w *kernelWorker) takePPPDescriptors(_ kernelSetupSucceeded) (int, int, bool) {
-	return -1, -1, false
+// No native pair can be prepared or transferred on this platform.
+func (w *kernelWorker) preparePPPTransfer(_ kernelSetupSucceeded, _ pppkernel.InterfaceOperations) (kernelPPPTransfer, bool, error) {
+	return kernelPPPTransfer{}, false, nil
+}
+func (w *kernelWorker) takePPPConfig(_ kernelSetupSucceeded, _ kernelPPPTransfer) (pppkernel.SessionConfig, bool) {
+	return pppkernel.SessionConfig{}, false
 }
 
 // setSocketHooks is a no-op on non-Linux: there is no kernel tunnel, so no
@@ -55,7 +60,7 @@ func probeKernelModules() error { return nil }
 // non-Linux. The reactor checks for nil before using the worker, so the
 // userspace control path still functions; sessions simply cannot program the
 // kernel data plane, and the l2tp health row says so (checkHealth).
-func newSubsystemKernelWorker(_ chan<- kernelSetupFailed, _ chan<- kernelSetupSucceeded, _ *slog.Logger) (*kernelWorker, error) {
+func newSubsystemKernelWorker(_ chan<- kernelSetupFailed, _ chan<- kernelSetupSucceeded, _ *slog.Logger, _ kernelBackendPreparation) (*kernelWorker, error) {
 	return nil, errNoKernelDataPlane
 }
 

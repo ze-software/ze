@@ -83,7 +83,7 @@ func newNativeReleaseRig(t *testing.T) *nativeReleaseRig {
 		rig.duplicates++
 		return rig.duplicateFD, rig.duplicateErr
 	}
-	frames, handle, err := newSession(sessionTestConfig(), ops)
+	frames, handle, err := sessionTestNewSession(sessionTestConfig(), ops)
 	if err != nil {
 		t.Fatal(err)
 	}

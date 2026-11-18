@@ -8,15 +8,16 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
-	"strconv"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
-// NewSession consumes the supplied channel and unit descriptors on every
-// outcome. The caller MUST NOT close them after calling this constructor.
+// NewSession consumes every newly supplied captured channel and unit owner on
+// EVERY outcome. The caller MUST NOT close those owners after calling it.
+// Labels never grant resource custody. A replay/copy supplies no old admitted
+// lease; its independently supplied fresh sibling still transfers on refusal.
 // The returned streams are borrowed; the returned handle is their sole owner.
 // The separate PPPoX transport remains with the transport subsystem, allowing a
 // kernel relay to release its local PPP lease without ending the transport.
@@ -25,26 +26,28 @@ func NewSession(cfg SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) 
 }
 
 type session struct {
-	mu           sync.Mutex
-	closeMu      sync.Mutex
-	closed       bool
-	closeErr     error
-	releaseSeal  ppp.NativeReleaseSeal
-	birthTag     string
-	retainedUnit int
-	unitRetained bool
-	identity     ppp.SessionIdentity
-	channel      io.ReadWriteCloser
-	unit         io.ReadWriteCloser
-	channelFD    int
-	unitFD       int
-	unitNum      int
-	backend      InterfaceOperations
-	readCounters func(string) (ppp.SessionCounters, error)
-	ops          sessionOps
-	connected    bool
-	addresses    map[netip.Prefix]sessionAddress
-	routes       map[sessionRoute]struct{}
+	mu                  sync.Mutex
+	closeMu             sync.Mutex
+	closed              bool
+	closeErr            error
+	releaseSeal         ppp.NativeReleaseSeal
+	birthTag            string
+	retainedUnit        int
+	retainedCreatedUnit *nativePPPUnitHold
+	unitRetained        bool
+	identity            ppp.SessionIdentity
+	channel             io.ReadWriteCloser
+	unit                io.ReadWriteCloser
+	channelFD           int
+	unitFD              int
+	unitNum             int
+	backend             InterfaceOperations
+	unitLease           sessionUnitLease
+	pair                *claimedSessionPair
+	ops                 sessionOps
+	connected           bool
+	addresses           map[netip.Prefix]sessionAddress
+	routes              map[sessionRoute]struct{}
 }
 
 const maxSessionAddresses = 1024
@@ -103,61 +106,47 @@ type sessionAddress struct {
 }
 
 func newSession(cfg SessionConfig, ops sessionOps) (frames ppp.FrameChannel, handle ppp.SessionHandle, err error) {
-	var channel, unit io.ReadWriteCloser
+	pair, err := newClaimedSessionPair(cfg, func(cfg SessionConfig) error {
+		if err := validateSessionPreflight(cfg, ops); err != nil {
+			return err
+		}
+		if ops.preparePair == nil {
+			return errors.New("ppp: missing original-pair preparation")
+		}
+		if ops.connectPair == nil {
+			return errors.New("ppp: missing original-pair attachment")
+		}
+		if ops.disconnectPair == nil {
+			return errors.New("ppp: missing original-pair disconnect")
+		}
+		return nil
+	}, ops.preparePair, sessionPairClosers{channel: ops.closeChannel, unit: ops.closeUnit})
+	if err != nil {
+		return nil, nil, err
+	}
 	transferred := false
-	defer func() {
-		if transferred {
-			return
-		}
-		failure := recover()
-		cleanupErr := closeSessionStream(channel, cfg.ChanFD, ops.closeFD)
-		if cfg.UnitFD != cfg.ChanFD {
-			cleanupErr = errors.Join(cleanupErr, closeSessionStream(unit, cfg.UnitFD, ops.closeFD))
-		}
-		// The enclosing transport guard owns panic containment. Construction
-		// owns rollback, including a panic before any error result was assigned.
-		if failure != nil {
-			if cleanupErr != nil {
-				panic(RecordSetupCleanup(sessionPanicFailure(failure), cleanupErr))
-			}
-			panic(failure)
-		}
-		err = RecordSetupCleanup(err, cleanupErr)
-	}()
-	if err := validateSessionConfig(cfg); err != nil {
-		return nil, nil, err
-	}
-	if ops.setIPv4Mode == nil || ops.setIPv6Mode == nil {
-		return nil, nil, errors.New("ppp: missing kernel family mode operations")
-	}
-	name := cfg.InterfaceName
-	if name == "" {
-		name = "ppp" + strconv.Itoa(cfg.UnitNum)
-	}
-	index, err := ops.interfaceIndex(name)
-	if err != nil {
-		return nil, nil, fmt.Errorf("ppp: cannot identify session interface %s: %w", name, err)
-	}
-	if index == 0 {
-		return nil, nil, fmt.Errorf("ppp: session interface %s has no native index", name)
-	}
-	channel, err = ops.wrap(cfg.ChanFD, "ppp.chan")
+	defer pair.finishConstruction(&transferred, &err)
+	pair.channelStream, err = ops.wrapChannel(pair.channel)
 	if err != nil {
 		return nil, nil, err
 	}
-	if nilSessionDependency(channel) {
-		channel = nil
-		return nil, nil, errors.New("ppp: kernel channel wrapper returned no stream")
+	if nilSessionDependency(pair.channelStream) {
+		pair.channelStream = nil
+		return nil, nil, errors.New("ppp: channel wrapper returned no stream")
 	}
-	unit, err = ops.wrap(cfg.UnitFD, "ppp.unit")
+	pair.unitStream, err = ops.wrapUnit(pair.unit)
 	if err != nil {
 		return nil, nil, err
 	}
-	if nilSessionDependency(unit) {
-		unit = nil
-		return nil, nil, errors.New("ppp: kernel unit wrapper returned no stream")
+	if nilSessionDependency(pair.unitStream) {
+		pair.unitStream = nil
+		return nil, nil, errors.New("ppp: unit wrapper returned no stream")
 	}
-	owner := &session{identity: ppp.SessionIdentity{InterfaceName: name, NativeIndex: index}, channel: channel, unit: unit, channelFD: cfg.ChanFD, unitFD: cfg.UnitFD, unitNum: cfg.UnitNum, backend: cfg.Backend, readCounters: cfg.ReadCounters, ops: ops}
+	owner := &session{identity: pair.info.identity,
+		channel:   &ownedSessionChannelStream{ReadWriteCloser: pair.channelStream, lease: pair.channel, closer: ops.closeChannel},
+		unit:      &ownedSessionUnitStream{ReadWriteCloser: pair.unitStream, lease: pair.unit, closeUnit: ops.closeUnit},
+		channelFD: pair.channel.descriptor(), unitFD: pair.info.fd, unitNum: pair.info.number,
+		backend: cfg.Backend, unitLease: pair.unit, pair: pair, ops: ops}
 	transferred = true
 	return owner, owner, nil
 }
@@ -262,7 +251,7 @@ func (s *session) Connect() error {
 		if err := errors.Join(s.ops.setIPv4Mode(s.unitFD, NPModeDrop), s.ops.setIPv6Mode(s.unitFD, NPModeDrop)); err != nil {
 			return err
 		}
-		if err := s.ops.connect(s.channelFD, s.unitNum); err != nil {
+		if err := s.ops.connectPair(s.pair); err != nil {
 			return err
 		}
 		s.connected = true
@@ -280,7 +269,7 @@ func (s *session) Disconnect() error {
 	if !s.connected {
 		return nil
 	}
-	if err := s.ops.disconnect(s.channelFD); err != nil {
+	if err := s.ops.disconnectPair(s.pair); err != nil {
 		return err
 	}
 	s.connected = false
@@ -472,11 +461,34 @@ func (s *session) RemoveRoute(destination netip.Prefix, gateway netip.Addr, metr
 }
 func (s *session) Counters() (ppp.SessionCounters, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closed {
+		s.mu.Unlock()
 		return ppp.SessionCounters{}, io.ErrClosedPipe
 	}
-	return s.readCounters(s.identity.InterfaceName)
+	identity, birth, lease := s.identity, s.birthTag, s.unitLease
+	s.mu.Unlock()
+	if nilSessionDependency(lease) {
+		return ppp.SessionCounters{}, errors.New("ppp: session has no original unit counter lease")
+	}
+	counters, err := lease.Counters()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return ppp.SessionCounters{}, errors.Join(io.ErrClosedPipe, err)
+	}
+	if s.identity != identity {
+		return ppp.SessionCounters{}, errors.Join(io.ErrClosedPipe, err)
+	}
+	if s.birthTag != birth {
+		return ppp.SessionCounters{}, errors.Join(io.ErrClosedPipe, err)
+	}
+	if s.unitLease != lease {
+		return ppp.SessionCounters{}, errors.Join(io.ErrClosedPipe, err)
+	}
+	if err != nil {
+		return ppp.SessionCounters{}, err
+	}
+	return counters, nil
 }
 func (s *session) OpenIPv6Carrier(ctx context.Context) (ppp.IPv6Carrier, error) {
 	s.mu.Lock()

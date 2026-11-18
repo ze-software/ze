@@ -7,8 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/callsink"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
@@ -29,6 +32,13 @@ type OpenedSession interface {
 	// MUST perform the complete descriptor operation inside use and MUST NOT
 	// retain, close or reenter it. CloseTransport waits until use returns.
 	WithDescriptor(use func(int) error) error
+	// WithOriginalFile lends the SAME original transport for bounded local
+	// capture/ioctls. The caller MUST NOT retain, close, reenter, or wait on
+	// backend/network operations. Unsupported transports explicitly refuse.
+	WithOriginalFile(use func(*os.File) error) error
+	// RetainOriginalFile keeps this exact transport open until its bridge's
+	// original channels close. CloseTransport refuses pending retained roles.
+	RetainOriginalFile() (callsink.RelayFileLease, error)
 	// CloseTransport is safe for concurrent use. The transport owner MUST call
 	// it when the access session ends; every call returns the first close error.
 	// A provider panic becomes a retained error, never a successful later close.
@@ -43,6 +53,13 @@ type OpenedSession interface {
 // A failure MUST return an error, never an invented or stale descriptor.
 type RelayTransport interface {
 	RelayDescriptor() (int, error)
+}
+
+// OriginalRelayTransport is an optional native transport capability. The
+// callback MUST receive its retained original file, never a new wrapper or
+// duplicate. Its owner MUST exclude Close throughout use.
+type OriginalRelayTransport interface {
+	WithOriginalFile(func(*os.File) error) error
 }
 
 // NewOpenedSession consumes handle and transport on every outcome. On failure
@@ -118,12 +135,14 @@ func closeSessionOwner(owner io.Closer, role string) (err error) {
 }
 
 type openedSession struct {
-	frames          *sessionFrames
-	handle          ppp.SessionHandle
-	transport       io.Closer
-	transportMu     sync.Mutex
-	transportClosed bool
-	closeErr        error
+	frames           *sessionFrames
+	handle           ppp.SessionHandle
+	transport        io.Closer
+	transportMu      sync.Mutex
+	transportClosed  bool
+	transportClosing bool
+	relayFile        *relayFileLease
+	closeErr         error
 }
 
 func (s *openedSession) Frames() ppp.FrameChannel     { return s.frames }
@@ -132,6 +151,10 @@ func (s *openedSession) Dataplane() ppp.SessionHandle { return s.handle }
 func (s *openedSession) CloseTransport() error {
 	s.transportMu.Lock()
 	defer s.transportMu.Unlock()
+	s.transportClosing = true
+	if s.relayFile != nil {
+		return errors.New("PPPoE transport cleanup waits for its exact original relay channels")
+	}
 	if s.transportClosed {
 		return s.closeErr
 	}
@@ -161,9 +184,36 @@ func (s *openedSession) WithDescriptor(use func(int) error) error {
 	return use(descriptor)
 }
 
+func (s *openedSession) WithOriginalFile(use func(*os.File) error) error {
+	if use == nil {
+		return errors.New("PPPoE relay original file has no operation")
+	}
+	s.transportMu.Lock()
+	defer s.transportMu.Unlock()
+	if s.transportClosed {
+		return errors.New("PPPoE session transport is closed; its original file is unavailable")
+	}
+	if s.transportClosing {
+		return errors.New("PPPoE session transport is departing; its original file is unavailable")
+	}
+	owner, supported := s.transport.(OriginalRelayTransport)
+	if !supported {
+		return errors.New("PPPoE session transport does not support original-file kernel relay")
+	}
+	return owner.WithOriginalFile(func(original *os.File) error {
+		if original == nil {
+			return errors.New("PPPoE relay transport returned no original file")
+		}
+		return use(original)
+	})
+}
+
 // relayDescriptorLocked MUST be called with transportMu held. Both borrowing
 // entry points use it so they apply the same owner and descriptor validation.
 func (s *openedSession) relayDescriptorLocked() (int, error) {
+	if s.transportClosing {
+		return -1, errors.New("PPPoE relay transport is departing")
+	}
 	if s.transportClosed {
 		return -1, errors.New("PPPoE session transport is closed; its relay descriptor is unavailable")
 	}

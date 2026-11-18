@@ -173,16 +173,16 @@ func TestConnectedTransitionDrain(t *testing.T) {
 }
 
 // TestConnectedLinkModeAfterClose checks the lifecycle guard before both mode
-// validation and the syscall: even a reused/invalid descriptor is never reached.
+// validation and the private logical unit operation: stopped requests never reach either.
 func TestConnectedLinkModeAfterClose(t *testing.T) {
 	w := newConnectedExchange()
 	closes := 0
-	link := &sessionLink{channel: w, stopped: make(chan struct{}), closeTransport: func() { closes++ }}
+	link := &sessionLink{client: testClientProtocol(w), stopped: make(chan struct{}), closeTransport: testClientTransportClose(func() { closes++ })}
 	if err := link.Close(); err != nil {
 		t.Fatal(err)
 	}
 	for _, mode := range []pppkernel.NPMode{pppkernel.NPModeUnspecified, pppkernel.NPModePass, pppkernel.NPModeDrop, 255} {
-		if err := link.setIPv4Mode(-1, mode); !errors.Is(err, io.ErrClosedPipe) {
+		if err := link.setIPv4Mode(mode); !errors.Is(err, io.ErrClosedPipe) {
 			t.Fatalf("closed mode %d reached validation/ioctl: %v", mode, err)
 		}
 	}
@@ -198,12 +198,12 @@ func TestConnectedLinkModeAfterClose(t *testing.T) {
 }
 
 // TestConnectedLinkModeCloseRace races mode admission with owner shutdown. An
-// invalid mode avoids a syscall before closure; after closure the lifecycle
+// invalid mode reaches the real validator before closure; after closure the lifecycle
 // error must win. The race detector observes the shared closed flag and lock.
 func TestConnectedLinkModeCloseRace(t *testing.T) {
 	w := newConnectedExchange()
 	closes := 0
-	link := &sessionLink{channel: w, stopped: make(chan struct{}), closeTransport: func() { closes++ }}
+	link := &sessionLink{client: testClientProtocol(w), stopped: make(chan struct{}), closeTransport: testClientTransportClose(func() { closes++ })}
 	started, done := make(chan struct{}), make(chan error, 1)
 	go connectedModeWorker(link, started, done)
 	<-started
@@ -213,7 +213,7 @@ func TestConnectedLinkModeCloseRace(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	if err := link.setIPv4Mode(-1, pppkernel.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
+	if err := link.setIPv4Mode(pppkernel.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
 		t.Fatalf("mode after concurrent close: %v", err)
 	}
 	if closes != 1 {
@@ -227,7 +227,7 @@ func TestConnectedLinkModeCloseRace(t *testing.T) {
 func connectedModeWorker(link *sessionLink, started chan<- struct{}, done chan<- error) {
 	close(started)
 	for range 64 {
-		err := link.setIPv4Mode(-1, pppkernel.NPMode(255))
+		err := link.setIPv4Mode(pppkernel.NPMode(255))
 		if errors.Is(err, io.ErrClosedPipe) {
 			continue
 		}

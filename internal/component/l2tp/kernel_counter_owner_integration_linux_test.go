@@ -1,10 +1,11 @@
 //go:build integration && linux
 
 // Design: docs/architecture/l2tp/subscriber-session-model.md -- original kernel counter ownership
-// Related: ppp_counters.go -- the actual raw-counter provider under test
+// Related: ppp/kernel/created_unit.go -- the retained original counter reader
 // These tests need the host's /dev/ppp grant. Each runs in its own user and
-// network namespaces. The unit is real; its separate channel file is deliberately
-// unattached. These counter tests make no PPP negotiation or forwarding claim.
+// network namespaces. DevPPPSetup creates a genuine original unit and attached
+// channel over the fixture's native PPPoX carrier. These counter tests make no
+// PPP negotiation or forwarding claim.
 
 package l2tp
 
@@ -274,40 +275,37 @@ func kernelCounterOpenPPP(t *testing.T) int {
 func kernelCounterOwner(t *testing.T) (ppp.SessionHandle, iface.Backend, netlink.Link, int) {
 	t.Helper()
 	backend := kernelCounterNativeBackend(t)
-	channelFD := kernelCounterOpenPPP(t)
-	unitFD := -1
+	creator, err := pppkernel.NewUnitCreator(backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport := kernelCounterTransport(t)
+	channel, unit, err := pppkernel.DevPPPSetup(creator, transport, "zc-owner")
+	if err != nil {
+		t.Fatalf("create genuine original PPP pair: %v", err)
+	}
 	transferred := false
 	t.Cleanup(func() {
 		if transferred {
 			return
 		}
-		if err := unix.Close(channelFD); err != nil {
+		if err := unit.Close(); err != nil {
 			t.Error(err)
 		}
-		if unitFD >= 0 {
-			if err := unix.Close(unitFD); err != nil {
-				t.Error(err)
-			}
+		if err := channel.Close(); err != nil {
+			t.Error(err)
 		}
 	})
-	unitFD = kernelCounterOpenPPP(t)
-	if _, err := kernelCounterCreateRequest(unitFD, "zc-owner").Execute(unix.NETLINK_ROUTE, 0); err != nil {
-		t.Fatalf("create real original PPP unit: %v", err)
-	}
-	unit, err := unix.IoctlGetInt(unitFD, 0x80047456)
+	config, err := unit.SessionConfig(channel)
 	if err != nil {
-		t.Fatalf("read real PPP unit number: %v", err)
+		t.Fatalf("snapshot genuine original PPP pair: %v", err)
 	}
-	link, err := netlink.LinkByName("zc-owner")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// NewSession consumes both descriptors on failure as well as success.
+	// NewSession consumes every fresh original on every outcome. The unit's
+	// descriptor below remains only the old fixture's read-only POLLHUP label;
+	// this fixture never closes it or reconstructs a file wrapper afterward.
+	unitFD := config.UnitFD
 	transferred = true
-	_, handle, err := pppkernel.NewSession(pppkernel.SessionConfig{
-		ChanFD: channelFD, UnitFD: unitFD, UnitNum: unit,
-		InterfaceName: "zc-owner", Backend: backend, ReadCounters: kernelPPPCounters(backend),
-	})
+	_, handle, err := pppkernel.NewSession(config)
 	if err != nil {
 		t.Fatalf("construct actual PPP session owner: %v", err)
 	}
@@ -316,6 +314,10 @@ func kernelCounterOwner(t *testing.T) (ppp.SessionHandle, iface.Backend, netlink
 			t.Error(err)
 		}
 	})
+	link, err := netlink.LinkByIndex(int(handle.Identity().NativeIndex))
+	if err != nil {
+		t.Fatal(err)
+	}
 	return handle, backend, link, unitFD
 }
 

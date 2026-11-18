@@ -1,101 +1,99 @@
-// Design: docs/architecture/l2tp/followup-l2tp-call.md -- AC-3 / A-4 LAC data-plane bridge
-// RFC: rfc/short/rfc2661.md -- RFC 2661 Section 2 (LAC forwards PPP; no local termination)
+// Design: docs/architecture/l2tp/followup-l2tp-call.md -- exact original relay peers.
+// Related: kernel_ppp_owners_linux.go -- worker cleanup retains uncertain peers.
 
 //go:build linux
 
 package l2tp
 
 import (
-	"fmt"
-	"unsafe"
+	"errors"
+	"os"
 
-	"golang.org/x/sys/unix"
+	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
+	"github.com/ze-software/ze/internal/core/callsink"
 )
 
-// PPP channel ioctls for the LAC data-plane bridge. golang.org/x/sys/unix
-// does not export these for the amd64/arm64/riscv64 default arch, so -- as
-// with ppp/mtu_linux.go's pppiocConnect -- they are defined locally.
-//
-//	PPPIOCGCHAN     _IOR('t', 55, int)  -- read a pppox socket's channel number
-//	PPPIOCBRIDGECHAN _IOW('t', 53, int) -- bridge this channel to another number
-//	PPPIOCUNBRIDGECHAN _IO('t', 52)     -- tear the bridge down
-const (
-	pppiocGChan        = 0x80047437
-	pppiocBridgeChan   = 0x40047435
-	pppiocUnbridgeChan = 0x00007434
-)
-
-// channelNumber returns the kernel PPP channel number underlying a pppox
-// socket (PPPIOCGCHAN). This is the identifier PPPIOCBRIDGECHAN bridges to.
-func channelNumber(pppoxFD int) (int, error) {
-	var num int32
-	//nolint:gosec // PPPIOCGCHAN's user pointer is the kernel's documented contract; no Go wrapper in golang.org/x/sys/unix
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(pppoxFD),
-		uintptr(pppiocGChan), uintptr(unsafe.Pointer(&num)))
-	if errno != 0 {
-		return 0, fmt.Errorf("l2tp: PPPIOCGCHAN(fd=%d): %w", pppoxFD, errno)
-	}
-	return int(num), nil
+// maybeBridgePPPoE consumes fresh attached channel owners only after the access
+// side released its local PPP pair. Nonrelay calls keep their ordinary setup.
+// The worker MUST retain owners until bridge.Close has settled both originals.
+func maybeBridgePPPoE(ev kernelSetupEvent, owners *kernelPPPOwners) (bool, error) {
+	return maybeBridgePPPoEWith(ev, owners, pppkernel.CreatePPPChannel,
+		func(first, second *pppkernel.CreatedChannel) (kernelPPPBridge, error) {
+			return pppkernel.NewOriginalChannelBridge(first, second)
+		})
 }
 
-// bridgeChannels cross-connects the L2TP session's PPP channel (l2tpChanFD, a
-// /dev/ppp fd attached to the pppol2tp channel via PPPIOCATTCHAN) to the
-// relayed subscriber's PPPoE channel (identified by peerPppoxFD, the PPPoE
-// pppox socket). PPP frames then flow directly between the two channels in
-// the kernel -- the LAC forwards PPP without terminating it (RFC 2661), so no
-// local PPP unit runs for the subscriber.
-//
-// A single PPPIOCBRIDGECHAN establishes the bidirectional link: the kernel
-// records each channel as the other's bridge. On a kernel without
-// PPPIOCBRIDGECHAN this returns the error and the caller tears the session
-// down: no userspace frame relay exists.
-func bridgeChannels(l2tpChanFD, peerPppoxFD int) error {
-	peerNum, err := channelNumber(peerPppoxFD)
-	if err != nil {
-		return err
-	}
-	arg := int32(peerNum)
-	//nolint:gosec // PPPIOCBRIDGECHAN's user pointer is the kernel's documented contract; no Go wrapper in golang.org/x/sys/unix
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(l2tpChanFD),
-		uintptr(pppiocBridgeChan), uintptr(unsafe.Pointer(&arg)))
-	if errno != 0 {
-		return fmt.Errorf("l2tp: PPPIOCBRIDGECHAN(chan-fd=%d, peer-num=%d): %w",
-			l2tpChanFD, peerNum, errno)
-	}
-	return nil
-}
-
-// unbridgeChannel tears down a channel bridge (PPPIOCUNBRIDGECHAN), used on
-// session teardown so the two channels can be closed independently.
-func unbridgeChannel(l2tpChanFD int) error {
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(l2tpChanFD),
-		uintptr(pppiocUnbridgeChan), 0)
-	if errno != 0 {
-		return fmt.Errorf("l2tp: PPPIOCUNBRIDGECHAN(chan-fd=%d): %w", l2tpChanFD, errno)
-	}
-	return nil
-}
-
-// maybeBridgePPPoE bridges a LAC-relayed session's pppol2tp channel to the
-// subscriber's PPPoE channel when the session carries its transport owner
-// (lnsMode false). Returns true when a bridge was requested (so the
-// caller skips starting a local PPP unit), along with any error. A false
-// return means "not a relay session; run PPP locally as usual".
-func maybeBridgePPPoE(ev kernelSetupEvent, l2tpChanFD int) (bridged bool, err error) {
+// These private ports model capture failure without minting public native
+// owners. Only the production constructor can grant an original bridge.
+func maybeBridgePPPoEWith(ev kernelSetupEvent, owners *kernelPPPOwners,
+	capture func(*os.File) (*pppkernel.CreatedChannel, error),
+	construct func(*pppkernel.CreatedChannel, *pppkernel.CreatedChannel) (kernelPPPBridge, error),
+) (requested bool, err error) {
 	if ev.lnsMode {
 		return false, nil
 	}
 	if ev.channel == nil {
 		return false, nil
 	}
-	if berr := ev.channel.WithDescriptor(func(fd int) error {
-		return bridgeChannels(l2tpChanFD, fd)
-	}); berr != nil {
-		// The bridge was requested, so PPP is not run locally. pppSetupReal
-		// fails the kernel setup on this error and the session is torn
-		// down; no userspace frame relay exists, and a realm call refuses
-		// its subscriber through its handoff instead.
-		return true, berr
+	original, supported := ev.channel.(callsink.RelayOriginalLifetime)
+	if !supported {
+		return true, errors.New("l2tp: relay transport cannot retain its original PPPoX file")
 	}
-	return true, nil
+	if owners == nil {
+		return true, errors.New("l2tp: bridge has no original resources")
+	}
+	lease, err := original.RetainOriginalFile()
+	if err != nil {
+		return true, err
+	}
+	owners.relayFile = lease
+	if lease == nil {
+		return true, errors.New("l2tp: relay transport returned no original file lease")
+	}
+	var peer *pppkernel.CreatedChannel
+	defer func() {
+		failure := recover()
+		// Constructor entry consumes both owners even on error or panic. Until
+		// then this local is the only owner of a partially captured peer.
+		var cleanupErr error
+		if peer != nil {
+			cleanupErr = closeKernelPPPOperation(peer.Close)
+		}
+		if failure != nil {
+			if cleanupErr != nil {
+				panic(pppkernel.RecordSetupCleanup(kernelPPPFailure(failure), cleanupErr))
+			}
+			panic(failure)
+		}
+		err = pppkernel.RecordSetupCleanup(err, cleanupErr)
+	}()
+	err = lease.WithOriginalFile(func(file *os.File) error {
+		if file == nil {
+			return errors.New("l2tp: relay supplied no original PPPoX file")
+		}
+		var captureErr error
+		peer, captureErr = capture(file)
+		return captureErr
+	})
+	if err != nil {
+		return true, err
+	}
+	if peer == nil {
+		return true, errors.New("l2tp: relay capture returned no original peer channel")
+	}
+	if owners.channel == nil {
+		return true, errors.New("l2tp: bridge has no fresh original local channel")
+	}
+	first, second := owners.channel, peer
+	owners.channel, peer = nil, nil
+	bridge, err := construct(first, second)
+	// Root any returned owner before observing error or calling native Bridge.
+	owners.bridge = bridge
+	if err != nil {
+		return true, err
+	}
+	if bridge == nil {
+		return true, errors.New("l2tp: original bridge constructor returned no owner")
+	}
+	return true, bridge.Bridge()
 }

@@ -66,18 +66,28 @@ func (f *fakeKernelOps) ops() kernelOps {
 			f.sessionGone = append(f.sessionGone, sessionKey{tunnelID: tid, sessionID: sid})
 			return nil
 		},
-		pppSetup: func(ev kernelSetupEvent) (pppSessionFDs, error) {
+		pppSetup: func(ev kernelSetupEvent) (kernelPPPSetup, error) {
+			return func() (pppSessionFDs, error) {
+				f.mu.Lock()
+				defer f.mu.Unlock()
+				if f.failPPPSetup != nil {
+					return pppSessionFDs{pppoxFD: -1, chanFD: -1, unitFD: -1}, f.failPPPSetup
+				}
+				f.pppSetups = append(f.pppSetups, ev)
+				if f.pppSetupResult != nil {
+					result := *f.pppSetupResult
+					result.ppp = &kernelPPPOwners{}
+					return result, nil
+				}
+				return pppSessionFDs{pppoxFD: 10, chanFD: 11, unitFD: 12, unitNum: 0, ppp: &kernelPPPOwners{}}, nil
+			}, nil
+		},
+		closePPP: closeLogicalPPPForTest(func(fd int) error {
 			f.mu.Lock()
 			defer f.mu.Unlock()
-			if f.failPPPSetup != nil {
-				return pppSessionFDs{}, f.failPPPSetup
-			}
-			f.pppSetups = append(f.pppSetups, ev)
-			if f.pppSetupResult != nil {
-				return *f.pppSetupResult, nil
-			}
-			return pppSessionFDs{pppoxFD: 10, chanFD: 11, unitFD: 12, unitNum: 0}, nil
-		},
+			f.closes = append(f.closes, fd)
+			return nil
+		}),
 		closeFD: func(fd int) error {
 			f.mu.Lock()
 			defer f.mu.Unlock()

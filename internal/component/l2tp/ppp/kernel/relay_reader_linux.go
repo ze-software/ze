@@ -37,7 +37,8 @@ type interruptibleFDFile struct {
 	wake    *os.File
 	// readFrame runs while both RawConn descriptor leases are held. Tests can
 	// observe that boundary while retaining the real poll and eventfd wake.
-	readFrame func(int, int, []byte) (int, error)
+	readFrame    func(int, int, []byte) (int, error)
+	closeChannel func() error
 }
 
 // newInterruptibleFDFile wraps the channel descriptor fd. The caller MUST
@@ -136,7 +137,12 @@ func (f *interruptibleFDFile) Write(buf []byte) (int, error) {
 // Close wakes any reader, then releases both descriptors.
 func (f *interruptibleFDFile) Close() error {
 	werr := f.InterruptRead()
-	cerr := f.channel.Close()
+	var cerr error
+	if f.closeChannel != nil {
+		cerr = closeOriginalSessionFile(f.closeChannel)
+	} else {
+		cerr = f.channel.Close()
+	}
 	wcloseErr := f.wake.Close()
 	return errors.Join(werr, cerr, wcloseErr)
 }

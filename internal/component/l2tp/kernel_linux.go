@@ -15,7 +15,6 @@ import (
 	"net/netip"
 	"os"
 	"os/exec"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -42,9 +41,11 @@ type kernelOps struct {
 	sessionCreate func(p sessionCreateParams) error
 	sessionDelete func(tunnelID, localSID uint16) error
 
-	// PPPoL2TP + /dev/ppp combined setup. Takes the setup event and
-	// returns all fds needed for the PPP data plane.
-	pppSetup func(ev kernelSetupEvent) (pppSessionFDs, error)
+	// Preparation validates the actual role before any subscriber allocation.
+	// Its returned plan owns setup; tests substitute this complete operation.
+	pppSetup  func(ev kernelSetupEvent) (kernelPPPSetup, error)
+	pppConfig func(*kernelPPPOwners, pppkernel.InterfaceOperations) (pppkernel.SessionConfig, error)
+	closePPP  func(*kernelPPPOwners, *os.File, [3]int) [3]error
 
 	// File descriptor close.
 	closeFD func(fd int) error
@@ -54,120 +55,129 @@ type kernelOps struct {
 }
 
 // newKernelOps returns a kernelOps with real syscall implementations.
-func newKernelOps(genl *genlConn) kernelOps {
+func newKernelOps(genl *genlConn, backend pppkernel.InterfaceOperations) kernelOps {
 	return kernelOps{
 		tunnelCreate:  genl.tunnelCreate,
 		tunnelDelete:  genl.tunnelDelete,
 		sessionCreate: genl.sessionCreate,
 		sessionDelete: genl.sessionDelete,
-		pppSetup:      pppSetupReal,
-		closeFD:       unix.Close,
-		probeModules:  probeKernelModules,
+		pppSetup: func(ev kernelSetupEvent) (kernelPPPSetup, error) {
+			return prepareKernelPPPSetup(ev, backend)
+		},
+		pppConfig: originalKernelPPPConfig,
+		closePPP: func(owners *kernelPPPOwners, transport *os.File, labels [3]int) [3]error {
+			return closeOriginalKernelPPP(owners, transport, (*os.File).Close)
+		},
+		closeFD:      unix.Close,
+		probeModules: probeKernelModules,
 	}
 }
 
 // pppSetupReal performs the full PPPoL2TP socket + /dev/ppp setup sequence.
-func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
-	return pppSetupWith(ev, pppoxCreate, pppkernel.DevPPPSetup, unix.Close)
+func pppSetupReal(ev kernelSetupEvent, creator *pppkernel.UnitCreator) (pppSessionFDs, error) {
+	return pppSetupWith(ev, creator, kernelPPPSetupOperations{
+		create:   openKernelPPPTransport,
+		setup:    pppkernel.DevPPPSetup,
+		channel:  pppkernel.CreatePPPChannel,
+		snapshot: snapshotOriginalKernelPPP,
+		bridge:   bridgeOriginalKernelPPP,
+		close: func(owners *kernelPPPOwners, transport *os.File, labels [3]int) [3]error {
+			return closeOriginalKernelPPP(owners, transport, (*os.File).Close)
+		},
+	})
 }
 
-// pppSetupWith supplies the existing syscall boundaries for fault injection;
-// production uses pppoxCreate, DevPPPSetup and unix.Close above.
-func pppSetupWith(ev kernelSetupEvent,
-	create func(int, netip.AddrPort, uint16, uint16, uint16, uint16) (int, error),
-	setup func(int, string) (int, int, int, error), closeFD func(int) error,
-) (pppSessionFDs, error) {
-	pppoxFD, err := create(ev.socketFD, ev.peerAddr,
-		ev.localTID, ev.localSID, ev.remoteTID, ev.remoteSID)
+// pppSetupWith supplies complete private operation ports for fault injection.
+// Production ports retain the actual files; a test's logical labels supply no
+// public SessionConfig grant. Every returned partial receipt remains rooted.
+func pppSetupWith(ev kernelSetupEvent, creator *pppkernel.UnitCreator, ops kernelPPPSetupOperations) (owned pppSessionFDs, err error) {
+	owned.pppoxFD, owned.chanFD, owned.unitFD, owned.unitNum = -1, -1, -1, -1
+	defer func() {
+		if failure := recover(); failure != nil {
+			err = errors.Join(err, kernelPPPFailure(failure))
+		}
+		if err == nil {
+			return
+		}
+		labels := [3]int{owned.unitFD, owned.chanFD, owned.pppoxFD}
+		owners := owned.ppp
+		transport := owned.transport
+		owned.retiredTransport = transport
+		owned.transport = nil
+		owned.ppp, owned.retiredPPP = nil, owners
+		owned.unitFD, owned.chanFD, owned.pppoxFD = -1, -1, -1
+		failures := ops.close(owners, transport, labels)
+		if kernelPPPBridgePending(owners) {
+			owned.ppp, owned.transport = owners, transport
+			owned.retiredPPP, owned.retiredTransport = nil, nil
+			owned.unitFD, owned.chanFD, owned.pppoxFD = labels[0], labels[1], labels[2]
+			owned.bridgeErr = errors.Join(failures[:]...)
+			err = errors.Join(err, owned.bridgeErr)
+			return
+		}
+		err = pppkernel.RecordSetupCleanup(err, errors.Join(failures[:]...))
+	}()
+	owned.transport, owned.pppoxFD, err = ops.create(ev.socketFD, ev.peerAddr, ev.localTID, ev.localSID, ev.remoteTID, ev.remoteSID)
 	if err != nil {
-		return pppSessionFDs{}, err
+		return owned, err
 	}
-
 	if ev.lnsMode {
-		if serr := pppoxSetLNSMode(pppoxFD, true); serr != nil {
-			return pppSessionFDs{}, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox set LNS mode: %w", serr), closeFD(pppoxFD))
+		if err := withKernelPPPTransport(owned.transport, func(fd int) error { return pppoxSetLNSMode(fd, true) }); err != nil {
+			return owned, fmt.Errorf("l2tp: pppox set LNS mode: %w", err)
 		}
 	}
 	if ev.sequencing {
-		if serr := pppoxSetSendSeq(pppoxFD, true); serr != nil {
-			return pppSessionFDs{}, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox set send seq: %w", serr), closeFD(pppoxFD))
+		if err := withKernelPPPTransport(owned.transport, func(fd int) error { return pppoxSetSendSeq(fd, true) }); err != nil {
+			return owned, fmt.Errorf("l2tp: pppox set send seq: %w", err)
 		}
-		if serr := pppoxSetRecvSeq(pppoxFD, true); serr != nil {
-			return pppSessionFDs{}, pppkernel.RecordSetupCleanup(fmt.Errorf("l2tp: pppox set recv seq: %w", serr), closeFD(pppoxFD))
+		if err := withKernelPPPTransport(owned.transport, func(fd int) error { return pppoxSetRecvSeq(fd, true) }); err != nil {
+			return owned, fmt.Errorf("l2tp: pppox set recv seq: %w", err)
 		}
 	}
-
-	// An L2TP LNS and LAC name their subscriber sessions pppN: the name is
-	// not set by config here, only the PPPoE client passes a configured
-	// name (plan child-1).
-	chanFD, unitFD, unitNum, err := prepareAndSetupPPP(ev, pppoxFD, setup)
-	if err != nil {
-		return pppSessionFDs{}, pppkernel.RecordSetupCleanup(err, closeFD(pppoxFD))
+	channel, unit, setupErr := prepareAndSetupPPP(ev, owned.transport,
+		func(file *os.File, name string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+			if !ev.lnsMode {
+				if ev.channel != nil {
+					channel, err := ops.channel(file)
+					return channel, nil, err
+				}
+			}
+			return ops.setup(creator, file, name)
+		})
+	owned.ppp = &kernelPPPOwners{channel: channel, unit: unit}
+	if setupErr != nil {
+		return owned, setupErr
 	}
-
-	// spec-followup-l2tp-call A-4: a LAC-relayed incoming call bridges the
-	// pppol2tp channel to the subscriber's PPPoE channel in the kernel; no
-	// local PPP unit runs for it. A bridge error fails this kernel setup and
-	// the session is torn down: no userspace frame relay exists. A realm call
-	// first has its PPPoE side quiesce the subscriber's channel reader, so the
-	// bridge is the channel's only consumer, and is told the bridge result.
+	if unit != nil {
+		config, err := ops.snapshot(owned.ppp)
+		if err != nil {
+			return owned, err
+		}
+		owned.chanFD, owned.unitFD, owned.unitNum = config.ChanFD, config.UnitFD, config.UnitNum
+	}
 	if ev.relay != nil {
-		if qerr := quiesceRelaySubscriber(ev.relay); qerr != nil {
-			return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, qerr, closeFD)
+		if err := quiesceRelaySubscriber(ev.relay); err != nil {
+			return owned, err
 		}
 	}
-	bridged, berr := maybeBridgePPPoE(ev, chanFD)
+	owned.bridged, err = ops.bridge(ev, owned.ppp)
 	if ev.relay != nil {
-		if berr == nil {
+		if err == nil {
 			if !ev.relay.markBridged(ev.localTID, ev.localSID) {
-				return pppSessionFDs{}, rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, errRelayCallCancelled, closeFD)
+				return owned, errRelayCallCancelled
 			}
 		}
-	}
-
-	if ev.relay != nil {
-		// A realm call never takes the userspace relay fall-back: the PPPoE
-		// side refuses the subscriber on a bridge error (Bridged(err)).
-		// markBridged ran first, so a Cancel the PPPoE side sends once it
-		// saw Bridged(nil) tears the bridged session down.
 		if ev.relay.realm != nil {
-			// quiesceRelaySubscriber checked this immutable handoff before bridging.
-			handoff := ev.relay.handoff.(callsink.RealmHandoff) //nolint:errcheck,forcetypeassert // quiesceRelaySubscriber validated this immutable handoff before bridging
-			countRealmBridge(berr)
-			handoff.Bridged(berr)
+			// quiesceRelaySubscriber validated the immutable realm handoff.
+			handoff := ev.relay.handoff.(callsink.RealmHandoff) //nolint:errcheck,forcetypeassert // validated before native bridge
+			countRealmBridge(err)
+			handoff.Bridged(err)
 		}
 	}
-	if berr != nil {
-		// The kernel worker cannot close a local lease setup never published.
-		return pppSessionFDs{}, fmt.Errorf("l2tp: LAC channel bridge: %w",
-			rollbackPPPBridge([3]int{chanFD, unitFD, pppoxFD}, berr, closeFD))
+	if err != nil {
+		return owned, fmt.Errorf("l2tp: LAC channel bridge: %w", err)
 	}
-
-	return pppSessionFDs{
-		pppoxFD: pppoxFD,
-		chanFD:  chanFD,
-		unitFD:  unitFD,
-		unitNum: unitNum,
-		bridged: bridged,
-	}, nil
-}
-
-// rollbackPPPBridge closes unpublished setup descriptors once each, retaining
-// cleanup errors beside cause. Zero is owned; only negative values mean no
-// allocation. The three-slot bound keeps alias detection allocation-free.
-func rollbackPPPBridge(fds [3]int, cause error, closeFD func(int) error) error {
-	for index, fd := range fds {
-		if fd < 0 {
-			continue
-		}
-		if slices.Contains(fds[:index], fd) {
-			continue
-		}
-		if err := closeFD(fd); err != nil {
-			cause = pppkernel.RecordSetupCleanup(cause, err)
-		}
-	}
-	return cause
+	return owned, nil
 }
 
 // kernelTunnelState tracks kernel-side resources for one L2TP tunnel.
@@ -383,6 +393,17 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		setupError = errors.New("l2tp: original session kernel setup was already consumed")
 		return
 	}
+	// The original admission is verified before capability refusal or any
+	// allocation. A bridge preflight deliberately needs no local unit creator.
+	setup, err := w.ops.pppSetup(ev)
+	if err != nil {
+		setupError = err
+		return
+	}
+	if setup == nil {
+		setupError = errors.New("l2tp: kernel setup returned no prepared operation")
+		return
+	}
 	owned := &pppSessionFDs{session: ev.session, worker: w, relay: ev.relay, pppoxFD: -1, chanFD: -1, unitFD: -1, deleted: true}
 	ev.session.nativeOwner.Store(owned)
 
@@ -449,19 +470,27 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	w.sessions[key] = owned
 
 	// Steps 3-4: PPPoL2TP socket + /dev/ppp setup.
-	fds, err := w.ops.pppSetup(ev)
+	fds, err := setup()
+	owned.pppoxFD, owned.chanFD, owned.unitFD = fds.pppoxFD, fds.chanFD, fds.unitFD
+	owned.transport = fds.transport
+	owned.retiredTransport = fds.retiredTransport
+	owned.bridgeErr = fds.bridgeErr
+	owned.unitNum, owned.bridged = fds.unitNum, fds.bridged
+	owned.ppp, owned.retiredPPP = fds.ppp, fds.retiredPPP
 	if err != nil {
 		w.logger.Error("l2tp: ppp setup failed",
 			"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", err.Error())
 		owned.closeErr = pppkernel.SetupCleanupFailure(err)
+		// A pending bridge has not consumed its transport or channel files. Its
+		// retryable cleanup cause belongs to that exact handle, not closeErr.
+		if kernelPPPBridgePending(owned.ppp) {
+			owned.closeErr = nil
+		}
 		w.teardownSessionFDsLocked(key, owned)
 		w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
 		setupError = err
 		return
 	}
-
-	owned.pppoxFD, owned.chanFD, owned.unitFD = fds.pppoxFD, fds.chanFD, fds.unitFD
-	owned.unitNum, owned.bridged = fds.unitNum, fds.bridged
 
 	w.logger.Info("l2tp: kernel session established",
 		"tunnel-id", ev.localTID, "session-id", ev.localSID,
@@ -494,29 +523,66 @@ func (w *kernelWorker) reportSuccess(ev kernelSetupEvent, fds pppSessionFDs, own
 	}
 }
 
-// takePPPDescriptors transfers the channel and unit exactly once. The worker
-// retains the PPPoX transport, including responsibility for disconnecting it.
-func (w *kernelWorker) takePPPDescriptors(event kernelSetupSucceeded) (int, int, bool) {
+// preparePPPTransfer snapshots only the exact live original pair. A stale
+// receipt is an unowned no-op and MUST NOT report another admission's failure.
+func (w *kernelWorker) preparePPPTransfer(event kernelSetupSucceeded, backend pppkernel.InterfaceOperations) (kernelPPPTransfer, bool, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	fds := w.sessions[sessionKey{event.localTID, event.localSID}]
+	fds, current := w.currentPPPTransferOwnerLocked(event)
+	if !current {
+		return kernelPPPTransfer{}, false, nil
+	}
+	config, err := w.ops.pppConfig(fds.ppp, backend)
+	if err != nil {
+		return kernelPPPTransfer{}, true, err
+	}
+	return kernelPPPTransfer{owner: fds, resources: fds.ppp, config: config}, true, nil
+}
+
+// takePPPConfig transfers the same original pair once. Callers MUST pass the
+// preparation from this worker and stop touching its files after NewSession.
+func (w *kernelWorker) takePPPConfig(event kernelSetupSucceeded, transfer kernelPPPTransfer) (pppkernel.SessionConfig, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	fds, current := w.currentPPPTransferOwnerLocked(event)
+	if !current {
+		return pppkernel.SessionConfig{}, false
+	}
+	if transfer.owner != fds {
+		return pppkernel.SessionConfig{}, false
+	}
+	if transfer.resources != fds.ppp {
+		return pppkernel.SessionConfig{}, false
+	}
+	fds.ppp = nil
+	fds.chanFD, fds.unitFD = -1, -1
+	return transfer.config, true
+}
+
+func (w *kernelWorker) currentPPPTransferOwnerLocked(event kernelSetupSucceeded) (*pppSessionFDs, bool) {
 	if event.session == nil {
-		return -1, -1, false
+		return nil, false
 	}
 	if event.session.removed.Load() {
-		return -1, -1, false
+		return nil, false
 	}
-	if fds != nil {
-		if fds.session != event.session {
-			return -1, -1, false
-		}
+	fds := w.sessions[sessionKey{event.localTID, event.localSID}]
+	if fds == nil {
+		return nil, false
 	}
-	if fds == nil || fds != event.owner || fds.bridged || fds.chanFD < 0 || fds.unitFD < 0 {
-		return -1, -1, false
+	if fds.session != event.session {
+		return nil, false
 	}
-	channel, unit := fds.chanFD, fds.unitFD
-	fds.chanFD, fds.unitFD = -1, -1
-	return channel, unit, true
+	if fds != event.owner {
+		return nil, false
+	}
+	if fds.bridged {
+		return nil, false
+	}
+	if fds.ppp == nil {
+		return nil, false
+	}
+	return fds, true
 }
 
 // teardownSession destroys kernel resources for a session.
@@ -569,7 +635,7 @@ func (w *kernelWorker) pendingCleanup() error {
 	defer w.mu.Unlock()
 	var errs []error
 	for _, owned := range w.sessions {
-		errs = append(errs, owned.deleteErr, owned.closeErr)
+		errs = append(errs, owned.deleteErr, owned.closeErr, owned.bridgeErr)
 	}
 	for _, tunnel := range w.tunnels {
 		errs = append(errs, tunnel.deleteErr, tunnel.closeErr)
@@ -596,7 +662,7 @@ func (w *kernelWorker) originalCleanupStatusLocked(session *L2TPSession) error {
 		return ErrSessionCleanupPending
 	}
 	if !owned.deleted {
-		return errors.Join(ErrSessionCleanupPending, owned.deleteErr, owned.closeErr)
+		return errors.Join(ErrSessionCleanupPending, owned.deleteErr, owned.closeErr, owned.bridgeErr)
 	}
 	if owned.closeErr != nil {
 		return owned.closeErr
@@ -654,31 +720,41 @@ func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionF
 	// A LAC-bridged session must tear the kernel channel bridge down before
 	// closing the channel fd (spec-followup-l2tp-call A-4), so the pppol2tp
 	// and PPPoE channels can be released independently.
-	if fds.bridged && fds.chanFD >= 0 {
-		if err := unbridgeChannel(fds.chanFD); err != nil {
-			w.reportKernelCleanupFailure(kernelCleanupChannelRelease,
-				key.tunnelID, key.sessionID, kernelCleanupBirth(fds), fds.chanFD, err)
-			fds.closeErr = errors.Join(fds.closeErr, err)
-		}
-		fds.bridged = false
-	}
+	// Close owns exact Unbridge followed by both claim closes. Even a failed
+	// Bridge may need that cleanup, so handle presence, not bridged, decides.
 	// Reverse order: unit fd, channel fd, pppox socket, then genl delete.
 	// A failed Close does not block the remaining cleanup operations, but its
 	// retained uncertainty prevents this original owner from being retired.
 	owned := [3]int{fds.unitFD, fds.chanFD, fds.pppoxFD}
+	resources := fds.ppp
+	transport := fds.transport
+	if transport != nil {
+		fds.retiredTransport = transport
+	}
+	fds.transport = nil
+	fds.ppp = nil
+	if resources != nil {
+		fds.retiredPPP = resources
+	}
 	// Consume recyclable numbers before calling Close. A failed Close is
 	// uncertainty, never permission to retry that number after reuse.
 	fds.unitFD, fds.chanFD, fds.pppoxFD = -1, -1, -1
-	for index, fd := range owned {
-		if fd < 0 {
-			continue
-		}
-		if slices.Contains(owned[:index], fd) {
-			continue
-		}
-		if err := w.ops.closeFD(fd); err != nil {
+	failures := w.ops.closePPP(resources, transport, owned)
+	if kernelPPPBridgePending(resources) {
+		fds.ppp, fds.transport = resources, transport
+		fds.retiredPPP, fds.retiredTransport = nil, nil
+		fds.unitFD, fds.chanFD, fds.pppoxFD = owned[0], owned[1], owned[2]
+		fds.bridgeErr = errors.Join(failures[:]...)
+		w.reportKernelCleanupFailure(kernelCleanupChannelRelease,
+			key.tunnelID, key.sessionID, kernelCleanupBirth(fds), owned[1], fds.bridgeErr)
+		return
+	}
+	fds.bridged, fds.bridgeErr = false, nil
+	clearKernelBridgeWarning(key, fds, owned[1])
+	for index, err := range failures {
+		if err != nil {
 			w.reportKernelCleanupFailure(kernelCleanupSessionClose,
-				key.tunnelID, key.sessionID, kernelCleanupBirth(fds), fd, err)
+				key.tunnelID, key.sessionID, kernelCleanupBirth(fds), owned[index], err)
 			fds.closeErr = errors.Join(fds.closeErr, err)
 		}
 	}
@@ -830,10 +906,17 @@ func moduleBuiltIn(name string) bool {
 //
 // Caller MUST call SetKernelWorker on the reactor before Start(), then
 // Start() the worker after the reactor has its channels wired.
-func newSubsystemKernelWorker(errCh chan<- kernelSetupFailed, successCh chan<- kernelSetupSucceeded, logger *slog.Logger) (*kernelWorker, error) {
+func newSubsystemKernelWorker(errCh chan<- kernelSetupFailed, successCh chan<- kernelSetupSucceeded, logger *slog.Logger, prepare kernelBackendPreparation) (*kernelWorker, error) {
 	genl, err := resolveGenlFamily()
 	if err != nil {
 		return nil, fmt.Errorf("resolve the l2tp generic netlink family: %w", err)
 	}
-	return newKernelWorker(newKernelOps(genl), errCh, successCh, logger), nil
+	if prepare == nil {
+		return nil, &kernelBackendPreparationFailure{cause: errors.New("l2tp: native worker has no backend preparation")}
+	}
+	backend, err := prepare()
+	if err != nil {
+		return nil, &kernelBackendPreparationFailure{cause: err}
+	}
+	return newKernelWorker(newKernelOps(genl, backend), errCh, successCh, logger), nil
 }

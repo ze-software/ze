@@ -8,11 +8,11 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	pppkernel "github.com/ze-software/ze/internal/component/l2tp/ppp/kernel"
 	"github.com/ze-software/ze/internal/component/l2tp/pppoe/dataplane"
@@ -26,7 +26,7 @@ func TestFactoryOrdersOwners(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(f.calls, []string{"backend", "socket", "setup", "session"}) {
+	if !reflect.DeepEqual(f.calls, []string{"backend", "creator", "socket", "setup", "config", "session"}) {
 		t.Fatalf("construction order: %v", f.calls)
 	}
 	if f.cfg.ChanFD != 42 || f.cfg.UnitFD != 43 || f.cfg.UnitNum != 7 {
@@ -70,7 +70,9 @@ func TestFactoryFailureCleanup(t *testing.T) {
 					return nil, want
 				}
 			case "setup":
-				f.ops.setup = func(int, string) (int, int, int, error) { return -1, -1, -1, want }
+				f.ops.setup = func(*pppkernel.UnitCreator, *os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+					return nil, nil, want
+				}
 			case "session":
 				f.ops.newSession = func(pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
 					return nil, nil, want
@@ -123,7 +125,9 @@ func TestFactoryPrivatePanicCleanup(t *testing.T) {
 				}
 				switch stage {
 				case "setup":
-					f.ops.setup = func(int, string) (int, int, int, error) { panic(want) }
+					f.ops.setup = func(*pppkernel.UnitCreator, *os.File, string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+						panic(want)
+					}
 				case "session":
 					f.ops.newSession = func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
 						f.cfg = cfg
@@ -192,10 +196,10 @@ func TestFactoryCancellation(t *testing.T) {
 				}
 			case "setup":
 				original := f.ops.setup
-				f.ops.setup = func(fd int, name string) (int, int, int, error) {
-					channel, unit, number, err := original(fd, name)
+				f.ops.setup = func(creator *pppkernel.UnitCreator, file *os.File, name string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
+					channel, unit, err := original(creator, file, name)
 					cancel()
-					return channel, unit, number, err
+					return channel, unit, err
 				}
 			case "session":
 				original := f.ops.newSession
@@ -251,42 +255,6 @@ func TestFactoryRefusesUnsupportedRequests(t *testing.T) {
 	}
 }
 
-// TestFactoryCountersUseRawBackend proves the injected reader maps raw backend
-// counters, preserves errors and refuses a missing snapshot.
-func TestFactoryCountersUseRawBackend(t *testing.T) {
-	f := newFactoryFixture()
-	opened, err := openWithOps(context.Background(), factoryRequest(), f.ops)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := errors.Join(opened.Dataplane().Close(), opened.CloseTransport()); err != nil {
-			t.Error(err)
-		}
-	})
-	counters, err := f.cfg.ReadCounters("ppp7")
-	if err != nil || counters != (ppp.SessionCounters{
-		RxBytes: 11, TxBytes: 13, RxPackets: 17, TxPackets: 19,
-		RxErrors: ppp.MeasuredCounter(0), TxErrors: ppp.MeasuredCounter(0),
-		RxDropped: ppp.MeasuredCounter(0), TxDropped: ppp.MeasuredCounter(0),
-	}) {
-		t.Fatalf("raw counters=%+v error=%v", counters, err)
-	}
-	if f.backend.statsName != "ppp7" {
-		t.Fatalf("counter device=%q", f.backend.statsName)
-	}
-	want := errors.New("counter read")
-	f.backend.statsErr = want
-	if _, err := f.cfg.ReadCounters("ppp7"); !errors.Is(err, want) {
-		t.Fatalf("counter failure lost: %v", err)
-	}
-	f.backend.statsErr = nil
-	f.backend.stats = nil
-	if _, err := f.cfg.ReadCounters("ppp7"); err == nil {
-		t.Fatal("missing counter snapshot reported success")
-	}
-}
-
 type factoryFixture struct {
 	ops             factoryOps
 	calls           []string
@@ -294,12 +262,29 @@ type factoryFixture struct {
 	backend         *factoryBackend
 	handle          *factoryHandle
 	transportCloses int
+	creator         *pppkernel.UnitCreator
+	channel         *pppkernel.CreatedChannel
+	unit            *pppkernel.CreatedUnit
+	channelCloses   int
+	unitCloses      int
 }
 
 func newFactoryFixture() *factoryFixture {
-	f := &factoryFixture{backend: &factoryBackend{stats: &iface.InterfaceStats{RxBytes: 11, TxBytes: 13, RxPackets: 17, TxPackets: 19}}, handle: &factoryHandle{}}
+	f := &factoryFixture{backend: &factoryBackend{}, handle: &factoryHandle{}}
+	// These zero owners are pointer witnesses ONLY. The private config and
+	// constructor ports below never call public NewSession with them.
+	f.creator = &pppkernel.UnitCreator{}
+	f.channel = &pppkernel.CreatedChannel{}
+	f.unit = &pppkernel.CreatedUnit{}
 	f.ops = factoryOps{
 		backend: func() (sessionBackend, error) { f.calls = append(f.calls, "backend"); return f.backend, nil },
+		creator: func(backend sessionBackend) (*pppkernel.UnitCreator, error) {
+			f.calls = append(f.calls, "creator")
+			if backend != f.backend {
+				return nil, errors.New("creator switched original backend")
+			}
+			return f.creator, nil
+		},
 		openTransport: func(_ context.Context, request dataplane.Request) (*pppoxTransport, error) {
 			f.calls = append(f.calls, "socket")
 			if request != factoryRequest() {
@@ -307,12 +292,40 @@ func newFactoryFixture() *factoryFixture {
 			}
 			return &pppoxTransport{fd: 41, closeFD: func(int) error { f.transportCloses++; return nil }}, nil
 		},
-		setup: func(fd int, name string) (int, int, int, error) {
+		setup: func(creator *pppkernel.UnitCreator, file *os.File, name string) (*pppkernel.CreatedChannel, *pppkernel.CreatedUnit, error) {
 			f.calls = append(f.calls, "setup")
-			if fd != 41 || name != "" {
-				return -1, -1, -1, errors.New("wrong PPP setup binding")
+			if creator != f.creator {
+				return nil, nil, errors.New("setup changed original creator")
 			}
-			return 42, 43, 7, nil
+			// The model owns recorder token 41, never an os.File made from it.
+			if file != nil || name != "" {
+				return nil, nil, errors.New("wrong PPP setup binding")
+			}
+			return f.channel, f.unit, nil
+		},
+		config: func(unit *pppkernel.CreatedUnit, channel *pppkernel.CreatedChannel) (pppkernel.SessionConfig, error) {
+			f.calls = append(f.calls, "config")
+			if unit != f.unit {
+				return pppkernel.SessionConfig{}, errors.New("configuration changed original unit")
+			}
+			if channel != f.channel {
+				return pppkernel.SessionConfig{}, errors.New("configuration changed original channel")
+			}
+			return pppkernel.SessionConfig{ChanFD: 42, UnitFD: 43, UnitNum: 7, Backend: f.backend}, nil
+		},
+		closeUnit: func(unit *pppkernel.CreatedUnit) error {
+			if unit != f.unit {
+				return errors.New("closed another original unit")
+			}
+			f.unitCloses++
+			return nil
+		},
+		closeChannel: func(channel *pppkernel.CreatedChannel) error {
+			if channel != f.channel {
+				return errors.New("closed another original channel")
+			}
+			f.channelCloses++
+			return nil
 		},
 		newSession: func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
 			f.calls = append(f.calls, "session")
@@ -329,14 +342,6 @@ func factoryRequest() dataplane.Request {
 
 type factoryBackend struct {
 	pppkernel.InterfaceOperations
-	stats     *iface.InterfaceStats
-	statsErr  error
-	statsName string
-}
-
-func (b *factoryBackend) GetStats(name string) (*iface.InterfaceStats, error) {
-	b.statsName = name
-	return b.stats, b.statsErr
 }
 
 type factoryHandle struct {

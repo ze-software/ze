@@ -194,7 +194,7 @@ to inspect the retained Linux cause.
 <!-- source: internal/component/l2tp/kernel_cleanup_report_linux.go -- reportKernelCleanupFailure, clearKernelSessionDeleteWarning, clearKernelTunnelDeleteWarning -->
 <!-- source: internal/component/l2tp/doctor_cleanup.go -- checkPPPCleanup -->
 <!-- source: internal/component/l2tp/pppoe/server.go -- closeAdmitted, closeSession, closeTransport -->
-<!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run -->
+<!-- source: internal/component/l2tp/pppoe/realm_bridge_release.go -- realmHandoff.reportBridgeReleaseFailure -->
 
 ```
 telemetry {

@@ -3,7 +3,6 @@
 package kernel
 
 import (
-	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
@@ -19,19 +18,22 @@ type InterfaceOperations interface {
 	RemoveRoute(name, destination, gateway string, metric int, protocol rtproto.Proto) error
 }
 
-// SessionConfig transfers two owned descriptors to NewSession on EVERY outcome.
-// After calling it, the caller MUST NOT close either descriptor, even on error.
-// Every nonnegative descriptor, including zero, is owned. A negative descriptor
-// denotes no ownership. Rejected aliases still transfer their one descriptor.
-// InterfaceName is the actual created name; empty explicitly selects the kernel
-// pppN name for UnitNum. ReadCounters MUST read raw backend counters, rather than
-// operator-visible counters adjusted by a clear operation.
+// SessionConfig transfers every newly supplied captured Channel and Unit owner
+// to NewSession on EVERY outcome. Callers MUST NOT close them after that call.
+// A copied/replayed owner supplies no already-admitted lease; the independent
+// fresh sibling owner still transfers and is cleaned on refusal. Descriptor0
+// is owned. ChanFD/UnitFD/UnitNum/InterfaceName are checked labels only: they
+// never open, wrap, close, locate or establish custody of a native resource.
+// Construct production input with actualUnit.SessionConfig(actualChannel).
+// Only the original created unit's retained reader supplies measurements.
+// All transports MUST supply both actual typed owners before activation.
 type SessionConfig struct {
+	Channel         sessionChannelSource
+	Unit            sessionUnitSource
 	ChanFD          int
 	UnitFD          int
 	UnitNum         int
 	InterfaceName   string
 	CaptureProxyLCP bool
 	Backend         InterfaceOperations
-	ReadCounters    func(string) (ppp.SessionCounters, error)
 }

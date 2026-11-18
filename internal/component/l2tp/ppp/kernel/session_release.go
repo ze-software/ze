@@ -42,7 +42,18 @@ func (s *session) BindNativeReleaseSeal(seal ppp.NativeReleaseSeal) error {
 	if err := s.ops.stampBirth(s.identity, tag); err != nil {
 		return fmt.Errorf("ppp: confirm the native unit birth: %w", err)
 	}
-	fd, err := s.ops.duplicateFD(s.unitFD)
+	var fd int
+	var retained *nativePPPUnitHold
+	if lease, original := s.unitLease.(*claimedCreatedUnit); original {
+		retained, err = lease.unit.retainNativeUnit(s.channelFD, s.ops.duplicateFD, s.ops.closeFD)
+		if err == nil {
+			fd = retained.descriptor
+		}
+	} else {
+		// Only private logical session fixtures can supply a non-native lease.
+		// Public constructors consume CreatedUnit and always take the branch above.
+		fd, err = s.ops.duplicateFD(s.unitFD)
+	}
 	if err != nil {
 		return fmt.Errorf("ppp: retain the native unit: %w", err)
 	}
@@ -53,6 +64,7 @@ func (s *session) BindNativeReleaseSeal(seal ppp.NativeReleaseSeal) error {
 	s.releaseSeal = seal
 	s.birthTag = tag
 	s.retainedUnit = fd
+	s.retainedCreatedUnit = retained
 	s.unitRetained = true
 	return nil
 }
@@ -108,6 +120,7 @@ func (s *session) closeWithNativeReleaseSeal() error {
 	s.closed = true
 	retained := s.unitRetained
 	seal, fd := s.releaseSeal, s.retainedUnit
+	originalHold := s.retainedCreatedUnit
 	s.mu.Unlock()
 
 	if first {
@@ -128,7 +141,12 @@ func (s *session) closeWithNativeReleaseSeal() error {
 			s.mu.Unlock()
 			return result
 		}
-		err := closeSessionStream(nil, fd, s.ops.closeFD)
+		var err error
+		if originalHold != nil {
+			err = originalHold.close(s.ops.closeFD)
+		} else {
+			err = closeSessionStream(nil, fd, s.ops.closeFD)
+		}
 		s.mu.Lock()
 		s.unitRetained = false
 		s.retainedUnit = -1

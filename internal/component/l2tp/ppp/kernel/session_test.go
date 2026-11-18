@@ -92,21 +92,24 @@ func (b *sessionTestBackend) RemoveRoute(name, destination, gateway string, metr
 }
 
 func sessionTestConfig() SessionConfig {
-	return SessionConfig{ChanFD: 31, UnitFD: 32, UnitNum: 7, Backend: &sessionTestBackend{}, ReadCounters: func(string) (ppp.SessionCounters, error) {
-		return ppp.SessionCounters{RxBytes: 11, TxBytes: 13, RxPackets: 17, TxPackets: 19}, nil
-	}}
+	backend := &sessionTestBackend{}
+	unit := newSessionTestUnit(32, 7, ppp.SessionIdentity{InterfaceName: "ppp7", NativeIndex: 23})
+	unit.info.backend = backend
+	return SessionConfig{ChanFD: 31, UnitFD: 32, UnitNum: 7, Channel: &sessionTestChannelSource{fd: 31}, Unit: unit, Backend: backend}
 }
 
 func sessionTestOps(streams map[int]*sessionTestStream, released *[]int) sessionOps {
+	closeFD := func(fd int) error { *released = append(*released, fd); return nil }
 	return sessionOps{
-		wrap:           func(fd int, _ string) (io.ReadWriteCloser, error) { return streams[fd], nil },
-		closeFD:        func(fd int) error { *released = append(*released, fd); return nil },
-		interfaceIndex: func(string) (uint32, error) { return 23, nil },
-		connect:        func(int, int) error { return nil },
-		disconnect:     func(int) error { return nil },
-		setMRU:         func(int, uint16) error { return nil },
-		setIPv4Mode:    func(int, NPMode) error { return nil },
-		setIPv6Mode:    func(int, NPMode) error { return nil },
+		wrap:        func(fd int, _ string) (io.ReadWriteCloser, error) { return streams[fd], nil },
+		wrapUnit:    func(lease sessionUnitLease) (io.ReadWriteCloser, error) { return streams[lease.descriptor()], nil },
+		closeFD:     closeFD,
+		closeUnit:   sessionTestUnitCloser(closeFD),
+		connect:     func(int, int) error { return nil },
+		disconnect:  func(int) error { return nil },
+		setMRU:      func(int, uint16) error { return nil },
+		setIPv4Mode: func(int, NPMode) error { return nil },
+		setIPv6Mode: func(int, NPMode) error { return nil },
 	}
 }
 
@@ -115,7 +118,7 @@ func newSessionTest(t *testing.T) (ppp.FrameChannel, ppp.SessionHandle, *session
 	streams := map[int]*sessionTestStream{31: {closed: make(chan struct{})}, 32: {closed: make(chan struct{})}}
 	var released []int
 	cfg := sessionTestConfig()
-	frames, handle, err := newSession(cfg, sessionTestOps(streams, &released))
+	frames, handle, err := sessionTestNewSession(cfg, sessionTestOps(streams, &released))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +195,7 @@ func TestKernelDataplaneParity(t *testing.T) {
 		backend.calls = append(backend.calls, "disconnect")
 		return nil
 	}
-	_, handle, err := newSession(cfg, ops)
+	_, handle, err := sessionTestNewSession(cfg, ops)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,8 +262,9 @@ func TestKernelSessionConstructionFailureClosesDescriptors(t *testing.T) {
 			streams := map[int]*sessionTestStream{31: {closed: make(chan struct{})}, 32: {closed: make(chan struct{})}}
 			var released []int
 			ops := sessionTestOps(streams, &released)
+			cfg := sessionTestConfig()
 			if point == "index" {
-				ops.interfaceIndex = func(string) (uint32, error) { return 0, wantErr }
+				sessionTestUnit(cfg).describeErr = wantErr
 			}
 			if point != "index" {
 				ops.wrap = func(fd int, _ string) (io.ReadWriteCloser, error) {
@@ -273,7 +277,7 @@ func TestKernelSessionConstructionFailureClosesDescriptors(t *testing.T) {
 					return streams[fd], nil
 				}
 			}
-			_, _, err := newSession(sessionTestConfig(), ops)
+			_, _, err := sessionTestNewSession(cfg, ops)
 			if !errors.Is(err, wantErr) {
 				t.Fatalf("error %v, want %v", err, wantErr)
 			}
@@ -296,10 +300,10 @@ func TestKernelSessionConstructionFailureClosesDescriptors(t *testing.T) {
 func TestKernelSessionCountersPreserveFailure(t *testing.T) {
 	want := errors.New("counter read failed")
 	cfg := sessionTestConfig()
-	cfg.ReadCounters = func(string) (ppp.SessionCounters, error) { return ppp.SessionCounters{}, want }
+	sessionTestUnit(cfg).readCounters = func() (ppp.SessionCounters, error) { return ppp.SessionCounters{}, want }
 	streams := map[int]*sessionTestStream{31: {closed: make(chan struct{})}, 32: {closed: make(chan struct{})}}
 	var released []int
-	_, handle, err := newSession(cfg, sessionTestOps(streams, &released))
+	_, handle, err := sessionTestNewSession(cfg, sessionTestOps(streams, &released))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,10 +348,13 @@ func TestKernelSessionRejectsInvalidConstruction(t *testing.T) {
 			switch name {
 			case "channel":
 				cfg.ChanFD = -1
+				cfg.Channel = nil
 			case "unit":
 				cfg.UnitFD = -1
+				cfg.Unit = nil
 			case "alias":
 				cfg.UnitFD = cfg.ChanFD
+				sessionTestUnit(cfg).info.fd = cfg.UnitFD
 			case "number":
 				cfg.UnitNum = -1
 			case "backend":
@@ -355,11 +362,11 @@ func TestKernelSessionRejectsInvalidConstruction(t *testing.T) {
 			case "typed-nil":
 				cfg.Backend = (*sessionTestBackend)(nil)
 			case "counters":
-				cfg.ReadCounters = nil
+				sessionTestUnit(cfg).readCounters = nil
 			case "index":
-				ops.interfaceIndex = func(string) (uint32, error) { return 0, nil }
+				sessionTestUnit(cfg).info.identity.NativeIndex = 0
 			}
-			if _, _, err := newSession(cfg, ops); err == nil {
+			if _, _, err := sessionTestNewSession(cfg, ops); err == nil {
 				t.Fatal("invalid construction accepted")
 			}
 			want := []int{}
@@ -390,7 +397,7 @@ func TestKernelSessionRejectsMissingWrappedStream(t *testing.T) {
 				}
 				return nil, nil //nolint:nilnil // Deliberately malformed wrapper result exercises admission refusal.
 			}
-			if _, _, err := newSession(sessionTestConfig(), ops); err == nil {
+			if _, _, err := sessionTestNewSession(sessionTestConfig(), ops); err == nil {
 				t.Fatal("missing wrapped stream accepted")
 			}
 			if !reflect.DeepEqual(released, []int{31, 32}) {
@@ -428,7 +435,7 @@ func TestKernelSessionInterruptPreservesWrites(t *testing.T) {
 func TestKernelSessionClosePreservesFailure(t *testing.T) {
 	streams := map[int]*sessionTestStream{31: {closed: make(chan struct{})}, 32: {closed: make(chan struct{})}}
 	var released []int
-	_, handle, err := newSession(sessionTestConfig(), sessionTestOps(streams, &released))
+	_, handle, err := sessionTestNewSession(sessionTestConfig(), sessionTestOps(streams, &released))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -462,6 +469,8 @@ func TestKernelSessionOwnsDescriptorZero(t *testing.T) {
 			} else {
 				cfg.UnitFD = 0
 			}
+			sessionTestChannel(cfg).fd = cfg.ChanFD
+			sessionTestUnit(cfg).info.fd = cfg.UnitFD
 			streams := map[int]*sessionTestStream{
 				cfg.ChanFD: {closed: make(chan struct{})},
 				cfg.UnitFD: {closed: make(chan struct{})},
@@ -486,7 +495,7 @@ func TestKernelSessionOwnsDescriptorZero(t *testing.T) {
 				}
 				return nil
 			}
-			frames, handle, err := newSession(cfg, ops)
+			frames, handle, err := sessionTestNewSession(cfg, ops)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -544,13 +553,15 @@ func TestKernelSessionRefusalReleasesDescriptorZero(t *testing.T) {
 				cfg.UnitFD = 0
 				want = []int{0}
 			}
+			sessionTestChannel(cfg).fd = cfg.ChanFD
+			sessionTestUnit(cfg).info.fd = cfg.UnitFD
 			var released []int
 			ops := sessionTestOps(nil, &released)
 			ops.wrap = func(int, string) (io.ReadWriteCloser, error) {
 				t.Fatal("invalid admission wrapped a descriptor")
 				return nil, errors.New("unexpected descriptor wrapping")
 			}
-			if _, _, err := newSession(cfg, ops); err == nil {
+			if _, _, err := sessionTestNewSession(cfg, ops); err == nil {
 				t.Fatal("invalid construction accepted")
 			}
 			if !reflect.DeepEqual(released, want) {
@@ -569,8 +580,9 @@ func TestKernelSessionConstructionPanicReleasesDescriptors(t *testing.T) {
 			streams := map[int]*sessionTestStream{31: {closed: make(chan struct{})}, 32: {closed: make(chan struct{})}}
 			var released []int
 			ops := sessionTestOps(streams, &released)
+			cfg := sessionTestConfig()
 			if point == "index" {
-				ops.interfaceIndex = func(string) (uint32, error) { panic(want) }
+				sessionTestUnit(cfg).describePanic = want
 			}
 			if point != "index" {
 				ops.wrap = func(fd int, _ string) (io.ReadWriteCloser, error) {
@@ -587,7 +599,7 @@ func TestKernelSessionConstructionPanicReleasesDescriptors(t *testing.T) {
 					return streams[fd], nil
 				}
 			}
-			failure := sessionConstructionPanic(t, sessionTestConfig(), ops)
+			failure := sessionConstructionPanic(t, cfg, ops)
 			if failure != want { //nolint:errorlint // Exact panic identity is the rollback contract; wrapping would violate it.
 				t.Fatalf("panic %v, want original %v", failure, want)
 			}
@@ -657,7 +669,8 @@ func TestKernelSessionConstructionStringPanicPreserved(t *testing.T) {
 			cleanup := errors.New("descriptor cleanup failed")
 			var released []int
 			ops := sessionTestOps(nil, &released)
-			ops.interfaceIndex = func(string) (uint32, error) { panic(original) }
+			cfg := sessionTestConfig()
+			sessionTestUnit(cfg).describePanic = original
 			ops.closeFD = func(fd int) error {
 				released = append(released, fd)
 				if cleanupFails {
@@ -667,7 +680,7 @@ func TestKernelSessionConstructionStringPanicPreserved(t *testing.T) {
 				}
 				return nil
 			}
-			failure := sessionConstructionPanic(t, sessionTestConfig(), ops)
+			failure := sessionConstructionPanic(t, cfg, ops)
 			if !reflect.DeepEqual(released, []int{31, 32}) {
 				t.Fatalf("release order %v", released)
 			}
@@ -698,7 +711,8 @@ func TestKernelSessionConstructionPanicSurvivesRawClosePanic(t *testing.T) {
 	cleanup := errors.New("raw close panicked")
 	var released []int
 	ops := sessionTestOps(nil, &released)
-	ops.interfaceIndex = func(string) (uint32, error) { panic(original) }
+	cfg := sessionTestConfig()
+	sessionTestUnit(cfg).describePanic = original
 	ops.closeFD = func(fd int) error {
 		released = append(released, fd)
 		if fd == 31 {
@@ -706,7 +720,7 @@ func TestKernelSessionConstructionPanicSurvivesRawClosePanic(t *testing.T) {
 		}
 		return nil
 	}
-	failure := sessionConstructionPanic(t, sessionTestConfig(), ops)
+	failure := sessionConstructionPanic(t, cfg, ops)
 	err, ok := failure.(error)
 	if !ok {
 		t.Fatalf("panic %v does not retain error causes", failure)
@@ -743,7 +757,7 @@ func TestKernelSessionConstructionFailureRetainsCleanupFailures(t *testing.T) {
 				}
 				return streams[fd], nil
 			}
-			frames, handle, err := newSession(sessionTestConfig(), ops)
+			frames, handle, err := sessionTestNewSession(sessionTestConfig(), ops)
 			if !errors.Is(err, original) {
 				t.Errorf("original error lost: %v", err)
 			}
@@ -783,7 +797,7 @@ func TestKernelSessionConstructionFailureReleasesReturnedStreams(t *testing.T) {
 		}
 		return streams[fd], nil
 	}
-	frames, handle, err := newSession(sessionTestConfig(), ops)
+	frames, handle, err := sessionTestNewSession(sessionTestConfig(), ops)
 	if !errors.Is(err, original) {
 		t.Errorf("original error lost: %v", err)
 	}
@@ -812,7 +826,7 @@ func TestKernelSessionConstructionFailureReleasesReturnedStreams(t *testing.T) {
 func sessionConstructionPanic(t *testing.T, cfg SessionConfig, ops sessionOps) (failure any) {
 	t.Helper()
 	defer func() { failure = recover() }()
-	_, handle, err := newSession(cfg, ops)
+	_, handle, err := sessionTestNewSession(cfg, ops)
 	if handle != nil {
 		if closeErr := handle.Close(); closeErr != nil {
 			t.Errorf("unexpected handle close: %v", closeErr)

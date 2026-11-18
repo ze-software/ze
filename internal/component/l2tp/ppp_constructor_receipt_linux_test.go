@@ -65,7 +65,7 @@ func TestKernelPPPRemovedDuringFactoryRetainsUnusedCloseFailure(t *testing.T) {
 	failure := errors.New("removed original unused PPP close remains unknown")
 	var owner *unusedPPPReceiptOwner
 	rig.reactor.newPPPSession = func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
-		frames, lease, err := dispatchProtocolSessionFixture(cfg)
+		frames, lease, err := dispatchProtocolSessionFixture(cfg, protocolFixtureIdentity("ppp0", 0x80000000))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -109,7 +109,7 @@ func TestKernelPPPUnusedAttemptConfirmsItsOwnClose(t *testing.T) {
 			}
 			var owner *unusedPPPReceiptOwner
 			rig.reactor.newPPPSession = func(cfg pppkernel.SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) {
-				frames, lease, err := dispatchProtocolSessionFixture(cfg)
+				frames, lease, err := dispatchProtocolSessionFixture(cfg, protocolFixtureIdentity("ppp0", 0x80000000))
 				if err != nil {
 					return nil, nil, err
 				}
@@ -198,6 +198,7 @@ func newPPPConstructorReceiptRig(t *testing.T) *pppConstructorReceiptRig {
 	default:
 		t.Fatal("real worker setup did not produce its own success receipt")
 	}
+	worker.ops.pppConfig = logicalPPPConfigForTest(success.owner)
 	reactor := newReactorForSnapshot(t)
 	reactor.listener = newUDPListener(netip.MustParseAddrPort("127.0.0.1:0"), reactor.logger)
 	reactor.kernelWorker = worker

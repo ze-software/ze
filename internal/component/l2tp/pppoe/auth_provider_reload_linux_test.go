@@ -68,7 +68,7 @@ func TestPPPoEAuthDrainFollowsProviderReplacement(t *testing.T) {
 			}
 			// Proxy LCP with only MRU gets the production PPP driver to its
 			// authentication request without a kernel PPP device or timer.
-			frames, handle := fixtureKernelSession(t, fds[0], unit, 0)
+			frames, handle := fixtureSyntheticSession(t, fds[0], unit, ppp.SessionIdentity{InterfaceName: "lo", NativeIndex: 1})
 			subscriberID := pppoeSessionID(7, uint16(index+1))
 			attempt, err := ppp.NewSessionAttempt(subscriberID, handle)
 			if err != nil {
@@ -135,7 +135,7 @@ func TestPPPoEAuthDrainRefusesWithoutProvider(t *testing.T) {
 		_ = unix.Close(fds[0])
 		t.Fatal(err)
 	}
-	frames, handle := fixtureKernelSession(t, fds[0], unit, 0)
+	frames, handle := fixtureSyntheticSession(t, fds[0], unit, ppp.SessionIdentity{InterfaceName: "lo", NativeIndex: 1})
 	subscriberID := pppoeSessionID(7, 1)
 	attempt, err := ppp.NewSessionAttempt(subscriberID, handle)
 	if err != nil {

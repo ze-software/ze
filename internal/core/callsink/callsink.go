@@ -16,7 +16,10 @@
 // (ai/rules/architecture.md: a library with no config-driven lifecycle).
 package callsink
 
-import "sync/atomic"
+import (
+	"os"
+	"sync/atomic"
+)
 
 // RelayChannel lends a live kernel transport only for the callback's duration.
 // WithDescriptor MUST exclude transport close until the callback returns and
@@ -27,6 +30,30 @@ import "sync/atomic"
 // inside the interface is invalid.
 type RelayChannel interface {
 	WithDescriptor(func(int) error) error
+}
+
+// RelayOriginalFile lends the SAME original PPPoX file while transport close
+// is excluded. A native bridge MUST require this capability and MUST NOT
+// reconstruct a file from WithDescriptor. The callback MUST perform only
+// bounded local capture/ioctls, never backend or network waits, retain the
+// file, close it, or reenter the transport. Safe for concurrent use.
+type RelayOriginalFile interface {
+	WithOriginalFile(func(*os.File) error) error
+}
+
+// RelayOriginalLifetime reserves the SAME admitted transport until an exact
+// bridge cleanup releases it. Missing capability refuses native relay.
+// The caller MUST Close the returned lease after both bridge channels close.
+type RelayOriginalLifetime interface {
+	RetainOriginalFile() (RelayFileLease, error)
+}
+
+// RelayFileLease is a retained original transport role, never a PPP native
+// grant. The worker MUST Close it only after both bridge channels are closed.
+// Close is idempotent; methods are safe for concurrent use.
+type RelayFileLease interface {
+	RelayOriginalFile
+	Close() error
 }
 
 // BridgePreparation releases resources that the access side no longer needs
@@ -52,8 +79,8 @@ type Request struct {
 	// SessionID is the PPPoE session ID assigned at PADS.
 	SessionID uint16
 	// Channel lends the subscriber's PPPoE PPPoX socket during the bridge
-	// ioctl. The sink MUST use WithDescriptor for every descriptor operation,
-	// so subscriber departure cannot close or reuse it during that operation.
+	// operation. Native relay MUST retain RelayOriginalLifetime and capture
+	// through its SAME original-file lease, then release it after channel cleanup.
 	Channel RelayChannel
 	// BeforeBridge retains the access side's unused local PPP lease until the
 	// sink is ready to attach its bridge channel. The sink MUST call it at that
@@ -119,10 +146,15 @@ type RealmRequest struct {
 	SubscriberMAC string
 	SessionID     uint16
 	// Channel lends the subscriber's PPPoX socket, bridged once Handoff
-	// reports the driver quiesced. The sink MUST bridge inside WithDescriptor.
+	// reports local release. Native relay MUST retain RelayOriginalLifetime
+	// through exact bridge cleanup and capture only from its original-file lease.
 	Channel RelayChannel
-	LCP     ProxyLCP
-	Auth    ProxyAuth
+	// BeforeBridge joins the local reader and confirms release of its original
+	// local PPP pair before a fresh peer channel may be captured. A matched
+	// native relay MUST run this preparation before attaching either channel.
+	BeforeBridge BridgePreparation
+	LCP          ProxyLCP
+	Auth         ProxyAuth
 	// Handoff receives the call's progress. MUST be non-nil.
 	Handoff RealmHandoff
 }

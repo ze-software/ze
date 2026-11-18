@@ -21,7 +21,7 @@ import (
 func TestL2TPHealthReadsDataPlane(t *testing.T) {
 	useEnv(t, map[string]string{"ze.l2tp.skip-kernel-probe": "true"})
 	saved := newSubsystemKernelWorkerFn
-	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger) (*kernelWorker, error) {
+	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger, kernelBackendPreparation) (*kernelWorker, error) {
 		return nil, errors.New("generic netlink family l2tp not found")
 	}
 	t.Cleanup(func() { newSubsystemKernelWorkerFn = saved })

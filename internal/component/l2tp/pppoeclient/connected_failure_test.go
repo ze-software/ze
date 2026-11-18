@@ -28,7 +28,7 @@ func TestConnectedRestartFailures(t *testing.T) {
 				w := newConnectedExchange()
 				seed, initial := w.session(t)
 				transportCloses := 0
-				link := &sessionLink{channel: w, stopped: make(chan struct{}), closeTransport: func() { transportCloses++ }}
+				link := &sessionLink{client: testClientProtocol(w), stopped: make(chan struct{}), closeTransport: testClientTransportClose(func() { transportCloses++ })}
 				s, err := newConnectedSession(link, initial, seed.cfg, w.setMode)
 				if err != nil {
 					t.Fatal(err)
@@ -178,7 +178,7 @@ func TestConnectedRestartFailures(t *testing.T) {
 				if _, err := link.Write([]byte{1}); !errors.Is(err, io.ErrClosedPipe) {
 					t.Fatalf("post-close write: %v", err)
 				}
-				if err := link.setIPv4Mode(-1, pppkernel.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
+				if err := link.setIPv4Mode(pppkernel.NPModePass); !errors.Is(err, io.ErrClosedPipe) {
 					t.Fatalf("post-close mode touched unit: %v", err)
 				}
 			})

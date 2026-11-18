@@ -360,6 +360,12 @@ warning for a state that cannot be read.
 
 ## Kernel capabilities: one enrolment, three callers
 
+Configured L2TP, kernel PPPoE and PPPoE clients inspect the same positive
+[compiled original-resource PPP support](../research/l2tpv2-ze-integration.md).
+The registered checks retain separate role paths. A capability declaration
+does not grant authority over a channel, unit or transport.
+<!-- source: internal/component/l2tp/ppp/kernel/original_attachment_linux.go -- originalAttachmentDoctorCheck -->
+
 A subsystem needs a kernel feature the host can lack. MPLS forwarding needs an
 AF_MPLS table. IPsec needs the XFRM dataplane. Ze does not discover the absence
 when the first labeled route or the first Child SA fails: it asks before it
