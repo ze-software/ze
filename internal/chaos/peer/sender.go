@@ -3,6 +3,7 @@
 package peer
 
 import (
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/chaos/scenario"
@@ -24,25 +25,128 @@ type SenderConfig struct {
 
 	// NextHop is the next-hop address for announced routes.
 	NextHop netip.Addr
+
+	// RouteSet is the exact routes the peer announces, each with its own next
+	// hop and AS path. Nil means every route is built from NextHop and the
+	// path the session kind implies. With a set, BuildRoute answers only for
+	// its prefixes, with the announcement the set holds for each.
+	RouteSet *scenario.RouteSet
 }
 
 // Sender builds UPDATE messages for route announcements.
 type Sender struct {
 	builder *message.UpdateBuilder
 	nextHop netip.Addr
+
+	// routeSetGiven says the peer announces a given route set. It is the one
+	// test of the mode: given is empty for an empty set and for no set alike.
+	routeSetGiven bool
+	// given maps each prefix of the route set to its announcement.
+	given map[netip.Prefix]scenario.Announcement
 }
 
 // NewSender creates a new Sender with the given config.
 func NewSender(cfg SenderConfig) *Sender {
-	return &Sender{
+	sender := &Sender{
 		builder: message.NewUpdateBuilder(cfg.ASN, cfg.IsIBGP, true, false),
 		nextHop: cfg.NextHop,
 	}
+	if cfg.RouteSet == nil {
+		return sender
+	}
+	sender.routeSetGiven = true
+	sender.given = make(map[netip.Prefix]scenario.Announcement, len(cfg.RouteSet.Announcements))
+	for _, announcement := range cfg.RouteSet.Announcements {
+		sender.given[announcement.Prefix] = announcement
+	}
+	return sender
+}
+
+// BuildAnnouncement constructs the serialized UPDATE of one route of a given
+// route set: the prefix with exactly the next hop and the AS path of
+// announcement. On an iBGP session the path goes out as given and LOCAL_PREF is
+// present. On an eBGP session the path goes out as given too, and it MUST
+// already start with the speaker's own AS, because nothing is prepended.
+//
+// An announcement the sender cannot send as given is an error, never a route
+// with another path.
+func (s *Sender) BuildAnnouncement(announcement scenario.Announcement) ([]byte, error) {
+	if err := s.announcementProblem(announcement); err != nil {
+		return nil, err
+	}
+	params := message.UnicastParams{
+		Prefix:  announcement.Prefix,
+		NextHop: announcement.NextHop,
+		Origin:  attribute.OriginIGP,
+		ASPath:  announcement.ASPath,
+	}
+	update, err := s.builder.BuildUnicast(&params)
+	if err != nil {
+		return nil, fmt.Errorf("announcement of %s with next hop %s: %w", announcement.Prefix, announcement.NextHop, err)
+	}
+	return serializeMessage(update), nil
+}
+
+// announcementProblem answers why announcement cannot go out as given, or nil.
+//
+// On an eBGP session the builder prepends the local AS to a path that does not
+// start with it, and sends the local AS alone for an empty path, which is the
+// prepending RFC 4271 Section 5.1.2 asks of a speaker that originates or
+// propagates a route. A given path is the whole path on the wire, so a path
+// the builder would change is refused here.
+func (s *Sender) announcementProblem(announcement scenario.Announcement) error {
+	if !announcement.Prefix.IsValid() {
+		return fmt.Errorf("announcement with next hop %s has no valid prefix: give it one", announcement.NextHop)
+	}
+	if !announcement.NextHop.IsValid() {
+		return fmt.Errorf("announcement of %s has no valid next hop: give it one", announcement.Prefix)
+	}
+	if s.builder.IsIBGP {
+		return nil
+	}
+	if len(announcement.ASPath) == 0 {
+		return fmt.Errorf("announcement of %s has an empty AS path on an eBGP session of AS %d: the path must start with %d",
+			announcement.Prefix, s.builder.LocalAS, s.builder.LocalAS)
+	}
+	if announcement.ASPath[0] != s.builder.LocalAS {
+		return fmt.Errorf("announcement of %s has an AS path starting with %d on an eBGP session of AS %d: the path must start with %d",
+			announcement.Prefix, announcement.ASPath[0], s.builder.LocalAS, s.builder.LocalAS)
+	}
+	return nil
+}
+
+// RouteSetProblem answers why the sender cannot announce its route set as
+// given, naming one announcement it refuses, or nil. It builds every UPDATE of
+// the set, so a set it accepts is one BuildRoute answers for whole. A sender
+// with no route set has none.
+func (s *Sender) RouteSetProblem() error {
+	for _, announcement := range s.given {
+		if _, err := s.BuildAnnouncement(announcement); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // BuildRoute constructs a serialized unicast UPDATE for a single IPv4 or IPv6 prefix.
 // IPv4 prefixes use the UPDATE NLRI field; IPv6 uses MP_REACH_NLRI.
+//
+// With a route set, the UPDATE is the one BuildAnnouncement builds for the
+// prefix, and a prefix the set does not hold gives nil: the peer has no route
+// to announce for it.
 func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
+	if s.routeSetGiven {
+		announcement, held := s.given[prefix]
+		if !held {
+			return nil
+		}
+		data, err := s.BuildAnnouncement(announcement)
+		if err != nil {
+			return nil
+		}
+		return data
+	}
+
 	params := message.UnicastParams{
 		Prefix:  prefix,
 		NextHop: s.nextHop,

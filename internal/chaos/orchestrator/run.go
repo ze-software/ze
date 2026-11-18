@@ -171,6 +171,7 @@ func RunOrchestrator(ctx context.Context, cfg *orchestratorConfig) int {
 					TotalPeers: n,
 					Families:   prof.Families,
 					SlowRead:   prof.SlowRead,
+					RouteSet:   prof.RouteSet,
 				},
 				Seed:      cfg.Seed,
 				Addr:      peerAddr,

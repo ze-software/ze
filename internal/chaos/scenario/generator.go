@@ -102,6 +102,63 @@ func Generate(params GeneratorParams) ([]PeerProfile, error) {
 	return profiles, nil
 }
 
+// topologyHoldTime is the hold time of a topology's speakers, in seconds, the
+// value Generate gives every seed-generated peer.
+const topologyHoldTime = 90
+
+// GenerateFromTopology creates one PeerProfile per speaker of topology, in the
+// order of Topology.Speakers: the routers of the AS, then the external
+// neighbours. The topology is the input beside the seed: the profiles keep the
+// shape Generate gives them, and each one carries, as its RouteSet, the routes
+// the model computed for that speaker.
+//
+// Address and RouterID are both the speaker's address, the one the collector
+// MUST know the peer by, because the looking glass matches a next hop to a
+// router by that address. Every profile dials the daemon (ModeActive) and
+// speaks IPv4 unicast alone, the one family the model computes. ZePort is left
+// zero: the caller chooses how the daemon tells the speakers apart, one listen
+// port each or one source address each.
+//
+// A speaker whose session kind the model left unspecified is refused.
+func GenerateFromTopology(topology *Topology) ([]PeerProfile, error) {
+	speakers := topology.Speakers()
+	profiles := make([]PeerProfile, len(speakers))
+	for index := range speakers {
+		speaker := &speakers[index]
+		internal, err := speaker.Session.internal()
+		if err != nil {
+			return nil, fmt.Errorf("topology: speaker %s: %w", speaker.Address, err)
+		}
+		profiles[index] = PeerProfile{
+			Index:      index,
+			ASN:        speaker.AS,
+			RouterID:   speaker.Address,
+			IsIBGP:     internal,
+			RouteCount: len(speaker.Announcements),
+			Mode:       ModeActive,
+			HoldTime:   topologyHoldTime,
+			Families:   []string{familyIPv4Unicast},
+			Address:    speaker.Address,
+			RouteSet:   &RouteSet{Announcements: slices.Clone(speaker.Announcements)},
+		}
+	}
+	return profiles, nil
+}
+
+// internal reports whether the session kind is an iBGP one. The unspecified
+// kind has no answer and is an error.
+func (k SessionKind) internal() (bool, error) {
+	switch k {
+	case SessionInternal:
+		return true, nil
+	case SessionExternal:
+		return false, nil
+	case SessionUnspecified:
+		// The refusal below answers for it: the model left the kind unset.
+	}
+	return false, fmt.Errorf("session kind %d is neither internal nor external: the model must set it", k)
+}
+
 // generateEBGPASNs returns count unique ASNs from the private range 64512-65534,
 // excluding localAS.
 func generateEBGPASNs(rng *rand.Rand, count int, localAS uint32) []uint32 {

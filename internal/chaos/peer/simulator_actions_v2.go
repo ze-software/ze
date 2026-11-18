@@ -66,7 +66,7 @@ func executeRouteBurst(ctx context.Context, action engine.ChaosAction, conn net.
 func executeWithdrawalBurst(action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, emit func(Event)) {
 	params := engine.ParseWithdrawalBurstParams(action.Params)
 
-	routes := scenario.GenerateIPv4Routes(cfg.Seed, p.Index, p.RouteCount, p.TotalPeers)
+	routes := ipv4Routes(cfg.Seed, p)
 	count := min(params.Count, len(routes))
 	if count == 0 {
 		return
@@ -85,18 +85,14 @@ func executeWithdrawalBurst(action engine.ChaosAction, conn net.Conn, p SimProfi
 func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.Conn, p SimProfile, cfg SimulatorConfig, emit func(Event)) {
 	params := engine.ParseRouteFlapParams(action.Params)
 
-	routes := scenario.GenerateIPv4Routes(cfg.Seed, p.Index, p.RouteCount, p.TotalPeers)
+	routes := ipv4Routes(cfg.Seed, p)
 	count := min(params.Count, len(routes))
 	if count == 0 {
 		return
 	}
 
 	selected := pickRandomRoutes(routes, count, cfg.Seed, p.Index)
-	sender := NewSender(SenderConfig{
-		ASN:     p.ASN,
-		IsIBGP:  p.IsIBGP,
-		NextHop: p.RouterID,
-	})
+	sender := newIPv4Sender(p)
 
 	for cycle := range params.Cycles {
 		if ctx.Err() != nil {

@@ -65,4 +65,30 @@ type PeerProfile struct {
 	// backpressure that prevents Ze from sending to this peer.
 	// Zero means normal read speed (no artificial delay).
 	SlowRead time.Duration
+
+	// RouteSet is the exact IPv4 unicast routes this peer announces, each with
+	// its own next hop and AS path. Nil means the peer announces RouteCount
+	// routes generated from the scenario seed, as every profile of Generate
+	// does. GenerateFromTopology sets it, with RouteCount as its length.
+	RouteSet *RouteSet
+}
+
+// RouteSet is the whole set of IPv4 unicast routes one simulated peer
+// announces, when the routes are given rather than generated from a seed. An
+// empty set is a peer that announces nothing, which is why a profile holds a
+// pointer: a nil pointer is the seed-generated mode, never an empty set.
+type RouteSet struct {
+	// Announcements holds one route per prefix, in the order the peer sends
+	// them. Announcement.ASPath is the whole path on the wire, so a sender
+	// MUST NOT prepend anything to it.
+	Announcements []Announcement
+}
+
+// Prefixes returns the prefixes of the set, in the order of its announcements.
+func (s *RouteSet) Prefixes() []netip.Prefix {
+	prefixes := make([]netip.Prefix, len(s.Announcements))
+	for index := range s.Announcements {
+		prefixes[index] = s.Announcements[index].Prefix
+	}
+	return prefixes
 }

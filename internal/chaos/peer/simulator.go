@@ -44,6 +44,56 @@ type SimProfile struct {
 	TotalPeers int
 	Families   []string
 	SlowRead   time.Duration
+
+	// RouteSet is the exact IPv4 unicast routes the peer announces, each with
+	// its own next hop and AS path, in place of RouteCount routes generated
+	// from the seed. Nil means seed-generated routes. A profile with a route
+	// set MUST name no family but IPv4 unicast: RunSimulator refuses it
+	// otherwise, because the other families would still be seed-generated.
+	//
+	// Withdrawals and re-announcements a chaos or route action asks for stay
+	// inside the set. A route-burst action still announces extra generated
+	// routes, which is the disturbance that action exists for.
+	RouteSet *scenario.RouteSet
+}
+
+// newIPv4Sender builds the sender of the profile's IPv4 unicast routes: the
+// routes of its route set when it has one, and otherwise routes whose next hop
+// is the router id and whose AS path the session kind implies.
+func newIPv4Sender(p SimProfile) *Sender {
+	return NewSender(SenderConfig{
+		ASN:      p.ASN,
+		IsIBGP:   p.IsIBGP,
+		NextHop:  p.RouterID,
+		RouteSet: p.RouteSet,
+	})
+}
+
+// ipv4Routes answers the IPv4 unicast prefixes the profile announces: those of
+// its route set when it has one, and otherwise the ones generated from seed.
+func ipv4Routes(seed uint64, p SimProfile) []netip.Prefix {
+	if p.RouteSet != nil {
+		return p.RouteSet.Prefixes()
+	}
+	return scenario.GenerateIPv4Routes(seed, p.Index, p.RouteCount, p.TotalPeers)
+}
+
+// routeSetProblem answers why the profile's route set cannot be announced as
+// given, or nil. A profile with no route set has none.
+func routeSetProblem(p SimProfile) error {
+	if p.RouteSet == nil {
+		return nil
+	}
+	for _, name := range p.Families {
+		if name != familyIPv4Unicast {
+			return fmt.Errorf("peer %d has a route set and the family %s: a route set holds IPv4 unicast routes only, so remove the family",
+				p.Index, name)
+		}
+	}
+	if err := newIPv4Sender(p).RouteSetProblem(); err != nil {
+		return fmt.Errorf("peer %d cannot announce its route set: %w", p.Index, err)
+	}
+	return nil
 }
 
 // SimulatorConfig holds all parameters for running a single peer simulator.
@@ -165,6 +215,14 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		}
 	}
 
+	// A route set that cannot go out as given ends the run before any session:
+	// a session announcing other routes than the ones asked for would look
+	// healthy and be wrong.
+	if err := routeSetProblem(p); err != nil {
+		emit(Event{Type: EventError, Err: err})
+		return
+	}
+
 	// Connect to Ze: use pre-connected Conn if provided (in-process mode),
 	// otherwise dial via TCP (external mode).
 	var conn net.Conn
@@ -257,11 +315,8 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	// Send routes for all negotiated families.
 	// IPv4 next-hop for IPv4 families, IPv6 next-hop for IPv6 families.
 	// RFC 4760: MP_REACH_NLRI next-hop length must match the AFI.
-	sender := NewSender(SenderConfig{
-		ASN:     p.ASN,
-		IsIBGP:  p.IsIBGP,
-		NextHop: p.RouterID,
-	})
+	// The IPv4 sender announces the profile's route set when it has one.
+	sender := newIPv4Sender(p)
 	// Derive an IPv6 next-hop from the RouterID for IPv6 families.
 	// Maps 10.255.P.Q → 2001:db8::P:Q (deterministic, unique per peer).
 	rid4 := p.RouterID.As4()
@@ -287,7 +342,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}
 
 	// IPv4 unicast routes are used for chaos withdrawals.
-	routes := scenario.GenerateIPv4Routes(cfg.Seed, p.Index, p.RouteCount, p.TotalPeers)
+	routes := ipv4Routes(cfg.Seed, p)
 	totalSent := 0
 
 	// Route count per family: unicast families get the full RouteCount,

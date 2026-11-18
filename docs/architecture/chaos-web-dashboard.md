@@ -778,6 +778,122 @@ UI actions that are NOT chaos events (pause/resume/rate change/stop) are also lo
 
 These are informational — `--replay` skips them (they're not peer events). They exist for debugging "what did the operator do during this run?"
 
+## Simulated Network Topology
+
+The scenario package also holds a model of one network: the routers of one AS
+and the external neighbours attached to them. A test builds it, lets each
+simulated speaker announce what the model computed, and compares what Ze
+answers with what the model expects.
+
+`NewTopology` takes a `TopologySpec` written by hand. `GenerateTopology` builds
+the spec from a seed and `TopologyParams`, and equal parameters give an equal
+network. Both return a `Topology`, which is immutable.
+
+| Part of the spec | What it states |
+|------------------|----------------|
+| `TopologyRouter` | The loopback, which is also the session address with the collector and the BGP identifier. The clients it reflects routes for. The prefixes it originates |
+| `TopologyNeighbour` | Its address and AS, the border router it is attached to, what that border router writes as next hop on its routes (`NextHopSelf` or `NextHopUnchanged`), and the prefixes it announces with the AS path beyond its own AS |
+
+The iBGP sessions follow from the routers. A client holds one session, with its
+reflector. Every router that is no client holds a session with every other such
+router. One level of reflection is modeled, so a reflector that is itself a
+client is refused.
+
+The model runs its own best-path computation, per router and per prefix. It
+shares no code with the RIB or the looking glass, so a test comparing them
+cannot agree with itself. A router prefers the shorter AS path, then a route it
+originates, then a route learned outside over one learned inside, then the
+speaker with the lower address. `Trace.Reason` states which step decided.
+
+| Speaker | What it announces to the collector |
+|---------|------------------------------------|
+| A router | Its chosen route for every prefix. The next hop is its own loopback on a route it originates, its loopback or the neighbour's address on a route learned outside (the border's policy), and the next hop it received on a route learned inside |
+| A reflector | The same, and toward its iBGP peers it rewrites the next hop to its own loopback on every route it reflects. RFC 4456 Section 10 advises against that rewrite. The simulated network runs it on purpose, so a client's trace crosses its reflector |
+| An external neighbour | Every prefix it announces, with its own address as next hop and its own AS first in the path |
+
+`Topology` answers with typed values, never looking glass text:
+
+| Question | Answer |
+|----------|--------|
+| `Speakers()` | Each speaker's session address, AS, session kind and announcements. The number of announcements is the route count the collector holds from it |
+| `Prefixes()` | Every prefix of the network |
+| `Announcers(prefix)` | The external neighbours announcing the prefix |
+| `Trace(router, prefix)` | The routers the prefix's BGP next hops cross from that router, how the trace leaves the AS (the exit announces its own address, the next hop is no router's address, or the prefix originates inside), the last next hop and the AS path outside |
+
+`GenerateTopology` refuses a network in which no trace crosses an intermediate
+router, because traces of one hop would not prove a walk through the core. The
+model covers IPv4 unicast, up to 32 routers and 128 external neighbours.
+<!-- source: internal/chaos/scenario/topology.go -- NewTopology, Topology, TopologySpec, Trace, compareRoutes -->
+<!-- source: internal/chaos/scenario/topology_generate.go -- GenerateTopology, TopologyParams -->
+
+### Running a topology: the route set of a simulated peer
+
+A peer simulator announces one of two things. Without a route set it
+announces `RouteCount` routes generated from the scenario seed, each with the
+peer's router id as next hop and the AS path its session kind implies. With a
+route set it announces exactly the routes it was given, each with its own next
+hop and its own AS path.
+
+`GenerateFromTopology` turns a `Topology` into the peer profiles a run is built
+from. The topology is the input beside the seed: the profiles keep the shape
+`Generate` gives them, one per speaker in the order of `Speakers()`, and each
+carries the speaker's announcements as its `RouteSet`.
+
+| Profile field | Value for a speaker of a topology |
+|---------------|-----------------------------------|
+| `Address`, `RouterID` | The speaker's address. It is the address the daemon's config gives the peer, so the looking glass can match a next hop to a router |
+| `ASN`, `IsIBGP` | The speaker's AS, and whether it is a router of the AS |
+| `RouteSet`, `RouteCount` | The announcements the model computed, and their number |
+| `Families` | IPv4 unicast alone, the one family the model computes |
+| `Mode` | Active: the simulator dials the daemon |
+| `ZePort` | Left unset. The caller chooses how the daemon tells the speakers apart |
+
+The sender builds a route of a set with `BuildAnnouncement`. The AS path goes
+out as given on both session kinds.
+
+| Session | AS path on the wire | LOCAL_PREF |
+|---------|---------------------|------------|
+| iBGP | The given path, with no local AS before it. Empty for a prefix that originates inside the AS | Present, 100 |
+| eBGP | The given path, which already starts with the speaker's own AS | Absent |
+
+A route set that cannot go out as given is refused before any session opens:
+an eBGP path that does not start with the speaker's AS, an announcement with no
+prefix or no next hop, or a profile that names another family beside IPv4
+unicast. The simulator then reports an error event and connects to nothing.
+
+A simulator with a route set sends its routes in the order of the set, then
+End-of-RIB, as the seed-generated mode does. A withdrawal or a re-announcement
+that a chaos or route action asks for stays inside the set and re-announces
+each prefix with its given next hop and path. The route-burst action still
+announces extra generated routes, because that disturbance is its purpose.
+<!-- source: internal/chaos/scenario/generator.go -- GenerateFromTopology -->
+<!-- source: internal/chaos/scenario/profile.go -- RouteSet, PeerProfile -->
+<!-- source: internal/chaos/peer/sender.go -- BuildAnnouncement, RouteSetProblem, BuildRoute -->
+<!-- source: internal/chaos/peer/simulator.go -- SimProfile, routeSetProblem, ipv4Routes, RunSimulator -->
+
+`GenerateConfig` writes the daemon's side from the same profiles. With
+`Collector` set, the config is a route collector's: `bgp-rib` runs inside the
+daemon, each peer attaches it alone, and no route server forwards between the
+peers. `LGPlaintext` serves the looking glass of `LGPort` over plain HTTP.
+
+A topology runs against a real Ze with one listen port per speaker
+(`ZePort`), the way a chaos run against Ze already works. Ze routes a
+connection that arrives on a port only one passive peer claims to that peer,
+whatever its source address, and knows the session by the address the config
+gives the peer. So eleven speakers need no loopback alias, on Linux or macOS,
+and their addresses can be documentation ranges that no host holds. That last
+point matters: Ze ignores a received route whose next hop is one of its own
+addresses.
+
+The test fixture `plugin/lg-simulated-network` runs this. It builds the model, reserves the
+listen ports, starts `ze -` on the generated config, runs one simulator per
+speaker, waits until each has sent End-of-RIB, and then compares the looking
+glass with the model: the peers page with each speaker's route count, and the
+search of each prefix with the speakers announcing it.
+<!-- source: internal/chaos/scenario/config.go -- GenerateConfig, ConfigParams -->
+<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetwork, lgSimulatedNetworkChecks -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- listenerPeerKey -->
+
 ## Implementation Phases
 
 | Phase | Scope | Dependencies |

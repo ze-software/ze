@@ -181,6 +181,36 @@ Properties validated:
 - **No data loss:** Updates eventually delivered
 - **Graceful degradation:** Sessions restart on critical faults
 
+### Simulated Network Topology
+
+A chaos run announces routes generated from the seed: every peer sends its own
+prefixes, each with the peer's router id as next hop. That exercises
+propagation. It does not look like a network, where a border router rewrites
+the next hop to itself and every router of the AS reports the exit it chose.
+
+The scenario package can also build one network and let each simulated peer
+announce exactly what that network's routers and neighbours would send to a
+route collector.
+
+| Step | What it does |
+|------|--------------|
+| `scenario.GenerateTopology` | Builds the routers of one AS, a route reflector with its clients, the border routers and their external neighbours from a seed, and computes each speaker's announcements |
+| `scenario.GenerateFromTopology` | Gives one peer profile per speaker, each carrying its announcements as a route set |
+| `scenario.GenerateConfig` with `Collector` | Writes the Ze config for those peers: `bgp-rib` inside the daemon, no route server |
+| The peer simulator | Holds one real BGP session per speaker and announces the route set, each route with its own next hop and AS path, then End-of-RIB |
+
+The test fixture `plugin/lg-simulated-network` runs five routers and six
+external neighbours this way and compares the looking glass with the model. It
+needs no loopback alias: each speaker reaches Ze on a listen port of its own,
+and Ze knows the session by the address its config gives the peer.
+
+`./le chaos run` does not take a topology: it starts from `--seed` and
+`--peers`. The design is in
+[the chaos architecture page](../architecture/chaos-web-dashboard.md#simulated-network-topology).
+<!-- source: internal/chaos/scenario/generator.go -- GenerateFromTopology -->
+<!-- source: internal/chaos/peer/sender.go -- BuildAnnouncement -->
+<!-- source: internal/test/fixture/lg_simulated_network.go -- lgSimulatedNetwork -->
+
 ## Fault Types
 
 | Category | Examples |
