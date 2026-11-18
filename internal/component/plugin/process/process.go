@@ -739,7 +739,7 @@ func (p *Process) startInternal() error {
 		status.Str("exit code ").Int(int64(exitCode))
 		terminalStatus = status.String()
 		cleanExit = exitCode == 0
-		p.exit.record(status.String())
+		p.exit.record(terminalStatus)
 		if exitCode != 0 {
 			logger().Warn("internal plugin exited with a non-zero status; read its log lines above for the cause",
 				"plugin", p.config.Name, "exit-code", exitCode, "code", diagnostic.CodeDoctorPluginCrashed)
