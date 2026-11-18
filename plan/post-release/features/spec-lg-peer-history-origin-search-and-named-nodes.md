@@ -36,6 +36,19 @@ give.
 The goal: each of the four is visible in the page and, where the contract has a
 field for it, in the API.
 
+### Added 2026-11-18: a simulated network, and one trace from inside to outside
+
+The owner asked for the looking glass to be proven on a network that behaves
+like a real one, and for a prefix to be traceable through it.
+
+| # | Need | Today |
+|---|------|-------|
+| 5 | A simulated network: about five routers of one AS, each a fake peer holding a real BGP session to Ze, plus more external neighbours on eBGP sessions. Code generates the topology and its routes, and computes for each speaker what that router would announce, with next hop rewritten to itself on the routes it passes to its iBGP neighbours | `lg-graph-lab` describes twelve routers by hand: thirty-six typed rows of peer, prefix, next hop and AS path, injected into the RIB through a command. No session exists for those routers, and the next-hop-self relationships are written by hand, not computed |
+| 6 | One trace of a prefix: from each router, to the exit router it uses, to the external neighbour that announced the prefix, then through every AS of the path to the origin. And the list of exits announcing a prefix | The next-hop graph draws router to next hop and stops at the exit router. The AS-path graph draws the AS chain and starts at the first AS. Nothing joins the two, so the exit a path leaves by cannot be read beside the path it takes outside |
+
+The trace shows each router's chosen exit, not the hop-by-hop route between
+routers: that route belongs to the IGP, which a BGP collector does not see.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -109,6 +122,12 @@ field for it, in the API.
 | The next-hop node name | `internal/component/lg/graph_nexthop.go`, `NextHopNode.Name`; `layout_nexthop.go`, `formatNextHopNodeLabel` | A field and its rendering, never filled | Extends: this spec fills it |
 | Looking glass config | `internal/component/lg/yang/ze-lg-conf.yang`; `cmd/ze/hub/service_lg.go`, `buildLGService` | Schema and extraction for the listener settings | Extends: one list in the same container, read by the same function |
 | Certificate rotation on reload | `cmd/ze/hub/listener_migrate.go`, `updateLGCertificate`; `server.go`, the atomic certificate pointer | Applies one changed looking glass setting to the running server | Extends: the named ranges reach the running server the same way, behind their own small interface and their own atomic pointer |
+| The hand-written graph lab | `internal/le/interoplab/bgp/lg_lab.go`, `runLGLab` and `lgInjections`; `test/plugin/lg-graph-lab.ci` | Injects 36 typed rows through `request bgp rib inject` and compares six graphs with saved SVG files | Replaces: the generated network supplies the routes over real sessions, and the checks come from the model. The saved-file comparisons go with it, by the test judge's route |
+| The scenario generator | `internal/chaos/scenario/generator.go`, `Generate` and `GeneratorParams` | Builds a deterministic set of peer profiles from a seed: iBGP or eBGP, AS number, router id, address, port, route count | Extends: a topology is a new input beside the seed. The profiles keep their shape, and each one gains the routes the model computed for it |
+| The peer simulator | `internal/chaos/peer/simulator.go`, `RunSimulator` and `SimulatorConfig` | Holds one real BGP session per simulated peer and announces generated routes | Extends: it announces a given route set per peer. Whether it does so today or announces only seed-generated routes is assumption A-8 |
+| The scripted test peer | `le test peer`, driven by a `.ci` peer block | One scripted speaker with hand-written expectations | Does not apply: its routes are typed per test as hex or options, which is the hand-writing this work removes |
+| The two graphs | `internal/component/lg/handler_graph.go`, `handleGraph`, `handleASPathGraph`, `handleNextHopGraph`; `graph.go`, `buildGraph`; `graph_nexthop.go`, `buildNextHopGraph` | One query for a prefix, rendered as an AS graph or as a router graph, chosen by `mode` | Extends: a third mode joins them over the same query answer. No second query and no new command |
+| Graph text output | `handler_graph.go`, `format=text`; `renderGraphText`, `renderNextHopGraphText` | A deterministic text form of each graph, for tests | Extends: the joined graph has one too, and the model-derived checks read it |
 | The peer `description` leaf | The BGP peer schema, "Basic peer identification" | A free-text label the schema says the CLI, the web UI and the logs show | Extends: the looking glass shows it. Where the label travels today is assumption A-4 |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -183,6 +202,10 @@ field for it, in the API.
 | A-4 | The peer's `description` leaf does not reach the peer summary today | `summary.go` fills `description` from the group name, and the search found no other producer of the label | If it reaches it under another key, only the looking glass reader changes. If the label is dropped before the peer record, that part is a defect and moves to the fix spec | Tracing the leaf from the schema to the peer record before phase 5 | unvalidated |
 | A-5 | Named ranges are few, tens at most | An exchange or a network has a handful of peering LANs and transit links | A long list needs an index | The lookup is a linear scan over a list whose length the schema bounds | unvalidated |
 | A-6 | The end anchor is written `$` after the last AS number | The start anchor is `^`, and the page already allowed `$` before the fix spec | Another spelling changes two functions and the help | Owner review | unvalidated |
+| A-8 | The peer simulator can be given the exact routes a peer announces, with their next hop and AS path | `SimulatorConfig` carries a seed and a route count, which reads as routes generated inside the simulator | The simulator gains a route-set input first, in this spec, before the network is built on it | Reading the sender in `internal/chaos/peer` before phase 6 | unvalidated |
+| A-9 | Each internal router sends the collector its best path for every prefix, as it would to a route-reflector client | Proposed to the owner on 2026-11-18, not yet confirmed. A plain iBGP peer sends only its eBGP-learned routes, and the collector would then never learn which exit a non-border router uses | Under the other answer, only border routers appear in a trace, and need 6 shrinks to "which exits announce this prefix" | Owner review | unvalidated |
+| A-10 | An exit router is recognized as the peer whose next hop for the prefix is itself, and its outside neighbour as the first AS of that route's path | `buildNextHopGraph` already marks that router as egress, and next-hop-self is what the simulated routers apply | A network that does not rewrite the next hop shows the neighbour's address as next hop, and the join has to match that address to an eBGP peer instead | A simulated border router without the rewrite, in phase 7 | unvalidated |
+| A-11 | The simulated network and the joined trace belong in this post-release spec, not in the release fix | Proposed to the owner on 2026-11-18, not yet confirmed. The fix is proven by two small tests and is nearly written | If the owner wants the network as the fix's proof, phases 6 and 7 move to the fix spec with their criteria | Owner review | unvalidated |
 | A-7 | The fix spec lands first | `Depends` in the header | The page-side AS path check does not exist yet in the form this spec extends | The fix spec's closure | unvalidated |
 
 ### Risks
@@ -196,6 +219,10 @@ field for it, in the API.
 | R-6 | The names are read only at start | A reload changes the list and the page keeps the old names | The reload migrator carries the list, with a functional test |
 | R-7 | A last error text reaches a public page | Sensitive detail in a NOTIFICATION | `lastErrorString` already bounds this text for the public looking glass. The page shows it as given and adds nothing |
 | R-8 | History columns make the peer table too wide for a phone | Horizontal scroll | The last error goes in the row's detail, not in a column. The stream error row's column span follows the new column count |
+| R-10 | The generator and the looking glass share a mistake, so the test agrees with itself | A wrong trace that passes | The expected answers come from the topology model's own best-path computation, written apart from the looking glass and from the RIB. One hand-checked prefix is asserted literally beside the derived ones |
+| R-11 | Many simulated sessions make the test slow or flaky on a loaded machine | Timeouts under repetition | The test waits for each speaker's end-of-RIB before it asks anything, and is proven under repeated runs before it is promoted |
+| R-12 | A joined graph of a full path set is too large to read | The node cap is reached | The existing 100-node cap applies to the joined graph, with its message |
+| R-13 | Removing the saved SVG comparisons loses a check on the drawing itself | A layout regression nobody sees | The unit captures of the two layouts stay. Only the lab's six saved files go, and the judge rules on that change |
 | R-9 | A copied route record loses its time | An age of zero on a retained or cloned route | `RouteEntry.Clone` copies the field, with a test |
 
 ## Blast Radius
@@ -214,6 +241,7 @@ field for it, in the API.
 | `POST /lg/search` with an end-anchored AS path | → | `matchASPath` | `test/plugin/lg-origin-search.ci` |
 | `GET /api/looking-glass/routes/prefix` | → | the RIB's recorded time | `test/plugin/lg-route-age.ci` |
 | A config with a named range, then `GET /lg/graph` in next-hop mode | → | `buildLGService` and the next-hop name lookup | `test/plugin/lg-named-next-hop.ci` |
+| Simulated routers and neighbours open BGP sessions, then `GET /lg/graph` in the joined mode | → | the generated announcements, the RIB, and the joined graph builder | `test/plugin/lg-simulated-network.ci` |
 
 ## Acceptance Criteria
 
@@ -234,6 +262,14 @@ field for it, in the API.
 | AC-13 | The named list changes and the daemon reloads | A page read after the reload shows the new name on the same next hop, served by the same listener | A page read before the reload completes shows the old name, because the list is replaced whole |
 | AC-14 | A peer with a description and a group | The peers page shows the description, and the group in the peer's detail | A peer with no description shows an empty cell, because nothing is derived |
 | AC-15 | The looking glass is started from environment variables with `enabled` unset in the config | The named ranges in the config are read and used | None |
+| AC-16 | A topology of five routers in one AS and at least six external neighbours is given to the generator twice with the same seed | Both runs produce the same routers, neighbours, prefixes and per-speaker announcements | A different seed produces a different network, because the seed is the only source of variation |
+| AC-17 | A border router learns a prefix from an external neighbour | The route it announces to the collector and to the other routers carries its own loopback as next hop and the neighbour's AS path unchanged | The route the external neighbour announces on its own eBGP session keeps the neighbour's address as next hop, because the rewrite is the border router's |
+| AC-18 | A prefix is announced by two external neighbours attached to two different border routers | Each internal router announces one best path for it, whose next hop is the border router the model's best-path computation chose for that router | A router may choose either exit when the model ranks them equal, and the model states which one and why |
+| AC-19 | The network is running against Ze | The peers page lists every router and every external neighbour as an established session, each with the route count the model computed for it | None: every simulated speaker holds a real session |
+| AC-20 | The looking glass is searched for a prefix two exits announce | The result lists the external neighbours announcing it and the routers' paths toward each exit, and the model names the same set | Routers and neighbours that hold no route for the prefix stay out |
+| AC-21 | The joined graph is asked for that prefix | It draws each router, an edge to the exit router it uses, an edge from each exit router to the external neighbour's AS, and the AS chain to the origin AS, matching the model's trace for every router | An AS that appears in no path for the prefix stays out |
+| AC-22 | The joined graph is asked for a prefix only one neighbour announces | It draws one exit router, with every other router pointing to it, and one AS chain | None |
+| AC-23 | The joined graph's text form | It lists nodes and edges in a fixed order, so two requests on the same state give the same text | The SVG form may differ in coordinates between versions, because the test reads the text |
 
 ## End-to-End User Stories
 
@@ -243,6 +279,8 @@ field for it, in the API.
 | 2 | Lists every route an AS originates | form, engine pattern, RIB, page | `test/plugin/lg-origin-search.ci` |
 | 3 | Reads how long ago a route changed | UPDATE, RIB time, row, page and API | `test/plugin/lg-route-age.ci` |
 | 4 | Names the exchange LANs once and reads next hops by name | config, hub, looking glass, table and graph | `test/plugin/lg-named-next-hop.ci` |
+| 5 | Asks where a prefix leaves the network and what it crosses outside | simulated sessions, RIB, search, joined graph | `test/plugin/lg-simulated-network.ci` |
+| 6 | Asks which external neighbours announce a prefix | simulated eBGP sessions, RIB, search | `test/plugin/lg-simulated-network.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -258,6 +296,14 @@ field for it, in the API.
 | `TestRouteEntrySize` | `internal/component/bgp/plugins/rib/storage/routeentry_test.go` | Bytes per stored route record | |
 | `TestNextHopNameMostSpecificWins` | `internal/component/lg/graph_nexthop_test.go` | Name lookup over nested ranges | |
 | `TestSummaryCarriesDescriptionAndGroup` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | The two keys and their sources | |
+| `TestTopologySameSeedSameNetwork` | `internal/chaos/scenario/topology_test.go` | The generator is deterministic | |
+| `TestBorderRouterRewritesNextHop` | `internal/chaos/scenario/topology_test.go` | Next hop is the border router's loopback on what it announces inward, and the AS path is unchanged | |
+| `TestRouterAnnouncesItsBestExit` | `internal/chaos/scenario/topology_test.go` | Each router's announced path for a prefix with two exits | |
+| `TestExternalNeighbourKeepsItsNextHop` | `internal/chaos/scenario/topology_test.go` | The eBGP speaker's own announcement | |
+| `TestTraceOfHandCheckedPrefix` | `internal/chaos/scenario/topology_test.go` | The model's trace for one prefix, asserted literally | |
+| `TestJoinedGraphLinksExitToFirstAS` | `internal/component/lg/graph_joined_test.go` | The join of the router graph and the AS graph | |
+| `TestJoinedGraphTextIsOrdered` | `internal/component/lg/graph_joined_test.go` | The fixed order of the text form | |
+| `TestJoinedGraphRespectsNodeCap` | `internal/component/lg/graph_joined_test.go` | The cap and its message | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -274,6 +320,7 @@ field for it, in the API.
 | `lg-origin-search` | `test/plugin/lg-origin-search.ci` | A search anchored at the end lists only the routes that AS originates | |
 | `lg-route-age` | `test/plugin/lg-route-age.ci` | The API answers a non-zero age for a route learned before the request | |
 | `lg-named-next-hop` | `test/plugin/lg-named-next-hop.ci` | A named range labels the next hop in the table and the graph, and a reload renames it | |
+| `lg-simulated-network` | `test/plugin/lg-simulated-network.ci` | Five simulated routers and their external neighbours hold sessions with Ze. For each prefix of the model, the peers page, the search and the joined graph answer what the model computed: the exits announcing it, each router's exit, and the AS chain outside | |
 
 ## Files to Modify
 - `internal/component/lg/handler_ui.go` - history, age and group in the view rows
@@ -291,8 +338,15 @@ field for it, in the API.
 - `docs/architecture/plugin/rib-storage-design.md` - the route time and its cost
 - `docs/architecture/api/commands.md` - the summary keys
 - `docs/guide/configuration.md`, `docs/guide/cli.md` - the list and the anchor
+- `internal/chaos/scenario/generator.go` - the topology as an input beside the seed
+- `internal/chaos/peer/simulator.go` - a given route set per peer, if A-8 is broken
+- `internal/le/interoplab/bgp/lg_lab.go`, `test/plugin/lg-graph-lab.ci` and its saved SVG files - replaced by the simulated network
+- `docs/architecture/chaos-web-dashboard.md`, `docs/guide/chaos-testing.md` - the topology input and what the simulated routers announce
 
 ## Files to Create
+- `internal/chaos/scenario/topology.go` - the topology model, its best-path computation and the per-speaker announcements
+- `internal/component/lg/graph_joined.go` - the joined graph and its text form
+- `test/plugin/lg-simulated-network.ci`
 - `test/plugin/lg-peer-history.ci`
 - `test/plugin/lg-origin-search.ci`
 - `test/plugin/lg-route-age.ci`
@@ -358,6 +412,14 @@ field for it, in the API.
    - Tests: `TestNextHopNameMostSpecificWins`, `TestSummaryCarriesDescriptionAndGroup`
    - Files: the schema, `service_lg.go`, `listener_migrate.go`, `server.go`, the graph files, `summary.go`, `peer.go`
    - Verify: A-4 is settled first. `lg-named-next-hop` passes, including its reload step
+6. **Phase: Simulated network** -- the model, then the sessions
+   - Tests: the five `topology_test.go` tests, then `lg-simulated-network` up to the peers page and the search
+   - Files: `topology.go`, `generator.go`, `simulator.go`
+   - Verify: A-8 and A-9 are settled first. Every simulated speaker is an established session with the model's route count
+7. **Phase: Joined trace** -- one graph from router to origin AS
+   - Tests: the three `graph_joined_test.go` tests
+   - Files: `graph_joined.go`, `handler_graph.go`, the graph buttons in `route_table.templ`, `help.templ`
+   - Verify: A-10 is settled first. `lg-simulated-network` passes whole. The hand-written lab and its saved files are removed in this phase, after the judge's verdict
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -424,6 +486,12 @@ field for it, in the API.
 | The list sits in the looking glass container | A system-wide list of named networks | Only the looking glass uses the names today. A wider home can be chosen when a second user exists |
 | `description` carries the peer's description and `group` the group | Keep `description` as the group and add a new key for the label | The birdwatcher field and the schema both call the free-text label the description. Keeping the wrong meaning under the right name would keep the confusion in every consumer |
 | The last error is in the row's detail | A column | The text is long, and the table must stay readable on a small screen |
+| The simulated routers hold real BGP sessions | Keep injecting rows through the RIB command, as the hand-written lab does | Injection proves the query path only. Real sessions also prove reception, the per-peer counts and the session list, and they are what the owner asked for |
+| The announcements are computed from a topology model | Type them per test | The hand-written lab holds 36 rows whose next-hop-self relationships a person had to get right. A model computes them, and the same model gives the expected answers |
+| Proposed, awaiting the owner: internal routers send their best path for every prefix | Send only eBGP-learned routes, as a plain iBGP peer does | With the plain behaviour the collector cannot know which exit a non-border router uses, and no path can be traced inside the network |
+| Proposed, awaiting the owner: a third graph mode joins the two existing graphs | Leave two graphs and let the reader match the exit router by eye. Replace both graphs with the joined one | Two graphs leave the join, which is the question asked, to the reader. Replacing them removes the two focused views operators already have |
+| Proposed, awaiting the owner: this work sits in this post-release spec | Put it in the release fix as its proof | The fix is proven by two small tests and is nearly written. The network and the joined trace are larger and would hold it back |
+| The trace stops at BGP: router, chosen exit, outside | Model the IGP to show hop-by-hop paths between routers | A collector sees BGP only. Drawing hops it cannot observe would publish a guess |
 | No country or registry columns | Add them from the AS name source | They describe the AS, not the session, and an operator of a collector knows its peers. They can be added when asked for |
 
 ## Known Limitations
