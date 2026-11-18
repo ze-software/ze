@@ -277,6 +277,7 @@ from the module text when it is built.
 | From a `grouping` through `uses` | The `uses` statement's position, in the grouping's own order; a `uses` inside the grouping the same way |
 | A `choice` | The `choice` statement's position; its cases in source order; each case's data nodes in source order |
 | Added by another module through `augment` | After the block's own children, ordered by the augmenting module's name, then by the augment's position in that module, then by the augment's own statement order |
+| Added to a node of a grouping by an `augment` written inside the `uses` | After that node's own children, augment by augment in source order, each in its own statement order; the node keeps the `uses` statement's position |
 | Contributed by a second `-conf` module to a top-level container both define | After the children of the module whose name sorts first, module by module in name order |
 
 The top level follows the same rule: the roots of each `-conf` module in

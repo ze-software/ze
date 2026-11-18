@@ -91,6 +91,26 @@ func TestUsesChildrenAtUsesPosition(t *testing.T) {
 		rootChildren(t, schema, "nested"))
 }
 
+// TestUsesAugmentChildrenAfterTheTargetsOwn: the children an `augment`
+// written inside a `uses` adds to a node of the grouping follow that node's
+// own children, augment by augment in source order, each in its statement
+// order; the node itself keeps the `uses` statement's position in its block.
+// Method: a `uses` whose two augments of one container declare u2, u1 and
+// then a0, against a name order that would put a0 first.
+//
+// PREVENTS: a child added by a uses-local augment having no place, which
+// refuses the schema build, or sorting by name among the node's children.
+func TestUsesAugmentChildrenAfterTheTargetsOwn(t *testing.T) {
+	schema := orderFixtureSchema(t, "order-uses-augment-conf.yang")
+
+	assert.Equal(t, []string{"z", "box", "a"}, rootChildren(t, schema, "holder"))
+	holder, ok := schema.Get("holder").(*ContainerNode)
+	require.True(t, ok, "holder must be a container")
+	box, ok := holder.Get("box").(childLister)
+	require.True(t, ok, "box must be a container")
+	assert.Equal(t, []string{"g2", "g1", "u2", "u1", "a0"}, box.Children())
+}
+
 // TestChoiceCasesDefinitionOrder: a choice's data nodes sit at the choice
 // statement's position, its cases in source order and each case's nodes in
 // source order, in a container and in a list, for a shorthand case and for a
@@ -353,9 +373,33 @@ func TestPositionalListOrderChangesInShippedLists(t *testing.T) {
 	for _, name := range schema.Children() {
 		positionalMeaningChanges(schema.Get(name), definersOf(roots, name), name, changed)
 	}
-	assert.Equal(t, slices.Sorted(maps.Keys(positionalMeaningChangesReviewed)),
-		slices.Sorted(maps.Keys(changed)),
+	// A reviewed list the YANG declares for another system is not judged here:
+	// pppoe-client and xfrm carry ze:os "linux", so the schema of any other
+	// system prunes them (yangToNode) and holds no list to compare. Only that
+	// case is skipped, a path Lookup misses and LookupDeclared still resolves.
+	// A reviewed path no module declares at all stays expected, so a list
+	// renamed or removed fails here and the table cannot go stale.
+	var reviewed []string
+	for _, path := range slices.Sorted(maps.Keys(positionalMeaningChangesReviewed)) {
+		if prunedForThisSystem(schema, path) {
+			continue
+		}
+		reviewed = append(reviewed, path)
+	}
+	require.NotEmpty(t, reviewed, "no reviewed list is in this schema, so the comparison would prove nothing")
+	assert.Equal(t, reviewed, slices.Sorted(maps.Keys(changed)),
 		"lists whose positional meaning changes (slots before -> after): %v", changed)
+}
+
+// prunedForThisSystem reports whether path names a node the YANG declares and
+// this system's schema left out (ze:os): Lookup misses it and LookupDeclared
+// resolves it. A path neither resolves is not pruned, it is absent.
+func prunedForThisSystem(schema *Schema, path string) bool {
+	if _, err := schema.Lookup(path); err == nil {
+		return false
+	}
+	_, err := schema.LookupDeclared(path)
+	return err == nil
 }
 
 // positionalMeaningChanges records, under its path, every keyed list at or

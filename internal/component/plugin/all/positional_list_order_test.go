@@ -214,6 +214,16 @@ func TestPositionalListOrderChangesInFullBuild(t *testing.T) {
 		}
 	}
 	for _, path := range slices.Sorted(maps.Keys(positionalMeaningChangesReviewed)) {
+		// A reviewed list the YANG declares for another system is not judged
+		// here: pppoe-client and xfrm carry ze:os "linux", so the schema of
+		// any other system prunes them. Only that case is skipped, a path
+		// Lookup misses and LookupDeclared still resolves; a path no module
+		// declares falls through and fails below, so the table cannot go stale.
+		if _, lookupErr := schema.Lookup(path); lookupErr != nil {
+			if _, declaredErr := schema.LookupDeclared(path); declaredErr == nil {
+				continue
+			}
+		}
 		if _, found := changed[path]; !found {
 			t.Errorf("%s: positionalMeaningChangesReviewed names it, but its positional slots no longer change", path)
 		}

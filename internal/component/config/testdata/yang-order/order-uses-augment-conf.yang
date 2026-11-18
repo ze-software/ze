@@ -1,0 +1,30 @@
+// Fixture of yang_schema_order_test.go: augments written inside a `uses`.
+// Every block declares its children in an order that is not their name order.
+module order-uses-augment-conf {
+    namespace "urn:ze:test:order-uses-augment";
+    prefix oua;
+
+    // A grouping whose container declares g2 before g1.
+    grouping boxed {
+        container box {
+            leaf g2 { type string; }
+            leaf g1 { type string; }
+        }
+    }
+
+    container holder {
+        leaf z { type string; }
+        uses boxed {
+            // The first augment declares u2 before u1.
+            augment "box" {
+                leaf u2 { type string; }
+                leaf u1 { type string; }
+            }
+            // A second augment of the same node, whose leaf sorts first by name.
+            augment "box" {
+                leaf a0 { type string; }
+            }
+        }
+        leaf a { type string; }
+    }
+}
