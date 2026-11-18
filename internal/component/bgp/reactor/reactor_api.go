@@ -1265,6 +1265,19 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 		}
 	}
 
+	// heldInbound carries, from the remove loop to the add loop, the connection
+	// a restarted peer held without ever having started: one the listener
+	// accepted before the start barrier opened (acceptOrReject). The neighbor
+	// opened it to a peer that stays configured, so the replacement answers it
+	// (handHeldInbound). An entry no add took, because the apply failed first,
+	// is refused on the way out so that no connection is left without an owner.
+	heldInbound := make(map[netip.AddrPort]inboundConnection)
+	defer func() {
+		for _, held := range heldInbound {
+			rejectHeldInbound(held, r.clock)
+		}
+	}()
+
 	// Remove peers with journal recording (undo = re-add with old settings).
 	for _, key := range toRemove {
 		peerKey := key
@@ -1331,6 +1344,14 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 					// dynamic member replaced by a configured peer at its
 					// address left its learned role under the member's name.
 					removal = r.removalLocked(peer, stop)
+					// After removalLocked, which marks the peer stopping:
+					// from here the peer stores no later arrival
+					// (setInboundConnection), so this take is the last.
+					if restarted[peerKey] {
+						if held := peer.takeUnstartedInbound(); held != nil {
+							heldInbound[peerKey] = held
+						}
+					}
 					reactorLogger().Debug(label+": removed peer", "peer", peerKey)
 				}
 				return nil
@@ -1352,6 +1373,10 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 			func() error {
 				if addErr := r.AddPeer(addSettings); addErr != nil {
 					return fmt.Errorf("add peer %s: %w", addSettings.Address, addErr)
+				}
+				if held, kept := heldInbound[addKey]; kept {
+					delete(heldInbound, addKey)
+					r.handHeldInbound(addKey, held)
 				}
 				reactorLogger().Debug(label+": added peer", "peer", addSettings.Address)
 				return nil

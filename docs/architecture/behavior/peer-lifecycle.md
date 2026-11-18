@@ -688,6 +688,29 @@ connection the listener accepts waits in the peer's inbound slot: the peer
 has no session, so `acceptOrReject` stores it with `setInboundConnection`, and
 only the peer's own run loop takes it.
 
+A peer can leave before the barrier opens, and then it has no run loop to
+take the connection and no cleanup to close it. Its owner takes the connection
+with `takeUnstartedInbound`, so a held connection always has one of these
+ends:
+
+| What happens to the held peer | The connection it holds |
+|-------------------------------|-------------------------|
+| The barrier opens | The peer's run loop accepts it and sends OPEN |
+| A reconcile replaces the peer under the same key, because a setting that costs a restart changed (the rebuild before `StartPeers` does this when a plugin's Stage 1 declaration changes the peer) | Moves to the replacement's inbound slot (`handHeldInbound`), which accepts it when the barrier opens. The neighbor sees nothing. If the replacement already holds a later connection, or the add fails, the held one is refused as in the next row |
+| The peer leaves the configuration (a reload, `RemovePeer`, a dynamic member's removal) | Refused with Cease, Connection Rejected (RFC 4486 Section 4), then closed (`stopWithCease`, `rejectHeldInbound`) |
+| The reactor stops, or its start is aborted | Closed with no NOTIFICATION (`Peer.Stop`, `abortStartup`). `StopForRestart` owes silence and shares that path, and no OPEN was exchanged, so the neighbor reads a failed TCP connection and retries |
+
+A peer that is stopping and has no run loop stores no later arrival:
+`setInboundConnection` closes it. That covers the accept that looked the peer
+up just before it was removed.
+
+One window stays: a connection that arrives after the reconcile removed the
+old peer and before it added the replacement finds no peer and is closed, as
+a connection for an unconfigured address is. The neighbor retries.
+
+<!-- source: internal/component/bgp/reactor/peer_inbound_held.go — takeUnstartedInbound, adoptHeldInbound, handHeldInbound, rejectHeldInbound -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go — reconcilePeersJournaled, heldInbound -->
+<!-- source: internal/component/bgp/reactor/peer.go — Peer.Stop, stopWithCease -->
 <!-- source: internal/component/bgp/reactor/reactor.go — startMultiListeners, stopAllListeners, abortStartup, cleanup, newListenerFactory, Reactor.listenersStarted -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go — addPeerLocked listener block -->
 <!-- source: internal/component/bgp/reactor/reactor_connection.go — acceptOrReject -->

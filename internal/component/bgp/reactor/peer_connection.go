@@ -87,12 +87,24 @@ func (p *Peer) clearPendingConnection() {
 
 // setInboundConnection stores a connection that arrived between sessions.
 // An already-selected collision winner takes precedence over a later arrival.
+//
+// A peer that is stopping and has no run loop stores nothing: no run loop will
+// take the connection and no cleanup will close it, so it is closed here. That
+// is the accept that looked the peer up just before it was removed or the
+// daemon stopped (Peer.Stop, takeUnstartedInbound).
 func (p *Peer) setInboundConnection(conn net.Conn) {
 	p.mu.Lock()
 	if p.collisionHandoff {
 		p.mu.Unlock()
 		closeConnQuietly(conn)
 		return
+	}
+	if p.cancel == nil {
+		if p.stopping.Load() {
+			p.mu.Unlock()
+			closeConnQuietly(conn)
+			return
+		}
 	}
 	old := p.storeInboundLocked(&incomingSocket{conn: conn})
 	p.mu.Unlock()

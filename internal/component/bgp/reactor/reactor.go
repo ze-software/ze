@@ -1761,6 +1761,13 @@ func (r *Reactor) abortStartup() {
 		cancel()
 		r.listener = nil
 	}
+	// The listeners opened before the failure, so a peer may hold a connection
+	// one of them accepted (acceptOrReject). No peer started, and this start
+	// will not start one, so each such connection is closed here: nothing
+	// else would ever close it. A plain close, as on the stop (Peer.Stop).
+	for _, peer := range r.peers {
+		discardInbound(peer.takeUnstartedInbound())
+	}
 	r.recentUpdates.Stop()
 	if r.cancel != nil {
 		r.cancel()

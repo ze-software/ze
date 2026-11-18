@@ -2217,6 +2217,15 @@ func (p *Peer) sealSession() {
 }
 
 // Stop signals the peer to stop.
+//
+// A peer with a run loop is canceled, and its cleanup closes what the peer
+// holds. A peer with no run loop (never started, or already cleaned up) has no
+// cleanup to come, so Stop closes the connection its inbound slot holds: a
+// connection the listener accepted before the start barrier opened would
+// otherwise stay open with no owner, and the neighbor would wait on it for an
+// OPEN that never comes. The close is a plain TCP close, with no NOTIFICATION:
+// the daemon stop reaches here too, and StopForRestart owes silence. A caller
+// that de-configures the peer rejects the connection first (stopWithCease).
 func (p *Peer) Stop() {
 	// Stop may precede asynchronous session teardown during configuration removal.
 	// Fence already queued live UPDATEs before another peer can reuse the address.
@@ -2227,7 +2236,9 @@ func (p *Peer) Stop() {
 
 	if cancel != nil {
 		cancel()
+		return
 	}
+	discardInbound(p.takeUnstartedInbound())
 }
 
 // stopWithCease ends the peer the way a configuration change owes it: a Cease
@@ -2267,6 +2278,13 @@ func (p *Peer) stopWithCease(subcode uint8) {
 		// (logNotifyErr), as shutdownNotify also relies on.
 		_ = session.Teardown(subcode, "")
 	}
+	// A peer that never started has no session to tell, but it may hold a
+	// connection the listener accepted before the start barrier opened. The
+	// peer is leaving the configuration, so that connection is refused.
+	// RFC 4486 Section 4, "Connection Rejected" (rejectHeldInbound). A peer the
+	// reconcile restarts holds nothing here: its connection went to the
+	// replacement (reconcilePeersJournaled).
+	rejectHeldInbound(p.takeUnstartedInbound(), p.clock)
 	p.Stop()
 	// The stopped Peer never restarts, so no abort restore can name its
 	// released receipts again.
