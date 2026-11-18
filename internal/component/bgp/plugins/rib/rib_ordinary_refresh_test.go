@@ -17,16 +17,16 @@ import (
 
 // ordinaryRefresh enters the real RIB router with already authenticated engine
 // facts. The producer-capture tests separately prove where those facts originate.
-func ordinaryRefresh(t *testing.T, r *RIBManager, native bool, peer netip.Addr, session uint64, eligible bool, fam family.Family) {
+func ordinaryRefresh(t *testing.T, r *RIBManager, native bool, peer netip.Addr, owner, session uint64, eligible bool, fam family.Family) {
 	t.Helper()
 	if native {
 		message := &bgptypes.RawMessage{RawBytes: []byte{byte(fam.AFI >> 8), byte(fam.AFI), 0, byte(fam.SAFI)}}
 		r.dispatchStructured(&rpc.StructuredEvent{EventType: rpc.EventKindRefresh, PeerAddress: peer.String(),
-			DestinationSession: session, SelectedDestination: eligible, RawMessage: message})
+			PeerOwner: owner, DestinationSession: session, SelectedDestination: eligible, RawMessage: message})
 		return
 	}
 	payload, err := json.Marshal(Event{Type: "refresh", Peer: json.RawMessage(fmt.Sprintf(`{"remote":{"address":%q}}`, peer.String())),
-		DestinationSession: session, SelectedDestination: eligible, AFI: fam.AFI, SAFI: fam.SAFI})
+		PeerOwner: owner, DestinationSession: session, SelectedDestination: eligible, AFI: fam.AFI, SAFI: fam.SAFI})
 	require.NoError(t, err)
 	r.dispatchText(string(payload))
 }
@@ -46,16 +46,28 @@ func TestOrdinaryRefreshReplaysCurrentSelection(t *testing.T) {
 				order <- "selected final receipt"
 				return selectedDispatchAnswer(input, rpc.SelectedWritten), nil
 			}
-			manager, r := startQuiesceRIB(t, ctx, native, peers, send)
+			marker := func(_ context.Context, input rpc.SelectRefreshInput) (*rpc.SelectRefreshOutput, error) {
+				if input.PeerOwner != 196 || input.DestinationSession != 196 ||
+					input.Destination != peers[0].String() || input.Family != "ipv4/unicast" {
+					return nil, fmt.Errorf("refresh lost its original destination scope: %+v", input)
+				}
+				label := "begin final receipt"
+				if input.Action == rpc.SelectedRefreshEnd {
+					label = "end final receipt"
+				}
+				order <- label
+				return selectedRefreshReceipt(input), nil
+			}
+			manager, r := startQuiesceRIB(t, ctx, native, peers, send, marker)
 			route := selectedDispatchRoute(96, 0x9696)
 			require.NoError(t, r.selectedDispatch.publish(&route))
-			ordinaryDestinationState(t, r, native, peers[0], true, true, 196, rpc.ReasonAttached)
+			selectedRefreshState(t, r, native, peers[0], 196, 196)
 			require.NoError(t, manager.DrainEventDelivery(ctx))
 			initial := selectedDispatchAwait(t, ctx, written)
 			selectedDispatchAwait(t, ctx, order)
 			r.dispatchHook = func(command string) { order <- command }
 
-			ordinaryRefresh(t, r, native, peers[0], 196, true, route.key.family)
+			ordinaryRefresh(t, r, native, peers[0], 196, 196, true, route.key.family)
 			require.NoError(t, manager.DrainEventDelivery(ctx))
 			select {
 			case refresh := <-written:
@@ -65,9 +77,9 @@ func TestOrdinaryRefreshReplaysCurrentSelection(t *testing.T) {
 			default:
 				t.Fatal("ordinary refresh replayed SENT history instead of the unchanged current selected route")
 			}
-			require.Equal(t, "request peer 192.0.2.196 borr ipv4/unicast", selectedDispatchAwait(t, ctx, order))
+			require.Equal(t, "begin final receipt", selectedDispatchAwait(t, ctx, order))
 			require.Equal(t, "selected final receipt", selectedDispatchAwait(t, ctx, order))
-			require.Equal(t, "request peer 192.0.2.196 eorr ipv4/unicast", selectedDispatchAwait(t, ctx, order))
+			require.Equal(t, "end final receipt", selectedDispatchAwait(t, ctx, order))
 		})
 	}
 }

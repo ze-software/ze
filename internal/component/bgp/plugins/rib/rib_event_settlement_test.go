@@ -24,13 +24,16 @@ import (
 type quiesceSelectedRequest struct {
 	request *rpc.Request
 	input   rpc.SelectRoutesInput
+	refresh *rpc.SelectRefreshInput
 }
 
 // startQuiesceRIB runs the real registration and SDK loop, then exposes its
-// engine-side Process through the actual manager drain. The fixture owns one
+// engine-side Process through the actual manager drain after runtime-ready has
+// joined SDK activation and initialization. The fixture owns one
 // engine reader and two bounded destination writers and MUST join them at stop.
-func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]netip.Addr, send rpc.SelectRoutesHandler) (*process.ProcessManager, *RIBManager) {
+func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]netip.Addr, send rpc.SelectRoutesHandler, markers ...selectedRefreshSender) (*process.ProcessManager, *RIBManager) {
 	t.Helper()
+	require.LessOrEqual(t, len(markers), 1)
 	pluginEnd, engineEnd := net.Pipe()
 	connection := ipc.NewMuxPluginConn(rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd)))
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib", Encoder: "json"})
@@ -45,7 +48,37 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 	if native {
 		bridge = rpc.NewDirectBridge()
 		bridge.SetSelectRoutes(send)
-		bridge.SetDispatchRPC(func(_ context.Context, method string, _ json.RawMessage) (json.RawMessage, error) {
+		if len(markers) == 1 {
+			bridge.SetDispatchNative(func(work context.Context, method string, raw any) (any, bool, error) {
+				if method != rpc.MethodSelectRefresh {
+					return nil, false, nil
+				}
+				input, valid := raw.(rpc.SelectRefreshInput)
+				if !valid {
+					return nil, true, errors.New("refresh native request has the wrong type")
+				}
+				if err := input.Validate(time.Now()); err != nil {
+					return nil, true, err
+				}
+				output, err := markers[0](work, input)
+				return output, true, err
+			})
+		}
+		bridge.SetDispatchRPC(func(work context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+			if method == rpc.MethodSelectRefresh && len(markers) == 1 {
+				var input rpc.SelectRefreshInput
+				if err := json.Unmarshal(params, &input); err != nil {
+					return nil, err
+				}
+				if err := input.Validate(time.Now()); err != nil {
+					return nil, err
+				}
+				answer, err := markers[0](work, input)
+				if err != nil {
+					return nil, err
+				}
+				return json.Marshal(answer)
+			}
 			answer, err := quiesceRIBEngineAnswer(method)
 			if err != nil {
 				return nil, err
@@ -86,7 +119,13 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 			for {
 				select {
 				case request := <-queue:
-					output, err := send(runtimeCtx, request.input)
+					var output any
+					var err error
+					if request.refresh != nil {
+						output, err = markers[0](runtimeCtx, *request.refresh)
+					} else {
+						output, err = send(runtimeCtx, request.input)
+					}
 					if err != nil {
 						if runtimeCtx.Err() == nil {
 							t.Errorf("selected writer: %v", err)
@@ -129,20 +168,32 @@ func startQuiesceRIB(t *testing.T, ctx context.Context, native bool, peers [2]ne
 				}
 				continue
 			}
-			if request.Method == rpc.MethodDispatchCommand {
-				// DispatchCommand reads the current record-answer grammar;
-				// generic RPC ok is not a command completion receipt.
-				if err := rpc.WriteDocumentAnswer(connection.AnswerWriter(runtimeCtx), request.ID, rpc.AnswerTail{}, nil); err != nil {
+			if request.Method == rpc.MethodSelectRefresh && len(markers) == 1 {
+				var input rpc.SelectRefreshInput
+				if err := json.Unmarshal(request.Params, &input); err != nil {
+					t.Errorf("refresh request: %v", err)
+					return
+				}
+				if err := input.Validate(time.Now()); err != nil {
+					t.Errorf("refresh request: %v", err)
+					return
+				}
+				queue, configured := writers[input.Destination]
+				if !configured {
+					t.Errorf("refresh request has an unconfigured fixture destination %q", input.Destination)
+					return
+				}
+				select {
+				case queue <- quiesceSelectedRequest{request: request, refresh: &input}:
+				case <-runtimeCtx.Done():
 					return
 				}
 				continue
 			}
-			answer, err := quiesceRIBEngineAnswer(request.Method)
-			if err != nil {
-				t.Errorf("RIB engine operation: %v", err)
-				return
-			}
-			if err := connection.SendResult(runtimeCtx, request.ID, answer); err != nil {
+			if err := quiesceRIBAnswerRequest(runtimeCtx, connection, request); err != nil {
+				if runtimeCtx.Err() == nil {
+					t.Errorf("RIB engine operation: %v", err)
+				}
 				return
 			}
 		}
@@ -175,7 +226,28 @@ func quiesceRIBStartup(t *testing.T, ctx context.Context, connection *ipc.Plugin
 		connection.SetBridge(bridge)
 	}
 	require.NoError(t, connection.SendOK(ctx, request.ID))
+	// The final OK precedes SDK bridge activation and OnStarted. Join the
+	// actual runtime-ready receipt before a test can publish selected work;
+	// otherwise a first batch can use the startup mux just as the SDK retires it.
+	require.NoError(t, connection.SendRuntimeReadyServing(ctx, func(request *rpc.Request) error {
+		return quiesceRIBAnswerRequest(ctx, connection, request)
+	}))
 	return declaration
+}
+
+// quiesceRIBAnswerRequest serves the same nested engine calls during startup
+// initialization and runtime, preserving each operation's actual answer frame.
+func quiesceRIBAnswerRequest(ctx context.Context, connection *ipc.PluginConn, request *rpc.Request) error {
+	if request.Method == rpc.MethodDispatchCommand {
+		// DispatchCommand reads the current record-answer grammar;
+		// generic RPC ok is not a command completion receipt.
+		return rpc.WriteDocumentAnswer(connection.AnswerWriter(ctx), request.ID, rpc.AnswerTail{}, nil)
+	}
+	answer, err := quiesceRIBEngineAnswer(request.Method)
+	if err != nil {
+		return err
+	}
+	return connection.SendResult(ctx, request.ID, answer)
 }
 
 // quiesceRIBEngineAnswer acknowledges only the RIB's existing announcements and
