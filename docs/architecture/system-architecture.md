@@ -141,6 +141,12 @@ and exposes its inventory under `ze le`. Shipped builds do not enable `ze_le`.
 <!-- source: cmd/ze/ze_le_register.go -->
 <!-- source: internal/le/le/root/dispatch.go -- Dispatch -->
 
+Root help combines registered root commands with the YANG command tree. Each
+top-level name appears once: a registered root keeps its declared section and
+summary, and YANG verbs without a root declaration appear under Operations
+with their generated summaries.
+<!-- source: cmd/ze/ze_core_usage.go -- zeUsage -->
+
 ---
 
 ## Overview

@@ -19,18 +19,16 @@ func zeUsage() error {
 		return err
 	}
 	cmdEntries := command.HelpEntries(verbTree, nil)
-	verbEntries := make([]helpfmt.HelpEntry, len(cmdEntries))
-	for i, e := range cmdEntries {
-		verbEntries[i] = helpfmt.HelpEntry{Name: e.Name, Desc: e.Desc}
-	}
 
 	sections := []helpfmt.HelpSection{
 		{Title: registry.SectionTitle(registry.SectionOperations)},
 	}
+	rootNames := make(map[string]bool)
 	for _, se := range registry.ListRootBySection() {
 		entries := make([]helpfmt.HelpEntry, len(se.Commands))
 		for i, rc := range se.Commands {
 			entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.ShortHelp}
+			rootNames[rc.Name] = true
 		}
 		title := registry.SectionTitle(se.Section)
 		if title == "" {
@@ -42,7 +40,14 @@ func zeUsage() error {
 			sections = append(sections, helpfmt.HelpSection{Title: title, Entries: entries})
 		}
 	}
-	sections[0].Entries = append(sections[0].Entries, verbEntries...)
+	// A root owns its section and summary even when YANG declares the same
+	// name. Only verbs without a root declaration add another command row.
+	for _, e := range cmdEntries {
+		if rootNames[e.Name] {
+			continue
+		}
+		sections[0].Entries = append(sections[0].Entries, helpfmt.HelpEntry{Name: e.Name, Desc: e.Desc})
+	}
 
 	sections = append(sections, helpfmt.HelpSection{
 		Title: helpOptionsSectionTitle,

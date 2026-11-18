@@ -8,6 +8,11 @@ This page explains the command model. For a live list of every command, run
 `ze help command`. `./le cli catalog update file <destination>` writes the
 Markdown catalog from the same live registries.
 
+`ze help` lists each top-level command name once. A command registered as a
+root keeps its owner's section and summary when the YANG tree also declares
+that name. Other YANG verbs appear under Operations.
+<!-- source: cmd/ze/ze_core_usage.go -- zeUsage -->
+
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
 [Command Equivalents](https://ze-software.net/reference/command-equivalents/) page.
