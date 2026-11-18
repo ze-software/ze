@@ -1,0 +1,926 @@
+From: Ze kernel maintainers
+Subject: [PATCH 13c] ppp: retain exact owner through IPv6 control transmit
+
+PRIVATE SOURCE ONLY after Ze v7.3 + 0001..0005 + reviewed 0007..0011
+successors + frozen 0012/0012a/0013a/0013aa and 0013b. No ioctl dispatch,
+feature bit, or Go activation. Main owns exact composed application, kernel
+compile and native proof; this source packet is not a runtime verdict.
+
+Socket binding remains immutable. TX authority is stamped before LOCAL_OUT,
+survives skb->sk orphaning and extension loss as a copied required bit, and
+is consumed only by the original PPP writer before lower transport. Ordinary
+RX receipts never become TX restrictions. Native IPv6 fragmentation, checksum,
+multicast loopback and generic prelookup protocol feedback remain native.
+Owned route writers, multicast operations and option escape producers use the
+retained original object; numeric labels never authorize a replacement.
+
+--- a/include/net/ppp_control.h
++++ b/include/net/ppp_control.h
+@@ -88,2 +88,18 @@
+ void ppp_control_scrub(struct sk_buff *skb);
++
++/* sk MUST have native syscall, queue, or socket-RCU lifetime throughout the
++ * borrow. Binding is immutable until inet6 cleanup; no numeric lookup.
++ */
++struct ppp_control_owner *ppp_control_sock_owner(const struct sock *sk);
++/* These predicates protect their original-device reads internally. */
++bool ppp_control_sock_dev(const struct sock *sk, const struct net_device *dev);
++struct dst_entry;
++bool ppp_control_sock_dst(const struct sock *sk, const struct dst_entry *dst);
++bool ppp_control_sock_index(const struct sock *sk, int ifindex);
++/* LOCAL_OUT stamps before callbacks can orphan sk. The copied skb bit MUST
++ * keep TX required after extension loss. Only original PPP handoff or a new
++ * physical PPP receive boundary may consume it.
++ */
++int ppp_control_tx_prepare(struct sock *sk, struct sk_buff *skb);
++bool ppp_control_tx_dev(const struct sk_buff *skb, const struct net_device *dev);
+ 
+--- a/net/core/ppp_control.c
++++ b/net/core/ppp_control.c
+@@ -18,2 +18,3 @@
+ #include <net/net_namespace.h>
++#include <net/dst.h>
+ #include <net/ppp_control.h>
+@@ -21,2 +21,3 @@
+ #include <net/sock.h>
++#include <net/ipv6.h>
+ 
+@@ -155,13 +155,20 @@
+ bool ppp_control_owner_live(const struct ppp_control_owner *owner,
+ 			    const struct net_device *dev)
+ {
+ 	struct net_device *original;
+-
+-	if (!owner)
+-		return false;
+-	original = ppp_control_owner_dev(owner);
+-	return dev == original && ppp_control_dev_live(owner, original);
++	bool live;
++
++	if (!owner)
++		return false;
++	/* Some native callers precede their own output RCU section. Protect
++	 * the complete original pointer borrow here, including namespace read.
++	 */
++	rcu_read_lock();
++	original = ppp_control_owner_dev(owner);
++	live = dev == original && ppp_control_dev_live(owner, original);
++	rcu_read_unlock();
++	return live;
+ }
+ EXPORT_SYMBOL_GPL(ppp_control_owner_live);
+ 
+ bool ppp_control_owner_current(const struct ppp_control_owner *owner)
+@@ -213,2 +222,7 @@
+-	if (receipt && receipt->owner)
+-		return receipt->owner == owner && receipt->role == role ? 0 : -EPERM;
++	if (receipt && receipt->owner) {
++		if (receipt->owner != owner || receipt->role != role)
++			return -EPERM;
++		if (role == PPP_CONTROL_TX)
++			skb->ppp_control_tx = 1;
++		return 0;
++	}
+@@ -220,2 +234,4 @@
+ 	receipt->role = role;
++	if (role == PPP_CONTROL_TX)
++		skb->ppp_control_tx = 1;
+ 	return 0;
+@@ -323,6 +323,7 @@
+ void ppp_control_receipt_consume(struct sk_buff *skb)
+ {
+ #if IS_ENABLED(CONFIG_PPP)
++	skb->ppp_control_tx = 0;
+ 	skb_ext_del(skb, SKB_EXT_PPP_CONTROL);
+ #endif
+ }
+@@ -330,2 +330,89 @@
+ EXPORT_SYMBOL_GPL(ppp_control_receipt_consume);
++
++struct ppp_control_owner *ppp_control_sock_owner(const struct sock *sk)
++{
++#if IS_ENABLED(CONFIG_IPV6)
++	if (sk && sk->sk_family == AF_INET6)
++		return smp_load_acquire(&inet6_sk(sk)->ppp_control.owner);
++#endif
++	return NULL;
++}
++EXPORT_SYMBOL_GPL(ppp_control_sock_owner);
++
++bool ppp_control_sock_dev(const struct sock *sk, const struct net_device *dev)
++{
++	struct ppp_control_owner *owner = ppp_control_sock_owner(sk);
++
++	return !owner || ppp_control_owner_live(owner, dev);
++}
++EXPORT_SYMBOL_GPL(ppp_control_sock_dev);
++
++bool ppp_control_sock_dst(const struct sock *sk, const struct dst_entry *dst)
++{
++	struct ppp_control_owner *owner = ppp_control_sock_owner(sk);
++	bool allowed;
++
++	if (!owner)
++		return true;
++	rcu_read_lock();
++	allowed = dst && ppp_control_owner_live(owner, dst_dev_rcu(dst));
++	rcu_read_unlock();
++	return allowed;
++}
++EXPORT_SYMBOL_GPL(ppp_control_sock_dst);
++
++bool ppp_control_sock_index(const struct sock *sk, int ifindex)
++{
++	struct ppp_control_owner *owner = ppp_control_sock_owner(sk);
++	struct net_device *dev;
++	bool allowed;
++
++	if (!owner)
++		return true;
++	rcu_read_lock();
++	dev = ppp_control_owner_dev(owner);
++	allowed = dev && dev->ifindex == ifindex &&
++		  ppp_control_owner_live(owner, dev);
++	rcu_read_unlock();
++	return allowed;
++}
++EXPORT_SYMBOL_GPL(ppp_control_sock_index);
++
++bool ppp_control_tx_dev(const struct sk_buff *skb, const struct net_device *dev)
++{
++#if IS_ENABLED(CONFIG_PPP)
++	const struct ppp_control_receipt *receipt;
++
++	if (!skb->ppp_control_tx)
++		return true;
++	receipt = ppp_control_receipt(skb, PPP_CONTROL_TX);
++	return receipt && ppp_control_owner_live(receipt->owner, dev);
++#else
++	return true;
++#endif
++}
++EXPORT_SYMBOL_GPL(ppp_control_tx_dev);
++
++int ppp_control_tx_prepare(struct sock *sk, struct sk_buff *skb)
++{
++	struct ppp_control_owner *owner = ppp_control_sock_owner(sk);
++#if IS_ENABLED(CONFIG_PPP)
++	const struct ppp_control_receipt *receipt;
++#endif
++
++	if (owner) {
++		if (!ppp_control_owner_current(owner))
++			return -ESTALE;
++		return ppp_control_receipt_set(skb, owner, PPP_CONTROL_TX);
++	}
++#if IS_ENABLED(CONFIG_PPP)
++	if (skb->ppp_control_tx) {
++		receipt = ppp_control_receipt(skb, PPP_CONTROL_TX);
++		if (!receipt || !ppp_control_owner_current(receipt->owner))
++			return -ESTALE;
++	}
++#endif
++	return 0;
++}
++EXPORT_SYMBOL_GPL(ppp_control_tx_prepare);
+ 
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -1034,2 +1034,8 @@
+ 	__u8			tc_depth:2;
++#if IS_ENABLED(CONFIG_PPP)
++	/* Copied headers, independent of active_extensions and skb->sk.
++	 * Kept AFTER native masked fields, especially __mono_tc_offset.
++	 */
++	__u8			ppp_control_tx:1;
++#endif
+ #if defined(CONFIG_NET_SCHED) || defined(CONFIG_NET_XGRESS)
+--- a/net/ipv6/output_core.c
++++ b/net/ipv6/output_core.c
+@@ -8,2 +8,3 @@
+ #include <net/ipv6.h>
++#include <net/ppp_control.h>
+ #include <net/ip6_fib.h>
+@@ -103,4 +103,10 @@
+ int __ip6_local_out(struct net *net, struct sock *sk, struct sk_buff *skb)
+ {
++	int err = ppp_control_tx_prepare(sk, skb);
++
++	if (unlikely(err)) {
++		kfree_skb(skb);
++		return err;
++	}
+ 	ipv6_set_payload_len(ipv6_hdr(skb), skb->len - sizeof(struct ipv6hdr));
+ 	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
+--- a/net/ipv6/ip6_output.c
++++ b/net/ipv6/ip6_output.c
+@@ -46,2 +46,3 @@
+ #include <net/ipv6.h>
++#include <net/ppp_control.h>
+ #include <net/ndisc.h>
+@@ -71,1 +72,6 @@
++	/* POST_ROUTING may have rerouted after ip6_output's first check. */
++	if (unlikely(!ppp_control_tx_dev(skb, dev))) {
++		kfree_skb(skb);
++		return -ESTALE;
++	}
+ 	/* Be paranoid, rather than too clever. */
+@@ -245,4 +245,9 @@
+ 	skb->dev = dev;
+ 
++	if (unlikely(!ppp_control_tx_dev(skb, dev))) {
++		rcu_read_unlock();
++		kfree_skb(skb);
++		return -ESTALE;
++	}
+ 	if (unlikely(!idev || READ_ONCE(idev->cnf.disable_ipv6))) {
+ 		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
+@@ -732,2 +732,5 @@
+ 	skb_ext_copy(to, from);
++#if IS_ENABLED(CONFIG_PPP)
++	to->ppp_control_tx = from->ppp_control_tx;
++#endif
+ 	skb_copy_secmark(to, from);
+@@ -1206,6 +1206,10 @@
+ 	err = (*dst)->error;
+ 	if (err)
+ 		goto out_err_release;
++	if (unlikely(!ppp_control_sock_dst(sk, *dst))) {
++		err = -ESTALE;
++		goto out_err_release;
++	}
+ 
+ #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
+ 	/*
+@@ -1299,1 +1317,6 @@
+-	return xfrm_lookup_route(net, dst, flowi6_to_flowi(fl6), sk, 0);
++	dst = xfrm_lookup_route(net, dst, flowi6_to_flowi(fl6), sk, 0);
++	if (!IS_ERR(dst) && unlikely(!ppp_control_sock_dst(sk, dst))) {
++		dst_release(dst);
++		return ERR_PTR(-ESTALE);
++	}
++	return dst;
+@@ -1372,4 +1372,9 @@
+ 	dst = ip6_sk_dst_check(sk, dst, fl6);
+-	if (dst)
+-		return dst;
++	if (dst) {
++		if (unlikely(!ppp_control_sock_dst(sk, dst))) {
++			dst_release(dst);
++			return ERR_PTR(-ESTALE);
++		}
++		return dst;
++	}
+ 
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -92,2 +92,3 @@
+ #include <linux/netdevice.h>
++#include <net/ppp_control.h>
+ #include <linux/etherdevice.h>
+@@ -3946,6 +3946,11 @@
+ 	unsigned int len;
+ 	int rc;
+ 
++	if (unlikely(!ppp_control_tx_dev(skb, dev))) {
++		dev_core_stats_tx_dropped_inc(dev);
++		kfree_skb(skb);
++		return NETDEV_TX_OK;
++	}
+ 	if (dev_nit_active_rcu(dev))
+ 		dev_queue_xmit_nit(skb, dev);
+ 
+@@ -4860,4 +4860,9 @@
+ 	struct Qdisc *q;
+ 
++	if (unlikely(!ppp_control_tx_dev(skb, dev))) {
++		dev_core_stats_tx_dropped_inc(dev);
++		kfree_skb(skb);
++		return -ESTALE;
++	}
+ 	skb_reset_mac_header(skb);
+ 	skb_assert_len(skb);
+@@ -5764,2 +5775,9 @@
+ 			case XDP_REDIRECT:
++#if IS_ENABLED(CONFIG_PPP)
++				/* Non-skb redirect destinations cannot preserve required
++				 * TX provenance. PASS/TX keep native skb semantics.
++				 */
++				if ((*pskb)->ppp_control_tx)
++					goto out_redir;
++#endif
+ 				err = xdp_do_generic_redirect((*pskb)->dev, *pskb,
+@@ -6098,2 +6116,8 @@
+ another_round:
++	/* Redirect-to-ingress and RX-handler re-entry MUST NOT turn a lost TX
++	 * receipt into ordinary traffic before another PPP receive boundary.
++	 */
++	if (unlikely(!ppp_control_tx_dev(skb, skb->dev))) {
++		goto drop;
++	}
+ 	skb->skb_iif = skb->dev->ifindex;
+--- a/include/linux/netdevice.h
++++ b/include/linux/netdevice.h
+@@ -231,2 +231,3 @@
+ #include <linux/skbuff.h>
++#include <net/ppp_control.h>
+ 
+@@ -5431,2 +5432,7 @@
++	if (unlikely(!ppp_control_tx_dev(skb, dev))) {
++		dev_core_stats_tx_dropped_inc(dev);
++		kfree_skb(skb);
++		return NETDEV_TX_OK;
++	}
+ 	netdev_xmit_set_more(more);
+ 	return ops->ndo_start_xmit(skb, dev);
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -130,2 +130,3 @@
+ #include <net/sock.h>
++#include <net/ppp_control.h>
+ #include <net/proto_memory.h>
+@@ -651,1 +652,3 @@
++	if (!ppp_control_sock_index(sk, ifindex))
++		return -ESTALE;
+ 	WRITE_ONCE(sk->sk_bound_dev_if, ifindex);
+@@ -1324,2 +1327,6 @@
+ 	case SO_REUSEPORT:
++		if (ppp_control_sock_owner(sk)) {
++			ret = -EOPNOTSUPP;
++			break;
++		}
+ 		if (valbool && !sk_is_inet(sk))
+@@ -1498,4 +1498,9 @@
+ 	case SO_ATTACH_REUSEPORT_CBPF: {
+ 		struct sock_fprog fprog;
++
++		if (ppp_control_sock_owner(sk)) {
++			ret = -EOPNOTSUPP;
++			break;
++		}
+ 
+ 		ret = copy_bpf_fprog_from_user(&fprog, optval, optlen);
+@@ -1499,2 +1511,6 @@
+ 	case SO_ATTACH_REUSEPORT_EBPF:
++		if (ppp_control_sock_owner(sk)) {
++			ret = -EOPNOTSUPP;
++			break;
++		}
+ 		ret = -EINVAL;
+@@ -1512,2 +1528,6 @@
+ 	case SO_DETACH_REUSEPORT_BPF:
++		if (ppp_control_sock_owner(sk)) {
++			ret = -EOPNOTSUPP;
++			break;
++		}
+ 		ret = reuseport_detach_prog(sk);
+--- a/net/core/sock_map.c
++++ b/net/core/sock_map.c
+@@ -15,2 +15,3 @@
+ #include <net/udp.h>
++#include <net/ppp_control.h>
+ 
+@@ -226,6 +226,11 @@
+ 	struct sk_psock *psock;
+ 	int ret;
+ 
++	/* Both SOCKMAP and SOCKHASH must refuse before psock/protocol changes:
++	 * their skb-less UDP reader cannot carry original PPP provenance.
++	 */
++	if (ppp_control_sock_owner(sk))
++		return -EOPNOTSUPP;
+ 	stream_verdict = READ_ONCE(progs->stream_verdict);
+ 	if (stream_verdict) {
+ 		stream_verdict = bpf_prog_inc_not_zero(stream_verdict);
+--- a/net/ipv6/ipv6_sockglue.c
++++ b/net/ipv6/ipv6_sockglue.c
+@@ -39,2 +39,3 @@
+ #include <net/ipv6.h>
++#include <net/ppp_control.h>
+ #include <net/ndisc.h>
+@@ -395,2 +395,27 @@
+ 	valbool = (val != 0);
++
++	/* Refuse ownership escapes before either lockless option setters or
++	 * multi-stage multicast helpers can mutate native state.
++	 */
++	if (ppp_control_sock_owner(sk)) {
++		switch (optname) {
++		case IPV6_ADDRFORM:
++		case IPV6_JOIN_ANYCAST:
++		case IPV6_LEAVE_ANYCAST:
++		case MCAST_JOIN_SOURCE_GROUP:
++		case MCAST_LEAVE_SOURCE_GROUP:
++		case MCAST_BLOCK_SOURCE:
++		case MCAST_UNBLOCK_SOURCE:
++		case MCAST_MSFILTER:
++			return -EOPNOTSUPP;
++		case IPV6_V6ONLY:
++			if (!valbool)
++				return -EOPNOTSUPP;
++			break;
++		case IPV6_MULTICAST_IF:
++			if (val && !ppp_control_sock_index(sk, val))
++				return -ESTALE;
++			break;
++		}
++	}
+ 
+@@ -529,2 +555,4 @@
+ 		ifindex = (__force int)ntohl((__force __be32)val);
++		if (ifindex && !ppp_control_sock_index(sk, ifindex))
++			return -ESTALE;
+ 		if (!ifindex) {
+@@ -800,1 +828,6 @@
++		if (pkt.ipi6_ifindex &&
++		    !ppp_control_sock_index(sk, pkt.ipi6_ifindex)) {
++			retv = -ESTALE;
++			break;
++		}
+ 		np->sticky_pktinfo.ipi6_ifindex = pkt.ipi6_ifindex;
+--- a/net/ipv6/raw.c
++++ b/net/ipv6/raw.c
+@@ -39,2 +39,3 @@
+ #include <net/ipv6.h>
++#include <net/ppp_control.h>
+ #include <net/ppp_control_rx.h>
+@@ -929,2 +930,6 @@
+ do_confirm:
++	if (unlikely(!ppp_control_sock_dst(sk, dst))) {
++		err = -ESTALE;
++		goto done;
++	}
+ 	if (msg->msg_flags & MSG_PROBE)
+@@ -994,2 +999,4 @@
+ 	case IPV6_HDRINCL:
++		if (ppp_control_sock_owner(sk))
++			return -EOPNOTSUPP;
+ 		if (sk->sk_type != SOCK_RAW)
+--- a/net/ipv6/route.c
++++ b/net/ipv6/route.c
+@@ -48,2 +48,3 @@
+ #include <net/ipv6.h>
++#include <net/ppp_control.h>
+ #include <net/ip6_fib.h>
+@@ -2951,2 +2952,4 @@
++	if (unlikely(!ppp_control_sock_dst(sk, dst)))
++		return;
+ 	if (confirm_neigh)
+ 		dst_confirm_neigh(dst, daddr);
+@@ -2997,2 +3000,6 @@
+ 		if (nrt6) {
++			if (unlikely(!ppp_control_sock_dst(sk, &nrt6->dst))) {
++				dst_release_immediate(&nrt6->dst);
++				goto out_unlock;
++			}
+ 			rt6_do_update_pmtu(nrt6, mtu);
+@@ -3015,2 +3022,3 @@
+-void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
+-		     int oif, u32 mark, kuid_t uid)
++static void ip6_update_pmtu_sk(struct sk_buff *skb, struct net *net, __be32 mtu,
++			       int oif, u32 mark, kuid_t uid,
++			       const struct sock *sk)
+@@ -3053,3 +3053,3 @@
+ 	if (!dst->error)
+-		__ip6_rt_update_pmtu(dst, NULL, iph, ntohl(mtu), true);
++		__ip6_rt_update_pmtu(dst, sk, iph, ntohl(mtu), true);
+ 	dst_release(dst);
+@@ -3034,1 +3042,7 @@
++/* Protocol-level feedback stays native and carries no socket authority. */
++void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
++		     int oif, u32 mark, kuid_t uid)
++{
++	ip6_update_pmtu_sk(skb, net, mtu, oif, mark, uid, NULL);
++}
+ EXPORT_SYMBOL_GPL(ip6_update_pmtu);
+@@ -3044,2 +3058,2 @@
+-	ip6_update_pmtu(skb, sock_net(sk), mtu, oif, READ_ONCE(sk->sk_mark),
+-			sk_uid(sk));
++	ip6_update_pmtu_sk(skb, sock_net(sk), mtu, oif, READ_ONCE(sk->sk_mark),
++			   sk_uid(sk), sk);
+@@ -3223,2 +3237,2 @@
+-void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
+-		  kuid_t uid)
++static void ip6_redirect_sk(struct sk_buff *skb, struct net *net, int oif,
++			    u32 mark, kuid_t uid, struct sock *sk)
+@@ -3267,3 +3267,3 @@
+ 	dst = ip6_route_redirect(net, &fl6, skb, &ipv6_hdr(skb)->saddr);
+-	rt6_do_redirect(dst, NULL, skb);
++	rt6_do_redirect(dst, sk, skb);
+ 	dst_release(dst);
+@@ -3242,1 +3256,6 @@
++void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
++		  kuid_t uid)
++{
++	ip6_redirect_sk(skb, net, oif, mark, uid, NULL);
++}
+ EXPORT_SYMBOL_GPL(ip6_redirect);
+@@ -3264,2 +3283,2 @@
+-	ip6_redirect(skb, sock_net(sk), skb->dev->ifindex,
+-		     READ_ONCE(sk->sk_mark), sk_uid(sk));
++	ip6_redirect_sk(skb, sock_net(sk), skb->dev->ifindex,
++			READ_ONCE(sk->sk_mark), sk_uid(sk), sk);
+@@ -4323,1 +4342,4 @@
++	if (unlikely(!ppp_control_sock_dst(sk, dst) ||
++		     !ppp_control_sock_dev(sk, skb->dev)))
++		return;
+ 	dst_confirm_neigh(&rt->dst, &ipv6_hdr(skb)->saddr);
+@@ -4442,6 +4442,10 @@
+ 	nrt = ip6_rt_cache_alloc(&res, &msg->dest, NULL);
+ 	if (!nrt)
+ 		goto out;
++	if (unlikely(!ppp_control_sock_dst(sk, &nrt->dst))) {
++		dst_release_immediate(&nrt->dst);
++		goto out;
++	}
+ 
+ 	nrt->rt6i_flags = RTF_GATEWAY|RTF_UP|RTF_DYNAMIC|RTF_CACHE;
+ 	if (on_link)
+--- a/net/ipv6/datagram.c
++++ b/net/ipv6/datagram.c
+@@ -24,2 +24,3 @@
+ #include <net/ipv6.h>
++#include <net/ppp_control.h>
+ #include <net/ppp_control_rx.h>
+@@ -103,2 +104,7 @@
++	if (unlikely(!ppp_control_sock_dst(sk, dst))) {
++		dst_release(dst);
++		err = -ESTALE;
++		goto out;
++	}
+ 	if (fix_sk_saddr) {
+ 		if (ipv6_addr_any(&np->saddr))
+--- a/net/ipv6/mcast.c
++++ b/net/ipv6/mcast.c
+@@ -56,2 +56,3 @@
+ #include <net/ipv6.h>
++#include <net/ppp_control.h>
+ #include <net/protocol.h>
+@@ -198,51 +199,95 @@
+-static int __ipv6_sock_mc_join(struct sock *sk, int ifindex,
+-			       const struct in6_addr *addr, unsigned int mode)
+-{
+-	struct ipv6_pinfo *np = inet6_sk(sk);
+-	struct ipv6_mc_socklist *mc_lst;
+-	struct net *net = sock_net(sk);
+-	struct net_device *dev = NULL;
+-	int err;
+-
+-	if (!ipv6_addr_is_multicast(addr))
+-		return -EINVAL;
+-
+-	for_each_pmc_socklock(np, sk, mc_lst) {
+-		if ((ifindex == 0 || mc_lst->ifindex == ifindex) &&
+-		    ipv6_addr_equal(&mc_lst->addr, addr))
+-			return -EADDRINUSE;
+-	}
+-
+-	mc_lst = sock_kmalloc(sk, sizeof(struct ipv6_mc_socklist), GFP_KERNEL);
+-	if (!mc_lst)
+-		return -ENOMEM;
+-
+-	mc_lst->next = NULL;
+-	mc_lst->addr = *addr;
+-
+-	dev = ip6_mc_find_dev(net, addr, ifindex);
+-	if (!dev) {
+-		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
+-		return -ENODEV;
+-	}
+-
+-	mc_lst->ifindex = dev->ifindex;
+-	mc_lst->sfmode = mode;
+-	RCU_INIT_POINTER(mc_lst->sflist, NULL);
+-
+-	/* now add/increase the group membership on the device */
+-	err = __ipv6_dev_mc_inc(dev, addr, mode);
+-
+-	dev_put(dev);
+-
+-	if (err) {
+-		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
+-		return err;
+-	}
+-
+-	rcu_assign_pointer(mc_lst->next,
+-			   sock_dereference(np->ipv6_mc_list, sk));
+-	rcu_assign_pointer(np->ipv6_mc_list, mc_lst);
+-
+-	return 0;
++/* Native idev reference only for this bounded multicast operation. The
++ * original dev borrow MUST remain under RCU until in6_dev_get completes.
++ * No numeric lookup is permitted for an owned socket, including close.
++ */
++static struct inet6_dev *
++ppp_control_mc_idev(struct ppp_control_owner *owner, int ifindex)
++{
++	struct inet6_dev *idev = NULL;
++	struct net_device *dev;
++
++	rcu_read_lock();
++	dev = ppp_control_owner_dev(owner);
++	if (dev && (!ifindex || ifindex == dev->ifindex) &&
++	    ppp_control_owner_live(owner, dev))
++		idev = in6_dev_get(dev);
++	rcu_read_unlock();
++	return idev ? idev : ERR_PTR(-ESTALE);
++}
++
++/* Consumes one native idev reference, transferring it to a new group on
++ * successful allocation just as __ipv6_dev_mc_inc does for ordinary calls.
++ */
++static int ppp_control_mc_inc(struct inet6_dev *idev,
++			      struct ppp_control_owner *owner,
++			      const struct in6_addr *addr, unsigned int mode);
++
++static int __ipv6_sock_mc_join(struct sock *sk, int ifindex,
++			       const struct in6_addr *addr, unsigned int mode)
++{
++	struct ipv6_pinfo *np = inet6_sk(sk);
++	struct ipv6_mc_socklist *mc_lst;
++	struct net *net = sock_net(sk);
++	struct net_device *dev = NULL;
++	struct inet6_dev *idev;
++	struct ppp_control_owner *owner = ppp_control_sock_owner(sk);
++	int err;
++
++	if (!ipv6_addr_is_multicast(addr))
++		return -EINVAL;
++
++	for_each_pmc_socklock(np, sk, mc_lst) {
++		if ((ifindex == 0 || mc_lst->ifindex == ifindex) &&
++		    ipv6_addr_equal(&mc_lst->addr, addr))
++			return -EADDRINUSE;
++	}
++
++	mc_lst = sock_kmalloc(sk, sizeof(struct ipv6_mc_socklist), GFP_KERNEL);
++	if (!mc_lst)
++		return -ENOMEM;
++
++	mc_lst->next = NULL;
++	mc_lst->addr = *addr;
++
++	if (owner) {
++		idev = ppp_control_mc_idev(owner, ifindex);
++		if (IS_ERR(idev)) {
++			err = PTR_ERR(idev);
++			goto free_list;
++		}
++		mc_lst->ifindex = idev->dev->ifindex;
++		mc_lst->sfmode = mode;
++		RCU_INIT_POINTER(mc_lst->sflist, NULL);
++		/* mc_inc consumes the existing native idev reference. */
++		err = ppp_control_mc_inc(idev, owner, addr, mode);
++		goto joined;
++	}
++	dev = ip6_mc_find_dev(net, addr, ifindex);
++	if (!dev) {
++		sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
++		return -ENODEV;
++	}
++
++	mc_lst->ifindex = dev->ifindex;
++	mc_lst->sfmode = mode;
++	RCU_INIT_POINTER(mc_lst->sflist, NULL);
++
++	/* now add/increase the group membership on the device */
++	err = __ipv6_dev_mc_inc(dev, addr, mode);
++
++	dev_put(dev);
++
++joined:
++	if (err)
++		goto free_list;
++
++	rcu_assign_pointer(mc_lst->next,
++			   sock_dereference(np->ipv6_mc_list, sk));
++	rcu_assign_pointer(np->ipv6_mc_list, mc_lst);
++
++	return 0;
++
++free_list:
++	sock_kfree_s(sk, mc_lst, sizeof(*mc_lst));
++	return err;
+ }
+@@ -258,3 +303,5 @@
+ {
++	if (ppp_control_sock_owner(sk))
++		return -EOPNOTSUPP;
+ 	return __ipv6_sock_mc_join(sk, ifindex, addr, mode);
+ }
+@@ -312,25 +312,41 @@
+ static void __ipv6_sock_mc_drop(struct sock *sk, struct ipv6_mc_socklist *mc_lst)
+ {
+ 	struct net *net = sock_net(sk);
+ 	struct net_device *dev;
+-
+-	dev = dev_get_by_index(net, mc_lst->ifindex);
+-	if (dev) {
+-		struct inet6_dev *idev = in6_dev_get(dev);
+-
+-		ip6_mc_leave_src(sk, mc_lst, idev);
+-
+-		if (idev) {
+-			__ipv6_dev_mc_dec(idev, &mc_lst->addr);
+-			in6_dev_put(idev);
+-		}
+-
+-		dev_put(dev);
+-	} else {
+-		ip6_mc_leave_src(sk, mc_lst, NULL);
+-	}
+-
++	struct ppp_control_owner *owner = ppp_control_sock_owner(sk);
++
++	if (owner) {
++		struct inet6_dev *idev;
++
++		idev = ppp_control_mc_idev(owner, mc_lst->ifindex);
++		if (IS_ERR(idev)) {
++			/* Native retirement removes old groups; free local state. */
++			ip6_mc_leave_src(sk, mc_lst, NULL);
++		} else {
++			ip6_mc_leave_src(sk, mc_lst, idev);
++			__ipv6_dev_mc_dec(idev, &mc_lst->addr);
++			in6_dev_put(idev);
++		}
++		goto free_list;
++	}
++	dev = dev_get_by_index(net, mc_lst->ifindex);
++	if (dev) {
++		struct inet6_dev *idev = in6_dev_get(dev);
++
++		ip6_mc_leave_src(sk, mc_lst, idev);
++
++		if (idev) {
++			__ipv6_dev_mc_dec(idev, &mc_lst->addr);
++			in6_dev_put(idev);
++		}
++
++		dev_put(dev);
++	} else {
++		ip6_mc_leave_src(sk, mc_lst, NULL);
++	}
++
++free_list:
+ 	atomic_sub(sizeof(*mc_lst), &sk->sk_omem_alloc);
+ 	kfree_rcu(mc_lst, rcu);
+ }
+ 
+@@ -369,1 +432,3 @@
++	if (ppp_control_sock_owner(sk))
++		return -EOPNOTSUPP;
+ 	source = &((struct sockaddr_in6 *)&pgsr->gsr_source)->sin6_addr;
+@@ -579,4 +579,6 @@
+ 	int i, err;
+ 
++	if (ppp_control_sock_owner(sk))
++		return -EOPNOTSUPP;
+ 	group = &((struct sockaddr_in6 *)&gsf->gf_group)->sin6_addr;
+ 
+@@ -952,46 +1019,53 @@
+-static int __ipv6_dev_mc_inc(struct net_device *dev,
+-			     const struct in6_addr *addr, unsigned int mode)
+-{
+-	struct inet6_dev *idev;
+-	struct ifmcaddr6 *mc;
+-
+-	/* we need to take a reference on idev */
+-	idev = in6_dev_get(dev);
+-	if (!idev)
+-		return -EINVAL;
+-
+-	mutex_lock(&idev->mc_lock);
+-
+-	if (READ_ONCE(idev->dead)) {
+-		mutex_unlock(&idev->mc_lock);
+-		in6_dev_put(idev);
+-		return -ENODEV;
+-	}
+-
+-	for_each_mc_mclock(idev, mc) {
+-		if (ipv6_addr_equal(&mc->mca_addr, addr)) {
+-			WRITE_ONCE(mc->mca_users, mc->mca_users + 1);
+-			ip6_mc_add_src(idev, &mc->mca_addr, mode, 0, NULL, 0);
+-			mutex_unlock(&idev->mc_lock);
+-			in6_dev_put(idev);
+-			return 0;
+-		}
+-	}
+-
+-	mc = mca_alloc(idev, addr, mode);
+-	if (!mc) {
+-		mutex_unlock(&idev->mc_lock);
+-		in6_dev_put(idev);
+-		return -ENOMEM;
+-	}
+-
+-	rcu_assign_pointer(mc->next, mc_dereference(idev->mc_list, idev));
+-	rcu_assign_pointer(idev->mc_list, mc);
+-
+-	mld_del_delrec(idev, mc);
+-	igmp6_group_added(mc);
+-	inet6_ifmcaddr_notify(dev, mc, RTM_NEWMULTICAST);
+-	mutex_unlock(&idev->mc_lock);
+-
+-	return 0;
++static int ppp_control_mc_inc(struct inet6_dev *idev,
++			      struct ppp_control_owner *owner,
++			      const struct in6_addr *addr, unsigned int mode)
++{
++	struct net_device *dev = idev->dev;
++	struct ifmcaddr6 *mc;
++
++	mutex_lock(&idev->mc_lock);
++
++	if (READ_ONCE(idev->dead) ||
++	    (owner && !ppp_control_owner_live(owner, dev))) {
++		mutex_unlock(&idev->mc_lock);
++		in6_dev_put(idev);
++		return -ENODEV;
++	}
++
++	for_each_mc_mclock(idev, mc) {
++		if (ipv6_addr_equal(&mc->mca_addr, addr)) {
++			WRITE_ONCE(mc->mca_users, mc->mca_users + 1);
++			ip6_mc_add_src(idev, &mc->mca_addr, mode, 0, NULL, 0);
++			mutex_unlock(&idev->mc_lock);
++			in6_dev_put(idev);
++			return 0;
++		}
++	}
++
++	mc = mca_alloc(idev, addr, mode);
++	if (!mc) {
++		mutex_unlock(&idev->mc_lock);
++		in6_dev_put(idev);
++		return -ENOMEM;
++	}
++
++	rcu_assign_pointer(mc->next, mc_dereference(idev->mc_list, idev));
++	rcu_assign_pointer(idev->mc_list, mc);
++
++	mld_del_delrec(idev, mc);
++	igmp6_group_added(mc);
++	inet6_ifmcaddr_notify(dev, mc, RTM_NEWMULTICAST);
++	mutex_unlock(&idev->mc_lock);
++
++	return 0;
++}
++
++static int __ipv6_dev_mc_inc(struct net_device *dev,
++			     const struct in6_addr *addr, unsigned int mode)
++{
++	struct inet6_dev *idev = in6_dev_get(dev);
++
++	if (!idev)
++		return -EINVAL;
++	return ppp_control_mc_inc(idev, NULL, addr, mode);
+ }
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -650,1 +650,3 @@
++	/* Match the existing udp6 carrier: IPv4 lookup is never an escape. */
++	sock->sk->sk_ipv6only = 1;
+ 	err = sock_bindtoindex(sock->sk, request.ifindex, true);
+@@ -1670,1 +1672,9 @@
++	/* Original unit writer lock is held. Consume before compression,
++	 * queueing or nested transport, never in generic device output.
++	 */
++	if (unlikely(!ppp_control_tx_dev(skb, netdev_from_priv(ppp)))) {
++		kfree_skb(skb);
++		goto out;
++	}
++	ppp_control_receipt_consume(skb);
+ 	if (unlikely(ppp_prepare_tx_skb(ppp, &skb)))
+--- a/net/ipv6/udp.c
++++ b/net/ipv6/udp.c
+@@ -1780,2 +1780,6 @@
+ do_confirm:
++	if (unlikely(!ppp_control_sock_dst(sk, dst))) {
++		err = -ESTALE;
++		goto out;
++	}
+ 	if (msg->msg_flags & MSG_PROBE)
+@@ -1834,3 +1838,6 @@
+ {
++	if (level == SOL_UDP && optname == UDP_ENCAP &&
++	    ppp_control_sock_owner(sk))
++		return -EOPNOTSUPP;
+ 	if (level == SOL_UDP || level == SOL_SOCKET)
+ 		return udp_lib_setsockopt(sk, level, optname,
+--- a/include/net/ip6_route.h
++++ b/include/net/ip6_route.h
+@@ -5,2 +5,3 @@
+ #include <net/addrconf.h>
++#include <net/ppp_control.h>
+ #include <net/flow.h>
+@@ -255,4 +255,8 @@
+ 	struct ipv6_pinfo *np = inet6_sk(sk);
+ 
++	if (unlikely(!ppp_control_sock_dst(sk, dst))) {
++		dst_release(dst);
++		return;
++	}
+ 	np->dst_cookie = rt6_get_cookie(dst_rt6_info(dst));
+ 	sk_setup_caps(sk, dst);

@@ -1,0 +1,82 @@
+From: Ze kernel maintainers
+Subject: [PATCH 13d] ppp: enable the complete original-unit IPv6 constructor
+
+PRIVATE SOURCE ONLY. Apply only after the complete frozen 0012/0012a,
+0013a/0013aa/0013b/0013c set and canonical 0001..0005, 0007..0011c.
+This final dispatcher enables native lab proof. A compiled capability bit
+declares implementation availability, not executed native or release acceptance.
+No partial foundation, modular IPv6 configuration, or Go fallback is enabled.
+
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -113,3 +113,3 @@
+ #define PPP_OWNER_CAPTURE (1U << 8)
+-/* Bit9 is reserved for complete control-socket enforcement. */
++#define PPP_OWNER_CONTROL6 (1U << 9)
+ #define PPP_OWNER_EXACT_ADDR_PAIR (1U << 10)
+@@ -152,3 +152,3 @@
+ /* Input only; successful ioctl return is a new CLOEXEC|NONBLOCK fd, even 0.
+- * Reserved, NOT dispatched until complete IPv6 producer enforcement lands.
++ * Available only with complete original-unit IPv6 control enforcement.
+  */
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -817,5 +817,6 @@
+ 		support.features |= PPP_OWNER_ADDR4 | PPP_OWNER_ROUTE4;
+ 	if (IS_BUILTIN(CONFIG_IPV6))
+-		support.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6;
++		support.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6 |
++				    PPP_OWNER_CONTROL6;
+ 	/* Compiled availability includes a module; this is not a loaded,
+ 	 * live transport receipt and does not authorize an operation.
+@@ -831,6 +832,8 @@
+ 	return copy_to_user(argp, &support, sizeof(support)) ? -EFAULT : 0;
+ }
+ 
++static long ppp_control_socket_ioctl(struct file *file, void __user *argp);
++
+ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
+ 	struct ppp_file *pf;
+@@ -842,6 +845,9 @@
+ 	if (cmd == PPPIOCGSUPPORT)
+ 		return ppp_support_ioctl(file, argp);
+ 
++	if (cmd == PPPIOCSOCKETOWNER)
++		return ppp_control_socket_ioctl(file, argp);
++
+ 	/* This command takes RTNL alone: ppp_mutex -> RTNL already exists. */
+ 	if (cmd == PPPIOCGOWNER)
+ 		return ppp_owner_ioctl(file, argp);
+@@ -1311,5 +1317,6 @@
+ 		owner.features |= PPP_OWNER_ADDR4 | PPP_OWNER_ROUTE4;
+ 	if (IS_BUILTIN(CONFIG_IPV6))
+-		owner.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6;
++		owner.features |= PPP_OWNER_ADDR6 | PPP_OWNER_ROUTE6 |
++				  PPP_OWNER_CONTROL6;
+ unlock:
+ 	rtnl_unlock();
+@@ -1445,11 +1452,10 @@
+ 	return owner;
+ }
+ 
+-/* Foundation only: Phase 13 must add the dispatcher and positive feature bit.
++/* Complete original-unit control; no numeric device identity grants custody.
+  * No faulting user copy, socket release, fput or fd publication runs under RTNL.
+  */
+-static long __maybe_unused
+-ppp_control_socket_ioctl(struct file *file, void __user *argp)
++static long ppp_control_socket_ioctl(struct file *file, void __user *argp)
+ {
+ 	struct ppp_control_socket request;
+ 	struct ppp_control_owner *owner;
+@@ -1482,6 +1488,9 @@
+ 	default:
+ 		return -EPROTONOSUPPORT;
+ 	}
++	/* The feature declaration and constructor require the same built-in family. */
++	if (!IS_BUILTIN(CONFIG_IPV6))
++		return -EAFNOSUPPORT;
+ 	rtnl_lock();
+ 	pf = file->private_data;
+ 	if (!pf || pf->kind != INTERFACE)

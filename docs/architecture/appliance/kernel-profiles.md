@@ -311,10 +311,12 @@ Its core mask is SETLINK, ALIAS, CONNECT and BRIDGE. ADDR4/ROUTE4 and
 ADDR6/ROUTE6 are advertised only when the respective address family is built
 in. CAPTURE is declared when PPPoX is compiled, including as a module; that
 does not prove a module is loaded or that a transport exists. A full runtime
-profile carrying both families and PPPoX declares bits0–8 plus bit10 (1535).
-Bit10 is declared only if a supported address family is built in. Bit9 remains
-absent until complete original-resource control-socket enforcement is present.
-<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- PPP_OWNER_EXACT_ADDR_PAIR, ppp_support_ioctl -->
+profile carrying both families and PPPoX declares bits0–10 (2047).
+Bit10 is declared only if a supported address family is built in.
+CONTROL6 bit9 requires built-in IPv6 and the complete original-unit receive,
+fragment, transmit and multicast implementation. This is compiled support;
+native acceptance and release acceptance require their own evidence.
+<!-- source: gokrazy/kernel/patches/0013d-ppp-control-activation.patch -- PPP_OWNER_CONTROL6, ppp_support_ioctl -->
 
 The global result is for capability checking only. It never authorizes a
 mutation or replaces the exact live creator, channel or transport probes below.
@@ -344,14 +346,17 @@ file attached to the same unit is refused; a true duplicate remains useful.
 | 6 | CONNECT | Exact channel/original-unit-file connect and disconnect |
 | 7 | BRIDGE | Exact original channel-file pair bridge and unbridge |
 | 8 | CAPTURE | Atomic original PPPoX channel capture into an unbound file |
+| 9 | CONTROL6 | Native ICMPv6 raw and UDP6 sockets bound to the original PPP unit |
 | 10 | EXACT_ADDR_PAIR | Exact retained LOCAL/ADDRESS/prefix deletion; preserve other IPv4 pairs |
 <!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- PPP_OWNER_EXACT_ADDR_PAIR, original-resource capability bits -->
+<!-- source: gokrazy/kernel/patches/0013d-ppp-control-activation.patch -- PPP_OWNER_CONTROL6 -->
 
 Only built-in address families are advertised. The unit probe advertises bits
-0–7 as implemented and bit10 when either family is built in (full mask1279);
+0–7 as implemented, bit9 with built-in IPv6 and bit10 when either family is
+built in (full mask1791);
 the live channel probe `PPPIOCGCHANOWNER` advertises bits
 6–7.
-<!-- source: gokrazy/kernel/patches/0011c-ppp-exact-address-pair-delete.patch -- ppp_owner_ioctl, PPP_OWNER_EXACT_ADDR_PAIR -->
+<!-- source: gokrazy/kernel/patches/0013d-ppp-control-activation.patch -- ppp_owner_ioctl, PPP_OWNER_CONTROL6 -->
 
 Live CAPTURE support is confirmed by the actual transport's non-mutating
 `PPPIOCGTRANSPORTOWNER` probe, whose 20-byte layout is u32 abi/features,
@@ -423,6 +428,117 @@ The native session alias stamp is also a guarded writer. These requirements
 do not claim that this ABI covers IPv6 carrier socket binding, multicast
 membership or packet I/O; those actual consumers need their own authority
 proof before shared PPP integration is accepted.
+
+The complete IPv6 control constructor uses `PPPIOCSOCKETOWNER` at ioctl
+number 43 with a 32-byte input: u32 abi/kind, s32 unit/ifindex, u32 flags and
+three reserved u32 fields. Flags and reserved fields are zero. The constructor
+supports native ICMPv6 raw (kind1) and UDP6 (kind2) sockets in the original
+unit namespace, using ordinary userspace security checks. Success returns a new
+nonblocking, close-on-exec socket descriptor; descriptor zero is valid.
+The complete composed source dispatches this ioctl (`0x4020742b`) and advertises
+CONTROL6 bit9 on global42 and live unit51 when IPv6 is built in. Modular or
+unavailable IPv6 returns EAFNOSUPPORT before construction. The original creator,
+namespace, permission, lifetime and IPv6-only checks remain mandatory.
+<!-- source: gokrazy/kernel/patches/0012-ppp-control-owner-foundation.patch -- ppp_control_socket, ppp_control_socket_ioctl -->
+<!-- source: gokrazy/kernel/patches/0013d-ppp-control-activation.patch -- PPPIOCSOCKETOWNER, ppp_control_socket_ioctl, ppp_support_ioctl, ppp_owner_ioctl -->
+
+The constructor also requires the caller to be in the original unit's current
+network namespace. A foreign caller receives EXDEV under the first RTNL lock,
+before capability checks, owner acquisition or socket creation.
+<!-- source: gokrazy/kernel/patches/0013da-ppp-control-current-namespace.patch -- ppp_control_socket_ioctl -->
+
+The live control owner retains the logical PPP allocation without retaining
+the creator file or a netdevice reference that delays unregister. Retirement
+permanently removes device publication, waits a grace period, then releases
+the logical PPP and provider references in core-owned work. Later socket or
+fragment references retain only the small core wrapper; they cannot postpone
+PPP teardown or form a packet-to-PPP-queue ownership cycle. Fragment accounting
+covers that wrapper, not the transient retirement-work backlog. A permanent
+unit latch records namespace departure and retirement from creation onward.
+Packet receipts distinguish receive provenance from transmit restrictions;
+their ownership survives extension sharing and copy-on-write. Socket lookup,
+receive-copy, final output, multicast cleanup and all applicable fragment
+queues must enforce that authority before the constructor can be enabled.
+
+The receive preparation uses the existing original PPP unit's native IPv6
+input after its final namespace scrub. That new physical input supersedes any
+outer PPP transport provenance. Owned ICMPv6, DHCP server-port traffic and
+extension or fragment candidates retain a receipt; ordinary direct TCP and
+other UDP traffic remain untagged. The native IPv6 stack still validates and
+reassembles packets. No second PPP reader or replacement wire parser is added.
+
+Both local IPv6 and conntrack fragment queues retain the exact nullable PPP
+owner and receive/transmit role, including global-address keys whose numeric
+ingress index is zero. The existing XFRM gathering path uses those same
+conntrack queues. Their native copy paths preserve receipts, and completion
+checks the retained head's custody. Queue accounting includes retained owners
+and extension storage alongside the existing XFRM scope and policy charges.
+
+The control-socket contract keeps ICMPv6 and UDP sockets IPv6-only.
+It supports ordinary IPv6 packet options, errors, path MTU, SO_REUSEADDR and
+basic multicast join/leave on the original PPP unit. A join obtains the native
+IPv6 device object from that retained unit while protected; leave and close
+use that object too. Retirement cleanup frees local membership bookkeeping
+without resolving the saved index against a replacement device.
+
+Transmit captures the socket owner before LOCAL_OUT can orphan or reroute
+the packet. A copied header bit keeps that requirement when an extension is
+lost. Route output, postrouting completion, device handoff and redirect into
+receive check the actual device. Native IPv6 fragments copy both the receipt
+and the required bit. The original PPP writer checks again and consumes the
+receipt before compression, queueing or lower transport, so ordinary forwarded
+traffic and nested PPP transports keep their native behavior.
+
+Owned socket PMTU, redirect, neighbor confirmation and route-cache writers
+check their actual target against the original unit. Generic ICMP protocol
+feedback before socket lookup remains native, including feedback for ordinary
+forwarded WAN traffic. Receiving an ICMP packet on PPP does not give an old
+socket authority over an independently selected route.
+
+This constructor deliberately refuses IPv4 conversion, clearing V6ONLY,
+HDRINCL, UDP encapsulation callbacks, SO_REUSEPORT and reuseport-BPF attachment,
+SOCKMAP/SOCKHASH protocol replacement, source-specific multicast/filtering and
+anycast options before they mutate state. Generic XDP redirect of a packet
+still requiring original-PPP transmit custody also refuses before a non-skb
+destination can discard that custody; XDP PASS and same-device TX remain native.
+Plain sockets retain their existing options. These are the control constructor's
+supported operations, not a promise of all Linux socket extensions.
+
+The final activation patch is admitted only with the complete reviewed receive,
+fragment, transmit and multicast source set. It enables matching-kernel native
+proof, including useful original traffic and exact replacement discrimination.
+Its compiled declaration does not prove those native results or release acceptance.
+<!-- source: gokrazy/kernel/patches/0013d-ppp-control-activation.patch -- complete-source prerequisites, compiled declaration -->
+
+The receive preparation checks an owned socket's immutable logical PPP binding
+against the packet's retained RX receipt and actual ingress device before UDP6
+hash selection, score comparison, early demux, GRO lookup, multicast cloning,
+raw selection or queue admission. A prefetched, BPF-selected or reuseport-selected
+socket that fails this check cannot consume the packet; ordinary eligible lookup
+continues. Tuple-only lookups without a packet cannot select an owned socket.
+Unowned sockets retain the native selection behavior.
+<!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- compute_score, udp6_lib_lookup4, udp6_lib_lookup_skb, __udp6_lib_lookup_owner, __udp6_lib_demux_lookup, udpv6_rcv, ipv6_raw_deliver -->
+
+Receive-copy checks the retained receipt and current original owner again.
+It does not read the queued packet's device field: UDP reuses that storage for
+accounting scratch. Invalid peeked datagrams are removed through their native
+queue-accounting path; a retired owned socket returns ESTALE before delivering
+an old queue entry. The common UDP receive actor receives the same check.
+<!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- ppp_control_rx_match, udpv6_recvmsg, rawv6_recvmsg, udp_read_skb -->
+
+Received ICMP errors preserve their RX receipt through the native error clone.
+Fresh local errors and path-MTU notifications receive a TX receipt from the
+original live socket binding. Error-queue and path-MTU dequeue check that role
+and owner before copying. The native checksum, extension, error reporting and
+ancillary-message paths remain in place.
+<!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- ipv6_icmp_error, ipv6_local_error, ipv6_local_rxpmtu, ipv6_recv_error, ipv6_recv_rxpmtu -->
+
+These receive guards form part of the complete control-socket contract with
+transmit and multicast enforcement, owned route/cache writer guards for PMTU
+and redirects, IPv6-only sockets and refusal of owned reuseport, socket-map
+and family-escape operations before their native effects. The compiled
+capability declaration does not establish native or release acceptance.
+<!-- source: gokrazy/kernel/patches/0013b-ppp-control-ipv6-receive.patch -- private source preconditions, receive-only scope -->
 
 ## Runtime requirements
 

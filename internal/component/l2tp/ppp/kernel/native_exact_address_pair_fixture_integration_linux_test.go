@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/appliance/kernel-profiles.md -- exact original address pairs
 // Related: native_owner_guard_integration_linux_test.go -- actual creator/unit/ACK fixture
-// Test-local0011c UAPI. No production provider or name/procfs configuration write.
+// Test-local0011c UAPI with complete Source13 masks. No production provider or name/procfs configuration write.
 
 package kernel_test
 
@@ -22,9 +22,9 @@ import (
 )
 
 const nativeExactAddrPairBit = 1 << 10
-const nativeExactAddrReservedControlBit = 1 << 9
-const nativeExactAddrUnitMask = 1279
-const nativeExactAddrGlobalMask = 1535
+const nativeExactAddrControlBit = 1 << 9
+const nativeExactAddrUnitMask = 1791
+const nativeExactAddrGlobalMask = 2047
 
 type nativeExactAddrTuple struct {
 	family int
@@ -68,8 +68,8 @@ func nativeExactAddrProbe(t *testing.T, fixture *nativeOwnerFixture, family int)
 	if unit.features&want != want {
 		t.Fatalf("unit51 lacks exact-pair plus family receipt: got%#x, need%#x", unit.features, want)
 	}
-	if unit.features&nativeExactAddrReservedControlBit != 0 {
-		t.Fatal("unit51 advertised reserved control bit9")
+	if unit.features&nativeExactAddrControlBit == 0 {
+		t.Fatal("unit51 lacks complete control-socket capability bit9")
 	}
 	if unit.features != nativeExactAddrUnitMask {
 		t.Fatalf("unit51 mask=%#x, want current full mask%#x", unit.features, nativeExactAddrUnitMask)
@@ -87,8 +87,8 @@ func nativeExactAddrProbe(t *testing.T, fixture *nativeOwnerFixture, family int)
 	if support.abi != nativeOwnerABI || support.reserved0 != 0 || support.reserved1 != 0 || support.features&want != want {
 		t.Fatalf("global42 lacks exact-pair plus family declaration: %+v, need%#x", support, want)
 	}
-	if support.features&nativeExactAddrReservedControlBit != 0 {
-		t.Fatal("global42 advertised reserved control bit9")
+	if support.features&nativeExactAddrControlBit == 0 {
+		t.Fatal("global42 lacks complete control-socket capability bit9")
 	}
 	if support.features != nativeExactAddrGlobalMask {
 		t.Fatalf("global42 mask=%#x, want current full mask%#x", support.features, nativeExactAddrGlobalMask)

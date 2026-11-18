@@ -1,7 +1,7 @@
 //go:build integration && linux
 
 // Design: docs/architecture/appliance/kernel-profiles.md -- PPP global compiled ABI
-// Native test-local UAPI for composed0011b+0011c. No product Go API or prior owner fixture.
+// Native test-local UAPI for complete Source13. No product Go API or prior owner fixture.
 // This declaration never substitutes for live creator/channel/transport probes.
 
 package kernel_test
@@ -79,12 +79,12 @@ func nativePPPGlobalSupportRequire(t *testing.T, fd int) nativePPPGlobalSupportR
 	}
 	// The matching registered runtime profile requires both native families
 	// and PPPoE/L2TP built in. A reduced compiled profile is not this carrier.
-	want := uint32(nativePPPGlobalSupportCore | nativePPPGlobalSupportIPv4 | nativePPPGlobalSupportIPv6 | nativePPPGlobalSupportCapture | nativePPPGlobalSupportExactAddr)
+	want := uint32(nativePPPGlobalSupportCore | nativePPPGlobalSupportIPv4 | nativePPPGlobalSupportIPv6 | nativePPPGlobalSupportCapture | nativePPPGlobalSupportControl | nativePPPGlobalSupportExactAddr)
 	if reply.features != want {
 		t.Fatalf("compiled feature mask=%#x, want exact full runtime mask %#x", reply.features, want)
 	}
-	if reply.features&nativePPPGlobalSupportControl != 0 {
-		t.Fatal("bit9 advertised before complete control-socket enforcement")
+	if reply.features&nativePPPGlobalSupportControl == 0 {
+		t.Fatal("full Source13 profile lacks complete control-socket capability bit9")
 	}
 	return reply
 }

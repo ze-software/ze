@@ -1,0 +1,69 @@
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -1923,10 +1923,14 @@
+ 		goto out;
+ 	}
+ 
++	err = register_netdevice_notifier(&ppp_control_notifier);
++	if (err)
++		goto out_net;
++
+ 	err = register_chrdev(PPP_MAJOR, "ppp", &ppp_device_fops);
+ 	if (err) {
+ 		pr_err("failed to register PPP device (%d)\n", err);
+-		goto out_net;
++		goto out_notifier;
+ 	}
+ 
+ 	err = class_register(&ppp_class);
+@@ -1939,21 +1943,19 @@
+ 		goto out_class;
+ 	}
+ 
+-	err = register_netdevice_notifier(&ppp_control_notifier);
+-	if (err)
+-		goto out_link;
+-
+ 	/* not a big deal if we fail here :-) */
+ 	device_create(&ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
+ 
+ 	return 0;
+ 
+-out_link:
+-	rtnl_link_unregister(&ppp_link_ops);
+ out_class:
+ 	class_unregister(&ppp_class);
+ out_chrdev:
+ 	unregister_chrdev(PPP_MAJOR, "ppp");
++out_notifier:
++	unregister_pernet_device(&ppp_net_ops);
++	unregister_netdevice_notifier(&ppp_control_notifier);
++	goto out;
+ out_net:
+ 	unregister_pernet_device(&ppp_net_ops);
+ out:
+@@ -4276,11 +4278,11 @@
+ 	if (atomic_read(&ppp_unit_count) || atomic_read(&channel_count))
+ 		pr_err("PPP: removing module but units remain!\n");
+ 	rtnl_link_unregister(&ppp_link_ops);
+-	unregister_netdevice_notifier(&ppp_control_notifier);
+ 	unregister_chrdev(PPP_MAJOR, "ppp");
+ 	device_destroy(&ppp_class, MKDEV(PPP_MAJOR, 0));
+ 	class_unregister(&ppp_class);
+ 	unregister_pernet_device(&ppp_net_ops);
++	unregister_netdevice_notifier(&ppp_control_notifier);
+ 	rcu_barrier(); /* wait for RCU callbacks before module unload */
+ }
+ 
+--- a/include/net/ppp_control.h
++++ b/include/net/ppp_control.h
+@@ -14,6 +14,9 @@
+ 
+ /* Unpublished socket attaches once. Cleanup detaches before freeing sk.
+  * The list owns no socket ref; its lock excludes final socket cleanup.
++ * Phase 13 MUST refuse IPV6_ADDRFORM on an owned socket before that option
++ * reaches inet6_cleanup_sock: conversion of a live socket MUST NOT unbind
++ * its original authority. Apply the same rule to any family/type escape.
+  */
+ struct ppp_control_binding {
+ 	struct ppp_control_owner *owner;

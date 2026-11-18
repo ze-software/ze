@@ -11,3 +11,11 @@
 0011a-pppox-capture-permission-correction.patch
 0011b-ppp-global-support-query.patch
 0011c-ppp-exact-address-pair-delete.patch
+0012-ppp-control-owner-foundation.patch
+0012a-ppp-control-owner-init-order.patch
+0013a-ppp-control-rx-fragments.patch
+0013aa-ppp-control-retire-edge.patch
+0013b-ppp-control-ipv6-receive.patch
+0013c-ppp-control-ipv6-transmit.patch
+0013d-ppp-control-activation.patch
+0013da-ppp-control-current-namespace.patch

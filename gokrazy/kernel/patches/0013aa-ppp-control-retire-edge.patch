@@ -1,0 +1,201 @@
+From: Ze kernel maintainers
+Subject: [PATCH 13aa] ppp: detach logical custody at permanent retirement
+
+PRIVATE ADDITIVE LIFETIME CORRECTION after frozen 0012, 0012a and 0013a.
+No dispatcher, feature bit or Go consumer is enabled. Exact predecessors
+remain unchanged for independent review and composition.
+
+Packet-held wrappers must not retain the entire retired PPP allocation or
+form skb -> owner -> PPP -> file.xq -> skb cycles. Permanent retirement
+removes device publication and schedules exactly one grace-period/work
+release of the logical PPP/provider edge. Dead packets retain only core
+wrapper state. Their fragment charge does not claim to bound transient
+retirement-work backlog. No guessed PPP auxiliary footprint is introduced.
+
+--- a/include/net/ppp_control.h
++++ b/include/net/ppp_control.h
+@@ -37,4 +37,6 @@
+ /* Caller transfers one logical PPP object ref only on success. release
+- * runs in sleeping context, never under RTNL or a socket/PPP spinlock.
+- * The provider remains pinned until release returns into core code.
++ * runs once AFTER permanent retirement and a grace period, in core work.
++ * It never runs under RTNL or a socket/PPP spinlock. The work owns a wrapper
++ * ref and provider pin until release returns; later dead packet/socket refs
++ * retain only the core wrapper, not PPP, a device or a namespace.
+  */
+@@ -53,4 +55,5 @@
+ /* Caller owns a reference. current protects the original dev namespace read
+- * with its own RCU section; dev is borrowed and its internals need RCU/RTNL.
++ * with its own RCU section. dev returns NULL after retirement; its ENTIRE
++ * borrow must stay inside RCU/RTNL. A wrapper ref alone is not a dev lease.
+  * Neither helper resolves a numeric label or acquires a netdevice reference.
+  */
+--- a/net/core/ppp_control.c
++++ b/net/core/ppp_control.c
+@@ -23,3 +23,3 @@
+ 	refcount_t refs;
+-	struct net_device *dev;
++	struct net_device __rcu *dev;
+ 	struct net *net;
+@@ -31,4 +31,5 @@
+ 	bool retired;
+ 	struct rcu_head rcu;
++	struct rcu_head retire_rcu;
+ 	struct work_struct release_work;
+ };
+@@ -37,21 +37,34 @@
+ static void ppp_control_release_work(struct work_struct *work)
+ {
+ 	struct ppp_control_owner *owner;
++	struct module *provider;
+ 
+ 	owner = container_of(work, struct ppp_control_owner, release_work);
++	provider = owner->provider;
+ 	owner->release(owner->private);
+-	/* Provider code has returned. Core owns the remainder of this callback. */
+-	module_put(owner->provider);
+-	kfree(owner);
++	/* Recursive queue purges may put packet refs. The work self-ref keeps
++	 * core state alive until provider code has returned completely.
++	 */
++	owner->private = NULL;
++	owner->release = NULL;
++	owner->provider = NULL;
++	module_put(provider);
++	ppp_control_owner_put(owner);
+ }
+ 
+-static void ppp_control_release_rcu(struct rcu_head *rcu)
++static void ppp_control_retire_rcu(struct rcu_head *rcu)
+ {
+ 	struct ppp_control_owner *owner;
+ 
+-	owner = container_of(rcu, struct ppp_control_owner, rcu);
++	owner = container_of(rcu, struct ppp_control_owner, retire_rcu);
+ 	schedule_work(&owner->release_work);
+ }
++
++static void ppp_control_free_rcu(struct rcu_head *rcu)
++{
++	/* Final reclamation MUST NOT consult provider, PPP, dev or net. */
++	kfree(container_of(rcu, struct ppp_control_owner, rcu));
++}
+ 
+ struct ppp_control_owner *
+ ppp_control_owner_create(struct net_device *dev, void *private,
+@@ -83,3 +83,3 @@
+ 	refcount_set(&owner->refs, 1);
+-	owner->dev = dev;
++	RCU_INIT_POINTER(owner->dev, dev);
+ 	/* Comparison only: a base-owner net ref would prevent pernet teardown. */
+@@ -110,7 +110,7 @@
+ void ppp_control_owner_put(struct ppp_control_owner *owner)
+ {
+ 	if (owner && refcount_dec_and_test(&owner->refs))
+-		call_rcu(&owner->rcu, ppp_control_release_rcu);
++		call_rcu(&owner->rcu, ppp_control_free_rcu);
+ }
+ EXPORT_SYMBOL_GPL(ppp_control_owner_put);
+ 
+@@ -121,11 +121,23 @@
+ 	if (!owner)
+ 		return;
++	ASSERT_RTNL();
+ 	spin_lock_bh(&owner->lock);
++	if (owner->retired) {
++		spin_unlock_bh(&owner->lock);
++		return;
++	}
++	/* Take this BEFORE the caller can drop publication/base custody. */
++	ppp_control_owner_get(owner);
+ 	WRITE_ONCE(owner->retired, true);
++	rcu_assign_pointer(owner->dev, NULL);
+ 	list_for_each_entry(binding, &owner->sockets, link) {
+ 		WRITE_ONCE(binding->sk->sk_err, ESTALE);
+ 		binding->sk->sk_error_report(binding->sk);
+ 	}
+ 	spin_unlock_bh(&owner->lock);
++	/* Distinct heads: this work can finish while unrelated dead packet
++	 * refs remain, and its final put may itself schedule wrapper reclaim.
++	 */
++	call_rcu(&owner->retire_rcu, ppp_control_retire_rcu);
+ }
+ EXPORT_SYMBOL_GPL(ppp_control_owner_retire);
+@@ -131,11 +155,19 @@
++static bool ppp_control_dev_live(const struct ppp_control_owner *owner,
++				 const struct net_device *dev)
++{
++	return dev && !READ_ONCE(owner->retired) &&
++		READ_ONCE(dev->reg_state) == NETREG_REGISTERED &&
++		net_eq(owner->net, dev_net(dev));
++}
++
+ bool ppp_control_owner_live(const struct ppp_control_owner *owner,
+ 			    const struct net_device *dev)
+ {
+-	/* Caller protects dev's namespace read with RCU or RTNL. Its allocation
+-	 * is retained by the owner's logical PPP reference, not netdev_hold.
+-	 */
+-	return owner && dev == owner->dev && !READ_ONCE(owner->retired) &&
+-		READ_ONCE(dev->reg_state) == NETREG_REGISTERED &&
+-		net_eq(owner->net, dev_net(dev));
++	struct net_device *original;
++
++	if (!owner)
++		return false;
++	original = ppp_control_owner_dev(owner);
++	return dev == original && ppp_control_dev_live(owner, original);
+ }
+ EXPORT_SYMBOL_GPL(ppp_control_owner_live);
+@@ -165,10 +165,12 @@
+ bool ppp_control_owner_current(const struct ppp_control_owner *owner)
+ {
++	struct net_device *original;
+ 	bool live;
+ 
+ 	if (!owner)
+ 		return false;
+ 	rcu_read_lock();
+-	live = ppp_control_owner_live(owner, owner->dev);
++	original = ppp_control_owner_dev(owner);
++	live = ppp_control_dev_live(owner, original);
+ 	rcu_read_unlock();
+ 	return live;
+@@ -181,5 +181,7 @@
+ ppp_control_owner_dev(const struct ppp_control_owner *owner)
+ {
+-	return owner ? owner->dev : NULL;
++	if (!owner)
++		return NULL;
++	return rcu_dereference_check(owner->dev, lockdep_rtnl_is_held());
+ }
+ EXPORT_SYMBOL_GPL(ppp_control_owner_dev);
+@@ -174,7 +211,10 @@
+ struct net *ppp_control_owner_net_get(const struct ppp_control_owner *owner)
+ {
++	struct net_device *original;
++
+ 	ASSERT_RTNL();
+-	if (!ppp_control_owner_live(owner, owner->dev))
++	original = ppp_control_owner_dev(owner);
++	if (!ppp_control_dev_live(owner, original))
+ 		return NULL;
+ 	return maybe_get_net(owner->net);
+ }
+@@ -218,13 +218,15 @@
+ int ppp_control_bind(struct ppp_control_binding *binding,
+ 		     struct ppp_control_owner *owner, struct sock *sk)
+ {
++	struct net_device *original;
+ 	int err = -ESTALE;
+ 
+ 	ASSERT_RTNL();
+ 	if (binding->owner)
+ 		return -EBUSY;
+ 	spin_lock_bh(&owner->lock);
+-	if (!ppp_control_owner_live(owner, owner->dev))
++	original = ppp_control_owner_dev(owner);
++	if (!ppp_control_dev_live(owner, original))
+ 		goto out;
+ 	ppp_control_owner_get(owner);
+ 	binding->sk = sk;

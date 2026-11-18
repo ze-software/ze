@@ -1,0 +1,22 @@
+From: Ze kernel maintainers
+Subject: [PATCH 13da] ppp: refuse control construction from a foreign namespace
+
+PRIVATE SOURCE ONLY after the exact complete Source13 set and 0013d.
+Mirror the original-unit probe's current network namespace check before
+capability checks, logical owner acquisition or socket creation. A creator
+file retained across setns must not create a socket in its former namespace.
+All frozen predecessors remain unchanged. No native acceptance is claimed.
+
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -1510,6 +1510,10 @@
+ 	if (ppp->control_retired || ppp_validate_owner(dev, file) ||
+ 	    request.unit != pf->index || request.ifindex != dev->ifindex)
+ 		goto unlock;
++	if (!net_eq(dev_net(dev), current->nsproxy->net_ns)) {
++		err = -EXDEV;
++		goto unlock;
++	}
+ 	if (!ns_capable(dev_net(dev)->user_ns, CAP_NET_ADMIN)) {
+ 		err = -EPERM;
+ 		goto unlock;

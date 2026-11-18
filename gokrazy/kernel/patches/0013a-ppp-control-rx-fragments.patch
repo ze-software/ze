@@ -1,0 +1,309 @@
+From: Ze kernel maintainers
+Subject: [PATCH 13a] ppp: preserve original control provenance through IPv6 fragments
+
+PRIVATE SOURCE PIECE. Apply after the exact Ze v7.3 series and frozen
+0012 + 0012a. No constructor dispatch or capability bit 9 is activated.
+Socket eligibility/copy and TX/multicast enforcement are separate pieces;
+none of them may activate until the complete set is reviewed and proven.
+
+Stamp the existing original PPP IPv6 receive producer after its final scrub.
+Keep direct TCP and non-DHCP UDP untagged. Native ICMPv6 and extension/fragment
+candidates retain provenance before native validation, never a second parser.
+Fragment keys keep the nullable exact owner and RX/TX role even when native
+GLOBAL-address keys clear iif. Existing Ze XFRM key and memory custody remain.
+
+--- a/include/net/ppp_control.h
++++ b/include/net/ppp_control.h
+@@ -48,4 +48,12 @@
+ bool ppp_control_owner_live(const struct ppp_control_owner *owner,
+ 			    const struct net_device *dev);
++/* Caller owns a reference. current protects the original dev namespace read
++ * with its own RCU section; dev is borrowed and its internals need RCU/RTNL.
++ * Neither helper resolves a numeric label or acquires a netdevice reference.
++ */
++bool ppp_control_owner_current(const struct ppp_control_owner *owner);
++struct net_device *
++ppp_control_owner_dev(const struct ppp_control_owner *owner);
++unsigned int ppp_control_owner_size(const struct ppp_control_owner *owner);
+ /* RTNL + live original owner required; returns an owned short net lease,
+  * or NULL. The owner itself MUST NOT pin its unit's namespace lifetime.
+@@ -65,2 +74,5 @@
+ const struct ppp_control_receipt *
++ppp_control_receipt_any(const struct sk_buff *skb);
++/* any returns only an active, nonempty RX/TX receipt, borrowed from skb. */
++const struct ppp_control_receipt *
+ ppp_control_receipt(const struct sk_buff *skb, enum ppp_control_role role);
+--- a/net/core/ppp_control.c
++++ b/net/core/ppp_control.c
+@@ -129,4 +129,30 @@
+ EXPORT_SYMBOL_GPL(ppp_control_owner_live);
+ 
++bool ppp_control_owner_current(const struct ppp_control_owner *owner)
++{
++	bool live;
++
++	if (!owner)
++		return false;
++	rcu_read_lock();
++	live = ppp_control_owner_live(owner, owner->dev);
++	rcu_read_unlock();
++	return live;
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_current);
++
++struct net_device *
++ppp_control_owner_dev(const struct ppp_control_owner *owner)
++{
++	return owner ? owner->dev : NULL;
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_dev);
++
++unsigned int ppp_control_owner_size(const struct ppp_control_owner *owner)
++{
++	return owner ? ksize(owner) : 0;
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_size);
++
+ struct net *ppp_control_owner_net_get(const struct ppp_control_owner *owner)
+ {
+@@ -210,13 +236,23 @@
+ const struct ppp_control_receipt *
+-ppp_control_receipt(const struct sk_buff *skb, enum ppp_control_role role)
++ppp_control_receipt_any(const struct sk_buff *skb)
+ {
+ #if IS_ENABLED(CONFIG_PPP)
+ 	const struct ppp_control_receipt *receipt;
+ 
+ 	receipt = skb_ext_find(skb, SKB_EXT_PPP_CONTROL);
+-	if (receipt && receipt->owner && receipt->role == role)
++	if (receipt && receipt->owner &&
++	    (receipt->role == PPP_CONTROL_RX || receipt->role == PPP_CONTROL_TX))
+ 		return receipt;
+ #endif
+ 	return NULL;
+ }
++EXPORT_SYMBOL_GPL(ppp_control_receipt_any);
++
++const struct ppp_control_receipt *
++ppp_control_receipt(const struct sk_buff *skb, enum ppp_control_role role)
++{
++	const struct ppp_control_receipt *receipt = ppp_control_receipt_any(skb);
++
++	return receipt && receipt->role == role ? receipt : NULL;
++}
+ EXPORT_SYMBOL_GPL(ppp_control_receipt);
+@@ -290,5 +290,4 @@
+ 	struct ipv6hdr header, *ip6h;
+ 	struct udphdr udp, *uh;
+-	struct icmp6hdr icmp, *ih;
+ 
+ 	ip6h = skb_header_pointer(skb, 0, sizeof(header), &header);
+@@ -300,4 +300,6 @@
+ 	case IPPROTO_ICMPV6:
+-		ih = skb_header_pointer(skb, sizeof(header), sizeof(icmp), &icmp);
+-		return ih && ih->icmp6_type == 133; /* Router Solicitation */
++		/* Native RS, error/PMTU feedback and other ICMP controls retain
++		 * provenance before the native protocol/filter selects a consumer.
++		 */
++		return true;
+ 	case IPPROTO_HOPOPTS:
+--- a/include/net/inet_frag.h
++++ b/include/net/inet_frag.h
+@@ -11,2 +11,3 @@
+ #include <net/xfrm_scope.h>
++#include <net/ppp_control.h>
+ 
+@@ -65,4 +65,7 @@
+ 	u32		iif;
+ 	struct xfrm_frag_context xfrm;
++	/* Retained by the queue; never replaced with a current iif lookup. */
++	struct ppp_control_owner *ppp_owner;
++	u32 ppp_role;
+ };
+ 
+--- a/include/net/ipv6_frag.h
++++ b/include/net/ipv6_frag.h
+@@ -5,2 +5,3 @@
+ #include <linux/kernel.h>
++#include <linux/overflow.h>
+ #include <net/addrconf.h>
+@@ -38,2 +38,34 @@
+ #if IS_ENABLED(CONFIG_IPV6)
++/* Both native callers zero the entire comparison key first, including its
++ * padding. Do not copy receipt padding into a byte-compared hash key.
++ */
++static inline bool ip6frag_ppp_key(struct frag_v6_compare_key *key,
++				 const struct sk_buff *skb)
++{
++	const struct ppp_control_receipt *receipt = ppp_control_receipt_any(skb);
++
++	if (!receipt)
++		return true;
++	if (!ppp_control_owner_current(receipt->owner))
++		return false;
++	key->ppp_owner = receipt->owner;
++	key->ppp_role = receipt->role;
++	return true;
++}
++
++/* skb_morph/clone and both fragment paths preserve the original head's
++ * extensions. Verify that custody before exposing a completed datagram.
++ */
++static inline bool ip6frag_ppp_reassembled(const struct inet_frag_queue *q,
++					 const struct sk_buff *skb)
++{
++	const struct ppp_control_receipt *receipt = ppp_control_receipt_any(skb);
++
++	if (!q->key.v6.ppp_owner)
++		return !receipt;
++	return receipt && receipt->owner == q->key.v6.ppp_owner &&
++		receipt->role == q->key.v6.ppp_role &&
++		ppp_control_owner_current(receipt->owner);
++}
++
+ static inline void ip6frag_init(struct inet_frag_queue *q, const void *a)
+@@ -38,2 +73,9 @@
+ 	inet_frag_xfrm_context_get(q, &q->key.v6.xfrm);
++	if (q->key.v6.ppp_owner) {
++		ppp_control_owner_get(q->key.v6.ppp_owner);
++		if (check_add_overflow(q->extra_mem,
++				       ppp_control_owner_size(q->key.v6.ppp_owner),
++				       &q->extra_mem))
++			q->extra_mem = UINT_MAX;
++	}
+ 	fq->ecn = 0;
+@@ -88,6 +88,7 @@
+ static inline void ip6frag_free(struct inet_frag_queue *q)
+ {
+ 	inet_frag_xfrm_context_put(&q->key.v6.xfrm);
++	ppp_control_owner_put(q->key.v6.ppp_owner);
+ }
+ 
+ static inline u32 ip6frag_key_hashfn(const void *data, u32 len, u32 seed)
+--- a/net/ipv6/reassembly.c
++++ b/net/ipv6/reassembly.c
+@@ -97,4 +97,6 @@
+ 	if (!inet_frag_xfrm_context_init(&key.xfrm, skb))
+ 		return NULL;
++	if (!ip6frag_ppp_key(&key, skb))
++		return NULL;
+ 
+ 	if (!(ipv6_addr_type(&hdr->daddr) & (IPV6_ADDR_MULTICAST |
+@@ -283,4 +283,6 @@
+ 	if (!reasm_data)
+ 		goto out_oom;
++	if (!ip6frag_ppp_reassembled(&fq->q, skb))
++		goto out_fail;
+ 
+ 	payload_len = -skb_network_offset(skb) -
+--- a/net/ipv6/netfilter/nf_conntrack_reasm.c
++++ b/net/ipv6/netfilter/nf_conntrack_reasm.c
+@@ -162,4 +162,6 @@
+ 	if (!inet_frag_xfrm_context_init(&key.xfrm, skb))
+ 		return NULL;
++	if (!ip6frag_ppp_key(&key, skb))
++		return NULL;
+ 
+ 	if (!(ipv6_addr_type(&hdr->daddr) & (IPV6_ADDR_MULTICAST |
+@@ -352,4 +352,6 @@
+ 	if (!reasm_data)
+ 		goto err;
++	if (!ip6frag_ppp_reassembled(&fq->q, skb))
++		goto err;
+ 
+ 	payload_len = -skb_network_offset(skb) -
+--- a/net/ipv4/inet_fragment.c
++++ b/net/ipv4/inet_fragment.c
+@@ -570,20 +570,45 @@
+ 	struct sk_buff *last = q->fragments_tail;
+-#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++#if defined(CONFIG_XFRM_FRAGMENT_GUARD) || IS_ENABLED(CONFIG_PPP)
+ 	unsigned int extra_mem, charge = 0;
++#if IS_ENABLED(CONFIG_PPP)
++	bool extension_charged = false;
++#endif
+ 
++#ifdef CONFIG_XFRM_FRAGMENT_GUARD
+ 	/* Inactive allocated slots can still own receipts after shared
+ 	 * deletion. Charge their retained bytes too, exactly as final put does.
+ 	 */
+ 	if (skb->active_extensions &&
+ 	    __skb_ext_exist(skb->extensions, SKB_EXT_XFRM_RAW_ROUTE)) {
+ 		struct skb_ext *ext = skb->extensions;
+ 		const struct xfrm_raw_route *raw;
+ 
+ 		raw = (void *)ext + (ext->offset[SKB_EXT_XFRM_RAW_ROUTE] << 3);
+ 		if (check_add_overflow(skb_ext_allocation_size(),
+ 				       xfrm_policy_receipt_size(raw->policy), &charge))
+ 			return IPFRAG_OVERLAP;
++#if IS_ENABLED(CONFIG_PPP)
++		extension_charged = true;
++#endif
+ 	}
++#endif
++#if IS_ENABLED(CONFIG_PPP)
++	/* A shared deletion can leave allocated inactive PPP custody. Charge
++	 * that owner's retained bytes too; the destructor still owns them.
++	 */
++	if (skb->active_extensions &&
++	    __skb_ext_exist(skb->extensions, SKB_EXT_PPP_CONTROL)) {
++		struct skb_ext *ext = skb->extensions;
++		const struct ppp_control_receipt *receipt;
++
++		receipt = (void *)ext + (ext->offset[SKB_EXT_PPP_CONTROL] << 3);
++		if (!extension_charged)
++			charge = skb_ext_allocation_size();
++		if (check_add_overflow(charge,
++				       ppp_control_owner_size(receipt->owner), &charge))
++			return IPFRAG_OVERLAP;
++	}
++#endif
+ 	if (check_add_overflow(q->extra_mem, charge, &extra_mem))
+ 		return IPFRAG_OVERLAP;
+ #endif
+@@ -651,2 +676,2 @@
+-#ifdef CONFIG_XFRM_FRAGMENT_GUARD
++#if defined(CONFIG_XFRM_FRAGMENT_GUARD) || IS_ENABLED(CONFIG_PPP)
+ 	/* Charge only successful insertion, even when the allocation is shared.
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -2404,2 +2404,28 @@
++/* The existing unit's receive producer owns its identity. Do not install a
++ * second PPP reader or recover authority from a device name/index.
++ */
++static int ppp_control_rx_stamp(struct ppp *ppp, struct sk_buff *skb)
++{
++	struct ppp_control_owner *owner;
++	int err = 0;
++
++	rcu_read_lock();
++	owner = rcu_dereference(ppp->control_owner);
++	if (!owner || !ppp_control_rx_candidate(skb))
++		goto out;
++	if (!ppp_control_owner_try_get(owner)) {
++		err = -ESTALE;
++		goto out;
++	}
++	if (!ppp_control_owner_live(owner, skb->dev))
++		err = -ESTALE;
++	else
++		err = ppp_control_receipt_set(skb, owner, PPP_CONTROL_RX);
++	ppp_control_owner_put(owner);
++out:
++	rcu_read_unlock();
++	return err;
++}
++
+ static void
+ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
+@@ -3087,4 +3087,10 @@
+ 			skb_scrub_packet(skb, !net_eq(ppp->ppp_net,
+ 						      dev_net(dev)));
++			/* This actual new PPP input supersedes outer transport
++			 * provenance, including nested L2TP over another PPP unit.
++			 */
++			ppp_control_receipt_consume(skb);
++			if (npi == NP_IPV6 && ppp_control_rx_stamp(ppp, skb))
++				goto err;
+ 			netif_rx(skb);
+ 		}

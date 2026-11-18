@@ -1,0 +1,689 @@
+From: Ze kernel maintainers
+Subject: [PATCH 13B] ipv6: constrain PPP control receive selection and delivery
+
+PRIVATE SOURCE ONLY. Pinned Linux v7.3 + frozen 0012/0012a/0013a.
+No constructor dispatch, capability bit 9, Go change, build or native proof.
+Requires coordinated 13C IPv6-only/option/sockmap restrictions and actual
+PMTU/redirect route-writer guards before activation. Unowned sockets retain
+native selection, checksum, extension, copy, error and PMTU behavior.
+
+--- a/net/ipv6/udp.c
++++ b/net/ipv6/udp.c
+@@ -37,6 +37,7 @@
+ #include <trace/events/udp.h>
+ 
+ #include <net/addrconf.h>
++#include <net/ppp_control_rx.h>
+ #include <net/aligned_data.h>
+ #include <net/ndisc.h>
+ #include <net/protocol.h>
+@@ -131,12 +132,15 @@
+ compute_score(struct sock *sk, const struct net *net,
+ 	      const struct in6_addr *saddr, __be16 sport,
+ 	      const struct in6_addr *daddr, unsigned short hnum,
+-	      int dif, int sdif)
++	      int dif, int sdif, const struct sk_buff *owner_skb)
+ {
+ 	int bound_dev_if, score;
+ 	struct inet_sock *inet;
+ 	bool dev_match;
+ 
++	if (!ppp_control_rx_eligible(sk, owner_skb))
++		return -1;
++
+ 	if (!net_eq(sock_net(sk), net) ||
+ 	    udp_sk(sk)->udp_port_hash != hnum ||
+ 	    sk->sk_family != PF_INET6)
+@@ -197,7 +201,8 @@
+ 				     const struct in6_addr *saddr, __be16 sport,
+ 				     const struct in6_addr *daddr,
+ 				     unsigned int hnum, int dif, int sdif,
+-				     const struct udp_table *udptable)
++				     const struct udp_table *udptable,
++				     const struct sk_buff *owner_skb)
+ {
+ 	unsigned int slot = udp_hashfn(net, hnum, udptable->mask);
+ 	struct udp_hslot *hslot = &udptable->hash[slot];
+@@ -206,7 +211,7 @@
+ 
+ 	sk_for_each_rcu(sk, &hslot->head) {
+ 		score = compute_score(sk, net,
+-				      saddr, sport, daddr, hnum, dif, sdif);
++				      saddr, sport, daddr, hnum, dif, sdif, owner_skb);
+ 		if (score > badness) {
+ 			result = sk;
+ 			badness = score;
+@@ -221,7 +226,7 @@
+ 		const struct in6_addr *saddr, __be16 sport,
+ 		const struct in6_addr *daddr, unsigned int hnum,
+ 		int dif, int sdif, struct udp_hslot *hslot2,
+-		struct sk_buff *skb)
++		struct sk_buff *skb, const struct sk_buff *owner_skb)
+ {
+ 	struct sock *sk, *result;
+ 	int score, badness;
+@@ -233,7 +238,7 @@
+ 		need_rescore = false;
+ rescore:
+ 		score = compute_score(need_rescore ? result : sk, net, saddr,
+-				      sport, daddr, hnum, dif, sdif);
++				      sport, daddr, hnum, dif, sdif, owner_skb);
+ 		if (score > badness) {
+ 			badness = score;
+ 
+@@ -252,6 +257,12 @@
+ 				continue;
+ 			}
+ 
++			if (!IS_ERR(result) &&
++			    !ppp_control_rx_eligible(result, owner_skb)) {
++				result = sk;
++				continue;
++			}
++
+ 			/* Fall back to scoring if group has connections */
+ 			if (!reuseport_has_conns(sk))
+ 				return result;
+@@ -278,7 +289,8 @@
+ 				     const struct in6_addr *saddr, __be16 sport,
+ 				     const struct in6_addr *daddr,
+ 				     unsigned int hnum, int dif, int sdif,
+-				     struct udp_table *udptable)
++				     struct udp_table *udptable,
++				     const struct sk_buff *owner_skb)
+ {
+ 	return NULL;
+ }
+@@ -291,7 +303,8 @@
+ 				     const struct in6_addr *saddr, __be16 sport,
+ 				     const struct in6_addr *daddr,
+ 				     unsigned int hnum, int dif, int sdif,
+-				     struct udp_table *udptable)
++				     struct udp_table *udptable,
++				     const struct sk_buff *owner_skb)
+ {
+ 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
+ 	const struct hlist_nulls_node *node;
+@@ -307,7 +320,8 @@
+ begin:
+ 	udp_lrpa_for_each_entry_rcu(up, node, &hslot4->nulls_head) {
+ 		sk = (struct sock *)up;
+-		if (inet6_match(net, sk, saddr, daddr, ports, dif, sdif))
++		if (ppp_control_rx_eligible(sk, owner_skb) &&
++		    inet6_match(net, sk, saddr, daddr, ports, dif, sdif))
+ 			return sk;
+ 	}
+ 
+@@ -342,10 +356,11 @@
+ #endif /* CONFIG_BASE_SMALL */
+ 
+ /* rcu_read_lock() must be held */
+-struct sock *__udp6_lib_lookup(const struct net *net,
++static struct sock *__udp6_lib_lookup_owner(const struct net *net,
+ 			       const struct in6_addr *saddr, __be16 sport,
+ 			       const struct in6_addr *daddr, __be16 dport,
+-			       int dif, int sdif, struct sk_buff *skb)
++			       int dif, int sdif, struct sk_buff *skb,
++			       const struct sk_buff *owner_skb)
+ {
+ 	struct udp_table *udptable = net->ipv4.udp_table;
+ 	unsigned short hnum = ntohs(dport);
+@@ -358,7 +373,7 @@
+ 
+ 	if (udp_has_hash4(hslot2)) {
+ 		result = udp6_lib_lookup4(net, saddr, sport, daddr, hnum,
+-					  dif, sdif, udptable);
++					  dif, sdif, udptable, owner_skb);
+ 		if (result) /* udp6_lib_lookup4 return sk or NULL */
+ 			return result;
+ 	}
+@@ -366,7 +381,7 @@
+ 	/* Lookup connected or non-wildcard sockets */
+ 	result = udp6_lib_lookup2(net, saddr, sport,
+ 				  daddr, hnum, dif, sdif,
+-				  hslot2, skb);
++				  hslot2, skb, owner_skb);
+ 	if (!IS_ERR_OR_NULL(result) && result->sk_state == TCP_ESTABLISHED)
+ 		goto done;
+ 
+@@ -375,7 +390,8 @@
+ 		sk = inet6_lookup_run_sk_lookup(net, IPPROTO_UDP, skb, sizeof(struct udphdr),
+ 						saddr, sport, daddr, hnum, dif,
+ 						udp6_ehashfn);
+-		if (sk) {
++		if (sk && (IS_ERR(sk) ||
++			   ppp_control_rx_eligible(sk, owner_skb))) {
+ 			result = sk;
+ 			goto done;
+ 		}
+@@ -391,19 +407,27 @@
+ 
+ 	result = udp6_lib_lookup2(net, saddr, sport,
+ 				  &in6addr_any, hnum, dif, sdif,
+-				  hslot2, skb);
++				  hslot2, skb, owner_skb);
+ 	if (!IS_ERR_OR_NULL(result))
+ 		goto done;
+ 
+ 	/* Cover address change/lookup/rehash race: see __udp4_lib_lookup() */
+ 	result = udp6_lib_lookup1(net, saddr, sport, daddr, hnum, dif, sdif,
+-				  udptable);
++				  udptable, owner_skb);
+ 
+ done:
+ 	if (IS_ERR(result))
+ 		return NULL;
+ 	return result;
+ }
++struct sock *__udp6_lib_lookup(const struct net *net,
++			       const struct in6_addr *saddr, __be16 sport,
++			       const struct in6_addr *daddr, __be16 dport,
++			       int dif, int sdif, struct sk_buff *skb)
++{
++	return __udp6_lib_lookup_owner(net, saddr, sport, daddr, dport,
++				      dif, sdif, skb, skb);
++}
+ EXPORT_SYMBOL_GPL(__udp6_lib_lookup);
+ 
+ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
+@@ -425,8 +449,8 @@
+ 
+ 	inet6_get_iif_sdif(skb, &iif, &sdif);
+ 
+-	return __udp6_lib_lookup(dev_net(skb->dev), &iph->saddr, sport,
+-				 &iph->daddr, dport, iif, sdif, NULL);
++	return __udp6_lib_lookup_owner(dev_net(skb->dev), &iph->saddr, sport,
++				       &iph->daddr, dport, iif, sdif, NULL, skb);
+ }
+ 
+ /* Must be called under rcu_read_lock().
+@@ -472,6 +496,9 @@
+ 	unsigned int ulen, copied;
+ 	struct sk_buff *skb;
+ 
++	if (!ppp_control_rx_current(sk))
++		return -ESTALE;
++
+ 	if (flags & MSG_ERRQUEUE)
+ 		return ipv6_recv_error(sk, msg, len);
+ 
+@@ -479,11 +506,21 @@
+ 		return ipv6_recv_rxpmtu(sk, msg, len);
+ 
+ try_again:
++	if (!ppp_control_rx_current(sk))
++		return -ESTALE;
+ 	off = sk_peek_offset(sk, flags);
+ 	skb = __skb_recv_udp(sk, flags, &off, &err);
+ 	if (!skb)
+ 		return err;
+ 
++	if (!ppp_control_rx_match(sk, skb, PPP_CONTROL_RX, false)) {
++		__sk_queue_drop_skb(sk, &udp_sk(sk)->reader_queue, skb, flags,
++				    udp_skb_destructor);
++		kfree_skb(skb);
++		cond_resched();
++		goto try_again;
++	}
++
+ 	ulen = udp6_skb_len(skb);
+ 	copied = len;
+ 	if (copied > ulen - off)
+@@ -718,8 +755,8 @@
+ 
+ 	daddr = seg6_get_daddr(skb, opt) ? : &hdr->daddr;
+ 	saddr = &hdr->saddr;
+-	sk = __udp6_lib_lookup(net, daddr, uh->dest, saddr, uh->source,
+-			       inet6_iif(skb), inet6_sdif(skb), NULL);
++	sk = __udp6_lib_lookup_owner(net, daddr, uh->dest, saddr, uh->source,
++				     inet6_iif(skb), inet6_sdif(skb), NULL, skb);
+ 
+ 	if (!sk || READ_ONCE(udp_sk(sk)->encap_type)) {
+ 		/* No socket for error: try tunnels before discarding */
+@@ -740,6 +777,9 @@
+ 		tunnel = true;
+ 	}
+ 
++	if (!ppp_control_rx_eligible(sk, skb))
++		goto out;
++
+ 	harderr = icmpv6_err_convert(type, code, &err);
+ 	np = inet6_sk(sk);
+ 
+@@ -786,6 +826,11 @@
+ {
+ 	int rc;
+ 
++	if (!ppp_control_rx_eligible(sk, skb)) {
++		sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_SOCKET_FILTER);
++		return -1;
++	}
++
+ 	if (!ipv6_addr_any(&sk->sk_v6_daddr)) {
+ 		sock_rps_save_rxhash(sk, skb);
+ 		sk_mark_napi_id(sk, skb);
+@@ -822,6 +867,11 @@
+ 	struct udp_sock *up = udp_sk(sk);
+ 	struct net *net = sock_net(sk);
+ 
++	if (!ppp_control_rx_eligible(sk, skb)) {
++		drop_reason = SKB_DROP_REASON_SOCKET_FILTER;
++		goto drop;
++	}
++
+ 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb)) {
+ 		drop_reason = SKB_DROP_REASON_XFRM_POLICY;
+ 		goto drop;
+@@ -980,6 +1030,8 @@
+ 	}
+ 
+ 	sk_for_each_entry_offset_rcu(sk, node, &hslot->head, offset) {
++		if (!ppp_control_rx_eligible(sk, skb))
++			continue;
+ 		if (!__udp_v6_is_mcast_sock(net, sk, uh->dest, daddr,
+ 					    uh->source, saddr, dif, sdif,
+ 					    hnum))
+@@ -1119,11 +1171,20 @@
+ 	if (udp6_csum_init(skb, uh))
+ 		goto csum_error;
+ 
++	/* A cached/prefetched socket must qualify before reuseport can use it. */
++	if (skb->sk && !ppp_control_rx_eligible(skb->sk, skb))
++		skb_orphan(skb);
++
+ 	/* Check if the socket is already available, e.g. due to early demux */
+ 	sk = inet6_steal_sock(net, skb, sizeof(struct udphdr), saddr, uh->source, daddr, uh->dest,
+ 			      &refcounted, udp6_ehashfn);
+ 	if (IS_ERR(sk))
+ 		goto no_sk;
++	if (sk && !ppp_control_rx_eligible(sk, skb)) {
++		if (refcounted)
++			sock_put(sk);
++		sk = NULL;
++	}
+ 
+ 	if (sk) {
+ 		struct dst_entry *dst = skb_dst(skb);
+@@ -1201,7 +1262,7 @@
+ static struct sock *__udp6_lib_demux_lookup(struct net *net,
+ 			__be16 loc_port, const struct in6_addr *loc_addr,
+ 			__be16 rmt_port, const struct in6_addr *rmt_addr,
+-			int dif, int sdif)
++			int dif, int sdif, const struct sk_buff *owner_skb)
+ {
+ 	struct udp_table *udptable = net->ipv4.udp_table;
+ 	unsigned short hnum = ntohs(loc_port);
+@@ -1215,6 +1276,8 @@
+ 	ports = INET_COMBINED_PORTS(rmt_port, hnum);
+ 
+ 	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
++		if (!ppp_control_rx_eligible(sk, owner_skb))
++			continue;
+ 		if (sk->sk_state == TCP_ESTABLISHED &&
+ 		    inet6_match(net, sk, rmt_addr, loc_addr, ports, dif, sdif))
+ 			return sk;
+@@ -1243,7 +1306,7 @@
+ 		sk = __udp6_lib_demux_lookup(net, uh->dest,
+ 					     &ipv6_hdr(skb)->daddr,
+ 					     uh->source, &ipv6_hdr(skb)->saddr,
+-					     dif, sdif);
++					     dif, sdif, skb);
+ 	else
+ 		return;
+ 
+--- a/net/ipv6/raw.c
++++ b/net/ipv6/raw.c
+@@ -37,6 +37,7 @@
+ #include <net/snmp.h>
+ 
+ #include <net/ipv6.h>
++#include <net/ppp_control_rx.h>
+ #include <net/ndisc.h>
+ #include <net/protocol.h>
+ #include <net/ip6_route.h>
+@@ -64,7 +65,7 @@
+ struct raw_hashinfo raw_v6_hashinfo;
+ EXPORT_SYMBOL_GPL(raw_v6_hashinfo);
+ 
+-bool raw_v6_match(struct net *net, const struct sock *sk, unsigned short num,
++static bool __raw_v6_match(struct net *net, const struct sock *sk, unsigned short num,
+ 		  const struct in6_addr *loc_addr,
+ 		  const struct in6_addr *rmt_addr, int dif, int sdif)
+ {
+@@ -84,6 +85,14 @@
+ 
+ 	return false;
+ }
++bool raw_v6_match(struct net *net, const struct sock *sk, unsigned short num,
++		  const struct in6_addr *loc_addr,
++		  const struct in6_addr *rmt_addr, int dif, int sdif)
++{
++	/* Tuple-only callers have no retained native receive receipt. */
++	return ppp_control_rx_eligible(sk, NULL) &&
++	       __raw_v6_match(net, sk, num, loc_addr, rmt_addr, dif, sdif);
++}
+ EXPORT_SYMBOL_GPL(raw_v6_match);
+ 
+ /*
+@@ -156,7 +165,8 @@
+ 	sk_for_each_rcu(sk, hlist) {
+ 		int filtered;
+ 
+-		if (!raw_v6_match(net, sk, nexthdr, &ip6h->daddr, &ip6h->saddr,
++		if (!ppp_control_rx_eligible(sk, skb) ||
++		    !__raw_v6_match(net, sk, nexthdr, &ip6h->daddr, &ip6h->saddr,
+ 				  inet6_iif(skb), inet6_sdif(skb)))
+ 			continue;
+ 
+@@ -348,7 +358,8 @@
+ 		/* Note: ipv6_hdr(skb) != skb->data */
+ 		const struct ipv6hdr *ip6h = (const struct ipv6hdr *)skb->data;
+ 
+-		if (!raw_v6_match(net, sk, nexthdr, &ip6h->saddr, &ip6h->daddr,
++		if (!ppp_control_rx_eligible(sk, skb) ||
++		    !__raw_v6_match(net, sk, nexthdr, &ip6h->saddr, &ip6h->daddr,
+ 				  inet6_iif(skb), inet6_sdif(skb)))
+ 			continue;
+ 		rawv6_err(sk, skb, type, code, inner_offset, info);
+@@ -360,6 +371,11 @@
+ {
+ 	enum skb_drop_reason reason;
+ 
++	if (!ppp_control_rx_eligible(sk, skb)) {
++		sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_SOCKET_FILTER);
++		return NET_RX_DROP;
++	}
++
+ 	if ((raw6_sk(sk)->checksum || rcu_access_pointer(sk->sk_filter)) &&
+ 	    skb_checksum_complete(skb)) {
+ 		sk_drops_inc(sk);
+@@ -390,6 +406,11 @@
+ 	struct inet_sock *inet = inet_sk(sk);
+ 	struct raw6_sock *rp = raw6_sk(sk);
+ 
++	if (!ppp_control_rx_eligible(sk, skb)) {
++		sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_SOCKET_FILTER);
++		return NET_RX_DROP;
++	}
++
+ 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb)) {
+ 		sk_drops_inc(sk);
+ 		sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_XFRM_POLICY);
+@@ -441,6 +462,9 @@
+ 	size_t copied;
+ 	int err;
+ 
++	if (!ppp_control_rx_current(sk))
++		return -ESTALE;
++
+ 	if (flags & MSG_OOB)
+ 		return -EOPNOTSUPP;
+ 
+@@ -450,9 +474,17 @@
+ 	if (np->rxopt.bits.rxpmtu && READ_ONCE(np->rxpmtu))
+ 		return ipv6_recv_rxpmtu(sk, msg, len);
+ 
++try_again:
++	if (!ppp_control_rx_current(sk))
++		return -ESTALE;
+ 	skb = skb_recv_datagram(sk, flags, &err);
+ 	if (!skb)
+ 		goto out;
++	if (!ppp_control_rx_match(sk, skb, PPP_CONTROL_RX, false)) {
++		skb_kill_datagram(sk, skb, flags);
++		cond_resched();
++		goto try_again;
++	}
+ 
+ 	copied = skb->len;
+ 	if (copied > len) {
+--- a/net/ipv6/datagram.c
++++ b/net/ipv6/datagram.c
+@@ -22,6 +22,7 @@
+ #include <linux/icmp.h>
+ 
+ #include <net/ipv6.h>
++#include <net/ppp_control_rx.h>
+ #include <net/ndisc.h>
+ #include <net/addrconf.h>
+ #include <net/transp_v6.h>
+@@ -310,6 +311,9 @@
+ 	struct icmp6hdr *icmph = icmp6_hdr(skb);
+ 	struct sock_exterr_skb *serr;
+ 
++	if (!ppp_control_rx_eligible(sk, skb))
++		return;
++
+ 	if (!inet6_test_bit(RECVERR6, sk))
+ 		return;
+ 
+@@ -338,7 +342,8 @@
+ 
+ 	skb_reset_transport_header(skb);
+ 
+-	if (sock_queue_err_skb(sk, skb))
++	if (!ppp_control_rx_match(sk, skb, PPP_CONTROL_RX, false) ||
++	    sock_queue_err_skb(sk, skb))
+ 		kfree_skb(skb);
+ }
+ EXPORT_SYMBOL_GPL(ipv6_icmp_error);
+@@ -356,6 +361,11 @@
+ 	if (!skb)
+ 		return;
+ 
++	if (!ppp_control_rx_local_error(sk, skb)) {
++		kfree_skb(skb);
++		return;
++	}
++
+ 	skb->protocol = htons(ETH_P_IPV6);
+ 
+ 	skb_put(skb, sizeof(struct ipv6hdr));
+@@ -378,7 +388,8 @@
+ 	__skb_pull(skb, skb_tail_pointer(skb) - skb->data);
+ 	skb_reset_transport_header(skb);
+ 
+-	if (sock_queue_err_skb(sk, skb))
++	if (!ppp_control_rx_match(sk, skb, PPP_CONTROL_TX, false) ||
++	    sock_queue_err_skb(sk, skb))
+ 		kfree_skb(skb);
+ }
+ 
+@@ -396,6 +407,11 @@
+ 	if (!skb)
+ 		return;
+ 
++	if (!ppp_control_rx_local_error(sk, skb)) {
++		kfree_skb(skb);
++		return;
++	}
++
+ 	skb_put(skb, sizeof(struct ipv6hdr));
+ 	skb_reset_network_header(skb);
+ 	iph = ipv6_hdr(skb);
+@@ -413,6 +429,10 @@
+ 	__skb_pull(skb, skb_tail_pointer(skb) - skb->data);
+ 	skb_reset_transport_header(skb);
+ 
++	if (!ppp_control_rx_match(sk, skb, PPP_CONTROL_TX, false)) {
++		kfree_skb(skb);
++		return;
++	}
+ 	skb = xchg(&np->rxpmtu, skb);
+ 	kfree_skb(skb);
+ }
+@@ -465,11 +485,24 @@
+ 	int err;
+ 	int copied;
+ 
++try_again:
++	if (!ppp_control_rx_current(sk))
++		return -ESTALE;
+ 	err = -EAGAIN;
+ 	skb = sock_dequeue_err_skb(sk);
+ 	if (!skb)
+ 		goto out;
+ 
++	serr = SKB_EXT_ERR(skb);
++	if (!ppp_control_rx_match(sk, skb,
++		    serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6 ||
++		    serr->ee.ee_origin == SO_EE_ORIGIN_ICMP ?
++		    PPP_CONTROL_RX : PPP_CONTROL_TX, false)) {
++		kfree_skb(skb);
++		cond_resched();
++		goto try_again;
++	}
++
+ 	copied = skb->len;
+ 	if (copied > len) {
+ 		msg->msg_flags |= MSG_TRUNC;
+@@ -554,11 +587,18 @@
+ 	int err;
+ 	int copied;
+ 
++	if (!ppp_control_rx_current(sk))
++		return -ESTALE;
+ 	err = -EAGAIN;
+ 	skb = xchg(&np->rxpmtu, NULL);
+ 	if (!skb)
+ 		goto out;
+ 
++	if (!ppp_control_rx_match(sk, skb, PPP_CONTROL_TX, false)) {
++		err = ppp_control_rx_current(sk) ? -EAGAIN : -ESTALE;
++		goto out_free_skb;
++	}
++
+ 	copied = skb->len;
+ 	if (copied > len) {
+ 		msg->msg_flags |= MSG_TRUNC;
+--- a/net/ipv4/udp.c
++++ b/net/ipv4/udp.c
+@@ -96,6 +96,7 @@
+ #include <linux/slab.h>
+ #include <linux/sock_diag.h>
+ #include <net/tcp_states.h>
++#include <net/ppp_control_rx.h>
+ #include <linux/skbuff.h>
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+@@ -2018,10 +2019,18 @@
+ 	int err;
+ 
+ try_again:
++	if (!ppp_control_rx_current(sk))
++		return -ESTALE;
+ 	skb = skb_recv_udp(sk, MSG_DONTWAIT, &err);
+ 	if (!skb)
+ 		return err;
+ 
++	if (!ppp_control_rx_match(sk, skb, PPP_CONTROL_RX, false)) {
++		kfree_skb(skb);
++		cond_resched();
++		goto try_again;
++	}
++
+ 	if (udp_lib_checksum_complete(skb)) {
+ 		struct net *net = sock_net(sk);
+ 
+--- /dev/null
++++ b/include/net/ppp_control_rx.h
+@@ -0,0 +1,99 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _NET_PPP_CONTROL_RX_H
++#define _NET_PPP_CONTROL_RX_H
++
++#include <linux/ipv6.h>
++#include <net/ppp_control.h>
++#include <net/sock.h>
++
++/* The binding is immutable until final inet6 cleanup. Socket RCU readers
++ * protect the final owner put; active syscall references exclude cleanup.
++ * Never reconstruct receive authority from a saved interface number.
++ */
++static inline bool ppp_control_rx_current(const struct sock *sk)
++{
++#if IS_ENABLED(CONFIG_IPV6)
++	const struct ppp_control_owner *owner;
++	bool live;
++
++	if (sk->sk_family != AF_INET6)
++		return true;
++	rcu_read_lock();
++	owner = smp_load_acquire(&inet6_sk(sk)->ppp_control.owner);
++	live = !owner || ppp_control_owner_current(owner);
++	rcu_read_unlock();
++	return live;
++#else
++	return true;
++#endif
++}
++
++/* Before queueing, dev is the actual ingress device. After queueing UDP
++ * overwrites it with accounting scratch, and other queues clear it.
++ * Those readers MUST use the retained native receipt, not dereference dev.
++ */
++static inline bool
++ppp_control_rx_match(const struct sock *sk, const struct sk_buff *skb,
++		     enum ppp_control_role role, bool ingress)
++{
++#if IS_ENABLED(CONFIG_IPV6)
++	const struct ppp_control_receipt *receipt;
++	const struct ppp_control_owner *owner;
++	bool allowed = true;
++
++	if (sk->sk_family != AF_INET6)
++		return true;
++	rcu_read_lock();
++	owner = smp_load_acquire(&inet6_sk(sk)->ppp_control.owner);
++	if (owner) {
++		receipt = skb ? ppp_control_receipt(skb, role) : NULL;
++		allowed = receipt && receipt->owner == owner &&
++			  ppp_control_owner_current(owner);
++		if (allowed && ingress)
++			allowed = skb->dev &&
++				  ppp_control_owner_live(owner, skb->dev);
++	}
++	rcu_read_unlock();
++	return allowed;
++#else
++	return true;
++#endif
++}
++
++static inline bool
++ppp_control_rx_eligible(const struct sock *sk, const struct sk_buff *skb)
++{
++	return ppp_control_rx_match(sk, skb, PPP_CONTROL_RX, true);
++}
++
++/* Fresh locally generated error/PMTU skbs have no ingress packet. The native
++ * caller supplies the original socket; attach its live TX role explicitly.
++ */
++static inline bool
++ppp_control_rx_local_error(struct sock *sk, struct sk_buff *skb)
++{
++#if IS_ENABLED(CONFIG_IPV6)
++	struct ppp_control_owner *owner;
++	bool allowed = true;
++
++	if (sk->sk_family != AF_INET6)
++		return true;
++	rcu_read_lock();
++	owner = smp_load_acquire(&inet6_sk(sk)->ppp_control.owner);
++	if (owner) {
++		if (!ppp_control_owner_try_get(owner)) {
++			allowed = false;
++		} else {
++			allowed = ppp_control_owner_current(owner) &&
++				  !ppp_control_receipt_set(skb, owner, PPP_CONTROL_TX);
++			ppp_control_owner_put(owner);
++		}
++	}
++	rcu_read_unlock();
++	return allowed;
++#else
++	return true;
++#endif
++}
++
++#endif

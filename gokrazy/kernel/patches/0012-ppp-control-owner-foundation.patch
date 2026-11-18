@@ -1,0 +1,781 @@
+From: Ze kernel maintainers
+Subject: [PATCH 12] ppp: retain original logical control and packet ownership
+
+PRIVATE SOURCE FOUNDATION. Apply after Linux v7.3 + Ze 0001..0005,
+0007..0011 and 0011a. No application, build or native test is claimed.
+PPPIOCSOCKETOWNER is reserved but NOT dispatched, and capability bit 9 is
+NOT advertised. Phase 13 must complete socket/packet/fragment/multicast
+enforcement before activating either. No Go consumer is changed here.
+
+The creator file remains borrowed only for the ioctl. Native sockets retain
+one logical PPP object through their control owner, never a creator-file
+reference or netdev_hold. Final provider release runs in core-owned work,
+after an RCU grace period, with the provider module pinned until it returns.
+
+--- a/include/uapi/linux/ppp-ioctl.h
++++ b/include/uapi/linux/ppp-ioctl.h
+@@ -136,4 +136,20 @@
+ #define PPPIOCGTRANSPORTOWNER _IOWR('t', 44, struct ppp_transport_owner)
+ 
++/* Input only; successful ioctl return is a new CLOEXEC|NONBLOCK fd, even 0.
++ * Reserved, NOT dispatched until complete IPv6 producer enforcement lands.
++ */
++struct ppp_control_socket {
++	__u32 abi;
++	__u32 kind;
++	__s32 unit;
++	__s32 ifindex;
++	__u32 flags;
++	__u32 reserved[3];
++};
++
++#define PPP_CONTROL_ICMP6_RAW 1
++#define PPP_CONTROL_UDP6      2
++#define PPPIOCSOCKETOWNER _IOW('t', 43, struct ppp_control_socket)
++
+ /*
+  * Ioctl definitions.
+--- /dev/null
++++ b/include/net/ppp_control.h
+@@ -0,0 +1,73 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _NET_PPP_CONTROL_H
++#define _NET_PPP_CONTROL_H
++
++#include <linux/list.h>
++#include <linux/types.h>
++
++struct module;
++struct net;
++struct net_device;
++struct ppp_control_owner;
++struct sk_buff;
++struct sock;
++
++/* Unpublished socket attaches once. Cleanup detaches before freeing sk.
++ * The list owns no socket ref; its lock excludes final socket cleanup.
++ */
++struct ppp_control_binding {
++	struct ppp_control_owner *owner;
++	struct sock *sk;
++	struct list_head link;
++};
++
++enum ppp_control_role {
++	PPP_CONTROL_RX = 1,
++	PPP_CONTROL_TX = 2,
++};
++
++struct ppp_control_receipt {
++	struct ppp_control_owner *owner;
++	enum ppp_control_role role;
++};
++
++/* Caller transfers one logical PPP object ref only on success. release
++ * runs in sleeping context, never under RTNL or a socket/PPP spinlock.
++ * The provider remains pinned until release returns into core code.
++ */
++struct ppp_control_owner *
++ppp_control_owner_create(struct net_device *dev, void *private,
++			 void (*release)(void *), struct module *provider);
++void ppp_control_owner_get(struct ppp_control_owner *owner);
++bool ppp_control_owner_try_get(struct ppp_control_owner *owner);
++void ppp_control_owner_put(struct ppp_control_owner *owner);
++void ppp_control_owner_retire(struct ppp_control_owner *owner);
++bool ppp_control_owner_live(const struct ppp_control_owner *owner,
++			    const struct net_device *dev);
++/* RTNL + live original owner required; returns an owned short net lease,
++ * or NULL. The owner itself MUST NOT pin its unit's namespace lifetime.
++ */
++struct net *ppp_control_owner_net_get(const struct ppp_control_owner *owner);
++bool ppp_control_owner_has_sockets(struct ppp_control_owner *owner);
++int ppp_control_bind(struct ppp_control_binding *binding,
++		     struct ppp_control_owner *owner, struct sock *sk);
++void ppp_control_unbind(struct ppp_control_binding *binding);
++
++/* Borrowed result: the skb's active extension owns its lifetime. A missing
++ * receipt MUST NOT authorize a guarded socket. RX is never a TX restriction.
++ * set takes a ref; it refuses overwriting any different active authority.
++ */
++const struct ppp_control_receipt *
++ppp_control_receipt(const struct sk_buff *skb, enum ppp_control_role role);
++int ppp_control_receipt_set(struct sk_buff *skb,
++			    struct ppp_control_owner *owner,
++			    enum ppp_control_role role);
++void ppp_control_receipt_consume(struct sk_buff *skb);
++bool ppp_control_rx_candidate(const struct sk_buff *skb);
++
++/* Allocation-free scrub: delete other active extensions through their native
++ * deletion paths, retaining the complete PPP receipt and backing ownership.
++ */
++void ppp_control_scrub(struct sk_buff *skb);
++
++#endif
+--- /dev/null
++++ b/net/core/ppp_control.c
+@@ -0,0 +1,282 @@
++// SPDX-License-Identifier: GPL-2.0
++/* PPP-specific ownership; no device registry, numeric lookup or fd custody.
++ * Design: Ze docs/architecture/l2tp/bng-5-pppoe.md.
++ */
++#include <linux/err.h>
++#include <linux/errno.h>
++#include <linux/icmpv6.h>
++#include <linux/ipv6.h>
++#include <linux/module.h>
++#include <linux/netdevice.h>
++#include <linux/rcupdate.h>
++#include <linux/refcount.h>
++#include <linux/rtnetlink.h>
++#include <linux/skbuff.h>
++#include <linux/slab.h>
++#include <linux/udp.h>
++#include <linux/workqueue.h>
++#include <net/net_namespace.h>
++#include <net/ppp_control.h>
++#include <net/sock.h>
++
++struct ppp_control_owner {
++	refcount_t refs;
++	struct net_device *dev;
++	struct net *net;
++	struct module *provider;
++	void *private;
++	void (*release)(void *);
++	spinlock_t lock;
++	struct list_head sockets;
++	bool retired;
++	struct rcu_head rcu;
++	struct work_struct release_work;
++};
++
++static void ppp_control_release_work(struct work_struct *work)
++{
++	struct ppp_control_owner *owner;
++
++	owner = container_of(work, struct ppp_control_owner, release_work);
++	owner->release(owner->private);
++	/* Provider code has returned. Core owns the remainder of this callback. */
++	module_put(owner->provider);
++	kfree(owner);
++}
++
++static void ppp_control_release_rcu(struct rcu_head *rcu)
++{
++	struct ppp_control_owner *owner;
++
++	owner = container_of(rcu, struct ppp_control_owner, rcu);
++	schedule_work(&owner->release_work);
++}
++
++struct ppp_control_owner *
++ppp_control_owner_create(struct net_device *dev, void *private,
++			 void (*release)(void *), struct module *provider)
++{
++	struct ppp_control_owner *owner;
++
++	ASSERT_RTNL();
++	if (!try_module_get(provider))
++		return ERR_PTR(-ENODEV);
++	owner = kzalloc_obj(struct ppp_control_owner);
++	if (!owner) {
++		module_put(provider);
++		return ERR_PTR(-ENOMEM);
++	}
++	refcount_set(&owner->refs, 1);
++	owner->dev = dev;
++	/* Comparison only: a base-owner net ref would prevent pernet teardown. */
++	owner->net = dev_net(dev);
++	owner->provider = provider;
++	owner->private = private;
++	owner->release = release;
++	spin_lock_init(&owner->lock);
++	INIT_LIST_HEAD(&owner->sockets);
++	INIT_WORK(&owner->release_work, ppp_control_release_work);
++	return owner;
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_create);
++
++void ppp_control_owner_get(struct ppp_control_owner *owner)
++{
++	refcount_inc(&owner->refs);
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_get);
++
++bool ppp_control_owner_try_get(struct ppp_control_owner *owner)
++{
++	/* Caller has either an existing reference or RCU-protected publication. */
++	return owner && refcount_inc_not_zero(&owner->refs);
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_try_get);
++
++void ppp_control_owner_put(struct ppp_control_owner *owner)
++{
++	if (owner && refcount_dec_and_test(&owner->refs))
++		call_rcu(&owner->rcu, ppp_control_release_rcu);
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_put);
++
++void ppp_control_owner_retire(struct ppp_control_owner *owner)
++{
++	struct ppp_control_binding *binding;
++
++	if (!owner)
++		return;
++	spin_lock_bh(&owner->lock);
++	WRITE_ONCE(owner->retired, true);
++	list_for_each_entry(binding, &owner->sockets, link) {
++		WRITE_ONCE(binding->sk->sk_err, ESTALE);
++		binding->sk->sk_error_report(binding->sk);
++	}
++	spin_unlock_bh(&owner->lock);
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_retire);
++
++bool ppp_control_owner_live(const struct ppp_control_owner *owner,
++			    const struct net_device *dev)
++{
++	/* Caller protects dev's namespace read with RCU or RTNL. Its allocation
++	 * is retained by the owner's logical PPP reference, not netdev_hold.
++	 */
++	return owner && dev == owner->dev && !READ_ONCE(owner->retired) &&
++		READ_ONCE(dev->reg_state) == NETREG_REGISTERED &&
++		net_eq(owner->net, dev_net(dev));
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_live);
++
++struct net *ppp_control_owner_net_get(const struct ppp_control_owner *owner)
++{
++	ASSERT_RTNL();
++	if (!ppp_control_owner_live(owner, owner->dev))
++		return NULL;
++	return maybe_get_net(owner->net);
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_net_get);
++
++bool ppp_control_owner_has_sockets(struct ppp_control_owner *owner)
++{
++	bool present;
++
++	spin_lock_bh(&owner->lock);
++	present = !list_empty(&owner->sockets);
++	spin_unlock_bh(&owner->lock);
++	return present;
++}
++EXPORT_SYMBOL_GPL(ppp_control_owner_has_sockets);
++
++int ppp_control_bind(struct ppp_control_binding *binding,
++		     struct ppp_control_owner *owner, struct sock *sk)
++{
++	int err = -ESTALE;
++
++	ASSERT_RTNL();
++	if (binding->owner)
++		return -EBUSY;
++	spin_lock_bh(&owner->lock);
++	if (!ppp_control_owner_live(owner, owner->dev))
++		goto out;
++	ppp_control_owner_get(owner);
++	binding->sk = sk;
++	INIT_LIST_HEAD(&binding->link);
++	list_add_tail(&binding->link, &owner->sockets);
++	/* Phase 13 reads this immutable binding with acquire semantics. */
++	smp_store_release(&binding->owner, owner);
++	err = 0;
++out:
++	spin_unlock_bh(&owner->lock);
++	return err;
++}
++EXPORT_SYMBOL_GPL(ppp_control_bind);
++
++void ppp_control_unbind(struct ppp_control_binding *binding)
++{
++	struct ppp_control_owner *owner = binding->owner;
++
++	if (!owner)
++		return;
++	spin_lock_bh(&owner->lock);
++	list_del(&binding->link);
++	WRITE_ONCE(binding->owner, NULL);
++	spin_unlock_bh(&owner->lock);
++	ppp_control_owner_put(owner);
++}
++EXPORT_SYMBOL_GPL(ppp_control_unbind);
++
++const struct ppp_control_receipt *
++ppp_control_receipt(const struct sk_buff *skb, enum ppp_control_role role)
++{
++#if IS_ENABLED(CONFIG_PPP)
++	const struct ppp_control_receipt *receipt;
++
++	receipt = skb_ext_find(skb, SKB_EXT_PPP_CONTROL);
++	if (receipt && receipt->owner && receipt->role == role)
++		return receipt;
++#endif
++	return NULL;
++}
++EXPORT_SYMBOL_GPL(ppp_control_receipt);
++
++int ppp_control_receipt_set(struct sk_buff *skb,
++			    struct ppp_control_owner *owner,
++			    enum ppp_control_role role)
++{
++#if IS_ENABLED(CONFIG_PPP)
++	struct ppp_control_receipt *receipt;
++
++	if (!owner || (role != PPP_CONTROL_RX && role != PPP_CONTROL_TX))
++		return -EINVAL;
++	receipt = skb_ext_find(skb, SKB_EXT_PPP_CONTROL);
++	if (receipt && receipt->owner)
++		return receipt->owner == owner && receipt->role == role ? 0 : -EPERM;
++	receipt = skb_ext_add(skb, SKB_EXT_PPP_CONTROL);
++	if (!receipt)
++		return -ENOMEM;
++	ppp_control_owner_get(owner);
++	receipt->owner = owner;
++	receipt->role = role;
++	return 0;
++#else
++	return -EOPNOTSUPP;
++#endif
++}
++EXPORT_SYMBOL_GPL(ppp_control_receipt_set);
++
++void ppp_control_receipt_consume(struct sk_buff *skb)
++{
++#if IS_ENABLED(CONFIG_PPP)
++	skb_ext_del(skb, SKB_EXT_PPP_CONTROL);
++#endif
++}
++EXPORT_SYMBOL_GPL(ppp_control_receipt_consume);
++
++void ppp_control_scrub(struct sk_buff *skb)
++{
++#if IS_ENABLED(CONFIG_PPP)
++	enum skb_ext_id id;
++
++	if (skb_ext_exist(skb, SKB_EXT_PPP_CONTROL)) {
++		for (id = 0; id < SKB_EXT_NUM; id++)
++			if (id != SKB_EXT_PPP_CONTROL)
++				skb_ext_del(skb, id);
++		return;
++	}
++#endif
++	skb_ext_reset(skb);
++}
++EXPORT_SYMBOL_GPL(ppp_control_scrub);
++
++bool ppp_control_rx_candidate(const struct sk_buff *skb)
++{
++	struct ipv6hdr header, *ip6h;
++	struct udphdr udp, *uh;
++	struct icmp6hdr icmp, *ih;
++
++	ip6h = skb_header_pointer(skb, 0, sizeof(header), &header);
++	if (!ip6h || ip6h->version != 6)
++		return false;
++	switch (ip6h->nexthdr) {
++	case IPPROTO_UDP:
++		uh = skb_header_pointer(skb, sizeof(header), sizeof(udp), &udp);
++		return uh && uh->dest == htons(547);
++	case IPPROTO_ICMPV6:
++		ih = skb_header_pointer(skb, sizeof(header), sizeof(icmp), &icmp);
++		return ih && ih->icmp6_type == 133; /* Router Solicitation */
++	case IPPROTO_HOPOPTS:
++	case IPPROTO_ROUTING:
++	case IPPROTO_FRAGMENT:
++	case IPPROTO_ESP:
++	case IPPROTO_AH:
++	case IPPROTO_DSTOPTS:
++		/* Preserve native extension/reassembly/decryption semantics. Later
++		 * fragments cannot reveal their port; do not parse a second stack.
++		 */
++		return true;
++	default:
++		return false;
++	}
++}
++EXPORT_SYMBOL_GPL(ppp_control_rx_candidate);
+--- a/net/core/Makefile
++++ b/net/core/Makefile
+@@ -8,2 +8,3 @@
+ 	 flow_dissector.o
++obj-y += ppp_control.o
+ 
+--- a/drivers/net/ppp/Kconfig
++++ b/drivers/net/ppp/Kconfig
+@@ -5,4 +5,5 @@
+ config PPP
+ 	tristate "PPP (point-to-point protocol) support"
++	select SKB_EXTENSIONS
+ 	select SLHC
+ 	help
+--- a/include/linux/ipv6.h
++++ b/include/linux/ipv6.h
+@@ -6,2 +6,3 @@
+ #include <linux/cache.h>
++#include <net/ppp_control.h>
+ 
+@@ -289,4 +290,5 @@
+ 	struct ipv6_mc_socklist	__rcu *ipv6_mc_list;
+ 	struct ipv6_ac_socklist	*ipv6_ac_list;
++	struct ppp_control_binding ppp_control;
+ };
+ 
+--- a/net/ipv6/af_inet6.c
++++ b/net/ipv6/af_inet6.c
+@@ -498,6 +498,8 @@
+ 		atomic_sub(opt->tot_len, &sk->sk_omem_alloc);
+ 		txopt_put(opt);
+ 	}
++	/* Native multicast close precedes this; Phase 13 guards that producer. */
++	ppp_control_unbind(&np->ppp_control);
+ }
+ 
+ /*
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -964,3 +964,3 @@
+ #ifdef CONFIG_SKB_EXTENSIONS
+-	__u8			active_extensions;
++	__u16			active_extensions;
+ #endif
+@@ -5053,6 +5053,9 @@
+ #if IS_ENABLED(CONFIG_CAN)
+ 	SKB_EXT_CAN,
+ #endif
++#if IS_ENABLED(CONFIG_PPP)
++	SKB_EXT_PPP_CONTROL,
++#endif
+ 	SKB_EXT_NUM, /* must be last */
+ };
+ 
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -75,2 +75,3 @@
+ #include <net/xfrm.h>
++#include <net/ppp_control.h>
+ #include <net/mpls.h>
+@@ -5178,6 +5178,9 @@
+ #if IS_ENABLED(CONFIG_CAN)
+ 	[SKB_EXT_CAN] = SKB_EXT_CHUNKSIZEOF(struct can_skb_ext),
+ #endif
++#if IS_ENABLED(CONFIG_PPP)
++	[SKB_EXT_PPP_CONTROL] = SKB_EXT_CHUNKSIZEOF(struct ppp_control_receipt),
++#endif
+ };
+ 
+ static __always_inline __no_profile unsigned int skb_ext_total_length(void)
+@@ -5189,1 +5189,1 @@
+-	BUILD_BUG_ON(SKB_EXT_NUM > 8);
++	BUILD_BUG_ON(SKB_EXT_NUM > sizeof_field(struct sk_buff, active_extensions) * 8);
+@@ -6305,1 +6305,1 @@
+-	skb_ext_reset(skb);
++	ppp_control_scrub(skb);
+@@ -7166,2 +7166,1 @@
+-static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old,
+-					 unsigned int old_active)
++static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old)
+@@ -7181,4 +7181,14 @@
+ 	memcpy(new, old, old->chunks * SKB_EXT_ALIGN_VALUE);
+ 	refcount_set(&new->refcnt, 1);
++#if IS_ENABLED(CONFIG_PPP)
++	/* Allocated inactive slots survive memcpy and final destruction too. */
++	if (__skb_ext_exist(new, SKB_EXT_PPP_CONTROL)) {
++		struct ppp_control_receipt *receipt;
++
++		receipt = skb_ext_get_ptr(new, SKB_EXT_PPP_CONTROL);
++		if (receipt->owner)
++			ppp_control_owner_get(receipt->owner);
++	}
++#endif
+ 
+ #ifdef CONFIG_XFRM_FRAGMENT_GUARD
+@@ -7195,1 +7204,1 @@
+-	if (old_active & (1 << SKB_EXT_SEC_PATH)) {
++	if (__skb_ext_exist(new, SKB_EXT_SEC_PATH)) {
+@@ -7207,1 +7216,1 @@
+-	if (old_active & (1 << SKB_EXT_MCTP)) {
++	if (__skb_ext_exist(new, SKB_EXT_MCTP)) {
+@@ -7263,1 +7272,1 @@
+-		new = skb_ext_maybe_cow(old, skb->active_extensions);
++		new = skb_ext_maybe_cow(old);
+@@ -7267,2 +7276,12 @@
+ 		if (__skb_ext_exist(new, id)) {
++#if IS_ENABLED(CONFIG_PPP)
++			if (id == SKB_EXT_PPP_CONTROL &&
++			    !(skb->active_extensions & (1 << id))) {
++				struct ppp_control_receipt *receipt;
++
++				receipt = skb_ext_get_ptr(new, id);
++				ppp_control_owner_put(receipt->owner);
++				memset(receipt, 0, sizeof(*receipt));
++			}
++#endif
+ #ifdef CONFIG_XFRM_FRAGMENT_GUARD
+@@ -7291,2 +7309,6 @@
+ 	new->offset[id] = newoff;
++#if IS_ENABLED(CONFIG_PPP)
++	if (id == SKB_EXT_PPP_CONTROL)
++		memset(skb_ext_get_ptr(new, id), 0, sizeof(struct ppp_control_receipt));
++#endif
+ #ifdef CONFIG_XFRM_FRAGMENT_GUARD
+@@ -7334,4 +7356,12 @@
+ 		skb->extensions = NULL;
+ 		__skb_ext_put(ext);
++#if IS_ENABLED(CONFIG_PPP)
++	} else if (id == SKB_EXT_PPP_CONTROL && refcount_read(&ext->refcnt) == 1) {
++		struct ppp_control_receipt *receipt;
++
++		receipt = skb_ext_get_ptr(ext, id);
++		ppp_control_owner_put(receipt->owner);
++		receipt->owner = NULL;
++#endif
+ #ifdef CONFIG_XFRM_FRAGMENT_GUARD
+ 	} else if (id == SKB_EXT_XFRM_RAW_ROUTE &&
+@@ -7367,2 +7397,10 @@
+ free_now:
++#if IS_ENABLED(CONFIG_PPP)
++	if (__skb_ext_exist(ext, SKB_EXT_PPP_CONTROL)) {
++		struct ppp_control_receipt *receipt;
++
++		receipt = skb_ext_get_ptr(ext, SKB_EXT_PPP_CONTROL);
++		ppp_control_owner_put(receipt->owner);
++	}
++#endif
+ #ifdef CONFIG_XFRM_FRAGMENT_GUARD
+--- a/drivers/net/ppp/ppp_generic.c
++++ b/drivers/net/ppp/ppp_generic.c
+@@ -55,2 +55,4 @@
+ #include <net/net_namespace.h>
++#include <net/ppp_control.h>
++#include <net/ipv6.h>
+ #include <net/netns/generic.h>
+@@ -124,2 +126,4 @@
+ 	struct file	*owner;		/* original creator file, non-owning */
++	struct ppp_control_owner __rcu *control_owner;
++	bool control_retired;		/* permanent from first namespace departure */
+ 	struct list_head channels;	/* list of attached channels 4c */
+@@ -260,2 +262,3 @@
+ /* Prototypes. */
++static void ppp_control_drop(struct ppp *ppp);
+ static long ppp_owner_ioctl(struct file *file, void __user *argp);
+@@ -1126,1 +1126,139 @@
+-static void ppp_nl_dellink(struct net_device *dev, struct list_head *head);
++/* The core owner consumes this logical ref in sleeping context. */
++static void ppp_control_release(void *private)
++{
++	ppp_release_interface(private);
++}
++
++static struct ppp_control_owner *ppp_control_acquire(struct ppp *ppp)
++{
++	struct ppp_control_owner *owner;
++
++	ASSERT_RTNL();
++	owner = rtnl_dereference(ppp->control_owner);
++	if (!owner) {
++		refcount_inc(&ppp->file.refcnt);
++		owner = ppp_control_owner_create(netdev_from_priv(ppp), ppp,
++					 ppp_control_release, THIS_MODULE);
++		if (IS_ERR(owner)) {
++			ppp_release_interface(ppp);
++			return owner;
++		}
++		rcu_assign_pointer(ppp->control_owner, owner);
++	}
++	ppp_control_owner_get(owner);
++	return owner;
++}
++
++/* Foundation only: Phase 13 must add the dispatcher and positive feature bit.
++ * No faulting user copy, socket release, fput or fd publication runs under RTNL.
++ */
++static long __maybe_unused
++ppp_control_socket_ioctl(struct file *file, void __user *argp)
++{
++	struct ppp_control_socket request;
++	struct ppp_control_owner *owner;
++	struct ppp_file *pf;
++	struct ppp *ppp;
++	struct net_device *dev;
++	struct net *net;
++	struct socket *sock = NULL;
++	struct file *socket_file;
++	int type, protocol, fd, err = -ESTALE;
++
++	if (copy_from_user(&request, argp, sizeof(request)))
++		return -EFAULT;
++	if (request.abi != PPP_OWNER_ABI || request.unit < 0 ||
++	    request.ifindex <= 0 || request.flags || request.reserved[0] ||
++	    request.reserved[1] || request.reserved[2])
++		return -EINVAL;
++	switch (request.kind) {
++	case PPP_CONTROL_ICMP6_RAW:
++		type = SOCK_RAW;
++		protocol = IPPROTO_ICMPV6;
++		break;
++	case PPP_CONTROL_UDP6:
++		type = SOCK_DGRAM;
++		protocol = IPPROTO_UDP;
++		break;
++	default:
++		return -EPROTONOSUPPORT;
++	}
++	rtnl_lock();
++	pf = file->private_data;
++	if (!pf || pf->kind != INTERFACE)
++		goto unlock;
++	ppp = PF_TO_PPP(pf);
++	dev = netdev_from_priv(ppp);
++	if (ppp->control_retired || ppp_validate_owner(dev, file) ||
++	    request.unit != pf->index || request.ifindex != dev->ifindex)
++		goto unlock;
++	if (!ns_capable(dev_net(dev)->user_ns, CAP_NET_ADMIN)) {
++		err = -EPERM;
++		goto unlock;
++	}
++	owner = ppp_control_acquire(ppp);
++	if (IS_ERR(owner)) {
++		err = PTR_ERR(owner);
++		goto unlock;
++	}
++	net = ppp_control_owner_net_get(owner);
++	rtnl_unlock();
++	if (!net) {
++		err = -ENETDOWN;
++		goto fail;
++	}
++
++	err = __sock_create(net, AF_INET6, type, protocol, &sock, 0);
++	put_net(net);
++	if (err)
++		goto fail;
++	fd = get_unused_fd_flags(O_CLOEXEC);
++	if (fd < 0) {
++		err = fd;
++		goto release_socket;
++	}
++	err = sock_bindtoindex(sock->sk, request.ifindex, true);
++	if (err)
++		goto put_fd;
++	rtnl_lock();
++	if (rtnl_dereference(ppp->control_owner) != owner ||
++	    ppp->control_retired || ppp_validate_owner(dev, file))
++		err = -ESTALE;
++	else
++		err = ppp_control_bind(&inet6_sk(sock->sk)->ppp_control, owner, sock->sk);
++	rtnl_unlock();
++	if (err)
++		goto put_fd;
++
++	socket_file = sock_alloc_file(sock, O_NONBLOCK, NULL);
++	/* sock_alloc_file consumes sock on both success and failure. */
++	if (IS_ERR(socket_file)) {
++		err = PTR_ERR(socket_file);
++		put_unused_fd(fd);
++		goto fail;
++	}
++	fd_install(fd, socket_file);
++	ppp_control_owner_put(owner);
++	return fd;
++put_fd:
++	put_unused_fd(fd);
++release_socket:
++	sock_release(sock);
++fail:
++	rtnl_lock();
++	/* Failed unpublished construction must not leave its base ownership
++	 * cycle behind. Concurrent unpublished constructors may retry; an
++	 * already useful socket preserves its original shared owner.
++	 */
++	if (rtnl_dereference(ppp->control_owner) == owner &&
++	    !ppp_control_owner_has_sockets(owner))
++		ppp_control_drop(ppp);
++	rtnl_unlock();
++	ppp_control_owner_put(owner);
++	return err;
++unlock:
++	rtnl_unlock();
++	return err;
++}
++
++static void ppp_nl_dellink(struct net_device *dev, struct list_head *head);
+@@ -1246,2 +1250,4 @@
+ 	ppp->owner = conf->file;
++	RCU_INIT_POINTER(ppp->control_owner, NULL);
++	ppp->control_retired = false;
+ 
+@@ -1401,1 +1407,30 @@
+-static int __init ppp_init(void)
++static void ppp_control_drop(struct ppp *ppp)
++{
++	struct ppp_control_owner *owner;
++
++	ASSERT_RTNL();
++	owner = rtnl_dereference(ppp->control_owner);
++	RCU_INIT_POINTER(ppp->control_owner, NULL);
++	ppp_control_owner_retire(owner);
++	ppp_control_owner_put(owner);
++}
++
++static int ppp_control_netdev_event(struct notifier_block *block,
++				   unsigned long event, void *ptr)
++{
++	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
++	struct ppp *ppp;
++
++	if (event != NETDEV_UNREGISTER || dev->netdev_ops != &ppp_netdev_ops)
++		return NOTIFY_DONE;
++	ppp = netdev_priv(dev);
++	WRITE_ONCE(ppp->control_retired, true);
++	ppp_control_drop(ppp);
++	return NOTIFY_DONE;
++}
++
++static struct notifier_block ppp_control_notifier = {
++	.notifier_call = ppp_control_netdev_event,
++};
++
++static int __init ppp_init(void)
+@@ -1429,6 +1481,10 @@
+ 		goto out_class;
+ 	}
+ 
++	err = register_netdevice_notifier(&ppp_control_notifier);
++	if (err)
++		goto out_link;
++
+ 	/* not a big deal if we fail here :-) */
+ 	device_create(&ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
+ 
+@@ -1436,1 +1494,3 @@
++out_link:
++	rtnl_link_unregister(&ppp_link_ops);
+ out_class:
+@@ -1561,8 +1621,11 @@
+ static void ppp_dev_uninit(struct net_device *dev)
+ {
+ 	struct ppp *ppp = netdev_priv(dev);
+ 	struct ppp_net *pn = ppp_pernet(ppp->ppp_net);
++	/* Also covers register_netdevice's partial-error uninit path. */
++	WRITE_ONCE(ppp->control_retired, true);
++	ppp_control_drop(ppp);
+ 
+ 	ppp_lock(ppp);
+ 	ppp->closing = 1;
+ 	ppp_unlock(ppp);
+@@ -3613,12 +3676,13 @@
+ static void __exit ppp_cleanup(void)
+ {
+ 	/* should never happen */
+ 	if (atomic_read(&ppp_unit_count) || atomic_read(&channel_count))
+ 		pr_err("PPP: removing module but units remain!\n");
+ 	rtnl_link_unregister(&ppp_link_ops);
++	unregister_netdevice_notifier(&ppp_control_notifier);
+ 	unregister_chrdev(PPP_MAJOR, "ppp");
+ 	device_destroy(&ppp_class, MKDEV(PPP_MAJOR, 0));
+ 	class_unregister(&ppp_class);
+ 	unregister_pernet_device(&ppp_net_ops);
+ 	rcu_barrier(); /* wait for RCU callbacks before module unload */
+ }
