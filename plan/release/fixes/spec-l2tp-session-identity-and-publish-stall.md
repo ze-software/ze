@@ -8,7 +8,7 @@
 | Release reason | Shipped-daemon defects an operator meets on an LNS with more than one tunnel: a subscriber's route is withdrawn or its session is cleared because a session on another tunnel holds the same session id, and every tunnel stops answering while one RADIUS server is slow. |
 | RFC gaps | - |
 | Depends | `spec-single-owner-lifecycle-5-session-end-locals` (closed) (it edits the same L2TP files and adds the per-tunnel order ticket this spec's design must fit; the order of the two is settled in design) |
-| Phase | 2/5: identity values landing; current producer and observer integration in progress |
+| Phase | 2/5: identity and CQM implemented; accounting baseline regression reproduced; native and scale validation open |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
@@ -41,6 +41,14 @@ older birth's Down cannot overwrite the newer contributor or renew an ended
 login's LRU interest. Genuine named Down before IP assignment remains useful;
 the login phase does not count simultaneous sessions or retain deduplication
 history after login eviction.
+
+The CQM integration also owns the reproduced bucket-arithmetic and partial-start
+cleanup prerequisites. Monitoring must preserve full echo counts, averages and
+extrema across the 65,536th echo, retain accepted configured intervals exactly
+and keep the intended native loss values without restricting configuration.
+A module-probe refusal after observer and replay acquisition must release those
+original resources before returning, leave copied callbacks inert and permit a
+useful healthy UDP retry.
 
 The new framed-route limit refusal and failed withdrawal notification also
 retain route-owned diagnostic events. Their logs and runtime doctor entries
@@ -273,6 +281,8 @@ including [packed identity binding](#packed-identity-binding-for-phase-2) and
 | AC-7 | A retained login receives Down from an older phase contributor after a newer birth assigns that login, or receives the same consumed Down again | The newer phase, samples and metrics survive; repeated Down does not promote ended history. Current-contributor Down, same-birth renegotiation, full event-ring capacity and named pre-IP proxy failures remain effective | Login phase describes its selected contributor rather than an aggregate session count. Login eviction forgets provenance; a later named Down can create a normal Down observation |
 | AC-8 | An update exceeds the 64 framed-route bound, or the void withdrawal notification cannot confirm removal | A covered operator log, retained route-owned error event and runtime doctor finding carry the birth, wire labels, cause and next command. Reporting holds neither observer lock; the 64-route neighbor and other births stay effective, and checked withdrawal retains its original retry receipt | Error events describe history. Successful retry leaves that history intact and makes no claim about another session's native cleanup |
 | AC-9 | The scale lab stages the reviewed per-tunnel allocator, or its existing error-predicate, candidate, zero-guard or receiver drift control | Only the reviewed complete canonical allocator receives the bounded candidate insertion; every drift control refuses before compilation. The original source bytes and owned cleanup stay intact. `TestScaleAllocatorOverlayIsolation`, `TestScaleBuildInputs` and the unchanged `l2tp-many-sessions-kl2tpd` guest scenario prove staging and the full survivor/accounting tail | Ordinary Ze and relay builds remain effective because neither requests the scale-only allocator overlay |
+| AC-10 | Admitted CQM observation reaches the 65,536th echo, or uses an accepted short, 3s, 100s or 101s echo interval | Current and finalized buckets preserve the full count, average and extrema without wrap; the public quality view retains the precise configured interval, and live/native loss preserves the intended values using the full expected count. When the interval yields no expected echo in a bucket, the public quality view and registered echo command omit unknown loss; an explicitly computed zero remains present. No configuration restriction is introduced | Existing accepted positive intervals and disabled/no-expected-echo behavior remain supported; native metric calculation is unchanged |
+| AC-11 | The actual Start module-probe step refuses after acquiring the original observer and replay subscriptions, followed by Stop and a healthy retry | Refusal immediately closes the original observer and releases every original subscription; an already copied callback has no effect. The retry binds a real UDP listener, admits useful current-generation observation and releases all callbacks on final Stop | The original probe cause remains identifiable through wrapping; no failed-start observer or callback remains live |
 
 ## End-to-End User Stories
 
@@ -295,6 +305,12 @@ The first three names came from
 | `TestObserverKeepsSameSessionIDOnTwoTunnelsApart` | `internal/component/l2tp/observer_test.go` | AC-2 at the CQM observer | |
 | `TestScaleAllocatorOverlayIsolation` | `internal/le/interoplab/l2tp/scale_overlay_test.go` | AC-9: exact per-tunnel allocator shape, drift refusals, candidate-only replacement and cleanup | native proof owed after coherent application |
 | `TestScaleBuildInputs` | `internal/le/interoplab/l2tp/scale_overlay_test.go` | AC-9: the scale daemon alone declares allocator instrumentation | native proof owed after coherent application |
+| `TestObserverBucketEchoCountCrossesUint16Boundary` | `internal/component/l2tp/observer_count_test.go` | AC-10: full live/finalized count, average and extrema across the 65,536th echo | semantic red recorded; source repair pending |
+| `TestObserverPositiveEchoIntervalsKeepFullExpectedCount` | `internal/component/l2tp/observer_count_test.go` | AC-10: accepted short intervals, precise quality interval and original native loss values | semantic red recorded; source repair pending |
+| `TestObserverEchoStateKeepsExactConfiguredInterval` | `internal/component/l2tp/observer_interval_test.go` | AC-10: preserve the actual accepted 3s and 101s intervals rather than reconstructing them from a bucket count | semantic red recorded; source repair pending |
+| `TestObserverEchoLossDistinguishesUnknownAndMeasuredZero` | `internal/component/l2tp/observer_loss_test.go` | AC-10: actual admitted observation preserves 1s measured loss, 100s computed zero and unknown 101s loss separately | semantic red recorded; optional-loss correction in progress |
+| `TestEchoCommandKeepsMeasuredZeroAndOmitsUnknownLoss` | `internal/component/l2tp/cmd/echo_loss_test.go` | AC-10: the registered command emits measured loss and explicit computed zero, while omitting unknown loss without losing the configured interval | semantic red recorded; optional-loss correction in progress |
+| `TestObserverProbeRefusalUnwindsBeforeStopAndRetry` | `internal/component/l2tp/observer_probe_unwind_test.go` | AC-11: immediate failed-probe closure, copied callback refusal, useful real UDP retry and zero final subscriptions | scoped semantic red then green recorded; wider verification owed |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -544,6 +560,10 @@ before implementation. AC-2 keeps its complete many-session and survivor proof.
 
 | Work | Current state / boundary |
 |------|--------------------------|
+| Incremental implementation commits | Commit coherent implemented chunks while validation continues. Each commit and this table distinguish implementation, passing checks, known failures and remaining proof; AC-2 stays open until its unchanged complete lab passes |
+| Completed identity chunks | PPP immutable birth and cached ID landed in `9e2a9a9e67`; captured actor, route and selector changes in `6ee99f1e49`; shared CoS preservation fixtures in `d14120b6d8`; CQM guard baselines in `0e57a7eedd`. These commits do not establish complete scale acceptance |
+| Implemented CQM integration | Original-generation admission, full-birth history, original metric leases, retained capture readers, failed-start unwind and count/interval/unknown-loss corrections are implemented and independently source-reviewed. Portable race runs passed 655 root test/fuzz groups, 33 command roots and 14 reached web roots. Four Linux-only new bodies, exact saved-response refresh, discrimination runs and remaining scoped integration checks are still owed |
+| Accounting live-counter foundation | Seven new real-Driver regression roots are published. Actual race run: five measurement/stale-owner guards pass; first-assignment baseline and dual-stack continuity fail because the network lifetime is minted at Session-Up. The reviewed early-lifetime production fix remains unapplied. Final native sample/adoption and ordered asynchronous Stop are not implemented by these tests |
 | Observer, CQM, CLI identity and remaining CoS consumer | Owned here; the active PPPoE/VPP session explicitly leaves these collisions for this work. Its rate/shaper packet migrates that consumer; it reports no CoS migration packet |
 | Opaque PPP attempt/control, exact provider requests and L2TP terminal owner | Active `spec-pppoe-vpp-dataplane` work. Proposed contracts are not current runtime proof. Its owner is coordinating immutable listener ownership and logical session birth; this design extends that contract rather than implements another one |
 | Start/Interim completion before Stop, endpoint retirement, exact Disconnect and timeout targets | Active PPPoE/VPP accounting, disconnect and counter work overlaps these goals. Preserve this spec's acceptance obligations and require integrated evidence after those carriers land; do not count private source packets as implemented |
@@ -901,6 +921,6 @@ from processing the same event and changing login quality state twice.
 | Lifecycle event | Original Up, IP-assigned, Down and Echo payloads retain that generation, including delayed terminal publication. Never substitute the current subsystem generation |
 | Observer delivery | Under the observer's existing mutex, check valid matching generation and admission state before any ring, login or metric effect. A stopped observer rejects already-copied callbacks too |
 | Retained observer | Seal unknown lifecycle admission while keeping its known original rings available for terminal updates and history. Fresh configuration gets fresh bounded pools; no pool-resizing migration or extra registry is needed |
-| History reader | Copy active and retained observer pointers under the subsystem lock, then read the exact Birth outside that lock. A history read never allocates a ring |
+| History reader | Collect active and retained reactor roots under Subsystem.mu and acquire their row locks before releasing it. Capture the exact original row, observer and generation consistently; read that capture's exact Birth outside the subsystem lock without allocating a ring. Fresh reads discover retained roots, and closed observers preserve readonly snapshots |
 | Disconnect history | Route the captured snapshot's generation and Birth to that original observer. An explicit event for an already-captured negotiating row may allocate its original retained ring; it never falls back to the current observer. Existing optional bounded CQM behavior is preserved, separately from command audit |
 | Proof | Controlled overlapping old/new publications with the same login must affect each original observer once; an old unknown birth cannot enter a retained observer, and a callback paused before Stop cannot mutate a closed observer |

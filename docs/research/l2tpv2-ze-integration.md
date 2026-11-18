@@ -704,6 +704,18 @@ bgp {
 
 ### 9.2 Route injection flow
 
+Session monitoring follows a separate original observation scope. Start mints
+one nonzero native generation before publishing listeners, binds its metrics
+before constructing CQM, and assigns that original observer to every reactor.
+Lifecycle notices retain the reactor's generation even when terminal delivery
+is delayed. Retired native roots keep the matching observer until their exact
+cleanup finishes; Stop seals copied callbacks before unsubscribe. Event history
+is keyed by complete Birth, while bounded login slots retain their quality
+phase contributor and original metric-series leases.
+<!-- source: internal/component/l2tp/subsystem.go -- Start, Stop, unwindLocked -->
+<!-- source: internal/component/l2tp/observer_events.go -- observeEvent -->
+<!-- source: internal/component/l2tp/session_retirement.go -- retireObserverLocked -->
+
 Each original logical session carries an immutable packed Birth and a cached
 canonical subscriber ID. The actor captures framed-route metadata with that ID
 before releasing its row lock. Its ordered IP-assignment callback supplies the
@@ -1170,6 +1182,16 @@ changing the active backend to VPP cannot redirect a Linux `pppN` operation.
 <!-- source: internal/component/l2tp/subsystem.go -- Start, Stop, unwindLocked -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
 
+PPPoE binds session admission to the original prepared access through
+`AccessOwner.Open`. Kernel preparation opens one independent netlink backend
+and shares it across that access's session handles and raw counter readers.
+VPP opens through its captured preparation and API connection generation.
+The caller MUST stop admission and join sessions. It MUST then close the access.
+<!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, preparedAccess.Open -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, kernelAccessOwner.Open, kernelAccessOwner.Close -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/factory.go -- openWithOps, rawCounters -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/vpp/prepare.go -- accessPreparationLease.Open, accessPreparation.borrow -->
+
 `SessionCounters` keeps numeric receive/transmit bytes and packets. Its receive/
 transmit error and drop fields each carry a `CounterReading`. Consumers call
 `Value` on each diagnostic.
@@ -1180,6 +1202,21 @@ default to Unknown until a provider supplies a native measurement. These fields
 alone do not establish a backend counter reader.
 <!-- source: internal/component/l2tp/ppp/session_handle.go -- SessionCounters -->
 <!-- source: internal/component/l2tp/ppp/counter_reading.go -- CounterReading.Value -->
+
+The shared kernel library also provides an original-unit creator. It creates
+named and unnamed PPP units through the supplied backend's ordered creation
+socket, retaining the actual ECHO identity, original unit file and that socket's
+generation-bound counter reader. A renamed original remains readable from
+another caller namespace; native deletion, movement, lost history and backend
+closure refuse the reader. Original-file POLLHUP checks and a final closed-state
+check discard a late snapshot without holding a descriptor lease or owner lock
+across a counter query. On creation failure, any returned unit still owns its
+original file, including a partial echo, uncertain reply or provider panic; it
+cannot supply counters until creation was confirmed. This creator is a library
+primitive; the existing transport setup and SessionConfig still require their
+separate consuming migration before it supplies session counters.
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit.go -- UnitCreator.Create, CreatedUnit.Counters, CreatedUnit.Close -->
+<!-- source: internal/component/l2tp/ppp/kernel/created_unit_linux.go -- NewUnitCreator, createOriginalPPPUnit, pollOriginalPPPUnit -->
 
 The kernel L2TP and PPPoE adapters copy all eight native traffic, error and drop
 totals from a successful raw snapshot. Error and drop totals use measured

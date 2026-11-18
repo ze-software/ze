@@ -241,8 +241,9 @@ no echo data is refused with 'no echo data'.";
         output {
             leaf echo {
                 type string;
-                description "The keys are login, last-rtt-ms and bucket-state. echo-interval and
-loss-ratio are present only when an echo interval is set for the login.";
+                description "The keys are login, last-rtt-ms and bucket-state. echo-interval is
+present when a positive echo interval is set. loss-ratio is present only when
+the bucket has a positive expected echo count; a computed zero remains present.";
                 ze:help "JSON object with echo state.";
             }
         }

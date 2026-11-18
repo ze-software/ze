@@ -7,7 +7,6 @@ package l2tp
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
@@ -204,18 +203,6 @@ func (s *Subsystem) TeardownAllSessions() int {
 	return n
 }
 
-// SessionEvents returns a snapshot of the per-session event ring.
-// Returns nil when the observer is not enabled or the session has no ring.
-func (s *Subsystem) SessionEvents(sessionID uint16) []ObserverEvent {
-	s.mu.Lock()
-	obs := s.observer
-	s.mu.Unlock()
-	if obs == nil {
-		return nil
-	}
-	return obs.SessionEvents(sessionID)
-}
-
 // LoginSamples returns a snapshot of the per-login CQM sample ring.
 // Returns nil when the observer is not enabled or the login is unknown.
 func (s *Subsystem) LoginSamples(login string) []CQMBucket {
@@ -367,25 +354,6 @@ func (s *Subsystem) RawCaptureSnapshot(limit int) []RawCaptureEntry {
 		}
 	}
 	return nil
-}
-
-// RecordDisconnect records a disconnect-requested event on the per-session
-// event ring. No-op when the observer is not enabled.
-func (s *Subsystem) RecordDisconnect(sessionID uint16, actor, reason string, cause uint32) {
-	s.mu.Lock()
-	obs := s.observer
-	s.mu.Unlock()
-	if obs == nil {
-		return
-	}
-	obs.recordEvent(ObserverEvent{
-		Timestamp: time.Now(),
-		Type:      ObserverEventDisconnectRequested,
-		SessionID: sessionID,
-		Actor:     actor,
-		Reason:    reason,
-		Cause:     cause,
-	})
 }
 
 // redactSecret maps a non-empty secret to "<set>" and the empty string

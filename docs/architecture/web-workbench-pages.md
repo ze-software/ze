@@ -167,6 +167,16 @@ disconnect action. Both read `l2tp.LookupService().Snapshot()`, and the
 workbench session rows link to the original detail path because that page holds
 the richer view.
 
+The detail handler captures one original session and uses that capture for
+both its snapshot and event history. It rejects an ambiguous numeric SID and
+does not perform a second SID lookup that could select a replacement. Event
+JSON carries the complete original `subscriber-id`; an absent formatting
+reference remains omitted. Login sample/SSE views keep their existing login
+scope.
+
+<!-- source: internal/component/web/handler_l2tp.go -- handleL2TPDetail -->
+<!-- source: internal/component/l2tp/session_capture.go -- SessionEvents -->
+
 - The CQM chart feed is a per-connection `time.Ticker` at the bucket interval,
   not an EventBroker broadcast. A CQM feed is per login, so broadcasting it
   would leak one subscriber's data to another and waste bandwidth.

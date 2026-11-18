@@ -4,7 +4,8 @@ Session metrics for L2TP and server metrics for RADIUS. A 30-second poller reads
 the kernel counters. Per-session series carry the full label set and are removed
 asynchronously after teardown.
 
-<!-- source: internal/component/l2tp/metrics.go -- bindL2TPMetrics, l2tpStatsPoller, observeCQMBucket, deleteSessionSeries -->
+<!-- source: internal/component/l2tp/metrics.go -- bindL2TPMetrics, l2tpStatsPoller, deleteSessionSeries -->
+<!-- source: internal/component/l2tp/observer_metrics.go -- retainCQMSeries, observeCQMBucket -->
 <!-- source: internal/component/l2tp/plugins/authradius/metrics.go -- RADIUS server metrics -->
 
 ## Decisions
@@ -23,9 +24,25 @@ rather than synchronously on session down. The observer does not hold the label
 set that immediate deletion would need.
 
 **The bucket observation feeds the histogram.** When the observer finalizes a
-100-second bucket, the minimum, average and maximum round-trip times go into the
-histogram, and the loss ratio and bucket state gauges are updated. The key is
-the username.
+100-second bucket with echoes, its average round-trip time is one histogram
+observation. The loss ratio and bucket state gauges are updated from that
+finalized bucket. The key remains the username.
+
+Expected and received echo counts retain their complete 64-bit values through
+the loss calculation. A short positive sampling interval does not narrow the
+expected count before computing the ratio.
+
+**Quality series belong to their original physical registration.** Startup
+binds metrics before constructing the observer. Each bounded login slot retains
+the three original vectors before publishing measured values. A failed or
+partial retention releases only its new interests and preserves useful old
+history. Eviction and final Stop release those exact leases; the last holder
+removes the original series. An older observer cannot delete a current holder's
+series or redirect measurements into a replacement registry. Retention alone
+publishes no sample.
+
+<!-- source: internal/component/l2tp/observer_metrics.go -- cqmSeriesLease, retainCQMSeries, observeCQMBucket -->
+<!-- source: internal/component/l2tp/observer.go -- touchLogin, evictLRU, Stop -->
 
 <!-- source: internal/component/l2tp/cqm.go -- CQMBucket, BucketInterval -->
 
@@ -35,8 +52,9 @@ events, so there is no race to reason about.
 
 ## Traps this code exists to avoid
 
-**Kernel counters are 32-bit and they wrap.** The poller computes deltas between
-polls and handles the wrap. A raw read reports a large negative jump.
+**Interface counters can decrease.** The poller compares unsigned readings.
+When a reading is lower than its predecessor, it adds the current reading as
+a new baseline instead of producing an unsigned underflow.
 
 <!-- source: internal/component/l2tp/metrics.go -- addCounterDelta -->
 

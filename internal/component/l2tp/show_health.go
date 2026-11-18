@@ -32,7 +32,7 @@ func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ command.ValidatedArg
 		rows = append(rows, map[string]any{
 			"login":        s.Login,
 			"last-state":   s.LastState,
-			"echo-count":   int(s.EchoCount),
+			"echo-count":   s.EchoCount,
 			"avg-rtt-ms":   float64(s.AvgRTT.Microseconds()) / 1000.0,
 			"bucket-count": s.BucketCount,
 		})

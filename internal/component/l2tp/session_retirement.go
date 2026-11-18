@@ -152,6 +152,7 @@ func (s *Subsystem) retainStoppedReactorsLocked() {
 // a replacement listener/backend; an uncertain raw close continues to refuse.
 func (s *Subsystem) cleanupRetiredReactorsLocked(ctx context.Context) error {
 	hadRetired := len(s.retiredReactors) != 0
+	previousObservers := s.retiredObserversLocked()
 	kept := s.retiredReactors[:0]
 	var errs []error
 	for _, reactor := range s.retiredReactors {
@@ -182,6 +183,7 @@ func (s *Subsystem) cleanupRetiredReactorsLocked(ctx context.Context) error {
 	}
 	clear(s.retiredReactors[len(kept):])
 	s.retiredReactors = kept
+	s.closeUnretainedObserversLocked(previousObservers)
 	if len(kept) != 0 {
 		return errors.Join(append(errs, ErrSessionCleanupPending)...)
 	}
@@ -189,4 +191,51 @@ func (s *Subsystem) cleanupRetiredReactorsLocked(ctx context.Context) error {
 		return s.closeKernelBackend()
 	}
 	return nil
+}
+
+// retireObserverLocked moves observation ownership to the already retained
+// native roots. Caller MUST hold Subsystem.mu after joining dispatch; the last
+// original root MUST close the observer, never its replacement.
+func (s *Subsystem) retireObserverLocked() {
+	observer := s.observer
+	s.observer = nil
+	if observer == nil {
+		return
+	}
+	observer.RetainKnownSessions()
+	for _, reactor := range s.retiredReactors {
+		if reactor.observer == observer {
+			return
+		}
+	}
+	observer.Stop()
+}
+
+func (s *Subsystem) retiredObserversLocked() []*Observer {
+	observers := make([]*Observer, 0, len(s.retiredReactors))
+	seen := make(map[*Observer]bool, len(s.retiredReactors))
+	for _, reactor := range s.retiredReactors {
+		observer := reactor.observer
+		if observer == nil || seen[observer] {
+			continue
+		}
+		seen[observer] = true
+		observers = append(observers, observer)
+	}
+	return observers
+}
+
+// The scans are bounded by retained listener roots; this is not another owner
+// registry. Caller MUST hold Subsystem.mu; unreferenced originals MUST close once.
+func (s *Subsystem) closeUnretainedObserversLocked(previous []*Observer) {
+	retained := make(map[*Observer]bool, len(s.retiredReactors))
+	for _, reactor := range s.retiredReactors {
+		retained[reactor.observer] = true
+	}
+	for _, observer := range previous {
+		if observer == s.observer || retained[observer] {
+			continue
+		}
+		observer.Stop()
+	}
 }

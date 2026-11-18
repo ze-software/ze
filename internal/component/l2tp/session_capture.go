@@ -38,6 +38,7 @@ type CapturedSession interface {
 	Listener() netip.AddrPort
 	Snapshot() (SessionSnapshot, error)
 	FSMHistory() ([]FSMTransition, error)
+	SessionEvents() ([]ObserverEvent, error)
 	Counters() (ppp.SessionCounters, error)
 	RecordDisconnect(actor, reason string, cause uint32) error
 	Teardown(context.Context, l2tpevents.TerminateCause, string) error
@@ -53,6 +54,7 @@ type capturedSession struct {
 	birth           subscriberid.L2TPBirth
 	listener        netip.AddrPort
 	observer        *Observer
+	generation      l2tpevents.ObservationGeneration
 	teardownStarted atomic.Bool
 }
 
@@ -68,7 +70,6 @@ func (subsystem *Subsystem) CaptureSession(selector SessionSelector) (CapturedSe
 		return nil, ErrInvalidID
 	}
 	subsystem.mu.Lock()
-	observer := subsystem.observer
 	reactors := make([]*l2tpReactor, 0, len(subsystem.reactors))
 	seen := make(map[*l2tpReactor]bool, len(subsystem.reactors))
 	for _, reactor := range subsystem.reactors {
@@ -131,7 +132,7 @@ func (subsystem *Subsystem) CaptureSession(selector SessionSelector) (CapturedSe
 			if selected != nil {
 				return nil, ErrSessionAmbiguous
 			}
-			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: observer}
+			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: reactor.observer, generation: reactor.params.Generation}
 		}
 		for session, tunnel := range reactor.retiredSessions {
 			if session.localSID != selector.SID {
@@ -154,7 +155,7 @@ func (subsystem *Subsystem) CaptureSession(selector SessionSelector) (CapturedSe
 			if selected != nil {
 				return nil, ErrSessionAmbiguous
 			}
-			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: observer}
+			selected = &capturedSession{reactor: reactor, tunnel: tunnel, session: session, birth: birth, listener: endpoint, observer: reactor.observer, generation: reactor.params.Generation}
 			selected.teardownStarted.Store(true)
 		}
 	}
@@ -221,7 +222,7 @@ func (captured *capturedSession) Snapshot() (SessionSnapshot, error) {
 	if !captured.currentLocked() {
 		return SessionSnapshot{}, ErrSessionNotFound
 	}
-	return sessionSnapshot(captured.tunnel.localTID, captured.session), nil
+	return captured.reactor.sessionSnapshot(captured.tunnel.localTID, captured.session), nil
 }
 
 // FSMHistory copies only the captured row's bounded history ring.
@@ -241,6 +242,26 @@ func (captured *capturedSession) FSMHistory() ([]FSMTransition, error) {
 		return nil, nil
 	}
 	return captured.session.fsmHistory.snapshot(), nil
+}
+
+// SessionEvents reads this captured original's observer without any SID relookup.
+// The caller MUST retain its capture; the observer MUST never be replaced here.
+func (captured *capturedSession) SessionEvents() ([]ObserverEvent, error) {
+	if captured == nil {
+		return nil, ErrSessionNotFound
+	}
+	if captured.reactor == nil {
+		return nil, ErrSessionNotFound
+	}
+	captured.reactor.tunnelsMu.Lock()
+	defer captured.reactor.tunnelsMu.Unlock()
+	if !captured.currentLocked() {
+		return nil, ErrSessionNotFound
+	}
+	if captured.observer == nil {
+		return nil, nil
+	}
+	return captured.observer.SessionEvents(captured.birth), nil
 }
 
 // Counters borrows the original PPP control outside the actor lock. The exact

@@ -240,6 +240,7 @@ func (r *l2tpReactor) notifySessionDowns(batch []sessionDown) {
 		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
 			Birth:        d.birth,
 			SubscriberID: d.subscriberID,
+			Generation:   r.params.Generation,
 			TunnelID:     d.localTID,
 			SessionID:    d.localSID,
 			Username:     d.username,

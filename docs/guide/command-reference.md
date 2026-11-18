@@ -4145,8 +4145,8 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 | `show l2tp statistics` | run | Protocol counters |
 | `show l2tp listeners` | run | Bound UDP listener endpoints |
 | `show l2tp config` | run | Effective runtime configuration |
-| `show l2tp observer <sid>` | run | Per-session event ring snapshot (timestamps, types, RTT, reasons) |
-| `show l2tp observer all` | run | Summary of all active session event rings |
+| `show l2tp observer <sid>` | run | Capture one original session and read its event ring; ambiguous numeric IDs refuse |
+| `show l2tp observer all` | run | Summary of current event rings, including complete subscriber references and original tunnel IDs |
 | `show l2tp cqm <login>` | run | Per-login CQM bucket history (100s echo RTT/loss aggregates) |
 | `show l2tp cqm summary` | run | Aggregate CQM state across all tracked logins |
 | `show l2tp echo <login>` | run | Current echo state for a login (RTT, loss ratio, interval) |
@@ -4170,6 +4170,13 @@ unknown listener names, duplicate keywords and missing values refuse before
 audit or mutation. Tab after `listener` offers current original listener names.
 A cleanup refusal retains the original reference for an exact retry; queued or
 logical removal alone does not report success.
+
+Observer event rows include `subscriber-id`. Summary rows also include
+`tunnel-id`, so equal numeric session IDs remain distinguishable. A detail
+history read uses its captured original rather than looking the ID up again.
+The existing bare and `all` observer summary forms remain available.
+
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleObserver -->
 
 <!-- source: internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang -->
 <!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs, sessionJSON -->

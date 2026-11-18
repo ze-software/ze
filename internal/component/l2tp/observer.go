@@ -10,7 +10,7 @@ import (
 	"time"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
-	"github.com/ze-software/ze/pkg/ze"
+	"github.com/ze-software/ze/internal/core/subscriberid"
 )
 
 const stateUnknown = "unknown"
@@ -53,6 +53,7 @@ func (t ObserverEventType) String() string {
 
 // ObserverEvent is one record in a per-session event ring.
 type ObserverEvent struct {
+	Birth     subscriberid.L2TPBirth `json:"subscriber-id,omitzero"`
 	Timestamp time.Time
 	Type      ObserverEventType
 	TunnelID  uint16
@@ -168,12 +169,15 @@ func (p *sampleRingPool) release(r *sampleRing) {
 
 // lruEntry tracks a login's sample ring and position in the LRU list.
 type lruEntry struct {
-	login   string
-	ring    *sampleRing
-	current CQMBucket
-	state   BucketState
-	prev    *lruEntry
-	next    *lruEntry
+	login        string
+	ring         *sampleRing
+	current      CQMBucket
+	state        BucketState
+	contributor  subscriberid.L2TPBirth
+	downConsumed bool
+	series       cqmSeriesLease
+	prev         *lruEntry
+	next         *lruEntry
 }
 
 // Observer manages per-session event rings and per-login CQM sample
@@ -184,7 +188,10 @@ type Observer struct {
 	eventPool  *eventRingPool
 	samplePool *sampleRingPool
 
-	sessions map[uint16]*eventRing
+	sessions   map[subscriberid.L2TPBirth]*eventRing
+	generation l2tpevents.ObservationGeneration
+	admission  observerAdmission
+	metrics    *l2tpMetrics
 
 	logins  map[string]*lruEntry
 	lruHead *lruEntry
@@ -192,11 +199,15 @@ type Observer struct {
 
 	unsubs []func()
 
-	expectedEchoesPerBucket uint16
+	// Zero preserves the disabled contract for non-positive direct inputs.
+	echoInterval            time.Duration
+	expectedEchoesPerBucket uint64
 }
 
 // observerConfig holds observer construction parameters.
 type observerConfig struct {
+	Generation    l2tpevents.ObservationGeneration
+	Metrics       *l2tpMetrics
 	MaxSessions   int
 	EventRingSize int
 	MaxLogins     int
@@ -205,83 +216,47 @@ type observerConfig struct {
 }
 
 // newObserver creates an observer with pre-allocated ring pools.
-func newObserver(cfg observerConfig) *Observer {
-	var expected uint16
+func newObserver(cfg observerConfig) (*Observer, error) {
+	if err := validateObserverConfig(cfg); err != nil {
+		return nil, err
+	}
+	var expected uint64
 	if cfg.EchoInterval > 0 {
-		expected = uint16(BucketInterval / cfg.EchoInterval)
+		expected = uint64(BucketInterval / cfg.EchoInterval)
 	}
 	return &Observer{
 		eventPool:               newEventRingPool(cfg.MaxSessions, cfg.EventRingSize),
 		samplePool:              newSampleRingPool(cfg.MaxLogins, cfg.BucketCount),
+		echoInterval:            max(cfg.EchoInterval, 0),
 		expectedEchoesPerBucket: expected,
-		sessions:                make(map[uint16]*eventRing),
+		sessions:                make(map[subscriberid.L2TPBirth]*eventRing),
 		logins:                  make(map[string]*lruEntry),
-	}
+		generation:              cfg.Generation,
+		admission:               observerOpen,
+		metrics:                 cfg.Metrics,
+	}, nil
 }
 
-// recordEvent appends an event to the per-session event ring.
-func (o *Observer) recordEvent(ev ObserverEvent) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	ring := o.sessions[ev.SessionID]
-	if ring == nil {
-		ring = o.eventPool.acquire()
-		if ring == nil {
-			return
-		}
-		o.sessions[ev.SessionID] = ring
-	}
-	ring.append(ev)
-}
-
-// ReleaseSession returns a session's event ring to the pool.
-func (o *Observer) ReleaseSession(sessionID uint16) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	ring := o.sessions[sessionID]
+// releaseSessionLocked requires Observer.mu. Its caller MUST already admit
+// the original delivery; this pool operation MUST never select by wire labels.
+func (o *Observer) releaseSessionLocked(birth subscriberid.L2TPBirth) {
+	ring := o.sessions[birth]
 	if ring == nil {
 		return
 	}
-	delete(o.sessions, sessionID)
+	delete(o.sessions, birth)
 	o.eventPool.release(ring)
 }
 
-// recordEcho folds one echo RTT sample into the current CQM bucket.
-func (o *Observer) recordEcho(login string, now time.Time, rtt time.Duration) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	entry := o.touchLogin(login, now)
-	if entry == nil {
-		return
-	}
-	o.maybeCloseBucket(entry, now)
-	entry.current.addEcho(rtt)
-}
-
-// setLoginState updates the CQM bucket state for a login, creating
-// the entry if it does not yet exist (e.g. SessionIPAssigned arrives
-// before the first echo).
-func (o *Observer) setLoginState(login string, state BucketState) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	entry := o.touchLogin(login, time.Now())
-	if entry == nil {
-		return
-	}
-	entry.state = state
-	entry.current.State = state
-}
-
 // SessionEvents returns a snapshot of the per-session event ring.
-func (o *Observer) SessionEvents(sessionID uint16) []ObserverEvent {
+func (o *Observer) SessionEvents(birth subscriberid.L2TPBirth) []ObserverEvent {
+	if o == nil || !birth.IsValid() {
+		return nil
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	ring := o.sessions[sessionID]
+	ring := o.sessions[birth]
 	if ring == nil {
 		return nil
 	}
@@ -307,6 +282,8 @@ func (o *Observer) LoginSamples(login string) []CQMBucket {
 
 // SessionSummary is a compact view of one session's event ring.
 type SessionSummary struct {
+	Birth         subscriberid.L2TPBirth `json:"subscriber-id,omitzero"`
+	TunnelID      uint16                 `json:"tunnel-id"`
 	SessionID     uint16
 	EventCount    int
 	LastEventType string
@@ -319,17 +296,22 @@ func (o *Observer) SessionSummaries() []SessionSummary {
 	defer o.mu.Unlock()
 
 	out := make([]SessionSummary, 0, len(o.sessions))
-	for sid, ring := range o.sessions {
-		s := SessionSummary{SessionID: sid, EventCount: ring.count}
+	for birth, ring := range o.sessions {
+		s := SessionSummary{Birth: birth, EventCount: ring.count}
 		if ring.count > 0 {
 			last := ring.events[(ring.head-1+len(ring.events))%len(ring.events)]
+			s.SessionID = last.SessionID
+			s.TunnelID = last.TunnelID
 			s.LastEventType = last.Type.String()
 			s.LastEventTime = last.Timestamp
 		}
 		out = append(out, s)
 	}
 	slices.SortFunc(out, func(a, b SessionSummary) int {
-		return int(a.SessionID) - int(b.SessionID)
+		if a.SessionID != b.SessionID {
+			return int(a.SessionID) - int(b.SessionID)
+		}
+		return int(a.TunnelID) - int(b.TunnelID)
 	})
 	return out
 }
@@ -339,7 +321,7 @@ type LoginSummary struct {
 	Login       string
 	BucketCount int
 	LastState   string
-	EchoCount   uint16
+	EchoCount   uint64
 	AvgRTT      time.Duration
 }
 
@@ -373,9 +355,11 @@ func (o *Observer) LoginSummaries() []LoginSummary {
 
 // LoginEchoState returns the current echo state for a login.
 type LoginEchoState struct {
-	Login        string
-	LastRTT      time.Duration
-	LossRatio    float64
+	Login   string
+	LastRTT time.Duration
+	// LossRatio is nil when the original interval yields no expected echoes.
+	// A computed zero remains present and must not be treated as unavailable.
+	LossRatio    *float64
 	EchoInterval time.Duration
 	BucketState  string
 }
@@ -391,11 +375,9 @@ func (o *Observer) EchoState(login string) *LoginEchoState {
 		return nil
 	}
 	state := &LoginEchoState{
-		Login:       login,
-		BucketState: entry.current.State.String(),
-	}
-	if o.expectedEchoesPerBucket > 0 {
-		state.EchoInterval = BucketInterval / time.Duration(o.expectedEchoesPerBucket)
+		Login:        login,
+		EchoInterval: o.echoInterval,
+		BucketState:  entry.current.State.String(),
 	}
 	if entry.current.EchoCount > 0 {
 		state.LastRTT = entry.current.AvgRTT()
@@ -404,10 +386,11 @@ func (o *Observer) EchoState(login string) *LoginEchoState {
 		received := float64(entry.current.EchoCount)
 		expected := float64(o.expectedEchoesPerBucket)
 		if expected > 0 {
-			state.LossRatio = 1.0 - (received / expected)
-			if state.LossRatio < 0 {
-				state.LossRatio = 0
+			loss := 1.0 - (received / expected)
+			if loss < 0 {
+				loss = 0
 			}
+			state.LossRatio = &loss
 		}
 	}
 	return state
@@ -420,48 +403,74 @@ func (o *Observer) addUnsub(fn func()) {
 	o.unsubs = append(o.unsubs, fn)
 }
 
-// Stop unsubscribes all EventBus handlers.
-func (o *Observer) Stop() {
+// RetainKnownSessions seals lifecycle admission for this original generation.
+// Its owner MUST call it before retiring roots; known terminal updates MUST remain useful.
+func (o *Observer) RetainKnownSessions() {
+	if o == nil {
+		return
+	}
 	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.admission == observerOpen {
+		o.admission = observerRetained
+	}
+}
+
+// Stop closes admission before unsubscribe so copied callbacks are revoked.
+// The owner MUST call it after its final root retires; readers MUST retain
+// their immutable history while actual native series leases are released once.
+func (o *Observer) Stop() {
+	if o == nil {
+		return
+	}
+	o.mu.Lock()
+	if o.admission == observerClosed {
+		o.mu.Unlock()
+		return
+	}
+	o.admission = observerClosed
 	unsubs := o.unsubs
 	o.unsubs = nil
+	for _, entry := range o.logins {
+		entry.series.Release()
+	}
 	o.mu.Unlock()
-
 	for _, fn := range unsubs {
 		fn()
 	}
 }
 
-func (o *Observer) touchLogin(login string, now time.Time) *lruEntry {
-	if entry, ok := o.logins[login]; ok {
+func (o *Observer) touchLogin(login string, now time.Time, birth subscriberid.L2TPBirth) (*lruEntry, error) {
+	if entry := o.logins[login]; entry != nil {
 		o.promoteEntry(entry)
-		return entry
+		return entry, nil
 	}
-
+	if len(o.samplePool.free) == 0 && o.lruTail == nil {
+		return nil, nil
+	}
+	// Retain every original physical series before evicting useful history.
+	// A refusal MUST leave that history intact; partial custody MUST be released.
+	series, err := o.metrics.retainCQMSeries(login)
+	if err != nil {
+		return nil, err
+	}
 	ring := o.samplePool.acquire()
 	if ring == nil {
-		if o.lruTail == nil {
-			return nil
-		}
 		o.evictLRU()
 		ring = o.samplePool.acquire()
-		if ring == nil {
-			return nil
-		}
 	}
-
+	if ring == nil {
+		series.Release()
+		return nil, nil
+	}
 	entry := &lruEntry{
-		login: login,
-		ring:  ring,
-		state: BucketStateNegotiating,
-		current: CQMBucket{
-			Start: now,
-			State: BucketStateNegotiating,
-		},
+		login: login, ring: ring, state: BucketStateNegotiating,
+		contributor: birth, series: series,
+		current: CQMBucket{Start: now, State: BucketStateNegotiating},
 	}
 	o.logins[login] = entry
 	o.promoteEntry(entry)
-	return entry
+	return entry, nil
 }
 
 func (o *Observer) maybeCloseBucket(entry *lruEntry, now time.Time) {
@@ -475,7 +484,7 @@ func (o *Observer) maybeCloseBucket(entry *lruEntry, now time.Time) {
 	// buckets would just overwrite each other in the ring anyway.
 	ringCap := len(entry.ring.buckets) + 1
 	for i := 0; now.Sub(entry.current.Start) >= BucketInterval && i < ringCap; i++ {
-		observeCQMBucket(entry.login, entry.current, o.expectedEchoesPerBucket)
+		o.metrics.observeCQMBucket(entry.login, entry.current, o.expectedEchoesPerBucket)
 		entry.ring.append(entry.current)
 		entry.current = CQMBucket{
 			Start: entry.current.Start.Add(BucketInterval),
@@ -495,7 +504,7 @@ func (o *Observer) evictLRU() {
 	}
 	o.removeEntry(victim)
 	delete(o.logins, victim.login)
-	deleteLoginMetrics(victim.login)
+	victim.series.Release()
 	o.samplePool.release(victim.ring)
 }
 
@@ -513,60 +522,6 @@ func (o *Observer) promoteEntry(entry *lruEntry) {
 	if o.lruTail == nil {
 		o.lruTail = entry
 	}
-}
-
-// wireObserverSubscriptions subscribes the observer to L2TP EventBus
-// events. Called from Subsystem.Start when CQM is enabled.
-func (s *Subsystem) wireObserverSubscriptions(bus ze.EventBus) {
-	obs := s.observer
-
-	obs.addUnsub(l2tpevents.SessionUp.Subscribe(bus, func(p *l2tpevents.SessionUpPayload) {
-		obs.recordEvent(ObserverEvent{
-			Timestamp: time.Now(),
-			Type:      ObserverEventSessionUp,
-			TunnelID:  p.TunnelID,
-			SessionID: p.SessionID,
-		})
-	}))
-
-	obs.addUnsub(l2tpevents.SessionDown.Subscribe(bus, func(p *l2tpevents.SessionDownPayload) {
-		obs.recordEvent(ObserverEvent{
-			Timestamp: time.Now(),
-			Type:      ObserverEventSessionDown,
-			TunnelID:  p.TunnelID,
-			SessionID: p.SessionID,
-		})
-		obs.ReleaseSession(p.SessionID)
-		if p.Username != "" {
-			obs.setLoginState(p.Username, BucketStateDown)
-		}
-	}))
-
-	obs.addUnsub(l2tpevents.SessionIPAssigned.Subscribe(bus, func(p *l2tpevents.SessionIPAssignedPayload) {
-		obs.recordEvent(ObserverEvent{
-			Timestamp: time.Now(),
-			Type:      ObserverEventSessionIPAssigned,
-			TunnelID:  p.TunnelID,
-			SessionID: p.SessionID,
-		})
-		if p.Username != "" {
-			obs.setLoginState(p.Username, BucketStateEstablished)
-		}
-	}))
-
-	obs.addUnsub(l2tpevents.EchoRTT.Subscribe(bus, func(p *l2tpevents.EchoRTTPayload) {
-		now := time.Now()
-		obs.recordEvent(ObserverEvent{
-			Timestamp: now,
-			Type:      ObserverEventEchoRTT,
-			TunnelID:  p.TunnelID,
-			SessionID: p.SessionID,
-			RTT:       p.RTT,
-		})
-		if p.Username != "" {
-			obs.recordEcho(p.Username, now, p.RTT)
-		}
-	}))
 }
 
 func (o *Observer) removeEntry(entry *lruEntry) {

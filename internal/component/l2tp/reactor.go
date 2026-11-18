@@ -62,6 +62,7 @@ type peerKey struct {
 // hardcodes host name and capabilities; phase 7 wires them through
 // YANG).
 type reactorParams struct {
+	Generation       l2tpevents.ObservationGeneration // original native scope, set before publication
 	LCP              ppp.LCPConfig
 	ServerName       string         // `environment l2tp server` key of this reactor's listener, for operator errors
 	ConfiguredListen netip.AddrPort // the listener the config declares now; a reload moves it, never the bound socket
@@ -162,6 +163,9 @@ type l2tpReactor struct {
 	// OnSessionDown at session teardown time. nil when no observer is
 	// installed (tests, subsystem disabled).
 	routeObserver RouteObserver
+	// observer belongs to this original generation, including retained cleanup.
+	// The subsystem MUST assign it before Start; readers MUST never replace it.
+	observer *Observer
 
 	// spec-l2tp-8a: EventBus for emitting (l2tp, session-down) events.
 	// Set by subsystem via SetEventBus before Start.

@@ -16,11 +16,13 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/callsink"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
@@ -170,7 +172,13 @@ func (s *Subsystem) tunnelDefaults() TunnelDefaults {
 // MUST be called before Stop/Reload.
 func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvider) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	var observerStartErr error
+	defer func() {
+		s.mu.Unlock()
+		if observerStartErr != nil {
+			reportObserverStartFailure(s.logger, observerStartErr)
+		}
+	}()
 
 	if s.started {
 		return errL2tpSubsystemAlreadyStarted
@@ -197,6 +205,15 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		s.started = true
 		return nil
 	}
+
+	generation, err := l2tpevents.NewObservationGeneration()
+	if err != nil {
+		observerStartErr = opererr.Wrap(err, "L2TP could not start",
+			"A distinct session observation scope could not be allocated", "sudo systemctl restart ze")
+		return observerStartErr
+	}
+	metricsRegistry := registry.GetMetricsRegistry()
+	metricBinding := bindL2TPMetrics(metricsRegistry)
 
 	if s.params.ReauthInterval > 0 {
 		s.logger.Info("l2tp: periodic PPP re-auth enabled", "interval", s.params.ReauthInterval)
@@ -227,13 +244,21 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		if maxSess == 0 {
 			maxSess = 1000
 		}
-		s.observer = newObserver(observerConfig{
+		observer, observerErr := newObserver(observerConfig{
+			Generation:    generation,
+			Metrics:       metricBinding,
 			MaxSessions:   maxSess,
 			EventRingSize: s.params.EventRingSizePerSession,
 			MaxLogins:     s.params.MaxLogins,
 			BucketCount:   bucketCount,
 			EchoInterval:  s.cqmEchoInterval(),
 		})
+		if observerErr != nil {
+			observerStartErr = observerErr
+			s.unwindLocked()
+			return observerErr
+		}
+		s.observer = observer
 		s.wireObserverSubscriptions(bus)
 		s.logger.Info("l2tp: CQM observer started",
 			"max-logins", s.params.MaxLogins,
@@ -252,6 +277,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	if env.GetBool("ze.l2tp.skip-kernel-probe", false) {
 		s.logger.Warn("l2tp: skipping kernel module probe (ze.l2tp.skip-kernel-probe=true)")
 	} else if err := probeKernelModulesFn(); err != nil {
+		s.unwindLocked()
 		return fmt.Errorf("l2tp: %w", err)
 	}
 
@@ -283,6 +309,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			ProxyLCP:         s.params.ProxyLCP,
 			AuthTimeout:      s.params.AuthTimeout,
 			ReauthInterval:   s.params.ReauthInterval,
+			Generation:       generation,
 			HelloInterval:    s.params.HelloInterval,
 			HelloRetries:     s.params.HelloRetries,
 			EnableIPCP:       s.params.EnableIPCP,
@@ -295,6 +322,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		// into every reactor so EventSessionIPAssigned and
 		// EventSessionDown drive inject / withdraw.
 		reactor.setRouteObserver(s.routeObserver)
+		reactor.observer = s.observer
 		// spec-l2tp-8a: install EventBus so reactor can emit
 		// (l2tp, session-down) for pool release.
 		reactor.SetEventBus(bus)
@@ -425,9 +453,8 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
 	// spec-l2tp-10: bind Prometheus metrics and start the stats poller.
-	if reg := registry.GetMetricsRegistry(); reg != nil {
-		bindL2TPMetrics(reg)
-		subscriber.BindMetrics(reg)
+	if metricsRegistry != nil {
+		subscriber.BindMetrics(metricsRegistry)
 		pollInterval := parsePollInterval()
 		poller := newL2TPStatsPoller(s.reactors, pollInterval)
 		if s.kernelBackend != nil {
@@ -511,6 +538,9 @@ func (s *Subsystem) stopKernelWorkersLocked() {
 // plane (programmed via the worker's socketFD) holds a kernel-side reference
 // until tunnel delete completes.
 func (s *Subsystem) unwindLocked() {
+	if s.observer != nil {
+		s.observer.RetainKnownSessions()
+	}
 	var errs []error
 	// Timers first: they send on reactor channels, so stop them before
 	// the reactors close those channels.
@@ -559,6 +589,7 @@ func (s *Subsystem) unwindLocked() {
 		s.subBridge = nil
 	}
 	s.retainStoppedReactorsLocked()
+	s.retireObserverLocked()
 	if len(s.retiredReactors) == 0 {
 		if err := s.closeKernelBackend(); err != nil {
 			errs = append(errs, err)
@@ -595,6 +626,9 @@ func (s *Subsystem) Stop(ctx context.Context) error {
 	// relay hand-offs (pppoe then terminates locally).
 	callsink.Unregister()
 	s.logger.Info("L2TP subsystem stopping")
+	if s.observer != nil {
+		s.observer.RetainKnownSessions()
+	}
 
 	var errs []error
 	// Same order as unwindLocked. Reactors stop before the kernel workers and
@@ -632,15 +666,12 @@ func (s *Subsystem) Stop(ctx context.Context) error {
 		s.statsPoller.stop()
 		s.statsPoller = nil
 	}
-	if s.observer != nil {
-		s.observer.Stop()
-		s.observer = nil
-	}
 	if s.subBridge != nil {
 		s.subBridge.stop()
 		s.subBridge = nil
 	}
 	s.retainStoppedReactorsLocked()
+	s.retireObserverLocked()
 	if len(s.retiredReactors) == 0 {
 		if err := s.closeKernelBackend(); err != nil {
 			errs = append(errs, err)

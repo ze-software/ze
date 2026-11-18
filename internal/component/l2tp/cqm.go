@@ -37,7 +37,7 @@ func (s BucketState) String() string {
 type CQMBucket struct {
 	Start     time.Time
 	State     BucketState
-	EchoCount uint16
+	EchoCount uint64
 	MinRTT    time.Duration
 	MaxRTT    time.Duration
 	SumRTT    time.Duration

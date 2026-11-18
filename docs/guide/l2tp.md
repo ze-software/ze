@@ -1406,7 +1406,10 @@ Observer records per-session events and per-login sample rings:
 **Per-session event ring** -- circular buffer of state transitions
 (tunnel-up, session-up, session-down, echo-rtt, disconnect-requested).
 Disconnect events include the actor, reason text, and optional cause
-code. Used for the event timeline in the web UI.
+code. Used for the event timeline in the web UI. Each admitted record carries
+the complete original `subscriber-id`; equal session numbers on different
+tunnels or listeners have independent histories. Summaries also expose the
+original `tunnel-id`.
 
 **Per-login CQM sample ring** -- 100-second aggregated buckets with:
 - Echo RTT statistics (min, avg, max)
@@ -1423,10 +1426,30 @@ Echo interval for CQM: `ze.l2tp.cqm.echo-interval` (env var, default
 `1s`). It applies only when CQM is enabled, where it overrides the PPP
 LCP echo interval used for sampling. An invalid or
 non-positive value logs a warning and falls back to `1s`.
+The echo state reports the exact accepted interval, including values that do
+not divide a 100-second bucket or are longer than one bucket.
+Loss ratio appears only when the bucket has a positive expected echo count.
+An interval longer than one bucket leaves loss unavailable; a computed zero
+remains present in the echo state.
 
 <!-- source: internal/component/l2tp/observer.go -->
 <!-- source: internal/component/l2tp/subsystem.go -- cqmEchoInterval -->
 <!-- source: internal/component/l2tp/cqm.go -->
+
+Quality state belongs to the login's selected original connection. A newer IP
+assignment selects that connection; ending an older one cannot mark the newer
+one down. Repeated Down does not renew an ended login's retention. Reconnection
+continues the login's sample history, while eviction forgets that bounded slot's
+old phase contributor.
+
+Each native Start has its own observation scope. Retired original roots keep
+their matching history until cleanup finishes; they do not accept a new
+connection's events. Stop rejects even a callback copied before unsubscribe.
+The existing pending-cleanup refusal remains in force before replacement Start.
+
+<!-- source: internal/component/l2tp/observer_events.go -- observeEvent -->
+<!-- source: internal/component/l2tp/subsystem.go -- Start, Stop -->
+<!-- source: internal/component/l2tp/session_retirement.go -- retireObserverLocked -->
 
 ## Prometheus metrics
 
@@ -1578,8 +1601,11 @@ without that reference is disabled and asks for a refresh. The command reports
 success only after the captured original's local physical cleanup is confirmed.
 Read-only profiles are denied by the existing `clear` prefix rule.
 
-The disconnect reason and actor are recorded in the per-session event
-ring for audit trail purposes.
+The disconnect reason and actor are recorded in the original session's bounded
+monitoring ring when CQM is enabled and space remains. Command audit is
+separate; this optional timeline is not a durable action receipt. Detail reads
+capture one original session for both its snapshot and history. An ambiguous
+numeric ID is refused rather than combining different subscribers' data.
 
 <!-- source: internal/component/web/handler_l2tp.go -->
 <!-- source: internal/component/web/assets/l2tp-chart.js -->

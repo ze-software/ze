@@ -28,7 +28,6 @@ type Service interface {
 	TeardownSession(localSID uint16) error
 	TeardownAllTunnels() int
 	TeardownAllSessions() int
-	SessionEvents(sessionID uint16) []ObserverEvent
 	LoginSamples(login string) []CQMBucket
 	SessionSummaries() []SessionSummary
 	LoginSummaries() []LoginSummary
@@ -40,7 +39,6 @@ type Service interface {
 	EnableRawCapture()
 	DisableRawCapture()
 	RawCaptureSnapshot(limit int) []RawCaptureEntry
-	RecordDisconnect(sessionID uint16, actor, reason string, cause uint32)
 	// PlaceOutgoingCall dials a configured remote and originates an LNS-side
 	// outgoing call, blocking until it establishes or fails
 	// (spec-followup-l2tp-call AC-4).

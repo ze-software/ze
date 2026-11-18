@@ -60,9 +60,9 @@ var echoRTTBuckets = []float64{
 
 var l2tpMetricsPtr atomic.Pointer[l2tpMetrics]
 
-func bindL2TPMetrics(reg metrics.Registry) {
+func bindL2TPMetrics(reg metrics.Registry) *l2tpMetrics {
 	if reg == nil {
-		return
+		return nil
 	}
 	l2tpPanics().guard.SetMetricsRegistry(reg)
 	m := &l2tpMetrics{
@@ -89,6 +89,7 @@ func bindL2TPMetrics(reg metrics.Registry) {
 			[]string{labelProxyLCP}),
 	}
 	l2tpMetricsPtr.Store(m)
+	return m
 }
 
 // countSessionLCPOpened steps ze_l2tp_session_lcp_opened_total for a
@@ -103,38 +104,6 @@ func countSessionLCPOpened(outcome ppp.ProxyLCPOutcome) {
 		return
 	}
 	m.sessionLCPOpenedTotal.With(outcome.String()).Inc()
-}
-
-// observeCQMBucket records CQM metrics from a finalized bucket.
-// Called from Observer.maybeCloseBucket.
-func observeCQMBucket(username string, bucket CQMBucket, expectedEchoes uint16) {
-	m := l2tpMetricsPtr.Load()
-	if m == nil {
-		return
-	}
-	if bucket.EchoCount > 0 {
-		m.lcpEchoRTTSecs.With(username).Observe(bucket.AvgRTT().Seconds())
-	}
-	if expectedEchoes > 0 {
-		var lost uint16
-		if bucket.EchoCount < expectedEchoes {
-			lost = expectedEchoes - bucket.EchoCount
-		}
-		m.lcpEchoLossRatio.With(username).Set(float64(lost) / float64(expectedEchoes))
-	}
-	m.bucketState.With(username).Set(float64(bucket.State))
-}
-
-// deleteLoginMetrics removes all per-login CQM series.
-// Called from Observer.evictLRU.
-func deleteLoginMetrics(username string) {
-	m := l2tpMetricsPtr.Load()
-	if m == nil {
-		return
-	}
-	m.lcpEchoRTTSecs.Delete(username)
-	m.lcpEchoLossRatio.Delete(username)
-	m.bucketState.Delete(username)
 }
 
 // -- Stats poller --

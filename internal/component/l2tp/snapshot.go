@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 	"github.com/ze-software/ze/internal/core/subscriberid"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -72,7 +73,10 @@ type ConfigSnapshot struct {
 
 // SessionSnapshot is the read-only view of one session.
 type SessionSnapshot struct {
-	Birth              subscriberid.L2TPBirth `json:"birth,omitzero"`
+	Birth              subscriberid.L2TPBirth           `json:"-"`
+	SubscriberID       string                           `json:"subscriber-id,omitempty"`
+	Listener           netip.AddrPort                   `json:"listener,omitzero"`
+	Generation         l2tpevents.ObservationGeneration `json:"-"`
 	LocalSID           uint16
 	RemoteSID          uint16
 	TunnelLocalTID     uint16
@@ -165,7 +169,7 @@ func (r *l2tpReactor) snapshotLocked() Snapshot {
 		ts.Sessions = make([]SessionSnapshot, 0, len(sids))
 		for _, sid := range sids {
 			s := t.sessions[sid]
-			ts.Sessions = append(ts.Sessions, sessionSnapshot(t.localTID, s))
+			ts.Sessions = append(ts.Sessions, r.sessionSnapshot(t.localTID, s))
 			snap.SessionCount++
 		}
 		snap.Tunnels = append(snap.Tunnels, ts)
@@ -175,7 +179,11 @@ func (r *l2tpReactor) snapshotLocked() Snapshot {
 
 // sessionSnapshot copies one session's read-only fields into a snapshot
 // value. Caller MUST hold the owning reactor's tunnelsMu.
-func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
+func (r *l2tpReactor) sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
+	var listener netip.AddrPort
+	if r.listener != nil {
+		listener = r.listener.Addr()
+	}
 	family := ""
 	if s.assignedAddr.IsValid() {
 		if s.assignedAddr.Is4() {
@@ -190,6 +198,9 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 	}
 	return SessionSnapshot{
 		Birth:              s.Birth(),
+		SubscriberID:       s.SubscriberID(),
+		Listener:           listener,
+		Generation:         r.params.Generation,
 		LocalSID:           s.localSID,
 		RemoteSID:          s.remoteSID,
 		TunnelLocalTID:     tunnelTID,
@@ -264,7 +275,7 @@ func (r *l2tpReactor) LookupTunnel(localTID uint16) (TunnelSnapshot, bool) {
 	slices.Sort(sids)
 	ts.Sessions = make([]SessionSnapshot, 0, len(sids))
 	for _, sid := range sids {
-		ts.Sessions = append(ts.Sessions, sessionSnapshot(t.localTID, t.sessions[sid]))
+		ts.Sessions = append(ts.Sessions, r.sessionSnapshot(t.localTID, t.sessions[sid]))
 	}
 	return ts, true
 }
@@ -279,7 +290,7 @@ func (r *l2tpReactor) LookupSession(localSID uint16) (SessionSnapshot, bool) {
 	defer r.tunnelsMu.Unlock()
 	for tid, t := range r.tunnelsByLocalID {
 		if s, ok := t.sessions[localSID]; ok {
-			return sessionSnapshot(tid, s), true
+			return r.sessionSnapshot(tid, s), true
 		}
 	}
 	return SessionSnapshot{}, false

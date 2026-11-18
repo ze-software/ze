@@ -30,6 +30,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	_ "github.com/ze-software/ze/internal/component/l2tp/yang" // register ze-l2tp-api.yang
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -278,8 +279,10 @@ func handleObserver(_ *pluginserver.CommandContext, validated command.ValidatedA
 		for i := range summaries {
 			s := &summaries[i]
 			m := map[string]any{
-				keySessionID:  int(s.SessionID),
-				"event-count": s.EventCount,
+				keySessionID:    int(s.SessionID),
+				"event-count":   s.EventCount,
+				keyTunnelID:     int(s.TunnelID),
+				"subscriber-id": s.Birth,
 			}
 			if s.EventCount > 0 {
 				m["last-event-type"] = s.LastEventType
@@ -296,7 +299,18 @@ func handleObserver(_ *pluginserver.CommandContext, validated command.ValidatedA
 	if err != nil {
 		return errResponse(err), nil
 	}
-	events := svc.SessionEvents(sid)
+	captured, err := svc.CaptureSession(l2tp.SessionSelector{SID: sid})
+	if err != nil {
+		return plugin.OperatorErrorResponse(opererr.Wrap(err,
+			fmt.Sprintf("L2TP session %d history could not be selected", sid),
+			"The session is absent or its readable ID is ambiguous", "show l2tp sessions")), nil
+	}
+	events, err := captured.SessionEvents()
+	if err != nil {
+		return plugin.OperatorErrorResponse(opererr.Wrap(err,
+			fmt.Sprintf("L2TP session %d history is no longer available", sid),
+			"The captured original session has ended", "show l2tp sessions")), nil
+	}
 	if events == nil {
 		return errResponse(fmt.Errorf("l2tp: no observer data for session %d", sid)), nil
 	}
@@ -304,10 +318,11 @@ func handleObserver(_ *pluginserver.CommandContext, validated command.ValidatedA
 	for i := range events {
 		ev := &events[i]
 		m := map[string]any{
-			"timestamp":  ev.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"type":       ev.Type.String(),
-			keyTunnelID:  int(ev.TunnelID),
-			keySessionID: int(ev.SessionID),
+			"timestamp":     ev.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			"subscriber-id": ev.Birth,
+			"type":          ev.Type.String(),
+			keyTunnelID:     int(ev.TunnelID),
+			keySessionID:    int(ev.SessionID),
 		}
 		if ev.RTT > 0 {
 			m["rtt-ms"] = float64(ev.RTT.Microseconds()) / 1000.0
@@ -349,7 +364,7 @@ func handleCQM(_ *pluginserver.CommandContext, validated command.ValidatedArgs) 
 				keyLogin:       s.Login,
 				"bucket-count": s.BucketCount,
 				"last-state":   s.LastState,
-				"echo-count":   int(s.EchoCount),
+				"echo-count":   s.EchoCount,
 				"avg-rtt-ms":   float64(s.AvgRTT.Microseconds()) / 1000.0,
 			})
 		}
@@ -368,7 +383,7 @@ func handleCQM(_ *pluginserver.CommandContext, validated command.ValidatedArgs) 
 		out = append(out, map[string]any{
 			"start":      b.Start.UTC().Format("2006-01-02T15:04:05Z07:00"),
 			keyState:     b.State.String(),
-			"echo-count": int(b.EchoCount),
+			"echo-count": b.EchoCount,
 			"min-rtt-ms": float64(b.MinRTT.Microseconds()) / 1000.0,
 			"max-rtt-ms": float64(b.MaxRTT.Microseconds()) / 1000.0,
 			"avg-rtt-ms": float64(b.AvgRTT().Microseconds()) / 1000.0,
@@ -402,7 +417,9 @@ func handleEcho(_ *pluginserver.CommandContext, validated command.ValidatedArgs)
 	}
 	if state.EchoInterval > 0 {
 		m["echo-interval"] = state.EchoInterval.String()
-		m["loss-ratio"] = state.LossRatio
+	}
+	if state.LossRatio != nil {
+		m["loss-ratio"] = *state.LossRatio
 	}
 	return jsonResponse("l2tp echo", m)
 }

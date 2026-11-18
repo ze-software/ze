@@ -150,11 +150,22 @@ The clear-session command parses an optional canonical `expected-id` once into
 the typed Birth filter, then uses the captured original for audit and teardown.
 The CLI list and detail renderer exposes that reference as `birth` only when
 the original snapshot carries a valid Birth; a zero value omits the field.
-Audit retains the observer selected with that original and rechecks its row
+Audit retains the observer and hidden native generation selected from that
+original reactor and rechecks its row
 under the reactor lock. A retry of an already removed original records no new
 audit event and can still finish its retained cleanup. It never records against
 a replacement by looking its SID up again.
 <!-- source: internal/component/l2tp/session_capture_audit.go -- RecordDisconnect -->
+
+Observer history uses the complete Birth. A captured history read checks its
+original row and reads only that original observer; it does not look the SID
+up again. Aggregate CQM queries remain on the subsystem, while single-session
+history reads stay bound to the captured original. Closed observers preserve
+their readonly snapshots while rejecting
+copied callbacks. The bounded CQM disconnect entry is separate from command
+audit and is not a durable action receipt.
+<!-- source: internal/component/l2tp/session_capture.go -- CaptureSession, SessionEvents -->
+<!-- source: internal/component/l2tp/observer.go -- SessionEvents, Stop -->
 <!-- source: internal/component/l2tp/cmd/session_teardown.go -- parseSessionTeardownRequest, resolveSelector -->
 <!-- source: internal/component/l2tp/cmd/l2tp.go -- sessionJSON -->
 
@@ -208,6 +219,34 @@ Cleanup reads the row's immutable attempt under the reactor lock before
 calling the owner outside that lock, then rechecks the original row's receipts.
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess, closeUntransferredPPPAttempt -->
 <!-- source: internal/component/l2tp/ppp/session_control.go -- RecordUntransferredClose -->
+
+PPPoE session admission belongs to the prepared access. Its required
+`AccessOwner.Open` supplies the original provider's session factory. Kernel
+preparation owns one independent netlink backend shared by that access's
+sessions. VPP admission borrows the exact original preparation and its captured
+API connection generation. The caller MUST stop admission and join all dependent
+sessions. It MUST then close the access.
+<!-- source: internal/component/l2tp/pppoe/dataplane/access.go -- AccessOwner, preparedAccess.Open -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/kernel/prepare.go -- Prepare, kernelAccessOwner -->
+<!-- source: internal/component/l2tp/pppoe/dataplane/vpp/prepare.go -- accessPreparationLease.Open, accessPreparation.borrow -->
+
+## Session rate policy contract
+
+The rate policy boundary distinguishes two sealed variants. A local policy
+borrows the created session's rate controller; a remote policy carries only
+its declared command owner. The remote variant does not pretend to provide a
+local controller. Both declare an operational request command using the same
+command grammar. A missing declaration is an error, never a request to choose
+the kernel implementation.
+<!-- source: internal/component/l2tp/subscriber/rate_policy.go -- RatePolicy, LocalRatePolicy, RemoteRatePolicy, NewRateOwnerCommand -->
+
+The local controller receives a complete, immutable pair of positive rates.
+The policy changes neither native units nor burst sizes. It preserves a
+prepared transaction returned with an error, so the caller can compensate it.
+That caller must finish installation before it acknowledges assignment and
+allows forwarding. The session handle remains the sole cleanup owner: the
+borrowed policy has no independent close operation.
+<!-- source: internal/component/l2tp/subscriber/rate_policy.go -- Rates, LocalRatePolicy, RateController, RateTransaction -->
 
 ## Subscriber transmit limit
 
@@ -291,9 +330,9 @@ Inside a batch's turn, `notifySessionDowns` tells the route observer to
 withdraw the route of each down whose session was established, then publishes
 one session-down per down. A session removed before it was established gets
 its session-down and no withdrawal. Only an established session ran PPP and
-can hold a subscriber route, and the observer keys its records by session ID
-alone, so a withdrawal for a session that never ran PPP could remove the
-record of another tunnel's session with the same ID. The rule is the same on
+can hold a subscriber route. The observer now selects the complete original
+Birth; wire labels do not select another subscriber's record. The rule that a
+pre-PPP removal owes no route withdrawal remains the same on
 every removal path: operator, CoA, timeout, PPP, kernel error, a peer StopCCN
 or CDN, a dead peer, retention reaping and a lost tie breaker.
 

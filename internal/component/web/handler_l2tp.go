@@ -111,16 +111,34 @@ func (h *l2TPHandlers) handleL2TPDetail() http.HandlerFunc {
 			http.Error(w, "l2tp subsystem not running", http.StatusServiceUnavailable)
 			return
 		}
-		ss, ok := svc.LookupSession(sid)
-		if !ok {
-			http.Error(w, "session not found", http.StatusNotFound)
+		captured, err := svc.CaptureSession(l2tp.SessionSelector{SID: sid})
+		if err != nil {
+			status := http.StatusNotFound
+			if errors.Is(err, l2tp.ErrSessionAmbiguous) {
+				status = http.StatusConflict
+			}
+			refusal := opererr.Wrap(err, "The L2TP session could not be selected",
+				"The session is absent or its readable ID is ambiguous", "Open /l2tp")
+			http.Error(w, refusal.Error(), status)
 			return
 		}
-		events := svc.SessionEvents(sid)
+		ss, err := captured.Snapshot()
+		if err != nil {
+			http.Error(w, opererr.Wrap(err, "The L2TP session is no longer available",
+				"The captured original session has ended", "Open /l2tp").Error(), http.StatusNotFound)
+			return
+		}
+		events, err := captured.SessionEvents()
+		if err != nil {
+			http.Error(w, opererr.Wrap(err, "The L2TP session history is no longer available",
+				"The captured original session has ended", "Open /l2tp").Error(), http.StatusNotFound)
+			return
+		}
 
 		enriched := map[string]any{
-			colSessionID: ss.LocalSID,
-			colUsername:  ss.Username,
+			colSessionID:    ss.LocalSID,
+			colUsername:     ss.Username,
+			"subscriber-id": ss.SubscriberID,
 		}
 		show.Enrich("show l2tp session detail", enriched)
 

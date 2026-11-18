@@ -560,7 +560,7 @@ func (r *l2tpReactor) notifyNetworkLifetimeDown(birth subscriberid.L2TPBirth, su
 		return
 	}
 	if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
-		Birth: birth, SubscriberID: subscriberID,
+		Birth: birth, SubscriberID: subscriberID, Generation: r.params.Generation,
 		TunnelID: tid, SessionID: sid, Username: username,
 		Cause: l2tpevents.TerminateCauseUserRequest,
 	}); err != nil {
@@ -642,6 +642,7 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 			Birth:            birth,
 			SubscriberID:     subscriberID,
 			FramedRoutes:     framedRoutes,
+			Generation:       r.params.Generation,
 			TunnelID:         ev.TunnelID,
 			SessionID:        ev.SessionID,
 			Username:         username,
@@ -713,6 +714,7 @@ func (r *l2tpReactor) handleSessionUp(ev ppp.EventSessionUp) {
 		if _, err := l2tpevents.SessionUp.Emit(r.eventBus, &l2tpevents.SessionUpPayload{
 			Birth:        birth,
 			SubscriberID: subscriberID,
+			Generation:   r.params.Generation,
 			TunnelID:     ev.TunnelID,
 			SessionID:    ev.SessionID,
 			Interface:    ifaceName,
@@ -754,6 +756,7 @@ func (r *l2tpReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
 	if _, err := l2tpevents.EchoRTT.Emit(r.eventBus, &l2tpevents.EchoRTTPayload{
 		Birth:        ev.Birth,
 		SubscriberID: ev.SubscriberID,
+		Generation:   r.params.Generation,
 		TunnelID:     ev.TunnelID,
 		SessionID:    ev.SessionID,
 		RTT:          ev.RTT,

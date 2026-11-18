@@ -312,11 +312,13 @@ in the spec or commit it applies to.
   locally to discover them.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit.
-- Commit work as soon as a piece of it is complete: when it improves the
-  software, compiles and works, it is committed, without waiting for the whole
-  spec, the session's end or a request. A spec's implementation lands as
-  several such commits, not one at closure. Do not split it into trivially
-  small commits either: each commit is a piece that stands on its own.
+- Commit known implemented work in coherent increments, without waiting for
+  all testing or the whole spec to finish. Record what is implemented, the
+  checks that passed, known failures and remaining validation in the spec and
+  commit message, and update that progress as subsequent commits land. A
+  commit is not a claim that its spec is complete. Do not wait for the
+  session's end or another request, and do not split work into trivially small
+  commits: each commit is a piece that stands on its own.
 
 ## Every session
 
