@@ -53,6 +53,12 @@ func stage1Cases() map[string]stage1Case {
 				return mustFail(t, err)
 			},
 		},
+		"replay-fence": {
+			failing: &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion, FencesLiveForwards: true},
+			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {
+				return mustFail(t, validateReplayFenceDeclaration(stage1Subject, in))
+			},
+		},
 		"dissemination": {
 			failing: &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion, Dissemination: []rpc.DisseminationDecl{{}}},
 			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {

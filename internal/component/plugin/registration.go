@@ -126,6 +126,10 @@ type PluginRegistration struct {
 	// plugin is claiming.
 	SignalsSessionReady bool
 
+	// FencesLiveForwards is the authenticated Stage-1 replay-fence opt-in.
+	// It counts only with SignalsSessionReady and grants no peer permission.
+	FencesLiveForwards bool
+
 	// FailurePolicy is what this plugin asked ze to do when it fails, declared
 	// in Stage 1. FailureUnspecified means the plugin declared nothing, and
 	// pluginFailurePolicy (server/failure_policy.go) is the one place that turns

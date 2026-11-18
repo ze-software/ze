@@ -1064,9 +1064,11 @@ func routeServerRegistration() *sdk.Registration {
 		// so the engine prepares, applies, aborts and finalizes it through
 		// handleSourcePolicy when the source's last accepting import policy is
 		// removed in place (RFC 8212 Section 3, source_policy.go).
-		SourcePolicyOwner: true,
-		Claims:            []string{ClaimPeerUpReplay, disseminationRole},
-		Dissemination:     disseminationDecls(),
+		SourcePolicyOwner:   true,
+		Claims:              []string{ClaimPeerUpReplay, disseminationRole},
+		Dissemination:       disseminationDecls(),
+		SignalsSessionReady: true,
+		FencesLiveForwards:  true,
 		// WantsConfig: the engine delivers only the roots a plugin declares
 		// here, so without it OnConfigure never sees bgp { route-server }
 		// and worker-queue-size takes effect from the env var alone.

@@ -1371,6 +1371,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		Claims:                input.Claims,
 		Dissemination:         input.Dissemination,
 		SignalsSessionReady:   input.SignalsSessionReady,
+		FencesLiveForwards:    input.FencesLiveForwards,
 		FailurePolicy:         input.FailurePolicy,
 		ResolverCaches:        slices.Clone(input.ResolverCaches),
 		FilterInsertions:      slices.Clone(input.FilterInsertions),

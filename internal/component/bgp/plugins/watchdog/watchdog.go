@@ -139,8 +139,9 @@ func runWatchdogPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
-		WantsConfig: []string{configRootBGP},
-		Commands:    commandDecls(),
+		SignalsSessionReady: true,
+		WantsConfig:         []string{configRootBGP},
+		Commands:            commandDecls(),
 	})
 	if err != nil {
 		logger().Error("watchdog plugin failed", "error", err)

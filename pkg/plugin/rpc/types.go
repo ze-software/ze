@@ -433,17 +433,20 @@ type DeclareRegistrationInput struct {
 	// are out. A peer that attaches the plugin with `send [ update ]` or
 	// `send [ raw ]` and grants it `receive [ state ]` then credits that
 	// report to the session. The End-of-RIB never waits for it: Ze sends its
-	// marker once its own table is out. The report lowers a replay fence,
-	// which holds the peer's live forwarded changes behind a plugin's peer-up
-	// replay, and only a plugin compiled into Ze can declare that fence, so
-	// for an external plugin the report is recorded and changes nothing on
-	// the wire (docs/plugin-development/protocol.md).
+	// marker once its own table is out. With FencesLiveForwards, the report
+	// releases live changes held behind the plugin's peer-up replay.
 	//
 	// The declaration is VOLUNTARY (owner directive, 2026-09-02) and it is how
 	// an EXTERNAL plugin opts in: an external process is in no compile-time
 	// registry, so this field is its only route. A plugin that pushes routes on
 	// its own schedule leaves it false and owes no report.
 	SignalsSessionReady bool `json:"signals-session-ready,omitempty"`
+
+	// FencesLiveForwards opts into the existing per-session hold of live
+	// forwards behind initial replay. It MUST be declared only with
+	// SignalsSessionReady; the plugin MUST report the captured session token
+	// after its replay is out. Neither flag grants receive or send permission.
+	FencesLiveForwards bool `json:"fences-live-forwards,omitempty"`
 }
 
 // PipeDecl declares a pipe alias for one of the plugin's own commands. An alias

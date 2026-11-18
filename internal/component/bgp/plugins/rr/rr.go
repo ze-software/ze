@@ -1032,10 +1032,12 @@ func routeReflectorRegistration() *sdk.Registration {
 		// keeps the compiled declaration an owner even without that handler,
 		// so the engine refuses rather than treats it as an observer
 		// (RFC 8212 Section 3).
-		SourcePolicyOwner: true,
-		Claims:            []string{"bgp-peer-up-replay", disseminationRole},
-		Dissemination:     disseminationDecls(),
-		Commands:          commandDecls(),
+		SourcePolicyOwner:   true,
+		Claims:              []string{"bgp-peer-up-replay", disseminationRole},
+		Dissemination:       disseminationDecls(),
+		SignalsSessionReady: true,
+		FencesLiveForwards:  true,
+		Commands:            commandDecls(),
 		// The registry's edges, so a forked reflector takes a DOWN before
 		// the stores it depends on, as an internal one does.
 		Dependencies: rrDependencies,

@@ -937,14 +937,24 @@ with the token from the peer-up event. The End-of-RIB waits for no report (owner
 ruling, 2026-09-18): Ze sends its marker once its own table is out. The report
 does one thing: it lowers the peer's replay fence, which holds the peer's live
 forwarded changes behind a plugin's peer-up replay
-(`docs/architecture/plugin/plugin-system.md`, "Session-ready reports"). Only a
-compiled-in plugin can own that fence (`Registration.FencesLiveForwards` has no
-Stage 1 field), so an external plugin's report is credited and changes nothing
-on the wire.
+(`docs/architecture/plugin/plugin-system.md`, "Session-ready reports"). An external
+plugin opts into the same hold with `fences-live-forwards: true`, alongside
+`signals-session-ready: true`. Stage 1 refuses a fence with no ready report.
+The declaration grants no receive or send permission.
+<!-- source: internal/component/plugin/server/replay_fence.go -- validateReplayFenceDeclaration, declaresReplayFence -->
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `signals-session-ready` | bool | The plugin reports when its share of a peer's initial routing update is out |
+| `fences-live-forwards` | bool | Hold live changes behind that replay until the captured session-ready report; requires `signals-session-ready` |
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
+
+Both readiness and fencing use the current authenticated Process. A compiled
+registration with the same process name cannot override its Stage-1 flags.
+Forked in-tree programs declare those flags too. Only an Internal runner can
+use its compiled defaults.
+<!-- source: internal/component/plugin/server/replay_fence.go -- sessionReplayDeclarations -->
+<!-- source: internal/component/plugin/registry/registry.go -- SignalsSessionReady, FencesLiveForwards -->
 
 The declaration is VOLUNTARY (owner directive, 2026-09-02) and it is the only
 route an external plugin has to it: an external process appears in no

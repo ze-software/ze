@@ -1235,6 +1235,7 @@ func SignalsSessionReady(name string) bool {
 // every process name. The server MUST read its current Process and MUST NOT lend
 // compiled readiness to an external program. Passing nil restores compiled-only
 // static answers. Safe after Seal; the registry mutex is not held during lookup.
+// It is a runtime seam, callable after Seal.
 func SetRuntimeSessionReady(fn func(process string) bool) {
 	mu.Lock()
 	defer mu.Unlock()

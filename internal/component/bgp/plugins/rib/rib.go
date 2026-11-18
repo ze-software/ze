@@ -852,10 +852,12 @@ func runRIBPlugin(conn net.Conn) int {
 	err = p.Run(ctx, &sdk.Registration{
 		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
 		// that changes it, for the config transaction (config_tx.go).
-		WantsConfig:   []string{configRootBGP},
-		Commands:      commandDecls(),
-		Dissemination: disseminationDecls(),
-		DoctorChecks:  []rpc.DoctorCheckDecl{advertiseDoctorDeclaration()},
+		WantsConfig:         []string{configRootBGP},
+		Commands:            commandDecls(),
+		Dissemination:       disseminationDecls(),
+		SignalsSessionReady: true,
+		FencesLiveForwards:  true,
+		DoctorChecks:        []rpc.DoctorCheckDecl{advertiseDoctorDeclaration()},
 		// ApplyBudget bounds a reload's apply: a selection-rule edit
 		// (maximum-paths, relax-as-path, blackhole honoring) reselects every
 		// stored route inside it (installConfig), one election per route. With

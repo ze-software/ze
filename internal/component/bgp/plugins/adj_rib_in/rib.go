@@ -509,8 +509,9 @@ func runAdjRIBInPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, &sdk.Registration{
-		Commands:      commandDecls(),
-		FailurePolicy: rpc.FailureFatal,
+		SignalsSessionReady: true,
+		Commands:            commandDecls(),
+		FailurePolicy:       rpc.FailureFatal,
 	})
 	// Run drains SDK callbacks, but the scanner owns its own publication. Join
 	// it without a store lock before reading its cause or releasing the lookup.

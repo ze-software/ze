@@ -140,6 +140,12 @@ var stage1Checks = []stage1Check{
 		},
 	},
 	{
+		name: "replay-fence", section: sectionStage1, phase: stage1PhaseDriver,
+		isolated: func(plugin string, input *rpc.DeclareRegistrationInput, _ stage1Site) error {
+			return validateReplayFenceDeclaration(plugin, input)
+		},
+	},
+	{
 		name: "dissemination", section: sectionStage1, phase: stage1PhaseDriver,
 		isolated: func(plugin string, input *rpc.DeclareRegistrationInput, _ stage1Site) error {
 			if err := registry.CheckDisseminationDeclarations(plugin, input.Dissemination); err != nil {

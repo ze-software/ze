@@ -11,7 +11,6 @@ import (
 	"time"
 
 	plugin "github.com/ze-software/ze/internal/component/plugin"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
 var errServerNotConfiguredForPlugins = errors.New("server not configured for plugins")
@@ -92,51 +91,12 @@ func (s *Server) DecodeNLRI(family, hexData string, addPath, withdraw bool) (str
 	return jsonResult, nil
 }
 
-// declaresSessionReady reports whether a REGISTERED process declares that it
-// reports `plugin session ready`, under either route to that declaration: the
-// Stage-1 declare-registration an external plugin sends, or the compile-time
-// Registration an in-tree plugin files at init().
-//
-// The two routes are both needed because the caller asks by PROCESS name, and a
-// process name is not a registry key. `plugin { internal rs { use bgp-rs } }`
-// gives the operator's alias to the process and files the registration under
-// `bgp-rs`, so a lookup by "rs" finds nothing, bgp-rs never joins the peer's
-// session-ready expectation set, and its replay fence is never raised: a live
-// forward could then overtake the replayed announce of the same prefix.
-// plugin.RegistryNames resolves the alias, and it is the resolution
-// claimsForPlugin already uses for the same reason (startup_claims.go).
-//
-// Installed as registry.SetRuntimeSessionReady so the reactor reaches the answer
-// without importing this package. It is consulted only for a name the
-// compile-time registry does not hold, which is every alias and every external
-// process; a plugin attached under its own registry name is answered by that
-// registration before this method is reached.
-//
-// False for a name the process manager does not hold: nothing was ever started
-// under it, so no report can arrive, and expecting one would leave any replay
-// fence it owns up for the whole session. A process that WAS registered and
-// has since died still answers true, because the answer is read off the config
-// and the declaration rather than off the process state. The End-of-RIB waits
-// for no report either way (owner ruling, 2026-09-18).
-func (s *Server) declaresSessionReady(process string) bool {
-	pm := s.procManager.Load()
-	if pm == nil {
-		return false
-	}
-	proc := pm.GetProcess(process)
-	if proc == nil {
-		return false
-	}
-	if reg := proc.Registration(); reg != nil && reg.SignalsSessionReady {
-		return true
-	}
-
-	for _, name := range plugin.RegistryNames(proc.Config()) {
-		if signals, registered := registry.RegisteredSessionReady(name); registered && signals {
-			return true
-		}
-	}
-	return false
+// declaresSessionReady projects readiness from the same current Process
+// declaration used by the live-forward fence. A same-named compiled row cannot
+// override an external program's accepted Stage-1 value.
+func (s *Server) declaresSessionReady(name string) bool {
+	ready, _ := s.sessionReplayDeclarations(name)
+	return ready
 }
 
 // processRegistryNames returns the registry names the running process named

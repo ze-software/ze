@@ -402,6 +402,21 @@ module ze-plugin-engine {
                 ze:help "Declare independent current selection lookup";
                 description "Derived from SDK OnCurrentSelection registration. Answers current desired native-key state on a separate bounded worker; this declaration grants no send permission.";
             }
+            leaf signals-session-ready {
+                type boolean;
+                default false;
+                ze:help "Report when initial replay has completed";
+                description "The plugin reports the captured peer session token after its initial routes are out. This declaration grants no peer attachment or send permission. End-of-RIB waits for no report.";
+            }
+            leaf fences-live-forwards {
+                type boolean;
+                default false;
+                must ". = 'false' or ../signals-session-ready = 'true'" {
+                    error-message "fences-live-forwards requires signals-session-ready true";
+                }
+                ze:help "Hold live forwards behind initial replay";
+                description "Opt into the existing per-session replay fence. The plugin must also declare signals-session-ready and report that captured session after its initial replay. No timer releases this fence, and the declaration grants no peer permission.";
+            }
             leaf event-settlement {
                 type boolean;
                 default false;

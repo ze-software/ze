@@ -130,6 +130,7 @@ Optional metadata:
 
 | Field | Type | Purpose |
 |-------|------|---------|
+| `HideFromSelection` | `bool` | Omits a registration from plugin-name completion. The default is false. A registration that carries a filter type or boot effect without a selectable engine declares true; runtime lookup, complete catalogs and boot effects retain it |
 | `RFCs` | `[]string` | Related RFC numbers |
 | `Families` | `[]string` | Address families handled, as `afi/safi` |
 | `CapabilityCodes` | `[]uint8` | Capability codes this plugin decodes |
@@ -148,7 +149,7 @@ Optional metadata:
 | `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
 | `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out. The report lowers the replay fence when the plugin also declares `FencesLiveForwards`; the End-of-RIB waits for no report ("Session-ready reports") |
-| `FencesLiveForwards` | `bool` | The plugin replays a peer's routes on peer-up while it also forwards live changes to that peer. The engine holds the peer's live forwards until the plugin's session-ready report. Counts only with `SignalsSessionReady`. bgp-rib, bgp-rs and bgp-rr declare it |
+| `FencesLiveForwards` | `bool` | The plugin replays a peer's routes on peer-up while it also forwards live changes to that peer. The engine holds the peer's live forwards until the plugin's session-ready report. Counts only with `SignalsSessionReady`. Stage 1 uses `fences-live-forwards`; bgp-rib, bgp-rs and bgp-rr declare it on both transports |
 | `RelaysOnRSFastPath` | `bool` | The BGP route-server fast path forwards received UPDATEs on this plugin's behalf, in place of its cached forward. The fast path then relays a source only when the source's attach block feeds this plugin its UPDATEs (`receive [ update-received ]`), and reaches a destination only when the destination grants this plugin `send [ update ]`, the grants the cached forward answers to. `registry.RelaysOnRSFastPath` resolves a `use` alias. bgp-rs declares it |
 | `YANG` | `string` | YANG schema content |
 | `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together, in both directions and field by field |
@@ -833,9 +834,14 @@ The declaration is VOLUNTARY (owner directive, 2026-09-02). Declaring says WHEN
 this plugin's routes belong, not what it may send: a plugin that pushes on its
 own schedule is not part of the initial update, declares nothing, and owes no
 report. An EXTERNAL plugin declares `signals-session-ready` at Stage 1, and its
-report is credited the same way. It cannot declare `FencesLiveForwards`, which
-only a compiled-in `registry.Registration` carries, so its report lowers no
-fence.
+report is credited the same way. Declaring `fences-live-forwards` alongside it
+opts into the same live-forward hold as a built-in plugin. The daemon reads the
+current authenticated Process's Stage-1 declaration, not a retained copy keyed
+by its name. Removal, replacement or stop ends that process's answer; a later
+external process that omits the opt-in acquires no fence from a same-named
+compiled registration. Built-in runners retain their compiled defaults.
+<!-- source: internal/component/plugin/server/replay_fence.go -- declaresReplayFence -->
+<!-- source: internal/component/plugin/registry/replay_fence.go -- SetRuntimeReplayFence, RegisteredReplayFence -->
 
 The in-tree declarers are `bgp-rib`, `bgp-rs`, `bgp-adj-rib-in`, `bgp-watchdog`
 and `bgp-rr`, each of which replays into an establishing peer and
@@ -858,20 +864,20 @@ is not credited, so a plugin the peer attaches for events alone cannot lower
 the fence on behalf of one whose replay is still passing. A report that names
 no process, or a token from another session, is refused with an error.
 
-The lookup crosses two namespaces, and the plugin server is what joins them. A
-peer names its processes with the `attach process <name>` key, so
-`plugin { internal rs { use bgp-rs } }` asks under "rs" while the registration
-is filed under "bgp-rs". `registry.SignalsSessionReady` answers from the
-registration for a name it holds and hands every other name to the runtime seam,
-`(*Server).declaresSessionReady`. The seam reads the Stage-1 declaration off the
-running process, which is the external plugin's route, and resolves the alias
-through `plugin.RegistryNames`, the one function that answers which registry row
-a process configuration names. Every spelling of an in-tree implementation goes
-through it, so `use bgp-rs`, `use ze.bgp-rs`, `run ze.bgp-rs` and
-`run ze plugin bgp-rs` reach the same registration, and so does the role claim
-`claimsForPlugin` resolves. An unresolved alias answers "declares nothing",
-which leaves the process out of that peer's expectation set, so its replay
-fence is never raised.
+The lookup crosses two namespaces, and the plugin server joins them. A peer
+uses its configured process name. While a server lookup is installed,
+registry.SignalsSessionReady and registry.FencesLiveForwards both read that
+server's current Process declaration. A compiled row under the same name cannot
+override a genuine external program's flags. This includes forked in-tree
+programs. They declare readiness at Stage 1, and the RIB, route server and route
+reflector also declare the live-forward fence.
+
+Only a real Internal runner can use its compiled implementation defaults.
+plugin.RegistryNames resolves that runner's configured spellings. Missing or
+stopped external processes declare neither readiness nor fencing. Static callers
+without a runtime lookup keep their compiled answers.
+<!-- source: internal/component/plugin/server/replay_fence.go -- sessionReplayDeclarations -->
+<!-- source: internal/component/plugin/registry/registry.go -- SignalsSessionReady, FencesLiveForwards -->
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady, registry.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
