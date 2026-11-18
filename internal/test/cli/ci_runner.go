@@ -39,7 +39,7 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 	listOnly := fs.Bool("l", false, "list available tests")
 	fs.BoolVar(listOnly, "list", false, "list available tests")
 	start := fs.String("start", "", "start at test id/name and run through the end")
-	pattern := fs.String("pattern", "", "run tests whose id, name, or path contains pattern")
+	pattern := fs.String("pattern", "", "run tests whose id or name contains pattern (as typed, not a regex or a glob)")
 	verbose := fs.Bool("v", false, "verbose output")
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	quiet := fs.Bool("q", false, "minimal output")
@@ -59,7 +59,7 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 			Str(" tests\n  le test ").Str(cfg.Name).Str(" -l              # List available tests with N/TOTAL and one-based id\n  le test ").
 			Str(cfg.Name).Str(" 1 2 3           # Run specific tests by id\n  le test ").Str(cfg.Name).
 			Str(" --start 42      # Resume at id 42 and run through the end\n  le test ").Str(cfg.Name).
-			Str(" --pattern bgp   # Run tests whose id, name, or path contains bgp\n  le test ").Str(cfg.Name).Str(" -a -v           # Verbose output\n")
+			Str(" --pattern bgp   # Run tests whose id or name contains bgp (as typed, not a regex or a glob)\n  le test ").Str(cfg.Name).Str(" -a -v           # Verbose output\n")
 		_ = b.StdErr()
 	}
 

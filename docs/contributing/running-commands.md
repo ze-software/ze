@@ -535,8 +535,11 @@ That daemon includes the test-only plugins through `Runner.Build` and
 `TestBuildTags`. The runner is the launcher's build of HEAD, so it lacks any
 uncommitted fixture code, even when the daemon is current. For a scoped plugin
 case, use `./le --name session test bgp plugin --pattern <test-name>` to rebuild
-the runner from the working tree too.
+the runner from the working tree too. The pattern keeps each test whose id or
+name contains it as typed, never a regex, a glob or the file path
+(`docs/functional-tests.md`, "Choosing functional tests").
 <!-- source: internal/test/runner/runner.go -- TestBuildTags, Runner.Build, NewRunner, setupBinShims -->
+<!-- source: internal/test/runner/selection.go -- patternMatches -->
 
 The direct route tells you when this happens. When a non-test Go file under
 `internal/test/`, in a package le links, differs between the build's commit and

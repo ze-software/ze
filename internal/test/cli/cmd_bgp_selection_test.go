@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -47,8 +48,7 @@ func selectionFixture(t *testing.T, suites ...string) string {
 // whole suite or nothing while the command line reads as a selection.
 //
 // MUTATION: (cmd_bgp.go, `Pattern: cli.pattern,`, `Pattern: "",`): the pattern lines select nothing and go red.
-// MUTATION: (internal/test/runner/selection.go, `return strings.Contains(rec.Nick, pattern) || strings.Contains(rec.Name, pattern) || strings.Contains(rec.CIFile, pattern)`, `return true`): the plugin pattern line selects all three and goes red.
-// MUTATION: (internal/test/runner/selection.go, `return strings.Contains(test.GetNick(), pattern) || strings.Contains(test.GetName(), pattern)`, `return true`): the parse pattern line selects all three and goes red.
+// MUTATION: (internal/test/runner/selection.go patternMatches, `return strings.Contains(nick, pattern) || strings.Contains(name, pattern)`, `return true`): the plugin and the parse pattern lines select all three and go red.
 func TestBgpSelectionPicksExactlyTheDocumentedTests(t *testing.T) {
 	base := selectionFixture(t, "plugin", "parse")
 	for _, tc := range []struct {
@@ -129,5 +129,123 @@ func selectedNames(t *testing.T, base string, line []string) ([]string, error) {
 func TestBgpUnmatchedPatternFailsTheEntry(t *testing.T) {
 	if code := CmdBgp([]string{"parse", "--pattern", "zq-no-test-is-named-this"}); code == 0 {
 		t.Fatal("an unmatched --pattern exited 0: a selection that matched nothing read as success")
+	}
+}
+
+// checkoutFixture reproduces the checkout the defect was met in: a base
+// directory whose own name holds "lg-", as `.claude/worktrees/lg-search-matches-pages`
+// did, carrying a plugin and a parse suite of two looking-glass tests and one
+// other. The names of the tests calling it hold none of the text they select
+// on, because t.TempDir puts the test name in the path.
+func checkoutFixture(t *testing.T) string {
+	t.Helper()
+	base := filepath.Join(t.TempDir(), "lg-search-matches-pages")
+	for _, suite := range []string{"plugin", "parse"} {
+		dir := filepath.Join(base, "test", suite)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"bmp-lg-ingest", "lg-covering-lookup", "rib-pipe-filter"} {
+			if err := os.WriteFile(filepath.Join(dir, name+".ci"), nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	return base
+}
+
+// TestBgpPatternSelectsOnlyTheTestsItNames types the line that ran the whole
+// plugin suite, `--pattern lg-`, in a checkout whose own path holds "lg-".
+//
+// VALIDATES: the pattern selects exactly the tests whose name contains it,
+// for both suite drivers, and the test that only its path matched is not
+// selected.
+// PREVENTS: a substring of the checkout location selecting every test of the
+// suite, an hour-long full run typed as a selection of a few.
+//
+// MUTATION: (internal/test/runner/selection.go, `if pattern == "" || patternMatches(rec.Nick, rec.Name, pattern) {`, `if pattern == "" || patternMatches(rec.Nick, rec.Name, pattern) || strings.Contains(rec.CIFile, pattern) {`): the plugin row selects all three and goes red.
+func TestBgpPatternSelectsOnlyTheTestsItNames(t *testing.T) {
+	base := checkoutFixture(t)
+	want := []string{"bmp-lg-ingest", "lg-covering-lookup"}
+	for _, suite := range []string{"plugin", "parse"} {
+		got, err := selectedNames(t, base, []string{suite, "--pattern", "lg-"})
+		if err != nil {
+			t.Fatalf("%s: %v", suite, err)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s --pattern lg-: selected %v, want exactly %v", suite, got, want)
+		}
+	}
+}
+
+// TestBgpPatternDoesNotMatchTheFilePath types patterns that occur only in the
+// path of every .ci file of the suite: a piece of the checkout location, the
+// suite directory, and the file extension.
+//
+// VALIDATES: each is refused as matching no test, because a pattern is
+// matched against the test's id and name, never its path.
+// PREVENTS: a pattern that every test's path shares widening to the whole
+// suite while the command line reads as a selection.
+//
+// MUTATION: (internal/test/runner/selection.go, `if pattern == "" || patternMatches(rec.Nick, rec.Name, pattern) {`, `if pattern == "" || patternMatches(rec.Nick, rec.Name, pattern) || strings.Contains(rec.CIFile, pattern) {`): every row selects all three and goes red.
+func TestBgpPatternDoesNotMatchTheFilePath(t *testing.T) {
+	base := checkoutFixture(t)
+	for _, pattern := range []string{"search-matches", "test/plugin", ".ci"} {
+		got, err := selectedNames(t, base, []string{"plugin", "--pattern", pattern})
+		if err == nil || !strings.Contains(err.Error(), "no tests matching pattern "+strconv.Quote(pattern)) {
+			t.Errorf("plugin --pattern %s: selected %v with error %v, want the refusal naming the pattern", pattern, got, err)
+		}
+	}
+}
+
+// TestBgpUnmatchedPatternNamesTheFormsThatWork types a regex alternation, the
+// line that answered `no tests matching pattern` and nothing more.
+//
+// VALIDATES: the refusal names the pattern, says that it is matched as typed
+// and is not a regex or a glob, and names the two forms that work: `--list`
+// to see the names, and each name as its own argument.
+// PREVENTS: a refusal that leaves the reader to guess the matching rule.
+//
+// MUTATION: (internal/test/runner/selection.go errNoPatternMatch, `return opererr.New(problem, patternRule, patternForms)`, `return fmt.Errorf("%s", problem)`): the refusal keeps its first line and loses the rule and the forms, and both suites go red.
+func TestBgpUnmatchedPatternNamesTheFormsThatWork(t *testing.T) {
+	base := checkoutFixture(t)
+	pattern := "lg-covering-lookup|rib-pipe-filter"
+	for _, suite := range []string{"plugin", "parse"} {
+		_, err := selectedNames(t, base, []string{suite, "--pattern", pattern})
+		if err == nil {
+			t.Fatalf("%s: an alternation selected tests, want a refusal", suite)
+		}
+		for _, needle := range []string{`no tests matching pattern "` + pattern + `"`, "not a regex or a glob", "--list", "own argument"} {
+			if !strings.Contains(err.Error(), needle) {
+				t.Errorf("%s: refusal %q lacks %q", suite, err.Error(), needle)
+			}
+		}
+	}
+}
+
+// TestBgpPositionalNamesSelectExactlyThoseTests types the form the refusal
+// names, each test name as its own argument, in the same checkout.
+//
+// VALIDATES: one name selects that test alone, and two names select exactly
+// those two, for both suite drivers.
+// PREVENTS: the form the refusal recommends selecting more or less than it
+// names.
+//
+// MUTATION: (internal/test/runner/selection.go, indexRecordSelector, `if rec.Nick == selector || rec.Name == selector || rec.CIFile == selector {`, `if rec.Nick == selector || rec.CIFile == selector {`): the plugin rows answer `test "lg-covering-lookup" not found` and go red.
+func TestBgpPositionalNamesSelectExactlyThoseTests(t *testing.T) {
+	base := checkoutFixture(t)
+	for _, suite := range []string{"plugin", "parse"} {
+		for _, names := range [][]string{
+			{"lg-covering-lookup"},
+			{"lg-covering-lookup", "rib-pipe-filter"},
+		} {
+			got, err := selectedNames(t, base, append([]string{suite}, names...))
+			if err != nil {
+				t.Fatalf("%s %v: %v", suite, names, err)
+			}
+			if !slices.Equal(got, names) {
+				t.Errorf("%s %v: selected %v, want exactly those", suite, names, got)
+			}
+		}
 	}
 }

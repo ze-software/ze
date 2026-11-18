@@ -589,7 +589,7 @@ func zeTestParseRunCLI(args []string) (*zeTestRunCLIFlags, error) {
 	fs.BoolVar(&cli.list, "l", false, "list available tests")
 	fs.BoolVar(&cli.list, "list", false, "list available tests")
 	fs.StringVar(&cli.start, "start", "", "start at test id/name and run through the end")
-	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id, name, or path contains pattern")
+	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id or name contains pattern (as typed, not a regex or a glob)")
 	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only")
 	fs.DurationVar(&cli.timeout, "t", 15*time.Second, "timeout per test")
 	fs.DurationVar(&cli.timeout, "timeout", 15*time.Second, "timeout per test")
@@ -634,7 +634,7 @@ Modes:
   --short-list        List numeric test ids only (space separated)
   -a, --all           Run all tests
   --start ID          Start at test id/name and run through the end
-  --pattern TEXT      Run tests whose id, name, or path contains TEXT
+  --pattern TEXT      Run tests whose id or name contains TEXT (as typed, not a regex or a glob)
 Options:
   -t, --timeout N     Timeout per test (default: 15s)
   -p, --parallel N    Max concurrent tests (0 = all, default: 20)

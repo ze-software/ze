@@ -1,5 +1,5 @@
 # P-15: the documented `--pattern TEXT` selector runs exactly the tests whose
-# id, name or path contains TEXT, and no other. The synthetic discovery tree
+# id or name contains TEXT, and no other. The synthetic discovery tree
 # holds three .ci tests: two match the pattern and pass, the third does not
 # match and fails if it runs, so running it turns the outer command red.
 # /bin/false is a tripwire for accidental daemon execution: no inner test

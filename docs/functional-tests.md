@@ -896,12 +896,13 @@ suite under its budget and takes no selector. `./le test functional plugin
 --pattern data-` is refused before anything builds, and the refusal names the
 suite's own runner, `./le test bgp plugin --pattern TEXT`. Type that form to run
 some tests of a suite. A positional name selects that exact test; `--pattern`
-selects every test whose id or name contains `TEXT`, and the `.ci` record
-suites (`encode`, `plugin`, `reload` and the suites `le test <suite>` runs from
-`test/<suite>/*.ci`) also match a substring of the file path. The `parse`,
-`decode`, `editor` and `web` runners match the id and the name only. A pattern
-that matches no test is refused with `no tests matching pattern`, never run as
-an empty selection.
+selects every test whose id or name contains `TEXT` exactly as typed, in every
+runner. It is not a regex or a glob, so `a|b` or `lg-*` matches no test, and it
+never matches the `.ci` file path: the path starts with the checkout location,
+so a pattern found there would select the whole suite. To run several named
+tests, give each name as its own argument. A pattern that matches no test is
+refused with `no tests matching pattern "TEXT"`, never run as an empty
+selection, and the refusal names the rule and those two forms.
 `--start` selects the named test and every later test in suite order.
 `--list` prints each test as `N/TOTAL ID NAME`; ids are one-based positions,
 so use the test name in saved commands. Each run prints one completion line
@@ -914,7 +915,7 @@ code (`docs/architecture/testing/runner-architecture.md`, "Which binaries a
 fixture reaches").
 <!-- source: internal/test/runner/stale.go -- findStaleBuild -->
 <!-- source: internal/test/runner/selection.go -- Selection -->
-<!-- source: internal/test/runner/selection.go -- recordMatches, genericMatches -->
+<!-- source: internal/test/runner/selection.go -- patternMatches, errNoPatternMatch -->
 <!-- source: internal/le/test/functional/actions.go -- refusedSelector -->
 <!-- source: internal/le/test/functional/suites.go -- Suite.SelectCommand -->
 <!-- source: internal/test/runner/display.go -- Status, TestFinished -->
@@ -3120,7 +3121,7 @@ Common selection options:
 | `--list`, `-l` | List available tests as `N/TOTAL ID NAME` with one-based ids |
 | `--all`, `-a` | Run all tests in the suite |
 | `--start ID` | Run the test matching `ID` or exact name, then every later test in suite order |
-| `--pattern TEXT` | Run tests whose id, name, or path contains `TEXT` |
+| `--pattern TEXT` | Run tests whose id or name contains `TEXT` as typed, not a regex or a glob |
 | `ID_OR_NAME...` | Run only the listed tests |
 
 Common run options:
