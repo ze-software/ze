@@ -20,7 +20,7 @@ func TestGRPCCommandsPreserveExplicitEmptyContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, got := range []string{execute.Command, stream.Command} {
+	for _, got := range []string{convertedExecuteCommand(t, execute), convertedStreamCommand(t, stream)} {
 		if want := `show data encode content ""`; got != want {
 			t.Fatalf("command = %q, want %q", got, want)
 		}

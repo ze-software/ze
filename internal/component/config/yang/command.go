@@ -669,6 +669,7 @@ func (patterns compiledPatterns) argDefFor(leaf *gyang.Entry, name string) (comm
 		Mandatory:   leaf.Mandatory == gyang.TSTrue,
 		ShortHelp:   GetHelpExtension(leaf.Exts), // the ze:help summary
 		Description: leaf.Description,            // the YANG description explanation
+		TypeName:    leaf.Type.Name,
 		Rest:        hasRestOfLineExtension(leaf),
 		KeywordOnly: hasKeywordOnlyExtension(leaf),
 	}

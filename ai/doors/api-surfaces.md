@@ -14,8 +14,11 @@ exporter (`telemetry`). Their wiring lives in `cmd/ze/hub` (`hub-engine.md`).
   `serverDispatcher` (`cmd/ze/hub/main_servers.go`), and every one of them calls
   the same `pluginserver.Dispatcher`:
   - REST and gRPC share one `api.APIEngine` (`cmd/ze/hub/api.go`
-    `buildAPIEngine`). REST turns JSON parameters into command tokens
-    (`api.BuildCommand`) before anything parses them (`ai/digests/api-ipc.md`).
+    `buildAPIEngine`). Both retain structured parameters until the engine
+    selects one current command declaration, normalizes boolean flags and
+    builds the invocation before authorization. Existing raw text is retained;
+    typed matching uses the dispatcher's original definitions and shared matcher
+    (`api.prepareCommand`, `ai/digests/api-ipc.md`).
   - The web UI and MCP get their own dispatchers (`cmd/ze/hub/main.go`, audit
     surfaces `Web` and `MCP`). The looking glass gets the web one
     (`cmd/ze/hub/service_lg.go` `buildLGService`) and never imports a RIB or

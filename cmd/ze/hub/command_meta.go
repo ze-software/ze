@@ -43,7 +43,7 @@ type commandMeta struct {
 	// is NEVER read as a summary. Empty means none was declared.
 	Description string
 	ReadOnly    bool               // true if a read-only command
-	Params      []commandParam     // input parameters from YANG RPC (nil = none)
+	Params      []commandParam     // exact CLI leaves, or RPC input when no CLI definitions exist
 	TaskSupport string             // raw YANG ze:task-support value ("" = optional)
 	UIResource  *commandUIResource // YANG ze:ui-resource extension (nil = no UI)
 	// TakesSelector is true when Dispatch consumes an inline selector token for
@@ -52,6 +52,9 @@ type commandMeta struct {
 	// selector argument is meaningful at all, and where its value belongs.
 	// Derived from the dispatcher's own predicate, never from a name pattern.
 	TakesSelector bool
+	// ArgDefs are the original immutable typed declarations used by the
+	// dispatcher. A metadata generation owns its slice, not the registry's.
+	ArgDefs []command.ArgDef
 }
 
 // commandParam is one input parameter, neutral counterpart of zemcp.ParamInfo
@@ -63,9 +66,11 @@ type commandParam struct {
 	Description string // the YANG description explanation
 	Required    bool
 	// Anchor is the path keyword the value follows, read from the registered
-	// command's ArgDef of the same name (anchoredParams). Empty means the
-	// value follows the command.
+	// command's ArgDef of the same name (anchoredParams). Without an anchor,
+	// a nonflag own name that occurs in the selected path is an inline slot;
+	// other values follow the command as keywords.
 	Anchor string
+	Flag   bool // the keyword alone is the argument
 }
 
 // commandUIResource is the neutral counterpart of zemcp.UIResourceInfo.
@@ -180,6 +185,7 @@ func buildCommandMeta(
 			Params:        anchoredParams(paramsByPath[cmd.Name], cmd.ArgDefs),
 			TaskSupport:   taskSupportByPath[cmd.Name],
 			TakesSelector: cmd.TakesInlineSelector(),
+			ArgDefs:       slices.Clone(cmd.ArgDefs),
 		}
 		if ui, ok := lookupUIResource(cmd.Name, uiResourceByPath); ok {
 			info.UIResource = &commandUIResource{
@@ -279,20 +285,23 @@ func anchoredParams(params []commandParam, defs []command.ArgDef) []commandParam
 	}
 	anchored := make([]commandParam, len(params))
 	copy(anchored, params)
+	invocation := command.InvocationArgs(defs)
 	for i := range anchored {
 		for j := range defs {
 			if defs[j].Name() != anchored[i].Name {
 				continue
 			}
-			anchored[i].Anchor = defs[j].Anchor()
+			anchored[i].Anchor = invocation[j].Anchor
+			anchored[i].Flag = invocation[j].Flag
 			break
 		}
 	}
 	return anchored
 }
 
-// buildParamMeta extracts all RPC metadata from the YANG loader and builds a
-// map from CLI command path to neutral input parameters. A schema whose rpc
+// buildParamMeta reads every command path and alias from the YANG loader.
+// Each path prefers its exact typed CLI leaves; an RPC-only path without CLI
+// definitions retains its published RPC input. A schema whose rpc
 // pointers cannot be published is an error: answering nil published every
 // command with no input parameters, the resolvable ones included.
 func buildParamMeta(schema *yangloader.Resolved) (map[string][]commandParam, error) {
@@ -301,10 +310,12 @@ func buildParamMeta(schema *yangloader.Resolved) (map[string][]commandParam, err
 	}
 
 	// Build reverse map: CLI path -> wire method.
-	wireToPath := yangloader.WireMethodToPath(schema)
-	pathToWire := make(map[string]string, len(wireToPath))
-	for wire, path := range wireToPath {
-		pathToWire[path] = wire
+	wireToPaths := yangloader.WireMethodToPaths(schema)
+	pathToWire := make(map[string]string)
+	for wire, paths := range wireToPaths {
+		for _, path := range paths {
+			pathToWire[path] = wire
+		}
 	}
 
 	// Each rpc a command node points at carries that node's wire method
@@ -320,12 +331,25 @@ func buildParamMeta(schema *yangloader.Resolved) (map[string][]commandParam, err
 	}
 
 	// Where the dispatcher binds each value is a fact of the command tree
-	// (command.ArgDef.Anchor). A builtin's own ArgDefs re-anchor its params in
-	// buildCommandMeta; a command only a plugin serves has none there, so its
-	// params carry the anchor of the same tree from here.
+	// (command.ArgDef.Anchor and own-name path slots). Each alias gets its
+	// own CLI definitions rather than the shortest alias's or RPC's names.
+	// A builtin reattaches its original registration's placement in
+	// buildCommandMeta; a plugin-only path retains the same tree's facts.
 	defsByPath := yangloader.PathToArgDefs(schema)
 	result := make(map[string][]commandParam)
 	for path, wire := range pathToWire {
+		if defs := defsByPath[path]; len(defs) > 0 {
+			params := make([]commandParam, len(defs))
+			for i := range defs {
+				params[i] = commandParam{
+					Name: defs[i].Name(), Type: defs[i].TypeName(),
+					ShortHelp: defs[i].ShortHelp(), Description: defs[i].Description(),
+					Required: defs[i].Mandatory(),
+				}
+			}
+			result[path] = anchoredParams(params, defs)
+			continue
+		}
 		input := inputs[wire]
 		if len(input) == 0 {
 			continue

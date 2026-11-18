@@ -10,19 +10,17 @@ import (
 )
 
 func fromProtoExecuteRequest(pb *zepb.CommandRequest, caller api.CallerIdentity) (*api.ExecuteRequest, error) {
-	command, err := api.BuildCommand(pb.GetCommand(), pb.GetParams())
-	if err != nil {
+	if err := api.ValidateParams(pb.GetParams()); err != nil {
 		return nil, err
 	}
-	return &api.ExecuteRequest{Caller: caller, Command: command}, nil
+	return &api.ExecuteRequest{Caller: caller, Command: pb.GetCommand(), Params: pb.GetParams()}, nil
 }
 
 func fromProtoStreamRequest(pb *zepb.CommandRequest, caller api.CallerIdentity) (*api.StreamRequest, error) {
-	command, err := api.BuildCommand(pb.GetCommand(), pb.GetParams())
-	if err != nil {
+	if err := api.ValidateParams(pb.GetParams()); err != nil {
 		return nil, err
 	}
-	return &api.StreamRequest{Caller: caller, Command: command}, nil
+	return &api.StreamRequest{Caller: caller, Command: pb.GetCommand(), Params: pb.GetParams()}, nil
 }
 
 func fromProtoListCommandsRequest(pb *zepb.ListCommandsRequest) *api.ListCommandsRequest {

@@ -26,7 +26,10 @@ import (
 // front of it. A keyword form after the command would pass ValidateArgs
 // and still leave the selector unbound, and every command that requires one
 // would answer "requires a selector" for the one value the client supplied.
-// Every other declared argument follows the command as the keyword the leaf is
+// A nonflag own leaf whose name is a path keyword also follows that keyword
+// bare, matching the dispatcher's explicit id/name selector binding. A named
+// anchor takes precedence over the own name. Every other declared argument
+// follows the command as the keyword the leaf is
 // named by and then the value (ai/rules/cli.md: keyword before value), in
 // declaration order, which is the form the dispatcher's keyword phase binds.
 // A value whose name no definition declares trails them, in name order, in the
@@ -53,6 +56,9 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 		tb.Str(segment)
 		for j := range defs {
 			def := &defs[j]
+			if def.Flag {
+				continue
+			}
 			if placed[def.Name] {
 				continue
 			}
@@ -60,7 +66,7 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 			if !found {
 				continue
 			}
-			if def.Anchor != segment {
+			if invocationAnchor(def.Name, def.Anchor) != segment {
 				continue
 			}
 			placed[def.Name] = true

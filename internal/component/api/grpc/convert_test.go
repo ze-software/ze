@@ -20,7 +20,9 @@ func TestExecuteRequestRoundTrip(t *testing.T) {
 
 	req, err := fromProtoExecuteRequest(pb, caller)
 	require.NoError(t, err)
-	assert.Equal(t, "peer name peer1", req.Command)
+	assert.Equal(t, "peer", req.Command)
+	assert.Equal(t, pb.Params, req.Params)
+	assert.Equal(t, "peer name peer1", convertedExecuteCommand(t, req))
 	assert.Equal(t, caller, req.Caller)
 
 	// Convert result back to proto.

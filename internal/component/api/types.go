@@ -8,6 +8,8 @@ package api
 import (
 	"net"
 
+	"github.com/ze-software/ze/internal/component/command"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -42,10 +44,15 @@ type CommandMeta struct {
 	// description key at all.
 	Description string      `json:"description,omitempty"`
 	ReadOnly    bool        `json:"read-only"`        // True if read-only command
-	Params      []ParamMeta `json:"params,omitempty"` // Input parameters from YANG RPC (nil = no typed params)
+	Params      []ParamMeta `json:"params,omitempty"` // Exact CLI leaves, or RPC-only input fallback
+	// ArgDefs retain the registered immutable validation authority for local
+	// invocation matching. This slice belongs to this metadata generation and
+	// never appears in REST/gRPC metadata or the external schema.
+	ArgDefs []command.ArgDef `json:"-"`
 }
 
-// ParamMeta describes a single input parameter from YANG RPC metadata.
+// ParamMeta describes a parameter of the selected YANG command path, using
+// that path's CLI leaves or the published RPC input when no CLI leaves exist.
 // ShortHelp is the JSON Schema `title` and Description the JSON Schema
 // `description`; neither is derived from the other, and an empty one writes
 // no key. The json tags are kebab-case, and Required has no omitempty.
@@ -55,6 +62,8 @@ type ParamMeta struct {
 	ShortHelp   string `json:"short-help,omitempty"`  // One-line summary, from the ze:help extension
 	Description string `json:"description,omitempty"` // Long explanation, from the YANG description
 	Required    bool   `json:"required"`              // Mandatory in YANG
+	Anchor      string `json:"anchor,omitempty"`      // Path keyword the value follows
+	Flag        bool   `json:"flag,omitempty"`        // Keyword alone supplies this argument
 }
 
 // ExecResult is the standard API response envelope. It is an alias for the

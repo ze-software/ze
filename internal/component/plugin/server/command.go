@@ -870,67 +870,7 @@ func (d *Dispatcher) RecognizesCommand(input string) bool {
 }
 
 func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]string, map[string]string, bool) {
-	keyTokens := strings.Fields(key)
-	if len(keyTokens) == 0 || len(tokens) < len(keyTokens) {
-		return nil, nil, false
-	}
-	defByName := make(map[string]*command.ArgDef, len(defs))
-	for i := range defs {
-		defByName[strings.ToLower(defs[i].Name())] = &defs[i]
-	}
-	inIdx := 0
-	selectors := make(map[string]string)
-	for keyIdx, keyTok := range keyTokens {
-		if inIdx >= len(tokens) || !strings.EqualFold(tokens[inIdx], keyTok) {
-			return nil, nil, false
-		}
-
-		// Explicit typed selectors such as `name <value>` or `id <value>`. A
-		// flag takes no value, so it never selects.
-		if def, ok := defByName[strings.ToLower(keyTok)]; ok && def.Kind() != command.ArgFlag && inIdx+1 < len(tokens) {
-			if keyIdx+1 >= len(keyTokens) || !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
-				// The keyword names the slot, so the value is bound without
-				// judging it: command.ValidateArgs judges it with the other
-				// arguments and names the bound it breaks. Refusing the match
-				// here answered "unknown command" for a 129-character
-				// `show metrics name`.
-				selectors[def.Name()] = tokens[inIdx+1]
-				inIdx += 2
-				continue
-			}
-		}
-
-		// Generic implicit selectors: a single unmatched selector-like leaf may
-		// appear between a resource token and a later action token. A leaf the
-		// MODEL anchored to this key token is preferred, because the anchor is
-		// the model's own answer to the question implicitSelectorDef guesses at.
-		if keyIdx+1 < len(keyTokens) && inIdx+1 < len(tokens) && !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
-			// An anchored leaf is the model's own answer, as strong as a
-			// keyword, so its value is bound and judged later by
-			// command.ValidateArgs. The implicit leaf is a guess, and a value
-			// that fails it means the guess was wrong, so the match fails.
-			if def := anchoredDef(keyTok, defs, selectors); def != nil {
-				selectors[def.Name()] = tokens[inIdx+1]
-				inIdx += 2
-				continue
-			}
-			if def := implicitSelectorDef(keyTokens, defs, selectors); def != nil {
-				value := tokens[inIdx+1]
-				if err := command.ValidateArgString(value, def); err != nil {
-					return nil, nil, false
-				}
-				selectors[def.Name()] = value
-				inIdx += 2
-				continue
-			}
-		}
-
-		inIdx++
-	}
-	if len(selectors) == 0 {
-		selectors = nil
-	}
-	return tokens[inIdx:], selectors, true
+	return command.MatchInvocationPath(tokens, key, defs)
 }
 
 // implicitSelectorDef returns the one leaf a bare token sitting between two key
@@ -967,70 +907,11 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 // Two leaves anchored to one keyword answer nil for the same reason
 // implicitSelectorDef does: the model has not said which.
 func anchoredDef(keyTok string, defs []command.ArgDef, matched map[string]string) *command.ArgDef {
-	var found *command.ArgDef
-	for i := range defs {
-		def := &defs[i]
-		if _, ok := matched[def.Name()]; ok {
-			continue
-		}
-		if def.Anchor() == "" {
-			continue
-		}
-		if !strings.EqualFold(def.Anchor(), keyTok) {
-			continue
-		}
-		if found != nil {
-			return nil
-		}
-		found = def
-	}
-	return found
+	return command.AnchoredInvocationArg(keyTok, defs, matched)
 }
 
 func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[string]string) *command.ArgDef {
-	var loose, patterned *command.ArgDef
-	looseCount, patternedCount := 0, 0
-	for i := range defs {
-		def := &defs[i]
-		if _, ok := matched[def.Name()]; ok {
-			continue
-		}
-		if def.Kind() != command.ArgString {
-			continue
-		}
-		if !def.Mandatory() {
-			continue
-		}
-		// A keyword-only leaf (ze:keyword-only) is never read from a bare
-		// token, between two key tokens included.
-		if def.KeywordOnly() {
-			continue
-		}
-		if keyTokenPresent(keyTokens, def.Name()) {
-			continue
-		}
-		if command.Constraint(def) == command.ConstraintPattern {
-			patterned, patternedCount = def, patternedCount+1
-			continue
-		}
-		loose, looseCount = def, looseCount+1
-	}
-	if looseCount == 1 {
-		return loose
-	}
-	if looseCount == 0 && patternedCount == 1 {
-		return patterned
-	}
-	return nil
-}
-
-func keyTokenPresent(keyTokens []string, name string) bool {
-	for _, token := range keyTokens {
-		if strings.EqualFold(token, name) {
-			return true
-		}
-	}
-	return false
+	return command.ImplicitInvocationArg(keyTokens, defs, matched)
 }
 
 func applyExtractedSelectors(ctx *CommandContext, selectors map[string]string) {
@@ -1337,7 +1218,13 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// above (pipeChainRefusal). A leading dash, though, is never valid
 		// here: no ArgKind is signed, and folding only emits bare filter names
 		// and values. So a flag can only be a client-side flag that leaked.
-		if flag := firstFlagToken(args); flag != "" {
+		flagArgs := args
+		if argErr == nil {
+			// Typed keyword/rest values are data. Only tokens that the
+			// validator left positional can be leaked client flags.
+			flagArgs = validated.PositionalTokens()
+		}
+		if flag := firstFlagToken(flagArgs); flag != "" {
 			flagErr := flagRefusal(matchedCmd.Name, flag, input)
 			return &plugin.Response{
 				Status: plugin.StatusError,

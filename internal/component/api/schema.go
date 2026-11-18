@@ -61,6 +61,9 @@ func CommandSchema(cmd CommandMeta) map[string]any {
 		prop := map[string]any{
 			schemaKeyType: jsonSchemaType(p.Type),
 		}
+		if p.Flag {
+			prop[schemaKeyType] = "boolean"
+		}
 		if p.ShortHelp != "" {
 			prop[schemaKeyTitle] = p.ShortHelp
 		}

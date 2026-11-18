@@ -576,8 +576,14 @@ func unionForms(def *ArgDef) []string {
 // answer: it follows the keyword it repeats, and trails every keyword when it
 // repeats none.
 func usageAnchor(def *ArgDef) string {
-	if def.anchor != "" {
-		return def.anchor
+	return invocationAnchor(def.name, def.anchor)
+}
+
+// invocationAnchor names the keyword a value can follow. A writer still
+// checks the selected path: a nonpath name remains an ordinary keyword.
+func invocationAnchor(name, anchor string) string {
+	if anchor != "" {
+		return anchor
 	}
-	return def.name
+	return name
 }

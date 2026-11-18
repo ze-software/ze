@@ -19,11 +19,10 @@ func fromRESTExecuteRequest(caller api.CallerIdentity, command string, params ma
 		}
 		stringParams[key] = sval
 	}
-	built, err := api.BuildCommand(command, stringParams)
-	if err != nil {
+	if err := api.ValidateParams(stringParams); err != nil {
 		return nil, err
 	}
-	return &api.ExecuteRequest{Caller: caller, Command: built}, nil
+	return &api.ExecuteRequest{Caller: caller, Command: command, Params: stringParams}, nil
 }
 
 func fromRESTStreamRequest(caller api.CallerIdentity, command string) *api.StreamRequest {

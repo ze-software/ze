@@ -117,7 +117,7 @@ func unauthorizedError(command string) string {
 // Execute runs a command and returns the result.
 // Returns ErrUnauthorized if the auth checker denies the request.
 func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResult, error) {
-	readOnly, err := e.commandReadOnly(req.Command)
+	input, readOnly, err := e.prepareCommand(req.Command, req.Params)
 	if err != nil {
 		return &ExecResult{
 			Status: StatusError,
@@ -127,17 +127,17 @@ func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResu
 	if req.Caller.ReadOnly && !readOnly {
 		return &ExecResult{
 			Status: StatusError,
-			Error:  unauthorizedError(req.Command),
+			Error:  unauthorizedError(input),
 		}, ErrUnauthorized
 	}
-	if e.auth != nil && !e.auth(req.Caller.Username, req.Command) {
+	if e.auth != nil && !e.auth(req.Caller.Username, input) {
 		return &ExecResult{
 			Status: StatusError,
-			Error:  unauthorizedError(req.Command),
+			Error:  unauthorizedError(input),
 		}, ErrUnauthorized
 	}
 
-	resp, err := e.executor(ctx, req.Caller, req.Command)
+	resp, err := e.executor(ctx, req.Caller, input)
 	if err != nil {
 		return &ExecResult{
 			Status: StatusError,
@@ -154,7 +154,7 @@ func (e *APIEngine) Execute(ctx context.Context, req *ExecuteRequest) (*ExecResu
 	if records, generated := plugin.RecordRows(resp); generated {
 		data, encodeErr := json.Marshal(records)
 		if encodeErr != nil {
-			failure := opererr.Wrap(encodeErr, "Cannot return the result of "+req.Command,
+			failure := opererr.Wrap(encodeErr, "Cannot return the result of "+input,
 				"The command produced a record answer that cannot be encoded", "ze show errors")
 			refused := plugin.OperatorErrorResponse(failure)
 			refused.OnTransportComplete(resp.TakeTransportComplete())
@@ -173,47 +173,15 @@ func (e *APIEngine) Stream(ctx context.Context, req *StreamRequest) (<-chan stri
 	if e.stream == nil {
 		return nil, nil, errors.New("streaming not supported")
 	}
-	readOnly, err := e.commandReadOnly(req.Command)
+	input, readOnly, err := e.prepareCommand(req.Command, req.Params)
 	if err != nil {
 		return nil, nil, err
 	}
 	if req.Caller.ReadOnly && !readOnly {
 		return nil, nil, ErrUnauthorized
 	}
-	if e.auth != nil && !e.auth(req.Caller.Username, req.Command) {
+	if e.auth != nil && !e.auth(req.Caller.Username, input) {
 		return nil, nil, ErrUnauthorized
 	}
-	return e.stream(ctx, req.Caller, req.Command)
-}
-
-// commandReadOnly answers whether the longest registered command prefixing
-// command is read-only. It returns the command source's error rather than
-// false, because false would refuse every read-only caller with a misleading
-// "unauthorized".
-func (e *APIEngine) commandReadOnly(command string) (bool, error) {
-	if e.commands == nil {
-		return false, nil
-	}
-	all, err := e.commands()
-	if err != nil {
-		return false, err
-	}
-	input := strings.ToLower(strings.TrimSpace(command))
-	longest := 0
-	readOnly := false
-	for _, cmd := range all {
-		name := strings.ToLower(strings.TrimSpace(cmd.Name))
-		if name == "" || len(name) <= longest {
-			continue
-		}
-		if !strings.HasPrefix(input, name) {
-			continue
-		}
-		if len(input) != len(name) && input[len(name)] != ' ' {
-			continue
-		}
-		longest = len(name)
-		readOnly = cmd.ReadOnly
-	}
-	return readOnly, nil
+	return e.stream(ctx, req.Caller, input)
 }

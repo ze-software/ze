@@ -82,6 +82,9 @@ type ArgDef struct {
 	// the other empty, and every reader prints the one it has.
 	shortHelp   string
 	description string
+	// typeName retains the source YANG type, including a typedef's name, for
+	// command metadata. Validation continues to use the constructed kind.
+	typeName string
 
 	// anchor names the path keyword this value follows, and it is set when the
 	// leaf is declared by a container ABOVE the command rather than by the
@@ -111,6 +114,7 @@ type ArgOptions struct {
 	Mandatory   bool   // the YANG leaf has mandatory true
 	ShortHelp   string // the ze:help summary
 	Description string // the YANG description
+	TypeName    string // the source YANG type name, including a named typedef
 	Anchor      string // the keyword of the container above the command that declares the leaf
 	Rest        bool   // the leaf has ze:rest-of-line: it takes every remaining word
 	KeywordOnly bool   // the leaf has ze:keyword-only: no positional word fills it
@@ -270,6 +274,7 @@ func newArgDef(name string, kind ArgKind, opts ArgOptions) ArgDef {
 		mandatory:     opts.Mandatory,
 		shortHelp:     opts.ShortHelp,
 		description:   opts.Description,
+		typeName:      opts.TypeName,
 		anchor:        opts.Anchor,
 		rest:          opts.Rest,
 		keywordOnly:   opts.KeywordOnly,
@@ -338,6 +343,10 @@ func (d ArgDef) ShortHelp() string { return d.shortHelp } //nolint:gocritic // h
 // Description answers the YANG description, empty when the leaf declares none.
 func (d ArgDef) Description() string { return d.description } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
 
+// TypeName answers the source YANG type name, empty for a definition made
+// without a source type. It does not choose or change the validation kind.
+func (d ArgDef) TypeName() string { return d.typeName } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
+
 // Anchor answers the keyword this value follows, empty for a leaf the command
 // itself declares (see the anchor field).
 func (d ArgDef) Anchor() string { return d.anchor } //nolint:gocritic // hugeParam: keep the immutable value API's method set.
@@ -379,7 +388,8 @@ func (d ArgDef) UnionDefs() iter.Seq[ArgDef] { return slices.Values(d.unionDefs)
 
 // InvocationArg is what WriteInvocation reads of an argument: its name, the
 // keyword it is anchored to, and whether it is a flag, whose keyword is the
-// whole argument. The MCP server builds it from a lister that knows no types.
+// whole argument. Surface listers carry these placement facts without
+// reconstructing validation definitions from type-name strings.
 type InvocationArg struct {
 	Name   string
 	Anchor string

@@ -72,7 +72,7 @@ type CommandInfo struct {
 	// wrote. Empty means the command declares no explanation.
 	Description string
 	ReadOnly    bool             // True if read-only command
-	Params      []ParamInfo      // Input parameters from YANG RPC (nil = no typed params)
+	Params      []ParamInfo      // Exact CLI leaves, or RPC-only input fallback
 	TaskSupport TaskSupportLevel // From YANG ze:task-support extension
 	UIResource  *UIResourceInfo  // From YANG ze:ui-resource extension (nil = no UI)
 	// TakesSelector reports that the dispatcher consumes an INLINE peer
@@ -83,7 +83,8 @@ type CommandInfo struct {
 	TakesSelector bool
 }
 
-// ParamInfo describes a single input parameter from YANG RPC metadata.
+// ParamInfo describes a parameter of the selected YANG command path, using
+// that path's CLI leaves or the published RPC input when no CLI leaves exist.
 // ShortHelp is the property's JSON Schema `title` and Description its
 // `description`; neither is derived from the other, and an empty one writes
 // no key.
@@ -93,11 +94,13 @@ type ParamInfo struct {
 	ShortHelp   string // One-line summary, from the ze:help extension
 	Description string // Long explanation, from the YANG description
 	Required    bool   // Mandatory in YANG
-	// Anchor names the path keyword the value follows, and it is empty for a
-	// value that follows the command. It is the dispatcher's own placement
+	// Anchor names the declared ancestor path keyword the value follows.
+	// An empty anchor lets a nonflag own name bind after a matching path word;
+	// other values follow the command as keywords. This is the dispatcher's placement
 	// (command.ArgDef.Anchor, supplied by the hub from the registered
 	// command), and dispatchGenerated writes the value where it says.
 	Anchor string
+	Flag   bool // the keyword alone supplies this argument
 }
 
 // CommandLister returns all registered commands, or the error that kept their
@@ -529,6 +532,9 @@ func addYANGParams(actions []action, properties map[string]any) (bool, []string)
 			prop := map[string]any{
 				schemaKeyType: yangTypeToJSON(p.Type),
 			}
+			if p.Flag {
+				prop[schemaKeyType] = "boolean"
+			}
 			// JSON Schema names the short text `title` and the long one
 			// `description`. Each is written only when the leaf declares it.
 			if p.ShortHelp != "" {
@@ -673,8 +679,8 @@ type server struct {
 }
 
 // invocationArgs answers what command.WriteInvocation reads of the arguments
-// the lister registered for the command named: the name and the anchor of
-// each typed parameter. The lister carries no type, so no argument definition
+// the lister registered for the command named: its name, explicit anchor and
+// flag fact. The lister carries no validation definition, so no argument definition
 // is built: one with no restrictions would lie about what the argument
 // accepts. It answers nil when the server holds no
 // lister or the lister does not know the name, and every value then follows
@@ -695,7 +701,7 @@ func (s *server) invocationArgs(commandName string) ([]command.InvocationArg, er
 		}
 		args := make([]command.InvocationArg, len(info.Params))
 		for i, p := range info.Params {
-			args[i] = command.InvocationArg{Name: p.Name, Anchor: p.Anchor}
+			args[i] = command.InvocationArg{Name: p.Name, Anchor: p.Anchor, Flag: p.Flag}
 		}
 		return args, nil
 	}
@@ -819,6 +825,10 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 	if err != nil {
 		var tb textbuf.Buffer
 		return ErrResult(tb.Str("command metadata unavailable: ").Str(err.Error()).String())
+	}
+	values, err = command.NormalizeInvocationFlags(defs, values)
+	if err != nil {
+		return ErrResult(command.InvocationFlagError(commandName, err).Error())
 	}
 	if peer != "" {
 		// The peer selector already sits after the `peer` keyword. A typed

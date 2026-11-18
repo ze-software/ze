@@ -926,6 +926,16 @@ input can contain zero bytes when its shared argument validator permits an
 empty value. A blank required HTML control whose model rejects empty, such as
 an integer, remains omitted for the dispatcher's missing-argument check.
 Empty flag controls leave the flag unset.
+Structured API and MCP boolean flags use `true` for presence and `false` for
+omission; ordinary nonflag booleans remain values. REST and gRPC keep command
+and parameters separate until one engine metadata generation supplies typed
+placement and the original definitions for the shared invocation matcher.
+An already supplied raw invocation retains its text and selector values while
+extra parameters follow as keywords. Malformed flag values refuse before a
+handler runs and name the command's help.
+<!-- source: internal/component/api/invocation.go -- prepareCommand, buildInvocation -->
+<!-- source: internal/component/command/invocation_match.go -- MatchInvocationPath -->
+<!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation, WriteInvocationValue -->
 <!-- source: internal/component/api/requests.go -- BuildCommand -->
 <!-- source: internal/component/mcp/tools.go -- dispatchGenerated -->
@@ -2947,10 +2957,14 @@ The part-order checks are RFC 7950 Sections 9.2.4 and 9.4.4: "If multiple
 values or ranges are given, they all MUST be disjoint and MUST be in ascending
 order." Every refusal wraps `command.ErrArgDef`. `ArgOptions` carries what
 every kind shares: `Mandatory`, `ShortHelp` (the leaf's `ze:help` summary),
-`Description` (its `description`) and `Anchor` (the path keyword this value
-follows, empty for a trailing value). The constructors copy their input
-slices. The accessors (`Name`, `Kind`, `Mandatory`, `UintBits`, `ShortHelp`,
-`Description`, `Anchor`) return scalars, and `EnumValues`, `Ranges`,
+`Description` (its `description`), `Anchor` (an explicitly declared ancestor
+path keyword), and `TypeName` (the source YANG type or typedef name, without
+changing the constructor's validation kind). Without an explicit anchor, a
+nonflag leaf whose own name occurs in the selected path follows that keyword
+bare; every other leaf follows the command as a keyword argument. The
+constructors copy their input slices. The accessors (`Name`, `Kind`,
+`Mandatory`, `UintBits`, `ShortHelp`, `Description`, `Anchor`, `TypeName`)
+return scalars, and `EnumValues`, `Ranges`,
 `Lengths`, `Patterns` (the pattern source text) and `UnionDefs` return
 iterators, so no reader can write into a validated definition.
 `WithAnchor` returns an anchored copy. Tests outside the package build

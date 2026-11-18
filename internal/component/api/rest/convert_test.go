@@ -16,9 +16,12 @@ func TestFromRESTExecuteRequest(t *testing.T) {
 	req, err := fromRESTExecuteRequest(caller, "peer", params)
 	require.NoError(t, err)
 	assert.Equal(t, caller, req.Caller)
-	assert.Contains(t, req.Command, "peer")
-	assert.Contains(t, req.Command, "name peer1")
-	assert.Contains(t, req.Command, "family ipv4")
+	assert.Equal(t, "peer", req.Command)
+	assert.Equal(t, map[string]string{"name": "peer1", "family": "ipv4"}, req.Params)
+	built := convertedExecuteCommand(t, req)
+	assert.Contains(t, built, "peer")
+	assert.Contains(t, built, "name peer1")
+	assert.Contains(t, built, "family ipv4")
 }
 
 func TestFromRESTExecuteRequestBadParams(t *testing.T) {

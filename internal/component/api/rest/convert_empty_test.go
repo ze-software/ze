@@ -14,7 +14,8 @@ func TestRESTExecutePreservesExplicitEmptyContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := `show data encode content ""`; request.Command != want {
-		t.Fatalf("command = %q, want %q", request.Command, want)
+	got := convertedExecuteCommand(t, request)
+	if want := `show data encode content ""`; got != want {
+		t.Fatalf("command = %q, want %q", got, want)
 	}
 }

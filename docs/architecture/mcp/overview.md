@@ -336,6 +336,14 @@ The caller's map is copied, not stamped in place. `tasks/get` returns the map
 the registry stored (as a terminal task's `result`), and a mutation of that map
 would persist envelope fields into registry state.
 
+Successful command warnings add a second text content item beside the original
+data. Diagnostic lines keep their `Warning: ` prefix. A warning verdict without
+diagnostic lines adds the label `Warning`. It does not set `isError` or change
+the data or original warning diagnostics. Generated tools and `ze_execute` use
+the same result helper.
+
+<!-- source: internal/component/mcp/tools.go -- answerResult, run, toolHandlers -->
+
 ## Error Codes
 
 <!-- source: internal/component/mcp/streamable_tools.go — rpc* constants, failUnsupportedVersion, failMissingTasksCapability -->
@@ -493,9 +501,15 @@ unicast`; every other value follows the command as `name value`, in
 declaration order. `WriteInvocation` reads a name and an anchor for each
 parameter (`command.InvocationArg`), built from the lister by
 `invocationArgs`, never an argument definition with no type. The anchor is the
-registered command's `ArgDef.Anchor()`,
-which `buildCommandMeta` copies onto the parameter of the same name
-(`anchoredParams`). A call that carries both `peer` and a parameter anchored
+registered command's `ArgDef.Anchor()`, copied by `buildCommandMeta` onto the
+parameter of the same name (`anchoredParams`). An empty anchor lets a nonflag
+own name bind after that keyword when it occurs in the selected path; other
+values remain keyword arguments. Each alias publishes its own typed CLI leaves,
+with published RPC input retained for a path without CLI definitions. The flag
+fact comes from the same registered definition: structured `true` enables a
+presence-only flag and `false` omits it, including alongside raw `arguments`.
+A nonflag boolean remains ordinary data. An invalid flag value refuses before
+dispatch and names the command's help. A call carrying both `peer` and a parameter anchored
 to `peer` names one slot twice and is refused by name.
 
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip, anchoredParams -->

@@ -105,6 +105,7 @@ func mcpCommandLister(src func() ([]commandMeta, error)) zemcp.CommandLister {
 						Description: p.Description,
 						Required:    p.Required,
 						Anchor:      p.Anchor,
+						Flag:        p.Flag,
 					}
 				}
 				infos[i].Params = params

@@ -37,6 +37,17 @@ command writer quotes it as one empty token, distinct from an omitted argument.
 The command model then accepts or refuses that value. HTML forms omit blank
 optional controls before command composition. REST and gRPC retain their existing
 refusal of whitespace in parameter keys and values.
+The shared API engine resolves structured parameters against one current
+command declaration before authorization and dispatch. A structured flag value
+of `false` omits that flag; it never becomes the words `force false`, which
+would enable a presence-only flag. Ordinary boolean data remains a value.
+Existing raw command text is retained, including terminal, declared ancestor
+and implicit selectors, while extra parameters form a keyword suffix.
+Declaration matching reuses the dispatcher's matcher with its original typed
+definitions. The API's private definitions are excluded from JSON metadata.
+<!-- source: internal/component/api/invocation.go -- prepareCommand, buildInvocation -->
+<!-- source: internal/component/command/invocation_match.go -- MatchInvocationPath -->
+<!-- source: internal/component/command/invocation_flags.go -- NormalizeInvocationFlags -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 <!-- source: internal/component/api/requests.go -- BuildCommand -->
 <!-- source: internal/component/api/rest/convert.go -- fromRESTExecuteRequest -->

@@ -14,12 +14,14 @@ import (
 type ExecuteRequest struct {
 	Caller  CallerIdentity
 	Command string
+	Params  map[string]string
 }
 
 // StreamRequest is the domain request for streaming command execution.
 type StreamRequest struct {
 	Caller  CallerIdentity
 	Command string
+	Params  map[string]string
 }
 
 // ListCommandsRequest is the domain request for listing commands.
@@ -73,17 +75,24 @@ func BuildCommand(input string, params map[string]string) (string, error) {
 	if len(params) == 0 {
 		return input, nil
 	}
-	var b textbuf.Buffer
-	for key, val := range params {
-		if strings.ContainsAny(key, " \t\n\r") {
-			return "", fmt.Errorf("parameter key %q must not contain whitespace", key)
-		}
-		if strings.ContainsAny(val, " \t\n\r") {
-			return "", fmt.Errorf("parameter %q must not contain whitespace", key)
-		}
+	if err := ValidateParams(params); err != nil {
+		return "", err
 	}
-	// The command text is already the caller's requested path. Parameter
-	// presence and quoting use the same writer as the other command surfaces.
+	var b textbuf.Buffer
 	command.WriteInvocation(&b, []string{input}, nil, params)
 	return b.String(), nil
+}
+
+// ValidateParams preserves the transport's parameter refusal before it
+// constructs a domain request. The engine also validates direct callers.
+func ValidateParams(params map[string]string) error {
+	for key, val := range params {
+		if strings.ContainsAny(key, " \t\n\r") {
+			return fmt.Errorf("parameter key %q must not contain whitespace", key)
+		}
+		if strings.ContainsAny(val, " \t\n\r") {
+			return fmt.Errorf("parameter %q must not contain whitespace", key)
+		}
+	}
+	return nil
 }

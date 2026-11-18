@@ -10,6 +10,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -357,6 +358,7 @@ func apiCommandLister(src func() ([]commandMeta, error)) api.CommandSource {
 				ShortHelp:   cmd.ShortHelp,
 				Description: cmd.Description,
 				ReadOnly:    cmd.ReadOnly,
+				ArgDefs:     slices.Clone(cmd.ArgDefs),
 			}
 			for _, p := range cmd.Params {
 				infos[i].Params = append(infos[i].Params, api.ParamMeta{
@@ -365,6 +367,8 @@ func apiCommandLister(src func() ([]commandMeta, error)) api.CommandSource {
 					ShortHelp:   p.ShortHelp,
 					Description: p.Description,
 					Required:    p.Required,
+					Anchor:      p.Anchor,
+					Flag:        p.Flag,
 				})
 			}
 		}

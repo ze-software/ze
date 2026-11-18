@@ -32,9 +32,10 @@ runtime request, see the gotcha below.
    the `StreamSource`.
 2. **HTTP entry.** `POST /api/v1/execute` → `RESTServer.handleExecute` (`rest/server.go`)
    decodes `{"command":"...","params":{...}}`, then `fromRESTExecuteRequest`
-   (`rest/convert.go`) calls `api.BuildCommand` (`requests.go`) to append each JSON
-   param as `" key value"` onto the command string, JSON becomes CLI-style tokens before
-   anything is parsed. Convenience routes (`GET /api/v1/peers/*`, `/rib/*`, `/system/*`)
+   (`rest/convert.go`) validates parameter whitespace and retains the original
+   command plus a string-valued `Params` map in the domain request. Construction
+   waits for the engine's selected typed declaration. Convenience routes
+   (`GET /api/v1/peers/*`, `/rib/*`, `/system/*`)
    build a fixed command string directly (e.g. `rest/server.go`, `:578`, `:620`) instead of
    accepting one from the client.
 3. **gRPC entry.** `zeServiceImpl.Execute` (`grpc/server.go`) builds the same domain
@@ -44,9 +45,13 @@ runtime request, see the gotcha below.
 4. **Engine gate + execute.** Both transports call `APIEngine.Execute` (`engine.go`): a
    read-only caller (`CallerIdentity.ReadOnly`; `CallerIdentity` is now an alias of
    `plugin.CallerIdentity`, `types.go`) is rejected unless
-   `commandReadOnly(req.Command)` (`engine.go`), a longest-registered-name prefix scan
-   over `CommandSource`, says the command is safe; an optional `AuthChecker` is consulted
-   next (`engine.go`); only then is `e.executor(ctx, caller, command)` invoked
+   `prepareCommand` (`invocation.go`) selects a read-only command from one
+   `CommandSource` generation. It reuses `command.MatchInvocationPath` with the
+   original immutable ArgDefs, normalizes structured boolean flags and builds
+   the invocation before either authorization or execution. Exact command paths
+   get typed inline placement; supplied raw command text is retained with a
+   keyword suffix. An optional `AuthChecker` is consulted next (`engine.go`);
+   only then is `e.executor(ctx, caller, command)` invoked
    (`engine.go`). The executor is the unified `plugin.CommandDispatcher`, so it returns a
    typed `*plugin.Response` directly; `Execute` returns it unchanged (`engine.go`) with NO
    marshal-to-string then re-parse round trip -- typed `Data` flows to the transport edge
@@ -62,7 +67,8 @@ runtime request, see the gotcha below.
 6. **Tokenize + match.** `Dispatcher.Dispatch` (`internal/component/plugin/server/command.go`)
    calls `tokenize` (`internal/component/plugin/server/command.go`, quote-aware, rejects backslashes) then
    `matchBuiltinTokens` (`internal/component/plugin/server/command.go`), which walks `sortedKeys`, builtin
-   command names sorted longest-first, via `matchCommandTokens` (`internal/component/plugin/server/command.go`) to extract
+   command names sorted longest-first, via `matchCommandTokens`, which delegates
+   to the shared `command.MatchInvocationPath` (`internal/component/command/invocation_match.go`), to extract
    inline typed selectors (e.g. `send bgp <selector> update ...`) against YANG-derived `ArgDef`s.
    Matched selectors are copied onto the context by `applyExtractedSelectors`
    (`internal/component/plugin/server/command.go`, called at `:554`).
@@ -192,11 +198,12 @@ runtime request, see the gotcha below.
 |------|------|
 | `engine.go` | `APIEngine`: `Execute`/`Stream`/`ListCommands`/`DescribeCommand`, auth + read-only gating |
 | `types.go` | `CommandMeta`, `ParamMeta`, `ExecResult` (alias of `plugin.Response`), `CallerIdentity` (alias of `plugin.CallerIdentity`), status/auth-command constants |
-| `requests.go` | Domain request structs (`ExecuteRequest`, `ConfigSetRequest`, ...), `BuildCommand` |
+| `requests.go` | Domain request structs retaining `Params`, `ValidateParams`, legacy metadata-free `BuildCommand` |
+| `invocation.go` | One metadata generation for shared matching, flag normalization, invocation construction and read-only classification |
 | `config_session.go` | `ConfigSessionManager`/`ConfigSession`/`ConfigEditor`: per-user config edit sessions |
 | `schema.go` | `CommandSchema`/`OpenAPISchema`: JSON Schema + OpenAPI generation from `CommandMeta` |
 | `rest/server.go` | REST HTTP routes, auth (`withAuth`), `handleExecute`/`handleStream`/config routes |
-| `rest/convert.go` | REST JSON ↔ domain request conversion, `BuildCommand` call site |
+| `rest/convert.go` | REST JSON ↔ domain request conversion, preserved original command and string-valued params |
 | `grpc/server.go` | gRPC service impls (`zeServiceImpl`, `zeConfigServiceImpl`), auth interceptors |
 | `grpc/convert.go` | Proto ↔ domain request conversion |
 | `internal/core/ipc/method.go` | `ParseMethod`/`FormatMethod`: `module:rpc-name` wire-method string helpers |
@@ -230,22 +237,24 @@ runtime request, see the gotcha below.
   `Client` struct; none of those symbols exist in `internal/component/plugin/server` today.
   The only two ways into the shared `Dispatcher` are the REST/gRPC engine path documented
   above and the SSH/CLI editor path (`cli-editor.md`).
-- **JSON params become CLI tokens, not a typed payload.** `api.BuildCommand` (`requests.go`)
-  appends `"key value"` pairs onto the command string; any key or value containing whitespace
-  is rejected (`requests.go`). There is no structured params channel into the
-  dispatcher, everything downstream of `BuildCommand` is the same tokenizer the CLI uses
-  (`internal/component/plugin/server/command.go`), so REST/gRPC commands are exactly as expressive, and exactly as
-  string-shaped, as an SSH command.
+- **Params remain structured until command metadata is available.** The transports
+  retain command and Params separately; `api.prepareCommand` uses one command
+  generation, the dispatcher's shared matcher and original immutable ArgDefs.
+  It builds the same text invocation the CLI dispatches. A false structured flag
+  is omitted, a true flag is present, and a malformed flag refuses before any
+  command runs. Ordinary nonflag boolean data remains a value. An existing raw
+  invocation is never rebuilt or retargeted; declared extra parameters follow
+  as keywords. Whitespace in REST/gRPC parameter keys and values remains refused.
 - **Identity is transport-injected, never client-supplied.** `CallerIdentity.Username`
   (`CallerIdentity` = `plugin.CallerIdentity`, `types.go`) comes from the REST bearer-token authenticator (`rest/server.go`) or
   gRPC metadata interceptor (`grpc/server.go`), never from the request body/proto; the
   RPC path enforces the same rule (`RPCParams` has no username field,
   `internal/component/plugin/server/server.go`).
-- **Read-only enforcement is a longest-prefix scan, done twice.** `commandReadOnly`
-  (`engine.go`) at the engine layer and `IsReadOnlyPath`
-  (`internal/component/plugin/server/command.go`) at the dispatcher layer both classify
-  by verb/name prefix; they must stay consistent or a REST caller marked read-only could
-  reach a mutating dispatcher handler (or vice versa, spuriously blocking a safe one).
+- **Read-only classification uses the selected declaration.** The engine uses
+  the same metadata generation and matcher for construction and the declaration's
+  read-only fact, including ancestor selectors. Dispatcher authorization remains
+  authoritative and runs again before the handler. A metadata load error is
+  returned, never treated as an empty or permissive declaration set.
 - **REST has no TLS transport by design.** `NewRESTServer` rejects any non-loopback
   `ListenAddrs` entry (`rest/server.go`); gRPC allows non-loopback only with both
   authentication and TLS configured (`grpc/server.go`).
