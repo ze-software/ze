@@ -171,6 +171,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | Field | Type | Description |
 |-------|------|-------------|
 | `protocol-version` | `int` | REQUIRED. The highest plugin protocol version the plugin speaks (this engine speaks `1`) |
+| `exit-confirms-cleanup` | `bool` | Declare only when exit zero confirms release of this original engine's native resources. The daemon reserves protected warning capacity at accepted Stage 1, before `OnStarted`. |
 | `families` | `[]FamilyDecl` | Address families the plugin handles (name, mode, AFI, and SAFI) |
 | `commands` | `[]CommandDecl` | Commands the plugin provides |
 | `dependencies` | `[]string` | Plugin names that must also be loaded |

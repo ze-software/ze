@@ -1441,6 +1441,28 @@ serializes across tiers, not within them.
 
 ### Shutdown
 
+The optional Stage 1 field `exit-confirms-cleanup` gives a zero exit the meaning
+that the original engine confirmed its native cleanup. The compiled internal
+registration must carry the same promise. The host reserves warning capacity
+before the internal runner starts, or before accepting the external declaration.
+A full reservation set refuses admission before `OnStarted`.
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- AdmitTerminalCleanup, CheckTerminalCleanupDeclaration -->
+
+An internal runner can report its final cleanup cause through its original
+connection's `ReportTerminalCleanupFailure(string) error` method before return.
+The connection still exposes its `DirectBridge`. A forked runner reports the
+cause in structured stderr with `code=doctor-plugin-cleanup` and `error`.
+Cause capture precedes the log relay filter and retains one bounded first cause.
+A stderr line never confirms successful cleanup.
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- terminalCleanupConn, captureTerminalStderr -->
+
+The host waits for the actual internal return, or the original child's reaping
+and stderr join. A confirmed zero exit releases an unused reservation.
+A failure, unknown result, signal or incomplete stderr retains its original
+warning with `ze show warnings` as the next step. A new process cannot clear
+that warning by reusing the plugin's configured name.
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- finishTerminalCleanup, actualForkCleanupSuccess -->
+
 Explicit subsystem shutdown sends `ze-plugin-callback:bye` with an optional reason:
 <!-- source: pkg/plugin/rpc/types.go -- ByeInput -->
 

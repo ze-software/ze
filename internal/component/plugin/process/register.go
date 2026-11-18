@@ -17,6 +17,7 @@ import (
 // and a terminal stop that could not resolve plugin dependency order.
 var processEventCodes = []diagnostic.EventCode{
 	{Code: diagnostic.CodeDoctorPluginCrashed},
+	{Code: diagnostic.CodeDoctorPluginCleanup},
 	{Code: diagnostic.CodeDoctorPluginStderrRelayStopped},
 	{Code: diagnostic.CodeDoctorPluginRestartOverlap},
 	{Code: diagnostic.CodeDoctorPluginStopUnfinished},

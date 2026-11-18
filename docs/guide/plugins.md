@@ -121,6 +121,14 @@ block that runs it instead.
 
 ## When a Plugin Fails
 
+`doctor-plugin-cleanup` means a plugin's original resources have no confirmed
+release. Run `ze show warnings` to read the original cause and exit outcome.
+Repair the reported native condition and confirm the original resources are
+released before restarting service. A healthy replacement does not clear that
+old warning. Plugins without a terminal cleanup declaration keep their existing
+exit behavior.
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- finishTerminalCleanup -->
+
 **The plugin decides, not the configuration.** Every plugin tells ze at startup
 what its own failure means, and ze does that.
 

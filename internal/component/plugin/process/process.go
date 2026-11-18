@@ -27,6 +27,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -111,6 +112,8 @@ type Process struct {
 	// exit records how the process ended (stopped.go, ExitStatus): the
 	// runner's return code for an internal plugin, the reaped state for a fork.
 	exit exitRecord
+	// terminal holds cleanup reporting custody for this exact Process only.
+	terminal terminalCleanup
 
 	// metricHooks holds the metrics callbacks the ProcessManager gives this
 	// process (wireMetrics), nil when metrics are disabled or the manager took
@@ -673,6 +676,12 @@ func (p *Process) startInternal() error {
 	if runner == nil {
 		return fmt.Errorf("unknown internal plugin: %s", name)
 	}
+	compiled := registry.Lookup(name)
+	if compiled != nil {
+		if err := p.AdmitTerminalCleanup(compiled.ExitConfirmsCleanup); err != nil {
+			return err
+		}
+	}
 
 	// Create single bidirectional pipe for IPC.
 	engineSide, pluginSide := net.Pipe()
@@ -689,6 +698,9 @@ func (p *Process) startInternal() error {
 
 	// Wrap plugin-side connection with bridge reference.
 	bridgedPluginSide := rpc.NewBridgedConn(pluginSide, p.bridge)
+	if p.terminal.owner != nil {
+		bridgedPluginSide = &terminalCleanupConn{Conn: bridgedPluginSide, bridge: p.bridge, cleanup: &p.terminal}
+	}
 
 	// Closed by the goroutine below once the engine has returned. Stop waits on it,
 	// because the engine's LAST act is releasing what it installed.
@@ -699,6 +711,9 @@ func (p *Process) startInternal() error {
 		// Registered first, so it runs LAST: the signal means the engine and every
 		// defer of its own have finished, release included.
 		defer p.endSelectedEngine()
+		cleanExit := false
+		terminalStatus := "a panic or an exit without a returned status"
+		defer func() { p.finishTerminalCleanup(cleanExit, terminalStatus) }()
 		defer p.running.Store(false)
 		// The panic boundary: a panic in the plugin's own code is logged,
 		// counted and crash-recorded, and the goroutine then returns as a
@@ -722,6 +737,8 @@ func (p *Process) startInternal() error {
 		exitCode := runner(bridgedPluginSide)
 		var status textbuf.Buffer
 		status.Str("exit code ").Int(int64(exitCode))
+		terminalStatus = status.String()
+		cleanExit = exitCode == 0
 		p.exit.record(status.String())
 		if exitCode != 0 {
 			logger().Warn("internal plugin exited with a non-zero status; read its log lines above for the cause",
@@ -1032,7 +1049,8 @@ func drainStderrRelay(relayDone <-chan struct{}, read *stderrRelayReader) {
 // relayStderrFrom reads plugin stderr and relays to engine logs.
 // Plugin stderr format: time=... level=DEBUG msg="..." subsystem=gr ...
 // When ze.log.relay=<level>, relays messages at or above that level.
-// When disabled (empty/disabled), discards plugin stderr silently.
+// When disabled (empty/disabled), suppresses relay output but still captures
+// declared terminal cleanup failures for the original resource warning.
 // Takes an explicit io.Reader to avoid racing with monitor() on p.stderr.
 //
 // Go runtime panic blocks (lines beginning with "panic:" or "fatal error:",
@@ -1044,21 +1062,14 @@ func drainStderrRelay(relayDone <-chan struct{}, read *stderrRelayReader) {
 func (p *Process) relayStderrFrom(stderr io.Reader) {
 	// Get configured relay level
 	relayLevel, enabled := slogutil.RelayLevel()
-	if !enabled {
-		// Discard all stderr when relay disabled. A scan that ends early loses
-		// nothing here: discarding is the contract, so there is no error to
-		// read back.
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			// Read but discard
-		}
-		return
-	}
-
 	var inPanic bool
 	scanner := bufio.NewScanner(stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
+		p.captureTerminalStderr(line)
+		if !enabled {
+			continue
+		}
 		var (
 			level slog.Level
 			msg   string
@@ -1083,6 +1094,10 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	// block the paragraph above exists to carry never reaches the engine log.
 	// A relay that stopped says so.
 	err := scanner.Err()
+	p.noteTerminalStderrFailure(err)
+	if !enabled {
+		return // Disabled relay keeps ordinary plugins' prior discard behavior.
+	}
 	if errors.Is(err, os.ErrDeadlineExceeded) {
 		// The plugin was reaped and a descendant still holds its stderr open
 		// with nothing written for stderrDrainGrace (stderrRelayReader).
@@ -1340,6 +1355,9 @@ func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *s
 	}
 
 	// Close RPC connections via sync.Once — safe if Stop() races with monitor.
+	// The delivery worker ranges its original queue, so cancellation alone
+	// cannot join it after an unexpected exit. Drain that same queue here.
+	p.stopEventChan()
 	p.closeConns()
 
 	// The stderr pipe is this package's, not the Cmd's, so Wait above did not
@@ -1347,6 +1365,7 @@ func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *s
 	// out. Release the descriptor only once the relay has read them, which is
 	// what keeps a plugin's last line -- its verdict, or its panic block.
 	drainStderrRelay(relayDone, stderr)
+	p.finishTerminalCleanup(actualForkCleanupSuccess(cmd, waitErr), forkExitStatus(cmd, waitErr))
 	close(p.externalDone)
 }
 

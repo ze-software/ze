@@ -149,6 +149,7 @@ Optional metadata:
 | `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
 | `PeerUpBarrier` | `bool` | The plugin registers the peer on the peer-up event, so End-of-RIB waits for it |
 | `SignalsSessionReady` | `bool` | The plugin's routes belong to a peer's initial routing update and it reports `plugin session ready` when they are out. The report lowers the replay fence when the plugin also declares `FencesLiveForwards`; the End-of-RIB waits for no report ("Session-ready reports") |
+| `ExitConfirmsCleanup` | `bool` | Exit zero confirms this original engine's native cleanup. The daemon reserves reporting capacity before internal startup or accepted external Stage 1. The live declaration must agree for a compiled internal engine. |
 | `FencesLiveForwards` | `bool` | The plugin replays a peer's routes on peer-up while it also forwards live changes to that peer. The engine holds the peer's live forwards until the plugin's session-ready report. Counts only with `SignalsSessionReady`. Stage 1 uses `fences-live-forwards`; bgp-rib, bgp-rs and bgp-rr declare it on both transports |
 | `RelaysOnRSFastPath` | `bool` | The BGP route-server fast path forwards received UPDATEs on this plugin's behalf, in place of its cached forward. The fast path then relays a source only when the source's attach block feeds this plugin its UPDATEs (`receive [ update-received ]`), and reaches a destination only when the destination grants this plugin `send [ update ]`, the grants the cached forward answers to. `registry.RelaysOnRSFastPath` resolves a `use` alias. bgp-rs declares it |
 | `YANG` | `string` | YANG schema content |
@@ -619,6 +620,21 @@ The selected-output owner token is captured once on the live Process;
 generation cleanup reads the same token after its lifetime ends, so it cannot
 revoke a same-name successor's resources.
 <!-- source: internal/component/plugin/process/process.go -- StartWithContext -->
+
+A plugin can declare `ExitConfirmsCleanup` when its zero exit confirms that it
+released its original native resources. The daemon reserves one protected
+warning slot before its runner starts. A forked program reserves the slot when
+Stage 1 is accepted, before `OnStarted`. A full reservation set refuses startup.
+Compiled internal declarations must agree with the live Stage 1 declaration.
+An external program never borrows a compiled declaration by name.
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- AdmitTerminalCleanup, CheckTerminalCleanupDeclaration -->
+
+Only the actual internal return, or a zero child exit after reaping and joined
+stderr, releases an unused reservation. Failure, a signal or incomplete stderr
+retains `doctor-plugin-cleanup` with the original cause and terminal outcome.
+Connection closure and a healthy replacement cannot clear it. An ordinary
+plugin that makes no declaration keeps its existing exit behavior.
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- finishTerminalCleanup, actualForkCleanupSuccess -->
 <!-- source: internal/component/plugin/process/selected_owner.go -- SelectedOwner, SelectedOwnerForCleanup -->
 
 Stage 1 publishes each fully initialized registration record atomically. A

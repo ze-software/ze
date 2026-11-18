@@ -16,6 +16,7 @@ const (
 	CodeDoctorInternalDefect                = "doctor-internal-defect"
 	CodeDoctorPluginStopped                 = "doctor-plugin-stopped"
 	CodeDoctorPluginCrashed                 = "doctor-plugin-crashed"
+	CodeDoctorPluginCleanup                 = "doctor-plugin-cleanup"
 	CodeDoctorPluginConfigUnapplied         = "doctor-plugin-config-unapplied"
 	CodeDoctorPluginSetupFailed             = "doctor-plugin-setup-failed"
 	CodeDoctorPluginStartupPhaseFailed      = "doctor-plugin-startup-phase-failed"
@@ -66,6 +67,12 @@ const exampleShowErrors = "ze show errors"
 const codeDoctorHubManagedCollision = "doctor-hub-managed-collision"
 
 var pluginInfraCodes = []CodeMeta{
+	{
+		Code:        CodeDoctorPluginCleanup,
+		Title:       "Plugin resource cleanup is unconfirmed",
+		Description: "A plugin that declares terminal cleanup ownership ended without confirming resource release. The daemon retains the original process's failure cause and exit outcome after its RPC connection ends. A healthy replacement cannot clear that warning. Inspect the retained cause and confirm the original resources are released before restarting service.",
+		Examples:    []string{exampleShowDoctor, exampleShowWarnings},
+	},
 	// The cross-cutting codes.
 	{
 		Code:  CodeDoctorInternalDefect,

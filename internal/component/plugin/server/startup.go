@@ -903,6 +903,9 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 	if err := e.refuseSinkChecks(input); err != nil {
 		return err
 	}
+	if err := proc.AdmitTerminalCleanup(input.ExitConfirmsCleanup); err != nil {
+		return err
+	}
 
 	// Convert RPC input to engine registration type.
 	reg := registrationFromRPC(input)
@@ -1366,6 +1369,7 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		VerifyBudget:          input.VerifyBudget,
 		ApplyBudget:           input.ApplyBudget,
 		StartedHandler:        input.StartedHandler,
+		ExitConfirmsCleanup:   input.ExitConfirmsCleanup,
 		DrainBudget:           time.Duration(input.DrainBudget) * time.Second,
 		WantsValidateOpen:     input.WantsValidateOpen,
 		Claims:                input.Claims,

@@ -201,6 +201,14 @@ var stage1Checks = []stage1Check{
 		daemonState: "it compares the declaration with the other plugins the daemon runs",
 	},
 	{
+		// A compiled promise must agree before the declared owner starts.
+		name: "terminal-cleanup-agreement", section: sectionStage1, phase: stage1PhaseSink,
+		live: func(e *engineStartupSink, input *rpc.DeclareRegistrationInput) error {
+			return e.proc.CheckTerminalCleanupDeclaration(input.ExitConfirmsCleanup)
+		},
+		daemonState: "it compares an internal process's cleanup declaration with its compiled registration",
+	},
+	{
 		// The drain declaration is validated before conversion: a budget the
 		// daemon could not honor is refused, never clamped.
 		name: "drain", section: sectionStage1, phase: stage1PhaseSink,

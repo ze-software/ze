@@ -293,7 +293,7 @@ func TestJudgeDeclarationNamesTheChecksItCannotJudge(t *testing.T) {
 		assert.NotEmpty(t, check.Section, "%s: no section", check.Check)
 	}
 	assert.Equal(t, []string{
-		"ambiguous-registration", "doctor-check-declared-twice", "respawn-agreement",
+		"ambiguous-registration", "terminal-cleanup-agreement", "doctor-check-declared-twice", "respawn-agreement",
 		"schema-unchanged", "dependencies", "registration-conflicts",
 	}, unjudged)
 	assert.Len(t, judgement.Verdicts, len(stage1Checks)-len(unjudged))

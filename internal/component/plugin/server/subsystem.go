@@ -200,6 +200,9 @@ func (hs *hubStartupSink) registrationName() string { return hs.h.config.Name }
 // handler-local fields that FindHandler and RegisterSchemas read.
 func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
 	h := hs.h
+	if err := h.proc.AdmitTerminalCleanup(input.ExitConfirmsCleanup); err != nil {
+		return err
+	}
 	// Stage 1 replaces the provisional command list with what this child
 	// actually declares, including an empty declaration. Start holds h.mu.
 	h.commands = h.commands[:0]

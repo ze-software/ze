@@ -1119,6 +1119,16 @@ its unused reservation without a synthetic raise or clear. This is
 daemon-local custody; no resource pointer crosses the plugin protocol.
 <!-- source: internal/core/report/resource_warning.go -- NewResourceWarning, ResourceWarning.NewEpisode, ResourceWarningEpisode.Publish, ResourceWarningEpisode.Update, ResourceWarningEpisode.Clear, ResourceWarning.Close -->
 
+
+A plugin that declares `exit-confirms-cleanup` reserves its original process's
+warning slot before native startup. Its terminal failure produces
+`doctor-plugin-cleanup`, including the retained cause and actual exit outcome.
+The host also captures a forked runner's structured final cause when log relay
+is disabled. Incomplete stderr leaves cleanup unknown. Only that original
+engine's confirmed zero return releases an unused reservation. A successful
+replacement does not clear a failed original process's warning.
+<!-- source: internal/component/plugin/process/terminal_cleanup.go -- AdmitTerminalCleanup, captureTerminalStderr, finishTerminalCleanup -->
+
 ### A full bus
 
 The bus is bounded: `ze.report.warnings.max` active warnings, including
