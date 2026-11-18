@@ -189,21 +189,21 @@ func bgpPolicyDiagnosticsValidate(output string, absent bool) error {
 		case strings.Contains(line, "warning: peer C:"):
 			name = "C"
 			if !strings.Contains(line, bgpPolicyDiagnosticsLearnedText) {
-				return fmt.Errorf("C validation omitted learned-route rejection: %s", line)
+				return fmt.Errorf("peer C validation omitted learned-route rejection: %s", line)
 			}
 			if !strings.Contains(line, bgpPolicyDiagnosticsLocalText) {
-				return fmt.Errorf("C validation omitted local-route permission: %s", line)
+				return fmt.Errorf("peer C validation omitted local-route permission: %s", line)
 			}
 			if strings.Contains(line, bgpPolicyDiagnosticsRFC) {
-				return fmt.Errorf("C validation borrowed external wording: %s", line)
+				return fmt.Errorf("peer C validation borrowed external wording: %s", line)
 			}
 		case strings.Contains(line, "warning: peer E:"):
 			name = "E"
 			if !strings.Contains(line, bgpPolicyDiagnosticsRFC) {
-				return fmt.Errorf("E validation omitted RFC8212: %s", line)
+				return fmt.Errorf("peer E validation omitted RFC8212: %s", line)
 			}
 			if !strings.Contains(line, "no export policy") {
-				return fmt.Errorf("E validation omitted export-policy absence: %s", line)
+				return fmt.Errorf("peer E validation omitted export-policy absence: %s", line)
 			}
 		default:
 			return fmt.Errorf("configured or role-served peer raised a policy warning: %s", line)
@@ -370,7 +370,7 @@ func bgpPolicyDiagnosticsWire(ctx context.Context, plugin *sdk.Plugin, address s
 		return err
 	}
 	if err := bgpBestRouteExpect(e, nil, nil, nil); err != nil {
-		return fmt.Errorf("E leaked route despite absent export policy: %w", err)
+		return fmt.Errorf("peer E leaked route despite absent export policy: %w", err)
 	}
 	return policyFinalSessions(ctx, plugin, 6)
 }
