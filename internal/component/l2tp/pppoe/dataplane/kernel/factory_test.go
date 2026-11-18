@@ -148,7 +148,7 @@ func TestFactoryPrivatePanicCleanup(t *testing.T) {
 					if !ok || !errors.Is(panicErr, want) || !errors.Is(panicErr, cleanupErr) {
 						t.Fatalf("construction or cleanup failure lost: %v", recovered)
 					}
-				} else if recovered != want {
+				} else if recovered != any(want) {
 					t.Fatalf("construction panic changed: %v", recovered)
 				}
 				if returned || opened != nil {
